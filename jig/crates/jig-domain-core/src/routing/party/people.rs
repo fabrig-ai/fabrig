@@ -250,7 +250,8 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::AccountFinishing { .. }
                     | people::Outcome::AccountMovedIn { .. }
                     | people::Outcome::AccountReading { .. }
-                    | people::Outcome::AccountLoginAsked { .. } | people::Outcome::AccountChanged
+                    | people::Outcome::AccountLoginAsked { .. }
+                    | people::Outcome::AccountChanged
                     | people::Outcome::AccountRemoved { .. }
                     | people::Outcome::AccountSignedOut { .. }
                     | people::Outcome::Refused(..),

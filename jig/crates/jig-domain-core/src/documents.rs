@@ -168,7 +168,10 @@ pub enum Subject {
     Accounts {
         party: u64,
     },
-    Terminal { party: u64, terminal: u64 },
+    Terminal {
+        party: u64,
+        terminal: u64,
+    },
     /// Filtered live tasks in one project, newest change first.
     /// A fixed task query, independent of any application shape.
     Query {
@@ -510,7 +513,9 @@ pub enum Document {
     Inbox(Inbox),
     /// The party's own accounts and sign-ins.
     Accounts(Box<Accounts>),
-    Terminal { login: Option<jig_domain_accounts::TerminalLogin> },
+    Terminal {
+        login: Option<jig_domain_accounts::TerminalLogin>,
+    },
     /// Fleet placement, accounts and finite capacities.
     Deployment(Box<Deployment>),
     Settings(Box<Settings>),
@@ -570,7 +575,9 @@ pub fn make(
             Ok(Document::Inbox(inbox_deployment::inbox(core, limits, party, window)?))
         }
         Subject::Terminal { party: owner, terminal } => {
-            if *owner != party { return Err(Missing::NotAllowed); }
+            if *owner != party {
+                return Err(Missing::NotAllowed);
+            }
             Ok(Document::Terminal { login: core.accounts.terminal_login(party, *terminal).cloned() })
         }
         Subject::Accounts { party: owner } => {

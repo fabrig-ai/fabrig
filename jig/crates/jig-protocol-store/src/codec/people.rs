@@ -1,6 +1,6 @@
 //! People rows translated exhaustively (protocol/store/records.md, 1).
 //! Durable deletion steps follow jig/docs/design/protocol/store/README.md, 6.1.
-use crate::people_v15 as wire;
+use crate::people_v16 as wire;
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_people as domain;
@@ -34,11 +34,11 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     Some(limits)
 }
 
-/// Derive the people-v15 bounds before checking its schema ceilings.
+/// Derive the people-v16 bounds before checking its schema ceilings.
 ///
 /// `None` means the derivation's checked arithmetic cannot represent a bound.
-/// A returned value may exceed `people_v15::CEILINGS`; callers must use
-/// `people_v15::check_limits` before using it to encode or decode records.
+/// A returned value may exceed `people_v16::CEILINGS`; callers must use
+/// `people_v16::check_limits` before using it to encode or decode records.
 /// Configuration uses this diagnostic seam to explain an envelope refusal
 /// (protocol/limits.md).
 #[must_use]

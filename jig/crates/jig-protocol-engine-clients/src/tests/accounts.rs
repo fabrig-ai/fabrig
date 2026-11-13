@@ -34,7 +34,9 @@ fn source_lines() -> List<d::SourceLine> {
 }
 fn document(end: Option<a::End>) -> d::Accounts {
     d::Accounts {
-        lendable: false, lending: None, lent_end: None,
+        lendable: false,
+        lending: None,
+        lent_end: None,
         readiness: List::with_capacity(0),
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
@@ -300,7 +302,8 @@ fn accounts_documents_preserve_lending_facts() {
     let mut doc = document(None);
     doc.lendable = true;
     doc.lending = Some(a::TerminalLogin { number: 1, provider: 2, name: b"work".as_slice().into(), cancelled: true });
-    doc.lent_end = Some(a::LentEnd { number: 9, end: a::LoginEnd::Refused { refusal: a::Refusal::ProgramNameReserved } });
+    doc.lent_end =
+        Some(a::LentEnd { number: 9, end: a::LoginEnd::Refused { refusal: a::Refusal::ProgramNameReserved } });
     let wire = accounts::document(&doc, &fixtures::wire()).expect("lending document");
     assert!(wire.lendable());
     let login = wire.lending().as_ref().expect("lending login");
@@ -320,5 +323,9 @@ fn terminal_watches_are_served() {
     let subject = w::Subject::Terminal(
         w::SubjectTerminal::new(&fixtures::wire(), w::SubjectTerminalParts { terminal: 23 }).unwrap(),
     );
-    let Some(jig_domain_core::Event::Watch { subject: d::Watched::Terminal { terminal: 23 }, .. }) = watches::watch(skein_lib::Token::new(17), 23, subject, 2) else { unreachable!("terminal watch translated") };
+    let Some(jig_domain_core::Event::Watch { subject: d::Watched::Terminal { terminal: 23 }, .. }) =
+        watches::watch(skein_lib::Token::new(17), 23, subject, 2)
+    else {
+        unreachable!("terminal watch translated")
+    };
 }

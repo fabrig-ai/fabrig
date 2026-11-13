@@ -696,7 +696,7 @@ fn core_limits() -> jig_domain_core::Limits {
     fixtures::CORE_LIMITS
 }
 
-fn people_limits() -> crate::people_v15::Limits {
+fn people_limits() -> crate::people_v16::Limits {
     crate::codec::people::limits(&core_limits()).expect("within people's ceilings")
 }
 
@@ -713,7 +713,7 @@ fn ask_round_trip(ask: jig_domain_people::Ask) {
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured room");
     let bytes = writer.finish();
-    let read = crate::people_v15::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
+    let read = crate::people_v16::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
     assert_eq!(crate::codec::people::decode_ask(read, &limits), Ok(ask));
 }
 
@@ -828,8 +828,8 @@ fn a_person_identity_field_past_its_limit_is_refused() {
             &people_limits(),
             &fixtures::configured_model_names(&[])
         ),
-        Err(crate::people_v15::Problem {
-            path: crate::people_v15::Path::IdentityKeySubject,
+        Err(crate::people_v16::Problem {
+            path: crate::people_v16::Path::IdentityKeySubject,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -843,8 +843,8 @@ fn a_people_row_of_another_version_does_not_decode() {
     *bytes.get_mut(1).expect("version prefix") = 9;
     assert_eq!(
         crate::codec::people::decode(&bytes, &limits, &names),
-        Err(crate::people_v15::Problem {
-            path: crate::people_v15::Path::RowVersion,
+        Err(crate::people_v16::Problem {
+            path: crate::people_v16::Path::RowVersion,
             reason: skein_codec::Reason::Version
         })
     );
@@ -1481,7 +1481,7 @@ fn retained_people_answers_keep_dependency_refusal_facts() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary tests build boundary text")]
 fn a_stored_project_name_is_bounded_and_utf8() {
-    use crate::people_v15 as wire;
+    use crate::people_v16 as wire;
     use skein_lib::{Reader, Writer};
     // protocol/store/README.md, 4.4: the name is UTF-8 text, at most 64 bytes.
     const NAME_BOUND: usize = 64;
@@ -1801,8 +1801,8 @@ fn a_stored_member_keeps_its_symbols() {
             if count > BOUND {
                 assert_eq!(
                     crate::codec::people::encode(&row, &limits, &names),
-                    Err(crate::people_v15::Problem {
-                        path: crate::people_v15::Path::MemberSymbols,
+                    Err(crate::people_v16::Problem {
+                        path: crate::people_v16::Path::MemberSymbols,
                         reason: skein_codec::Reason::Bound,
                     }),
                 );
@@ -1815,8 +1815,8 @@ fn a_stored_member_keeps_its_symbols() {
                 narrower.member_symbols = u32::from(BOUND - 1);
                 assert_eq!(
                     crate::codec::people::decode(&bytes, &narrower, &names),
-                    Err(crate::people_v15::Problem {
-                        path: crate::people_v15::Path::MemberSymbols,
+                    Err(crate::people_v16::Problem {
+                        path: crate::people_v16::Path::MemberSymbols,
                         reason: skein_codec::Reason::Bound,
                     }),
                 );
@@ -1879,7 +1879,7 @@ fn later_subagents_obey_the_models_bound_in_every_family() {
             ),
             (
                 "people",
-                match crate::people_v15::LlmLater::decode(&people, &mut Reader::new(&bytes)) {
+                match crate::people_v16::LlmLater::decode(&people, &mut Reader::new(&bytes)) {
                     Ok(_) => Ok(()),
                     Err(problem) => Err(problem.reason),
                 },
@@ -1945,5 +1945,28 @@ fn rows_stored_before_talk_decode_with_no_talk() {
             t::Stored::Ended(Box::new(original.clone()))
         };
         assert_eq!(codec::decode(&bytes.finish(), &limits, &[]), Ok(expected));
+    }
+}
+
+#[test]
+fn lent_login_requests_answers_and_refusals_read_back() {
+    use jig_domain_people::{AccountChange as C, AccountHolder, Ask, LoginExit, Outcome, Refusal};
+    for change in [
+        C::LoginProgram { provider: 3, name: b"work".as_slice().into() },
+        C::CancelLogin { number: 23 },
+        C::LoginEnded { number: 23, exit: LoginExit::Exited { code: 0 } },
+        C::LoginEnded { number: 23, exit: LoginExit::Exited { code: 255 } },
+        C::LoginEnded { number: 23, exit: LoginExit::Killed { signal: 9 } },
+        C::LoginEnded { number: 23, exit: LoginExit::NotStarted },
+    ] {
+        ask_round_trip(Ask::AccountChange { holder: AccountHolder::Own, change });
+    }
+    for outcome in [
+        Outcome::AccountLoginAsked { number: 23 },
+        Outcome::Refused(Refusal::NoTerminal),
+        Outcome::Refused(Refusal::LoginUnderWay),
+        Outcome::Refused(Refusal::NotLending),
+    ] {
+        people_round_trip(fixtures::people_outcomes::answered(outcome));
     }
 }

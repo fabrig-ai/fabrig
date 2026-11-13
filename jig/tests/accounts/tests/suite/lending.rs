@@ -1,8 +1,15 @@
 //! A party lends watches through the core; requests and documents cross the same seam.
 use jig_accounts_world::{LIMITS, PROVIDER, provider, providers};
-use jig_core_kit::{client_peer::ClientPeer, fixtures::ask_as, world::{Setup, World}};
+use jig_core_kit::{
+    client_peer::ClientPeer,
+    fixtures::ask_as,
+    world::{Setup, World},
+};
 use jig_domain_accounts::{self as accounts, LentEnd, LoginEnd};
-use jig_domain_core::{self as core, documents::{self as d, Document, Watched, Window}};
+use jig_domain_core::{
+    self as core,
+    documents::{self as d, Document, Watched, Window},
+};
 use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::Token;
@@ -20,7 +27,9 @@ fn configuration() -> root::Config {
     config.core.settings.llm_providers = providers(vec![anthropic]);
     config
 }
-fn fixture() -> World { fixture_with_names(LIMITS.program_names) }
+fn fixture() -> World {
+    fixture_with_names(LIMITS.program_names)
+}
 fn fixture_with_names(names: u32) -> World {
     let config = configuration();
     let (_, mut limits) = jig_core_kit::world::fixture(SEED, false);
@@ -41,21 +50,43 @@ fn fixture_with_names(names: u32) -> World {
     open(&mut world, ACCOUNTS, Watched::Accounts);
     world
 }
-fn send(world: &mut World, event: core::Event) { world.send(root::Event::Core(event)); }
-fn open(world: &mut World, watcher: u64, subject: Watched) {
-    send(world, core::Event::Watch { watcher: Token::new(watcher), sign_in: world.session(), subject, window: Window { rows: 4, after: None } });
+fn send(world: &mut World, event: core::Event) {
+    world.send(root::Event::Core(event));
 }
-fn terminal(world: &mut World, watcher: u64, number: u64) { open(world, watcher, Watched::Terminal { terminal: number }); }
-fn close(world: &mut World, watcher: u64) { send(world, core::Event::Unwatch { watcher: Token::new(watcher) }); }
+fn open(world: &mut World, watcher: u64, subject: Watched) {
+    send(
+        world,
+        core::Event::Watch {
+            watcher: Token::new(watcher),
+            sign_in: world.session(),
+            subject,
+            window: Window { rows: 4, after: None },
+        },
+    );
+}
+fn terminal(world: &mut World, watcher: u64, number: u64) {
+    open(world, watcher, Watched::Terminal { terminal: number });
+}
+fn close(world: &mut World, watcher: u64) {
+    send(world, core::Event::Unwatch { watcher: Token::new(watcher) });
+}
 fn document(world: &mut World, watcher: u64) -> Document {
     // Consume the previous delivery so the newest marked document can arrive.
     send(world, core::Event::Delivered { watcher: Token::new(watcher) });
-    world.client_peer.as_ref().expect("client peer").delivered.iter().rev().find_map(|(_, delivery)| {
-        match delivery {
-            root::Delivery::Core(core::Held::Delivery { watcher: found, document }) if found.raw() == watcher => Some(*document.clone()),
+    world
+        .client_peer
+        .as_ref()
+        .expect("client peer")
+        .delivered
+        .iter()
+        .rev()
+        .find_map(|(_, delivery)| match delivery {
+            root::Delivery::Core(core::Held::Delivery { watcher: found, document }) if found.raw() == watcher => {
+                Some(*document.clone())
+            }
             _ => None,
-        }
-    }).expect("watch delivered")
+        })
+        .expect("watch delivered")
 }
 fn account_doc(world: &mut World) -> d::Accounts {
     let Document::Accounts(doc) = document(world, ACCOUNTS) else { panic!("accounts document") };
@@ -65,7 +96,13 @@ fn terminal_doc(world: &mut World, watcher: u64) -> Option<accounts::TerminalLog
     let Document::Terminal { login } = document(world, watcher) else { panic!("terminal document") };
     login
 }
-fn change_as(world: &mut World, sign_in: u64, key: u8, holder: people::AccountHolder, change: people::AccountChange) -> people::Outcome {
+fn change_as(
+    world: &mut World,
+    sign_in: u64,
+    key: u8,
+    holder: people::AccountHolder,
+    change: people::AccountChange,
+) -> people::Outcome {
     ask_as(world, sign_in, key, people::Ask::AccountChange { holder, change });
     match world.people_answers.last().expect("account answer") {
         people::Reply::Outcome(outcome) => outcome.clone(),
@@ -93,11 +130,15 @@ fn end(world: &mut World, number: u32, expected: LoginEnd) {
 fn terminal_watches_offer_withdraw_and_refuse_the_fifth() {
     let mut world = fixture();
     assert!(!account_doc(&mut world).lendable);
-    for number in 1..=4 { terminal(&mut world, TERMINAL + number, number); }
+    for number in 1..=4 {
+        terminal(&mut world, TERMINAL + number, number);
+    }
     assert!(account_doc(&mut world).lendable);
     terminal(&mut world, TERMINAL + 5, 5);
     assert!(world.client_peer.as_ref().expect("client peer").now.iter().any(|now| matches!(now, core::Now::WatchRefused { watcher, why: core::WatchRefusal::Busy } if watcher.raw() == TERMINAL + 5)));
-    for number in 1..=3 { close(&mut world, TERMINAL + number); }
+    for number in 1..=3 {
+        close(&mut world, TERMINAL + number);
+    }
     assert!(account_doc(&mut world).lendable);
     close(&mut world, TERMINAL + 4);
     assert!(!account_doc(&mut world).lendable);
@@ -112,7 +153,8 @@ fn the_newest_terminal_gets_the_login_and_exit_zero_declares_work() {
     terminal(&mut world, TERMINAL, 7);
     assert_eq!(ask(&mut world, 21, b"work"), people::Outcome::AccountLoginAsked { number: 1 });
     assert_eq!(terminal_doc(&mut world, TERMINAL - 1), None);
-    let pending = accounts::TerminalLogin { number: 1, provider: PROVIDER, name: b"work".as_slice().into(), cancelled: false };
+    let pending =
+        accounts::TerminalLogin { number: 1, provider: PROVIDER, name: b"work".as_slice().into(), cancelled: false };
     assert_eq!(terminal_doc(&mut world, TERMINAL), Some(pending.clone()));
     let doc = account_doc(&mut world);
     assert_eq!(doc.lending, Some(pending));
@@ -134,13 +176,31 @@ fn login_refusals_precede_no_terminal_then_login_under_way() {
     let mut world = fixture();
     let missing = people::Outcome::Refused(people::Refusal::NoTerminal);
     assert_eq!(ask(&mut world, 21, b"work"), missing);
-    assert_eq!(ask(&mut world, 22, b"Upper"), people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Words }));
-    assert_eq!(change(&mut world, 23, people::AccountChange::LoginProgram { provider: 99, name: b"work".as_slice().into() }), people::Outcome::Refused(people::Refusal::NotOffered));
+    assert_eq!(
+        ask(&mut world, 22, b"Upper"),
+        people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Words })
+    );
+    assert_eq!(
+        change(&mut world, 23, people::AccountChange::LoginProgram { provider: 99, name: b"work".as_slice().into() }),
+        people::Outcome::Refused(people::Refusal::NotOffered)
+    );
     let session = world.session();
-    assert_eq!(change_as(&mut world, session, 24, people::AccountHolder::Deployment, people::AccountChange::LoginProgram { provider: PROVIDER, name: b"work".as_slice().into() }), people::Outcome::Refused(people::Refusal::NotOffered));
+    assert_eq!(
+        change_as(
+            &mut world,
+            session,
+            24,
+            people::AccountHolder::Deployment,
+            people::AccountChange::LoginProgram { provider: PROVIDER, name: b"work".as_slice().into() }
+        ),
+        people::Outcome::Refused(people::Refusal::NotOffered)
+    );
     terminal(&mut world, TERMINAL, 7);
     assert_eq!(ask(&mut world, 25, b"work"), people::Outcome::AccountLoginAsked { number: 1 });
-    assert_eq!(ask(&mut world, 26, b"Upper"), people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Words }));
+    assert_eq!(
+        ask(&mut world, 26, b"Upper"),
+        people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Words })
+    );
     assert_eq!(ask(&mut world, 27, b"work"), people::Outcome::Refused(people::Refusal::LoginUnderWay));
 }
 
@@ -166,7 +226,10 @@ fn unsuccessful_exits_record_not_finished_without_declaring() {
         (people::LoginExit::Exited { code: 1 }, accounts::LoginExit::Exited { code: 1 }),
         (people::LoginExit::Killed { signal: 15 }, accounts::LoginExit::Killed { signal: 15 }),
         (people::LoginExit::NotStarted, accounts::LoginExit::NotStarted),
-    ].into_iter().enumerate() {
+    ]
+    .into_iter()
+    .enumerate()
+    {
         let number = u32::try_from(index + 1).expect("small table");
         let key = u8::try_from(21 + index * 2).expect("small table");
         assert_eq!(ask(&mut world, key, b"work"), people::Outcome::AccountLoginAsked { number });
@@ -178,11 +241,19 @@ fn unsuccessful_exits_record_not_finished_without_declaring() {
 
 #[test]
 fn cancel_marks_both_documents_and_dominates_every_report() {
-    for exit in [people::LoginExit::Exited { code: 0 }, people::LoginExit::Exited { code: 1 }, people::LoginExit::Killed { signal: 9 }, people::LoginExit::NotStarted] {
+    for exit in [
+        people::LoginExit::Exited { code: 0 },
+        people::LoginExit::Exited { code: 1 },
+        people::LoginExit::Killed { signal: 9 },
+        people::LoginExit::NotStarted,
+    ] {
         let mut world = fixture();
         terminal(&mut world, TERMINAL, 7);
         ask(&mut world, 21, b"work");
-        assert_eq!(change(&mut world, 22, people::AccountChange::CancelLogin { number: 1 }), people::Outcome::AccountChanged);
+        assert_eq!(
+            change(&mut world, 22, people::AccountChange::CancelLogin { number: 1 }),
+            people::Outcome::AccountChanged
+        );
         assert!(terminal_doc(&mut world, TERMINAL).expect("cancelled login").cancelled);
         assert!(account_doc(&mut world).lending.expect("cancelled login").cancelled);
         report(&mut world, 23, 1, exit);
@@ -200,16 +271,28 @@ fn withdrawing_the_selected_watch_ends_its_login_and_late_or_foreign_reports_ref
     terminal(&mut world, TERMINAL - 1, 6);
     terminal(&mut world, TERMINAL, 7);
     ask(&mut world, 21, b"work");
-    for request in [people::AccountChange::CancelLogin { number: 1 }, people::AccountChange::LoginEnded { number: 1, exit: people::LoginExit::Exited { code: 0 } }] {
+    for request in [
+        people::AccountChange::CancelLogin { number: 1 },
+        people::AccountChange::LoginEnded { number: 1, exit: people::LoginExit::Exited { code: 0 } },
+    ] {
         let key = if matches!(request, people::AccountChange::CancelLogin { .. }) { 22 } else { 23 };
-        assert_eq!(change_as(&mut world, other, key, people::AccountHolder::Own, request), people::Outcome::Refused(people::Refusal::NotLending));
+        assert_eq!(
+            change_as(&mut world, other, key, people::AccountHolder::Own, request),
+            people::Outcome::Refused(people::Refusal::NotLending)
+        );
     }
     close(&mut world, TERMINAL - 1);
     assert!(account_doc(&mut world).lending.is_some(), "an older offer going leaves the login");
     close(&mut world, TERMINAL);
     end(&mut world, 1, LoginEnd::NotFinished { exit: None });
-    assert_eq!(report(&mut world, 24, 1, people::LoginExit::Exited { code: 0 }), people::Outcome::Refused(people::Refusal::NotLending));
-    assert_eq!(change(&mut world, 25, people::AccountChange::CancelLogin { number: 1 }), people::Outcome::Refused(people::Refusal::NotLending));
+    assert_eq!(
+        report(&mut world, 24, 1, people::LoginExit::Exited { code: 0 }),
+        people::Outcome::Refused(people::Refusal::NotLending)
+    );
+    assert_eq!(
+        change(&mut world, 25, people::AccountChange::CancelLogin { number: 1 }),
+        people::Outcome::Refused(people::Refusal::NotLending)
+    );
     terminal(&mut world, TERMINAL + 1, 8);
     ask(&mut world, 26, b"work");
     change(&mut world, 27, people::AccountChange::CancelLogin { number: 2 });
@@ -241,22 +324,48 @@ fn a_name_taken_before_the_report_refuses_the_end_and_the_next_ask() {
     world.sign_in = Some(owner);
     terminal(&mut world, TERMINAL, 7);
     ask(&mut world, 21, b"work");
-    assert!(matches!(change_as(&mut world, other, 22, people::AccountHolder::Own,
-        people::AccountChange::DeclareProgram { provider: PROVIDER, join: None, name: b"work".as_slice().into() }), people::Outcome::AccountProgramDeclared { .. }));
-    assert_eq!(ask(&mut world, 23, b"work"), people::Outcome::Refused(people::Refusal::NameTaken), "declaration before LoginUnderWay");
+    assert!(matches!(
+        change_as(
+            &mut world,
+            other,
+            22,
+            people::AccountHolder::Own,
+            people::AccountChange::DeclareProgram { provider: PROVIDER, join: None, name: b"work".as_slice().into() }
+        ),
+        people::Outcome::AccountProgramDeclared { .. }
+    ));
+    assert_eq!(
+        ask(&mut world, 23, b"work"),
+        people::Outcome::Refused(people::Refusal::NameTaken),
+        "declaration before LoginUnderWay"
+    );
     assert_eq!(report(&mut world, 24, 1, people::LoginExit::Exited { code: 0 }), people::Outcome::AccountChanged);
     end(&mut world, 1, LoginEnd::Refused { refusal: accounts::Refusal::ProgramNameReserved });
     close(&mut world, TERMINAL);
-    assert_eq!(ask(&mut world, 25, b"work"), people::Outcome::Refused(people::Refusal::NameTaken), "declaration before NoTerminal");
+    assert_eq!(
+        ask(&mut world, 25, b"work"),
+        people::Outcome::Refused(people::Refusal::NameTaken),
+        "declaration before NoTerminal"
+    );
 }
 #[test]
 fn lifetime_names_spent_before_the_report_refuse_its_declaration() {
     let mut world = fixture_with_names(1);
     terminal(&mut world, TERMINAL, 7);
     ask(&mut world, 21, b"work");
-    assert!(matches!(change(&mut world, 22, people::AccountChange::DeclareProgram { provider: PROVIDER, join: None, name: b"other".as_slice().into() }), people::Outcome::AccountProgramDeclared { .. }));
+    assert!(matches!(
+        change(
+            &mut world,
+            22,
+            people::AccountChange::DeclareProgram { provider: PROVIDER, join: None, name: b"other".as_slice().into() }
+        ),
+        people::Outcome::AccountProgramDeclared { .. }
+    ));
     report(&mut world, 23, 1, people::LoginExit::Exited { code: 0 });
     end(&mut world, 1, LoginEnd::Refused { refusal: accounts::Refusal::Limit { bound: accounts::Bound::Sources } });
     close(&mut world, TERMINAL);
-    assert_eq!(ask(&mut world, 24, b"work"), people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Sources }));
+    assert_eq!(
+        ask(&mut world, 24, b"work"),
+        people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Sources })
+    );
 }

@@ -83,8 +83,8 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "people",
         root: "crates/jig-protocol-store",
-        schemas: &["schema/people-v15.schema"],
-        generated: &["src/generated/people_v15.rs"],
+        schemas: &["schema/people-v16.schema"],
+        generated: &["src/generated/people_v16.rs", "src/generated/people_v15.rs"],
         golden: "golden/people",
         fixtures: &[],
     },

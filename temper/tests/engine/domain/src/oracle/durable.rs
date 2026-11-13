@@ -18,6 +18,7 @@ pub(super) fn answer(mut answer: Answer) -> Answer {
             | docs::Document::Project(_)
             | docs::Document::Note(_)
             | docs::Document::Inbox(_)
+            | docs::Document::Terminal { .. }
             | docs::Document::Accounts(_)
             | docs::Document::Deployment(_)
             | docs::Document::Settings(_) => {}

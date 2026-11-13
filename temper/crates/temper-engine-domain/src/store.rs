@@ -831,12 +831,16 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::AccountChange { change, .. } => {
                         use jig_domain_people::AccountChange;
                         match change {
-                            AccountChange::DeclareProgram { name, .. } => Some(skein_lib::len_u64(name.len())),
+                            AccountChange::LoginProgram { name, .. } | AccountChange::DeclareProgram { name, .. } => {
+                                Some(skein_lib::len_u64(name.len()))
+                            }
                             AccountChange::SetUses { uses, .. } => {
                                 skein_lib::len_u64(uses.as_deref().unwrap_or_default().len())
                                     .checked_mul(u64::try_from(size_of::<jig_domain_people::Use>()).ok()?)
                             }
                             AccountChange::ReadLists { .. }
+                            | AccountChange::CancelLogin { .. }
+                            | AccountChange::LoginEnded { .. }
                             | AccountChange::CheckProgram { .. }
                             | AccountChange::FinishSignIn { .. }
                             | AccountChange::AddKey { .. }
@@ -1222,6 +1226,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::AccountFinishing { .. }
         | Outcome::AccountKeyKept { .. }
         | Outcome::AccountReading { .. }
+        | Outcome::AccountLoginAsked { .. }
         | Outcome::AccountChanged
         | Outcome::AccountMovingOut { .. }
         | Outcome::AccountMovedIn { .. }

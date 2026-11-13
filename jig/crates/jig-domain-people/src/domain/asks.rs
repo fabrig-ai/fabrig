@@ -94,6 +94,7 @@ fn valid_person_result(limits: &Limits, result: &crate::PersonResult) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive entrance bounds every party request shape")]
 pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
     if !crate::words::valid(ask) {
         return false;
@@ -105,9 +106,10 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
             Seen::Results { .. } => true,
             Seen::Conversation { task, .. } => *task != 0,
         },
-        Ask::AccountChange { change: crate::AccountChange::DeclareProgram { name, .. } | crate::AccountChange::LoginProgram { name, .. }, .. } => {
-            jig_domain_link::SourceName::new(name).is_some()
-        }
+        Ask::AccountChange {
+            change: crate::AccountChange::DeclareProgram { name, .. } | crate::AccountChange::LoginProgram { name, .. },
+            ..
+        } => jig_domain_link::SourceName::new(name).is_some(),
         Ask::AccountChange { change: crate::AccountChange::SetUses { uses: Some(uses), .. }, .. } => {
             uses.len() <= skein_lib::length::usize_of(crate::USES)
                 && match uses.len().checked_mul(size_of::<crate::Use>()) {

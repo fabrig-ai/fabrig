@@ -64,7 +64,11 @@ impl Domain {
         if !self.lending.offers.contains_key(&party) {
             assert!(self.lending.offers.insert(party, List::with_capacity(TERMINALS)).is_ok(), "admitted party");
         }
-        self.lending.offers.get_mut(&party).expect("offering party").push(Offer { watcher, terminal })
+        self.lending
+            .offers
+            .get_mut(&party)
+            .expect("offering party")
+            .push(Offer { watcher, terminal })
             .expect("parent admitted terminal bound");
     }
     /// Withdrawing the selected watch ends its login, never declaring a source.
@@ -93,7 +97,9 @@ impl Domain {
     #[must_use]
     pub fn terminal_login(&self, party: u64, terminal: u64) -> Option<&TerminalLogin> {
         let pending = self.lending.logins.get(&party)?;
-        if pending.offer.terminal != terminal { return None; }
+        if pending.offer.terminal != terminal {
+            return None;
+        }
         Some(&pending.login)
     }
     #[must_use]
@@ -104,7 +110,9 @@ impl Domain {
 
 /// The declaration's checks, allowing this holder's live source for a later check.
 fn startable(domain: &Domain, limits: &Limits, holder: Holder, provider: u32, name: &[u8]) -> Result<(), Refusal> {
-    if crate::SourceName::new(name).is_none() { return Err(Refusal::Uses); }
+    if crate::SourceName::new(name).is_none() {
+        return Err(Refusal::Uses);
+    }
     match domain.providers.get(provider) {
         Some(offered) if holder != Holder::Deployment && !offered.offers.programs.is_empty() => {}
         Some(_) | None => return Err(Refusal::Provider { provider }),
@@ -112,12 +120,16 @@ fn startable(domain: &Domain, limits: &Limits, holder: Holder, provider: u32, na
     let mut reserved = false;
     for (number, issued) in &domain.issued {
         if issued.name.as_bytes() == name {
-            if issued.holder != holder { return Err(Refusal::NameTaken); }
+            if issued.holder != holder {
+                return Err(Refusal::NameTaken);
+            }
             if domain.programs.contains_key(number) {
                 return Err(Refusal::Limit { bound: crate::Bound::Sources });
             }
             reserved = true;
-            if domain.sources.contains_key(number) { return Ok(()); }
+            if domain.sources.contains_key(number) {
+                return Ok(());
+            }
         }
     }
     if !reserved && domain.issued.len() >= limits.program_names.min(domain.issued.capacity()) {
@@ -126,7 +138,15 @@ fn startable(domain: &Domain, limits: &Limits, holder: Holder, provider: u32, na
     domain.room_for_account(limits, holder)
 }
 
-pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, request: Token, holder: Holder, provider: u32, name: Box<[u8]>, out: &mut Queue<Request>) {
+pub(crate) fn ask(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    request: Token,
+    holder: Holder,
+    provider: u32,
+    name: Box<[u8]>,
+    out: &mut Queue<Request>,
+) {
     let result = begin(domain, &env.limits, holder, provider, name);
     let answer = match result {
         Ok(number) => Answer::LoginAsked { number },
@@ -142,7 +162,9 @@ fn begin(domain: &mut Domain, limits: &Limits, holder: Holder, provider: u32, na
     };
     let offers = domain.lending.offers.get(&party).ok_or(Refusal::NoTerminal)?;
     let offer = *offers.last().ok_or(Refusal::NoTerminal)?;
-    if domain.lending.logins.contains_key(&party) { return Err(Refusal::LoginUnderWay); }
+    if domain.lending.logins.contains_key(&party) {
+        return Err(Refusal::LoginUnderWay);
+    }
     let number = domain.lending.next;
     domain.lending.next = number.checked_add(1).ok_or(Refusal::Numbers)?;
     let login = TerminalLogin { number, provider, name, cancelled: false };
@@ -155,7 +177,9 @@ fn party(domain: &Domain, holder: Holder, number: u32) -> Result<u64, Refusal> {
         Holder::Deployment => return Err(Refusal::NotLending),
     };
     let pending = domain.lending.logins.get(&party).ok_or(Refusal::NotLending)?;
-    if pending.login.number != number { return Err(Refusal::NotLending); }
+    if pending.login.number != number {
+        return Err(Refusal::NotLending);
+    }
     Ok(party)
 }
 pub(crate) fn cancel(domain: &mut Domain, holder: Holder, number: u32) -> Result<(), Refusal> {
@@ -164,12 +188,23 @@ pub(crate) fn cancel(domain: &mut Domain, holder: Holder, number: u32) -> Result
     pending.login.cancelled = true;
     let mut offered = false;
     if let Some(offers) = domain.lending.offers.get(&party) {
-        for offer in offers { offered |= offer.watcher == pending.offer.watcher; }
+        for offer in offers {
+            offered |= offer.watcher == pending.offer.watcher;
+        }
     }
-    if !offered { finish(domain, party, LoginEnd::Cancelled); }
+    if !offered {
+        finish(domain, party, LoginEnd::Cancelled);
+    }
     Ok(())
 }
-pub(crate) fn reported(domain: &mut Domain, env: &Env<Limits>, holder: Holder, number: u32, exit: LoginExit, out: &mut Queue<Request>) -> Result<(), Refusal> {
+pub(crate) fn reported(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    holder: Holder,
+    number: u32,
+    exit: LoginExit,
+    out: &mut Queue<Request>,
+) -> Result<(), Refusal> {
     let party = party(domain, holder, number)?;
     let pending = domain.lending.logins.get(&party).expect("checked login");
     let end = if pending.login.cancelled {
@@ -177,7 +212,9 @@ pub(crate) fn reported(domain: &mut Domain, env: &Env<Limits>, holder: Holder, n
     } else {
         match exit {
             LoginExit::Exited { code: 0 } => signed_in(domain, env, holder, party, out),
-            LoginExit::Exited { .. } | LoginExit::Killed { .. } | LoginExit::NotStarted => LoginEnd::NotFinished { exit: Some(exit) },
+            LoginExit::Exited { .. } | LoginExit::Killed { .. } | LoginExit::NotStarted => {
+                LoginEnd::NotFinished { exit: Some(exit) }
+            }
         }
     };
     finish(domain, party, end);
@@ -200,7 +237,9 @@ fn signed_in(domain: &mut Domain, env: &Env<Limits>, holder: Holder, party: u64,
         Err(crate::programs::DeclarationRefusal::Account(refusal)) => LoginEnd::Refused { refusal },
         Err(crate::programs::DeclarationRefusal::Taken) => LoginEnd::Refused { refusal: Refusal::ProgramNameReserved },
         Err(crate::programs::DeclarationRefusal::Name) => LoginEnd::Refused { refusal: Refusal::Uses },
-        Err(crate::programs::DeclarationRefusal::Names) => LoginEnd::Refused { refusal: Refusal::Limit { bound: crate::Bound::Sources } },
+        Err(crate::programs::DeclarationRefusal::Names) => {
+            LoginEnd::Refused { refusal: Refusal::Limit { bound: crate::Bound::Sources } }
+        }
     }
 }
 fn finish(domain: &mut Domain, party: u64, end: LoginEnd) {

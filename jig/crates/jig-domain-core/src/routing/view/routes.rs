@@ -332,7 +332,9 @@ fn open_follow(
     };
     if let Watched::Terminal { .. } = &subject
         && core.accounts.terminal_count(party) >= jig_domain_accounts::TERMINALS
-    { return refused(watcher, WatchRefusal::Busy); }
+    {
+        return refused(watcher, WatchRefusal::Busy);
+    }
     let subject = named_subject(subject, party);
     let window = Window { rows: window.rows.min(env.limits.documents.rows), ..window };
     if core.watch_token(watcher).is_some() || core.watch_flights() >= env.limits.views.watchers {

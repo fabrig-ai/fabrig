@@ -35,8 +35,8 @@ pub use facts::{
     ORIGIN_SIGN_IN, ORIGIN_USAGE_READ, SHARE_WHOLE, WINDOW_LIMITED, WINDOW_OPEN, WINDOW_WARNED, audience,
 };
 pub use keys::{KEY_VALID, PROGRAM_VALID};
-pub use limits::{Limits, TERMINALS, valid};
 pub use lending::{LentEnd, LoginEnd, LoginExit, TerminalLogin};
+pub use limits::{Limits, TERMINALS, valid};
 pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, ProviderList, Providers};
 pub use records::{DISPLAY, Held, Holder, Key, Kind, ListRecord, NAME, ReadFailure, SUBJECT, Stored, USES, Use};
 pub use restore::{RestoreLimit, RestoreLink, RestoreSet};

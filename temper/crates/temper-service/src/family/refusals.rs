@@ -9,6 +9,9 @@ use skein_lib::Writer;
 )]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::NoTerminal => w::Refusal::NoTerminal,
+        p::Refusal::LoginUnderWay => w::Refusal::LoginUnderWay,
+        p::Refusal::NotLending => w::Refusal::NotLending,
         p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-wire"),
         // Only ChangeSettings emits Stale; forge applications never carry that ask.
         p::Refusal::Stale { .. }

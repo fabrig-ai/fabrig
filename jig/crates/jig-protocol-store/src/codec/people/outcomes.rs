@@ -71,7 +71,9 @@ pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> 
             limits,
             wire::OutcomeAccountKeyKeptParts { source: *source },
         )?),
-        domain::Outcome::AccountLoginAsked { number } => wire::Outcome::AccountLoginAsked(wire::OutcomeAccountLoginAsked::new(limits, wire::OutcomeAccountLoginAskedParts { number: *number })?),
+        domain::Outcome::AccountLoginAsked { number } => wire::Outcome::AccountLoginAsked(
+            wire::OutcomeAccountLoginAsked::new(limits, wire::OutcomeAccountLoginAskedParts { number: *number })?,
+        ),
         domain::Outcome::AccountProgramDeclared { source, name } => {
             wire::Outcome::AccountProgramDeclared(wire::OutcomeAccountProgramDeclared::new(
                 limits,

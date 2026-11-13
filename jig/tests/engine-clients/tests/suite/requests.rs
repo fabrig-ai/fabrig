@@ -447,7 +447,12 @@ fn settings_proposals_and_running_choices_reach_the_core() {
     }
 }
 
-fn assert_login_routed(change: w::AccountChange, expected: &people::AccountChange, refusal: people::Refusal, wire_refusal: w::Refusal) {
+fn assert_login_routed(
+    change: w::AccountChange,
+    expected: &people::AccountChange,
+    refusal: people::Refusal,
+    wire_refusal: w::Refusal,
+) {
     let limits = fixtures::limits().wire;
     let ask = w::Ask::AccountChange(
         w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
@@ -456,7 +461,14 @@ fn assert_login_routed(change: w::AccountChange, expected: &people::AccountChang
     let mut peer = Peer::started(&fixtures::settings());
     let bearer = fixtures::signed_in(&mut peer);
     let socket = peer.post(b"/jig/v1/request", keyed([83; 16], &ask), Some(&bearer));
-    let core::Event::People(people::Event::Ask { reply_to, ask: people::Ask::AccountChange { holder: people::AccountHolder::Own, change }, .. }) = peer.take_core().expect("login reaches core") else { panic!("account change") };
+    let core::Event::People(people::Event::Ask {
+        reply_to,
+        ask: people::Ask::AccountChange { holder: people::AccountHolder::Own, change },
+        ..
+    }) = peer.take_core().expect("login reaches core")
+    else {
+        panic!("account change")
+    };
     assert_eq!(&change, expected);
     assert!(peer.answered(socket).is_none(), "waits for the core decision");
     peer.answer_request(reply_to, people::Reply::Outcome(people::Outcome::Refused(refusal)));
@@ -482,7 +494,12 @@ fn login_program_reaches_the_core() {
         )
         .expect("literal login form"),
     );
-    assert_login_routed(change, &people::AccountChange::LoginProgram { provider: 2, name: b"work".as_slice().into() }, people::Refusal::NoTerminal, w::Refusal::NoTerminal);
+    assert_login_routed(
+        change,
+        &people::AccountChange::LoginProgram { provider: 2, name: b"work".as_slice().into() },
+        people::Refusal::NoTerminal,
+        w::Refusal::NoTerminal,
+    );
 }
 #[test]
 fn cancel_login_reaches_the_core() {
@@ -490,7 +507,12 @@ fn cancel_login_reaches_the_core() {
         w::AccountChangeCancelLogin::new(&fixtures::limits().wire, w::AccountChangeCancelLoginParts { number: 1 })
             .expect("literal login form"),
     );
-    assert_login_routed(change, &people::AccountChange::CancelLogin { number: 1 }, people::Refusal::NotLending, w::Refusal::NotLending);
+    assert_login_routed(
+        change,
+        &people::AccountChange::CancelLogin { number: 1 },
+        people::Refusal::NotLending,
+        w::Refusal::NotLending,
+    );
 }
 #[test]
 fn login_ended_reaches_the_core() {
@@ -501,5 +523,10 @@ fn login_ended_reaches_the_core() {
         )
         .expect("literal login form"),
     );
-    assert_login_routed(change, &people::AccountChange::LoginEnded { number: 1, exit: people::LoginExit::NotStarted }, people::Refusal::NotLending, w::Refusal::NotLending);
+    assert_login_routed(
+        change,
+        &people::AccountChange::LoginEnded { number: 1, exit: people::LoginExit::NotStarted },
+        people::Refusal::NotLending,
+        w::Refusal::NotLending,
+    );
 }

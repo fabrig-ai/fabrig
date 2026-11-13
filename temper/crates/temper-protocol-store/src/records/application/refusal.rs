@@ -376,6 +376,7 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
         | p::Refusal::SignInRedirect { .. } => {
             return Err(w::Problem { path: w::Path::RefusalTag, reason: skein_codec::Reason::Bound });
         }
+        p::Refusal::NoTerminal | p::Refusal::LoginUnderWay | p::Refusal::NotLending => unreachable!("terminal login decisions are stored by jig people, never application answers"),
         p::Refusal::NameTaken => w::Refusal::NameTaken,
         p::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount::new(
             l,

@@ -7,9 +7,21 @@ pub(super) fn encode(
     limits: &wire::Limits,
 ) -> Result<wire::AccountChange, wire::Problem> {
     Ok(match value {
-        domain::AccountChange::LoginProgram { provider, name } => wire::AccountChange::LoginProgram(wire::AccountChangeLoginProgram::new(limits, wire::AccountChangeLoginProgramParts { provider: *provider, name: name.clone() })?),
-        domain::AccountChange::CancelLogin { number } => wire::AccountChange::CancelLogin(wire::AccountChangeCancelLogin::new(limits, wire::AccountChangeCancelLoginParts { number: *number })?),
-        domain::AccountChange::LoginEnded { number, exit } => wire::AccountChange::LoginEnded(wire::AccountChangeLoginEnded::new(limits, wire::AccountChangeLoginEndedParts { number: *number, exit: encode_exit(*exit, limits)? })?),
+        domain::AccountChange::LoginProgram { provider, name } => {
+            wire::AccountChange::LoginProgram(wire::AccountChangeLoginProgram::new(
+                limits,
+                wire::AccountChangeLoginProgramParts { provider: *provider, name: name.clone() },
+            )?)
+        }
+        domain::AccountChange::CancelLogin { number } => wire::AccountChange::CancelLogin(
+            wire::AccountChangeCancelLogin::new(limits, wire::AccountChangeCancelLoginParts { number: *number })?,
+        ),
+        domain::AccountChange::LoginEnded { number, exit } => {
+            wire::AccountChange::LoginEnded(wire::AccountChangeLoginEnded::new(
+                limits,
+                wire::AccountChangeLoginEndedParts { number: *number, exit: encode_exit(*exit, limits)? },
+            )?)
+        }
         domain::AccountChange::ReadLists { provider } => wire::AccountChange::ReadLists(
             wire::AccountChangeReadLists::new(limits, wire::AccountChangeReadListsParts { provider: *provider })?,
         ),
@@ -85,9 +97,14 @@ pub(super) fn encode(
 }
 pub(super) fn decode(value: wire::AccountChange) -> Result<domain::AccountChange, wire::Problem> {
     Ok(match value {
-        wire::AccountChange::LoginProgram(value) => { let value = value.into_parts(); domain::AccountChange::LoginProgram { provider: value.provider, name: value.name } },
+        wire::AccountChange::LoginProgram(value) => {
+            let value = value.into_parts();
+            domain::AccountChange::LoginProgram { provider: value.provider, name: value.name }
+        }
         wire::AccountChange::CancelLogin(value) => domain::AccountChange::CancelLogin { number: value.number() },
-        wire::AccountChange::LoginEnded(value) => domain::AccountChange::LoginEnded { number: value.number(), exit: decode_exit(value.exit()) },
+        wire::AccountChange::LoginEnded(value) => {
+            domain::AccountChange::LoginEnded { number: value.number(), exit: decode_exit(value.exit()) }
+        }
         wire::AccountChange::MoveOut(value) => domain::AccountChange::MoveOut { account: value.account() },
         wire::AccountChange::Written(value) => domain::AccountChange::Written { number: value.number() },
         wire::AccountChange::FinishSignIn(value) => {
@@ -200,8 +217,12 @@ fn digest(bytes: Box<[u8]>, path: wire::Path) -> Result<[u8; 32], wire::Problem>
 
 fn encode_exit(value: domain::LoginExit, limits: &wire::Limits) -> Result<wire::LoginExit, wire::Problem> {
     Ok(match value {
-        domain::LoginExit::Exited { code } => wire::LoginExit::Exited(wire::LoginExitExited::new(limits, wire::LoginExitExitedParts { code })?),
-        domain::LoginExit::Killed { signal } => wire::LoginExit::Killed(wire::LoginExitKilled::new(limits, wire::LoginExitKilledParts { signal })?),
+        domain::LoginExit::Exited { code } => {
+            wire::LoginExit::Exited(wire::LoginExitExited::new(limits, wire::LoginExitExitedParts { code })?)
+        }
+        domain::LoginExit::Killed { signal } => {
+            wire::LoginExit::Killed(wire::LoginExitKilled::new(limits, wire::LoginExitKilledParts { signal })?)
+        }
         domain::LoginExit::NotStarted => wire::LoginExit::NotStarted,
     })
 }

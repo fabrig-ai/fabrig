@@ -507,7 +507,7 @@ fn shipped_profiles_fit_the_effective_codec_envelope() {
         let limits = crate::profile(profile).core;
         assert_eq!(crate::check_effective_limits(&limits), Ok(()), "{profile:?}");
         let derived = jig_protocol_store::codec::people::derived_limits(&limits).unwrap();
-        assert_eq!(jig_protocol_store::people_v15::check_limits(&derived), Ok(()));
+        assert_eq!(jig_protocol_store::people_v16::check_limits(&derived), Ok(()));
     }
 }
 

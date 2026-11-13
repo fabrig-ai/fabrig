@@ -100,7 +100,9 @@ pub(crate) fn change(
     Ok(match change {
         people::AccountChange::LoginProgram { provider, name } => accounts::Change::LoginProgram { provider, name },
         people::AccountChange::CancelLogin { number } => accounts::Change::CancelLogin { number },
-        people::AccountChange::LoginEnded { number, exit } => accounts::Change::LoginEnded { number, exit: login_exit(exit) },
+        people::AccountChange::LoginEnded { number, exit } => {
+            accounts::Change::LoginEnded { number, exit: login_exit(exit) }
+        }
         people::AccountChange::ReadLists { provider } => accounts::Change::ReadLists { provider },
         people::AccountChange::DeclareProgram { provider, join, name } => {
             if let Some(number) = join {
@@ -196,7 +198,6 @@ fn hosts(core: &crate::Core, hosts: Box<[accounts::ProgramHost]>) -> Box<[people
     }
     rows.into_boxed()
 }
-
 
 fn login_exit(exit: people::LoginExit) -> accounts::LoginExit {
     match exit {

@@ -87,7 +87,9 @@ pub(crate) fn delivery(
     limits: &w::Limits,
 ) -> Result<w::DeliveryValue, w::Problem> {
     Ok(match value {
-        d::Document::Terminal { login } => w::DeliveryValue::Terminal(super::accounts::terminal(login.as_ref(), limits)?),
+        d::Document::Terminal { login } => {
+            w::DeliveryValue::Terminal(super::accounts::terminal(login.as_ref(), limits)?)
+        }
         d::Document::Frame(value) => w::DeliveryValue::Me(owner::frame(value, models, limits)?),
         d::Document::Task(value) => w::DeliveryValue::Task(Box::new(task::document(value, models, limits)?)),
         d::Document::Tree(value) => {

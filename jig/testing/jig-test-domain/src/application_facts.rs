@@ -14,7 +14,10 @@ pub(super) fn refusal(value: people::Refusal) -> application::Refusal {
             ..
         }
         | people::Refusal::ProgramNameReserved
-        | people::Refusal::NoTerminal | people::Refusal::LoginUnderWay | people::Refusal::NotLending | people::Refusal::NameTaken
+        | people::Refusal::NoTerminal
+        | people::Refusal::LoginUnderWay
+        | people::Refusal::NotLending
+        | people::Refusal::NameTaken
         | people::Refusal::LiveTasks { .. }
         | people::Refusal::Circle { .. }
         | people::Refusal::Dependency { .. }

@@ -100,7 +100,9 @@ pub fn refusal(value: a::Refusal, limits: &w::Limits) -> Result<w::AccountRefusa
         // A finish refusal leaves the sign-in waiting, so it never ends an accounts watch's sign-in.
         a::Refusal::SignInRedirect { .. } => unreachable!("a redirect refusal is only a finish answer"),
         a::Refusal::NameTaken | a::Refusal::ProgramNameReserved => w::AccountRefusal::ProgramNameReserved,
-        a::Refusal::NoTerminal | a::Refusal::LoginUnderWay | a::Refusal::NotLending => unreachable!("a login request refusal is never a login end"),
+        a::Refusal::NoTerminal | a::Refusal::LoginUnderWay | a::Refusal::NotLending => {
+            unreachable!("a login request refusal is never a login end")
+        }
         a::Refusal::NotSignedIn => w::AccountRefusal::NotSignedIn,
         a::Refusal::NotOurs => w::AccountRefusal::NotOurs,
         a::Refusal::Cancelled => w::AccountRefusal::Cancelled,
@@ -267,8 +269,17 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
         limits,
         w::AccountsParts {
             skein_bools: [value.lendable, value.usable, value.settled, value.cut, value.readiness_cut],
-            lending: match &value.lending { Some(login) => Some(terminal_login(login, limits)?), None => None },
-            lent_end: match value.lent_end { Some(ended) => Some(w::AccountLentEnd::new(limits, w::AccountLentEndParts { number: ended.number, end: login_end(ended.end, limits)? })?), None => None },
+            lending: match &value.lending {
+                Some(login) => Some(terminal_login(login, limits)?),
+                None => None,
+            },
+            lent_end: match value.lent_end {
+                Some(ended) => Some(w::AccountLentEnd::new(
+                    limits,
+                    w::AccountLentEndParts { number: ended.number, end: login_end(ended.end, limits)? },
+                )?),
+                None => None,
+            },
             readiness: super::catalogue::readiness(&value.readiness, limits.accounts_readiness, limits)?,
             program_hosts: super::programs::hosts(&value.program_hosts, limits)?,
             accounts,
@@ -312,23 +323,56 @@ pub fn list(value: Option<&d::AccountList>, limits: &w::Limits) -> Result<Option
 }
 
 pub(crate) fn terminal_login(value: &a::TerminalLogin, limits: &w::Limits) -> Result<w::TerminalLogin, w::Problem> {
-    w::TerminalLogin::new(limits, w::TerminalLoginParts { number: value.number, provider: value.provider, name: value.name.clone(), cancelled: value.cancelled })
+    w::TerminalLogin::new(
+        limits,
+        w::TerminalLoginParts {
+            number: value.number,
+            provider: value.provider,
+            name: value.name.clone(),
+            cancelled: value.cancelled,
+        },
+    )
 }
 pub(crate) fn terminal(value: Option<&a::TerminalLogin>, limits: &w::Limits) -> Result<w::Terminal, w::Problem> {
-    w::Terminal::new(limits, w::TerminalParts { login: match value { Some(login) => Some(terminal_login(login, limits)?), None => None } })
+    w::Terminal::new(
+        limits,
+        w::TerminalParts {
+            login: match value {
+                Some(login) => Some(terminal_login(login, limits)?),
+                None => None,
+            },
+        },
+    )
 }
 fn login_exit(value: a::LoginExit, limits: &w::Limits) -> Result<w::LoginExit, w::Problem> {
     Ok(match value {
-        a::LoginExit::Exited { code } => w::LoginExit::Exited(w::LoginExitExited::new(limits, w::LoginExitExitedParts { code })?),
-        a::LoginExit::Killed { signal } => w::LoginExit::Killed(w::LoginExitKilled::new(limits, w::LoginExitKilledParts { signal })?),
+        a::LoginExit::Exited { code } => {
+            w::LoginExit::Exited(w::LoginExitExited::new(limits, w::LoginExitExitedParts { code })?)
+        }
+        a::LoginExit::Killed { signal } => {
+            w::LoginExit::Killed(w::LoginExitKilled::new(limits, w::LoginExitKilledParts { signal })?)
+        }
         a::LoginExit::NotStarted => w::LoginExit::NotStarted,
     })
 }
 fn login_end(value: a::LoginEnd, limits: &w::Limits) -> Result<w::LoginEnd, w::Problem> {
     Ok(match value {
-        a::LoginEnd::SignedIn { source } => w::LoginEnd::SignedIn(w::LoginEndSignedIn::new(limits, w::LoginEndSignedInParts { source })?),
-        a::LoginEnd::NotFinished { exit } => w::LoginEnd::NotFinished(w::LoginEndNotFinished::new(limits, w::LoginEndNotFinishedParts { exit: match exit { Some(exit) => Some(login_exit(exit, limits)?), None => None } })?),
+        a::LoginEnd::SignedIn { source } => {
+            w::LoginEnd::SignedIn(w::LoginEndSignedIn::new(limits, w::LoginEndSignedInParts { source })?)
+        }
+        a::LoginEnd::NotFinished { exit } => w::LoginEnd::NotFinished(w::LoginEndNotFinished::new(
+            limits,
+            w::LoginEndNotFinishedParts {
+                exit: match exit {
+                    Some(exit) => Some(login_exit(exit, limits)?),
+                    None => None,
+                },
+            },
+        )?),
         a::LoginEnd::Cancelled => w::LoginEnd::Cancelled,
-        a::LoginEnd::Refused { refusal: why } => w::LoginEnd::Refused(w::LoginEndRefused::new(limits, w::LoginEndRefusedParts { refusal: refusal(why, limits)? })?),
+        a::LoginEnd::Refused { refusal: why } => w::LoginEnd::Refused(w::LoginEndRefused::new(
+            limits,
+            w::LoginEndRefusedParts { refusal: refusal(why, limits)? },
+        )?),
     })
 }

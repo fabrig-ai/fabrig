@@ -131,7 +131,8 @@ impl Core {
                     }
                     touched
                 }
-                Subject::Terminal { .. } | Subject::Accounts { .. }
+                Subject::Terminal { .. }
+                | Subject::Accounts { .. }
                 | Subject::Frame { .. }
                 | Subject::Inbox { .. }
                 | Subject::Settings
@@ -188,7 +189,8 @@ pub(crate) fn touch_task(core: &mut Core, limits: &Limits, row: &tasks::TaskReco
             }
             Subject::Chips { tasks } => tasks.as_slice().contains(&row.number),
             Subject::Inbox { party } => core.people.role(*party, row.project).is_some(),
-            Subject::Terminal { .. } | Subject::Accounts { .. }
+            Subject::Terminal { .. }
+            | Subject::Accounts { .. }
             | Subject::Frame { .. }
             | Subject::Settings
             | Subject::Deployment
