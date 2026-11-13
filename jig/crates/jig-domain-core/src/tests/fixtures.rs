@@ -263,7 +263,6 @@ pub(crate) trait CurrentFixtures {
     fn test_templates(&mut self, templates: Box<[Template]>);
 }
 
-#[expect(clippy::panic, reason = "the core's test fixtures assert their setup values")]
 impl CurrentFixtures for crate::settings::Current {
     fn test_charter_mut(&mut self, number: u32) -> &mut Charter {
         use crate::settings::{Setting, Value};
