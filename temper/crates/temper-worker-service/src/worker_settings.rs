@@ -125,6 +125,8 @@ pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -
     let ceilings = jig_protocol_worker_wire::CEILINGS;
     let largest = payload::largest(payload)?;
     let sizes = jig_protocol_worker_wire::sizes::Sizes {
+        application_ask: hub.application_ask_bytes,
+        application_answer: hub.application_answer_bytes,
         program_sources: core.fleet.program_sources,
         piece: hub.piece_bytes,
         charter: u32::try_from(hub.charter_bytes).ok()?,

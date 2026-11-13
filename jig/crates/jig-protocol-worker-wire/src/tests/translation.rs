@@ -1,6 +1,6 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::{self as channel, Agreed, Application, Carried, Root, Spoken, v13 as wire};
+use crate::{self as channel, Agreed, Application, Carried, Root, Spoken, v14 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -33,9 +33,16 @@ fn application() -> Application {
         )
         .unwrap();
     let mut roots = List::with_capacity(16);
-    for carried in
-        [Carried::Items, Carried::Left, Carried::Saved, Carried::Preparation, Carried::JobSpec, Carried::Grant]
-    {
+    for carried in [
+        Carried::Items,
+        Carried::Left,
+        Carried::Saved,
+        Carried::Preparation,
+        Carried::JobSpec,
+        Carried::Grant,
+        Carried::Ask,
+        Carried::Answer,
+    ] {
         roots.push(Root { carried, wire: "application", declaration: "Value" }).unwrap();
     }
     let mut spoken = List::with_capacity(1);
@@ -138,8 +145,11 @@ fn enumeration_bridges_cover_every_kind_and_refuse_unheld_variants() {
         }
         let expected = skein_lib::bytes::copy_of(original.bytes());
         let down = sender.send(original, 12, &agreed(12, 5), &wire::CEILINGS);
-        if kind == channel::Kind::Wires.number() {
-            assert!(down.is_err(), "no wires kind at twelve");
+        if kind == channel::Kind::Wires.number()
+            || kind == channel::Kind::Ask.number()
+            || kind == channel::Kind::Asked.number()
+        {
+            assert!(down.is_err(), "the appended kind is absent at twelve");
             continue;
         }
         let down = match down {
@@ -153,7 +163,7 @@ fn enumeration_bridges_cover_every_kind_and_refuse_unheld_variants() {
         assert_eq!(up.bytes(), expected.as_ref(), "{}", golden.name);
         covered.insert(kind).unwrap();
     }
-    assert_eq!(covered.len(), u32::try_from(channel::KINDS.len().checked_sub(1).unwrap()).unwrap());
+    assert_eq!(covered.len(), u32::try_from(channel::KINDS.len().checked_sub(3).unwrap()).unwrap());
 }
 
 #[test]
@@ -361,7 +371,7 @@ fn construction_rejects_missing_bridges_and_declarations_and_total_checks_worker
         incomplete.as_slice(),
         &[Agreed { name: "jig-worker-wire", version: 12 }, Agreed { name: "application", version: 1 }]
     );
-    assert!(opaque().incomplete(&agreed(13, 5)).is_empty());
+    assert!(opaque().incomplete(&agreed(channel::VERSION, 5)).is_empty());
 }
 
 #[test]
@@ -385,14 +395,50 @@ fn current_links_keep_no_plans_and_only_an_older_family_materializes() {
         .unwrap(),
     );
     let original = worker(&call);
-    let current = sender.send(original, 13, &agreed(13, 5), &wire::CEILINGS).unwrap();
-    let up = receiver.receive(current.kind(), body(&current), 13, &agreed(13, 5), &wire::CEILINGS).unwrap();
+    let current = sender.send(original, channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS).unwrap();
+    let up = receiver
+        .receive(current.kind(), body(&current), channel::VERSION, &agreed(channel::VERSION, 5), &wire::CEILINGS)
+        .unwrap();
     assert_eq!(worker_value(&up), call);
     assert_eq!((sender.planned(), receiver.planned()), (0, 0));
-    assert!(sender.incomplete(&agreed(13, 5)).is_empty());
+    assert!(sender.incomplete(&agreed(channel::VERSION, 5)).is_empty());
     assert_eq!(sender.planned(), 0);
     let old = sender.send(worker(&call), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
     let up = receiver.receive(old.kind(), body(&old), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
     assert_eq!(worker_value(&up), call);
     assert_eq!((sender.planned(), receiver.planned()), (1, 1));
+}
+
+#[test]
+fn application_ask_and_answer_roots_translate_and_unrooted_bytes_cross_as_is() {
+    let agreed = agreed(channel::VERSION, 5);
+    let mut sender = Translation::new(application()).unwrap();
+    let mut receiver = Translation::new(application()).unwrap();
+    let ask = wire::FromWorker::Ask(
+        wire::Ask::new(&wire::CEILINGS, wire::AskParts { run: 7, attempt: 2, number: 1, bytes: VALUE.into() }).unwrap(),
+    );
+    let sent = sender.send(worker(&ask), channel::VERSION, &agreed, &wire::CEILINGS).unwrap();
+    let wire::FromWorker::Ask(value) = worker_value(&sent) else { panic!("ask") };
+    assert_eq!((value.run(), value.attempt(), value.number(), value.bytes()), (7, 2, 1, OLDER));
+    let up = receiver.receive(sent.kind(), body(&sent), channel::VERSION, &agreed, &wire::CEILINGS).unwrap();
+    assert_eq!(worker_value(&up), ask);
+    for answer in [
+        wire::AskAnswer::Bytes(
+            wire::AskBytes::new(&wire::CEILINGS, wire::AskBytesParts { bytes: VALUE.into() }).unwrap(),
+        ),
+        wire::AskAnswer::Refused,
+    ] {
+        let record = wire::FromEngine::Asked(
+            wire::Asked::new(&wire::CEILINGS, wire::AskedParts { run: 7, attempt: 2, number: 1, answer }).unwrap(),
+        );
+        let sent = sender.send(engine(&record), channel::VERSION, &agreed, &wire::CEILINGS).unwrap();
+        let wire::FromEngine::Asked(value) = engine_value(&sent) else { panic!("asked") };
+        if let wire::AskAnswer::Bytes(bytes) = value.answer() {
+            assert_eq!(bytes.bytes(), OLDER);
+        }
+        let up = receiver.receive(sent.kind(), body(&sent), channel::VERSION, &agreed, &wire::CEILINGS).unwrap();
+        assert_eq!(engine_value(&up), record);
+    }
+    let unrooted = opaque().send(worker(&ask), channel::VERSION, &agreed, &wire::CEILINGS).unwrap();
+    assert_eq!(worker_value(&unrooted), ask);
 }

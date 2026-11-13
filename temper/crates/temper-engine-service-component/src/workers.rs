@@ -222,6 +222,8 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::Logins
                         | jig_protocol_worker_wire::Kind::SignedOut
                         | jig_protocol_worker_wire::Kind::JobAnswer
+                        | jig_protocol_worker_wire::Kind::Ask
+                        | jig_protocol_worker_wire::Kind::Asked
                         | jig_protocol_worker_wire::Kind::Wires => events
                             .push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Mismatch })),
                     },
@@ -325,6 +327,7 @@ pub fn parts(up: &host::LinkUp, parts: &[Part], limits: &wire::Limits) -> Option
         | host::LinkUp::Limited { .. }
         | host::LinkUp::AccountRefused { .. }
         | host::LinkUp::Turn { .. }
+        | host::LinkUp::Ask { .. }
         | host::LinkUp::Call { .. } => (None, None),
     };
     let left = match work {
@@ -393,6 +396,8 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
     let link = jig.link;
     let ceilings = jig_protocol_worker_wire::CEILINGS;
     let sizes = jig_protocol_worker_wire::sizes::Sizes {
+        application_ask: hub.application_ask_bytes,
+        application_answer: hub.application_answer_bytes,
         program_sources: core.fleet.program_sources,
         piece: hub.piece_bytes,
         charter: u32::try_from(hub.charter_bytes).ok()?,

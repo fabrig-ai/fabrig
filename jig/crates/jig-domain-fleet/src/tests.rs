@@ -1649,3 +1649,5 @@ fn resume_without_placement_still_releases_a_held_turn() {
     assert_eq!(&*h.drain(), &[Request::Turned { run: R1, attempt: A1, turn: 1, body: payload(1) }]);
     assert_eq!(&*kept(&mut h, 1), &[turn_ack(C1, 1)]);
 }
+
+mod asks;

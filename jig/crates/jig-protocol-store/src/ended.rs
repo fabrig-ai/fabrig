@@ -30,6 +30,7 @@ pub fn key(now: &Now) -> Option<Key> {
         | Now::SettingsAnswer { .. }
         | Now::PersonAnswer { .. }
         | Now::SettledCallRefused { .. }
+        | Now::Ask { .. }
         | Now::Call { .. }
         | Now::DropCall { .. }
         | Now::Undelivered { .. }
@@ -106,6 +107,7 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         | Now::SettingsAnswer { .. }
         | Now::PersonAnswer { .. }
         | Now::SettledCallRefused { .. }
+        | Now::Ask { .. }
         | Now::Call { .. }
         | Now::DropCall { .. }
         | Now::Undelivered { .. }

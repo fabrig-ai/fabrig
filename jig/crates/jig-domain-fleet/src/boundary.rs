@@ -135,6 +135,22 @@ pub struct Call {
 /// parent -> fleet
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// A worker application's read, fenced as a call (domain/hosts/hub.md, 10).
+    Ask {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        bytes: Box<[u8]>,
+    },
+    /// The root's read answer, sent only while that attempt remains live there.
+    Asked {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        answer: jig_domain_link::AskAnswer,
+    },
     /// A running record halted at the engine bridge.
     Mismatch {
         channel: Token,
@@ -371,6 +387,20 @@ pub enum Event {
 /// fleet -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    Ask {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        bytes: Box<[u8]>,
+    },
+    Asked {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        answer: jig_domain_link::AskAnswer,
+    },
     ReadList {
         channel: Token,
         read: u64,

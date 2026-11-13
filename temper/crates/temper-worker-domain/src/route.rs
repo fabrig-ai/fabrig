@@ -70,7 +70,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             };
             host_step(domain, env, opened);
         }
-        Event::Lost => host_step(domain, env, host::Event::SourceLost),
+        Event::Lost => host_step(domain, env, host::Event::LinkLost),
         Event::GracePassed => {
             domain.past = true;
             crate::stopping::contact(domain, env);
@@ -241,6 +241,7 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 /// One of the host's requests: to the engine, or to a capability.
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
+        host::Request::Asked { .. } => {} // This root never asks.
         host::Request::ReadList { read, endpoint, grant } => out.push(Request::ReadList { read, endpoint, grant }),
         host::Request::CancelRead { read } => out.push(Request::CancelRead { read }),
         host::Request::Source { owner, name, operation, deadline } => {
@@ -277,6 +278,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
                         | host::LinkUp::Turn { .. }
+                        | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. }) => out.push(Request::Link(up)),
                     }
                 }

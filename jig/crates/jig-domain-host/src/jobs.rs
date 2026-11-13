@@ -329,6 +329,7 @@ fn conclude(domain: &mut Hub, id: Id<Hosted>, out: &mut Queue<Request>) {
         entry.answer = Some(crate::answers::Kept::Job(answer.clone()));
         domain.answers.insert((entry.run, entry.attempt), id).expect("one answer per slot");
     }
+    entry.asks.clear();
     domain.names.remove(&entry.run);
     domain.ready.remove(&id);
     out.push(Request::Up(LinkUp::JobAnswer { run: entry.run, attempt: entry.attempt, answer }));
