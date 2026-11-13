@@ -276,6 +276,7 @@ Design documents:
 - [`client/tui/pages/sign-in.md`](client/tui/pages/sign-in.status.md)
 - [`client/tui/theme.md`](client/tui/theme.status.md)
 - [`client/view.md`](client/view.status.md)
+- [`client/view-crates.md`](client/view-crates.status.md)
 - [`client/web/README.md`](client/web/README.status.md)
 - [`client/web/gallery.md`](client/web/gallery.status.md)
 - [`client/web/journeys.md`](client/web/journeys.status.md)
