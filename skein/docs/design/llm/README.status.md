@@ -2,7 +2,6 @@
 
 2026-11-13. Where skein's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2.5, *A 403 that is not the provider's own*, 4.7 and 4.8: a 403 whose body did not decode as the dialect's error document is `Invalid`, not `Unavailable` (`skein-llm/src/wire/failure.rs`, `classify`) [in flight: change 29].
 
 - **Not yet:** 4.7: `off` refused at admission, so no request carries disabled thinking; a focused test holding each shape current Claude models refuse absent; the fake peer refusing disabled thinking and sampling settings [in flight: change 914].
 
