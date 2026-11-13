@@ -9,7 +9,8 @@ by count; and read through `temper ctl landing history`, and by
 `change show` for a change whose row went. It is the draft's milestone
 H1 (`../draft/landing-history.md`, sections 1 to 6, 8, 9 and 10; its
 execution's H1). Where the time went, `landing times`, is H2's
-(section 9). A change's steps are `forge/change/README.md`, 2 and
+(`landing-times.md`), reading only what this document writes. A
+change's steps are `forge/change/README.md`, 2 and
 `forge/queues.md`; a landing's are `landing.md` and `landing-search.md`;
 after landing, `after-landing.md`, 6.
 
@@ -498,8 +499,6 @@ Focused and fuzzy suites alone, each test failing first:
 
 ## 9. Later
 
-- **Where the time went,** `landing times`: the draft's section 7, its
-  execution's H2, reading only what this document writes.
 - **Source times:** a run's start and end and its jobs', and a pull
   request's merge time, read by the forge client and kept as
   `source_at`.
