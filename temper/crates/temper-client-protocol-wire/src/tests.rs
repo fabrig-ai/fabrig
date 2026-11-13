@@ -1381,8 +1381,8 @@ fn revision_setting_read_appends_after_the_deployment_tag() {
         .unwrap(),
     );
     for (read, bytes) in [
-        (v1::Read::Deployment, &[0, 18, 3][..]),
-        (revision, &[0, 18, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
+        (v1::Read::Deployment, &[0, 19, 3][..]),
+        (revision, &[0, 19, 4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..]),
     ] {
         let record = v1::Reading::new(&limits, v1::ReadingParts { read }).unwrap();
         assert_eq!(crate::reading(&record).as_ref(), bytes);

@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:32961                                     │
+│ Sign in this terminal to 127.0.0.1:42669                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ KTCM-XFPQ, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:32961/terminal?code=KTCM-XFPQ                  │
+│ QNRL-TXBR, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:42669/terminal?code=QNRL-TXBR                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:32961/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:42669/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 
