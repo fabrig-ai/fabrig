@@ -2,16 +2,16 @@
 //! temper/docs/design/client/web/look.md, A chat's terminal).
 pub(crate) mod commands;
 mod question;
+pub(crate) use crate::common::terminal::shown;
+use crate::common::terminal::text;
 use crate::shared::{TerminalWord as T, say};
-pub(crate) use crate::words::terminal as words;
 use crate::{
     bindings::Bindings,
     look,
-    words::{Shell, Word, Words},
+    words::{Word, Words},
 };
-use alloc::boxed::Box;
 use jig_client::contract as c;
-use skein_ui::{Builder, Modifier, Role, Run, Shortcut, State, Style, phrases::Hole};
+use skein_ui::{Builder, Modifier, Role, Run, Shortcut, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     pages::{
@@ -21,9 +21,6 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn shown(root: &Domain, w: &Words) -> bool {
-    w.shell == Shell::Browser && root.pages().look().terminal && terminal::draws(root.pages().address())
-}
 pub(crate) fn style(b: &mut Builder, look: Look) {
     b.style(look::TERMINAL);
     if look.theme == Theme::Light {
@@ -141,13 +138,6 @@ fn button(b: &mut Builder, bindings: &mut Bindings, name: &[u8], act: Act) {
     b.name(name);
     b.bind(bindings.insert(act));
 }
-fn text(b: &mut Builder, words: &[u8], style: Style) {
-    b.open(Role::Text);
-    b.style(style);
-    b.name(words);
-    b.text(Run::Plain, words);
-    b.close();
-}
 pub(crate) fn running(b: &mut Builder, words: Option<&[u8]>) {
     if let Some(words) = words {
         b.open(Role::Status);
@@ -217,48 +207,6 @@ pub(crate) fn prompt(b: &mut Builder, w: &Words) {
 pub(crate) fn chat_running(b: &mut Builder, root: &Domain, w: &Words) {
     running(b, crate::shared::running(root, w).as_deref());
 }
-/// The running line (temper/docs/design/client/pages/README.md, A chat's terminal).
-pub(crate) fn running_words(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
-    let chat = root.pages().chat()?;
-    let task = chat.task(root.client())?;
-    let me = root.pages().me(root.client())?;
-    let delegates = chat.waiting_delegates(root.client());
-    let account = match task.run_wait {
-        Some(c::TaskRunWait::Account { .. }) => true,
-        Some(c::TaskRunWait::Credential | c::TaskRunWait::Host | c::TaskRunWait::Refused(_)) | None => false,
-    };
-    if task.result.is_none()
-        && !super::chats::ended(&task.chip)
-        && !temper_client_domain::pages::chat::paused(&task.chip, me)
-        && (super::chats::active(root, w)
-            || (delegates > 0 && (task.waits_on == c::WaitsOn::Delegates || task.waits_on == c::WaitsOn::News))
-            || account)
-    {
-        let (token, words) = super::chats::status_words(
-            &task.chip,
-            (&task.waits_on, Some(delegates), task.run_wait.as_ref()),
-            (task.project, task.requester),
-            Some(&task.wake),
-            me,
-            w,
-        );
-        let writing =
-            jig_client::facts::chat_status(&task.chip, &task.waits_on, task.run_wait.as_ref(), task.project, me)
-                == jig_client::facts::ChatStatus::Writing;
-        Some(if token == look::STATUS_ACTIVE && writing { w.say(Word::RunningWork, &[]) } else { words })
-    } else {
-        None
-    }
-}
-
 pub(crate) fn confirms(root: &Domain) -> bool {
     commands::confirms(root) || crate::confirm::terminal_confirms(root)
-}
-pub(crate) fn details(b: &mut Builder, w: &Words) {
-    b.open(Role::Disclosure);
-    b.style(look::TERMINAL_DETAILS);
-    b.name(&say(w, T::Details));
-}
-pub(crate) fn kicker(b: &mut Builder, w: &Words) {
-    text(b, &w.say(Word::Proposal, &[]), look::PROPOSAL_KICKER);
 }

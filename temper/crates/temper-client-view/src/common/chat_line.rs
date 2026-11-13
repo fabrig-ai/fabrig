@@ -102,7 +102,7 @@ impl<'a> Run<'a> {
             };
             let end = skein_lib::bytes::find(error, b"\n").unwrap_or(error.len());
             let description = joined(&[
-                &super::terminal::words::say(words, super::terminal::words::TerminalWord::Failed),
+                &crate::words::terminal::say(words, crate::words::terminal::TerminalWord::Failed),
                 error.get(..end).expect("failure first line").trim_ascii_end(),
             ]);
             Some(match duration {

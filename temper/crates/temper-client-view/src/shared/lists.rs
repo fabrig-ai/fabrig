@@ -87,7 +87,7 @@ pub struct Confirmation {
 /// An unsent close or restart (temper/docs/design/client/tui/pages/README.md, 2).
 #[must_use]
 pub fn confirmation(root: &Domain) -> Option<Confirmation> {
-    if !crate::pages::terminal::commands::confirms(root) || root.pages().confirmation()?.sent.is_some() {
+    if !crate::common::terminal::commands::confirms(root) || root.pages().confirmation()?.sent.is_some() {
         return None;
     }
     Some(if root.pages().chat()?.restarting {

@@ -36,7 +36,7 @@ fn wait_line(w: &Words, waits: &team::Waits, whom: Box<[u8]>) -> Box<[u8]> {
     } else if total == 1 {
         w.say(Word::TeamOne, &[])
     } else {
-        match crate::pages::home::number_word(total) {
+        match crate::common::home::number_word(total) {
             Some(word) => w.say(word, &[]),
             None => w.say(Word::TeamCount, &[Hole::Number(u64::from(total))]),
         }

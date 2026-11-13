@@ -42,7 +42,7 @@ pub(super) fn for_card(card: &Card, w: &Words) -> Option<Question> {
     else {
         return None;
     };
-    let asked = crate::pages::ask::read(card, w);
+    let asked = crate::common::ask::read(card, w);
     let parsed = asked.parsed?;
     let primary = parsed.primary();
     let mut choices = skein_lib::List::with_capacity(u32::try_from(parsed.choices.len()).expect("parsed choices fit"));
