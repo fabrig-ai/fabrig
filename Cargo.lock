@@ -1851,6 +1851,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
  "jig-domain-link",
+ "jig-protocol-accounts-codec",
  "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
@@ -1863,6 +1864,14 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-tls",
+]
+
+[[package]]
+name = "jig-protocol-accounts-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
@@ -1978,12 +1987,21 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
+ "jig-protocol-engine-clients-codec",
  "jig-protocol-store",
  "jig-protocol-transcript",
  "skein-codec",
  "skein-lib",
  "skein-oauth-issuer",
  "smith-transcript",
+]
+
+[[package]]
+name = "jig-protocol-engine-clients-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]

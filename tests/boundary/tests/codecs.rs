@@ -48,11 +48,7 @@ struct Exception {
     until: &'static str,
 }
 
-const EXCEPTIONS: &[Exception] = &[
-    Exception { what: "jig-protocol-engine-clients", until: "G3" },
-    Exception { what: "smith-local-protocol", until: "G3" },
-    Exception { what: "jig-protocol-accounts", until: "G3" },
-];
+const EXCEPTIONS: &[Exception] = &[Exception { what: "smith-local-protocol", until: "G3" }];
 
 #[derive(Debug)]
 struct Package {

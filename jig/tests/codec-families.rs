@@ -21,7 +21,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "engine cursor",
         root: "crates/jig-protocol-engine-clients",
-        codec_root: "crates/jig-protocol-engine-clients",
+        codec_root: "crates/jig-protocol-engine-clients-codec",
         schemas: &["schema/cursor-v1.schema"],
         generated: &["src/generated/cursor_v1.rs"],
         golden: "golden",
@@ -165,7 +165,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "accounts moved",
         root: "crates/jig-protocol-accounts",
-        codec_root: "crates/jig-protocol-accounts",
+        codec_root: "crates/jig-protocol-accounts-codec",
         schemas: &["schema/moved-v1.schema"],
         generated: &["src/generated/v1.rs"],
         golden: "golden",

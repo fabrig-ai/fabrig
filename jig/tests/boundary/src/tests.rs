@@ -227,6 +227,7 @@ fn engine_clients_link_only_their_boundary_wire_and_foundation() {
             "jig-domain-people",
             "jig-domain-tasks",
             "jig-domain-views",
+            "jig-protocol-engine-clients-codec",
             "jig-protocol-store",
             "jig-protocol-transcript",
             "skein-codec",
