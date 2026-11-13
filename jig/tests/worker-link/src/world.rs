@@ -34,6 +34,7 @@ pub struct World {
     dials: Vec<Time>,
     root: Vec<Request>,
     facts: Vec<Loss>,
+    heard_refusals: Vec<(u16, Box<[u8]>)>,
     rng: Rng,
     silence_next: bool,
     other_version_next: bool,
@@ -61,6 +62,7 @@ impl World {
             dials: Vec::new(),
             root: Vec::new(),
             facts: Vec::new(),
+            heard_refusals: Vec::new(),
             rng: Rng::new(seed),
             silence_next: false,
             other_version_next: false,
@@ -76,6 +78,10 @@ impl World {
     }
     pub fn engine(&mut self, peer: ScriptedPeer) {
         self.pending.push_back(Some(peer));
+    }
+    #[must_use]
+    pub fn heard_refusals(&self) -> &[(u16, Box<[u8]>)] {
+        &self.heard_refusals
     }
     pub fn refuse_dial(&mut self) {
         self.pending.push_back(None);
@@ -193,6 +199,7 @@ impl World {
                 self.archive();
                 self.component.down(self.now, Event::Gone { connection }, &mut self.out);
             }
+            Request::Refused { reason, text } => self.heard_refusals.push((reason, text)),
             Request::Fact { why } => self.facts.push(why),
             Request::RelayCancelled { run, attempt, call } => {
                 self.trace.push(Trace::RelayEnded(run, attempt, call.clone()));

@@ -221,6 +221,21 @@ impl Host {
             show: self.show.take(),
         }
     }
+    /// A refused page reloads once; only a live, served link clears its marker (protocol/wires.md, 8).
+    #[cfg(any(target_arch = "wasm32", test))]
+    pub(crate) fn reload(&self, marked: Option<bool>) -> crate::reload::Action {
+        use crate::reload::Action;
+        let Some(marked) = marked else { return Action::None };
+        let link = self.root.client().link().state;
+        let forge = self.root.forge().served();
+        if link == jig_client::Link::OutOfDate || forge == root::forge::Served::OutOfDate {
+            if marked { Action::None } else { Action::Reload }
+        } else if link == jig_client::Link::Live && marked {
+            Action::Clear
+        } else {
+            Action::None
+        }
+    }
     pub fn draw(&mut self, page: &mut Page<'_>, ops: &mut Vec<skein_ui_web::page::Op>) {
         page.apply(&self.patches(), ops);
         for node in page.links().to_vec() {

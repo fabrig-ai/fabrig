@@ -1,6 +1,10 @@
 # Status
 
-2026-11-12. The first milestone stands in the code. Remaining work spans
+2026-11-13. The first milestone stands in the code. The wires between
+the engine, its workers, their agents and the clients move their
+versions with their layouts, stated and checked at the channel's
+opening, each build's floor its current until bridges
+(`protocol/wires.md`; `draft/redeploys.md`, R1). Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
@@ -15,6 +19,13 @@ person's areas, a card's "owns AREA", "Talk to it", "Give the area back"
 and weekly report, and "+ Hand an area to a role"; a role's page talks
 with it. A line's sign-offs wait on a read of what another person can
 still sign (`client/pages/team.status.md`; `draft/surfaces.status.md`, 6).
+P5b, goal 2173, draws Tell temper at a project's Needs you's foot, on the
+phone's `Tell` page and under Ask temper's composer, saying "About" and
+"Goes to" before "File it": a word told on a standing role's page, card or
+talk is filed with the area the role holds, any other with none and the
+page in its body, for the triager to hand on; the terminal's `/tell` sends
+its screen. What became of a word in the brief waits for a design
+(`client/pages/needs-you.status.md`; `draft/surfaces.status.md`, 9).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
@@ -315,6 +326,7 @@ Design documents:
 - [`protocol/sign-in.md`](protocol/sign-in.status.md)
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/tooling.md`](protocol/tooling.status.md)
+- [`protocol/wires.md`](protocol/wires.status.md)
 - [`release.md`](release.status.md)
 - [`testing/README.md`](testing/README.status.md)
 - [`testing/checks.md`](testing/checks.status.md)
@@ -339,6 +351,7 @@ Drafts:
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
+- [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)
@@ -379,7 +392,7 @@ Drafts:
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
-- [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2's charters to come.
+- [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
 - [`draft/surfaces.md`](draft/surfaces.status.md)

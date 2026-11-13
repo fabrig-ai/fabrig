@@ -44,7 +44,7 @@ mod start_refusal;
 mod stop;
 pub mod upgrade;
 pub use start_refusal::{refused_row_start, refused_start};
-pub use store::UnreadableRow;
+pub use store::{UnreadableRow, wires};
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, render_for_task_page, settings_note};
 /// How the service ended (protocol/README.md, 4).
@@ -242,6 +242,17 @@ pub enum Note {
     Listening {
         listener: Listening,
         addr: core::net::SocketAddr,
+    },
+    /// An accepted opening's agreed versions (protocol/wires.md, 4).
+    WorkerOpened {
+        worker: Box<[u8]>,
+        wires: skein_lib::List<jig_protocol_worker_wire::Agreed>,
+    },
+    /// A refusal at the opening, including skein's pre-credential refusal.
+    WorkerOpeningRefused {
+        worker: Option<Box<[u8]>>,
+        reason: u16,
+        text: Box<[u8]>,
     },
     WorkerLost {
         worker: Option<Box<[u8]>>,

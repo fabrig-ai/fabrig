@@ -48,6 +48,7 @@ pub mod room;
 mod see;
 mod settings;
 mod start;
+pub mod wire;
 
 pub use answers::{
     ForgeReadBounds, answer, answer_bounded, answer_for_decided, answer_for_job, answer_for_page, answer_for_task,

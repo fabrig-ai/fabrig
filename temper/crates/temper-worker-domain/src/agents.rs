@@ -286,14 +286,17 @@ pub(crate) fn decoded(
             let spawn = smith::parent::Event::Spawn { client: owner, start: *start };
             return route::agent_step(domain, env, smith::Input::Parent(spawn));
         }
+        Err(host::Undecoded::Version(mismatch)) => host::FromAgent::StartVersion { owner, mismatch },
         Err(invalid) => {
-            let cause = match invalid {
+            let cause = match &invalid {
+                host::Undecoded::Version(_) => unreachable!("version handled above"),
                 host::Undecoded::Transcript => host::StartCause::Transcript,
                 host::Undecoded::Charter | host::Undecoded::CallName | host::Undecoded::Evidence => {
                     host::StartCause::Other
                 }
             };
             let why: &[u8] = match invalid {
+                host::Undecoded::Version(_) => unreachable!("version handled above"),
                 host::Undecoded::Charter => b"charter",
                 host::Undecoded::Transcript => b"transcript",
                 host::Undecoded::CallName => b"call name",

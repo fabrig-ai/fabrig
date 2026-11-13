@@ -1,6 +1,7 @@
 # channel: status
 
-2026-11-05. Where skein's code lags or departs from [channel.md](channel.md).
+2026-11-12. Where skein's code lags or departs from [channel.md](channel.md).
+
 
 - **Departs:** 8.3: four cells of `skein-channel/src/machine.rs` break "its
   owner hears closed once, with why" or "closing stops now", because the

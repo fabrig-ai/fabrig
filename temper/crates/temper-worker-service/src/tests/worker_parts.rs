@@ -142,10 +142,13 @@ fn items_whose_bytes_do_not_decode_are_undecodable() {
     let limits = fixtures::wire_limits();
     for (row, parts) in [
         ("missing", Box::<[Part]>::default()),
-        ("malformed", Box::from([Part { token: Token::new(9), bytes: Box::from([255, 0]) }])),
+        (
+            "malformed",
+            Box::from([Part { token: Token::new(9), bytes: Box::from(payload::wire::VERSION.to_be_bytes()) }]),
+        ),
         ("wrong token", Box::from([Part { token: Token::new(8), bytes: Box::from([255, 0]) }])),
     ] {
-        assert_eq!(worker_route::items(&assignment, &parts, &limits), Err(wire::Undecodable), "{row}");
+        assert_eq!(worker_route::items(&assignment, &parts, &limits), Err(wire::ItemsRefusal::Invalid), "{row}");
     }
 }
 
@@ -385,4 +388,82 @@ fn one_forge_identity_table_refuses_a_second_forge() {
     let mut worker = IdentityTable::new(1);
     worker.granted(77, 1, None, fixtures::NOW).unwrap();
     assert!(worker.granted(78, 1, None, fixtures::NOW).is_err());
+}
+
+#[test]
+fn items_of_another_version_name_the_wire_and_worker_range() {
+    let assignment = fixtures::worker_assignment();
+    let current = payload::wire::VERSION;
+    let version = current.checked_add(1).unwrap();
+    let parts = [Part { token: Token::new(9), bytes: Box::from(version.to_be_bytes()) }];
+    assert_eq!(
+        worker_route::items(&assignment, &parts, &fixtures::wire_limits()),
+        Err(wire::ItemsRefusal::Version(host::Mismatch {
+            wire: b"temper-worker-wire".as_slice().into(),
+            version,
+            lowest: current,
+            highest: current,
+        }))
+    );
+}
+
+#[test]
+fn charter_versions_are_not_malformed_charters() {
+    let current = smith_charter::wire::VERSION;
+    let agent = fixtures::agent();
+    for bytes in [
+        Box::<[u8]>::from(current.to_be_bytes()),
+        Box::from([0]),
+        Box::from(current.checked_add(1).unwrap().to_be_bytes()),
+    ] {
+        let jig_protocol_worker_link::Request::Down { down: host::LinkDown::Assign { assignment }, .. } =
+            fixtures::chat_assignment()
+        else {
+            panic!("fixture")
+        };
+        let mut source = start(assignment.assignment, host::LiveAsk::NONE);
+        source.charter = bytes.clone();
+        let expected = if bytes.len() == 2 && bytes.as_ref() != current.to_be_bytes() {
+            host::Undecoded::Version(host::Mismatch {
+                wire: b"smith-charter".as_slice().into(),
+                version: current.checked_add(1).unwrap(),
+                lowest: current,
+                highest: current,
+            })
+        } else {
+            host::Undecoded::Charter
+        };
+        assert_eq!(worker_route::decode(RUN, source, &agent).unwrap_err(), expected);
+    }
+}
+
+#[test]
+fn resumed_turn_versions_are_not_malformed_transcripts() {
+    let current = smith_transcript::wire::VERSION;
+    let agent = fixtures::agent();
+    for bytes in [
+        Box::<[u8]>::from(current.to_be_bytes()),
+        Box::from([0]),
+        Box::from(current.checked_add(1).unwrap().to_be_bytes()),
+    ] {
+        let jig_protocol_worker_link::Request::Down { down: host::LinkDown::Assign { assignment }, .. } =
+            fixtures::chat_assignment()
+        else {
+            panic!("fixture")
+        };
+        let mut source = start(assignment.assignment, host::LiveAsk::NONE);
+        // Inspect every resumed turn, not only the first prefix.
+        source.turns = Box::new([Box::from(current.to_be_bytes()), bytes.clone()]);
+        let expected = if bytes.len() == 2 && bytes.as_ref() != current.to_be_bytes() {
+            host::Undecoded::Version(host::Mismatch {
+                wire: b"smith-transcript".as_slice().into(),
+                version: current.checked_add(1).unwrap(),
+                lowest: current,
+                highest: current,
+            })
+        } else {
+            host::Undecoded::Transcript
+        };
+        assert_eq!(worker_route::decode(RUN, source, &agent).unwrap_err(), expected);
+    }
 }

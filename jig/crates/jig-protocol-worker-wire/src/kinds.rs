@@ -1,5 +1,5 @@
 //! Project record sizes into skein's schema (protocol/channel/README.md, 4.1).
-use crate::{MAGIC, VERSION, v9};
+use crate::{MAGIC, VERSION, v11};
 use skein_channel::{Direction, Kind as ChannelKind, Role, Schema, Term, Version};
 use skein_lib::List;
 
@@ -68,6 +68,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x0109, direction: Direction::FromInitiator, body: Kind::SignedOut },
     KindRule { kind: 0x010a, direction: Direction::FromInitiator, body: Kind::ListRead },
     KindRule { kind: 0x010b, direction: Direction::FromInitiator, body: Kind::Draining },
+    KindRule { kind: 0x010c, direction: Direction::FromInitiator, body: Kind::JobAnswer },
     KindRule { kind: 0x0180, direction: Direction::FromResponder, body: Kind::Assignment },
     KindRule { kind: 0x0181, direction: Direction::FromResponder, body: Kind::Message },
     KindRule { kind: 0x0182, direction: Direction::FromResponder, body: Kind::Relayed },
@@ -80,8 +81,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x0189, direction: Direction::FromResponder, body: Kind::Check },
     KindRule { kind: 0x018a, direction: Direction::FromResponder, body: Kind::SignOut },
     KindRule { kind: 0x018b, direction: Direction::FromResponder, body: Kind::Job },
-    KindRule { kind: 0x018c, direction: Direction::FromInitiator, body: Kind::JobAnswer },
-    KindRule { kind: 0x018d, direction: Direction::FromResponder, body: Kind::ReadList },
+    KindRule { kind: 0x018c, direction: Direction::FromResponder, body: Kind::ReadList },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -90,36 +90,36 @@ pub enum Overflow {
     Frame,
 }
 
-pub fn schema(limits: &v9::Limits) -> Result<Schema, Overflow> {
+pub fn schema(limits: &v11::Limits) -> Result<Schema, Overflow> {
     let mut kinds = List::with_capacity(u32::try_from(KINDS.len()).expect("kind count fits"));
     for rule in KINDS {
         let largest = match rule.body {
-            Kind::Hello => v9::Hello::encoded_bound(limits),
-            Kind::Turn => v9::Turn::encoded_bound(limits),
-            Kind::Call => v9::Call::encoded_bound(limits),
-            Kind::Answer => v9::Answer::encoded_bound(limits),
-            Kind::Fact => v9::Fact::encoded_bound(limits),
-            Kind::Unauthorized => v9::Unauthorized::encoded_bound(limits),
-            Kind::Limited => v9::Limited::encoded_bound(limits),
-            Kind::AccountRefused => v9::AccountRefused::encoded_bound(limits),
-            Kind::Assignment => v9::Assignment::encoded_bound(limits),
-            Kind::Message => v9::Inbound::encoded_bound(limits),
-            Kind::Relayed => v9::Relayed::encoded_bound(limits),
-            Kind::TurnKept => v9::TurnKept::encoded_bound(limits),
-            Kind::TurnBusy => v9::TurnBusy::encoded_bound(limits),
-            Kind::Acknowledge => v9::Acknowledge::encoded_bound(limits),
-            Kind::Cancel => v9::Cancel::encoded_bound(limits),
-            Kind::Sources => v9::Sources::encoded_bound(limits),
-            Kind::ReadList => v9::ReadList::encoded_bound(limits),
-            Kind::Draining => v9::Draining::encoded_bound(limits),
-            Kind::ListRead => v9::ListRead::encoded_bound(limits),
-            Kind::Check => v9::Check::encoded_bound(limits),
-            Kind::SignOut => v9::SignOut::encoded_bound(limits),
-            Kind::Logins => v9::Logins::encoded_bound(limits),
-            Kind::SignedOut => v9::SignedOut::encoded_bound(limits),
-            Kind::Job => v9::Job::encoded_bound(limits),
-            Kind::JobAnswer => v9::JobAnswer::encoded_bound(limits),
-            Kind::Grant => v9::Granted::encoded_bound(limits),
+            Kind::Hello => v11::Hello::encoded_bound(limits),
+            Kind::Turn => v11::Turn::encoded_bound(limits),
+            Kind::Call => v11::Call::encoded_bound(limits),
+            Kind::Answer => v11::Answer::encoded_bound(limits),
+            Kind::Fact => v11::Fact::encoded_bound(limits),
+            Kind::Unauthorized => v11::Unauthorized::encoded_bound(limits),
+            Kind::Limited => v11::Limited::encoded_bound(limits),
+            Kind::AccountRefused => v11::AccountRefused::encoded_bound(limits),
+            Kind::Assignment => v11::Assignment::encoded_bound(limits),
+            Kind::Message => v11::Inbound::encoded_bound(limits),
+            Kind::Relayed => v11::Relayed::encoded_bound(limits),
+            Kind::TurnKept => v11::TurnKept::encoded_bound(limits),
+            Kind::TurnBusy => v11::TurnBusy::encoded_bound(limits),
+            Kind::Acknowledge => v11::Acknowledge::encoded_bound(limits),
+            Kind::Cancel => v11::Cancel::encoded_bound(limits),
+            Kind::Sources => v11::Sources::encoded_bound(limits),
+            Kind::ReadList => v11::ReadList::encoded_bound(limits),
+            Kind::Draining => v11::Draining::encoded_bound(limits),
+            Kind::ListRead => v11::ListRead::encoded_bound(limits),
+            Kind::Check => v11::Check::encoded_bound(limits),
+            Kind::SignOut => v11::SignOut::encoded_bound(limits),
+            Kind::Logins => v11::Logins::encoded_bound(limits),
+            Kind::SignedOut => v11::SignedOut::encoded_bound(limits),
+            Kind::Job => v11::Job::encoded_bound(limits),
+            Kind::JobAnswer => v11::JobAnswer::encoded_bound(limits),
+            Kind::Grant => v11::Granted::encoded_bound(limits),
         };
         let largest = largest.ok_or(Overflow::Body)?;
         let Ok(largest) = u32::try_from(largest) else { return Err(Overflow::Frame) };
@@ -132,18 +132,17 @@ pub fn schema(limits: &v9::Limits) -> Result<Schema, Overflow> {
 
 /// The first sending kind whose peer bound does not hold this side's largest.
 #[must_use]
-pub fn terms_gap(schema: &Schema, role: Role, terms: &List<Term>) -> Option<u16> {
+pub fn terms_gap(schema: &Schema, version: u16, role: Role, terms: &List<Term>) -> Option<u16> {
     let sending = match role {
         Role::Initiator => Direction::FromInitiator,
         Role::Responder => Direction::FromResponder,
     };
-    let table = schema.version(VERSION)?;
-    for rule in KINDS {
+    let table = schema.version(version)?;
+    for rule in &table.kinds {
         if rule.direction == sending {
-            let own = table.kind(rule.kind)?;
             let mut accepted = false;
             for term in terms {
-                if term.kind == rule.kind && term.largest >= own.largest {
+                if term.kind == rule.kind && term.largest >= rule.largest {
                     accepted = true;
                 }
             }

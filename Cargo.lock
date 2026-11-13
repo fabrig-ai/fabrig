@@ -2099,12 +2099,14 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "smith-channel",
+ "smith-charter",
  "smith-domain-run",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -2125,7 +2127,12 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
+ "smith-channel",
+ "smith-charter",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -4399,7 +4406,9 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -4432,7 +4441,9 @@ name = "smith-charter"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -4500,6 +4511,7 @@ dependencies = [
  "skein-lib",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -6508,6 +6520,7 @@ dependencies = [
  "skein-forge-client",
  "skein-json",
  "skein-lib",
+ "skein-scratch",
  "smith-agent-world",
  "smith-domain",
  "smith-domain-run",
@@ -7027,7 +7040,9 @@ name = "temper-protocol-worker-wire"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]

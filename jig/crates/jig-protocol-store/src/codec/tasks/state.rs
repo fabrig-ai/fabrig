@@ -1,6 +1,6 @@
 //! Durable task values translated exhaustively (protocol/store/records.md, 1).
 use super::phase;
-use crate::tasks_v11 as wire;
+use crate::tasks_v12 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{Token, Wall};

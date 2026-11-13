@@ -26,6 +26,7 @@ pub enum Address {
     Rule { project: u32, kind: u32, number: u32 },
     Team { project: u32, role: Option<u64> },
     Ask { project: u32 },
+    Tell { project: u32 },
     Adopt { project: u32 },
     Work { project: u32, filter: WorkFilter },
     Members,
@@ -214,6 +215,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
             (b"projects".as_slice(), Some(u64::from(*project)), b"settings/repositories".as_slice())
         }
         Address::Ask { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"ask".as_slice()),
+        Address::Tell { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"tell".as_slice()),
         Address::Adopt { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"adopt".as_slice()),
     };
     let digits = Decimal::of(number.unwrap_or(0));
@@ -374,6 +376,10 @@ pub fn parse(path: &[u8]) -> Place {
         (b"projects", _, b"ask") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Ask { project }
+        }
+        (b"projects", _, b"tell") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Tell { project }
         }
         (b"projects", _, b"adopt") => {
             let Some(project) = project_decimal(number) else {

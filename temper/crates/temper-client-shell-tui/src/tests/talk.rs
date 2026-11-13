@@ -22,6 +22,9 @@ fn role_chip() -> w::Chip {
     records::chip_from_rows(&rows)
 }
 fn roles_host() -> Host {
+    roles_fixture().0
+}
+fn roles_fixture() -> (Host, Duties) {
     let (mut host, _, mut duties) = signed_host(true);
     let mut watched = None;
     for _ in 0..host.env.limits.client.domain.watches {
@@ -58,8 +61,8 @@ fn roles_host() -> Host {
     line.encode(&mut writer).unwrap();
     let tasks = w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).unwrap();
     let arrived = delivery(&mut host, watched.expect("roles watch"), &w::DeliveryValue::Tasks(tasks));
-    admit(&mut host, arrived);
-    host
+    duties.asked.extend(admit(&mut host, arrived).asked);
+    (host, duties)
 }
 fn activity(position: u64, line: w::Activity) -> w::DecodedActivityLine {
     let source =
@@ -74,7 +77,12 @@ fn talk_host(open: bool, cost: bool) -> Host {
     reason = "fixture flags independently supply the open talk, cost, reply and proposal"
 )]
 fn talk_fixture(open: bool, cost: bool, choices: bool, proposed: bool) -> Host {
-    let mut host = roles_host();
+    talk_setup(open, cost, choices, proposed).0
+}
+#[expect(clippy::fn_params_excessive_bools, reason = "fixture flags independently supply talk facts")]
+#[expect(clippy::too_many_lines, reason = "talk fixture constructs the page's full typed document")]
+fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, Duties) {
+    let (mut host, mut history) = roles_fixture();
     typed(&mut host, b"/talk");
     give(&mut host, Event::Send);
     assert!(host.state().talk_list());
@@ -189,11 +197,11 @@ fn talk_fixture(open: bool, cost: bool, choices: bool, proposed: bool) -> Host {
     duties.asked.retain(
         |request| matches!(request, Request::Exchange { exchange, message: Message::Read(_), .. } if *exchange != read),
     );
-    admit(&mut host, duties);
+    history.asked.extend(admit(&mut host, duties).asked);
     host.clocks(host.env.now, Wall::from_nanos(9 * MINUTE));
     host.report(Report::Due);
     host.frame();
-    host
+    (host, history)
 }
 #[test]
 fn talk_opens_by_prefix_and_its_list_lowers_on_escape_or_typing() {
@@ -202,7 +210,7 @@ fn talk_opens_by_prefix_and_its_list_lowers_on_escape_or_typing() {
         typed(&mut host, words);
         give(&mut host, Event::Send);
         assert_eq!(host.root.pages().address(), &Address::Talk { project: 3, task: ROLE });
-        assert!(host.words().is_empty());
+        assert_eq!(host.words(), []);
     }
     let mut host = roles_host();
     typed(&mut host, b"/talk zed");
@@ -288,7 +296,7 @@ fn a_roles_choices_send_talk_words_and_accept_confirms_the_proposal_in_place() {
     typed(&mut host, b"1");
     let duties = give(&mut host, Event::Send);
     assert!(sent_ask(&duties).iter().any(|(_, ask)| matches!(ask, w::Ask::Talk(talk) if talk.project() == 3 && talk.task() == ROLE && talk.words() == b"Yes, add it")));
-    assert!(host.words().is_empty());
+    assert_eq!(host.words(), []);
     let mut host = talk_fixture(true, true, false, true);
     assert!(text(&mut host).contains("1. Accept it"));
     let object = jig_client::contract::ObjectKey::Proposal(jig_client::contract::ProposalKey {
@@ -314,4 +322,67 @@ fn a_roles_choices_send_talk_words_and_accept_confirms_the_proposal_in_place() {
     assert!(host.state().proposal_aside(&object));
     typed(&mut host, b"");
     assert!(!text(&mut host).contains("1. Accept it"));
+}
+
+#[test]
+fn telling_on_a_roles_talk_files_in_its_area() {
+    use temper_client_protocol_wire::{self as wire, v1 as f};
+    let (mut host, duties) = talk_setup(true, false, false, false);
+    let watched = duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+            if open.subject().owner() == &w::Owner::Jig {
+                return None;
+            }
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
+            let reading = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
+            matches!(reading.watch(), f::Watch::Findings(subject) if subject.project() == 3).then_some(open.watch())
+        })
+        .expect("the talk's project reads findings");
+    let task = f::Holder::Task(f::HolderTask::new(&f::CEILINGS, f::HolderTaskParts { number: ROLE }).unwrap());
+    let document = f::Findings::new(
+        &f::CEILINGS,
+        f::FindingsParts {
+            project: 3,
+            rows: List::with_capacity(0),
+            areas: List::from_boxed(Box::new([f::AreaRow::new(
+                &f::CEILINGS,
+                f::AreaRowParts {
+                    name: b"ports".as_slice().into(),
+                    words: b"Porting".as_slice().into(),
+                    owner: f::AreaOwner::Task(
+                        f::AreaTask::new(&f::CEILINGS, f::AreaTaskParts { number: ROLE }).unwrap(),
+                    ),
+                    holder: Some(task.clone()),
+                },
+            )
+            .unwrap()])),
+            triager: None,
+            holder: task,
+            cut: false,
+        },
+    )
+    .unwrap();
+    let document = w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts {
+            owner: w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).unwrap()),
+            version: wire::CLIENT_VERSION,
+            record: wire::findings(&document),
+        },
+    )
+    .unwrap();
+    let event = w::StreamEvent::Delivery(
+        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: watched, document }).unwrap(),
+    );
+    let duties = host.report(Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(stream_bytes(&event)),
+    }));
+    admit(&mut host, duties);
+    let (_, file) = super::tell::send(&mut host, b"/tell The port is stuck").expect("one filing");
+    assert_eq!(file.area().as_deref(), Some(b"ports".as_slice()));
+    assert_eq!(file.body(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
 }

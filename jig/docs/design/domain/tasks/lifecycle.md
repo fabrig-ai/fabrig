@@ -213,11 +213,14 @@ them (8).
   - *invalid:* a result that broke its contract. A start its host
     refused before the run's first turn gave no result, so it is never
     invalid: one refused for its transcript is transient, one refused as
-    any other invalid assignment permanent, and one refused busy no
-    failure (below).
+    any other invalid assignment permanent, and one refused busy, or for
+    a version its host does not read (a charter, a turn or the
+    application's items of another version), no failure (below).
 
   A refusal before anything ran (a host busy, a writer slot taken, no
-  room to gather a brief) is no failure: the task claims again after a
+  room to gather a brief, a version mismatch, its notice naming the wire
+  and both versions: `../../protocol/channel/wires.md`, 6) is no
+  failure: the task claims again after a
   pause, with no bound, its retry notice saying why. Nor is a run ended
   because its LLM account's source turned limited, refused or in need of
   a sign-in: its task waits for its account, saying why (../accounts.md,

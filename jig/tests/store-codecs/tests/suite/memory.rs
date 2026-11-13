@@ -1,6 +1,6 @@
 //! Full golden rows decode within their decoded bounds (skein's data/codec/README.md, 6).
 use jig_protocol_store::{
-    accounts_v2, component_v3, core_v6, notes_v1, people_v17, secrets_v1, settings_v3, tasks_v11,
+    accounts_v2, component_v3, core_v6, notes_v1, people_v17, secrets_v1, settings_v3, tasks_v12,
 };
 use skein_heap::Meter;
 use skein_lib::Reader;
@@ -29,9 +29,9 @@ fn a_full_notes_row_decodes_within_its_decoded_bound() {
 }
 #[test]
 fn a_full_tasks_row_decodes_within_its_decoded_bound() {
-    let bound = tasks_v11::Row::decoded_bound(&tasks_v11::CEILINGS).expect("tasks heap bound");
+    let bound = tasks_v12::Row::decoded_bound(&tasks_v12::CEILINGS).expect("tasks heap bound");
     check("tasks", "row", bound, |golden| {
-        tasks_v11::Row::decode(&tasks_v11::CEILINGS, &mut Reader::new(golden)).expect("full row")
+        tasks_v12::Row::decode(&tasks_v12::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
@@ -188,21 +188,21 @@ fn the_longest_accounts_rows_decode_within_the_rows_decoded_bound() {
 
 #[test]
 fn added_dependencies_kept_lines_and_circle_payloads_fit_their_heap_bounds() {
-    let limits = tasks_v11::CEILINGS;
+    let limits = tasks_v12::CEILINGS;
     check(
         "tasks",
         "task_definition",
-        tasks_v11::TaskDefinition::decoded_bound(&limits).expect("definition bound"),
+        tasks_v12::TaskDefinition::decoded_bound(&limits).expect("definition bound"),
         |golden| {
-            tasks_v11::TaskDefinition::decode(&limits, &mut Reader::new(golden))
+            tasks_v12::TaskDefinition::decode(&limits, &mut Reader::new(golden))
                 .expect("full definition with additions")
         },
     );
-    check("tasks", "kept_line", tasks_v11::KeptLine::decoded_bound(&limits).expect("kept bound"), |golden| {
-        tasks_v11::KeptLine::decode(&limits, &mut Reader::new(golden)).expect("full pending list")
+    check("tasks", "kept_line", tasks_v12::KeptLine::decoded_bound(&limits).expect("kept bound"), |golden| {
+        tasks_v12::KeptLine::decode(&limits, &mut Reader::new(golden)).expect("full pending list")
     });
-    check("tasks", "circle", tasks_v11::Circle::decoded_bound(&limits).expect("circle bound"), |golden| {
-        tasks_v11::Circle::decode(&limits, &mut Reader::new(golden)).expect("full circle")
+    check("tasks", "circle", tasks_v12::Circle::decoded_bound(&limits).expect("circle bound"), |golden| {
+        tasks_v12::Circle::decode(&limits, &mut Reader::new(golden)).expect("full circle")
     });
 }
 

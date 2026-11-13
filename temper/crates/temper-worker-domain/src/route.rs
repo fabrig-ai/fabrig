@@ -123,7 +123,7 @@ fn assign(
     domain: &mut Domain,
     env: &Env<Limits>,
     assignment: host::Assignment,
-    items: Result<wire::Workspace, wire::Undecodable>,
+    items: Result<wire::Workspace, wire::ItemsRefusal>,
     out: &mut Queue<Request>,
 ) {
     let (run, attempt) = (assignment.assignment.run, assignment.assignment.attempt);
@@ -132,7 +132,10 @@ fn assign(
     }
     let items = match items {
         Ok(items) => items,
-        Err(wire::Undecodable) => {
+        Err(wire::ItemsRefusal::Version(mismatch)) => {
+            return refuse(run, attempt, host::Refusal::Version(mismatch), out);
+        }
+        Err(wire::ItemsRefusal::Invalid) => {
             let why = words(b"workspace items", env.limits.host.detail_bytes);
             return refuse(
                 run,

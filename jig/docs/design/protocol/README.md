@@ -81,7 +81,9 @@ section 4. What is still open is listed in section 14.
    and mounts the clients' component, and the reference binary,
    `jig-test`, with its service.
 3. **channel/README.md:** jig's channel between the engine and its workers, and
-   where host tools' calls are decoded.
+   where host tools' calls are decoded; **channel/wires.md**, the wires a
+   worker's opening states by version and layout, and what a version
+   mismatch costs.
 4. **llm.md:** LLM calls in a host's own process, for
    `smith-inline-agent`'s runs, and LLM accounts: skein's accounts
    driver for sign-ins, keys from requests, program sources on their
@@ -113,8 +115,8 @@ section 4. What is still open is listed in section 14.
 | record | a value of a protocol's vocabulary, encoded to its schema |
 | service | a process's `iterate` with its root and protocol layer; its `main` is its shell |
 | worker's link | a worker's one channel with its engine, dialled and redialled (`channel/README.md`); the hub's link to the core, over a channel |
-| worker's credential | what a worker's opening carries: its name, its secret, the application's payload version (`channel/README.md`, 4.1) |
-| payload version | the number an application gives jig's components for its own encodings carried inside jig's records |
+| worker's credential | what a worker's opening carries: its name, its secret, the wires it speaks (`channel/README.md`, 4.1) |
+| wire | an encoding two builds exchange, whose version moves with its layout: jig's channel, smith's charter, turns and channel, and the application's own parts carried inside jig's records, each stated at the opening by its versions and layouts (`channel/wires.md`) |
 | credential grant | an LLM account's grant, or an application's credential, named by account and source (or the application's number for it) and generation, with how long it is valid; its value is beside it (section 8). An LLM account's is a credential with its scheme, `bearer` or `key`, or a program source's name, which carries no value (`llm.md`, section 6). Not the authority's grant (`../domain/README.md`, section 4) |
 | table | a component's holding of secrets' values, by account, source and generation; jig's accounts' table, or the application's of its credentials |
 | secrets' records | what the store keeps of secrets that change while the engine runs: minted credentials' and services' digests, LLM accounts' records and keys, and an application's own |
@@ -266,7 +268,7 @@ processes (smith's `protocol/host.md`, sections 2 and 3).
 | its presentation: its routes and screens, words and look, confirmations and drafts, home and navigation, on `jig-client` and jig's helpers if they suit, with skein's UI kit, anything else, or nothing; or jig's reference UI, `jig-client-view`, as `ops` and jig's test application use it | the client | its own (`../client/domain/`) |
 | its credentials for runs' workspaces: their tables, and their sources (a file, or an exchange it refreshes) on the engine | engine and worker | its own (`channel/README.md`, section 7) |
 | its connectors' host tools: schemas, decoding, rendering | the engine | beside each tool, as `jig-protocol-tools` is for the core's (`../domain/hosts/charters.md`) |
-| its parts' encodings: workspace items, left and saved work, delivery evidence, with its payload version | engine and worker | its own codecs (`channel/README.md`, 5.2) |
+| its parts' encodings: workspace items, left and saved work, delivery evidence, and the wires they are (`channel/wires.md`, 2) | engine and worker | its own codecs (`channel/README.md`, 5.2) |
 | its periods' source | the engine | a child of its root (`configuration.md`, section 5) |
 | the worker's root, with its choice of agent capability, its workspace and its io | the worker | its own (`../domain/hosts/README.md`, section 6) |
 | its store's families: keys' encoders, codecs, its store version, its indexes | the engine | its own, by `store/README.md`, section 7 |
@@ -280,26 +282,28 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
 
 ## 7. Versions
 
-- **Pre-release: one version at a time.** Each of jig's encodings has one
-  current version. Until the first release, the baseline, its number stays
-  fixed: changes to its schema, generated code and golden bytes are made
-  in place. Each family keeps one set of golden bytes, its current
-  schema's. Versions move at a release, not at a landing (skein's
-  `data/codec/README.md`, section 5). A reader refuses another version, saying so,
-  and nothing is translated.
-- **No upgrade in place.** Everything that crosses a boundary or
-  outlives a process carries its version, which an upgrade will need; an
-  upgrade stops the engine and its workers together, and a store written
-  by another version refuses to open (section 14). Until the baseline,
-  a store from an older build is started afresh when its families change:
-  the unchanged version numbers do not distinguish those layouts.
-- **The channel** is versioned whole, agreed at its opening; the
-  application's payloads inside it by the payload version a worker's
-  credential carries (`channel/README.md`, 4.1 and 5.2).
+- **Versions move with layouts, from now** (the user, 2026-11-12). Each
+  of jig's encodings has one current version. A stored family moves its
+  version with its patch from its baseline (`store/records.md`); a wire,
+  an encoding two builds exchange, moves its version at the landing that
+  changes its layout, keeps the old text and brings its forward patch
+  (skein's `data/codec/README.md`, section 5; `data/codec/command.md`, 2,
+  the wire rule). A reader refuses another version, saying so. Each
+  build's floor is its current version, so nothing is translated yet.
+- **The engine and its workers may be of two builds.** Everything that
+  crosses a boundary or outlives a process carries its version. A store
+  written by another version is patched or refused at its opening
+  (section 14); a worker whose wires another build laid out is refused at
+  its channel's opening, by name (`channel/wires.md`, 3).
+- **The channel** is a wire, agreed at its opening, its kinds' table in
+  its schema; the application's payloads inside it and smith's charter,
+  turns and channel are wires beside it, which the worker's credential
+  states (`channel/wires.md`, 2).
 - **smith's charter, turns and results** carry smith's versions (smith's
   `protocol/README.md`, section 8). The engine writes charters in the
-  version its release's smith writes, and its workers, of the same
-  release, read them.
+  version its smith writes, and a worker that reads another refuses the
+  assignment for its version, which costs no try (`channel/wires.md`,
+  6).
 - **What outlives a process** carries its version: the store's records,
   per family (`store/records.md`), and the client's small store
   (`../client/domain/client/README.md`, section 8).
@@ -564,8 +568,7 @@ What the store asks of the domain is `store/README.md`, section 10.
 - **The channel on skein's channel,** one per worker, dialled by the
   worker, TLS between hosts and plaintext only over loopback or in one
   process, a name and a secret authenticating the worker, and the
-  application's payload version checked at the opening (`channel/README.md`,
-  section 4).
+  wires both speak checked at the opening (`channel/wires.md`, 3).
 - **The hub's vocabulary on both ends of the channel,** so the engine's
   root routes a worker's link as it routes its own hub (`channel/README.md`,
   section 1).

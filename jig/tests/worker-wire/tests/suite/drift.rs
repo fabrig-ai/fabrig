@@ -8,10 +8,10 @@ use std::fs;
 )]
 fn worker_wire_schema_matches_generated_code_and_goldens() {
     let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
-    let source = fs::read_to_string(root.join("schema/worker-wire-v9.schema")).expect("schema");
+    let source = fs::read_to_string(root.join("schema/worker-wire-v11.schema")).expect("schema");
     let schema = parse(&source).expect("schema valid");
     let output = generate(&schema);
-    let code = root.join("src/generated/v9.rs");
+    let code = root.join("src/generated/v11.rs");
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-worker-wire-world --test drift";

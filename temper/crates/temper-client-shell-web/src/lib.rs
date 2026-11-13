@@ -26,6 +26,8 @@ pub mod public;
 #[cfg(target_arch = "wasm32")]
 mod push;
 pub mod records;
+#[cfg(any(target_arch = "wasm32", test))]
+mod reload;
 /// The frame's reports (temper/docs/design/playground.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Control {
@@ -311,6 +313,9 @@ impl<P: ShellPlatform> Shell<P> {
         navigates.then_some(shown)
     }
     pub fn draw(&mut self, new_page: bool, now: skein_lib::Time) {
+        if reload::page(&self.host) {
+            return;
+        }
         let mut ops = Vec::new();
         self.host.draw(&mut self.page.borrow_mut(), &mut ops);
         self.dom.apply(&ops);

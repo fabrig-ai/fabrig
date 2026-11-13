@@ -10,7 +10,8 @@ use skein_lib::Duration;
 #[test]
 fn workspace_items_that_did_not_decode_are_refused_naming_them() {
     let mut h = Harness::new();
-    let assign = Event::Assign { assignment: assignment(true, Box::new([])), items: Err(crate::wire::Undecodable) };
+    let assign =
+        Event::Assign { assignment: assignment(true, Box::new([])), items: Err(crate::wire::ItemsRefusal::Invalid) };
     assert_eq!(&*h.step(assign), [refused(b"workspace items")]);
     assert_eq!(h.domain.host().hosted(), 0);
 }
@@ -391,5 +392,31 @@ fn merged_receipts_keep_both_heads_within_the_512_byte_bound() {
             assert!(skein_lib::bytes::find(text, b", merging its tip ").is_some());
             assert!(text.ends_with(b" first; your checkout stays detached, as expected"));
         }
+    }
+}
+
+#[test]
+fn version_refusals_cross_the_root_without_an_agent_or_a_kept_slot() {
+    for items in [false, true] {
+        let mut h = Harness::new();
+        let mismatch = host::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, lowest: 4, highest: 4 };
+        let rows = if items {
+            h.step(Event::Assign {
+                assignment: assignment(true, Box::new([])),
+                items: Err(crate::wire::ItemsRefusal::Version(mismatch.clone())),
+            })
+        } else {
+            let (agent, _) = h.decode(Box::new([]));
+            h.step(Event::Decoded { agent, start: Err(host::Undecoded::Version(mismatch.clone())) })
+        };
+        let mut answered = false;
+        for row in &rows {
+            if let Request::Answer { answer, .. } = row {
+                assert_eq!(answer.ending, host::Ending::Refused(host::Refusal::Version(mismatch.clone())));
+                answered = true;
+            }
+        }
+        assert!(answered, "{rows:?}");
+        assert_eq!(h.domain.host().hosted(), 0);
     }
 }

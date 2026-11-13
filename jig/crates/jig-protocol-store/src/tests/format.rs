@@ -263,7 +263,7 @@ fn current_layouts_are_the_eight_distinct_runtime_schema_fingerprints() {
     let families = [
         (layouts.component, current.component, include_bytes!("../../schema/component-v3.schema").as_slice()),
         (layouts.core, current.core, include_bytes!("../../schema/core-v6.schema").as_slice()),
-        (layouts.tasks, current.tasks, include_bytes!("../../schema/tasks-v11.schema").as_slice()),
+        (layouts.tasks, current.tasks, include_bytes!("../../schema/tasks-v12.schema").as_slice()),
         (layouts.people, current.people, include_bytes!("../../schema/people-v17.schema").as_slice()),
         (layouts.notes, current.notes, include_bytes!("../../schema/notes-v1.schema").as_slice()),
         (layouts.accounts, current.accounts, include_bytes!("../../schema/accounts-v2.schema").as_slice()),

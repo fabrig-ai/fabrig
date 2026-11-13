@@ -204,6 +204,7 @@ pub struct Machine {
     next_right: u64,
     used_bytes: u32,
     used_frames: u32,
+    terminal_text: Box<[u8]>,
 }
 
 impl Machine {
@@ -233,6 +234,7 @@ impl Machine {
             next_right: 1,
             used_bytes: 0,
             used_frames: 0,
+            terminal_text: Box::new([]),
         })
     }
 
@@ -377,6 +379,7 @@ impl Machine {
         }
         assert!(text.len() <= 256, "refusal text is at most 256 bytes");
         self.clear_output();
+        self.terminal_text.clone_from(&text);
         let control = Control::Refuse { reason, text };
         let frame = control_frame(&control, &self.limits).expect("bounded Refuse fits");
         self.queue(frame, QueueTag::Control);
@@ -534,7 +537,7 @@ impl Machine {
         match self.phase {
             Phase::Closing { why } | Refusing { why: why @ Closed::Stream, .. } => {
                 self.phase = Phase::Closed;
-                above.push(Event::Closed { why });
+                above.push(Event::Closed { why, text: mem::replace(&mut self.terminal_text, Box::new([])) });
             }
             Phase::Idle
             | WaitOpen
@@ -885,6 +888,10 @@ impl Machine {
     }
 
     #[expect(clippy::manual_let_else, reason = "step code uses exhaustive matches instead of let-else")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the control variants keep their opening and terminal transitions together"
+    )]
     fn received(&mut self, kind: u16, body: Box<[u8]>, above: &mut Queue<Event>) {
         if kind >= 0x0100 {
             above.push(Event::Body { kind, body });
@@ -904,7 +911,15 @@ impl Machine {
                         self.phase = WaitOwner { lowest, highest };
                         above.push(Event::Opening { credential, lowest, highest });
                     }
-                    Err(reason) => self.auto_refuse(reason),
+                    Err(reason) => {
+                        if reason == 1 {
+                            let ours = self.schema.range().expect("validated versions");
+                            let text = super::opening::version_words(ours, (lowest, highest));
+                            self.refuse(reason, text, Closed::RefusedHere(reason));
+                        } else {
+                            self.auto_refuse(reason);
+                        }
+                    }
                 },
                 Phase::Idle
                 | WaitOwner { .. }
@@ -927,6 +942,7 @@ impl Machine {
                 }
             }
             Control::Refuse { reason, text } => {
+                self.terminal_text.clone_from(&text);
                 above.push(Event::Refused { reason, text });
                 self.closing(Closed::RefusedPeer(reason), OutputFate::Drop);
             }

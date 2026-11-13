@@ -82,7 +82,7 @@ fn per_kind_terms_reject_call_and_reply_mismatches_even_with_larger_other_frames
                 };
                 terms.push(Term { kind: entry.kind, largest }).unwrap();
             }
-            assert_eq!(wire::terms_gap(&larger, role, &terms), if short { Some(kind) } else { None });
+            assert_eq!(wire::terms_gap(&larger, wire::VERSION, role, &terms), if short { Some(kind) } else { None });
         }
     }
 }

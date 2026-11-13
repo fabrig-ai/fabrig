@@ -1914,6 +1914,7 @@ fn hydrate_result(
             | tasks::End::Failed(_)
             | tasks::End::FailedWithReason { .. }
             | tasks::End::Refused
+            | tasks::End::RefusedWithReason { .. }
             | tasks::End::Recheck => {}
         }
     }

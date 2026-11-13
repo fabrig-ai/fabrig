@@ -35,8 +35,8 @@ fn the_codecs_hold_fabrig_scale() {
     let core = fabrig_scale();
     let limits = codec::limits(&core).expect("development figures within codec ceilings");
     println!(
-        "fabrig-scale tasks_v11::Row::encoded_bound={}",
-        jig_protocol_store::tasks_v11::Row::encoded_bound(&limits.tasks).expect("task row bound"),
+        "fabrig-scale tasks_v12::Row::encoded_bound={}",
+        jig_protocol_store::tasks_v12::Row::encoded_bound(&limits.tasks).expect("task row bound"),
     );
 }
 
@@ -193,7 +193,7 @@ fn both_shipped_profiles_round_trip_a_policy_whose_roles_name_models() {
 #[test]
 fn question_formats_fit_the_shipped_envelopes() {
     use jig_domain_tasks as tasks;
-    use jig_protocol_store::{sizes, tasks_v11};
+    use jig_protocol_store::{sizes, tasks_v12};
     println!(
         "resident credit={} task={} line={} activity={} request={} core={} store={}",
         size_of::<tasks::QuestionCredit>(),
@@ -206,9 +206,9 @@ fn question_formats_fit_the_shipped_envelopes() {
     );
     println!(
         "encoded credit={} kept={} interests={}",
-        tasks_v11::QuestionCredit::encoded_bound(&tasks_v11::CEILINGS).expect("credit bound"),
-        tasks_v11::KeptLine::encoded_bound(&tasks_v11::CEILINGS).expect("kept bound"),
-        tasks_v11::TaskInterests::encoded_bound(&tasks_v11::CEILINGS).expect("interests bound"),
+        tasks_v12::QuestionCredit::encoded_bound(&tasks_v12::CEILINGS).expect("credit bound"),
+        tasks_v12::KeptLine::encoded_bound(&tasks_v12::CEILINGS).expect("kept bound"),
+        tasks_v12::TaskInterests::encoded_bound(&tasks_v12::CEILINGS).expect("interests bound"),
     );
     for name in [Profile::Small, Profile::Standard] {
         let limits = profile(name);
@@ -224,7 +224,7 @@ fn question_formats_fit_the_shipped_envelopes() {
         let codec = codec::tasks::limits(&limits.core.tasks).expect("task codec limits");
         println!(
             "{name:?}: task_row={} value={}/{} page={}/{} commit={}/{} ops={}/{} queued_bytes={}/{} journal_writes={} journal_held={}",
-            tasks_v11::TaskRecord::encoded_bound(&codec).expect("task row bound"),
+            tasks_v12::TaskRecord::encoded_bound(&codec).expect("task row bound"),
             sizes.value,
             limits.store.store.value,
             sizes.key + sizes.value,

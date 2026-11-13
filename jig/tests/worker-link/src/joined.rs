@@ -155,6 +155,7 @@ pub struct Joined {
     pipe: Option<net::Pipe>,
     pub engine_root: Vec<engine::Request>,
     pub engine_ended: Vec<engine::Request>,
+    pub engine_openings: Vec<engine::Request>,
     pub worker_root: Vec<Request>,
     pub values: Vec<Request>,
     pub worker_order: Vec<&'static str>,
@@ -215,11 +216,12 @@ impl Joined {
             digest: skein_io::digest::digest(fixtures::SECRET_A),
         }]);
         Self {
-            engine: engine::Component::new(&engine_limits, workers, fixtures::PAYLOAD).expect("engine limits"),
+            engine: engine::Component::new(&engine_limits, workers, fixtures::application()).expect("engine limits"),
             worker: Component::new(limits, credential, seed).expect("worker limits"),
             pipe: None,
             engine_root: Vec::new(),
             engine_ended: Vec::new(),
+            engine_openings: Vec::new(),
             worker_root: Vec::new(),
             values: Vec::new(),
             worker_order: Vec::new(),
@@ -334,6 +336,7 @@ impl Joined {
             | Request::Lost
             | Request::GracePassed
             | Request::Closed
+            | Request::Refused { .. }
             | Request::Fact { .. } => {
                 self.worker_root.push(request);
             }
@@ -384,6 +387,7 @@ impl Joined {
                 }
             }
             engine::Request::Ended { .. } => self.engine_ended.push(request),
+            engine::Request::Opened { .. } | engine::Request::Refused { .. } => self.engine_openings.push(request),
             engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
                 self.engine_root.push(request);
             }
@@ -470,6 +474,8 @@ impl Joined {
                 | engine::Request::Close { .. }
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
+                | engine::Request::Opened { .. }
+                | engine::Request::Refused { .. }
                 | engine::Request::Unsent { .. }
                 | engine::Request::Ended { .. }
                 | engine::Request::Lost { .. }

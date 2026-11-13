@@ -54,6 +54,8 @@ mod records {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Opened { .. }
+            | Request::Refused { .. }
             | Request::Ended { .. }
             | Request::Closed => panic!("an up record"),
         }
@@ -352,7 +354,8 @@ mod down_records {
     #[test]
     fn a_turn_busy_before_the_hello_is_dropped() {
         let mut world = world();
-        let connection = world.connect(fixtures::worker(fixtures::WORKER_A, fixtures::SECRET_A, fixtures::PAYLOAD));
+        let connection =
+            world.connect(fixtures::worker(fixtures::WORKER_A, fixtures::SECRET_A, fixtures::APPLICATION_VERSION));
         world.run();
         busy(&mut world, Token::new(1));
         assert!(world.observed(connection).iter().all(|record| record.kind != 0x0184));

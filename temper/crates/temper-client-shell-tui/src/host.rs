@@ -793,6 +793,7 @@ impl Host {
         self.tell(Told::Tell { serial, refusal });
     }
 
+    #[expect(clippy::too_many_lines, reason = "composer sends route terminal commands and their screen context")]
     fn send(&mut self, duties: &mut Duties) {
         if self.words() == tui::EXIT && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some()) {
             self.leave();
@@ -820,7 +821,14 @@ impl Host {
             && let Some(words) = self.words().strip_prefix(b"/tell ").filter(|words| !words.is_empty())
         {
             let words = words.into();
-            self.act(Act::Tell { project, words });
+            let title = self
+                .root
+                .pages()
+                .chat()
+                .and_then(|chat| chat.task(self.root.client()))
+                .map(|task| task.chip.title.bytes().into());
+            let about = Some(root::pages::tell::About { address: self.root.pages().address().clone(), title });
+            self.act(Act::Tell { project, words, about });
             self.composer_words(Box::default());
             self.tell(Told::Cleared);
             return;
@@ -1044,6 +1052,7 @@ impl Host {
             | Address::Role { project, .. }
             | Address::Rule { project, .. }
             | Address::Ask { project }
+            | Address::Tell { project }
             | Address::Adopt { project } => Some(*project),
             Address::Inbox { filter } => filter.project,
             Address::Chats { .. }

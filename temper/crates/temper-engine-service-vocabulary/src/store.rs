@@ -5,18 +5,54 @@ pub mod route;
 mod unreadable;
 use jig_protocol_store as protocol;
 use protocol::host::{check_read_page, max_whole};
-use skein_lib::Token;
+use skein_lib::{List, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 pub use unreadable::UnreadableRow;
 /// The wires this engine speaks to its workers (jig's protocol/store/records.md,
 /// 3; temper's protocol/README.md, 7).
-pub const WIRES: [protocol::Wire; 4] = [
-    protocol::Wire { name: "jig-channel", version: channel_version(jig_protocol_worker_wire::VERSION) },
-    protocol::Wire { name: "smith-charter", version: record_version(smith_charter::Charter::FORMAT_VERSION) },
-    protocol::Wire { name: "smith-turn", version: record_version(smith_transcript::Turn::FORMAT_VERSION) },
-    protocol::Wire { name: "temper-payload", version: temper_protocol_worker_wire::PAYLOAD_VERSION },
+pub const WIRES: [protocol::Wire; 6] = [
+    protocol::Wire {
+        name: jig_protocol_worker_wire::wire::FAMILY,
+        version: wire_version(jig_protocol_worker_wire::wire::VERSION),
+    },
+    protocol::Wire { name: smith_channel::wire::FAMILY, version: wire_version(smith_channel::wire::VERSION) },
+    protocol::Wire { name: smith_charter::wire::FAMILY, version: wire_version(smith_charter::wire::VERSION) },
+    protocol::Wire { name: smith_transcript::wire::FAMILY, version: wire_version(smith_transcript::wire::VERSION) },
+    protocol::Wire {
+        name: temper_protocol_worker_wire::wire::FAMILY,
+        version: wire_version(temper_protocol_worker_wire::wire::VERSION),
+    },
+    protocol::Wire {
+        name: temper_engine_smith::wire::FAMILY,
+        version: wire_version(temper_engine_smith::wire::VERSION),
+    },
 ];
+
+/// The engine's wires in statement order (protocol/wires.md, 9).
+#[must_use]
+pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
+    use jig_protocol_worker_wire::Spoken;
+    let mut wires = List::with_capacity(6);
+    for wire in jig_protocol_worker_wire::spoken().into_boxed() {
+        wires.push(wire).expect("six wire slots");
+    }
+    for wire in [
+        Spoken::current(
+            temper_protocol_worker_wire::wire::FAMILY,
+            temper_protocol_worker_wire::wire::VERSION,
+            temper_protocol_worker_wire::wire::layout(),
+        ),
+        Spoken::current(
+            temper_engine_smith::wire::FAMILY,
+            temper_engine_smith::wire::VERSION,
+            temper_engine_smith::wire::layout(),
+        ),
+    ] {
+        wires.push(wire).expect("six wire slots");
+    }
+    wires
+}
 /// Owners kept by every engine shape, upstream first (protocol/baseline.md, 4).
 pub const PATCH_SETS: protocol::PatchSets = protocol::PatchSets {
     sets: &[
@@ -26,15 +62,10 @@ pub const PATCH_SETS: protocol::PatchSets = protocol::PatchSets {
         temper_protocol_store::PATCH_SET,
     ],
 };
-// These conversions are checked while the static wire table is evaluated.
-const fn channel_version(version: u16) -> u32 {
-    let bytes = version.to_le_bytes();
-    u32::from_le_bytes([bytes[0], bytes[1], 0, 0])
-}
-const fn record_version(version: u64) -> u32 {
-    let bytes = version.to_le_bytes();
-    assert!(bytes[4] == 0 && bytes[5] == 0 && bytes[6] == 0 && bytes[7] == 0, "wire version fits u32");
-    u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+// Widen each version while the static wire row is evaluated.
+const fn wire_version(version: u16) -> u32 {
+    let [low, high] = version.to_le_bytes();
+    u32::from_le_bytes([low, high, 0, 0])
 }
 /// Submission slots the component reserves for store-driver handoff.
 pub const KERNEL_HANDOFF_ENTRIES: u32 = protocol::host::KERNEL_HANDOFF_ENTRIES;

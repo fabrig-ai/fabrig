@@ -86,6 +86,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
                 host::Ending::Failed { failure, .. } => fleet::Answer::Failed { turned: turned(failure) },
                 host::Ending::Refused(host::Refusal::Busy) => fleet::Answer::Busy,
                 host::Ending::Refused(host::Refusal::Invalid(_)) => fleet::Answer::Invalid,
+                host::Ending::Refused(host::Refusal::Version(_)) => fleet::Answer::Version,
             };
             let payload = domain.retain(Payload::Answer {
                 task: run.raw(),
@@ -159,6 +160,9 @@ fn refusals(values: Box<[host::Refused]>) -> Box<[u64]> {
 pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
     match ending {
         host::Ending::Refused(host::Refusal::Busy) => tasks::End::Refused,
+        host::Ending::Refused(host::Refusal::Version(mismatch)) => {
+            tasks::End::RefusedWithReason { reason: mismatch.reason() }
+        }
         host::Ending::Refused(host::Refusal::Invalid(
             host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
         )) => tasks::End::Failed(tasks::Class::Transient),
@@ -217,6 +221,7 @@ pub(crate) fn unusable_history(ending: &host::Ending) -> bool {
         | host::Ending::Failed { failure: host::Failure::Run(host::RunFailure::Transcript), .. } => true,
         host::Ending::Refused(
             host::Refusal::Busy
+            | host::Refusal::Version(_)
             | host::Refusal::Invalid(
                 host::Invalid::Charter
                 | host::Invalid::Grants

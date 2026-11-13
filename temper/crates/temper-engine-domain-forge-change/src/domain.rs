@@ -304,7 +304,7 @@ fn advance_phase(
         State::Checking { .. } | State::Gating { .. } | State::CancellingGates { .. }
             if standing.effect == EffectResult::Pending =>
         {
-            waiting(next, now, limits)
+            waiting(next, facts, now, limits)
         }
         State::Checking { .. } | State::Gating { .. } | State::CancellingGates { .. }
             if standing.effect == EffectResult::Failed =>
@@ -563,7 +563,13 @@ fn released_state(was: &State, why: Hold, pull: Pull) -> State {
     }
 }
 
-fn waiting(change: Change, now: Wall, limits: &Limits) -> Stepped {
+fn waiting(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    if let State::Producing { .. } = change.state
+        && !facts.pending.is_empty()
+    {
+        change.since = now;
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
     let until = Wall::from_nanos(change.since.as_nanos().saturating_add(limits.stall.as_nanos()));
     if now >= until {
         hold(change, Hold::Stalled)
@@ -581,7 +587,7 @@ fn waiting_on_agent(mut change: Change, facts: &Facts, standing: &Heard, now: Wa
         let until = Wall::from_nanos(now.as_nanos().saturating_add(limits.stall.as_nanos()));
         Stepped { change, decision: Decision::Wait { until: Some(until) } }
     } else {
-        waiting(change, now, limits)
+        waiting(change, facts, now, limits)
     }
 }
 
@@ -592,7 +598,7 @@ fn settling(change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Steppe
     {
         Stepped { change, decision: Decision::Wait { until: Some(end.min(stall)) } }
     } else {
-        waiting(change, now, limits)
+        waiting(change, facts, now, limits)
     }
 }
 
@@ -681,7 +687,7 @@ fn producing(
                     stepped
                 }
                 Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } | Delegate::Gate { .. })
-                | None => waiting(change, now, limits),
+                | None => waiting(change, facts, now, limits),
             },
             Status::Failed => hold(change, Hold::Failed),
             Status::Unknown | Status::Pending => waiting_on_agent(change, facts, standing, now, limits),
@@ -700,7 +706,7 @@ fn catch_up_due(mut change: Change, commit: [u8; 32], facts: &Facts, now: Wall, 
             change.state = State::Producing { requested: true };
             Stepped { change, decision: Decision::Delegate(Delegate::Merge { base: commit, from: None }) }
         }
-        Status::Unknown | Status::Pending => waiting(change, now, limits),
+        Status::Unknown | Status::Pending => waiting(change, facts, now, limits),
     }
 }
 
@@ -788,7 +794,7 @@ fn opening(
         }
         Pull::Missing => match standing.effect {
             EffectResult::Failed | EffectResult::Conflict => hold(change, Hold::Failed),
-            EffectResult::None | EffectResult::Pending | EffectResult::Made => waiting(change, now, limits),
+            EffectResult::None | EffectResult::Pending | EffectResult::Made => waiting(change, facts, now, limits),
         },
         Pull::Closed | Pull::Merged { .. } => unreachable!("closed and merged pulls returned above"),
     }
@@ -804,7 +810,7 @@ fn recreating(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall, limi
             Stepped { change, decision: Decision::None }
         }
         Some(_) => hold(change, Hold::BranchMoved),
-        None => waiting(change, now, limits),
+        None => waiting(change, facts, now, limits),
     }
 }
 
@@ -833,7 +839,7 @@ fn reopening(
         }
         Pull::Open { .. } | Pull::Closed | Pull::Missing => match standing.effect {
             EffectResult::Failed | EffectResult::Conflict => hold(change, Hold::Failed),
-            EffectResult::None | EffectResult::Pending | EffectResult::Made => waiting(change, now, limits),
+            EffectResult::None | EffectResult::Pending | EffectResult::Made => waiting(change, facts, now, limits),
         },
         Pull::Merged { .. } => unreachable!("merged pull returned above"),
     }
@@ -867,7 +873,7 @@ fn checking(
     }
     change.last_head = Some(head);
     if facts.ci.head != head {
-        return waiting(change, now, limits);
+        return waiting(change, facts, now, limits);
     }
     match facts.ci.status {
         Status::Passed => {
@@ -997,7 +1003,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
                 change.owns_turn = false;
                 // The top owns one delegate slot: retain it until that gate ends.
                 if facts.live_gate.is_some() {
-                    return waiting(change, now, limits);
+                    return waiting(change, facts, now, limits);
                 }
                 let mut collected = List::with_capacity(limits.gates);
                 for number in asked {
@@ -1013,7 +1019,7 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
         }
     }
     if !ci_passed || waiting_gate {
-        return waiting(change, now, limits);
+        return waiting(change, facts, now, limits);
     }
     if facts.kept {
         change.owns_turn = false;
@@ -1049,13 +1055,13 @@ fn cancelling_gates(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall
         return hold(change, Hold::BranchMoved);
     }
     if facts.live_gate == Some(head) {
-        return waiting(change, now, limits);
+        return waiting(change, facts, now, limits);
     }
     if let Some(head) = green_head(facts) {
         return take_pushed_head(change, head, now);
     }
     if facts.ci.head != head || facts.ci.status == Status::Pending || facts.ci.status == Status::Unknown {
-        return waiting(change, now, limits);
+        return waiting(change, facts, now, limits);
     }
     change.owns_turn = false;
     let why = if change.clean.is_empty() { Repair::Ci } else { Repair::Semantic };
@@ -1138,7 +1144,7 @@ fn first(
     }
     match facts.contains_base {
         Status::Failed => return update_due(change, head, facts.base_tip, ready_since, now, limits),
-        Status::Unknown | Status::Pending => return waiting(change, now, limits),
+        Status::Unknown | Status::Pending => return waiting(change, facts, now, limits),
         Status::Passed => {}
     }
     match facts.mergeable {
@@ -1170,16 +1176,16 @@ fn updating(
         EffectResult::Conflict => conflict_due(change, base, Some(from), facts, standing, now, limits),
         EffectResult::Failed => hold(change, Hold::Failed),
         EffectResult::Made => {
-            let Some(head) = facts.branch else { return waiting(change, now, limits) };
+            let Some(head) = facts.branch else { return waiting(change, facts, now, limits) };
             if head == from {
-                return waiting(change, now, limits);
+                return waiting(change, facts, now, limits);
             }
             updated(change, from, head, now, limits)
         }
         EffectResult::None => {
-            let Some(head) = facts.branch else { return waiting(change, now, limits) };
+            let Some(head) = facts.branch else { return waiting(change, facts, now, limits) };
             match facts.contains_base {
-                Status::Unknown | Status::Pending => waiting(change, now, limits),
+                Status::Unknown | Status::Pending => waiting(change, facts, now, limits),
                 Status::Failed => {
                     if head == from {
                         update_due(change, from, facts.base_tip, ready_since, now, limits)
@@ -1198,7 +1204,7 @@ fn updating(
                 }
             }
         }
-        EffectResult::Pending => waiting(change, now, limits),
+        EffectResult::Pending => waiting(change, facts, now, limits),
     }
 }
 
@@ -1229,7 +1235,7 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
                 }
                 None => return hold(change, Hold::BranchMissing),
             },
-            Status::Unknown | Status::Pending => return waiting(change, now, limits),
+            Status::Unknown | Status::Pending => return waiting(change, facts, now, limits),
             Status::Passed => {}
         }
     }
@@ -1488,7 +1494,7 @@ fn landing(change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now:
     match standing.effect {
         EffectResult::Conflict => conflict_due(change, facts.base_tip, Some(head), facts, standing, now, limits),
         EffectResult::Failed => hold(change, Hold::Failed),
-        EffectResult::None | EffectResult::Pending | EffectResult::Made => waiting(change, now, limits),
+        EffectResult::None | EffectResult::Pending | EffectResult::Made => waiting(change, facts, now, limits),
     }
 }
 
@@ -1731,9 +1737,9 @@ fn preparing(
         EffectResult::Failed => hold(change, Hold::Failed),
         EffectResult::Made => prepared(change, from, main, ready_since, facts, now, limits),
         EffectResult::None => {
-            let Some(head) = facts.branch else { return waiting(change, now, limits) };
+            let Some(head) = facts.branch else { return waiting(change, facts, now, limits) };
             match facts.contains_base {
-                Status::Unknown | Status::Pending => waiting(change, now, limits),
+                Status::Unknown | Status::Pending => waiting(change, facts, now, limits),
                 Status::Failed => {
                     if head == from {
                         prepare_due(change, from, main, ready_since, now, limits)
@@ -1744,7 +1750,7 @@ fn preparing(
                 Status::Passed => prepared(change, from, main, ready_since, facts, now, limits),
             }
         }
-        EffectResult::Pending => waiting(change, now, limits),
+        EffectResult::Pending => waiting(change, facts, now, limits),
     }
 }
 
@@ -1757,9 +1763,9 @@ fn prepared(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    let Some(head) = facts.branch else { return waiting(change, now, limits) };
+    let Some(head) = facts.branch else { return waiting(change, facts, now, limits) };
     if facts.contains_base != Status::Passed || facts.base_tip != main {
-        return waiting(change, now, limits);
+        return waiting(change, facts, now, limits);
     }
     if head != from {
         if change.clean.len() >= skein_lib::usize_of(limits.clean_heads) {
@@ -1857,7 +1863,7 @@ fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Ste
         }
     }
     if waiting_gate {
-        return waiting(change, now, limits);
+        return waiting(change, facts, now, limits);
     }
     change.state = State::Ready { head, ready_since };
     Stepped { change, decision: Decision::Wait { until: None } }

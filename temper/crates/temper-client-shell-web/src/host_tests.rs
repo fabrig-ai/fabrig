@@ -6,6 +6,8 @@ use skein_ui::{EntryKind, Role};
 mod approve;
 #[path = "host_tests_authorize.rs"]
 mod authorize;
+#[path = "host_tests_reload.rs"]
+mod reload;
 #[path = "host_tests_tab.rs"]
 mod tab;
 const KEY: &[u8] = b"private-host-key";
