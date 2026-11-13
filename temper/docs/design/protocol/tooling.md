@@ -82,15 +82,33 @@ what they write, and how they end. temper runs them as jobs on a worker
     head holds a commit `main` lacks and `train_upstream` holds is
     merged under `squash` too.
   - **`message`** is the commit message temper's own merge gives the
-    member: `Merge pull request 'TITLE' (#N) from BRANCH into BASE`, a
-    blank line, then `Landed by landing L for change C.`, L and C task
-    numbers, BASE the train's branch.
-  - **`squash`** is its squash's: `TITLE`, a blank line, then three
-    trailers, a line each, `Temper-Change: C`, `Temper-Pull: N` and
-    `Temper-Head: HEAD`, HEAD the member's head in hexadecimal at the
-    forge's length. The engine knows a squash on the landing's branch by
-    its `Temper-Head` trailer (`../domain/landing.md`, 5.2).
-  - **TITLE** is the member's pull request's title, N its number.
+    member, and **`squash`** its squash's, both the member's commit
+    message (`../draft/squash-in.md`, section 3), in this order:
+    `TITLE`; where the member has a description, a blank line and
+    DESCRIPTION; then a blank line and the trailers, a line each,
+    `Change: C`, `Pull-request: N`, `Head: HEAD` and, where the member's
+    change has a goal, `Goal: G`. `squash` carries `Goal` wherever the
+    change has a goal; `message` only for a train into its repository's
+    main, so that a merge into a goal's branch names no goal's landing
+    (`../testing/qa/landings.md`, 4). Neither ends in a newline.
+  - **TITLE** is the member's change's title, as its pull request
+    carries it, N the pull request's number, C the change's task, G its
+    goal's task (the tracked task it serves), and HEAD the member's head
+    in hexadecimal at the forge's length.
+  - **DESCRIPTION** is the first paragraph of the description the
+    change's producer delivered with it, its change result's words: read
+    as UTF-8 up to its first invalid byte, each control character a
+    space; blank lines and Markdown heading lines (a first non-space
+    character `#`) skipped; then its lines up to the next blank line,
+    joined, each run of whitespace one space, trimmed; cut to at most
+    1,024 bytes at a character boundary, a cut one ending in `…`; and
+    wrapped at 72 characters at its spaces, a word longer than that on a
+    line of its own. A member whose producer delivered no words, or
+    whose first paragraph is empty, has none. It never holds a blank
+    line, so the trailers are always the message's last paragraph.
+  - **The engine knows a squash** on the landing's branch by its
+    `Head: HEAD` line in the message's last paragraph
+    (`../domain/landing.md`, 5.2).
 - **temper's own,** where the project names no prepare command: the
   same request, read by the worker itself, with no command run, and the
   results below with `{"combined": [{"member": N, "by": "merge" |
