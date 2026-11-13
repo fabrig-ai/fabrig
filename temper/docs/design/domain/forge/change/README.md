@@ -209,13 +209,37 @@ range meaning contained, and any other answer meaning not, or not known.
 It is judged only while nothing of the change's own is under way on its
 branch or its pull: no task that pushes its branch lives, its writer slot
 is free, it has no drift, and no update, prepare or merge of its own is
-sent. A merge in flight settles as its landing does (4): a change whose
+sent; and only before its turn (step 6), since from its turn on the
+same reading lands it (below). A merge in flight settles as its landing does (4): a change whose
 own pull request merged is landed, never this. A held change judges it
 once released. So a change started from it (`questions.md`, 1) finds its
 dependency done, not cancelled, and goes on from its own head; jig's rules
 stay as they are: a cancelled dependency holds its dependent, and one
 started from is never removed (jig's `domain/tasks/lifecycle.md`, 6, and
 `domain/connectors.md`, 6.1).
+
+**From its turn on, a contained head has landed** (2026-11-13). Under
+its project's queue, from its turn (step 6, *First*) through its merge
+(step 7, *Landing*), the same reading says its own head has landed: by
+a merge made outside the forge's merge, say by hand, or by any push of
+it into its base. Before it sends its merge, and at every step while
+its merge is under way, being retried by the forge client, or failed,
+a head its landing branch contains is landed, and no merge is sent or
+sent again. Its merge is the base's tip the reading found holding the
+head (a commit holding it, not necessarily the first), its result the
+landing's as step 7 says, and it verifies and closes as any landed
+change does. A merge of its own still in the forge client's hands is
+withdrawn, and the answer to one already sent changes nothing. It reads
+so at each step it takes there, and a move of its landing branch wakes
+it to read afresh, so the reading ends a merge retried in a loop as it
+ends one not yet sent. A failed merge holds the change (`repairs.md`)
+only where that step's reading finds its head not contained, or cannot
+tell. A held change reads it once released, at the step the release
+brings. The pull request merged on the forge (3) stays the landing
+wherever the forge says so, its merge commit the merge. Under its
+project's turn, the change sends no merge: its landing's merge is the
+landing's (`../../landing.md`, section 3), and a candidate already in
+the branch stays the landing's to judge (8).
 
 Under its project's queue, the default. Under its project's turn, a
 change has no checking step, and once ready its landing prepares,
@@ -237,7 +261,15 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    work; or, started early, from its landing branch with its
    dependencies' pushed heads merged in: `questions.md`, 1) and pushes the change's
    branch (`../../agent/README.md`, section 5). Its
-   result is the head it pushed. An attempt whose answer was lost may
+   result is the head it pushed. **A result with a head always moves
+   the change on** (2026-11-13): to opening its pull request (step 2),
+   whatever its producer asked on its way (`questions.md`, 1) and
+   however far its landing branch moved meanwhile. A head that lacks
+   the branch's tip opens as any head does, and takes its base where
+   checking and its turn say (steps 3 and 6). What the change reads or
+   waits on before it takes that step is bounded as every wait is: the
+   stall counts, or a named exemption stands (`repairs.md`, *Stalls*).
+   An attempt whose answer was lost may
    have pushed all the same: its writer slot is freed for another task only once the
    branch has been read afresh (jig's `domain/tasks/holds.md`, 3), and a
    head found there then is the change's own (the branch is held by this
@@ -269,7 +301,15 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    branch moved or missing, 3) comes back to this step at the head it
    then reads: it opens its pull request, or finds the one already open,
    before it reads CI. A release of any other hold that finds no pull
-   request open does the same.
+   request open does the same. **Its pull request at another head is
+   not drift** (2026-11-13): the forge updates a pull request's head
+   after a push, so a pull request it finds open naming another head
+   than the branch's, while the branch is at the head the change
+   expects (the head it entered this step with), is the forge catching
+   up. The change waits for the pull request to name its head, its
+   stall counting (`repairs.md`, *Stalls*), and goes on from there.
+   Only its branch found at another head than the change expects is
+   drift (3).
 3. **Checking:** CI runs on its head, where its landing branch's rules
    ask CI passed (`gates.md`, 2). A failure is a repair (`repairs.md`): a task given the
    failing output, unless the runner caused it (below). A repository without CI is checked by its checks
@@ -345,7 +385,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    the change waits for it, until the window's end at most, and the
    stall does not count that wait.
 7. **Landing:** merged at exactly its head, in the repository's merge
-   style (`../adoption.md`, 4), automatically: what more a landing needs is a landing
+   style (`../adoption.md`, 4), automatically, unless its landing branch
+   already holds its head, which has landed it with no merge sent
+   (*From its turn on, a contained head has landed*, above): what more a landing needs is a landing
    rule's, which the core checks at the merge (`gates.md`, 2). Where the forge's
    own merge queue guards the branch, the merge puts the pull request in
    that queue at exactly its head, and the change lands or is ejected
@@ -411,7 +453,14 @@ the change reads the head afresh once the slot is freed. Otherwise:
   identity, or not forward: held, the head kept as it is, the hold's
   words naming the head it expected and the one it found, each at the
   forge's short length (`its branch moved: expected 0123456789ab, found
-  89abcdef0123`). Under its
+  89abcdef0123`). The head it expected is the one its step stood at
+  (its last head, at a step that names none), and the one it found is
+  the branch's head as the read that held it found it: never a head
+  kept from an earlier read, its CI's, or its pull request's
+  (2026-11-13). So the two always differ: a branch found at the head
+  the change expects is no drift, whatever its pull request names
+  (2, step 2), and a branch the forge says is missing is deleted
+  (below), never moved. Under its
   project's turn, no prepare writes the change's branch: its landing's
   job pushes to the landing's own (`../../landing.md`, 5.2). A head
   moved while the change is in a landing takes it out of the landing
@@ -642,6 +691,21 @@ changes live at once, never every change made.
   history the table can hold.
 
 ## 8. Open questions
+
+- **A turn's candidate already in its branch** (2, *From its turn on, a
+  contained head has landed*): under its project's turn, the landing's
+  fast-forward recognises a branch at exactly its candidate, not one
+  past it holding the candidate, so a candidate put into the branch by
+  hand is merged again or prepared afresh. Default: the landing's, as
+  it stands; the request of 2026-11-13 named a change's own merge.
+
+- **A pull request a contained head leaves open** (2, *From its turn
+  on, a contained head has landed*): a change landed by that reading
+  leaves its pull request as the forge keeps it, open where the forge
+  marks no merge made outside it; its branch is deleted as any landed
+  change's is. Closing it with a comment naming the merge, as a
+  no-change does, is an effect the request left out. Default: left
+  open.
 
 - **Ten busy goals:** pinning each live goal's changes keeps every
   record its closer reads, but a deployment whose live goals hold more

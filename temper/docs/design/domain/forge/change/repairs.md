@@ -434,6 +434,19 @@
   the head lacks the base's tip (`../keeping-up.md`, 3), so the change takes its base, or
   in conflict goes to its merge job and then a resolution, however many
   commits behind it is.
+  **What a step reads is waited on too** (2026-11-13): the reads a
+  change makes to take its step (its branch, its base, its pull
+  request, its CI, the ancestry of its head and its base's tip) are a
+  wait on the forge as any is. A read with no answer, or one the forge
+  client keeps refusing for its own capacity, counts the stall from
+  where that step's wait counts it, and past it the change is held at
+  that step, its words that step's (*A stall's hold says where*,
+  below). An exemption stands only while its cause does: its agent a
+  live task, that agent's question open, a dependency not ended, its
+  forge not connected or its repository out of reach. Once the cause
+  ends, the stall counts from that end, and no record left of a cause
+  that has ended (a question whose asker ended, a writer slot whose
+  writer ended) keeps it from counting.
 - **A stall's hold says where.** Its words name the step the change was
   held at and what it waits on, commits at the forge's short length, in
   one shape: `no progress at STEP for N minutes: waiting for WHAT`, N
@@ -490,7 +503,15 @@
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it (not from the deployment's, ending a hold at a green
   head, above), its stall is counted from it, and the change decides
-  afresh. A producer that fails for good holds the change at
+  afresh. **Deciding afresh reads afresh** (2026-11-13): the change
+  reads its branch, its base and its pull request again, a read still
+  outstanding from before abandoned, its answer changing nothing when
+  it comes; and it reads its delegate's end and result as its task's
+  record keeps them, its pull request's title among them. So a change
+  whose producer's result had already arrived moves on at the release.
+  A party's release of the change's task (a party's stop is a placed
+  hold: jig's `domain/tasks/lifecycle.md`, 10) does the same, though
+  the change itself was not held. A producer that fails for good holds the change at
   producing, whatever it delivered first: its pushed work stays on its
   branch, no pull request opens, and the hold carries its words whole
   within the hold's bytes,
