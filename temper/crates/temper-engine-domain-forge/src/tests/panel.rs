@@ -172,15 +172,20 @@ fn queue_entry_and_departure_mark_the_nearest_followers_within_the_subject_bound
     let mut d = with_row(queued(52, 2, 90));
     let mut expected = queued(51, 1, 90);
     let got = outputs(&mut d, Event::Change { row: expected.clone() });
-    expected.history = d.change(51).unwrap().history;
-    assert!(got.ends_with(&[
-        Request::Save { record: Stored::Change(Box::new(expected)), release: None, read_afresh: None },
-        Request::Marked { tasks: Box::new([51, changes_subject(5), status_subject(5), APPROVALS_SUBJECT, 52]) },
-    ]));
+    expected.history = d.change(51).expect("queued change").history;
+    assert_eq!(
+        got.last_chunk::<2>().expect("queue save follows its history"),
+        &[
+            Request::Save { record: Stored::Change(Box::new(expected)), release: None, read_afresh: None },
+            Request::Marked { tasks: Box::new([51, changes_subject(5), status_subject(5), APPROVALS_SUBJECT, 52]) },
+        ]
+    );
     // Refusing an outstanding delegate holds the queued change, taking it out.
     outputs(&mut d, Event::Delegated { task: 51, child: 90, kind: change::Delegate::Produce });
     let got = outputs(&mut d, Event::DelegateRefused { task: 51, child: 90 });
-    let [Request::Save { .. }, Request::Marked { tasks }] = got.as_ref() else { panic!("save and mark: {got:?}") };
+    let Some([Request::Save { .. }, Request::Marked { tasks }]) = got.last_chunk::<2>() else {
+        panic!("save and mark: {got:?}")
+    };
     assert_eq!(tasks.as_ref(), &[51, changes_subject(5), status_subject(5), APPROVALS_SUBJECT, 52]);
 }
 #[test]
@@ -362,7 +367,7 @@ fn terminal_panel_rejects_a_saved_verdict_at_another_head() {
 }
 
 #[test]
-fn ending_a_change_saves_its_last_ci_without_an_extra_write() {
+fn ending_a_change_saves_its_last_ci_with_its_history() {
     let mut row = fixtures::opening_row();
     row.pending = None;
     let mut d = with_row(row);
@@ -388,9 +393,12 @@ fn ending_a_change_saves_its_last_ci_without_an_extra_write() {
             records.push(row).expect("fixture changes fit");
         }
     }
-    let [saved] = records.as_slice() else { panic!("the finish's one change save") };
-    assert_eq!(saved.change.state, change::State::Ended);
-    assert_eq!(saved.ci, Some(read));
+    assert!(!records.is_empty(), "the finish saves its change");
+    for saved in &records {
+        assert_eq!(saved.change.state, change::State::Ended);
+        assert_eq!(saved.ci, Some(read));
+    }
+    let saved = records.as_slice().last().expect("finish saved");
     assert_eq!(panel(&with_row(*saved.clone())).ci, change::Status::Failed);
 }
 

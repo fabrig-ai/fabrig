@@ -1,9 +1,42 @@
 //! Scripted root history pages, held independently of the forge's read state.
 use super::{World, top};
-use skein_lib::Wall;
+use skein_lib::{Duration, Wall};
 use top::history::{HistoryRange, InLanding, Operation, Query, Reply, Step, What};
 
 impl World {
+    /// Configure retention before writing fixture history; restart uses the same limits.
+    pub fn history_limits(&mut self, days: u32, events: u64) {
+        self.env.limits.history_days = days;
+        self.env.limits.history_events = events;
+        self.restart();
+    }
+    /// Deliver the forge's hourly wall deadline without another history write.
+    pub fn history_hour(&mut self, wall: Wall) {
+        assert!(self.top.next_wall_deadline().is_some_and(|due| due <= wall));
+        self.env.now =
+            self.env.now.saturating_add(Duration::from_nanos(wall.as_nanos().saturating_sub(self.env.wall.as_nanos())));
+        self.env.wall = wall;
+        self.forge_env.now = self.env.now;
+        top::fire(&mut self.top, &self.env, &mut self.top_out);
+        self.take_top();
+    }
+    pub fn answer_history(&mut self) {
+        let (generation, event) = self.history_held.remove(0);
+        if generation == self.generation {
+            self.event(event);
+        }
+    }
+    pub fn refuse_history(&mut self) {
+        let (generation, top::Event::HistoryLoaded { load, .. }) = self.history_held.remove(0) else {
+            panic!("held history load")
+        };
+        assert_eq!(generation, self.generation);
+        self.event(top::Event::HistoryUnloaded { load });
+    }
+    #[must_use]
+    pub fn history_deadline(&self) -> Option<Wall> {
+        self.top.next_wall_deadline()
+    }
     pub fn write_history(&mut self, change: u64, wall: Wall, landing: Option<u64>) -> u64 {
         let number = self
             .top
@@ -61,7 +94,7 @@ impl World {
     pub fn release_history(&mut self) {
         self.history_hold = false;
         for event in core::mem::take(&mut self.history_held) {
-            self.to_top.push((self.generation, event));
+            self.to_top.push(event);
         }
     }
     pub fn history_reply(&mut self, read: u64, query: Query) -> Reply {
@@ -97,7 +130,7 @@ impl World {
         self.history_loads.push((range, after, most));
         let event = top::Event::HistoryLoaded { load, rows: rows.into_boxed_slice(), next };
         if self.history_hold {
-            self.history_held.push(event);
+            self.history_held.push((self.generation, event));
         } else {
             self.to_top.push((self.generation, event));
         }

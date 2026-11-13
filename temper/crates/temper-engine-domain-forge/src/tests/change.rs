@@ -755,10 +755,11 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
             Op::Read(Read::PullFor { head: Box::from(b"temper/51".as_slice()), base: Box::from(b"main".as_slice()) }),
         ]
     );
-    let [Request::Save { .. }, Request::Marked { tasks }, Request::ChangeDecision { task, decision, entry, evidence }] =
-        finished.as_ref()
+    let Some(
+        [Request::Save { .. }, Request::Marked { tasks }, Request::ChangeDecision { task, decision, entry, evidence }],
+    ) = finished.last_chunk::<3>()
     else {
-        panic!("one saved decision")
+        panic!("the saved decision follows its history")
     };
     assert_eq!(tasks.as_ref(), &[fixtures::CHANGE, changes_subject(5), status_subject(5), APPROVALS_SUBJECT]);
     assert_eq!((*task, decision, entry, evidence), (fixtures::CHANGE, &change::Decision::Ready, &None, &None));

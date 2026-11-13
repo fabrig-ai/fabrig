@@ -1,7 +1,7 @@
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
-use temper_engine_domain_forge::{self as top, history as history_vocab};
+use temper_engine_domain_forge::{self as top, history as history_rows};
 
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
@@ -66,6 +66,8 @@ pub const LIMITS: top::Limits = top::Limits {
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    history_days: 14,
+    history_events: 131_072,
     findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
@@ -142,7 +144,7 @@ pub struct World {
     history_loads: Vec<(top::HistoryRange, Option<top::Key>, u32)>,
     history_page_rows: u32,
     history_hold: bool,
-    history_held: Vec<top::Event>,
+    history_held: Vec<(u64, top::Event)>,
     seen: List<top::Request>,
     serial: u64,
     generation: u64,
@@ -971,6 +973,11 @@ impl World {
         self.run_for(1);
     }
 
+    /// Keep the scripted root's mapped reviews before it sends `ReviewsChanged`.
+    pub fn keep_review_facts(&mut self, task: u64, facts: top::ReviewFacts) -> bool {
+        self.top.keep_review_facts(self.wall(), task, facts)
+    }
+
     /// Commit the forge's settings and drive the resulting live-change wakes.
     pub fn keep_settings(&mut self, revision: u64, items: &[top::settings::Asked]) {
         self.top.keep_settings(&self.env, revision, None, items, &mut self.top_out);
@@ -1035,7 +1042,7 @@ impl World {
     /// A change's indexed events across projects, in event-number order
     /// (temper/docs/design/domain/landing-history.md, 4.1).
     #[must_use]
-    pub fn history(&self, change: u64) -> Vec<history_vocab::Event> {
+    pub fn history(&self, change: u64) -> Vec<history_rows::Event> {
         let mut events = Vec::new();
         for (_, record) in &self.stored {
             if let top::Stored::HistoryChange(index) = record
@@ -1052,7 +1059,7 @@ impl World {
 
     /// A landing's indexed events across projects, in event-number order.
     #[must_use]
-    pub fn landing_history(&self, landing: u64) -> Vec<history_vocab::Event> {
+    pub fn landing_history(&self, landing: u64) -> Vec<history_rows::Event> {
         let mut events = Vec::new();
         for (_, record) in &self.stored {
             if let top::Stored::HistoryLanding(index) = record
@@ -1068,7 +1075,7 @@ impl World {
     }
 
     /// Write a fixture event through the domain and keep its store requests.
-    pub fn write_event(&mut self, change: u64, step: history_vocab::Step) -> Option<u64> {
+    pub fn write_event(&mut self, change: u64, step: history_rows::Step) -> Option<u64> {
         let number = self.top.write_event(self.env.wall, change, step, &mut self.top_out);
         self.take_top();
         number
@@ -1472,7 +1479,9 @@ impl World {
         } else if self.forge.is_due(self.env.now) {
             forge::fire(&mut self.forge, &self.forge_env, &mut self.forge_out);
             self.take_forge();
-        } else if self.top.next_deadline().is_some_and(|time| time <= self.env.now) {
+        } else if self.top.next_deadline().is_some_and(|time| time <= self.env.now)
+            || self.top.next_wall_deadline().is_some_and(|wall| wall <= self.env.wall)
+        {
             top::fire(&mut self.top, &self.env, &mut self.top_out);
             self.take_top();
             self.top.reclaim();
@@ -1480,7 +1489,18 @@ impl World {
             if self.env.now >= end {
                 return false;
             }
-            let next = self.top.next_deadline().unwrap_or(end).min(self.forge.next_deadline().unwrap_or(end)).min(end);
+            let wall_due = self.top.next_wall_deadline().map(|wall| {
+                self.env
+                    .now
+                    .saturating_add(Duration::from_nanos(wall.as_nanos().saturating_sub(self.env.wall.as_nanos())))
+            });
+            let next = self
+                .top
+                .next_deadline()
+                .unwrap_or(end)
+                .min(wall_due.unwrap_or(end))
+                .min(self.forge.next_deadline().unwrap_or(end))
+                .min(end);
             self.env.now = next;
             self.env.wall = Wall::from_nanos(next.as_nanos());
             self.forge_env.now = next;
@@ -1556,7 +1576,14 @@ impl World {
                     }
                 }
                 top::Request::Erase { key } => {
-                    self.stored.remove(&key).expect("erased row exists");
+                    let removed = self.stored.remove(&key);
+                    // Last rows can be replaced while loaded; release also erases an unwatched client repository.
+                    if !matches!(
+                        key,
+                        top::Key::HistoryLast { .. } | top::Key::Client(skein_forge_client::Key::Repository(_))
+                    ) {
+                        assert!(removed.is_some(), "erased row {key:?} exists");
+                    }
                 }
                 top::Request::Call { call, repository, op } => {
                     calls.push((call, repository, op)).expect("bounded calls");
