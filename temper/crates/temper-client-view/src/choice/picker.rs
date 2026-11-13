@@ -249,7 +249,7 @@ fn menu(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindi
             b.name(&w.say(W::ModelChanging, &[]));
             w.text(b, W::ModelChanging, &[]);
         } else if let Some(outcome) = &draft.outcome {
-            crate::pages::chats::outcome_text(b, w, outcome, 0);
+            crate::common::chats::outcome_text(b, w, outcome, 0);
         } else {
             b.name(&w.say(W::ModelNextTurn, &[]));
             w.text(b, W::ModelNextTurn, &[]);

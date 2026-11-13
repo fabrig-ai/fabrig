@@ -259,7 +259,7 @@ fn card(
 ) {
     b.open(Role::Slot);
     b.style(look::TEAM_CARD);
-    b.key(super::inbox::card_key(jig_client::contract::ObjectKey::Escalation(role.task)));
+    b.key(crate::common::inbox::card_key(jig_client::contract::ObjectKey::Escalation(role.task)));
     let name = if let Some(facts) = facts { &facts.name } else { &role.name };
     b.name(name);
     b.open(Role::Slot);

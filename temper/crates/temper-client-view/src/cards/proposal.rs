@@ -440,7 +440,7 @@ pub(crate) fn settings(
     replaced: bool,
 ) -> bool {
     let Some(facts) = settings_facts(card) else { return false };
-    let terminal = crate::pages::terminal::shown(root, words);
+    let terminal = crate::common::terminal::shown(root, words);
     let state = settings_state(card);
     let accepted = state == SettingsState::Accepted || facts.made.is_some();
     let superseded = replaced && state == SettingsState::Withdrawn;
@@ -456,7 +456,7 @@ pub(crate) fn settings(
     if terminal {
         b.open(Role::Slot);
         b.style(crate::look::TERMINAL_CARD_LINE);
-        crate::pages::terminal::kicker(b, words);
+        crate::common::terminal::kicker(b, words);
     }
     b.open(Role::Paragraph);
     b.style(crate::look::SETTINGS_PROPOSAL_TITLE);
@@ -533,7 +533,7 @@ pub(crate) fn settings(
     }
     if terminal {
         b.close();
-        crate::pages::terminal::details(b, words);
+        crate::common::terminal::details(b, words);
         settings_lines(b, root, &facts, words);
         b.close();
     }
@@ -898,7 +898,7 @@ fn proposed_ways(
     }
     if let Some(me) = root.pages().me(root.client()) {
         let selected = temper_client_domain::forge::ways::default_way(me, project, &ways);
-        for way in &crate::pages::goals::ways(me, project, words) {
+        for way in &crate::common::goals::ways(me, project, words) {
             if Some(way.number) == selected {
                 setting_line(b, &words.say(Word::SettingsProposalWay, &[super::name(&way.name)]));
                 return;
@@ -1005,7 +1005,7 @@ fn template_name(root: &temper_client_domain::Domain, setting: c::Setting, words
     for project in &root.pages().me(root.client())?.projects {
         for template in &project.templates {
             if template.number == number.number {
-                return Some(crate::pages::goals::way_name(template.name.bytes(), words));
+                return Some(crate::common::goals::way_name(template.name.bytes(), words));
             }
         }
     }
@@ -1097,12 +1097,12 @@ pub(crate) fn terminal(
     b.style(crate::look::TERMINAL_CARD);
     b.open(Role::Slot);
     b.style(crate::look::TERMINAL_CARD_LINE);
-    crate::pages::terminal::kicker(b, words);
+    crate::common::terminal::kicker(b, words);
     let title = crate::shared::proposal_line(card, words).expect("terminal proposal");
     text(b, Role::Heading { level: 3 }, &title);
     crate::confirm::card_controls(b, root, card, words, bindings);
     b.close();
-    crate::pages::terminal::details(b, words);
+    crate::common::terminal::details(b, words);
     reason(b, page);
     crate::confirm::facts(b, page, words, rows);
     b.close();

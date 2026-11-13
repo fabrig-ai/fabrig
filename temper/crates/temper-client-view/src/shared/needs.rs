@@ -1,8 +1,8 @@
 //! Need marks and prompts (temper/docs/design/client/tui/pages/launchpad.md, 2, 5 and 6).
 use super::{NeedLine, Question, need_line, question::for_card};
 use crate::{
+    common::{approval, ask, inbox},
     forge_sign_in::Forges,
-    pages::{approval, ask, inbox},
     words::Words,
 };
 use alloc::boxed::Box;

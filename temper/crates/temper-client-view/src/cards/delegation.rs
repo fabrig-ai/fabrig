@@ -187,7 +187,7 @@ fn state_words(state: State, words: &Words) -> Box<[u8]> {
         words.say(Word::Landed, &[])
     } else if state == State::Cleared || state == State::Uncleared {
         use temper_client_domain::forge::words::ChangeWord as W;
-        crate::pages::change::say(words, if state == State::Cleared { W::ClearedTag } else { W::UnclearedTag }, &[])
+        crate::common::change::say(words, if state == State::Cleared { W::ClearedTag } else { W::UnclearedTag }, &[])
     } else {
         words.say_word(jig_client::words::Word::Phase(phase), &[])
     }

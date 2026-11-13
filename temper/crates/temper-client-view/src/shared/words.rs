@@ -1,6 +1,6 @@
 //! Words shared by the browser and TUI (temper/docs/design/client/tui/pages/launchpad.md, 2).
 /// A run of calls (temper/docs/design/client/pages/README.md, its calls).
-pub use crate::pages::chat_line::Run;
+pub use crate::common::chat_line::Run;
 /// The terminal's vocabulary (temper/docs/design/client/pages/README.md, A chat's terminal).
 pub use crate::words::terminal::TerminalWord;
 use crate::words::{Times, Words};
@@ -26,14 +26,14 @@ pub fn say(w: &Words, word: TerminalWord) -> Box<[u8]> {
 #[must_use]
 pub fn home_headline(w: &Words, name: &[u8], facts: &Facts, now: Wall) -> (Box<[u8]>, Option<Wall>) {
     let mut times = Times::new(now);
-    let intro = crate::pages::home::intro_words(w, name, facts, &mut times);
+    let intro = crate::common::home::intro_words(w, name, facts, &mut times);
     (intro.headline, times.next)
 }
 /// All projects' headline and its next tick (temper/docs/design/client/tui/pages/launchpad.md, 2).
 #[must_use]
 pub fn all_home_headline(w: &Words, facts: &all_home::Facts, now: Wall) -> (Box<[u8]>, Option<Wall>) {
     let mut times = Times::new(now);
-    let headline = crate::pages::all_home::headline(w, facts, &mut times);
+    let headline = crate::common::all_home::headline(w, facts, &mut times);
     (headline, times.next)
 }
 /// All projects' lede, without its strong runs (temper/docs/design/client/tui/pages/launchpad.md, 2).
@@ -49,7 +49,7 @@ pub fn joined_brief(_w: &Words, brief: &all_home::Brief) -> Box<[u8]> {
 /// A Home chat row's state (temper/docs/design/client/pages/README.md, Home, Chats).
 #[must_use]
 pub fn chat_state(line: &c::TaskLine, me: &c::Me, w: &Words) -> Box<[u8]> {
-    crate::pages::chats::status_name(line, me, w)
+    crate::common::chats::status_name(line, me, w)
 }
 /// A need's kind (temper/docs/design/client/tui/pages/launchpad.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -66,8 +66,8 @@ pub struct NeedLine {
 /// Home's need sentence (temper/docs/design/client/pages/README.md, Home, Needs you).
 #[must_use]
 pub fn need_line(need: &Need<'_>, w: &Words) -> NeedLine {
-    let (title, short, kind) = crate::pages::home::need_words(need, w);
-    NeedLine { kind, words: crate::pages::home::need_sentence(&title, &short, w) }
+    let (title, short, kind) = crate::common::home::need_words(need, w);
+    NeedLine { kind, words: crate::common::home::need_sentence(&title, &short, w) }
 }
 /// A run's line (temper/docs/design/client/pages/README.md, its calls).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -80,7 +80,7 @@ pub struct RunLine {
 /// The running line's words (temper/docs/design/client/pages/README.md, The running line).
 #[must_use]
 pub fn running(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
-    crate::pages::terminal::running_words(root, w)
+    crate::common::terminal::running_words(root, w)
 }
 /// The picker's closed line (temper/docs/design/client/pages/README.md, the quiet line).
 #[must_use]
@@ -90,20 +90,20 @@ pub fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> Box<[u8]
 /// A chat's short heading (temper/docs/design/client/pages/README.md, A chat's heading is short).
 #[must_use]
 pub fn heading(title: &[u8]) -> Box<[u8]> {
-    crate::pages::chat::short_title(title)
+    crate::common::chat::short_title(title)
 }
 /// A command's words (temper/docs/design/client/pages/README.md, Commands).
 #[must_use]
 pub fn description(command: Command) -> &'static [u8] {
-    crate::pages::terminal::commands::description(command)
+    crate::common::terminal::commands::description(command)
 }
 /// When a command is offered (temper/docs/design/client/pages/README.md, Commands).
 #[must_use]
 pub fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -> bool {
-    crate::pages::terminal::commands::offered(root, task, command)
+    crate::common::terminal::commands::offered(root, task, command)
 }
 /// A terminal note's words (temper/docs/design/client/pages/README.md, The terminal's notes).
 #[must_use]
 pub fn note(note: &Note) -> Box<[u8]> {
-    crate::pages::terminal::commands::note(note)
+    crate::common::terminal::commands::note(note)
 }

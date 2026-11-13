@@ -38,5 +38,5 @@ pub fn model_account(root: &temper_client_domain::Domain, w: &crate::words::Word
 #[must_use]
 pub fn working(root: &temper_client_domain::Domain, w: &crate::words::Words) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
-    crate::pages::chats::working(root, w, &chat.thread)
+    crate::common::chats::working(root, w, &chat.thread)
 }

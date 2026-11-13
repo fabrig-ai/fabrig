@@ -31,7 +31,7 @@ fn button(b: &mut Builder, bindings: &mut Bindings, words: &Words, word: Word, a
 }
 pub(crate) fn card(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, rows: u32) {
     let Some(page) = &card.page else { return };
-    if crate::pages::terminal::shown(root, words) {
+    if crate::common::terminal::shown(root, words) {
         crate::cards::proposal::terminal(b, root, card, words, bindings, rows);
         return;
     }
@@ -488,7 +488,7 @@ fn delegate(
         }
     }
     b.open(Role::Item);
-    b.key(crate::pages::inbox::card_key(jig_client::contract::ObjectKey::Task(task)));
+    b.key(crate::common::inbox::card_key(jig_client::contract::ObjectKey::Task(task)));
     b.open(Role::Text);
     b.run(Run::Strong, &words.say(Word::DelegateNumber, &[Hole::Number(task)]));
     let fate = words.say(

@@ -1,4 +1,15 @@
 //! Shared page facts (temper/docs/design/client/view-crates.md, 3.2).
+pub(crate) mod all_home;
+pub(crate) mod approval;
+pub(crate) mod ask;
+pub(crate) mod change;
+pub(crate) mod chat;
+pub(crate) mod chat_line;
+pub(crate) mod chats;
+pub(crate) mod goals;
+pub(crate) mod home;
+pub(crate) mod inbox;
+pub(crate) mod terminal;
 use alloc::boxed::Box;
 
 pub(crate) fn project_name(me: Option<&jig_client::contract::Me>, project: u32) -> Option<Box<[u8]>> {

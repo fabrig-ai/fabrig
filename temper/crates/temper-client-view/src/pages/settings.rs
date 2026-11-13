@@ -467,7 +467,7 @@ fn working(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindin
         None => None,
     };
     let offered = match root.pages().me(root.client()) {
-        Some(me) => super::goals::ways(me, project, w),
+        Some(me) => crate::common::goals::ways(me, project, w),
         None => skein_lib::List::uncapped(),
     };
     for way in &offered {

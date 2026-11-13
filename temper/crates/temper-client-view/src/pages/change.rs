@@ -1,19 +1,16 @@
 //! Layout of the forge's change facts (client/pages/task.md, 3).
+pub(crate) use crate::common::change::say;
 use crate::{
     bindings::Bindings,
     look,
     words::{Word, Words},
 };
-use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::forge::{
     change::{Change, Said},
     words::ChangeWord as W,
 };
 
-pub(crate) fn say(words: &Words, word: W, holes: &[Hole]) -> Box<[u8]> {
-    words.book.say(words.language, word.id(words.connector), holes).expect("checked change phrase").text
-}
 fn phrase(b: &mut Builder, words: &Words, said: Said) {
     b.run(Run::Plain, &say(words, said.0, &said.1));
 }
