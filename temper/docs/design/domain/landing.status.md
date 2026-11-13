@@ -6,6 +6,7 @@ Section 13.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch
 each follows, as the forge holds them (`forge/change/branch-path.md`).
 
+- **Not yet:** 14: `landing history` [in flight: change 2508].
 - **Not yet:** 8: the turn's merge of a member reads no comparison of
   main's tip and its candidate, so a rule by path covers every member.
 - **Not yet:** 4.2 (*Drained*): a landing in a draining hold’s scope

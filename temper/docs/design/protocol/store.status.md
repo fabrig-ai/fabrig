@@ -2,6 +2,8 @@
 
 2026-11-11. Where temper's code lags or departs from [store.md](store.md).
 
+- **Not yet:** 1, 2 and 5: the landing history's families, 127 and 128 to 131, `ChangeRow`'s `history`, and the restart's interval below byte 128 [in flight: change 2496].
+- **Not yet:** 5: `Range::History`, the forge's loads of the families from byte 128 on [in flight: change 2501].
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].
 - **Not yet:** 2: family 42, `Follow`, a follow's record [in flight: change 105].
