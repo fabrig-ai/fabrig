@@ -1484,6 +1484,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-session-time",
         b"temper-team-session-cost",
         b"temper-team-session-closing",
+        b"temper-team-report",
+        b"temper-team-areas",
+        b"temper-team-routing",
+        b"temper-team-talk",
     ],
     regions: &[b"temper-link"],
 };
@@ -1998,6 +2002,11 @@ pub const TEAM_SESSION: Style = Style { owner: owner(), token: 758 };
 pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 759 };
 pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 760 };
 pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 761 };
+pub const TEAM_REPORT: Style = Style { owner: owner(), token: 762 };
+/// Areas and their routing holder (client/pages/team.md, 1).
+pub const TEAM_AREAS: Style = Style { owner: owner(), token: 763 };
+pub const TEAM_ROUTING: Style = Style { owner: owner(), token: 764 };
+pub const TEAM_TALK: Style = Style { owner: owner(), token: 765 };
 
 #[cfg(test)]
 mod tests {

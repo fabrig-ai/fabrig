@@ -1,3 +1,9 @@
+#[path = "tests/talk.rs"]
+mod talk;
+
+#[path = "tests/tell.rs"]
+mod tell;
+
 #[path = "tests/goal.rs"]
 mod goal;
 #[path = "tests/lending.rs"]
@@ -2136,6 +2142,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
         "created chat",
         "show chat",
         "show ask",
+        "show talk",
         "show without project",
         "new",
         "exit",
@@ -2239,12 +2246,18 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.root.pages().address() == &Address::Inbox { filter: root::address::Filter::ALL }
                     && host.state().focus() == before
             }
-            "show chat" | "show ask" => {
-                let address = if row == "show chat" { Address::Chat { task: 9 } } else { Address::Ask { project: 5 } };
+            "show chat" | "show ask" | "show talk" => {
+                let address = match row {
+                    "show chat" => Address::Chat { task: 9 },
+                    "show ask" => Address::Ask { project: 5 },
+                    "show talk" => Address::Talk { project: 5, task: 9 },
+                    _ => unreachable!("named navigation row"),
+                };
                 host.out.push(root::Request::Show { address: address.clone(), replace: true });
                 let before = host.state().focus();
                 host.report(Report::Due);
-                host.root.pages().address() == &if row == "show chat" { address } else { Address::Home { project: 5 } }
+                host.root.pages().address()
+                    == &if row == "show chat" || row == "show talk" { address } else { Address::Home { project: 5 } }
                     && host.state().focus() > before
             }
             "new" => {
@@ -2312,6 +2325,7 @@ fn the_launchpad_takes_its_own_words() {
         (b"/c", LaunchAt::Home, LaunchWant::Words(b"/change ")),
         (b"/", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
         (b"/ask", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
+        (b"/tell", LaunchAt::Home, LaunchWant::Words(b"/tell ")),
         (b"/a", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
         (b"/n", LaunchAt::Need, LaunchWant::New),
         (b"/needs", LaunchAt::Need, LaunchWant::Walk),
@@ -2857,6 +2871,7 @@ fn read_exchange(duties: &Duties, wanted: &str) -> skein_lib::Token {
                             | (w::Read::Question(_), "question")
                             | (w::Read::Activity(_), "activity")
                             | (w::Read::Notes(_), "notes")
+                            | (w::Read::Proposal(_), "proposal")
                     ) {
                         return Some(*exchange);
                     }

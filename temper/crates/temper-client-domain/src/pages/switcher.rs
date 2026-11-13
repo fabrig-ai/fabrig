@@ -106,6 +106,7 @@ impl Switcher {
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Adopt { .. } => {}
         }

@@ -28,7 +28,7 @@ fn request(first: Option<v1::FirstAsk>) -> v1::Requesting {
 // ForgejoAdmin tag 2, Some(first), work/hello.
 fn peer(label: &[u8]) -> Box<[u8]> {
     const HEAD: &[u8] =
-        &[0, 16, 2, 0, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o'];
+        &[0, 17, 2, 0, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o'];
     let mut writer = Writer::new(HEAD.len().checked_add(4).unwrap().checked_add(label.len()).unwrap());
     writer.put(HEAD).unwrap();
     writer.put(&u32::try_from(label.len()).unwrap().to_be_bytes()).unwrap();

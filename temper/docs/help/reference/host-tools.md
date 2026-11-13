@@ -28,6 +28,19 @@ Offered where the run's charter names the delegate family.
 - `state`: text; optional.
 - `mine`: true or false; optional.
 
+## follow
+
+start: follow commit; hold/skip: follow commit reason; merge: follow commits (2+, queue order); list: project's follows; show: follow. Acts are owner's.
+
+A write.
+Offered where the run's charter names the delegate family.
+
+- `act`: one of `start`, `hold`, `skip`, `merge`, `list` or `show`; required.
+- `follow`: an integer from 1 to 4294967295; optional.
+- `commit`: text; optional.
+- `commits`: a list; optional.
+- `reason`: text; optional.
+
 ## decided
 
 Ask whether you may decide this for your person. Carry on only if decided; otherwise its answer says how you can ask.

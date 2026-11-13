@@ -152,6 +152,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Goals { .. }

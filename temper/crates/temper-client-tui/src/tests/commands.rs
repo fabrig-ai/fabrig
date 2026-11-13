@@ -313,7 +313,7 @@ fn front_commands(words: &crate::words::Words) {
             "in front",
             true,
             "/",
-            &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/log", "/quit"][..],
+            &["/change", "/ask", "/new", "/chats", "/open", "/tell", "/theme", "/help", "/log", "/quit"][..],
         ),
         ("log prefix", true, "/l", &["/log"][..]),
         ("q prefix", false, "/q", &["/quit"][..]),
@@ -321,7 +321,12 @@ fn front_commands(words: &crate::words::Words) {
         ("exit prefix", false, "/ex", &[][..]),
         ("exi prefix", false, "/exi", &[][..]),
         ("exit alias", false, "/exit", &[][..]),
-        ("out of front", false, "/", &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/quit"][..]),
+        (
+            "out of front",
+            false,
+            "/",
+            &["/change", "/ask", "/new", "/chats", "/open", "/tell", "/theme", "/help", "/quit"][..],
+        ),
         ("log out of front", false, "/l", &[][..]),
     ] {
         let mut root = root(true, false, false, false, false, false);
@@ -370,7 +375,7 @@ fn own_commands(words: &crate::words::Words) {
             false,
             &[
                 "/draft", "/change", "/ask", "/model", "/effort", "/new", "/chats", "/brief", "/needs", "/open",
-                "/theme", "/help", "/quit",
+                "/tell", "/theme", "/help", "/quit",
             ][..],
         ),
         (
@@ -381,7 +386,7 @@ fn own_commands(words: &crate::words::Words) {
             false,
             true,
             false,
-            &["/draft", "/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/quit"][..],
+            &["/draft", "/change", "/ask", "/new", "/chats", "/open", "/tell", "/theme", "/help", "/quit"][..],
         ),
         ("c prefix", true, true, "/c", false, true, false, &["/change", "/chats"][..]),
         ("b prefix", true, true, "/b", false, true, false, &["/brief"][..]),
@@ -395,7 +400,7 @@ fn own_commands(words: &crate::words::Words) {
             true,
             true,
             false,
-            &["/pause", "/close", "/new", "/chats", "/open", "/theme", "/help", "/quit"][..],
+            &["/pause", "/close", "/new", "/chats", "/open", "/tell", "/theme", "/help", "/quit"][..],
         ),
         ("no project", false, false, "/", false, false, false, &["/theme", "/help", "/quit"][..]),
         (
@@ -407,8 +412,8 @@ fn own_commands(words: &crate::words::Words) {
             true,
             true,
             &[
-                "/draft", "/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/theme", "/help", "/log",
-                "/quit",
+                "/draft", "/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/tell", "/theme", "/help",
+                "/log", "/quit",
             ][..],
         ),
     ] {
@@ -449,6 +454,7 @@ fn own_commands(words: &crate::words::Words) {
                 (Own::Brief, "The brief, whole"),
                 (Own::Needs, "Walk what needs you"),
                 (Own::Open, "Open this on the web"),
+                (Own::Tell, "Tell temper what's off"),
                 (Own::Theme, "Auto, light or dark"),
             ] {
                 if own.name() == expected.as_bytes() {
@@ -492,6 +498,7 @@ fn own_commands(words: &crate::words::Words) {
                 b"/brief   The brief, whole",
                 b"/needs   Walk what needs you",
                 b"/open    Open this on the web",
+                b"/tell    Tell temper what's off",
             ] {
                 assert!(notes.lines.iter().any(|found| found.as_ref() == line), "help padding and words: {line:?}");
             }
@@ -506,7 +513,8 @@ fn own_commands(words: &crate::words::Words) {
     );
     let part = crate::view::foot::read(&root, &Tui::new(f::ADDRESS), words, f::NOW);
     let list = part.list.unwrap();
-    let expected = ["/change", "/ask", "/model", "/effort", "/new", "/chats", "/open", "/theme", "/help", "/quit"];
+    let expected =
+        ["/change", "/ask", "/model", "/effort", "/new", "/chats", "/open", "/tell", "/theme", "/help", "/quit"];
     for (item, expected) in list.items.iter().zip(expected) {
         assert_eq!(item.name.as_ref(), expected.as_bytes());
     }
@@ -558,7 +566,7 @@ fn theme_is_own_on_every_screen() {
         assert_eq!(items[index].event, crate::Event::Own { command: crate::Own::Theme }, "{name}");
         assert_eq!(items[index + 1].name.as_ref(), b"/help", "{name}");
         if index > 0 {
-            assert_eq!(items[index - 1].name.as_ref(), b"/open", "{name}");
+            assert_eq!(items[index - 1].name.as_ref(), b"/tell", "{name}");
         }
     }
 }

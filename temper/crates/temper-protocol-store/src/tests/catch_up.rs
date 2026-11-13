@@ -2,7 +2,7 @@
 use skein_codec::patch::{Capacity, Patcher, Step};
 use skein_lib::bytes;
 
-fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
+pub(super) fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     patched_with(version, patch, root, bytes, &mut crate::patches::Context::default())
 }
 fn patched_with(
@@ -14,7 +14,7 @@ fn patched_with(
 ) -> Box<[u8]> {
     let texts = crate::patches::kept::temper_store::TEXTS;
     let mut patcher = Patcher::new(Capacity {
-        versions: 6,
+        versions: 7,
         patches: 1,
         text: skein_codec::schema::MAX_TEXT,
         bytes: 131_072,
@@ -43,13 +43,13 @@ fn patched_with(
 }
 
 fn current(root: &[u8], mut bytes: Box<[u8]>) -> Box<[u8]> {
-    for (version, patch) in [(11, 0), (12, 1), (13, 2), (14, 3), (15, 4)] {
+    for (version, patch) in [(11, 0), (12, 1), (13, 2), (14, 3), (15, 4), (16, 5)] {
         bytes = patched(version, patch, root, bytes);
     }
     bytes
 }
 
-fn kept_golden(version: u16, name: &str) -> Box<[u8]> {
+pub(super) fn kept_golden(version: u16, name: &str) -> Box<[u8]> {
     for text in crate::patches::kept::temper_store::TEXTS {
         let schema = skein_codegen::parse(text).expect("kept schema");
         if schema.version != version {
@@ -69,8 +69,8 @@ fn a_baseline_adopted_row_has_no_contexts() {
     let adopted = kept_golden(11, "record_adopted_full.bin");
     let before = bytes::concat(&[&[0, 11, 2], &adopted]); // Row version, repository variant.
     let bytes = current(b"Row", before);
-    let row = crate::v16::Row::decode(&crate::v16::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
-    let crate::v16::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
+    let row = crate::v17::Row::decode(&crate::v17::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
+    let crate::v17::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
     assert!(record.contexts().is_empty());
     assert_eq!(record.project(), u32::MAX);
     assert!(record.home());
@@ -81,8 +81,8 @@ fn a_foreman_with_a_task_becomes_retired() {
     let before = kept_golden(11, "enum_stands_foreman_full.bin");
     let bytes = current(b"Stands", before);
     let value =
-        crate::v16::Stands::decode(&crate::v16::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
-    assert_eq!(value, crate::v16::Stands::Retired);
+        crate::v17::Stands::decode(&crate::v17::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
+    assert_eq!(value, crate::v17::Stands::Retired);
 }
 
 #[test]
@@ -90,12 +90,23 @@ fn a_v13_closer_upgrades_with_no_question_relay() {
     let before = kept_golden(13, "record_closer_full.bin");
     let bytes = patched(13, 2, b"Closer", before);
     let bytes = patched(14, 3, b"Closer", bytes);
-    let row = crate::v15::Closer::decode(&crate::v15::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let bytes = patched(15, 4, b"Closer", bytes);
+    let row = crate::v16::Closer::decode(&crate::v16::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("upgraded closer");
     assert_eq!(row.relay(), &None);
     assert_eq!(row.task(), u64::MAX);
     assert_eq!(row.goal(), u64::MAX);
     assert!(row.done());
+}
+
+#[test]
+fn a_v16_person_owned_follow_keeps_its_bytes_and_owner() {
+    let before = kept_golden(16, "record_follow_full.bin");
+    let bytes = patched(16, 5, b"Follow", before.clone());
+    assert_eq!(bytes, before, "adding task owners leaves person owners unchanged");
+    let follow = crate::v17::Follow::decode(&crate::v17::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    let crate::v17::FollowOwner::Person(owner) = follow.owner() else { panic!("old person owner") };
+    assert_eq!(owner.person(), u64::MAX);
 }
 
 #[test]

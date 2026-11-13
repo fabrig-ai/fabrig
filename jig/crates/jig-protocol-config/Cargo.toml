@@ -39,4 +39,4 @@ workspace = true
 [dev-dependencies]
 jig-domain-core.workspace = true
 skein-scratch.workspace = true
-tempfile = "3"
+tempfile.workspace = true

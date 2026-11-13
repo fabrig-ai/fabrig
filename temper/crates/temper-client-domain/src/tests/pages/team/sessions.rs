@@ -6,7 +6,7 @@
     reason = "ordinary tests assemble activity pages and inspect requested reads"
 )]
 use super::*;
-use crate::pages::team::sessions::{Kind, Line, group};
+use crate::pages::team::sessions::{Line, group, retain};
 use skein_lib::{Duration, Map, Time, Wall};
 
 const MINUTE: u64 = 60_000_000_000;
@@ -49,23 +49,7 @@ fn pattern() -> Vec<c::DecodedActivityLine> {
 fn held(rows: &[c::DecodedActivityLine]) -> Map<u64, Line> {
     let mut lines = Map::uncapped();
     for row in rows {
-        let kind = match &row.source.line {
-            c::Activity::RunBegan { attempt, .. } => Kind::Began(*attempt),
-            c::Activity::RunEnded { attempt, spent, .. } => Kind::Ended { attempt: *attempt, spent: *spent },
-            c::Activity::Stood { attempt, words } => Kind::Stood { attempt: *attempt, words: words.bytes().into() },
-            c::Activity::SessionEnded { .. } => Kind::Boundary,
-            c::Activity::TalkOpened { .. }
-            | c::Activity::TalkEnded { .. }
-            | c::Activity::NowWritten { .. }
-            | c::Activity::Words { .. }
-            | c::Activity::Heard(_)
-            | c::Activity::Notified { .. }
-            | c::Activity::Turn { .. }
-            | c::Activity::Decided { .. }
-            | c::Activity::Milestone { .. }
-            | c::Activity::Kept { .. } => Kind::Other,
-        };
-        lines.insert(row.source.position, Line { at: row.source.at, kind }).unwrap();
+        lines.insert(row.source.position, retain(&row.source)).unwrap();
     }
     lines
 }
@@ -326,4 +310,37 @@ fn sessions_parts_need_rows_in_the_shown_card() {
     assert!(team::parts(&facts).sessions && team::parts(&facts).right);
     facts.card.as_mut().unwrap().task = 41;
     assert!(!team::parts(&facts).sessions && !team::parts(&facts).right, "an old card has no parts");
+}
+
+#[test]
+fn sessions_prefer_their_last_now_line_without_lending_it() {
+    let mut f = opening();
+    let now = |attempt, line: &[u8]| c::Activity::NowWritten { attempt, line: c::Text::new(line.into(), 512).unwrap() };
+    let stood = |attempt, words: &[u8]| c::Activity::Stood { attempt, words: c::Text::new(words.into(), 512).unwrap() };
+    let lines = vec![
+        activity(1, at(980), began(1)),
+        activity(2, at(981), stood(1, b"done")),
+        activity(3, at(982), now(1, b"Earlier Now")),
+        activity(4, at(983), ended(1, 1)),
+        activity(5, at(984), began(2)),
+        activity(6, at(981), now(2, b"Reproduced finding 91;\r\nasked you about its fix.")),
+        activity(7, at(985), stood(2, b"done again")),
+        activity(8, at(986), ended(2, 2)),
+        activity(9, at(987), boundary(1)),
+        activity(10, at(988), began(3)),
+        activity(11, at(989), stood(3, b"Fallback\nwords")),
+        activity(12, at(990), boundary(3)),
+        activity(13, at(991), began(4)),
+    ];
+    // NowWritten crosses a page edge and its wall is older: commit order wins.
+    answer(&mut f, lines[6..].iter().rev().cloned().collect(), Some(cursor(1)), false);
+    answer(&mut f, lines[..6].iter().rev().cloned().collect(), None, false);
+    let rows = rows(&f);
+    assert_eq!(rows.len(), 3);
+    assert_eq!(
+        rows.get(2).unwrap().words.as_deref(),
+        Some(b"Reproduced finding 91; asked you about its fix.".as_slice())
+    );
+    assert_eq!(rows.get(1).unwrap().words.as_deref(), Some(b"Fallback words".as_slice()));
+    assert_eq!(rows.get(0).unwrap().words, None, "an earlier session lends no Now line");
 }

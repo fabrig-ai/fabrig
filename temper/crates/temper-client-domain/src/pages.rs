@@ -32,6 +32,12 @@ pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
 /// say, another while they offer drafts (client/pages/README.md).
 #[must_use]
 pub fn chat_offers_draft(root: &crate::Domain, task: &jig_client::contract::Task) -> bool {
+    if let Some(chat) = root.pages().chat()
+        && chat.task == task.chip.task
+        && chat.talk().is_some()
+    {
+        return false;
+    }
     let asking = match root.pages.me(&root.client) {
         Some(me) => chats::asking(me, task.project, &task.chip.executor),
         None => false,
@@ -65,6 +71,7 @@ pub mod stop_asking;
 pub mod switcher;
 pub mod task;
 pub mod team;
+pub mod tell;
 pub mod terminal;
 pub mod welcome;
 pub mod work;
@@ -89,6 +96,7 @@ pub struct Pages {
     notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
     stop_asking: Option<stop_asking::Open>,
+    hand_area: Option<team::hand::Open>,
     keep_asking: skein_lib::List<stop_asking::Keeping>,
     decided: decided::Store,
     away: Option<away::Pending>,
@@ -128,6 +136,7 @@ pub struct Pages {
     pub(crate) push: Option<[u8; 65]>,
     roles: roles::Roles,
     team: team::Team,
+    tell: tell::Store,
     models: models::Models,
     switcher: switcher::Switcher,
     pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
@@ -223,7 +232,12 @@ pub enum Act {
     Choice(choice::Act),
     Needs(needs::Act),
     Finding(findings::Act),
+    Tell {
+        project: u32,
+        words: Box<[u8]>,
+    },
     StopAsking(stop_asking::Act),
+    HandArea(team::hand::Act),
     Away(away::Act),
     Models(models::Act),
     Remembered(remembered::Act),
@@ -290,6 +304,8 @@ pub enum Act {
     SendAmendment,
     /// Reread the task after a moved refusal (client/pages/task.md, 4).
     AmendAgain,
+    /// Leave the reader's open standing-role talk at once (client/pages/task.md, 4).
+    LeaveTalk,
     Pause,
     Resume,
     Stop,
@@ -393,6 +409,7 @@ impl Pages {
             notes: skein_lib::List::with_capacity(8),
             needs: needs::Session::default(),
             stop_asking: None,
+            hand_area: None,
             keep_asking: skein_lib::List::uncapped(),
             away: None,
             away_all: None,
@@ -432,6 +449,7 @@ impl Pages {
             push: None,
             roles: roles::Roles::default(),
             team: team::Team::default(),
+            tell: tell::Store::new(),
             models: models::Models::new(),
             switcher: switcher::Switcher::default(),
             connect_model: None,
@@ -471,6 +489,11 @@ impl Pages {
     pub fn choice(&self) -> &choice::Draft {
         &self.choice
     }
+    #[must_use]
+    pub fn tell(&self) -> Option<&tell::Tell> {
+        self.tell.last()
+    }
+
     #[must_use]
     pub fn told(&self) -> Option<&told::Told> {
         if self.told_open { Some(&self.told) } else { None }
@@ -724,7 +747,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Push(report) => pages.told.report(report, &mut pages.serial, env.limits.forge, out),
         Event::Started => started(pages, out),
         Event::Went { address } => {
-            went(pages, env, address, out);
+            team::hand::leave(pages, out);
+            if pages.address != address
+                && let Some(chat) = &pages.chat
+            {
+                chat.leave_talk(client, &mut pages.serial, out);
+            }
+            went(pages, env, client, address, out);
             if let Some(project) = address_project(&pages.address) {
                 choose_project(pages, client, project);
             }
@@ -769,7 +798,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
-        Event::Act { act: Act::StopAsking(_) } => unreachable!("Stop asking acts resolve at the root"),
+        Event::Act { act: Act::StopAsking(_) | Act::HandArea(_) } => {
+            unreachable!("these sheet acts resolve at the root")
+        }
         Event::Act { act: Act::Terminal(_) } => unreachable!("terminal acts resolved before page dispatch"),
         Event::Act { act: Act::Told(act) } => {
             if pages.told_open {
@@ -792,7 +823,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            if let Some(chat) = &pages.chat {
+                chat.leave_talk(client, &mut pages.serial, out);
+            }
             pages.stop_asking = None;
+            team::hand::leave(pages, out);
             pages.rail_handles = RailHandles::None;
             pages.start = None;
             pages.switcher.close();
@@ -847,6 +882,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
         }
         Event::Act { act: Act::Finding(act) } => findings::act(pages, env, act, out),
+        Event::Act { act: Act::Tell { project, words } } => tell::act(pages, env, project, &words, out),
         Event::Act { act: Act::Needs(act) } => {
             needs::act(pages, env, client, &crate::forge::approvals::Approvals::default(), act, out);
         }
@@ -857,7 +893,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::AskWith { words } } => {
             if !words.is_empty() {
                 let project = match pages.address {
-                    Address::Home { project } => Some(project),
+                    Address::Home { project } | Address::Team { project, .. } => Some(project),
                     Address::AllHome => match pages.project {
                         Some(project) => Some(project),
                         None => match pages.me(client) {
@@ -869,7 +905,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                         },
                     },
                     Address::Inbox { .. }
-                    | Address::Team { .. }
                     | Address::Ask { .. }
                     | Address::NewChat { .. }
                     | Address::Chats { .. }
@@ -884,6 +919,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                     | Address::ConnectModel { .. }
                     | Address::Welcome { .. }
                     | Address::Chat { .. }
+                    | Address::Talk { .. }
                     | Address::Task { .. }
                     | Address::Changes { .. }
                     | Address::Settings { .. }
@@ -1002,6 +1038,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 && let Some(task) = &mut pages.task
             {
                 task.amend(env, client, act, &mut pages.serial, out);
+            }
+        }
+        Event::Act { act: Act::LeaveTalk } => {
+            if pages.confirm.is_none()
+                && let Some(page) = &mut pages.task
+            {
+                page.send(env, client, task::Sending::Leave, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::Resume } if pages.chat.is_some() => {
@@ -1161,6 +1204,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 | Address::ConnectModel { .. }
                 | Address::Welcome { .. }
                 | Address::Chat { .. }
+                | Address::Talk { .. }
                 | Address::Task { .. }
                 | Address::Adopt { .. } => {}
             }
@@ -1204,7 +1248,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Address::ConnectModel { .. } = pages.address
         && let Some(added) = connect_model::added(pages, client)
     {
-        went(pages, env, Address::Accounts, out);
+        went(pages, env, client, Address::Accounts, out);
         pages.accounts.added = Some(added);
         pages.accounts.added_from_connect = true;
         out.push(Request::Replace { address: Address::Accounts });
@@ -1242,6 +1286,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     } else {
         pages.roles.leave(out);
     }
+    // Talk shares the project's reads with its chat's growing handle range.
+    if let Some(chat) = &pages.chat
+        && chat.talk().is_some()
+    {
+        pages.next = pages.next.max(chat.next);
+    }
     // The rail's document read shares the page handles with growing card reads.
     if let Some(inbox) = &pages.inbox {
         pages.next = pages.next.max(inbox.next);
@@ -1257,9 +1307,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             Some(me) => me.party.number,
             None => 0,
         };
-        pages.team.configure(&pages.address, you, env, client, &mut pages.next, out);
+        pages.team.configure(&pages.address, pages.launchpad, you, env, client, &mut pages.next, out);
     } else {
         pages.team.leave(out);
+    }
+    if let Some(chat) = &mut pages.chat
+        && chat.talk().is_some()
+    {
+        chat.next = chat.next.max(pages.next);
     }
     if let Some(inbox) = &mut pages.inbox {
         inbox.next = inbox.next.max(pages.next);
@@ -1281,6 +1336,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Told
             | Address::Remembered
@@ -1353,6 +1409,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     {
         goals.configure(me, project, client, &env.limits, out);
     }
+    if let Some(chat) = &mut pages.chat {
+        chat.refresh_talk(client, out);
+    }
     chat_inbox(pages, env, client, out);
     configure_stock_ways(pages, client);
     choice::refresh(pages, client);
@@ -1381,6 +1440,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         } else {
             open.failed = Some(outcome.clone());
         }
+    }
+    if pages.tell.told(&told, client, env.limits.forge) {
+        return true;
     }
     if pages.needs.findings.told(&told, client, env.limits.forge) {
         return true;
@@ -1643,6 +1705,7 @@ fn rail_chats(address: &Address) -> bool {
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Team { .. }
         | Address::Models { .. }
@@ -1664,7 +1727,7 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 }
 
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
-fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
+fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address, out: &mut Queue<Request>) {
     if pages.address != address {
         pages.notes.clear();
         pages.listing = None;
@@ -1784,6 +1847,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
@@ -1813,6 +1877,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Goals { .. }
@@ -1900,8 +1965,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Address::Task { task } = address {
             pages.task = Some(task::Task::new(task, pages.next, &env.limits, out));
         }
-        if let Address::Chat { task } = address {
+        if let Address::Chat { task } | Address::Talk { task, .. } = address {
             let mut chat = chat::Chat::new(task, opening, pages.next, &env.limits, out);
+            if let Address::Talk { project, .. } = address {
+                chat.in_talk(project, client, out);
+            }
             if started {
                 chat.composer_focus = 1;
             }
@@ -1976,6 +2044,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
@@ -2401,6 +2470,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::StartAsks { .. }
         | Act::StartCancel
         | Act::StartGoal
+        | Act::LeaveTalk
         | Act::Pause
         | Act::Resume
         | Act::Amend
@@ -2416,9 +2486,11 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Told(_)
         | Act::Remembered(_)
         | Act::Models(_)
+        | Act::HandArea(_)
         | Act::StopAsking(_)
         | Act::Needs(_)
         | Act::Finding(_)
+        | Act::Tell { .. }
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::AdoptFirst
@@ -2494,6 +2566,7 @@ fn work_project(address: &Address) -> Option<u32> {
 fn address_project(address: &Address) -> Option<u32> {
     match address {
         Address::Home { project }
+        | Address::Talk { project, .. }
         | Address::Work { project, .. }
         | Address::Goals { project, .. }
         | Address::Changes { project }
@@ -2675,6 +2748,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.needs.configure(false, limits, out);
             pages.needs = needs::Session::default();
             pages.stop_asking = None;
+            team::hand::leave(pages, out);
             pages.keep_asking.clear();
             pages.overturns = away::Overturns::new();
             pages.choice = choice::Draft::default();
@@ -2739,6 +2813,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Work { .. }
         | Address::Goals { .. }

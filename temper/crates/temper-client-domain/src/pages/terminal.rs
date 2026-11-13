@@ -65,12 +65,12 @@ impl Look {
         }
     }
 }
-/// Whether the terminal draws the page at this address: a chat's, `NewChat` or `Ask`.
+/// Whether the browser's terminal draws this page: a chat, talk, `NewChat` or `Ask`.
 #[must_use]
 pub fn draws(address: &crate::Address) -> bool {
     use crate::Address;
     match address {
-        Address::Chat { .. } | Address::NewChat { .. } | Address::Ask { .. } => true,
+        Address::Chat { .. } | Address::Talk { .. } | Address::NewChat { .. } | Address::Ask { .. } => true,
         Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }

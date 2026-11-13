@@ -511,19 +511,73 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "team-hand",
+        heading: "Who owns what on shop",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Hand an area to a role" },
+            Part::Named { role: Role::Choice, name: "core" },
+            Part::Named { role: Role::Choice, name: "tests" },
+            Part::Named { role: Role::Choice, name: "A new area" },
+            Part::Named { role: Role::Choice, name: "Prover" },
+            Part::Named { role: Role::Choice, name: "Prover, from the stock" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Owns its area's tests: triages their reds and flakes and makes the repairs.",
+            },
+            Part::Named { role: Role::Choice, name: "Porter, from the stock" },
+            Part::Named { role: Role::Paragraph, name: "Keeps its area's port in step with its source." },
+            Part::Named { role: Role::Choice, name: "Write one with Ask temper" },
+            Part::Named { role: Role::Button, name: "Not now" },
+            Part::Named { role: Role::Button, name: "Hand it over" },
+        ],
+    },
+    Holds {
         name: "team-role",
         heading: "Who owns what on shop",
         parts: &[
             Part::Named { role: Role::Link, name: "Team" },
-            Part::Named { role: Role::Paragraph, name: "Just you." },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Standing roles" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Just you. Each area has one owner. Prover hands each finding and red to its area's owner. An owner that can't decide asks you, as How work runs says.",
+            },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Standing roles" },
             Part::Named { role: Role::Link, name: "Prover" },
-            Part::Named { role: Role::Text, name: "21 of 40" },
-            Part::Named { role: Role::Paragraph, name: "A standing role · since 2 November · started by you" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Areas" },
+            Part::Named { role: Role::Cell, name: "core" },
+            Part::Named { role: Role::Cell, name: "tests" },
+            Part::Named { role: Role::Cell, name: "Anything else" },
+            Part::Named { role: Role::Paragraph, name: "in Prover's" },
+            Part::Named { role: Role::Paragraph, name: "Owner · core" },
+            Part::Named { role: Role::Link, name: "Change by proposal" },
+            Part::Named { role: Role::Link, name: "Talk to it" },
+            Part::Named { role: Role::Cell, name: "21 of 40" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "A standing role · owns tests, and Anything else, since 2 November · started by you",
+            },
+            Part::Named { role: Role::Button, name: "+ Hand an area to a role" },
             Part::Named { role: Role::Button, name: "Pause" },
+            Part::Named { role: Role::Button, name: "Give the area back" },
             Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
+            Part::Named { role: Role::Paragraph, name: "Follows" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Follows acme/upstream · 2 behind · check passes at 9c04d7e1a2b3",
+            },
+            Part::Named { role: Role::Paragraph, name: "9c04d7e1a2b3 · held by its owner: waits for the handoff fix" },
+            Part::Named { role: Role::Paragraph, name: "abababababab · waits for change 812" },
+            Part::Named { role: Role::Paragraph, name: "Follows acme/tools · caught up · no check yet" },
             Part::Named { role: Role::Paragraph, name: "Sessions this week" },
             Part::Named { role: Role::Paragraph, name: "Sun 01:52 · running" },
+            Part::Named { role: Role::Paragraph, name: "Reproduced finding 91; asked you about its fix." },
+            Part::Named { role: Role::Paragraph, name: "Its weekly report · written Mon 06:00" },
+            Part::Named { role: Role::Paragraph, name: "Week of 26 October." },
+            Part::Named {
+                role: Role::Item,
+                name: "Triaged three findings: two routed to you, one repaired and landed.",
+            },
+            Part::Named { role: Role::Item, name: "Waiting on you: finding 91's protocol fix." },
+            Part::Named { role: Role::Paragraph, name: "Spent 21 of 40 this period." },
             Part::Named { role: Role::Paragraph, name: "Sat 16:20 · 22 min" },
             Part::Named { role: Role::Paragraph, name: "Triaged three findings; routed two to you." },
             Part::Named { role: Role::Paragraph, name: "Fri 23:05 · 31 min" },
@@ -554,11 +608,34 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-team-role",
         heading: "Who owns what on shop",
         parts: &[
-            Part::Named { role: Role::Text, name: "21 of 40" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Areas" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Standing roles" },
+            Part::Named { role: Role::Link, name: "Talk to it" },
+            Part::Named { role: Role::Paragraph, name: "Owner · core" },
+            Part::Named { role: Role::Cell, name: "21 of 40" },
+            Part::Named { role: Role::Button, name: "+ Hand an area to a role" },
             Part::Named { role: Role::Button, name: "Pause" },
+            Part::Named { role: Role::Button, name: "Give the area back" },
             Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
+            Part::Named { role: Role::Paragraph, name: "Follows" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Follows acme/upstream · 2 behind · check passes at 9c04d7e1a2b3",
+            },
+            Part::Named { role: Role::Paragraph, name: "9c04d7e1a2b3 · held by its owner: waits for the handoff fix" },
+            Part::Named { role: Role::Paragraph, name: "abababababab · waits for change 812" },
+            Part::Named { role: Role::Paragraph, name: "Follows acme/tools · caught up · no check yet" },
             Part::Named { role: Role::Paragraph, name: "Sessions this week" },
             Part::Named { role: Role::Paragraph, name: "Sun 01:52 · running" },
+            Part::Named { role: Role::Paragraph, name: "Reproduced finding 91; asked you about its fix." },
+            Part::Named { role: Role::Paragraph, name: "Its weekly report · written Mon 06:00" },
+            Part::Named { role: Role::Paragraph, name: "Week of 26 October." },
+            Part::Named {
+                role: Role::Item,
+                name: "Triaged three findings: two routed to you, one repaired and landed.",
+            },
+            Part::Named { role: Role::Item, name: "Waiting on you: finding 91's protocol fix." },
+            Part::Named { role: Role::Paragraph, name: "Spent 21 of 40 this period." },
             Part::Named { role: Role::Paragraph, name: "Sat 16:20 · 22 min" },
             Part::Named { role: Role::Paragraph, name: "Triaged three findings; routed two to you." },
             Part::Named { role: Role::Paragraph, name: "Fri 23:05 · 31 min" },
@@ -1433,6 +1510,15 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Exit" },
             Part::Named { role: Role::Paragraph, name: "/ for commands" },
             Part::Named { role: Role::Status, name: "Working" },
+        ],
+    },
+    Holds {
+        name: "role-talk",
+        heading: "T52 · Prover",
+        parts: &[
+            Part::Named { role: Role::TextArea, name: "Talk" },
+            Part::Named { role: Role::Button, name: "Leave" },
+            Part::Text { text: "Add it to my rules?" },
         ],
     },
     Holds {
@@ -5117,6 +5203,30 @@ fn descendants<'a>(tree: &'a skein_ui::Tree, role: Role, name: &str, sample: &st
     &nodes[start..end]
 }
 #[test]
+fn team_hand_opens_the_sheet_with_the_first_area_and_role() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "team-hand").expect("hand-off sample");
+    let root = samples::domain(&sample);
+    let open = root.pages().hand_area().expect("hand-off sheet is open");
+    assert_eq!(open.area.as_deref(), Some(b"core".as_slice()));
+    assert_eq!(open.role, Some(52));
+    assert!(open.apply);
+    let (view, _, _) = built_root(&sample, ViewInputs::new(), &root);
+    find(view.tree(), Role::Dialog, "Hand an area to a role", sample.name);
+    let mut last = 0;
+    for title in ["Prover", "Prover, from the stock", "Porter, from the stock", "Write one with Ask temper"] {
+        let id = find(view.tree(), Role::Choice, title, sample.name);
+        let position = view.tree().nodes().iter().position(|n| n.id == id).unwrap();
+        assert!(position > last, "role choices follow the gallery's order");
+        last = position;
+    }
+    for words in [
+        "Owns its area's tests: triages their reds and flakes and makes the repairs.",
+        "Keeps its area's port in step with its source.",
+    ] {
+        find(view.tree(), Role::Paragraph, words, sample.name);
+    }
+}
+#[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
 fn each_state_holds_what_its_name_says() {
     assert_eq!(HOLDS.len(), samples::N, "every promised row has a sample");
@@ -6425,4 +6535,44 @@ fn finding_gallery_cards_keep_facts_forms_and_responsive_hooks() {
             find(view.tree(), Role::Paragraph, "not a live goal of the project", sample.name);
         }
     }
+}
+
+#[test]
+fn role_talk_shows_provers_open_talk_sent_words_reply_and_leave() {
+    use temper_client_view::look;
+    let sample = samples::samples().into_iter().find(|sample| sample.name == "role-talk").expect("role-talk");
+    assert_eq!(sample.address, temper_client_domain::Address::Task { task: 52 });
+    assert!(!samples::samples().iter().any(|sample| sample.name == "night-role-talk"));
+    let root = samples::domain(&sample);
+    let task = root.pages().task().expect("role's page").document(root.client()).expect("task");
+    assert_eq!(task.flags.ended_by, jig_client::contract::EndedBy::Standing);
+    assert_eq!(task.talk.as_ref().unwrap().party, root.pages().me(root.client()).unwrap().party.number);
+    let view = view(&sample);
+    let tree = view.tree();
+    find(tree, Role::Heading { level: 1 }, "T52 · Prover", sample.name);
+    find(tree, Role::TextArea, "Talk", sample.name);
+    find(tree, Role::Button, "Leave", sample.name);
+    find(tree, Role::Status, "Sent", sample.name);
+    let said: Vec<u8> =
+        tree.nodes().iter().flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied())).collect();
+    let said = String::from_utf8(said).unwrap();
+    for words in [
+        "From now on, reproduce a flake twice before routing it.",
+        "Add it to my rules?",
+        "Talk with Prover · it answers here, and the talk stays open until you leave or 30 minutes pass with nothing said.",
+        "Or in a terminal: temper ctl DIR role talk 52 TEXT --key KEY",
+    ] {
+        assert!(said.contains(words), "missing {words}: {said}");
+    }
+    let log = tree.nodes().iter().position(|node| node.role == Role::Log).unwrap();
+    let reply = tree
+        .nodes()
+        .iter()
+        .position(|node| node.text.iter().any(|run| run.text.as_ref() == b"Add it to my rules?"))
+        .unwrap();
+    assert!(reply > log && reply < log + usize::try_from(tree.nodes()[log].size).unwrap());
+    assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&look::AGENT_PAGE)));
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains("Talk to Prover"));
+    assert!(html.contains("temper-agent-page"));
 }

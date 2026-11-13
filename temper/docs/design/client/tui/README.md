@@ -271,8 +271,10 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   through its view, if the view names one (`pages/README.md`); the focus moved draws
   again; Ctrl+C closes. Escape, which no node of the TUI's names, makes
   the event the view says while it draws a list, `Dismiss` on a
-  command's list and `Aside` on the chat's question, or while it draws a
-  left-off chat selected, `LeftOff { task: None }`, and nothing
+  command's list and `Aside` on the chat's question or a talk's proposal,
+  or while it draws a
+  left-off chat selected, `LeftOff { task: None }`, or on a talk with its
+  box empty, `Leave`, and nothing
   otherwise (`temper_client_tui::escape`). Up and Down go first to the
   view (`temper_client_tui::arrow`, with `Arrow::Up` or `Arrow::Down`):
   while it draws the launchpad's left-off chats with the box empty and
@@ -296,11 +298,16 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
     stays there and the TUI draws the launchpad with no project (`pages/launchpad.md`, 7),
     or in front of a box the welcome (`box.md`);
   - *where the root asks:* a `Request::Show` or a replacing one, a chat
-    started, a chat chosen from `/chats`, is followed at once as `Went`
+    started, a chat chosen from `/chats`, a role's talk chosen by `/talk`
+    (`Talk { project, task }`, `pages/talk.md`), is followed at once as `Went`
     to that address, as the browser's host follows it, within the same
     report; an address the TUI draws no page for, `Ask { project }` after
     Start over among them, is followed to `Home` of its project, or of
     the root's;
+  - *from a talk:* Esc on its empty box with no list standing, or `/exit`
+    sent whole there, `Went(Home { project })`, the talk's project, which
+    leaves the talk, with the notice of a talk left (`pages/talk.md`,
+    section 1, *Leaving*);
   - *by `/new`:* `Went(Home { project })`, the root's project;
   - *back to the start's address,* `Went(Inbox { filter: ALL })`, after
     the report in which `me` no longer names the root's project, the
@@ -326,28 +333,34 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
 
   | Event | Does |
   |---|---|
-  | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (`pages/README.md`, 1, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
+  | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (`pages/README.md`, 1, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat or a talk `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
   | `SignIn` | signing in's Enter, as before |
-  | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
+  | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`, or on a talk as `Leave`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat or a talk |
   | `Command { command }` | `Exit`, the TUI's `/quit`, closes (4); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
   | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages/launchpad.md`, 4) |
-  | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (`pages/README.md`) |
+  | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (`pages/README.md`); "Not now", Esc or words typed on a talk's proposal: the TUI sets that card aside (`pages/talk.md`) |
+  | `Accept { object, revision }` | "Accept it" on a talk's proposal: the root's `Act::Decide { object, revision, act: Accept }`, then `Act::Confirm` (`pages/talk.md`, 1, *A proposal in place*) |
+  | `Leave` | Esc on a talk's empty box with no list, or `/exit` sent whole on a talk: the notice of a talk left while the person's talk is open, then `Went(Home { project })`, the talk's project (`pages/talk.md`, 1, *Leaving*) |
   | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)`, clearing the left-off selection too |
   | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (`pages/launchpad.md`, 4) |
-  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `Own { command }` | one of the TUI's own commands pressed or sent alone (`pages/README.md`, *The TUI's own commands*), `Own::Change`, `Ask` or `Tell` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Talk` its list opened, a choice there `Act::Go` to the role's `Talk`, `Theme` the theme's list opened (`pages/README.md`, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
   | `Theme { choice }` | on the theme's list, `Some(choice)` taken: the host draws in it, keeps it (`theme.md`, *The theme chosen*) and gives its notice; `None`, Esc there: the list lowered |
   | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (`pages/launchpad.md`, 4 and 6) |
   | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (`pages/launchpad.md`, 6): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
   | `EndWalk` | Esc on the walk's prompt: the walk ends |
 
-  `Send` on the launchpad also takes `/change WORDS`, `/ask WORDS` and
+  `Send` on the launchpad also takes `/change WORDS`, `/ask WORDS`,
+  `/talk WORDS` and
   `/chats N` before the root's commands (`pages/README.md`, 2, *The TUI's own
   commands*), and, with the walk's question set aside, answers it in
-  the box's words as a chat's question's are, then marks it shown.
+  the box's words as a chat's question's are, then marks it shown. On
+  the launchpad, a chat and a talk it takes `/tell WORDS` before them
+  too, and on a talk it sends the box's other words as the talk's
+  (`pages/talk.md`).
   `Duties.open`, which opens the approval's tab, carries a page's
   address the same way.
 
-  A key that makes `Act`, `Command`, `Aside`, `Dismiss`, `LeftOff`,
+  A key that makes `Act`, `Command`, `Aside`, `Accept`, `Dismiss`, `Leave`, `LeftOff`,
   `Own`, `Open`, `Walk`, `EndWalk` or `Theme` marks the frame it acts on
   in a recording, and typing marks none
   (`journeys.md`, 3.3). Words typed on the launchpad, and leaving

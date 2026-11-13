@@ -30,6 +30,8 @@ pub struct Tui {
     notice: Option<Notice>,
     lending: Option<Lending>,
     logins_taken: Set<u32>,
+    tell_serial: u64,
+    tell_refusal: Option<Box<[u8]>>,
     focus: u64,
     box_written: u64,
     left_off: Option<u64>,
@@ -49,6 +51,8 @@ pub struct Tui {
     theme_choice: ThemeChoice,
     terminal_scheme: Option<Scheme>,
     theme_list: bool,
+    talk_list: bool,
+    proposals_aside: List<ObjectKey>,
 }
 /// The login lent until its end (client/tui/box.md, Lending its terminal).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -100,6 +104,9 @@ pub enum Notice {
     LoginCancelled,
     LoginNotFinished,
     Proposed,
+    Left { name: Box<[u8]>, minutes: u64, cost: Option<u64> },
+    NoRole { project: Box<[u8]>, words: Box<[u8]> },
+    Filed { number: u32, project: Box<[u8]> },
     Theme { choice: ThemeChoice, terminal: Option<Scheme> },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -110,6 +117,11 @@ pub enum Told {
     },
     Unlend,
     Lent,
+    Send,
+    Tell {
+        serial: u64,
+        refusal: Option<Box<[u8]>>,
+    },
     Walk {
         by_key: bool,
     },
@@ -187,6 +199,12 @@ pub enum Told {
         choice: ThemeChoice,
         terminal: Option<Scheme>,
     },
+    TalkList {
+        open: bool,
+    },
+    ProposalAside {
+        object: ObjectKey,
+    },
     ThemeList {
         open: bool,
     },
@@ -215,6 +233,8 @@ impl Tui {
             notice: None,
             lending: None,
             logins_taken: Set::with_capacity(u32::MAX),
+            tell_serial: 0,
+            tell_refusal: None,
             focus: 1,
             box_written: 0,
             front: false,
@@ -234,6 +254,8 @@ impl Tui {
             theme_choice: ThemeChoice::Auto,
             terminal_scheme: None,
             theme_list: false,
+            talk_list: false,
+            proposals_aside: List::uncapped(),
         }
     }
     #[must_use]
@@ -312,6 +334,14 @@ impl Tui {
     #[must_use]
     pub fn notice(&self) -> Option<&Notice> {
         self.notice.as_ref()
+    }
+    #[must_use]
+    pub const fn tell_serial(&self) -> u64 {
+        self.tell_serial
+    }
+    #[must_use]
+    pub fn tell_refusal(&self) -> Option<&[u8]> {
+        self.tell_refusal.as_deref()
     }
     #[must_use]
     pub const fn focus(&self) -> u64 {
@@ -422,10 +452,20 @@ impl Tui {
     pub const fn theme_list(&self) -> bool {
         self.theme_list
     }
+    #[must_use]
+    pub const fn talk_list(&self) -> bool {
+        self.talk_list
+    }
+    #[must_use]
+    pub fn proposal_aside(&self, object: &ObjectKey) -> bool {
+        self.proposals_aside.as_slice().contains(object)
+    }
     fn clear_launchpad(&mut self) -> bool {
-        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list;
+        let changed =
+            self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list || self.talk_list;
         self.walk = None;
         self.theme_list = false;
+        self.talk_list = false;
         self.brief_shown = false;
         self.not_opened = None;
         changed
@@ -554,6 +594,32 @@ impl Tui {
                 None => false,
             },
             Told::Lent => self.lending.take().is_some(),
+            Told::TalkList { open } => {
+                let changed = self.talk_list != open;
+                self.talk_list = open;
+                changed
+            }
+            Told::ProposalAside { object } => {
+                if self.proposal_aside(&object) {
+                    false
+                } else {
+                    self.proposals_aside.push(object).expect("set aside cards fit memory");
+                    true
+                }
+            }
+            Told::Send => self.tell_refusal.take().is_some(),
+            Told::Tell { serial, refusal } => {
+                if serial <= self.tell_serial {
+                    false
+                } else {
+                    self.tell_serial = serial;
+                    if refusal.is_some() {
+                        self.box_written = self.box_written.saturating_add(1);
+                    }
+                    self.tell_refusal = refusal;
+                    true
+                }
+            }
             Told::Walk { by_key } => {
                 let changed = match &self.walk {
                     Some(walk) => walk.by_key != by_key || walk.taken,
@@ -623,6 +689,7 @@ impl Tui {
                 changed
             }
             Told::Went => {
+                self.tell_refusal = None;
                 self.start_chat = None;
                 let focus = self.focus.saturating_add(1);
                 let written = self.box_written.saturating_add(1);

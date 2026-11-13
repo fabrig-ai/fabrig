@@ -20,6 +20,8 @@
   the box in the pseudo-terminal. `box-claude-sign-in` waits with it, for
   the same reason.
 
+- **Not yet:** 9's `role-talk`: recorded once T3 has landed, its fake model scripting a standing role's replies and its rule question, owned by temper/tui (`../../draft/whole-story.execution.md`, T3).
+
 Beside those, no known implementation gap. Sections 2 to 8.2 have recording,
 shipped-host replay, proof, shared redaction and scan, themed prints and
 generation; 3.2's start facts include `background` and `box`, which the

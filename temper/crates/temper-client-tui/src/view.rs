@@ -14,6 +14,7 @@ use temper_client_view::words::{TimeForm, Word as Shared};
 pub(crate) mod chat;
 pub(crate) mod foot;
 pub(crate) mod pane;
+pub(crate) mod talk;
 pub use pane::HALVES;
 pub(crate) mod front;
 pub(crate) mod launchpad;
@@ -322,7 +323,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
             Body::Welcome(welcome::read(root, tui, &view.words, wall))
         } else {
             match root.pages().address() {
-                Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
+                Address::Chat { .. } | Address::Talk { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
                 Address::Home { .. }
                 | Address::AllHome
                 | Address::Inbox { .. }
@@ -361,10 +362,14 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
 #[expect(clippy::manual_map, reason = "step code reads optional pane facts with an explicit match")]
 pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.shown = view.shown.wrapping_add(1);
-    view.tick = match &signed.body {
+    view.tick = signed.foot.tick;
+    let body_tick = match &signed.body {
         Body::Launchpad(part) => part.tick,
         Body::Chat(_) | Body::Welcome(_) => None,
     };
+    if let Some(tick) = body_tick {
+        view.tick = Some(view.tick.unwrap_or(tick).min(tick));
+    }
     view.pane = match &signed.body {
         Body::Chat(part) => match &part.pane {
             Some(pane) => Some((pane.mode, pane.next)),
@@ -419,6 +424,9 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         Body::Chat(part) => chat::draw(&mut b, part, &view.words, &mut view.binds),
     }
     view.escape = foot::draw(&mut b, &signed.foot, &view.words, &mut view.binds);
+    if signed.foot.list.is_none() && view.box_empty && signed.foot.talk_name.is_some() {
+        view.escape = Some(Event::Leave);
+    }
     if signed.foot.list.is_none() && view.selected.is_some() {
         view.escape = Some(Event::LeftOff { task: None });
     }
@@ -579,9 +587,13 @@ fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
         return None;
     }
     let page = if let Some(chat) = root.pages().chat() {
-        match chat.goal_from(root) {
-            Some((goal, _)) => Address::Task { task: goal },
-            None => Address::Chat { task: chat.task },
+        if let Some(talk) = chat.talk() {
+            Address::Team { project: talk.project, role: Some(talk.task) }
+        } else {
+            match chat.goal_from(root) {
+                Some((goal, _)) => Address::Task { task: goal },
+                None => Address::Chat { task: chat.task },
+            }
         }
     } else {
         Address::Home { project: root.pages().project()? }
@@ -621,13 +633,14 @@ pub fn focus(view: &View) -> Option<&[u8]> {
 /// The TUI's own commands in their offered order (client/tui/pages/README.md).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
-    let mut commands = List::with_capacity(7);
+    let mut commands = List::with_capacity(9);
     if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
         commands.push(Own::Theme).expect("one theme command");
         return commands.into_boxed();
     }
     if root.pages().chat().is_some() {
-        commands.push(Own::Open).expect("one chat command");
+        commands.push(Own::Open).expect("chat commands counted");
+        commands.push(Own::Tell).expect("chat commands counted");
     } else if let Some(project) = root.pages().project() {
         // Only the brief is read here; its availability does not depend on the clock.
         let brief = temper_client_domain::pages::home::facts(root, project, Wall::from_nanos(0)).brief().is_some();
@@ -637,7 +650,8 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
         for command in Own::ALL {
             let offered = match command {
                 Own::Draft => temper_client_domain::pages::drafts_offered(root, project),
-                Own::Change | Own::Ask | Own::Open => true,
+                Own::Change | Own::Ask | Own::Open | Own::Tell => true,
+                Own::Talk => talk::available(root, project),
                 Own::Theme => false,
                 Own::Brief => brief,
                 Own::Needs => no_list && has_needs(root),

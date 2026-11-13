@@ -87,7 +87,7 @@ fn welcome_commands_wait_until_the_sign_in_lands() {
 )]
 #[expect(
     clippy::large_stack_arrays,
-    reason = "the fixed rows hold independent TUI states, including their terminal-login facts"
+    reason = "the fixed state table holds Tui values with talk prompts and terminal-login facts"
 )]
 fn the_welcome_says_each_state() {
     let empty = welcome_root(&[], false, Some(false), None);

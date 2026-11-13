@@ -108,6 +108,14 @@ impl Store {
         }
         cards.into_boxed()
     }
+    pub(super) fn document(&self, project: u32) -> Option<&w::Findings> {
+        for held in &self.projects {
+            if held.project == project {
+                return held.document.as_ref();
+            }
+        }
+        None
+    }
     #[must_use]
     pub fn areas(&self, id: Id) -> &[w::AreaRow] {
         for project in &self.projects {

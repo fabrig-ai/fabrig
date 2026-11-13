@@ -1656,12 +1656,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_sixteen() {
+fn embedded_client_refusals_keep_their_bytes_at_client_seventeen() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v21::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 16);
+    assert_eq!(wire::CLIENT_VERSION, 17);
 }
 
 #[test]

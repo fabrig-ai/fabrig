@@ -445,6 +445,15 @@
   and the run goes on. The writes are named and decided once, as
   `change`; `list` and `show` are reads.
 
+- **`follow`,** of the delegate family, declared where `finding` is, so
+  that a standing role acts on the follows it owns in its task's
+  project, as their owner (`../forge/follows.md`, section 5, *The role's
+  `follow` tool*, which gives its members, answers and refusals): its
+  `act` one of `start`, `hold`, `skip` and `merge`, the owner's acts,
+  and `list` and `show`, reads of the project's `follows` document open
+  to any task of the project. A charter that offers the delegate family
+  offers it.
+
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
   (`delegate`'s and `amend`'s schemas name every field of the spec and

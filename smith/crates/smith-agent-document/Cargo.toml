@@ -26,7 +26,7 @@ smith-protocol-translate.workspace = true
 smith-protocol-llm.workspace = true
 smith-protocol-machine.workspace = true
 serde = { workspace = true }
-serde_json = "1.0"
+serde_json.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true

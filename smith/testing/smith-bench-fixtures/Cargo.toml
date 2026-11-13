@@ -12,7 +12,7 @@ smith-bench = { path = "../../benchmarks" }
 smith-events.workspace = true
 smith-events-fixtures.workspace = true
 skein-lib.workspace = true
-serde_json = "1.0"
+serde_json.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

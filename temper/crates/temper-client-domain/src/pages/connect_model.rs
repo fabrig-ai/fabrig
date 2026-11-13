@@ -72,6 +72,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::Accounts
         | Address::Welcome { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
@@ -149,6 +150,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
@@ -182,6 +184,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Accounts
         | Address::Welcome { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
