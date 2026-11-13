@@ -256,6 +256,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
     let spec = Spec {
         key: b"merge".as_slice().into(),
         repositories: Box::new([Repository {
+            prefixes: Box::new([]),
             save: Some(b"saved".as_slice().into()),
             git: None,
             name: b"temper".as_slice().into(),
@@ -376,6 +377,7 @@ pub enum PinCase {
 pub fn replaced_pin(case: PinCase) {
     let mut world = World::new(73, Case::Clean, 64);
     let repository = || Repository {
+        prefixes: Box::new([]),
         name: b"temper".as_slice().into(),
         remote: b"forge/temper".as_slice().into(),
         git: None,
@@ -482,6 +484,7 @@ pub fn resolution_conflict(pushed: bool) {
             identity: 0,
             account: None,
             push: Some(push.into()),
+            prefixes: Box::new([]),
             expected,
             landing: None,
         }]),
@@ -612,6 +615,7 @@ fn resume_saved_work(world: &mut World, workspace: Token) {
     let spec = Spec {
         key: b"merge".as_slice().into(),
         repositories: Box::new([Repository {
+            prefixes: Box::new([]),
             name: b"temper".as_slice().into(),
             remote: b"forge/temper".as_slice().into(),
             git: None,
@@ -648,6 +652,7 @@ pub fn retry_existing_change(movement: Option<bool>, ambiguous: bool) {
     let spec = |retry| Spec {
         key: b"retry".as_slice().into(),
         repositories: Box::new([Repository {
+            prefixes: Box::new([]),
             save: Some(b"saved".as_slice().into()),
             git: None,
             name: b"temper".as_slice().into(),
@@ -721,6 +726,7 @@ fn heads_spec(heads: &[u64]) -> Spec {
     Spec {
         key: b"heads".as_slice().into(),
         repositories: Box::new([Repository {
+            prefixes: Box::new([]),
             name: b"temper".as_slice().into(),
             remote: b"forge/temper".as_slice().into(),
             git: None,
@@ -872,6 +878,7 @@ pub fn goal_later_run(case: Case) {
     let spec = Spec {
         key: b"goal".as_slice().into(),
         repositories: Box::new([Repository {
+            prefixes: Box::new([]),
             name: b"temper".as_slice().into(),
             remote: b"forge/temper".as_slice().into(),
             git: None,
@@ -977,6 +984,7 @@ fn design_start() -> (World, Vec<u8>, u64) {
     let spec = Spec {
         key: b"design".as_slice().into(),
         repositories: Box::new([Repository {
+            prefixes: Box::new([]),
             name: b"temper".as_slice().into(),
             remote: b"forge/temper".as_slice().into(),
             git: None,

@@ -43,8 +43,8 @@ mod limits;
 mod tests;
 
 pub use boundary::{
-    Candidate, CandidateSpec, Conflicts, Event, Failure, Landing, Message, Outcome, Prepared, Refusal, Repository,
-    Request, Spec, Start,
+    Candidate, CandidateMember, CandidateSpec, Combination, Conflicts, Event, Failure, Landing, Message, Outcome,
+    Prepared, Refusal, Repository, Request, Spec, Start,
 };
 pub use domain::{Domain, step};
 pub use facts::{Cached, Ending, Fact, Preparation, Tally, Target};

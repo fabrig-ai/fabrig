@@ -38,14 +38,15 @@ pub(crate) fn workstream(key: &[u8]) -> u64 {
 
 fn repository(repository: wire::Repository) -> checkout::Repository {
     let wire::Repository { tag: _, name, remote, git, start, access, identity, account, save } = repository;
-    let (push, expected, landing) = match access {
-        wire::Access::ReadOnly => (None, None, None),
+    let (push, expected, landing, prefixes): (_, _, _, Box<[Box<[u8]>]>) = match access {
+        wire::Access::ReadOnly => (None, None, None, Box::new([])),
+        wire::Access::Prefixes { branches } => (None, None, None, branches),
         wire::Access::Writable { push, expected, landing } => {
             let expected = match expected {
                 Some(raw) => Some(git::Commit::new(raw)),
                 None => None,
             };
-            (Some(push), expected, landing)
+            (Some(push), expected, landing, Box::new([]))
         }
     };
     checkout::Repository {
@@ -57,6 +58,7 @@ fn repository(repository: wire::Repository) -> checkout::Repository {
         identity,
         account,
         push,
+        prefixes,
         expected,
         landing,
     }
@@ -168,9 +170,9 @@ fn landing(landing: checkout::Landing) -> wire::Landing {
                 diagnostic: wire::PushDiagnostic::new(diagnostic.output(), diagnostic.cut()),
             },
         },
-        checkout::Landing::Landed { commit } | checkout::Landing::DesignMerged { commit, .. } => {
-            wire::Landing::Landed { commit: commit.raw() }
-        }
+        checkout::Landing::Landed { commit }
+        | checkout::Landing::Prefixes { commit, .. }
+        | checkout::Landing::DesignMerged { commit, .. } => wire::Landing::Landed { commit: commit.raw() },
         checkout::Landing::Moved => wire::Landing::Moved,
         checkout::Landing::Unchanged => wire::Landing::Unchanged,
         checkout::Landing::DesignCode { .. }
