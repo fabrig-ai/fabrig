@@ -37,13 +37,12 @@ impl Workers {
             connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
         };
         let mut wires = List::with_capacity(1);
-        wires
-            .push(jig_protocol_worker_wire::Spoken::current(
-                temper_protocol_worker_wire::wire::FAMILY,
-                temper_protocol_worker_wire::wire::VERSION,
-                temper_protocol_worker_wire::wire::layout(),
-            ))
-            .expect("one application wire");
+        for wire in crate::wires().into_boxed() {
+            if wire.name == temper_protocol_worker_wire::wire::FAMILY {
+                wires.push(wire).expect("one application wire");
+            }
+        }
+        assert!(wires.len() == 1, "the table names temper's worker wire once");
         let host = kit::host::Workers::new(config, files, tokens, wires, limits)?;
         let mut table = crate::forges::Forges::with_capacity(forge_limit);
         for forge in forges {

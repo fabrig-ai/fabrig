@@ -140,24 +140,26 @@ fn workers(text: &mut String, binary: &str, kept: Option<&[KeptWire]>, fresh: bo
         writeln!(text, "{binary} upgrade: workers may stay: unknown; the copy keeps no wires").expect("string write");
         return;
     };
-    let wires = &temper_engine_service::store::WIRES;
-    let equal = kept.len() == wires.len()
-        && wires
-            .iter()
-            .all(|wire| kept.iter().any(|old| old.name.as_ref() == wire.name && old.version == wire.version));
+    let wires = temper_engine_service::wires();
+    let equal = kept.len() == wires.as_slice().len()
+        && wires.iter().all(|wire| {
+            kept.iter().any(|old| old.name.as_ref() == wire.name && old.version == u32::from(wire.highest()))
+        });
     writeln!(text, "{binary} upgrade: workers may stay: {}", if equal && !fresh { "yes" } else { "no" })
         .expect("string write");
     if fresh {
         writeln!(text, "{binary} upgrade: a pending patch requires fresh workers; stop the workers")
             .expect("string write");
     }
-    for wire in wires {
+    for wire in &wires {
         match kept.iter().find(|old| old.name.as_ref() == wire.name) {
-            Some(old) if old.version == wire.version => {}
+            Some(old) if old.version == u32::from(wire.highest()) => {}
             Some(old) => writeln!(
                 text,
                 "{binary} upgrade: wire {} differs: kept {}, binary {}",
-                wire.name, old.version, wire.version
+                wire.name,
+                old.version,
+                wire.highest()
             )
             .expect("string write"),
             None => {
@@ -188,9 +190,9 @@ mod tests {
             origins: [skein_shell::Origin::Flag; 3],
         };
         let wires = || {
-            temper_engine_service::store::WIRES
+            temper_engine_service::wires()
                 .iter()
-                .map(|wire| KeptWire { name: wire.name.into(), version: wire.version })
+                .map(|wire| KeptWire { name: wire.name.into(), version: u32::from(wire.highest()) })
                 .collect::<Vec<_>>()
                 .into_boxed_slice()
         };
@@ -199,9 +201,19 @@ mod tests {
             (Some(wires()), true, "workers may stay: no"),
             (None, false, "workers may stay: unknown"),
             (
-                Some(Box::new([KeptWire { name: "jig-channel".into(), version: 0 }]) as Box<[_]>),
+                Some(Box::new([
+                    KeptWire { name: "jig-channel".into(), version: 10 },
+                    KeptWire { name: "smith-charter".into(), version: 4 },
+                    KeptWire { name: "smith-turn".into(), version: 7 },
+                    KeptWire { name: "temper-payload".into(), version: 5 },
+                ]) as Box<[_]>),
                 false,
-                "wire jig-channel differs: kept 0, binary",
+                "wire jig-channel is not spoken by this binary",
+            ),
+            (
+                Some(Box::new([KeptWire { name: "jig-worker-wire".into(), version: 0 }]) as Box<[_]>),
+                false,
+                "wire jig-worker-wire differs: kept 0, binary",
             ),
         ] {
             let mut report = report(Event::Rehearsing { owner: Token::new(1), wires: kept, fresh });
@@ -211,6 +223,10 @@ mod tests {
             assert_eq!(code, 0, "{text}");
             assert!(text.contains("decoded 17 records\n"), "{text}");
             assert!(text.contains(words), "{text}");
+            if words.contains("jig-channel") {
+                assert!(text.contains("workers may stay: no"), "{text}");
+                assert!(text.contains("wire jig-worker-wire is not kept by the copy"), "{text}");
+            }
         }
         for (why, remedy) in [
             (
