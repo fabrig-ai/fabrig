@@ -24,3 +24,4 @@
 - **Not yet:** 3.2: no `smith-local-protocol-codec`: `smith-local-protocol` holds its generated record code and is the codec check's exception [in flight: change 2407].
 - **Not yet:** 3.2: no `skein-oauth-codec`: `skein-oauth` holds its generated record code and is the codec check's exception [in flight: change 2408].
 - **Not yet:** 3.2: no `skein-ui-example-view-codec`: `skein-ui-example-view` holds its generated record code and is the codec check's exception [in flight: change 2409].
+- **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `temper-client-view` until its split [in flight: change 2580].

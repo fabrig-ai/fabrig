@@ -416,7 +416,7 @@ closing task, which changes documents only.
   capacity or a constructor/validation change in client-view and its phrasebook,
   whose public book currently remains independently owned. The shared fixture
   floors are also being investigated by `limits-fixtures`. Files:
-  `temper/crates/temper-client-view/src/limits.rs` and `src/words.rs`.
+  `temper/crates/temper-client-view-words/src/limits.rs` and `src/words.rs`.
 
 - **small-rows; largest recorded count 878,343,149 Ir.** The unchanged occurrence scan costs 871,883,555 Ir, about 0.137 CPU s.
   An overlapping search using `bytes::find_from` was measured at

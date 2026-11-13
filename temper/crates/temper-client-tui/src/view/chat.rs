@@ -12,10 +12,8 @@ use alloc::boxed::Box;
 use skein_lib::{Wall, Writer};
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::Domain;
-use temper_client_view::{
-    shared::{self, DelegationLine, RunLine},
-    words::Word as Shared,
-};
+use temper_client_view_parts::shared::{self, DelegationLine, RunLine};
+use temper_client_view_words::words::Word as Shared;
 
 pub(crate) mod read;
 

@@ -5878,7 +5878,8 @@ dependencies = [
  "skein-ui-screen",
  "temper-client-domain",
  "temper-client-protocol-wire",
- "temper-client-view",
+ "temper-client-view-parts",
+ "temper-client-view-words",
  "temper-protocol-reaches",
  "temper-test-env",
 ]
@@ -5893,15 +5894,102 @@ dependencies = [
  "jig-client-test-records",
  "skein-fake-person",
  "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-kit",
+ "temper-client-view-parts",
+ "temper-client-view-setup",
+ "temper-client-view-words",
+ "temper-client-view-work",
+ "temper-fixtures",
+ "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-client-view-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
+ "skein-fake-person",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-words",
+ "temper-docs",
+ "temper-fixtures",
+ "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-client-view-parts"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-wire",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-kit",
+ "temper-client-view-words",
+ "temper-protocol-reaches",
+ "temper-test-env",
+]
+
+[[package]]
+name = "temper-client-view-setup"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-kit",
+ "temper-client-view-parts",
+ "temper-client-view-words",
+ "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-client-view-words"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
  "skein-scratch",
  "skein-ui",
  "skein-ui-text",
  "temper-client-domain",
  "temper-client-protocol-wire",
- "temper-docs",
+ "temper-fixtures",
+ "temper-test-env",
+]
+
+[[package]]
+name = "temper-client-view-work"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-kit",
+ "temper-client-view-parts",
+ "temper-client-view-words",
  "temper-fixtures",
  "temper-protocol-reaches",
- "temper-test-env",
 ]
 
 [[package]]

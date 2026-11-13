@@ -130,7 +130,6 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 
 | Exception | Lines | Until |
 |---|---|---|
-| `temper-client-view` | about 110,000 | its split, not yet planned (`temper/docs/design/draft/crate-graph.md`, 5.1) |
 | `jig-domain-core` | about 100,000, and about 88,000 after G6 | `Core`'s state grouped into owned parts (`jig/docs/development/debt/D003-core-one-object.md`), then a split along them: G6 moves its vocabulary out, but `Core` can't be cut (`jig/docs/design/domain/engine/README.md`, 3) |
 | `temper-client-domain` | about 84,000 | its split, not yet planned |
 | `temper-engine-domain-forge` | about 79,000, and about 70,000 after G5 | `Domain`'s state grouped into owned parts (`temper/docs/development/debt/D013-forge-one-object.md`), then a split along them: G5 moves its vocabulary out, but `Domain` can't be cut (`temper/docs/design/domain/forge/README.md`, 3) |
@@ -142,7 +141,9 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 
 The engine service's five crates, the worker service and the composition have no size
 exception: G4 cut the engine's half into pieces each under the library bound
-(`temper/docs/design/protocol/services.md`, 2 and 4.1).
+(`temper/docs/design/protocol/services.md`, 2 and 4.1). Nor have `temper-client-view` and its four
+pieces: `temper/docs/design/draft/gate-compile.md`'s C3 cut the view into pieces each under it
+(`temper/docs/design/client/view-crates.md`, 2.1).
 
 The two client wires each hold a small second family, the public wire (`public_v1.rs`), beside
 their own. That makes their own family a shared crate's family. The draft read
@@ -604,7 +605,7 @@ repository whose commits carry fixed committer dates. `build` runs against a fak
   repository builds for another platform.
 - **Later: the client wires' public families,** each to a crate of its own, which removes the two
   wires' exceptions (section 3.1).
-- **Later: the libraries over the bound that no milestone splits:** `temper-client-view`,
+- **Later: the libraries over the bound that no milestone splits yet:**
   `temper-client-domain`, `temper-client-tools`, `jig-client-view` and `jig-protocol-store`'s
   hand-written code, by the draft's rules for where to cut
   (`temper/docs/design/draft/crate-graph.md`, 5.2).
