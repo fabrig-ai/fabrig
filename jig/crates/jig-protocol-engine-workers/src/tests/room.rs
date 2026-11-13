@@ -36,7 +36,7 @@ fn the_room_holds_control_and_every_non_start_frame() {
     let files = jig_protocol_config::Files { entries: List::with_capacity(0) };
     let mut failures = Vec::new();
     for (name, sizes, bytes) in [
-        ("refuse", fixtures::SIZES, 270),
+        ("wires", fixtures::SIZES, 620),
         ("message", sizes::Sizes { message: 1024, ..fixtures::SIZES }, 0),
         ("relayed", sizes::Sizes { answer: 1024, ..fixtures::SIZES }, 0),
         ("grant", sizes::Sizes { grant: 1024, ..fixtures::SIZES }, 0),
@@ -51,7 +51,13 @@ fn the_room_holds_control_and_every_non_start_frame() {
         for (room, accepted) in [(bytes, true), (bytes - 1, false)] {
             let limits = Limits { sizes, room, ..fixtures::LIMITS };
             let valid = crate::valid(&limits);
-            let component = Component::new(&limits, fixtures::workers(), fixtures::application()).is_ok();
+            let component = Component::new(
+                &limits,
+                fixtures::workers(),
+                jig_protocol_worker_wire::spoken(),
+                fixtures::application(),
+            )
+            .is_ok();
             let host = host::Workers::new(
                 &config,
                 &files,
@@ -85,7 +91,7 @@ fn job(bad: bool) -> hub::LinkDown {
 
 #[test]
 fn a_resumed_start_is_fitted_to_the_engines_room() {
-    const ENGINE: u32 = 600;
+    const ENGINE: u32 = 620;
     const WORKER: u32 = 2048;
     // Header8 + fixed57 + charter7 + four (fields14 + name3 + tool4 + body256).
     const WHOLE: u32 = 1180;
@@ -94,7 +100,9 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
         sizes: sizes::Sizes { answer: 256, answered: 4, ..fixtures::SIZES },
         ..fixtures::LIMITS
     };
-    let mut component = Component::new(&limits, fixtures::workers(), fixtures::application()).expect("engine limits");
+    let mut component =
+        Component::new(&limits, fixtures::workers(), jig_protocol_worker_wire::spoken(), fixtures::application())
+            .expect("engine limits");
     let connection = Token::new(100);
     let channel = Token::new(1);
     component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());
@@ -128,8 +136,8 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
         &mut out,
     );
     let Some(Request::Unsent { unsent, .. }) = out.pop() else { panic!("fitted frame refused by unopened channel") };
-    // Four 256-byte answers become 67-byte cut words; none can fit whole.
-    assert_eq!(unsent.bytes, 424);
+    // One answer stays whole; three become 67-byte cut words.
+    assert_eq!(unsent.bytes, 613);
     assert_eq!(unsent.bound, Bound::Channel(skein_channel::Unsent::Closed));
     assert!(unsent.bytes <= ENGINE && ENGINE < WHOLE && WHOLE < WORKER);
 }
@@ -138,7 +146,9 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
 fn an_unencodable_job_is_answered_with_bounded_words() {
     for detail in [0, 16, 128] {
         let limits = Limits { sizes: sizes::Sizes { detail, ..fixtures::SIZES }, ..fixtures::LIMITS };
-        let mut component = Component::new(&limits, fixtures::workers(), fixtures::application()).expect("limits");
+        let mut component =
+            Component::new(&limits, fixtures::workers(), jig_protocol_worker_wire::spoken(), fixtures::application())
+                .expect("limits");
         let connection = Token::new(100);
         let channel = Token::new(1);
         component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());
@@ -172,7 +182,9 @@ fn an_unencodable_job_is_answered_with_bounded_words() {
 fn a_channels_closed_entrance_answers_the_current_record_once() {
     for assignment in [true, false] {
         let limits = Limits { sizes: sizes::Sizes { detail: 128, ..fixtures::SIZES }, ..fixtures::LIMITS };
-        let mut component = Component::new(&limits, fixtures::workers(), fixtures::application()).expect("limits");
+        let mut component =
+            Component::new(&limits, fixtures::workers(), jig_protocol_worker_wire::spoken(), fixtures::application())
+                .expect("limits");
         let connection = Token::new(100);
         let channel = Token::new(1);
         component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());

@@ -84,7 +84,7 @@ fn agreement_keeps_statement_order_and_passes_over_unknown_wires() {
     assert_eq!(wires.len(), 5);
     for (agreed, stated) in wires.iter().zip(statement.iter()) {
         assert_eq!(agreed.name.as_bytes(), stated.name());
-        assert_eq!(agreed.version, stated.lowest());
+        assert_eq!(agreed.version, stated.lowest() + u16::try_from(stated.layouts().len() - 1).expect("range"));
     }
 }
 #[test]
@@ -123,7 +123,12 @@ fn an_undecodable_credential_is_unauthorized() {
 #[test]
 fn worker_names_are_bounded_independently_of_channels() {
     let limits = crate::Limits { names: 1, ..fixtures::LIMITS };
-    let result = crate::Component::new(&limits, fixtures::workers(), fixtures::application());
+    let result = crate::Component::new(
+        &limits,
+        fixtures::workers(),
+        jig_protocol_worker_wire::spoken(),
+        fixtures::application(),
+    );
     assert_eq!(result.err(), Some(crate::Unusable::Workers));
 }
 
@@ -136,6 +141,6 @@ fn a_configured_worker_authenticates_with_its_secret() {
     assert_eq!(wires.len(), 5);
     for (agreed, stated) in wires.iter().zip(fixtures::statement(APPLICATION_VERSION).iter()) {
         assert_eq!(agreed.name.as_bytes(), stated.name());
-        assert_eq!(agreed.version, stated.lowest());
+        assert_eq!(agreed.version, stated.lowest() + u16::try_from(stated.layouts().len() - 1).expect("range"));
     }
 }

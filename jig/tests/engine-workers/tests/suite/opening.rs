@@ -54,7 +54,7 @@ mod opening {
         assert_eq!(wires.len(), statement.len());
         for (agreed, stated) in wires.iter().zip(&statement) {
             assert_eq!(agreed.name.as_bytes(), stated.name());
-            assert_eq!(agreed.version, stated.lowest());
+            assert_eq!(agreed.version, stated.lowest() + u16::try_from(stated.layouts().len() - 1).expect("range"));
         }
         assert!(world.root().is_empty(), "the domain has heard no hello");
     }
@@ -173,6 +173,7 @@ mod opening {
     fn another_version_is_refused_by_skein_as_version() {
         let mut schema = fixtures::schema();
         let other = 9; // The previous channel is refused before reading its credential.
+        schema.versions.truncate(1);
         schema.versions.get_mut(0).expect("one version").version = other;
         let mut world = world();
         let peer = skein_fake_channel::ScriptedPeer::new(
@@ -185,17 +186,17 @@ mod opening {
         .expect("old worker");
         let connection = world.connect(peer);
         world.run();
-        assert_eq!(world.refusal(connection), Some((1, b"speaks 11..11, offered 9..9".as_slice().into())));
+        assert_eq!(world.refusal(connection), Some((1, b"speaks 11..12, offered 9..9".as_slice().into())));
         let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
             panic!("precredential refusal")
         };
-        assert_eq!(text.as_ref(), b"speaks 11..11, offered 9..9");
+        assert_eq!(text.as_ref(), b"speaks 11..12, offered 9..9");
         assert!(world.root().is_empty());
     }
     #[test]
     fn terms_below_the_largest_assignment_are_refused_as_limits() {
         let mut schema = fixtures::schema();
-        let kinds = &mut schema.versions.get_mut(0).expect("one version").kinds;
+        let kinds = &mut schema.versions.get_mut(1).expect("current version").kinds;
         for index in 0..kinds.len() {
             let kind = kinds.get_mut(index).expect("kind slot");
             if kind.kind == 0x0180 {

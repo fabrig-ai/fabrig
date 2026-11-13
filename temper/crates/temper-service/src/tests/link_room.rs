@@ -89,7 +89,8 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::SignOut
                 | Kind::Logins
                 | Kind::SignedOut
-                | Kind::JobAnswer => false,
+                | Kind::JobAnswer
+                | Kind::Wires => false,
             };
             if start {
                 continue;

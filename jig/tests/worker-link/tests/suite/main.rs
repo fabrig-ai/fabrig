@@ -17,6 +17,7 @@ mod memory;
 mod records;
 mod relays;
 mod sources;
+mod statement;
 
 mod fuzzy {
     mod worker_side;
