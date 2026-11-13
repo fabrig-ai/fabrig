@@ -367,7 +367,8 @@ settings (decided 2026-11-03).
   tell where a store has none. A store of a build before the row gains
   it at its next start, and no open refuses for it.
 - **The workers' openings,** in rows of their own beside it
-  (`WorkerOpening`, the component's), one per worker, keyed by its
+  (`WorkerOpening`, of a family of its own, `openings`, beside the
+  component's in `jig-protocol-store`), one per worker, keyed by its
   name: what the engine last authenticated of each worker's opening
   (`../channel/wires.md`, 3, *The statement handed up whole*), so that
   the tool that rehearses an upgrade can judge, with the engine
@@ -390,12 +391,15 @@ settings (decided 2026-11-03).
     `Write::Wires` deletes every row of them in the same commit, so the
     rows a store keeps are the openings since its last start.
   - **Read** by the rehearsal alone (`opening.md`, 5), from `A` before
-    the plan, by the kept text of the component's version `A` holds; a
-    version without them reads none. A start loads none.
+    the plan, by the family's kept text; a store from before the family
+    holds none and reads none. A start loads none.
 
-  Adding them moves the component's version by jig's next patch, whose
-  forward patch changes no row, since no store holds one before
-  (skein's `data/codec/command.md`, 2).
+  The family is new at its first version, kept afresh with no patch
+  (skein's `data/codec/command.md`, 1), so the component's version, its
+  rows and jig's patch set stay as they are: moving the component's
+  version would rewrite every versioned record of it, since each carries
+  its version. A store whose layouts row predates the family holds none
+  of its rows, and opens as before.
 - **The layouts,** in a row of their own beside it (`Layouts`, the
   component's): each of jig's families' fingerprint, and each family of
   an upstream owner's that the store keeps (skein-oauth's `SavedToken`
