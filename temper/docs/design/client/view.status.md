@@ -1,9 +1,10 @@
 # view: status
 
-2026-11-11. Where the tree's code lags or departs from [view.md](view.md).
+2026-11-13. Where the tree's code lags or departs from [view.md](view.md).
 
 
 - **Not yet:** 6: the *dated* form, `TimeForm::Dated` [in flight: change 784].
+- **Not yet:** 3: the Ask tab current on `Tell`, which no address is yet [in flight: change 2192].
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
   playground's banners on every chat's page and `NewChat`
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws

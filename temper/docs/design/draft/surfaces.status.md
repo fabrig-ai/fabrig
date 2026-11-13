@@ -1,6 +1,6 @@
 # surfaces: status
 
-2026-11-12. Where the design lags or departs from [surfaces.md](surfaces.md).
+2026-11-13. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
   - 3: `../client/pages/home.md`, 1, *Home on All projects*, has no owners'
@@ -61,17 +61,12 @@
     the configuration's limits (`../protocol/configuration/limits.md`),
     an owner changing them. Its section 11 defers both (*Deployment's
     later parts*).
-  - 9: `../client/pages/README.md`, *Tell temper*, files with the
-    project's triager alone, and shows only once the engine files a
-    person's word: `../domain/findings.md`, section 4, names no such
-    filer and no kind for it, and its section 6's triager is a setting no
-    project holds yet (`../domain/landing.md`, 13.1); no design has the
-    brief tell what became of a finding (`../domain/forge/attention.md`, 3). Its
-    routing to an area's owner is P5b's (`whole-story.execution.md`,
-    section 3). The domain's act files a person's word, kind `feedback`
-    with no area, and the terminal's `/tell` sends it
-    (`../client/pages/needs-you.md`, 1, *Tell temper*); the web draws no
-    Tell temper yet.
+  - 9: no design has the brief tell what became of a word filed through
+    Tell temper (`../domain/forge/attention.md`, 3), an open question of
+    `../client/pages/needs-you.md`, section 2, *What became of a word, in
+    the brief*: its section 1, *Tell temper*, says nothing of it, where
+    `phone-tell.html` says "It comes back in your Home's brief once it's
+    routed or fixed."
   - 11: `../client/tui/README.md`, 3, `../client/tui/pages/launchpad.md` and
     `../client/tui/pages/README.md` hold the launchpad as 11.1 draws it, its
     brief, Where you left off and Needs you across the person's projects,
@@ -119,8 +114,8 @@
     and Team's people, alone and at night (`team`, `team-alone`,
     `night-team`), its areas and a role's card, by day and at night
     (`team-role`, `night-team-role`), its hand-off's sheet (`team-hand`)
-    and a role's talk on its page (`role-talk`). No state holds Tell
-    temper's card, which nothing draws yet (9); the phone's tabs and a
+    and a role's talk on its page (`role-talk`). Tell temper's card is
+    `tell-area`'s and `tell-page`'s (9); the phone's tabs and a
     need at 390 pixels are `all-home`'s, `needs-list`'s and `ask-chat`'s
     prints read at a phone's width, a print being one page at every
     width. `../client/web/journeys.md` records none of this section's four
