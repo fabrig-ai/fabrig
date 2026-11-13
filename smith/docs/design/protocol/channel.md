@@ -303,7 +303,9 @@ limits.md, 2.4, gives.
 - **accepted,** with its result, as bytes (charter.md);
 - **parked;**
 - **failed,** typed, so the host can act without reading prose:
-  - the model, with its provider's failure class; a limited account,
+  - the model, with its provider's failure class, its evidence, the
+    charter's index of its model, its attempts and its report, the
+    status a program reported among it (programs.md, 5.6); a limited account,
     with the account and its reset as the limited notice has them
     (above), the reset measured when the run answers; a refused account,
     with the account and the provider's code as the refused notice has
