@@ -5106,6 +5106,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                             task,
                             title: title.as_bytes().into(),
                             ready_since: offset(Reference, -179).as_nanos(),
+                            alone: false,
                             checks_since: if task == 100 { Some(offset(Reference, -179).as_nanos()) } else { None },
                         },
                     )

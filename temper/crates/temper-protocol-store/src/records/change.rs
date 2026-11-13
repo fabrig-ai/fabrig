@@ -559,6 +559,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         ready_since,
         owns_turn,
         last_head,
+        alone,
         gate_failures,
         released,
         way,
@@ -583,6 +584,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             },
             owns_turn: *owns_turn,
             last_head: *last_head,
+            alone: *alone,
             gate_failures: encode_gate_failures(gate_failures),
             released: match released {
                 Some(why) => Some(encode_hold(*why)),
@@ -611,6 +613,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         ready_since,
         owns_turn,
         last_head,
+        alone,
         gate_failures,
         released,
         way,
@@ -634,6 +637,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         },
         owns_turn,
         last_head,
+        alone,
         gate_failures: decode_gate_failures(gate_failures),
         released: match released {
             Some(why) => Some(decode_hold(why)),

@@ -112,6 +112,8 @@ pub enum ForgeStart {
 /// One adopted repository translated for the worker's workspace.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ForgeRepository {
+    /// Branches a prepare job may create, in stack order.
+    pub prefixes: Box<[Box<[u8]>]>,
     /// This repository delivers for a goal run (temper/docs/design/domain/forge/branches.md, 1).
     pub delivers: bool,
     /// This task's saved-work branch, under this repository's prefix.

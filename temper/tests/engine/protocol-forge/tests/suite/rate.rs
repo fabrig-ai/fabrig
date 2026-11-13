@@ -28,7 +28,7 @@ use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{changes::change_row, translate::commit};
 use temper_engine_protocol_forge_world::protocol::Protocol;
-use temper_engine_service::limits::{Profile, profile};
+use temper_engine_service_vocabulary::limits::{Profile, profile};
 
 const WINDOW: u64 = 40;
 const SCALE: u64 = 3600 / WINDOW;

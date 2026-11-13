@@ -63,6 +63,7 @@ fn full_spec(limits: &Limits, n: u32) -> Spec {
     let mut repositories = Vec::new();
     for place in 0..limits.repositories {
         repositories.push(Repository {
+            prefixes: Box::new([]),
             save: Some(bytes(limits.name_bytes)),
             git: None,
             expected: None,

@@ -137,6 +137,7 @@ Shape: `landing-project`. Paths: `application.landing.projects[]`. One project�
 - `project`: integer, at most 4,294,967,295; unique; required; init leaves it out. The project number whose landing way is configured.
 - `rules`: refused: landing rules live in the store; read them with temper ctl settings show landing-rule --project
 - `by`: text, queue or turn; queue when absent; optional; init leaves it out. The project’s way of landing changes.
+- `batch`: integer, 1 to forge.landing_members; 1 when absent; optional; init leaves it out. The most changes a landing into main forms with.
 - `combine`: landing-combine, stock merge for main, squash for other; optional; init leaves it out. How each train combines its member.
 - `merge_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The merge command’s path from the repository root; see The merge command, below.
 - `close_job`: text, relative repository path without parent segments; 1 to 4,096 bytes; optional; init leaves it out. The close command’s path from the repository root; see temper help configuration’s close command.

@@ -99,7 +99,7 @@ pub(crate) fn stage(
     let mut saving = false;
     for repository in &mut items.repositories {
         let writable = match repository.access {
-            wire::Access::Writable { .. } => true,
+            wire::Access::Writable { .. } | wire::Access::Prefixes { .. } => true,
             wire::Access::ReadOnly => false,
         };
         if !run.save || !writable {
@@ -144,7 +144,7 @@ fn stage_items(
         tags.push(repository.tag).expect("room for each item tag");
         let branch = match &repository.access {
             wire::Access::Writable { push, .. } => Some(push.clone()),
-            wire::Access::ReadOnly => None,
+            wire::Access::ReadOnly | wire::Access::Prefixes { .. } => None,
         };
         branches.push(branch).expect("room for each item branch");
         let saved = match &repository.start {
@@ -331,7 +331,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, owner: Token, work
     for repository in &spec.repositories {
         let writable = match repository.access {
             wire::Access::ReadOnly => false,
-            wire::Access::Writable { .. } => true,
+            wire::Access::Writable { .. } | wire::Access::Prefixes { .. } => true,
         };
         roots.push(Root { name: copy_of(&repository.name), writable }).expect("room for every repository");
     }

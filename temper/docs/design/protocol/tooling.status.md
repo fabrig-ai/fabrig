@@ -4,8 +4,8 @@
 
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
-  contract, since neither kind is built (`../domain/worker/jobs.md`): no
-  project names one, and the worker declares the merge and close kinds alone,
+  contract (`../domain/worker/jobs.md`): no project names one, and the
+  worker's prepare kind is temper's own alone, with no key kind,
   though the job capability that would run them is built
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:

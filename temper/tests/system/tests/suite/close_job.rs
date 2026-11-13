@@ -5,7 +5,7 @@ use temper_system_world::composed::{World, close_job::Row};
 fn a_close_changes_job_runs_on_its_worker() {
     for row in [Row::Settled, Row::Unchanged] {
         let report = World::close_job(928, row).run_close_job();
-        assert!(report.hello.contains(&temper_engine_service::limits::close_bound()));
+        assert!(report.hello.contains(&temper_engine_service_vocabulary::limits::close_bound()));
         assert_eq!(report.program, [report.directory.as_slice(), b"/repo/.temper/close"].concat());
         assert_eq!(
             report.args,

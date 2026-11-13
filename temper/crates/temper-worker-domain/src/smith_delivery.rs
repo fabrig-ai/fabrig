@@ -74,6 +74,13 @@ pub(crate) fn landings(
                     .expect("room for changed directories");
                 None
             }
+            checkout::Landing::Prefixes { commit, branch } => {
+                let receipt = smith::Receipt::new(directory, receipt_text(&commit.raw(), branch, false, None));
+                receipts
+                    .push(receipt.expect("prepare branch and commit validated at admission"))
+                    .expect("one receipt per directory");
+                None
+            }
             checkout::Landing::DesignMerged { commit, tip } => {
                 receipts
                     .push(receipt(directory, &commit.raw(), branches, unchecked, Some(&tip.raw())))

@@ -147,6 +147,8 @@ fn assign(
     };
     let checked = if !items.repositories.is_empty() && assignment.assignment.workspace.is_none() {
         Err(&b"workstream"[..])
+    } else if crate::assignment::has_prefixes(&items) {
+        Err(b"prefixes require temper prepare".as_slice())
     } else {
         crate::assignment::check(&items, &env.limits)
     };

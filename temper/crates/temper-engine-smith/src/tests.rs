@@ -415,6 +415,7 @@ fn delivering_assignment() -> engine::Assignment {
     let mut assignment = assignment();
     assignment.run.policy.modify = true;
     assignment.workspace.repositories = Box::new([engine::ForgeRepository {
+        prefixes: Box::new([]),
         delivers: true,
         save: Some(b"temper/23/s23".as_slice().into()),
         tag: 1,

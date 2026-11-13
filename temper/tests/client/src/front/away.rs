@@ -92,7 +92,7 @@ impl Joint {
             }
             config.core.connectors = Box::new([fixtures::FORGE]);
             let kinds = kinds::configuration(&bounds);
-            config.core.kinds = temper_engine_service::stock::kinds(&bounds, fixtures::FORGE);
+            config.core.kinds = temper_engine_service_stock::stock::kinds(&bounds, fixtures::FORGE);
             config.core.defaults.charters = kinds.core.defaults.charters;
             config.kinds_stock = kinds.kinds_stock;
             config.core.defaults.rules.ceiling.notes = jig_domain_authority::Scopes::GOAL;

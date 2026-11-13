@@ -3,6 +3,7 @@
 //! Compiled once for the binaries (tools/crates/design.md, 3.2).
 pub mod account_move;
 pub mod account_transfer;
+pub mod batch_landing;
 #[expect(clippy::must_use_candidate, reason = "the box fixture callers assert on commands and captured output")]
 pub mod box_link;
 pub mod boxed;
@@ -246,9 +247,11 @@ pub fn fake_llm(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> llm::List
 }
 #[must_use]
 pub fn fake_llm_played(scripts: skein_fake_llm_domain::api::Scripts) -> llm::Listening {
+    llm_recipe(temper_real_loop_world::llm::played(scripts))
+}
+fn llm_recipe(recipe: temper_real_loop_world::llm::Recipe) -> llm::Listening {
     // The account's API key routes to /v1/responses: the real loop's recipe, on the fixture endpoint's
     // TLS port. smith's configured peer keeps the Codex path, which refuses a key.
-    let recipe = temper_real_loop_world::llm::played(scripts);
     llm::Listening::new(
         skein_fake_peers::llm::Peer::new(
             (std::net::Ipv4Addr::LOCALHOST, 0).into(),

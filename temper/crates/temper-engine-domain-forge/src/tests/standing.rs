@@ -73,6 +73,13 @@ fn judged(d: &Domain, requirement: u16, evidence: &ChangeEvidence, reviewers: &[
 
 fn landing(d: &mut Domain) {
     let member = policy::Member {
+        unit: 0,
+        branch: Box::from(b"temper/1/l61".as_slice()),
+        combined: None,
+        recorded: false,
+        told: false,
+        judging: false,
+        leave_told: false,
         left: None,
         change: CHANGE,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },

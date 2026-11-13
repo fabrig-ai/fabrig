@@ -240,7 +240,7 @@ fn assert_answer(world: &World, answer: &engine::CallAnswer, expected: Option<Re
         }
     };
     assert_eq!(*answer, engine::CallAnswer::Decided { took, reach: expected });
-    let event = temper_engine_service::render_for_task_page(
+    let event = temper_engine_service_vocabulary::tools::render_for_task_page(
         ReplyTo::new(Token::new(1)),
         answer,
         b"decided",

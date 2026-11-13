@@ -92,6 +92,7 @@ fn configured(verification_bound_ms: u64) -> World {
         engine::ProjectLanding {
             gate_retries: 2,
             gate_timeout: skein_lib::Duration::from_millis(3_600_000),
+            batch: 1,
             combine_main: engine::Combine::Merge,
             combine_other: engine::Combine::Squash,
             check_timeout: None,

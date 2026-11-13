@@ -154,7 +154,7 @@ struct Holding {
     conflicts: List<Conflicts>,
     /// What this prepare fetched, never a previous hold's observations.
     fetched: List<Fetched>,
-    candidate: Option<crate::Candidate>,
+    candidate: Option<candidate::Stack>,
 }
 
 #[derive(Debug)]
@@ -345,8 +345,16 @@ fn unchecked_head(to: &To) -> bool {
 
 /// The operation a pushing hold waits for.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 enum PushStep {
+    Prefix {
+        repository: u32,
+        member: u32,
+    },
+    VerifyPrefix {
+        repository: u32,
+        member: u32,
+        failure: Done,
+    },
     Design {
         delivery: design::Delivery,
         step: design::Step,
@@ -405,16 +413,9 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     domain.facts.push(Fact::Held { client, cached });
     let tips = List::with_capacity(count(repositories.len()));
     let conflicts = List::with_capacity(count(repositories.len()));
-    let holding = Holding {
-        client,
-        workspace,
-        stores,
-        repositories,
-        tips,
-        conflicts,
-        fetched: List::uncapped(),
-        candidate: None,
-    };
+    let candidate = candidate::new(&repositories);
+    let holding =
+        Holding { client, workspace, stores, repositories, tips, conflicts, fetched: List::uncapped(), candidate };
     let hold = Hold { holding, state: State::Closed, cut: false };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
@@ -1394,7 +1395,7 @@ fn start_want(start: &Start) -> Want {
         | Start::Merge { branch, .. }
         | Start::Merged { branch, .. } => Want::Branch { branch: copy_of(branch) },
         Start::Commit { commit } => Want::Commit { commit: *commit },
-        Start::Prepare { request } => Want::Commit { commit: request.base },
+        Start::Prepare { request } => Want::Commit { commit: request.from },
     }
 }
 
@@ -1672,7 +1673,11 @@ fn preparation_detail(holding: &Holding, step: PrepareStep, done: &Done) -> Box<
         PrepareStep::Candidate { step, .. } => match step {
             candidate::Step::Head => b"fetch member",
             candidate::Step::Upstream => b"fetch upstream",
-            candidate::Step::Checkout => b"check out base",
+            candidate::Step::Base => b"fetch round base",
+            candidate::Step::Checkout => b"check out start",
+            candidate::Step::Advance | candidate::Step::Restore => b"check out prefix",
+            candidate::Step::MainCheckout => b"check out round base",
+            candidate::Step::MainMerge => b"merge onto round base",
             candidate::Step::Merge => b"merge member",
             candidate::Step::Brings => b"compare upstream",
             candidate::Step::Commit { .. } => b"commit candidate",
@@ -1745,8 +1750,10 @@ fn prepare_next(
             Next::Ready => {
                 holding.fetched = List::uncapped();
                 let conflicts = mem::replace(&mut holding.conflicts, List::with_capacity(0));
-                let prepared = match holding.candidate.take() {
-                    Some(outcome) => Prepared::Candidate { workspace: holding.workspace.token(), outcome },
+                let prepared = match &holding.candidate {
+                    Some(stack) => {
+                        Prepared::Candidate { workspace: holding.workspace.token(), outcome: candidate::result(stack) }
+                    }
                     None => Prepared::Ready { workspace: holding.workspace.token(), conflicts: conflicts.into_boxed() },
                 };
                 out.push(Request::Prepared { client, prepared });
@@ -1988,6 +1995,9 @@ fn push_from(
 ) -> State {
     for repository in from..count(holding.repositories.len()) {
         let spec = nth(holding, repository);
+        if let Start::Prepare { .. } = spec.start {
+            return candidate::push_from(holding, id, push, repository, 0, env, out);
+        }
         let writable = match push.to {
             To::Branches | To::Unchecked => spec.push.is_some(),
             To::Saved => spec.push.is_some() && spec.save.is_some(),
@@ -1999,10 +2009,6 @@ fn push_from(
         if design::repository(spec) && unchecked_head(&push.to) {
             push.landings.push(Landing::DesignUnchecked).expect("room for each repository's landing");
             continue;
-        }
-        if let Start::Prepare { .. } = spec.start {
-            let commit = tips(holding, repository).head;
-            return push_commit(holding, id, push, repository, commit, env, out);
         }
         let at = place(holding.workspace.token(), spec);
         let parent = tips(holding, repository).head;
@@ -2050,6 +2056,12 @@ fn pushed(
     out: &mut Queue<Request>,
 ) -> State {
     let (repository, landing) = match step {
+        PushStep::Prefix { repository, member } => {
+            return candidate::pushed(holding, id, push, repository, member, asked, done, None, env, out);
+        }
+        PushStep::VerifyPrefix { repository, member, failure } => {
+            return candidate::pushed(holding, id, push, repository, member, asked, done, Some(failure), env, out);
+        }
         PushStep::Design { delivery, step } => {
             return design::pushed(holding, id, push, delivery, step, asked, done, env, out);
         }
@@ -2250,11 +2262,7 @@ fn push_commit(
         To::Branches | To::Unchecked => tips(holding, repository).expected,
         To::Saved => None,
     };
-    let op = if let Start::Prepare { .. } = spec.start {
-        Op::Create { at, remote, commit, branch, identity, account }
-    } else {
-        Op::Push { at, remote, commit, branch, expected, identity, account }
-    };
+    let op = Op::Push { at, remote, commit, branch, expected, identity, account };
     io(id, op, env, out);
     State::Pushing { push, step: PushStep::Push { repository }, asked: Asked::Nothing }
 }
@@ -2479,7 +2487,7 @@ fn tally(landings: &[Landing]) -> Tally {
     let mut tally = Tally { landed: 0, moved: 0, failed: 0, refused: 0, unchanged: 0, aborted: 0 };
     for landing in landings {
         let counted = match landing {
-            Landing::Landed { .. } | Landing::DesignMerged { .. } => &mut tally.landed,
+            Landing::Landed { .. } | Landing::Prefixes { .. } | Landing::DesignMerged { .. } => &mut tally.landed,
             Landing::Moved => &mut tally.moved,
             Landing::DesignConflict { .. }
             | Landing::DesignCode { .. }
@@ -2515,12 +2523,11 @@ fn fits(spec: &Spec, limits: &Limits) -> bool {
                 limits.conflicts > 0
                     && limits.path_bytes > 0
                     && repositories == 1
-                    && repository.push.is_some()
+                    && (repository.push.is_some() || !repository.prefixes.is_empty())
                     && repository.save.is_none()
                     && repository.expected.is_none()
                     && repository.landing.is_none()
-                    && message_fits(&request.message, limits)
-                    && message_fits(&request.squash_message, limits)
+                    && candidate::fits(repository, request, limits)
             }
             Start::Commit { .. } => true,
             Start::Merged { branch, heads } => {
@@ -2551,6 +2558,7 @@ fn fits(spec: &Spec, limits: &Limits) -> bool {
             || !push
             || !landing
             || !save
+            || (!repository.prefixes.is_empty() && !matches_prepare(&repository.start))
             || (repository.expected.is_some() && repository.push.is_none())
         {
             return false;
@@ -2570,6 +2578,18 @@ fn component(name: &[u8]) -> bool {
     let dots = name == b"." || name == b"..";
     let separated = find(name, b"/").is_some() || find(name, b"\0").is_some();
     !dots && !separated && !name.eq_ignore_ascii_case(b".git")
+}
+
+fn matches_prepare(start: &Start) -> bool {
+    match start {
+        Start::Prepare { .. } => true,
+        Start::Base { .. }
+        | Start::Branch { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. }
+        | Start::Merge { .. }
+        | Start::Merged { .. } => false,
+    }
 }
 
 /// Whether a push's or a save's message fits the limits:

@@ -70,6 +70,7 @@ pub struct ProjectLanding {
     pub gate_timeout: skein_lib::Duration,
     pub check_timeout: Option<skein_lib::Duration>,
     pub by: Way,
+    pub batch: u16,
     pub combine_main: temper_engine_domain_forge_landing::Combine,
     pub combine_other: temper_engine_domain_forge_landing::Combine,
     pub merge_job: Option<Box<[u8]>>,
@@ -176,6 +177,9 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
             bound: skein_lib::Duration::from_millis(landing.after.verification_bound_ms),
         },
     ) {
+        return false;
+    }
+    if landing.batch != 1 && !forge.project_batch(project, landing.batch) {
         return false;
     }
     if let Some(command) = &landing.merge_job

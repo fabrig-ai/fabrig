@@ -12,7 +12,7 @@ what they write, and how they end. temper runs them as jobs on a worker
 ## 1. In one page
 
 - **Four commands, each optional.** `prepare` makes one repository's
-  candidate and `key` says what one gate's result depends on, both
+  stack of prefixes and `key` says what one gate's result depends on, both
   paths in the project's home, run at the home's pinned revision;
   `merge` settles the conflicts it knows in a merge in progress, a path
   in the repository it merges, run from that merge (4.1); `close`
@@ -60,22 +60,29 @@ what they write, and how they end. temper runs them as jobs on a worker
 ```
 
 - **`repos/<name>/`** for the repository being prepared: checked out at
-  its main's tip, with each member's head fetched as
+  the request's `from`, with each member's head fetched as
   `refs/temper/members/<n>`, n from 1 in the landing's order; for each
   upstream the pins name: checked out at its candidate.
-- **The command commits in `repos/<name>/`;** temper reads the commit
-  `result.json` names from there, and its parent chain must contain the
-  main's tip.
+- **The command commits in `repos/<name>/`;** temper reads the commits
+  `result.json` names from there, each prefix's parent chain containing
+  the one below it, the lowest's containing `from`.
 
 ## 4. `prepare`
 
 - **`request.json`:** `{"version": 1, "repository": NAME, "main":
-  COMMIT, "combine": "merge" | "squash", "train_upstream": COMMIT,
-  "members": [{"number": N, "branch": BRANCH, "head": COMMIT,
-  "message": TEXT, "squash": TEXT}], "upstreams": [{"repository": NAME,
-  "main": COMMIT, "candidate": COMMIT}], "gates": [NAME]}`; commits as
-  40 or 64 hexadecimal digits, names as the project's settings give
-  them, `main` the round's base.
+  COMMIT, "from": COMMIT, "combine": "merge" | "squash",
+  "train_upstream": COMMIT, "members": [{"number": N, "branch": BRANCH,
+  "head": COMMIT, "message": TEXT, "squash": TEXT, "prefix": BRANCH}],
+  "upstreams": [{"repository": NAME, "main": COMMIT, "candidate":
+  COMMIT}], "gates": [NAME]}`; commits as 40 or 64 hexadecimal digits,
+  names as the project's settings give them, `main` the round's base.
+  - **`from`** is the commit the round stacks from: `main`, or the last
+    prefix the round keeps (`../domain/landing.md`, 5.1).
+  - **`members`** are those the job stacks, in the landing's order,
+    each onto the one below and the first onto `from`: `number` its
+    number in the landing, from 1; `branch` its own branch; `prefix`
+    its branch in the landing, where its prefix is pushed
+    (`../domain/landing.md`, 5.1).
   - **`combine`** is the train's (`../domain/landing.md`, 5.2 and
     13.1), and **`train_upstream`** its upstream's tip as the round read
     it, present only where the train has an upstream: a member whose
@@ -112,20 +119,28 @@ what they write, and how they end. temper runs them as jobs on a worker
 - **temper's own,** where the project names no prepare command: the
   same request, read by the worker itself, with no command run, and the
   results below with `{"combined": [{"member": N, "by": "merge" |
-  "squash"}]}` for exit 0's, a member's way as it combined it
-  (`../domain/worker/jobs.md`).
-- **`result.json`, exit 0:** `{"candidate": COMMIT, "keys": [{"gate":
-  NAME, "key": HEX64}]}`, `keys` present only where the project names
-  a `key` command and the command chose to give them here.
-- **`result.json`, exit 3:** `{"conflict": {"member": N, "with":
-  "branch", "files": [PATH], "cut": BOOL}}`: the member whose change
-  does not apply, what it conflicts with (`branch`, the round's base),
-  and the files, `cut` true when the list was cut to its bound.
-  temper resolves it under that member in a workspace of its own,
-  main's tip merged into the member's head (`../domain/landing.md`,
-  5.2); nothing of the command's directory is kept.
-- **Any other exit,** a missing or malformed result, a candidate absent
-  or not containing main's tip, or a file past its bound: the command's
+  "squash"}]}` in place of `prefixes`, a member's way as it combined
+  it, its prefix pushed by the worker (`../domain/worker/jobs.md`).
+- **A conflict** is `{"member": N, "with": "branch" | "member",
+  "files": [PATH], "cut": BOOL}`: the member whose change does not
+  apply onto the prefix below, what it conflicts with (`branch`, the
+  round's base; `member`, an earlier member alone), and the files,
+  `cut` true when the list was cut to its bound. The member is skipped
+  and the next stacked on the same prefix. temper resolves a conflict
+  with the branch under that member in a workspace of its own, main's
+  tip merged into the member's head (`../domain/landing.md`, 5.2), and
+  lets one with a member wait; nothing of the command's directory is
+  kept.
+- **`result.json`, exit 0,** where at least one member combined:
+  `{"prefixes": [{"member": N, "commit": COMMIT}], "conflicts":
+  [CONFLICT], "keys": [{"gate": NAME, "key": HEX64}]}`, the prefixes in
+  the stack's order, `conflicts` present only where a member was
+  skipped, `keys`, the top's, only where the project names a `key`
+  command and the command chose to give them here.
+- **`result.json`, exit 3,** where none combined: `{"conflicts":
+  [CONFLICT]}`, and nothing is pushed.
+- **Any other exit,** a missing or malformed result, a prefix absent or
+  not on the one below, or a file past its bound: the command's
   failure, the stderr's last `tooling_log_bytes` kept for the landing's
   goals.
 

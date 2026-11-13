@@ -85,7 +85,7 @@ fn delegated_messages(into_main: bool) {
     );
     let squash = format!("{message}\nGoal: {}", goal.task);
     assert_eq!(request["combine"], if into_main { "merge" } else { "squash" });
-    assert_eq!(request["members"][0]["number"], change);
+    assert_eq!(request["members"][0]["number"], 1_u64);
     assert_eq!(request["members"][0]["head"], head);
     assert_eq!(request["members"][0]["squash"], squash);
     assert_eq!(request["members"][0]["message"], if into_main { squash } else { message });

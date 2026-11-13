@@ -241,6 +241,7 @@ fn change_row() -> ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: Some(HEAD),
+            alone: false,
         },
         pull: None,
         pending: Some(OPEN),
@@ -314,6 +315,13 @@ fn ask(kind: u16, task: Option<u64>, public: &[PublicTask]) -> PublicAsk<'_> {
 }
 fn member(task: u64) -> policy::Member {
     policy::Member {
+        unit: 0,
+        branch: Box::from(b"temper/1/l61".as_slice()),
+        combined: None,
+        recorded: false,
+        told: false,
+        judging: false,
+        leave_told: false,
         left: None,
         change: task,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
@@ -385,6 +393,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                 None,
                 None,
                 policy::Project::DEFAULT,
+                1,
             ),
         )
         .expect("project");

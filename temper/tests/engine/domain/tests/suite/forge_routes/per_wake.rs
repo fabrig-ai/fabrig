@@ -31,7 +31,7 @@ fn defaults(model: &engine::Model, words: u32) -> settings::Defaults {
         estimated: false,
         first_read: None,
     };
-    let mut defaults = temper_engine_service::stock::with_models(Box::new([catalogue]), words);
+    let mut defaults = temper_engine_service_stock::stock::with_models(Box::new([catalogue]), words);
     defaults.rules.period_spend = BUDGET;
     authority(&mut defaults.rules.ceiling);
     let policy = defaults.policies.get_mut(&1).expect("stock project policy");
@@ -116,7 +116,7 @@ fn apply(world: &mut World, items: Box<[settings::Item]>) {
         change: Box::new(settings::Change { against: 1, items, running: settings::Running::Stays }),
     };
     world.send(engine::Event::Party(
-        temper_engine_service::clients::translation::to_root(event).expect("settings route"),
+        temper_engine_service_vocabulary::clients::translation::to_root(event).expect("settings route"),
     ));
     world.until(Until::Ready);
     assert!(

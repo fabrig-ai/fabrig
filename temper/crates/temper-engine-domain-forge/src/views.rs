@@ -162,7 +162,7 @@ impl Domain {
             stale_proofs: row.stale_proofs,
             turn: self.turn_holder(row.project),
             train: self.landing_train(row),
-            round: row.round.clone(),
+            round: round_view(row),
             step: landing_step(self, row),
         })
     }
@@ -183,18 +183,18 @@ impl Domain {
     }
     pub(crate) fn prefix_judgement(&self, row: &policy::Landing, member: &policy::Member) -> Option<PrefixJudgement> {
         use temper_engine_domain_forge_change as c;
+        let judging = if row.round.branch.is_empty() { row.round.judging } else { member.judging };
         let prefix = member.candidate?;
         let head = member.head?;
         let change = self.changes.get(&member.change)?;
         let mut gates = List::with_capacity(u32::try_from(change.change.gates.len()).ok()?);
         let mut verdict = c::Status::Passed;
         for gate in &change.change.gates {
-            let status =
-                if !row.round.judging && (gate.kind == c::GateKind::Check || gate.freshness == c::Freshness::Exact) {
-                    c::Status::Unknown
-                } else {
-                    c::prefix_verdict(&change.change, *gate, &change.verdicts, head, prefix)
-                };
+            let status = if !judging && (gate.kind == c::GateKind::Check || gate.freshness == c::Freshness::Exact) {
+                c::Status::Unknown
+            } else {
+                c::prefix_verdict(&change.change, *gate, &change.verdicts, head, prefix)
+            };
             if gate.blocking {
                 match status {
                     c::Status::Failed => verdict = c::Status::Failed,
@@ -263,6 +263,19 @@ impl Domain {
         Some(LandingsView { project, turn, landings: landings.into_boxed() })
     }
 }
+fn round_view(row: &policy::Landing) -> policy::Round {
+    let mut round = row.round.clone();
+    if !round.branch.is_empty() {
+        for member in &row.members {
+            if member.candidate.is_some() && (member.left.is_none() || round.ending.is_some()) {
+                round.branch.clone_from(&member.branch);
+                round.combined = member.combined;
+            }
+        }
+    }
+    round.failure = crate::preparation::failure(&round.failure);
+    round
+}
 pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
     match row.phase {
         policy::Phase::Held { .. } => LandingStep::Held,
@@ -276,12 +289,8 @@ pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
             if row.round.ending.is_some() {
                 return LandingStep::Leaving;
             }
-            if has_landed_member(row) {
-                return if row.round.combined == Some(policy::Combine::Squash) && !row.round.recorded {
-                    LandingStep::Recording
-                } else {
-                    LandingStep::Telling
-                };
+            if let Some(step) = landed_step(row) {
+                return step;
             }
             match row.phase {
                 policy::Phase::Waiting => LandingStep::Waiting,
@@ -298,11 +307,11 @@ pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
     }
 }
 fn judging(d: &Domain, row: &policy::Landing) -> bool {
-    if !row.round.judging {
-        return false;
-    }
     for member in &row.members {
-        if let Some(judgement) = d.prefix_judgement(row, member)
+        if member.left.is_none()
+            && member.landed.is_none()
+            && member.judging
+            && let Some(judgement) = d.prefix_judgement(row, member)
             && judgement.verdict != temper_engine_domain_forge_change::Status::Passed
         {
             return true;
@@ -310,13 +319,24 @@ fn judging(d: &Domain, row: &policy::Landing) -> bool {
     }
     false
 }
-fn has_landed_member(row: &policy::Landing) -> bool {
+fn landed_step(row: &policy::Landing) -> Option<LandingStep> {
     for member in &row.members {
-        if member.landed.is_some() {
-            return true;
+        if member.landed.is_none() {
+            continue;
         }
+        let legacy = row.round.branch.is_empty();
+        if !legacy && member.told {
+            continue;
+        }
+        let combined = if legacy { row.round.combined } else { member.combined };
+        let recorded = if legacy { row.round.recorded } else { member.recorded };
+        return Some(if combined == Some(policy::Combine::Squash) && !recorded {
+            LandingStep::Recording
+        } else {
+            LandingStep::Telling
+        });
     }
-    false
+    None
 }
 pub(crate) fn matches_turn(phase: &policy::Phase) -> bool {
     match phase {

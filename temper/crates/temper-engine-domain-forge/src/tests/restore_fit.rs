@@ -686,6 +686,13 @@ fn independent_timer_room_is_checked_before_insertion() {
 
 fn landing(members: u32, gates: u32) -> LandingRow {
     let member = policy::Member {
+        unit: 0,
+        branch: Box::from(b"temper/1/l61".as_slice()),
+        combined: None,
+        recorded: false,
+        told: false,
+        judging: false,
+        leave_told: false,
         left: None,
         change: 1,
         repository: policy::Repository { forge: 1, repository: 2 },
@@ -820,6 +827,13 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
     }
     if let Stored::Landing(row) = &mut record {
         row.landing.members = Box::new([policy::Member {
+            unit: 0,
+            branch: Box::from(b"temper/1/l61".as_slice()),
+            combined: None,
+            recorded: false,
+            told: false,
+            judging: false,
+            leave_told: false,
             left: None,
             change: u64::from(number),
             repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
