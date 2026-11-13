@@ -80,6 +80,57 @@ crate's `KeyWriter`, bounded by the key limit, and read them back with
   shorter string sorts before its extensions;
 - `finish()`: the key, or none past the limit.
 
+### 2.2 The census
+
+The store counts what its map holds, by keyspace, as it applies what
+changes it, so that its owner can say what the store holds and what
+its log writes without walking either. Counting is off until the owner
+gives a rule, and an owner that gives none pays nothing.
+
+- **A rule names the keyspaces:** `CensusRule { prefix: [u8; 256] }`,
+  given by `Store::count(rule)` before `Open` (or before the first
+  commit of an in-memory store). A key whose first byte is `b` belongs
+  to the keyspace of its first `prefix[b]` bytes, at least 1 and at most
+  `CENSUS_PREFIX` (8); a key shorter than that, to the keyspace of its
+  whole bytes. An owner's rule follows its key writer's tags: jig's
+  component counts its own rows by two bytes, jig's by three, and the
+  application's by two (jig's `protocol/store/README.md`, 6.3).
+- **What each keyspace counts:**
+  - `rows`, `keys` and `values`: the rows the map holds, and their keys'
+    and values' bytes;
+  - `heads`: its rows by head, the value's first two bytes read as a
+    big-endian `u16` (a versioned record's version, skein's
+    `data/codec/README.md`), each head with its rows, in ascending
+    order; a value under two bytes counts under no head;
+  - `puts`, `erases` and `written`: the operations applied since the
+    log's period began and the bytes they carried (a put's key and
+    value, an erase's key), whether or not the erased key was held.
+- **The log's period** begins at the last snapshot's start, S (section
+  5), and the census's `since` says S. A snapshot's start empties every
+  keyspace's `puts`, `erases` and `written` and sets `since` to its S;
+  with no snapshot yet, `since` is the first commit the log holds, 1 for
+  a new store.
+- **Kept as the map changes,** in the same place the map changes: a
+  commit's operations as it is applied (section 2), a snapshot's rows as
+  recovery loads them (rows, bytes and heads only), and the frames
+  recovery replays after it (as commits). So a store reopened counts,
+  as it recovers, what it held when it stopped, and its writes since
+  the snapshot it recovered from, with that snapshot's S as `since`. A
+  recovery that starts the map again starts the census with it. Nothing
+  of the census is written to disk.
+- **Bounded by constants,** as `CHUNK_TARGET` is: at most
+  `CENSUS_KEYSPACES` (128) keyspaces and `CENSUS_HEADS` (8) heads in
+  each. A key of a keyspace past the bound counts under the empty prefix,
+  which sorts first, and a head past the bound under no head. A head
+  with no row leaves at once; a keyspace with no row leaves at the next
+  snapshot's start. An apply's step finds each operation's keyspace by
+  a search of at most `CENSUS_KEYSPACES` entries, and the census's memory
+  grows with the keyspaces it holds, up to its bound.
+- **Read whole,** at once and with no event: `Store::census()` gives the
+  `Census`, its `since` and its keyspaces in prefix order, each with its
+  prefix and counts, as of `Store::last()`, as `used()` gives the map's
+  bytes. A store whose owner gave no rule gives an empty census.
+
 ## 3. On disk
 
 The store owns a directory, a root (../runtime/io/files.md):

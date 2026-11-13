@@ -97,6 +97,7 @@ watch's subject, its digest (4). It needs no key.
 | `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine/settings.md`, 10) and the current one with `setting{…}`, so a review never shows a value as too large; a retained decided or withdrawn proposal keeps its state; an automatically replaced task proposal is unknown (7) | `proposal{proposer, number}`, `settings`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 | `push list` | the party's devices that pushes go to: each its number, label, when it was added and its push service's origin, never its endpoint whole or its keys (`../../domain/forge/attention.md`, 7.1) | the forge's `devices` |
+| `deployment census` | the store's census in the deployment's document (jig's `client/domain/contract/documents.md`, 1), as `results.md`, 1 and 2 print it | `deployment` |
 
 - **A settings proposal's review** derives its groups from the delivered
   settings values, independently of the proposer's reason: *temper

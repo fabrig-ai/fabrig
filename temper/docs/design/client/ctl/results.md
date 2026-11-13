@@ -228,6 +228,17 @@ digest: task 7c1e09a2b44f0d13
   task waits on and refusals in the words a person reads.
 - **Lists** print one line per row, its number first, then the cursor
   for the next page, or that there is none.
+- **`deployment census`** (`tools.md`, 2) reads jig's deployment document,
+  for a party with a deployment role, and prints its census (jig's
+  `client/domain/contract/documents.md`, 1; jig's
+  `protocol/store/README.md`, 6.3): a first line `census at commit N,
+  writes since commit S`, then a line per keyspace in prefix order,
+  `PREFIX NAME rows R keys K values V puts P erases E written W heads
+  H:R,H:R`, PREFIX its bytes in lower-case hex with no space (`01010a`,
+  `-` for the empty prefix), NAME `-` where it has none, a head with no
+  `u16` as `-`, every number in plain digits. Before the store's first
+  report it prints `no census yet`, exit 0. A party with no deployment
+  role is jig's refusal, exit 2 (3).
 - **A tree** prints `tree:`, then its root and each row its window
   holds, a chip a line. The engine answers the tools' window within its
   own rows (jig's `client/domain/contract/README.md`, 5.2), so a tree larger
@@ -292,6 +303,12 @@ may change with them.
   one object per dependency, `number`, `pending`, `added` (`null`, or
   `at`, a wall in nanoseconds, and `by`, the requester as `requester`
   prints it), `keeps` and `status`.
+- **`deployment census`** prints one object, `{"census": …}`: `null`
+  before the store's first report, else the census whole, its fields
+  named as jig's document names them (`commit`, `since`, `keyspaces`,
+  each with `prefix` in lower-case hex, `name`, `rows`, `keys`,
+  `values`, `heads`, each `head` and `rows`, a head with no `u16` as
+  `null`, then `puts`, `erases` and `written`).
 - **`help --json`** prints one JSON array, whatever it names: with no
   group, each group and each of the client's tools by its name and line
   (its whole records are `help NAME --json`'s); with GROUP,
