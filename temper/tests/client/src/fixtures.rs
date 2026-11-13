@@ -20,12 +20,12 @@ pub const FORGE: u16 = temper_client_protocol_wire::number(temper_client_protoco
 pub const FORGE_HOST: &[u8] = b"forge.example";
 /// The stand speaks Forgejo, with walking's forge number, writer and git host.
 #[must_use]
-pub fn forge_settings() -> temper_engine_service::forges::Forges {
-    use temper_engine_service::settings::{Forge, Kind, Transport};
+pub fn forge_settings() -> temper_engine_service_vocabulary::forges::Forges {
+    use temper_engine_service_vocabulary::settings::{Forge, Kind, Transport};
     let mut base = b"http://".to_vec();
     base.extend_from_slice(FORGE_HOST);
     {
-        let mut table = temper_engine_service::forges::Forges::with_capacity(1);
+        let mut table = temper_engine_service_vocabulary::forges::Forges::with_capacity(1);
         assert!(table.insert(Forge {
             log_origins: None,
             mode: temper_engine_domain_forge::Mode::Connected,
@@ -1827,12 +1827,14 @@ pub fn asking_world(seed: u64, member: bool) -> World<Temper, Joint> {
 pub(crate) fn asking_configuration(seed: u64, member: bool) -> engine::Config {
     use jig_domain_authority as authority;
     let mut config = temper_engine_domain_world::walking::config(seed);
-    config.core.kinds =
-        temper_engine_service::stock::kinds(&temper_engine_domain_world::walking::limits(), config.core.connectors[0])
-            .into_vec()
-            .into_iter()
-            .filter(|kind| kind.number == 6 || kind.number == 7)
-            .collect();
+    config.core.kinds = temper_engine_service_stock::stock::kinds(
+        &temper_engine_domain_world::walking::limits(),
+        config.core.connectors[0],
+    )
+    .into_vec()
+    .into_iter()
+    .filter(|kind| kind.number == 6 || kind.number == 7)
+    .collect();
     config.kinds_stock = Box::new([]);
     let llm = jig_protocol_config::Llm {
         endpoints: Box::new([]),
@@ -1854,7 +1856,7 @@ pub(crate) fn asking_configuration(seed: u64, member: bool) -> engine::Config {
 
         providers: Box::new([]),
     };
-    let stock = temper_engine_service::stock::with_models(
+    let stock = temper_engine_service_stock::stock::with_models(
         llm.models.clone(),
         temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes,
     );

@@ -10,8 +10,9 @@ fn configured_document_rows_reach_the_cores_limits() {
     for &(rows, expected) in ROWS {
         let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
         jig.core.documents.rows = rows;
-        let own = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
-        let configured = temper_engine_service::limits::engine(&jig, &own).expect("configured root bounds");
+        let own =
+            temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+        let configured = temper_engine_service_vocabulary::limits::engine(&jig, &own).expect("configured root bounds");
         let mut limits = walking::limits();
         limits.documents = configured.documents;
         let mut driver = Driver::configured(Store::new(), [walking::config(91), walking::config(91)], &limits);

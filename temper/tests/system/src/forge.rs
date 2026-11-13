@@ -100,7 +100,7 @@ impl World {
                 limits.brief.brief_bytes = 1024;
                 // Both sections complete their sequential reads within the stock gather deadline.
                 limits.brief.gather =
-                    temper_engine_service::limits::profile(temper_service_core::limits::Profile::Small)
+                    temper_engine_service_vocabulary::limits::profile(temper_service_core::limits::Profile::Small)
                         .root
                         .brief
                         .gather;

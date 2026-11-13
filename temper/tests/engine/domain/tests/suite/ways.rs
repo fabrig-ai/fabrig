@@ -375,7 +375,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
     limits.people.sign_ins = 3;
     limits.people.requests = 12;
     limits.authority.segments = 4; // A forge rule names its host, owner and repository.
-    config.core.kinds = temper_engine_service::stock::kinds(&limits, config.core.connectors[0]);
+    config.core.kinds = temper_engine_service_stock::stock::kinds(&limits, config.core.connectors[0]);
     limits.tasks.parameters = 4; // A tier procedure carries repository, tip, tier and run.
     limits.tasks.spec_bytes = 256; // The tier specification includes its commit and branch.
     let settings_family = config.core.settings.tools.settings;
@@ -745,7 +745,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
     let policy = &mut config.core.seed_projects[0].policy.policy;
     policy.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.ask.0;
     policy.roles[0].authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.ask.0;
-    let stock = temper_engine_service::stock::with_models(models, limits.tasks.result_bytes);
+    let stock = temper_engine_service_stock::stock::with_models(models, limits.tasks.result_bytes);
     let mut charters = config.core.defaults.charters.into_vec();
     let mut coordinator = charters[0].clone();
     coordinator.number = 5;

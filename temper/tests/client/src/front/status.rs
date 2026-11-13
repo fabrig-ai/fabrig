@@ -129,7 +129,7 @@ impl Joint {
                     estimated: false,
                 })
                 .collect();
-            let mut defaults = temper_engine_service::stock::with_models(models, bounds.tasks.result_bytes);
+            let mut defaults = temper_engine_service_stock::stock::with_models(models, bounds.tasks.result_bytes);
             // Scripted workers need the world's small run bounds, with stock policy and delegation.
             for charter in &mut defaults.charters {
                 let number = charter.number;

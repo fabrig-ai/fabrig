@@ -167,8 +167,9 @@ fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) 
     // Take the shipped task/request capacities; leave the world's other bounds,
     // including root.loads.loads=2, unchanged.
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let own = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
-    let shipped = temper_engine_service::limits::engine(&jig, &own).expect("shipped root limits");
+    let own =
+        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
+    let shipped = temper_engine_service_vocabulary::limits::engine(&jig, &own).expect("shipped root limits");
     let mut limits = walking::limits();
     limits.tasks.tasks = shipped.tasks.tasks;
     limits.tasks.project_tasks = shipped.tasks.project_tasks;
@@ -208,7 +209,8 @@ fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) 
 /// with its place kept in the tail, without spending a preparation try.
 #[test]
 fn a_window_with_a_large_turn_starts_fresh_from_the_tail_that_fits() {
-    let shipped = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Standard);
+    let shipped =
+        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Standard);
     let mut limits = walking::limits();
     limits.loads = shipped.root.loads;
     limits.journal = shipped.root.journal;
