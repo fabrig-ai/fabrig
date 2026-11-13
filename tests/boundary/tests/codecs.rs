@@ -48,10 +48,7 @@ struct Exception {
     until: &'static str,
 }
 
-const EXCEPTIONS: &[Exception] = &[
-    Exception { what: "smith-local-protocol", until: "G3" },
-    Exception { what: "skein-oauth", until: "G3" },
-];
+const EXCEPTIONS: &[Exception] = &[Exception { what: "smith-local-protocol", until: "G3" }];
 
 #[derive(Debug)]
 struct Package {

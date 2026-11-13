@@ -1,0 +1,15 @@
+[package]
+name = "skein-oauth-codec"
+description = "Generated OAuth saved token record codec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+skein-codec.workspace = true
+
+[lints]
+workspace = true

@@ -42,6 +42,7 @@ members = [
     "skein/crates/skein-llm",
     "skein/crates/skein-llm-connection",
     "skein/crates/skein-oauth",
+    "skein/crates/skein-oauth-codec",
     "skein/crates/skein-oauth-accounts",
     "skein/crates/skein-oauth-issuer",
     "skein/crates/skein-playground",
@@ -478,6 +479,7 @@ skein-json = { path = "skein/crates/skein-json" }
 skein-llm = { path = "skein/crates/skein-llm" }
 skein-llm-connection = { path = "skein/crates/skein-llm-connection" }
 skein-oauth = { path = "skein/crates/skein-oauth" }
+skein-oauth-codec = { path = "skein/crates/skein-oauth-codec" }
 skein-oauth-issuer = { path = "skein/crates/skein-oauth-issuer" }
 skein-oauth-accounts = { path = "skein/crates/skein-oauth-accounts" }
 skein-fake-forge-domain = { path = "skein/crates/skein-fake-forge-domain" }

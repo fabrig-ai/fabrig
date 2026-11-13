@@ -3716,6 +3716,7 @@ dependencies = [
  "skein-codegen",
  "skein-json",
  "skein-lib",
+ "skein-oauth-codec",
  "skein-rows",
  "skein-scratch",
  "skein-tls",
@@ -3752,6 +3753,14 @@ dependencies = [
  "skein-tls",
  "skein-tls-kit",
  "skein-world",
+]
+
+[[package]]
+name = "skein-oauth-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
