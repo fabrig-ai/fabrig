@@ -2,7 +2,6 @@
 
 2026-11-13. Where temper's code lags or departs from [root.md](root.md).
 
-- **Not yet:** 2: `temper-engine-domain-forge-vocabulary` doesn't exist yet [in flight: change 2193]
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past

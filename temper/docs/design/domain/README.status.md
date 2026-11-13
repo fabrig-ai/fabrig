@@ -4,4 +4,3 @@
 
 Its decisions (section 5) stand in the code. Each document's gaps are in its own status.
 
-- **Not yet:** 2: `temper-engine-domain-forge-vocabulary` doesn't exist yet [in flight: change 2193]
