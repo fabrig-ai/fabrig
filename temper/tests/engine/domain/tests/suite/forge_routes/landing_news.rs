@@ -185,3 +185,132 @@ fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs()
         matches!(&repair.workspace.repositories[0].start, engine::ForgeStart::Branch(branch) if *branch == row.branch)
     );
 }
+
+#[test]
+fn every_batched_members_goal_hears_joined_with_its_ordered_peers() {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { turn: true, landing_members: Some(0), batch: Some(3), ..StoryLimits::default() },
+    );
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let mut changes = Vec::new();
+    let ask = walking::goal_from(
+        world.chat(1, b"make three fixes"),
+        people::TaskExecutor::Agent { charter: 1 },
+        jig_test_profile::fixtures::Goal { budget: 200, priority: 3, deadline: None },
+    );
+    let goal = assigned_chat(&mut world, 92, ask);
+    for call in [94, 95, 96] {
+        changes.push(ready_goal_change(&mut world, &goal, call));
+    }
+    for _ in 0..600 {
+        world.tick();
+    }
+    assert!(landing_rows(&world).is_empty(), "full room leaves all three waiting");
+    for change in &changes {
+        assert!(matches!(
+            super::light_rules::change_row(&world, *change).change.state,
+            temper_engine_domain_forge_change::State::Ready { .. }
+        ));
+    }
+    world.restart_with_batch(3);
+    for _ in 0..600 {
+        world.tick();
+        if !landing_rows(&world).is_empty() {
+            break;
+        }
+    }
+    assert!(!landing_rows(&world).is_empty(), "restart forms the waiting batch");
+    let row = landing_rows(&world)[0];
+    let landing = row.landing.task;
+    assert_eq!(row.landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), changes);
+    for (index, member) in row.landing.members.iter().enumerate() {
+        assert_eq!(member.unit, u16::try_from(index).unwrap());
+        let expected = if index == 0 {
+            format!("temper/{landing}/l{landing}")
+        } else {
+            format!("temper/{landing}/l{landing}-{}", index + 1)
+        };
+        assert_eq!(member.branch.as_ref(), expected.as_bytes());
+        let task = task_row(&world, landing).expect("landing task");
+        assert_eq!(task.holdings.len(), 3, "sealed branches held from making");
+        assert!(task.holdings.iter().any(|holding| matches!(holding, tasks::Holding::Write { resource, .. } if resource.path.last().is_some_and(|branch| branch.as_ref() == expected.as_bytes()))));
+    }
+    let expected: Vec<_> = changes
+        .iter()
+        .map(|change| {
+            let peers =
+                changes.iter().filter(|peer| *peer != change).map(ToString::to_string).collect::<Vec<_>>().join(", ");
+            format!("landing {landing}: change {change} joined, into org/repo main, round 1, with changes {peers}")
+        })
+        .collect();
+    // Every member in this goal's three-change plan sends its own joined line.
+    for _ in 0..100 {
+        if news(&world, goal.task, landing).len() == changes.len() {
+            break;
+        }
+        world.tick();
+    }
+    assert_eq!(news(&world, goal.task, landing), expected);
+}
+
+fn ready_goal_change(world: &mut World, goal: &engine::Assignment, call: u64) -> u64 {
+    let mut authority = live_task(world, goal.task).authority.clone();
+    authority.delegation.tasks = 1;
+    authority.delegation.depth = 1;
+    authority.budget.spend = 20;
+    let delegate = engine::Delegate {
+        executor: tasks::Executor::Procedure { connector: 0, code: 2 },
+        spec: tasks::Spec {
+            job: None,
+            asks: false,
+            words: b"Small fix".as_slice().into(),
+            parameters: Box::new([
+                tasks::Parameter::Resource {
+                    name: 1,
+                    connector: 0,
+                    resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                },
+                tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+            ]),
+            inputs: Box::new([]),
+        },
+        contract: tasks::Contract::Change { connector: 0, kind: 1, words: world.env.limits.tasks.result_bytes },
+        authority,
+        ..temper_engine_domain_world::fixtures::report_delegate(b"fix", Box::new([]))
+    };
+    let engine::CallAnswer::Delegated(made) =
+        world.scripted_call(goal, call, engine::Tool::Delegate { batch: Box::new([delegate]) })
+    else {
+        panic!("change")
+    };
+    let change = made[0].task;
+    for _ in 0..600 {
+        if world
+            .assigned
+            .iter()
+            .any(|run| task_row(world, run.task).is_some_and(|row| row.requester == tasks::Party::Task(change)))
+        {
+            break;
+        }
+        world.tick();
+    }
+    let producer = world
+        .assigned
+        .iter()
+        .find(|run| task_row(world, run.task).is_some_and(|row| row.requester == tasks::Party::Task(change)))
+        .expect("producer")
+        .clone();
+    push_change(world, &producer, b"org/repo");
+    finish_producer(world, &producer, forge_world::REPO);
+    for _ in 0..100 {
+        world.tick();
+    }
+    change
+}

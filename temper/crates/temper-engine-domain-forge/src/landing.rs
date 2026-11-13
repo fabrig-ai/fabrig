@@ -14,8 +14,15 @@ use temper_engine_domain_forge_landing as policy;
 type Position = (u64, u16, u16);
 type RepositoryGate = (api::Repository, Box<[u8]>);
 type KeyAt = (api::Commit, policy::Key);
-type ProjectLanding =
-    (change::Way, Box<[RepositoryGates]>, crate::AfterLanding, Option<Box<[u8]>>, Option<Box<[u8]>>, policy::Project, u16);
+type ProjectLanding = (
+    change::Way,
+    Box<[RepositoryGates]>,
+    crate::AfterLanding,
+    Option<Box<[u8]>>,
+    Option<Box<[u8]>>,
+    policy::Project,
+    u16,
+);
 #[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
@@ -418,11 +425,22 @@ impl Domain {
         if changes.is_empty() || changes.len() > skein_lib::usize_of(self.landing.limits.landing_members) {
             return Err(LandingRefusal::Members);
         }
-        for task in changes {
+        let mut train = None;
+        for (index, task) in changes.iter().enumerate() {
+            if changes.get(..index).expect("preceding changes").contains(task) {
+                return Err(LandingRefusal::Members);
+            }
             let row = self.changes.get(task).ok_or(LandingRefusal::Repository)?;
             let repo = self.repositories.get(&row.repository).ok_or(LandingRefusal::Repository)?;
             if repo.project != project || row.change.landing.is_some() {
                 return Err(LandingRefusal::Repository);
+            }
+            if let Some((repository, branch)) = &train {
+                if *repository != row.repository || *branch != row.base {
+                    return Err(LandingRefusal::Repository);
+                }
+            } else {
+                train = Some((row.repository, row.base.clone()));
             }
             if !self.train_free(row.repository, &row.base) {
                 return Err(LandingRefusal::Train);
@@ -782,7 +800,14 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
     let count = row.landing.members.len();
     save(d, row, out);
     for index in 0..count {
-        emit(out, Request::LandingNews { task, member: u16::try_from(index).expect("bounded members"), step: crate::LandingNews::Joined });
+        emit(
+            out,
+            Request::LandingNews {
+                task,
+                member: u16::try_from(index).expect("bounded members"),
+                step: crate::LandingNews::Joined,
+            },
+        );
     }
 }
 impl Domain {

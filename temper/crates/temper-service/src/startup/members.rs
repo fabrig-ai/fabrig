@@ -123,7 +123,7 @@ pub static SHAPES: [Shape; 34] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 123] = [
+pub static MEMBERS: [Member; 124] = [
     Member {
         shape: "document",
         name: "engine",
@@ -563,6 +563,15 @@ pub static MEMBERS: [Member; 123] = [
         bound: "queue or turn; queue when absent",
         required: false,
         line: "The project’s way of landing changes.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "batch",
+        kind: "integer",
+        bound: "1 to forge.landing_members; 1 when absent",
+        required: false,
+        line: "The most changes a landing into main forms with.",
         gone: None,
     },
     Member {

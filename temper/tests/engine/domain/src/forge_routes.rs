@@ -189,6 +189,7 @@ pub struct StoryLimits {
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
     pub landing_members: Option<u32>,
+    pub batch: Option<u16>,
     pub slots: Option<u32>,
     pub tasks: Option<u32>,
     pub authority_batch: Option<u32>,
@@ -389,6 +390,7 @@ impl World {
             turn,
             dispatch_passes: _,
             landing_members,
+            batch,
             slots,
             tasks,
             across,
@@ -637,6 +639,7 @@ impl World {
                     limits.journal.run_bytes = 32768;
                     if let Some(slots) = landing_members {
                         limits.forge.landing_members = slots;
+                        limits.tasks.holdings = limits.tasks.holdings.max(slots);
                     }
                     let mut grants = List::with_capacity(15);
                     for grant in &rules.ceiling.grants {
@@ -691,7 +694,7 @@ impl World {
                             1,
                             engine::ProjectLanding {
                                 gate_retries: 2,
-                                batch: 1,
+                                batch: if landing_members == Some(0) { 1 } else { batch.unwrap_or(1) },
                                 combine_main: engine::Combine::Merge,
                                 combine_other: engine::Combine::Squash,
                                 gate_timeout: skein_lib::Duration::from_millis(3_600_000),
@@ -1147,6 +1150,10 @@ impl World {
             store_limits.authority.grants = limits.authority.grants;
             store_limits.authority.executors = limits.authority.executors;
             store_limits.tasks.result_bytes = limits.tasks.result_bytes;
+        }
+        if let Some(batch) = timing.batch {
+            store_limits.forge.landing_members = store_limits.forge.landing_members.max(u32::from(batch));
+            store_limits.tasks.holdings = store_limits.tasks.holdings.max(u32::from(batch));
         }
         store_limits.tasks.authority_grants = store_limits.tasks.authority_grants.max(limits.tasks.authority_grants);
         store_limits.authority.grants = store_limits.authority.grants.max(limits.authority.grants);
@@ -1888,6 +1895,12 @@ impl World {
     }
 
     /// Restart with the same tier and project configuration, retaining only durable rows.
+    pub fn restart_with_batch(&mut self, batch: u16) {
+        self.env.limits.forge.landing_members = u32::from(batch);
+        self.env.limits.tasks.holdings = self.env.limits.tasks.holdings.max(u32::from(batch));
+        self.restart_config.landings.get_mut(&1).expect("landing configured").batch = batch;
+        self.restart_same();
+    }
     pub fn restart_same(&mut self) {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }

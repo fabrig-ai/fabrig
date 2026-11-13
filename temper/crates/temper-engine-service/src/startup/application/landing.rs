@@ -579,7 +579,7 @@ fn batch(
     landing_members: u32,
     problems: &mut Problems,
 ) -> Option<u16> {
-    let value = optional_integer(object, document, b"batch", 1, u64::from(u16::MAX), path, problems)?;
+    let value = optional_integer(object, document, b"batch", 1, u64::MAX, path, problems)?;
     if value > u64::from(landing_members) {
         problems.push(path.member(b"batch"), What::Jig(config::What::Because(b"batch passes forge.landing_members")));
         return None;

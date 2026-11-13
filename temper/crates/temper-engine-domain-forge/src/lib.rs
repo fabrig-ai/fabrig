@@ -99,7 +99,7 @@ pub use follows::{
     FollowSkip, FollowState, FollowVerdict, followed,
 };
 mod forming;
-pub use forming::{WaitingUnit, Selection, select_units};
+pub use forming::{Selection, WaitingUnit, select_units};
 mod landing;
 mod landing_log;
 pub use landing_log::LOGGED_TITLE_BYTES;

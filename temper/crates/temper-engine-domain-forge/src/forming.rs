@@ -1,11 +1,13 @@
 //! Sealed, indivisible units selected in queue order (domain/landing.md, 4.1, 9).
+use crate::{ChangeDependencies, Domain};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
-use crate::{Domain, ChangeDependencies};
 use temper_engine_domain_forge_change as change;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct WaitingUnit {
+    /// The first queue candidate, which owns a refusal hold.
+    pub task: u64,
     pub changes: Box<[u64]>,
     pub alone: bool,
     pub refused: bool,
@@ -67,20 +69,25 @@ impl Domain {
                 }
             }
             ready = remaining;
-            if seen.as_slice().contains(&task) { continue; }
+            if seen.as_slice().contains(&task) {
+                continue;
+            }
             let joined = self.joined_changes(repo.project, task, graph);
             let mut eligible = true;
             let mut alone = false;
             let mut refused = false;
             for member in &joined {
                 seen.push(*member).expect("disjoint closures");
-                let Some(row) = self.change(*member) else { eligible = false; continue };
+                let Some(row) = self.change(*member) else {
+                    eligible = false;
+                    continue;
+                };
                 eligible &= super::landing::waiting(row) && !kept.contains(member);
                 refused |= row.repository != repository;
                 alone |= row.change.alone;
             }
             if eligible {
-                units.push(WaitingUnit { changes: joined, alone, refused }).expect("bounded units");
+                units.push(WaitingUnit { task, changes: joined, alone, refused }).expect("bounded units");
             }
         }
         units.into_boxed()
@@ -94,13 +101,15 @@ impl Domain {
         units: &[WaitingUnit],
     ) -> Selection {
         let selection = select_units(units, self.train_batch(repository, branch), self.landing.limits.landing_members);
-        if !self.train_free(repository, branch) {
+        if self.landing.limits.landing_members == 0 || !self.train_free(repository, branch) {
             return Selection { take: Box::new([]), hold: Box::new([]) };
         }
         let Some(index) = selection.take.first() else { return selection };
         let Some(unit) = units.get(skein_lib::usize_of(*index)) else { return selection };
         let Some(first) = unit.changes.first() else { return selection };
-        let Some(repo) = self.repository(repository) else { return Selection { take: Box::new([]), hold: Box::new([]) } };
+        let Some(repo) = self.repository(repository) else {
+            return Selection { take: Box::new([]), hold: Box::new([]) };
+        };
         if self.landing_admits(repo.project, &[*first]).is_err() {
             return Selection { take: Box::new([]), hold: Box::new([]) };
         }

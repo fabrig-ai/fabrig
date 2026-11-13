@@ -179,7 +179,7 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
     ) {
         return false;
     }
-    if !forge.project_batch(project, landing.batch) {
+    if landing.batch != 1 && !forge.project_batch(project, landing.batch) {
         return false;
     }
     if let Some(command) = &landing.merge_job
