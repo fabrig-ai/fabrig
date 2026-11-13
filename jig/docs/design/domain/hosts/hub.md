@@ -578,3 +578,41 @@ with no agent:
 - **A root with no job capability** refuses what the hub asks of one:
   that is its choice, and `ToJob::refused` spells the answer, a
   `StartRefused` to a run and a `Gone` to a stop.
+
+## 10. An application's asks
+
+The application on a host may ask the engine's application something
+for a run the hub hosts, and hear the answer: a read, which decides
+nothing on either side. temper reads a goal's reds this way when a run's
+checks start (temper's `domain/forge/reds.md`, 5.4).
+
+- **Asked by the root, for a hosted attempt:** the hub's link vocabulary
+  gains `Ask { run, attempt, number, bytes }` up and `Asked { run,
+  attempt, number, answer }` down, `answer` the application's bytes or
+  refused (`../../protocol/channel/records.md`, 1 and 2). The worker's
+  root asks with the run's attempt and its bytes; the hub numbers the
+  ask, from 1 within the attempt, and sends it up only while it hosts
+  that attempt, answering refused at once otherwise.
+- **Bounded:** at most 2 asks outstanding per hosted attempt, the third
+  answered refused at once; the bytes within the application's largest
+  ask, and an answer within its largest answer, which the application's
+  limits give (`../../protocol/channel/README.md`, 10).
+- **Answered once, or dropped:** the hub hands the root the first
+  `Asked` for an outstanding number and drops any other. An attempt the
+  hub stops hosting forgets its asks, and a lost link answers each
+  outstanding one refused. The hub arms no timer for them: a root that
+  waits a bounded time keeps its own clock and ignores an answer that
+  comes after it (2).
+- **On the engine,** the fleet fences an ask as a call: one whose
+  attempt is not its task's live one on that channel is answered
+  refused at once. An admitted ask goes to the root as the
+  application's, with its channel, run, attempt and number. The root
+  answers it by those, in the same entrance or a later one, with bytes
+  or refused, and the fleet sends `asked`. Nothing is committed for it:
+  an ask lost with an engine's restart is never answered, and its
+  asker's clock ends it.
+- **Bytes the hub never reads,** as a call's input and a job's spec: the
+  application's codecs encode and decode them, and its wires translate
+  them across versions (`../../protocol/channel/bridges.md`, 5.4).
+- **The engine's own hub** asks the same way, its root routing the ask
+  to the fleet as it routes a call.

@@ -77,9 +77,12 @@
   parties' filings between triages. The forge's family holds it times
   `forge.judge_projects`.
 - **A goal's reds:** `forge.branch_reds`, the reds a goal holds at
-  once, 64 in both profiles, at most 1,024; `forge.red_key_bytes`, a
-  red's key, 256 in both, at most 1,024 (`../../domain/forge/reds.md`,
-  2 and 3). The forge's families hold `forge.branch_reds` times
+  once, 64 in both profiles, at most 256; `forge.red_key_bytes`, a
+  red's key, 256 in both, at most 512 (`../../domain/forge/reds.md`,
+  2 and 3), so that the engine's answer to a worker's ask, at most
+  `forge.branch_reds` keys of `forge.red_key_bytes` with their heads,
+  stays far within the channel's frame (`../../domain/forge/reds.md`,
+  5.4). The forge's families hold `forge.branch_reds` times
   `forge.holds`. `checkout.reds_read_ms`, how long the worker waits for
   the engine's answer at a check's start, 5,000 in both, from 100 to
   60,000 (`../../domain/forge/reds.md`, 5.3): the worker's, since the

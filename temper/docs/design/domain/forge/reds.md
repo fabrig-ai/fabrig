@@ -178,7 +178,33 @@ says. What is open is listed in section 9.
 
 ### 5.4 The ask's way
 
-Designed with the worker's wire (section 9).
+- **An application's ask on jig's channel** (jig's
+  `domain/hosts/hub.md`, 10): the worker's domain asks its hub, for the
+  hosted run, with temper's bytes; the hub sends `ask` up, the run's task
+  and attempt beside them; the engine's root answers from 5.1, and
+  `asked` brings the answer down by its number (jig's
+  `protocol/channel/records.md`, 1 and 2). It decides nothing and keeps
+  nothing on either side but the worker's outstanding number.
+- **temper's bytes,** `temper-worker-wire`'s (`../../protocol/channel.md`):
+  the ask `Ask`, an enumeration whose one variant, `reds`, carries
+  nothing, the run's identity being jig's; the answer `Answer`, an
+  enumeration whose one variant, `reds`, is `Reds { reds }`, a list of at
+  most `forge.branch_reds` `Red { key, head }`, the key at most
+  `forge.red_key_bytes` and the head 20 or 32 bytes, in key order. An
+  ask the engine refuses, or answers with bytes that don't decode, is a
+  read that failed (5.3).
+- **Its versions:** `jig-worker-wire` and `temper-worker-wire` each move
+  by one, with their kept texts and bridges (jig's
+  `protocol/channel/bridges.md`). A worker of the previous versions
+  never asks, so its checks have no reds file, as a tree without the
+  list has none (`../../draft/branch-reds.md`, 10). A worker of these
+  versions meeting an engine of the previous ones can't send `ask` down,
+  so it closes its channel at the statement and the engine goes first
+  (jig's `protocol/channel/bridges.md`, 6.3).
+- **The worker's figures:** an ask is a few bytes; an answer at most
+  `forge.branch_reds` reds of `forge.red_key_bytes`, which temper gives
+  jig as the application's largest answer (jig's
+  `protocol/channel/README.md`, 10).
 
 ## 6. Kept
 
@@ -216,21 +242,18 @@ checkout's (`../../protocol/configuration/limits.md`).
 - **The store:** the families' golden bytes and the patch
   (`../../protocol/baseline.md`, 7).
 - **The tool:** each act decoded, each refusal, each answer rendered,
-  and the host tools' contract moved (`../../protocol/wires.md`, 6); the
+  and the host tools' contract moved (`../../protocol/wires.md`, 7); the
   hold past the bound.
+- **The ask:** the engine's answer to a producer's ask, to one of an
+  attempt that isn't live (refused), and to bytes that don't decode;
+  both wires' patches and bridges, by their crates' tests.
 - **The worker:** the file written fresh at each check's start, a check
   run again included, and removed at its end and at prepare; reds whose
   head the base doesn't contain left out; a slow or failed ask writing
-  none (section 9).
+  none; a late answer dropped.
 
 ## 9. Open questions
 
-- **The ask's way to the engine** (5.4): no worker asks the engine
-  anything outside a run's own calls, and no wire bridges are built
-  (`../../draft/redeploys.md`, 4, which its status says the design
-  lags), so the ask moves the worker's wires for every part at once. The
-  user is asked (2026-11-13); until then nothing writes `temper/reds`,
-  and the check reads the tree's list alone.
 - **A person recording a red,** by ctl or the page, as `party N`: the
   record keeps the recorder's kind for it. Default: none; a goal's run
   records them.

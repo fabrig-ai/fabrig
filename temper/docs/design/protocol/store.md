@@ -208,7 +208,10 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   | 45 | `RedNumber` | `RedNumber`: one row | the last generation given, `{ last }`, so that none is given twice. Written with each red's record, never erased | one row |
 
   Their records are the schema's `Value` variants `red` and
-  `red_number`, appended after the last. Their patch, the one after the
+  `red_number`, appended after the last. A named call's `CallPayload`
+  gains `red`, `RedReply`, after its last: `red`'s record or end, its
+  outcome or its refusal, kept as `finding`'s reply is
+  (`../domain/forge/reds.md`, 3). Their patch, the one after the
   latest when it lands, moves `STORE_VERSION` by one and adds the
   declarations and variants without making a row for an older store.
 - **Loaded:** every family at the forge's restart step, and never

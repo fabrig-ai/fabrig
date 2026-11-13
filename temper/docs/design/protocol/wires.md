@@ -214,6 +214,8 @@ them.
   | `JobSpec` | `JobSpec` |
   | `JobResult` | none: the project's tooling's result file, carried unread (8) |
   | `Grant` | `Identity` |
+  | `Ask` | `Ask` (`../domain/forge/reds.md`, 5.4) |
+  | `Answer` | `Answer` |
 
   The declaration each part holds is the one temper's own encoder and
   decoder of it name; a focused test holds the table against them.
