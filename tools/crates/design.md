@@ -263,6 +263,10 @@ dependency fails, as an exception does:
 |---|---|---|
 | `jig-protocol-worker-wire` | `skein-channel` | it declares its channel's kinds and schema in skein-channel's vocabulary beside its records, and skein-channel depends on `skein-lib` alone |
 | `smith-channel` | `skein-channel` | the same, for smith's channel |
+| `jig-protocol-worker-wire` | `smith-channel` | jig's `protocol/channel/wires.md`, 2: `spoken()` states smith's channel identity |
+| `jig-protocol-worker-wire` | `smith-charter` | jig's `protocol/channel/wires.md`, 2: `spoken()` states smith's charter identity |
+| `jig-protocol-worker-wire` | `smith-transcript` | jig's `protocol/channel/wires.md`, 2: `spoken()` states smith's transcript identity |
+| `temper-protocol-worker-wire` | `jig-protocol-worker-wire` | temper's `protocol/wires.md`, 6: `application()` builds jig's `Application`, `Spoken` and roots for temper's payloads |
 
 Its exceptions when it lands, each a package, which excuses every finding of that package: the
 other crates of `temper/docs/design/draft/crate-graph.md`, 4.2, each until G3 of

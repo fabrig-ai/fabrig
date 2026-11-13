@@ -100,11 +100,8 @@ mod opening {
                 })
                 .expect("wire slot");
         }
-        let expected = Statement {
-            wires: stated,
-            output: fixtures::LIMITS.room,
-            terms: List::from_boxed(terms.into_boxed()),
-        };
+        let expected =
+            Statement { wires: stated, output: fixtures::LIMITS.room, terms: List::from_boxed(terms.into_boxed()) };
         let connection = world.connect(stating_with_schema(wires, schema));
         world.run();
         assert!(world.ready(connection));

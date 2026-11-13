@@ -41,6 +41,11 @@ const ALLOWED: &[Allowance] = &[
         dependency: "smith-transcript",
         reason: "protocol/channel/wires.md, 2: spoken() states smith's transcript identity",
     },
+    Allowance {
+        package: "temper-protocol-worker-wire",
+        dependency: "jig-protocol-worker-wire",
+        reason: "protocol/wires.md, 6: application() builds jig's Application, Spoken and roots for temper's payloads",
+    },
 ];
 
 struct Exception {
