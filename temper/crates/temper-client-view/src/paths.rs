@@ -44,7 +44,7 @@ pub fn pressed_stop(data: &[u8]) -> Option<u32> {
 }
 
 /// temper's drawing kind for a path.
-pub const KIND: DrawingKind = DrawingKind { owner: crate::frame::owner(), kind: 0 };
+pub const KIND: DrawingKind = DrawingKind { owner: crate::look::owner(), kind: 0 };
 pub const STOPS: u32 = 32;
 pub const WORDS: u32 = 64;
 pub const OVER: u32 = 16;
@@ -257,7 +257,7 @@ fn decode(data: &[u8]) -> Option<Decoded<'_>> {
 
 /// temper's draw: its own kind, else skein's flows.
 pub fn draw_any(kind: DrawingKind, data: &[u8], width: u16, height: u16, scene: &mut skein_ui::scene::Scene) -> bool {
-    if kind.owner == crate::frame::owner() {
+    if kind.owner == crate::look::owner() {
         draw(kind, data, width, height, scene)
     } else {
         skein_ui::flow::draw(kind, data, width, height, scene)

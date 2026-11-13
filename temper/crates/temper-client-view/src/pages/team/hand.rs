@@ -1,7 +1,7 @@
 //! The hand-off sheet and give-back confirmation (client/pages/team.md, 1).
 use crate::{
+    bindings::Bindings,
     cards::text,
-    frame::Bindings,
     look,
     words::{Word, Words},
 };
@@ -224,7 +224,7 @@ fn foot(b: &mut Builder, open: &Open, w: &Words, bindings: &mut Bindings) {
     };
     b.open(Role::Slot);
     b.style(look::SHEET_FOOT);
-    b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 92, a: u64::from(open.project), b: 0 });
+    b.key(skein_ui::Key { owner: look::owner(), kind: 92, a: u64::from(open.project), b: 0 });
     b.open(Role::Button);
     b.style(look::GOAL_BTN);
     b.style(look::GOAL_QUIET);

@@ -2,7 +2,7 @@
 /// A run of calls (temper/docs/design/client/pages/README.md, its calls).
 pub use crate::pages::chat_line::Run;
 /// The terminal's vocabulary (temper/docs/design/client/pages/README.md, A chat's terminal).
-pub use crate::pages::terminal::words::TerminalWord;
+pub use crate::words::terminal::TerminalWord;
 use crate::words::{Times, Words};
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -20,7 +20,7 @@ use temper_client_domain::{
 /// A terminal phrase (temper/docs/design/client/pages/README.md, A chat's terminal).
 #[must_use]
 pub fn say(w: &Words, word: TerminalWord) -> Box<[u8]> {
-    crate::pages::terminal::words::say(w, word)
+    crate::words::terminal::say(w, word)
 }
 /// Home's headline and its next tick (temper/docs/design/client/pages/README.md, the headline).
 #[must_use]

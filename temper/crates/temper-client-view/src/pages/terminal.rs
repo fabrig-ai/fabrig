@@ -2,10 +2,10 @@
 //! temper/docs/design/client/web/look.md, A chat's terminal).
 pub(crate) mod commands;
 mod question;
-pub(crate) mod words;
 use crate::shared::{TerminalWord as T, say};
+pub(crate) use crate::words::terminal as words;
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, Word, Words},
 };

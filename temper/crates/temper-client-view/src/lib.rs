@@ -5,8 +5,11 @@
 extern crate alloc;
 mod accounts;
 mod approve;
+pub(crate) mod bindings;
 pub mod cards;
 mod choice;
+pub(crate) mod column;
+pub(crate) mod common;
 mod confirm;
 mod flow;
 pub mod forge;
@@ -23,16 +26,9 @@ pub mod shared;
 pub mod sign_in;
 mod views;
 pub mod words;
+pub(crate) use bindings::link;
 pub use limits::{Limits, valid};
 pub use root::{ShellEvent, View, act, act_event, build, event, href, opening_tab, shell_event};
-
-/// Open a bound link with its address, leaving its contents to the caller.
-pub(crate) fn link(b: &mut skein_ui::Builder, name: &[u8], to: skein_ui::Binding) {
-    b.open(skein_ui::Role::Link);
-    b.name(name);
-    b.bind(to);
-    b.link(to);
-}
 
 #[cfg(test)]
 mod tests;

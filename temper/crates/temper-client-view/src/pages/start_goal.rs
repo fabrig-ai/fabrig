@@ -1,6 +1,6 @@
 //! The draft's start sheet (temper/docs/design/client/pages/goal.md, 3).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
@@ -145,7 +145,7 @@ fn ways(b: &mut Builder, root: &Domain, start: &StartGoal, words: &Words, bindin
         }
     }
     let name = words.say(Word::StartGoalWays, &[]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project: start.project } }));
+    crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Settings { project: start.project } }));
     b.style(look::SHEET_LINK);
     b.text(Run::Plain, &name);
     b.close();

@@ -1,7 +1,7 @@
 //! Finding cards and their forge acts (temper/docs/design/client/pages/needs-you.md, 1).
 use super::ask;
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{TimeForm, Times, Word, Words},
 };

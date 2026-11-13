@@ -1,7 +1,7 @@
 //! Only you on Needs you (temper/docs/design/client/pages/README.md, Only you).
 use crate::{
     accounts::words::{self, Word as W},
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
@@ -54,7 +54,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.open(Role::Slot);
         b.style(look::ASK_CHOICES);
         let act = w.say(Word::OnlySignInAgain, &[]);
-        crate::link(b, &act, bindings.insert(Act::Go { address: Address::Accounts }));
+        crate::bindings::link(b, &act, bindings.insert(Act::Go { address: Address::Accounts }));
         b.style(look::RECOMMENDED);
         b.text(Run::Plain, &act);
         b.close();

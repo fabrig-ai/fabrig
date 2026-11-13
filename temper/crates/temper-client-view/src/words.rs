@@ -1,6 +1,11 @@
 //! temper's frame and forge words as checked English data.
 //! Trial endings: temper/docs/design/domain/trial.md, 6.4.
 //! Playground and forge setup words (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/welcome.md, 2).
+pub(crate) mod accounts;
+pub mod cards;
+pub mod forge;
+pub(crate) mod terminal;
+
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{
@@ -10,6 +15,32 @@ use skein_ui::{
         PluralClass, PluralRule, Segment, SpanUnit, WallFormat,
     },
 };
+/// Includes the UTF-8 ellipsis; smaller phrasebooks retain their joined Name bound.
+pub(crate) const MODEL_SHOWN: u32 = 256;
+pub(crate) fn shown(name: &[u8], w: &Words) -> Box<[u8]> {
+    let Ok(bound) = usize::try_from(MODEL_SHOWN.min(w.name_bytes)) else { return Box::default() };
+    if name.len() <= bound {
+        return copy_of(name);
+    }
+    let mark = "…".as_bytes();
+    let Some(prefix_bound) = bound.checked_sub(mark.len()) else { return Box::default() };
+    let Some(scan) = prefix_bound.checked_add(1) else { return Box::default() };
+    // Text arrived validated; a continuation byte cannot begin the cut suffix.
+    let mut end = 0;
+    for (index, byte) in name.iter().enumerate().take(scan) {
+        if byte & 0xc0 != 0x80 {
+            end = index;
+        }
+    }
+    let Some(prefix) = name.get(..end) else { return Box::default() };
+    let Some(bytes) = end.checked_add(mark.len()) else { return Box::default() };
+    let mut out = skein_lib::Writer::new(bytes);
+    if out.put(prefix).is_err() || out.put(mark).is_err() {
+        return Box::default();
+    }
+    out.finish()
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
     TellTitle,
@@ -6029,7 +6060,7 @@ impl Word {
             Self::NeedsTabCountCut => 4479,
         };
         let owner =
-            if number >= 100 { crate::frame::owner() } else { temper_client_domain::forge::words::owner(connector) };
+            if number >= 100 { crate::look::owner() } else { temper_client_domain::forge::words::owner(connector) };
         PhraseId { owner, number }
     }
 }
@@ -6289,10 +6320,10 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     }
     if word == Word::BylineTask && kind == HoleKind::Name {
         // Two shown names, the Anthropic prefix, and the effort separator.
-        let names = joined.min(crate::choice::MODEL_SHOWN).checked_mul(2).ok_or(Invalid::Overflow)?;
+        let names = joined.min(MODEL_SHOWN).checked_mul(2).ok_or(Invalid::Overflow)?;
         return names.checked_add(12).ok_or(Invalid::Overflow);
     }
-    let model_name = joined.min(crate::choice::MODEL_SHOWN);
+    let model_name = joined.min(MODEL_SHOWN);
     if word == Word::ModelEffort {
         // The closed line prefixes an Anthropic shown name with "Claude ".
         return model_name.checked_add(7).ok_or(Invalid::Overflow);
@@ -6376,9 +6407,9 @@ fn english_language(
     for phrase in jig_language().phrases {
         phrases.push(phrase).expect("jig words fit");
     }
-    crate::accounts::words::extend(&mut shapes, &mut phrases, joined, text);
-    crate::cards::words::extend(text, &mut shapes, &mut phrases);
-    crate::pages::terminal::words::extend(&mut shapes, &mut phrases);
+    accounts::extend(&mut shapes, &mut phrases, joined, text);
+    cards::extend(text, &mut shapes, &mut phrases);
+    terminal::extend(&mut shapes, &mut phrases);
     temper_client_domain::forge::words::extend(connector, text, &mut shapes, &mut phrases);
     temper_client_domain::forge::words::extend_change(connector, &mut shapes, &mut phrases);
     resource_phrases(connector, joined, &mut shapes, &mut phrases);
@@ -6544,7 +6575,7 @@ impl Words {
         for word in jig_client::words::ALL {
             most = most.max(self.book.capacity(word.id())?);
         }
-        Some(most.max(crate::forge::words::capacity(self)?).max(crate::accounts::words::capacity(self)?))
+        Some(most.max(forge::capacity(self)?).max(accounts::capacity(self)?))
     }
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive table of the client's English words")]

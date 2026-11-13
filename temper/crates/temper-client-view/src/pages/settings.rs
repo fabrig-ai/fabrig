@@ -1,7 +1,7 @@
 //! How work runs and Deployment's frames (temper/docs/design/client/pages/README.md, Settings and Deployment).
 use crate::{
+    bindings::Bindings,
     forge::bindings::{Bindings as ForgeBindings, Meaning, WaysRow},
-    frame::Bindings,
     look,
     words::{Word, Words},
 };
@@ -96,20 +96,20 @@ fn flow_path(
         Some(way) => (way.choices, way.address.clone()),
         None => (word, address.clone()),
     };
-    crate::link(b, &w.say(back, &[]), bindings.insert(Act::Go { address: to }));
+    crate::bindings::link(b, &w.say(back, &[]), bindings.insert(Act::Go { address: to }));
     b.style(look::BACK);
     b.text(Run::Plain, &w.say(back, &[]));
     b.close();
     b.open(Role::Slot);
     b.style(look::TRAIL);
     for (name, address) in [(w.say(Word::DeploymentTitle, &[]), Address::Accounts), (w.say(word, &[]), address)] {
-        crate::link(b, &name, bindings.insert(Act::Go { address }));
+        crate::bindings::link(b, &name, bindings.insert(Act::Go { address }));
         b.text(Run::Plain, &name);
         b.close();
     }
     if let Some(way) = way {
         let name = w.say(way.choices, &[]);
-        crate::link(b, &name, bindings.insert(Act::Go { address: way.address.clone() }));
+        crate::bindings::link(b, &name, bindings.insert(Act::Go { address: way.address.clone() }));
         b.text(Run::Plain, &name);
         b.close();
     }
@@ -222,14 +222,14 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             continue;
         }
         let name = w.say(word, &[]);
-        crate::link(b, &name, bindings.insert(Act::Go { address }));
+        crate::bindings::link(b, &name, bindings.insert(Act::Go { address }));
         b.text(Run::Plain, &name);
         if item == tab {
             b.state(State::Current);
         }
         match item {
-            Tab::Forges => crate::frame::forge_mark(b, root, w, false),
-            Tab::Accounts => crate::frame::account_mark(b, root, w, false),
+            Tab::Forges => crate::bindings::forge_mark(b, root, w, false),
+            Tab::Accounts => crate::bindings::account_mark(b, root, w, false),
             Tab::HowWorkRuns | Tab::Repositories | Tab::Models | Tab::Builders | Tab::Members | Tab::Limits => {}
         }
         b.close();
@@ -273,7 +273,7 @@ pub(crate) fn quiet_band(b: &mut Builder, tag: &[u8], words: &[u8]) {
 }
 /// A link in the settings button's look, primary or small.
 pub(crate) fn button_to(b: &mut Builder, name: &[u8], to: Binding, primary: bool) {
-    crate::link(b, name, to);
+    crate::bindings::link(b, name, to);
     if primary {
         b.style(look::SETTINGS_PRIMARY);
     } else {
@@ -613,7 +613,7 @@ fn repository_section(
         w.say(Word::SettingsRepositoriesTab, &[])
     };
     section_head(b, &title);
-    crate::link(
+    crate::bindings::link(
         b,
         &crate::forge::words::say(w, forge::words::Word::AddRepositories, &[]),
         bindings.insert(Act::Go { address: Address::Adopt { project } }),
@@ -638,7 +638,7 @@ fn repository_section(
             &w.say(Word::SettingsNoneTag, &[]),
             &w.say(Word::SettingsNoneBody, &[Hole::Name(project_name(root, w, project))]),
         );
-        crate::link(
+        crate::bindings::link(
             b,
             &crate::forge::words::say(w, forge::words::Word::AddRepositories, &[]),
             bindings.insert(Act::Go { address: Address::Adopt { project } }),
@@ -818,7 +818,7 @@ fn text(b: &mut Builder, role: Role, said: &[u8], style: Style) {
 }
 fn link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address: Address) {
     let name = w.say(word, &[]);
-    crate::link(b, &name, bindings.insert(Act::Go { address }));
+    crate::bindings::link(b, &name, bindings.insert(Act::Go { address }));
     b.text(Run::Plain, &name);
     b.close();
 }
