@@ -87,4 +87,12 @@ checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
+
+Failures on the goal branch that no live change of goal 2287 owns; delivery
+checks count them as inherited (`tools/pre-pr/design.md`, section 5).
+
+Since 2026-11-13, the landing of change 2312 (cf177f4e19): patch 0002's
+goldens down were never written (2310's goldens-down test and 2312's patch
+crossed). Dropped when its repair lands.
+
 - test jig-protocol-worker-wire patches::tests::p0002_goldens
