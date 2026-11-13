@@ -1,7 +1,7 @@
 //! Team's hand-off controls and sheets (client/pages/team.md, 1).
 use super::*;
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     words::{Times, Words},
 };
 use skein_ui::{Node, Shortcut, State, Tree};

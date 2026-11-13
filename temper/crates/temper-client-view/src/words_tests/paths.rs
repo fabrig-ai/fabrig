@@ -6,8 +6,10 @@
     reason = "unit tests inspect scenes and shell output with ordinary Rust"
 )]
 use super::fixtures as f;
-use crate::look;
-use crate::paths::{self, Mark, Stop};
+use crate::{
+    look,
+    paths::{self, Mark, Stop},
+};
 use skein_ui::{
     Builder, Role,
     scene::{Anchor, Mark as SceneMark, Point, Scene},
@@ -64,7 +66,7 @@ fn tree(stops: &[Stop<'_>], pressed: Option<&paths::Pressed<'_>>) -> skein_ui::T
 }
 
 fn binding(index: u64) -> skein_ui::Binding {
-    skein_ui::Binding { owner: crate::frame::owner(), token: skein_lib::Token::new(index) }
+    skein_ui::Binding { owner: look::owner(), token: skein_lib::Token::new(index) }
 }
 
 fn styled(scene: &Scene, style: skein_ui::Style) -> Vec<u32> {
@@ -672,11 +674,5 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
     assert!(skein_ui::flow::draw(skein_ui::flow::KIND, flow.as_slice(), 640, 0, &mut expected));
     assert_eq!(scene.to_string(), expected.to_string());
     scene.clear();
-    assert!(!paths::draw_any(
-        skein_ui::DrawingKind { owner: crate::frame::owner(), kind: 1 },
-        data,
-        640,
-        0,
-        &mut scene
-    ));
+    assert!(!paths::draw_any(skein_ui::DrawingKind { owner: look::owner(), kind: 1 }, data, 640, 0, &mut scene));
 }

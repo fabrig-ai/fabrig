@@ -3,14 +3,11 @@
     clippy::disallowed_types,
     reason = "test assertions inspect semantic trees and their bound controls"
 )]
-use super::connect_forge as forge;
-use super::fixtures as f;
-use skein_ui::{Act, Role, State};
-use temper_client_domain::ChatsFilter;
-use temper_client_domain::{self as d, Address, Step, pages};
-use temper_client_protocol_wire::v1 as w;
-
 pub(super) use super::fixtures::welcome::{model_address, model_with_forge, owned_adopted_rows};
+use super::{connect_forge as forge, fixtures as f};
+use skein_ui::{Act, Role, State};
+use temper_client_domain::{self as d, Address, ChatsFilter, Step, pages};
+use temper_client_protocol_wire::v1 as w;
 
 const HERE: u16 = 3;
 fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
@@ -1410,11 +1407,7 @@ fn model_ticks_connected_github_even_with_an_adopted_repository() {
     );
     each_step(view.tree(), false);
 }
-fn ready_root(rows: skein_lib::List<w::ForgeRow>) -> d::Domain {
-    let (mut root, account) = f::forge_root_accounts(Address::Welcome { step: Step::Ready }, rows);
-    f::welcome_account(&mut root, account);
-    root
-}
+
 #[test]
 fn managed_forgejo_ready_uses_the_default_checklist() {
     // Forge 4 is Forgejo elsewhere in the standalone configuration.
@@ -1754,22 +1747,6 @@ fn ready_offers_connect_a_model_as_a_terminal_command() {
     );
 }
 
-fn first_run_destination(root: &mut d::Domain) -> Address {
-    let mut out = skein_lib::Queue::uncapped();
-    d::step(
-        root,
-        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::limits() },
-        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) },
-        &mut out,
-    );
-    for request in &out {
-        if let d::Request::Show { address, replace: true } = request {
-            return address.clone();
-        }
-    }
-    panic!("first-run destination");
-}
-
 #[test]
 fn an_unfinished_store_opens_at_its_step() {
     for (rows, step, heading) in [
@@ -1786,13 +1763,6 @@ fn an_unfinished_store_opens_at_its_step() {
         node(view.tree(), Role::Heading { level: 1 }, heading);
         assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none(), "{:?}", root.forges());
     }
-}
-
-#[test]
-fn a_whole_store_moves_on() {
-    let mut root = ready_root(owned_adopted_rows());
-    assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Whole));
-    assert_eq!(first_run_destination(&mut root), Address::Chats { filter: ChatsFilter::All });
 }
 
 #[test]
@@ -2933,3 +2903,5 @@ fn welcome_prints_the_deployments_program_command_or_the_placeholders() {
         }
     }
 }
+
+pub(super) use crate::parts_tests::welcome::{first_run_destination, ready_root};

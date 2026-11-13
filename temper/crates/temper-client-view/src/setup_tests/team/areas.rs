@@ -1,7 +1,7 @@
 //! Areas' words, who-acts chips and links (client/pages/team.md, 1).
 pub(super) use super::f::team::{MADE, facts, holder_task, owner_task};
 use super::*;
-use crate::{frame::Bindings, words::Times};
+use crate::{bindings::Bindings, words::Times};
 use skein_ui::{Node, State};
 use temper_client_domain::{
     Action, Address,
@@ -268,3 +268,5 @@ fn team_names_routing_holders_and_owners_that_do_not_stand() {
         }
     }
 }
+
+use super::f::team::{READER, SAM};

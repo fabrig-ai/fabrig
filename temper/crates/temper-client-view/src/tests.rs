@@ -14,8 +14,15 @@ mod new_chat;
 mod shared;
 mod terminal;
 pub use temper_fixtures::client_documents as documents;
+mod accounts;
+mod cards;
+mod change;
+mod chat;
+mod chat_sheet;
+mod connect_forge;
+mod connect_model;
+mod deployment;
 pub(crate) mod fixtures;
-mod forge_page;
 mod forges;
 mod frame;
 mod goal;
@@ -25,9 +32,9 @@ mod how;
 mod inbox;
 mod limits;
 mod look;
+mod model_check;
 mod needs;
 mod only_you;
-mod paths;
 mod person_menu;
 mod playground;
 mod playground_start;
@@ -36,159 +43,13 @@ mod rail;
 mod remembered;
 mod settings;
 mod start_goal;
-mod team;
-mod team_follows;
-mod team_sessions;
+mod task;
 mod tell;
+mod times;
 mod toast;
 mod told;
-mod work;
-use jig_client::contract::{ApplicationPart, PartScope};
-use skein_ui::Role;
-
-#[test]
-fn each_resource_path_shape_says_its_words() {
-    let words = fixtures::words();
-    let rows: [(&[&[u8]], &[u8]); 9] = [
-        (&[b"forge", b"forge.example", b"acme", b"shop"], b"acme/shop on forge.example"),
-        (
-            &[b"forge", b"forge.example", b"acme", b"shop", b"branch", b"temper", b"7"],
-            b"branch temper/7 of acme/shop on forge.example",
-        ),
-        (
-            &[b"forge", b"forge.example", b"acme", b"shop", b"pull", b"12"],
-            b"pull request #12 of acme/shop on forge.example",
-        ),
-        (&[b"forge", b"forge.example", b"acme", b"shop", b"issue", b"3"], b"issue #3 of acme/shop on forge.example"),
-        (&[&[0, 1], &[0, 0, 0, 42]], b"repository 42 on forge 1"),
-        (&[b"elsewhere", b"x"], b"elsewhere/x"),
-        (&[b"forge", b"host", b"owner", b"name", b"branch"], b"forge/host/owner/name/branch"),
-        (&[b"forge", b"host", b"owner", b"name", b"pull", b"x", b"y"], b"forge/host/owner/name/pull/x/y"),
-        (&[], b""),
-    ];
-    for (path, said) in rows {
-        assert_eq!(&*fixtures::owner_part_text(&words, path), said, "path {path:?}");
-        let part = ApplicationPart::Resource { connector: fixtures::FORGE, path: fixtures::path(path) };
-        assert_eq!(&*fixtures::part_text(&words, part), said, "held path {path:?}");
-    }
-}
-#[test]
-fn each_numbered_kind_says_its_words_and_others_kind_n() {
-    let words = fixtures::words();
-    let rows: [(u16, &[u8]); 17] = [
-        (1, b"read"),
-        (2, b"push"),
-        (3, b"open a pull request"),
-        (4, b"merge a pull request"),
-        (5, b"post a review"),
-        (6, b"set a commit status"),
-        (7, b"post a comment"),
-        (8, b"create an issue"),
-        (9, b"create a branch"),
-        (10, b"edit a pull request"),
-        (11, b"update a pull request from its base"),
-        (12, b"close or reopen a pull request"),
-        (13, b"edit, close or reopen an issue"),
-        (14, b"set reviewers"),
-        (15, b"delete a branch"),
-        (0, b"kind 0"),
-        (16, b"kind 16"),
-    ];
-    for (kind, said) in rows {
-        assert_eq!(
-            &*fixtures::part_text(&words, ApplicationPart::Kind { connector: fixtures::FORGE, kind }),
-            said,
-            "kind {kind}"
-        );
-    }
-}
-#[test]
-fn a_part_needing_a_document_says_shown_on_the_forge() {
-    use jig_client::contract::ProposalKey;
-    let words = fixtures::words();
-    let connector = fixtures::FORGE;
-    let parts = [
-        ApplicationPart::Panel { connector, task: 1 },
-        ApplicationPart::Result { connector, task: 1 },
-        ApplicationPart::Effect {
-            connector,
-            proposal: ProposalKey { proposer: jig_client::contract::Proposer::Task(1), number: 1 },
-        },
-        ApplicationPart::OwnerEffect { connector, proposal: 1 },
-        ApplicationPart::Outbox { connector, scope: PartScope::Project(fixtures::PROJECT), entry: 1 },
-        ApplicationPart::Hold { connector, task: 1 },
-        ApplicationPart::Project { connector, project: fixtures::PROJECT },
-        ApplicationPart::Deployment { connector },
-    ];
-    for part in parts {
-        let tree = fixtures::part_tree(&words, part.clone());
-        assert_eq!(&*fixtures::text(&tree), b"Shown on the forge.", "part {part:?}");
-        assert_eq!(tree.nodes().first().expect("paragraph present").role, Role::Paragraph, "part {part:?}");
-    }
-}
-
-mod chat;
-mod chat_sheet;
-
-mod task;
-
-mod cards;
-
-const PATH_SEGMENT_BYTES: usize = 64;
-#[test]
-fn a_long_forge_path_shows_its_last_whole_segment() {
-    let words = fixtures::words();
-    let path = fixtures::path(&[&[b'a'; PATH_SEGMENT_BYTES], &[b'b'; PATH_SEGMENT_BYTES], b"last"]);
-    assert_eq!(
-        fixtures::part_text(&words, ApplicationPart::Resource { connector: fixtures::FORGE, path }).as_ref(),
-        b"\xe2\x80\xa6/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/last"
-    );
-}
-
-mod accounts;
-mod connect_model;
-
-mod times;
-
-mod change;
-
-mod welcome;
-
-mod flow;
-
-mod connect_forge;
-
-#[test]
-fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
-    let mut domain = fixtures::limits();
-    let words = fixtures::words();
-    let limits = crate::Limits::of(&domain, &words).unwrap();
-    assert!(crate::valid(&limits, &domain, &words));
-    domain.client.domain.rows = u32::MAX; // Checked account/node row counts overflow.
-    assert!(!crate::valid(&limits, &domain, &words));
-    assert!(crate::Limits::of(&domain, &words).is_none());
-}
-
-#[test]
-fn validity_accepts_large_ui_edges_and_refuses_overflowing_scene_capacity() {
-    let domain = fixtures::limits();
-    let words = fixtures::words();
-    let mut limits = crate::Limits::of(&domain, &words).unwrap();
-    limits.tree.nodes = 1 << 31_u32;
-    limits.tree.drawing_bytes = 1 << 31_u32;
-    assert!(crate::valid(&limits, &domain, &words));
-    limits.tree.scene_marks = u32::MAX;
-    limits.tree.styles_per_node = 2;
-    assert!(!crate::valid(&limits, &domain, &words));
-}
-
-mod words;
-
-mod model_check;
-
-mod repository_link;
-mod welcome_copy;
-
 mod views;
-
-mod deployment;
+mod welcome;
+mod welcome_copy;
+mod words;
+mod work;

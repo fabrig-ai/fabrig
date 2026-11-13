@@ -1,24 +1,8 @@
+#[expect(unused_imports, reason = "the whole-view fixture facade also exposes the staged render adapters")]
+pub use crate::parts_tests::fixtures::{owner_part_text, part_text, part_tree};
 pub use crate::view_kit::*;
-use jig_client::contract::{ApplicationPart, Part, PartKey, PartKind};
 use skein_lib::Queue;
 
-pub fn owner_part_text(words: &crate::words::Words, segments: &[&[u8]]) -> Box<[u8]> {
-    let mut builder = skein_ui::Builder::new(&tree_limits());
-    crate::forge::owner_part(
-        &mut builder,
-        &Part { connector: FORGE, kind: PartKind::Resource, key: PartKey::Path(path(segments)) },
-        words,
-    );
-    text(&builder.finish())
-}
-pub fn part_tree(words: &crate::words::Words, part: ApplicationPart) -> skein_ui::Tree {
-    let mut builder = skein_ui::Builder::new(&tree_limits());
-    crate::forge::drawn(&mut builder, &part, words);
-    builder.finish()
-}
-pub fn part_text(words: &crate::words::Words, part: ApplicationPart) -> Box<[u8]> {
-    text(&part_tree(words, part))
-}
 pub fn built() -> crate::View {
     let domain = domain_limits();
     let mut root = temper_client_domain::unlinked(&domain, SEED);

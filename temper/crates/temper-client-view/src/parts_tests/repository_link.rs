@@ -8,7 +8,7 @@ use temper_client_domain::{
 };
 use temper_client_protocol_wire::v1 as w;
 fn row() -> Row {
-    let rows = super::connect_forge::rows(super::connect_forge::connected(), w::Offer::Offered);
+    let rows = f::connect_forge::rows(f::connect_forge::connected(), w::Offer::Offered);
     let root = f::forge_root(Address::Forges, rows);
     let State::Rows(rows) = root.forges() else { panic!("forge rows") };
     rows[1].clone()
@@ -64,7 +64,7 @@ fn an_address_for_each_kind_of_forge() {
         row.kind = kind;
         row.web = web.map(Into::into);
         assert_eq!(address(&row, if signed { &facts } else { &empty }, b"work", b"hello").as_deref(), expected);
-        let mut approval = super::needs::approval_row();
+        let mut approval = f::needs::approval_row();
         approval.kind = kind;
         approval.forge = row.number;
         approval.owner = b"work".as_slice().into();
@@ -90,7 +90,7 @@ fn an_address_for_each_kind_of_forge() {
                 ])
             })
         };
-        assert_eq!(crate::pages::approval::address(&approval, if signed { &facts } else { &empty }), expected);
+        assert_eq!(crate::common::approval::address(&approval, if signed { &facts } else { &empty }), expected);
     }
 }
 #[test]
@@ -114,11 +114,11 @@ fn a_name_cannot_leave_its_segment_or_the_query() {
         assert_eq!(address(&row, &Forges::new(), name, name).as_deref(), Some(expected.as_bytes()));
         let expected = format!("https://forge.example/user/oauth2/temper?redirect_to=%2F{query}%2F{query}");
         assert_eq!(address(&row, &facts, name, name).as_deref(), Some(expected.as_bytes()));
-        let mut approval = super::needs::approval_row();
+        let mut approval = f::needs::approval_row();
         approval.owner = name.into();
         approval.name = name.into();
         let expected = format!("{expected}%2Fpulls%2F24%2Ffiles");
-        assert_eq!(crate::pages::approval::address(&approval, &facts).as_deref(), Some(expected.as_bytes()));
+        assert_eq!(crate::common::approval::address(&approval, &facts).as_deref(), Some(expected.as_bytes()));
     }
 }
 

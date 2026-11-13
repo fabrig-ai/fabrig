@@ -444,3 +444,22 @@ pub fn picker_fixture(two: bool, openai: bool, hidden: bool) -> (d::Domain, Toke
     delivered(&mut root, accounts_watch, c::Delivery::Accounts(Box::new(doc)));
     (root, watch, accounts_watch)
 }
+
+pub fn accounts(rows: &[c::AccountLine]) -> List<c::AccountLine> {
+    let mut accounts = List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for row in rows {
+        accounts.push(row.clone()).unwrap();
+    }
+    accounts
+}
+
+pub fn line_facts(
+    ready: Option<c::PayerReadiness>,
+    accounts: List<c::AccountLine>,
+    preference: Option<u32>,
+    kept: Option<u32>,
+    effort: Option<&[u8]>,
+    task_page: bool,
+) -> d::Domain {
+    line_fixture(ready, accounts, preference, kept, effort, task_page).0
+}
