@@ -175,11 +175,12 @@ pub struct SavedRepository {
 }
 
 /// A repository a run's pushes landed in: its deployment tag, and
-/// the last commit landed there.
+/// the last commit landed there, checked unless it came by an unchecked save.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Landed {
     pub tag: u64,
     pub commit: [u8; 32],
+    pub checked: bool,
 }
 
 /// Why a workspace could not be prepared, in temper's detail: what jig's

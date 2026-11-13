@@ -178,7 +178,7 @@ refusal carries none. Each names a repository by its tag.
 
 ```
 record Left             { landed: list Landed }
-record Landed           { tag: u64  commit: fixed 32 }
+record Landed           { tag: u64  commit: fixed 32  checked: bool }
 record Saved            { repositories: list SavedRepository }
 record SavedRepository  { tag: u64  from_saved: bool  landing: Landing }
 enum   Landing          { conflicted: Files, explained: PushFailure, landed: Commit,
@@ -198,7 +198,9 @@ enum   Missing          { repository, branch, commit }
 
 - **`Left`** is `wire::Work.landed`: each repository a run's pushes
   landed in, by tag, ascending, with the last commit landed there, the
-  head a pull request is to show.
+  head a pull request is to show, and `checked`: false when that commit
+  came by an unchecked save, true otherwise (`temper-worker-wire` 7; a
+  `Landed` of 6 reads as checked, and going down to 6 drops it).
 - **`Saved`** is `wire::Work.saved`: each repository's outcome of the
   save, in the assignment's order, with its tag and whether it started
   from saved work; each `Landing` field for field, its diagnostic the
@@ -217,7 +219,7 @@ enum   Missing          { repository, branch, commit }
   `PushFailure`'s `repository` stays the domain's own, a place, which the
   engine never reads.
 - **Into the engine's `Parts`:**
-  - `pushed`: each `Landed`, as `forge::Pushed { tag, commit }`;
+  - `pushed`: each `Landed`, as `forge::Pushed { tag, commit, checked }`;
   - `saved`: absent without a `Saved` part, which keeps the previous set;
     with one, the tags of the repositories with saved work after the
     save: those whose landing is `landed`, and those that started from
@@ -273,7 +275,10 @@ record Entry    { account: u64  account_login: text  token: secret }
   new generation into the identities' table, as one secret held by
   number and generation, the two newest kept (credentials.md, section
   4); `jig-protocol-engine-workers` fills it in as a grant's `value`,
-  through the routing.
+  through the routing, translating it down to the channel's agreed
+  `temper-worker-wire` version at each send by temper's bridge
+  (`wires.md`, 6), so the table holds the engine's current version
+  alone.
 - **On the worker:** `jig-protocol-worker-link` takes the value out with
   its table, the application's, its number and generation; the routing
   decodes it and keeps it in the worker's identities' table, at most the

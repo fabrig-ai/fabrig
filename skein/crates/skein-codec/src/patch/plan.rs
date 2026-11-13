@@ -6,14 +6,21 @@ use crate::schema::{DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, Va
 use alloc::boxed::Box;
 use skein_lib::{List, bytes, usize_of};
 
+mod reverse;
 #[cfg(test)]
 mod tests;
+pub(super) use reverse::reverse;
 
 /// Everything a run needs, with all indices owned by the indicated schema.
 #[derive(Debug)]
 pub(crate) struct Plan {
     /// Owner level; identity plans have no patch text and level zero.
     pub(crate) patch: u32,
+    pub(crate) reverse: bool,
+    /// Source-to-destination matching, for comparing a reverse in forward order.
+    pub(crate) opposites: List<Option<DeclIx>>,
+    /// Forward added constants, indexed by the reverse source field.
+    pub(crate) guards: List<Option<Span>>,
     pub(crate) from: u16,
     pub(crate) to: u16,
     /// Indices in `Tables::schemas`.
@@ -42,6 +49,7 @@ pub(crate) struct Plan {
 
 /// The whole-declaration conversion, computed in old declaration order.
 #[derive(Clone, Copy, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent planned reach facts (data/codec/bridges.md, 5.3)")]
 pub(crate) struct Conversion {
     pub(crate) new: Option<DeclIx>,
     /// Global site index, when the whole declaration is written.
@@ -52,6 +60,7 @@ pub(crate) struct Conversion {
     pub(crate) stops: bool,
     /// Carry may derive this declaration without its own written function.
     pub(crate) derived: bool,
+    pub(crate) total: bool,
 }
 
 /// Where a new field obtains its value; site indices are text-global.
@@ -1034,7 +1043,12 @@ fn check_operation(
 ) -> Result<(), PatchError> {
     let op = match line.kind {
         LineKind::Operation(op) => op,
-        LineKind::Rename | LineKind::Site | LineKind::Refusal => unreachable!("operation line"),
+        LineKind::Rename
+        | LineKind::Site
+        | LineKind::Refusal
+        | LineKind::DownSite
+        | LineKind::DownValue
+        | LineKind::Breaking => unreachable!("operation line"),
     };
     let mismatch = line.error(PatchWrong::Mismatch);
     match op {
@@ -1307,6 +1321,9 @@ fn empty_plan(old: &Schema, new: &Schema, old_index: u32, new_index: u32, room: 
     let (new_fields, _) = counts(new);
     let mut plan = Plan {
         patch: 0,
+        reverse: false,
+        opposites: List::with_capacity(old.declarations()),
+        guards: List::with_capacity(old_fields),
         from: old.version(),
         to: new.version(),
         old: old_index,
@@ -1325,7 +1342,7 @@ fn empty_plan(old: &Schema, new: &Schema, old_index: u32, new_index: u32, room: 
     };
     for _ in 0..old.declarations() {
         plan.declarations
-            .push(Conversion { new: None, site: None, copies: false, stops: false, derived: false })
+            .push(Conversion { new: None, site: None, copies: false, stops: false, derived: false, total: true })
             .expect("old declarations room");
     }
     for _ in 0..new.declarations() {
@@ -1335,6 +1352,7 @@ fn empty_plan(old: &Schema, new: &Schema, old_index: u32, new_index: u32, room: 
         plan.sources.push(Source::Written).expect("new fields room");
     }
     for _ in 0..old_fields {
+        plan.guards.push(None).expect("old field room");
         plan.fields.push(false).expect("old fields room");
     }
     for _ in 0..old_variants {
@@ -1428,7 +1446,7 @@ pub(super) fn build(tables: &Tables, patch: &[u8], parsed: &Parsed, block: Block
             return Err(error);
         }
         match line.kind {
-            LineKind::Rename | LineKind::Refusal => {}
+            LineKind::Rename | LineKind::Refusal | LineKind::DownValue | LineKind::DownSite | LineKind::Breaking => {}
             LineKind::Site => {
                 let (decl, target) = resolve(new, patch, line)?;
                 check_site(&plan, &matching, new, decl, target, line)?;
@@ -1490,12 +1508,42 @@ pub(super) fn build(tables: &Tables, patch: &[u8], parsed: &Parsed, block: Block
     if let Err(wrong) = fill(&mut plan, old, new, &matching, false) {
         return Err(block.error(wrong));
     }
+    for at in block.lines.start..block.lines.end {
+        let line = parsed.lines.get(at).expect("block line");
+        if line.kind == LineKind::DownValue || line.kind == LineKind::DownSite {
+            reverse::down(tables, patch, parsed, block, &matching)?;
+            break;
+        }
+    }
     Ok(plan)
+}
+
+pub(crate) fn compared(plan: &Plan, old: &Schema, new: &Schema, a: TypeIx, b: TypeIx) -> Comparison {
+    if plan.reverse { compare(&plan.opposites, new, old, b, a) } else { compare(&plan.olds, old, new, a, b) }
 }
 
 fn conversion(plan: &Plan, at: DeclIx) -> Conversion {
     *plan.declarations.get(at.index()).expect("old declaration conversion")
 }
+pub(crate) fn piece_type(ty: Type) -> Option<DeclIx> {
+    match ty {
+        Type::Bytes { held: Held::Pieces(item), .. } | Type::Secret { held: Held::Pieces(item), .. } => Some(item),
+        Type::U8
+        | Type::U16
+        | Type::U32
+        | Type::U64
+        | Type::Bool
+        | Type::Duration
+        | Type::Fixed(_)
+        | Type::Text(_)
+        | Type::Bytes { held: Held::Opaque | Held::Record { .. }, .. }
+        | Type::Secret { held: Held::Opaque | Held::Record { .. }, .. }
+        | Type::List { .. }
+        | Type::Option(_)
+        | Type::Named(_) => None,
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "the bounded wrapper walk exhaustively names the terminal schema types (data/codec/patches.md, 3)"
@@ -1504,12 +1552,12 @@ fn reference_flags(
     plan: &Plan,
     old: &Schema,
     new: &Schema,
-    matching: &Matching,
     mut a: TypeIx,
     mut b: TypeIx,
 ) -> Result<(bool, bool), PatchWrong> {
-    let copies = match compare(&matching.declarations, old, new, a, b) {
-        Comparison::Equal | Comparison::Widen { integer: false } => true,
+    let copies = match compared(plan, old, new, a, b) {
+        Comparison::Equal => true,
+        Comparison::Widen { integer: false } => !plan.reverse,
         Comparison::Widen { integer: true } | Comparison::Wrap | Comparison::Retype => false,
     };
     let bound = add(
@@ -1519,6 +1567,41 @@ fn reference_flags(
     for _ in 0..bound {
         let av = old.ty(a);
         let bv = new.ty(b);
+        if plan.reverse {
+            match av {
+                Type::Option(inner) => {
+                    a = inner;
+                    match bv {
+                        Type::Option(inner) => b = inner,
+                        Type::U8
+                        | Type::U16
+                        | Type::U32
+                        | Type::U64
+                        | Type::Bool
+                        | Type::Duration
+                        | Type::Fixed(_)
+                        | Type::Secret { .. }
+                        | Type::Text(_)
+                        | Type::Bytes { .. }
+                        | Type::List { .. }
+                        | Type::Named(_) => {}
+                    }
+                    continue;
+                }
+                Type::U8
+                | Type::U16
+                | Type::U32
+                | Type::U64
+                | Type::Bool
+                | Type::Duration
+                | Type::Fixed(_)
+                | Type::Secret { .. }
+                | Type::Text(_)
+                | Type::Bytes { .. }
+                | Type::List { .. }
+                | Type::Named(_) => {}
+            }
+        }
         match bv {
             Type::Option(inner) => {
                 b = inner;
@@ -1569,6 +1652,21 @@ fn reference_flags(
             | Type::Text(_)
             | Type::Bytes { .. }
             | Type::Named(_) => {}
+        }
+        if plan.reverse {
+            if let Some(item) = piece_type(bv) {
+                if let Some(source) = *plan.olds.get(item.index()).expect("destination piece item") {
+                    let converted = conversion(plan, source);
+                    if converted.stops {
+                        return Err(PatchWrong::Pieces);
+                    }
+                    return Ok((copies && converted.copies, false));
+                }
+                return Ok((copies, false));
+            }
+            if piece_type(av).is_some() {
+                return Ok((copies, false));
+            }
         }
         match av {
             Type::Named(at) => {
@@ -1651,6 +1749,7 @@ fn fill_matches(plan: &mut Plan, new: &Schema, matching: &Matching) {
 
 fn fill(plan: &mut Plan, old: &Schema, new: &Schema, matching: &Matching, identity: bool) -> Result<(), PatchWrong> {
     fill_matches(plan, new, matching);
+    reverse::totals(plan, old, new, matching);
     for at in 0..old.declarations() {
         let old_at = DeclIx::new(at);
         let mut converted = conversion(plan, old_at);
@@ -1707,7 +1806,7 @@ fn fill(plan: &mut Plan, old: &Schema, new: &Schema, matching: &Matching, identi
                     Target::Field(old_field) => {
                         let old_ty = old.field(old_field).ty;
                         let new_ty = new.field(new_field).ty;
-                        let derived = compare(&matching.declarations, old, new, old_ty, new_ty) != Comparison::Retype;
+                        let derived = compared(plan, old, new, old_ty, new_ty) != Comparison::Retype;
                         *plan.fields.get_mut(old_field.index()).expect("old field flag") = derived;
                         converted.derived &= derived;
                         let site = site_for(plan, new_part);
@@ -1715,7 +1814,7 @@ fn fill(plan: &mut Plan, old: &Schema, new: &Schema, matching: &Matching, identi
                             converted.stops = true;
                             converted.copies = false;
                         } else if converted.site.is_none() {
-                            let (copies, stops) = reference_flags(plan, old, new, matching, old_ty, new_ty)?;
+                            let (copies, stops) = reference_flags(plan, old, new, old_ty, new_ty)?;
                             converted.copies &= copies;
                             converted.stops |= stops;
                         }
@@ -1773,7 +1872,8 @@ pub(super) fn plan_bound(text: u32) -> Option<u64> {
     for bytes in [
         List::<Conversion>::price(text)?,
         List::<Option<DeclIx>>::price(text)?.checked_mul(2)?,
-        List::<Source>::price(text)?,
+        List::<Source>::price(text)?.checked_mul(2)?,
+        List::<Option<Span>>::price(text)?.checked_mul(2)?,
         List::<Option<VariantIx>>::price(text)?.checked_mul(2)?,
         List::<bool>::price(text)?.checked_mul(2)?,
         List::<u8>::price(tokens.checked_mul(8)?.checked_add(text)?)?,
@@ -1789,5 +1889,5 @@ pub(super) fn plan_bound(text: u32) -> Option<u64> {
     ] {
         total = total.checked_add(bytes)?;
     }
-    Some(total)
+    total.checked_mul(2)
 }

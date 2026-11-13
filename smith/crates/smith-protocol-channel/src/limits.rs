@@ -7,7 +7,7 @@ pub struct Limits {
     /// Aggregate incoming Start bytes, including its whole saved window.
     pub start_bytes: u32,
     /// This agent's bounded charter decoder allowances.
-    pub charter: smith_charter::v4::Limits,
+    pub charter: smith_charter::v5::Limits,
     /// This agent's bounded saved-turn decoder allowances.
     pub transcript: smith_transcript::v7::Limits,
     /// Saved turns admitted on resume, from one window's message capacity.
@@ -126,8 +126,8 @@ fn start_cells(limits: &smith_channel::Limits) -> Option<u64> {
     smith_channel::Start::decoded_bound(&cells)
 }
 
-fn charter_cells(limits: &smith_charter::v4::Limits) -> Option<u64> {
-    let cells = smith_charter::v4::Limits {
+fn charter_cells(limits: &smith_charter::v5::Limits) -> Option<u64> {
+    let cells = smith_charter::v5::Limits {
         section_title: 0,
         section_body: 0,
         host_tool_name: 0,

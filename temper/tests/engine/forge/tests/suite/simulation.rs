@@ -1861,7 +1861,7 @@ fn a_reported_worker_push_is_not_taken_for_outside_drift() {
     });
     world.produce(b"temper/51");
     let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
-    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name, pushed)]) });
+    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name, pushed, true)]) });
     world.run_for(1);
     world.take_seen();
     world.event(top::Event::Hint {
@@ -2630,7 +2630,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     });
     world.produce(b"temper/51");
     let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
-    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed)]) });
+    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed, true)]) });
     world.run_for(1);
     world.take_seen();
     world.push(b"temper/51", b"outside");
@@ -3195,7 +3195,7 @@ fn a_lost_run_confirms_its_unreported_forward_head_by_fresh_reads() {
     world.event(top::Event::Answered {
         task: 51,
         attempt: 1,
-        pushed: Box::new([(name.clone(), translate::commit(world.branch(b"temper/51")))]),
+        pushed: Box::new([(name.clone(), translate::commit(world.branch(b"temper/51")), true)]),
     });
     world.run_for(1);
     world.event(top::Event::Claim {
@@ -3314,7 +3314,7 @@ fn a_repository_with_222_branches_and_two_recorded_prefix_branches_is_adopted() 
         world.event(top::Event::Answered {
             task,
             attempt: 1,
-            pushed: Box::new([(name.clone(), translate::commit(world.branch(branch.as_bytes())))]),
+            pushed: Box::new([(name.clone(), translate::commit(world.branch(branch.as_bytes())), true)]),
         });
         world.run_for(1);
         let Some(top::Stored::BranchHead(head)) = world.stored().get(&top::Key::BranchHead(name)) else {

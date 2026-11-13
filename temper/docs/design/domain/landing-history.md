@@ -85,7 +85,7 @@ what the row's `head` and `base` hold.
 | `asked` | a resolution, a repair or a judgement is delegated to the change, its task heard | `ask`: `resolution`, `repair` or `judgement`; `task`; `gate`, the judgement's or a repair's gate number, where it has one | the head asked at; the base, for a resolution | the delegate's task, 0 |
 | `answered` | that delegate's result is heard | `ask`; `outcome`: `pushed`, `passed`, `refused`, `nothing`, `failed` or `cancelled` | the head it pushed, where it pushed one | the delegate's task, 0 |
 | `pushed` | a head reaches the change's branch, observed | none | the head | own |
-| `delivered` | temper accepts a head delivered to the change | `checked`: a checked delivery, or an unchecked save | the head | own |
+| `delivered` | temper accepts a head delivered to the change: at the answer of the attempt that delivered it, from its `Left` (`../protocol/channel.md`, 5), once for each repository's head new to the change | `checked`: a checked delivery, or an unchecked save, as its `Landed` says; a `Landed` from `temper-worker-wire` 6, which has no such field, reads as checked | the head | own |
 | `paused` | under `queue`, the change waits in a queue paused for its branch (`forge/queues.md`) | `why`: `branch_red` (CI failed on the branch's tip) or `tier_red` (a tier's red pauses it, `after-landing.md`, 7) | none; the branch's tip | own |
 | `resumed` | that queue goes on | none | none; the branch's tip | its `paused`'s |
 | `formed` | under `turn`, a landing forms, or a new round of it starts, with the change a member | `members`, in the stack's order, each its change, unit and head; `place`, the change's in it, from 1 | its head; the round's base | the landing's task, the round |
@@ -203,7 +203,11 @@ pub fn write_event(
   its landing). A start is written when its member is none and the step
   finds the interval open; its end when the member is set and the step
   finds it closed. A restart restores the member with the row, so
-  relearning writes nothing.
+  relearning writes nothing. It also keeps `delivered`, the last head
+  an attempt's answer delivered, or none: the change's `last_head` is
+  also set by branch reads, so it can't tell an accepted head from an
+  observed one. An answer whose head equals `delivered` writes nothing;
+  a different head writes `delivered` and sets the member.
 - **Only what changed:** a poll or a hint that finds nothing new writes
   nothing.
 - **Advancing steps in one decision** each write their event: a change
@@ -220,9 +224,21 @@ the landing's task, the round and that member's unit, in the stack's
 order. `formed` carries the round's members whole in each. A landing
 that ends holding no member writes its `landing-ended` for the member
 that left it last: the landing's row keeps that member's place,
-`last_left`, set by each leave. So each change's events are its whole
-history, swept with it (4.5), and a landing's are read through its
-index (4.1).
+`last_left`, set by each leave. A member's row keeps the last round it
+was formed in, `round`, so a member a round already turned (a cut's
+kept prefix) is in no later round: not in that round's `formed`, nor
+its `round-ended` or `landing-ended`. A row from before `round` was
+kept has none, read as the landing's current round. So each change's
+events are its whole history, swept with it (4.5), and a landing's are
+read through its index (4.1).
+
+- **A job's events:** the root hands the forge a job's change, task,
+  attempt and kind, prepare or merge, on its own stored transitions:
+  `job` where the attempt is first known, `job-ended` where the root
+  stores the child's end (or an attempt's loss), with the prefix or
+  head it pushed read back from the forge where it pushed one. Each
+  transition is stored once, so a restart or a reread writes neither
+  again.
 
 - **A cut that keeps a prefix:** a search's cut (`landing-search.md`,
   4) takes its suffix out of the round, and the green prefix goes on
@@ -371,8 +387,10 @@ of the forge's family (`../client/ctl/tools.md`, 2):
 - **Its upper bound:** the first page takes the project's last number,
   `next` less one, and the cursor carries it, so later pages read the
   same history; no event past it is listed.
-- **Its range:** `--since` and `--until`, as `change show` takes them,
-  keep the events whose `at` is in the half-open range; an order by
+- **Its range:** `--since` and `--until`, each TIME as `task amend
+  --deadline` takes it in `../client/ctl/areas.md` (`2026-10-24T17:00Z`,
+  UTC to the minute), printed back in that form, keep the events whose
+  `at` is in the half-open range; an order by
   number reads from the mark of `--since`'s hour (4.2), and stops at the
   first event at or past `--until`.
 - **The cursor:** 17 bytes, a version byte, 1, then the upper bound and

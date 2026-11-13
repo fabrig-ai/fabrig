@@ -6,16 +6,27 @@ pub use context::Context;
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
-pub const PATCHES: &[&str] = &[r"patch 1
+pub const PATCHES: &[&str] = &[
+    r"patch 1
 owner temper 1
 
 family temper-worker-wire 5 to 6
 add Prefixes
 add Access.prefixes
-"];
+",
+    r"patch 1
+owner temper 2
+
+family temper-worker-wire 6 to 7
+add Landed.checked bool true
+",
+];
 
 pub mod kept {
     pub mod temper_worker_wire {
+        use skein_codec::bridge::{Bridge, BridgeError};
+        use skein_codec::patch::Capacity;
+
         pub const TEXTS: &[&str] = &[
             r"family temper-worker-wire 5
 
@@ -106,7 +117,57 @@ record Entries { entries: list 256 Entry }
 enum Kind { forgejo: Token, github: Entries }
 record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }
 ",
+            r"family temper-worker-wire 7
+
+# Down: the workspace items (protocol/channel.md, 4). Names, branches and
+# the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;
+# the list Bounds.repositories.
+record Merge { branch: bytes 1024 base: fixed 32 }
+record Merged { branch: bytes 1024 heads: list 64 fixed 32 }
+record Branch { branch: bytes 1024 }
+record Commit { commit: fixed 32 }
+enum Start { merge: Merge, base: Branch, branch: Branch, commit: Commit, saved: Branch, merged: Merged }
+record Writable { push: bytes 1024 expected: option fixed 32 landing: option bytes 1024 }
+record Prefixes { branches: list 5 bytes 1024 }
+enum Access { writable: Writable, read_only, prefixes: Prefixes }
+record Repository { tag: u64 name: bytes 1024 remote: bytes 1024 git: option bytes 4096 start: Start access: Access identity: u32 account: option u64 save: option bytes 1024 }
+versioned record Items { repositories: list 64 Repository }
+
+# A job's command path and bounded request file (temper/docs/design/protocol/tooling.md, 2 and 6).
+record JobSpec { command: bytes 4096 request: bytes 1048576 }
+
+# Up: what a run left and saved, a failed preparation (protocol/channel.md, 5).
+# Lists of repositories take Bounds.repositories; Files Bounds.conflicts
+# paths of Bounds.path_bytes; the diagnostic its ceiling, the domain's
+# PushDiagnostic::CAPACITY.
+record Landed { tag: u64 commit: fixed 32 checked: bool }
+record Left { landed: list 64 Landed }
+record Files { files: list 1024 bytes 4096 }
+enum PushReason { missing_repository, missing_branch, missing_commit, refused, unreachable, broken, timed_out, cancelled, unavailable, busy, too_large, nothing, unknown }
+record Diagnostic { output: bytes 512 cut: u64 }
+record PushFailure { repository: option u32 reason: PushReason diagnostic: Diagnostic }
+enum Landing { conflicted: Files, explained: PushFailure, landed: Commit, moved, failed, refused, unchanged }
+record SavedRepository { tag: u64 from_saved: bool landing: Landing }
+record Saved { repositories: list 64 SavedRepository }
+enum Missing { repository, branch, commit }
+record Missed { tag: u64 missing: Missing }
+record Tag { tag: u64 }
+record Conflicted { tag: u64 head: fixed 32 }
+enum Preparation { transient, missing: Missed, refused: Tag, conflicted: Conflicted }
+
+# Beside a grant: a git identity's value (protocol/channel.md, 6).
+record Token { token: secret 4096 }
+record Entry { account: u64 account_login: text 256 token: secret 4096 }
+record Entries { entries: list 256 Entry }
+enum Kind { forgejo: Token, github: Entries }
+record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }
+",
         ];
+        pub const FLOOR: u16 = 5;
+
+        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {
+            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)
+        }
         pub mod v5 {
             pub mod merge {
                 use skein_codec::schema::FieldIx;
@@ -460,9 +521,193 @@ record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }
                 pub const EMAIL: FieldIx = FieldIx::new(48);
             }
         }
+        pub mod v7 {
+            pub mod merge {
+                use skein_codec::schema::FieldIx;
+                pub const BRANCH: FieldIx = FieldIx::new(0);
+                pub const BASE: FieldIx = FieldIx::new(1);
+            }
+            pub mod merged {
+                use skein_codec::schema::FieldIx;
+                pub const BRANCH: FieldIx = FieldIx::new(2);
+                pub const HEADS: FieldIx = FieldIx::new(3);
+            }
+            pub mod branch {
+                use skein_codec::schema::FieldIx;
+                pub const BRANCH: FieldIx = FieldIx::new(4);
+            }
+            pub mod commit {
+                use skein_codec::schema::FieldIx;
+                pub const COMMIT: FieldIx = FieldIx::new(5);
+            }
+            pub mod start {
+                use skein_codec::schema::VariantIx;
+                pub const MERGE: VariantIx = VariantIx::new(0);
+                pub const BASE: VariantIx = VariantIx::new(1);
+                pub const BRANCH: VariantIx = VariantIx::new(2);
+                pub const COMMIT: VariantIx = VariantIx::new(3);
+                pub const SAVED: VariantIx = VariantIx::new(4);
+                pub const MERGED: VariantIx = VariantIx::new(5);
+            }
+            pub mod writable {
+                use skein_codec::schema::FieldIx;
+                pub const PUSH: FieldIx = FieldIx::new(6);
+                pub const EXPECTED: FieldIx = FieldIx::new(7);
+                pub const LANDING: FieldIx = FieldIx::new(8);
+            }
+            pub mod prefixes {
+                use skein_codec::schema::FieldIx;
+                pub const BRANCHES: FieldIx = FieldIx::new(9);
+            }
+            pub mod access {
+                use skein_codec::schema::VariantIx;
+                pub const WRITABLE: VariantIx = VariantIx::new(6);
+                pub const READ_ONLY: VariantIx = VariantIx::new(7);
+                pub const PREFIXES: VariantIx = VariantIx::new(8);
+            }
+            pub mod repository {
+                use skein_codec::schema::FieldIx;
+                pub const TAG: FieldIx = FieldIx::new(10);
+                pub const NAME: FieldIx = FieldIx::new(11);
+                pub const REMOTE: FieldIx = FieldIx::new(12);
+                pub const GIT: FieldIx = FieldIx::new(13);
+                pub const START: FieldIx = FieldIx::new(14);
+                pub const ACCESS: FieldIx = FieldIx::new(15);
+                pub const IDENTITY: FieldIx = FieldIx::new(16);
+                pub const ACCOUNT: FieldIx = FieldIx::new(17);
+                pub const SAVE: FieldIx = FieldIx::new(18);
+            }
+            pub mod items {
+                use skein_codec::schema::FieldIx;
+                pub const REPOSITORIES: FieldIx = FieldIx::new(19);
+            }
+            pub mod job_spec {
+                use skein_codec::schema::FieldIx;
+                pub const COMMAND: FieldIx = FieldIx::new(20);
+                pub const REQUEST: FieldIx = FieldIx::new(21);
+            }
+            pub mod landed {
+                use skein_codec::schema::FieldIx;
+                pub const TAG: FieldIx = FieldIx::new(22);
+                pub const COMMIT: FieldIx = FieldIx::new(23);
+                pub const CHECKED: FieldIx = FieldIx::new(24);
+            }
+            pub mod left {
+                use skein_codec::schema::FieldIx;
+                pub const LANDED: FieldIx = FieldIx::new(25);
+            }
+            pub mod files {
+                use skein_codec::schema::FieldIx;
+                pub const FILES: FieldIx = FieldIx::new(26);
+            }
+            pub mod push_reason {
+                use skein_codec::schema::VariantIx;
+                pub const MISSING_REPOSITORY: VariantIx = VariantIx::new(9);
+                pub const MISSING_BRANCH: VariantIx = VariantIx::new(10);
+                pub const MISSING_COMMIT: VariantIx = VariantIx::new(11);
+                pub const REFUSED: VariantIx = VariantIx::new(12);
+                pub const UNREACHABLE: VariantIx = VariantIx::new(13);
+                pub const BROKEN: VariantIx = VariantIx::new(14);
+                pub const TIMED_OUT: VariantIx = VariantIx::new(15);
+                pub const CANCELLED: VariantIx = VariantIx::new(16);
+                pub const UNAVAILABLE: VariantIx = VariantIx::new(17);
+                pub const BUSY: VariantIx = VariantIx::new(18);
+                pub const TOO_LARGE: VariantIx = VariantIx::new(19);
+                pub const NOTHING: VariantIx = VariantIx::new(20);
+                pub const UNKNOWN: VariantIx = VariantIx::new(21);
+            }
+            pub mod diagnostic {
+                use skein_codec::schema::FieldIx;
+                pub const OUTPUT: FieldIx = FieldIx::new(27);
+                pub const CUT: FieldIx = FieldIx::new(28);
+            }
+            pub mod push_failure {
+                use skein_codec::schema::FieldIx;
+                pub const REPOSITORY: FieldIx = FieldIx::new(29);
+                pub const REASON: FieldIx = FieldIx::new(30);
+                pub const DIAGNOSTIC: FieldIx = FieldIx::new(31);
+            }
+            pub mod landing {
+                use skein_codec::schema::VariantIx;
+                pub const CONFLICTED: VariantIx = VariantIx::new(22);
+                pub const EXPLAINED: VariantIx = VariantIx::new(23);
+                pub const LANDED: VariantIx = VariantIx::new(24);
+                pub const MOVED: VariantIx = VariantIx::new(25);
+                pub const FAILED: VariantIx = VariantIx::new(26);
+                pub const REFUSED: VariantIx = VariantIx::new(27);
+                pub const UNCHANGED: VariantIx = VariantIx::new(28);
+            }
+            pub mod saved_repository {
+                use skein_codec::schema::FieldIx;
+                pub const TAG: FieldIx = FieldIx::new(32);
+                pub const FROM_SAVED: FieldIx = FieldIx::new(33);
+                pub const LANDING: FieldIx = FieldIx::new(34);
+            }
+            pub mod saved {
+                use skein_codec::schema::FieldIx;
+                pub const REPOSITORIES: FieldIx = FieldIx::new(35);
+            }
+            pub mod missing {
+                use skein_codec::schema::VariantIx;
+                pub const REPOSITORY: VariantIx = VariantIx::new(29);
+                pub const BRANCH: VariantIx = VariantIx::new(30);
+                pub const COMMIT: VariantIx = VariantIx::new(31);
+            }
+            pub mod missed {
+                use skein_codec::schema::FieldIx;
+                pub const TAG: FieldIx = FieldIx::new(36);
+                pub const MISSING: FieldIx = FieldIx::new(37);
+            }
+            pub mod tag {
+                use skein_codec::schema::FieldIx;
+                pub const TAG: FieldIx = FieldIx::new(38);
+            }
+            pub mod conflicted {
+                use skein_codec::schema::FieldIx;
+                pub const TAG: FieldIx = FieldIx::new(39);
+                pub const HEAD: FieldIx = FieldIx::new(40);
+            }
+            pub mod preparation {
+                use skein_codec::schema::VariantIx;
+                pub const TRANSIENT: VariantIx = VariantIx::new(32);
+                pub const MISSING: VariantIx = VariantIx::new(33);
+                pub const REFUSED: VariantIx = VariantIx::new(34);
+                pub const CONFLICTED: VariantIx = VariantIx::new(35);
+            }
+            pub mod token {
+                use skein_codec::schema::FieldIx;
+                pub const TOKEN: FieldIx = FieldIx::new(41);
+            }
+            pub mod entry {
+                use skein_codec::schema::FieldIx;
+                pub const ACCOUNT: FieldIx = FieldIx::new(42);
+                pub const ACCOUNT_LOGIN: FieldIx = FieldIx::new(43);
+                pub const TOKEN: FieldIx = FieldIx::new(44);
+            }
+            pub mod entries {
+                use skein_codec::schema::FieldIx;
+                pub const ENTRIES: FieldIx = FieldIx::new(45);
+            }
+            pub mod kind {
+                use skein_codec::schema::VariantIx;
+                pub const FORGEJO: VariantIx = VariantIx::new(36);
+                pub const GITHUB: VariantIx = VariantIx::new(37);
+            }
+            pub mod identity {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(46);
+                pub const LOGIN: FieldIx = FieldIx::new(47);
+                pub const NAME: FieldIx = FieldIx::new(48);
+                pub const EMAIL: FieldIx = FieldIx::new(49);
+            }
+        }
         pub mod p0001 {
             pub use super::v5 as old;
             pub use super::v6 as new;
+        }
+        pub mod p0002 {
+            pub use super::v6 as old;
+            pub use super::v7 as new;
         }
     }
 }
@@ -471,6 +716,10 @@ pub mod refusal {}
 
 pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
+}
+
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
 }
 
 #[cfg(test)]
@@ -489,5 +738,10 @@ mod tests {
     #[test]
     fn p0001_goldens() {
         assert_eq!(skein_codegen::patch::goldens(&owner(), 1, super::written), Ok(()), "patch 0001 goldens");
+    }
+
+    #[test]
+    fn p0002_goldens() {
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 2, super::written), Ok(()), "patch 0002 goldens");
     }
 }

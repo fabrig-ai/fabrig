@@ -27,7 +27,7 @@ fn relays_go_again_in_the_order_first_sent() {
     }
     assert!(relays.end(Token::new(7), Token::new(2), b"first"));
     for (index, name) in [(0, b"third".as_slice()), (1, b"second")] {
-        assert_eq!(relays.replay(index).expect("record").bytes().get(8..), Some(name));
+        assert_eq!(relays.replay(index).expect("record").frame.bytes().get(8..), Some(name));
     }
     assert!(relays.replay(2).is_none());
 }
@@ -51,6 +51,6 @@ fn a_repeated_call_keeps_its_first_record_and_position() {
     let mut relays = Relays::new(&fixtures::LIMITS);
     assert!(add(&mut relays, 7, b"first"));
     relays.add(Token::new(7), Token::new(2), b"first".as_slice().into(), &record(b"new")).expect("existing relay");
-    assert_eq!(relays.replay(0).expect("record").bytes().get(8..), Some(b"first".as_slice()));
+    assert_eq!(relays.replay(0).expect("record").frame.bytes().get(8..), Some(b"first".as_slice()));
     assert!(relays.replay(1).is_none());
 }

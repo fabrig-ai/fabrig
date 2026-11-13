@@ -22,13 +22,23 @@ pub(crate) struct Block {
     pub lines: Vec<Line>,
 }
 
+impl Block {
+    /// The author's reason for a block without a reverse.
+    pub(crate) fn breaking(&self) -> Option<&str> {
+        self.lines.iter().find_map(|line| match line {
+            Line::Op(line) => line.strip_prefix("breaking "),
+            Line::Site { .. } => None,
+        })
+    }
+}
+
 /// A statement of a block.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Line {
     /// An operation, as written, its comment and outer spaces dropped.
     Op(String),
     /// `written D` or `written D.f`, and the refusals after it.
-    Site { target: String, refusals: Vec<Refusal> },
+    Site { target: String, refusals: Vec<Refusal>, down: bool },
 }
 
 /// `refuses <name> "<text>"`.
@@ -74,7 +84,11 @@ impl PatchText {
                 }
                 "written" => {
                     let target = rest.trim().to_owned();
-                    patch.blocks.last_mut()?.lines.push(Line::Site { target, refusals: Vec::new() });
+                    patch.blocks.last_mut()?.lines.push(Line::Site { target, refusals: Vec::new(), down: false });
+                }
+                "down" if rest.trim_start().starts_with("written ") => {
+                    let target = rest.trim_start().strip_prefix("written ")?.trim().to_owned();
+                    patch.blocks.last_mut()?.lines.push(Line::Site { target, refusals: Vec::new(), down: true });
                 }
                 "refuses" => {
                     let (name, text) = rest.trim().split_once(' ')?;
@@ -92,10 +106,10 @@ impl PatchText {
 
     /// Each site in text order with its family's block: the site's index is
     /// its position (11.1).
-    pub(crate) fn sites(&self) -> impl Iterator<Item = (&Block, &str, &[Refusal])> {
+    pub(crate) fn sites(&self) -> impl Iterator<Item = (&Block, &str, &[Refusal], bool)> {
         self.blocks.iter().flat_map(|block| {
             block.lines.iter().filter_map(move |line| match line {
-                Line::Site { target, refusals } => Some((block, target.as_str(), refusals.as_slice())),
+                Line::Site { target, refusals, down } => Some((block, target.as_str(), refusals.as_slice(), *down)),
                 Line::Op(_) => None,
             })
         })
@@ -103,7 +117,7 @@ impl PatchText {
 
     /// Each refusal's name in text order: its index is its position (11.1).
     pub(crate) fn refusals(&self) -> impl Iterator<Item = &str> {
-        self.sites().flat_map(|(_, _, refusals)| refusals.iter().map(|refusal| refusal.name.as_str()))
+        self.sites().flat_map(|(_, _, refusals, _)| refusals.iter().map(|refusal| refusal.name.as_str()))
     }
 }
 
@@ -144,6 +158,7 @@ mod tests {
                 Line::Op("add Task.note text 8 \"a # b\"".to_owned()),
                 Line::Site {
                     target: "Task.score".to_owned(),
+                    down: false,
                     refusals: vec![Refusal { name: "unscored".to_owned(), text: "\"no attempts\"".to_owned() }],
                 },
             ]

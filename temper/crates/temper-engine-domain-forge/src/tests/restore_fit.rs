@@ -52,7 +52,9 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         }),
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
+            job: None,
             landing: policy::Landing {
+                last_left: None,
                 round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                 task: n,
@@ -696,6 +698,7 @@ fn independent_timer_room_is_checked_before_insertion() {
 
 fn landing(members: u32, gates: u32) -> LandingRow {
     let member = policy::Member {
+        round: None,
         unit: 0,
         branch: Box::from(b"temper/1/l61".as_slice()),
         combined: None,
@@ -719,7 +722,9 @@ fn landing(members: u32, gates: u32) -> LandingRow {
         landed: None,
     };
     LandingRow {
+        job: None,
         landing: policy::Landing {
+            last_left: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task: 1,
@@ -743,6 +748,7 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
         row.asks = vec![None; usize::try_from(LIMITS.landing_members).unwrap()].into_boxed_slice();
         row.entries = vec![
             LandingEntry {
+                run: None,
                 preparation: None,
                 base: None,
                 entry: 1,
@@ -764,6 +770,7 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
             LandingRow {
                 entries: vec![
                     LandingEntry {
+                        run: None,
                         preparation: None,
                         base: None,
                         entry: 1,
@@ -854,6 +861,7 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
     }
     if let Stored::Landing(row) = &mut record {
         row.landing.members = Box::new([policy::Member {
+            round: None,
             unit: 0,
             branch: Box::from(b"temper/1/l61".as_slice()),
             combined: None,

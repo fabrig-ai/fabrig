@@ -276,13 +276,13 @@ record LandingFallback { units: u16 top: fixed 32 }
 record LandingBlamed { gate: u16 run: u64 red: fixed 32 green: fixed 32 }
 enum LandingLeave { conflict, head_moved: Commit, cancelled, held, refused: LandingGateRefused, failed: LandingGateFailed, earlier_conflict, unit: LandingLeftChange, dependency: LandingLeftChange, fallback: LandingFallback, blamed: LandingBlamed }
 enum LandingCombine { merge, squash }
-record LandingMember { change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 left: option LandingLeave unit: u16 branch: bytes 4096 combined: option LandingCombine recorded: bool told: bool judging: bool leave_told: bool }
+record LandingMember { round: option u16 change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 left: option LandingLeave unit: u16 branch: bytes 4096 combined: option LandingCombine recorded: bool told: bool judging: bool leave_told: bool }
 enum LandingRoundEnd { stale, leave, conflict, cut }
 record LandingRecordHold { member: u16 }
 enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn }
 record LandingSearch { green: u16 red: u16 }
 record LandingRound { branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 judging: bool changed: option u16 search: option LandingSearch }
-record LandingState { task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: option LandingRound own_hold: option LandingOwnHold }
+record LandingState { last_left: option u16 task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: option LandingRound own_hold: option LandingOwnHold }
 record LandingPrepare { head: fixed 32 main: fixed 32 }
 record LandingRepairAsk { gate: u16 candidate: fixed 32 below: option LandingBelow }
 record LandingPrefix { prefix: fixed 32 }
@@ -290,8 +290,12 @@ record LandingResolve { base: fixed 32 }
 enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve, judge: Judgement }
 record LandingAskSlot { ask: option LandingAsk }
 enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, delete, record }
-record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 }
-record LandingRow { landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry }
+record LandingRun { id: u64 attempt: u32 ended: bool }
+record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 run: option LandingRun }
+enum HistoryJob { prepare, merge }
+enum HistoryJobOutcome { done, conflict, failed, lost }
+record HistoryJobRecord { task: u64 attempt: u32 job: HistoryJob outcome: option HistoryJobOutcome round: u16 members: list 64 u16 head: option fixed 32 written: bool }
+record LandingRow { job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry }
 record ReceiptName { name: bytes 32 }
 enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
 record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }
@@ -426,7 +430,7 @@ record FollowQuestion { change: u64 number: u64 words: bytes 1048576 person: opt
 record FollowRow { project: u32 follow: u32 source: Repository branch: bytes 1024 heard: option fixed 32 task: option u64 stopped: option bytes 8192 queue: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity questions: list 1024 FollowQuestion pending: option FollowAct }
 record FollowCheckProgress { follow: u32 source: fixed 32 head: fixed 32 definition: bytes 1024 key: option fixed 32 flight: option TierFlight page: u32 faults: u32 held: option bytes 512 }
 # Landing history (temper/docs/design/domain/landing-history.md, 2 and 4).
-record ChangeHistory { last: u64 ready: option u64 queued: option u64 paused: option u64 held: option u64 landing_held: option u64 }
+record ChangeHistory { last: u64 ready: option u64 queued: option u64 paused: option u64 held: option u64 landing_held: option u64 delivered: option fixed 32 }
 record HistoryMark { hour: u64 first: u64 }
 record HistoryProject { project: u32 next: u64 kept: u64 whole_since: option u64 marks: list 2048 HistoryMark sweeping: option u64 removing: bool }
 record HistoryInLanding { task: u64 round: u16 unit: u16 }
@@ -439,9 +443,7 @@ record HistoryDeparted { line: HistoryLine cause: HistoryDeparture }
 record HistoryUpdate { style: UpdateStyle }
 enum HistoryUpdateOutcome { updated, conflict, failed }
 record HistoryUpdated { outcome: HistoryUpdateOutcome }
-enum HistoryJob { prepare, merge }
 record HistoryJobStarted { job: HistoryJob task: u64 }
-enum HistoryJobOutcome { done, conflict, failed, lost }
 record HistoryJobEnded { job: HistoryJob outcome: HistoryJobOutcome }
 enum HistoryWith { branch, earlier }
 record HistoryConflict { with: HistoryWith files: u32 }
@@ -459,7 +461,7 @@ record HistoryRoundEnded { cause: HistoryRoundCause }
 record HistoryGate { gate: u16 key: fixed 32 }
 enum HistoryGateVerdict { passed, failed, fault, timeout, superseded }
 record HistoryGateEnded { gate: u16 key: fixed 32 verdict: HistoryGateVerdict }
-record HistoryProof { gate: u16 run: u64 }
+record HistoryProof { gate: u16 run: option u64 }
 record HistoryProved { proofs: list 64 HistoryProof }
 record HistorySearched { green: option fixed 32 red: fixed 32 blamed: u16 }
 record HistoryProbeEnded { green: bool }
@@ -482,7 +484,7 @@ record HistoryChange { project: u32 change: u64 number: u64 landing: option u64 
 record HistoryLanding { project: u32 landing: u64 number: u64 change: u64 }
 record HistoryLast { project: u32 number: u64 change: u64 at: u64 }
 
-record ChangeRow { signed: list 8 SignOff goal: option u64 ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 questions: Questions repairs: option fixed 32 follows: option ChangeFollows follow_check: option FollowCheckProgress catch_up: option fixed 32 close: option bytes 16384 merge_result: option bytes 512 history: option ChangeHistory }
+record ChangeRow { job: option HistoryJobRecord signed: list 8 SignOff goal: option u64 ending: option ChangeEnding repair_tasks: list 1024 u64 resolution_tasks: list 1024 u64 result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 questions: Questions repairs: option fixed 32 follows: option ChangeFollows follow_check: option FollowCheckProgress catch_up: option fixed 32 close: option bytes 16384 merge_result: option bytes 512 history: option ChangeHistory }
 
 record FindingsTopic { project: u32 }
 enum Topic { landings: LandingsTopic, ci: CiTopic, pull: NumberTopic, participation: NumberTopic, findings: FindingsTopic }
@@ -543,3 +545,4 @@ record Device { party: u64 number: u32 endpoint: bytes 1024 p256dh: fixed 65 aut
 enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer, landed_draft: LandedDraft, follow: boxed FollowRow, device: Device, finding: Finding, history_project: HistoryProject, history_event: HistoryEvent, history_change: HistoryChange, history_landing: HistoryLanding, history_last: HistoryLast }
 
 versioned record Row { value: Value }
+

@@ -68,6 +68,12 @@ The fleet child domain knows the hosts and the runs they host:
   6) is marked mismatched: until it is lost, the fleet places nothing on
   it, neither a run nor a job, as on a draining one, while what it hosts
   goes on. The task refused claims again elsewhere, spending no try.
+- **A task its channel's versions cannot carry leaves that channel
+  alone.** An assignment or a job the engine's component refuses as
+  *untranslated* (`../../protocol/channel/bridges.md`, 6.1) keeps its
+  task off that channel until the channel is lost, while the channel
+  takes every other run and job; the task claims again, spending no
+  try, on any other host that may take it, or waits.
 - **Relaying:** messages and cancels down, tool calls up and their
   answers back, each call answered once; a call the fleet cannot pass up
   is answered at once, unserved, or busy while the engine stops

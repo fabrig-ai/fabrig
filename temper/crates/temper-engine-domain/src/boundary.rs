@@ -637,6 +637,7 @@ pub enum StoreInput {
 /// `domain/hosts/README.md`, 2, and `domain/hosts/hub.md`, 4).
 #[derive(Hash, Debug)]
 pub enum Link {
+    Mismatch,
     Hello {
         worker: u32,
         hello: jig_domain_link::Hello,
@@ -728,7 +729,7 @@ pub enum Fact {
 
 #[derive(Hash, Debug)]
 pub enum WorkerInput {
-    /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 9.1).
+    /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 10.1).
     Opened { worker: Box<str>, statement: crate::WorkerStatement },
     /// A worker channel's hello, record or loss.
     Link { channel: Token, link: Link },
@@ -795,6 +796,7 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    History(forge::history::Query),
     Finding {
         project: u32,
         number: u32,
@@ -825,6 +827,7 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    History(forge::history::Reply),
     Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,

@@ -140,7 +140,7 @@ fn decode_type(ty: &Type, schema: &Context<'_>, bound_name: &str, path: &str, de
             let item_expr = decode_type(
                 item,
                 schema,
-                &format!("{bound_name}_item"),
+                &emit_limits::child_name(bound_name, emit_limits::LimitLevel::Item),
                 path,
                 depth.checked_add(1).expect("schema depth"),
             );
@@ -162,7 +162,7 @@ fn decode_type(ty: &Type, schema: &Context<'_>, bound_name: &str, path: &str, de
             let item_expr = decode_type(
                 item,
                 schema,
-                &format!("{bound_name}_some"),
+                &emit_limits::child_name(bound_name, emit_limits::LimitLevel::Some),
                 path,
                 depth.checked_add(1).expect("schema depth"),
             );
@@ -263,7 +263,7 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
         method.head.push(format!("        if version != {} {{ return Err(Problem {{ path: Path::{}Version, reason: skein_codec::Reason::Version }}); }}\n", emit_limits::literal(schema.version), record.name));
     }
     for field in &record.fields {
-        let bound_name = format!("{}_{}", emit_limits::snake(&record.name), field.name);
+        let bound_name = emit_limits::bound_name(&record.name, &field.name);
         let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
         let expr = decode_type(&field.ty, schema, &bound_name, &path, 0);
         method.body.push(Statement {

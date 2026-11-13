@@ -761,6 +761,7 @@ pub(super) fn root_at_with_classes(
                 }
                 w::Read::RevisionSetting(_)
                 | w::Read::Finding(_)
+                | w::Read::History(_)
                 | w::Read::ProposalItems(_)
                 | w::Read::ProgramEnvironment
                 | w::Read::View(_) => {}

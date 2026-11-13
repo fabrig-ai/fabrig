@@ -33,8 +33,8 @@ impl Domain {
     }
 }
 
-pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]) -> Option<u64> {
-    let [(name, _)] = heads else { return None };
+pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit, bool)]) -> Option<u64> {
+    let [(name, _, _)] = heads else { return None };
     Some(u64::from(name.repository))
 }
 
@@ -44,6 +44,7 @@ pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]
 /// ([`crate::try_step`]) hands back first, and their host sends again.
 pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option<core::Event> {
     match link {
+        Link::Mismatch => Some(core::Event::Fleet(fleet::Event::Mismatch { channel })),
         Link::Hello { worker, hello } => {
             domain.hub_link.connect(channel);
             Some(core::Event::Fleet(fleet::Event::Hello { channel, worker, hello }))
@@ -83,7 +84,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
         } => true,
         WorkerInput::Opened { .. }
         | WorkerInput::ResultRead { .. }
-        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. }
+        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost | Link::Mismatch, .. }
         | WorkerInput::Link {
             link:
                 Link::Up {
@@ -838,6 +839,7 @@ mod tests {
         use temper_engine_domain_forge as forge;
         use temper_engine_domain_forge_change as change;
         forge::ChangeRow {
+            job: None,
             signed: Box::new([]),
             task: 7,
             repository: skein_forge::api::Repository { forge: 3, repository: 1 },

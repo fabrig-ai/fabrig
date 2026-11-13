@@ -1,6 +1,6 @@
 //! History records and the v20 patch (landing-history.md, 2, 4 and 7).
 use super::{
-    catch_up::{kept_golden, patched},
+    catch_up::{kept_golden, kept_schema, kept_value, patched},
     fixtures,
 };
 use crate::{keys, records, v21};
@@ -64,7 +64,7 @@ fn kinds() -> Box<[What]> {
             place: 2,
         },
         What::Gate { gate: 3, key: [9; 32] },
-        What::Proved { proofs: Box::new([Proof { gate: 3, run: 31 }, Proof { gate: 4, run: 32 }]) },
+        What::Proved { proofs: Box::new([Proof { gate: 3, run: Some(31) }, Proof { gate: 4, run: None }]) },
         What::Proved { proofs: Box::new([]) },
         What::Search,
         What::Searched { green: Some([2; 32]), red: [4; 32], blamed: 3 },
@@ -160,22 +160,7 @@ fn history_records_round_trip_every_kind_and_interval() {
     }
     check(Stored::HistoryLanding(LandingIndex { project: 3, landing: 29, number: 7, change: 9 }));
     check(Stored::HistoryLast(Last { project: 3, number: 7, change: 9, at: Wall::from_nanos(31) }));
-    let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
-    for history in [
-        None,
-        Some(ChangeHistory { last: 7, ready: None, queued: None, paused: None, held: None, landing_held: None }),
-        Some(ChangeHistory {
-            last: 29,
-            ready: Some(2),
-            queued: Some(3),
-            paused: Some(4),
-            held: Some(5),
-            landing_held: Some(6),
-        }),
-    ] {
-        change.history = history;
-        check(Stored::Change(Box::new(change.clone())));
-    }
+    check_change_history_rows();
     assert_eq!(v21::CEILINGS.history_project_marks, MARKS);
     assert_eq!(v21::CEILINGS.history_hold_reason, REASON_BYTES);
     assert_eq!(
@@ -186,16 +171,53 @@ fn history_records_round_trip_every_kind_and_interval() {
 
 #[test]
 fn the_v20_change_patch_adds_no_backdated_history() {
+    use crate::patches::kept::temper_store::v20 as kept;
     let before = kept_golden(20, "record_change_row_full.bin");
     let bytes = patched(20, 9, b"ChangeRow", before.clone());
-    assert_eq!(bytes.as_ref().split_last(), Some((&0, before.as_ref())), "the only change appends none");
+    let (job, rest) = bytes.as_ref().split_first().unwrap();
+    assert_eq!(*job, 0, "no pending job");
+    assert_eq!(rest.split_last(), Some((&0, before.as_ref())), "no backdated history");
     let after = v21::ChangeRow::decode(&v21::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.history().is_none());
-    let old = crate::v20::ChangeRow::decode(&crate::v20::CEILINGS, &mut Reader::new(&before)).unwrap();
-    assert_eq!(after.task(), old.task());
-    assert_eq!(after.repository().forge(), old.repository().forge());
+    assert!(after.job().is_none());
+    let schema = kept_schema(20);
+    let (value, old) = kept_value(&schema, b"ChangeRow", before);
+    assert_eq!(after.task(), value.uint(value.field(old, kept::change_row::TASK).unwrap()).unwrap());
+    let repository = value.field(old, kept::change_row::REPOSITORY).unwrap();
+    assert_eq!(
+        u64::from(after.repository().forge()),
+        value.uint(value.field(repository, kept::repository::FORGE).unwrap()).unwrap()
+    );
     assert_eq!(crate::STORE_VERSION, 21);
     assert_eq!(crate::patches::PATCHES.len(), 10);
+}
+
+fn check_change_history_rows() {
+    let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
+    for history in [
+        None,
+        Some(ChangeHistory {
+            last: 7,
+            ready: None,
+            queued: None,
+            paused: None,
+            held: None,
+            landing_held: None,
+            delivered: None,
+        }),
+        Some(ChangeHistory {
+            last: 29,
+            ready: Some(2),
+            queued: Some(3),
+            paused: Some(4),
+            held: Some(5),
+            landing_held: Some(6),
+            delivered: Some([9; 32]),
+        }),
+    ] {
+        change.history = history;
+        check(Stored::Change(Box::new(change.clone())));
+    }
 }
 
 fn marks() -> Box<[Mark]> {

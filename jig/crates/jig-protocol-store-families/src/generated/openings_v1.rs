@@ -22,6 +22,25 @@ pub const CEILINGS: Limits = Limits {
     worker_opening_terms: 64,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 5] = [
+    "opened_wire_name",
+    "opened_wire_layouts",
+    "worker_opening_worker",
+    "worker_opening_wires",
+    "worker_opening_terms",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 5] {
+        [
+            self.opened_wire_name, self.opened_wire_layouts, self.worker_opening_worker, self.worker_opening_wires, self.worker_opening_terms,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {
@@ -489,88 +508,4 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     biggest = biggest.max(OpenedTerm::decoded_bound_within(limits)?);
     biggest = biggest.max(WorkerOpening::decoded_bound_within(limits)?);
     Some(biggest)
-}
-
-#[cfg(test)]
-mod golden_tests {
-    use super::{CEILINGS, OpenedWire, OpenedWireParts, OpenedTerm, OpenedTermParts, WorkerOpening, WorkerOpeningParts, Path};
-    use super::Limits;
-
-    use alloc::boxed::Box;
-
-    type Case = (&'static str, fn() -> bool);
-
-    pub(super) fn table<const N: usize>(cases: &[Case; N]) {
-        let mut failures = [None; N];
-        let mut passed = true;
-        for ((name, case), failure) in cases.iter().zip(&mut failures) {
-            if !case() {
-                *failure = Some(name);
-                passed = false;
-            }
-        }
-        assert!(passed, "{failures:?}");
-    }
-
-    pub(super) fn golden<T: PartialEq, E, D>(
-        value: T,
-        bytes: &[u8],
-        encoded: Result<Box<[u8]>, E>,
-        decoded: Result<T, D>,
-    ) -> bool {
-        let encoded = match encoded {
-            Ok(encoded) => encoded.as_ref() == bytes,
-            Err(_) => false,
-        };
-        let decoded = match decoded {
-            Ok(decoded) => decoded == value,
-            Err(_) => false,
-        };
-        encoded && decoded
-    }
-
-    type BoundDecode<T, L, P, R> = fn(&L, &[u8]) -> Result<T, (P, R)>;
-
-    pub(super) fn bound<T, L, P: PartialEq, R: PartialEq>(
-        label: (P, R),
-        limits: &L,
-        at: &[u8],
-        past: &[u8],
-        decode: BoundDecode<T, L, P, R>,
-    ) -> bool {
-        let (path, reason) = label;
-        let at = decode(limits, at).is_ok();
-        let past = match decode(limits, past) {
-            Err((found_path, found_reason)) => found_path == path && found_reason == reason,
-            Ok(_) => false,
-        };
-        at && past
-    }
-    static GOLDEN_0: [Case; 6] = [
-        ("record_opened_wire_smallest", || { let value = OpenedWire::new(&CEILINGS, OpenedWireParts { name: Box::from([].as_slice()), lowest: 0_u16, layouts: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, OpenedWire::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_opened_wire_full", || { let value = OpenedWire::new(&CEILINGS, OpenedWireParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), lowest: u16::MAX, layouts: { let mut items = skein_lib::List::with_capacity(1); items.push([165_u8; 32]).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 255, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, OpenedWire::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_opened_term_smallest", || { let value = OpenedTerm::new(&CEILINGS, OpenedTermParts { kind: 0_u16, largest: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, OpenedTerm::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_opened_term_full", || { let value = OpenedTerm::new(&CEILINGS, OpenedTermParts { kind: u16::MAX, largest: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, OpenedTerm::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_worker_opening_smallest", || { let value = WorkerOpening::new(&CEILINGS, WorkerOpeningParts { worker: Box::from([].as_slice()), wires: skein_lib::List::with_capacity(0), output: 0_u32, terms: skein_lib::List::with_capacity(0), at: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WorkerOpening::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_worker_opening_full", || { let value = WorkerOpening::new(&CEILINGS, WorkerOpeningParts { worker: Box::from([97_u8, 98_u8, 99_u8].as_slice()), wires: { let mut items = skein_lib::List::with_capacity(1); items.push(OpenedWire::new(&CEILINGS, OpenedWireParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), lowest: u16::MAX, layouts: { let mut items = skein_lib::List::with_capacity(1); items.push([165_u8; 32]).expect("one slot"); items } }).expect("golden within ceilings")).expect("one slot"); items }, output: u32::MAX, terms: { let mut items = skein_lib::List::with_capacity(1); items.push(OpenedTerm::new(&CEILINGS, OpenedTermParts { kind: u16::MAX, largest: u32::MAX }).expect("golden within ceilings")).expect("one slot"); items }, at: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 1, 0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 1, 0, 0, 0, 3, 97, 98, 99, 255, 255, 0, 0, 0, 1, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 255, 255, 255, 255, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WorkerOpening::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-    ];
-
-    #[test]
-    fn golden_0() {
-        table(&GOLDEN_0);
-    }
-
-    static BOUNDS_0: [Case; 5] = [
-        ("bound_opened_wire_name", || bound((Path::OpenedWireName, skein_codec::Reason::Bound), &Limits { opened_wire_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match OpenedWire::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_opened_wire_layouts", || bound((Path::OpenedWireLayouts, skein_codec::Reason::Bound), &Limits { opened_wire_layouts: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match OpenedWire::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_worker_opening_worker", || bound((Path::WorkerOpeningWorker, skein_codec::Reason::Bound), &Limits { worker_opening_worker: 3, ..CEILINGS }, &[0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match WorkerOpening::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_worker_opening_wires", || bound((Path::WorkerOpeningWires, skein_codec::Reason::Bound), &Limits { worker_opening_wires: 3, ..CEILINGS }, &[0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match WorkerOpening::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_worker_opening_terms", || bound((Path::WorkerOpeningTerms, skein_codec::Reason::Bound), &Limits { worker_opening_terms: 3, ..CEILINGS }, &[0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], &[0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match WorkerOpening::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-    ];
-
-    #[test]
-    fn bounds_0() {
-        table(&BOUNDS_0);
-    }
-
 }

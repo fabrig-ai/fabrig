@@ -182,14 +182,22 @@ fn the_heads_a_run_landed_reach_the_roots_pushed_heads() {
     for (tag, commit) in
         [(temper_engine_domain_forge::tag(1, 1), [3; 32]), (temper_engine_domain_forge::tag(3, 1), [4; 32])]
     {
-        landed.push(wire::Landed::new(&limits, wire::LandedParts { tag, commit }).unwrap()).unwrap();
+        landed.push(wire::Landed::new(&limits, wire::LandedParts { tag, commit, checked: true }).unwrap()).unwrap();
     }
     let left = wire::Left::new(&limits, wire::LeftParts { landed }).unwrap();
     assert_eq!(
         translate::parts(Some(left), None, None).pushed.as_ref(),
         &[
-            temper_engine_domain_forge::Pushed { tag: temper_engine_domain_forge::tag(1, 1), commit: [3; 32] },
-            temper_engine_domain_forge::Pushed { tag: temper_engine_domain_forge::tag(3, 1), commit: [4; 32] },
+            temper_engine_domain_forge::Pushed {
+                tag: temper_engine_domain_forge::tag(1, 1),
+                commit: [3; 32],
+                checked: true
+            },
+            temper_engine_domain_forge::Pushed {
+                tag: temper_engine_domain_forge::tag(3, 1),
+                commit: [4; 32],
+                checked: true
+            },
         ]
     );
 }

@@ -1,0 +1,27 @@
+{
+  "source": "https://fabrig.ai/temper/v0",
+  "engine": {
+    "run": ["ssh", "-o", "BatchMode=yes", "operator@engine.example.com"],
+    "binaries": "/usr/local/bin",
+    "builds": "/var/lib/temper-builds",
+    "stop": "sudo systemctl stop temper-engine",
+    "start": "sudo systemctl start temper-engine",
+    "log": "sudo journalctl -u temper-engine -o cat --since @{since}",
+    "check": "sudo -u temper {binary} upgrade --check --config /var/lib/temper/config --data /var/lib/temper/data --cache /var/lib/temper/cache /var/lib/temper/data/deployment",
+    "backup": "sudo -u temper cp -a /var/lib/temper/data/deployment /var/lib/temper/backups/{name}",
+    "swap": "sudo install -m 0755 {from} {to}",
+    "ctl": "sudo -u temper temper ctl /var/lib/temper/ctl"
+  },
+  "workers": [
+    {
+      "name": "w1",
+      "run": ["ssh", "-o", "BatchMode=yes", "operator@worker.example.com"],
+      "binaries": "/usr/local/bin",
+      "builds": "/var/lib/temper-builds",
+      "stop": "sudo systemctl stop temper-worker",
+      "start": "sudo systemctl start temper-worker",
+      "swap": "sudo install -m 0755 {from} {to}",
+      "document": "sudo cat /var/lib/temper/config/temper.json"
+    }
+  ]
+}

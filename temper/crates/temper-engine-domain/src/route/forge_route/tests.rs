@@ -1083,12 +1083,19 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
             &mut out,
         );
     }
-    for number in [1, 3] {
-        super::left(&mut domain, &env, 8, 1, Box::new([forge::Pushed { tag: forge::tag(number, 1), commit: [2; 32] }]));
+    for (number, expected_checked) in [(1, false), (3, true)] {
+        super::left(
+            &mut domain,
+            &env,
+            8,
+            1,
+            Box::new([forge::Pushed { tag: forge::tag(number, 1), commit: [2; 32], checked: expected_checked }]),
+        );
         let Some(Work::Forge(forge::Event::Answered { pushed, .. })) = domain.work.pop() else {
             panic!("reported heads")
         };
-        let [(name, commit)] = pushed.as_ref() else { panic!("one matching hold") };
+        let [(name, commit, checked)] = pushed.as_ref() else { panic!("one matching hold") };
+        assert_eq!(*checked, expected_checked);
         assert_eq!((name.forge, name.repository, *commit), (number, 1, [2; 32]));
         let Some(Work::Forge(forge::Event::Lost { task: 8, attempt: 1 })) = domain.work.pop() else {
             panic!("writer release follows reported heads")
@@ -1207,6 +1214,7 @@ fn writable_repositories_exclude_an_ended_forge() {
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
+        job: None,
         signed: Box::new([]),
         task: 7,
         repository: skein_forge::api::Repository { forge: 3, repository: 1 },
@@ -4456,6 +4464,31 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
             words: b"its questions are spent: 4 of 4 taken".as_slice().into(),
         }
     );
+}
+
+/// temper/docs/design/protocol/wires.md, 6: the channel root names the job encoder's declaration.
+#[test]
+fn the_job_root_names_the_declaration_the_engine_encodes() {
+    use jig_protocol_worker_wire::Carried;
+    use temper_protocol_worker_wire::{application, v1, wire};
+    let application = application(&v1::CEILINGS).expect("temper's application");
+    let mut found = None;
+    for root in &application.roots {
+        if root.carried == Carried::JobSpec {
+            found = Some(root);
+        }
+    }
+    let root = found.expect("job spec root");
+    assert_eq!(root.wire, wire::FAMILY);
+    assert_eq!(root.declaration, "JobSpec");
+    for bytes in [
+        super::close::spec(b"repo", b"close", b"{}", 4096).expect("close spec"),
+        super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"),
+    ] {
+        let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
+        assert_ne!(spec.command(), []);
+        assert_ne!(spec.request(), []);
+    }
 }
 
 /// temper/docs/design/domain/worker/jobs.md: preserve the close request whole.

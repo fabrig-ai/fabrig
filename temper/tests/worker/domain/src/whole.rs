@@ -523,7 +523,10 @@ impl World {
             };
             assert_eq!(*saved, translate::commit(commit).raw());
         } else {
-            assert_eq!(work.landed.as_ref(), [wire::Landed { tag: 1, commit: translate::commit(commit).raw() }]);
+            assert_eq!(
+                work.landed.as_ref(),
+                [wire::Landed { tag: 1, commit: translate::commit(commit).raw(), checked: true }]
+            );
         }
         self.report.tree = self.forge.tree(commit);
         assert_eq!(self.report.tree, [(PATH.to_vec(), b"edited\n".to_vec())].into(), "the entire edited tree landed");

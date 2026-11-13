@@ -409,7 +409,8 @@ fn remove_cancels_each_change_on_the_forge_and_its_task_ends_cancelled() {
     repository.provider.forge = 2;
     outputs(&mut d, Event::Restore { record: Stored::Forge(record(2, Mode::Fake)) });
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
-    outputs(&mut d, Event::Change { row: other.clone() });
+    outputs(&mut d, Event::Change { row: other });
+    let other = d.change(53).unwrap().clone();
     let sent = remove(&mut d, 1, Some(PartyRole::Owner));
     for task in [51, 52] {
         assert_eq!(d.change(task).unwrap().change.state, change::State::Ended);

@@ -1,4 +1,5 @@
 //! Domain bounds and identity field rules (protocol/channel.md, sections 6 and 8).
+mod application;
 mod fixtures;
 use crate::v1;
 use alloc::boxed::Box;
@@ -176,7 +177,7 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     let one_more =
         largest + u64::from(v1::CEILINGS.items_repositories) * (4 + u64::from(v1::CEILINGS.prefixes_branches_item));
     assert!(one_more > 1_048_576);
-    assert_eq!(sizes, crate::Largest { items: 12792, left: 84, saved: 1084, resource: 41, grant: 233 });
+    assert_eq!(sizes, crate::Largest { items: 12792, left: 86, saved: 1084, resource: 41, grant: 233 });
 }
 
 #[test]

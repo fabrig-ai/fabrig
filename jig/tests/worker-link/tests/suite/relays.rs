@@ -47,6 +47,8 @@ fn answers(world: &World) -> Vec<&host::Relayed> {
             | Request::Close { .. }
             | Request::Abort { .. }
             | Request::Refused { .. }
+            | Request::CannotSendWhole { .. }
+            | Request::Untranslated { .. }
             | Request::Fact { .. }
             | Request::RelayCancelled { .. } => None,
         })
@@ -90,6 +92,8 @@ fn a_relay_cancelled_while_the_link_is_down_is_never_sent_again() {
             | Request::Close { .. }
             | Request::Abort { .. }
             | Request::Refused { .. }
+            | Request::CannotSendWhole { .. }
+            | Request::Untranslated { .. }
             | Request::Fact { .. } => None,
         })
         .collect();
@@ -163,6 +167,7 @@ fn call_input_at_the_bound_crosses_and_one_more_byte_is_answered_locally() {
         };
         world.down(Event::Up {
             up: host::LinkUp::Call {
+                contract: 1,
                 run,
                 attempt,
                 call,
@@ -218,6 +223,7 @@ fn encoding_errors_are_bounded_and_local_refusal_has_one_terminal() {
         };
         world.down(Event::Up {
             up: host::LinkUp::Call {
+                contract: 1,
                 run,
                 attempt,
                 call,
@@ -250,6 +256,7 @@ fn calls_during_an_outage_are_refused_or_retained_before_the_next_hello() {
         };
         world.down(Event::Up {
             up: host::LinkUp::Call {
+                contract: 1,
                 run,
                 attempt,
                 call,

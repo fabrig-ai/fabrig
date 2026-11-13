@@ -83,6 +83,7 @@ fn live_producer_with_route(mut world: World, questions_up: bool) -> (World, u64
             pushed: Box::new([forge_top::Pushed {
                 tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
                 commit: translate::commit(head),
+                checked: true,
             }]),
             preparation: None,
         },
@@ -261,6 +262,7 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
             pushed: Box::new([forge_top::Pushed {
                 tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
                 commit: translate::commit(head),
+                checked: true,
             }]),
             preparation: None,
         },

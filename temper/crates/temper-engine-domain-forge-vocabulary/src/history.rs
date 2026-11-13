@@ -28,6 +28,24 @@ pub enum Operation {
     Own,
     Of(u64),
 }
+/// Pending read-back of a job's end, committed beside its owner (landing-history.md, 3.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct JobRecord {
+    pub step: JobStep,
+    pub round: u16,
+    pub members: Box<[u16]>,
+    pub head: Option<Commit>,
+    pub written: bool,
+}
+/// A job's durable attempt transition, supplied by the root; never stored here.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct JobStep {
+    pub task: u64,
+    pub attempt: u32,
+    pub job: Job,
+    pub outcome: Option<JobOutcome>,
+    pub head: Option<Commit>,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Event {
     pub project: u32,
@@ -51,6 +69,7 @@ pub struct ChangeHistory {
     pub paused: Option<u64>,
     pub held: Option<u64>,
     pub landing_held: Option<u64>,
+    pub delivered: Option<Commit>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Project {
@@ -97,7 +116,7 @@ pub struct Member {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Proof {
     pub gate: u16,
-    pub run: u64,
+    pub run: Option<u64>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Unready {
@@ -251,6 +270,13 @@ pub enum What {
     Held { on: On, reason: Box<[u8]>, by: Option<By> },
     Released { on: On, reason: Box<[u8]>, by: Option<By> },
     After { verdict: AfterVerdict },
+}
+
+pub(crate) fn job_bytes(job: Option<&JobRecord>) -> Option<u64> {
+    match job {
+        Some(job) => skein_lib::len_u64(job.members.len()).checked_mul(2),
+        None => Some(0),
+    }
 }
 
 /// Heap payload held by an event, excluding its inline row.

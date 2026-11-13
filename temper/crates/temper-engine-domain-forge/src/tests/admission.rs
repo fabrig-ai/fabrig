@@ -99,7 +99,11 @@ fn a_branch_first_watched_after_its_push_keeps_the_recorded_head_for_drift() {
             holders: Box::new([]),
         },
     );
-    send(&mut d, &env, Event::Answered { task: TASK, attempt: 1, pushed: Box::new([(name.clone(), fixtures::HEAD)]) });
+    send(
+        &mut d,
+        &env,
+        Event::Answered { task: TASK, attempt: 1, pushed: Box::new([(name.clone(), fixtures::HEAD, true)]) },
+    );
     assert_eq!(d.branch_head(&name), Some(fixtures::HEAD));
     let mut out = send(&mut d, &env, Event::Names { task: TASK, resources: Box::new([name]) });
     resume(&mut d, &env, &mut out);

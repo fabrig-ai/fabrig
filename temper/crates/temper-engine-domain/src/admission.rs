@@ -180,6 +180,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Follow { .. }
             | forge::Event::FollowChangeAmended { .. }
             | forge::Event::FollowAct { .. }
+            | forge::Event::JobHistory { .. }
             | forge::Event::SettleOutbox => true,
         },
     }
@@ -264,7 +265,7 @@ fn worker_completes(worker: &WorkerInput) -> bool {
         | WorkerInput::DecodedHostCall { .. }
         | WorkerInput::RenderedHostCall { .. }
         | WorkerInput::ResultRead { .. }
-        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. } => true,
+        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost | Link::Mismatch, .. } => true,
         WorkerInput::Link { link: Link::Up { up, .. }, .. } => !up.new_work(),
     }
 }

@@ -7,16 +7,10 @@ fn the_link_s_credential_names_temper_s_wire() {
     let settings = fixtures::worker_settings();
     let files = fixtures::worker_files();
     let secret = files.contents(&settings.jig.secret).unwrap();
-    let credential = worker_settings::credential(&settings, secret);
-    assert_eq!(credential.wires.len(), 1);
-    assert_eq!(
-        credential.wires.get(0),
-        Some(&jig_protocol_worker_wire::Spoken::current(
-            temper_protocol_worker_wire::wire::FAMILY,
-            temper_protocol_worker_wire::wire::VERSION,
-            temper_protocol_worker_wire::wire::layout()
-        ))
-    );
+    let payload = worker_settings::payload_limits(&fixtures::worker_limits()).unwrap();
+    let credential = worker_settings::credential(&settings, secret, &payload).unwrap();
+    assert_eq!(credential.application.spoken.len(), 1);
+    assert_eq!(credential.application.spoken.get(0), Some(&temper_protocol_worker_wire::spoken()));
     assert_eq!(credential.secret.expose(), b"worker-secret-value");
     assert_eq!(credential.name.as_ref(), b"worker-a");
 }
@@ -167,7 +161,7 @@ fn an_answer_goes_up_with_its_left_and_saved_parts() {
         answer,
         preparation: None,
         work: wire::Work {
-            landed: Box::new([wire::Landed { tag: 3, commit: [7; 32] }]),
+            landed: Box::new([wire::Landed { tag: 3, commit: [7; 32], checked: true }]),
             saved: Some(Box::new([wire::SavedRepository { tag: 3, from_saved: true, landing: wire::Landing::Moved }])),
         },
     });
@@ -306,6 +300,7 @@ fn a_one_argument_agent_lists_with_its_configuration_alone() {
         &fixtures::worker_limits(),
         &fixtures::worker_files(),
         crate::WorkerRuntime {
+            wires: None,
             root: io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: fixtures::pinned_agent(&settings.jig.agent),
@@ -366,6 +361,7 @@ fn reads_without_a_usable_launch_or_grant_fail_without_io() {
             &fixtures::worker_limits(),
             &fixtures::worker_files(),
             crate::WorkerRuntime {
+                wires: None,
                 root: io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
                 agent: fixtures::pinned_agent(&settings.jig.agent),
@@ -407,6 +403,7 @@ fn a_worker_s_secret_is_read_and_checked_at_its_path() {
             &fixtures::worker_limits(),
             &files,
             crate::WorkerRuntime {
+                wires: None,
                 root: io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
                 agent: fixtures::pinned_agent(&settings.jig.agent),

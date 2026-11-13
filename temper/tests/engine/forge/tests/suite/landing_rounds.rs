@@ -153,6 +153,7 @@ fn a_refused_record_holds_with_the_member_landed_and_release_records_it_again() 
         task: LANDING,
         entry: 202,
         heard: top::LandingHeard {
+            job: None,
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),
@@ -207,6 +208,7 @@ fn an_exhausted_prepare_job_holds_its_landing_not_its_member() {
         task: LANDING,
         entry: 102,
         heard: top::LandingHeard {
+            job: None,
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),
@@ -283,7 +285,7 @@ fn a_head_moved_at_the_turn_closes_the_round_and_returns_to_gating() {
     world.run_for(1);
     world.push_file(MEMBER, b"next", b"new delivery");
     let head = translate::commit(world.branch(MEMBER));
-    world.event(top::Event::Answered { task: 99, attempt: 1, pushed: Box::new([(name, head)]) });
+    world.event(top::Event::Answered { task: 99, attempt: 1, pushed: Box::new([(name, head, true)]) });
     world.run_for(1);
     landings::drive_landing(&mut world, LANDING);
     assert!(world.landing(LANDING).landing.members[0].landed.is_none());
@@ -307,6 +309,7 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
         task: LANDING,
         entry: 102,
         heard: top::LandingHeard {
+            job: None,
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),
