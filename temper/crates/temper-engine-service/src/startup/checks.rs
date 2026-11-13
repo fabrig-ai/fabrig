@@ -525,6 +525,21 @@ pub fn root(
     problems: &mut Problems,
 ) {
     let landings = landing_config(engine);
+    let mut turn = false;
+    for (_, project) in &landings {
+        turn |= project.by == domain::Way::Turn;
+    }
+    if turn {
+        if limits.forge.resources_per_task <= limits.forge.landing_members {
+            against(problems, b"forge.resources_per_task", b"forge.landing_members + 1");
+        }
+        if limits.forge.holds < limits.forge.landings.saturating_mul(limits.forge.landing_members) {
+            against(problems, b"forge.holds", b"forge.landings * forge.landing_members");
+        }
+        if limits.tasks.holdings < limits.forge.landing_members {
+            against(problems, b"forge.landing_members", b"tasks.holdings");
+        }
+    }
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
     if let Some(&connector) = core.connectors.first() {
         core.kinds = crate::stock::kinds(limits, connector);

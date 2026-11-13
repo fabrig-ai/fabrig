@@ -857,9 +857,10 @@ pub enum ChangeWord {
     LeftRefused,
     LeftFailed,
     RunnerFaults,
+    LandAlone,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 130] = [
+pub const CHANGES: [ChangeRow; 131] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -994,6 +995,7 @@ pub const CHANGES: [ChangeRow; 130] = [
     (ChangeWord::LeftRefused, &[b"Left: judgement refused by gate ", b""], &[Number]),
     (ChangeWord::LeftFailed, &[b"Left: gate ", b" failed"], &[Number]),
     (ChangeWord::RunnerFaults, &[b"Runner faults: ", b""], &[Number]),
+    (ChangeWord::LandAlone, &[b"land alone"], &[]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -1060,6 +1062,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::LeftRefused
         | ChangeWord::LeftFailed
         | ChangeWord::RunnerFaults
+        | ChangeWord::LandAlone
         | ChangeWord::ReadyLine
         | ChangeWord::ReadyAloneLine
         | ChangeWord::HeldReady

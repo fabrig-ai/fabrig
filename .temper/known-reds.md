@@ -61,6 +61,6 @@ Failures on goal 2175's branch that none of its live changes owns, inherited fro
 - lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
 - lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
+- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
-- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs

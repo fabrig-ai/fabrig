@@ -14,8 +14,15 @@ use temper_engine_domain_forge_landing as policy;
 type Position = (u64, u16, u16);
 type RepositoryGate = (api::Repository, Box<[u8]>);
 type KeyAt = (api::Commit, policy::Key);
-type ProjectLanding =
-    (change::Way, Box<[RepositoryGates]>, crate::AfterLanding, Option<Box<[u8]>>, Option<Box<[u8]>>, policy::Project);
+type ProjectLanding = (
+    change::Way,
+    Box<[RepositoryGates]>,
+    crate::AfterLanding,
+    Option<Box<[u8]>>,
+    Option<Box<[u8]>>,
+    policy::Project,
+    u16,
+);
 #[derive(Hash, Debug)]
 pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
@@ -159,12 +166,12 @@ impl State {
     }
     pub fn way(&self, project: u32) -> change::Way {
         match self.projects.get(&project) {
-            Some((way, _, _, _, _, _)) => *way,
+            Some((way, _, _, _, _, _, _)) => *way,
             None => change::Way::Queue,
         }
     }
     pub(crate) fn gates(&self, project: u32, repository: api::Repository) -> &[policy::Gate] {
-        if let Some((_, repositories, _, _, _, _)) = self.projects.get(&project) {
+        if let Some((_, repositories, _, _, _, _, _)) = self.projects.get(&project) {
             for row in repositories {
                 if row.repository == repository {
                     return &row.gates;
@@ -286,7 +293,7 @@ impl Domain {
             }
         }
         let mut has_tiers = false;
-        if let Some((_, old, _, _, _, _)) = self.landing.projects.get(&project) {
+        if let Some((_, old, _, _, _, _, _)) = self.landing.projects.get(&project) {
             for repository in old {
                 has_tiers |= !repository.tiers.is_empty();
             }
@@ -294,28 +301,49 @@ impl Domain {
         for repository in &gates {
             has_tiers |= !repository.tiers.is_empty();
         }
-        let saved = self.landing.projects.insert(project, (way, gates, after, None, None, gates_policy)).is_ok();
+        let saved = self.landing.projects.insert(project, (way, gates, after, None, None, gates_policy, 1)).is_ok();
         if saved && has_tiers {
             self.tier_ops.dirty = true;
         }
         saved
     }
+    /// The project's forming cap, checked against its deployment (domain/landing.md, 13.1).
+    pub fn project_batch(&mut self, project: u32, batch: u16) -> bool {
+        if batch == 0 || u32::from(batch) > self.landing.limits.landing_members {
+            return false;
+        }
+        let Some((_, _, _, _, _, _, cap)) = self.landing.projects.get_mut(&project) else { return false };
+        *cap = batch;
+        true
+    }
+    /// Main takes the project's batch; another train takes one whole unit (landing.md, 9).
+    #[must_use]
+    pub fn train_batch(&self, repository: api::Repository, branch: &[u8]) -> u16 {
+        let Some(repo) = self.repository(repository) else { return 1 };
+        if repo.settings.default_branch.as_ref() != branch {
+            return 1;
+        }
+        match self.landing.projects.get(&repo.project) {
+            Some((_, _, _, _, _, _, batch)) => *batch,
+            None => 1,
+        }
+    }
     /// A configured project's merge command (temper/docs/design/protocol/configuration/engine.md).
     pub fn project_merge_job(&mut self, project: u32, merge_job: Box<[u8]>) -> bool {
-        let Some((_, _, _, command, _, _)) = self.landing.projects.get_mut(&project) else { return false };
+        let Some((_, _, _, command, _, _, _)) = self.landing.projects.get_mut(&project) else { return false };
         *command = Some(merge_job);
         true
     }
     /// A configured project's close command (temper/docs/design/domain/forge/change/README.md, 1).
     pub fn project_close_job(&mut self, project: u32, close_job: Box<[u8]>) -> bool {
-        let Some((_, _, _, _, command, _)) = self.landing.projects.get_mut(&project) else { return false };
+        let Some((_, _, _, _, command, _, _)) = self.landing.projects.get_mut(&project) else { return false };
         *command = Some(close_job);
         true
     }
     /// The project's optional close command (temper/docs/design/domain/forge/change/README.md, 1).
     #[must_use]
     pub fn close_job(&self, project: u32) -> Option<&[u8]> {
-        let (_, _, _, _, command, _) = self.landing.projects.get(&project)?;
+        let (_, _, _, _, command, _, _) = self.landing.projects.get(&project)?;
         command.as_deref()
     }
     /// A project's landing way: queue where its configuration gives none (domain/landing.md, 13.1).
@@ -327,7 +355,7 @@ impl Domain {
     #[must_use]
     #[expect(clippy::manual_find, reason = "the step subset searches without iterator closures")]
     pub fn repository_gates(&self, project: u32, repository: api::Repository) -> Option<&RepositoryGates> {
-        let (_, repositories, _, _, _, _) = self.landing.projects.get(&project)?;
+        let (_, repositories, _, _, _, _, _) = self.landing.projects.get(&project)?;
         for row in repositories {
             if row.repository == repository {
                 return Some(row);
@@ -338,14 +366,14 @@ impl Domain {
     /// The project's optional merge command (temper/docs/design/protocol/configuration/engine.md).
     #[must_use]
     pub fn merge_job(&self, project: u32) -> Option<&[u8]> {
-        let (_, _, _, command, _, _) = self.landing.projects.get(&project)?;
+        let (_, _, _, command, _, _, _) = self.landing.projects.get(&project)?;
         command.as_deref()
     }
     /// The project's retained verification settings (domain/after-landing.md, 11).
     #[must_use]
     pub fn after_landing(&self, project: u32) -> Option<crate::AfterLanding> {
         match self.landing.projects.get(&project) {
-            Some((_, _, after, _, _, _)) => Some(*after),
+            Some((_, _, after, _, _, _, _)) => Some(*after),
             None => None,
         }
     }
@@ -394,14 +422,25 @@ impl Domain {
         if self.landing.way(project) != change::Way::Turn {
             return Err(LandingRefusal::Way);
         }
-        if changes.len() != 1 || self.landing.limits.landing_members == 0 {
+        if changes.is_empty() || changes.len() > skein_lib::usize_of(self.landing.limits.landing_members) {
             return Err(LandingRefusal::Members);
         }
-        for task in changes {
+        let mut train = None;
+        for (index, task) in changes.iter().enumerate() {
+            if changes.get(..index).expect("preceding changes").contains(task) {
+                return Err(LandingRefusal::Members);
+            }
             let row = self.changes.get(task).ok_or(LandingRefusal::Repository)?;
             let repo = self.repositories.get(&row.repository).ok_or(LandingRefusal::Repository)?;
             if repo.project != project || row.change.landing.is_some() {
                 return Err(LandingRefusal::Repository);
+            }
+            if let Some((repository, branch)) = &train {
+                if *repository != row.repository || *branch != row.base {
+                    return Err(LandingRefusal::Repository);
+                }
+            } else {
+                train = Some((row.repository, row.base.clone()));
             }
             if !self.train_free(row.repository, &row.base) {
                 return Err(LandingRefusal::Train);
@@ -444,7 +483,7 @@ impl Domain {
             if across {
                 b": a unit across repositories lands with the merge queue's later batches (temper/docs/design/draft/merge-queue.md, 13)"
             } else {
-                b": several changes in one repository land with the merge queue's batches (temper/docs/design/draft/merge-queue.md, 4)"
+                b": unit passes forge.landing_members"
             },
         );
         words.into_boxed()
@@ -478,19 +517,10 @@ impl Domain {
     /// The first eligible waiting change of a free train with room (domain/landing.md, 9).
     #[must_use]
     pub fn first_waiting(&self, repository: api::Repository, branch: &[u8], kept: &[u64], now: Wall) -> Option<u64> {
-        if !self.train_free(repository, branch) {
-            return None;
-        }
-        let mut ready = List::with_capacity(self.landing.limits.changes);
-        for candidate in self.waiting_changes(repository, branch) {
-            if !kept.contains(&candidate.task) {
-                ready.push(candidate).expect("bounded changes");
-            }
-        }
-        let task = change::first(ready.as_slice(), self.landing.limits.queue_window, now)?;
-        let project = self.repositories.get(&repository)?.project;
-        self.landing_admits(project, &[task]).ok()?;
-        Some(task)
+        let units = self.waiting_units(repository, branch, kept, &[], now);
+        let selection = self.select_waiting(repository, branch, &units);
+        let unit = units.get(skein_lib::usize_of(*selection.take.first()?))?;
+        unit.changes.first().copied()
     }
     /// Queue candidates for one train, before the root filters task holds and dependencies.
     #[must_use]
@@ -541,7 +571,7 @@ fn append_words(words: &mut List<u8>, bytes: &[u8]) {
     }
 }
 #[expect(clippy::match_like_matches_macro, reason = "the foundation requires explicit matching")]
-fn waiting(row: &crate::ChangeRow) -> bool {
+pub(crate) fn waiting(row: &crate::ChangeRow) -> bool {
     row.change.way == change::Way::Turn
         && row.change.landing.is_none()
         && if let change::State::Ready { .. } = row.change.state { true } else { false }
@@ -767,8 +797,18 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
         let saved = change.clone();
         super::domain::save_change(d, out, saved);
     }
+    let count = row.landing.members.len();
     save(d, row, out);
-    emit(out, Request::LandingNews { task, step: crate::LandingNews::Joined });
+    for index in 0..count {
+        emit(
+            out,
+            Request::LandingNews {
+                task,
+                member: u16::try_from(index).expect("bounded members"),
+                step: crate::LandingNews::Joined,
+            },
+        );
+    }
 }
 impl Domain {
     fn train_gates(&self, row: &LandingRow, repo: api::Repository) -> &[policy::Gate] {
@@ -1843,7 +1883,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                         fact.run = run.id;
                     }
                     let settings = match d.landing.projects.get(&row.landing.project) {
-                        Some((_, _, _, _, _, settings)) => *settings,
+                        Some((_, _, _, _, _, settings, _)) => *settings,
                         None => policy::Project::DEFAULT,
                     };
                     if let Some(since) = flight.since
@@ -1878,7 +1918,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         preparation: p.heard.preparation,
     };
     let project = match d.landing.projects.get(&row.landing.project) {
-        Some((_, _, _, _, _, settings)) => *settings,
+        Some((_, _, _, _, _, settings, _)) => *settings,
         None => policy::Project::DEFAULT,
     };
     let stepped = policy::step(
@@ -2331,7 +2371,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     };
     save(d, row, out);
     if let Some(step) = news {
-        emit(out, Request::LandingNews { task: p.task, step });
+        emit(out, Request::LandingNews { task: p.task, member: 0, step });
     }
     let decision = if prior.landing.round.branch.is_empty()
         && let policy::Decision::Prepare { .. } = decision
@@ -3316,9 +3356,9 @@ impl Domain {
     }
     /// All five news lines are formed from the committed landing (domain/landing.md, 4.2).
     #[must_use]
-    pub fn landing_news_words(&self, task: u64, step: crate::LandingNews) -> Option<(u64, Box<[u8]>)> {
+    pub fn landing_news_words(&self, task: u64, member: u16, step: crate::LandingNews) -> Option<(u64, Box<[u8]>)> {
         let row = self.landing.rows.get(&task)?;
-        let member = row.landing.members.first()?;
+        let member = row.landing.members.get(usize::from(member))?;
         let mut words = List::with_capacity(16384);
         append_words(&mut words, b"landing ");
         append_words(&mut words, skein_lib::Decimal::of(task).as_bytes());
@@ -3342,6 +3382,14 @@ impl Domain {
                     skein_lib::Decimal::of(u64::from(row.landing.preparation.max(1))).as_bytes(),
                 ] {
                     append_words(&mut words, part);
+                }
+                let mut separator = b", with changes ".as_slice();
+                for peer in &row.landing.members {
+                    if peer.change != member.change {
+                        append_words(&mut words, separator);
+                        append_words(&mut words, skein_lib::Decimal::of(peer.change).as_bytes());
+                        separator = b", ";
+                    }
                 }
             }
             crate::LandingNews::Proving => {
@@ -3504,7 +3552,7 @@ pub(crate) fn closing(
         let project = row.landing.project;
         save(d, row, out);
         if tell_landed {
-            emit(out, Request::LandingNews { task, step: crate::LandingNews::Landed });
+            emit(out, Request::LandingNews { task, member: 0, step: crate::LandingNews::Landed });
         }
         wake_project_ready(d, project, out);
     } else if let Some(change) = d.changes.get(&task)

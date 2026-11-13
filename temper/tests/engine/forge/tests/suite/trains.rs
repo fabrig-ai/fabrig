@@ -94,16 +94,16 @@ fn two_repositories_mains_take_their_turns_side_by_side() {
 }
 #[test]
 fn a_restart_forms_a_free_train_from_its_waiting_change() {
-    let mut world = world();
+    let mut world = batched();
     let mut root = Trains::default();
-    landings::ready_on(&mut world, CHANGE, b"temper/51", b"main");
+    waiting(&mut world, 3, b"main");
     assert_eq!(world.change(CHANGE).change.landing, None);
     root.restart(&mut world);
     assert_eq!(world.change(CHANGE).change.landing, Some(LANDING));
     root.restart(&mut world);
     assert_eq!(world.change(CHANGE).change.landing, Some(LANDING));
     assert_eq!(world.landing(LANDING).landing.branch.as_ref(), b"main");
-    root.land(&mut world, LANDING);
+    assert_eq!(members(&world, LANDING), [CHANGE, CHANGE + 1, CHANGE + 2]);
 }
 #[test]
 fn a_joined_unit_is_held_again_on_release_and_the_train_goes_on() {
@@ -182,4 +182,133 @@ fn an_aged_low_priority_change_is_next_ahead_of_a_later_high_priority_change() {
     root.land(&mut world, LANDING);
     assert_eq!(world.change(52).change.landing, Some(LANDING + 1));
     assert_eq!(world.change(53).change.landing, None);
+}
+
+fn batched() -> World {
+    let mut world = world();
+    world.batch(3);
+    world
+}
+fn waiting(world: &mut World, count: u64, base: &[u8]) {
+    for index in 0..count {
+        let task = CHANGE + index;
+        landings::ready_on(world, task, format!("temper/{task}").as_bytes(), base);
+    }
+}
+fn members(world: &World, task: u64) -> Vec<u64> {
+    world.landing(task).landing.members.iter().map(|member| member.change).collect()
+}
+#[test]
+fn a_batch_takes_three_in_queue_order_and_the_next_takes_the_rest() {
+    let mut world = batched();
+    let mut root = Trains::default();
+    waiting(&mut world, 5, b"main");
+    // Queue order is priority, not the changes table's task order.
+    world.event(top::Event::Priority { task: CHANGE + 2, priority: 0 });
+    world.event(top::Event::Priority { task: CHANGE, priority: 1 });
+    world.event(top::Event::Priority { task: CHANGE + 1, priority: 2 });
+    world.event(top::Event::Priority { task: CHANGE + 3, priority: 3 });
+    world.event(top::Event::Priority { task: CHANGE + 4, priority: 4 });
+    root.judge(&mut world);
+    assert_eq!(members(&world, LANDING), [CHANGE + 2, CHANGE, CHANGE + 1]);
+    for (index, member) in world.landing(LANDING).landing.members.iter().enumerate() {
+        assert_eq!(member.unit, u16::try_from(index).expect("member count"));
+        let branch = if index == 0 {
+            format!("temper/{LANDING}/l{LANDING}")
+        } else {
+            format!("temper/{LANDING}/l{LANDING}-{}", index + 1)
+        };
+        assert_eq!(member.branch.as_ref(), branch.as_bytes());
+        let name = top::Name {
+            forge: REPO.forge,
+            repository: REPO.repository,
+            what: top::What::Branch(branch.split('/').map(|part| part.as_bytes().into()).collect()),
+        };
+        assert_eq!(world.hold(&name).expect("held from making").task, LANDING);
+    }
+    assert_eq!(world.change(CHANGE + 3).change.landing, None);
+    assert_eq!(world.change(CHANGE + 4).change.landing, None);
+    // Forming observes a terminal landing; running its batch is a separate rule.
+    world.ended_landing_fixture(LANDING);
+    root.judge(&mut world);
+    assert_eq!(members(&world, LANDING + 1), [CHANGE + 3, CHANGE + 4]);
+}
+#[test]
+fn a_goal_train_takes_one_unit_even_with_batch_three() {
+    let mut world = batched();
+    world.produce(b"temper/g1");
+    let mut root = Trains::default();
+    waiting(&mut world, 3, b"temper/g1");
+    root.judge(&mut world);
+    assert_eq!(members(&world, LANDING), [CHANGE]);
+    assert_eq!(world.change(CHANGE + 1).change.landing, None);
+}
+#[test]
+fn a_formed_batch_is_sealed_against_a_later_ready_change() {
+    let mut world = batched();
+    let mut root = Trains::default();
+    waiting(&mut world, 2, b"main");
+    root.judge(&mut world);
+    landings::ready_on(&mut world, CHANGE + 2, b"temper/later", b"main");
+    root.judge(&mut world);
+    assert_eq!(members(&world, LANDING), [CHANGE, CHANGE + 1]);
+    assert_eq!(world.change(CHANGE + 2).change.landing, None);
+    world.ended_landing_fixture(LANDING);
+    root.judge(&mut world);
+    assert_eq!(members(&world, LANDING + 1), [CHANGE + 2]);
+}
+#[test]
+fn a_marked_waiting_change_forms_alone_and_the_view_marks_it() {
+    let mut world = batched();
+    let mut root = Trains::default();
+    landings::ready_marked(&mut world, CHANGE, b"temper/first", b"main", true);
+    for task in [CHANGE + 1, CHANGE + 2] {
+        landings::ready_on(&mut world, task, format!("temper/{task}").as_bytes(), b"main");
+    }
+    // The document is read before forming while the marked row is still waiting.
+    let document = world.document(landings::PROJECT, top::changes_subject(landings::PROJECT)).expect("changes");
+    let top::Document::Changes(view) = document else { panic!("changes view") };
+    assert!(view.queues[0].changes[0].alone);
+    root.judge(&mut world);
+    assert_eq!(members(&world, LANDING), [CHANGE]);
+    assert_eq!(world.change(CHANGE + 1).change.landing, None);
+}
+#[test]
+fn selection_takes_whole_units_and_passes_refusals() {
+    struct Case {
+        sizes: &'static [usize],
+        batch: u16,
+        bound: u32,
+        marked: Option<usize>,
+        refused: Option<usize>,
+        take: &'static [u32],
+        hold: &'static [u32],
+    }
+    for case in [
+        Case { sizes: &[1, 1, 1], batch: 2, bound: 3, marked: None, refused: None, take: &[0, 1], hold: &[] },
+        Case { sizes: &[3], batch: 2, bound: 3, marked: None, refused: None, take: &[0], hold: &[] },
+        Case { sizes: &[1, 2], batch: 2, bound: 3, marked: None, refused: None, take: &[0], hold: &[] },
+        Case { sizes: &[1, 1], batch: 3, bound: 3, marked: Some(0), refused: None, take: &[0], hold: &[] },
+        Case { sizes: &[1, 1], batch: 3, bound: 3, marked: Some(1), refused: None, take: &[0], hold: &[] },
+        Case { sizes: &[1, 1], batch: 3, bound: 3, marked: None, refused: Some(0), take: &[1], hold: &[0] },
+        Case { sizes: &[3, 1], batch: 2, bound: 2, marked: None, refused: None, take: &[1], hold: &[0] },
+    ] {
+        let units: Vec<_> = case
+            .sizes
+            .iter()
+            .enumerate()
+            .map(|(index, size)| top::WaitingUnit {
+                task: 0,
+                changes: (0..*size as u64).collect(),
+                alone: case.marked == Some(index),
+                refused: case.refused == Some(index),
+            })
+            .collect();
+        let got = top::select_units(&units, case.batch, case.bound);
+        assert_eq!(got.take.as_ref(), case.take, "{:?}", case.sizes);
+        assert_eq!(got.hold.as_ref(), case.hold, "{:?}", case.sizes);
+    }
+    let world = batched();
+    let words = world.unit_words(&[1, 2, 3, 4]);
+    assert!(String::from_utf8(words.into_vec()).unwrap().contains("forge.landing_members"));
 }

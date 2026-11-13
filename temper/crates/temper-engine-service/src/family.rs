@@ -1945,6 +1945,7 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                             task: row.task,
                             title: row.title,
                             ready_since: row.ready_since.as_nanos(),
+                            alone: row.alone,
                             checks_since: match row.checks_since {
                                 Some(at) => Some(at.as_nanos()),
                                 None => None,

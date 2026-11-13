@@ -53,7 +53,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         temper_engine_domain_forge_landing::Project::DEFAULT,
         other
     ));
-    let (way, kept, _, _, _, _) = d.landing.projects.get(&5).expect("configured project");
+    let (way, kept, _, _, _, _, _) = d.landing.projects.get(&5).expect("configured project");
     assert_eq!(*way, Way::Turn);
     assert_eq!(kept.as_ref(), repositories.as_ref());
     assert_eq!(d.landing.gates(5, REPO), repositories[0].gates.as_ref());
@@ -1184,9 +1184,7 @@ fn a_dependency_closure_is_upstream_first_and_stops_at_a_formed_landing() {
         ChangeDependencies { change: OTHER_CHANGE, pending: Box::new([53]) },
     ];
     assert_eq!(d.joined_changes(5, fixtures::CHANGE, &graph).as_ref(), [53, OTHER_CHANGE, fixtures::CHANGE]);
-    assert_eq!(d.landing_admits(5, &[53, fixtures::CHANGE]), Err(LandingRefusal::Members));
-    let words = d.unit_words(&[53, fixtures::CHANGE]);
-    assert_eq!(words.as_ref(), b"unit of 2 changes: C53, C51: several changes in one repository land with the merge queue's batches (temper/docs/design/draft/merge-queue.md, 4)");
+    assert_eq!(d.landing_admits(5, &[53, fixtures::CHANGE]), Ok(()));
     member_landing(&mut d);
     assert_eq!(d.joined_changes(5, OTHER_CHANGE, &graph).as_ref(), [53, OTHER_CHANGE]);
 }

@@ -42,6 +42,7 @@ pub struct ChangesQueued {
     pub title: Box<[u8]>,
     pub ready_since: Wall,
     pub checks_since: Option<Wall>,
+    pub alone: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesLanded {
@@ -112,6 +113,7 @@ impl Domain {
                         title: crate::text::fit(&row.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
                         ready_since,
                         checks_since,
+                        alone: row.change.alone,
                     })
                     .ok()?;
                 left = left.checked_sub(1)?;
