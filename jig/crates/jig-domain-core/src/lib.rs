@@ -125,7 +125,7 @@ pub use jig_domain_core_vocabulary::{
 #[expect(clippy::partial_pub_fields, reason = "the keyed escalation route remains private to the core")]
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
+    reason = "pending generation, worker placement, settling, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
     erasures: erase::Erasures,

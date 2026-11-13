@@ -169,7 +169,7 @@ fn settling_commits_turns_and_answers_but_leaves_a_waiting_task_due() {
     }
     world.turn(1, 1, None, b"a turn while settling");
     assert!(world.store.applied > commits);
-    assert!(world.busy_turns.is_empty());
+    assert_eq!(world.busy_turns.len(), 0);
     assert!(world.stop_deliveries.iter().any(|held| matches!(held,
         core::Held::AcknowledgeTurn { run, attempt, turn: 1, .. } if (run.raw(), attempt.raw()) == first
     )));
@@ -190,11 +190,28 @@ fn settling_commits_turns_and_answers_but_leaves_a_waiting_task_due() {
 fn settling_leaves_a_queued_job_unplaced_when_the_host_frees_its_slot() {
     use jig_domain_link::{Hello, Hosting, JobBound, JobKind, Phase};
     use jig_core_world::fixtures::{job, job_world, live_row};
-    let (mut world, procedure) = job_world(172, true);
+    let (mut world, previous) = job_world(172, true);
+    let (step, connector, code, _) = world.procedure_inputs.last().expect("fixture procedure");
+    world.send(root::Event::Core(core::Event::ProcedureStep {
+        task: previous, step: *step, connector: *connector, code: u32::from(*code),
+        decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report { words: Box::new([]) })),
+    }));
+    // The queued job belongs to a separate root, so finishing the hosted chat
+    // does not await that job as one of its own delegates.
+    let mut member = jig_test_profile::fixtures::people_member(b"job owner", 20);
+    member.executor = people::TaskExecutor::Procedure { connector: 1, code: 1 };
+    member.llm = None;
+    member.authority.delegation = people::Delegation {
+        kinds: Box::new([people::Executor::Job(7)]), tasks: 1, depth: 1,
+    };
+    request(&mut world, 60, people::Ask::Create { project: 1, batch: Box::new([member]) });
+    let procedure = world.procedure_inputs.last().expect("independent procedure").3.task;
+    assert_ne!(procedure, previous);
     let first = (world.task(), world.attempt());
+    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
-        channel: Token::new(7),
+        channel: Token::new(8),
         hello: Hello {
             jobs: Box::new([JobBound { kind: JobKind(7), spec: 64, result: 32, deadline: Duration::from_secs(60) }]),
             bounds: jig_test_profile::fixtures::bounds(),
@@ -204,17 +221,28 @@ fn settling_leaves_a_queued_job_unplaced_when_the_host_frees_its_slot() {
             hosting: Box::new([Hosting { run: Token::new(first.0), attempt: Token::new(first.1), phase: Phase::Active }]),
         },
     })));
-    let child = job(&world, 7, Box::new([0; 64]), Duration::from_secs(60));
+    let mut child = job(&world, 7, Box::new([0; 64]), Duration::from_secs(60));
+    child.authority = live_row(&world, procedure).authority.clone();
+    child.authority.budget.spend = 0;
+    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let (step, connector, code, _) = world.procedure_inputs.last().expect("procedure started");
     world.send(root::Event::Core(core::Event::ProcedureStep {
         task: procedure, step: *step, connector: *connector, code: u32::from(*code),
         decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
     }));
+    assert_eq!(live_row(&world, procedure).delegates.len(), 1, "the procedure admitted its job");
     let task = live_row(&world, procedure).delegates[0];
     let phase = live_row(&world, task).phase.clone();
+    assert!(matches!(phase, tasks::Phase::Active(tasks::Active::Claimed { .. })), "a claimed job is waiting in the fleet");
     assert!(world.jobs.is_empty(), "the job is queued behind the hosted run");
     world.send(root::Event::Core(core::Event::Settling));
-    jig_core_world::fixtures::finish_chat(&mut world, 0, b"free the slot");
+    world.send(root::Event::Answer {
+        channel: Token::new(8), task: first.0, attempt: first.1, cumulative: 0, read: None, refused: Box::new([]),
+        end: tasks::End::Finished { result: tasks::TaskResult::Report { words: b"free the slot".as_slice().into() }, cancel_delegates: false },
+    });
+    assert!(world.stop_deliveries.iter().any(|held| matches!(held,
+        core::Held::Acknowledge { run, attempt, .. } if (run.raw(), attempt.raw()) == first
+    )), "the hosted run's answer is acknowledged and its slot frees");
     assert!(world.jobs.is_empty(), "settling assigns no queued job");
     assert_eq!(live_row(&world, task).phase, phase, "no Placed follows the answer");
     world.stop();
@@ -267,18 +295,11 @@ fn settling_holds_a_procedure_wake_until_the_next_start() {
 
 #[test]
 fn a_placement_decided_before_settling_is_still_delivered() {
-    use jig_core_world::world::Cut;
-    use jig_domain_link::{Hello, Hosting, Phase};
-    let mut world = World::new(Setup { seed: 175, ..Setup::default() });
-    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
-        worker: 0, channel: Token::new(7), hello: Hello {
-            jobs: Box::new([]), bounds: jig_test_profile::fixtures::bounds(), stop_bound: Duration::from_millis(100),
-            slots: 2, workstreams: Box::new([]),
-            hosting: Box::new([Hosting { run: Token::new(world.task()), attempt: Token::new(world.attempt()), phase: Phase::Active }]),
-        },
-    })));
+    let mut limits = jig_test_profile::limits();
+    limits.core.fleet.slots = 2;
+    let mut world = World::new(Setup { seed: 175, limits, ..Setup::default() });
     let assigned = world.assignments.len();
-    world.cut = Some(Cut::Submitted(world.store.applied + 1));
+    world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
     let chat = jig_core_world::fixtures::chat(&world, 1, b"placed before settling".as_slice().into());
     request(&mut world, 59, chat);
     let mut placed = false;
@@ -289,11 +310,14 @@ fn a_placement_decided_before_settling_is_still_delivered() {
             placed = true;
             break;
         }
-        world.cut = Some(Cut::Submitted(world.store.applied + 2));
-        world.drain();
+        world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
+        let number = world.store.release_held().expect("a preparation or claim decision is held");
+        world.send(root::Event::Committed { number, fill: 0 });
     }
-    assert!(placed, "cut at the new run's placement decision");
+    assert!(placed, "the new run's placement decision is held");
     assert_eq!(world.assignments.len(), assigned, "the decision is not yet released");
-    world.send(root::Event::Core(core::Event::Settling));
+    world.offer(root::Event::Core(core::Event::Settling));
+    let number = world.store.release_held().expect("the placement decision");
+    world.send(root::Event::Committed { number, fill: 0 });
     assert_eq!(world.assignments.len(), assigned + 1, "a durable placement is delivered even while settling");
 }

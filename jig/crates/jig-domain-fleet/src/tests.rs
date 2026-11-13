@@ -1549,3 +1549,16 @@ fn resume_without_placement_keeps_waiting_runs_and_jobs_for_a_later_start() {
     h.acknowledge(R2, A2);
     assert_eq!(&*h.settle(), &[Request::AssignJob { channel: C1, run: R3, attempt: A3 }, placed(R3, A3)]);
 }
+
+
+#[test]
+fn resume_without_placement_still_releases_a_held_turn() {
+    let mut h = Harness::new(Limits { turns: 2, ..LIMITS });
+    h.hello(C1, 1, &[], &[hosted(R1, A1, Phase::Active)]);
+    assert!(turn(&mut h, C1, 1, 1).is_empty());
+    h.step(fixtures::adopt(R1, A1, 0));
+    assert!(h.domain.ready_to_resume(false));
+    resume(&mut h.domain, &h.env, false, &mut h.out);
+    assert_eq!(&*h.drain(), &[Request::Turned { run: R1, attempt: A1, turn: 1, body: payload(1) }]);
+    assert_eq!(&*kept(&mut h, 1), &[turn_ack(C1, 1)]);
+}

@@ -4695,9 +4695,6 @@ fn cancel_change_producer(domain: &Domain, task: u64) -> ProcedureStep {
 /// A pushed dependency or one going on from kept can enable a waiting producer
 /// (domain/forge/change/questions.md, 1). Jig owns the live pending dependency list.
 fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
-    if domain.core.settling() {
-        return;
-    }
     let Some(upstream) = domain.forge.change(dependency) else { return };
     let Some(repository) = domain.forge.repository(upstream.repository) else { return };
     for repository in domain.forge.writable_repositories(repository.project) {
@@ -4709,7 +4706,7 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
                 && row.waiting_on.contains(&dependency)
                 && let tasks::Phase::Active(_) = row.phase
             {
-                if domain.core.tasks.procedure_due(task).is_some() {
+                if !domain.core.settling() && domain.core.tasks.procedure_due(task).is_some() {
                     // An idle-only wake cannot refresh a step already reading its facts.
                     let repository = change.repository;
                     let base = change.base.clone();

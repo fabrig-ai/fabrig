@@ -643,7 +643,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 /// Releases one held turn or places a queued read or waiting attempt; with none, waits
-/// until something changes.
+/// until something changes. With `place` false, only held work is released;
+/// waiting attempts and their placement readiness remain for the next start.
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, place: bool, out: &mut Queue<Request>) {
     if crate::programs::ready(domain) {
         crate::programs::resume(domain, out);

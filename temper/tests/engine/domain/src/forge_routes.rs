@@ -159,6 +159,9 @@ pub struct World {
     /// Hold decoded write answers after the independent forge has made the effect.
     pub hold_write_answers: Option<HoldWrite>,
     pub held_write_answers: Vec<engine::Event>,
+    /// Hold the named branch's read answers across the root's settling boundary.
+    pub hold_branch_answers: Option<Box<[u8]>>,
+    pub held_branch_answers: Vec<engine::Event>,
     /// Timeouts before dispatch: the caller cannot know the write was never made.
     pub lose_writes: u32,
     pub fail_issue_writes: bool,
@@ -168,6 +171,8 @@ pub struct World {
     pub drained: Option<u64>,
     pub unsettled: Vec<engine::Unsettled>,
     pub busy_calls: u32,
+    /// Opt-in worker answer acknowledgements for settlement stories.
+    pub acknowledgements: Option<Vec<(u64, u64)>>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -1239,6 +1244,8 @@ impl World {
             fail_comparisons: false,
             hold_write_answers: None,
             held_write_answers: Vec::new(),
+            hold_branch_answers: None,
+            held_branch_answers: Vec::new(),
             lose_writes: 0,
             fail_issue_writes: false,
             fail_open_writes: false,
@@ -1246,6 +1253,7 @@ impl World {
             drained: None,
             unsettled: Vec::new(),
             busy_calls: 0,
+            acknowledgements: None,
             merges: 0,
             writes: Vec::new(),
             repository_writes: Vec::new(),
@@ -1912,6 +1920,8 @@ impl World {
         self.out = Queue::uncapped();
         self.events.clear();
         self.held_write_answers.clear();
+        self.held_branch_answers.clear();
+        self.hold_branch_answers = None;
         self.hold_write_answers = None;
         self.drained = None;
         self.unsettled.clear();
@@ -2268,6 +2278,11 @@ impl World {
                             .expect("the world rendered every relayed answer");
                         self.answers.push(answer.clone());
                     }
+                    Delivery::Link { down: host::LinkDown::Acknowledge { run, attempt }, .. } => {
+                        if let Some(acknowledgements) = &mut self.acknowledgements {
+                            acknowledgements.push((run.raw(), attempt.raw()));
+                        }
+                    }
                     Delivery::Link { down: host::LinkDown::Relayed { answer: host::Relayed::Busy, .. }, .. } => {
                         self.busy_calls += 1;
                     }
@@ -2542,23 +2557,28 @@ impl World {
     }
 
     pub fn tick(&mut self) {
-        self.tick_with_reply_cut(None);
+        self.tick_with_reply_cut(None, true);
         if self.auto_prepare {
             self.complete_prepare();
         }
     }
 
+    /// Let inputs, commits and API outcomes advance without an owner Resume.
+    pub fn tick_without_resume(&mut self) {
+        self.tick_with_reply_cut(None, false);
+    }
+
     /// Apply the step saving a reply to `target`, losing its commit terminal.
     /// Other decisions and the clock follow an ordinary world tick.
     pub fn tick_losing_reply_commit(&mut self, target: u64) -> bool {
-        self.tick_with_reply_cut(Some(target))
+        self.tick_with_reply_cut(Some(target), true)
     }
 
     #[expect(
         clippy::too_many_lines,
         reason = "one tick preserves reply cuts, located sources and runner job answers together"
     )]
-    fn tick_with_reply_cut(&mut self, target: Option<u64>) -> bool {
+    fn tick_with_reply_cut(&mut self, target: Option<u64>, resume: bool) -> bool {
         let mut lost = false;
         if self.oracle_running {
             if !self.pending.is_empty()
@@ -2643,6 +2663,10 @@ impl World {
                     };
                     if held {
                         self.held_write_answers.push(event);
+                    } else if self.hold_branch_answers.as_deref().is_some_and(|expected|
+                        matches!(&op, skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch }) if branch.as_ref() == expected))
+                    {
+                        self.held_branch_answers.push(event);
                     } else {
                         self.events.push_back(event);
                     }
@@ -2650,7 +2674,11 @@ impl World {
                 fake::Request::Hook { .. } => {}
             }
         }
-        temper_engine_domain_world::poll(&mut self.root, &self.env, &mut self.out);
+        if resume {
+            temper_engine_domain_world::poll(&mut self.root, &self.env, &mut self.out);
+        } else {
+            engine::release(&mut self.root, &self.env, &mut self.out);
+        }
         self.collect();
         self.flush();
         if !self.oracle_running {

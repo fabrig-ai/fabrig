@@ -8,7 +8,7 @@ use jig_domain_views as views;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 impl Core {
-    /// Whether placement and activation wait while commits keep flowing.
+    /// Whether the root has told the core to settle before its stop.
     #[must_use]
     pub fn settling(&self) -> bool {
         self.settling
@@ -148,8 +148,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
             Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel, hello: None })))))
         }
         Event::Fleet(event) => Ok(Event::Fleet(event)),
-        Event::Settling
-        | Event::Stopping
+        Event::Stopping
         | Event::Activate { .. }
         | Event::BriefAssembled { .. }
         | Event::WorkspacePrepared { .. }
@@ -160,7 +159,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
         | Event::Period { .. } => Err(empty()),
-        event @ (Event::Fill { .. }
+        event @ (Event::Settling
+        | Event::Fill { .. }
         | Event::Marked { .. }
         | Event::ReadLoaded { .. }
         | Event::Read { .. }
