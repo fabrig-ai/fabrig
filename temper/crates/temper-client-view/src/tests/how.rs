@@ -10,6 +10,7 @@ use crate::{look, paths};
 use jig_client::{Down, Up, contract as c};
 use skein_lib::{List, Queue, Token};
 use skein_ui::{Act, Role, State};
+use skein_ui::{Node, Style, Tree};
 use temper_client_domain::{self as d, Address, pages};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -1012,4 +1013,29 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
     named(nodes, Role::Text, b"code triggers, agents judge");
 }
 
-pub(super) use crate::setup_tests::how::{children, named, styled, subtree};
+pub(crate) fn subtree<'a>(tree: &'a Tree, node: &Node) -> &'a [Node] {
+    let at = tree.nodes().iter().position(|n| core::ptr::eq(n, node)).unwrap();
+    &tree.nodes()[at..at.checked_add(usize::try_from(node.size).unwrap()).unwrap()]
+}
+
+pub(crate) fn styled(tree: &Tree, style: Style) -> &[Node] {
+    subtree(tree, tree.nodes().iter().find(|n| n.styles.as_slice().contains(&style)).unwrap())
+}
+
+pub(crate) fn children(nodes: &[Node]) -> Vec<&Node> {
+    let mut at = 1;
+    let mut result = Vec::new();
+    while at < nodes.len() {
+        let node = &nodes[at];
+        result.push(node);
+        at = at.checked_add(usize::try_from(node.size).unwrap()).unwrap();
+    }
+    result
+}
+
+pub(crate) fn named<'a>(nodes: &'a [Node], role: Role, name: &[u8]) -> &'a Node {
+    nodes
+        .iter()
+        .find(|n| n.role == role && n.name.as_deref() == Some(name))
+        .unwrap_or_else(|| panic!("missing {role:?}: {}", String::from_utf8_lossy(name)))
+}

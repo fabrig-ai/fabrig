@@ -34,6 +34,10 @@ jig-client-test-shell-web
 temper-client-protocol-wire
 temper-client-domain
 temper-client-view
+temper-client-view-words
+temper-client-view-parts
+temper-client-view-work
+temper-client-view-setup
 smith-events
 smith-transcript
 smith-channel

@@ -1,0 +1,24 @@
+[package]
+name = "temper-client-view-words"
+description = "The view's vocabulary, look, paths and limits"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-client.workspace = true
+skein-lib.workspace = true
+skein-ui.workspace = true
+temper-client-domain.workspace = true
+temper-client-protocol-wire.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true
+skein-ui-text.workspace = true
+temper-fixtures.workspace = true
+temper-test-env.workspace = true
+
+[lints]
+workspace = true

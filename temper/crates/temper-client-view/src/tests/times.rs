@@ -124,4 +124,8 @@ fn the_inbox_waits_use_the_proposal_hold_and_person_task_clocks() {
     }
 }
 
-pub(super) use crate::words_tests::times::wall;
+const SECOND: u64 = 1_000_000_000;
+
+pub(crate) fn wall(seconds: u64) -> Wall {
+    Wall::from_nanos(seconds.checked_mul(SECOND).unwrap())
+}

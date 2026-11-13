@@ -1,12 +1,15 @@
 use super::fixtures;
 use skein_lib::Queue;
+use skein_lib::Wall;
 
 const HOUR: u64 = 3600;
 
 // Thursday 22 October 2026, midnight UTC.
 const MIDNIGHT: u64 = 1_792_627_200;
 
-use crate::words_tests::words::wall;
+pub(crate) fn wall(seconds: u64) -> Wall {
+    Wall::from_nanos(seconds.checked_mul(1_000_000_000).unwrap())
+}
 
 #[test]
 fn a_build_reads_the_shells_zone_from_the_domain() {

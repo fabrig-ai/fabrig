@@ -1,4 +1,5 @@
 use super::fixtures;
+use crate::cards::CardWords as _;
 
 use fixtures::chat::{
     ATTEMPT, BYTES, GRACES, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_root, closing, messaging_root,

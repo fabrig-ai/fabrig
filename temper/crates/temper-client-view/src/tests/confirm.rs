@@ -182,6 +182,135 @@ fn assert_kept_buttons(old: &skein_ui::Tree, new: &skein_ui::Tree, patches: &mut
     }
 }
 
-pub(super) use crate::parts_tests::confirm::{
-    close_root, contains, failed_sheet, has_style, open, press, restart_sheet, sheet,
-};
+pub(crate) fn press(root: &mut temper_client_domain::Domain, act: Act) {
+    fixtures::root_event(root, Event::Act { action: Action::Pages(act) });
+}
+
+pub(crate) fn open(root: &mut temper_client_domain::Domain, act: ActKind) {
+    press(root, Act::Decide { object: ObjectKey::Proposal(PROPOSAL), revision: None, act });
+}
+
+pub(crate) fn contains(text: &[u8], expected: &[u8]) -> bool {
+    for words in text.windows(expected.len()) {
+        if words == expected {
+            return true;
+        }
+    }
+    false
+}
+
+pub(crate) fn sheet(root: &temper_client_domain::Domain) -> skein_ui::Tree {
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    crate::confirm::main(
+        &mut b,
+        root,
+        &fixtures::words(),
+        &mut crate::bindings::Bindings::new(fixtures::tree_limits().bindings),
+        fixtures::domain_limits().client.domain.rows,
+    );
+    b.finish()
+}
+
+pub(crate) fn close_root(
+    stage: c::RunStage,
+    below: u32,
+    proposals: u32,
+    delegates: bool,
+) -> temper_client_domain::Domain {
+    let source = fixtures::chat::chat_root();
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    task.chip.details.phase = c::ChipPhase::Active(stage);
+    let Some(c::Effect::Cancel(impact)) = &mut task.acts.get_mut(0).unwrap().effect else { panic!("cancel facts") };
+    impact.tasks = c::ImpactCounts {
+        waiting: below,
+        running: 0,
+        held: 0,
+        closing: 0,
+        ended: 0,
+        done: 17,
+        failed: 18,
+        cancelled: 19,
+    };
+    impact.proposals = proposals;
+    task.delegates = List::with_capacity(2);
+    if delegates {
+        for (number, title) in [(4, b"Fix the parser".as_slice()), (5, b"Review the parser")] {
+            let mut chip = task.chip.clone();
+            chip.task = number;
+            chip.title = c::DocumentText::complete(c::Text::new(Box::from(title), 32).unwrap());
+            task.delegates.push(c::LiveDelegate { chip, takeover_budget: 0 }).unwrap();
+        }
+    }
+    let (mut root, me_watch, watch) =
+        fixtures::root_at(temper_client_domain::Address::Chat { task: task.chip.task }, &fixtures::domain_limits());
+    let me = source.pages().me(source.client()).unwrap().clone();
+    for (watch, delivery) in
+        [(me_watch, c::Delivery::Me(Box::new(me))), (watch.unwrap(), c::Delivery::Task(Box::new(task)))]
+    {
+        fixtures::root_event(
+            &mut root,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) },
+                },
+            },
+        );
+    }
+    press(&mut root, Act::Close);
+    root
+}
+
+pub(crate) fn restart_sheet() -> temper_client_domain::Domain {
+    let mut root = fixtures::document::document_root(
+        Some(b"# How we work\n"),
+        temper_client_domain::pages::chat::document::Mode::Chat,
+        &[],
+        fixtures::document::ProposalState::NotProposed,
+    );
+    press(&mut root, Act::StartOver);
+    root
+}
+
+pub(crate) fn failed_sheet(root: &mut temper_client_domain::Domain) {
+    let mut out = skein_lib::Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
+        Event::Act { action: Action::Pages(Act::Confirm) },
+        &mut out,
+    );
+    let mut sent = None;
+    while let Some(request) = out.pop() {
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            sent = Some(attempt);
+        }
+    }
+    fixtures::root_event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt: sent.expect("ask sent"),
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                        refusal: c::Refusal::NotOffered,
+                        at: None,
+                    })),
+                    why: None,
+                },
+            },
+        },
+    );
+}
+
+pub(crate) fn has_style(tree: &skein_ui::Tree, style: skein_ui::Style) -> bool {
+    for node in tree.nodes() {
+        if node.styles.as_slice().contains(&style) {
+            return true;
+        }
+    }
+    false
+}

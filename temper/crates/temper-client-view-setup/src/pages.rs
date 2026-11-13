@@ -1,0 +1,20 @@
+//! Setup pages (temper/docs/design/client/view-crates.md, 2.1).
+pub mod account_programs;
+pub mod accounts;
+pub mod builders;
+pub mod claude_login;
+pub mod connect_model;
+pub mod deployment;
+pub mod how;
+pub mod model_check;
+pub mod models;
+pub mod remembered;
+pub mod roles;
+pub mod settings;
+pub mod sign_in_wait;
+pub mod team;
+pub mod told;
+pub mod welcome;
+pub mod welcome_copy;
+pub mod welcome_model;
+pub use temper_client_view_parts::common::{chat_line, project_name, serves_pages, ways};
