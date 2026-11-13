@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [fleet.md](fleet.md).
 
-- **Not yet:** *A mismatched worker leaves placement too*: no mark for a channel that answered a version refusal [in flight: change 1755].
 
 - **Not yet:** the whole document: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the

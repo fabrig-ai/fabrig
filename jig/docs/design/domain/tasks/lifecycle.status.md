@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
 
-- **Not yet:** 6: a start refused for a version mismatch is no failure, its notice naming the wire and both versions [in flight: change 1755].
 
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).
 - **Not yet:** 6: a standing task's tries per session (`standing.md`, 5.1).
