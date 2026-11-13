@@ -63,7 +63,15 @@ pub const LIMITS: Limits = Limits {
     authority_segments: 4,
     authority_bytes: 64,
     executor_kinds: 3,
-    retries: Retries { transient: RETRY, permanent: RETRY, run: RETRY, agent: RETRY, lost: RETRY, invalid: RETRY },
+    retries: Retries {
+        transient: RETRY,
+        permanent: RETRY,
+        run: RETRY,
+        agent: RETRY,
+        lost: RETRY,
+        invalid: RETRY,
+        infrastructure: RETRY,
+    },
     facts: 16,
     room_refusals: 2,
 };

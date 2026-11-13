@@ -110,6 +110,7 @@ impl Component {
                 match kind {
                     kind::MESSAGE => self.message(body, to_service)?,
                     kind::CANCEL => cancel(&mut active.cancellation, body, &self.bodies, to_service)?,
+                    kind::DRAIN => drain(&mut active.cancellation, body, &self.bodies, to_service)?,
                     _ => return Err(Broken),
                 }
                 Ok(State::Started(active))
@@ -121,6 +122,7 @@ impl Component {
                     kind::ACKNOWLEDGE => acknowledge(&mut active.turns, body, &self.bodies, to_service)?,
                     kind::GRANT_REFRESH => self.refresh(body, to_service)?,
                     kind::CANCEL => cancel(&mut active.cancellation, body, &self.bodies, to_service)?,
+                    kind::DRAIN => drain(&mut active.cancellation, body, &self.bodies, to_service)?,
                     _ => return Err(Broken),
                 }
                 Ok(State::Admitted(active))
@@ -282,6 +284,18 @@ impl Component {
         self.machine.down(Request::Finish, &mut self.events, below);
         Ok(())
     }
+}
+
+fn drain(
+    cancellation: &mut Cancellation,
+    body: &[u8],
+    limits: &smith_channel::Limits,
+    to_service: &mut Queue<Heard>,
+) -> Result<(), Broken> {
+    smith_channel::Drain::decode(limits, &mut Reader::new(body)).or(Err(Broken))?;
+    cancellation.drain().or(Err(Broken))?;
+    to_service.push(Heard::Drain);
+    Ok(())
 }
 
 fn cancel(

@@ -1,7 +1,7 @@
 //! Jobs are not party-created executors (jig/docs/design/client/domain/contract/documents.md, 7).
 use super::fixtures as f;
 use crate::translate::{asks, operations};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Reader, Writer};
 
 /// Create refuses a job as an executor not offered (jig/docs/design/client/domain/contract/documents.md, 7).

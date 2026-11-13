@@ -14,7 +14,6 @@ doctest = false
 [dependencies]
 jig-domain-link.workspace = true
 skein-lib.workspace = true
-skein-world.workspace = true
 jig-domain-accounts.workspace = true
 
 [dev-dependencies]
@@ -22,6 +21,7 @@ jig-core-kit.workspace = true
 jig-domain-core.workspace = true
 jig-domain-people.workspace = true
 jig-test-domain = { path = "../../testing/jig-test-domain" }
+skein-world.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

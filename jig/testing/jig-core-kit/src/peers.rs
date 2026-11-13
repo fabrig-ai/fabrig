@@ -764,6 +764,7 @@ fn party_failure(value: people::FailureClass) -> parties::FailureClass {
         people::FailureClass::Agent => parties::FailureClass::Agent,
         people::FailureClass::Lost => parties::FailureClass::Lost,
         people::FailureClass::Invalid => parties::FailureClass::Invalid,
+        people::FailureClass::Infrastructure => parties::FailureClass::Infrastructure,
     }
 }
 

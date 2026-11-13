@@ -122,7 +122,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         made: 2,
         attempt: 3,
         last_answer: Some(1),
-        tries: task::Tries { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13 },
+        tries: task::Tries { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13, infrastructure: 17 },
         invalid_result: Some(task::InvalidResult::Followups),
         refusals: 127,
         room_wait: None,

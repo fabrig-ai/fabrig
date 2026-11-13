@@ -62,8 +62,11 @@ pub const LIVE: u16 = 0x0112;
 /// The `AccountRefused` body kind.
 pub const ACCOUNT_REFUSED: u16 = 0x0113;
 
+/// The `Drain` body kind.
+pub const DRAIN: u16 = 0x0114;
+
 /// The supported channel version.
-pub const VERSION: u16 = 6;
+pub const VERSION: u16 = 7;
 
 /// A kind's name in a refusal's text: `kind 0x` and its four lower-case hex digits.
 #[must_use]

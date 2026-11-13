@@ -46,6 +46,15 @@ The binary holds defaults; the store holds overrides. A setting without
 an override follows its default. Settings never live in the configuration
 document.
 
+A charter overlay replaces only named default fields and appends text, taking
+later defaults. A file item uses `"overlay"` instead of `"set"`: literal
+`instructions` and `parts`, or `"charters":["."]` for directories relative to
+the file (`-` requires absolute paths). See `temper help charter` for assembly.
+`settings apply FILE...` joins overlays in order, later named fields winning;
+all other duplicate settings, and set/remove/reset beside an overlay, are refused.
+`settings propose` takes one file. Show marks replacements and additions;
+`--json` exports the literal `overlay` beside `value`, naming no directory.
+
 The stock has charters 1, 2, 4, 5, 9, 10, 11 and 12, and templates 1
 for a chat, 2 for a goal, 4 for a draft goal, 5 for Ask temper and 6 for a
 design session. Charter 5 coordinates a draft goal. Charter 10 is a
@@ -55,8 +64,8 @@ forge, and starts nothing. Its rules offer seven charter executors
 (1, 2, 4, 5, 9, 11 and 12), procedures 2, 3 and 4, merge job 3 and
 roles 0, 1 and 2.
 
-A setting's whole value is JSON, as `settings show` prints it. For members,
-types and bounds, read `temper help settings-fields`.
+Values are JSON, as `settings show` prints. Members, types and bounds:
+`temper help settings-fields`.
 
 Ask temper reads settings with `see settings`. Its answers fit the host
 answer allowance in parts of at most 6,144 body bytes; `more: TOKEN`
@@ -203,7 +212,7 @@ Changing the current reserve alone leaves incompatible held versions.
 
 For members needing a restart, read `temper help configuration`.
 
-- temper does not patch a member: an item sets a whole value.
+- An item replaces a whole value or overlay; it never patches a stored one.
 - ctl sends values within `temper help settings-fields` bounds; the
   deployment may refuse them past its own limits.
 - Providers, listeners, workers and limits are configured at start;

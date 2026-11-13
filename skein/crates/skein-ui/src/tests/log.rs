@@ -65,6 +65,7 @@ fn an_end_request_belongs_to_a_log() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn logs_and_lists_hold_continues_and_only_logs_may_request_the_end() {
     for &(role, _) in super::tree::BINDING_ROLES {
         for end_request in [false, true] {

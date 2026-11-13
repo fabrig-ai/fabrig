@@ -39,7 +39,7 @@ fn role_arrivals_reach_each_current_holder_only() {
     test.send(Event::Roles { project: 1, holdings: holdings.clone() });
     let entry = Entry { whom: Whom::Role { project: 1, role: 4 }, kind: EntryKind::PersonTask, ..question(11) };
     assert_eq!(waiting(&mut test, &[entry]), [arrival(1, 1), arrival(2, 1)]);
-    assert!(waiting(&mut test, &[entry]).is_empty());
+    assert_eq!(waiting(&mut test, &[entry]).len(), 0);
     let unheld = Entry { whom: Whom::Role { project: 1, role: 5 }, ..entry };
     assert!(waiting(&mut test, &[unheld]).is_empty(), "a role without holders tells nobody");
     let roles = test.send(Event::Roles {
@@ -54,7 +54,7 @@ fn role_arrivals_reach_each_current_holder_only() {
             panic!("giving a role over existing needs is not an arrival");
         }
     }
-    assert!(waiting(&mut test, &[unheld]).is_empty());
+    assert_eq!(waiting(&mut test, &[unheld]).len(), 0);
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn a_named_person_without_project_membership_gets_no_arrival() {
     test.member();
     test.signin(2, 20, identity(0, 2));
     test.send(Event::Roles { project: 2, holdings: Box::new([Holding { person: 2, role: Role::Member }]) });
-    assert!(waiting(&mut test, &[Entry { whom: Whom::Person(2), ..question(11) }]).is_empty());
+    assert_eq!(waiting(&mut test, &[Entry { whom: Whom::Person(2), ..question(11) }]).len(), 0);
     assert_eq!(test.d.project_needs(2, 1), 0);
 }
 
@@ -73,15 +73,15 @@ fn proposals_and_escalation_revisions_tell_but_updates_do_not() {
     test.member();
     let proposal = Entry { kind: EntryKind::Proposal { number: 3 }, ..question(11) };
     assert_eq!(waiting(&mut test, &[proposal]), [arrival(1, 1)]);
-    assert!(waiting(&mut test, &[proposal]).is_empty());
+    assert_eq!(waiting(&mut test, &[proposal]).len(), 0);
     let escalation = Entry { kind: EntryKind::Escalation { revision: 1 }, ..proposal };
     assert_eq!(waiting(&mut test, &[escalation]), [arrival(1, 1)]);
-    assert!(waiting(&mut test, &[escalation]).is_empty());
+    assert_eq!(waiting(&mut test, &[escalation]).len(), 0);
     assert_eq!(
         waiting(&mut test, &[Entry { kind: EntryKind::Escalation { revision: 2 }, ..escalation }]),
         [arrival(1, 1)]
     );
-    assert!(
+    assert_eq!(
         waiting(
             &mut test,
             &[
@@ -89,7 +89,8 @@ fn proposals_and_escalation_revisions_tell_but_updates_do_not() {
                 Entry { kind: EntryKind::ChatReply { message: 21 }, ..proposal },
             ]
         )
-        .is_empty()
+        .len(),
+        0
     );
     test.d.remember_result(
         &LIMITS,
@@ -132,6 +133,6 @@ fn rebuilding_the_census_is_silent_and_preserves_need_identity() {
     });
     assert!(test.d.start_project(&LIMITS, RestoreProjection::Waiting { task: 7, entries: Box::new([question(11)]) }));
     assert!(test.complete());
-    assert!(waiting(&mut test, &[question(11)]).is_empty());
+    assert_eq!(waiting(&mut test, &[question(11)]).len(), 0);
     assert_eq!(waiting(&mut test, &[question(11), question(12)]), [arrival(1, 2)]);
 }

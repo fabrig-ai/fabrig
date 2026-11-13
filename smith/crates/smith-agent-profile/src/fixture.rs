@@ -1,3 +1,4 @@
+//! Step-test fixtures (smith/docs/design/testing.md, section 7).
 //! Small admitted configuration values and one model declaration for composition tests.
 //! No service is constructed here (smith/docs/design/shell/README.md, section 2.6).
 

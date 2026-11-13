@@ -218,8 +218,8 @@ impl Walk {
                         .iter()
                         .skip(2)
                         .filter_map(|id| visitor.answers.get(id).map(|answer| {
-                            jig_client_protocol_wire::v19::KeyedAnswer::decode(
-                                &jig_client_protocol_wire::v19::CEILINGS,
+                            jig_client_protocol_wire::v21::KeyedAnswer::decode(
+                                &jig_client_protocol_wire::v21::CEILINGS,
                                 &mut Reader::new(&answer.as_ref().expect("HTTP control").body),
                             )
                             .expect("control record")

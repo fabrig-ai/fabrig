@@ -7,7 +7,7 @@ use smith_events::{Limits, read, write};
 
 #[test]
 fn truncated_and_corrupted_event_lines_are_always_bounded_refusals_or_values() {
-    let limits = Limits { items: 8, ..smith_events::fixture::SMALL };
+    let limits = Limits { items: 8, ..smith_events_fixtures::SMALL };
     for (name, record, capture) in fixtures::samples() {
         let line = write(&record, &capture, &limits).expect(name).expect("record");
         for length in (0..line.len()).step_by(line.len().checked_div(16).expect("nonzero divisor").max(1)) {

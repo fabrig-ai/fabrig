@@ -148,6 +148,7 @@ impl Component {
             | git::Op::Clone { .. }
             | git::Op::Look { .. }
             | git::Op::DiffPaths { .. }
+            | git::Op::Brings { .. }
             | git::Op::IsAncestor { .. } => false,
         };
         if self.start != Start::Started
@@ -397,6 +398,7 @@ impl Component {
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
                     | git::Op::DiffPaths { .. }
+                    | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. }
                     | git::Op::Push { .. } => unreachable!("scan sequence"),

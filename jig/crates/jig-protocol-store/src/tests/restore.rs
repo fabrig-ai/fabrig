@@ -1,7 +1,7 @@
 //! Ordered restart pages and census joins (protocol/store/loads.md, 2).
 use super::fixtures::{self, ALICE, ENDED, LIVE};
 use crate::{Cursor, Event, Phase, Request, Restore, Row, Store, Write, keys};
-use jig_domain_core::{Census, ReadResults, Record, RestoreRange};
+use jig_domain_core_vocabulary::{Census, ReadResults, Record, RestoreRange};
 use skein_lib::{List, Token};
 
 const OWNER: Token = Token::new(5);
@@ -137,7 +137,7 @@ fn a_store_without_public_rows_reads_every_project_private() {
             &mut store,
             Request::Get {
                 owner: OWNER,
-                key: crate::Get::Jig(jig_domain_core::Key::People(Stored::Public { project }.key())),
+                key: crate::Get::Jig(jig_domain_core_vocabulary::Key::People(Stored::Public { project }.key())),
             },
         );
         let [Event::Got { owner: OWNER, row: None }] = &*events else { panic!("project stays private") };
@@ -256,8 +256,11 @@ fn an_erased_accounts_row_is_not_restored() {
         &mut store,
         Box::new([
             fixtures::header(3),
-            Write::Erase(jig_domain_core::Key::Accounts(jig_domain_accounts::Key::Source { account: 1, number: 2 })),
-            Write::Erase(jig_domain_core::Key::Accounts(jig_domain_accounts::Key::Account { number: 1 })),
+            Write::Erase(jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Source {
+                account: 1,
+                number: 2,
+            })),
+            Write::Erase(jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Account { number: 1 })),
         ]),
     );
     let (rows, _) = page(live_page(&mut store, None, 8, 65_536));
@@ -305,7 +308,7 @@ fn a_census_row_without_its_ended_task_hands_up_the_missing_link() {
     let [Event::Page { owner: OWNER, items, next: None }] = events.as_ref() else { panic!("typed page") };
     let [crate::restore::Item::MissingLink { record, target }] = items.as_ref() else { panic!("missing link") };
     assert_eq!(*record, fixtures::result_index(ALICE, 1, ENDED).key());
-    assert_eq!(*target, jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(ENDED)));
+    assert_eq!(*target, jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Ended(ENDED)));
     let Phase::Ready { .. } = store.phase else { panic!("ready after missing link") };
 }
 

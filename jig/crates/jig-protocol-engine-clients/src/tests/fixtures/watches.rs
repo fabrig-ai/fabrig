@@ -1,7 +1,7 @@
 use super::{Exchange, family_record, wire};
 use crate::{Request, stream::Stream};
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core as core;
+use jig_client_protocol_wire::v21 as w;
+use jig_domain_core_vocabulary as core;
 use skein_lib::{Token, Writer};
 impl Exchange {
     pub fn open_stream(&mut self) -> [u8; 16] {
@@ -41,7 +41,7 @@ impl Exchange {
 pub fn owned_subject(value: &w::Subject) -> w::Owned {
     let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("subject");
-    w::Owned::new(&wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
+    w::Owned::new(&wire(), w::OwnedParts { owner: w::Owner::Jig, version: 21, record: bytes.finish() })
         .expect("subject owner")
 }
 pub fn family_subject() -> w::Owned {

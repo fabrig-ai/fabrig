@@ -10,7 +10,7 @@ use crate::Limits;
 use crate::translate::text_problem;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Map, Wall, bytes};
 
 pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {

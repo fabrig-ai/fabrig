@@ -13,7 +13,8 @@ use skein_forge_setup::given::login;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
 use temper_forge_setup::name::{branch, relative, repository};
 
-/// Setup increments its account number before insertion, so it cannot issue MAX.
+/// Seeded owner identities descend from MAX; setup accounts grow from one
+/// within the wire document's bounded account slots.
 pub const OWNER: u64 = u64::MAX;
 /// The one named check, with no silence or rerun.
 pub const CONTEXT: &[u8] = b"check";
@@ -265,8 +266,7 @@ impl Document {
         }
         let sources = seed_sources(&mut domain, &mut repositories, &self.sources);
         drain_seed_observations(&mut domain);
-        let mut users = List::with_capacity(1);
-        users.push((OWNER, self.owner.clone())).expect("one domain owner");
+        let users = owners(&self.owner, &repositories);
         let config = forgejo::Config {
             base: bytes::copy_of(b"http://127.0.0.1"),
             tokens: List::with_capacity(0),
@@ -280,6 +280,27 @@ impl Document {
         };
         (Forge::new(domain, configuration), config)
     }
+}
+
+fn owners(owner: &[u8], repositories: &List<forgejo::Repository>) -> List<(u64, Box<[u8]>)> {
+    let mut users = List::with_capacity(crate::ENTRIES.checked_add(1).expect("seed owners and the default"));
+    users.push((OWNER, bytes::copy_of(owner))).expect("default owner");
+    for repository in repositories {
+        let slash = bytes::find(&repository.full, b"/").expect("admitted repository owner/name");
+        let owner = repository.full.get(..slash).expect("owner prefix");
+        let mut known = false;
+        for (_, login) in &users {
+            if login.as_ref() == owner {
+                known = true;
+                break;
+            }
+        }
+        if !known {
+            let id = OWNER.checked_sub(u64::from(users.len())).expect("bounded seed owner identities");
+            users.push((id, bytes::copy_of(owner))).expect("at most one owner per seeded repository");
+        }
+    }
+    users
 }
 fn ci(d: &skein_json::Document, at: u32, p: &Path, seed_tree: bool) -> Result<Option<Ci>, Refusal> {
     if read::is_null(d, at) {

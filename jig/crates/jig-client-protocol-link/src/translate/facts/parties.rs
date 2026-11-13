@@ -2,7 +2,7 @@
 use crate::Limits;
 use crate::translate::text_problem;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Wall, bytes};
 
 pub(crate) fn person_address(value: &w::PersonAddress) -> c::PersonAddress {

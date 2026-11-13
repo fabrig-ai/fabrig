@@ -291,7 +291,7 @@ pub(crate) fn subject(op: &Op) -> Option<(Operation, Option<u64>, Option<u64>)> 
         Op::Git(git) => match git {
             Git::Clone => (Operation::Clone, None, None),
             Git::Fetch { .. } => (Operation::Fetch, None, None),
-            Git::Push { commit, .. } => (Operation::Push, None, Some(*commit)),
+            Git::Push { commit, .. } | Git::PushNew { commit, .. } => (Operation::Push, None, Some(*commit)),
             Git::Create { commit, .. } => (Operation::Create, None, Some(*commit)),
         },
     };

@@ -7,6 +7,10 @@ use smith_domain::run::{self, charter::Endpoint, outcome};
 
 /// Small local limits with one inline child using the supplied native receiving profile.
 #[must_use]
+#[expect(
+    clippy::large_types_passed_by_value,
+    reason = "the fixture copies the supplied receiving profile into local limits"
+)]
 pub fn small(smith: smith_domain::Limits) -> Limits {
     Limits {
         smith,

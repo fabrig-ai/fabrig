@@ -171,6 +171,22 @@ pub(crate) fn ancestors(domain: &Domain, commit: u64) -> Set<u64> {
     found
 }
 
+/// The first merge on the ancestry path from `head` to `tip`, or `head`
+/// for a fast-forward (testing/fakes/forge.md, 2.3). Commit names grow in
+/// creation order, so parents precede children even on converging paths.
+fn manual_merge_commit(domain: &Domain, head: u64, tip: u64) -> Option<u64> {
+    if !is_ancestor(domain, head, tip) {
+        return None;
+    }
+    for &commit in &ancestors(domain, tip) {
+        let object = domain.commits.get(&commit).expect("a commit of the store");
+        if commit != head && object.merge_parent.is_some() && is_ancestor(domain, head, commit) {
+            return Some(commit);
+        }
+    }
+    Some(head)
+}
+
 /// What git asks of the repository `id`, as `user`.
 pub(crate) fn serve(
     domain: &mut Domain,
@@ -212,6 +228,7 @@ pub(crate) fn serve(
         }
         Git::Push { branch, commit, expected } => push(domain, env, id, user, &branch, commit, expected),
         Git::Create { branch, commit } => create(domain, env, id, user, &branch, commit),
+        Git::PushNew { branch, commit } => push_new(domain, env, id, user, &branch, commit),
     }
 }
 
@@ -392,4 +409,48 @@ pub(crate) fn moved(
         hooks::notify(domain, env, id, Hook::item(Change::Pull, number, by));
     }
     ci::start(domain, env, id, to, by);
+    let repository = domain.repositories.get(id).expect("a repository of the forge");
+    if repository.manual_merges.autodetect_manual_merge {
+        for &number in &affected {
+            let repository = domain.repositories.get(id).expect("a repository of the forge");
+            let item = repository.items.get(&number).expect("an affected pull");
+            let pull = item.pull.as_ref().expect("a pull request");
+            if *pull.base == *branch
+                && let Some(commit) = manual_merge_commit(domain, pull.commit, to)
+            {
+                crate::pulls::mark_merged(domain, env, id, number, commit, by);
+            }
+        }
+    }
+}
+
+/// Uploads a commit only under an empty branch lease (testing/fakes/forge.md, 3).
+fn push_new(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    id: Id<Repository>,
+    user: u64,
+    branch: &[u8],
+    commit: u64,
+) -> Result<Answer, Error> {
+    let repository = domain.repositories.get(id).expect("a repository of the forge");
+    repository.require(user, Permission::Write)?;
+    fits(branch, env.limits.limits.name_bytes)?;
+    if repository.refusing {
+        return Err(Error::Refused);
+    }
+    if repository.is_protected(branch) {
+        return Err(Error::Protected);
+    }
+    if !domain.commits.contains_key(&commit) {
+        return Err(Error::Missing(What::Commit));
+    }
+    if let Some(head) = repository.branches.get(branch) {
+        return Ok(Answer::PushNew { existing: Some(*head) });
+    }
+    // No domain call interleaves the empty-lease check and this upload.
+    let Answer::Pushed(Pushed::Pushed) = push(domain, env, id, user, branch, commit, None)? else {
+        unreachable!("an absent branch accepts its store commit")
+    };
+    Ok(Answer::PushNew { existing: None })
 }

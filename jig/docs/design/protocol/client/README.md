@@ -272,6 +272,13 @@ recipient.
   so the core can finish its watch and drain. A name the component has
   never issued is ignored. The core answers an unwatch
   whose watcher it does not know with an unwatched ending.
+- **A stream's own refusal is observable.** When its queued records pass
+  its byte ceiling, or a delivery, run text or ending fails translation,
+  the component emits one `StreamFailed` diagnostic as it starts closing.
+  It carries the sign-in number and either the queue ceiling or the
+  translation's schema path and reason, never document bytes. The host
+  writes this to its operator journal; later deliveries on that closing
+  stream add no diagnostic.
 - **A closing follows its opening's answer.** Exchanges cross
   independently, and a closing that overtook its opening would find no
   watch, be answered closed, and leave the watch admitted after it, which
@@ -326,11 +333,46 @@ recipient.
   read: *version not served*, naming the owner and the ranges the engine
   serves. A keyed request, a read and a watch's opening are each
   answered so; nothing is done.
-- **Until the first release, versions stay fixed** (skein's `data/codec/README.md`,
-  section 5). A change to a record, the template preview's among them
-  (`wire.md`, section 1), changes its schema, codec, translations and one set of
-  golden bytes in place. Versions move at a release; family owners keep
-  their own versions.
+- **Versions move with a wire's layout.** Each changed record moves its
+  wire's version and its schema, codec, translations and golden bytes.
+  The engine serves one version; a client of another version is refused
+  before its record is read. Client bridges are deferred
+  (`temper/docs/design/draft/redeploys.md`, 8).
+- **A version is its schema's `family` line.** A wire's version is the
+  number its schema's `family` line names (skein's `data/codec/README.md`,
+  section 3), and its crate's version constant equals it: jig's
+  `VERSION` and `PUBLIC_VERSION`, an application's own (temper's
+  `CLIENT_VERSION` and `PUBLIC_VERSION`). The small store's versioned
+  records carry that number too (section 7).
+- **The layouts' list holds versions to layouts.** Each client wire's
+  crate keeps, beside its schema, its family's list of layouts,
+  `schema/<family>.layouts`: one line per version since the list began,
+  oldest first, the version in decimal, one space, and the family's
+  fingerprint at that version (skein's `data/codec/README.md`, section 9)
+  as 64 lowercase hexadecimal digits; a line starting `#` is a comment.
+  The family's fingerprint, not its declarations': a declaration added,
+  dropped or moved moves it, so a version may move for a change no
+  message's bytes show, which costs an open client a reload and never a
+  record misread. Two checks hold each list, in `fabrig-boundary`, and
+  delivery runs them for any change to a listed wire's crate; the
+  crate's own tests check that its version constant is its schema's
+  version, so that `fabrig-boundary` builds no wire crate:
+  - *Now:* the list's versions rise by one, line to line, and its last
+    line is the schema's version and the schema's fingerprint now.
+  - *Landed:* the list as main has it (git's merge base of the branch
+    with `origin/main`, as the patch check takes it, `.config/gate/README.md`)
+    stands unchanged at the head of the branch's list, its lines in
+    order. A list main lacks passes.
+
+  So a layout changed with its version unmoved fails one check or the
+  other: *now* while its line is left, *landed* once a landed line is
+  edited. A layout changed again before its version reaches main edits
+  that version's own line. The lists: jig's `jig-client-wire` and
+  `jig-public-wire`, in `jig-client-protocol-wire`; temper's
+  `temper-client-wire` and `temper-public-wire`, in
+  `temper-client-protocol-wire`. An application whose clients a
+  deployment serves lists its wires there too; jig's example and test
+  wires, which no deployment serves, are not listed.
 - **The client's versions:** jig's is its wire's; each family owner's,
   the application declares as it makes the client, and the client
   judges each hello against them, whole (`../../client/domain/client/watches.md`,
@@ -342,6 +384,19 @@ recipient.
   its reads are answered at once, unsent, and its watches end, as
   version not served. Outside jig's range, the link is out of date, and
   the client sends nothing at all (`../../client/domain/client/watches.md`, 2).
+- **A record the client can't read** is the same news, found later: a
+  stream's record of jig's, or a watch's opening's or closing's answer,
+  that the link cannot decode or translate means the engine speaks a
+  layout this build does not, or is at fault. The stream is dropped and
+  not opened again: the link is out of date, naming it `unreadable`
+  (`../../client/domain/client/watches.md`, 2). Offline, it would open
+  the stream again after each backoff, meet the same record each time,
+  and tell no one. A record refused for a bound (past the client's
+  limits) or for its order on the stream (a delivery, a run's text or
+  an end before the hello names the stream) says nothing of a layout:
+  an engine of the same build can send it, and a new stream may not
+  meet it again. Such a record drops the stream, which opens again after
+  its backoff, as before.
   The application says how to update; updated, the client sends what it
   kept in a version it speaks, under its keys (`README.md`, section 7).
 - **One jig pin:** an application's `jig-client` and its engine come from

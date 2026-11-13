@@ -211,7 +211,7 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
 fn github_connects_without_a_picker_and_the_named_welcome_moves_to_model() {
     let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
     node(&view(&root), Role::Paragraph, b"Connected GitHub.");
-    assert!(front.reachable_reads.is_empty());
+    assert_eq!(front.reachable_reads.len(), 0);
     assert!(!front.engine_adopted(1, 8));
     accounts::event(
         &mut front,
@@ -219,7 +219,7 @@ fn github_connects_without_a_picker_and_the_named_welcome_moves_to_model() {
         Temper::went(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(1)) } }),
     );
     node(&view(&root), Role::Heading { level: 1 }, b"Connect a model");
-    assert!(front.reachable_reads.is_empty());
+    assert_eq!(front.reachable_reads.len(), 0);
 }
 
 fn press(front: &mut Joint, root: &mut Root, role: Role, name: &[u8]) {
@@ -248,7 +248,7 @@ fn an_unfinished_github_app_goes_on_to_its_installation() {
     front.engine.settle();
     accounts::event(&mut front, &mut root, Temper::went(Address::Welcome { step: Step::Forge { forge: None } }));
     node(&view(&root), Role::Button, b"Go on");
-    assert!(front.installs.is_empty());
+    assert_eq!(front.installs.len(), 0);
     press(&mut front, &mut root, Role::Button, b"Go on");
     assert_eq!(front.installs.len(), 1);
     assert_eq!(front.installs[0].0, 1);

@@ -161,7 +161,7 @@ pub(crate) fn check_provider(engine: &crate::Engine, problems: &mut Problems) {
     }
 }
 
-/// Refuse configurations whose admitted settings exceed client wire 19.
+/// Refuse configurations whose admitted settings exceed client wire 21.
 pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     let core = &limits.core;
     let wire = &limits.clients.wire;
@@ -177,7 +177,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         problems.push(path.member(b"core.settings.proposals"), crate::What::Bound);
     }
     // Defaults and changes may name disjoint settings; model numbers share one 64-row range.
-    let inventory = match jig_domain_core::settings::capacity(core) {
+    let inventory = match jig_domain_core_vocabulary::settings::capacity(core) {
         Some(count) => inventory_settings(count),
         None => None,
     };
@@ -347,7 +347,7 @@ mod settings_tests {
     fn profile_core_shares_remain_representable() {
         for profile in [crate::Profile::Small, crate::Profile::Standard] {
             let limits = crate::profile(profile);
-            assert!(jig_domain_core::valid(&limits.core), "a profile's core limits are representable");
+            assert!(jig_domain_core_vocabulary::valid(&limits.core), "a profile's core limits are representable");
         }
     }
 }
@@ -359,23 +359,23 @@ mod proposal_settings_tests {
     fn proposal_heads_and_review_fit_their_wire_ceilings() {
         // settings-v1's proposal holds 128 heads; the review shares Owned.record's document ceiling.
         for (proposal, retained, review, expected) in [
-            (128, 128, jig_client_protocol_wire::v19::CEILINGS.owned_record, None),
+            (128, 128, jig_client_protocol_wire::v21::CEILINGS.owned_record, None),
             (
                 127,
                 128,
-                jig_client_protocol_wire::v19::CEILINGS.owned_record,
+                jig_client_protocol_wire::v21::CEILINGS.owned_record,
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 127,
-                jig_client_protocol_wire::v19::CEILINGS.owned_record,
+                jig_client_protocol_wire::v21::CEILINGS.owned_record,
                 Some(b"clients.wire.proposal_heads".as_slice()),
             ),
             (
                 128,
                 128,
-                jig_client_protocol_wire::v19::CEILINGS.owned_record - 1,
+                jig_client_protocol_wire::v21::CEILINGS.owned_record - 1,
                 Some(b"clients.wire.settings_review".as_slice()),
             ),
         ] {
@@ -436,7 +436,7 @@ pub(crate) fn check_public(limits: &crate::Limits, problems: &mut Problems) {
     }
 }
 
-fn public_index_bytes(limits: &jig_domain_core::Limits) -> Option<u64> {
+fn public_index_bytes(limits: &jig_domain_core_vocabulary::Limits) -> Option<u64> {
     u64::from(limits.public.goals)
         .checked_add(u64::from(limits.public.ended))?
         .checked_mul(u64::from(limits.public.lines))?

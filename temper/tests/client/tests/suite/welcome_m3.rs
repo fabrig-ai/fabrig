@@ -102,14 +102,14 @@ fn setup_model_sentence_keeps_supported_plans_in_the_playground() {
     assert!(shown.contains("Your model: ChatGPT or Claude"), "{shown}");
     assert!(!shown.contains("Other fake"), "{shown}");
     assert!(!shown.contains("Scripted"), "{shown}");
-    assert!(front.playground_starts.is_empty());
+    assert_eq!(front.playground_starts.len(), 0);
 }
 
 #[test]
 fn github_ready_offers_adoption_from_the_form_without_reading_repositories() {
     let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
     assert!(has(&root, Role::Paragraph, b"Connected GitHub."));
-    assert!(front.reachable_reads.is_empty());
+    assert_eq!(front.reachable_reads.len(), 0);
     assert!(!front.engine_adopted(1, 7));
     press(&mut front, &mut root, Role::Link, b"How work runs");
     press(&mut front, &mut root, Role::Link, b"Repositories");

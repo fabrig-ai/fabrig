@@ -42,7 +42,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
             })
             .collect(),
     };
-    let stock = temper_service::stock::with_models(llm.models.clone(), chat.root.env.limits.tasks.result_bytes);
+    let stock = temper_engine_service::stock::with_models(llm.models.clone(), chat.root.env.limits.tasks.result_bytes);
     let coder = stock.charters.iter().find(|charter| charter.number == 2).expect("stock coder");
     repair.charter = coder.number;
     repair.run.policy = coder.policy.clone();

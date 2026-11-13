@@ -822,7 +822,7 @@ fn restart_leaves_unheld_tasks_in_scope_to_the_referee() {
         .iter()
         .filter_map(|row| if let Stored::PlacedHold(row) = row { Some(*row.clone()) } else { None })
         .collect();
-    assert!(check_rows(rows, &world.env).is_empty());
+    assert_eq!(check_rows(rows, &world.env).len(), 0);
     let mut referee = skein_world::domain::Referee::new(jig_tasks_world::referee::Tasks::default());
     referee.observe(
         skein_lib::Time::ZERO,

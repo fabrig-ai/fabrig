@@ -309,7 +309,7 @@ fn a_path_is_valid_exactly_when_the_oracle_says_so() {
         assert_eq!(path_valid(&path), oracle::valid(&path), "{path:?}");
     }
     for length in [4_094, 4_095, 4_096, 4_097, 4_098] {
-        for fill in [b'a', b'/'] {
+        for fill in *b"a/" {
             let mut path = vec![b'a'; length];
             path[length / 2] = fill;
             assert_eq!(path_valid(&path), oracle::valid(&path), "{length} bytes with {}", char::from(fill));

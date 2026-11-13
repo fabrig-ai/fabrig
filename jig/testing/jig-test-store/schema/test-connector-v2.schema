@@ -34,7 +34,7 @@ record HoldReasonDependency { task: u64 }
 record HoldReasonPlaced { hold: u64 }
 record HoldReasonUncertain { entry: u64 }
 record HoldReasonPoolLost { pool: u64 }
-enum FailureClass { transient, permanent, run, agent, lost, invalid }
+enum FailureClass { transient, permanent, run, agent, lost, invalid, infrastructure }
 enum EffectPhase { kept, sent, uncertain, retry, repeat, held }
 enum ResourceRole { owned, participating, context, unavailable }
 record ApplicationOutcomeChanged { object: u64 now: ApplicationObject }

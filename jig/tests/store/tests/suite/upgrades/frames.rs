@@ -213,7 +213,7 @@ fn a_commit_waits_until_the_written_site_finishes() {
     let queued = world.request(Request::Commit { number: 3, writes: root::plain_commit(3) });
     assert!(queued.is_empty(), "commit answered ahead of the waiting read: {queued:?}");
     assert_eq!(world.contents(), before);
-    assert!(world.changes().is_empty());
+    assert_eq!((world.changes()).len(), 0);
     events = answer(&mut world, events.remove(0), None, 0);
     assert!(matches!(events.as_slice(), [Event::Turns { .. }, Event::Committed { number: 3, .. }]), "{events:?}");
 }
@@ -428,7 +428,7 @@ fn a_stray_site_stops_patching_idle_and_waiting_reads() {
     assert!(answer(&mut world, events.remove(0), None, 0).is_empty());
     assert!(world.request(ask(selected(), READ_BYTES)).is_empty());
     assert_eq!(world.contents(), before);
-    assert!(world.changes().is_empty());
+    assert_eq!((world.changes()).len(), 0);
 }
 
 #[test]
@@ -479,7 +479,7 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
         assert_eq!(after, None);
     }
     assert_eq!(world.contents(), before);
-    assert!(world.changes().is_empty());
+    assert_eq!((world.changes()).len(), 0);
 }
 
 #[test]
@@ -546,7 +546,7 @@ fn foreign_frames_refuse_when_every_owner_level_compares() {
     assert_eq!(first.open_switched(), None);
     set_refused(&first, "foreign frames at first start");
     assert_eq!(first.contents(), before);
-    assert!(first.changes().is_empty());
+    assert_eq!((first.changes()).len(), 0);
     for start in [BASE, frame_reads::SETS] {
         let mut world = baseline(foreign(start, None));
         world.patch_sets(sets);

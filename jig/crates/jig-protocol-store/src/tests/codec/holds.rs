@@ -1,7 +1,7 @@
 //! Each holds/pieces word reads the bytes its owner wrote (protocol/store/records.md, 1).
 use super::fixtures;
-use crate::{codec, core_v6 as core, people_v16 as people, tasks_v10 as tasks};
-use jig_domain_core as c;
+use crate::{codec, core_v6 as core, people_v17 as people, tasks_v11 as tasks};
+use jig_domain_core_vocabulary as c;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::Reader;
@@ -570,11 +570,11 @@ fn role_spend_round_trips_in_a_stored_answer() {
 
 #[test]
 fn project_spend_answer_bytes_match_the_current_schema() {
-    // people-v16: Row/Answer, key, ChangePolicy/ProjectSpend, no models,
+    // people-v17: Row/Answer, key, ChangePolicy/ProjectSpend, no models,
     // PolicyChanged and its project, then the answer's wall time.
     let mut before = skein_lib::Writer::new(58);
     for field in [
-        [0, 15, 6].as_slice(),
+        [0, 16, 6].as_slice(),
         &2_u64.to_be_bytes(),
         &[7; 16],
         &[21, 0, 0, 0, 1, 0],

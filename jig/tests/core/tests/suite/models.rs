@@ -302,7 +302,7 @@ fn a_number_no_setting_has_is_a_hole() {
         ),
         "{reply:?}"
     );
-    assert!(world.assignments.is_empty());
+    assert_eq!(world.assignments.len(), 0);
 }
 
 #[test]

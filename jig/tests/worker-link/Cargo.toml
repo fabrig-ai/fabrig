@@ -20,9 +20,9 @@ jig-protocol-worker-link.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-channel.workspace = true
 skein-fake-channel.workspace = true
-skein-world.workspace = true
 
 [dev-dependencies]
+skein-world.workspace = true
 jig-protocol-config.workspace = true
 jig-test-service.workspace = true
 jig-protocol-engine-workers.workspace = true

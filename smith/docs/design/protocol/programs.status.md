@@ -50,6 +50,7 @@ fake status supplies it; this does not establish a real-login render check.
 
 ## Gaps and departures
 
+
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,

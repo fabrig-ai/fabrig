@@ -7,8 +7,8 @@
 use std::io::{Read, Write};
 use std::sync::Arc;
 
-use rustls::ExtractedSecrets;
-use rustls::server::{ServerConfig, ServerConnection};
+use rustls_std::ExtractedSecrets;
+use rustls_std::server::{ServerConfig, ServerConnection};
 
 /// A server's connection.
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct Server {
     /// Whether it read the client's `close_notify`.
     pub closed: bool,
     /// The error the client's bytes caused, if they broke TLS.
-    pub failed: Option<rustls::Error>,
+    pub failed: Option<rustls_std::Error>,
 }
 
 impl Server {

@@ -24,7 +24,7 @@ pub fn scripted(front: &mut Scripted) {
         revision: 1,
         before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: Some(Wall::EPOCH),
     };
     task.hold = Some(Box::new(reason.clone()));
@@ -81,7 +81,7 @@ pub(crate) fn scripted_delegate(front: &mut Scripted, parent: &mut c::Task) {
             entry: 1,
             since: Wall::EPOCH,
         }),
-        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: Some(Wall::EPOCH),
     };
     task.hold = Some(Box::new(hold.clone()));

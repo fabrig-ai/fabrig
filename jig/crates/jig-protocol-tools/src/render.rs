@@ -2,7 +2,7 @@
 use crate::{Problem, Rendered, Why};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
-use jig_domain_core::{self as core, CallPart};
+use jig_domain_core_vocabulary::{self as core, CallPart};
 use skein_lib::{Decimal, List, Writer};
 
 fn text(parts: &[&[u8]], error: bool) -> Rendered {
@@ -609,6 +609,7 @@ fn hold_reason(reason: &jig_domain_people::HoldReason) -> &'static [u8] {
             FailureClass::Agent => b"for agent failures",
             FailureClass::Lost => b"for lost runs",
             FailureClass::Invalid => b"for invalid results",
+            FailureClass::Infrastructure => b"for infrastructure failures",
         },
         HoldReason::Stalled => b"because it stalled",
         HoldReason::Dependency { .. } => b"for its dependency",

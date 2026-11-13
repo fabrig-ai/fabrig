@@ -12,7 +12,6 @@ struct Dependency {
     name: String,
     directory: PathBuf,
     dev: bool,
-    features: Vec<String>,
 }
 
 struct Package {
@@ -59,12 +58,6 @@ fn packages(metadata: &str) -> Vec<Package> {
                         name: dependency["name"].as_str().expect("dependency name").to_owned(),
                         directory: normalized(path.strip_prefix(root).unwrap_or(path)),
                         dev: dependency["kind"].as_str() == Some("dev"),
-                        features: dependency["features"]
-                            .as_array()
-                            .expect("dependency features")
-                            .iter()
-                            .map(|feature| feature.as_str().expect("dependency feature").to_owned())
-                            .collect(),
                     })
                 })
                 .collect(),
@@ -89,23 +82,61 @@ fn world_edges(packages: &[Package]) -> Vec<String> {
 }
 
 /// The seam's one world (skein/docs/design/forge/connection.md, 10).
-fn seam_edges(packages: &[Package]) -> Vec<String> {
-    let mut failures = Vec::new();
-    for package in packages {
-        for dependency in &package.dependencies {
-            if dependency.name == "skein-forge-connection"
-                && dependency.features.iter().any(|feature| feature == "seam")
-                && package.name != "skein-forge-machine-world"
-            {
-                failures.push(format!(
-                    "{} -> {}: seam is private to skein-forge-machine-world",
-                    package.name, dependency.name
-                ));
-            }
+fn seam_source(path: &Path, source: &str) -> Vec<String> {
+    if path.starts_with("skein/crates/skein-forge-connection")
+        || path.starts_with("skein/tests/forge/machine")
+        || !source.contains("skein_forge_connection")
+    {
+        return Vec::new();
+    }
+    let mut seam = SeamPaths::default();
+    seam.visit_file(&syn::parse_file(source).unwrap_or_else(|why| panic!("{}: {why}", path.display())));
+    if seam.0 { vec![format!("{}: seam is private to skein-forge-machine-world", path.display())] } else { Vec::new() }
+}
+
+#[derive(Default)]
+struct SeamPaths(bool);
+
+impl<'ast> Visit<'ast> for SeamPaths {
+    fn visit_path(&mut self, path: &'ast syn::Path) {
+        let mut segments = path.segments.iter();
+        self.0 |= segments.next().is_some_and(|segment| segment.ident == "skein_forge_connection")
+            && segments.next().is_some_and(|segment| segment.ident == "seam");
+        syn::visit::visit_path(self, path);
+    }
+
+    fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+        self.0 |= seam_use(&item.tree, "");
+    }
+}
+
+fn seam_use(tree: &syn::UseTree, prefix: &str) -> bool {
+    match tree {
+        syn::UseTree::Path(path) => {
+            let prefix = format!("{prefix}{}::", path.ident);
+            prefix == "skein_forge_connection::seam::" || seam_use(&path.tree, &prefix)
         }
+        syn::UseTree::Name(name) => format!("{prefix}{}", name.ident) == "skein_forge_connection::seam",
+        syn::UseTree::Rename(rename) => format!("{prefix}{}", rename.ident) == "skein_forge_connection::seam",
+        syn::UseTree::Group(group) => group.items.iter().any(|item| seam_use(item, prefix)),
+        syn::UseTree::Glob(_) => false,
+    }
+}
+
+fn seam_sources(root: &Path) -> Vec<String> {
+    let output = Command::new("git")
+        .current_dir(root)
+        .args(["ls-files", "-z", "--", "*.rs"])
+        .output()
+        .expect("list tracked Rust sources");
+    assert!(output.status.success(), "git ls-files: {}: {}", output.status, String::from_utf8_lossy(&output.stderr));
+    let mut failures = Vec::new();
+    for raw in output.stdout.split(|byte| *byte == 0).filter(|path| !path.is_empty()) {
+        let path = std::str::from_utf8(raw).expect("tracked path is UTF-8");
+        let source = fs::read_to_string(root.join(path)).unwrap_or_else(|why| panic!("{path}: {why}"));
+        failures.extend(seam_source(Path::new(path), &source));
     }
     failures.sort();
-    failures.dedup();
     failures
 }
 
@@ -185,7 +216,6 @@ fn dependency_paths_hold_for_every_kind_and_tree() {
                 "name": "consumer", "manifest_path": format!("/workspace/{directory}/Cargo.toml"),
                 "dependencies": [{
                     "name": "provider", "rename": "alias", "kind": kind, "target": "cfg(unix)",
-                    "features": [],
                     "path": format!("/workspace/{dependency}/../{}/", Path::new(dependency).file_name().expect("directory").to_string_lossy()),
                 }, { "name": "registry", "kind": null }],
             }],
@@ -198,29 +228,19 @@ fn dependency_paths_hold_for_every_kind_and_tree() {
 
 #[test]
 fn seam_is_private_to_the_machine_world() {
-    for (consumer, kind, features, expected) in [
-        ("skein-forge-machine-world", Value::Null, vec!["seam"], false),
-        ("consumer", Value::Null, vec!["seam"], true),
-        ("consumer", Value::from("dev"), vec!["seam"], true),
-        ("consumer", Value::Null, vec![], false),
+    for (path, source, expected) in [
+        ("skein/tests/forge/machine/src/hand.rs", "use skein_forge_connection::seam::GitHub;", false),
+        ("temper/crates/x/src/lib.rs", "use skein_forge_connection::seam::GitHub;", true),
+        ("skein/crates/skein-forge-connection/src/lib.rs", "use skein_forge_connection::seam::GitHub;", false),
+        ("temper/crates/x/src/lib.rs", "use skein_forge_connection::{Component, seam::{GitHub, Access}};", true),
+        ("temper/crates/x/src/lib.rs", "type State = skein_forge_connection::seam::GitHub;", true),
+        ("temper/crates/x/src/lib.rs", "use skein_forge_connection::Component;", false),
+        ("temper/crates/x/src/lib.rs", r#"const TEXT: &str = "skein_forge_connection::seam::GitHub";"#, false),
     ] {
-        let metadata = serde_json::json!({
-            "workspace_root": "/workspace",
-            "packages": [{
-                "name": consumer, "manifest_path": "/workspace/consumer/Cargo.toml",
-                "dependencies": [{
-                    "name": "skein-forge-connection", "rename": "alias", "kind": kind,
-                    "path": "/workspace/skein/crates/skein-forge-connection", "features": features,
-                }],
-            }],
-        });
-        let failures = seam_edges(&packages(&metadata.to_string()));
-        let expected = if expected {
-            vec!["consumer -> skein-forge-connection: seam is private to skein-forge-machine-world"]
-        } else {
-            vec![]
-        };
-        assert_eq!(failures, expected, "{consumer}, {kind}, {features:?}");
+        let failures = seam_source(Path::new(path), source);
+        let expected =
+            if expected { vec![format!("{path}: seam is private to skein-forge-machine-world")] } else { vec![] };
+        assert_eq!(failures, expected, "{path}: {source}");
     }
 }
 
@@ -263,7 +283,7 @@ fn skein_worlds_are_private_to_their_packages() {
         assert!(packages.iter().any(|package| package.directory.starts_with(tree)), "metadata reads {tree}");
     }
     let mut failures = world_edges(&packages);
-    failures.extend(seam_edges(&packages));
+    failures.extend(seam_sources(&root));
     failures.extend(path_crossings(&root));
     assert!(
         failures.is_empty(),

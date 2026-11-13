@@ -514,7 +514,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
         .unwrap()
         .token;
     let act = crate::decode(&mut bindings, textbox, skein_ui::Act::Input { value: copy_of(b"32833") }).unwrap();
-    assert!(native_drive(&mut d, Event::Act { action: act }).is_empty());
+    assert_eq!(native_drive(&mut d, Event::Act { action: act }).len(), 0);
     let (tree, mut bindings) = page(&d);
     let field = tree
         .nodes()
@@ -555,7 +555,7 @@ fn check_owner_project_real_page_decodes_whole_role_edits_preserves_prior_channe
     assert_eq!(role.decides, 129);
     assert_eq!(role.authority, value.policy.roles.get(0).unwrap().authority.authority);
     assert_eq!(role.period_spend, u64::MAX);
-    assert!(native_drive(&mut d, Event::Act { action: Act::Confirm }).is_empty());
+    assert_eq!(native_drive(&mut d, Event::Act { action: Act::Confirm }).len(), 0);
 }
 #[test]
 fn owner_project_public_baselines_preserve_optional_permissions_configured_targets_and_empty_recurring_titles() {
@@ -589,6 +589,7 @@ fn owner_project_public_baselines_preserve_optional_permissions_configured_targe
 }
 #[test]
 #[expect(clippy::assertions_on_result_states, reason = "assert both independent one-under builder refusals")]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn owner_project_public_whole_tree_accepts_exact_observed_nodes_and_text_and_refuses_one_under_without_clipping() {
     let value = source();
     let w = words(false);
@@ -698,7 +699,7 @@ fn owner_project_public_service_and_pool_inputs_decode_explicit_values_and_prese
             })
         })
         .unwrap();
-    assert!(native_drive(&mut domain, Event::Act { action: selected }).is_empty());
+    assert_eq!(native_drive(&mut domain, Event::Act { action: selected }).len(), 0);
     let (tree, mut bindings) = owner_page(&domain);
     let name = tree
         .nodes()
@@ -847,7 +848,7 @@ fn owner_project_public_goal_form_decodes_whole_bounded_procedure_and_keeps_prop
         .expect("supplied procedure choice");
     assert_eq!(choice.project, 4);
     assert_eq!(choice.budget, 17);
-    assert!(native_drive(&mut domain, Event::Act { action: Act::GoalForm { form: choice } }).is_empty());
+    assert_eq!(native_drive(&mut domain, Event::Act { action: Act::GoalForm { form: choice } }).len(), 0);
     let (tree, mut bindings) = owner_page(&domain);
     let words_field = tree.nodes().iter().find(|node| node.role == Role::TextArea).unwrap().binding.unwrap().token;
     let act =
@@ -872,7 +873,7 @@ fn owner_project_public_goal_form_decodes_whole_bounded_procedure_and_keeps_prop
             })
             .find(|act| act == &edited)
             .unwrap();
-        assert!(native_drive(&mut domain, Event::Act { action: decoded }).is_empty());
+        assert_eq!(native_drive(&mut domain, Event::Act { action: decoded }).len(), 0);
     }
     let (tree, mut bindings) = owner_page(&domain);
     let submit = tree
@@ -884,7 +885,7 @@ fn owner_project_public_goal_form_decodes_whole_bounded_procedure_and_keeps_prop
             _ => false,
         })
         .unwrap();
-    assert!(native_drive(&mut domain, Event::Act { action: submit }).is_empty());
+    assert_eq!(native_drive(&mut domain, Event::Act { action: submit }).len(), 0);
     let projected = domain.project_page();
     let review = projected.form.confirmation.as_ref().unwrap();
     assert_eq!(review.form.executor, executor);
@@ -918,7 +919,7 @@ fn owner_project_public_goal_form_decodes_whole_bounded_procedure_and_keeps_prop
             Text::new(copy_of(UTF8_TEXTS[0]), limits().client.text).unwrap()
         )]
     );
-    assert!(native_drive(&mut domain, Event::Act { action: Act::Confirm }).is_empty());
+    assert_eq!(native_drive(&mut domain, Event::Act { action: Act::Confirm }).len(), 0);
     assert_eq!(domain.project_page().owner.as_deref(), Some(&value));
 }
 
@@ -1012,6 +1013,7 @@ fn owner_project_spend_keeps_live_and_retained_funding_with_both_opaque_edges() 
 }
 #[test]
 #[expect(clippy::assertions_on_result_states, reason = "independent exact and one-under whole companion allocations")]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn owner_project_ended_companion_prices_whole_languages_and_refuses_one_under_nodes_or_text() {
     let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_ended");
     let (domain, page) = native_ended_project();

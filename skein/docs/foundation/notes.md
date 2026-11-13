@@ -1,9 +1,10 @@
 # Notes
 
-Provisional, 2026-10-03, revised 2026-10-28. What belongs with
+Provisional, 2026-10-03, revised 2026-11-12. What belongs with
 programming-model.md and testing-strategy.md but is not a rule: the
-questions still open, why the memory strategy is what it is, and why facts
-are never lost inside a process.
+questions still open, why the memory strategy is what it is, why facts
+are never lost inside a process, why a binary is a process, and why the
+toolchain is a pinned nightly.
 
 ## Open questions
 
@@ -164,7 +165,8 @@ Also rejected:
   parameters spread to every type that touches them, and state stops
   being a plain value that can be snapshotted and compared.
 - **Custom allocators per layer.** The allocator API is unstable, and
-  everything builds on stable Rust.
+  the code stays within stable Rust's language and library
+  (programming-model.md, 10.1).
 - **Shared immutable buffers (`Arc<[u8]>`) as the ownership system.** At
   most an optimisation, confined to io.
 
@@ -182,3 +184,22 @@ CPU is measured per process alone, by the user's word: fast tests come
 before precise diagnostics. An outer runner can't measure a test inside a
 shared process: the kernel's per-process times tick at 10 ms, and libtest
 reports a result after it has moved on.
+
+## Why a pinned nightly
+
+The repository builds on a dated nightly with LLVM, by the user's choice
+of 2026-11-12 (temper's `docs/design/draft/crate-graph.md`, 2). In one
+trial on one builder, that nightly's LLVM compiled the libraries in 17%
+less processor time than stable 1.95's, and two crates' test builds in
+19% less; and Cargo's feature unification across a workspace, which
+keeps one cache key for each external crate whatever a build selects,
+is nightly's alone (the same draft, 3.4). Cranelift compiled in about
+43% less, but failed 151 of the focused suite's tests: it doesn't catch
+panics, and lacks an SSE2 intrinsic a dependency uses. So LLVM stays,
+and no other code generator is installed.
+
+The code stays within stable Rust's language and library
+(programming-model.md, 10.1): nightly is for the compiler's speed and
+Cargo's resolution, so the pin moves to a later nightly, or to Cranelift
+once it fits, by `rust-toolchain.toml` alone. Fuzz targets need a
+nightly in any case, for their sanitizers.

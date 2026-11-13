@@ -56,7 +56,12 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::Follow { project, .. }
         | Application::Looked { project }
         | Application::SetAway { project, .. }
-        | Application::Overturn { project, .. } => people::ApplicationScope::Project(*project),
+        | Application::Overturn { project, .. }
+        | Application::FileFinding(forge::FileFinding { project, .. })
+        | Application::HandFinding(forge::HandFinding { project, .. })
+        | Application::TriageFinding(forge::TriageFinding { project, .. }) => {
+            people::ApplicationScope::Project(*project)
+        }
     };
     let carried = match &request {
         Application::Try { .. } => {
@@ -80,7 +85,10 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::SetAway { .. }
         | Application::Overturn { .. }
         | Application::AddDevice(_)
-        | Application::RemoveDevice { .. } => carried,
+        | Application::RemoveDevice { .. }
+        | Application::FileFinding(_)
+        | Application::HandFinding(_)
+        | Application::TriageFinding(_) => carried,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
@@ -109,11 +117,30 @@ pub(super) fn admitted(
     role: Option<people::Role>,
     person: u64,
     env: &skein_lib::Env<crate::Limits>,
+    decision: &mut crate::Decision,
 ) {
     let (held, ask) = domain.application.take().expect("one admitted application value");
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::FileFinding(call) => {
+            let answer = super::findings::file_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::FileFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
+        Application::HandFinding(call) => {
+            let answer = super::findings::hand_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::HandFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
+        Application::TriageFinding(call) => {
+            let answer = super::findings::triage_finding(domain, env, decision, forge::Filer::Party(person), call);
+            let mut out = skein_lib::Queue::uncapped();
+            domain.forge.answer_finding(request, token, forge::Answered::TriageFinding(answer), &mut out);
+            forge_route::outputs(domain, env, decision, &mut out);
+        }
         Application::Follow { project, follow, act } => {
             let authorized = match domain.forge.follow(project, follow) {
                 Some(setting) => match setting.owner {
@@ -134,32 +161,10 @@ pub(super) fn admitted(
         Application::Try { account, again } => {
             sweep_answers(domain, env);
             let answer = super::trials::asked(domain, env, person, account, again);
-            domain
-                .try_answers
-                .insert(
-                    token,
-                    (
-                        answer,
-                        env.now.saturating_add(retention),
-                        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(retention.as_nanos())),
-                    ),
-                )
-                .expect("one marker per retained key");
+            keep_trial_answer(domain, token, retention, answer, env);
             finished(domain, request, Ok(token));
         }
-        Application::AddDevice(call) => {
-            let person_kind = match domain.core.people.kind(person) {
-                Some(people::Kind::Person) => true,
-                Some(people::Kind::Service) | None => false,
-            };
-            domain.work.push(Work::Forge(forge::Event::AddDevice {
-                request,
-                token,
-                party: person,
-                person: person_kind,
-                call,
-            }));
-        }
+        Application::AddDevice(call) => add_device(domain, request, token, person, call),
         Application::RemoveDevice { number } => {
             domain.work.push(Work::Forge(forge::Event::RemoveDevice { request, token, party: person, number }));
         }
@@ -200,6 +205,34 @@ pub(super) fn admitted(
             domain.work.push(Work::Forge(forge::Event::Application { request, token, retention, ask, role, carried }));
         }
     }
+}
+
+fn keep_trial_answer(
+    domain: &mut Domain,
+    token: Token,
+    retention: Duration,
+    answer: crate::TryAnswer,
+    env: &skein_lib::Env<crate::Limits>,
+) {
+    domain
+        .try_answers
+        .insert(
+            token,
+            (
+                answer,
+                env.now.saturating_add(retention),
+                skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(retention.as_nanos())),
+            ),
+        )
+        .expect("one marker per retained key");
+}
+
+fn add_device(domain: &mut Domain, request: Token, token: Token, person: u64, call: forge::AddDevice) {
+    let person_kind = match domain.core.people.kind(person) {
+        Some(people::Kind::Person) => true,
+        Some(people::Kind::Service) | None => false,
+    };
+    domain.work.push(Work::Forge(forge::Event::AddDevice { request, token, party: person, person: person_kind, call }));
 }
 
 pub(super) fn drop(domain: &mut Domain, owner: Token) {
@@ -252,6 +285,9 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::SetAway(answer)) => Some(ApplicationAnswer::SetAway(answer)),
         Some(forge::Answered::Overturn(answer)) => Some(ApplicationAnswer::Overturn(answer)),
         Some(forge::Answered::Device(answer)) => Some(ApplicationAnswer::Device(answer)),
+        Some(forge::Answered::FileFinding(answer)) => Some(ApplicationAnswer::FileFinding(answer)),
+        Some(forge::Answered::HandFinding(answer)) => Some(ApplicationAnswer::HandFinding(answer)),
+        Some(forge::Answered::TriageFinding(answer)) => Some(ApplicationAnswer::TriageFinding(answer)),
         None => None,
     }
 }

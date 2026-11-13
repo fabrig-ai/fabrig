@@ -1,6 +1,6 @@
 //! Arbitrary and mutated client bytes (skein's data/codec/README.md, section 6).
 //! Job arms follow jig/docs/design/client/domain/contract/documents.md, 7.
-use jig_client_protocol_wire::v19::*;
+use jig_client_protocol_wire::v21::*;
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 
@@ -691,6 +691,7 @@ fn mutation_seed(path: &Path) -> bool {
             "record_stream_text_",
             "record_spend_page_",
             "record_activity_page_",
+            "enum_word_result_",
             "record_history_page_",
             "record_inbox_page_",
             "record_ended_",

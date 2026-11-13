@@ -464,7 +464,7 @@ pub(crate) fn hold() -> jig_client::contract::ChipHold {
         revision: 4,
         before: PriorPhase::Waiting,
         escalation: None,
-        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: Some(skein_lib::Wall::EPOCH),
     }
 }

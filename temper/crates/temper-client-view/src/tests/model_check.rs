@@ -22,7 +22,7 @@ fn claude(state: State) -> Trial {
         account: b"Claude subscription".as_slice().into(),
         account_number: None,
         who: b"Claude".as_slice().into(),
-        detail: Some(b"claude-owner, signed in on this machine".as_slice().into()),
+        detail: Some(b"through Claude Code, signed in".as_slice().into()),
         first: First::Subscription,
         state,
     }
@@ -97,7 +97,7 @@ fn usable_and_answered_are_ticked_without_each_step_and_only_answered_has_a_time
     for answered in [false, true] {
         for w in [f::words(), f::browser_words()] {
             let tree = drawn(&w, &claude(if answered { State::Answered { seconds: 6 } } else { State::Usable }));
-            let mut name = String::from("Claude subscription · claude-owner, signed in on this machine");
+            let mut name = String::from("Claude subscription · through Claude Code, signed in");
             if answered {
                 name.push_str(" · answered in 6 s");
             }
@@ -487,13 +487,13 @@ fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
 #[test]
 fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
     for (kind, email, detail) in [
-        (d::WayKind::Program, None, Some("owner, signed in on this machine")),
+        (d::WayKind::Program, None, Some("through Claude Code, signed in")),
         (d::WayKind::SignIn, None, Some("owner")),
         (d::WayKind::Key, None, Some("billed to the key’s organization")),
         (
             d::WayKind::Program,
             Some(b"alice@example.com".as_slice()),
-            Some("alice@example.com, signed in on this machine"),
+            Some("through Claude Code, signed in · alice@example.com"),
         ),
         (d::WayKind::SignIn, Some(b"alice@example.com".as_slice()), Some("alice@example.com")),
     ] {
@@ -547,6 +547,7 @@ fn trial_failures_say_why_and_retry_the_account() {
     let (mut root, watch, _) = fed(d::WayKind::Program);
     for (class, words) in [
         (v::TrialClass::Transient, "Claude was busy or out of reach just now."),
+        (v::TrialClass::Infrastructure, "Claude was busy or out of reach just now."),
         (v::TrialClass::Permanent, "Claude refused the request. Its account may need attention."),
         (v::TrialClass::Run, "The run stopped before Claude answered."),
         (v::TrialClass::Agent, "The run stopped before Claude answered."),
@@ -760,7 +761,7 @@ fn sign_in_again_follows_the_place_and_the_selected_source() {
                 let tree = b.finish();
                 let links: Vec<_> = tree.nodes().iter().filter(|n| n.role == Role::Link).collect();
                 if kind == d::WayKind::Key && !welcome {
-                    assert!(links.is_empty());
+                    assert_eq!(links.len(), 0);
                     continue;
                 }
                 assert_eq!(links.len(), 1);

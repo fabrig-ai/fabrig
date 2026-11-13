@@ -496,6 +496,7 @@ pub(super) fn encode_failure_class(value: d::application_core::FailureClass) -> 
         d::application_core::FailureClass::Agent => w::FailureClass::Agent,
         d::application_core::FailureClass::Lost => w::FailureClass::Lost,
         d::application_core::FailureClass::Invalid => w::FailureClass::Invalid,
+        d::application_core::FailureClass::Infrastructure => w::FailureClass::Infrastructure,
     }
 }
 pub(super) fn decode_failure_class(value: w::FailureClass, _limits: &d::Limits) -> d::application_core::FailureClass {
@@ -506,5 +507,6 @@ pub(super) fn decode_failure_class(value: w::FailureClass, _limits: &d::Limits) 
         w::FailureClass::Agent => d::application_core::FailureClass::Agent,
         w::FailureClass::Lost => d::application_core::FailureClass::Lost,
         w::FailureClass::Invalid => d::application_core::FailureClass::Invalid,
+        w::FailureClass::Infrastructure => d::application_core::FailureClass::Infrastructure,
     }
 }

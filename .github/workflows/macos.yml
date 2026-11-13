@@ -17,7 +17,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RUST_VERSION: "1.95"
   NEXTEST_VERSION: 0.9.148
   NEXTEST_SHA256: 6c23b7fb4ca82c571fc8dfedbab45bfa773d45918f933170c85d21cd7f4b852b
   CARGO_TERM_COLOR: never
@@ -88,7 +87,7 @@ jobs:
           chmod +x "$RUNNER_TEMP/run"
           echo "RUN=$RUNNER_TEMP/run" >>"$GITHUB_ENV"
 
-      - name: Rust at the workspace's rust-version, and cargo-nextest
+      - name: Rust from the workspace's toolchain file, and cargo-nextest
         id: rust
         run: |
           # rustup is on the image; no installer script runs here.
@@ -96,8 +95,8 @@ jobs:
               echo "::error title=rustup::rustup is not on the macos-26 image"
               exit 1
           fi
-          rustup toolchain install "$RUST_VERSION" --profile minimal
-          rustup default "$RUST_VERSION"
+          rustup --version
+          rustup toolchain install
           curl -sSfL -o "$RUNNER_TEMP/nextest.tar.gz" \
               "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-$NEXTEST_VERSION/cargo-nextest-$NEXTEST_VERSION-universal-apple-darwin.tar.gz"
           echo "$NEXTEST_SHA256  $RUNNER_TEMP/nextest.tar.gz" | shasum -a 256 -c -
@@ -124,8 +123,8 @@ jobs:
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: target
-          key: target-macos-26-rust-${{ env.RUST_VERSION }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: target-macos-26-rust-${{ env.RUST_VERSION }}-
+          key: target-macos-26-rust-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: target-macos-26-rust-${{ hashFiles('rust-toolchain.toml') }}-
 
       - name: Compile every target
         if: ${{ !cancelled() && steps.rust.outcome == 'success' }}
@@ -146,7 +145,7 @@ jobs:
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: target
-          key: target-macos-26-rust-${{ env.RUST_VERSION }}-${{ hashFiles('Cargo.lock') }}
+          key: target-macos-26-rust-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
         continue-on-error: true
 
       - name: The pinned binaries, through temper forge fetch

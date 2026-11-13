@@ -7,6 +7,7 @@ pub fn public_limits(bounds: &Bounds) -> Option<public_v1::Limits> {
     let panels = crate::limits(bounds)?;
     let limits = public_v1::Limits {
         public_change_gates: panels.change_panel_gates,
+        public_judgement_gates: panels.change_panel_gates,
         public_landing_line_members: panels.landing_line_changes,
         public_landing_line_landed: panels.landing_line_landed,
         public_queue_changes: TASKS_AHEAD,

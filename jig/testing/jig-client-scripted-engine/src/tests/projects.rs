@@ -14,7 +14,7 @@ fn refused_as(engine: &mut Engine, party: u64, ask: &Ask, refusal: Refusal) {
     let before = engine.truth().clone();
     let (answer, changes) = engine.decide(party, ask, Wall::EPOCH).expect("typed decision fits");
     assert_eq!(answer, Answer::Refused { refusal, at: None });
-    assert!(changes.is_empty());
+    assert_eq!(changes.len(), 0);
     assert_eq!(engine.truth(), &before);
 }
 

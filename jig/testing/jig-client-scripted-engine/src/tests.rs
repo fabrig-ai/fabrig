@@ -140,8 +140,8 @@ fn answer_waits_for_its_durable_commit() {
     let (mut engine, ask) = proposal_engine();
     send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask);
     assert_eq!(engine.next_due(), Some(at(10_000_000)));
-    assert!(engine.poll(at(9_999_999)).is_empty());
-    assert!(engine.commits().is_empty());
+    assert_eq!(engine.poll(at(9_999_999)).len(), 0);
+    assert_eq!((engine.commits()).len(), 0);
     assert_eq!(engine.poll(at(10_000_000)).len(), 1);
     assert_eq!(engine.commits()[0].durable, Some(at(10_000_000)));
 }
@@ -385,7 +385,7 @@ fn scenario_watch_subjects_coalescing_and_lifecycle() {
         vec![Up::Watch { token: Token::new(1), event: WatchEvent::Delivered(Delivery::Task(Box::new(changed))) }]
     );
     engine.taken(Token::new(1));
-    assert!(engine.poll(at(10_000_001)).is_empty());
+    assert_eq!(engine.poll(at(10_000_001)).len(), 0);
     let up = engine.poll(at(1_010_000_001));
     assert_eq!(up.iter().filter(|event| matches!(event, Up::Watch { event: WatchEvent::Alive, .. })).count(), 8);
     engine.close(at(1_010_000_001), Token::new(1));
@@ -433,7 +433,7 @@ fn scenario_run_offsets_cut_names_and_activity() {
     assert_eq!((run.from, run.through, run.cut), (0, 20, false));
     assert_eq!(run.text.bytes(), b"abcdefghijklmnopqrst");
     engine.write(at(1), 8, name, Wall::EPOCH, &text(b"uvwxyz0123456789ABCD"), None).expect("second chunk");
-    assert!(engine.poll(at(1)).is_empty());
+    assert_eq!(engine.poll(at(1)).len(), 0);
     engine.continue_run(Token::new(1), Some(provisional(name)), 20).expect("same watch cursor");
     let up = engine.poll(at(1));
     let Up::Watch { event: WatchEvent::Delivered(Delivery::RunState(state)), .. } = &up[0] else {
@@ -490,7 +490,7 @@ fn scenario_run_offsets_cut_names_and_activity() {
         Some(1)
     );
     engine.read(at(2), REQUESTER_SIGN_IN, Token::new(2), Read::Activity { task: 8, before: None }).expect("activity");
-    assert!(engine.poll(at(10_000_001)).is_empty());
+    assert_eq!(engine.poll(at(10_000_001)).len(), 0);
     let up = engine.poll(at(10_000_002));
     assert!(
         matches!(&up[0],Up::Read { terminal:ReadResult::Value(ReadValue::Activity(page)),.. } if page.rows.iter().next().expect("turn").committed_turn() == Some(second))
@@ -567,7 +567,7 @@ fn scenario_all_read_shapes_and_reverse_activity() {
         let up = engine.poll(Time::ZERO);
         assert_eq!(up.len(), 1);
         assert!(matches!(up[0],Up::Read { token:id,.. } if id == token));
-        assert!(engine.poll(Time::ZERO).is_empty());
+        assert_eq!(engine.poll(Time::ZERO).len(), 0);
     }
     scenario_reply_identity();
 }
@@ -1153,7 +1153,7 @@ fn hold(reason: HoldCategory, revision: u64) -> ChipHold {
         revision,
         before: PriorPhase::Active(RunStage::Running { attempt: 1 }),
         escalation: None,
-        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: None,
     }
 }
@@ -1242,7 +1242,7 @@ fn oversized_request_is_refused_before_any_decision() {
         ),
         Err(Invalid::Payload)
     );
-    assert!(engine.commits().is_empty());
+    assert_eq!((engine.commits()).len(), 0);
     assert!(engine.pending_commits().next().is_none());
 }
 #[test]

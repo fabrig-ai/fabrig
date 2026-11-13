@@ -118,7 +118,7 @@ fn a_recorded_walk_proves_and_replays_its_marks() {
     let end = replay.next().expect("replay end").expect("end mark");
     assert_eq!(end.number, 2);
     assert!(end.end);
-    assert!(end.acted.is_empty());
+    assert_eq!(end.acted.len(), 0);
     assert!(end.recorded.is_none());
     assert!(end.page.html().contains("Added your ChatGPT plan."), "the accounts watch completes the sign-in");
     assert!(replay.next().expect("after end").is_none());

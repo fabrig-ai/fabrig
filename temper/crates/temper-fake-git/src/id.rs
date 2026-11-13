@@ -4,7 +4,7 @@
 pub fn id(count: u64) -> [u8; 40] {
     let raw = skein_fake_forge_domain::object_bytes(count);
     let mut out = [b'0'; 40];
-    for (byte, digits) in raw.iter().zip(out.chunks_exact_mut(2)) {
+    for (byte, digits) in raw.iter().zip(out.as_chunks_mut::<2>().0) {
         digits[0] = b"0123456789abcdef"[usize::from(byte >> 4)];
         digits[1] = b"0123456789abcdef"[usize::from(byte & 15)];
     }

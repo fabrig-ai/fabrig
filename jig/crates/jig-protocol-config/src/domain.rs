@@ -153,7 +153,7 @@ pub(crate) fn connectors(
         match read::integer(document, *at, u64::from(u16::MAX)) {
             Ok(number) => {
                 let number = u16::try_from(number).expect("u16 checked");
-                if number == jig_domain_core::RECURRING {
+                if number == jig_domain_core_vocabulary::RECURRING {
                     problems.push(path.clone(), What::Bound);
                 }
                 if numbers.as_slice().contains(&number) {
@@ -177,7 +177,7 @@ pub(crate) fn items(document: &Document, at: u32, max: u32, path: &Path, problem
 }
 /// The first failed capacity dependency, after all scalar overrides (protocol/limits.md).
 #[rustfmt::skip]
-pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<(&'static [u8], What)> {
+pub(crate) fn capacity(limits: &jig_domain_core_vocabulary::Limits) -> Option<(&'static [u8], What)> {
     let tasks = &limits.tasks;
     let people = &limits.people;
     let authority = &limits.authority;
@@ -268,7 +268,7 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
         problems.push(Path::root().member(b"limits").member(b"driver.server.head"), What::Bound);
     }
     let limits = &engine.limits.core;
-    if !jig_domain_core::brief_holds_documents(limits.brief.sections, limits.tasks.charter_documents) {
+    if !jig_domain_core_vocabulary::brief_holds_documents(limits.brief.sections, limits.tasks.charter_documents) {
         let path = Path::root().member(b"limits").member(b"overrides");
         problems.push(path.member(b"brief.sections"), What::Bound);
         problems.push(path.member(b"tasks.charter_documents"), What::Bound);
@@ -286,7 +286,7 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if limits.settings.history == 0 {
         problems.push(settings_path, What::Bound);
     }
-    if match jig_domain_core::settings::writes_bound(limits) {
+    if match jig_domain_core_vocabulary::settings::writes_bound(limits) {
         Some(writes) => writes > engine.limits.journal.writes,
         None => true,
     } {
@@ -304,7 +304,7 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if let Err(problem) = check_effective_limits(limits) {
         problems.push(problem.path, problem.what);
     }
-    if !jig_domain_core::valid(limits) {
+    if !jig_domain_core_vocabulary::valid(limits) {
         problems.push(Path::root().member(b"limits"), What::Bound);
     }
     if !jig_domain_host::valid_hub(&engine.limits.hub) {
@@ -316,9 +316,7 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
 pub(crate) fn seeds(engine: &crate::Engine, problems: &mut Problems) {
     for (index, project) in engine.projects.iter().enumerate() {
         let path = check::index(&Path::root().member(b"projects"), index);
-        if !check_policy(engine, project.number, &project.policy, &project.roles, &project.templates, &path, problems) {
-            problems.push(path.member(b"policy"), What::Bound);
-        }
+        check_policy(engine, project.number, &project.policy, &project.roles, &project.templates, &path, problems);
     }
 }
 
@@ -326,9 +324,7 @@ pub(crate) fn seeds(engine: &crate::Engine, problems: &mut Problems) {
 pub(crate) fn document_defaults(engine: &crate::Engine, problems: &mut Problems) {
     for (index, policy) in engine.policies.iter().enumerate() {
         let path = check::index(&Path::root().member(b"policies"), index);
-        if !check_policy(engine, policy.number, &policy.policy, &policy.roles, &policy.templates, &path, problems) {
-            problems.push(path, What::Bound);
-        }
+        check_policy(engine, policy.number, &policy.policy, &policy.roles, &policy.templates, &path, problems);
     }
     authority_refs(engine, &engine.rules.ceiling, &Path::root().member(b"rules").member(b"ceiling"), None, problems);
     requirement_refs(
@@ -347,7 +343,7 @@ pub(crate) fn document_defaults(engine: &crate::Engine, problems: &mut Problems)
     }
 }
 
-pub(crate) fn check_message(limits: &jig_domain_core::Limits) -> Result<(), What> {
+pub(crate) fn check_message(limits: &jig_domain_core_vocabulary::Limits) -> Result<(), What> {
     if limits.people.words > limits.tasks.message_bytes
         || limits.tasks.result_bytes > limits.tasks.message_bytes
         || limits.tasks.message_bytes < 24
@@ -364,13 +360,15 @@ fn check_policy(
     templates: &[jig_domain_people::TemplateOverride],
     path: &Path,
     problems: &mut Problems,
-) -> bool {
+) {
+    let before = problems.problems.len();
     let admitted = if engine.defaults == crate::Defaults::Passed {
         jig_domain_authority::policy_refusal(&engine.rules, &engine.limits.core.authority, policy).is_none()
     } else {
         let Some(mut authority) = jig_domain_authority::Domain::new(engine.rules.clone(), engine.limits.core.authority)
         else {
-            return false;
+            problems.push(path.member(b"policy"), What::Because(b"deployment rules exceed authority limits"));
+            return;
         };
         let mut facts = skein_lib::Queue::uncapped();
         jig_domain_authority::step(
@@ -404,15 +402,34 @@ fn check_policy(
     }
     grant_refs(engine, &policy.projections, &path.member(b"policy").member(b"projections"), problems);
     requirement_refs(engine, &policy.requirements, &path.member(b"policy").member(b"requirements"), problems);
-    let bytes = match jig_domain_core::policy_snapshot(policy, roles, templates) {
+    let bytes = match jig_domain_core_vocabulary::policy_snapshot(policy, roles, templates) {
         Some(value) => jig_domain_people::policy_bytes(&value),
         None => None,
     };
-    let bounded = match bytes {
-        Some(bytes) => bytes <= engine.limits.core.policy_bytes,
-        None => false,
-    };
-    admitted && bounded
+    match bytes {
+        Some(bytes) => {
+            if bytes > engine.limits.core.policy_bytes {
+                problems
+                    .push(path.member(b"policy"), What::PolicyBytes { bytes, limit: engine.limits.core.policy_bytes });
+            }
+        }
+        None => problems.push(path.member(b"policy"), What::Because(b"policy snapshot byte arithmetic overflows")),
+    }
+    if !admitted && problems.problems.len() == before {
+        let words = match jig_domain_authority::policy_refusal(&engine.rules, &engine.limits.core.authority, policy) {
+            Some(jig_domain_authority::PolicyRefusal::Oversized) => {
+                b"policy exceeds authority collection or pattern limits".as_slice()
+            }
+            Some(jig_domain_authority::PolicyRefusal::AboveRules) => {
+                b"policy authority or period spend exceeds deployment rules"
+            }
+            Some(jig_domain_authority::PolicyRefusal::InvalidRole) => {
+                b"policy has an invalid role or escalation reference"
+            }
+            Some(jig_domain_authority::PolicyRefusal::Full) | None => b"policy cannot fit in authority.projects",
+        };
+        problems.push(path.member(b"policy"), What::Because(words));
+    }
 }
 
 fn connector(engine: &crate::Engine, number: u16, path: &Path, problems: &mut Problems) {
@@ -432,6 +449,15 @@ fn authority_refs(
     policy: Option<&jig_domain_authority::Policy>,
     problems: &mut Problems,
 ) {
+    if skein_lib::len_u64(value.delegation.kinds.len()) > u64::from(engine.limits.core.authority.executors) {
+        problems.push(
+            path.member(b"delegation").member(b"kinds"),
+            What::PolicyExecutors {
+                executors: skein_lib::len_u64(value.delegation.kinds.len()),
+                limit: engine.limits.core.authority.executors,
+            },
+        );
+    }
     grant_refs(engine, &value.grants, &path.member(b"grants"), problems);
     for (index, scope) in value.note_resources.iter().enumerate() {
         connector(
@@ -487,7 +513,7 @@ fn requirement_refs(
 /// limits. Scalar refusals name the field that fails at the envelope's next byte.
 /// Independent people ceilings retain the generated first failure. Arithmetic and
 /// refusals from other store families have distinct named problems.
-pub fn check_effective_limits(limits: &jig_domain_core::Limits) -> Result<(), Problem> {
+pub fn check_effective_limits(limits: &jig_domain_core_vocabulary::Limits) -> Result<(), Problem> {
     if codec_admits(limits) {
         return Ok(());
     }
@@ -502,7 +528,7 @@ pub fn check_effective_limits(limits: &jig_domain_core::Limits) -> Result<(), Pr
     let Some(derived) = jig_protocol_store::codec::people::derived_limits(&baseline) else {
         return Err(Problem { path: Path::root().member(b"limits"), what: What::CodecArithmetic });
     };
-    if let Err(problem) = jig_protocol_store::people_v16::check_limits(&derived) {
+    if let Err(problem) = jig_protocol_store::people_v17::check_limits(&derived) {
         let configured = match jig_protocol_store::codec::people::derived_limits(limits) {
             Some(configured) => configured,
             None => derived,
@@ -535,15 +561,15 @@ pub fn check_effective_limits(limits: &jig_domain_core::Limits) -> Result<(), Pr
     Err(Problem { path: Path::root().member(b"limits"), what: What::StoreCodec })
 }
 
-fn batch_ceiling(limits: &jig_domain_core::Limits) -> Option<Problem> {
-    if limits.tasks.batch > jig_protocol_store::tasks_v10::CEILINGS.task_interests_result_followups {
+fn batch_ceiling(limits: &jig_domain_core_vocabulary::Limits) -> Option<Problem> {
+    if limits.tasks.batch > jig_protocol_store::tasks_v11::CEILINGS.task_interests_result_followups {
         return Some(Problem {
             path: codec_path(b"tasks.batch"),
             what: What::CodecCeiling {
                 bound: CodecBound {
                     field: b"tasks-v9.TaskInterests.result_followups",
                     needed: limits.tasks.batch,
-                    ceiling: jig_protocol_store::tasks_v10::CEILINGS.task_interests_result_followups,
+                    ceiling: jig_protocol_store::tasks_v11::CEILINGS.task_interests_result_followups,
                 },
             },
         });
@@ -551,7 +577,7 @@ fn batch_ceiling(limits: &jig_domain_core::Limits) -> Option<Problem> {
     None
 }
 
-fn policy_envelope(limits: &jig_domain_core::Limits, maximum: u64) -> Problem {
+fn policy_envelope(limits: &jig_domain_core_vocabulary::Limits, maximum: u64) -> Problem {
     let mut edge = *limits;
     edge.policy_bytes = maximum.checked_add(1).expect("policy arithmetic refuses u64::MAX");
     Problem {
@@ -560,7 +586,7 @@ fn policy_envelope(limits: &jig_domain_core::Limits, maximum: u64) -> Problem {
     }
 }
 
-fn amendment_envelope(limits: &jig_domain_core::Limits, maximum: u32) -> Problem {
+fn amendment_envelope(limits: &jig_domain_core_vocabulary::Limits, maximum: u32) -> Problem {
     let mut edge = *limits;
     edge.people.amendment_bytes = maximum.checked_add(1).expect("amendment arithmetic refuses u32::MAX");
     Problem {
@@ -577,7 +603,7 @@ fn amendment_envelope(limits: &jig_domain_core::Limits, maximum: u32) -> Problem
 /// effective limits unchanged. `None` means even a zero budget is refused.
 /// The search makes at most 64 probes after the zero-budget admission check.
 #[must_use]
-pub fn policy_bytes_max(limits: &jig_domain_core::Limits) -> Option<u64> {
+pub fn policy_bytes_max(limits: &jig_domain_core_vocabulary::Limits) -> Option<u64> {
     let mut candidate = *limits;
     candidate.policy_bytes = 0;
     if !codec_admits(&candidate) {
@@ -605,7 +631,7 @@ pub fn policy_bytes_max(limits: &jig_domain_core::Limits) -> Option<u64> {
 /// effective limits unchanged. `None` means even a zero budget is refused.
 /// The search makes at most 32 probes after the zero-budget admission check.
 #[must_use]
-pub fn amendment_bytes_max(limits: &jig_domain_core::Limits) -> Option<u32> {
+pub fn amendment_bytes_max(limits: &jig_domain_core_vocabulary::Limits) -> Option<u32> {
     let mut candidate = *limits;
     candidate.people.amendment_bytes = 0;
     if !codec_admits(&candidate) {
@@ -629,13 +655,16 @@ pub fn amendment_bytes_max(limits: &jig_domain_core::Limits) -> Option<u32> {
     Some(admitted)
 }
 
-fn codec_admits(limits: &jig_domain_core::Limits) -> bool {
+fn codec_admits(limits: &jig_domain_core_vocabulary::Limits) -> bool {
     jig_protocol_store::codec::people::limits(limits).is_some() && jig_protocol_store::codec::limits(limits).is_some()
 }
 
-fn binding_bound(edge: &jig_domain_core::Limits, configured: &jig_domain_core::Limits) -> Option<CodecBound> {
+fn binding_bound(
+    edge: &jig_domain_core_vocabulary::Limits,
+    configured: &jig_domain_core_vocabulary::Limits,
+) -> Option<CodecBound> {
     let edge = jig_protocol_store::codec::people::derived_limits(edge)?;
-    let problem = jig_protocol_store::people_v16::check_limits(&edge).err()?;
+    let problem = jig_protocol_store::people_v17::check_limits(&edge).err()?;
     let configured = jig_protocol_store::codec::people::derived_limits(configured)?;
     Some(people_bound(&configured, problem.path)?.bound)
 }
@@ -664,10 +693,10 @@ struct PeopleBound {
     reason = "Path is shared with decoding; non-limit paths must return None without panicking"
 )]
 fn people_bound(
-    limits: &jig_protocol_store::people_v16::Limits,
-    path: jig_protocol_store::people_v16::Path,
+    limits: &jig_protocol_store::people_v17::Limits,
+    path: jig_protocol_store::people_v17::Path,
 ) -> Option<PeopleBound> {
-    use jig_protocol_store::people_v16::{CEILINGS, Path as P};
+    use jig_protocol_store::people_v17::{CEILINGS, Path as P};
     macro_rules! b {
         ($name:literal, $words:literal, $field:ident) => {
             Some(PeopleBound {
@@ -770,7 +799,7 @@ fn people_bound(
 mod tests {
     #[test]
     fn a_non_limit_people_path_has_no_bound() {
-        use jig_protocol_store::people_v16::{CEILINGS, Path};
+        use jig_protocol_store::people_v17::{CEILINGS, Path};
 
         assert!(super::people_bound(&CEILINGS, Path::SegmentTail).is_none());
     }

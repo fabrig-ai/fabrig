@@ -1,7 +1,7 @@
 //! A retained catalogue is read only at the binary's levels (protocol/store/opening.md, 2).
 use super::fixtures;
 use crate::{Event, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, codec, format, keys, patches};
-use jig_domain_core::{self as core, settings as s};
+use jig_domain_core_vocabulary::{self as core, settings as s};
 use skein_codec::patch::{Capacity, Patcher, Step};
 use skein_lib::{Queue, Token, Wall};
 
@@ -79,8 +79,8 @@ fn behind_open_defers_the_v1_model_catalogue_until_patching() {
 
 fn patched() -> Box<[u8]> {
     let mut patcher = Patcher::new(Capacity {
-        versions: 2,
-        patches: 1,
+        versions: 3,
+        patches: 2,
         text: skein_codec::schema::MAX_TEXT,
         bytes: 4096,
         nodes: 256,
@@ -88,27 +88,33 @@ fn patched() -> Box<[u8]> {
     for text in patches::kept::jig_store_settings::TEXTS {
         patcher.keep(text.as_bytes()).expect("kept settings schema");
     }
-    let root = patcher.schema(1).expect("baseline").find(b"Changed").expect("changed record");
-    let plan = patcher.plan(patches::PATCHES[0].as_bytes()).expect("U1 patch").expect("settings block");
-    patcher.start(plan, root, OLD_MODEL.into()).expect("baseline model record");
+    let mut bytes = OLD_MODEL.into();
     let mut context = patches::Context::default();
-    loop {
-        match patcher.next().expect("patch step") {
-            Step::Written { site, at } => {
-                let (old, new) = patcher.parts();
-                patches::written(site, old, new, at, &mut context).expect("written patch");
+    for (version, text) in [(1, patches::PATCHES[0]), (2, patches::PATCHES[1])] {
+        let root = patcher.schema(version).expect("kept schema").find(b"Changed").expect("changed record");
+        let plan = patcher.plan(text.as_bytes()).expect("valid patch").expect("settings block");
+        patcher.start(plan, root, bytes).expect("kept model record");
+        loop {
+            match patcher.next().expect("patch step") {
+                Step::Written { site, at } => {
+                    let (old, new) = patcher.parts();
+                    patches::written(site, old, new, at, &mut context).expect("written patch");
+                }
+                Step::Held { .. } => panic!("a catalogue model holds no other family"),
+                Step::Done => break,
             }
-            Step::Held { .. } => panic!("a catalogue model holds no other family"),
-            Step::Done => break,
         }
+        bytes = patcher.finish().expect("patched model").into();
     }
-    patcher.finish().expect("patched model").into()
+    bytes
 }
 
 #[test]
 fn u1_patches_a_v1_model_then_open_restores_its_catalogue() {
     let bytes = patched();
-    let mut store = store(&bytes, 1);
+    // Planted at the binary's jig level, the store opens current and reads its catalogue.
+    let level = u32::try_from(patches::PATCHES.len()).expect("jig's level fits u32");
+    let mut store = store(&bytes, level);
     let events = open(&mut store);
     let [Event::Opened { .. }] = events.as_ref() else {
         panic!("{events:?}");

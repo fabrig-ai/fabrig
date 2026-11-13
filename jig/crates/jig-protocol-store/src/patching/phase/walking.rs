@@ -11,7 +11,7 @@ use crate::{
     secrets,
 };
 use alloc::boxed::Box;
-use jig_domain_core::{CoreKey, CoreRecord, Deployment, Key, Record};
+use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Deployment, Key, Record};
 use skein_codec::patch::{Halt, Patcher};
 use skein_lib::{Env, List, Queue, Token, bytes};
 
@@ -59,6 +59,12 @@ pub(crate) struct Walking {
     refusal: Option<OpenRefusal>,
 }
 impl Walking {
+    pub(crate) fn at_site(&self) -> bool {
+        match self.waiting {
+            Waiting::Site(_) => true,
+            Waiting::Ready | Waiting::Commit { .. } => false,
+        }
+    }
     pub(super) fn ready(&self) -> bool {
         match self.waiting {
             Waiting::Ready => true,

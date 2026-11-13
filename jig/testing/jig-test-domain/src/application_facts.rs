@@ -205,6 +205,7 @@ pub(super) fn failure_class(value: people::FailureClass) -> application::Failure
         people::FailureClass::Agent => application::FailureClass::Agent,
         people::FailureClass::Lost => application::FailureClass::Lost,
         people::FailureClass::Invalid => application::FailureClass::Invalid,
+        people::FailureClass::Infrastructure => application::FailureClass::Infrastructure,
     }
 }
 

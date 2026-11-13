@@ -1,5 +1,5 @@
 //! The test's shell: linked sign-in played as platform reports, through bytes.
-use jig_client_protocol_wire::{VERSION, v19 as w};
+use jig_client_protocol_wire::{VERSION, v21 as w};
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
     Duration, List, Overflow, Reader, Time, Wall, Writer,

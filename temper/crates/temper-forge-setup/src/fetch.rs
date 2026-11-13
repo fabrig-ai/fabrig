@@ -13,7 +13,7 @@ pub use temper_fetch::fetch::{
 fn digest(binary: Binary, platform: Platform, arch: &str, form: Form) -> [u8; 32] {
     let mut result = [0; 32];
     let text = pin::digest(binary, platform, arch, form).expect("pinned architecture").as_bytes();
-    for (slot, digits) in result.iter_mut().zip(text.chunks_exact(2)) {
+    for (slot, digits) in result.iter_mut().zip(text.as_chunks::<2>().0) {
         let mut value = 0_u8;
         for digit in digits {
             let n = if digit.is_ascii_digit() {

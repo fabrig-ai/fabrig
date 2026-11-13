@@ -28,12 +28,20 @@ pub(super) fn record(row: &Record) -> Option<u64> {
             Some(bytes)
         }
         Record::Proposal { value, .. } => items(&value.items),
-        Record::Charter { value: version, .. } => match &version.charter {
-            Some(charter) => u64::try_from(size_of::<jig_domain_core::Charter>())
-                .ok()?
-                .checked_add(jig_domain_core::charter_owned_bytes(charter)?),
-            None => Some(0),
-        },
+        Record::Charter { value: version, .. } => {
+            let mut bytes = 0_u64;
+            if let Some(charter) = &version.charter {
+                bytes = bytes
+                    .checked_add(u64::try_from(size_of::<jig_domain_core::Charter>()).ok()?)?
+                    .checked_add(jig_domain_core::charter_owned_bytes(charter)?)?;
+            }
+            if let Some(overlay) = &version.overlay {
+                bytes = bytes
+                    .checked_add(u64::try_from(size_of::<jig_domain_core::settings::Overlay>()).ok()?)?
+                    .checked_add(jig_domain_core::overlay_owned_bytes(overlay)?)?;
+            }
+            Some(bytes)
+        }
         Record::Extent { .. } => Some(0),
     }
 }
@@ -110,6 +118,9 @@ fn value(value: &Value) -> Option<u64> {
             .checked_add(
                 u64::from(rules.implies.len()).checked_mul(u64::try_from(size_of::<authority::Implication>()).ok()?)?,
             ),
+        Value::Overlay(overlay) => u64::try_from(size_of::<jig_domain_core::settings::Overlay>())
+            .ok()?
+            .checked_add(jig_domain_core::overlay_owned_bytes(overlay)?),
         Value::Application(bytes) => Some(skein_lib::len_u64(bytes.len())),
     }
 }
@@ -200,5 +211,20 @@ mod tests {
             part: tasks::Part { connector: 1, kind: tasks::PartKind::Resource, key: tasks::PartKey::Path(segments) },
         };
         assert_eq!(contract(&approval), Some(u64::try_from(3 * size_of::<Box<[u8]>>() + 17).expect("small path")));
+    }
+    #[test]
+    fn overlay_bytes_include_its_owned_text_and_parts() {
+        let mut overlay = jig_domain_core::settings::Overlay::empty();
+        overlay.instructions = b"x".as_slice().into();
+        overlay.parts =
+            Box::new([jig_domain_core::CharterPart { on: tasks::Reasons(1), instructions: b"part".as_slice().into() }]);
+        let first = value(&Value::Overlay(Box::new(overlay.clone()))).expect("overlay has a checked byte projection");
+        let fixed = u64::try_from(size_of::<jig_domain_core::settings::Overlay>()).expect("struct bytes");
+        assert_eq!(
+            first,
+            fixed + 1 + u64::try_from(size_of::<jig_domain_core::CharterPart>()).expect("part bytes") + 4 + 2
+        );
+        overlay.instructions = b"longer".as_slice().into();
+        assert_eq!(value(&Value::Overlay(Box::new(overlay))), Some(first + 5));
     }
 }

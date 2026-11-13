@@ -11,6 +11,10 @@ they don't, or a range whose oldest commit alone passes the answer,
 `a_range_past_the_answer_keeps_its_oldest_commits`). The pin's `compare`
 transcript lists its three commits newest first, as the plan reads them.
 
+- **Not yet:** 3.2: `Merge`'s `Recorded { commit }`, Forgejo's
+  `manually-merged` and GitHub's refusal of it; `MergeHow` has the style
+  and fast-forward only alone (`skein-forge/src/api.rs`)
+  [in flight: change 813].
 - **Not yet:** 3.3, by plan `forge-polls-quiet`: Forgejo's dialect
   sends no validator, and GitHub's sends one on the delivery log's first
   page alone.

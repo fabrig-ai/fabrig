@@ -72,11 +72,12 @@ const FAKE_GIT: Command = Command {
 pub(crate) const BOX: Command = Command {
     reach: Reach::Words(&[]),
     set: Set::Public,
-    forms: &["[--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]"],
+    forms: &["[--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]"],
     line: "Run a deployment as one box: the setup steps of each forge it sets up, then temper-box serve, each a child process.",
     arguments: &[DIRECTORIES],
     settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS, &BUNDLE_SETTINGS],
     switches: &[
+        temper_engine_shell::commands::RECORD,
         Switch {
             name: "fake-backends",
             set: Set::Internal,
@@ -135,11 +136,11 @@ Refused, changing nothing, when the configuration directory already holds temper
     Command {
         reach: Reach::Words(&["serve"]),
         set: Set::Public,
-        forms: &["[DIRECTORIES]"],
+        forms: &["[DIRECTORIES] [--record]"],
         line: "Run the deployment's services, as its configuration's shape names them, until stopped.",
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
-        switches: &[],
+        switches: &[temper_engine_shell::commands::RECORD],
         variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.",
     },
@@ -203,11 +204,11 @@ Refused, changing nothing, when the configuration directory already holds temper
     Command {
         reach: Reach::Words(&["internal", "serve"]),
         set: Set::Internal,
-        forms: &["[DIRECTORIES] --box"],
+        forms: &["[DIRECTORIES] --box [--record]"],
         line: "Run temper-box serve as the box's step, on the listeners and the pipe the box gives it.",
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
-        switches: &[Switch { name: "box", set: Set::Internal, line: "Take the box's listeners and pipe.", notes: "" }],
+        switches: &[temper_engine_shell::commands::RECORD, Switch { name: "box", set: Set::Internal, line: "Take the box's listeners and pipe.", notes: "" }],
         variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "",
     },

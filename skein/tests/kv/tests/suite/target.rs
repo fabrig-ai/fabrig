@@ -245,7 +245,7 @@ fn packed_snapshot(value: &[u8]) -> Vec<u8> {
     let mut chunk = 2_u32.to_be_bytes().to_vec();
     let value_len = u32::try_from(value.len()).expect("value fits");
     chunk.extend_from_slice(&(2 * (8 + 1 + value_len)).to_be_bytes());
-    for key in [b'a', b'b'] {
+    for key in *b"ab" {
         chunk.extend_from_slice(&1_u32.to_be_bytes());
         chunk.extend_from_slice(&value_len.to_be_bytes());
         chunk.push(key);

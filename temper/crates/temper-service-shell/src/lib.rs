@@ -4,16 +4,15 @@ use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use skein_shell::{Clock, Config, Kernel};
 use std::{fmt::Write, os::unix::ffi::OsStrExt, path::Path};
-use temper_service::{self as service, settings::Files};
+use temper_service_core::{self as service, settings::Files};
 use temper_shell::directories::EnvironmentEntry;
 use temper_shell::{
-    directories::{Directories, errno, unread},
+    directories::{Directories, unread},
     link_file,
 };
 pub mod host;
 mod restart_fault;
-pub mod upgrade;
-pub use host::{Host, ending};
+pub use host::Host;
 
 /// jig's form of the three directories (temper/docs/design/protocol/components.md).
 #[must_use]
@@ -47,15 +46,24 @@ fn prefixed(command: &str, why: &str) -> String {
     }
     lines
 }
+/// The shared wait line, with the binary's payload-free detail (protocol/services.md, 7).
 #[must_use]
-pub fn problems(binary: &str, found: &service::startup::Problems) -> String {
-    prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::lines(found)))
+pub fn core_wait_line(binary: &str, detail: &[u8]) -> String {
+    format!("{binary} serve: the core is not answering: {}\n", String::from_utf8_lossy(detail))
+}
+#[must_use]
+pub fn core_answers_line(binary: &str) -> String {
+    format!("{binary} serve: the core answers again\n")
+}
+#[must_use]
+pub fn problems(binary: &str, found: &service::startup::problems::SharedProblems) -> String {
+    prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::problems::lines(found)))
 }
 #[must_use]
 pub fn file_path(at: config::Path) -> String {
-    let mut found = service::startup::Problems::empty();
-    found.push(at, service::startup::What::Jig(config::What::Unreadable));
-    let bytes = service::startup::lines(&found);
+    let mut found = service::startup::problems::SharedProblems::empty();
+    found.push(at, service::startup::problems::What::Jig(config::What::Unreadable));
+    let bytes = service::startup::problems::lines(&found);
     String::from_utf8_lossy(&bytes).trim_end().strip_suffix(": not read").expect("path and reason").into()
 }
 pub fn read_files(names: Box<[config::File]>, user: u32) -> Result<Files, String> {

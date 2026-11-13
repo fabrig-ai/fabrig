@@ -259,6 +259,27 @@ const DIRECT_CALLS: &[&[&str]] = &[
     f::FOLLOW_HOLD,
     f::FOLLOW_SKIP,
     f::FOLLOW_MERGE,
+    &["finding", "file", "--project", "1", "--kind", "red", "Flaky boot", "-", "--key", "finding"],
+    &["finding", "hand", "1/12", "--area", "docs", "why", "--key", "hand-finding"],
+    &["finding", "route", "1/12", "--goal", "41", "--key", "route-finding"],
+    &["finding", "backlog", "1/12", "--key", "backlog-finding"],
+    &["finding", "drop", "shop/12", "duplicate", "--key", "drop-finding"],
+    &[
+        "need",
+        "ask",
+        "--project",
+        "1",
+        "--choice",
+        "yes",
+        "--choice",
+        "no",
+        "--why",
+        "the deploy waits",
+        "Ship it?",
+        "--key",
+        "need",
+    ],
+    &["party", "make", "--project", "1", "--role", "2", "--out", "service", "scout", "--key", "scout"],
     &["project", "make", "Second", "--key", "second-project"],
     super::goal_template::START,
     super::role::START,
@@ -316,6 +337,10 @@ fn direct(argv: &[&str]) {
             *parsed.values.get_mut(0).unwrap() = Some(call::Values::One(call::Value::Text(
                 br#"{"items":[{"setting":{"kind":"rules"},"edit":"reset"}]}"#.as_slice().into(),
             )));
+        }
+        if parsed.tool == rows::FINDING_FILE_AT {
+            *parsed.values.get_mut(5).unwrap() =
+                Some(call::Values::One(call::Value::Text(b"Boot twice".as_slice().into())));
         }
         let mut expected = None;
         let mut request = None;

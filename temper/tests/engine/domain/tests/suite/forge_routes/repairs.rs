@@ -222,7 +222,7 @@ fn assert_red_news(world: &World, goal: &engine::Assignment, red: u64) {
     for log in logs {
         let name = std::str::from_utf8(&log.name).expect("job name");
         let log = std::str::from_utf8(log.end.as_deref().expect("failed job has a log")).expect("job log");
-        assert!(!log.is_empty());
+        assert_ne!(log, "");
         assert!(words.contains(&format!("End of job {name}'s log:\n{log}")), "{words}");
     }
 }

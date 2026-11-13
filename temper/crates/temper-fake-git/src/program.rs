@@ -121,6 +121,8 @@ impl<T: Transport> Git<T> {
                 | Command::DiffIndex { .. }
                 | Command::WriteTree
                 | Command::CommitTree { .. }
+                | Command::MergeBases { .. }
+                | Command::BringsList { .. }
                 | Command::IsAncestor { .. }
                 | Command::Push { .. } => jobs.push_back(Job::Scan(checked.at.to_vec())),
             }

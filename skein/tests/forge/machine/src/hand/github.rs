@@ -1,5 +1,6 @@
 use super::{FORGE, Harness, app_access, github_settings, ok, response, shared};
 use skein_forge::{api, github::document};
+use skein_forge_connection::seam::Access;
 use skein_forge_connection::{
     Event,
     seam::{Clock, Read, Row, Tokens},

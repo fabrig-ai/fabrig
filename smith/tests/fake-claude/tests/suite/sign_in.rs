@@ -20,6 +20,6 @@ fn a_sign_in_through_the_fake_writes_its_login() {
     let records = observations(&fs::read(configuration.join(OBSERVATIONS_FILE)).expect("observations"));
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].arguments, ["auth", "login"]);
-    assert_eq!(records[0].environment, ["CLAUDE_CONFIG_DIR", "HOME"]);
+    assert_eq!(records[0].environment, ["ANTHROPIC_CONFIG_DIR", "CLAUDE_CONFIG_DIR", "HOME"]);
     assert!(!scratch.path().join(".claude").exists());
 }

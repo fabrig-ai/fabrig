@@ -40,7 +40,7 @@ fn an_application_request_reaches_infrastructure_and_waits_for_its_commit() {
     world.store.fault(jig_fake_store::Fault::Hold { commits: 1 });
     world.send(request(sign_in));
     world.drain().expect("decision waits for durable completion");
-    assert!(world.peers.application_answers.is_empty());
+    assert_eq!(world.peers.application_answers.len(), 0);
     world.release_commits();
     world.drain().expect("release application terminal");
     assert_eq!(world.peers.application_answers, [infrastructure::ApplicationOutcome::Unknown]);
@@ -77,7 +77,7 @@ fn moving_an_environments_end_is_durable_revision_checked_and_replayed_after_res
     world.store.fault(jig_fake_store::Fault::Hold { commits: 1 });
     world.send(ask(sign_in, 7, value.clone()));
     world.drain().expect("held decision");
-    assert!(world.peers.application_answers.is_empty());
+    assert_eq!(world.peers.application_answers.len(), 0);
     assert_eq!(world.systems.production.read_environment(&name).expect("live environment").until, 100);
     world.release_commits();
     world.drain().expect("durable end and answer");

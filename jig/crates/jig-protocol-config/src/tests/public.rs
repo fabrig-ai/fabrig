@@ -7,7 +7,7 @@
 )]
 use super::fixtures;
 use crate::{Limits, Path, Problems, Profile, What, overrides};
-use jig_domain_core::PublicIndexLimits;
+use jig_domain_core_vocabulary::PublicIndexLimits;
 use jig_protocol_engine_clients::PublicLimits;
 
 // Example deployment figures from domain/people/public-reading.md, 5 and 9; off in profiles.

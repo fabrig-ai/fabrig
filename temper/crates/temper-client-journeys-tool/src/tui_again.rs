@@ -78,6 +78,7 @@ pub fn again(
         let attempt_paths = Paths {
             temper: paths.temper.clone(),
             bundle: paths.bundle.clone(),
+            cache: paths.cache.clone(),
             chromium: paths.chromium.clone(),
             scratch,
         };
@@ -147,7 +148,12 @@ fn record(
     ]);
     for (flag, directory) in [("--config", "config"), ("--data", "data"), ("--cache", "cache")] {
         args.push(flag.into());
-        args.push(paths.scratch.join(directory).into_os_string());
+        let path = if directory == "cache" {
+            paths.cache.clone().unwrap_or_else(|| paths.scratch.join(directory))
+        } else {
+            paths.scratch.join(directory)
+        };
+        args.push(path.into_os_string());
     }
     let mut harness = Harness::new(Setup {
         server: launcher,
@@ -177,7 +183,7 @@ fn record(
     if let Some(step) = journey::follows(&walker.steps, &lines) {
         return Err(Refusal::WalkDiffers { name: name.to_owned(), step });
     }
-    crate::add_to(journeys, tui_journeys, name, &recording, &[]).map(|_| ())
+    crate::add_to(journeys, tui_journeys, name, &recording, &crate::again::private_paths(paths)).map(|_| ())
 }
 
 fn program(name: &str, given: &[crate::EnvironmentEntry]) -> Option<std::path::PathBuf> {

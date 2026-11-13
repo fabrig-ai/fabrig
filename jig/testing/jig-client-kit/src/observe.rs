@@ -52,7 +52,7 @@ pub fn sent(request: &Request) -> Option<Sent> {
             )
         }
     };
-    Some(Sent { attempt: *attempt, key: *k, card, revision, words })
+    Some(Sent { application: true, attempt: *attempt, key: *k, card, revision, words })
 }
 /// Observe a keyed jig send without consulting an application's root state.
 #[must_use]
@@ -120,7 +120,7 @@ pub fn jig_sent(attempt: skein_lib::Token, request_key: [u8; 16], ask: &Ask) -> 
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. } => (None, None, None),
     };
-    Sent { attempt, key: request_key, card, revision, words }
+    Sent { application: false, attempt, key: request_key, card, revision, words }
 }
 fn task(t: &Task) -> Receipt {
     let mut revisions = vec![(1, t.spec_revision.value)];
@@ -255,6 +255,14 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
                                 ..
                             }))
                         ),
+                    closed_project: *envelope == RequestEnvelope::Final
+                        && matches!(
+                            answer,
+                            Some(jig_client::Answered::Jig(Answer::Refused {
+                                refusal: jig_client::contract::Refusal::Role { held: None },
+                                at: None,
+                            }))
+                        ),
                     words,
                 }];
                 if *envelope == RequestEnvelope::Final
@@ -266,7 +274,7 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
                 receipts
             }
         }
-        Up::Served { served: false, .. } => vec![Receipt::OutOfDate],
+        Up::Unreadable | Up::Served { served: false, .. } => vec![Receipt::OutOfDate],
         Up::ReadDone { result: Readout::Jig(ReadResult::Value(value)), .. } => read(value),
         Up::Watched { event: WatchEvent::Delivered(Delivery::Task(value)), .. } => {
             read(&ReadValue::Task(value.clone()))
@@ -764,7 +772,7 @@ mod tests {
             assert_eq!(super::jig_card(view.tree(), node.id), node.key.map(CardKey::of));
         }
     }
-    fn final_without_write(up: &jig_client::Up) -> skein_world::domain::Verdict {
+    fn final_without_write(up: &jig_client::Up, application: bool) -> skein_world::domain::Verdict {
         use crate::harness::{ClientId, Observation, Sent, referee::Rules};
         use skein_lib::{Duration, Time, Token};
         use skein_world::domain::Referee;
@@ -776,7 +784,14 @@ mod tests {
             Observation::Request {
                 client,
                 party: 1,
-                sent: Sent { attempt: Token::new(73), key: [1; 16], card: None, revision: None, words: None },
+                sent: Sent {
+                    application,
+                    attempt: Token::new(73),
+                    key: [1; 16],
+                    card: None,
+                    revision: None,
+                    words: None,
+                },
             },
             &mut Vec::new(),
         );
@@ -834,15 +849,18 @@ mod tests {
                 let event = Event::Client { event: jig_client::Event::Up { up: up.clone() } };
                 let receipts: Vec<_> =
                     received(&event).into_iter().filter(|receipt| matches!(receipt, Receipt::Answer { .. })).collect();
-                let [Receipt::Answer { attempt, final_answer, unconfigured_model, words }] = receipts.as_slice() else {
+                let [Receipt::Answer { attempt, final_answer, unconfigured_model, closed_project, words }] =
+                    receipts.as_slice()
+                else {
                     panic!("one original answer envelope");
                 };
                 assert_eq!(*attempt, Token::new(73));
                 assert_eq!(*final_answer, envelope == RequestEnvelope::Final);
                 assert_eq!(*words, expected);
                 assert_eq!(*unconfigured_model, exempt && *final_answer);
+                assert!(!*closed_project);
                 if *final_answer {
-                    let verdict = final_without_write(&up);
+                    let verdict = final_without_write(&up, false);
                     if exempt {
                         assert_eq!(verdict, Verdict::Passed, "component refusal meets its request deadline");
                     } else {
@@ -862,6 +880,50 @@ mod tests {
                 },
             };
             assert!(matches!(received(&signed_out).as_slice(), [Receipt::Parked]));
+        }
+    }
+
+    #[test]
+    fn a_closed_project_refusal_meets_the_request_deadline_without_a_stored_answer() {
+        use crate::harness::Receipt;
+        use jig_client::Answered;
+        use jig_client_domain::contract::{Answer, HeldRole, Refusal};
+        use skein_lib::{RequestEnvelope, Token};
+        use skein_world::domain::Verdict;
+        for (refusal, at, exempt) in [
+            (Refusal::Role { held: None }, None, true),
+            (Refusal::Role { held: Some(HeldRole::Observer) }, None, false),
+            (Refusal::Role { held: None }, Some(0), false),
+            (Refusal::NotOffered, None, false),
+        ] {
+            for envelope in [RequestEnvelope::Final, RequestEnvelope::Again, RequestEnvelope::Lost] {
+                let up = jig_client::Up::Answer {
+                    attempt: Token::new(73),
+                    envelope,
+                    answer: Some(Answered::Jig(Answer::Refused { refusal: refusal.clone(), at })),
+                    why: None,
+                };
+                let receipts: Vec<_> = super::up_received(&up)
+                    .into_iter()
+                    .filter(|receipt| matches!(receipt, Receipt::Answer { .. }))
+                    .collect();
+                let [Receipt::Answer { closed_project, final_answer, .. }] = receipts.as_slice() else {
+                    panic!("one refusal envelope");
+                };
+                assert_eq!(*final_answer, envelope == RequestEnvelope::Final);
+                assert_eq!(*closed_project, exempt && *final_answer);
+                if *final_answer {
+                    for application in [false, true] {
+                        let verdict = final_without_write(&up, application);
+                        if exempt && application {
+                            assert_eq!(verdict, Verdict::Passed, "closed-project refusal has no stored answer");
+                        } else {
+                            let Verdict::Failed(failure) = verdict else { panic!("an admitted final needs a write") };
+                            assert_eq!(failure.why, "nothing shown done before durable: final answer has no write");
+                        }
+                    }
+                }
+            }
         }
     }
 }

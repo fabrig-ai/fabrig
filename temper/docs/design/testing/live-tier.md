@@ -7,7 +7,9 @@ registration (../protocol/setup/init.md, 1). The one exception is a held
 record, a person's signed-in ChatGPT account moved in by `temper ctl
 account import` and back by `account export`, never copied, which the
 owned-forge landing story and the ladder's rungs take when given one
-(below).
+(below). An Anthropic API key is the other: a private file whose path
+the key landing story hands to `temper ctl account add-key`, never read,
+printed or copied by the story (below).
 
 `bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service.md`,
 section 8; skein/docs/foundation/testing-strategy.md, 2.9).
@@ -141,6 +143,48 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   box has stopped the script checks the path by `stat` alone: a private
   directory, still there. Whoever runs it holds the login for the run.
   Its store is `forge-land-claude` under `TEMPER_TEST_LIVE_STORE`.
+- **The owned-forge landing story on an Anthropic key,**
+  `a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge`,
+  run by `scripts/proof-live.sh forge-land-claude-key`: the ChatGPT
+  story's sitting, restart, referee, bounds and evidence, on a person's
+  Anthropic API key through smith's direct backend
+  (`../draft/claude-api.md`, sections 4 and 6), every role on
+  `claude-haiku-5-5` at `low` effort. ChatGPT and Codex logins stay off
+  automated tests (the user, 2026-11-12), so this story, not ChatGPT's,
+  is the after-landing pair's direct one.
+  - **Its key:** `TEMPER_TEST_LIVE_ANTHROPIC_KEY` names a Claude Console
+    key's file: a regular file of the test's user, not a link, mode 0600
+    and nonempty, admitted by `stat` alone. Unset, the story skips: it
+    says why on stderr and passes, starting nothing. Set to anything
+    else, it fails before any process starts, naming the variable and
+    the rule broken, never the path.
+  - **Adding it:** a fresh store's first sitting runs `temper ctl
+    DIRECTORY account add-key 2 FILE --key live-key`, which makes the
+    person's key-only account (`../client/ctl/areas.md`, area 5), then
+    `account list --until usable`, and reads that the person holds an
+    account of provider 2 whose key source is usable. ctl reads FILE and
+    leaves it in place; the story and the script never open it, and what
+    they print of the command says `FILE` for its path. temper keeps the
+    key in the story's deployment, as any key added through `ctl`, in the
+    store under `TEMPER_TEST_LIVE_STORE`: a second sitting, and a rerun
+    on a kept store, add none and run on the key the store keeps. Nothing
+    is lent, so the story has no guard.
+  - **Its configuration:** init's owned example as init writes it, both
+    Anthropic endpoints and Claude Code's program included, but the
+    `anthropic` provider without `keep` and `drop`, so that its accounts
+    read no list (jig's `domain/accounts.md`, 3.7). A key's first read
+    would add Anthropic's models at the catalogue's highest free numbers
+    while the sitting adds Haiku there by name, and the two racing would
+    stale the apply's revision or double the name. Its catalogue is the
+    stock and Haiku, as on Claude Code.
+  - **Its model:** the Claude Code story's two `settings apply`s,
+    unchanged: the stock has no Haiku, so a fresh sitting adds it by
+    name with `claude-fable-5-1`'s figures, `low` its default, then has
+    charters 1 and 2 name it. The run takes the key's direct endpoint
+    whatever endpoint the model's row names, since the endpoint is the
+    chosen source's (`../draft/claude-api.md`, section 4).
+  - **Its store** is `forge-land-claude-key` under
+    `TEMPER_TEST_LIVE_STORE`.
 - **Its referee:** the process tier's, without the restart; and the
   completions, counted from the engine's transcripts. Each completion is
   a turn of main's conversation on either backend: on the program
@@ -299,30 +343,31 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     Claude pass (`../draft/v0.1.0.md`, 2.2): the same story, its forge
     or its model named by the script's argument.
 - **After every landing,** the owned-forge landing pair, needing no person:
-  `a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge` on a held ChatGPT
-  record (`TEMPER_TEST_LIVE_ACCOUNT`) and
+  `a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge` on an
+  Anthropic API key (`TEMPER_TEST_LIVE_ANTHROPIC_KEY`) and
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge` on a held Claude
   Code login (`TEMPER_TEST_LIVE_CLAUDE`, with `claude` on the machine's `PATH`), both
   named inputs of the after-landing tier. The tier runs profile `live-temper`
   under `--run-ignored only`, whose default filter selects these two alone.
   Automatic live runs take the cheapest models, as the user requires:
-  `gpt-6-luna` and `claude-haiku-5-5`.
+  `claude-haiku-5-5` for both. ChatGPT and Codex logins stay off automated
+  tests (the user, 2026-11-12): the ChatGPT landing story is the owner's,
+  through `scripts/proof-live.sh forge-land` alone.
   - **One invocation, a store per story:** the runner sets one fresh
     `TEMPER_TEST_LIVE_STORE`; each story takes its own store beneath it, named by the
-    script's argument for it, `forge-land` and `forge-land-claude`, so neither
-    reuses the other's deployment. Each store keeps the story's rules: fresh when
-    absent or empty, kept when it holds a deployment, and a held record moves into a
-    fresh store only.
+    script's argument for it, `forge-land-claude-key` and `forge-land-claude`, so
+    neither reuses the other's deployment. Each store keeps the story's rules: fresh
+    when absent or empty, kept when it holds a deployment.
   - **The runner's part,** as `scripts/proof-live.sh`'s: a private `TMPDIR`; after
-    the invocation, whatever its end, the held record returned by
-    `forge-land/give-back` in `TEMPER_TEST_LIVE_STORE` where it exists, both logins
-    checked by `stat` alone, and any process left under the stores stopped.
+    the invocation, whatever its end, the login checked by `stat` alone, and any
+    process left under the stores stopped.
   - **What the stories need of the runner,** and nothing else:
     `TEMPER_TEST_LIVE_STORE`, an absolute path, made 0700 with its parents when
-    absent; `TEMPER_TEST_LIVE_ACCOUNT`, the held record, a regular file of the
-    runner's user, mode 0600, in a directory that user may write, since the
-    import removes the file; `TEMPER_TEST_LIVE_CLAUDE`, the login's resting path,
-    and `claude` on `PATH`; a private `TMPDIR`. No directory above these
+    absent; `TEMPER_TEST_LIVE_ANTHROPIC_KEY`, the key's file, a regular file of the
+    runner's user, mode 0600, which stays where it is; `TEMPER_TEST_LIVE_CLAUDE`,
+    the login's resting path, and `claude` on `PATH`; a private `TMPDIR`. With
+    `TEMPER_TEST_LIVE_ANTHROPIC_KEY` unset the key story skips, saying so, and
+    the tier runs Claude Code's alone. No directory above these
     needs a mode or a name: ctl opens DIRECTORY and FILE through their
     parents and checks DIRECTORY, its files and FILE alone
     (../client/ctl/README.md, 6.1).
@@ -332,7 +377,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   with the record still in the store: a panic through a sitting kills the
   box before its return, and a return that fails stops it all the same.
   The runner's return and the story's own each need a box up, so neither
-  answers then. `Lent` (`tests/support/held_login.rs`) stands from before
+  answers then. `Lent` (`testing/temper-box-kit/src/held_login.rs`) stands from before
   the first sitting to the test's end. On every ending, a panic anywhere,
   a failed assertion or an early return, its `Drop` settles what is owed,
   by `stat` alone, the record never read:
@@ -352,9 +397,9 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   The rung's one sitting keeps its box up past a panic, which `run_walk`
   catches before its return, and a held Claude Code login is used in
   place, so neither has a guard.
-- **What needs a person,** six tests, each ignored, its reason naming what
+- **What needs a person,** seven tests, each ignored, its reason naming what
   only a person gives, and each run by its script. None runs on a scripted
-  person alone: each needs a person's account, a person's sign-in or
+  person alone: each needs a person's account, key or sign-in, or
   github.com.
   - `live.rs`'s `a_real_model_answers_a_chat_and_pushes_a_small_change`: a
     person's fresh ChatGPT sign-in (`scripts/proof-live.sh`). Its story, a real
@@ -365,9 +410,12 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     account, on the rung's own model, sol at high (`scripts/proof-live.sh
     rung-b0`). Its bounds are that model's passing walk, so the cheapest
     model would prove another walk.
-  - The landing pair: a held ChatGPT account and a held Claude Code login,
+  - The landing pair: an Anthropic API key and a held Claude Code login,
     the after-landing tier's inputs (above). The owner also runs each alone,
-    through `scripts/proof-live.sh forge-land` and `forge-land-claude`.
+    through `scripts/proof-live.sh forge-land-claude-key` and
+    `forge-land-claude`.
+  - The ChatGPT landing story: a held ChatGPT account, or a person's sign-in,
+    through `scripts/proof-live.sh forge-land` alone, never in the tier.
   - `live_github.rs`'s `a_chat_lands_a_change_on_github_com_through_a_restart`:
     github.com, on the probe App's fixtures the owner holds
     (`scripts/proof-live-github.sh`).

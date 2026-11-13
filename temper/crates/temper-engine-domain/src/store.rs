@@ -78,6 +78,8 @@ pub enum CallAnswer {
     ForgeEffectDenied { answer: jig_domain_authority::Answer, findings: Box<[jig_domain_authority::Finding]> },
     /// An engine tool was refused with the authority findings.
     ToolDenied { answer: jig_domain_authority::Answer, findings: Box<[jig_domain_authority::Finding]> },
+    /// Finding snapshots for the agent tool (domain/agent/tools.md).
+    Finding(Box<crate::FindingToolAnswer>),
     /// One fresh bounded forge read, retained for named-call replay.
     ForgeRead(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
     /// One held descendant decision reached its semantic terminal.
@@ -242,6 +244,7 @@ impl CallAnswer {
     /// Retain the core's part of a named answer. The forge alone retains
     /// connector payloads; authority findings belong to the core.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "exhaustive mapping of core and connector-owned answers")]
     pub fn core_part(&self, connector: u16) -> jig_domain_core::CallPart {
         match self {
             CallAnswer::SettingsRefused(why) => jig_domain_core::CallPart::SettingsRefused(why.clone()),
@@ -277,7 +280,8 @@ impl CallAnswer {
                 };
                 jig_domain_core::CallPart::Effect { connector, entry: *entry, deadline: *deadline, outcome }
             }
-            CallAnswer::Decided { .. }
+            CallAnswer::Finding(_)
+            | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::ForgeEffectRefused(_)
             | CallAnswer::ForgeRead(_)
@@ -1055,8 +1059,17 @@ fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> u64 {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "exhaustive answer sizing includes project-only findings topics")]
 pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
+        CallAnswer::Finding(answer) => match answer.as_ref() {
+            crate::FindingToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref()))
+                .ok()?
+                .checked_add(temper_engine_domain_forge::findings::reply_bytes(reply)?),
+            crate::FindingToolAnswer::List(_) | crate::FindingToolAnswer::Show { .. } => {
+                unreachable!("finding reads have no retained answer")
+            }
+        },
         CallAnswer::Decided { took, .. } => Some(match took {
             Some(words) => skein_lib::len_u64(words.len()),
             None => 0,
@@ -1087,7 +1100,8 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
                 temper_engine_domain_forge::Topic::Landings { branch, .. } => skein_lib::len_u64(branch.len()),
                 temper_engine_domain_forge::Topic::Ci { .. }
                 | temper_engine_domain_forge::Topic::Pull { .. }
-                | temper_engine_domain_forge::Topic::Participation { .. } => 0,
+                | temper_engine_domain_forge::Topic::Participation { .. }
+                | temper_engine_domain_forge::Topic::Findings { .. } => 0,
             };
             bytes
                 .checked_add(skein_lib::len_u64(cause.len()))?

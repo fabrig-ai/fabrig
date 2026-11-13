@@ -32,5 +32,6 @@ Pending proposal:
   Agent tries: 4
   Lost tries: 5
   Invalid tries: 6
+  Infrastructure tries: 7
   Hold wait began: 23
   Supplied funding offers

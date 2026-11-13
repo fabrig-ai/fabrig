@@ -31,9 +31,9 @@ pub fn read(hex: &[u8]) -> Option<ObjectId> {
         }
     }
     let mut out = [0; 32];
-    for (pair, output) in hex.chunks_exact(2).zip(out.iter_mut()) {
-        let high = bytes::hex_value(*pair.first()?)?;
-        let low = bytes::hex_value(*pair.get(1)?)?;
+    for (&[high, low], output) in hex.as_chunks::<2>().0.iter().zip(out.iter_mut()) {
+        let high = bytes::hex_value(high)?;
+        let low = bytes::hex_value(low)?;
         *output = high.checked_mul(16)?.checked_add(low)?;
     }
     Some(ObjectId { format, bytes: out })

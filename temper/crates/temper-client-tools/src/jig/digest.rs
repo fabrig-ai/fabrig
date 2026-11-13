@@ -17,7 +17,7 @@ impl Digest {
     #[must_use]
     pub fn hex(self) -> [u8; 16] {
         let mut hex = [0; 16];
-        for (pair, byte) in hex.chunks_exact_mut(2).zip(self.0) {
+        for (pair, byte) in hex.as_chunks_mut::<2>().0.iter_mut().zip(self.0) {
             for (slot, nibble) in pair.iter_mut().zip([byte >> 4u32, byte & 15]) {
                 *slot = *b"0123456789abcdef".get(usize::from(nibble)).expect("hex digit");
             }

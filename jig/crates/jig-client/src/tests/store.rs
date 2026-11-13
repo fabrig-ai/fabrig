@@ -192,18 +192,20 @@ fn a_final_answer_that_does_not_decode_is_told_retrying_as_undecodable() {
     let mut c = Client::signed_in();
     c.step(Event::Send { name: None, key: STOP, request: fixtures::stop() });
     c.step(Event::Stored);
-    let record = jig_client_protocol_wire::v19::Owned::new(
-        &jig_client_protocol_wire::v19::CEILINGS,
-        jig_client_protocol_wire::v19::OwnedParts {
-            owner: jig_client_protocol_wire::v19::Owner::Jig,
+    let record = jig_client_protocol_wire::v21::Owned::new(
+        &jig_client_protocol_wire::v21::CEILINGS,
+        jig_client_protocol_wire::v21::OwnedParts {
+            owner: jig_client_protocol_wire::v21::Owner::Jig,
             version: jig_client_protocol_wire::VERSION,
             record: Box::new([255]),
         },
     )
     .unwrap();
-    let message = fixtures::answer(&jig_client_protocol_wire::v19::KeyedAnswer::FinalAnswer(record));
+    let message = fixtures::answer(&jig_client_protocol_wire::v21::KeyedAnswer::FinalAnswer(record));
     c.step(Event::Reply { exchange: c.exchange(), message });
     assert_eq!(c.machine.pending(STOP).unwrap().progress, Progress::Retrying { why: Retry::Undecodable });
+    assert_eq!(c.machine.link().state, Link::Live);
+    assert!(!c.machine.link().unreadable);
     let [Request::Told { told }] = c.requests() else {
         panic!("one pending notice: {:?}", c.requests());
     };
@@ -217,8 +219,8 @@ fn keyed_keys(requests: &[Request]) -> skein_lib::List<skein_lib::RequestKey> {
     let mut keys = skein_lib::List::with_capacity(fixtures::limits().exchanges);
     for request in requests {
         if let Request::Exchange { message: Message::Request(bytes), .. } = request {
-            let keyed = jig_client_protocol_wire::v19::Keyed::decode(
-                &jig_client_protocol_wire::v19::CEILINGS,
+            let keyed = jig_client_protocol_wire::v21::Keyed::decode(
+                &jig_client_protocol_wire::v21::CEILINGS,
                 &mut skein_lib::Reader::new(bytes),
             )
             .unwrap();
@@ -282,9 +284,9 @@ fn complete_seen(c: &mut Client, exchange: skein_lib::Token) {
     assert!(fixtures::saved(c.requests()).is_empty());
     assert_eq!(c.machine.pending(SECOND), None);
     c.step(Event::Stored);
-    assert!(c.requests().is_empty());
+    assert_eq!((c.requests()).len(), 0);
     c.step(Event::Reply { exchange, message: fixtures::seen_answer() });
-    assert!(c.requests().is_empty());
+    assert_eq!((c.requests()).len(), 0);
 }
 fn later_stop(c: &mut Client) {
     c.step(Event::Send { name: Some(STOP_NAME), key: STOP, request: fixtures::stop() });
@@ -309,7 +311,7 @@ fn reloading_seen_alone_restores_no_pending_work_or_notices() {
     let mut first = Client::signed_in();
     first.step(Event::Send { name: Some(SEEN_NAME), key: SECOND, request: fixtures::seen() });
     let mut c = Client::with_kept(fixtures::saved(first.requests()));
-    assert!(c.requests().is_empty());
+    assert_eq!((c.requests()).len(), 0);
     assert_eq!(c.machine.pending(SECOND), None);
     c.sign_in();
     c.step(Event::Send { name: Some(SEEN_NAME), key: SECOND, request: fixtures::seen() });
@@ -340,7 +342,7 @@ fn a_kept_seen_record_decodes_is_dropped_and_erased_at_start() {
         assert_eq!(c.machine.pending(SECOND), None);
         assert!(fixtures::saved(c.requests()).is_empty());
         c.step(Event::Stored); // The dropped record's erase.
-        assert!(c.requests().is_empty());
+        assert_eq!((c.requests()).len(), 0);
         c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
         c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
         let watch = c.opened_watch();

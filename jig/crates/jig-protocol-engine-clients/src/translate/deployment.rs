@@ -2,7 +2,7 @@
 use super::{chips, owner, pieces, refusals, task, w};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -368,8 +368,8 @@ pub fn run(value: &d::HostRun, limits: &w::Limits) -> Result<w::HostRun, w::Prob
         },
     )
 }
-fn host_rule(value: jig_domain_core::HostRule, limits: &w::Limits) -> Result<w::HostRule, w::Problem> {
-    use jig_domain_core::HostRule;
+fn host_rule(value: jig_domain_core_vocabulary::HostRule, limits: &w::Limits) -> Result<w::HostRule, w::Problem> {
+    use jig_domain_core_vocabulary::HostRule;
     Ok(match value {
         HostRule::Open => w::HostRule::Open,
         HostRule::Person(party) => w::HostRule::Person(w::HostPerson::new(limits, w::HostPersonParts { party })?),

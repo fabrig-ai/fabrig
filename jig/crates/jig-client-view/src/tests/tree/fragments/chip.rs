@@ -66,7 +66,15 @@ fn hold() -> ChipHold {
         revision: u64::MAX,
         before: PriorPhase::Waiting,
         escalation: None,
-        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX },
+        tries: FailureTries {
+            transient: 1,
+            permanent: 2,
+            run: 3,
+            agent: 4,
+            lost: 5,
+            invalid: u32::MAX,
+            infrastructure: 0,
+        },
         hold_wait_since: Some(Wall::from_nanos(40)),
     }
 }
@@ -233,7 +241,7 @@ fn resource_rows_keep_raw_segmented_parts_and_independent_holder_writer_loss_obs
     goldens.check(&tree);
 }
 #[test]
-fn all_hold_categories_and_six_failure_classes_retain_only_supplied_payloads_and_counters() {
+fn all_hold_categories_and_seven_failure_classes_retain_only_supplied_payloads_and_counters() {
     let mut goldens = Goldens::new("tree/fragments/chip/all_hold_categories");
     let mut value = details();
     value.hold = Some(hold());
@@ -266,6 +274,7 @@ fn all_hold_categories_and_six_failure_classes_retain_only_supplied_payloads_and
         HoldFailure::Agent,
         HoldFailure::Lost,
         HoldFailure::Invalid,
+        HoldFailure::Infrastructure,
     ] {
         value.hold.as_mut().unwrap().reason = HoldCategory::Failures { class };
         let tree = build(&value, words()).0;
@@ -471,7 +480,7 @@ fn maximum_chip_fragment_checks_selected_language_storage_raw_slots_loss_and_ari
 }
 
 #[test]
-fn owner_retry_keeps_all_six_classes_and_independent_zero_max_counts_in_chip_and_activation() {
+fn owner_retry_keeps_all_seven_classes_and_independent_zero_max_counts_in_chip_and_activation() {
     let mut goldens = Goldens::new("tree/fragments/chip/owner_retry_keeps");
     let classes = [
         HoldFailure::Transient,
@@ -480,6 +489,7 @@ fn owner_retry_keeps_all_six_classes_and_independent_zero_max_counts_in_chip_and
         HoldFailure::Agent,
         HoldFailure::Lost,
         HoldFailure::Invalid,
+        HoldFailure::Infrastructure,
     ];
     for class in classes {
         for (count, allowance) in [(0, 0), (0, u32::MAX), (u32::MAX, 0), (u32::MAX, u32::MAX)] {
@@ -520,7 +530,7 @@ fn owner_retry_absence_refusal_and_all_supplied_failure_classes_remain_independe
 }
 
 #[test]
-fn owner_retry_borrows_selected_checked_six_class_words_and_both_count_holes() {
+fn owner_retry_borrows_selected_checked_seven_class_words_and_both_count_holes() {
     let mut goldens = Goldens::new("tree/fragments/chip/owner_retry_borrows");
     let cases = [
         (HoldFailure::Transient, ChipPhrase::Transient, b"chosen transient".as_slice()),
@@ -529,6 +539,7 @@ fn owner_retry_borrows_selected_checked_six_class_words_and_both_count_holes() {
         (HoldFailure::Agent, ChipPhrase::AgentFailure, b"chosen agent"),
         (HoldFailure::Lost, ChipPhrase::Lost, b"chosen lost"),
         (HoldFailure::Invalid, ChipPhrase::InvalidFailure, b"chosen invalid"),
+        (HoldFailure::Infrastructure, ChipPhrase::InfrastructureFailure, b"chosen infrastructure"),
     ];
     let mut selected = crate::words::phrases::english::language();
     for phrase in &mut selected.phrases {

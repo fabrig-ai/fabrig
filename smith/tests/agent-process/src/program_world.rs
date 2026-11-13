@@ -454,6 +454,10 @@ fn make_fake(spawn: &Spawn, inherited: &Inherited) -> Proc {
         spawn.env.iter().any(|entry| entry.as_ref() == b"CLAUDE_CONFIG_DIR=/programs/source"),
         "each invocation uses the source's configuration directory"
     );
+    assert_eq!(
+        spawn.env.iter().filter(|entry| entry.starts_with(b"ANTHROPIC_")).map(AsRef::as_ref).collect::<Vec<_>>(),
+        [b"ANTHROPIC_CONFIG_DIR=/programs/source/anthropic".as_slice()]
+    );
     let mut spawn = fake_launch(spawn);
     if spawn.args.first().is_some_and(|argument| argument.as_ref() == b"-p")
         && spawn.env.iter().any(|entry| entry.as_ref() == b"EARLY_EXIT=1")

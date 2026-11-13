@@ -1,6 +1,6 @@
 //! In-memory wire records admitted by the client's link (client/domain/testing.md, 4).
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Writer, bytes};
 
 mod facts;

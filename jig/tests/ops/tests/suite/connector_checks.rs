@@ -108,20 +108,21 @@ fn infrastructure_retries_only_after_the_saved_deadline_and_ignores_late_copies(
     world.event(infra::Event::System(infra::SystemEvent::Looked { key: infra_key(), result: infra::Looked::CanRetry }));
     world.now = 29;
     world.restart();
-    assert!(world.fire().is_empty());
+    assert_eq!(world.fire().len(), 0);
     assert_eq!(world.production.observed().len(), 0);
     world.now = 30;
     let made = world.fire();
     assert!(made.contains(&infra::Request::Outcome { entry: 3, key: infra_key(), outcome: infra::Outcome::Made }));
     assert_eq!(world.production.used_slots("staging"), 1);
-    assert!(
+    assert_eq!(
         world
             .event(infra::Event::System(infra::SystemEvent::Applied {
                 key: infra_key(),
                 attempt: 1,
                 result: infra::ApplyResult::Made,
             }))
-            .is_empty()
+            .len(),
+        0
     );
     assert_eq!(
         world
@@ -327,9 +328,9 @@ fn dropping_a_staged_silence_discards_its_value() {
         effect: obs::Effect { rule: Box::from(*b"checkout-errors"), until: 100 },
     });
     world.event(obs::Event::Drop { token });
-    assert!(world.event(obs::Event::Keep { project: Some(1), entry: 3, token, key: obs_key() }).is_empty());
+    assert_eq!(world.event(obs::Event::Keep { project: Some(1), entry: 3, token, key: obs_key() }).len(), 0);
     world.restart();
-    assert!(world.production.observed().is_empty());
+    assert_eq!(world.production.observed(), []);
 }
 
 #[test]

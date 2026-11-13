@@ -324,14 +324,21 @@ to an older reader or writer. Each has one version at a time.
   turns and transcripts, the event stream, and what a host keeps in files
   each carry a version of their own. Any change a reader would notice is
   a new version. Nothing is translated, and no older version is read.
-  Before v0.1.0, the charter and the channel change in place, their
-  versions unmoved, since a writer and its agents are built together
+  Before v0.1.0, the charter changes in place, its version unmoved,
+  since a writer and its agents are built together
   (the owner, 2026-11-09: the `save` grant and ask, domain/run.md, 8.5).
 - **A reader refuses any other version,** each in its own terms:
   - **the channel** is versioned whole: its frames, its kinds and its
     records. Each side's opening says the version it speaks; with none
     in common, the channel ends before a run starts (channel.md, section
-    2). Both halves move together.
+    2). This wire is per-build: a spawning host pins its agent's program
+    and configuration for its lifetime and adopts no older agents, so
+    both halves move together. Every layout change moves the version
+    and keeps the previous schema and goldens; no bridge or previous
+    spoken version is needed. temper records this exemption in its wire
+    bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
+    4.4). A consumer permitting independently upgraded agents needs a
+    compatibility contract before using that shape (section 11).
   - **the charter** carries its own version, since the party that writes
     it may not be the host: jig's engine writes charters that its
     workers carry unread. A charter in another version makes the start

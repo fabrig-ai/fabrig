@@ -249,6 +249,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn shared_ring_room_does_not_allow_a_host_to_exceed_its_own_limit() {
         let mut ring = State::new(8, vec![1, 2]);
         let local = Token::new(10);

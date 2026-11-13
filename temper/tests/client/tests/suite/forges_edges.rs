@@ -985,7 +985,7 @@ fn running_setup_opened_in_second_tab_is_not_resent() {
     let _first = open(&mut world, at(OWNED));
     let second = world.client(f::PARTY, at(OWNED));
     follow(&mut world, second, vec![see(Role::Disclosure, b"Forgejo on this machine")]);
-    assert!(world.front().set_ups().is_empty());
+    assert_eq!(world.front().set_ups(), []);
 }
 
 #[test]
@@ -1065,7 +1065,7 @@ fn browser_reload_preserves_running_setup_without_resending() {
     let client = open(&mut world, at(OWNED));
     world.reload(client);
     follow(&mut world, client, vec![see(Role::Disclosure, b"Forgejo on this machine")]);
-    assert!(world.front().set_ups().is_empty());
+    assert_eq!(world.front().set_ups(), []);
 }
 
 #[test]

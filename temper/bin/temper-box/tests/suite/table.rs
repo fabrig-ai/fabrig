@@ -82,13 +82,13 @@ const ROWS: &[Case] = &[
         &["--front", "--echo", "steps"],
         2,
         empty,
-        "temper-box: --front cannot be used with --echo steps\nusage: temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]\n",
+        "temper-box: --front cannot be used with --echo steps\nusage: temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]\n",
     ),
     (
         &["--no-tui"],
         2,
         empty,
-        "temper-box: unknown flag --no-tui\nusage: temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]\n",
+        "temper-box: unknown flag --no-tui\nusage: temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]\n",
     ),
     (&["internal", "tui"], 2, empty, "temper-box: no command internal tui; temper-box --help lists them\n"),
     (&["frobnicate"], 2, empty, "temper-box: no command frobnicate; temper-box --help lists them\n"),
@@ -161,8 +161,8 @@ fn versions_are_the_engines_lines_and_refusals() {
     assert!(String::from_utf8_lossy(&output.stdout).lines().take(4).eq([
         "level skein 0",
         "level smith 0",
-        "level jig 1",
-        "level temper 3",
+        "level jig 3",
+        "level temper 5",
     ]));
     let refused = Command::new(skein_scratch::paths::binary("temper-box"))
         .args(["versions", "x"])

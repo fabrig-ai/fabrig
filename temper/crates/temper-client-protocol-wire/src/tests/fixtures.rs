@@ -17,7 +17,7 @@ pub const BOUNDS: Bounds = Bounds {
 // The panel's suffix is PathRules (two counts, both zero), then may_change (one byte).
 pub fn ways_with_unchecked_rules(panel: &v1::WaysPanel, rows: u32, row: &v1::PathRuleParts, note: &[u8]) -> Box<[u8]> {
     assert!(panel.rules().rows().is_empty());
-    assert!(panel.rules().note().is_empty());
+    assert_eq!((panel.rules().note()).len(), 0);
     let bytes = crate::ways_panel(panel);
     let prefix = bytes.get(..bytes.len().checked_sub(9).expect("rules and permission suffix")).expect("prefix");
     let fields = [&row.paths, &row.review, &row.sign_off, &row.lands];

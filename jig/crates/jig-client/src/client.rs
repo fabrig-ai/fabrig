@@ -85,6 +85,7 @@ pub enum NotSignedIn {
 #[derive(Debug)]
 pub struct LinkView<'a> {
     pub state: Link,
+    pub unreadable: bool,
     pub party: Option<u64>,
     pub not_served: &'a [u16],
     pub sign_out_lost: bool,
@@ -347,6 +348,7 @@ impl Client {
     pub fn link(&self) -> LinkView<'_> {
         LinkView {
             state: self.domain.link(),
+            unreadable: self.domain.unreadable(),
             streams_full: self.domain.streams_full(),
             watches_full: self.domain.watches_full(),
             party: self.domain.party(),
@@ -380,6 +382,7 @@ impl Client {
                         self.sign_out_lost = false;
                     }
                     Up::StreamsFull { .. }
+                    | Up::Unreadable
                     | Up::Served { .. }
                     | Up::FamilyServed { .. }
                     | Up::Answer { .. }
@@ -688,7 +691,13 @@ impl Client {
             link::Request::ServiceCredential { party, credential } => {
                 out.push(Request::ServiceCredential { party, credential });
             }
-            link::Request::Fact { .. } => {}
+            link::Request::Fact { fact } => match fact {
+                link::Fact::UndecodableEvent | link::Fact::UndecodableWatchAnswer => self.up(env, Up::Unreadable),
+                link::Fact::UndecodableAnswer
+                | link::Fact::UndecodableDocument
+                | link::Fact::StreamDropped
+                | link::Fact::UndecodableStore => {}
+            },
         }
     }
 }

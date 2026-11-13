@@ -43,6 +43,7 @@ disallowed_macros = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+jig-test-kit.workspace = true
 smith-protocol-program.workspace = true
 jig-client-test-records.workspace = true
 jig-client-protocol-link.workspace = true

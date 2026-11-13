@@ -81,7 +81,7 @@ fn the_kept_store_is_the_small_stores_form_in_local_storage() {
         assert_eq!(platform.calls, vec![remove]);
         platform.calls.clear();
         assert_eq!(make(b"notes-", Some(RECORD_BYTES - 1)).write(b"key", b"record", &mut platform), Err(Refused));
-        assert!(platform.calls.is_empty());
+        assert_eq!(platform.calls.len(), 0);
         platform.quota = Some(0);
         assert_eq!(store.write(b"key", b"record", &mut platform), Err(Refused));
     }

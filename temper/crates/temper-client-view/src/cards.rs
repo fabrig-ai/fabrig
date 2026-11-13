@@ -19,7 +19,7 @@ pub fn phrase(b: &mut Builder, words: &Words, word: P, holes: &[Hole]) {
 pub fn status(b: &mut Builder, words: &Words, word: P, holes: &[Hole]) {
     text(b, Role::Status, &words::say(words, word, holes));
 }
-pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
+pub(crate) fn refusal_words(words: &Words, value: &c::Refusal) -> Box<[u8]> {
     let hole = match value {
         c::Refusal::Forgotten { .. } => unreachable!("a restore: restore-ctl"),
         c::Refusal::Judged { why, .. } => Some(Hole::Name(why.bytes().into())),
@@ -54,7 +54,10 @@ pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
         | c::Refusal::Provider => None,
     };
     let name = words.say_word(jig_client::words::Word::refusal(value), hole.as_slice());
-    let name = crate::shared::live_tasks_words(name, value);
+    crate::shared::live_tasks_words(name, value)
+}
+pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
+    let name = refusal_words(words, value);
     b.open(Role::Status);
     b.style(crate::look::REFUSAL);
     b.name(&name);

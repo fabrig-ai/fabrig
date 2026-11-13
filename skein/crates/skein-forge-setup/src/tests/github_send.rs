@@ -340,7 +340,7 @@ fn a_forgejo_connection_is_unchanged() {
     assert_eq!(call.method, skein_http::Method::Get);
     assert_eq!(call.target.as_ref(), b"/api/v1/repos/search?sort=id&order=asc&page=1&limit=4");
     assert_eq!(header(&conn, b"Host").as_deref(), Some(b"127.0.0.1:3000".as_slice()));
-    assert!(header(&conn, b"Authorization").as_deref() == Some(b"token installation-secret-token".as_slice()));
+    assert_eq!(header(&conn, b"Authorization").as_deref(), Some(b"token installation-secret-token".as_slice()));
     assert_eq!(header(&conn, b"User-Agent").as_deref(), Some(AGENT));
     assert_eq!(call.headers.len(), 3);
     assert_eq!(call.body, skein_http::client::Body::None);

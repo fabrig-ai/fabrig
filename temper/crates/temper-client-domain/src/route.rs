@@ -75,6 +75,8 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::TabRefused => crate::sign_in_tab::refused(root),
         Event::SignedOut => client(root, env, jig_client::Event::Up { up: jig_client::Up::SignedOut }, out),
     }
+    // Findings subscriptions follow the event's foreground reads and acts.
+    crate::pages::findings::reconcile(root, env, out);
 }
 fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Request>) {
     crate::authorize::went(root, &place);
@@ -666,7 +668,7 @@ pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>
 }
 
 /// A connected host's pending login observation keeps the check out (temper/docs/design/domain/trial.md, 6.1).
-fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
+pub(crate) fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
     if accounts.program_hosts.is_empty() {
         return true;
     }

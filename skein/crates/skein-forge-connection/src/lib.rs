@@ -1,18 +1,14 @@
 //! Forge protocol component (forge/connection.md, sections 2, 3, 4, 7 and 8).
 #![cfg_attr(not(test), no_std)]
-#![cfg_attr(
-    feature = "seam",
-    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
-)]
 #![forbid(unsafe_code)]
 extern crate alloc;
 mod app;
 pub mod boundary;
 pub mod component;
 mod connection;
-/// What the crate's tests and the machine world's `hand` both read (forge/connection.md, 10).
-#[cfg(any(test, feature = "seam"))]
-pub mod fixtures;
+/// Fixtures for the crate's step tests (forge/connection.md, 10).
+#[cfg(test)]
+mod fixtures;
 pub mod grow;
 pub mod hooks;
 mod installations;
@@ -28,10 +24,4 @@ pub use settings::{Access, Settings};
 #[cfg(test)]
 mod tests;
 
-/// State inspected and seeded by the forge machine world (forge/connection.md, 10).
-#[cfg(feature = "seam")]
-pub mod seam {
-    pub use crate::connection::Phase;
-    pub use crate::installations::{Accepted, Clock, Diff, GitHub, HeldToken, Read, Reading, Row, Selected, Tokens};
-    pub use crate::puller::State;
-}
+pub mod seam;

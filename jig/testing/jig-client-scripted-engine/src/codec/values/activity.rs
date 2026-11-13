@@ -271,6 +271,7 @@ pub(in crate::codec) fn wire_word_result(
         )?),
         c::WordResult::Failed => w::WordResult::Failed,
         c::WordResult::Cancelled => w::WordResult::Cancelled,
+        c::WordResult::Job => w::WordResult::Job,
     })
 }
 

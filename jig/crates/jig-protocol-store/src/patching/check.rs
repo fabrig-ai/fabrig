@@ -5,7 +5,7 @@ use crate::directory::OWNER;
 use crate::generations::PAGE;
 use crate::{Arrived, Below, Check, KeptFamily, KeptMap, OpenRefusal, Owner, Root, Store, intervals, pages, restore};
 use alloc::boxed::Box;
-use jig_domain_core::RestoreRange;
+use jig_domain_core_vocabulary::RestoreRange;
 use skein_io::{file, kernel::Kind};
 use skein_lib::{List, Token, length::len_u64};
 

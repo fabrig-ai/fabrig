@@ -129,7 +129,7 @@ fn a_liveness_deadline_that_passes_fails_the_test_listing_what_is_pending() {
     assert_eq!(failure.at, at(6));
     assert_eq!(failure.why, "Reply(7) was not met by 6.000000000s");
     assert_eq!(failure.pending, ["Reply(8) by 8.000000000s"]);
-    assert!(out.is_empty());
+    assert_eq!(out.len(), 0);
 }
 
 #[test]

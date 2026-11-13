@@ -1,6 +1,6 @@
 //! Settings rows and their bounds (temper/docs/design/protocol/store.md, sections 2 to 4).
 use super::fixtures;
-use crate::{Undecodable, keys, records, v14 as w};
+use crate::{Undecodable, keys, records, v16 as w};
 use temper_engine_domain_forge::{self as forge, settings as d};
 
 fn rule() -> d::LandingRule {
@@ -64,6 +64,50 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
             }),
         ),
         (8, d::Value::Classes(classes.clone())),
+        (
+            14,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::Task(u64::MAX),
+                }]),
+            }),
+        ),
+        (15, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Task(u64::MAX) })),
+        (
+            14,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::Party(u64::MAX),
+                }]),
+            }),
+        ),
+        (15, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Party(u64::MAX) })),
+        (
+            14,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::Role(u32::MAX),
+                }]),
+            }),
+        ),
+        (15, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Role(u32::MAX) })),
+        (
+            14,
+            d::Value::ProjectAreas(d::ProjectAreas {
+                areas: Box::new([d::Area {
+                    name: b"tests".as_slice().into(),
+                    words: b"C tests".as_slice().into(),
+                    owner: d::AreaOwner::Charter(u32::MAX),
+                }]),
+            }),
+        ),
+        (15, d::Value::ProjectTriager(d::ProjectTriager { owner: d::AreaOwner::Charter(u32::MAX) })),
         (11, d::Value::Goal(d::TemplateGoal { design: false, close_out: false })),
         (11, d::Value::Goal(d::TemplateGoal { design: true, close_out: true })),
         (11, d::Value::Goal(d::TemplateGoal { design: true, close_out: false })),
@@ -87,7 +131,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 assert_eq!(forge::stored_bytes(&cloned), Some(held));
                 drop(cloned);
                 let bytes = records::encode(&row);
-                assert_eq!(&bytes[..3], &[0, 14, 26]); // The appended value tag leaves earlier tags unchanged.
+                assert_eq!(&bytes[..3], &[0, 16, 26]); // The appended value tag leaves earlier tags unchanged.
                 assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
                 let key = keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
                 assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
@@ -236,13 +280,13 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
 }
 
 #[test]
-fn a_replaced_row_has_store_v14_golden_bytes() {
+fn a_replaced_row_has_store_v16_golden_bytes() {
     let row = forge::Stored::Setting(d::SettingRow {
         key: d::SettingKey { kind: 3, scope: 0, number: 1, slot: d::SettingSlot::Replaced(3) },
         edit: d::Edit::Set(d::SizedValue { value: d::Value::Charter(2), size: 4 }),
     });
     let bytes: &[u8] =
-        &[0, 14, 26, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0, 4];
+        &[0, 16, 26, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0, 4];
     assert_eq!(records::encode(&row).as_ref(), bytes);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(bytes, &bounds), Ok(row));

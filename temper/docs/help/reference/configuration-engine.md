@@ -35,7 +35,7 @@ Shape: `engine`. Paths: `engine`. The engine's configuration, read before startu
 Shape: `limits`. Paths: `engine.limits` `workers[].limits`. A limits profile and named overrides, shared by engines and workers.
 
 - `profile`: text, small or standard; required; init writes "standard". Selects the profile whose values the overrides amend.
-- `overrides`: object, known limit names; optional; init writes {"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
+- `overrides`: object, known limit names; optional; init writes {"authority.executors":21,"clients.exchanges":12,"clients.streams":8,"clients_http.calls":12,"clients_http.streams":8,"core.resume_bytes":16803814,"documents.rows":2,"documents.text_bytes":512,"fleet.configured_workers":8,"fleet.workers":2,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602,"tasks.charters":16,"tasks.executor_kinds":21,"tasks.inbox_bytes":874120,"tasks.message_bytes":10660,"tasks.result_bytes":10660} | {"hub.accounts":4,"hub.event_bytes":10660,"hub.run_calls":48,"hub.transcript_bytes":67215250,"hub.turn_bytes":16803810,"hub.turn_queue_bytes":134430480,"io.output":16804602}. Overrides the profile's limits by their dotted names.
 
 ## engine.deployment
 
@@ -229,6 +229,7 @@ Shape: `programs`. Paths: `workers[].programs`. The worker's local source-login 
 Shape: `graces`. Paths: `workers[].graces`. The worker's graces after losing its engine.
 
 - `grace_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 60000. Gives the grace after losing the engine.
+- `drain_ms`: integer, 0 to 18446744073709 milliseconds; 180000 when absent; optional; init leaves it out. Bounds the drain before cancelling runs on shutdown.
 - `agent_stop_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 5000. Gives the stop grace of an agent's process tree.
 - `delivery_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the deadline for a delivery.
 - `save_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 1000. Gives the grace for saving the worker's state.

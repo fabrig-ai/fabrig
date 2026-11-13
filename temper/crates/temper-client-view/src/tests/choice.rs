@@ -415,8 +415,8 @@ fn a_known_reset_shows_its_utc_moment() {
 fn model_words() -> crate::words::Words {
     crate::words::Words::english(fixtures::FORGE, 128, crate::words::Shell::Terminal).unwrap()
 }
-const NAME_BYTES: u32 = jig_client_protocol_wire::v19::CEILINGS.me_model_name;
-const EFFORT_BYTES: u32 = jig_client_protocol_wire::v19::CEILINGS.me_model_efforts_item;
+const NAME_BYTES: u32 = jig_client_protocol_wire::v21::CEILINGS.me_model_name;
+const EFFORT_BYTES: u32 = jig_client_protocol_wire::v21::CEILINGS.me_model_efforts_item;
 const CUT_MARK: &[u8] = "…".as_bytes();
 fn shown_bytes() -> usize {
     usize::try_from(crate::choice::MODEL_SHOWN).unwrap()
@@ -1455,7 +1455,7 @@ fn ready_names_the_usable_account_and_not_the_model() {
     for (row, expected) in [
         (plan, "ChatGPT plan · Personal"),
         (key, "OpenAI API key · billed to the key’s organization"),
-        (program, "Claude subscription · Claude Code, signed in on this machine"),
+        (program, "Claude subscription · through Claude Code, signed in"),
     ] {
         let root = line_facts(usable, accounts(&[row]), None, None, None, false);
         let short = crate::pages::accounts::first_usable_short(&root, &fixtures::words()).expect("a usable account");

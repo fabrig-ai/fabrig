@@ -58,7 +58,7 @@ impl Judge {
                         client.facts,
                         vec![Fact::Visit, Fact::Failed(accounts::Failure::AnotherSubject), Fact::Closed]
                     );
-                    assert!(client.records.is_empty());
+                    assert_eq!(client.records.len(), 0);
                 }
                 Story::OpenIdAgain | Story::Return(super::Return::After) => {
                     assert_eq!(client.facts.iter().filter(|fact| matches!(fact, Fact::Visit)).count(), SIGN_INS);

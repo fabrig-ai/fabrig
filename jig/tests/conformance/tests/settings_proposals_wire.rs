@@ -5,7 +5,7 @@ use skein_world::domain::heap;
 #[global_allocator]
 static HEAP: heap::Counting = heap::Counting;
 
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_core::{self as core, settings as s};
 use jig_engine_clients_kit::{Peer, fixtures};
 use skein_lib::Token;
@@ -42,7 +42,7 @@ fn send_proposal(project: u32) -> (Peer, Token) {
     ask.encode(&mut bytes).expect("ask encoding");
     let request = w::Keyed::new(
         &limits,
-        w::KeyedParts { key: [1; 16], owner: w::Owner::Jig, version: 19, request: bytes.finish(), value: None },
+        w::KeyedParts { key: [1; 16], owner: w::Owner::Jig, version: 21, request: bytes.finish(), value: None },
     )
     .expect("keyed request");
     let mut bytes = Writer::new(skein_lib::length::usize_of(request.measure()));
@@ -119,7 +119,7 @@ fn a_real_pending_review_survives_both_wire_translations() {
         w::Read::Proposal(w::ReadProposal::new(&limits, w::ReadProposalParts { proposal }).expect("proposal read"));
     let mut bytes = Writer::new(skein_lib::length::usize_of(read.measure()));
     read.encode(&mut bytes).expect("read bytes");
-    let envelope = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
+    let envelope = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 21, record: bytes.finish() })
         .expect("owned read");
     let mut bytes = Writer::new(skein_lib::length::usize_of(envelope.measure()));
     envelope.encode(&mut bytes).expect("owned bytes");

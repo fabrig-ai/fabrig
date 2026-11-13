@@ -24,6 +24,10 @@ mod restart;
 pub use temper_engine_domain_forge::{Push, PushAnswer};
 pub mod room;
 mod route;
+pub use route::findings::{
+    document as findings_document, file_finding, hand_finding, holder as finding_holder, read as finding_read,
+    stands as area_stands, triage_finding,
+};
 mod settling;
 mod stopping;
 mod store;
@@ -74,6 +78,8 @@ pub use temper_engine_domain_ways as ways;
 /// The standing follow procedure and its owner-word refusals.
 pub use route::forge_route::FOLLOW_CODE;
 pub use temper_engine_domain_forge::FollowRefusal;
+/// A train's way of combining its member (domain/landing.md, 13.1).
+pub use temper_engine_domain_forge_landing::Combine;
 
 #[cfg(test)]
 mod fuzzy {

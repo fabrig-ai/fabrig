@@ -41,6 +41,28 @@ fn a_configuration_directory_is_named_by_its_source() {
 }
 
 #[test]
+fn the_source_s_environment_isolates_anthropic_profiles() {
+    for caller in [None, Some(entry(b"ANTHROPIC_CONFIG_DIR", b"/home/u/.config/anthropic"))] {
+        let mut base = List::with_capacity(3);
+        base.push(entry(b"HOME", b"/h")).expect("base room");
+        base.push(entry(b"XDG_CONFIG_HOME", b"/h/.config")).expect("base room");
+        if let Some(caller) = caller {
+            base.push(caller).expect("base room");
+        }
+        assert_eq!(
+            environment(base.as_slice(), b"/programs/a").expect("bounded environment").as_ref(),
+            &[
+                entry(b"HOME", b"/h"),
+                entry(b"XDG_CONFIG_HOME", b"/h/.config"),
+                entry(b"CLAUDE_CONFIG_DIR", b"/programs/a"),
+                entry(b"ANTHROPIC_CONFIG_DIR", b"/programs/a/anthropic"),
+            ]
+        );
+    }
+    assert!(!keeps(b"ANTHROPIC_CONFIG_DIR"));
+}
+
+#[test]
 fn the_source_s_environment_drops_other_logins() {
     let names: &[&[u8]] = &[
         b"CLAUDE_CONFIG_DIR",
@@ -68,7 +90,8 @@ fn the_source_s_environment_drops_other_logins() {
         &[
             Box::from(b"HOME=/scratch/home".as_slice()),
             Box::from(b"TERM=xterm".as_slice()),
-            Box::from(b"CLAUDE_CONFIG_DIR=/programs/a".as_slice())
+            Box::from(b"CLAUDE_CONFIG_DIR=/programs/a".as_slice()),
+            Box::from(b"ANTHROPIC_CONFIG_DIR=/programs/a/anthropic".as_slice()),
         ]
     );
     for name in names {
@@ -82,8 +105,62 @@ fn the_source_s_environment_drops_other_logins() {
 }
 
 #[test]
+fn the_source_s_environment_drops_a_named_profile() {
+    let base = [entry(b"ANTHROPIC_PROFILE", b"work"), entry(b"HOME", b"/h")];
+    assert_eq!(
+        environment(&base, b"/programs/a").expect("bounded environment").as_ref(),
+        &[
+            entry(b"HOME", b"/h"),
+            entry(b"CLAUDE_CONFIG_DIR", b"/programs/a"),
+            entry(b"ANTHROPIC_CONFIG_DIR", b"/programs/a/anthropic"),
+        ]
+    );
+    assert!(!keeps(b"ANTHROPIC_PROFILE"));
+}
+
+#[test]
+fn the_source_s_environment_drops_federation_variables() {
+    let rule = entry(b"ANTHROPIC_FEDERATION_RULE_ID", b"rule");
+    let organization = entry(b"ANTHROPIC_ORGANIZATION_ID", b"organization");
+    for credentials in
+        [core::slice::from_ref(&rule), core::slice::from_ref(&organization), &[rule.clone(), organization.clone()]]
+    {
+        let mut base = List::with_capacity(3);
+        for credential in credentials {
+            base.push(credential.clone()).expect("base room");
+        }
+        base.push(entry(b"HOME", b"/h")).expect("base room");
+        assert_eq!(
+            environment(base.as_slice(), b"/programs/a").expect("bounded environment").as_ref(),
+            &[
+                entry(b"HOME", b"/h"),
+                entry(b"CLAUDE_CONFIG_DIR", b"/programs/a"),
+                entry(b"ANTHROPIC_CONFIG_DIR", b"/programs/a/anthropic"),
+            ]
+        );
+    }
+    assert!(!keeps(b"ANTHROPIC_FEDERATION_RULE_ID"));
+    assert!(!keeps(b"ANTHROPIC_ORGANIZATION_ID"));
+}
+
+#[test]
+fn the_source_s_environment_drops_an_endpoint() {
+    let base = [entry(b"ANTHROPIC_BASE_URL", b"https://example.com"), entry(b"HOME", b"/h")];
+    assert_eq!(
+        environment(&base, b"/programs/a").expect("bounded environment").as_ref(),
+        &[
+            entry(b"HOME", b"/h"),
+            entry(b"CLAUDE_CONFIG_DIR", b"/programs/a"),
+            entry(b"ANTHROPIC_CONFIG_DIR", b"/programs/a/anthropic"),
+        ]
+    );
+    assert!(!keeps(b"ANTHROPIC_BASE_URL"));
+}
+
+#[test]
 fn an_environment_past_its_bounds_is_refused() {
-    let setting_bytes = b"CLAUDE_CONFIG_DIR=/a".len();
+    let setting_bytes =
+        b"CLAUDE_CONFIG_DIR=/a".len().checked_add(b"ANTHROPIC_CONFIG_DIR=/a/anthropic".len()).expect("settings length");
     let entry_bytes = 4096_usize.checked_sub(setting_bytes).expect("setting fits");
     for length in [entry_bytes, entry_bytes.checked_add(1).expect("one past")] {
         let mut entry = skein_lib::bytes::zeroed(length);
@@ -91,13 +168,13 @@ fn an_environment_past_its_bounds_is_refused() {
         *entry.get_mut(1).expect("equals slot") = b'=';
         let result = environment(&[entry], b"/a");
         if length == entry_bytes {
-            assert_eq!(result.expect("exact environment fits").len(), 2);
+            assert_eq!(result.expect("exact environment fits").len(), 3);
         } else {
             assert_eq!(result, Err(Error::Environment));
         }
     }
     let mut base = List::with_capacity(64);
-    for _ in 0_u32..63 {
+    for _ in 0_u32..62 {
         base.push(Box::from(b"A=x".as_slice())).expect("base room");
     }
     assert_eq!(environment(base.as_slice(), b"/a").expect("64 entries").len(), 64);
@@ -115,6 +192,16 @@ fn each_status_reads_as_programs_md_says() {
     let cases: &[(u8, &[u8], Status)] = &[
         (0, br#"{"loggedIn":true,"authMethod":"claude.ai","extra":42}"#, Status::Usable),
         (0, br#"{"loggedIn":true,"authMethod":"api_key"}"#, otherwise),
+        (
+            0,
+            br#"{"loggedIn":true,"authMethod":"third_party"}"#,
+            Status::Otherwise(Method::new(b"third_party").expect("printable method")),
+        ),
+        (
+            0,
+            br#"{"loggedIn":true,"authMethod":"oidc_federation"}"#,
+            Status::Otherwise(Method::new(b"oidc_federation").expect("printable method")),
+        ),
         (0, br#"{"loggedIn":false,"authMethod":"none"}"#, Status::NotSignedIn),
         (1, b"whatever", Status::NotSignedIn),
         (0, b"not JSON", Status::Unreadable),

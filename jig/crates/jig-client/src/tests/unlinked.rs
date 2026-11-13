@@ -40,7 +40,7 @@ fn client() -> Client {
     let mut c = new();
     c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
     c.step(Event::Up {
-        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 19, last: 19 }) },
+        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 21, last: 21 }) },
     });
     c.step(Event::SignIn { with: With::Transport });
     c
@@ -158,7 +158,7 @@ fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
     c.step(Event::Up { up: Up::WatchEnded { watch: ME_WATCH, end: contract::WatchEnd::Dropped } });
     let until = c.machine.next_deadline().expect("dropped watch schedules a retry");
     c.fire(Time::from_nanos(until.as_nanos() - 1));
-    assert!(c.requests().is_empty());
+    assert_eq!((c.requests()).len(), 0);
     c.fire(until);
     let [UnlinkedRequest::Down { down: Down::Open { watch, subject } }] = c.requests() else {
         panic!("one reopening: {:?}", c.requests());
@@ -166,7 +166,7 @@ fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
     assert_ne!(*watch, ME_WATCH);
     assert_eq!(subject, &Watchable::Jig(contract::Subject::Me));
     c.fire(until);
-    assert!(c.requests().is_empty());
+    assert_eq!((c.requests()).len(), 0);
 }
 
 #[test]

@@ -1,18 +1,7 @@
 patch 1
-owner jig 2
+owner jig 2 after smith 0 skein 0
 
-family jig-store-people 15 to 16
-add LoginExitExited
-add LoginExitKilled
-add LoginExit
-add AccountChangeLoginProgram
-add AccountChangeCancelLogin
-add AccountChangeLoginEnded
-add AccountChange.login_program
-add AccountChange.cancel_login
-add AccountChange.login_ended
-add Refusal.no_terminal
-add Refusal.login_under_way
-add Refusal.not_lending
-add OutcomeAccountLoginAsked
-add Outcome.account_login_asked
+family jig-store-settings 2 to 3
+add Overlay
+add Value.overlay
+add OverlaidCharterVersion

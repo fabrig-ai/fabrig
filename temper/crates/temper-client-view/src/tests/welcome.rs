@@ -205,8 +205,8 @@ fn the_sheet_opens_over_the_forge_choices() {
             .map(|n| n.value.as_ref().unwrap().text.as_ref())
             .collect();
         assert_eq!(values, [b"work".as_slice(), b"hello"]);
-        assert!(named(nodes, Role::TextArea).is_empty());
-        assert!(named(nodes, Role::Alert).is_empty());
+        assert_eq!(named(nodes, Role::TextArea).len(), 0);
+        assert_eq!(named(nodes, Role::Alert).len(), 0);
         assert_eq!(named(nodes, Role::Button), [b"Cancel".as_slice(), b"Run on this machine"]);
         let cancel = nodes.iter().find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Cancel")).unwrap();
         assert_eq!(cancel.shortcut, Some(skein_ui::Shortcut::ESCAPE));
@@ -265,7 +265,7 @@ fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
     start(&mut root, d::forge::forges::Start::Copies);
     let mut view = f::page_view(&root);
     let nodes = sheet(view.tree());
-    assert!(named(nodes, Role::TextField).is_empty());
+    assert_eq!(named(nodes, Role::TextField).len(), 0);
     assert_eq!(named(nodes, Role::TextArea), [b"Their addresses, one per line".as_slice()]);
     let area = nodes.iter().find(|n| n.role == Role::TextArea).unwrap();
     assert_eq!(area.placeholder.as_deref(), Some(b"github.com/owner/name".as_slice()));
@@ -290,13 +290,13 @@ fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
         nodes.iter().find(|n| n.role == Role::TextArea).unwrap().value.as_ref().unwrap().text.as_ref(),
         b"github.com/a/b"
     );
-    assert!(named(nodes, Role::Alert).is_empty());
+    assert_eq!(named(nodes, Role::Alert).len(), 0);
     start(&mut root, d::forge::forges::Start::Nothing);
     let view = f::page_view(&root);
     let nodes = sheet(view.tree());
-    assert!(named(nodes, Role::Alert).is_empty());
-    assert!(named(nodes, Role::TextArea).is_empty());
-    assert!(named(nodes, Role::TextField).is_empty());
+    assert_eq!(named(nodes, Role::Alert).len(), 0);
+    assert_eq!(named(nodes, Role::TextArea).len(), 0);
+    assert_eq!(named(nodes, Role::TextField).len(), 0);
 }
 
 fn model_view(rows: skein_lib::List<w::ForgeRow>) -> crate::View {
@@ -824,7 +824,7 @@ fn the_model_step_offers_the_accounts_ways() {
     node(view.tree(), Role::Paragraph, "temper’s agents run on a plan you sign in to.");
     node(view.tree(), Role::Heading { level: 2 }, "ChatGPT");
     node(view.tree(), Role::Paragraph, "Your ChatGPT plan: sign in, and temper’s agents use its included usage.");
-    node(view.tree(), Role::Paragraph, "Sign in, in a new tab · about a minute");
+    node(view.tree(), Role::Paragraph, "Sign in, in a new tab");
     let sign_in = node(view.tree(), Role::Button, "Continue with ChatGPT");
     assert!(styled(view.tree(), sign_in, crate::look::FLOW_PRIMARY));
     assert!(f::find(view.tree(), Role::Button, "This browser isn't on temper's computer ›".as_bytes()).is_none());
@@ -839,28 +839,89 @@ fn the_model_step_offers_the_accounts_ways() {
 }
 #[test]
 fn the_model_step_offers_each_plan_and_no_key() {
-    let mut root = super::connect_model::plans_root();
-    f::root_event(
-        &mut root,
-        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
-    );
-    let view = f::page_view(&root);
-    let tree = view.tree();
-    let cards: Vec<_> = tree
-        .nodes()
-        .iter()
-        .filter(|n| n.role == Role::Heading { level: 2 })
-        .map(|n| n.name.as_deref().unwrap())
-        .collect();
-    assert_eq!(cards, [b"ChatGPT".as_slice(), b"Claude"]);
-    node(tree, Role::Paragraph, "Sign in, in a new tab · about a minute");
-    node(tree, Role::Paragraph, "One command in a terminal, on this machine");
-    let chatgpt = node(tree, Role::Button, "Continue with ChatGPT");
-    let claude = node(tree, Role::Link, "Use your Claude subscription");
-    assert!(styled(tree, chatgpt, crate::look::FLOW_PRIMARY));
-    assert!(styled(tree, claude, crate::look::FLOW_SECONDARY));
-    assert!(!String::from_utf8_lossy(&f::text(tree)).contains("key"));
-    assert!(!tree.nodes().iter().any(|n| n.name.as_deref().is_some_and(|name| name.ends_with(b"API key"))));
+    for lendable in [false, true] {
+        let (mut root, _) =
+            super::connect_model::terminal_root(true, super::connect_model::terminal_document(lendable));
+        super::connect_model::assert_terminal_cards(&root, true, lendable);
+        let view = f::page_view(&root);
+        assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("key"));
+        if lendable {
+            let action = press(&root, Role::Button, "Sign in to Claude Code");
+            f::root_event(&mut root, d::Event::Act { action });
+            let pending = root.pages().connect_model().unwrap().request.pending.as_ref().unwrap();
+            assert_eq!(
+                pending.ask,
+                jig_client::contract::Ask::AccountChange {
+                    holder: jig_client::contract::AskAccountHolder::Own,
+                    change: jig_client::contract::AccountChange::LoginProgram {
+                        provider: 18,
+                        name: b"claude-pat".as_slice().into()
+                    },
+                }
+            );
+        }
+    }
+}
+#[test]
+fn model_keeps_the_terminal_login_note_across_documents_and_reopening() {
+    super::connect_model::terminal_note_states(true);
+}
+#[test]
+fn model_terminal_login_endings_and_refusals_put_the_cards_back() {
+    super::connect_model::terminal_ending_rows(true);
+}
+#[test]
+fn a_signed_in_terminal_login_stays_usable_until_continue() {
+    use jig_client::contract as c;
+    for email in [None, Some(b"pat@example.com".as_slice())] {
+        let mut doc = super::accounts::card_document(b"anthropic", b"claude-pat", c::AccountKind::Program);
+        let row = doc.accounts.get_mut(0).unwrap();
+        row.provider = Some(18);
+        row.facts = super::accounts::email_facts(email);
+        row.sources.get_mut(0).unwrap().number = 43;
+        doc.cut = false;
+        doc.settled = true;
+        doc.signing.clear();
+        doc.lent_end = Some(c::AccountLentEnd { number: 91, end: c::LoginEnd::SignedIn { source: 43 } });
+        let (mut root, _) = super::connect_model::terminal_root(true, doc);
+        let expected = if email.is_some() {
+            "Claude subscription · through Claude Code, signed in · pat@example.com"
+        } else {
+            "Claude subscription · through Claude Code, signed in"
+        };
+        assert_eq!(
+            crate::pages::accounts::first_usable_short(&root, &f::words()).unwrap().as_ref(),
+            expected.as_bytes()
+        );
+        for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
+            let tree = view.tree();
+            node(tree, Role::Status, expected);
+            let next = node(tree, Role::Link, "Continue");
+            assert!(styled(tree, next, crate::look::FLOW_PRIMARY));
+            assert!(f::find(tree, Role::Region, b"Claude").is_none());
+            assert!(
+                f::find(tree, Role::Paragraph, "temper’s agents run on a plan you sign in to.".as_bytes()).is_none()
+            );
+            if browser {
+                assert!(tree.nodes().iter().enumerate().any(|(i, n)| {
+                    n.styles.as_slice().contains(&crate::look::FLOW_MUTED)
+                        && super::inbox::subtree(tree, i)
+                            .iter()
+                            .flat_map(|n| n.text.iter().flat_map(|r| r.text.iter().copied()))
+                            .collect::<Vec<_>>()
+                            .starts_with(b"through Claude Code, signed in")
+                }));
+            } else {
+                assert!(terminal_print(&view).contains("✓ Claude subscription · through Claude Code, signed in"));
+            }
+            assert_eq!(
+                crate::act(&mut view, next, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Ready } }))
+            );
+        }
+        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Ready }) });
+        assert_eq!(root.pages().address(), &Address::Welcome { step: Step::Ready });
+    }
 }
 #[test]
 fn each_later_step_offers_the_playground_only_for_an_empty_store() {
@@ -2547,14 +2608,14 @@ fn ready_names_a_programs_login_and_a_keys_billing() {
             b"claude-owner".as_slice(),
             K::Program,
             None,
-            "Claude subscription · claude-owner, signed in on this machine",
+            "Claude subscription · through Claude Code, signed in",
         ),
         (
             b"anthropic",
             b"claude-owner",
             K::Program,
             Some(b"alice@example.com".as_slice()),
-            "Claude subscription · alice@example.com, signed in on this machine",
+            "Claude subscription · through Claude Code, signed in · alice@example.com",
         ),
         (b"openai", b"", K::Key, None, "OpenAI API key · billed to the key’s organization"),
         (b"openai", b"", K::SignIn, None, "ChatGPT plan"),

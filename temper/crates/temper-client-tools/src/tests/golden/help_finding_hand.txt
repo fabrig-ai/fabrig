@@ -1,0 +1,9 @@
+finding hand FINDING --area AREA TEXT --key KEY
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+  --area AREA: text, at most 1048576 bytes; required. The area's name in the project
+  TEXT (why): text, at most 1048576 bytes, or - to read stdin; required. Why, 1 to 200 bytes
+Hand a finding on to an area's owner, with why
+Prints: handed: P/N, held by HOLDER
+--json: the record finding_handed.
+Key: --key KEY, required.
+Only its holder or a project owner hands it on. Its new owner hears why.

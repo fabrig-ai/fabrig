@@ -130,7 +130,7 @@ use crate::support::events;
 #[test]
 fn every_event_at_its_largest_payload_stays_within_its_encoded_and_heap_bounds() {
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 32;
         fixture_limits.content = 128;
         fixture_limits.items = 3;

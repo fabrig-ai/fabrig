@@ -246,6 +246,9 @@ fn apply_patch(clock: &Clock, guard: &Guard, machine: &Machine, private: &Privat
 mod tests {
     use super::*;
 
+    /// No test here proves this bound; the grader verdict each expects comes first.
+    const HANG_GUARD_SECONDS: u64 = 30;
+
     fn fixture(name: &str, solved: bool) -> Validation {
         let scratch = skein_scratch::Scratch::new("bench-validate");
         let root = scratch.path().to_path_buf().join(format!("smith-bench-validate-{name}-{}", std::process::id()));
@@ -262,7 +265,7 @@ mod tests {
         task.seed_sha256 = crate::seed_digest(&task_root.join("seed")).expect("seed digest");
         task.grade = vec![crate::Grade {
             command: vec!["sh".into(), "-c".into(), "test -f solved".into()],
-            deadline_seconds: 1,
+            deadline_seconds: HANG_GUARD_SECONDS,
             max_output_bytes: 1024,
         }];
         let guard = Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[]).expect("guard");

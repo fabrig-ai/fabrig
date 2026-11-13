@@ -600,7 +600,7 @@ fn structured_finish(output: serde_json::Value) -> llm::Decoded {
     let Some(ToDomain::Completed { completion, .. }) = up.pop() else { panic!("finish completion") };
     let mut blocks = completion.content.into_vec();
     let llm::Said::ToolCall { call, .. } = blocks.pop().expect("finish call") else { panic!("finish call") };
-    assert!(blocks.is_empty());
+    assert_eq!(blocks.len(), 0);
     call
 }
 

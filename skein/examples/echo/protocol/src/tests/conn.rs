@@ -188,7 +188,7 @@ fn a_stream_that_fails_while_greeting_reading_or_draining_closes_at_once() {
     let greeting = rig.bound(1);
     let out = rig.up(stream(greeting, failed()));
     assert_eq!(out.io, [close(1)]);
-    assert!(out.calls.is_empty());
+    assert_eq!(out.calls.len(), 0);
     let reading = rig.reading(2, session(2));
     let out = rig.up(stream(reading, failed()));
     assert_eq!((out.io, out.calls), ([close(2)].into(), [Call::Gone { session: session(2) }].into()));
@@ -227,7 +227,7 @@ fn a_connection_idle_past_its_deadline_is_closed() {
     assert!(rig.proto.is_due(deadline));
     let out = rig.fire();
     assert_eq!(out.io, [close(1)], "greeting, never granted room: closed");
-    assert!(out.calls.is_empty());
+    assert_eq!(out.calls.len(), 0);
     let reading = Time::from_nanos(500_000_000).saturating_add(LIMITS.idle);
     assert_eq!(rig.proto.next_deadline(), Some(reading), "the reader's, armed when it was admitted");
     rig.at(reading);
@@ -437,7 +437,7 @@ fn an_abort_in_each_open_state_keeps_only_the_call_terminal_it_still_owes() {
         if stage >= 2 {
             assert_eq!(out.calls, [Call::Gone { session: session(1) }]);
         } else {
-            assert!(out.calls.is_empty());
+            assert_eq!(out.calls.len(), 0);
         }
         rig.closed(conn).nothing();
         if stage == 1 {

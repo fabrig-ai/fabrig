@@ -1,10 +1,13 @@
 # Findings and QA after landing
 
-Provisional, 2026-10-27. Something found that is not its finder's to fix
-now (a QA pass's finding, a flake, a red whose goal has ended, a
-review's follow-up) is a finding: a labelled issue in the project's
-home, whose labels temper reads back, so that it can be triaged on the
-forge or in temper. And QA after landing: landings mark what a user can
+Provisional, 2026-10-27, revised 2026-11-11 for
+`../draft/standing-roles.md`, sections 4 and 8. Something found that is
+not its finder's to fix now (a QA pass's finding, a flake, a red whose
+goal has ended, a review's follow-up, a person's word) is a finding:
+temper's record in its project, owned by its area's owner
+(`areas.md`), and projected as a labelled issue in the project's home,
+whose labels temper reads back, so that it can be triaged on the forge
+or in temper. And QA after landing: landings mark what a user can
 now do, a chooser picks which marks to test, and one tester at a time
 tries them on the newest cleared main. It replaces `forge/issues.md`'s
 findings, kept in the store and never read back. What is open is `findings.md`, section 10
@@ -12,11 +15,13 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 
 ## 1. In one page
 
-- **A finding is a forge issue,** in the project's home, labelled
-  `finding`, its kind (`qa`, `flake`, `red` or `review`), its severity,
-  its area and its state (`new`, `routed`, `backlog` or `dropped`). Its
-  body carries its reproduction, its commit and its signature: the
-  failing test ids and the failure's first line, where it has one.
+- **A finding is temper's record,** numbered in its project: its kind
+  (`qa`, `flake`, `red`, `review` or `feedback`), its severity, its area
+  and its state (`new`, `routed`, `backlog` or `dropped`), its title and
+  its body, which carries its reproduction, its commit and its
+  signature: the failing test ids and the failure's first line, where it
+  has one. Its issue in the project's home, labelled `finding` and with
+  the same, projects it (section 2).
 - **Labels are read back** (section 3): a person may triage on the
   forge, by its labels, or in temper; either way the finding's state is
   its labels. A narrow exception to `forge/issues.md`'s "written and never
@@ -27,9 +32,10 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 - **A flake at a gate** (section 5): a gate's failure whose every
   failing test matches an open flake finding has its failed jobs rerun
   once rather than repaired.
-- **Triage** (section 6): the project's triager, a task (often the
-  person's chat) or a party, is woken by new findings; it routes each
-  to a goal, to a new goal, to the backlog, or drops it.
+- **Triage** (section 6): its owner (`areas.md`), its area's or else the
+  project's triager, a task or a person, hears it; it hands it on to an
+  area, routes it to a goal, to a new goal, to the backlog, or drops
+  it.
 - **Closed when its fix clears** (section 7): a landing whose change
   says `Fixes #n` closes finding n once the landing is cleared, not
   when it lands. A finding a person closes on the forge is closed in
@@ -40,9 +46,22 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 
 ## 2. What a finding is
 
+- **Its record** (family `Finding`, `../protocol/store.md`, section 2),
+  keyed by its project and its number there, from 1, each the next after
+  the project's highest: its kind, severity, area (a name, or none),
+  state, title (1 to 200 bytes of UTF-8 with no control character), body
+  (at most 4,096 bytes of UTF-8), its filer (a task or a party), when it
+  was filed, the last hand-off's why and who handed it, the goal it was
+  routed to, a drop's reason, its signature's ids, the times a flake was
+  seen, the landing that fixes it, its home's issue once projected, and
+  the forge's labels as last read. Its owner is not kept: `areas.md`,
+  section 4 derives it.
+- **Its kinds:** `qa`, `flake`, `red` and `review`, and `feedback`, a
+  person's word (`../draft/whole-story.md`, section 2).
 - **Its issue,** in the project's home (jig's `domain/model.md`, 6.1),
-  created by temper (skein's `Write::CreateIssue` with its labels),
-  keyed by its purpose (section 4), its title the finder's.
+  a projection of the record: created by temper (skein's
+  `Write::CreateIssue` with its labels), keyed by its purpose (section
+  4), its title the finder's.
 - **Its labels:** `finding`; `kind:qa`, `kind:flake`, `kind:red` or
   `kind:review`; `severity:low`, `severity:medium` or `severity:high`;
   `area:<name>`, from the project's areas; `state:new`, `state:routed`,
@@ -57,9 +76,6 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   the commit it was seen at; its signature, a fenced block of the test
   ids and the failure's first line; and, for a routed one, the goal's
   issue it was routed to.
-- **Its record** (family `Finding`): its home's issue, kind, state, the
-  signature's ids, the times a flake was seen, the goal it was routed
-  to, the landing that fixes it, and the forge's labels as last read.
 
 ## 3. Read back
 
@@ -80,15 +96,23 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 
 ## 4. Filing and matching
 
-- **Who files:** the QA procedure, from its tester's report (section
-  8); verdicts, a flake (after-landing.md, 5.2) and a red of no goal's
-  (after-landing.md, section 7); an agent's tool, outside its task
-  (`agent/tools.md`), as `forge/issues.md`'s findings were.
+- **Who files:** a party with a role in the project, through `temper
+  ctl finding file` or a page's act, a person's word through Tell temper
+  as `feedback` among them, an outside party's as any
+  (`../draft/standing-roles.md`, section 8); an agent task of the
+  project, through its `finding` tool (`agent/tools.md`), outside its
+  task; the root, for a red of no goal's (after-landing.md, section 7):
+  kind `red`, severity `high`, no area, its title `Red after landing on
+  BRANCH: tier NAME` and its body the red's news words (after-landing.md,
+  section 7), once per landing the verdict reddens; the QA procedure,
+  from its tester's report (section 8); and verdicts, a flake
+  (after-landing.md, 5.2). Each is filed as `areas.md`, section 5 routes
+  it.
 - **What a verdict files:** its reproduction is the tier's or gate's
   workflow at the run's commit with its failing tests alone; its first
   line, the failed job's failed step's last line (skein's `Read::Job`);
-  its severity `low` for a flake and `high` for a red; its area the
-  project's area for the repository (section 9's settings), or none.
+  its severity `low` for a flake and `high` for a red; no area, so that
+  the triager hands it on (`areas.md`, section 5).
 - **A signature** is the repository, the tier or gate, a set of test
   ids in byte order, and the failure's first line. A failure is matched
   against the open findings of its kind with the same repository and
@@ -115,21 +139,32 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
 
 ## 6. Triage
 
-- **The triager** is named by the project's settings: a task, by its
-  number (usually the person's chat), or a role of the project's. New
-  findings wake it, at once or on its period: news on the forge's topic
-  of a project's findings for a task (`forge/README.md`, 5.1), a notification
-  for a party.
-- **Its acts,** a task's through its tools and a party's through
-  `temper ctl` (section 9), each writing the finding's labels and
-  record in one decision:
-  - **to a goal:** news to that goal with the finding, `state:routed`,
-    and the goal's issue named in its body;
+- **Its owner** triages it: its area's owner, else the project's
+  triager (kind 13), else the project's owners, by `areas.md`, section
+  4's rule. A finding that becomes a task's is news to it on the
+  project's findings topic (`forge/README.md`, 5.1); one that becomes a
+  person's is in their Needs you (`areas.md`, section 5).
+- **Its acts,** by its holder or a project owner (`areas.md`, section
+  7), a task's through its `finding` tool and a party's through `temper
+  ctl` (section 9), each writing the finding's record, and its labels
+  once it has an issue, in one decision:
+  - **handed on:** to an area, with why in a line (`areas.md`, section
+    5);
+  - **to a goal:** news to that goal with the finding, `routed`, the
+    goal kept on the record, and the goal's issue named in the finding's
+    issue's body;
   - **to a new goal:** the triager makes one, naming the finding, as
     any goal is made, then routes it there;
-  - **to the backlog:** `state:backlog`, until a later triage;
-  - **dropped,** with a reason: `state:dropped`, the issue closed with
-    the reason as a comment.
+  - **to the backlog:** `backlog`, until a later triage;
+  - **dropped,** with a reason: `dropped`, the reason kept, and its
+    issue closed with the reason as a comment.
+- **News to a goal,** for a route: `Finding P/N for you: TITLE`, then
+  its kind, severity and area as `areas.md`, section 5's second line,
+  then its body, cut to `tasks.message_bytes` as there, through the
+  goal's subscription to the project's findings topic, which the root
+  makes in that decision as for an owner. A routed or dropped finding
+  is no one's to triage: its holder still reads by the rule, and it
+  leaves Needs you.
 - **A goal hears a finding** as news it may act on: the fix is a change
   like any, which says `Fixes #n`.
 
@@ -194,18 +229,26 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   `CreateIssue` takes labels, and `Write::Labels { number, labels }`
   sets an issue's whole set of labels by name, `Write::CreateLabel {
   name, color }` makes one, `Exists` when the name is taken.
-- **Views and acts** (`../client/ctl/README.md`, a group `finding` and a
-  group `qa`): `finding list --project PROJECT [--state STATE]`,
-  `finding show FINDING`, `finding route FINDING --goal TASK`, `finding
-  backlog FINDING`, `finding drop FINDING REASON`; `qa marks --project
-  PROJECT`, `qa choose LANDING`, `qa passes --project PROJECT`.
-- **In the store:** `Finding` (by the home's issue), `Mark` (by
-  landing), `QaPass` (by its task), through the baseline's rules.
-- **Settings,** with kind 4: findings on or off; the triager; the
-  chooser; the tester charter; the project's areas. Until kind 4 is a
-  setting, in the document's `landing` member, as `by` is (`landing.md`,
-  13.1): `findings`, true or false (false by default), and each
-  repository's `area` beside its gates.
+- **Views and acts** (`../client/ctl/tools.md`, a group `finding` and a
+  group `qa`): `finding file`, `finding list`, `finding show`, `finding
+  hand`, `finding route`, `finding backlog` and `finding drop`; `qa
+  marks --project PROJECT`, `qa choose LANDING`, `qa passes --project
+  PROJECT`. They are the forge's requests `FileFinding`, `HandFinding`
+  and `TriageFinding`, its subject `findings` and its read `Finding`
+  (`../client/forge/records.md`), and the agents' `finding` tool
+  (`agent/tools.md`).
+- **In the store:** `Finding` (by its project and number), `Mark` (by
+  landing), `QaPass` (by its task), through the baseline's rules. A
+  project keeps at most `forge.findings_per_project`
+  (`../protocol/configuration/limits.md`): a filing past it erases the
+  project's oldest finding that is `routed` or `dropped`, and with none
+  is refused, `the project's findings are full: K new`; a red of no
+  goal's so refused is not filed.
+- **Settings:** the project's areas and its triager are kinds 12 and 13
+  (`../protocol/configuration/settings.md`, 2). The issue's projection
+  on or off, the chooser and the tester charter come with the issue and
+  QA: until then, in the document's `landing` member, as `by` is
+  (`landing.md`, 13.1), `findings`, true or false (false by default).
 
 ## 10. Open questions
 

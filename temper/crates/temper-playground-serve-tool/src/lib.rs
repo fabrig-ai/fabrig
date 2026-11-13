@@ -146,7 +146,6 @@ fn mime(path: &Path) -> &'static str {
 }
 
 /// Capture the arguments once and answer through the table before opening a host.
-#[must_use]
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     #[expect(
         clippy::disallowed_methods,

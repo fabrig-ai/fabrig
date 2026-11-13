@@ -2,7 +2,7 @@
 use super::owner;
 use super::{pieces, problem, w};
 use alloc::boxed::Box;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
 pub fn class(value: t::Class) -> Result<w::HoldFailure, w::Problem> {
@@ -13,6 +13,7 @@ pub fn class(value: t::Class) -> Result<w::HoldFailure, w::Problem> {
         t::Class::Agent => w::HoldFailure::Agent,
         t::Class::Lost => w::HoldFailure::Lost,
         t::Class::Invalid => w::HoldFailure::Invalid,
+        t::Class::Infrastructure => w::HoldFailure::Infrastructure,
     })
 }
 pub fn retry(value: &t::RetryNotice, limits: &w::Limits) -> Result<w::RetryNotice, w::Problem> {
@@ -212,6 +213,7 @@ pub fn tries(value: t::Tries, limits: &w::Limits) -> Result<w::FailureTries, w::
             agent: value.agent,
             lost: value.lost,
             invalid: value.invalid,
+            infrastructure: value.infrastructure,
         },
     )
 }

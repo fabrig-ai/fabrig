@@ -201,7 +201,7 @@ fn full_actual_slot_envelope_waits_and_one_free_queued_slot_is_a_positive_contro
         }
         let mut completed = rig.complete(send, Ok(Done::Count(1)));
         if immediate {
-            assert!(completed.events.is_empty());
+            assert_eq!(completed.events.len(), 0);
         } else {
             assert_eq!(completed.events, [settled(WRONG, OutputOutcome::Granted)]);
         }

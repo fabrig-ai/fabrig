@@ -29,7 +29,7 @@ pub(super) fn config(seed: u64) -> engine::Config {
             })
             .collect(),
     };
-    config.core.defaults = temper_service::stock::with_models(
+    config.core.defaults = temper_engine_service::stock::with_models(
         llm.models.clone(),
         temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
     );

@@ -1,4 +1,6 @@
 //! The client's TUI and its real box on a pseudo-terminal (client/tui/box.md, Its tests).
+#[path = "tui_box/lending.rs"]
+mod lending;
 use crate::{box_link, support};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Signal, Size, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
@@ -24,6 +26,7 @@ struct Terminal {
     reading: bool,
     writing: bool,
     closing: bool,
+    client_exit: Option<Exit>,
     bytes: Vec<u8>,
     keys: VecDeque<Box<[u8]>>,
     complete: Queue<Complete>,
@@ -36,6 +39,7 @@ impl Terminal {
             reading: false,
             writing: false,
             closing: false,
+            client_exit: None,
             bytes: Vec::new(),
             keys: VecDeque::from([Box::from(b"\n".as_slice())]),
             complete: Queue::with_capacity(8),
@@ -83,7 +87,13 @@ impl Host for Terminal {
         }
         if let Some(fd) = self.stream {
             if self.closing {
-                if !self.writing && !self.reading && !self.submit.iter().any(|submit| submit.op == CLOSE) {
+                // The slave can close before process exit. Keep the master until then:
+                // closing it sends SIGHUP to a client still finishing its exit.
+                if self.client_exit.is_some()
+                    && !self.writing
+                    && !self.reading
+                    && !self.submit.iter().any(|submit| submit.op == CLOSE)
+                {
                     self.stream = None;
                     self.submit.push(Submit { op: CLOSE, kind: Op::Close { fd } });
                 }
@@ -151,6 +161,7 @@ enum Case {
     Working,
     Killed,
 }
+#[derive(Debug)]
 enum Phase {
     Connecting,
     SettingUp,
@@ -173,6 +184,7 @@ impl Referee<Root> for Judge {
         let [Root::Client(client), Root::Terminal(terminal), Root::Calls(calls)] = roots else {
             panic!("client, person and ctl")
         };
+        terminal.client_exit = client.exit_status();
         match self.phase {
             Phase::Connecting if terminal.has(b"Live") && !terminal.writing => {
                 assert!(box_link::link_path(&self.root).is_file(), "the handed link signed in and serve renewed it");
@@ -188,8 +200,15 @@ impl Referee<Root> for Judge {
                         self.phase = Phase::Stopping;
                     }
                     Case::Working => {
+                        let token = self.root.join("state/temper/tui/token");
+                        if !token.is_file() {
+                            return;
+                        }
+                        // ctl has its own directory and acts as the TUI's person.
+                        fs::copy(token, self.root.join("ctl/token"))
+                            .expect("copy fixture credential without printing it");
                         calls.push(support::ctl::Step::Run(
-                            support::ctl::Call::new(&["forge", "setup", "--playground", "--key", "tui-playground"])
+                            support::ctl::Call::new(&["playground", "start", "--key", "tui-playground"])
                                 .by(&self.client),
                         ));
                         self.phase = Phase::SettingUp;
@@ -197,7 +216,15 @@ impl Referee<Root> for Judge {
                 }
             }
             Phase::SettingUp if calls.foreground_idle() => {
-                assert!(calls.ends().iter().all(|call| call.exit == Some(Exit::Code(0))), "playground set up");
+                assert!(
+                    calls.ends().iter().all(|call| call.exit == Some(Exit::Code(0))),
+                    "playground set up: {:?}",
+                    calls
+                        .ends()
+                        .iter()
+                        .map(|call| (call.exit, support::without_secrets(&call.stderr)))
+                        .collect::<Vec<_>>()
+                );
                 self.phase = Phase::Project;
             }
             Phase::Project if terminal.has(b"playground") && !terminal.writing => {
@@ -205,7 +232,10 @@ impl Referee<Root> for Judge {
                 terminal.keys(b"Add CSV export to widget\r");
                 self.phase = Phase::Chat;
             }
-            Phase::Chat if terminal.has(b"Add CSV export to widget") && !terminal.writing => {
+            // The echoed input can precede the running chat read by the TUI.
+            Phase::Chat
+                if terminal.has(b"Add CSV export to widget") && terminal.has(b"Working") && !terminal.writing =>
+            {
                 terminal.keys(b"\x03");
                 self.phase = Phase::Question;
             }
@@ -237,7 +267,7 @@ impl Referee<Root> for Judge {
         if !self.settled
             && let Some(figures) = self.patience.failed()
         {
-            panic!("TUI's box did not settle: {figures}");
+            panic!("TUI's box did not settle in {:?}: {figures}", self.phase);
         }
     }
     fn next_deadline(&self) -> Option<Time> {
@@ -260,8 +290,9 @@ fn run(case: Case, name: &str) {
         .pointer("/application/clients/listener/socket")
         .and_then(serde_json::Value::as_str)
         .expect("engine address");
-    let tui = root.join("state/temper/tui");
-    fs::DirBuilder::new().recursive(true).mode(0o700).create(&tui).expect("TUI parent for ctl");
+    let ctl = root.join("ctl");
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(&ctl).expect("ctl directory");
+    support::write_private(&ctl.join("address"), format!("http://{address}\n").as_bytes());
     let command = box_link::command(root, "");
     let client = skein_scratch::paths::binary("temper-box").with_file_name("temper");
     assert!(client.is_file(), "temper is built beside temper-box");
@@ -305,7 +336,7 @@ fn run(case: Case, name: &str) {
     let Streams::Terminal { stream } = streams else { panic!("pseudo-terminal") };
     skein_shell::resize_terminal(stream, Size { columns: 80, rows: 24 }).expect("80 by 24");
     let mut calls =
-        support::ctl::Calls::linked(&format!("http://{address}/jig/v1/sign-in/link?secret={}", "A".repeat(43)), &tui);
+        support::ctl::Calls::linked(&format!("http://{address}/jig/v1/sign-in/link?secret={}", "A".repeat(43)), &ctl);
     calls.hold();
     let mut world = real::World::new(Judge {
         case,

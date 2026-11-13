@@ -365,7 +365,7 @@ fn unsafe_or_oversized_command_paths_are_refused() {
         assert_eq!(
             h.one(Event::Run {
                 owner: OWNER,
-                kind: JobKind(1),
+                kind: JobKind(2),
                 spec: Spec { command: copy_of(command), ..spec() },
                 deadline: DEADLINE,
                 directory: copy_of(b"/job"),

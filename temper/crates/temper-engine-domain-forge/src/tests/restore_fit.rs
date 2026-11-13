@@ -53,12 +53,15 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
             landing: policy::Landing {
+                round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                 task: n,
                 project: 5,
                 phase: policy::Phase::Waiting,
                 members: Box::new([]),
                 preparation: 0,
                 stale_proofs: 0,
+                branch: Box::from(b"main".as_slice()),
             },
             asks: Box::new([]),
             entries: Box::new([]),
@@ -71,6 +74,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 key: [0; 32],
             },
             receipt: Receipt {
+                logs: Box::new([]),
                 failures: None,
                 passed: true,
                 run: ReceiptRun { id: n, number: n, url: Box::new([]) },
@@ -210,6 +214,22 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             auth: [7; 16],
             label: b"phone".as_slice().into(),
             at: Wall::EPOCH,
+        }),
+        RecordKind::Finding => Stored::Finding(Finding {
+            project: 1,
+            number: u32::try_from(n).expect("fixture number"),
+            kind: FindingKind::Qa,
+            severity: Severity::Low,
+            area: None,
+            state: FindingState::New,
+            title: b"finding".as_slice().into(),
+            body: Box::default(),
+            filer: Filer::Party(1),
+            at: Wall::EPOCH,
+            why: None,
+            hander: None,
+            goal: None,
+            reason: None,
         }),
         RecordKind::Client => panic!("no own table"),
     }
@@ -666,6 +686,7 @@ fn independent_timer_room_is_checked_before_insertion() {
 
 fn landing(members: u32, gates: u32) -> LandingRow {
     let member = policy::Member {
+        left: None,
         change: 1,
         repository: policy::Repository { forge: 1, repository: 2 },
         pull: 1,
@@ -682,12 +703,15 @@ fn landing(members: u32, gates: u32) -> LandingRow {
     };
     LandingRow {
         landing: policy::Landing {
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
             task: 1,
             project: 5,
             phase: policy::Phase::Waiting,
             members: vec![member; usize::try_from(members).unwrap()].into_boxed_slice(),
             preparation: 0,
             stale_proofs: 0,
+            branch: Box::from(b"main".as_slice()),
         },
         asks: Box::new([]),
         entries: Box::new([]),
@@ -796,6 +820,7 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
     }
     if let Stored::Landing(row) = &mut record {
         row.landing.members = Box::new([policy::Member {
+            left: None,
             change: u64::from(number),
             repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
             pull: 1,
@@ -867,7 +892,10 @@ fn unknown_tier_events_keep_state_and_hold_the_step() {
     ] {
         assert!(outputs(&mut d, event).is_empty());
     }
-    let out = outputs(&mut d, Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true } });
+    let out = outputs(
+        &mut d,
+        Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true, message_bytes: 4096 } },
+    );
     let [Request::TierDecision { task, decision, entry, projection: _ }] = out.as_ref() else {
         panic!("one tier decision")
     };

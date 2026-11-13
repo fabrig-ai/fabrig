@@ -40,7 +40,7 @@ fn refused(home: &Home, arguments: &[&str], session: Option<&str>, stdin: Option
     let output = run(home, arguments, session, stdin);
     assert_eq!(output.status.code(), Some(1), "{arguments:?}: {:?}", output.stderr);
     assert_eq!(output.stderr, format!("temper-qa: {words}\n").as_bytes(), "{arguments:?}");
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout.len(), 0);
     assert_eq!(fs::read(&home.ledger).expect("after"), before);
 }
 
@@ -223,7 +223,7 @@ fn finding_field_and_file_refusals_leave_no_record_or_evidence() {
     let output = run(&home, &["pass", "finding", "-"], Some("2"), Some(b"{"));
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).starts_with("temper-qa: finding refused: -: "));
-    assert!(ledger(&home).findings.is_empty());
+    assert_eq!(ledger(&home).findings.len(), 0);
     assert!(!home.directory.join("evidence/1").exists());
 }
 
@@ -360,7 +360,7 @@ fn finding_options_with_no_number_or_a_nonnumber_are_usage_refusals() {
         arguments.extend(tail);
         let output = run(&home, &arguments, Some("2"), None);
         assert_eq!(output.status.code(), Some(2));
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout.len(), 0);
         let stderr = String::from_utf8(output.stderr).expect("UTF-8");
         assert!(stderr.contains("expected --finding N"));
         assert!(stderr.contains("pass outcome CASE RESULT NOTES [--finding N]..."));

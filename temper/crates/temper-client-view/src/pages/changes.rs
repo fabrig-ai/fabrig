@@ -7,6 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 use skein_ui::{Builder, Role, Run, phrases::Hole};
+use temper_client_domain::forge::words::ChangeWord as W;
 use temper_client_domain::{
     Address, Domain,
     pages::{
@@ -25,6 +26,7 @@ fn queued(panel: &w::ChangesPanel) -> u64 {
     let mut count = u64::from(panel.more());
     for queue in panel.queues() {
         count = count.checked_add(u64::from(queue.changes().len())).expect("wire rows fit");
+        count = count.checked_add(u64::from(queue.in_flight().is_some())).expect("wire rows fit");
     }
     count
 }
@@ -32,7 +34,7 @@ fn queued(panel: &w::ChangesPanel) -> u64 {
 fn branch_named(panel: &w::ChangesPanel) -> Option<&[u8]> {
     let mut name = None;
     for queue in panel.queues() {
-        if !queue.changes().is_empty() {
+        if !queue.changes().is_empty() || queue.in_flight().is_some() {
             if let Some(previous) = name
                 && previous != queue.branch()
             {
@@ -218,6 +220,7 @@ pub(crate) fn main(
     b.close();
     b.close();
 }
+#[expect(clippy::too_many_lines, reason = "train flights and ordered waiters share the queue row layout")]
 fn queues(
     b: &mut Builder,
     root: &Domain,
@@ -228,7 +231,7 @@ fn queues(
 ) {
     let mut sections = 0_usize;
     for queue in panel.queues() {
-        if !queue.changes().is_empty() {
+        if !queue.changes().is_empty() || queue.in_flight().is_some() {
             sections = sections.checked_add(1).expect("wire queues fit");
         }
     }
@@ -243,11 +246,17 @@ fn queues(
     }
     let mut shown = 0_usize;
     for queue in panel.queues() {
-        if queue.changes().is_empty() {
+        if queue.changes().is_empty() && queue.in_flight().is_none() {
             continue;
         }
         shown = shown.checked_add(1).expect("wire queues fit");
-        let heading = if sections == 1 {
+        let heading = if *queue.way() == w::Way::Turn {
+            super::change::say(
+                words,
+                W::Train,
+                &[Hole::Name(queue.repository().into()), Hole::Name(queue.branch().into())],
+            )
+        } else if sections == 1 {
             words.say(Word::ChangesQueue, &[])
         } else {
             words.say(
@@ -258,26 +267,48 @@ fn queues(
         section(b, &heading);
         b.open(Role::List);
         b.style(look::HOME_ROWS);
+        if let Some(flight) = queue.in_flight() {
+            let identity = super::change::say(
+                words,
+                W::TrainFlight,
+                &[Hole::Number(flight.task()), Hole::Number(flight.member()), Hole::Number(u64::from(flight.round()))],
+            );
+            let status = super::change::say(words, step_word(flight.step()), &[]);
+            let label = crate::accounts::words::join(&[&identity, &words.say(Word::ToolSeparator, &[]), &status]);
+            row_start(b, root, words, bindings, flight.member(), flight.title(), &label);
+            row_when(b, words, &label);
+            b.close();
+            b.close();
+        }
         for (index, row) in queue.changes().iter().enumerate() {
-            let (checking, when) = match (index, row.checks_since()) {
-                (0, Some(since)) => (
-                    true,
-                    words.say(
-                        Word::ChangesChecks,
-                        &[Hole::Name(times.say(words, TimeForm::Ago, Wall::from_nanos(*since)))],
+            let (checking, when) = if *queue.way() == w::Way::Turn {
+                let place = skein_lib::len_u64(index)
+                    .checked_add(1)
+                    .expect("wire ordinal fits")
+                    .checked_add(u64::from(queue.in_flight().is_some()))
+                    .expect("wire rows fit");
+                (false, words.say(Word::ChangesPlace, &[Hole::Name(ordinal(place, words))]))
+            } else {
+                match (index, row.checks_since()) {
+                    (0, Some(since)) => (
+                        true,
+                        words.say(
+                            Word::ChangesChecks,
+                            &[Hole::Name(times.say(words, TimeForm::Ago, Wall::from_nanos(*since)))],
+                        ),
                     ),
-                ),
-                (0, None) => (true, Box::default()),
-                (1.., _) => (
-                    false,
-                    words.say(
-                        Word::ChangesPlace,
-                        &[Hole::Name(ordinal(
-                            skein_lib::len_u64(index).checked_add(1).expect("wire ordinal fits"),
-                            words,
-                        ))],
+                    (0, None) => (true, Box::default()),
+                    (1.., _) => (
+                        false,
+                        words.say(
+                            Word::ChangesPlace,
+                            &[Hole::Name(ordinal(
+                                skein_lib::len_u64(index).checked_add(1).expect("wire ordinal fits"),
+                                words,
+                            ))],
+                        ),
                     ),
-                ),
+                }
             };
             let label = if checking {
                 crate::accounts::words::join(&[&words.say(Word::ChangesChecking, &[]), &when])
@@ -367,4 +398,21 @@ fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style
     b.name(words);
     b.text(Run::Plain, words);
     b.close();
+}
+
+pub(crate) fn step_word(step: &w::LandingStep) -> W {
+    match step {
+        w::LandingStep::Waiting => W::Waiting,
+        w::LandingStep::Preparing => W::HeldPreparing,
+        w::LandingStep::Proving => W::Checking,
+        w::LandingStep::Proved => W::Proved,
+        w::LandingStep::Turn => W::HeldLanding,
+        w::LandingStep::Landed => W::Landed,
+        w::LandingStep::Held => W::LeftHeld,
+        w::LandingStep::Cancelled => W::Cancelled,
+        w::LandingStep::Judging => W::Judging,
+        w::LandingStep::Leaving => W::Leaving,
+        w::LandingStep::Recording => W::Recording,
+        w::LandingStep::Telling => W::Telling,
+    }
 }

@@ -77,7 +77,7 @@ impl Markers {
             file::Event::Failed { owner, error: kernel::Error::NotFound, .. } => {
                 assert_eq!(owner, self.owner, "file terminal echoes marker owner");
             }
-            file::Event::Failed { owner, error: _, .. } => {
+            file::Event::Failed { owner, .. } => {
                 assert_eq!(owner, self.owner, "file terminal echoes marker owner");
                 return MarkerAction::Done(failed(run::DeliveryReason::Broken));
             }

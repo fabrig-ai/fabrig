@@ -223,7 +223,7 @@ fn empty_sessions_block_twice_but_a_note_leaves_missing_outcomes_uncounted() {
     assert_eq!(ledger.cases[0].state, CaseState::Queued);
     assert_eq!(ledger.cases[0].blocks, 0);
     assert_eq!(ledger.cases[0].pass, None);
-    assert!(ledger.lines.is_empty());
+    assert_eq!(ledger.lines.len(), 0);
     assert_eq!(ledger.passes[0].requests[0].findings, Vec::<u64>::new());
     ledger.file_request(1, 1, None, 7).expect("recipes-only file");
     assert_eq!(ledger.passes[0].requests[0].goal, None);
@@ -361,7 +361,7 @@ fn unstarted_start_and_resume_undo_from_persisted_before_records() {
     assert_eq!((ledger.cases[0].state, ledger.cases[0].pass, ledger.cases[0].blocks), (CaseState::Queued, None, 0));
     assert_eq!(ledger.passes[0].state, PassState::Ended);
     assert_eq!(ledger.builds[0].held, None);
-    assert!(ledger.lines.is_empty());
+    assert_eq!(ledger.lines.len(), 0);
     let (mut ledger, pass) = waiting();
     queue(&mut ledger, "work", "web");
     queue(&mut ledger, "home", "web");
@@ -378,7 +378,7 @@ fn unstarted_start_and_resume_undo_from_persisted_before_records() {
     assert_eq!(ledger.passes[0].build, "A");
     assert_eq!(ledger.builds[0].held, Some(pass.pass));
     assert_eq!(ledger.builds[1].held, None);
-    assert!(ledger.lines.is_empty());
+    assert_eq!(ledger.lines.len(), 0);
     assert_eq!(ledger.passes[0].requests.len(), 1);
 }
 
@@ -391,7 +391,7 @@ fn q1_decodes_without_q3_and_all_q3_records_roundtrip() {
     assert_eq!(old.cases[0].state, CaseState::Queued);
     assert_eq!(old.cases[0].pass, None);
     assert_eq!(old.cases[0].blocks, 0);
-    assert!(old.cases[0].outcomes.is_empty());
+    assert_eq!(old.cases[0].outcomes.len(), 0);
     assert_eq!(old.sessions[0].before, None);
     let (mut ledger, pass) = waiting();
     ledger.file_request(pass.pass, 1, Some(100), 8).expect("file");
