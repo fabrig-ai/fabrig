@@ -10,6 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE = 'temper/scripts/old-forms.txt'
+KNOWN_REDS = '.temper/known-reds.md'
 RECORDING = 'temper/tests/playground/tests/fixtures/story-a.log'
 GENERATOR = 'temper/tests/playground/tests/suite/walk.rs'
 WALK = 'walk::story_a_walks_from_the_welcome_to_the_csv_change_landed'
@@ -50,7 +51,10 @@ class Merge(unittest.TestCase):
     def write(self, name, content):
         path = self.repository / name
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding='utf-8')
+        if isinstance(content, bytes):
+            path.write_bytes(content)
+        else:
+            path.write_text(content, encoding='utf-8')
 
     def commit(self, message):
         self.git('add', '.')
@@ -58,7 +62,10 @@ class Merge(unittest.TestCase):
 
     def conflict(self, baseline=True, other=False, head_comment='# Head baseline\n',
                  base_comment='# Incoming baseline\n', trees=('temper',), delete=None,
-                 other_path='temper/x.rs', other_paths=(), head_files=(), base_files=()):
+                 other_path='temper/x.rs', other_paths=(), head_files=(), base_files=(),
+                 known_reds=None):
+        if known_reds is not None and known_reds[0] is not None:
+            self.write(KNOWN_REDS, known_reds[0])
         self.commit('common')
         self.git('branch', 'base')
         if baseline:
@@ -71,6 +78,11 @@ class Merge(unittest.TestCase):
                 self.write(path, 'const X: u8 = 1;\n')
         for path, content in head_files:
             self.write(path, content)
+        if known_reds is not None:
+            if known_reds[1] is None:
+                self.git('rm', '-f', KNOWN_REDS)
+            else:
+                self.write(KNOWN_REDS, known_reds[1])
         self.commit('head')
         head = self.git('rev-parse', 'HEAD').stdout.decode().strip()
         self.git('checkout', '-q', 'base')
@@ -84,6 +96,11 @@ class Merge(unittest.TestCase):
                 self.write(path, 'const X: u8 = 2;\n')
         for path, content in base_files:
             self.write(path, content)
+        if known_reds is not None:
+            if known_reds[2] is None:
+                self.git('rm', '-f', KNOWN_REDS)
+            else:
+                self.write(KNOWN_REDS, known_reds[2])
         self.commit('base')
         base = self.git('rev-parse', 'HEAD').stdout.decode().strip()
         self.git('checkout', '-q', 'head')
@@ -263,6 +280,121 @@ class Merge(unittest.TestCase):
         stages = self.git('ls-files', '--stage', '--', 'temper/x.rs').stdout
         self.run_merge([BASELINE], ['temper/x.rs'])
         self.assert_recounted()
+        self.assertEqual((self.repository / 'temper/x.rs').read_bytes(), conflict)
+        self.assertEqual(self.git('ls-files', '--stage', '--', 'temper/x.rs').stdout, stages)
+
+    def test_known_reds_are_merged_by_entries(self):
+        common = ''.join(f'- test p t{number}\n' for number in range(60))
+        head_entries = '- test p h1\n- test p h2\n'
+        incoming_entries = '- test p i1\n- test p i2\n'
+        byte_head = '- lint p c ' + 'é' * 2037 + '\n'
+        byte_incoming = '- test p ' + 'é' * 2048 + '\n'
+        self.assertEqual(len((byte_incoming + byte_head).encode()), 8192)
+        rows = (
+            ('additions and removals on both sides',
+             '# Known reds\n- test a x\n- test b y\n',
+             '# Head prose\n- test a x\n- test c z\n- lint p c f.rs\n',
+             '# Known reds\nIncoming prose\n- test b y\n- test d w\n- test c z\n',
+             '# Known reds\nIncoming prose\n- test d w\n- test c z\n- lint p c f.rs\n'),
+            ('incoming prose alone', '# Known reds\n', '# Head prose\n',
+             '# Incoming prose\n', '# Incoming prose\n'),
+            ('shared addition once', '# Known reds\n', '# Head\n- test c z\n',
+             '# Incoming\n- test c z\n', '# Incoming\n- test c z\n'),
+            ('additions before trailing prose', 'P\n- test b y\nQ\n',
+             'P\n- test b y\n- test e v\nQ\n',
+             'P\n- test b y\n- test d w\nQ\n',
+             'P\n- test b y\n- test d w\n- test e v\nQ\n'),
+            ('additions replace removed last entry', 'P\n- test b y\n- test d w\nQ\n',
+             'P\n- test b y\n- test e v\nQ\n',
+             'P\n- test b y\n- test d w\nIncoming Q\n',
+             'P\n- test b y\n- test e v\nIncoming Q\n'),
+            ('no incoming entry and unterminated prose', '# Known reds\n',
+             '# Head\n- test e v\n', '# Incoming', '# Incoming\n- test e v\n'),
+            ('unterminated incoming entry', '# Known reds\n',
+             '# Head\n- test e v\n', '# Incoming\n- test d w',
+             '# Incoming\n- test d w\n- test e v\n'),
+            ('trailing whitespace keys', '# Known reds\n- test a x \t\n',
+             '# Head\n- test c z \t\n', '# Incoming\n- test a x\n- test c z\t\n',
+             '# Incoming\n- test c z\t\n'),
+            ('head additions deduplicated in order', '# Known reds\n',
+             '# Head\n- lint p c f.rs \t\n- test c z\n- lint p c f.rs\n',
+             '# Incoming\n', '# Incoming\n- lint p c f.rs\n- test c z\n'),
+            ('both sides added the file', None, '# Head\n- test c z\n',
+             '# Incoming\n- test d w\n', '# Incoming\n- test d w\n- test c z\n'),
+            ('exactly 64 entry lines', common, common + head_entries,
+             common + incoming_entries, common + incoming_entries + head_entries),
+            ('exactly 8192 UTF-8 bytes', '', byte_head, byte_incoming,
+             byte_incoming + byte_head),
+            ('incoming lines kept byte for byte', '# Known reds\n',
+             '# Head\n- test c z\n',
+             '# Incoming\r\n - test a x\r\n- test missing\r\n'
+             '- lint p code file with spaces.rs\r\nTrailing prose\r\n',
+             '# Incoming\r\n - test a x\r\n- test missing\r\n'
+             '- lint p code file with spaces.rs\r\n- test c z\nTrailing prose\r\n'),
+        )
+        for name, merge_base, head, incoming, expected in rows:
+            with self.subTest(name=name):
+                self.setUp()
+                self.conflict(baseline=False, known_reds=(merge_base, head, incoming))
+                self.run_merge([KNOWN_REDS], [])
+                self.assertEqual((self.repository / KNOWN_REDS).read_bytes(), expected.encode())
+                self.assertEqual(self.git('show', f':0:{KNOWN_REDS}').stdout, expected.encode())
+
+    def test_known_reds_are_left_with_reason_and_unchanged(self):
+        common = ''.join(f'- test p t{number}\n' for number in range(60))
+        head_entries = '- test p h1\n- test p h2\n- test p h3\n'
+        incoming_entries = '- test p i1\n- test p i2\n'
+        entries_size = len((common + incoming_entries + head_entries).encode())
+        # Two individually bounded sides produce a file over the UTF-8 byte cap.
+        long_head = '- test p ' + 'é' * 2050 + '\n'
+        long_incoming = '- lint p c ' + 'é' * 2050 + '\n'
+        bytes_size = len((long_incoming + long_head).encode())
+        duplicate_incoming = '- test p i\n' * 64
+        duplicate_size = len((duplicate_incoming + '- test p h\n').encode())
+        rows = (
+            ('entry cap', common, common + head_entries, common + incoming_entries,
+             f'the merged file holds 65 entries, {entries_size:,} bytes; '
+             'the cap is 64 entries and 8,192 bytes', None),
+            ('duplicate entry lines count toward cap', '', '- test p h\n',
+             duplicate_incoming,
+             f'the merged file holds 65 entries, {duplicate_size:,} bytes; '
+             'the cap is 64 entries and 8,192 bytes', None),
+            ('byte cap', '', long_head, long_incoming,
+             f'the merged file holds 2 entries, {bytes_size:,} bytes; '
+             'the cap is 64 entries and 8,192 bytes', None),
+            ('head deletion', '# Known reds\n', None, '# Incoming\n',
+             "missing on the head's side", None),
+            ('incoming deletion', '# Known reds\n', '# Head\n', None,
+             'missing on the incoming side', None),
+            ('non-UTF-8 side', '# Known reds\n', b'# Head\n\xff\n', '# Incoming\n',
+             "'utf-8' codec can't decode byte 0xff in position 7: invalid start byte", None),
+            ('failed staging restores conflicted bytes', '# Known reds\n',
+             '# Head\n- test c z\n', '# Incoming\n- test d w\n',
+             "Command '['git', 'add', '--', '.temper/known-reds.md']' returned non-zero exit status 128.",
+             'index lock'),
+        )
+        for name, merge_base, head, incoming, reason, setup in rows:
+            with self.subTest(name=name):
+                self.setUp()
+                self.conflict(baseline=False, known_reds=(merge_base, head, incoming))
+                if setup == 'index lock':
+                    (self.repository / '.git/index.lock').touch()
+                previous = self.snapshot()
+                execution = self.run_merge([], [KNOWN_REDS])
+                self.assertEqual(self.snapshot(), previous)
+                self.assertEqual(execution.stderr.decode().splitlines(),
+                                 [f'{KNOWN_REDS}: left: {reason}'])
+
+    def test_known_reds_beside_other_conflict(self):
+        self.conflict(baseline=False, other=True,
+                      known_reds=('# Known reds\n', '# Head\n- test c z\n',
+                                  '# Incoming\n- test d w\n'))
+        conflict = (self.repository / 'temper/x.rs').read_bytes()
+        stages = self.git('ls-files', '--stage', '--', 'temper/x.rs').stdout
+        self.run_merge([KNOWN_REDS], ['temper/x.rs'])
+        expected = b'# Incoming\n- test d w\n- test c z\n'
+        self.assertEqual((self.repository / KNOWN_REDS).read_bytes(), expected)
+        self.assertEqual(self.git('show', f':0:{KNOWN_REDS}').stdout, expected)
         self.assertEqual((self.repository / 'temper/x.rs').read_bytes(), conflict)
         self.assertEqual(self.git('ls-files', '--stage', '--', 'temper/x.rs').stdout, stages)
 
