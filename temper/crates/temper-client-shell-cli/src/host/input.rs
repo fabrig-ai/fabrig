@@ -107,7 +107,10 @@ impl OneShot {
             return;
         }
         match self.call.take().expect("input's call") {
-            Parsed::File { file, json } => match jig::json::call(TOOLS, &bytes, file, &self.root_env.limits.tools) {
+            Parsed::File { file, json } => match jig::json::call(TOOLS, &bytes, file, &self.root_env.limits.tools).and_then(|call| {
+                temper_client_tools::table::check_application(&call)?;
+                Ok(call)
+            }) {
                 Ok(call) => {
                     let specs = TOOLS[usize::from(call.tool)].forms[usize::from(call.form)];
                     if specs.iter().zip(call.values.iter()).any(|(spec, value)| {

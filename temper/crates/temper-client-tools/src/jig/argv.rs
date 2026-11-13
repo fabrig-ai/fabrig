@@ -342,7 +342,6 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
     if tool.name == b"inbox" {
         check_inbox(call)?;
     }
-    if tool.name == b"landing history" { return crate::landing::history::check(call); }
     check_watch(tool, call)?;
     Ok(())
 }

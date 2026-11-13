@@ -46,7 +46,7 @@ pub(crate) fn check(call: &jig::call::Call) -> Result<(), jig::argv::Usage> {
     Ok(())
 }
 pub(crate) fn call(state: &mut History, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
-    if called.value.is_some() || jig::argv::check(crate::table::TOOLS, &called.call, &env.limits.tools).is_err() {
+    if called.value.is_some() || jig::argv::check(crate::table::TOOLS, &called.call, &env.limits.tools).is_err() || check(&called.call).is_err() {
         let printed = print::failure(b"invalid history call", called.json, 1);
         out.push(Out::Printed { number: called.number, printed }); return;
     }
