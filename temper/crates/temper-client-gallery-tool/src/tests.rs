@@ -150,6 +150,7 @@ enum Part {
     Path { stops: &'static [&'static str] },
     Drawing { style: skein_ui::Style, count: usize },
     Expanded { name: &'static str },
+    Folded { name: &'static str },
     Configured { value: bool },
     Reader { role: jig_client::contract::HeldRole },
     After { first: skein_ui::Style, then: skein_ui::Style },
@@ -160,6 +161,7 @@ enum Part {
     Pressed { name: &'static str },
     Text { text: &'static str },
     Named { role: Role, name: &'static str },
+    Ordered { role: Role, name: &'static str },
     Described { role: Role, name: &'static str, description: &'static str },
     Absent { role: Role, name: &'static str },
     NoRole { role: Role },
@@ -3106,6 +3108,102 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "welcome-model-claude-terminal",
+        heading: "Connect a model",
+        parts: &[
+            Part::Ordered { role: Role::Heading { level: 2 }, name: "Claude" },
+            Part::Ordered {
+                role: Role::Paragraph,
+                name: "Your Claude subscription, through a Claude Code temper keeps apart from your own.",
+            },
+            Part::Ordered { role: Role::Paragraph, name: "Signs in from the terminal where temper runs" },
+            Part::Ordered { role: Role::Button, name: "Sign in to Claude Code" },
+            Part::Ordered { role: Role::Heading { level: 2 }, name: "ChatGPT" },
+            Part::Ordered { role: Role::Paragraph, name: "Sign in, in a new tab" },
+            Part::Ordered { role: Role::Button, name: "Continue with ChatGPT" },
+            Part::Ordered {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Absent { role: Role::Link, name: "Use your Claude subscription" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-signing-in",
+        heading: "Connect a model",
+        parts: &[
+            Part::Ordered { role: Role::Status, name: "Claude Code is signing in, in the terminal where temper runs" },
+            Part::Ordered {
+                role: Role::Paragraph,
+                name: "Approve it on Anthropic’s page, in the tab Claude Code opened. This page moves on by itself.",
+            },
+            Part::Ordered { role: Role::Button, name: "Cancel" },
+            Part::Ordered { role: Role::Disclosure, name: "No tab opened, or a code to paste?" },
+            Part::Ordered {
+                role: Role::Paragraph,
+                name: "Claude Code’s sign-in is in the terminal where temper runs. If no tab opened, press c there to copy its link. If Anthropic’s page shows a code, paste it there.",
+            },
+            Part::Ordered {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Folded { name: "No tab opened, or a code to paste?" },
+            Part::StyleCount { style: temper_client_view::look::WELCOME_SPIN, count: 1 },
+            Part::Absent { role: Role::Paragraph, name: "temper’s agents run on a plan you sign in to." },
+            Part::Absent { role: Role::Region, name: "Claude" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-signed-in",
+        heading: "Connect a model",
+        parts: &[
+            Part::Ordered { role: Role::Status, name: "Claude subscription · through Claude Code, signed in" },
+            Part::Text { text: "✓" },
+            Part::StyleCount { style: temper_client_view::look::WELCOME_OK, count: 1 },
+            Part::Ordered { role: Role::Link, name: "Continue" },
+            Part::Ordered { role: Role::Complementary, name: "Forge and model" },
+            Part::Ordered {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Ordered { role: Role::Paragraph, name: "Claude subscription · through Claude Code, signed in" },
+            Part::Absent { role: Role::Region, name: "Claude" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-no-terminal",
+        heading: "Connect a model",
+        parts: &[
+            Part::Ordered { role: Role::Heading { level: 2 }, name: "Claude" },
+            Part::Ordered { role: Role::Paragraph, name: "One command in a terminal, on this machine" },
+            Part::Ordered { role: Role::Link, name: "Use your Claude subscription" },
+            Part::Ordered { role: Role::Heading { level: 2 }, name: "ChatGPT" },
+            Part::Ordered { role: Role::Button, name: "Continue with ChatGPT" },
+            Part::Ordered {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+            Part::Absent { role: Role::Button, name: "Sign in to Claude Code" },
+        ],
+    },
+    Holds {
+        name: "welcome-model-claude-not-finished",
+        heading: "Connect a model",
+        parts: &[
+            Part::Ordered { role: Role::Paragraph, name: "temper’s agents run on a plan you sign in to." },
+            Part::Ordered { role: Role::Paragraph, name: "Claude Code’s sign-in didn’t finish." },
+            Part::Ordered { role: Role::Heading { level: 2 }, name: "Claude" },
+            Part::Ordered { role: Role::Paragraph, name: "Signs in from the terminal where temper runs" },
+            Part::Ordered { role: Role::Button, name: "Sign in to Claude Code" },
+            Part::Ordered { role: Role::Heading { level: 2 }, name: "ChatGPT" },
+            Part::Ordered { role: Role::Button, name: "Continue with ChatGPT" },
+            Part::Ordered {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine · connected as temper · work/hello made",
+            },
+        ],
+    },
+    Holds {
         name: "welcome-model-forge-under-way",
         heading: "Connect a model",
         parts: &[
@@ -3492,10 +3590,13 @@ static HOLDS: [Holds; samples::N] = [
         name: "welcome-model-choose",
         heading: "Connect a model",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Claude" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "ChatGPT" },
-            Part::Named { role: Role::Paragraph, name: "Sign in, in a new tab" },
-            Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
+            Part::Ordered { role: Role::Heading { level: 2 }, name: "Claude" },
+            Part::Ordered { role: Role::Paragraph, name: "One command in a terminal, on this machine" },
+            Part::Ordered { role: Role::Link, name: "Use your Claude subscription" },
+            Part::Ordered { role: Role::Heading { level: 2 }, name: "ChatGPT" },
+            Part::Ordered { role: Role::Paragraph, name: "Sign in, in a new tab" },
+            Part::Ordered { role: Role::Button, name: "Continue with ChatGPT" },
+            Part::Absent { role: Role::Button, name: "Sign in to Claude Code" },
         ],
     },
     Holds {
@@ -5241,6 +5342,14 @@ fn each_state_holds_what_its_name_says() {
                         sample.name
                     );
                 }
+                Part::Folded { name } => {
+                    let id = find(tree, Role::Disclosure, name, sample.name);
+                    assert!(
+                        !tree.find(id).expect("disclosure").states.as_slice().contains(&skein_ui::State::Expanded),
+                        "{}: {name} folded",
+                        sample.name
+                    );
+                }
                 Part::Configured { value } => {
                     let facts = temper_client_domain::pages::home::facts(
                         &root,
@@ -5312,6 +5421,13 @@ fn each_state_holds_what_its_name_says() {
                 }
                 Part::Named { role, name } => {
                     find(tree, *role, name, sample.name);
+                }
+                Part::Ordered { role, name } => {
+                    assert!(
+                        described.any(|node| node.role == *role && node.name.as_deref() == Some(name.as_bytes())),
+                        "{}: missing or out of order {role:?} {name:?}",
+                        sample.name
+                    );
                 }
                 Part::Absent { role, name } => {
                     let query =
@@ -5679,12 +5795,19 @@ fn model_samples_link_the_mockup_state_that_draws_them() {
             Some("connect-model.html?world=first-run&step=5&way=chatgpt&bare#other-states-refused"),
         ),
         ("connect-model-key-lost", None),
+        ("welcome-model-claude-terminal", Some("../web/claude-sign-in/01-model.html")),
+        ("welcome-model-claude-signing-in", Some("../web/claude-sign-in/02-signing-in.html")),
+        ("welcome-model-claude-signed-in", Some("../web/claude-sign-in/04-signed-in.html")),
+        ("welcome-model-claude-no-terminal", Some("../web/claude-sign-in/05-no-terminal.html")),
+        ("welcome-model-claude-not-finished", None),
     ];
     rows.sort_by_key(|row| row.0);
     let models: Vec<_> = samples::samples()
         .into_iter()
         .filter(|sample| {
-            sample.name.starts_with("connect-model-") || matches!(sample.name, "accounts-added" | "accounts-renewed")
+            sample.name.starts_with("connect-model-")
+                || sample.name.starts_with("welcome-model-claude-")
+                || matches!(sample.name, "accounts-added" | "accounts-renewed")
         })
         .collect();
     assert_eq!(models.len(), rows.len(), "every model sample has a row");
@@ -5704,6 +5827,11 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         ("welcome-forge-connected", vec!["Continue"]),
         ("welcome-forge-github", vec!["Continue"]),
         ("welcome-model-choose", vec!["Use your Claude subscription"]),
+        ("welcome-model-claude-terminal", vec!["Sign in to Claude Code"]),
+        ("welcome-model-claude-signing-in", vec![]),
+        ("welcome-model-claude-signed-in", vec!["Continue"]),
+        ("welcome-model-claude-no-terminal", vec!["Use your Claude subscription"]),
+        ("welcome-model-claude-not-finished", vec!["Sign in to Claude Code"]),
         ("github-app-details", vec!["GitHub"]),
         ("github-install", vec!["Install on GitHub"]),
         ("github-picker", vec![]),
