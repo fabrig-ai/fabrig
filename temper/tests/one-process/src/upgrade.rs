@@ -21,7 +21,7 @@ pub const FIXTURE_SETS: PatchSets = PatchSets {
                 include_str!("../../../crates/temper-protocol-store/patches/0004.patch"),
                 include_str!("../../../crates/temper-protocol-store/patches/0005.patch"),
                 "patch 1
-owner temper 6 after jig 3
+owner temper 6 after jig 4
 mark fresh-windows
 ",
             ],

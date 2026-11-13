@@ -1,6 +1,6 @@
 //! People rows translated exhaustively (protocol/store/records.md, 1).
 //! Durable deletion steps follow jig/docs/design/protocol/store/README.md, 6.1.
-use crate::people_v16 as wire;
+use crate::people_v17 as wire;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as core;
 use jig_domain_people as domain;
@@ -34,11 +34,11 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     Some(limits)
 }
 
-/// Derive the people-v15 bounds before checking its schema ceilings.
+/// Derive the people-v17 bounds before checking its schema ceilings.
 ///
 /// `None` means the derivation's checked arithmetic cannot represent a bound.
-/// A returned value may exceed `people_v16::CEILINGS`; callers must use
-/// `people_v16::check_limits` before using it to encode or decode records.
+/// A returned value may exceed `people_v17::CEILINGS`; callers must use
+/// `people_v17::check_limits` before using it to encode or decode records.
 /// Configuration uses this diagnostic seam to explain an envelope refusal
 /// (protocol/limits.md).
 #[must_use]
@@ -59,6 +59,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,
+        account_change_login_program_name: 32,
         account_change_declare_program_name: 32,
         account_host_failure_name: people.program_host_name_bytes,
         outcome_account_program_declared_name: 32,

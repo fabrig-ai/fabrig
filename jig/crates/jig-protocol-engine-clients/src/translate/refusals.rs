@@ -8,6 +8,9 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         p::Refusal::Forgotten { oldest } => {
             w::Refusal::Forgotten(w::RefusalForgotten::new(limits, w::RefusalForgottenParts { oldest })?)
         }
+        p::Refusal::NoTerminal => w::Refusal::NoTerminal,
+        p::Refusal::LoginUnderWay => w::Refusal::LoginUnderWay,
+        p::Refusal::NotLending => w::Refusal::NotLending,
         p::Refusal::NameTaken => w::Refusal::NameTaken,
         p::Refusal::Role { held } => {
             let held = match held {

@@ -59,6 +59,7 @@ fn subject_project(core: &Core, subject: &Subject) -> Option<u32> {
         }
         Subject::Frame { .. }
         | Subject::Inbox { .. }
+        | Subject::Terminal { .. }
         | Subject::Accounts { .. }
         | Subject::Settings
         | Subject::Deployment
@@ -89,6 +90,7 @@ fn closed_subject(core: &Core, party: u64, subject: &Subject) -> bool {
         | Subject::Chips { .. }
         | Subject::Frame { .. }
         | Subject::Inbox { .. }
+        | Subject::Terminal { .. }
         | Subject::Accounts { .. }
         | Subject::Settings
         | Subject::Deployment
@@ -126,6 +128,9 @@ pub(crate) fn close_views(core: &mut Core, env: &Env<Limits>, project: u32) -> Q
 }
 
 pub(crate) fn route_view(core: &mut Core, env: &Env<Limits>, event: views::Event) -> Queue<Request> {
+    if let views::Event::EndWatch { watcher, .. } = &event {
+        withdraw_terminal(core, *watcher);
+    }
     let mut out = Queue::uncapped();
     crate::routing::step::step_views(core, env, event, &mut out);
     made_outputs(core, env, out)
@@ -266,6 +271,7 @@ pub(crate) fn open(
         | Watched::Task { .. }
         | Watched::Tree { .. }
         | Watched::Chips { .. }
+        | Watched::Terminal { .. }
         | Watched::Accounts
         | Watched::Inbox
         | Watched::Query { .. }
@@ -315,6 +321,7 @@ fn open_follow(
             | Watched::Task { .. }
             | Watched::Tree { .. }
             | Watched::Chips { .. }
+            | Watched::Terminal { .. }
             | Watched::Accounts
             | Watched::Inbox
             | Watched::Query { .. }
@@ -323,6 +330,11 @@ fn open_follow(
             | Watched::Deployment => refused(watcher, WatchRefusal::SignedOut),
         };
     };
+    if let Watched::Terminal { .. } = &subject
+        && core.accounts.terminal_count(party) >= jig_domain_accounts::TERMINALS
+    {
+        return refused(watcher, WatchRefusal::Busy);
+    }
     let subject = named_subject(subject, party);
     let window = Window { rows: window.rows.min(env.limits.documents.rows), ..window };
     if core.watch_token(watcher).is_some() || core.watch_flights() >= env.limits.views.watchers {
@@ -367,6 +379,10 @@ fn open_follow(
         watcher,
         binding: WatchBinding { party, sign_in, subject: name, window },
     });
+    if let Subject::Terminal { terminal, .. } = core.view_names.get(name).expect("admitted subject").subject {
+        core.accounts.offer_terminal(party, watcher, terminal);
+        core.touch_accounts(Some(party));
+    }
     route_view(
         core,
         env,
@@ -412,6 +428,7 @@ fn named_subject(subject: Watched, party: u64) -> Subject {
         Watched::Chips { tasks } => Subject::Chips { tasks },
         Watched::Inbox => Subject::Inbox { party },
         Watched::Accounts => Subject::Accounts { party },
+        Watched::Terminal { terminal } => Subject::Terminal { party, terminal },
         Watched::Query { query } => Subject::Query { query },
         Watched::Run { task } => Subject::Run { task },
         Watched::Settings => Subject::Settings,
@@ -451,7 +468,16 @@ pub(crate) fn marked(core: &mut Core, connector: u16, subjects: List<Token>) -> 
     Queue::uncapped()
 }
 
+fn withdraw_terminal(core: &mut Core, watcher: Token) {
+    let Some(binding) = core.watch_binding(watcher) else { return };
+    if let Subject::Terminal { .. } = core.view_names.get(binding.subject).expect("bound subject").subject {
+        let party = binding.party;
+        core.accounts.withdraw_terminal(party, watcher);
+        core.touch_accounts(Some(party));
+    }
+}
 fn forget_watch(core: &mut Core, watcher: Token) {
+    withdraw_terminal(core, watcher);
     let Some(crate::routing::flight::Flight::Watch { binding, .. }) =
         core.land_kind(watcher, crate::routing::flight::Kind::Watch)
     else {

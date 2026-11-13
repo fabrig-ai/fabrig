@@ -53,3 +53,7 @@ Inherited by goal 1988 on 2026-11-12: the delivery toolchain nightly-2026-10-21 
 - lint jig-domain-fleet clippy::unneeded_wildcard_pattern jig/crates/jig-domain-fleet/src/attempt.rs
 - lint jig-domain-fleet clippy::needless_bool jig/crates/jig-domain-fleet/src/sources.rs
 - lint jig-domain-accounts clippy::needless_bool jig/crates/jig-domain-accounts/src/limits.rs
+
+Inherited terminal-login prerequisite fixture lints confirmed by task 1932.
+- lint temper-protocol-store clippy::disallowed_macros temper/crates/temper-protocol-store/src/tests/catch_up.rs
+- lint temper-protocol-store clippy::disallowed_methods temper/crates/temper-protocol-store/src/tests/catch_up.rs

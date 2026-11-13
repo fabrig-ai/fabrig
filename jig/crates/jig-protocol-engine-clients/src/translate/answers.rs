@@ -318,6 +318,9 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
                 w::OutcomeAccountProgramDeclaredParts { source: *source, name: name.clone() },
             )?)
         }
+        p::Outcome::AccountLoginAsked { number } => w::DocumentOutcome::AccountLoginAsked(
+            w::OutcomeAccountLoginAsked::new(limits, w::OutcomeAccountLoginAskedParts { number: *number })?,
+        ),
         p::Outcome::AccountChanged => w::DocumentOutcome::AccountChanged,
         p::Outcome::AccountRemoved { confirmed, failed_hosts } => {
             w::DocumentOutcome::AccountRemoved(w::OutcomeAccountRemoved::new(

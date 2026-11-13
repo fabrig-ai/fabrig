@@ -571,6 +571,9 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         Refusal::SignInRedirect { .. }
         | Refusal::Stale { .. }
         | Refusal::Full { .. }
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }
         | Refusal::LiveTasks { .. }

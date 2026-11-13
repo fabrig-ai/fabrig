@@ -29,7 +29,8 @@ pub(crate) fn watch(watcher: Token, sign_in: u64, value: w::Subject, rows: u32) 
         w::Subject::Accounts => (d::Watched::Accounts, rows),
         w::Subject::Deployment => (d::Watched::Deployment, rows),
         w::Subject::Settings => (d::Watched::Settings, rows),
-        w::Subject::Run(_) | w::Subject::Terminal(_) => return None,
+        w::Subject::Terminal(value) => (d::Watched::Terminal { terminal: value.terminal() }, rows),
+        w::Subject::Run(_) => return None,
     };
     Some(core::Event::Watch { watcher, sign_in, subject, window: d::Window { rows, after: None } })
 }
@@ -86,6 +87,9 @@ pub(crate) fn delivery(
     limits: &w::Limits,
 ) -> Result<w::DeliveryValue, w::Problem> {
     Ok(match value {
+        d::Document::Terminal { login } => {
+            w::DeliveryValue::Terminal(super::accounts::terminal(login.as_ref(), limits)?)
+        }
         d::Document::Frame(value) => w::DeliveryValue::Me(owner::frame(value, models, limits)?),
         d::Document::Task(value) => w::DeliveryValue::Task(Box::new(task::document(value, models, limits)?)),
         d::Document::Tree(value) => {

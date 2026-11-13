@@ -226,6 +226,9 @@ fn the_accounts_watch_reaches_the_root_and_returns_whole_cut_facts() {
         })
         .unwrap();
     let document = d::Document::Accounts(Box::new(d::Accounts {
+        lendable: false,
+        lending: None,
+        lent_end: None,
         program_hosts: List::with_capacity(0),
         readiness: List::with_capacity(0),
         readiness_cut: false,

@@ -590,9 +590,18 @@ fn account_holder(value: &w::AskAccountHolder) -> p::AccountHolder {
 fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
     Ok(match value {
         // These receive typed interim refusals before core translation (domain/terminal-login.md, 5).
-        w::AccountChange::LoginProgram(_) | w::AccountChange::CancelLogin(_) | w::AccountChange::LoginEnded(_) => {
-            return Err(Untranslatable { path: w::Path::AskAccountChangeChange });
+        w::AccountChange::LoginProgram(row) => {
+            p::AccountChange::LoginProgram { provider: row.provider(), name: skein_lib::bytes::copy_of(row.name()) }
         }
+        w::AccountChange::CancelLogin(row) => p::AccountChange::CancelLogin { number: row.number() },
+        w::AccountChange::LoginEnded(row) => p::AccountChange::LoginEnded {
+            number: row.number(),
+            exit: match row.exit() {
+                w::LoginExit::Exited(value) => p::LoginExit::Exited { code: value.code() },
+                w::LoginExit::Killed(value) => p::LoginExit::Killed { signal: value.signal() },
+                w::LoginExit::NotStarted => p::LoginExit::NotStarted,
+            },
+        },
         w::AccountChange::DeclareProgram(row) => {
             if jig_domain_link::SourceName::new(row.name()).is_none() {
                 return Err(Untranslatable { path: w::Path::AccountChangeDeclareProgramName });
