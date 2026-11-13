@@ -35,6 +35,7 @@ mod playground;
 mod projection;
 mod reconcile;
 mod records;
+pub(crate) mod reds;
 mod refusals;
 mod release;
 mod removal;
@@ -88,6 +89,8 @@ const LIMITS: Limits = Limits {
     repositories: 2,
     tasks: 8,
     holds: 8,
+    branch_reds: 64,
+    red_key_bytes: 256,
     subscriptions: 8,
     entries: 8,
     named_calls: 16,
@@ -321,7 +324,7 @@ pub(crate) fn domain_with_limits(limits: &Limits) -> Domain {
     )
     .expect("valid connector")
 }
-fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
+pub(crate) fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     if let Event::Restore { .. } = &event {
         d.restore_begin(Wall::EPOCH);
     }

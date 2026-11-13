@@ -1,0 +1,9 @@
+patch 1
+owner temper 10
+
+family temper-store 20 to 21
+add Recorder
+add Red
+add RedNumber
+add Value.red
+add Value.red_number
