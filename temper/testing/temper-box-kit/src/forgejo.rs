@@ -419,7 +419,7 @@ pub fn landing_scripts(answer: &[u8], forgejo: &Throwaway) -> Box<[skein_fake_ll
     native_scripts(answer, api, repository, &forgejo.main_readme())
 }
 
-fn native_scripts(
+pub(super) fn native_scripts(
     answer: &[u8],
     api: SocketAddr,
     repository: u32,
