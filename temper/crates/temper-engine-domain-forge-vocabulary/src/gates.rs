@@ -88,7 +88,7 @@ pub fn touched(classes: &temper_protocol_reaches::Classes, paths: &[Box<[u8]>], 
     Touched { sets, whole }
 }
 
-pub(crate) fn set_bit(number: u8) -> u8 {
+pub fn set_bit(number: u8) -> u8 {
     match number.checked_sub(1) {
         Some(shift) => 1_u8.checked_shl(u32::from(shift)).unwrap_or(0),
         None => 0,
@@ -112,7 +112,7 @@ pub fn covers(rule: &crate::settings::LandingRule, repository: &Repository, bran
     false
 }
 
-pub(crate) fn selected(
+pub fn selected(
     limits: &Limits,
     repository: &Repository,
     candidates: &[GateCandidate],

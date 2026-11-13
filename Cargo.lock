@@ -6024,6 +6024,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
 ]
 
@@ -6062,6 +6063,25 @@ name = "temper-engine-domain-forge-tiers"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+]
+
+[[package]]
+name = "temper-engine-domain-forge-vocabulary"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core-vocabulary",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-lib",
+ "temper-client-protocol-wire",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-closer",
+ "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-domain-forge-tiers",
+ "temper-protocol-reaches",
 ]
 
 [[package]]

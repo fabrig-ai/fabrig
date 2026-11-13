@@ -7,10 +7,8 @@ use crate::{
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::Carried;
 use skein_lib::{Duration, Env, Queue, Token};
+pub use temper_engine_domain_forge_vocabulary::make::*;
 
-/// The bot identity reserved from person sign-in (protocol/openid-provider.md, 9).
-pub const BOT_LOGIN: &[u8] = b"temper";
-pub const BOT_EMAIL: &[u8] = b"temper@temper.invalid";
 pub(crate) fn bot() -> Bot {
     Bot { login: Box::from(BOT_LOGIN), name: Box::from(b"temper".as_slice()), email: Box::from(BOT_EMAIL) }
 }
