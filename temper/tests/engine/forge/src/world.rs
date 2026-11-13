@@ -1,7 +1,7 @@
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
-use temper_engine_domain_forge as top;
+use temper_engine_domain_forge::{self as top, history};
 
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
@@ -1022,6 +1022,57 @@ impl World {
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
         &self.stored
     }
+    /// A change's indexed events across projects, in event-number order
+    /// (temper/docs/design/domain/landing-history.md, 4.1).
+    #[must_use]
+    pub fn history(&self, change: u64) -> Vec<history::Event> {
+        let mut events = Vec::new();
+        for (_, record) in &self.stored {
+            if let top::Stored::HistoryChange(index) = record {
+                if index.change == change {
+                    if let Some(top::Stored::HistoryEvent(event)) =
+                        self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
+                    {
+                        events.push(event.clone());
+                    }
+                }
+            }
+        }
+        events.sort_by_key(|event| event.number);
+        events
+    }
+
+    /// A landing's indexed events across projects, in event-number order.
+    #[must_use]
+    pub fn landing_history(&self, landing: u64) -> Vec<history::Event> {
+        let mut events = Vec::new();
+        for (_, record) in &self.stored {
+            if let top::Stored::HistoryLanding(index) = record {
+                if index.landing == landing {
+                    if let Some(top::Stored::HistoryEvent(event)) =
+                        self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
+                    {
+                        events.push(event.clone());
+                    }
+                }
+            }
+        }
+        events.sort_by_key(|event| event.number);
+        events
+    }
+
+    /// Write a fixture event through the domain and keep its store requests.
+    pub fn write_event(&mut self, change: u64, step: history::Step) -> Option<u64> {
+        let number = self.top.write_event(self.env.wall, change, step, &mut self.top_out);
+        self.take_top();
+        number
+    }
+
+    /// Erase a fixture event while retaining its index rows.
+    pub fn erase_history_event(&mut self, project: u32, number: u64) {
+        self.stored.remove(&top::Key::HistoryEvent { project, number }).expect("fixture event exists");
+    }
+
     pub fn fallback(&mut self, interval: Duration) {
         self.env.limits.client.fallback = interval;
     }

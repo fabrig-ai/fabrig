@@ -7,7 +7,7 @@ pub use temper_engine_domain_forge_vocabulary::history::*;
 impl Domain {
     /// Save an event and its indexes in the caller's decision. No event is retained.
     #[cfg_attr(not(test), expect(dead_code, reason = "landing history step callers are added after the stored writer"))]
-    pub(crate) fn write_event(&mut self, wall: Wall, change: u64, step: Step, out: &mut Queue<Request>) -> Option<u64> {
+    pub fn write_event(&mut self, wall: Wall, change: u64, step: Step, out: &mut Queue<Request>) -> Option<u64> {
         let mut row = self.changes.get(&change)?.clone();
         let project = self.repository(row.repository)?.project;
         let mut history = match self.history_projects.get(&project) {
