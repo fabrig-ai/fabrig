@@ -52,7 +52,8 @@ fn every_shown_is_in_the_vocabulary() {
                 } else if argument.kind == Kind::Order {
                     argument.shown == b"activity|priority"
                 } else if argument.name == b"until" {
-                    argument.shown == b"CONDITION"
+                    argument.shown
+                        == if argument.kind == Kind::Literal { b"TIME".as_slice() } else { b"CONDITION".as_slice() }
                 } else if let Kind::Word { set } = argument.kind {
                     argument.shown == set.join(&b'|')
                 } else {

@@ -116,7 +116,9 @@ fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
 
 fn row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        job: None,
         landing: policy::Landing {
+            last_left: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task,
@@ -126,6 +128,7 @@ fn row(task: u64, phase: policy::Phase) -> LandingRow {
             stale_proofs: 2,
             branch: Box::from(b"main".as_slice()),
             members: Box::new([policy::Member {
+                round: None,
                 unit: 0,
                 branch: Box::from(b"temper/1/l61".as_slice()),
                 combined: None,

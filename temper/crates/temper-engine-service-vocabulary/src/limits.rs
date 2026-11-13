@@ -193,6 +193,8 @@ const FORGE: forge::Limits = forge::Limits {
     judge_projects: 2,
     decided_per_project: 1024,
     findings_per_project: 256,
+    history_days: 14,
+    history_events: 131_072,
     // Criteria in each judge table, from the engine forge world fixture.
     judge_criteria: 8,
     landing_rules: 4,

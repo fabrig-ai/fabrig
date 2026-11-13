@@ -164,6 +164,7 @@ impl Judge<'_> {
             if landing["phase"] != "landed" {
                 return false;
             }
+            landing_by_turn::assert_history(self.root, 1, &landing, Some("private"));
             self.landed.set(Some(Reads { landing, change }));
             return true;
         }

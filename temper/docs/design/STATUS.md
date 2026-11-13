@@ -107,6 +107,17 @@ repaired, the green prefix landed and the units above it carried to the
 next round (`domain/landing-search.md`). Its process stories and
 staging walks follow landing (`draft/merge-queue.status.md`).
 
+The landing history's milestone H1, goal 2474, keeps each change's and
+each landing's steps as events after their rows go
+(`domain/landing-history.md`): each written by the step that decides or
+observes it, under `queue` and `turn`, one change per event; kept in
+demand-loaded families the restart leaves out and the forge loads
+through the root; swept by change past `forge.history_days` or
+`forge.history_events`, idle projects and deleted ones included; and
+read by `temper ctl landing history`, and by `change show` of a change
+whose row went. Where the time went, `landing times`, is H2's
+(`draft/landing-history.status.md`).
+
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
 repository its project adopts as context, each project's context
@@ -318,6 +329,7 @@ Design documents:
 - [`domain/forge/queues.md`](domain/forge/queues.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
+- [`domain/landing-history.md`](domain/landing-history.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
@@ -410,6 +422,7 @@ Drafts:
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
+- [`draft/landing-history.md`](draft/landing-history.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)

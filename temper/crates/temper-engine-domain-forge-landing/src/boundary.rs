@@ -107,6 +107,8 @@ pub struct GateProof {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent per-member effect and judgement receipts")]
 pub struct Member {
+    /// Last formed round; absent on rows upgraded from before landing history.
+    pub round: Option<u16>,
     pub change: u64,
     pub repository: Repository,
     pub pull: u64,
@@ -149,6 +151,8 @@ pub enum Leave {
 /// The top-owned landing task record (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Landing {
+    /// Last member to leave, in stack order within a decision (landing-history.md, 3.3).
+    pub last_left: Option<u16>,
     pub task: u64,
     pub project: u32,
     pub phase: Phase,

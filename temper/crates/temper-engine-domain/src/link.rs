@@ -33,8 +33,8 @@ impl Domain {
     }
 }
 
-pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]) -> Option<u64> {
-    let [(name, _)] = heads else { return None };
+pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit, bool)]) -> Option<u64> {
+    let [(name, _, _)] = heads else { return None };
     Some(u64::from(name.repository))
 }
 
@@ -839,6 +839,7 @@ mod tests {
         use temper_engine_domain_forge as forge;
         use temper_engine_domain_forge_change as change;
         forge::ChangeRow {
+            job: None,
             signed: Box::new([]),
             task: 7,
             repository: skein_forge::api::Repository { forge: 3, repository: 1 },
@@ -902,6 +903,7 @@ mod tests {
             catch_up: None,
             close: None,
             merge_result: None,
+            history: None,
             follow_check: None,
         }
     }

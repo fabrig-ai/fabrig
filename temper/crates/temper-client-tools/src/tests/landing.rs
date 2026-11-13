@@ -1,3 +1,4 @@
+mod history;
 use super::fixtures as f;
 use crate::{jig, landing};
 use jig_client::{self as client, contract as c};

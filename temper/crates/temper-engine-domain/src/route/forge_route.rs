@@ -35,6 +35,7 @@ mod tier_route;
 pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
+pub(super) mod job_history;
 mod landing_route;
 pub(crate) use landing_route::form_landings;
 #[cfg(test)]
@@ -2528,6 +2529,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         drop_settled_change(domain, env, &mut out);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                job: None,
                 signed: Box::new([]),
                 task,
                 repository: provider,
@@ -2599,6 +2601,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 catch_up,
                 close,
                 merge_result: None,
+                history: None,
                 follow_check: None,
             },
         };
@@ -4911,6 +4914,26 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::LoadHistory { load, range, after, most } => {
+                match domain.archive_reads.insert(Some(crate::boundary::Read::History { load, most })) {
+                    Ok(id) => emit(
+                        decision,
+                        &env.limits,
+                        Delivery::Load {
+                            waiter: id.token(),
+                            range: crate::Range::History(range),
+                            after: match after {
+                                Some(key) => Some(Key::Forge(key)),
+                                None => None,
+                            },
+                        },
+                    ),
+                    Err(_) => domain.work.push(Work::Forge(forge::Event::HistoryUnloaded { load })),
+                }
+            }
+            forge::Request::HistoryPage { read, answer } => {
+                super::kinds::history_answer(domain, env, decision, read, answer);
+            }
             forge::Request::LinkNoted { forge, note } => {
                 super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
             }

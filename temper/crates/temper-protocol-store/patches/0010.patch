@@ -1,0 +1,72 @@
+patch 1
+owner temper 10 after jig 5
+
+family temper-store 20 to 21
+add LandingMember.round option u16 none
+add LandingState.last_left option u16 none
+add LandingRun
+add LandingEntry.run option LandingRun none
+add HistoryJob
+add HistoryJobOutcome
+add HistoryJobRecord
+add LandingRow.job option HistoryJobRecord none
+add ChangeHistory
+add HistoryMark
+add HistoryProject
+add HistoryInLanding
+add HistoryUnready
+add HistoryLine
+add HistoryJoined
+add HistoryLandingDeparture
+add HistoryDeparture
+add HistoryDeparted
+add HistoryUpdate
+add HistoryUpdateOutcome
+add HistoryUpdated
+add HistoryJobStarted
+add HistoryJobEnded
+add HistoryWith
+add HistoryConflict
+add HistoryAsk
+add HistoryAsked
+add HistoryAnswer
+add HistoryAnswered
+add HistoryDelivered
+add HistoryPause
+add HistoryPaused
+add HistoryMember
+add HistoryFormed
+add HistoryRoundCause
+add HistoryRoundEnded
+add HistoryGate
+add HistoryGateVerdict
+add HistoryGateEnded
+add HistoryProof
+add HistoryProved
+add HistorySearched
+add HistoryProbeEnded
+add HistoryTurn
+add HistoryRecordedState
+add HistoryRecorded
+add HistoryEnding
+add HistoryEnded
+add HistoryLandingOutcome
+add HistoryLandingEnded
+add HistoryOn
+add HistoryBy
+add HistoryHold
+add HistoryAfterVerdict
+add HistoryAfter
+add HistoryUnreadyStep
+add HistoryWhat
+add HistoryEvent
+add HistoryChange
+add HistoryLanding
+add HistoryLast
+add ChangeRow.job option HistoryJobRecord none
+add ChangeRow.history option ChangeHistory none
+add Value.history_project
+add Value.history_event
+add Value.history_change
+add Value.history_landing
+add Value.history_last

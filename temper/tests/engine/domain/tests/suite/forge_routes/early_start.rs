@@ -513,6 +513,7 @@ fn a_failed_early_producer_waits_and_the_next_merges_the_landing_tip() {
             pushed: Box::new([forge_top::Pushed {
                 tag: producer.workspace.repositories[0].tag,
                 commit: translate::commit(c6_head),
+                checked: true,
             }]),
             preparation: None,
         },

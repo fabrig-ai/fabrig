@@ -255,6 +255,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["project", "fund", "1", "200", "--key", "fund"],
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
+    &["landing", "history", "--project", "1"],
     &["task", "text", "1"],
     &["push", "list"],
     &["push", "add", "subscription.json"],
@@ -723,7 +724,9 @@ impl Harness {
         if json {
             self.json_calls.insert(self.next);
         }
-        let count = if crate::table::TOOLS[usize::from(call.tool)].name == b"change show" {
+        let count = if crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
+            || crate::table::TOOLS[usize::from(call.tool)].name == b"landing history"
+        {
             SINGLE_READ
         } else if crate::jig::call::waiting(crate::table::TOOLS[usize::from(call.tool)], &call) {
             0
@@ -910,7 +913,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 118;
+pub(super) const TOOL_FORMS: u32 = 119;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

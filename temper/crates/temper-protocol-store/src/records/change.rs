@@ -682,6 +682,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
 )]
 pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     let top::ChangeRow {
+        job,
         signed,
         task,
         repository,
@@ -718,6 +719,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         catch_up,
         close,
         merge_result,
+        history,
         goal,
         ending,
         repair_tasks,
@@ -726,6 +728,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     w::ChangeRow::new(
         &w::CEILINGS,
         w::ChangeRowParts {
+            job: super::history::encode_job_record(job.as_ref()),
             signed: super::landing_log::encode_signed(signed),
             result: encode_result(result),
             task: *task,
@@ -794,6 +797,10 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             catch_up: *catch_up,
             close: close.clone(),
             merge_result: merge_result.clone(),
+            history: match history {
+                Some(value) => Some(super::history::encode_change_history(value)),
+                None => None,
+            },
             goal: *goal,
             ending: encode_ending(ending.as_ref()),
             repair_tasks: encode_numbers(repair_tasks),
@@ -815,6 +822,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
 #[expect(clippy::too_many_lines, reason = "the durable change account translates each row field in place")]
 pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, super::Undecodable> {
     let w::ChangeRowParts {
+        job,
         signed,
         task,
         repository,
@@ -851,12 +859,14 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, s
         catch_up,
         close,
         merge_result,
+        history,
         goal,
         ending,
         repair_tasks,
         resolution_tasks,
     } = value.into_parts();
     Ok(top::ChangeRow {
+        job: super::history::decode_job_record(job),
         signed: super::landing_log::decode_signed(signed),
         goal,
         ending: decode_ending(ending),
@@ -920,6 +930,10 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, s
         catch_up,
         close,
         merge_result,
+        history: match history {
+            Some(value) => Some(super::history::decode_change_history(value)),
+            None => None,
+        },
         effect_account: match effect_account {
             Some(account) => {
                 let w::EffectAccountParts { entry, words } = account.into_parts();

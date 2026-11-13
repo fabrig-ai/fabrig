@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:38627                                     │
+│ Sign in this terminal to 127.0.0.1:44565                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ JFRQ-BHDV, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:38627/terminal?code=JFRQ-BHDV                  │
+│ LXHK-RQKG, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:44565/terminal?code=LXHK-RQKG                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:38627/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:44565/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

@@ -1,3 +1,4 @@
+mod history;
 use super::fixtures as f;
 use crate::{
     change,
@@ -321,16 +322,6 @@ fn absent_project_reads_the_task_project_before_opening_the_panel() {
     assert_eq!(root.answer(call).unwrap().status, 0);
 }
 #[test]
-fn a_read_of_an_unknown_panel_exits_two() {
-    let mut root = f::signed_in(f::PARTY);
-    let call = root.submit(&["change", "show", "2", "--project", "1"]);
-    end_panel(&mut root, call, c::WatchEnd::Unknown);
-    serve(&mut root, call, false, false);
-    let answer = root.answer(call).unwrap();
-    assert_eq!(answer.status, 2);
-    contains(&answer.stderr, b"no change panel for task 2");
-}
-#[test]
 fn waits_test_each_delivery_including_the_first() {
     for (condition, ci) in [
         ("pull", w::Ci::Pending),
@@ -511,6 +502,7 @@ fn a_cancelled_task_with_no_panel_exits_two() {
     let answer = root.answer(call).unwrap();
     assert_eq!(answer.status, 2);
     contains(&answer.stderr, b"no change panel for task 2");
+    assert!(root.family_reads.is_empty(), "a wait never reads history");
 }
 
 #[test]

@@ -86,7 +86,7 @@ fn check_range(index: usize, request: store::Request) {
             let store::Request::Restore { range: store::Restore::Application(ranges), .. } = request else {
                 panic!("application")
             };
-            assert_eq!(ranges.as_ref(), [skein_kv::Range { start: Box::new([]), end: None }]);
+            assert_eq!(ranges.as_ref(), [skein_kv::Range { start: Box::new([]), end: Some(Box::new([128])) }]);
         }
         7..=9 => {
             let store::Request::Get { key: store::Get::Jig(key), .. } = request else { panic!("get {index}") };
@@ -1149,4 +1149,114 @@ fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
             at: skein_lib::Wall::from_nanos(123),
         }
     );
+}
+
+#[test]
+fn history_loads_use_application_intervals_and_continue_past_the_exact_index_key() {
+    use forge::HistoryRange as H;
+    fn prefix(family: u8, fields: &[u64]) -> skein_kv::Range {
+        let mut bytes = skein_lib::Writer::new(1 + fields.len() * 8);
+        bytes.put(&[family]).unwrap();
+        for field in fields {
+            bytes.put(&field.to_be_bytes()).unwrap();
+        }
+        skein_kv::Range::prefix(&bytes.finish())
+    }
+    let cases: [(H, Box<[skein_kv::Range]>); 5] = [
+        (H::Events { project: 3 }, Box::new([prefix(128, &[3])])),
+        (H::Change { project: 3, change: 9 }, Box::new([prefix(129, &[3, 9])])),
+        (H::Landing { project: 3, landing: 9 }, Box::new([prefix(130, &[3, 9])])),
+        (H::Last { project: 3 }, Box::new([prefix(131, &[3])])),
+        (
+            H::Numbers { project: 3, numbers: Box::new([9, 4, 9]) },
+            Box::new([prefix(128, &[3, 4]), prefix(128, &[3, 9])]),
+        ),
+    ];
+    for (range, expected) in cases {
+        let request = route::down(&mut fixtures::routes(), load(engine::Range::History(range), None, 2, 4096)).unwrap();
+        let store::Request::Load {
+            range: store::Load::Application(intervals), after: None, rows: 2, bytes: 4096, ..
+        } = request
+        else {
+            panic!("history is a child load, not restore")
+        };
+        assert_eq!(intervals, expected);
+    }
+    let key = forge::Key::HistoryChange { project: 3, change: 9, number: 4 };
+    let request = route::down(
+        &mut fixtures::routes(),
+        load(
+            engine::Range::History(H::Change { project: 3, change: 9 }),
+            Some(engine::Key::Forge(key.clone())),
+            2,
+            4096,
+        ),
+    )
+    .unwrap();
+    let store::Request::Load { range: store::Load::Application(intervals), after: Some(cursor), .. } = request else {
+        panic!("continued history")
+    };
+    assert_eq!(intervals.as_ref(), [prefix(129, &[3, 9])]);
+    assert_eq!(cursor.interval, 0);
+    assert_eq!(
+        cursor.after,
+        store::keys::application(&temper_protocol_store::keys::encode(&key, u32::MAX).unwrap(), u32::MAX).unwrap()
+    );
+    let request = route::down(
+        &mut fixtures::routes(),
+        load(
+            engine::Range::History(H::Numbers { project: 3, numbers: Box::new([9, 4]) }),
+            Some(engine::Key::Forge(forge::Key::HistoryEvent { project: 3, number: 9 })),
+            2,
+            4096,
+        ),
+    )
+    .unwrap();
+    let store::Request::Load { after: Some(cursor), .. } = request else { panic!("numbers continuation") };
+    assert_eq!(cursor.interval, 1, "the cursor names its sorted Numbers interval");
+    assert!(
+        route::down(
+            &mut fixtures::routes(),
+            load(engine::Range::History(H::Numbers { project: 3, numbers: Box::new([1; 33]) }), None, 2, 4096)
+        )
+        .is_none()
+    );
+}
+
+#[test]
+fn history_application_rows_decode_as_stored_without_entering_the_restart() {
+    let mut routes = fixtures::routes();
+    let key = forge::Key::HistoryChange { project: 3, change: 9, number: 4 };
+    let row = forge::Stored::HistoryChange(forge::history::ChangeIndex {
+        project: 3,
+        change: 9,
+        number: 4,
+        landing: Some(7),
+    });
+    let request = route::down(
+        &mut routes,
+        load(engine::Range::History(forge::HistoryRange::Change { project: 3, change: 9 }), None, 2, 4096),
+    )
+    .unwrap();
+    let store::Request::Load { owner, .. } = request else { panic!("load") };
+    let encoded_key = temper_protocol_store::keys::encode(&key, u32::MAX).unwrap();
+    let next = store::Cursor { interval: 0, after: store::keys::application(&encoded_key, u32::MAX).unwrap() };
+    let mut out = Queue::with_capacity(2);
+    route::up(
+        &mut routes,
+        store::Event::Loaded {
+            owner,
+            rows: Box::new([store::Row::Application {
+                key: encoded_key,
+                value: temper_protocol_store::records::encode(&row),
+            }]),
+            next: Some(next),
+        },
+        &mut out,
+    );
+    let (owner, rows, next) = page(&mut out);
+    assert_eq!(owner, fixtures::OWNER);
+    assert_eq!(rows.as_ref(), [engine::Record::Forge { row: Box::new(row) }]);
+    assert_eq!(next, Some(engine::Key::Forge(key)));
+    assert!(out.is_empty());
 }

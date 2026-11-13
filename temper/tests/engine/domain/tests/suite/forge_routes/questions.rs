@@ -411,6 +411,7 @@ fn a_resolution_that_saves_and_asks_reads_its_next_pull_brief_at_the_saved_head(
             pushed: Box::new([forge_top::Pushed {
                 tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
                 commit: translate::commit(saved),
+                checked: true,
             }]),
             ..engine::Parts::none()
         },

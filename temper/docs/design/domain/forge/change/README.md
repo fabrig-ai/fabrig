@@ -623,7 +623,9 @@ changes live at once, never every change made.
   (the operator, 2026-11-11: a full table held goals on their own merges
   into g).
 - **A dropped change reads as an unknown task:** its panel is Gone
-  (section 5); a subscription naming it reads it as over, as it read
+  (section 5), and `temper ctl change show` prints its last events from
+  its landing history, or that its history has gone too
+  (`../../landing-history.md`, 5.2); a subscription naming it reads it as over, as it read
   its ended record, and wakes no one; a public merge one of whose
   members is gone shows that member from the landing log's own entry,
   its task, pull request and title; a tier reads its landing as one
