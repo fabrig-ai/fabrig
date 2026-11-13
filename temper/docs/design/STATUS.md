@@ -11,6 +11,14 @@ nothing, the workers' grace covers a start that patches, with the
 engine's grace above their stop bound, and `upgrade --check` names
 each worker that may stay by the opening the engine kept of it
 (`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
+`temper-redeploy` redeploys a deployment from a description its operator
+keeps: the build staged on every host, the engine's settled stop and the
+new build's check, then the engine alone when the workers may stay,
+workers in turn when asked, and every part together otherwise, each
+redeploy recorded and refereed: each worker's agreed versions, the window
+against the workers' grace, and no try spent or task held since but for
+a run's own failure (`redeploy.md`; R6, goal 2487). Its drills on the
+deployments follow landing, each a redeploy its operator starts.
 A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model
 call's failure names the call from structured fields alone
@@ -350,6 +358,7 @@ Design documents:
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/tooling.md`](protocol/tooling.status.md)
 - [`protocol/wires.md`](protocol/wires.status.md)
+- [`redeploy.md`](redeploy.status.md)
 - [`release.md`](release.status.md)
 - [`testing/README.md`](testing/README.status.md)
 - [`testing/checks.md`](testing/checks.status.md)
