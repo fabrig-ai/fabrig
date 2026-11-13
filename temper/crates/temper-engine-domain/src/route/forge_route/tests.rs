@@ -1083,12 +1083,19 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
             &mut out,
         );
     }
-    for number in [1, 3] {
-        super::left(&mut domain, &env, 8, 1, Box::new([forge::Pushed { tag: forge::tag(number, 1), commit: [2; 32] }]));
+    for (number, expected_checked) in [(1, false), (3, true)] {
+        super::left(
+            &mut domain,
+            &env,
+            8,
+            1,
+            Box::new([forge::Pushed { tag: forge::tag(number, 1), commit: [2; 32], checked: expected_checked }]),
+        );
         let Some(Work::Forge(forge::Event::Answered { pushed, .. })) = domain.work.pop() else {
             panic!("reported heads")
         };
-        let [(name, commit)] = pushed.as_ref() else { panic!("one matching hold") };
+        let [(name, commit, checked)] = pushed.as_ref() else { panic!("one matching hold") };
+        assert_eq!(*checked, expected_checked);
         assert_eq!((name.forge, name.repository, *commit), (number, 1, [2; 32]));
         let Some(Work::Forge(forge::Event::Lost { task: 8, attempt: 1 })) = domain.work.pop() else {
             panic!("writer release follows reported heads")

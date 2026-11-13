@@ -285,7 +285,7 @@ fn a_head_moved_at_the_turn_closes_the_round_and_returns_to_gating() {
     world.run_for(1);
     world.push_file(MEMBER, b"next", b"new delivery");
     let head = translate::commit(world.branch(MEMBER));
-    world.event(top::Event::Answered { task: 99, attempt: 1, pushed: Box::new([(name, head)]) });
+    world.event(top::Event::Answered { task: 99, attempt: 1, pushed: Box::new([(name, head, true)]) });
     world.run_for(1);
     landings::drive_landing(&mut world, LANDING);
     assert!(world.landing(LANDING).landing.members[0].landed.is_none());

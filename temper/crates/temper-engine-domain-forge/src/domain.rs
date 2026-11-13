@@ -1229,7 +1229,7 @@ impl Domain {
         task: u64,
         attempt: u64,
         pushed: &[crate::Pushed],
-    ) -> Box<[(Name, skein_forge::api::Commit)]> {
+    ) -> Box<[(Name, skein_forge::api::Commit, bool)]> {
         let mut names = List::with_capacity(limits.resources_per_task);
         for (name, hold) in &self.holds {
             if hold.writer != Some(Writer::Run { task, attempt }) {
@@ -1237,7 +1237,9 @@ impl Domain {
             }
             for reported in pushed {
                 if untag(reported.tag) == Some((name.forge, name.repository)) {
-                    names.push((name.clone(), reported.commit)).expect("claimed writer destinations are bounded");
+                    names
+                        .push((name.clone(), reported.commit, reported.checked))
+                        .expect("claimed writer destinations are bounded");
                     break;
                 }
             }
@@ -2910,14 +2912,14 @@ fn answered(
     env: &Env<Limits>,
     task: u64,
     attempt: u64,
-    pushed: &[(Name, skein_forge::api::Commit)],
+    pushed: &[(Name, skein_forge::api::Commit, bool)],
     out: &mut Queue<Request>,
 ) {
     read_designs(d, env, task, attempt, out);
     let mut freed = List::with_capacity(env.limits.holds);
     for (name, row) in &d.holds {
         let mut reported = false;
-        for (pushed_name, _) in pushed {
+        for (pushed_name, _, _) in pushed {
             if pushed_name == name {
                 reported = true;
             }
@@ -2934,7 +2936,7 @@ fn answered(
         let undrifted = row.drift.is_none();
         let holder = row.task;
         if let Some(resource) = to_client(name, &env.limits) {
-            for (pushed_name, commit) in pushed {
+            for (pushed_name, commit, checked) in pushed {
                 if pushed_name == name && undrifted {
                     let head = BranchHead { name: name.clone(), commit: *commit, owned: true };
                     let previous = d.branch_head(name);
@@ -2945,6 +2947,7 @@ fn answered(
                         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
                     }
                     record_delegate_head(d, env, task, name, *commit, out);
+                    crate::change_history::delivered(d, env.wall, task, name, *commit, *checked, out);
                     child(
                         d,
                         env,

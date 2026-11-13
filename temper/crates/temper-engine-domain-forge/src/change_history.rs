@@ -14,7 +14,11 @@ pub(crate) fn landing(d: &Domain, row: &ChangeRow) -> Option<history::InLanding>
     let landing = d.landing.rows.get(&task)?;
     for member in &landing.landing.members {
         if member.change == row.task {
-            return Some(history::InLanding { task, round: landing.landing.preparation, unit: member.unit });
+            return Some(history::InLanding {
+                task,
+                round: member.round.unwrap_or(landing.landing.preparation),
+                unit: member.unit,
+            });
         }
     }
     None
@@ -73,6 +77,42 @@ pub(crate) fn pushed(d: &mut Domain, wall: Wall, name: &crate::Name, head: Commi
         let mut event = step(d, &row, history::What::Pushed);
         event.head = Some(head);
         d.write_event(wall, row.task, event, out);
+    }
+}
+
+/// An accepted Left is distinct from observing its branch's head.
+pub(crate) fn delivered(
+    d: &mut Domain,
+    wall: Wall,
+    producer: u64,
+    name: &crate::Name,
+    head: Commit,
+    checked: bool,
+    out: &mut Queue<Request>,
+) {
+    let mut changes = List::uncapped();
+    for (_, row) in &d.changes {
+        let already = match row.history {
+            Some(history) => history.delivered == Some(head),
+            None => false,
+        };
+        if !already
+            && let Some((child, _)) = row.delegate
+            && child == producer
+            && row.repository.forge == name.forge
+            && row.repository.repository == name.repository
+            && crate::items::branch_matches(name, &row.branch)
+        {
+            changes.push(row.clone()).expect("live changes");
+        }
+    }
+    for mut row in changes.into_boxed() {
+        let mut event = step(d, &row, history::What::Delivered { checked });
+        event.head = Some(head);
+        write(d, wall, &mut row, event, out);
+        row.history.as_mut().expect("event gave the change a history cursor").delivered = Some(head);
+        d.changes.insert(row.task, row.clone()).expect("retained change");
+        crate::domain::save_change(d, out, row);
     }
 }
 

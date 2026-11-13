@@ -33,8 +33,8 @@ impl Domain {
     }
 }
 
-pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]) -> Option<u64> {
-    let [(name, _)] = heads else { return None };
+pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit, bool)]) -> Option<u64> {
+    let [(name, _, _)] = heads else { return None };
     Some(u64::from(name.repository))
 }
 

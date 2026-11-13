@@ -3717,6 +3717,7 @@ fn a_tracked_goals_changes_install_their_landing_topic_alone_without_agent_calls
             pushed: Box::new([forge_top::Pushed {
                 tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
                 commit: translate::commit(pushed),
+                checked: true,
             }]),
             preparation: None,
         },

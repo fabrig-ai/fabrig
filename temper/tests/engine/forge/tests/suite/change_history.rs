@@ -117,7 +117,7 @@ fn report(world: &mut World, lost: bool) {
         world.event(top::Event::Lost { task: CHILD, attempt: 1 });
     } else {
         let commit = translate::commit(world.branch(BRANCH));
-        world.event(top::Event::Answered { task: CHILD, attempt: 1, pushed: Box::new([(name, commit)]) });
+        world.event(top::Event::Answered { task: CHILD, attempt: 1, pushed: Box::new([(name, commit, true)]) });
     }
     world.run_for(1);
 }

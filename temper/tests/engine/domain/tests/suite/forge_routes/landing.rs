@@ -52,7 +52,7 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
         tasks::End::Parked,
         engine::Parts {
             saved: Some(Box::new([tag])),
-            pushed: Box::new([forge_top::Pushed { tag, commit: translate::commit(pushed) }]),
+            pushed: Box::new([forge_top::Pushed { tag, commit: translate::commit(pushed), checked: true }]),
             preparation: None,
         },
     );
@@ -112,7 +112,7 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
         },
         engine::Parts {
             saved: None,
-            pushed: Box::new([forge_top::Pushed { tag, commit: translate::commit(pushed) }]),
+            pushed: Box::new([forge_top::Pushed { tag, commit: translate::commit(pushed), checked: true }]),
             preparation: None,
         },
     );

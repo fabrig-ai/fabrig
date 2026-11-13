@@ -700,7 +700,7 @@ fn held_branch(world: &mut Protocol) -> (top::Name, skein_forge::api::Commit) {
     });
     world.produce(b"temper/51");
     let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
-    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed)]) });
+    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed, true)]) });
     world.run_for(1);
     world.take_seen();
 

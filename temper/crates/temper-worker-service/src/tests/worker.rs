@@ -161,7 +161,7 @@ fn an_answer_goes_up_with_its_left_and_saved_parts() {
         answer,
         preparation: None,
         work: wire::Work {
-            landed: Box::new([wire::Landed { tag: 3, commit: [7; 32] }]),
+            landed: Box::new([wire::Landed { tag: 3, commit: [7; 32], checked: true }]),
             saved: Some(Box::new([wire::SavedRepository { tag: 3, from_saved: true, landing: wire::Landing::Moved }])),
         },
     });

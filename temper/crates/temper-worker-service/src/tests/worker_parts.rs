@@ -199,7 +199,7 @@ fn items_whose_bytes_do_not_decode_are_undecodable() {
 #[test]
 fn left_and_saved_go_up_under_the_tokens_the_answer_names() {
     let work = wire::Work {
-        landed: Box::new([wire::Landed { tag: 3, commit: [7; 32] }]),
+        landed: Box::new([wire::Landed { tag: 3, commit: [7; 32], checked: false }]),
         saved: Some(Box::new([wire::SavedRepository { tag: 3, from_saved: true, landing: wire::Landing::Moved }])),
     };
     let answer = fixtures::answer(host::Ending::Parked {
@@ -211,7 +211,7 @@ fn left_and_saved_go_up_under_the_tokens_the_answer_names() {
     assert_eq!(parts[0].token, Token::new(11));
     let left = v1::Left::decode(&fixtures::wire_limits(), &mut Reader::new(&parts[0].bytes)).unwrap();
     let head = left.landed().get(0).unwrap();
-    assert_eq!((head.tag(), head.commit()), (3, &[7; 32]));
+    assert_eq!((head.tag(), head.commit(), head.checked()), (3, &[7; 32], false));
     assert_eq!(parts[1].token, Token::new(12));
     let saved = v1::Saved::decode(&fixtures::wire_limits(), &mut Reader::new(&parts[1].bytes)).unwrap();
     let row = saved.repositories().get(0).unwrap();
