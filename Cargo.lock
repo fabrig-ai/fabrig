@@ -4791,9 +4791,18 @@ dependencies = [
  "smith-host-domain",
  "smith-local-domain",
  "smith-local-domain-fixtures",
+ "smith-local-protocol-codec",
  "smith-local-protocol-fixtures",
  "smith-protocol-translate",
  "smith-transcript",
+]
+
+[[package]]
+name = "smith-local-protocol-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]

@@ -148,6 +148,7 @@ members = [
     "smith/crates/smith-local-domain",
     "smith/testing/smith-local-domain-fixtures",
     "smith/crates/smith-local-protocol",
+    "smith/crates/smith-local-protocol-codec",
     "smith/testing/smith-local-protocol-fixtures",
     "smith/crates/smith-local-service",
     "smith/testing/smith-local-service-fixtures",
@@ -565,6 +566,7 @@ smith-agent-service = { path = "smith/crates/smith-agent-service" }
 smith-agent-profile = { path = "smith/crates/smith-agent-profile" }
 smith-protocol-events = { path = "smith/crates/smith-protocol-events" }
 smith-local-protocol = { path = "smith/crates/smith-local-protocol" }
+smith-local-protocol-codec = { path = "smith/crates/smith-local-protocol-codec" }
 smith-local-protocol-fixtures = { path = "smith/testing/smith-local-protocol-fixtures" }
 smith-local-service = { path = "smith/crates/smith-local-service" }
 smith-local-service-fixtures = { path = "smith/testing/smith-local-service-fixtures" }
