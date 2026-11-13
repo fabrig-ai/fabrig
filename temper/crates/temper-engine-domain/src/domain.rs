@@ -1416,6 +1416,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }
+        | Read::History { .. }
         | Read::Notes { .. }
         | Read::Proposal(_)
         | Read::TaskProposal { .. } => {

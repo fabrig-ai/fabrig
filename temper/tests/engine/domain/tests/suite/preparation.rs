@@ -440,7 +440,7 @@ fn transcript_in_flight(driver: &mut Driver, task: u64) -> Token {
         driver.advance(true);
         let asked = driver.loads.iter().find_map(|(owner, range)| match range {
             Range::Core(CoreRange::TaskTranscript { task: read, .. }) if *read == task => Some(*owner),
-            Range::Core(_) | Range::Census(_) | Range::Forge => None,
+            Range::Core(_) | Range::Census(_) | Range::Forge | Range::History(_) => None,
         });
         if let Some(owner) = asked {
             return owner;
