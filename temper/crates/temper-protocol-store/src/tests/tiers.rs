@@ -1,7 +1,7 @@
 //! Tier families and receipt failures (temper/docs/design/protocol/store.md, 2–4).
 use super::fixtures;
 use crate::{Undecodable, keys, records};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 use temper_engine_domain_forge_tiers as p;
 
 fn round_trip(row: d::Stored, family: u8) {

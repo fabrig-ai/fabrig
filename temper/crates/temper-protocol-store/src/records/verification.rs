@@ -2,7 +2,7 @@
 use super::{FITS, names, w};
 use crate::Undecodable;
 use skein_lib::List;
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 use temper_engine_domain_forge_tiers::{Blame, Failures};
 
 pub(super) fn encode_failures(value: &Failures) -> w::Failures {

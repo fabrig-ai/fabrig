@@ -1,5 +1,5 @@
 use skein_lib::{Duration, List, Rng};
-use temper_engine_domain_forge as top;
+use temper_engine_domain_forge_vocabulary as top;
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
@@ -61,7 +61,7 @@ pub const LIMITS: top::Limits = top::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
-    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
+    tiers: temper_engine_domain_forge_vocabulary::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
     findings_per_project: 256,
@@ -103,7 +103,7 @@ pub const LIMITS: top::Limits = top::Limits {
         clean_heads: 8,
     },
     queue_window: Duration::from_secs(30),
-    sitting: temper_engine_domain_forge::SITTING,
+    sitting: temper_engine_domain_forge_vocabulary::SITTING,
 };
 
 pub fn branch(segments: Box<[Box<[u8]>]>) -> top::Key {

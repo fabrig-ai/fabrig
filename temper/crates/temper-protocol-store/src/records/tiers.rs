@@ -4,7 +4,7 @@ use crate::Undecodable;
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_lib::Time;
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 use temper_engine_domain_forge_tiers as p;
 
 fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {

@@ -8,13 +8,13 @@ pub struct StockWay {
     pub headline: Box<[u8]>,
     pub line: Box<[u8]>,
     /// The project's rules it sets, by number, each of 1 to `RULES`; every other number of 1 to `RULES` it removes.
-    pub rules: Box<[(u32, temper_engine_domain_forge::settings::LandingRule)]>,
+    pub rules: Box<[(u32, temper_engine_domain_forge_vocabulary::settings::LandingRule)]>,
     pub ways: Option<Laid>,
     /// The classes table the way sets whole; none for a world's way that sets none.
     pub classes: Option<temper_protocol_reaches::Classes>,
     /// Whether the way needs charter 5, role 0 and job 3 in the project's policy's delegation.
     pub delegation: bool,
-    pub triager: Option<temper_engine_domain_forge::settings::AreaOwner>,
+    pub triager: Option<temper_engine_domain_forge_vocabulary::settings::AreaOwner>,
     pub roles: Box<[WayRole]>,
 }
 /// A standing role a way brings (protocol/configuration/settings.md, 8).
@@ -68,7 +68,7 @@ pub struct WaysDocument {
     pub ways: Box<[WayEntry]>,
     pub current: Option<u32>,
     pub own: Path,
-    pub words: Option<temper_engine_domain_forge::settings::ProjectWords>,
+    pub words: Option<temper_engine_domain_forge_vocabulary::settings::ProjectWords>,
     pub rules: crate::PathRules,
     pub may_change: bool,
 }
@@ -86,7 +86,7 @@ pub enum View {
 }
 
 use skein_lib::{List, Map};
-use temper_engine_domain_forge::settings::{Held, ProjectWays, TemplateGoal, Value, project_stock};
+use temper_engine_domain_forge_vocabulary::settings::{Held, ProjectWays, TemplateGoal, Value, project_stock};
 
 /// The way's rules in number order, then kinds 7, 8 and 15 where the way lays them.
 #[must_use]
@@ -122,7 +122,7 @@ pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[I
                 kind: 15,
                 scope: project,
                 number: 1,
-                edit: Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager {
+                edit: Edit::Set(Value::ProjectTriager(temper_engine_domain_forge_vocabulary::settings::ProjectTriager {
                     owner: *owner,
                 })),
             })

@@ -30,7 +30,7 @@ fn protection_fields_have_v17_golden_bytes_and_round_trip() {
         }
         assert_eq!(std::fs::read(path).expect("protection golden").as_slice(), bytes.as_ref(), "{name}");
         for value in [answer, repository, application] {
-            let key = temper_protocol_store::keys::encode(&temper_engine_domain_forge::stored_key(&value), u32::MAX)
+            let key = temper_protocol_store::keys::encode(&temper_engine_domain_forge_vocabulary::stored_key(&value), u32::MAX)
                 .expect("record key");
             assert_eq!(records::row(&key, &records::encode(&value), &bounds), Ok(value), "{name}");
         }

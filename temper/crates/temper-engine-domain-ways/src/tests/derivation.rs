@@ -3,7 +3,7 @@
 use super::invariants::bounds;
 use super::*;
 use Actor::{Agent as A, Bar as B, Code as C, Person as P};
-use temper_engine_domain_forge::Follows;
+use temper_engine_domain_forge_vocabulary::Follows;
 use temper_engine_domain_forge_change::Way;
 
 pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) -> Inputs {

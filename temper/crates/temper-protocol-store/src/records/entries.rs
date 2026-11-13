@@ -1,7 +1,7 @@
 use super::{Bounds, FITS, Undecodable, api, names, w};
 use alloc::boxed::Box;
 use skein_lib::{Time, Wall};
-use temper_engine_domain_forge as top;
+use temper_engine_domain_forge_vocabulary as top;
 
 fn encode_condition(value: &skein_forge_client::Condition) -> w::Condition {
     match value {

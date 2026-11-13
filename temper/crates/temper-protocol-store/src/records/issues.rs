@@ -1,7 +1,7 @@
 use super::{FITS, names, w};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
-use temper_engine_domain_forge as forge;
+use temper_engine_domain_forge_vocabulary as forge;
 use temper_engine_domain_forge_issues as d;
 
 fn encode_phase(value: d::Phase) -> w::Phase {

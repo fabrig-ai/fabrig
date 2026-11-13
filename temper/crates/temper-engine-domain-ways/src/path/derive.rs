@@ -8,7 +8,7 @@ use super::{
 };
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
-use temper_engine_domain_forge::{Follows, settings::Held};
+use temper_engine_domain_forge_vocabulary::{Follows, settings::Held};
 use temper_engine_domain_forge_change::Way;
 
 const CODER: &[u8] = b"the coding agent";

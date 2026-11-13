@@ -2,7 +2,7 @@
 use super::{FITS, names, w};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
-use temper_engine_domain_forge as top;
+use temper_engine_domain_forge_vocabulary as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as d;
 

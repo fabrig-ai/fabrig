@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::keys;
 use skein_lib::Rng;
-use temper_engine_domain_forge::Key;
+use temper_engine_domain_forge_vocabulary::Key;
 
 #[test]
 fn encoded_keys_sort_as_the_derived_order() {
@@ -101,7 +101,7 @@ fn branch_empty_segments_and_binding_escapes_fit_the_calculated_key_bound() {
     assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
     let name_bytes = usize::try_from(fixtures::LIMITS.name_bytes).expect("fixture name bound");
     assert_eq!(keys::largest(&fixtures::LIMITS), Some(MAKING_KEY_BYTES));
-    let key = Key::Making(temper_engine_domain_forge::MakingKey {
+    let key = Key::Making(temper_engine_domain_forge_vocabulary::MakingKey {
         forge: u16::MAX,
         org: skein_lib::bytes::zeroed(name_bytes),
         name: skein_lib::bytes::zeroed(name_bytes),
@@ -116,7 +116,7 @@ fn branch_empty_segments_and_binding_escapes_fit_the_calculated_key_bound() {
 
 #[test]
 fn application_keys_follow_the_release_family_and_round_trip() {
-    use temper_engine_domain_forge::Key;
+    use temper_engine_domain_forge_vocabulary::Key;
     let previous = keys::encode(&Key::Release(u64::MAX), u32::MAX).expect("release key");
     for token in [0, 1, u64::MAX] {
         let key = Key::Application(token);
@@ -129,7 +129,7 @@ fn application_keys_follow_the_release_family_and_round_trip() {
 
 #[test]
 fn writer_keys_follow_application_and_take_every_forge_number() {
-    use temper_engine_domain_forge::Key;
+    use temper_engine_domain_forge_vocabulary::Key;
     let previous = keys::encode(&Key::Application(u64::MAX), u32::MAX).expect("application key");
     for forge in [0, 1, u16::MAX] {
         let key = Key::Writer(forge);
@@ -222,7 +222,7 @@ fn removed_family_bytes_are_reserved() {
 
 #[test]
 fn setting_keys_use_family_twenty_and_refuse_unknown_tags_widths_and_trailing_bytes() {
-    use temper_engine_domain_forge::settings::{SettingKey, SettingSlot};
+    use temper_engine_domain_forge_vocabulary::settings::{SettingKey, SettingSlot};
     for kind in 1..=3 {
         for slot in [
             SettingSlot::Default,
@@ -265,7 +265,7 @@ fn setting_keys_use_family_twenty_and_refuse_unknown_tags_widths_and_trailing_by
 
 #[test]
 fn dismissed_keys_use_family_thirty_four_and_round_trip() {
-    use temper_engine_domain_forge::PersonFact;
+    use temper_engine_domain_forge_vocabulary::PersonFact;
     for (party, project) in [(0, 0), (7, 3), (u64::MAX, u32::MAX)] {
         let key = Key::Dismissed { party, what: PersonFact::ToBegin { project } };
         let bytes = keys::encode(&key, u32::MAX).expect("dismissed key fits");
@@ -313,12 +313,12 @@ fn landing_log_keys_use_family_thirty_and_repository_order() {
     assert_eq!(bytes, expected.finish().unwrap());
     assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
     assert!(Key::Verification { repository, commit: [255; 32] } < key);
-    assert!(key < Key::Dismissed { party: 0, what: temper_engine_domain_forge::PersonFact::ToBegin { project: 0 } });
+    assert!(key < Key::Dismissed { party: 0, what: temper_engine_domain_forge_vocabulary::PersonFact::ToBegin { project: 0 } });
 }
 
 #[test]
 fn person_facts_sort_by_party_then_kind_and_fields() {
-    use temper_engine_domain_forge::PersonFact;
+    use temper_engine_domain_forge_vocabulary::PersonFact;
     let mut previous = None;
     for (party, what) in [
         (0, PersonFact::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX }),
@@ -357,7 +357,7 @@ fn status_keys_use_families_thirty_six_and_thirty_seven_in_order() {
             assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
         }
         assert!(
-            Key::Making(temper_engine_domain_forge::MakingKey {
+            Key::Making(temper_engine_domain_forge_vocabulary::MakingKey {
                 forge: u16::MAX,
                 org: Box::new([]),
                 name: Box::new([])
@@ -444,7 +444,7 @@ fn findings_keys_and_topic_use_the_reserved_bytes_and_order() {
         assert_eq!(bytes, writer.finish().unwrap());
         assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
         let topic =
-            Key::Subscription { task: u64::MAX, topic: temper_engine_domain_forge::Topic::Findings { project } };
+            Key::Subscription { task: u64::MAX, topic: temper_engine_domain_forge_vocabulary::Topic::Findings { project } };
         let encoded = keys::encode(&topic, u32::MAX).unwrap();
         assert_eq!(keys::decode(&encoded, &fixtures::LIMITS), Some(topic));
         for len in 0..bytes.len() {

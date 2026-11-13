@@ -2,7 +2,7 @@
 use super::{FITS, w};
 use alloc::boxed::Box;
 use skein_lib::List;
-use temper_engine_domain_forge::CloserRow;
+use temper_engine_domain_forge_vocabulary::CloserRow;
 use temper_engine_domain_forge_closer as c;
 
 fn encode_step(step: c::Step) -> w::ClosingStep {
