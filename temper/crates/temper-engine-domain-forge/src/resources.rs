@@ -2,17 +2,7 @@
 //! Forge repositories expose no counted pool resources. Landing branches and
 //! participating objects are shared; private task branches have one holder.
 use crate::{Access, Domain, Name, Role, What};
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HoldKind {
-    Shared,
-    Exclusive { wait: bool },
-}
-/// Admission rule for the forge's private branch kind.
-pub const BRANCH_HOLD: HoldKind = HoldKind::Exclusive { wait: true };
-
-/// Admission rule for a goal's own branch (domain/forge/branches.md, 1).
-pub const GOAL_BRANCH_HOLD: HoldKind = HoldKind::Exclusive { wait: false };
+pub use temper_engine_domain_forge_vocabulary::resources::*;
 
 impl Domain {
     /// Report each named resource from adopted repository facts.

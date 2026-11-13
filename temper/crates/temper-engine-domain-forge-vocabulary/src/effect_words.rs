@@ -14,7 +14,7 @@ fn put(words: &mut List<u8>, bytes: &[u8]) {
     }
 }
 
-pub(crate) fn account(entry: &Entry, repository: Option<&crate::Repository>, outcome: Outcome) -> Option<Box<[u8]>> {
+pub fn account(entry: &Entry, repository: Option<&crate::Repository>, outcome: Outcome) -> Option<Box<[u8]>> {
     let result = match outcome {
         Outcome::Held => Box::from(b"uncertain: it may or may not have been made".as_slice()),
         Outcome::Failed(error) => error_words(error),
@@ -104,7 +104,7 @@ fn target(words: &mut List<u8>, write: &Write) {
     }
 }
 
-pub(crate) fn error_words(error: Error) -> Box<[u8]> {
+pub fn error_words(error: Error) -> Box<[u8]> {
     let words: &[u8] = match error {
         Error::Forbidden => b"forge refused permission",
         Error::Protected => b"forge protection refused the write",

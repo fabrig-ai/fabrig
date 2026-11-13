@@ -201,6 +201,6 @@ pub fn valid(l: &Limits) -> bool {
 }
 
 /// Whether the connection owner's installation row count fits its table capacity.
-pub(crate) const fn connection_valid(forges: u32, installations: u32) -> bool {
+pub const fn connection_valid(forges: u32, installations: u32) -> bool {
     forges.checked_mul(installations).is_some()
 }

@@ -121,7 +121,7 @@ fn approval(
 }
 
 /// Count each qualifying person once, using the same conflicts and heads as enforcement.
-pub(crate) fn approval_count(
+pub fn approval_count(
     role: u32,
     freshness: Freshness,
     head: skein_forge::api::Commit,
