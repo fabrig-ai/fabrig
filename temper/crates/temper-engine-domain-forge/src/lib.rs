@@ -23,6 +23,10 @@ pub use temper_engine_domain_forge_vocabulary::*;
 mod adoption;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod approvals;
+mod change_history;
+pub mod history;
+mod landing_proofs;
+mod readiness;
 pub use approvals::{ApprovalWait, ShortApproval};
 pub use temper_engine_domain_forge_vocabulary::boundary;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
@@ -104,8 +108,10 @@ pub use follows::{
 };
 mod forming;
 pub use forming::{Selection, WaitingUnit, select_units};
+mod job_history;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod landing;
+mod landing_history;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod landing_log;
 pub mod preparation;

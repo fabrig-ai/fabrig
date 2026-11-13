@@ -122,7 +122,10 @@ fn client_view_links_only_its_domain_and_foundation() {
             manifest
                 .dependencies
                 .iter()
-                .filter(|name| !["jig-client", "skein-codec", "skein-lib", "skein-ui"].contains(&name.as_str()))
+                .filter(|name| {
+                    !["jig-client", "jig-client-view-codec", "skein-codec", "skein-lib", "skein-ui"]
+                        .contains(&name.as_str())
+                })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
         })
@@ -139,7 +142,10 @@ fn client_domain_depends_on_foundation_alone() {
             manifest
                 .dependencies
                 .iter()
-                .filter(|name| !["jig-client", "skein-codec", "skein-lib", "skein-ui"].contains(&name.as_str()))
+                .filter(|name| {
+                    !["jig-client", "jig-client-view-codec", "skein-codec", "skein-lib", "skein-ui"]
+                        .contains(&name.as_str())
+                })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
         })
@@ -153,6 +159,7 @@ fn client_step(name: &str) -> bool {
         "jig-client"
             | "jig-client-domain"
             | "jig-client-view"
+            | "jig-client-view-codec"
             | "jig-protocol-transcript"
             | "jig-client-protocol-wire"
             | "jig-client-protocol-http"
@@ -443,6 +450,7 @@ fn smith_breaches(manifests: &[CrateManifest]) -> Vec<String> {
         if !(name.starts_with("jig-domain-")
             || name.starts_with("jig-protocol-")
             || name == "jig-client-view"
+            || name == "jig-client-view-codec"
             || name.starts_with("jig-client-shell-")
             || (name.starts_with("jig-client-protocol-")
                 && !name.ends_with("-world")
@@ -508,6 +516,7 @@ fn client_engine_breaches(manifests: &[CrateManifest]) -> Vec<String> {
             Some(
                 "jig-client"
                     | "jig-client-view"
+                    | "jig-client-view-codec"
                     | "jig-client-protocol-wire"
                     | "jig-client-protocol-link"
                     | "jig-client-shell-native"

@@ -141,6 +141,18 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
             }
             limits.forge.red_key_bytes = u32::try_from(value).or(Err(Refused::Range))?;
         }
+        b"forge.history_days" => {
+            if value == 0 || value > 3650 {
+                return Err(Refused::Range);
+            }
+            limits.forge.history_days = u32::try_from(value).or(Err(Refused::Range))?;
+        }
+        b"forge.history_events" => {
+            if value == 0 {
+                return Err(Refused::Range);
+            }
+            limits.forge.history_events = value;
+        }
         b"forge.findings_per_project" => {
             limits.forge.findings_per_project = u32::try_from(value).or(Err(Refused::Range))?;
         }
@@ -349,7 +361,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 188] = [
+pub static NAMES: [Name; 190] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -733,6 +745,18 @@ pub static NAMES: [Name; 188] = [
         unit: Unit::Bytes,
         line: "Bounds a goal red's key.",
         value: |limits| u64::from(limits.forge.red_key_bytes),
+    },
+    Name {
+        name: "forge.history_days",
+        unit: Unit::Count,
+        line: "Days a change's history stays after its last event, from 1 to 3,650.",
+        value: |limits| u64::from(limits.forge.history_days),
+    },
+    Name {
+        name: "forge.history_events",
+        unit: Unit::Count,
+        line: "Events retained per project, at least 1; oldest last-event changes swept whole past it.",
+        value: |limits| limits.forge.history_events,
     },
     Name {
         name: "forge.findings_per_project",

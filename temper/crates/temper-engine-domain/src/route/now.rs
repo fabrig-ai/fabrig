@@ -280,6 +280,7 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: 
                 | Read::Document(_)
                 | Read::Remember(_)
                 | Read::SettingsNote { .. }
+                | Read::History { .. }
                 | Read::Notes { .. },
             )
             | None,

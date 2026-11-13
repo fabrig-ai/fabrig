@@ -11,6 +11,3 @@ pub mod v1;
 pub const VERSION: u32 = 1;
 
 pub mod codec;
-
-#[cfg(test)]
-mod tests;

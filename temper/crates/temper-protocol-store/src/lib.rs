@@ -12,7 +12,7 @@ pub use patch_set::PATCH_SET;
 use alloc::boxed::Box;
 pub mod keys;
 pub mod records;
-pub use temper_protocol_store_codec::{v16, v17, v18, v19, v20, v21, v22};
+pub use temper_protocol_store_codec::v22;
 #[cfg(test)]
 mod tests;
 
@@ -151,8 +151,8 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
     Some(Bounds { limits: Box::new(limits), forge: *forge })
 }
 
-/// Every application key, relative to jig's application tag.
+/// Restart families below byte 128, relative to jig's application tag.
 #[must_use]
 pub fn interval() -> skein_kv::Range {
-    skein_kv::Range { start: Box::new([]), end: None }
+    skein_kv::Range { start: Box::new([]), end: Some(Box::new([128])) }
 }

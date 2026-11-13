@@ -82,6 +82,8 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.landings`: count, 2. Bounds live landing procedure rows.
 - `forge.branch_reds`: count, 64. Bounds the reds held by a goal.
 - `forge.red_key_bytes`: bytes, 256. Bounds a goal red's key.
+- `forge.history_days`: count, 14. Days a change's history stays after its last event, from 1 to 3,650.
+- `forge.history_events`: count, 131,072. Events retained per project, at least 1; oldest last-event changes swept whole past it.
 - `forge.findings_per_project`: count, 256. Bounds retained findings per project.
 - `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.

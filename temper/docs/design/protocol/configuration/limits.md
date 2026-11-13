@@ -87,6 +87,13 @@
   the engine's answer at a check's start, 5,000 in both, from 100 to
   60,000 (`../../domain/forge/reds.md`, 5.3): the worker's, since the
   worker waits, though the draft names it among the forge's.
+- **A project's landing history:** `forge.history_days`, 14 in both
+  profiles, from 1 to 3,650, the days a change's events stay after its
+  last; and `forge.history_events`, 131,072 in both, at least 1, the
+  events a project keeps, its changes whose last event is oldest swept
+  first past it (`../../domain/landing-history.md`, 4.5 and 6). Each
+  applies to every project; the events are demand-loaded and take no
+  forge memory.
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.

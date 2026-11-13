@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::pages::chat::Shown;
 use temper_client_protocol_wire::v1 as w;
-use temper_client_view::words::Word;
+use temper_client_view_words::words::Word;
 
 // The actors' marks (temper/docs/design/client/tui/pages/chat.md, 1, a view).
 const PERSON: &[u8] = "○".as_bytes();

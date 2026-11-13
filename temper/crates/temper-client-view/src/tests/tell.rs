@@ -6,14 +6,20 @@
     reason = "ordinary tests inspect semantic subtrees and hand-built deliveries"
 )]
 use super::fixtures as f;
+
 use crate::look;
+
 use jig_client::{Down, Readable, Up, Watchable, contract as c};
+
 use skein_lib::{List, Queue, Token};
+
 use skein_ui::{Act as UiAct, Role, State};
+
 use temper_client_domain::{
     self as d, Action, Address, Event, Place, Request,
-    pages::{self, Act, team::Holder, tell::Goes},
+    pages::{self, Act},
 };
+
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 // These navigation fixtures hold the rail, Team's card, and both Tell placements' reads.
@@ -24,17 +30,21 @@ fn limits() -> d::Limits {
     limits.client.domain.reads = 12;
     limits
 }
+
 fn event(root: &mut d::Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: limits() }, event, &mut out);
     out
 }
+
 fn go(root: &mut d::Domain, address: Address) -> Queue<Request> {
     event(root, Event::Went { place: Place::Address(address) })
 }
+
 fn act(root: &mut d::Domain, act: Act) -> Queue<Request> {
     event(root, Event::Act { action: Action::Pages(act) })
 }
+
 fn task() -> c::Task {
     let mut task = super::chat::asking_task();
     task.chip.task = 52;
@@ -43,6 +53,7 @@ fn task() -> c::Task {
     task.chip.title = c::DocumentText::complete(c::Text::new(b"Prover".as_slice().into(), 32).unwrap());
     task
 }
+
 fn findings() -> w::Findings {
     let mut areas = List::with_capacity(2);
     for (name, number) in [(b"docs".as_slice(), 40), (b"tests", 52)] {
@@ -76,6 +87,7 @@ fn findings() -> w::Findings {
     )
     .unwrap()
 }
+
 fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
     event(
         root,
@@ -84,6 +96,7 @@ fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery) -> Queue<R
         },
     )
 }
+
 fn family(root: &mut d::Domain, watch: Token, bytes: Box<[u8]>) -> Queue<Request> {
     event(
         root,
@@ -97,6 +110,7 @@ fn family(root: &mut d::Domain, watch: Token, bytes: Box<[u8]>) -> Queue<Request
         },
     )
 }
+
 fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
@@ -188,6 +202,7 @@ fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
         }
     }
 }
+
 fn fixture(address: Address) -> d::Domain {
     let (mut root, watch, _, _, _) =
         f::root_at_full(Address::Work { project: 2, filter: d::WorkFilter::All }, &limits(), b"shop");
@@ -199,17 +214,21 @@ fn fixture(address: Address) -> d::Domain {
     fill(&mut root, out);
     root
 }
+
 fn filtered() -> Address {
     Address::Inbox { filter: d::address::Filter { project: Some(1), ..d::address::Filter::ALL } }
 }
+
 fn named(view: &crate::View, role: Role, name: &str) -> skein_ui::NodeId {
     f::find(view.tree(), role, name.as_bytes()).unwrap_or_else(|| panic!("missing {role:?}: {name}"))
 }
+
 fn has_text(view: &crate::View, expected: &str) {
     let text = f::text(view.tree());
     let text = core::str::from_utf8(&text).unwrap();
     assert!(text.contains(expected), "missing {expected:?}: {text}");
 }
+
 fn write(view: &mut crate::View, root: &mut d::Domain, words: &[u8]) {
     let field = view.tree().nodes().iter().find(|node| node.styles.as_slice().contains(&look::TELL_FIELD)).unwrap().id;
     let action = crate::act(view, field, UiAct::Input { value: words.into() }).unwrap();
@@ -218,6 +237,7 @@ fn write(view: &mut crate::View, root: &mut d::Domain, words: &[u8]) {
     let field = view.tree().nodes().iter().find(|node| node.styles.as_slice().contains(&look::TELL_FIELD)).unwrap();
     assert_eq!(field.value.as_ref().unwrap().text.as_ref(), words, "redraw keeps the complete field");
 }
+
 #[test]
 fn tell_region_follows_decided_and_files_the_kept_page() {
     let mut root = fixture(filtered());
@@ -260,6 +280,7 @@ fn tell_region_follows_decided_and_files_the_kept_page() {
     let view = f::browser_page_view(&root);
     assert_eq!(f::find(view.tree(), Role::Region, b"Tell temper"), None);
 }
+
 #[test]
 fn tell_page_is_on_ask_and_the_composer_links_to_it() {
     let css = include_str!("../../../temper-client-shell-web/temper.css");
@@ -321,60 +342,7 @@ fn tell_page_is_on_ask_and_the_composer_links_to_it() {
         has_text(&view, &format!("About shop · the page you were on, {title}"));
     }
 }
-#[test]
-fn tell_destinations_name_the_owner_triager_and_owners() {
-    let root = fixture(filtered());
-    let w = f::browser_words();
-    let you = root.pages().me(root.client()).unwrap().party.number;
-    for (goes, words, toast) in [
-        (
-            Goes::Area { name: b"tests".as_slice().into(), holder: Holder::Task(52) },
-            "Goes to Prover, tests's owner",
-            "Filed for Prover.",
-        ),
-        (
-            Goes::Area { name: b"tests".as_slice().into(), holder: Holder::Party(you) },
-            "Goes to you, as tests's owner",
-            "Filed for you.",
-        ),
-        (
-            Goes::Triager { holder: Holder::Task(52), areas: false },
-            "Goes to Prover, shop's triager",
-            "Filed for Prover.",
-        ),
-        (
-            Goes::Triager { holder: Holder::Task(52), areas: true },
-            "Goes to Prover, shop's triager, who hands it to its area's owner",
-            "Filed for Prover.",
-        ),
-        (Goes::Triager { holder: Holder::Party(you), areas: false }, "Goes to you, the triager", "Filed for you."),
-        (
-            Goes::Triager { holder: Holder::Party(you), areas: true },
-            "Goes to you, the triager, who hands it to its area's owner",
-            "Filed for you.",
-        ),
-        (Goes::Owners { areas: false }, "Goes to shop's owners", "Filed for shop's owners."),
-        (
-            Goes::Owners { areas: true },
-            "Goes to shop's owners, who hand it to its area's owner",
-            "Filed for shop's owners.",
-        ),
-        (
-            Goes::Triager { holder: Holder::Task(99), areas: false },
-            "Goes to Task 99, shop's triager",
-            "Filed for Task 99.",
-        ),
-        (
-            Goes::Triager { holder: Holder::Party(999), areas: false },
-            "Goes to Party 999, shop's triager",
-            "Filed for Party 999.",
-        ),
-    ] {
-        assert_eq!(crate::pages::tell::destination(&root, &w, 1, &goes).as_ref(), words.as_bytes());
-        assert_eq!(crate::pages::tell::filed(&root, &w, 1, Some(&goes)).as_ref(), toast.as_bytes());
-    }
-    assert_eq!(crate::pages::tell::filed(&root, &w, 1, None).as_ref(), b"Filed.");
-}
+
 #[test]
 fn tell_ignores_a_kept_page_of_another_project_and_keeps_overlong_words() {
     let mut root = fixture(Address::Tell { project: 1 });
@@ -426,6 +394,7 @@ fn sent(out: &Queue<Request>) -> (Token, w::FileFinding) {
     assert_eq!(sends.len(), 1, "one FileFinding");
     sends.pop().unwrap()
 }
+
 fn answer(root: &mut d::Domain, attempt: Token, outcome: w::Outcome) {
     event(
         root,
@@ -445,6 +414,7 @@ fn answer(root: &mut d::Domain, attempt: Token, outcome: w::Outcome) {
         },
     );
 }
+
 #[test]
 fn tell_filing_is_once_refusal_keeps_words_and_filed_clears_with_a_toast() {
     let mut root = fixture(filtered());

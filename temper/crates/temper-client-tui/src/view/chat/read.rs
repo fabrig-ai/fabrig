@@ -15,7 +15,7 @@ use temper_client_domain::{
     },
     views::{self, Part},
 };
-use temper_client_view::words::Word;
+use temper_client_view_words::words::Word;
 
 fn flush(run: &mut shared::Run<'_>, entries: &mut List<Entry>, words: &Words) {
     if let Some(line) = run.line(None, false, words.view(), true) {

@@ -1,5 +1,9 @@
 //! Main's stored additions join the baseline catch-up (protocol/baseline.md, 9).
 use skein_codec::patch::{Capacity, Patcher, Step};
+use skein_codec::{
+    schema::Schema,
+    value::{Node, Value},
+};
 use skein_lib::bytes;
 
 pub(super) fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
@@ -66,6 +70,33 @@ pub(super) fn kept_golden(version: u16, name: &str) -> Box<[u8]> {
     unreachable!("kept golden")
 }
 
+// Select by the kept text's header, not its position in TEXTS.
+pub(super) fn kept_schema(version: u16) -> Schema {
+    let header =
+        bytes::concat(&[b"family temper-store ", skein_lib::Decimal::of(u64::from(version)).as_bytes(), b"\n"]);
+    for text in crate::patches::kept::temper_store::TEXTS {
+        if text.as_bytes().starts_with(&header) {
+            return skein_codec::schema::parse(text.as_bytes()).expect("kept schema");
+        }
+    }
+    panic!("kept version")
+}
+
+pub(super) fn kept_value(schema: &Schema, root: &[u8], bytes: Box<[u8]>) -> (Value, Node) {
+    let mut value = Value::with_room(16_384);
+    let row = value.decode(schema, schema.find(root).expect("kept root"), bytes).expect("kept record");
+    (value, row)
+}
+
+pub(super) fn items(value: &Value, list: Node) -> Box<[Node]> {
+    let mut items = value.items(list).expect("list");
+    let mut nodes = skein_lib::List::with_capacity(65_536);
+    while let Some(node) = value.next_item(&mut items) {
+        nodes.push(node).expect("kept list bound");
+    }
+    nodes.into_boxed()
+}
+
 #[test]
 fn a_baseline_adopted_row_has_no_contexts() {
     let adopted = kept_golden(11, "record_adopted_full.bin");
@@ -93,7 +124,11 @@ fn a_v13_closer_upgrades_with_no_question_relay() {
     let bytes = patched(13, 2, b"Closer", before);
     let bytes = patched(14, 3, b"Closer", bytes);
     let bytes = patched(15, 4, b"Closer", bytes);
-    let row = crate::v16::Closer::decode(&crate::v16::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let bytes = patched(16, 5, b"Closer", bytes);
+    let bytes = patched(17, 6, b"Closer", bytes);
+    let bytes = patched(18, 7, b"Closer", bytes);
+    let bytes = patched(19, 8, b"Closer", bytes);
+    let row = crate::v22::Closer::decode(&crate::v22::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("upgraded closer");
     assert_eq!(row.relay(), &None);
     assert_eq!(row.task(), u64::MAX);
@@ -116,8 +151,13 @@ fn a_v14_closer_keeps_its_question_relay_through_r2() {
     let before = kept_golden(14, "record_closer_full.bin");
     let bytes = patched(14, 3, b"Closer", before.clone());
     assert_eq!(bytes, before, "R2 only adds declarations and variants");
+    let bytes = patched(15, 4, b"Closer", bytes);
+    let bytes = patched(16, 5, b"Closer", bytes);
+    let bytes = patched(17, 6, b"Closer", bytes);
+    let bytes = patched(18, 7, b"Closer", bytes);
+    let bytes = patched(19, 8, b"Closer", bytes);
     let closer =
-        crate::v16::Closer::decode(&crate::v16::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current closer");
+        crate::v22::Closer::decode(&crate::v22::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current closer");
     assert!(closer.relay().is_some());
 }
 
@@ -178,6 +218,8 @@ fn v15_landing(place: u8, held: bool, member: bool) -> Box<[u8]> {
 }
 #[test]
 fn v15_landings_keep_their_in_flight_state_without_entering_a_round() {
+    use crate::patches::kept::temper_store::v16 as kept;
+    let schema = kept_schema(16);
     for (place, held, member) in [
         (0_u8, false, true),
         (1, false, true),
@@ -191,46 +233,61 @@ fn v15_landings_keep_their_in_flight_state_without_entering_a_round() {
         let bytes = v15_landing(place, held, member);
         let mut context = crate::patches::Context { landing_branch: Some(b"release".as_slice().into()) };
         let bytes = patched_with(15, 4, b"LandingRow", bytes, &mut context);
-        let row = crate::v16::LandingRow::decode(&crate::v16::CEILINGS, &mut skein_lib::Reader::new(&bytes))
-            .expect("migrated landing");
-        let landing = row.landing();
-        assert_eq!(landing.task(), 61);
-        assert_eq!(landing.project(), 7);
-        assert_eq!(landing.branch(), b"release");
-        assert!(landing.round().is_none());
-        assert!(landing.own_hold().is_none());
-        assert_eq!(landing.preparation(), 2);
-        assert_eq!(landing.stale_proofs(), 5);
-        let got_place = match landing.phase().place() {
-            crate::v16::LandingPlace::Waiting => 0,
-            crate::v16::LandingPlace::Preparing => 1,
-            crate::v16::LandingPlace::Proving => 2,
-            crate::v16::LandingPlace::Proved(at) => {
-                assert_eq!(at.at(), 123);
-                3
-            }
-            crate::v16::LandingPlace::Turn(at) => {
-                assert_eq!(at.at(), 123);
-                4
-            }
-            crate::v16::LandingPlace::Landed => 5,
-            crate::v16::LandingPlace::Cancelled => 6,
+        let (value, row) = kept_value(&schema, b"LandingRow", bytes);
+        let landing = value.field(row, kept::landing_row::LANDING).unwrap();
+        assert_eq!(value.uint(value.field(landing, kept::landing_state::TASK).unwrap()).unwrap(), 61);
+        assert_eq!(value.uint(value.field(landing, kept::landing_state::PROJECT).unwrap()).unwrap(), 7);
+        assert_eq!(value.content(value.field(landing, kept::landing_state::BRANCH).unwrap()).unwrap(), b"release");
+        assert!(value.some(value.field(landing, kept::landing_state::ROUND).unwrap()).unwrap().is_none());
+        assert!(value.some(value.field(landing, kept::landing_state::OWN_HOLD).unwrap()).unwrap().is_none());
+        assert_eq!(value.uint(value.field(landing, kept::landing_state::PREPARATION).unwrap()).unwrap(), 2);
+        assert_eq!(value.uint(value.field(landing, kept::landing_state::STALE_PROOFS).unwrap()).unwrap(), 5);
+        let phase = value.field(landing, kept::landing_state::PHASE).unwrap();
+        let got_place = value.field(phase, kept::landing_phase::PLACE).unwrap();
+        let expected = match place {
+            0 => kept::landing_place::WAITING,
+            1 => kept::landing_place::PREPARING,
+            2 => kept::landing_place::PROVING,
+            3 => kept::landing_place::PROVED,
+            4 => kept::landing_place::TURN,
+            5 => kept::landing_place::LANDED,
+            6 => kept::landing_place::CANCELLED,
+            _ => panic!("fixture place"),
         };
-        assert_eq!(got_place, place);
-        assert_eq!(landing.phase().held().is_some(), held);
-        assert_eq!(landing.members().len(), u32::from(member));
-        assert_eq!(row.entries().len(), u32::from(member));
-        if let Some(entry) = row.entries().as_slice().first() {
-            assert_eq!(entry.entry(), 81);
-            assert_eq!(entry.operation(), &crate::v16::LandingOperation::Merge);
+        assert_eq!(value.tag(got_place).unwrap(), expected);
+        if place == 3 || place == 4 {
+            let at = value.payload(got_place).unwrap().unwrap();
+            assert_eq!(value.uint(value.field(at, kept::landing_at::AT).unwrap()).unwrap(), 123);
         }
-        if let Some(member) = landing.members().as_slice().first() {
-            assert_eq!(member.head(), &Some([1; 32]));
-            assert_eq!(member.base(), &Some([2; 32]));
-            assert_eq!(member.candidate(), &Some([3; 32]));
-            assert_eq!(member.asked(), &Some(2));
-            assert!(member.left().is_none());
-            assert_eq!(member.gates().as_slice().first().expect("proof").faults(), 3);
+        assert_eq!(value.some(value.field(phase, kept::landing_phase::HELD).unwrap()).unwrap().is_some(), held);
+        let members = items(&value, value.field(landing, kept::landing_state::MEMBERS).unwrap());
+        let entries = items(&value, value.field(row, kept::landing_row::ENTRIES).unwrap());
+        assert_eq!(members.len(), usize::from(member));
+        assert_eq!(entries.len(), usize::from(member));
+        if let Some(&entry) = entries.first() {
+            assert_eq!(value.uint(value.field(entry, kept::landing_entry::ENTRY).unwrap()).unwrap(), 81);
+            assert_eq!(
+                value.tag(value.field(entry, kept::landing_entry::OPERATION).unwrap()).unwrap(),
+                kept::landing_operation::MERGE
+            );
+        }
+        if let Some(&member) = members.first() {
+            for (field, expected) in [
+                (kept::landing_member::HEAD, [1; 32]),
+                (kept::landing_member::BASE, [2; 32]),
+                (kept::landing_member::CANDIDATE, [3; 32]),
+            ] {
+                let some = value.some(value.field(member, field).unwrap()).unwrap().unwrap();
+                assert_eq!(value.content(some).unwrap(), expected);
+            }
+            let asked = value.some(value.field(member, kept::landing_member::ASKED).unwrap()).unwrap().unwrap();
+            assert_eq!(value.uint(asked).unwrap(), 2);
+            assert!(value.some(value.field(member, kept::landing_member::LEFT).unwrap()).unwrap().is_none());
+            let gates = items(&value, value.field(member, kept::landing_member::GATES).unwrap());
+            assert_eq!(
+                value.uint(value.field(*gates.first().expect("proof"), kept::gate_proof::FAULTS).unwrap()).unwrap(),
+                3
+            );
         }
     }
 }

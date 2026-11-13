@@ -368,7 +368,7 @@ fn busy_run(world: &mut Protocol, scheduler: &mut Scheduler, count: usize, movin
                 world.event(forge::Event::Answered {
                     task,
                     attempt: second,
-                    pushed: Box::new([(name, commit(world.branch(branch.as_bytes())))]),
+                    pushed: Box::new([(name, commit(world.branch(branch.as_bytes())), true)]),
                 });
             }
         }

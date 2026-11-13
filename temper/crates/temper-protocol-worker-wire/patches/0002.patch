@@ -2,7 +2,4 @@ patch 1
 owner temper 2
 
 family temper-worker-wire 6 to 7
-add Ask
-add Red
-add Reds
-add Answer
+add Landed.checked bool true

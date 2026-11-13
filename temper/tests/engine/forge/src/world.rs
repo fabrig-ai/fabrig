@@ -1,7 +1,7 @@
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
-use temper_engine_domain_forge as top;
+use temper_engine_domain_forge::{self as top, history as history_rows};
 
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
@@ -68,6 +68,8 @@ pub const LIMITS: top::Limits = top::Limits {
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    history_days: 14,
+    history_events: 131_072,
     findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
@@ -119,6 +121,8 @@ struct Pending {
 }
 
 mod follows;
+#[path = "world/history.rs"]
+mod history_reads;
 
 struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
@@ -128,6 +132,7 @@ struct ReadScript {
 }
 
 /// Scripted root and forge protocol surrounding the connector top.
+#[expect(clippy::struct_excessive_bools, reason = "independent world faults include held history loads")]
 pub struct World {
     pub(crate) top: top::Domain,
     env: Env<top::Limits>,
@@ -139,6 +144,10 @@ pub struct World {
     top_out: Queue<top::Request>,
     pending: Map<Token, Pending>,
     stored: Map<top::Key, top::Stored>,
+    history_loads: Vec<(top::HistoryRange, Option<top::Key>, u32)>,
+    history_page_rows: u32,
+    history_hold: bool,
+    history_held: Vec<(u64, top::Event)>,
     seen: List<top::Request>,
     serial: u64,
     generation: u64,
@@ -473,6 +482,29 @@ impl World {
         )
     }
 
+    /// Room for the bounded queue fuzz story's pushes and CI heads; client limits stay tiny.
+    #[must_use]
+    pub fn queue_steps(seed: u64) -> World {
+        let mut config = fake_config();
+        config.limits.files = 8;
+        config.limits.commits = 128;
+        config.limits.statuses = 64;
+        Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            6,
+            false,
+            None,
+            config,
+            None,
+            LIMITS.landing_members,
+        )
+    }
+
     /// Give the fake room for a goal while independently bounding client admission.
     #[must_use]
     pub fn with_goal_room(seed: u64, rows: u32, answer_bytes: u32) -> World {
@@ -652,7 +684,11 @@ impl World {
             to_top: Queue::with_capacity(32),
             top_out: Queue::uncapped(),
             pending: Map::with_capacity(32),
-            stored: Map::with_capacity(128),
+            stored: Map::with_capacity(4096),
+            history_loads: Vec::new(),
+            history_page_rows: 32,
+            history_hold: false,
+            history_held: Vec::new(),
             seen: List::with_capacity(256),
             serial: 0,
             generation: 1,
@@ -963,6 +999,11 @@ impl World {
         self.run_for(1);
     }
 
+    /// Keep the scripted root's mapped reviews before it sends `ReviewsChanged`.
+    pub fn keep_review_facts(&mut self, task: u64, facts: top::ReviewFacts) -> bool {
+        self.top.keep_review_facts(self.wall(), task, facts)
+    }
+
     /// Commit the forge's settings and drive the resulting live-change wakes.
     pub fn keep_settings(&mut self, revision: u64, items: &[top::settings::Asked]) {
         self.top.keep_settings(&self.env, revision, None, items, &mut self.top_out);
@@ -1024,6 +1065,53 @@ impl World {
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
         &self.stored
     }
+    /// A change's indexed events across projects, in event-number order
+    /// (temper/docs/design/domain/landing-history.md, 4.1).
+    #[must_use]
+    pub fn history(&self, change: u64) -> Vec<history_rows::Event> {
+        let mut events = Vec::new();
+        for (_, record) in &self.stored {
+            if let top::Stored::HistoryChange(index) = record
+                && index.change == change
+                && let Some(top::Stored::HistoryEvent(event)) =
+                    self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
+            {
+                events.push(event.clone());
+            }
+        }
+        events.sort_by_key(|event| event.number);
+        events
+    }
+
+    /// A landing's indexed events across projects, in event-number order.
+    #[must_use]
+    pub fn landing_history(&self, landing: u64) -> Vec<history_rows::Event> {
+        let mut events = Vec::new();
+        for (_, record) in &self.stored {
+            if let top::Stored::HistoryLanding(index) = record
+                && index.landing == landing
+                && let Some(top::Stored::HistoryEvent(event)) =
+                    self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
+            {
+                events.push(event.clone());
+            }
+        }
+        events.sort_by_key(|event| event.number);
+        events
+    }
+
+    /// Write a fixture event through the domain and keep its store requests.
+    pub fn write_event(&mut self, change: u64, step: history_rows::Step) -> Option<u64> {
+        let number = self.top.write_event(self.env.wall, change, step, &mut self.top_out);
+        self.take_top();
+        number
+    }
+
+    /// Erase a fixture event while retaining its index rows.
+    pub fn erase_history_event(&mut self, project: u32, number: u64) {
+        self.stored.remove(&top::Key::HistoryEvent { project, number }).expect("fixture event exists");
+    }
+
     pub fn fallback(&mut self, interval: Duration) {
         self.env.limits.client.fallback = interval;
     }
@@ -1417,7 +1505,9 @@ impl World {
         } else if self.forge.is_due(self.env.now) {
             forge::fire(&mut self.forge, &self.forge_env, &mut self.forge_out);
             self.take_forge();
-        } else if self.top.next_deadline().is_some_and(|time| time <= self.env.now) {
+        } else if self.top.next_deadline().is_some_and(|time| time <= self.env.now)
+            || self.top.next_wall_deadline().is_some_and(|wall| wall <= self.env.wall)
+        {
             top::fire(&mut self.top, &self.env, &mut self.top_out);
             self.take_top();
             self.top.reclaim();
@@ -1425,7 +1515,18 @@ impl World {
             if self.env.now >= end {
                 return false;
             }
-            let next = self.top.next_deadline().unwrap_or(end).min(self.forge.next_deadline().unwrap_or(end)).min(end);
+            let wall_due = self.top.next_wall_deadline().map(|wall| {
+                self.env
+                    .now
+                    .saturating_add(Duration::from_nanos(wall.as_nanos().saturating_sub(self.env.wall.as_nanos())))
+            });
+            let next = self
+                .top
+                .next_deadline()
+                .unwrap_or(end)
+                .min(wall_due.unwrap_or(end))
+                .min(self.forge.next_deadline().unwrap_or(end))
+                .min(end);
             self.env.now = next;
             self.env.wall = Wall::from_nanos(next.as_nanos());
             self.forge_env.now = next;
@@ -1441,6 +1542,10 @@ impl World {
         for _ in 0..self.top_out.len() {
             let request = self.top_out.pop().expect("counted top output");
             match request {
+                top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
+                page @ top::Request::HistoryPage { .. } => {
+                    self.seen.push(page).expect("world output room");
+                }
                 top::Request::AdoptAccess { forge, request, .. } => {
                     top::step(
                         &mut self.top,
@@ -1497,7 +1602,14 @@ impl World {
                     }
                 }
                 top::Request::Erase { key } => {
-                    self.stored.remove(&key).expect("erased row exists");
+                    let removed = self.stored.remove(&key);
+                    // Last rows can be replaced while loaded; release also erases an unwatched client repository.
+                    if !matches!(
+                        key,
+                        top::Key::HistoryLast { .. } | top::Key::Client(skein_forge_client::Key::Repository(_))
+                    ) {
+                        assert!(removed.is_some(), "erased row {key:?} exists");
+                    }
                 }
                 top::Request::Call { call, repository, op } => {
                     calls.push((call, repository, op)).expect("bounded calls");
@@ -1773,6 +1885,17 @@ impl World {
 
 fn key(row: &top::Stored) -> top::Key {
     match row {
+        top::Stored::HistoryProject(row) => top::Key::HistoryProject { project: row.project },
+        top::Stored::HistoryEvent(row) => top::Key::HistoryEvent { project: row.project, number: row.number },
+        top::Stored::HistoryChange(row) => {
+            top::Key::HistoryChange { project: row.project, change: row.change, number: row.number }
+        }
+        top::Stored::HistoryLanding(row) => {
+            top::Key::HistoryLanding { project: row.project, landing: row.landing, number: row.number }
+        }
+        top::Stored::HistoryLast(row) => {
+            top::Key::HistoryLast { project: row.project, number: row.number, change: row.change }
+        }
         top::Stored::Landing(row) => top::Key::Landing(row.landing.task),
         top::Stored::Receipt { key, .. } => top::Key::Receipt(key.clone()),
         top::Stored::Call { key, .. } => top::Key::Call(*key),

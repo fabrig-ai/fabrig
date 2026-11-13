@@ -3,11 +3,10 @@
     clippy::disallowed_types,
     reason = "test assertions inspect semantic trees and their bound controls"
 )]
-use super::connect_forge as forge;
-use super::fixtures as f;
+pub(super) use super::fixtures::welcome::{model_address, model_with_forge, owned_adopted_rows};
+use super::{connect_forge as forge, fixtures as f};
 use skein_ui::{Act, Role, State};
-use temper_client_domain::ChatsFilter;
-use temper_client_domain::{self as d, Address, Step, pages};
+use temper_client_domain::{self as d, Address, ChatsFilter, Step, pages};
 use temper_client_protocol_wire::v1 as w;
 
 const HERE: u16 = 3;
@@ -1268,9 +1267,6 @@ fn welcome_keeps_failed_setup_steps_at_model_forge_and_ready() {
     }
 }
 
-fn model_address(kind: d::WayKind) -> Address {
-    Address::Welcome { step: Step::Model { way: Some(d::ModelWay { provider: 17, kind, source: None }) } }
-}
 fn in_welcome(root: &mut d::Domain, kind: d::WayKind) {
     f::root_event(root, d::Event::Went { place: d::Place::Address(model_address(kind)) });
 }
@@ -1411,11 +1407,7 @@ fn model_ticks_connected_github_even_with_an_adopted_repository() {
     );
     each_step(view.tree(), false);
 }
-fn ready_root(rows: skein_lib::List<w::ForgeRow>) -> d::Domain {
-    let (mut root, account) = f::forge_root_accounts(Address::Welcome { step: Step::Ready }, rows);
-    f::welcome_account(&mut root, account);
-    root
-}
+
 #[test]
 fn managed_forgejo_ready_uses_the_default_checklist() {
     // Forge 4 is Forgejo elsewhere in the standalone configuration.
@@ -1599,28 +1591,6 @@ fn ready_draws_every_other_sign_in_ending_with_its_model_role_and_retry() {
     }
 }
 
-pub(super) fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
-    let mut rows = forge::first_rows(forge::connected(), forge::made());
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
-    parts.repositories = skein_lib::List::with_capacity(1);
-    parts
-        .repositories
-        .push(
-            w::Adoption::new(
-                &w::CEILINGS,
-                w::AdoptionParts {
-                    owner: b"work".as_slice().into(),
-                    name: b"hello".as_slice().into(),
-                    project: f::PROJECT,
-                },
-            )
-            .unwrap(),
-        )
-        .unwrap();
-    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
-    rows
-}
-
 #[test]
 fn the_setup_card_names_supported_models_for_every_provider_catalogue() {
     use jig_client::contract as c;
@@ -1777,22 +1747,6 @@ fn ready_offers_connect_a_model_as_a_terminal_command() {
     );
 }
 
-fn first_run_destination(root: &mut d::Domain) -> Address {
-    let mut out = skein_lib::Queue::uncapped();
-    d::step(
-        root,
-        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::limits() },
-        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) },
-        &mut out,
-    );
-    for request in &out {
-        if let d::Request::Show { address, replace: true } = request {
-            return address.clone();
-        }
-    }
-    panic!("first-run destination");
-}
-
 #[test]
 fn an_unfinished_store_opens_at_its_step() {
     for (rows, step, heading) in [
@@ -1809,13 +1763,6 @@ fn an_unfinished_store_opens_at_its_step() {
         node(view.tree(), Role::Heading { level: 1 }, heading);
         assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none(), "{:?}", root.forges());
     }
-}
-
-#[test]
-fn a_whole_store_moves_on() {
-    let mut root = ready_root(owned_adopted_rows());
-    assert_eq!(pages::welcome::decision(&root), Some(pages::welcome::FirstRun::Whole));
-    assert_eq!(first_run_destination(&mut root), Address::Chats { filter: ChatsFilter::All });
 }
 
 #[test]
@@ -2110,32 +2057,6 @@ fn forge_status_keeps_the_complete_login_and_repository() {
     }
 }
 
-pub(super) fn model_with_forge(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
-    let (offered, _) = super::connect_model::flow_fixture(kind);
-    let me = pages::accounts::current_me(offered.client()).unwrap().clone();
-    let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_forges(
-        model_address(kind),
-        &f::limits(),
-        b"Shop",
-        None,
-        None,
-        Some(forge::first_rows(forge::connected(), forge::made())),
-    );
-    f::root_event(
-        &mut root,
-        d::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch: me_watch,
-                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(Box::new(
-                        me,
-                    ))),
-                },
-            },
-        },
-    );
-    (root, accounts.unwrap())
-}
 fn start_model(root: &mut d::Domain) {
     use pages::{accounts::Way, connect_model::Act as A};
     let way = Way::SignIn { provider: 17, plan: true };
@@ -2981,4 +2902,26 @@ fn welcome_prints_the_deployments_program_command_or_the_placeholders() {
             assert!(shown.contains(expected), "{shown}");
         }
     }
+}
+
+pub(crate) fn ready_root(rows: skein_lib::List<w::ForgeRow>) -> d::Domain {
+    let (mut root, account) = f::forge_root_accounts(Address::Welcome { step: Step::Ready }, rows);
+    f::welcome_account(&mut root, account);
+    root
+}
+
+pub(crate) fn first_run_destination(root: &mut d::Domain) -> Address {
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::limits() },
+        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) },
+        &mut out,
+    );
+    for request in &out {
+        if let d::Request::Show { address, replace: true } = request {
+            return address.clone();
+        }
+    }
+    panic!("first-run destination");
 }

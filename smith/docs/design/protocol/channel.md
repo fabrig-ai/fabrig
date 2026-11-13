@@ -74,9 +74,12 @@ of domain/host.md, section 2.
   The current version is 8 (`channel-v8.schema`), which added a model
   failure's status to its report (section 4). From 2026-11-12 the version
   moves with every change to its layout (the owner, 2026-11-12), as a new
-  kind always moved it, and the
-  previous version's schema and goldens stay in the tree unchanged, as
-  its kept text. Version 7 is kept text, not a negotiated version.
+  kind always moved it. Its `schema/` holds the current text alone, and
+  each version from 7 on is kept as its text in `schema/kept/` (skein's
+  `data/codec/command.md`, section 1). Version 7's schema and goldens stay
+  in the tree unchanged, as its kept text, not a negotiated version.
+  Version 6's golden bytes stay in the tree unchanged; it is no
+  negotiated version.
 - **The host and agent stay on one build.** A consumer that spawns agents
   pins their program and configuration for its lifetime, and never
   adopts a previous host process's agents. In temper, the worker pins

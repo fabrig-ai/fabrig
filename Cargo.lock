@@ -1122,7 +1122,16 @@ dependencies = [
 name = "jig-client-test-protocol-wire"
 version = "0.0.0"
 dependencies = [
+ "jig-client-test-protocol-wire-codec",
  "jig-test-connector",
+ "skein-codec",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-client-test-protocol-wire-codec"
+version = "0.0.0"
+dependencies = [
  "skein-codec",
  "skein-lib",
 ]
@@ -1174,11 +1183,20 @@ name = "jig-client-view"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-view-codec",
  "skein-codec",
  "skein-lib",
  "skein-scratch",
  "skein-ui",
  "skein-ui-text",
+]
+
+[[package]]
+name = "jig-client-view-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
@@ -1832,6 +1850,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
  "jig-domain-link",
+ "jig-protocol-accounts-codec",
  "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
@@ -1844,6 +1863,14 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-tls",
+]
+
+[[package]]
+name = "jig-protocol-accounts-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
@@ -1959,12 +1986,21 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
+ "jig-protocol-engine-clients-codec",
  "jig-protocol-store",
  "jig-protocol-transcript",
  "skein-codec",
  "skein-lib",
  "skein-oauth-issuer",
  "smith-transcript",
+]
+
+[[package]]
+name = "jig-protocol-engine-clients-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
@@ -2437,8 +2473,17 @@ dependencies = [
  "jig-test-connector",
  "jig-test-connector-kit",
  "jig-test-domain",
+ "jig-test-store-codec",
  "skein-codec",
  "skein-kv",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-test-store-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
  "skein-lib",
 ]
 
@@ -3675,6 +3720,7 @@ dependencies = [
  "skein-codegen",
  "skein-json",
  "skein-lib",
+ "skein-oauth-codec",
  "skein-rows",
  "skein-scratch",
  "skein-tls",
@@ -3711,6 +3757,14 @@ dependencies = [
  "skein-tls",
  "skein-tls-kit",
  "skein-world",
+]
+
+[[package]]
+name = "skein-oauth-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
@@ -3998,7 +4052,16 @@ dependencies = [
  "skein-http",
  "skein-lib",
  "skein-ui",
+ "skein-ui-example-view-codec",
  "skein-ui-text",
+]
+
+[[package]]
+name = "skein-ui-example-view-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
@@ -4782,9 +4845,18 @@ dependencies = [
  "smith-host-domain",
  "smith-local-domain",
  "smith-local-domain-fixtures",
+ "smith-local-protocol-codec",
  "smith-local-protocol-fixtures",
  "smith-protocol-translate",
  "smith-transcript",
+]
+
+[[package]]
+name = "smith-local-protocol-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
@@ -5778,6 +5850,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-protocol-engine-clients",
  "jig-test-profile",
+ "serde_json",
  "skein-json",
  "skein-lib",
  "skein-push",
@@ -5806,7 +5879,8 @@ dependencies = [
  "skein-ui-screen",
  "temper-client-domain",
  "temper-client-protocol-wire",
- "temper-client-view",
+ "temper-client-view-parts",
+ "temper-client-view-words",
  "temper-protocol-reaches",
  "temper-test-env",
 ]
@@ -5821,15 +5895,102 @@ dependencies = [
  "jig-client-test-records",
  "skein-fake-person",
  "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-kit",
+ "temper-client-view-parts",
+ "temper-client-view-setup",
+ "temper-client-view-words",
+ "temper-client-view-work",
+ "temper-fixtures",
+ "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-client-view-kit"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
+ "jig-client-test-records",
+ "skein-fake-person",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-words",
+ "temper-docs",
+ "temper-fixtures",
+ "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-client-view-parts"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-wire",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-kit",
+ "temper-client-view-words",
+ "temper-protocol-reaches",
+ "temper-test-env",
+]
+
+[[package]]
+name = "temper-client-view-setup"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-kit",
+ "temper-client-view-parts",
+ "temper-client-view-words",
+ "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-client-view-words"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
  "skein-scratch",
  "skein-ui",
  "skein-ui-text",
  "temper-client-domain",
  "temper-client-protocol-wire",
- "temper-docs",
+ "temper-fixtures",
+ "temper-test-env",
+]
+
+[[package]]
+name = "temper-client-view-work"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-text",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-client-view-kit",
+ "temper-client-view-parts",
+ "temper-client-view-words",
  "temper-fixtures",
  "temper-protocol-reaches",
- "temper-test-env",
 ]
 
 [[package]]
@@ -7146,6 +7307,34 @@ dependencies = [
  "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-protocol-git",
+]
+
+[[package]]
+name = "temper-redeploy"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-fail-stop",
+ "skein-scratch",
+ "skein-shell",
+ "temper-redeploy-tool",
+ "temper-version",
+]
+
+[[package]]
+name = "temper-redeploy-tool"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-worker-wire",
+ "serde",
+ "serde_json",
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+ "temper-engine-service",
+ "temper-engine-shell",
+ "temper-test-env",
+ "time",
 ]
 
 [[package]]

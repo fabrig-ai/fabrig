@@ -174,7 +174,7 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
         for head in left.into_parts().landed.into_boxed() {
             let head = head.into_parts();
             pushed
-                .push(temper_engine_domain_forge::Pushed { tag: head.tag, commit: head.commit })
+                .push(temper_engine_domain_forge::Pushed { tag: head.tag, commit: head.commit, checked: head.checked })
                 .expect("bounded heads");
         }
     }
@@ -281,4 +281,26 @@ pub fn github_identity(
         },
     )?;
     Ok(wire::identity(&value))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pushed_heads_keep_the_workers_check_status() {
+        for checked in [false, true] {
+            let mut landed = List::with_capacity(1);
+            landed
+                .push(
+                    v1::Landed::new(&v1::CEILINGS, v1::LandedParts { tag: 7, commit: [3; 32], checked }).expect("head"),
+                )
+                .expect("room");
+            let left = v1::Left::new(&v1::CEILINGS, v1::LeftParts { landed }).expect("left");
+            assert_eq!(
+                parts(Some(left), None, None).pushed.as_ref(),
+                &[temper_engine_domain_forge::Pushed { tag: 7, commit: [3; 32], checked }]
+            );
+        }
+    }
 }

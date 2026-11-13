@@ -15,10 +15,8 @@ use temper_client_domain::{
     Domain,
     pages::{chat, chats, needs::Count},
 };
-use temper_client_view::{
-    shared::{self, TerminalWord},
-    words::Word as Shared,
-};
+use temper_client_view_parts::shared::{self, TerminalWord};
+use temper_client_view_words::words::Word as Shared;
 
 pub(crate) mod lists;
 mod notes;

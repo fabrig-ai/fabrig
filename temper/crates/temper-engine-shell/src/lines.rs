@@ -173,6 +173,7 @@ fn restore_kind(kind: temper_engine_service::RestoreRangeKind) -> &'static str {
         Kind::EscalationDecision => "escalation decision",
         Kind::Census => "census",
         Kind::Forge => "forge",
+        Kind::History => "history",
     }
 }
 fn start_failure(failure: &jig_domain_core::start::Failure) -> String {

@@ -1,6 +1,6 @@
 //! A goal's red families and their patch (protocol/store.md, 2).
 use super::{catch_up::patched, fixtures};
-use crate::{Undecodable, keys, records, v20, v22};
+use crate::{Undecodable, keys, records, v22};
 use skein_lib::{List, Writer};
 use temper_engine_domain_forge_vocabulary as d;
 
@@ -30,7 +30,7 @@ fn red_families_have_golden_keys_and_record_bytes() {
         let stored = d::Stored::Red(d::Red { by, ..red.clone() });
         // Literal field framing, independent of the generated codec.
         let mut golden = Writer::new(83);
-        golden.put(&[0, 22, 39]).unwrap();
+        golden.put(&[0, 22, 44]).unwrap();
         golden.put(&7_u64.to_be_bytes()).unwrap();
         golden.put(b"\0\0\0\x0btest a::t x").unwrap();
         golden.put(b"\0\0\0\x14").unwrap();
@@ -51,7 +51,7 @@ fn red_families_have_golden_keys_and_record_bytes() {
     let key = keys::encode(&d::stored_key(&number), u32::MAX).unwrap();
     assert_eq!(key.as_ref(), &[45]);
     assert_eq!(keys::decode(&key, &fixtures::LIMITS), Some(d::Key::RedNumber));
-    let golden = b"\0\x16\x28\xff\xff\xff\xff\xff\xff\xff\xff";
+    let golden = b"\0\x16\x2d\xff\xff\xff\xff\xff\xff\xff\xff";
     assert_eq!(records::encode(&number).as_ref(), golden);
     assert_eq!(records::row(&key, golden, &bounds), Ok(number));
 }
@@ -115,19 +115,8 @@ fn red_decoding_checks_key_why_head_and_configured_byte_bounds() {
 }
 #[test]
 fn the_red_patch_keeps_old_rows_without_making_a_red_or_counter() {
-    let old = v20::Row::new(
-        &v20::CEILINGS,
-        v20::RowParts {
-            value: v20::Value::ForgeNumber(
-                v20::ForgeNumber::new(&v20::CEILINGS, v20::ForgeNumberParts { last: 3 }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
-    let mut bytes = Writer::new(usize::try_from(old.measure()).unwrap());
-    old.encode(&mut bytes).unwrap();
-    let bytes = patched(20, 9, b"Row", bytes.finish());
-    let bytes = patched(21, 10, b"Row", bytes);
+    // A v21 ForgeNumber row: version, Value tag, then the last forge's u16.
+    let bytes = patched(21, 10, b"Row", b"\0\x15\x16\0\x03".as_slice().into());
     assert_eq!(bytes.as_ref(), b"\0\x16\x16\0\x03");
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(&bytes, &bounds), Ok(d::Stored::ForgeNumber { last: 3 }));
@@ -211,26 +200,18 @@ fn named_red_answers_have_golden_bytes_and_charge_every_snapshot() {
 }
 #[test]
 fn the_red_reply_patch_preserves_old_named_calls_without_making_reds() {
-    use crate::v21 as old;
     assert_eq!(crate::STORE_VERSION, 22);
-    let call = old::Call::new(
-        &old::CEILINGS,
-        old::CallParts {
-            key: old::NamedCall::new(
-                &old::CEILINGS,
-                old::NamedCallParts { task: 7, attempt: 1, completion: 2, position: 3 },
-            )
-            .unwrap(),
-            answer: old::CallPayload::Follow(
-                old::CallFollow::new(&old::CEILINGS, old::CallFollowParts { follow: 4, refusal: None }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
-    let old = old::Row::new(&old::CEILINGS, old::RowParts { value: old::Value::Call(call) }).unwrap();
-    let mut bytes = Writer::new(usize::try_from(old.measure()).unwrap());
-    old.encode(&mut bytes).unwrap();
-    let before = bytes.finish();
+    // A v21 named follow reply, independent of the current generated records.
+    let before = skein_lib::bytes::concat(&[
+        b"\0\x15\0".as_slice(),
+        &7_u64.to_be_bytes(),
+        &1_u64.to_be_bytes(),
+        &2_u32.to_be_bytes(),
+        &3_u32.to_be_bytes(),
+        b"\x05",
+        &4_u32.to_be_bytes(),
+        b"\0",
+    ]);
     let after = patched(21, 10, b"Row", before.clone());
     assert_eq!(after.get(..2).unwrap(), b"\0\x16");
     assert_eq!(after.get(2..).unwrap(), before.get(2..).unwrap());

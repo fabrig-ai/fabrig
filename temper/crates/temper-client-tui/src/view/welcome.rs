@@ -16,7 +16,7 @@ use temper_client_domain::{
     forge::{self, forges},
     pages::welcome,
 };
-use temper_client_view::words::Word as Shared;
+use temper_client_view_words::words::Word as Shared;
 
 #[derive(Debug)]
 pub(crate) struct Welcome {
@@ -134,7 +134,7 @@ fn forge_underway(root: &Domain, words: &Words) -> Option<Box<[u8]>> {
     None
 }
 fn model_detail(root: &Domain, words: &Words) -> Option<Box<[u8]>> {
-    let (account, program) = temper_client_view::shared::model_account(root, words.view())?;
+    let (account, program) = temper_client_view_parts::shared::model_account(root, words.view())?;
     Some(if program {
         skein_lib::bytes::concat(&[&account, &words.say(Word::ThroughClaudeCode, &[])])
     } else {

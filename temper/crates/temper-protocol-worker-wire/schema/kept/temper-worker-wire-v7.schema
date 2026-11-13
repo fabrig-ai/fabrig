@@ -21,7 +21,7 @@ record JobSpec { command: bytes 4096 request: bytes 1048576 }
 # Lists of repositories take Bounds.repositories; Files Bounds.conflicts
 # paths of Bounds.path_bytes; the diagnostic its ceiling, the domain's
 # PushDiagnostic::CAPACITY.
-record Landed { tag: u64 commit: fixed 32 }
+record Landed { tag: u64 commit: fixed 32 checked: bool }
 record Left { landed: list 64 Landed }
 record Files { files: list 1024 bytes 4096 }
 enum PushReason { missing_repository, missing_branch, missing_commit, refused, unreachable, broken, timed_out, cancelled, unavailable, busy, too_large, nothing, unknown }
@@ -42,10 +42,3 @@ record Entry { account: u64 account_login: text 256 token: secret 4096 }
 record Entries { entries: list 256 Entry }
 enum Kind { forgejo: Token, github: Entries }
 record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }
-
-# A run's goal-local reds (domain/forge/reds.md, 5.4). Head lengths are checked
-# by the application's translation: SHA-1 or SHA-256.
-enum Ask { reds }
-record Red { key: bytes 512 head: bytes 32 }
-record Reds { reds: list 256 Red }
-enum Answer { reds: Reds }

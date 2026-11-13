@@ -11,12 +11,10 @@ use alloc::boxed::Box;
 
 #[rustfmt::skip]
 mod generated {
-    /// Archived version-four codec, without the host tools' contract.
-    pub mod v4;
     pub mod v5;
 }
 
-pub use generated::{v4, v5};
+pub use generated::v5;
 
 pub use v5::{
     Budget, BudgetParts, CEILINGS, ChangeRule, ChangeRuleParts, Charter, CharterParts, Contract, ContractParts,

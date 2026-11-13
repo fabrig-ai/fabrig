@@ -44,6 +44,7 @@ pub enum RecordKind {
     LandedDraft,
     Red,
     RedNumber,
+    HistoryProject,
 }
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum Need {

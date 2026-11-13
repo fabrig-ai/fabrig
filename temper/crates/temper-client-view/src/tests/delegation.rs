@@ -6,33 +6,18 @@ use skein_lib::{Env, List, Queue, Time, Wall};
 use skein_ui::Role;
 use temper_client_domain::ChatsFilter;
 use temper_client_domain::{Address, Domain, Event, Request};
-const CHANGE: u64 = 2;
+
+pub(super) use super::fixtures::delegation::{CHANGE, TITLE, change, document, text};
+
 const CHAT: u64 = 1;
 const EXCHANGES: u32 = 64;
 const STEPS: u32 = 4;
-const TITLE: &[u8] = b"Export widget's table as CSV";
+
 const MERGE: &[u8] = b"1a2b3c4abcdef0123456789abcdef0123456789abcd";
 const WAKE_SUMMARY: &[u8] =
     b"Begin the work your brief describes.\n\n2: Result from task 2:\n1d0b14e4db018fed000000000000000300000000";
 const LATER: &[u8] = b"The change is running.";
-fn text(bytes: &[u8]) -> c::Text {
-    c::Text::new(Box::from(bytes), 256).expect("fixture text")
-}
-fn document(bytes: &[u8]) -> c::DocumentText {
-    c::DocumentText::complete(text(bytes))
-}
-pub(super) fn change() -> c::Task {
-    let mut task = fixtures::task::document();
-    task.chip.task = CHANGE;
-    task.chip.title = document(TITLE);
-    task.chip.phase = c::Phase::Running;
-    task.hold = None;
-    task.result = None;
-    task.result_contract = c::TaskContractDocument::Change { connector: fixtures::FORGE, kind: 1, words: 256 };
-    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
-    details.ending = None;
-    task
-}
+
 fn landed() -> c::Task {
     let mut task = change();
     task.requester = c::Requester::Task(CHAT);

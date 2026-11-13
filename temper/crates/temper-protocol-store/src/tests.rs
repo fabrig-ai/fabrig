@@ -16,4 +16,5 @@ mod catch_up;
 
 mod batches;
 
+mod history;
 mod reds;

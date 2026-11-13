@@ -1058,7 +1058,10 @@ fn world_in_layout(
                                 views::answer(&mut root, read, view.address(), &mut out);
                             }
                         }
-                        v1::Read::Finding(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Finding(_)
+                        | v1::Read::History(_)
+                        | v1::Read::RevisionSetting(_)
+                        | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }

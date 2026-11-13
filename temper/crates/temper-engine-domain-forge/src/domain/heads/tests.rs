@@ -107,7 +107,7 @@ fn full_table_push_report_frees_writer_and_pins_delegate_head_on_replay() {
             &mut Queue::uncapped(),
         );
         let mut out = Queue::uncapped();
-        answered(&mut d, &env, DELEGATE, 1, &[(name(BRANCH), TIP)], &mut out);
+        answered(&mut d, &env, DELEGATE, 1, &[(name(BRANCH), TIP, true)], &mut out);
         refused(&out, Some(TASK), BRANCH);
         assert_eq!(d.branch_head(&name(BRANCH)), None);
         let saved = d.hold(&name(BRANCH)).unwrap();
@@ -145,6 +145,7 @@ fn released_moved_branch_clears_drift_and_tells_client_at_capacity() {
     });
     let mut row = change();
     row.drift = Some(change::Hold::BranchMoved);
+    d.changes.insert(row.task, row.clone()).unwrap();
     let mut out = Queue::uncapped();
     accept_released_branch(&mut d, &env, &mut row, TIP, &mut out);
     refused(&out, Some(TASK), BRANCH);
@@ -217,7 +218,7 @@ fn stale_full_table_push_report_erases_old_heads_and_saves_the_new_head() {
     watch(&mut d, &env);
     hold(&mut d, Some(Writer::Run { task: DELEGATE, attempt: 1 }));
     let mut out = Queue::uncapped();
-    answered(&mut d, &env, DELEGATE, 1, &[(name(BRANCH), TIP)], &mut out);
+    answered(&mut d, &env, DELEGATE, 1, &[(name(BRANCH), TIP, true)], &mut out);
     assert_eq!(d.heads.len(), 1);
     assert_eq!(d.branch_head(&name(BRANCH)), Some(TIP));
     for branch in [b"main".as_slice(), b"temper/1/c1"] {

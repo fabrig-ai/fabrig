@@ -197,7 +197,8 @@ forge, temper adds:
   `client/web/journeys.md` its pages recorded and printed,
   `client/web/look-requests.md` the look requests' round trip,
   `client/box-binary.md` how `temper box` finds or downloads
-  `temper-box`,
+  `temper-box`, `client/view-crates.md` the view's crates and how it
+  was cut into them,
   `client/drive.md` QA's session driving the browser, the TUI and ctl a
   line at a time from a given build, `client/recipe.md` the recipes it
   walks to the states QA's cases start from,
@@ -227,6 +228,10 @@ forge, temper adds:
   its identity and floors, what the machine must have, how a release
   is made, Apple Silicon's file for the site, and its walk on a fresh
   machine.
+- **`redeploy.md`:** a deployment taking a new build while its work
+  goes on: the deployment's description, the build staged, the engine
+  alone by default, workers in turn, every part together, the record and
+  the referee, in `temper-redeploy`.
 - **`draft/`:** the drafts, the vision this design is written from
   (the repository's `AGENTS.md`, section 6).
 - **Status files:** beside each document, `<name>.status.md`, where

@@ -593,6 +593,7 @@ pub enum Range {
     /// than an owner row's key (jig's protocol/store/loads.md, 2).
     Census(jig_domain_core::Census),
     Forge,
+    History(temper_engine_domain_forge::HistoryRange),
 }
 
 impl Range {
@@ -604,10 +605,16 @@ impl Range {
         let core = match key {
             Key::Wires | Key::Opening(_) => return false,
             Key::Core(core) => core,
-            Key::Forge(_) => return *self == Range::Forge,
+            Key::Forge(key) => {
+                return match self {
+                    Range::Forge => *key < temper_engine_domain_forge::Key::HistoryEvent { project: 0, number: 0 },
+                    Range::History(range) => range.contains(key),
+                    Range::Core(_) | Range::Census(_) => false,
+                };
+            }
         };
         match self {
-            Range::Forge => false,
+            Range::Forge | Range::History(_) => false,
             // The store joins result indexes to ended owners, then returns
             // each unanswered question's exact activity row.
             Range::Census(census) => match core {

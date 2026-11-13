@@ -90,7 +90,8 @@ pub fn work(work: &temper_worker_domain::wire::Work) -> (v1::Left, Option<v1::Sa
     for head in &work.landed {
         landed
             .push(
-                v1::Landed::new(limits, v1::LandedParts { tag: head.tag, commit: head.commit }).expect("fixed fields"),
+                v1::Landed::new(limits, v1::LandedParts { tag: head.tag, commit: head.commit, checked: head.checked })
+                    .expect("fixed fields"),
             )
             .expect("one head per repository");
     }

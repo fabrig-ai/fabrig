@@ -18,6 +18,7 @@ mod reds;
 pub(crate) use api::encode_error;
 mod entries;
 mod forges;
+mod history;
 mod issues;
 mod landing;
 mod landing_log;
@@ -34,6 +35,12 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::HistoryProject(row) => w::Value::HistoryProject(history::encode_project(row)),
+        d::Stored::HistoryEvent(row) => w::Value::HistoryEvent(history::encode_event(row)),
+        d::Stored::HistoryChange(row) => w::Value::HistoryChange(history::encode_change_index(row)),
+        d::Stored::HistoryLanding(row) => w::Value::HistoryLanding(history::encode_landing_index(row)),
+        d::Stored::HistoryLast(row) => w::Value::HistoryLast(history::encode_last(row)),
+
         d::Stored::Follow(row) => w::Value::Follow(Box::new(follows::encode(row))),
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
@@ -124,6 +131,12 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     Ok(match row.into_parts().value {
         w::Value::Red(row) => d::Stored::Red(reds::decode(row, bounds)?),
         w::Value::RedNumber(row) => d::Stored::RedNumber { last: row.last() },
+        w::Value::HistoryProject(row) => d::Stored::HistoryProject(history::decode_project(row)),
+        w::Value::HistoryEvent(row) => d::Stored::HistoryEvent(history::decode_event(row)),
+        w::Value::HistoryChange(row) => d::Stored::HistoryChange(history::decode_change_index(row)),
+        w::Value::HistoryLanding(row) => d::Stored::HistoryLanding(history::decode_landing_index(row)),
+        w::Value::HistoryLast(row) => d::Stored::HistoryLast(history::decode_last(row)),
+
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
@@ -357,6 +370,8 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_verification_tier: 32,
         failed_tests_tests: forge.tiers.failing_tests,
         failing_test_test_id: forge.tiers.test_id_bytes,
+        history_formed_members: forge.landing_members,
+        history_proved_proofs: forge.gates,
         ..w::CEILINGS
     })
 }

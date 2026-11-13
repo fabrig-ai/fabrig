@@ -176,6 +176,7 @@ host would be another.
 | `smith-protocol-translate` | component | the translations between the channel's, the charter's and the transcript's records and the domains' values, shared by both halves and the local host's store (channel.md, charter.md, transcript.md) |
 | `smith-host-protocol` | component | the host's half: skein's channel and smith's codecs on the streams it is given, translated to and from `smith-host-domain` (host.md) |
 | `smith-local-protocol` | protocol layer | the local host's: the terminal, transcripts in files, signing in and committing in place (host.md) |
+| `smith-local-protocol-codec` | codecs | the local store's generated record code, below `smith-local-protocol`, which keeps its schema, layouts and golden bytes and translates it (`tools/crates/design.md`, 3.2) |
 | `smith-inline-agent` | domain | an agent capability in its host's process: one composed `smith-domain` per run, speaking `smith-host-domain`'s vocabulary (domain/host.md, section 9) |
 | `smith-agent-service`, `smith-local-service` | service | the agent process's and the product's `iterate`; each holds its profiles as step code, the `standard` profile among them, derives its limits and checks them (limits.md), and owns its event sink (events.md) |
 | `smith-agent-shell` | shell | the agent process, as a library: its configuration, its startup, and the one adapter that its binary and the worlds both run (agent.md) |

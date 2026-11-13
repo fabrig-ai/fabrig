@@ -9,7 +9,7 @@ use skein_lib::{List, Queue, Token, Wall, bytes::copy_of};
 use skein_ui::phrases::Hole;
 use skein_ui::{Act, Binding, Builder, EntryKind, NodeId, Patch, Role, Run, State, Style, Tree};
 use temper_client_domain::{Address, Domain, asked, pages::chat::document::Mode};
-use temper_client_view::words::{TimeForm, Word as Shared};
+use temper_client_view_words::words::{TimeForm, Word as Shared};
 
 pub(crate) mod chat;
 pub(crate) mod foot;
@@ -532,7 +532,7 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
             Command::Goal => goal_offered(root),
             Command::Font | Command::Theme => false,
         };
-        if screen && temper_client_view::shared::offered(root, task, command) {
+        if screen && temper_client_view_parts::shared::offered(root, task, command) {
             commands.push(command).expect("at most Command::ALL commands");
         }
     }
@@ -544,7 +544,7 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
 pub fn goal_offered(root: &Domain) -> bool {
     use temper_client_domain::pages::{chat::document, terminal::Command};
     let Some(chat) = root.pages().chat() else { return false };
-    if !temper_client_view::shared::offered(root, chat.task(root.client()), Command::Goal) {
+    if !temper_client_view_parts::shared::offered(root, chat.task(root.client()), Command::Goal) {
         return false;
     }
     let Some(draft) = &chat.draft else { return false };
@@ -646,7 +646,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
         // Only the brief is read here; its availability does not depend on the clock.
         let brief = temper_client_domain::pages::home::facts(root, project, Wall::from_nanos(0)).brief().is_some();
         let no_list = root.pages().listing().is_none()
-            && temper_client_view::shared::confirmation(root).is_none()
+            && temper_client_view_parts::shared::confirmation(root).is_none()
             && !tui.quitting();
         for command in Own::ALL {
             let offered = match command {

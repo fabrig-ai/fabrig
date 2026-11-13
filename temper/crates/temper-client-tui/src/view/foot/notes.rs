@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Writer};
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::{Domain, pages::terminal::Note};
-use temper_client_view::shared;
+use temper_client_view_parts::shared;
 
 #[derive(Debug)]
 pub(crate) struct Notes {

@@ -86,6 +86,7 @@ pub(crate) fn worker_event(peers: &mut Peers, up: workers::Up) -> engine::Event 
                 pushed = Box::new([forge::Pushed {
                     tag: forge::tag(temper_engine_forge_world::REPO.forge, temper_engine_forge_world::REPO.repository),
                     commit: *commit,
+                    checked: true,
                 }]);
             }
             if matches!(end, tasks::End::Finished { .. })
@@ -107,6 +108,7 @@ pub(crate) fn worker_event(peers: &mut Peers, up: workers::Up) -> engine::Event 
                 pushed = Box::new([forge::Pushed {
                     tag: forge::tag(temper_engine_forge_world::REPO.forge, temper_engine_forge_world::REPO.repository),
                     commit: *commit,
+                    checked: true,
                 }]);
             }
             let parts = engine::Parts { saved: None, pushed, preparation: None };

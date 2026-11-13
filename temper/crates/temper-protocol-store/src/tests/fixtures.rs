@@ -66,6 +66,8 @@ pub const LIMITS: top::Limits = top::Limits {
     tiers: temper_engine_domain_forge_vocabulary::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    history_days: 14,
+    history_events: 131_072,
     findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
@@ -178,7 +180,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(37) {
+    match random.below(42) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -229,6 +231,26 @@ pub fn key(random: &mut Rng) -> top::Key {
         35 => top::Key::Finding {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+        },
+        37 => top::Key::HistoryProject { project: u32::try_from(number & u64::from(u32::MAX)).unwrap() },
+        38 => top::Key::HistoryEvent {
+            project: u32::try_from(number & u64::from(u32::MAX)).unwrap(),
+            number: random.next_u64(),
+        },
+        39 => top::Key::HistoryChange {
+            project: u32::try_from(number & u64::from(u32::MAX)).unwrap(),
+            change: number,
+            number: random.next_u64(),
+        },
+        40 => top::Key::HistoryLanding {
+            project: u32::try_from(number & u64::from(u32::MAX)).unwrap(),
+            landing: number,
+            number: random.next_u64(),
+        },
+        41 => top::Key::HistoryLast {
+            project: u32::try_from(number & u64::from(u32::MAX)).unwrap(),
+            number,
+            change: random.next_u64(),
         },
         36 => top::Key::Follow {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
@@ -858,6 +880,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,
     };
     top::ChangeRow {
+        job: None,
         signed: Box::new([]),
         task: 1,
         repository: REPO,
@@ -922,6 +945,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }

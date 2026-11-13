@@ -69,7 +69,7 @@ pub(crate) struct Items {
     tags: Box<[u64]>,
     branches: Box<[Option<Box<[u8]>>]>,
     from_saved: Box<[bool]>,
-    landed: Map<u64, [u8; 32]>,
+    landed: Map<u64, ([u8; 32], bool)>,
     saved: Option<Box<[wire::SavedRepository]>>,
     delivery: Option<agent::Delivery>,
     preparation: Option<wire::Preparation>,
@@ -230,8 +230,10 @@ fn work_parts(
         if let Some(left) = work.left {
             let items = domain.items.get(&left).expect("a run's items live to its answer");
             landed = List::with_capacity(items.landed.len());
-            for (tag, commit) in &items.landed {
-                landed.push(wire::Landed { tag: *tag, commit: *commit }).expect("room for each landed item");
+            for (tag, (commit, checked)) in &items.landed {
+                landed
+                    .push(wire::Landed { tag: *tag, commit: *commit, checked: *checked })
+                    .expect("room for each landed item");
             }
         }
         if let Some(at) = work.saved {
@@ -514,6 +516,11 @@ pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outco
     let record = domain.workspaces.get_mut(id).expect("a workspace lives until it is released");
     let repositories = record.repositories;
     let items = record.items;
+    if push && let checkout::Outcome::Pushed { landings } = &outcome {
+        let unchecked = record_unchecked(&record.state);
+        let next = domain.items.get_mut(&items).expect("workspace items live until the answer");
+        record_landings(next, landings, unchecked);
+    }
     let next = domain.items.get(&items).expect("workspace items live until the answer");
     let feedback = match &outcome {
         checkout::Outcome::Pushed { landings } => {
@@ -542,6 +549,31 @@ pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outco
     follow(domain, env, id, then);
 }
 
+/// Keep the last landing's provenance with its commit (protocol/channel.md, 5).
+fn record_landings(next: &mut Items, landings: &[checkout::Landing], unchecked: bool) {
+    for (index, landing) in landings.iter().enumerate() {
+        let (commit, checked) = match landing {
+            checkout::Landing::Landed { commit } | checkout::Landing::DesignMerged { commit, .. } => {
+                (commit, !unchecked)
+            }
+            checkout::Landing::Prefixes { commit, .. } => (commit, true),
+            checkout::Landing::Moved
+            | checkout::Landing::Unchanged
+            | checkout::Landing::Conflicted { .. }
+            | checkout::Landing::DesignConflict { .. }
+            | checkout::Landing::DesignCode { .. }
+            | checkout::Landing::Explained { .. }
+            | checkout::Landing::Failed
+            | checkout::Landing::Refused
+            | checkout::Landing::DesignMoving
+            | checkout::Landing::DesignUnchecked
+            | checkout::Landing::Aborted => continue,
+        };
+        let tag = *next.tags.get(index).expect("every item has a tag");
+        next.landed.insert(tag, (commit.raw(), checked)).expect("room for every item");
+    }
+}
+
 fn record_unchecked(state: &State) -> bool {
     match state {
         State::Ready { asked: Some(writing), .. } => writing.unchecked,
@@ -559,12 +591,10 @@ fn record_written(
 ) -> Written {
     if push {
         let mut changed = false;
-        for (index, landing) in landings.iter().enumerate() {
+        for landing in &landings {
             match landing {
-                wire::Landing::Landed { commit } => {
+                wire::Landing::Landed { .. } => {
                     changed = true;
-                    let tag = *next.tags.get(index).expect("every item has a tag");
-                    next.landed.insert(tag, *commit).expect("room for every item");
                 }
                 wire::Landing::Conflicted { .. }
                 | wire::Landing::Explained { .. }
@@ -809,6 +839,41 @@ mod tests {
     use crate::tests::fixtures;
 
     #[test]
+    fn the_last_landing_keeps_its_check_status_per_repository() {
+        let limits = fixtures::limits();
+        let mut domain = Domain::new(&limits, Box::new([]));
+        let mut items = fixtures::items(&[b"playground", b"work"]);
+        for repository in &mut items.repositories {
+            repository.access =
+                wire::Access::Writable { push: Box::from(b"topic".as_slice()), expected: None, landing: None };
+        }
+        let assignment = stage(&mut domain, fixtures::assignment(true, Box::new([])), items).expect("room");
+        let workspace = assignment.assignment.workspace.expect("workspace");
+        let commit = checkout::git::Commit::new([7; 32]);
+        for (write, landing, expected) in [
+            (Write::Push { title: Box::new([]), body: Box::new([]) }, checkout::Landing::Landed { commit }, true),
+            (Write::Unchecked, checkout::Landing::Landed { commit }, false),
+            (Write::Push { title: Box::new([]), body: Box::new([]) }, checkout::Landing::Landed { commit }, true),
+            (Write::Unchecked, checkout::Landing::Prefixes { commit, branch: Box::from(b"prefix".as_slice()) }, true),
+            (
+                Write::Push { title: Box::new([]), body: Box::new([]) },
+                checkout::Landing::DesignMerged { commit, tip: commit },
+                true,
+            ),
+        ] {
+            let mut then = Then::NOTHING;
+            let state = asked(Token::new(1), Token::new(2), Token::new(3), write, &mut then);
+            let next = domain.items.get_mut(&workspace.items).expect("items");
+            record_landings(next, &[landing, checkout::Landing::Landed { commit }], record_unchecked(&state));
+            // An unchanged repository retains the previous commit's provenance.
+            record_landings(next, &[checkout::Landing::Unchanged], false);
+            let (work, _) = work_parts(&domain, Some(&host::Work { left: Some(workspace.items), saved: None }), None);
+            assert_eq!(work.landed.first().expect("first repository").checked, expected);
+            assert_eq!(work.landed.first().expect("first repository").commit, commit.raw());
+        }
+    }
+
+    #[test]
     fn a_workspace_keeps_two_forges_repositories_with_one_id() {
         let limits = fixtures::limits();
         let mut domain = Domain::new(&limits, Box::new([]));
@@ -824,6 +889,16 @@ mod tests {
         let commits = [[2; 32], [4; 32]];
         for push in [true, false] {
             let next = domain.items.get_mut(&workspace.items).expect("retained workspace");
+            if push {
+                record_landings(
+                    next,
+                    &[
+                        checkout::Landing::Landed { commit: checkout::git::Commit::new(commits[0]) },
+                        checkout::Landing::Landed { commit: checkout::git::Commit::new(commits[1]) },
+                    ],
+                    false,
+                );
+            }
             let written = record_written(
                 next,
                 workspace.items,
@@ -863,7 +938,10 @@ mod tests {
         assert_eq!(preparation, None);
         assert_eq!(
             work.landed.as_ref(),
-            &[wire::Landed { tag: tags[0], commit: commits[0] }, wire::Landed { tag: tags[1], commit: commits[1] }]
+            &[
+                wire::Landed { tag: tags[0], commit: commits[0], checked: true },
+                wire::Landed { tag: tags[1], commit: commits[1], checked: true }
+            ]
         );
         let saved = work.saved.expect("both repositories saved");
         assert_eq!(saved.len(), 2);

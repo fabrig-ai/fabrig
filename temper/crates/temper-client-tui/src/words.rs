@@ -850,11 +850,11 @@ impl Word {
 pub struct Words {
     book: Phrasebook,
     notice_bytes: u32,
-    view: temper_client_view::words::Words,
+    view: temper_client_view_words::words::Words,
 }
 impl Words {
     /// The TUI's English phrases under its owner, with domain-bounded holes.
-    pub fn english(view: temper_client_view::words::Words, domain: &Limits) -> Result<Words, Invalid> {
+    pub fn english(view: temper_client_view_words::words::Words, domain: &Limits) -> Result<Words, Invalid> {
         let count = u32::try_from(ALL.len()).expect("the word count fits");
         let mut shapes = List::with_capacity(count);
         let mut phrases = List::with_capacity(count);
@@ -952,7 +952,7 @@ impl Words {
                     line = skein_lib::bytes::concat(&[
                         &line,
                         &self.say(Word::Separator, &[]),
-                        &self.view.say(temper_client_view::words::Word::TeamCount, &[Hole::Number(*cost)]),
+                        &self.view.say(temper_client_view_words::words::Word::TeamCount, &[Hole::Number(*cost)]),
                     ]);
                 }
                 skein_lib::bytes::concat(&[&line, &self.say(Word::LeftNow, &[])])
@@ -991,7 +991,7 @@ impl Words {
         self.book.say(0, word.id(), holes).expect("checked TUI phrase and bounded holes").text
     }
     #[must_use]
-    pub const fn view(&self) -> &temper_client_view::words::Words {
+    pub const fn view(&self) -> &temper_client_view_words::words::Words {
         &self.view
     }
 }

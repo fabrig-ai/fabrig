@@ -230,6 +230,8 @@ pub const NAMES: &[&str] = &[
     "forge.decided_per_project",
     "forge.branch_reds",
     "forge.red_key_bytes",
+    "forge.history_days",
+    "forge.history_events",
     "forge.findings_per_project",
     "forge.judge_projects",
     "forge.judge_criteria",

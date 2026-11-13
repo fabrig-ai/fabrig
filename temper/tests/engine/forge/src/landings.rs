@@ -35,13 +35,16 @@ pub fn turn_in(mut world: World) -> World {
 #[must_use]
 pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
     top::LandingRow {
+        job: None,
         landing: landing::Landing {
+            last_left: None,
             round: landing::Round::new(format!("temper/1/l{LANDING}").into_bytes().into_boxed_slice()),
 
             task: LANDING,
             project: PROJECT,
             phase: landing::Phase::Waiting,
             members: Box::new([landing::Member {
+                round: None,
                 unit: 0,
                 branch: Box::from(b"temper/1/l61".as_slice()),
                 combined: None,
@@ -92,6 +95,7 @@ pub fn step_landing_raw(world: &mut World, task: u64, entry: u64) -> landing::De
         task,
         entry,
         top::LandingHeard {
+            job: None,
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),

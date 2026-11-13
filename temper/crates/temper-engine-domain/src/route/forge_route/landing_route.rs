@@ -130,6 +130,7 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
         }
     }
     Some(landing::Member {
+        round: None,
         unit: 0,
         branch: Box::new([]),
         combined: None,
@@ -264,7 +265,9 @@ fn create_landing(
     }
     domain.work.push(Work::Forge(forge::Event::Landing {
         row: forge::LandingRow {
+            job: None,
             landing: landing::Landing {
+                last_left: None,
                 round: landing::Round::new(own_branch.clone()),
 
                 task: number,
@@ -326,6 +329,7 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
         task,
         entry,
         heard: forge::LandingHeard {
+            job: None,
             outcomes: prepare_outcomes(context, env.limits.forge.landing_members),
             dependencies: graph,
             held: held.into_boxed(),

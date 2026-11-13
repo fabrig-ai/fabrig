@@ -87,6 +87,71 @@ fn the_restart_asks_one_load_at_a_time() {
     assert_eq!(service.engine.as_ref().expect("engine").store.host.above.len(), 1, "one next store operation");
     fixtures::restart(&mut service);
 }
+#[test]
+fn a_silent_release_retries_a_held_completion_before_the_root_is_quiescent() {
+    let mut service = fixtures::started();
+    for _ in 0..STARTUP_PASSES {
+        fixtures::turn(&mut service);
+        if store_answered(&service) {
+            break;
+        }
+    }
+    let engine = service.engine.as_mut().expect("engine");
+    let page = engine.store.host.above.pop().expect("startup load answered");
+    let jig_protocol_store::Event::Page { .. } = &page else { panic!("startup load: {page:?}") };
+    assert!(!engine.domain.ready());
+    assert!(!engine.domain.quiescent(), "startup still awaits its page");
+    assert!(engine.requests.is_empty());
+    // The ordering continuation has drained, but its earlier refusal still
+    // holds the account completion. No request or quiescent root clears it.
+    engine.pending = Some(Box::new(root::Event::Account(jig_domain_accounts::Event::Component(
+        jig_domain_accounts::FromComponent::Granted {
+            account: 0,
+            generation: 1,
+            valid: Duration::from_nanos(u64::MAX),
+            form: jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key),
+        },
+    ))));
+    engine.blocked = true;
+    engine.ready = true;
+    crate::engine::release(engine);
+    assert!(engine.pending.is_none(), "the held completion is retried without waiting for store IO");
+    assert!(!engine.blocked);
+    assert!(!engine.domain.quiescent(), "admission did not need the startup load to finish");
+    engine.store.host.above.push(page);
+    fixtures::restart(&mut service);
+}
+
+#[test]
+fn a_silent_release_parks_an_input_that_is_still_refused() {
+    let mut service = fixtures::ready();
+    let engine = service.engine.as_mut().expect("engine");
+    for number in 2..=u64::from(engine.env.limits.watermark) + 2 {
+        if root::try_step(&mut engine.domain, &engine.env, fixtures::period(number)).is_err() {
+            break;
+        }
+    }
+    engine.step(fixtures::period(999));
+    assert!(engine.blocked && engine.pending.is_some());
+    let mut issued = skein_lib::Queue::uncapped();
+    for _ in 0..STARTUP_PASSES {
+        let before = issued.len();
+        root::release(&mut engine.domain, &engine.env, &mut issued);
+        if issued.len() == before {
+            break;
+        }
+    }
+    assert!(!issued.is_empty(), "commits are issued but not yet answered");
+    assert!(engine.domain.backlog() >= u64::from(engine.env.limits.watermark));
+    engine.ready = true;
+    crate::engine::release(engine);
+    assert!(engine.blocked && engine.pending.is_some(), "a refusal retains its input");
+    assert!(!engine.ready, "a refused retry does not schedule another release");
+    let revision = engine.domain.revision();
+    crate::engine::release(engine);
+    assert_eq!(engine.domain.revision(), revision, "nothing retries again without progress");
+}
+
 /// Whether the store has answered the engine. The accounts' answers, as
 /// their handed-in record kept (jig's protocol/store/secrets.md), are taken on
 /// the next turn.

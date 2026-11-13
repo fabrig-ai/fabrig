@@ -22,10 +22,6 @@ struct Exception {
 
 const EXCEPTIONS: &[Exception] = &[
     Exception {
-        what: "temper-client-view",
-        until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",
-    },
-    Exception {
         what: "jig-domain-core",
         until: "Core's state grouped into owned parts (jig/docs/development/debt/D003-core-one-object.md), then a split along them",
     },

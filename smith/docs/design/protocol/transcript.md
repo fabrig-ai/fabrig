@@ -371,7 +371,7 @@ other.
     11).
 - **The words owed** (skein's `data/codec/README.md`, section 3): a turn's one field
   whose bytes are pieces says so, `hits: bytes 2097152 pieces Hit` in
-  `Found`, in place in `transcript-v6.schema`, version 6 unmoved; the
+  `Found`; the
   word moves the family's layout, no byte and no Rust. The local host
   records that layout in each chat's `format` (host.md, 5.3),
   so a local chat made before the word is refused as an older store,

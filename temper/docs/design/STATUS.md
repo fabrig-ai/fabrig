@@ -11,6 +11,14 @@ nothing, the workers' grace covers a start that patches, with the
 engine's grace above their stop bound, and `upgrade --check` names
 each worker that may stay by the opening the engine kept of it
 (`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
+`temper-redeploy` redeploys a deployment from a description its operator
+keeps: the build staged on every host, the engine's settled stop and the
+new build's check, then the engine alone when the workers may stay,
+workers in turn when asked, and every part together otherwise, each
+redeploy recorded and refereed: each worker's agreed versions, the window
+against the workers' grace, and no try spent or task held since but for
+a run's own failure (`redeploy.md`; R6, goal 2487). Its drills on the
+deployments follow landing, each a redeploy its operator starts.
 A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model
 call's failure names the call from structured fields alone
@@ -98,6 +106,17 @@ round of several units is narrowed by prefixes, the blamed unit
 repaired, the green prefix landed and the units above it carried to the
 next round (`domain/landing-search.md`). Its process stories and
 staging walks follow landing (`draft/merge-queue.status.md`).
+
+The landing history's milestone H1, goal 2474, keeps each change's and
+each landing's steps as events after their rows go
+(`domain/landing-history.md`): each written by the step that decides or
+observes it, under `queue` and `turn`, one change per event; kept in
+demand-loaded families the restart leaves out and the forge loads
+through the root; swept by change past `forge.history_days` or
+`forge.history_events`, idle projects and deleted ones included; and
+read by `temper ctl landing history`, and by `change show` of a change
+whose row went. Where the time went, `landing times`, is H2's
+(`draft/landing-history.status.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -286,6 +305,7 @@ Design documents:
 - [`client/tui/pages/sign-in.md`](client/tui/pages/sign-in.status.md)
 - [`client/tui/theme.md`](client/tui/theme.status.md)
 - [`client/view.md`](client/view.status.md)
+- [`client/view-crates.md`](client/view-crates.status.md)
 - [`client/web/README.md`](client/web/README.status.md)
 - [`client/web/gallery.md`](client/web/gallery.status.md)
 - [`client/web/journeys.md`](client/web/journeys.status.md)
@@ -320,6 +340,7 @@ Design documents:
 - [`domain/forge/reds.md`](domain/forge/reds.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
+- [`domain/landing-history.md`](domain/landing-history.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
@@ -361,6 +382,7 @@ Design documents:
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/tooling.md`](protocol/tooling.status.md)
 - [`protocol/wires.md`](protocol/wires.status.md)
+- [`redeploy.md`](redeploy.status.md)
 - [`release.md`](release.status.md)
 - [`testing/README.md`](testing/README.status.md)
 - [`testing/checks.md`](testing/checks.status.md)
@@ -412,6 +434,7 @@ Drafts:
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
+- [`draft/landing-history.md`](draft/landing-history.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
@@ -433,6 +456,7 @@ Drafts:
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
+- [`draft/store-shape.md`](draft/store-shape.status.md)
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)

@@ -1,0 +1,18 @@
+[package]
+name = "jig-test-store-codec"
+description = "The test application's generated store record codecs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+test = false
+
+[dependencies]
+skein-lib.workspace = true
+skein-codec.workspace = true
+
+[lints]
+workspace = true

@@ -653,12 +653,64 @@ pair = "default"
 package = "temper-client-tools"
 filter = "kind(lib)"
 
-# temper/crates/temper-client-view/src/tests.rs and its fixture helper modules; all unit callers.
+# Shared view fixtures are compiled once in the kit.
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-words"
+filter = "kind(lib)"
+
 [[fixture]]
-paths = ["temper/crates/temper-client-view/src/tests/fixtures/*.rs"]
+paths = ["temper/testing/temper-client-view-kit/src/*.rs"]
 [[fixture.reader]]
 pair = "default"
 package = "temper-client-view"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-parts"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-work"
+filter = "kind(lib)"
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-setup"
+filter = "kind(lib)"
+
+[[fixture]]
+paths = ["temper/crates/temper-client-view/src/tests/fixtures*.rs", "temper/crates/temper-client-view/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view"
+filter = "kind(lib)"
+
+[[fixture]]
+paths = ["temper/crates/temper-client-view-words/src/tests/fixtures*.rs", "temper/crates/temper-client-view-words/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-words"
+filter = "kind(lib)"
+
+[[fixture]]
+paths = ["temper/crates/temper-client-view-parts/src/tests/fixtures*.rs", "temper/crates/temper-client-view-parts/src/tests/fixtures/*.rs", "temper/crates/temper-client-view-parts/src/tests/release-card.txt"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-parts"
+filter = "kind(lib)"
+
+[[fixture]]
+paths = ["temper/crates/temper-client-view-work/src/tests/fixtures*.rs", "temper/crates/temper-client-view-work/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-work"
+filter = "kind(lib)"
+
+[[fixture]]
+paths = ["temper/crates/temper-client-view-setup/src/tests/fixtures*.rs", "temper/crates/temper-client-view-setup/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-setup"
 filter = "kind(lib)"
 
 # src/tests/brief.rs includes red-changes.log as RUNNER_LOG.

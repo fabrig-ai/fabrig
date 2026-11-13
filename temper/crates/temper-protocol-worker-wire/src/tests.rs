@@ -183,7 +183,7 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     assert!(one_more > 1_048_576);
     assert_eq!(
         sizes,
-        crate::Largest { items: 12792, left: 84, saved: 1084, resource: 41, grant: 233, ask: 1, answer: 109 }
+        crate::Largest { items: 12792, left: 86, saved: 1084, resource: 41, grant: 233, ask: 1, answer: 109 }
     );
 }
 

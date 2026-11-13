@@ -813,6 +813,7 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    History(forge::history::Query),
     Finding {
         project: u32,
         number: u32,
@@ -843,6 +844,7 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    History(forge::history::Reply),
     Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
@@ -1285,6 +1287,7 @@ pub(crate) enum EndedRead {
 
 #[derive(Hash, Debug)]
 pub(crate) enum Read {
+    History { load: u64, most: u32 },
     Escalation(escalation::Query),
     Proposal(proposals::Query),
     TaskProposal { to: ReplyTo, key: CallKey, proposal: u64 },

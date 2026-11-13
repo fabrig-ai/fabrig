@@ -208,6 +208,9 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
+    pub(crate) history_reads: crate::history::read::State,
+    pub(crate) history_sweep: crate::history::sweep::State,
+    pub(crate) history_projects: Map<u32, crate::history::Project>,
     pub(crate) devices: Option<Box<crate::devices::State>>,
     pub(crate) drafts: Option<Box<crate::drafts::State>>,
     pub(crate) aways: Map<(u64, u32), crate::Away>,
@@ -234,7 +237,7 @@ pub struct Domain {
     pub(crate) goal_files: Map<u64, topics::Files>,
     pub(crate) goal_file_reads: Map<Token, topics::Pending>,
     pub(crate) heads: Map<Name, BranchHead>,
-    pulls: Map<Name, PullState>,
+    pub(crate) pulls: Map<Name, PullState>,
     /// Each pull's last mergeable, unsaved: a restart reads it afresh.
     pull_mergeable: Map<Name, bool>,
     /// Last judged reviews per live change, unsaved: a restart reads them afresh.
@@ -841,6 +844,9 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
+            history_reads: crate::history::read::State::new(l.judge_projects),
+            history_sweep: crate::history::sweep::State::new(l.history_events),
+            history_projects: Map::with_capacity(l.judge_projects),
             devices: match config.push {
                 Some(push) => Some(Box::new(crate::devices::State::new(Some(push), l.devices()))),
                 None => None,
@@ -1022,7 +1028,7 @@ impl Domain {
         if self.stopping || self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        let mut next: Option<skein_lib::Wall> = None;
+        let mut next = crate::history::sweep::deadline(self);
         for deadlines in [&self.projection_due, &self.change_due, &self.landing.due, &self.tier_ops.due] {
             for (_, deadline) in deadlines {
                 next = Some(match next {
@@ -1231,7 +1237,7 @@ impl Domain {
         task: u64,
         attempt: u64,
         pushed: &[crate::Pushed],
-    ) -> Box<[(Name, skein_forge::api::Commit)]> {
+    ) -> Box<[(Name, skein_forge::api::Commit, bool)]> {
         let mut names = List::with_capacity(limits.resources_per_task);
         for (name, hold) in &self.holds {
             if hold.writer != Some(Writer::Run { task, attempt }) {
@@ -1239,7 +1245,9 @@ impl Domain {
             }
             for reported in pushed {
                 if untag(reported.tag) == Some((name.forge, name.repository)) {
-                    names.push((name.clone(), reported.commit)).expect("claimed writer destinations are bounded");
+                    names
+                        .push((name.clone(), reported.commit, reported.checked))
+                        .expect("claimed writer destinations are bounded");
                     break;
                 }
             }
@@ -1439,7 +1447,7 @@ impl Domain {
         let before = crate::panel::ready(row);
         row.priority = priority;
         let saved = row.clone();
-        save_queue_change(self, env, before, saved, out);
+        save_queue_panel(self, env, before, saved, out);
     }
 
     /// Live change procedures in one repository, bounded by the connector's change table.
@@ -1462,6 +1470,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::ReadHistory { read, query } => crate::history::read::begin(d, read, query, out),
+        Event::HistoryLoaded { load, rows, next } => crate::history::read::loaded(d, env, load, rows, next, out),
+        Event::HistoryUnloaded { load } => crate::history::read::unloaded(d, load, out),
         Event::Signed { task, signed } => {
             if let Some(row) = d.changes.get_mut(&task) {
                 row.signed = signed;
@@ -1485,10 +1496,26 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::ChangeEnding { task, ending } => {
             if let Some(row) = d.changes.get_mut(&task) {
+                let verified = row.ending.is_none()
+                    && ending == crate::Ending::Landed
+                    && crate::change_history::unfollowed(&row.change.state);
+                let fresh = row.ending.is_none() && !row.terminal();
                 let owned = row.change.owns_turn;
                 row.change.owns_turn = false;
                 row.ending = Some(ending);
-                let row = row.clone();
+                let mut row = row.clone();
+                if verified {
+                    let mut event = crate::change_history::step(
+                        d,
+                        &row,
+                        crate::history::What::After { verdict: crate::history::AfterVerdict::Verified },
+                    );
+                    event.head = landed_commit(&row.change.state);
+                    crate::change_history::write(d, env.wall, &mut row, event, out);
+                }
+                if fresh && let Some(ending) = crate::readiness::ending_kind(row.ending.as_ref().expect("ending set")) {
+                    crate::readiness::ending(d, env, &mut row, ending, out);
+                }
                 wake_after_turn(d, &row, owned);
                 save_change(d, out, row);
             }
@@ -1507,7 +1534,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
-        Event::VetoLanding { task, entry } => crate::landing::veto(d, task, entry, out),
+        Event::VetoLanding { task, entry } => crate::landing::veto(d, env, task, entry, out),
         Event::StepLanding { task, entry, heard } => crate::landing::step(d, env, task, entry, heard, out),
         Event::Settle => {
             d.stopping = true;
@@ -1895,9 +1922,25 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 row.queue_repairs = row.queue_repairs.saturating_add(1);
                 let saved = row.clone();
                 save_change(d, out, saved);
+                crate::readiness::repair_started(d, env, owner, out);
             }
         }
         Event::ProducedTitle { task, child, title, report } => produced_title(d, task, child, &title, report, out),
+        Event::JobHistory { task, job } => {
+            if job.outcome.is_some() {
+                let mut reading = None;
+                for (owner, pending) in &d.steps {
+                    if pending.task == task {
+                        reading = Some(*owner);
+                    }
+                }
+                if let Some(owner) = reading {
+                    d.steps.get_mut(&owner).expect("pending gather").woken = true;
+                }
+                crate::landing::job_woken(d, task);
+            }
+            crate::job_history::heard(d, env.wall, task, job, out);
+        }
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
@@ -2114,6 +2157,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    crate::history::sweep::fire(d, env.wall, out);
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     crate::follows::fire(d, env.now);
@@ -2227,7 +2271,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 settled_facts(d, env, entry, task, outcome, out);
                 crate::follow_check::outcome(d, entry, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
-                let retain = crate::landing::outcome(d, entry, outcome, out);
+                let retain = crate::landing::outcome(d, env, entry, outcome, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
                     skein_forge_client::Outcome::Held => {
@@ -2451,7 +2495,10 @@ fn outcome_facts(
                         let owned = row.change.owns_turn;
                         row.change.owns_turn = false;
                         row.change.state = change::State::Landed { merge: commit, since: env.wall };
-                        let saved = row.clone();
+                        let mut saved = row.clone();
+                        let mut event = crate::change_history::step(d, &saved, crate::history::What::Landed);
+                        event.head = Some(commit);
+                        crate::change_history::write(d, env.wall, &mut saved, event, out);
                         wake_after_turn(d, &saved, owned);
                         save_change(d, out, saved);
                     }
@@ -2873,14 +2920,14 @@ fn answered(
     env: &Env<Limits>,
     task: u64,
     attempt: u64,
-    pushed: &[(Name, skein_forge::api::Commit)],
+    pushed: &[(Name, skein_forge::api::Commit, bool)],
     out: &mut Queue<Request>,
 ) {
     read_designs(d, env, task, attempt, out);
     let mut freed = List::with_capacity(env.limits.holds);
     for (name, row) in &d.holds {
         let mut reported = false;
-        for (pushed_name, _) in pushed {
+        for (pushed_name, _, _) in pushed {
             if pushed_name == name {
                 reported = true;
             }
@@ -2897,7 +2944,7 @@ fn answered(
         let undrifted = row.drift.is_none();
         let holder = row.task;
         if let Some(resource) = to_client(name, &env.limits) {
-            for (pushed_name, commit) in pushed {
+            for (pushed_name, commit, checked) in pushed {
                 if pushed_name == name && undrifted {
                     let head = BranchHead { name: name.clone(), commit: *commit, owned: true };
                     let previous = d.branch_head(name);
@@ -2907,7 +2954,8 @@ fn answered(
                     if recorded {
                         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
                     }
-                    record_delegate_head(d, task, name, *commit, out);
+                    record_delegate_head(d, env, task, name, *commit, out);
+                    crate::change_history::delivered(d, env.wall, task, name, *commit, *checked, out);
                     child(
                         d,
                         env,
@@ -2926,6 +2974,7 @@ fn answered(
 /// without completing its delegation (temper/docs/design/domain/agent/README.md, 5).
 fn record_delegate_head(
     d: &mut Domain,
+    env: &Env<Limits>,
     task: u64,
     name: &Name,
     commit: skein_forge::api::Commit,
@@ -2946,7 +2995,12 @@ fn record_delegate_head(
             break;
         }
     }
-    if let Some(row) = pushed {
+    if let Some(mut row) = pushed {
+        if d.branch_head(name) != Some(commit) {
+            let mut event = crate::change_history::step(d, &row, crate::history::What::Pushed);
+            event.head = Some(commit);
+            crate::change_history::write(d, env.wall, &mut row, event, out);
+        }
         d.changes.insert(row.task, row.clone()).expect("reported head belongs to a retained change");
         save_change(d, out, row);
     }
@@ -3064,7 +3118,7 @@ fn lost_read(
             && row.drift.is_none()
             && let Some(commit) = superseded_head(&pending, result)
         {
-            record_delegate_head(d, pending.task, &pending.name, commit, out);
+            record_delegate_head(d, env, pending.task, &pending.name, commit, out);
         }
         return;
     }
@@ -3195,7 +3249,7 @@ fn lost_read(
         if recorded {
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
         }
-        record_delegate_head(d, pending.task, &pending.name, commit, out);
+        record_delegate_head(d, env, pending.task, &pending.name, commit, out);
         child(d, env, skein_forge_client::Event::Pushed { resource: resource.clone(), commit }, out);
     }
     let taken = branch_written(d, &pending.name, None);
@@ -3421,6 +3475,11 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
     }
     row.change.way = d.landing.way(d.repositories.get(&row.repository).expect("adopted").project);
     d.changes.insert(task, row.clone()).expect("change capacity checked");
+    if let Some(head) = row.change.last_head {
+        let mut event = crate::change_history::step(d, &row, crate::history::What::Pushed);
+        event.head = Some(head);
+        crate::change_history::write(d, env.wall, &mut row, event, out);
+    }
     save_queue_change(d, env, None, row, out);
 }
 
@@ -3454,6 +3513,9 @@ fn delegated(
         emit(out, Request::Refused { task });
         return;
     };
+    if row.delegate == Some((child, kind)) {
+        return;
+    }
     match kind {
         change::Delegate::Repair(why) => {
             row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
@@ -3479,7 +3541,9 @@ fn delegated(
     row.producer_failure = None;
     row.effect_account = None;
     row.delegate_status = change::Status::Unknown;
-    let saved = row.clone();
+    let mut saved = row.clone();
+    crate::change_history::delegated(d, env.wall, &mut saved, child, kind, out);
+    d.changes.insert(task, saved.clone()).expect("retained change");
     save_change(d, out, saved);
 }
 
@@ -3625,6 +3689,7 @@ fn delegate_wait(state: &change::State) -> bool {
 }
 
 #[expect(clippy::too_many_arguments, reason = "one child's terminal carries its status, failure standing and words")]
+#[expect(clippy::too_many_lines, reason = "one delegate result records its answer, ending and readiness together")]
 fn delegate_result(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -3642,9 +3707,14 @@ fn delegate_result(
     // Its terminal still releases the procedure's conflict wait.
     d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     let Some((expected, kind)) = row.delegate else { return };
-    if expected != child {
+    if expected != child
+        || (crate::change_history::asked(kind).is_some()
+            && (row.delegate_status == change::Status::Passed || row.delegate_status == change::Status::Failed))
+    {
         return;
     }
+    let fresh = row.ending.is_none() && !row.terminal();
+    let mut held_why = None;
     let owned = row.change.owns_turn;
     let mut ended = false;
     if let change::State::Held { was, why } = &row.change.state
@@ -3653,6 +3723,7 @@ fn delegate_result(
                 && kind == change::Delegate::Close
                 && **was == (change::State::Producing { requested: true })))
     {
+        held_why = Some(*why);
         row.change.state = (**was).clone();
         row.change.owns_turn = false;
         ended = true;
@@ -3710,7 +3781,29 @@ fn delegate_result(
     if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     }
-    let saved = row.clone();
+    let mut saved = row.clone();
+    let outcome = if cancelled {
+        crate::history::Answer::Cancelled
+    } else if failed {
+        crate::history::Answer::Failed
+    } else if no_change {
+        crate::history::Answer::Nothing
+    } else if let change::Delegate::Gate { .. } = kind {
+        if status == change::Status::Passed { crate::history::Answer::Passed } else { crate::history::Answer::Refused }
+    } else if status == change::Status::Passed {
+        crate::history::Answer::Pushed
+    } else {
+        crate::history::Answer::Failed
+    };
+    crate::change_history::answered(d, env.wall, &mut saved, child, kind, outcome, out);
+    d.changes.insert(task, saved.clone()).expect("retained change");
+    if fresh && let change::State::NoChange { .. } = saved.change.state {
+        crate::readiness::ending(d, env, &mut saved, crate::history::Ending::NoChange, out);
+    }
+    if ended && let Some(why) = held_why {
+        crate::readiness::released(d, env, &mut saved, why, out);
+    }
+    crate::readiness::reconcile(d, env, &mut saved, None, out);
     wake_after_turn(d, &saved, owned);
     save_change(d, out, saved);
     if ended {
@@ -3732,7 +3825,10 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
     }
     if let change::State::Producing { .. } = row.change.state {
         row.change.since = env.wall;
-        let saved = row.clone();
+        let mut saved = row.clone();
+        if ended {
+            crate::readiness::released(d, env, &mut saved, change::Hold::Stalled, out);
+        }
         wake_after_turn(d, &saved, owned);
         save_change(d, out, saved);
         if ended {
@@ -3923,7 +4019,10 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         && row.change.owns_turn
     {
         row.change.owns_turn = false;
-        let saved = row.clone();
+        let mut saved = row.clone();
+        if !heard.cancelled {
+            crate::readiness::unavailable(d, env, &mut saved, crate::history::Unready::Dependency, out);
+        }
         wake_after_turn(d, &saved, true);
         save_change(d, out, saved);
     }
@@ -4096,7 +4195,7 @@ fn early_base(pending: &PendingStep) -> bool {
     !pending.pending.is_empty()
 }
 
-fn landed_commit(state: &change::State) -> Option<skein_forge::api::Commit> {
+pub(crate) fn landed_commit(state: &change::State) -> Option<skein_forge::api::Commit> {
     match state {
         change::State::Landed { merge, .. }
         | change::State::Red { merge, .. }
@@ -4164,7 +4263,9 @@ fn step_verified(
     };
     let facts = change_facts(d, env, &row, &pending, merge);
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+    let prior = row.change.clone();
     row.change = stepped.change;
+    crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
     d.changes.insert(task, row.clone()).expect("replaces change");
     save_change(d, out, row);
     emit(out, Request::ChangeDecision { task, decision: stepped.decision, entry: None, evidence: None });
@@ -4388,6 +4489,9 @@ fn step_read(
                     let own = (pull.state == skein_forge::api::State::Open && pull.merged.is_none())
                         || row.pull == Some(pull.number)
                         || row.change.last_head == Some(pull.commit);
+                    if own {
+                        crate::change_history::observed_pull(d, env.wall, pending.task, &pull, out);
+                    }
                     pending.pull = if own { Some(pull) } else { None };
                 }
                 Err(skein_forge::api::Error::Missing) => pending.pull = None,
@@ -4500,6 +4604,9 @@ fn step_read(
                     }
                 }
                 Ok(_) | Err(_) => pending.base_ci = change::Status::Unknown,
+            }
+            if let Some(tip) = pending.base_tip {
+                crate::readiness::base_ci(d, env, pending.task, tip, pending.base_ci, out);
             }
             let Some(head) = pending.branch else {
                 step_paths(d, env, owner, pending, out);
@@ -4884,6 +4991,7 @@ fn wait_for_forge(
         };
         change::Decision::Wait { until: Some(until) }
     };
+    crate::readiness::reconcile(d, env, &mut row, None, out);
     if let Some(prior) = d.changes.insert(row.task, row.clone()).expect("replaces change")
         && prior != row
     {
@@ -4968,6 +5076,7 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 #[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
 fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
     let Some(mut row) = titled_change(d, env, &pending, out) else { return };
+    crate::job_history::merged(d, env.wall, &mut row, pending.branch, out);
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
     // Producing without a head uses no base facts except early starts and catch-ups.
@@ -5052,10 +5161,12 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
         heard.review_request = None;
         let advanced = stepped.change != row.change;
         row.change = stepped.change;
+        crate::readiness::advanced(d, env, &mut row, &effect_prior, &facts, out);
         let decision = stepped.decision;
         let took_update = matches_updating(&effect_prior.state) && row.change.last_head != effect_prior.last_head;
         if took_update && let Some(head) = row.change.last_head {
             record_change_head(d, env, &row, head, out);
+            row.history = d.changes.get(&row.task).expect("retained change").history;
         }
         if matches_updating(&effect_prior.state) && !matches_updating(&row.change.state) && row.pending.is_none() {
             admission::change_writer(d, env, &row, false);
@@ -5112,6 +5223,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
             | change::Decision::Finish { .. }
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
+                crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
                 crate::landing::change_advanced(d, &mut row, &prior, decision, out);
                 d.changes.insert(row.task, row.clone()).expect("replaces change");
                 if landed_commit(&prior.state).is_none()
@@ -5199,6 +5311,7 @@ fn drive_check(
                 Action::Done => change::Decision::Wait { until: None },
                 Action::Read { .. } | Action::Write => unreachable!("settled check action"),
             };
+            crate::readiness::reconcile(d, env, &mut row, None, out);
             d.changes.insert(task, row.clone()).expect("known change");
             save_change(d, out, row);
             emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
@@ -5259,12 +5372,17 @@ pub(crate) fn in_queue(state: &change::State) -> bool {
 /// New review facts change membership without changing the change's first ready time.
 fn reviews_changed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(mut row) = d.changes.get(&task).cloned() else { return };
-    if row.terminal() || row.change.way != change::Way::Queue {
+    if row.terminal() {
         return;
     }
-    if yield_approval_turn(d, &mut row) {
+    let yielded = yield_approval_turn(d, &mut row);
+    crate::readiness::reviews(d, env, &mut row, out);
+    if yielded {
         d.changes.insert(task, row.clone()).expect("replaces change");
         save_change(d, out, row.clone());
+    }
+    if row.change.way != change::Way::Queue {
+        return;
     }
     if let Some(tasks) = crate::views::changes_mark(d, row.repository) {
         emit(out, Request::Marked { tasks: Box::from(tasks) });
@@ -5480,6 +5598,7 @@ fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: chan
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the outbox admission and its history start share one decision")]
 fn emit_change_effect(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -5576,6 +5695,13 @@ fn emit_change_effect(
     wake_after_turn(d, row, prior.owns_turn);
     save_queue_change(d, env, before, row.clone(), out);
     admission::update_writer(d, env, &entry, true);
+    if let skein_forge::api::Write::Update { style, .. } = entry.effect.write {
+        let mut event = crate::change_history::step(d, row, crate::history::What::Update { style });
+        event.head = pending.branch;
+        event.base = pending.base_tip;
+        event.operation = crate::history::Operation::Of(pending.entry);
+        crate::change_history::write(d, env.wall, row, event, out);
+    }
     keep_entry(d, entry, None, out);
     emit(
         out,
@@ -5714,7 +5840,47 @@ pub(crate) fn change_outcome(
     if pull_closed {
         row.drift = Some(change::Hold::PullClosed);
     }
-    let saved = row.clone();
+    let mut saved = row.clone();
+    if update {
+        let result = match outcome {
+            skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(head), .. } => {
+                (crate::history::UpdateOutcome::Updated, Some(head))
+            }
+            skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => {
+                (crate::history::UpdateOutcome::Conflict, None)
+            }
+            skein_forge_client::Outcome::Made { .. }
+            | skein_forge_client::Outcome::Failed(_)
+            | skein_forge_client::Outcome::Raced { .. }
+            | skein_forge_client::Outcome::Uncertain
+            | skein_forge_client::Outcome::Queued
+            | skein_forge_client::Outcome::Held
+            | skein_forge_client::Outcome::Withdrawn => (crate::history::UpdateOutcome::Failed, None),
+        };
+        let mut event = crate::change_history::step(d, &saved, crate::history::What::Updated { outcome: result.0 });
+        event.operation = crate::history::Operation::Of(entry);
+        event.head = result.1;
+        event.base = updating_base(&saved.change.state);
+        crate::change_history::write(d, env.wall, &mut saved, event, out);
+        if result.0 == crate::history::UpdateOutcome::Conflict && saved.change.way == change::Way::Queue {
+            crate::change_history::conflict(d, env.wall, &mut saved, out);
+        }
+    }
+    if let skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) = outcome
+        && saved.change.way == change::Way::Queue
+        && let Some(kept) = d.entries.get(&entry)
+        && let skein_forge::api::Write::Merge { .. } = kept.entry.effect.write
+    {
+        crate::change_history::conflict(d, env.wall, &mut saved, out);
+    }
+    if let skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), .. } = outcome {
+        let mut event = crate::change_history::step(d, &saved, crate::history::What::Turn { members: 1 });
+        event.operation = crate::history::Operation::Of(entry);
+        event.head = Some(commit);
+        event.base = crate::change_history::base(d, &saved);
+        crate::change_history::write(d, env.wall, &mut saved, event, out);
+    }
+    d.changes.insert(task, saved.clone()).expect("retained change");
     save_change(d, out, saved.clone());
     if pull_closed {
         let branch = skein_forge_client::Resource {
@@ -5787,11 +5953,11 @@ fn settled_update_drift(
     }
 }
 
-fn matches_updating(state: &change::State) -> bool {
+pub(crate) fn matches_updating(state: &change::State) -> bool {
     updating_base(state).is_some()
 }
 
-fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
+pub(crate) fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
     match state {
         change::State::Updating { base, .. } | change::State::Preparing { main: base, .. } => Some(*base),
         change::State::Producing { .. }
@@ -5880,6 +6046,7 @@ fn accept_released_branch(
     if heads::record(d, env, head.clone(), Some(row.task), out) {
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head.clone()) });
     }
+    row.history = d.changes.get(&row.task).expect("retained change").history;
     child(d, env, skein_forge_client::Event::Pushed { resource, commit: head.commit }, out);
 }
 
@@ -6339,6 +6506,8 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     crate::verification::released(d, task, out);
     let Some(row) = d.changes.get_mut(&task) else { return };
     let before = crate::panel::ready(row);
+    let prior = row.change.clone();
+    let fresh = row.ending.is_none() && !row.terminal();
     let owned = row.change.owns_turn;
     let ended = ended_change_state(&row.change.state, merge, cancelled, env.wall);
     if ended == change::State::Ended
@@ -6387,7 +6556,12 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     row.change.owns_turn = false;
     row.delegate = None;
     row.drift = None;
-    let saved = row.clone();
+    let mut saved = row.clone();
+    crate::change_history::advanced(d, env.wall, &mut saved, &prior, out);
+    d.changes.insert(task, saved.clone()).expect("retained change");
+    if fresh && let Some(ending) = crate::readiness::ending_kind(saved.ending.as_ref().expect("ending set")) {
+        crate::readiness::ending(d, env, &mut saved, ending, out);
+    }
     wake_after_turn(d, &saved, owned);
     save_queue_change(d, env, before, saved, out);
 }
@@ -7632,6 +7806,15 @@ fn pull_changed(
         None => true,
     };
     if changed_pull {
+        let mut rows = List::with_capacity(env.limits.changes);
+        for (_, row) in &d.changes {
+            if row.repository == resource.repository && row.pull == Some(pull.number) {
+                rows.push(row.clone()).expect("retained changes");
+            }
+        }
+        for mut row in rows.into_boxed() {
+            crate::change_history::recorded(d, env.wall, &mut row, &pull, out);
+        }
         publish(d, topic, News::Changed { number: pull.number }, out);
     }
     let changed_ci = match &prior {
@@ -7910,6 +8093,11 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match record {
+        Stored::HistoryProject(row) => {
+            d.history_projects.insert(row.project, row).expect("restored history project room checked");
+        }
+        // Demand-loaded history is never restored (landing-history.md, 4.4).
+        Stored::HistoryEvent(_) | Stored::HistoryChange(_) | Stored::HistoryLanding(_) | Stored::HistoryLast(_) => {}
         Stored::Making(mut row) => {
             row.state = match row.state {
                 crate::MakingState::Making => crate::MakingState::Waiting,
@@ -8430,6 +8618,18 @@ fn save_queue_change(
     mut row: ChangeRow,
     out: &mut Queue<Request>,
 ) {
+    crate::readiness::reconcile(d, env, &mut row, None, out);
+    d.changes.insert(row.task, row.clone()).expect("existing change");
+    save_queue_panel(d, env, before, row, out);
+}
+
+fn save_queue_panel(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    before: Option<change::Ready>,
+    mut row: ChangeRow,
+    out: &mut Queue<Request>,
+) {
     if row.terminal() {
         connection_wait::take(d, row.task);
     }
@@ -8786,6 +8986,7 @@ impl Domain {
             | RecordKind::Binding
             | RecordKind::Setting
             | RecordKind::Making
+            | RecordKind::HistoryProject
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft

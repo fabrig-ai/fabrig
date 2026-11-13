@@ -1,4 +1,4 @@
-family temper-worker-wire 7
+family temper-worker-wire 8
 
 # Down: the workspace items (protocol/channel.md, 4). Names, branches and
 # the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;
@@ -21,7 +21,7 @@ record JobSpec { command: bytes 4096 request: bytes 1048576 }
 # Lists of repositories take Bounds.repositories; Files Bounds.conflicts
 # paths of Bounds.path_bytes; the diagnostic its ceiling, the domain's
 # PushDiagnostic::CAPACITY.
-record Landed { tag: u64 commit: fixed 32 }
+record Landed { tag: u64 commit: fixed 32 checked: bool }
 record Left { landed: list 64 Landed }
 record Files { files: list 1024 bytes 4096 }
 enum PushReason { missing_repository, missing_branch, missing_commit, refused, unreachable, broken, timed_out, cancelled, unavailable, busy, too_large, nothing, unknown }
