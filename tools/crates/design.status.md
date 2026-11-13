@@ -15,6 +15,7 @@
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still gives `temper-engine-domain-forge`'s exception as lasting until G5 [in flight: change 2193]
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `temper-engine-service` until G4 [in flight: change 2280].
 - **Not yet:** 3.4: no generated-tests check, `tests/boundary/tests/generated_tests.rs` [in flight: change 2457].
+- **Not yet:** 3.2: no one-version check: `tests/boundary/tests/codecs.rs` holds the codec check alone [in flight: change 2447].
 - **Not yet:** 3.2: no `jig-test-store-codec`: `jig-test-store` holds its generated record code and is the codec check's exception [in flight: change 2376].
 - **Not yet:** 3.2: no `jig-protocol-engine-clients-codec`: `jig-protocol-engine-clients` holds its generated record code and is the codec check's exception [in flight: change 2398].
 - **Not yet:** 3.2: no `jig-client-test-protocol-wire-codec`: `jig-client-test-protocol-wire` holds its generated record code and is the codec check's exception [in flight: change 2401].

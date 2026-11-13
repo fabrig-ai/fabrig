@@ -9,13 +9,11 @@ const REGENERATE: &str =
 
 #[test]
 fn charter_schema_matches_generated_code_and_all_goldens() {
-    assert_family("charter", 4);
     assert_family("charter", 5);
 }
 
 #[test]
 fn transcript_schema_matches_generated_code_and_all_goldens() {
-    assert_family("transcript", 6);
     assert_family("transcript", 7);
 }
 
@@ -26,20 +24,10 @@ fn channel_schema_matches_generated_code_and_all_goldens() {
 
 fn assert_family(family: &str, version: u16) {
     let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
-    let schema = if family == "charter" && version == 4 {
-        root.join("schema/kept/smith-charter-v4.schema")
-    } else {
-        root.join(format!("schema/{family}-v{version}.schema"))
-    };
-    let source = fs::read_to_string(schema).expect("schema source");
+    let source = fs::read_to_string(root.join(format!("schema/{family}-v{version}.schema"))).expect("schema source");
     let output = generate(&parse(&source).expect("schema valid"));
     let module = format!("v{version}");
-    if family == "transcript" && version == 6 {
-        check_artifact(&root.join("src/generated/v6.rs"), output.rust.as_bytes());
-    } else {
-        let modules: &[&str] = if family == "charter" { &["v4", "v5"] } else { &[&module] };
-        check_generated(&root, &module, &format!("smith_{family}::{module}"), modules, &output);
-    }
+    check_generated(&root, &module, &format!("smith_{family}::{module}"), &[&module], &output);
     let goldens = root.join(format!("golden/v{version}"));
     for golden in output.goldens {
         check_artifact(&goldens.join(&golden.name), &golden.bytes);

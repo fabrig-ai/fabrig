@@ -1,11 +1,12 @@
-//! Codec crate dependencies (tools/crates/design.md, 2.2 and 3.2).
+//! Codec crate dependencies and one version per family (tools/crates/design.md, 2.2 and 3.2).
 //! Cargo metadata selects workspace packages and their normal dependencies under
 //! every target. Packages holding generated records depend on no workspace crate
 //! but skein-lib, skein-codec and the allowances below. Glue alone is free.
 //! Allowances and exceptions only shrink: unmatched entries fail the check too.
-//! Metadata or a generated directory the check cannot read always fails it.
+//! Metadata, generated or schema directories the check cannot read always fail it.
+//! Current schema names must identify their family and version; kept texts are not read.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -55,10 +56,35 @@ struct Exception {
 
 const EXCEPTIONS: &[Exception] = &[];
 
+struct VersionAllowance {
+    package: &'static str,
+    reason: &'static str,
+}
+
+const VERSION_ALLOWED: &[VersionAllowance] = &[
+    VersionAllowance {
+        package: "skein-codec-tests",
+        reason: "skein's codec fixtures: its every texts compare the old and new generated decoders",
+    },
+    VersionAllowance {
+        package: "skein-codec-patches",
+        reason: "skein's patch fixtures: its label and shelf families move as their stories need",
+    },
+    VersionAllowance {
+        package: "jig-test-patches",
+        reason: "jig's patch fixtures: fixture-label and fixture-shelf at two versions",
+    },
+    VersionAllowance {
+        package: "jig-test-patches-jig",
+        reason: "jig's patch fixtures over jig's own patches: fixture-note at two versions",
+    },
+];
+
 #[derive(Debug)]
 struct Package {
     name: String,
-    records: bool,
+    generated: BTreeMap<String, BTreeSet<u32>>,
+    schemas: BTreeMap<String, BTreeSet<u32>>,
     dependencies: BTreeSet<String>,
     failures: Vec<String>,
 }
@@ -92,8 +118,15 @@ fn packages(metadata: &str) -> Result<Vec<Package>, String> {
                 Some(_) | None => return Err(format!("{name}: invalid dependency kind for {dependency_name}")),
             }
         }
-        let mut package = Package { name: name.to_owned(), records: false, dependencies, failures: Vec::new() };
+        let mut package = Package {
+            name: name.to_owned(),
+            generated: BTreeMap::new(),
+            schemas: BTreeMap::new(),
+            dependencies,
+            failures: Vec::new(),
+        };
         generated(&directory.join("src/generated"), &mut package);
+        schemas(&directory.join("schema"), &mut package);
         result.push(package);
     }
     if seen != members {
@@ -102,38 +135,76 @@ fn packages(metadata: &str) -> Result<Vec<Package>, String> {
     Ok(result)
 }
 
-fn generated(directory: &Path, package: &mut Package) {
+fn source_directory(directory: &Path, package: &mut Package) -> Option<fs::ReadDir> {
     match fs::symlink_metadata(directory) {
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return None,
         Err(why) => {
             package.failures.push(format!("{}: {why}", directory.display()));
-            return;
+            return None;
         }
         Ok(_) => (),
     }
     match fs::read_dir(directory) {
-        Ok(entries) => {
-            for entry in entries {
-                match entry {
-                    Ok(entry) => {
-                        let path = entry.path();
-                        if record_family(&path).is_some() {
-                            match fs::metadata(&path) {
-                                Ok(metadata) => package.records |= metadata.is_file(),
-                                Err(why) => package.failures.push(format!("{}: {why}", path.display())),
+        Ok(entries) => Some(entries),
+        Err(why) => {
+            package.failures.push(format!("{}: {why}", directory.display()));
+            None
+        }
+    }
+}
+
+fn generated(directory: &Path, package: &mut Package) {
+    if let Some(entries) = source_directory(directory, package) {
+        for entry in entries {
+            match entry {
+                Ok(entry) => {
+                    let path = entry.path();
+                    if let Some((family, version)) = record_family(&path) {
+                        match fs::metadata(&path) {
+                            Ok(metadata) => {
+                                if metadata.is_file() {
+                                    package.generated.entry(family.to_owned()).or_default().insert(version);
+                                }
                             }
+                            Err(why) => package.failures.push(format!("{}: {why}", path.display())),
                         }
                     }
-                    Err(why) => package.failures.push(format!("{}: {why}", directory.display())),
                 }
+                Err(why) => package.failures.push(format!("{}: {why}", directory.display())),
             }
         }
-        Err(why) => package.failures.push(format!("{}: {why}", directory.display())),
+    }
+}
+
+fn schemas(directory: &Path, package: &mut Package) {
+    if let Some(entries) = source_directory(directory, package) {
+        for entry in entries {
+            match entry {
+                Ok(entry) => {
+                    let path = entry.path();
+                    if path.extension().is_some_and(|extension| extension == "schema") {
+                        match fs::metadata(&path) {
+                            Ok(metadata) => {
+                                if metadata.is_file() {
+                                    if let Some((family, version)) = text_family(&path) {
+                                        package.schemas.entry(family.to_owned()).or_default().insert(version);
+                                    } else {
+                                        package.failures.push(format!("{}: invalid schema text name", path.display()));
+                                    }
+                                }
+                            }
+                            Err(why) => package.failures.push(format!("{}: {why}", path.display())),
+                        }
+                    }
+                }
+                Err(why) => package.failures.push(format!("{}: {why}", directory.display())),
+            }
+        }
     }
 }
 
 /// Generated records, not glue (tools/crates/design.md, 2.2).
-fn record_family(path: &Path) -> Option<&str> {
+fn record_family(path: &Path) -> Option<(&str, u32)> {
     let stem = path.file_name()?.to_str()?.strip_suffix(".rs")?;
     let (family, version) = if let Some(version) = stem
         .strip_prefix('v')
@@ -149,7 +220,32 @@ fn record_family(path: &Path) -> Option<&str> {
         }
         (family, version)
     };
-    (!version.is_empty() && version.bytes().all(|byte| byte.is_ascii_digit())).then_some(family)
+    if version.is_empty() || !version.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    Some((family, version.parse().ok()?))
+}
+
+/// Current texts, including split texts (tools/crates/design.md, 3.2).
+fn text_family(path: &Path) -> Option<(&str, u32)> {
+    let stem = path.file_name()?.to_str()?.strip_suffix(".schema")?;
+    for (index, _) in stem.match_indices("-v") {
+        let family = stem.get(..index)?;
+        let suffix = stem.get(index..)?.strip_prefix("-v")?;
+        let end = suffix.find(|character: char| !character.is_ascii_digit()).unwrap_or(suffix.len());
+        let version = suffix.get(..end)?;
+        let part = suffix.get(end..)?;
+        if version.is_empty() || !(part.is_empty() || part.starts_with('-') && part.len() > 1) {
+            continue;
+        }
+        if family.is_empty()
+            || !family.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        {
+            return None;
+        }
+        return Some((family, version.parse().ok()?));
+    }
+    None
 }
 
 fn findings(packages: &[Package], allowed: &[Allowance], exceptions: &[Exception]) -> Vec<String> {
@@ -158,7 +254,7 @@ fn findings(packages: &[Package], allowed: &[Allowance], exceptions: &[Exception
     let mut failures = Vec::new();
     for package in packages {
         failures.extend(package.failures.iter().map(|why| format!("{}: {why}", package.name)));
-        if package.records {
+        if !package.generated.is_empty() {
             for dependency in &package.dependencies {
                 if members.contains(dependency.as_str()) && !["skein-lib", "skein-codec"].contains(&dependency.as_str())
                 {
@@ -196,16 +292,56 @@ fn findings(packages: &[Package], allowed: &[Allowance], exceptions: &[Exception
     failures
 }
 
-#[test]
-fn workspace_generated_records_have_only_codec_dependencies() {
+fn version_findings(packages: &[Package], allowed: &[VersionAllowance]) -> Vec<String> {
+    let mut failures = Vec::new();
+    let mut matched = BTreeSet::new();
+    for package in packages {
+        failures.extend(package.failures.iter().map(|why| format!("{}: {why}", package.name)));
+        for (kind, families) in [("generated code", &package.generated), ("schema text", &package.schemas)] {
+            for (family, versions) in families {
+                if versions.len() > 1 {
+                    matched.insert(package.name.as_str());
+                    if !allowed.iter().any(|allowance| allowance.package == package.name) {
+                        failures.push(format!("{}: {kind} family {family} has versions {versions:?}", package.name));
+                    }
+                }
+            }
+        }
+    }
+    for allowance in allowed {
+        if !matched.contains(allowance.package) {
+            failures.push(format!(
+                "{} ({}): remove it: the check's allowances only shrink",
+                allowance.package, allowance.reason
+            ));
+        }
+    }
+    failures
+}
+
+fn workspace_packages() -> Vec<Package> {
     let output = Command::new("cargo")
         .args(["metadata", "--no-deps", "--format-version", "1", "--locked"])
         .current_dir(skein_scratch::paths::workspace())
         .output()
         .expect("cargo metadata starts");
     assert!(output.status.success(), "cargo metadata: {}\n{}", output.status, String::from_utf8_lossy(&output.stderr));
-    let packages = packages(&String::from_utf8(output.stdout).expect("cargo metadata is UTF-8"))
-        .expect("workspace metadata reads");
+    packages(&String::from_utf8(output.stdout).expect("cargo metadata is UTF-8")).expect("workspace metadata reads")
+}
+
+#[test]
+fn workspace_families_hold_one_version() {
+    let packages = workspace_packages();
+    for finding in version_findings(&packages, &[]) {
+        eprintln!("{finding}");
+    }
+    let failures = version_findings(&packages, VERSION_ALLOWED);
+    assert!(failures.is_empty(), "Version findings:\n{}", failures.join("\n"));
+}
+
+#[test]
+fn workspace_generated_records_have_only_codec_dependencies() {
+    let packages = workspace_packages();
     for finding in findings(&packages, ALLOWED, &[]) {
         eprintln!("{finding}");
     }
@@ -345,6 +481,112 @@ fn exceptions_excuse_every_package_finding_and_only_shrink() {
         findings(&packages, &[], &[Exception { what: "gone", until: "split" }]),
         ["gone (until split): remove it: the check's exceptions only shrink"]
     );
+}
+
+#[test]
+fn generated_families_hold_one_version_not_glue() {
+    for (files, expected) in [
+        (
+            vec!["a/src/generated/v17.rs", "a/src/generated/v18.rs"],
+            vec!["a: generated code family (own) has versions {17, 18}"],
+        ),
+        (
+            vec!["a/src/generated/people_v16.rs", "a/src/generated/people_v17.rs"],
+            vec!["a: generated code family people has versions {16, 17}"],
+        ),
+        (vec!["a/src/generated/layouts.rs", "a/src/generated/v2.rs"], vec![]),
+    ] {
+        let scratch = scratch(&files);
+        let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
+        let packages = packages(&metadata.to_string()).expect("fixture metadata");
+        assert_eq!(version_findings(&packages, &[]), expected, "{files:?}");
+    }
+}
+
+#[test]
+fn current_texts_group_versions_not_parts_or_kept_texts() {
+    for (files, expected) in [
+        (
+            vec!["a/schema/store-v17.schema", "a/schema/store-v18.schema"],
+            vec!["a: schema text family store has versions {17, 18}"],
+        ),
+        (vec!["a/schema/client-v21.schema", "a/schema/client-v21-part1.schema"], vec![]),
+        (vec!["a/schema/client-wire-v1.schema", "a/schema/public-v1.schema"], vec![]),
+        (vec!["a/schema/kept/x-v1.schema", "a/schema/x-v2.schema"], vec![]),
+        (vec!["a/schema/wires"], vec![]),
+        (
+            vec!["a/schema/client-v21-part1.schema", "a/schema/client-v22-part2.schema"],
+            vec!["a: schema text family client has versions {21, 22}"],
+        ),
+        (
+            vec!["a/schema/x-v1-part-v2.schema", "a/schema/x-v2.schema"],
+            vec!["a: schema text family x has versions {1, 2}"],
+        ),
+    ] {
+        let scratch = scratch(&files);
+        let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
+        let packages = packages(&metadata.to_string()).expect("fixture metadata");
+        assert_eq!(version_findings(&packages, &[]), expected, "{files:?}");
+    }
+}
+
+#[test]
+fn invalid_text_names_are_never_excused() {
+    for name in ["notes.schema", "X-v1.schema", "x-v.schema", "x-v1-.schema", "x-v1tail.schema"] {
+        let scratch = scratch(&[&format!("a/schema/{name}"), "a/src/generated/v1.rs", "a/src/generated/v2.rs"]);
+        let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
+        let packages = packages(&metadata.to_string()).expect("fixture metadata");
+        for allowed in [&[][..], &[VersionAllowance { package: "a", reason: "fixture" }][..]] {
+            let failures = version_findings(&packages, allowed);
+            assert!(
+                failures.iter().any(|why| why.starts_with("a: ")
+                    && why.contains(name)
+                    && why.contains("invalid schema text name")),
+                "{name}: {failures:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn version_allowances_excuse_both_kinds_and_only_shrink() {
+    let scratch = scratch(&[
+        "a/src/generated/v1.rs",
+        "a/src/generated/v2.rs",
+        "a/schema/x-v1.schema",
+        "a/schema/x-v2.schema",
+        "b/src/generated/people_v16.rs",
+        "b/src/generated/people_v17.rs",
+    ]);
+    let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
+    let packages = packages(&metadata.to_string()).expect("fixture metadata");
+    assert_eq!(
+        version_findings(&packages, &[]),
+        [
+            "a: generated code family (own) has versions {1, 2}",
+            "a: schema text family x has versions {1, 2}",
+            "b: generated code family people has versions {16, 17}",
+        ]
+    );
+    let allowed = [VersionAllowance { package: "a", reason: "fixture" }];
+    assert_eq!(version_findings(&packages, &allowed), ["b: generated code family people has versions {16, 17}"]);
+    let scratch = self::scratch(&["a/src/generated/v2.rs", "a/schema/x-v2.schema"]);
+    let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
+    let packages = self::packages(&metadata.to_string()).expect("fixture metadata");
+    assert_eq!(version_findings(&packages, &allowed), ["a (fixture): remove it: the check's allowances only shrink"]);
+}
+
+#[test]
+fn unreadable_version_sources_are_never_excused() {
+    for directory in ["src/generated", "schema"] {
+        let scratch = scratch(&[&format!("a/{directory}")]);
+        let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
+        let packages = packages(&metadata.to_string()).expect("fixture metadata");
+        let failures = version_findings(&packages, &[VersionAllowance { package: "a", reason: "fixture" }]);
+        assert_eq!(failures.len(), 2, "{failures:?}");
+        assert!(failures[0].starts_with("a: ") && failures[0].contains(directory), "{failures:?}");
+        assert_eq!(failures[1], "a (fixture): remove it: the check's allowances only shrink");
+    }
 }
 
 #[test]

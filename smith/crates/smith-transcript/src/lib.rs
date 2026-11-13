@@ -10,13 +10,11 @@ extern crate alloc;
 
 #[rustfmt::skip]
 mod generated {
-    /// Archived version-6 codec, without supplied system context.
-    pub mod v6;
     /// Current bounded transcript codec, written from transcript-v7.schema.
     pub mod v7;
 }
 
-pub use generated::{v6, v7};
+pub use generated::v7;
 
 pub use v7::{
     Affinity, AffinityParts, AfterFailedWrite, AfterFailedWriteParts, AllowedCalls, AllowedCallsParts, Ambiguous,
@@ -34,11 +32,6 @@ pub use v7::{
     TurnParts, UnknownJobProblem, UnknownJobProblemParts, Usage, UsageParts, WorkingPath, WorkingPathParts, Written,
     WrittenParts,
 };
-
-impl v6::Turn {
-    /// The wire format version this archived codec writes and reads.
-    pub const FORMAT_VERSION: u64 = 6;
-}
 
 impl Turn {
     /// The wire format version this codec writes and reads.

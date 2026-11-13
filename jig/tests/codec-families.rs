@@ -176,7 +176,7 @@ pub const FAMILIES: &[Family] = &[
         codec_root: "crates/jig-protocol-worker-wire",
         schemas: &["schema/worker-wire-v13.schema"],
         records: "jig_protocol_worker_wire::v13",
-        generated: &["src/generated/v13.rs", "src/generated/v12.rs"],
+        generated: &["src/generated/v13.rs"],
         golden: "golden",
         fixtures: &[],
     },
@@ -279,21 +279,6 @@ pub fn check() {
             assert_eq!(entries(&tree.join(root).join("golden")), goldens, "store golden directories");
         }
     }
-    // Patch 1 keeps its v16 executor decoder after the live people family moves.
-    let kept_people = tree.join("crates/jig-protocol-store-people/src/generated");
-    let source = fs::read_to_string(tree.join("crates/jig-protocol-store/schema/kept/jig-store-people-v16.schema"))
-        .expect("kept people schema");
-    let code = generate(&parse(&source).expect("kept people schema valid")).rust;
-    let path = kept_people.join("people_v16.rs");
-    if write {
-        fs::write(&path, &code).expect("write kept people codec");
-    } else {
-        assert_eq!(fs::read_to_string(&path).expect("kept people codec"), code, "kept people: {again}");
-    }
-    inventories
-        .get_mut(&kept_people)
-        .expect("the live people codec has an inventory")
-        .insert(kept_people.join("people_v16.rs"));
     for (directory, expected) in inventories {
         assert_eq!(entries(&directory), expected, "{}: generated inventory", directory.display());
     }

@@ -45,14 +45,6 @@ const EXCEPTIONS: &[Exception] = &[
     library("smith-transcript", "private record helpers have library tests"),
     library("temper-protocol-records", "patch golden tests remain in the library"),
     library("skein-codec-tests", "patch golden tests remain in the library"),
-    older("temper-protocol-store-codec", "src/generated/v16.rs"),
-    older("temper-protocol-store-codec", "src/generated/v17.rs"),
-    older("temper-protocol-store-codec", "src/generated/v18.rs"),
-    older("temper-protocol-store-codec", "src/generated/v19.rs"),
-    older("jig-protocol-store-people", "src/generated/people_v16.rs"),
-    older("smith-transcript", "src/generated/v6.rs"),
-    older("smith-channel", "src/generated/v7.rs"),
-    older("jig-protocol-worker-wire", "src/generated/v12.rs"),
 ];
 
 #[derive(Default)]
