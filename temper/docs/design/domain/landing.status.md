@@ -1,6 +1,6 @@
 # landing: status
 
-2026-11-11. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-13. Where temper's code lags or departs from [landing.md](landing.md).
 
 Section 13.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch
@@ -14,6 +14,10 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
+- **Not yet:** 5.2: a member's merge and squash messages carry neither
+  its description's first paragraph nor the `Change`, `Pull-request`,
+  `Head` and `Goal` trailers, and a squash is known by its
+  `Temper-Head` trailer [in flight: change 2185].
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`; a stack of
   members in one repository, whose second member a later landing takes

@@ -372,6 +372,7 @@ Drafts:
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
+- [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2's charters to come.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
 - [`draft/surfaces.md`](draft/surfaces.status.md)
