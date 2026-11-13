@@ -397,6 +397,10 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
                     w::LandingEntryParts {
                         preparation: entry.preparation,
                         base: entry.base,
+                        run: match entry.run {
+                            Some(run) => Some(encode_run(run)),
+                            None => None,
+                        },
                         entry: entry.entry,
                         member: entry.member,
                         gate: entry.gate,
@@ -408,6 +412,14 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             .expect(FITS);
     }
     w::LandingRow::new(&w::CEILINGS, w::LandingRowParts { landing, asks, entries, job: super::history::encode_job_record(row.job.as_ref()) }).expect(FITS)
+}
+fn encode_run(run: top::LandingRun) -> w::LandingRun {
+    w::LandingRun::new(&w::CEILINGS, w::LandingRunParts { id: run.id, attempt: run.attempt, ended: run.ended })
+        .expect(FITS)
+}
+fn decode_run(run: w::LandingRun) -> top::LandingRun {
+    let w::LandingRunParts { id, attempt, ended } = run.into_parts();
+    top::LandingRun { id, attempt, ended }
 }
 pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
     let w::LandingRowParts { landing, asks, entries, job } = row.into_parts();
@@ -428,9 +440,20 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
     }
     let mut decoded_entries = List::with_capacity(entries.len());
     for entry in entries.into_boxed() {
-        let w::LandingEntryParts { entry, member, gate, operation, preparation, base } = entry.into_parts();
+        let w::LandingEntryParts { entry, member, gate, operation, preparation, base, run } = entry.into_parts();
         decoded_entries
-            .push(top::LandingEntry { entry, member, gate, operation: decode_operation(operation), preparation, base })
+            .push(top::LandingEntry {
+                entry,
+                member,
+                gate,
+                operation: decode_operation(operation),
+                preparation,
+                base,
+                run: match run {
+                    Some(run) => Some(decode_run(run)),
+                    None => None,
+                },
+            })
             .expect(FITS);
     }
     top::LandingRow {

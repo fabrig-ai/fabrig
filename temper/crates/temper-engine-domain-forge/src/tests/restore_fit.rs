@@ -748,6 +748,7 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
         row.asks = vec![None; usize::try_from(LIMITS.landing_members).unwrap()].into_boxed_slice();
         row.entries = vec![
             LandingEntry {
+                run: None,
                 preparation: None,
                 base: None,
                 entry: 1,
@@ -769,6 +770,7 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
             LandingRow {
                 entries: vec![
                     LandingEntry {
+                        run: None,
                         preparation: None,
                         base: None,
                         entry: 1,

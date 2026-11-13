@@ -290,7 +290,8 @@ record LandingResolve { base: fixed 32 }
 enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve, judge: Judgement }
 record LandingAskSlot { ask: option LandingAsk }
 enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, delete, record }
-record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 }
+record LandingRun { id: u64 attempt: u32 ended: bool }
+record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation preparation: option u16 base: option fixed 32 run: option LandingRun }
 enum HistoryJob { prepare, merge }
 enum HistoryJobOutcome { done, conflict, failed, lost }
 record HistoryJobRecord { task: u64 attempt: u32 job: HistoryJob outcome: option HistoryJobOutcome round: u16 members: list 64 u16 head: option fixed 32 written: bool }
@@ -460,7 +461,7 @@ record HistoryRoundEnded { cause: HistoryRoundCause }
 record HistoryGate { gate: u16 key: fixed 32 }
 enum HistoryGateVerdict { passed, failed, fault, timeout, superseded }
 record HistoryGateEnded { gate: u16 key: fixed 32 verdict: HistoryGateVerdict }
-record HistoryProof { gate: u16 run: u64 }
+record HistoryProof { gate: u16 run: option u64 }
 record HistoryProved { proofs: list 64 HistoryProof }
 record HistorySearched { green: option fixed 32 red: fixed 32 blamed: u16 }
 record HistoryProbeEnded { green: bool }

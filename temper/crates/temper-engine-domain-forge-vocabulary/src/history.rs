@@ -115,7 +115,7 @@ pub struct Member {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Proof {
     pub gate: u16,
-    pub run: u64,
+    pub run: Option<u64>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Unready {

@@ -1156,6 +1156,14 @@ pub struct LandingEntry {
     pub member: u16,
     pub gate: u16,
     pub operation: Operation,
+    pub run: Option<LandingRun>,
+}
+/// Observation of a dispatch's current run (domain/landing-history.md, 3.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct LandingRun {
+    pub id: u64,
+    pub attempt: u32,
+    pub ended: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Operation {

@@ -319,6 +319,7 @@ fn landing_preflight_checks_rules_and_live_room() {
     d.landing.rows.get_mut(&100).expect("landing").landing.phase = policy::Phase::Landed;
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
     d.landing.rows.get_mut(&100).expect("landing").entries = Box::new([LandingEntry {
+        run: None,
         preparation: None,
         base: None,
         entry: 1,
@@ -1073,6 +1074,7 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
         member.base = Some(fixtures::BASE);
         member.candidate = Some(fixtures::HEAD);
         row.entries = Box::new([LandingEntry {
+            run: None,
             preparation: None,
             base: None,
             entry: 91,
@@ -1249,6 +1251,7 @@ fn a_formed_landing_is_sealed_against_joining_and_ordering() {
     member.repository.repository = OTHER_REPOSITORY.repository;
     let key = [7; 32];
     d.landing.rows.get_mut(&61).expect("landing").entries = Box::new([LandingEntry {
+        run: None,
         preparation: None,
         base: None,
         entry: 91,

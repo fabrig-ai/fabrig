@@ -4,6 +4,8 @@ owner temper 10 after jig 5
 family temper-store 20 to 21
 add LandingMember.round option u16 none
 add LandingState.last_left option u16 none
+add LandingRun
+add LandingEntry.run option LandingRun none
 add HistoryJob
 add HistoryJobOutcome
 add HistoryJobRecord
