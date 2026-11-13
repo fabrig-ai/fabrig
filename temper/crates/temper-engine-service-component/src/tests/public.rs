@@ -26,14 +26,14 @@ fn startup_names_the_public_kinds_and_private_parts() {
     assert_eq!(forge, &expected);
     assert_eq!(
         expected.map(|kind| (kind.owner, kind.kind, kind.first, kind.last, kind.task)),
-        [(2, 1, 1, 1, true), (2, 2, 1, 1, false), (2, 3, 1, 1, true)]
+        [(2, 1, 2, 2, true), (2, 2, 2, 2, false), (2, 3, 2, 2, true)]
     );
     assert_eq!(expected.map(|kind| kind.bound), [822, 67_405, 8716]);
 }
 #[test]
 fn a_public_read_and_its_answer_cross_the_root_boundary() {
     let reply = ReplyTo::new(Token::new(9));
-    let read = core::PublicRead { owner: 2, kind: 1, version: 1, project: Some(7), task: Some(8) };
+    let read = core::PublicRead { owner: 2, kind: 1, version: 2, project: Some(7), task: Some(8) };
     let input = translation::to_root(core::Event::PublicRead { reply, read }).expect("public input");
     let root::PartyInput::PublicRead { reply, read: mapped } = input else { panic!("public read") };
     assert_eq!(mapped, read);

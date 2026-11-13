@@ -68,7 +68,7 @@ impl Walk {
     }
     fn public(&mut self, visitor: &mut Visitor, address: std::net::SocketAddr, project: u64) {
         let path = if self.phase == 2 {
-            format!("/jig/v1/public/2/1/2/{project:016x}")
+            format!("/jig/v1/public/2/2/2/{project:016x}")
         } else if self.phase == 0 {
             "/jig/v1/public/0/1/1".to_owned()
         } else {

@@ -6,14 +6,14 @@ fn unknown_is_one_return() {
     let d = setup();
     let public = handed();
     for (kind, version, project, task) in [
-        (0, 1, 5, None),
-        (w::PUBLIC_CHANGE, 2, 5, Some(CHANGE)),
-        (w::PUBLIC_CHANGE, 1, 5, None),
-        (w::PUBLIC_LANDING, 1, 5, None),
-        (w::PUBLIC_LANDINGS, 1, 5, Some(CHANGE)),
-        (w::PUBLIC_CHANGE, 1, 6, Some(CHANGE)),
-        (w::PUBLIC_LANDING, 1, 6, Some(CHANGE)),
-        (w::PUBLIC_CHANGE, 1, 5, Some(LANDING)),
+        (0, w::PUBLIC_VERSION, 5, None),
+        (w::PUBLIC_CHANGE, 1, 5, Some(CHANGE)),
+        (w::PUBLIC_CHANGE, w::PUBLIC_VERSION, 5, None),
+        (w::PUBLIC_LANDING, w::PUBLIC_VERSION, 5, None),
+        (w::PUBLIC_LANDINGS, w::PUBLIC_VERSION, 5, Some(CHANGE)),
+        (w::PUBLIC_CHANGE, w::PUBLIC_VERSION, 6, Some(CHANGE)),
+        (w::PUBLIC_LANDING, w::PUBLIC_VERSION, 6, Some(CHANGE)),
+        (w::PUBLIC_CHANGE, w::PUBLIC_VERSION, 5, Some(LANDING)),
     ] {
         let mut ask = ask(kind, task, &public);
         ask.version = version;

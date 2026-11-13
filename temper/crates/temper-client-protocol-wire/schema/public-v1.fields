@@ -1,4 +1,4 @@
-family temper-public-wire 1
+family temper-public-wire 2
 variant PublicStep producing tag=0 payload=-
 variant PublicStep opening tag=1 payload=-
 variant PublicStep recreating tag=2 payload=-

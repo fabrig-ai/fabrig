@@ -289,7 +289,7 @@ fn public_limits_follow_the_panels() {
     assert_eq!(public_bounds(&ceilings), public_bounds(&BOUNDS));
     assert_eq!(
         (crate::PUBLIC_VERSION, crate::PUBLIC_CHANGE, crate::PUBLIC_LANDINGS, crate::PUBLIC_LANDING),
-        (1, 1, 2, 3)
+        (2, 1, 2, 3)
     );
     assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 8716]);
 }

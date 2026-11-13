@@ -117,7 +117,7 @@ fn values() -> [(u32, settings::Value); 21] {
 
 #[test]
 fn each_kind_round_trips_its_value() {
-    assert_eq!(temper_client_protocol_wire::CLIENT_VERSION, 19);
+    assert_eq!(temper_client_protocol_wire::CLIENT_VERSION, 20);
     for (kind, value) in values() {
         let bytes = encode(&value);
         let back = decode(kind, &bytes, &BOUNDS).expect("whole value at its receiving bounds");
