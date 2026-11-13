@@ -352,3 +352,43 @@ fn a_batch_request_grants_every_prefix_and_each_goal_hears_its_own_prefix() {
     let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) = &task_row(&world, task).expect("ended").phase else { panic!("landing report") };
     for member in &row.landing.members { assert!(String::from_utf8_lossy(words).contains(&hex(&member.landed.expect("prefix")))); }
 }
+
+#[test]
+fn batch_goals_hear_member_leaves_and_each_members_landing_hold() {
+    for held in [false, true] {
+        let (mut world, goal, changes) = joined_batch();
+        if held { world.fake_env.limits.setup_faults = 1000; }
+        world.send(protocol::hello_with(Token::new(7), 0, 2, jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() }, Box::new([])));
+        let mut landing = None;
+        for _ in 0..1200 {
+            world.tick();
+            if let Some(row) = landing_rows(&world).into_iter().find(|row| row.landing.phase == forge_top::LandingPhase::Proving) { landing = Some(row.landing.task); break; }
+        }
+        let landing = landing.expect("proving batch");
+        let mut moved = None;
+        if !held {
+            let branch = super::light_rules::change_row(&world, changes[1]).branch.clone();
+            let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"moved", b"new head", 1).expect("outside delivery");
+            moved = Some(translate::commit(head));
+        }
+        for _ in 0..2000 {
+            world.tick();
+            if held {
+                if matches!(task_row(&world, landing).expect("task").phase, tasks::Phase::Held { .. }) && news(&world, goal.task, landing).iter().filter(|line| line.contains(": held:")).count() == 3 { break; }
+            } else if ended(&world, landing) { break; }
+        }
+        let lines = news(&world, goal.task, landing);
+        if held {
+            let expected = format!("landing {landing}: held: gate gate of org/repo failed on its runner past its retries");
+            assert_eq!(lines.iter().filter(|line| **line == expected).count(), 3);
+        } else {
+            assert!(ended(&world, landing));
+            let why = format!("head moved to {}", hex(&moved.expect("moved head")));
+            assert!(lines.contains(&format!("landing {landing}: change {} left: {why}", changes[1])), "{lines:?}");
+            let row = landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("ended batch");
+            assert!(row.landing.members[0].landed.is_some() && row.landing.members[2].landed.is_some());
+            let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) = &task_row(&world, landing).expect("ended").phase else { panic!("landing report") };
+            assert!(String::from_utf8_lossy(words).contains(&format!("change {} left: {why}", changes[1])));
+        }
+    }
+}
