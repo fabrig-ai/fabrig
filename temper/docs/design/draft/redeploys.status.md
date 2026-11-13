@@ -1,6 +1,6 @@
 # redeploys: status
 
-2026-11-12. Where the design lags or departs from [redeploys.md](redeploys.md).
+2026-11-13. Where the design lags or departs from [redeploys.md](redeploys.md).
 
 Sections 3.1, 3.2, 3.3's interim and 3.4 are designed (`../protocol/wires.md`; jig's `protocol/channel/wires.md`; skein's `data/codec/command.md`, 2, the wire rule).
 

@@ -3,8 +3,9 @@
 2026-11-13. The first milestone stands in the code. The wires between
 the engine, its workers, their agents and the clients move their
 versions with their layouts, stated and checked at the channel's
-opening, each build's floor its current until bridges
-(`protocol/wires.md`; `draft/redeploys.md`, R1). Remaining work spans
+opening; each build speaks each wire from its floor, and jig's channel
+translates between the versions an engine and a worker share by each
+wire's bridge (`protocol/wires.md`; `draft/redeploys.md`, R1 and R4). Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;

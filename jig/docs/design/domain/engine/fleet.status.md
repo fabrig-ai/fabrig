@@ -1,6 +1,6 @@
 # fleet: status
 
-2026-11-12. Where the tree's code lags or departs from [fleet.md](fleet.md).
+2026-11-13. Where the tree's code lags or departs from [fleet.md](fleet.md).
 
 
 - **Not yet:** the whole document: runs on the engine's own slots under
@@ -11,3 +11,5 @@
    the pending-reasons continuation gap remains `settings.status.md`, 6.
    the settings-holder gap remains `settings.status.md`, 6.
    the ignored restore stories remain `settings.status.md`, 10.
+
+- **Not yet:** *A task its channel's versions cannot carry leaves that channel alone*: the *untranslated* refusal's exclusion [in flight: change 2313]

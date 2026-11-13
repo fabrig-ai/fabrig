@@ -1,6 +1,6 @@
 # redeploys: execution
 
-2026-11-12. How [redeploys.md](redeploys.md) gets carried out. It designs nothing: each milestone writes its own design from the draft as it runs. Goals use the focused and fuzzy suites alone; the drills on the deployments run after landing, as the draft's 7.5 says.
+2026-11-13. How [redeploys.md](redeploys.md) gets carried out. It designs nothing: each milestone writes its own design from the draft as it runs. Goals use the focused and fuzzy suites alone; the drills on the deployments run after landing, as the draft's 7.5 says.
 
 ## 1. The milestones
 
