@@ -168,6 +168,7 @@ pub fn worker() -> temper_worker_service::Worker {
         &worker_limits(),
         &worker_files(),
         temper_worker_service::WorkerRuntime {
+            wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: pinned_agent(&worker_settings().jig.agent),

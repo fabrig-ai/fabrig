@@ -22,6 +22,13 @@ pub(crate) fn configured_operations(git: &limits::GitComponent) -> Option<u32> {
     operations(&git_component(*git))
 }
 
+/// A world's worker link, independent of the engine's whole ranges (protocol/wires.md, 11).
+#[derive(Debug)]
+pub struct Wires {
+    pub jig: skein_lib::List<jig_protocol_worker_wire::Spoken>,
+    pub application: jig_protocol_worker_wire::Application,
+}
+
 /// Every queue and component bound established before constructing a worker.
 #[derive(Debug)]
 pub struct Prepared {

@@ -30,6 +30,7 @@ pub fn one_process_under_box(under_box: bool) -> SystemStand {
         &limits,
         &super::worker_files(),
         WorkerRuntime {
+            wires: None,
             root: Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: super::pinned_agent(&settings.jig.agent),

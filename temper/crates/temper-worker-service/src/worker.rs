@@ -34,6 +34,8 @@ pub struct WorkerRuntime {
     pub root: Fd,
     pub path: Box<[u8]>,
     pub agent: jig_protocol_config::Agent,
+    /// A world's wire statement and bridges; production uses the build's whole ranges.
+    pub wires: Option<worker_settings::Wires>,
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
@@ -122,14 +124,17 @@ impl Worker {
         if bytes.len() > usize::try_from(config.limits.link.secret).expect("secret bound") {
             return Err(problem(b"secret", What::Bound));
         }
-        let link = link::Component::new(
-            &prepared.link,
-            jig_protocol_worker_wire::spoken(),
-            worker_settings::credential(settings, secret, &prepared.payload)
-                .or(Err(problem(b"limits", What::Bound)))?,
-            seed,
-        )
-        .or(Err(problem(b"limits", What::Bound)))?;
+        let mut credential = worker_settings::credential(settings, secret, &prepared.payload)
+            .or(Err(problem(b"limits", What::Bound)))?;
+        let jig = match runtime.wires {
+            Some(wires) => {
+                credential.application = wires.application;
+                wires.jig
+            }
+            None => jig_protocol_worker_wire::spoken(),
+        };
+        let link =
+            link::Component::new(&prepared.link, jig, credential, seed).or(Err(problem(b"limits", What::Bound)))?;
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
         let operations = worker_settings::operations(git.component.limits()).ok_or(problem(b"limits", What::Bound))?;
