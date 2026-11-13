@@ -491,6 +491,47 @@ fn a_red_middle_unit_is_blamed_the_green_prefix_lands_and_the_suffix_stacks_agai
 }
 
 #[test]
+fn a_blamed_repair_keeps_the_green_members_and_the_red_receipts_brief() {
+    for breaking in [51, 52] {
+        let mut world = red_batch(breaking);
+        landings::drive_landing(&mut world, LANDING);
+        let row = world.landing(LANDING);
+        let member = &row.landing.members[usize::try_from(breaking - 51).unwrap()];
+        let Some(landing::Leave::Blamed { gate, red, green, run }) = member.left else { panic!("blamed member") };
+        let below = change::Below {
+            green,
+            changes: if breaking == 51 {
+                [None; 4]
+            } else {
+                [Some(change::Landed { change: 51, pull: row.landing.members[0].pull }), None, None, None]
+            },
+        };
+        assert_eq!(
+            world.change(breaking).change.state,
+            change::State::Repairing {
+                requested: true,
+                why: change::Repair::LandingAt { gate, candidate: red, below: Some(below) },
+            }
+        );
+        // A restored change and receipt still brief the red, not its own branch head or the top.
+        world.restart();
+        let head = world.change(breaking).change.last_head.unwrap();
+        assert_ne!(head, red);
+        let brief = String::from_utf8(world.ci_brief(breaking, head).into_vec()).unwrap();
+        for words in [
+            format!("Candidate: {}", String::from_utf8_lossy(&top::commit_text(&red))),
+            format!("Run: http://forge/org/repo/actions/runs/{run}"),
+            "Base: ".to_owned(),
+            "Failed job: test".to_owned(),
+            "Failed step: ".to_owned(),
+            "End of its log:".to_owned(),
+        ] {
+            assert!(brief.contains(&words), "missing {words}: {brief}");
+        }
+    }
+}
+
+#[test]
 fn a_red_first_unit_has_no_turn_and_the_other_two_land_in_round_two() {
     let mut world = red_batch(51);
     landings::drive_landing(&mut world, LANDING);

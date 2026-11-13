@@ -234,8 +234,12 @@ fn encode_ask(ask: change::Ask) -> w::LandingAsk {
         change::Ask::Prepare { head, main } => w::LandingAsk::Prepare(
             w::LandingPrepare::new(&w::CEILINGS, w::LandingPrepareParts { head, main }).expect(FITS),
         ),
-        change::Ask::Repair { gate, candidate } => w::LandingAsk::Repair(
-            w::LandingRepairAsk::new(&w::CEILINGS, w::LandingRepairAskParts { gate, candidate }).expect(FITS),
+        change::Ask::Repair { gate, candidate, below } => w::LandingAsk::Repair(
+            w::LandingRepairAsk::new(
+                &w::CEILINGS,
+                w::LandingRepairAskParts { gate, candidate, below: super::change::encode_below(below) },
+            )
+            .expect(FITS),
         ),
     }
 }
@@ -249,8 +253,8 @@ fn decode_ask(ask: w::LandingAsk) -> change::Ask {
             change::Ask::Prepare { head, main }
         }
         w::LandingAsk::Repair(value) => {
-            let w::LandingRepairAskParts { gate, candidate } = value.into_parts();
-            change::Ask::Repair { gate, candidate }
+            let w::LandingRepairAskParts { gate, candidate, below } = value.into_parts();
+            change::Ask::Repair { gate, candidate, below: super::change::decode_below(below) }
         }
     }
 }

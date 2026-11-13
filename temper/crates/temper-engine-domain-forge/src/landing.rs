@@ -2360,7 +2360,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             let ask = match why {
                 policy::Leave::Conflict => Some(change::Ask::Resolve { base: m.base.expect("round base") }),
                 policy::Leave::Failed { gate, .. } => {
-                    Some(change::Ask::Repair { gate, candidate: failed_candidate(d, &row, member, gate) })
+                    Some(change::Ask::Repair { gate, candidate: failed_candidate(d, &row, member, gate), below: None })
                 }
                 policy::Leave::Cancelled
                 | policy::Leave::Held
@@ -2369,7 +2369,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 | policy::Leave::EarlierConflict
                 | policy::Leave::Unit { .. }
                 | policy::Leave::Dependency { .. } => None,
-                policy::Leave::Blamed { gate, red, .. } => Some(change::Ask::Repair { gate, candidate: red }),
+                policy::Leave::Blamed { gate, red, green, .. } => {
+                    Some(change::Ask::Repair { gate, candidate: red, below: Some(repair_below(&row, green)) })
+                }
             };
             *row.asks.get_mut(usize::from(member)).expect("ask") = ask;
             emit(out, Request::WakeProcedure { task: m.change });
@@ -2377,6 +2379,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         policy::Decision::Repair { member, gate } => {
             *row.asks.get_mut(usize::from(member)).expect("member ask") = Some(change::Ask::Repair {
                 gate,
+                below: None,
                 candidate: row
                     .landing
                     .members
@@ -3062,6 +3065,20 @@ pub(crate) fn hinted(d: &Domain, hint: &api::Hint, out: &mut Queue<Request>) {
         }
     }
 }
+/// domain/landing-search.md, 7: only this round's prefixes below the blamed unit land.
+fn repair_below(row: &LandingRow, green: api::Commit) -> change::Below {
+    let mut below = change::Below { green, changes: [None; 4] };
+    let mut slots = below.changes.iter_mut();
+    let end = row.landing.round.search.expect("blamed boundary").green;
+    for member in row.landing.members.iter().take(usize::from(end)) {
+        if member.candidate.is_some() {
+            *slots.next().expect("at most four members below the blamed unit") =
+                Some(change::Landed { change: member.change, pull: member.pull });
+        }
+    }
+    below
+}
+
 pub(crate) fn ask_for(d: &Domain, change: &crate::ChangeRow) -> Option<change::Ask> {
     let row = d.landing.rows.get(&change.change.landing?)?;
     for (index, member) in row.landing.members.iter().enumerate() {
@@ -3081,6 +3098,7 @@ pub(crate) fn ask_for(d: &Domain, change: &crate::ChangeRow) -> Option<change::A
                     return Some(change::Ask::Repair {
                         gate: u16::try_from(index).expect("gate position"),
                         candidate: member.candidate?,
+                        below: None,
                     });
                 }
             }
