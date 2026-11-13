@@ -893,6 +893,7 @@ Under `../client/ctl/tools.md`, 1's names (a group `landing`):
 | `landing show LANDING` | a landing: its train, its round and its base, its pull request, its members in the stack's order, each with its unit, its branch, its head, its prefix and how it combined the member, its judgement, and, ended, its landed commit or why it left; each gate's key, receipt or run at the top and at each probed prefix; its round's search (`landing-search.md`, 8); its step, its stale rounds and faults |
 | `landing list --project PROJECT [--ended]` | the project's landings, newest first, with their trains and phases; the live ones first |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time |
+| `landing history --project PROJECT [--change TASK \| --landing TASK] ...` | the steps of the project's changes and landings as events, kept after their rows go (`landing-history.md`, 5.1) |
 
 The reads above describe turn landing tasks. A queue change creates no
 landing task: `landing show TASK` on its change task answers
