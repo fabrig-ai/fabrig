@@ -5803,6 +5803,13 @@ pub(crate) fn change_outcome(
             crate::change_history::conflict(d, env.wall, &mut saved, out);
         }
     }
+    if let skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) = outcome
+        && saved.change.way == change::Way::Queue
+        && let Some(kept) = d.entries.get(&entry)
+        && let skein_forge::api::Write::Merge { .. } = kept.entry.effect.write
+    {
+        crate::change_history::conflict(d, env.wall, &mut saved, out);
+    }
     if let skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), .. } = outcome {
         let mut event = crate::change_history::step(d, &saved, crate::history::What::Turn { members: 1 });
         event.operation = crate::history::Operation::Of(entry);

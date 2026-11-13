@@ -375,6 +375,29 @@ fn a_turn_member_lands_at_its_prefix_with_its_round_and_unit() {
 }
 
 #[test]
+fn a_merge_refused_for_conflict_records_it_once_when_the_write_settles() {
+    let mut world = queued();
+    world.land_writes_late(Duration::from_secs(3));
+    assert!(matches!(step(&mut world, 80), change::Decision::Effect(change::Effect::Merge { .. })));
+    world.push(b"main", b"a conflicting race");
+    world.run_for(12);
+    world.answer_writes();
+    world.run_for(25);
+    assert_eq!(world.change(TASK).effect, change::EffectResult::Conflict);
+    assert!(world.change(TASK).pending.is_none());
+    let conflicts: Vec<_> =
+        effects(&world).into_iter().filter(|event| matches!(event.what, h::What::Conflict { .. })).collect();
+    assert_eq!(conflicts.len(), 1);
+    assert_eq!(conflicts[0].what, h::What::Conflict { with: h::With::Branch, files: 0 });
+    assert_eq!(conflicts[0].head, Some(translate::commit(world.branch(BRANCH))));
+    world.restart();
+    step(&mut world, 81);
+    let after: Vec<_> =
+        effects(&world).into_iter().filter(|event| matches!(event.what, h::What::Conflict { .. })).collect();
+    assert_eq!(after, conflicts);
+}
+
+#[test]
 fn after_landing_records_red_then_cleared_and_timeout_uncleared() {
     for timeout in [false, true] {
         let mut world = queued();
