@@ -87,3 +87,7 @@ checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
+
+Confirmed outside the settled-stop change, from goal 2288's graces, 2026-11-13:
+
+- test jig-channel-world::suite channel::a_link_cut_mid_frame_redials_and_each_turn_reaches_the_engine_once
