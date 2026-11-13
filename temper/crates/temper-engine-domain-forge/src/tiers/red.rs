@@ -216,6 +216,7 @@ fn file(d: &Domain, row: &TierRow, red: &RedNews, message_bytes: u32, out: &mut 
     }
     out.push(Request::FileRedFinding {
         task: row.task.expect("tier task"),
+        follow: follow(d, row.repository, commit),
         finding: crate::FileFinding {
             project: repository.project,
             kind: crate::FindingKind::Red,
@@ -225,6 +226,26 @@ fn file(d: &Domain, row: &TierRow, red: &RedNews, message_bytes: u32, out: &mut 
             body: crate::red_news_words(red, message_bytes.min(4096)),
         },
     });
+}
+
+/// The lowest-numbered kept member naming a follow wins (domain/forge/follows.md, 6).
+fn follow(d: &Domain, repository: Repository, commit: &Commit) -> Option<u32> {
+    let verification = d.verifications.get(&(repository, *commit))?;
+    let mut first: Option<(u64, u32)> = None;
+    for &number in &verification.changes {
+        let Some(change) = d.change(number) else { continue };
+        let Some(follows) = &change.follows else { continue };
+        if let Some((lowest, _)) = first
+            && lowest <= number
+        {
+            continue;
+        }
+        first = Some((number, follows.follow));
+    }
+    match first {
+        Some((_, follow)) => Some(follow),
+        None => None,
+    }
 }
 
 fn receives(d: &Domain, subscriber: &Subscriber, verification: &Verification, topic: &Topic) -> bool {

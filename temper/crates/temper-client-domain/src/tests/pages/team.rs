@@ -1,5 +1,6 @@
 //! Team's plain facts and parts (temper/docs/design/client/pages/README.md, Team).
 mod areas;
+mod follows;
 mod hand;
 mod sessions;
 use crate::pages::team::{self, Facts, Parts, Person, Waits};
@@ -151,6 +152,7 @@ fn gather_lists_each_person_once_the_reader_first() {
                 people: List::from_boxed(expected),
                 cut,
                 areas: None,
+                follows: List::with_capacity(0),
                 roles: List::with_capacity(0),
                 roles_cut: false,
                 selected: None,
@@ -185,6 +187,7 @@ fn parts_show_what_the_facts_hold() {
             people,
             cut,
             areas: None,
+            follows: List::with_capacity(0),
             roles: List::with_capacity(0),
             roles_cut: false,
             selected: None,
@@ -521,6 +524,7 @@ fn read_shown(members: &[u64], waits: &[(u64, Waits)]) -> team::Shown {
         people,
         cut: false,
         areas: None,
+        follows: List::with_capacity(0),
         roles: List::with_capacity(0),
         roles_cut: false,
         selected: None,

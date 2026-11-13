@@ -130,9 +130,13 @@ the triager first, are charters 14 to 16
   branch lands on its repository's landing branch
   (`../forge/change/README.md`); answer its own work's questions, and
   call `decided` where its project's classes let it
-  (`../forge/attention.md`, 5); write its Now; and propose changes to its
+  (`../forge/attention.md`, 5); write its Now; propose changes to its
   own rules, its wakes or its budget, as a proposal of settings (jig's
-  `domain/engine/settings.md`, 6).
+  `domain/engine/settings.md`, 6); and own a follow (`../forge/follows.md`,
+  sections 2 and 4): its follow task is its delegate, funded by it, its
+  producers' questions and its changes' holds reach it, it acts with
+  its `follow` tool, and a red after landing of a follow change reaches
+  it by the area it owns.
 - **It may not** accept its own proposal: an owner decides it, and its
   own decision of it is refused (jig's `domain/tasks/proposals.md`);
   spend past its period's budget; or decide what

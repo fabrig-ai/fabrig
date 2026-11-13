@@ -173,6 +173,8 @@ pub struct World {
 #[derive(Clone, Copy, Default)]
 #[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
+    /// Scripted task trees may dispatch workflow checks without an authority proposal.
+    pub workflow_dispatch: bool,
     /// Tool families granted by the deployment and project for this story.
     pub tools: Option<u64>,
     /// Scalar note scopes and a resource scope held by the parent in narrowing stories.
@@ -360,6 +362,7 @@ impl World {
     ) -> [(engine::Config, engine::Limits); 2] {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
+            workflow_dispatch,
             tools,
             notes,
             person_executor,
@@ -452,7 +455,7 @@ impl World {
                 reviewer.policy.modify = false;
                 reviewer.policy.agents = false;
                 config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
-                limits.tasks.authority_grants = 11;
+                limits.tasks.authority_grants = 11 + u32::from(workflow_dispatch);
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
                 limits.tasks.authority_bytes = 512;
@@ -461,7 +464,7 @@ impl World {
                 limits.tasks.inbox_bytes = inbox_bytes.unwrap_or(1024);
                 limits.authority.executors = 5;
                 limits.authority.batch = authority_batch.unwrap_or(2);
-                limits.authority.grants = 11;
+                limits.authority.grants = 11 + u32::from(workflow_dispatch);
                 limits.authority.segments = 8;
                 limits.authority.segment_bytes = 64;
                 limits.authority.writes = 2;
@@ -538,6 +541,13 @@ impl World {
                     ])
                 } else {
                     Box::new([grant.clone(), effect_grant.clone()])
+                };
+                let grants = if workflow_dispatch {
+                    let mut grants = grants.into_vec();
+                    grants.push(authority::Grant { kind: 16, ..grant.clone() });
+                    grants.into_boxed_slice()
+                } else {
+                    grants
                 };
                 let mut ceiling_grants = List::with_capacity(limits.authority.grants);
                 for grant in &grants {
@@ -633,7 +643,9 @@ impl World {
                         grants.push(grant.clone()).expect("ceiling grants");
                     }
                     for kind in [6, 9, 15, 16] {
-                        grants.push(authority::Grant { kind, ..grant.clone() }).expect("landing grants");
+                        if !grants.as_slice().iter().any(|grant| grant.kind == kind) {
+                            grants.push(authority::Grant { kind, ..grant.clone() }).expect("landing grants");
+                        }
                     }
                     rules.ceiling.grants = grants.into_boxed();
                     rules.ceiling.delegation.kinds = Box::new([

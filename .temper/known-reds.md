@@ -91,6 +91,13 @@ Inherited from main at its merge into g by the closer, 2026-11-12.
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
 Inherited from main (commit fab52fee98, merged in 837703982a), found by change 2121 of goal 2105 on 2026-11-12.
 - lint temper-worker-domain clippy::chunks_exact_to_as_chunks temper/crates/temper-worker-domain/src/jobs/prepare.rs
+Failing on goal 1985's branch and owned by none of its live changes; delivery's checks pass them.
+
+- lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
+- lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
+- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
+- lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
+- lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs

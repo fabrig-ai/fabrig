@@ -484,6 +484,30 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
 }
 
 #[test]
+fn the_porter_owns_and_controls_its_follows() {
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let porter = defaults.charters.iter().find(|charter| charter.number == 16).unwrap();
+    let shared = core::str::from_utf8(&porter.policy.instructions).unwrap();
+    for guidance in [
+        "You own the follows that name you",
+        "their producers' questions reach you from their follow task",
+        "answer them as your own work's",
+        "Their changes' holds reach you; decide them",
+        "Act with the `follow` tool: merge what touches the same code, hold with why, and skip what needs no port with why",
+        "When your follow task is held for spend, raise its budget from yours with `amend` and release it, or ask your person",
+        "A port with no follow you make as changes of your own",
+    ] {
+        assert!(shared.contains(guidance), "porter guidance: {guidance}");
+    }
+    assert!(!shared.contains("until follows have their own designed work"));
+    let role = defaults.charters.iter().find(|charter| charter.number == 13).unwrap();
+    let shared = core::str::from_utf8(&role.policy.instructions).unwrap();
+    assert!(shared.contains("Act on the follows you own with the `follow` tool"));
+    assert!(shared.contains("their producers' questions reach you from their follow task"));
+}
+
+#[test]
 fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
     use jig_domain_authority::Executor;
     use temper_engine_domain_forge::settings::Value;

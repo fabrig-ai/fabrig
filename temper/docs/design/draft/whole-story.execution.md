@@ -317,7 +317,8 @@ P2's and F2's that day, as goal 1243, P2's repair for What follows
 what, landed, and
 N3b's that day, as goal 492, its push, landed, and
 R3's, P4c's and T3's that day, as goal 1983, P4c, landed, and
-T3's that day, as goal 1984, T3, landed. Plans
+T3's that day, as goal 1984, T3, landed, and
+F1's that day, as goal 1985, a standing role as a follow's owner, landed. Plans
 
 land meanwhile, so read what a row waits on afresh before starting it.
 
@@ -350,7 +351,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | R1 | landed; its walk follows | goal 63: jig's task that stands, its sessions and its Now (jig's `domain/tasks/standing.md`), and temper's standing role, its stock charter and template, its person and `role start`, `role list` and `role show` (`../domain/agent/standing.md`); its walk is R2's and R3's |
 | R2 | landed; its walk follows R3's | goal 684: a project's areas in words and its triager, kinds 14 and 15; findings as temper's record, each held by the owner `../domain/areas.md`, section 4 derives, a task told by news and a person in Needs you; `finding` and `need` in ctl, `party make` and `sign-in --service`; the agents' `finding` tool; a red of no goal's filed; the stock's triager, prover and porter, Draft first bringing the triager |
 | R3 | landed; its walk follows | goal 712: jig's talk (jig's `domain/tasks/standing.md`, 5.6), the Now's `NowWritten` line and period, and temper's talk, `role talk`, the weekly report and the roles' Nows in Home's brief's words (`../domain/agent/standing.md`, sections 7 and 8); Team's drawing of them is P4c's, goal 1983, and the terminal's T3's |
-| F1 | landed for a person as owner | a follow owned by a person, its queue, its follow task, the owner's acts in `temper ctl`, its check and its lag and parity (`../domain/forge/follows.md`); a standing role as owner, its acts as a tool and its questions, wait on R1 (`follows.status.md`); its walk follows landing |
+| F1 | landed; its walk follows | a follow owned by a person, its queue, its follow task, the owner's acts in `temper ctl`, its check and its lag and parity (`../domain/forge/follows.md`); goal 1985: a standing role as owner, its follow task its delegate, its producers' questions relayed to it and its changes' holds reaching it, its acts with the `follow` tool, a red after landing filed with its area, and a follow on its owner's row and card on Team (`../client/pages/team.md`, 1); the world with a follow and the story for v0.1.0 wait (`follows.status.md`, 9); its walk follows landing |
 | F2 | landed; its walk follows | goal 1015: kind 13, a project's dependency on another project of the deployment, judged by the root, carried in the forge's `follows` document beside the follows and printed by `temper ctl follow list`, "dependency 1: fabrig depends on vsr-rs", acted on by nothing (`../domain/forge/dependencies.md`); Home's What follows what draws follows and dependencies from that document since P2's repair, goal 1243 (`../client/pages/home.md`, 1); its walk follows landing |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | landed; its walk follows | `tui-whole-t1` drew the launchpad and printed views; its repair, goal 761, reads the brief, Where you left off and Needs you across the person's projects, says why a walked need reached the person, when each need asked and a left-off row's day, and draws the blank row under the header (`../client/tui/pages/launchpad.md`); Stop asking in the terminal stays the web's (`surfaces.status.md`, 11); its walk follows landing (`../client/README.md`, 5) |
