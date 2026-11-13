@@ -41,7 +41,6 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
-- test temper-client-journeys-tool tests::the_overlay_is_empty
 - lint jig-protocol-config clippy::disallowed_methods jig/crates/jig-protocol-config/src/tests/seed_policy.rs
 - lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
@@ -53,3 +52,11 @@ Inherited by goal 1988 on 2026-11-12: the delivery toolchain nightly-2026-10-21 
 - lint jig-domain-fleet clippy::unneeded_wildcard_pattern jig/crates/jig-domain-fleet/src/attempt.rs
 - lint jig-domain-fleet clippy::needless_bool jig/crates/jig-domain-fleet/src/sources.rs
 - lint jig-domain-accounts clippy::needless_bool jig/crates/jig-domain-accounts/src/limits.rs
+- lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
+- lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
+- lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
+- lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
+- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
+- lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
+- lint temper-client-view clippy::disallowed_types temper/crates/temper-client-view/src/tests/task.rs
+- test temper-box::suite box_listeners::a_fresh_box_prints_its_block_and_nothing_else

@@ -2602,8 +2602,19 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app:has(> .temper-rail) .temper-team-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 8px 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); }
 #app:has(> .temper-rail) .temper-team-row > :last-child { grid-column: 3; white-space: nowrap; font-variant-numeric: tabular-nums; }
 #app:has(> .temper-rail) .temper-team-row:has([aria-current]) { background: var(--gf-surface); }
-#app:has(> .temper-rail) .temper-team .temper-how-who-agent { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 1px 8px; border: 1px solid var(--gf-line); border-radius: 5px; font-size: 12px; font-weight: 500; color: var(--gf-ink); white-space: nowrap; text-decoration: none; }
+#app:has(> .temper-rail) .temper-team :is(.temper-how-who-agent, .temper-how-who-person) { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 1px 8px; border: 1px solid var(--gf-line); border-radius: 5px; font-size: 12px; font-weight: 500; color: var(--gf-ink); white-space: nowrap; text-decoration: none; }
 #app:has(> .temper-rail) .temper-team .temper-how-who-agent::before { content: ''; flex: none; width: 11px; height: 11px; background: var(--gf-ink); -webkit-mask: url(files/star.svg) center / contain no-repeat; mask: url(files/star.svg) center / contain no-repeat; }
+#app:has(> .temper-rail) .temper-team .temper-how-who-person::before { content: ''; flex: none; box-sizing: border-box; width: 8px; height: 8px; border: 1.5px solid var(--gf-signal); border-radius: 50%; }
+#app:has(> .temper-rail) .temper-team .temper-how-empty { color: var(--gf-muted); font-size: 13px; }
+#app:has(> .temper-rail) .temper-team-areas { overflow-x: auto; }
+#app:has(> .temper-rail) .temper-team .temper-how-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 14px; }
+#app:has(> .temper-rail) .temper-team .temper-how-table th { text-align: left; font-weight: 500; font-size: 12.5px; color: var(--gf-muted); padding: 8px 10px; border-bottom: 1px solid var(--gf-line); white-space: nowrap; }
+#app:has(> .temper-rail) .temper-team .temper-how-table td { padding: 12px 10px; border-bottom: 1px solid var(--gf-line); vertical-align: top; }
+#app:has(> .temper-rail) .temper-team .temper-how-table tr[aria-current] { background: var(--gf-surface); }
+#app:has(> .temper-rail) .temper-team .temper-how-table td:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+#app:has(> .temper-rail) .temper-team-routing { color: var(--gf-muted); font-size: 13px; }
+#app:has(> .temper-rail) .temper-team-routing a { color: inherit; }
+#app:has(> .temper-rail) .temper-team-talk { display: inline-flex; align-items: center; min-height: 34px; padding: 6px 12px; border-radius: 6px; background: var(--gf-ink); color: var(--gf-paper); font: inherit; text-decoration: none; }
 #app:has(> .temper-rail) .temper-team-card { min-width: 0; background: var(--gf-surface); border: 1px solid var(--gf-line); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 24px; }
 #app:has(> .temper-rail) .temper-team-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 #app:has(> .temper-rail) .temper-team-head > div:first-child { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -2614,14 +2625,14 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app:has(> .temper-rail) .temper-team-acts button { min-height: 34px; padding: 6px 12px; border: 1px solid var(--gf-line); border-radius: 6px; background: var(--gf-surface); color: var(--gf-ink); font: inherit; cursor: pointer; }
 #app:has(> .temper-rail) .temper-team-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
 #app:has(> .temper-rail) .temper-team-columns:has(> .temper-team-left):has(> .temper-team-right) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-#app:has(> .temper-rail) .temper-team-left, #app:has(> .temper-rail) .temper-team-right, #app:has(> .temper-rail) .temper-team-now { min-width: 0; display: flex; flex-direction: column; gap: 12px; overflow-wrap: anywhere; }
+#app:has(> .temper-rail) .temper-team-left, #app:has(> .temper-rail) .temper-team-right, #app:has(> .temper-rail) .temper-team-now, #app:has(> .temper-rail) .temper-team-report { min-width: 0; display: flex; flex-direction: column; gap: 12px; overflow-wrap: anywhere; }
 #app:has(> .temper-rail) .temper-team-kicker { color: var(--gf-muted); font-size: 13px; }
 #app:has(> .temper-rail) .temper-team-rules, #app:has(> .temper-rail) .temper-team-wakes { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 #app:has(> .temper-rail) .temper-team-wake-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--gf-line); align-items: baseline; }
 #app:has(> .temper-rail) .temper-team-wake-class { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px; border: 1px solid var(--gf-line); border-radius: 5px; font: 500 12px/1.6 var(--gf-sans); color: var(--gf-ink-2); white-space: nowrap; }
 #app:has(> .temper-rail) .temper-team-wake-class::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 1.5px; background: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-team-wake-class code { font: inherit; }
-#app:has(> .temper-rail) .temper-team-now ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+#app:has(> .temper-rail) .temper-team-now ul, #app:has(> .temper-rail) .temper-team-report ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 #app:has(> .temper-rail) .temper-team-sessions { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 #app:has(> .temper-rail) .temper-team-sessions > ul { list-style: none; margin: 0; padding: 0; }
 #app:has(> .temper-rail) .temper-team-session { display: grid; grid-template-columns: minmax(110px, auto) minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--gf-line); }

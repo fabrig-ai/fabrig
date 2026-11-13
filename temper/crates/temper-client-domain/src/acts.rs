@@ -151,6 +151,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         Act::ChangeProposal { .. }
         | Act::MessageWords { .. }
         | Act::Send
+        | Act::LeaveTalk
         | Act::Pause
         | Act::Resume
         | Act::Stop
@@ -191,6 +192,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::Told(_)
         | Act::Remembered(_)
         | Act::Models(_)
+        | Act::HandArea(_)
         | Act::StopAsking(_)
         | Act::Needs(_)
         | Act::Finding(_)

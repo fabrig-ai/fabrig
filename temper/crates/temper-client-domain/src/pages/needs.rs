@@ -155,6 +155,14 @@ pub struct Answered {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Toasted {
+    AreaHanded {
+        title: Box<[u8]>,
+        revision: u32,
+    },
+    AreasGivenBack {
+        revision: u32,
+    },
+    AreasProposed,
     /// A way's act answered: its name and revision (client/pages/settings.md, 2).
     Way {
         name: Box<[u8]>,
@@ -187,6 +195,7 @@ pub enum Toasted {
     NotSent,
     Paused,
     Resumed,
+    LeftTalk,
     Proposed {
         to: contract::Recipient,
     },
@@ -837,7 +846,10 @@ pub(crate) fn act(
                             pages.needs.toast = None;
                         }
                     }
-                    Toasted::StopApplied
+                    Toasted::AreaHanded { .. }
+                    | Toasted::AreasGivenBack { .. }
+                    | Toasted::AreasProposed
+                    | Toasted::StopApplied
                     | Toasted::StopProposed
                     | Toasted::KeptAsking
                     | Toasted::KeepAskingRefused
@@ -852,6 +864,7 @@ pub(crate) fn act(
                     | Toasted::Later
                     | Toasted::NotSent
                     | Toasted::Paused
+                    | Toasted::LeftTalk
                     | Toasted::Resumed
                     | Toasted::Proposed { .. }
                     | Toasted::Refused { .. } => {}

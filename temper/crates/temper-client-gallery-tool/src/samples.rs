@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 431;
+pub const N: usize = 433;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -140,6 +140,7 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "team-hand", world: Bare, address: Address::Team { project: 1, role: Some(52) }, then: Shown },
         Sample { name: "team-role", world: Bare, address: Address::Team { project: 1, role: Some(52) }, then: Shown },
         Sample {
             name: "night-team-role",
@@ -299,6 +300,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-terminal-closed", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         Sample { name: "chat-terminal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-terminal-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
+        Sample { name: "role-talk", world: Bare, address: Address::Task { task: 52 }, then: Shown },
         Sample { name: "agent-work", world: Bare, address: Address::Task { task: 1 }, then: Shown },
         Sample { name: "chat-work-done", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
@@ -1413,7 +1415,7 @@ fn special_mockup(name: &str) -> Option<String> {
     }
     match name {
         "team" | "night-team" => return Some("../whole-story/team/team.html".to_owned()),
-        "team-role" | "night-team-role" => return Some("../whole-story/team.html".to_owned()),
+        "team-hand" | "team-role" | "night-team-role" => return Some("../whole-story/team.html".to_owned()),
         "all-home"
         | "all-home-nothing-new"
         | "all-home-away"
@@ -1915,7 +1917,7 @@ pub fn domain(sample: &Sample) -> Domain {
     {
         return crate::worlds::picker_world(sample.name);
     }
-    if sample.name.starts_with("chat-work-") || sample.name == "agent-work" {
+    if sample.name.starts_with("chat-work-") || sample.name == "agent-work" || sample.name == "role-talk" {
         return crate::worlds::chat_work_world(sample.name);
     }
     if sample.name == "chats-drafts" {
@@ -1973,6 +1975,15 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name.starts_with("changes") {
         return crate::worlds::changes_world(sample.name);
+    }
+    if sample.name == "team-hand" {
+        let mut root = crate::worlds::team_world("team-role");
+        step(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::HandArea(temper_client_domain::pages::team::hand::Act::Open)) },
+            &mut Queue::uncapped(),
+        );
+        return root;
     }
     if sample.name == "team" || sample.name == "team-alone" || sample.name == "team-role" {
         return crate::worlds::team_world(sample.name);

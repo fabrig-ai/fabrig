@@ -378,6 +378,25 @@ Its rules on an agent's task's page:
   temper's "Messages reach it once it runs." (any other refusal: its supplied
   words, in the same look, since why Message isn't offered is no outcome), and
   its model choice line alone.
+- **A standing role's talk** (`../../domain/agent/standing.md`, 7; jig's
+  `domain/tasks/standing.md`, 5.6): on the page of a task that stands, its
+  flags' `ended_by` `standing`, while its document offers `Talk`, the
+  composer talks in place of steering: the same composer, its text area
+  named "Talk", its placeholder "Talk to TITLE", its note "Talk with TITLE
+  · it answers here, and the talk stays open until you leave or 30 minutes
+  pass with nothing said.", sending `Ask::Talk { project, task, words }`,
+  the words shown as a message's are, "Being sent", then "Sent", and the
+  role's reply as its run's turns, as any run's on this page. Under it,
+  small and muted, the terminal's command: "Or in a terminal: temper ctl
+  DIR role talk N TEXT --key KEY", N the task's number
+  (`../ctl/tools.md`, 3). While the document's `talk` names the person
+  reading, "Leave" stands among the taskbar's acts, before "Pause":
+  `Ask::Leave { project, task }` at once, no confirmation, its toast "Left:
+  its next session starts fresh from its Now."; a refusal of either says
+  why in jig's words, as Message's does. The talk's lines, "talk opened"
+  and "talk ended", and each Now written are the conversation's activity
+  rows (2), as they are today. Team's "Talk to it" opens this page
+  (`team.md`, 1).
 - **Pause and Resume** are a chat's (`chat/README.md`, 1, *A person's pause*): `Ask::Stop` at once,
   and on the person's own pause "Resume", `Ask::Release` naming the hold's revision,
   at once. The page's state says "Paused"; neither draws a done word, and a refusal

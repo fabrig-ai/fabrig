@@ -41,7 +41,9 @@ pub struct Card {
     pub paused: bool,
     pub pause: bool,
     pub resume: bool,
+    pub talk: bool,
     pub now: Option<Now>,
+    pub report: Option<Now>,
     pub sessions: List<super::Session>,
     pub rules: Option<super::Rules>,
     pub wakes: List<super::wakes::Row>,
@@ -56,6 +58,17 @@ struct Listed {
     refresh: bool,
 }
 #[derive(Debug)]
+struct Report {
+    handle: Option<Handle>,
+    body: Option<Now>,
+    refresh: bool,
+}
+impl Report {
+    const fn new() -> Self {
+        Self { handle: None, body: None, refresh: false }
+    }
+}
+#[derive(Debug)]
 pub(super) struct Standing {
     watch: Option<Handle>,
     read: bool,
@@ -65,6 +78,7 @@ pub(super) struct Standing {
     card: Option<(u64, Handle)>,
     pending: List<(Key, task::Sending)>,
     rules: super::rules::Reader,
+    report: Report,
 }
 impl Default for Standing {
     fn default() -> Self {
@@ -77,6 +91,7 @@ impl Default for Standing {
             card: None,
             pending: List::with_capacity(2),
             rules: super::rules::Reader::default(),
+            report: Report::new(),
         }
     }
 }
@@ -149,11 +164,29 @@ impl Standing {
             if let Some(task) = wanted {
                 let handle = new_handle(next);
                 self.card = Some((task, handle));
+                self.report.refresh = true;
                 out.push(Request::Client(jig_client::Event::Watch {
                     handle,
                     subject: Watchable::Jig(c::Subject::Task { task }),
                 }));
             }
+        }
+        // The card's report has its own in-flight slot so it never delays a Now.
+        if self.report.refresh
+            && self.report.handle.is_none()
+            && let Some(task) = wanted
+        {
+            let handle = new_handle(next);
+            self.report.handle = Some(handle);
+            self.report.refresh = false;
+            out.push(Request::Client(jig_client::Event::Read {
+                handle,
+                read: Readable::Jig(c::Read::Notes {
+                    scope: c::NoteScope::Task { project, task },
+                    description: Some(c::Text::new(b"report".as_slice().into(), 6).expect("report fits")),
+                    after: None,
+                }),
+            }));
         }
     }
     pub(super) fn configure_rules(
@@ -180,6 +213,10 @@ impl Standing {
     }
     fn close_card(&mut self, out: &mut Queue<Request>) {
         self.rules.leave(out);
+        if let Some(handle) = self.report.handle.take() {
+            unwatch(handle, out);
+        }
+        self.report = Report::new();
         if let Some((_, handle)) = self.card.take() {
             unwatch(handle, out);
         }
@@ -195,6 +232,21 @@ impl Standing {
     }
     pub(super) fn told(&mut self, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
         match told {
+            Told::Page { handle, page } if self.report.handle == Some(*handle) => {
+                self.report.body = match page {
+                    Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(page))) => note_body(page, b"report"),
+                    Readout::Jig(_) | Readout::Family { .. } | Readout::Limit | Readout::NotServed { .. } => None,
+                };
+                self.report.handle = None;
+                unwatch(*handle, out);
+                true
+            }
+            Told::Ended { handle, .. } if self.report.handle == Some(*handle) => {
+                self.report.body = None;
+                self.report.handle = None;
+                unwatch(*handle, out);
+                true
+            }
             Told::Changed { handle } if self.watch == Some(*handle) => {
                 let tasks = match latest(client, *handle) {
                     Some(Latest::Jig(c::Delivery::Tasks(tasks))) => Some(tasks.as_ref()),
@@ -226,7 +278,7 @@ impl Standing {
                             unwatch(handle, out);
                         }
                         row.now = match page {
-                            Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(page))) => now(page),
+                            Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(page))) => note_body(page, b"now"),
                             Readout::Jig(_) | Readout::Family { .. } | Readout::Limit | Readout::NotServed { .. } => {
                                 None
                             }
@@ -266,6 +318,7 @@ impl Standing {
     }
     fn update(&mut self, tasks: &c::Tasks, out: &mut Queue<Request>) {
         self.more = tasks.more;
+        self.report.refresh = true;
         let mut rows: List<Listed> = List::with_capacity(ROLES);
         for line in &tasks.rows {
             if line.ended_at.is_some() || line.label != 3 || rows.len() == ROLES {
@@ -342,7 +395,9 @@ impl Standing {
                     paused: false,
                     pause: false,
                     resume: false,
+                    talk: false,
                     now: current,
+                    report: self.report.body.clone(),
                     sessions: List::with_capacity(0),
                     rules: None,
                     wakes: List::with_capacity(0),
@@ -382,7 +437,9 @@ impl Standing {
                 paused,
                 pause: chat::allowed(task, c::ActKind::Stop),
                 resume: chat::allowed(task, c::ActKind::Release),
+                talk: chat::allowed(task, c::ActKind::Talk),
                 now: current,
+                report: self.report.body.clone(),
                 sessions: List::with_capacity(0),
                 rules: self.rules.facts(),
                 wakes: super::wakes::rows(&task.subscriptions, &task.wake),
@@ -395,7 +452,7 @@ impl Standing {
         let activity = if let Some(document) = self.document(client) { Some(document.activity) } else { None };
         Some((task, activity))
     }
-    fn document<'a>(&self, client: &'a Client) -> Option<&'a c::Task> {
+    pub(super) fn document<'a>(&self, client: &'a Client) -> Option<&'a c::Task> {
         card_document(self.card, self.chosen(), self.read, client)
     }
 
@@ -437,7 +494,7 @@ impl Standing {
             match kind {
                 task::Sending::Stop => Some(Toasted::Paused),
                 task::Sending::Resume => Some(Toasted::Resumed),
-                task::Sending::Message | task::Sending::Cancel | task::Sending::Amend => None,
+                task::Sending::Leave | task::Sending::Message | task::Sending::Cancel | task::Sending::Amend => None,
             }
         } else {
             Some(Toasted::Refused { outcome: outcome.clone() })
@@ -462,10 +519,10 @@ fn latest(client: &Client, handle: Handle) -> Option<&Latest> {
     }
     document.latest
 }
-fn now(page: &c::NotePage) -> Option<Now> {
+fn note_body(page: &c::NotePage, description: &[u8]) -> Option<Now> {
     let mut first: Option<&c::Note> = None;
     for note in &page.rows {
-        if note.description.bytes() == b"now"
+        if note.description.bytes() == description
             && match first {
                 Some(previous) => note.number < previous.number,
                 None => true,
