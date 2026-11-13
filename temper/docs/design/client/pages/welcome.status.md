@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [welcome.md](welcome.md).
 
-- **Not yet:** 1, 2: *Its frame* without the person and "Sign out", and temper box's line under the Welcome step's cards rather than in the bar [in flight: change 1991].
 
 - **Not yet:** 1: two endings leave nothing under "Model none yet"
   (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
