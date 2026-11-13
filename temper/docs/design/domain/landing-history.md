@@ -371,8 +371,10 @@ of the forge's family (`../client/ctl/tools.md`, 2):
 - **Its upper bound:** the first page takes the project's last number,
   `next` less one, and the cursor carries it, so later pages read the
   same history; no event past it is listed.
-- **Its range:** `--since` and `--until`, as `change show` takes them,
-  keep the events whose `at` is in the half-open range; an order by
+- **Its range:** `--since` and `--until`, each TIME as `task amend
+  --deadline` takes it in `../client/ctl/areas.md` (`2026-10-24T17:00Z`,
+  UTC to the minute), printed back in that form, keep the events whose
+  `at` is in the half-open range; an order by
   number reads from the mark of `--since`'s hour (4.2), and stops at the
   first event at or past `--until`.
 - **The cursor:** 17 bytes, a version byte, 1, then the upper bound and
