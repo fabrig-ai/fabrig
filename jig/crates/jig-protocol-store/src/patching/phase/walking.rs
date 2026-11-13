@@ -11,7 +11,7 @@ use crate::{
     secrets,
 };
 use alloc::boxed::Box;
-use jig_domain_core::{CoreKey, CoreRecord, Deployment, Key, Record};
+use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Deployment, Key, Record};
 use skein_codec::patch::{Halt, Patcher};
 use skein_lib::{Env, List, Queue, Token, bytes};
 

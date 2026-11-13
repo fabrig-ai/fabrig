@@ -8,6 +8,26 @@ use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
 
+/// A version is its schema's family line (jig/docs/design/protocol/client/README.md, section 6).
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
+fn version_constants_match_their_schemas() {
+    let client =
+        skein_codec::schema::parse(include_str!("../schema/client-wire-v1.schema").as_bytes()).expect("client schema");
+    assert_eq!(
+        crate::CLIENT_VERSION,
+        u32::from(client.version()),
+        "temper-client-wire CLIENT_VERSION must equal its family version"
+    );
+    let public =
+        skein_codec::schema::parse(include_str!("../schema/public-v1.schema").as_bytes()).expect("public schema");
+    assert_eq!(
+        crate::PUBLIC_VERSION,
+        public.version(),
+        "temper-public-wire PUBLIC_VERSION must equal its family version"
+    );
+}
+
 #[test]
 fn an_adopt_of_another_version_is_refused() {
     let mut bytes = crate::requesting(

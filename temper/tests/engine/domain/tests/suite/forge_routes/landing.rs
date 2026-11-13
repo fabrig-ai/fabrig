@@ -737,7 +737,7 @@ fn dependent_changes_in_two_repositories_are_refused_as_a_unit() {
             break;
         }
     }
-    assert!(landing_rows(&world).is_empty());
+    assert_eq!(landing_rows(&world), Vec::<&forge_top::LandingRow>::new());
     let tasks::Phase::Held { source: Some(source), .. } = &task_row(&world, a).expect("held first change").phase else {
         panic!("unit refused")
     };

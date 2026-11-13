@@ -46,7 +46,7 @@ pub fn levels(sets: &PatchSets) -> codec::component::Levels {
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
-    pub core: jig_domain_core::Limits,
+    pub core: jig_domain_core_vocabulary::Limits,
     pub store: skein_kv::Limits,
     pub secrets: skein_kv::Limits,
     /// The clients component's carried values at once (protocol/store/secrets.md).
@@ -91,7 +91,7 @@ pub struct Store {
     codec_limits: codec::View,
     layouts: codec::component::Layouts,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
-    names: Box<[jig_domain_core::settings::ModelName]>,
+    names: Box<[jig_domain_core_vocabulary::settings::ModelName]>,
     stores: Stores,
     phase: Phase,
     directory: directory::Directory,
@@ -193,7 +193,7 @@ impl Store {
     pub fn over(
         limits: &Limits,
         application: sizes::Application,
-        models: &[jig_domain_core::Model],
+        models: &[jig_domain_core_vocabulary::Model],
         stores: Stores,
     ) -> Store {
         let codec_limits = checked_codec(limits).expect("the store's limits are valid");
@@ -222,7 +222,7 @@ impl Store {
     pub fn on_directory(
         limits: &Limits,
         application: sizes::Application,
-        models: &[jig_domain_core::Model],
+        models: &[jig_domain_core_vocabulary::Model],
         _seeded: Seeded,
     ) -> Store {
         let stores =
@@ -233,7 +233,7 @@ impl Store {
     }
 
     /// Today's models, before a commit that holds them (domain/engine/settings.md, 11).
-    pub fn catalogue(&mut self, names: Box<[jig_domain_core::settings::ModelName]>) {
+    pub fn catalogue(&mut self, names: Box<[jig_domain_core_vocabulary::settings::ModelName]>) {
         self.names = names;
     }
 
@@ -345,7 +345,7 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
         .checked_add(settings_v3::Revision::decoded_bound(&codec.settings)?)?
-        .checked_add(jig_domain_core::settings::revision_bound(&limits.core)?)?
+        .checked_add(jig_domain_core_vocabulary::settings::revision_bound(&limits.core)?)?
         .checked_add(u64::try_from(size_of::<jig_domain_tasks::TaskRecord>()).ok()?)?
         .checked_mul(2)
 }

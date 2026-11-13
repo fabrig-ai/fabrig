@@ -18,11 +18,13 @@ fn check_current(rendered: &[u8], kept: &[u8]) -> Result<(), &'static str> {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "temper's round: reads SKEIN_CODEGEN_WRITE to write the host tools' contract"
+)]
 fn host_tools_contract_is_current() {
     let rendered = render(&SPECS);
-    let path = skein_scratch::paths::workspace()
-        .join("temper/crates/temper-engine-smith/contract")
-        .join(format!("host-tools-v{}.txt", wire::VERSION));
+    let path = skein_scratch::paths::package().join("contract").join(format!("host-tools-v{}.txt", wire::VERSION));
     if std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1")) {
         fs::create_dir_all(path.parent().expect("contract directory")).expect("create contract directory");
         fs::write(&path, &rendered).expect("write current host-tool contract");

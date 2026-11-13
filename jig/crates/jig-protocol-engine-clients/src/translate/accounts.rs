@@ -2,7 +2,7 @@
 use super::{deployment, owner, pieces, w};
 use alloc::boxed::Box;
 use jig_domain_accounts as a;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
 pub fn facts(value: &List<a::AccountFact>, limits: &w::Limits) -> Result<List<w::AccountFact>, w::Problem> {
     let mut rows = List::with_capacity(value.len());

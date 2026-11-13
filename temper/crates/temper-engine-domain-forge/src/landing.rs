@@ -815,6 +815,15 @@ fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
         refused: None,
     }
 }
+fn pending_for(d: &Domain, task: u64) -> Option<Token> {
+    let mut existing = None;
+    for (token, pending) in &d.landing.pending {
+        if pending.task == task {
+            existing = Some(*token);
+        }
+    }
+    existing
+}
 pub(crate) fn step(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -832,13 +841,7 @@ pub(crate) fn step(
         emit(out, Request::LandingDecision { task, decision: policy::Decision::Cancel, entry: None, evidence: None });
         return;
     }
-    let mut existing = None;
-    for (token, pending) in &d.landing.pending {
-        if pending.task == task {
-            existing = Some(*token);
-        }
-    }
-    if let Some(token) = existing {
+    if let Some(token) = pending_for(d, task) {
         let pending = d.landing.pending.get_mut(&token).expect("pending step");
         pending.entry = entry;
         pending.heard = heard;
@@ -1458,7 +1461,6 @@ fn advance(
         Stage::Collect => unreachable!("collect emits the next read itself"),
     }
 }
-#[expect(clippy::too_many_arguments, reason = "the coherent gather retains its row and member position")]
 fn next_member(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -1519,7 +1521,7 @@ fn gathered(
         );
         return;
     }
-    let upstream = upstream_branch(d, &row);
+    let upstream = upstream_branch(d, row);
     p.stage = Stage::Round {
         stage: if upstream.is_some() { RoundRead::Upstream } else { RoundRead::Branch },
         candidate: None,
@@ -1691,10 +1693,7 @@ fn squash_head(message: &[u8], head: api::Commit) -> bool {
             start = index.checked_add(1).expect("message bound");
         }
     }
-    if message.get(start..) == Some(expected.as_ref()) {
-        return true;
-    }
-    false
+    message.get(start..) == Some(expected.as_ref())
 }
 
 fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {
@@ -1760,7 +1759,11 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     if p.heard.released {
         d.landing.results.remove(&(p.task, 0, 0, 9));
     }
-    if row.landing.members.first().is_some_and(|member| member.base.is_none()) {
+    let unprepared = match row.landing.members.first() {
+        Some(member) => member.base.is_none(),
+        None => false,
+    };
+    if unprepared {
         row.landing.round.upstream = p.upstream;
     }
     if p.heard.preparation == policy::Preparation::Failed || p.heard.preparation == policy::Preparation::Conflict {
@@ -2343,7 +2346,11 @@ fn single_turn(d: &Domain, row: &LandingRow, kept: &[u64]) -> bool {
             policy::Phase::Proved { at } => {
                 if !kept.contains(&other.landing.task) {
                     let candidate = (at, other.landing.task);
-                    if first.is_none_or(|prior| candidate < prior) {
+                    let earlier = match first {
+                        Some(prior) => candidate < prior,
+                        None => true,
+                    };
+                    if earlier {
                         first = Some(candidate);
                     }
                 }
@@ -2356,7 +2363,10 @@ fn single_turn(d: &Domain, row: &LandingRow, kept: &[u64]) -> bool {
             | policy::Phase::Cancelled => {}
         }
     }
-    first.is_some_and(|(_, task)| task == row.landing.task)
+    match first {
+        Some((_, task)) => task == row.landing.task,
+        None => false,
+    }
 }
 fn purpose_identity(row: &LandingRow, member: u16, gate: u16, operation: u8, attempt: u16) -> Box<[u8]> {
     crate::purpose::EffectPurpose::Landing {
@@ -3434,8 +3444,11 @@ pub(crate) fn closing(
         return;
     }
     if let Some(mut row) = d.landing.rows.get(&task).cloned() {
-        let tell_landed =
-            !row.landing.round.told && row.landing.members.first().is_some_and(|member| member.landed.is_some());
+        let tell_landed = !row.landing.round.told
+            && match row.landing.members.first() {
+                Some(member) => member.landed.is_some(),
+                None => false,
+            };
         row.landing.round.told |= tell_landed;
         row.landing.phase = policy::Phase::Cancelled;
         d.landing.due.remove(&task);

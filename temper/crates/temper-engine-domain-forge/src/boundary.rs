@@ -1744,7 +1744,7 @@ pub enum Event {
         retention: skein_lib::Duration,
         ask: Ask,
         role: Option<jig_domain_people::Role>,
-        carried: Option<jig_domain_core::Carried>,
+        carried: Option<jig_domain_core_vocabulary::Carried>,
     },
     Looked {
         request: Token,
@@ -2163,10 +2163,6 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "bounded landing failure snapshots remain in the existing durable save request"
-)]
 pub enum Request {
     Decided {
         to: skein_lib::ReplyTo,
@@ -2275,7 +2271,7 @@ pub enum Request {
         forge: u16,
         request: Token,
         how: How,
-        carried: jig_domain_core::Carried,
+        carried: jig_domain_core_vocabulary::Carried,
     },
     Manifest {
         forge: u16,
@@ -2543,7 +2539,7 @@ pub enum Request {
     Replace {
         forge: u16,
         request: Token,
-        carried: jig_domain_core::Carried,
+        carried: jig_domain_core_vocabulary::Carried,
     },
     /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     LinkNoted {

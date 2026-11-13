@@ -1,7 +1,7 @@
 //! Same-step gets and the core's archived reads (protocol/store/README.md, 3, and protocol/store/loads.md, 1).
 use super::fixtures::{self, ALICE, ENDED};
 use crate::{Event, Get, Phase, Request, Row, Store, Write, codec, ended, keys};
-use jig_domain_core::{self as core, CoreKey, CoreRecord, Key, Now, Record};
+use jig_domain_core_vocabulary::{self as core, CoreKey, CoreRecord, Key, Now, Record};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::Token;

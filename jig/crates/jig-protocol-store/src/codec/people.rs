@@ -2,7 +2,7 @@
 //! Durable deletion steps follow jig/docs/design/protocol/store/README.md, 6.1.
 use crate::people_v16 as wire;
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as domain;
 use skein_lib::{Duration, List, Reader, Wall, Writer};
 mod acts;

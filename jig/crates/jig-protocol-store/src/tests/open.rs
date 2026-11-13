@@ -3,7 +3,7 @@ mod levels;
 use super::fixtures;
 use crate::{Event, Family, Older, OpenRefusal, Phase, Request, Store, Stores, codec, keys};
 use alloc::boxed::Box;
-use jig_domain_core::{CoreKey, Key};
+use jig_domain_core_vocabulary::{CoreKey, Key};
 use skein_lib::Token;
 
 fn open(store: &mut Store) -> Box<[Event]> {

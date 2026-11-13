@@ -274,7 +274,7 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
                 receipts
             }
         }
-        Up::Served { served: false, .. } => vec![Receipt::OutOfDate],
+        Up::Unreadable | Up::Served { served: false, .. } => vec![Receipt::OutOfDate],
         Up::ReadDone { result: Readout::Jig(ReadResult::Value(value)), .. } => read(value),
         Up::Watched { event: WatchEvent::Delivered(Delivery::Task(value)), .. } => {
             read(&ReadValue::Task(value.clone()))

@@ -4,7 +4,7 @@ use super::{Failure, Spent, joins, paged};
 use crate::{Store, intervals, pages};
 use ::core::mem::size_of;
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, reads};
+use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::List;

@@ -165,18 +165,7 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
 pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
     match event {
         store::Event::Page { owner, items, next } => {
-            let Some(flight) = routes.pending.get(&owner) else { return };
-            let root_owner = flight.root;
-            let mut rows = List::with_capacity(u32::try_from(items.len()).expect("bounded startup items"));
-            for item in items {
-                match item {
-                    store::restore::Item::Row(row) => rows.push(row).expect("one row per item"),
-                    store::restore::Item::MissingLink { record, target } => {
-                        root(into, engine::StoreInput::MissingLink { owner: root_owner, record, target });
-                    }
-                }
-            }
-            page(routes, owner, rows.into_boxed(), next, None, None, into);
+            startup_page(routes, owner, items, next, into);
         }
         store::Event::PageRefused { owner, failure } => {
             if let Some(flight) = routes.pending.remove(&owner) {
@@ -270,6 +259,26 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         | store::Event::Secret { .. }
         | store::Event::SecretsLoaded { .. } => {}
     }
+}
+fn startup_page(
+    routes: &mut Routes,
+    owner: Token,
+    items: Box<[store::restore::Item]>,
+    next: Option<store::Cursor>,
+    into: &mut Queue<Up>,
+) {
+    let Some(flight) = routes.pending.get(&owner) else { return };
+    let root_owner = flight.root;
+    let mut rows = List::with_capacity(u32::try_from(items.len()).expect("bounded startup items"));
+    for item in items {
+        match item {
+            store::restore::Item::Row(row) => rows.push(row).expect("one row per item"),
+            store::restore::Item::MissingLink { record, target } => {
+                root(into, engine::StoreInput::MissingLink { owner: root_owner, record, target });
+            }
+        }
+    }
+    page(routes, owner, rows.into_boxed(), next, None, None, into);
 }
 fn root(into: &mut Queue<Up>, event: engine::StoreInput) {
     into.push(Up::Root(Box::new(engine::Event::Store(event))));

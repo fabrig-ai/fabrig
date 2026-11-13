@@ -62,5 +62,5 @@ pub fn login_passwd(user: u32) -> Result<Box<[u8]>, String> {
 }
 
 #[cfg(test)]
-#[path = "../../../bin/temper-box/tests/support/configuration.rs"]
+#[path = "../../../testing/temper-box-kit/src/configuration.rs"]
 pub mod test_configuration;

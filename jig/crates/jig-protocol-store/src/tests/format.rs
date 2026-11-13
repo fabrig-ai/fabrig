@@ -2,7 +2,7 @@
 use super::fixtures;
 use crate::boundary::{Family, OpenRefusal};
 use crate::{codec, format, sizes};
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use skein_lib::Duration;
 
 // People v11 retains the whole project authority as well as its roles.

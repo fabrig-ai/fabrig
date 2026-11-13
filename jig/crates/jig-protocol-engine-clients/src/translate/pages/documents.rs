@@ -2,7 +2,7 @@
 use super::super::{activity, chips, history, inbox, objects, w};
 use super::rows;
 use alloc::boxed::Box;
-use jig_domain_core::reads;
+use jig_domain_core_vocabulary::reads;
 use skein_lib::List;
 pub(super) fn activity(
     task: u64,

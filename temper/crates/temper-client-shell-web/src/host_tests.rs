@@ -135,6 +135,22 @@ fn node(host: &Host, role: Role, name: &[u8]) -> NodeId {
         .expect("account control")
         .id
 }
+#[test]
+fn the_reload_press_asks_the_browser_to_reload_once() {
+    let mut host = fixture();
+    host.client(jig_client::Event::Up { up: jig_client::Up::Served { served: false, versions: None } });
+    build(&mut host);
+    let reload = node(&host, Role::Button, b"Reload");
+    let idle = host.report(Report::Start);
+    assert!(!idle.reload);
+    let duties = host.report(Report::Act { node: reload, act: Act::Press });
+    assert!(duties.reload);
+    assert!(duties.departs());
+    assert!(duties.navigate.is_none());
+    assert!(duties.replace.is_none());
+    assert!(!host.report(Report::Start).reload);
+}
+
 fn input(host: &mut Host, name: &[u8], value: &[u8]) -> Vec<Patch> {
     let field = node(host, Role::TextField, name);
     host.act(field, Act::Input { value: Box::from(value) });

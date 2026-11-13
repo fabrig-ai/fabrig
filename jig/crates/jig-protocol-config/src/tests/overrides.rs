@@ -357,7 +357,7 @@ fn the_tail_has_its_own_profile_budget_and_override() {
     assert_eq!(expected.core.brief_core_budgets.tail, 2048);
     expected.core.brief_core_budgets.tail = 90;
     assert_eq!(parse(br#"{"profile":"small","overrides":{"core.brief_core_budgets.tail":90}}"#), Ok(expected));
-    assert!(jig_domain_core::valid(&expected.core));
+    assert!(jig_domain_core_vocabulary::valid(&expected.core));
 }
 
 #[test]
@@ -368,7 +368,7 @@ fn a_standing_now_has_its_own_profile_budget_and_override() {
     let mut expected = small();
     expected.core.brief_core_budgets.now = 90;
     assert_eq!(parse(br#"{"profile":"small","overrides":{"core.brief_core_budgets.now":90}}"#), Ok(expected));
-    assert!(jig_domain_core::valid(&expected.core));
+    assert!(jig_domain_core_vocabulary::valid(&expected.core));
     refused(
         br#"{"profile":"small","overrides":{"core.brief_core_budgets.now":4294967296}}"#,
         b"core.brief_core_budgets.now",
@@ -448,9 +448,9 @@ fn pending_settings_proposals_are_positive_and_keep_the_profile_defaults() {
 fn the_journal_prices_each_pending_settings_withdrawal() {
     let mut limits = small().core;
     limits.settings.proposals = 1;
-    let one = jig_domain_core::settings::writes_bound(&limits).expect("write room");
+    let one = jig_domain_core_vocabulary::settings::writes_bound(&limits).expect("write room");
     limits.settings.proposals = 2;
-    let two = jig_domain_core::settings::writes_bound(&limits).expect("write room");
+    let two = jig_domain_core_vocabulary::settings::writes_bound(&limits).expect("write room");
     // Task withdrawal: set erase, terminal history, two activity rows and up to three live rows.
     assert_eq!(two - one, 7);
 }

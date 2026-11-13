@@ -701,7 +701,7 @@ pair = "fuzzy"
 package = "temper-worker-service"
 filter = "kind(lib)"
 
-# support/cluster.rs: description/read/documents/render_files and settings_file; suite
+# temper/testing/temper-box-kit/src/cluster.rs: description/read/documents/render_files and settings_file; suite
 # configuration/startup/fake_opening and process cluster/case callers.
 [[fixture]]
 paths = ["temper/bin/temper-box/tests/fixtures/cluster/*"]
@@ -766,7 +766,7 @@ disposition = "provenance"
 reason = "Recording provenance for the B0 and B1 replay fixtures."
 
 # real-loop green_light::{fixture,recipe,acts,check}; repair::fixture also uses
-# green_light::fixture; temper suite/fake_opening.rs reads person/llm; support/forge_land/rung.rs:
+# green_light::fixture; temper suite/fake_opening.rs reads person/llm; temper/testing/temper-box-kit/src/forge_land/rung.rs:
 # twin_peer -> offline_walk. llm-base.json feeds the declared regenerator.
 [[fixture]]
 paths = ["temper/tests/real-loop/tests/fixtures/b0/*.json"]

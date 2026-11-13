@@ -35,7 +35,7 @@ fn a_start_requires_room_for_the_cores_sections_and_charter_documents() {
         }
     }
 }
-pub(super) fn core_config(document: &[u8]) -> jig_domain_core::Config {
+pub(super) fn core_config(document: &[u8]) -> jig_domain_core_vocabulary::Config {
     let mut engine = fixtures::engine(document).expect("checked engine");
     engine.charters[0].policy.instructions = Box::from(&b"Answer the question."[..]);
     crate::core(&engine, [3; 16], 11)

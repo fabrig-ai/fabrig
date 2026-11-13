@@ -188,6 +188,7 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
                 .args([
                     "--exact",
                     "real::a_zero_patience_deadline_reports_the_failing_iteration",
+                    "--include-ignored",
                     "--nocapture",
                     "--test-threads=1",
                 ])
@@ -333,6 +334,7 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
                 .args([
                     "--exact",
                     "real::a_starved_referee_drops_hosts_before_reporting_its_figures",
+                    "--include-ignored",
                     "--nocapture",
                     "--test-threads=1",
                 ])

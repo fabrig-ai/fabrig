@@ -2,7 +2,7 @@
 use super::fixtures;
 use crate::{codec::settings, settings_v3};
 use jig_domain_authority as authority;
-use jig_domain_core::{self as core, settings as domain};
+use jig_domain_core_vocabulary::{self as core, settings as domain};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::Duration;

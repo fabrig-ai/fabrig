@@ -5,7 +5,7 @@ use skein_lib::List;
 /// Only names this row references, sorted independently of configuration order.
 pub(super) fn encode(
     row: &d::Stored,
-    names: &[jig_domain_core::settings::ModelName],
+    names: &[jig_domain_core_vocabulary::settings::ModelName],
     limits: &w::Limits,
 ) -> Result<(List<w::ModelName>, [u64; 64]), w::Problem> {
     let bits = referenced(row);
@@ -125,10 +125,11 @@ fn referenced(row: &d::Stored) -> u64 {
         | d::Stored::Pool(_) => 0,
     }
 }
-pub(super) fn moves(kept: &List<w::ModelName>, names: &[jig_domain_core::settings::ModelName]) -> [u64; 64] {
+pub(super) fn moves(kept: &List<w::ModelName>, names: &[jig_domain_core_vocabulary::settings::ModelName]) -> [u64; 64] {
     let mut moved = [0; 64];
     for (old, name) in kept.iter().enumerate() {
-        *moved.get_mut(old).expect("bounded names") = jig_domain_core::settings::model_bit(name.value(), names);
+        *moved.get_mut(old).expect("bounded names") =
+            jig_domain_core_vocabulary::settings::model_bit(name.value(), names);
     }
     moved
 }

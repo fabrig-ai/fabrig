@@ -1,7 +1,7 @@
 //! Named consistent limits, in each owner's types (protocol/limits.md).
 mod small;
 mod standard;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_host as host;
 use skein_lib::Duration;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

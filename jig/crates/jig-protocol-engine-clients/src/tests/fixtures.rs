@@ -69,7 +69,7 @@ pub fn models() -> Box<[crate::Model]> {
         crate::Model {
             new_until: None,
             number: 1,
-            source: jig_domain_core::settings::ModelSource::Stock,
+            source: jig_domain_core_vocabulary::settings::ModelSource::Stock,
             estimated: false,
             effort: Some(Box::from(b"low".as_slice())),
             shown: None,
@@ -85,7 +85,7 @@ pub fn models() -> Box<[crate::Model]> {
         crate::Model {
             new_until: None,
             number: 1,
-            source: jig_domain_core::settings::ModelSource::Stock,
+            source: jig_domain_core_vocabulary::settings::ModelSource::Stock,
             estimated: false,
             effort: None,
             shown: None,

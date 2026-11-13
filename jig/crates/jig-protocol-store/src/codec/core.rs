@@ -2,7 +2,7 @@
 use crate::core_v6 as wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
-use jig_domain_core as domain;
+use jig_domain_core_vocabulary as domain;
 use jig_domain_fleet as fleet;
 use jig_domain_notes as notes;
 use jig_domain_people as people;

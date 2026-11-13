@@ -2,7 +2,7 @@
 use super::Failure;
 use crate::{Row, Store, intervals, pages};
 use alloc::boxed::Box;
-use jig_domain_core::reads;
+use jig_domain_core_vocabulary::reads;
 use skein_lib::List;
 pub(super) fn read(store: &mut Store, range: &reads::Range) -> Result<reads::Loaded, Failure> {
     if range.rows > store.limits.core.documents.rows.max(1)

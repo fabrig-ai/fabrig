@@ -2,6 +2,9 @@
 
 2026-11-12. Where jig's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 7: the channel and the application's parts as wires stated at the opening, a worker of another layout refused by name [in flight: change 1754].
+- **Not yet:** 7: an assignment refused for a version costing no try [in flight: change 1755].
+- **Not yet:** 7, *One jig pin*: the gate holding the clients' wires' versions to their layouts [in flight: change 1739].
 
 - **Not yet:** 4, 5: agents in a host's own process: no engine or worker of jig's composes `smith-inline-agent`. 10: TLS's server side between hosts, the workers' and clients' listeners being plaintext on loopback or in-process (`jig/crates/jig-protocol-config/src/hosts.rs`); contained process trees for workers' agents.
 

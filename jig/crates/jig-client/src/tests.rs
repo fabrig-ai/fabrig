@@ -7,6 +7,7 @@ mod sign_in;
 mod store;
 mod thread;
 mod unlinked;
+mod unreadable;
 mod versions;
 mod words;
 use crate::*;
@@ -49,6 +50,7 @@ fn an_engine_not_serving_jig_s_version_leaves_the_link_out_of_date() {
     c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
     c.stream(fixtures::hello(0));
     assert_eq!(c.machine.link().state, Link::OutOfDate);
+    assert!(!c.machine.link().unreadable);
     c.step(Event::Watch { handle: TASK, subject: task() });
     assert_eq!((c.requests()).len(), 0);
     assert_eq!(c.machine.next_deadline(), None);
@@ -58,6 +60,7 @@ fn a_request_parked_offline_is_sent_once_me_returns() {
     let mut c = Client::signed_in();
     c.step(Event::StreamGone);
     assert_eq!(c.machine.link().state, Link::Offline);
+    assert!(!c.machine.link().unreadable);
     c.step(Event::Send { name: None, key: STOP, request: fixtures::stop() });
     assert_eq!(c.machine.pending(STOP).unwrap().progress, Progress::Parked);
     assert_eq!(fixtures::keyed_count(c.requests()), 0);

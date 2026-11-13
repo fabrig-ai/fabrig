@@ -7,7 +7,7 @@ use crate::settings::{
     SizedValue, Stock, TemplateGoal, Value,
 };
 use core::slice::from_ref;
-use jig_domain_core::settings::application::{Restored, RestoredEdit};
+use jig_domain_core_vocabulary::settings::application::{Restored, RestoredEdit};
 use skein_lib::List;
 
 const GOAL: TemplateGoal = TemplateGoal { design: true, close_out: false };

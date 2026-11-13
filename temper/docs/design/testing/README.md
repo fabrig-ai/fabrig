@@ -403,7 +403,7 @@ tests nothing (`../release.md`, 5.1).
   | `bin/temper-box/tests/suite/box_lifetime.rs`: `a_killed_box_takes_its_steps_with_it` | a parent-death signal is Linux's |
   | `bin/temper-box/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `bin/temper-box/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box | `parent::Guard`'s retained identities and its observation are Linux's |
   | `bin/temper-box/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup/owned.md`, 4) |
-  | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `bin/temper-box/tests/support/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
+  | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `testing/temper-box-kit/src/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
 
 ## 3. Neighbours and their faces
 
@@ -502,9 +502,11 @@ crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
 bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
-bin/temper-box/tests/support/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
-bin/temper-box/tests/support/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
+testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
+testing/temper-box-kit/src/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
+testing/temper-box-kit/src/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
 bin/temper-box/tests/fixtures/cluster  the retained cluster's description, read by the process tier
+bin/temper-box/tests/fixtures/github   the GitHub App's documents, its key and its workers' secrets, read by the kit's GitHub stories
 bin/temper-box/tests/live.rs         the live tier (2.7), nextest profile live-temper
 bin/temper-box/tests/live_github.rs  the live tier's GitHub story (2.7), run by scripts/proof-live-github.sh
 bin/temper-box/tests/live_github_managed.rs  the managed GitHub sitting: its Ready on the fake, nextest profile process-temper (2.6); its relay against github.com, owner-run (2.7)

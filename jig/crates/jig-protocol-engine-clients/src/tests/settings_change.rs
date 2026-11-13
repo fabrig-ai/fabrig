@@ -2,7 +2,7 @@
 use super::fixtures::{self as f, Exchange};
 use crate::{Request, translate};
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core::{self as core, settings as s};
+use jig_domain_core_vocabulary::{self as core, settings as s};
 use jig_domain_people as p;
 use skein_lib::List;
 

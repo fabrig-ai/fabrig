@@ -2,7 +2,7 @@
 use super::fixtures;
 use crate::codec;
 use jig_domain_authority as a;
-use jig_domain_core::{self as core, settings as s};
+use jig_domain_core_vocabulary::{self as core, settings as s};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

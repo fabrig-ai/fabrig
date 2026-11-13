@@ -80,16 +80,16 @@ fn people_interval(range: &Restore) -> Option<u32> {
             let mut people = None;
             for range in ranges {
                 match range {
-                    jig_domain_core::RestoreRange::People => {
+                    jig_domain_core_vocabulary::RestoreRange::People => {
                         let count = u32::try_from(intervals::restore(range).len()).ok()?;
                         people = Some(interval.checked_add(count.checked_sub(1)?)?);
                     }
-                    jig_domain_core::RestoreRange::Deployment
-                    | jig_domain_core::RestoreRange::Settings
-                    | jig_domain_core::RestoreRange::Accounts
-                    | jig_domain_core::RestoreRange::Tasks
-                    | jig_domain_core::RestoreRange::Core
-                    | jig_domain_core::RestoreRange::Census(_) => {}
+                    jig_domain_core_vocabulary::RestoreRange::Deployment
+                    | jig_domain_core_vocabulary::RestoreRange::Settings
+                    | jig_domain_core_vocabulary::RestoreRange::Accounts
+                    | jig_domain_core_vocabulary::RestoreRange::Tasks
+                    | jig_domain_core_vocabulary::RestoreRange::Core
+                    | jig_domain_core_vocabulary::RestoreRange::Census(_) => {}
                 }
                 interval = interval.checked_add(u32::try_from(intervals::restore(range).len()).ok()?)?;
             }

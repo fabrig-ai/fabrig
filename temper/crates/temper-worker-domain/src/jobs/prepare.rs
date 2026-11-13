@@ -132,7 +132,7 @@ fn commit(bytes: &[u8]) -> Option<checkout::git::Commit> {
         return None;
     }
     let mut raw = [0; 32];
-    for (pair, byte) in bytes.chunks_exact(2).zip(raw.iter_mut()) {
+    for (pair, byte) in bytes.as_chunks::<2>().0.iter().zip(raw.iter_mut()) {
         let high = char::from(*pair.first()?).to_digit(16)?;
         let low = char::from(*pair.get(1)?).to_digit(16)?;
         *byte = u8::try_from(high.checked_mul(16)?.checked_add(low)?).ok()?;

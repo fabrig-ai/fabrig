@@ -1,5 +1,5 @@
 use super::{budget, chip};
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as t;
@@ -165,7 +165,7 @@ pub fn deployment_document() -> d::Deployment {
         hosts: List::from_boxed(Box::new([d::Host {
             name: None,
             awaiting_logins: false,
-            rule: jig_domain_core::HostRule::Open,
+            rule: jig_domain_core_vocabulary::HostRule::Open,
             programs: List::with_capacity(0),
             channel: 17,
             kind: fleet::HostKind::Engine,

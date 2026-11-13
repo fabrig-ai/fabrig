@@ -1524,7 +1524,7 @@ fn drain_is_once_without_grace_and_stop_starts_its_own_grace() {
     world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
     assert_eq!(world.seen.down.len(), 3, "no drain after stop");
     world.at(10);
-    assert!(world.seen.signals.is_empty());
+    assert_eq!(world.seen.signals, Vec::<Signal>::new());
     world.at(11);
     assert_eq!(world.seen.signals, [Signal::Terminate]);
     world.at(13);
@@ -1539,7 +1539,7 @@ fn drain_before_start_follows_the_start_send() {
         world.spawn(start());
         if spawning {
             world.event(Input::Parent(parent::Event::Drain { agent: world.owner() }));
-            assert!(world.seen.down.is_empty());
+            assert_eq!(world.seen.down, Vec::<Down>::new());
         }
         world.spawned();
         world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));

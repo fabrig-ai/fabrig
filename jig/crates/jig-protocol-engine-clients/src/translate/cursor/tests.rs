@@ -1,7 +1,7 @@
 //! Cursor versions follow their header and generated codec (jig/docs/design/protocol/README.md, 7).
 
 use super::{CURSOR_VERSION, decode, encode, encode_tree};
-use jig_domain_core::{documents, reads};
+use jig_domain_core_vocabulary::{documents, reads};
 use skein_lib::{Reader, Writer};
 
 #[test]

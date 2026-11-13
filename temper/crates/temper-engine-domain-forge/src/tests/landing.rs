@@ -521,6 +521,29 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
 fn a_single_landing_resumes_ancestry_and_merges_its_members_pull_with_coherent_evidence() {
     landing_merge_evidence(true);
 }
+fn merge_landing_row(single: bool) -> LandingRow {
+    let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
+    row.landing.members = Box::new([policy::Member {
+        left: None,
+        change: fixtures::CHANGE,
+        repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+        pull: 1,
+        head: Some(fixtures::HEAD),
+        base: Some(fixtures::BASE),
+        candidate: Some(fixtures::HEAD),
+        gates: Box::new([]),
+        asked: None,
+        landed: None,
+    }]);
+    row.asks = Box::new([None]);
+    if single {
+        row.landing.round = policy::Round::new(Box::new([]));
+    } else {
+        row.landing.round.pull = Some(2);
+        row.landing.round.combined = Some(policy::Combine::Merge);
+    }
+    row
+}
 fn landing_merge_evidence(single: bool) {
     use skein_forge::api::{Answer, Op, Read};
     use temper_engine_domain_forge_change as change;
@@ -534,26 +557,7 @@ fn landing_merge_evidence(single: bool) {
         outputs(&mut d, Event::SettleOutbox);
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
             change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
-        let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
-        row.landing.members = Box::new([policy::Member {
-            left: None,
-            change: fixtures::CHANGE,
-            repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
-            pull: 1,
-            head: Some(fixtures::HEAD),
-            base: Some(fixtures::BASE),
-            candidate: Some(fixtures::HEAD),
-            gates: Box::new([]),
-            asked: None,
-            landed: None,
-        }]);
-        row.asks = Box::new([None]);
-        if single {
-            row.landing.round = policy::Round::new(Box::new([]));
-        } else {
-            row.landing.round.pull = Some(2);
-            row.landing.round.combined = Some(policy::Combine::Merge);
-        }
+        let row = merge_landing_row(single);
         outputs(&mut d, Event::Landing { row });
         outputs(
             &mut d,

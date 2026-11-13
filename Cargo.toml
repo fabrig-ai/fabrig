@@ -66,6 +66,7 @@ members = [
     "skein/testing/skein-codegen",
     "skein/testing/skein-conformance",
     "skein/testing/skein-browser",
+    "skein/testing/skein-browser-rig",
     "skein/testing/skein-echo-client",
     "skein/testing/skein-fake-channel",
     "skein/testing/skein-protocol-kit",
@@ -183,6 +184,7 @@ members = [
     "jig/tests/client-browser",
     "jig/tests/one-process",
     "jig/testing/jig-test",
+    "jig/testing/jig-test-kit",
     "jig/crates/jig-client-shell-native",
     "jig/crates/jig-client-shell-web",
     "jig/tests/client-protocol",
@@ -199,6 +201,7 @@ members = [
     "jig/crates/jig-protocol-transcript",
     "jig/crates/jig-client-view",
     "jig/crates/jig-domain-core",
+    "jig/crates/jig-domain-core-vocabulary",
     "jig/crates/jig-domain-accounts",
     "jig/crates/jig-protocol-accounts",
     "jig/testing/jig-test-connector",
@@ -301,6 +304,7 @@ members = [
     "temper/crates/temper-fake-git",
     "temper/crates/temper-fake-git-hosted",
     "temper/testing/temper-github-app",
+    "temper/testing/temper-box-kit",
     "temper/testing/temper-fixtures",
     "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
@@ -477,6 +481,7 @@ skein-fail-stop = { path = "skein/crates/skein-fail-stop" }
 skein-sim = { path = "skein/crates/skein-sim" }
 skein-conformance = { path = "skein/testing/skein-conformance" }
 skein-browser = { path = "skein/testing/skein-browser" }
+skein-browser-rig = { path = "skein/testing/skein-browser-rig" }
 skein-heap = { path = "skein/testing/skein-heap" }
 skein-scratch = { path = "skein/testing/skein-scratch" }
 skein-echo-domain = { path = "skein/examples/echo/domain" }
@@ -610,6 +615,7 @@ jig-client-kit = { path = "jig/testing/jig-client-kit" }
 jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
 jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }
 jig-protocol-accounts-kit = { path = "jig/testing/jig-protocol-accounts-kit" }
+jig-test-kit = { path = "jig/testing/jig-test-kit" }
 jig-people-kit = { path = "jig/testing/jig-people-kit" }
 jig-tasks-kit = { path = "jig/testing/jig-tasks-kit" }
 jig-channel-kit = { path = "jig/testing/jig-channel-kit" }
@@ -631,6 +637,7 @@ jig-ops-domain-observability = { path = "jig/examples/ops/domain-observability" 
 jig-ops-domain-infrastructure = { path = "jig/examples/ops/domain-infrastructure" }
 jig-domain-authority = { path = "jig/crates/jig-domain-authority" }
 jig-domain-core = { path = "jig/crates/jig-domain-core" }
+jig-domain-core-vocabulary = { path = "jig/crates/jig-domain-core-vocabulary" }
 jig-domain-notes = { path = "jig/crates/jig-domain-notes" }
 jig-domain-people = { path = "jig/crates/jig-domain-people" }
 jig-domain-tasks = { path = "jig/crates/jig-domain-tasks" }
@@ -645,6 +652,7 @@ settings-form = { package = "temper-settings-form", path = "temper/crates/temper
 temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-test-env = { path = "temper/testing/temper-test-env" }
+temper-box-kit = { path = "temper/testing/temper-box-kit" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }

@@ -2,7 +2,7 @@
 use super::{Failure, Spent, point};
 use crate::Store;
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, reads};
+use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Set};
 

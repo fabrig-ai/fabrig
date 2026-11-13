@@ -1,7 +1,7 @@
 //! Whole owner cursors, with keys carried by the store codec (jig/docs/design/protocol/client/README.md, 4).
 use crate::cursor_v1::{self as c, CEILINGS as C};
 use alloc::boxed::Box;
-use jig_domain_core::{Key, documents, reads};
+use jig_domain_core_vocabulary::{Key, documents, reads};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use skein_lib::{Reader, Wall, Writer};

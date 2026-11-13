@@ -363,18 +363,7 @@ impl Harness {
                 if let Event::Site { owner, of, key, site, at, mut patcher } = event {
                     self.sites.push((of, key.clone()));
                     if self.site_pages {
-                        let range = || skein_kv::Range {
-                            start: Box::from(b"l".as_slice()),
-                            end: Some(Box::from(b"m".as_slice())),
-                        };
-                        let page = store.patch_page(range(), None, 1).expect("other rows at a written site");
-                        assert_eq!(page.rows.len(), 1);
-                        assert_eq!(page.rows[0].key, fixture_key(b'l', 0));
-                        assert_eq!(page.rows[0].value, label(2), "the preceding range has passed patch one");
-                        let page = store.patch_page(range(), page.next.as_ref(), 1).expect("exclusive cursor");
-                        assert_eq!(page.rows[0].key, fixture_key(b'l', 1));
-                        assert_eq!(page.rows[0].value, label(2));
-                        assert!(page.next.is_none());
+                        Self::check_site_pages(store);
                     }
                     if let Some(limit) = self.site_commit_limit {
                         store.limits.store.commit = limit;
@@ -447,6 +436,17 @@ impl Harness {
             crate::up(store, &env, io, &mut above, &mut below);
         }
         panic!("phase did not settle");
+    }
+    fn check_site_pages(store: &mut Store) {
+        let range = || skein_kv::Range { start: Box::from(b"l".as_slice()), end: Some(Box::from(b"m".as_slice())) };
+        let page = store.patch_page(range(), None, 1).expect("other rows at a written site");
+        assert_eq!(page.rows.len(), 1);
+        assert_eq!(page.rows[0].key, fixture_key(b'l', 0));
+        assert_eq!(page.rows[0].value, label(2), "the preceding range has passed patch one");
+        let page = store.patch_page(range(), page.next.as_ref(), 1).expect("exclusive cursor");
+        assert_eq!(page.rows[0].key, fixture_key(b'l', 1));
+        assert_eq!(page.rows[0].value, label(2));
+        assert!(page.next.is_none());
     }
     fn file(&mut self, driver: usize, request: file::Request, stage: Stage) -> Option<Arrived> {
         let mut events = Queue::with_capacity(128);
@@ -831,9 +831,11 @@ fn secret_key(store: &Store, number: u64) -> Box<[u8]> {
     crate::secrets::application(&number.to_be_bytes(), store.limits.secrets.key).expect("application prefix")
 }
 fn accounts_key(store: &Store) -> Box<[u8]> {
-    let key =
-        crate::keys::encode(&jig_domain_core::Key::Accounts(jig_domain_accounts::Key::Next), store.limits.store.key)
-            .expect("accounts counter key");
+    let key = crate::keys::encode(
+        &jig_domain_core_vocabulary::Key::Accounts(jig_domain_accounts::Key::Next),
+        store.limits.store.key,
+    )
+    .expect("accounts counter key");
     assert_eq!(key.as_ref(), &[1, 4, 0]);
     key
 }
@@ -850,7 +852,9 @@ fn secret_fixture() -> SecretFixture {
             number,
             Box::new([
                 fixtures::header(number),
-                Write::Save(jig_domain_core::Record::Accounts(jig_domain_accounts::Stored::Next { number: 97 })),
+                Write::Save(jig_domain_core_vocabulary::Record::Accounts(jig_domain_accounts::Stored::Next {
+                    number: 97,
+                })),
                 Write::Wires,
             ]),
         ),
@@ -1077,9 +1081,11 @@ fn fixture_rows(store: &mut Store, shelf_version: u16, note_version: u16) -> Vec
     rows
 }
 fn assert_sealed(store: &mut Store, last: u64) {
-    let header_key =
-        crate::keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment), store.limits.store.key)
-            .expect("header key");
+    let header_key = crate::keys::encode(
+        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
+        store.limits.store.key,
+    )
+    .expect("header key");
     let header = fixtures::get_kv(store, &header_key).expect("sealed header");
     let expected = fixtures::header_put(fixtures::DEPLOYMENT, last);
     let skein_kv::Op::Put { value, .. } = expected else { panic!("header put") };
@@ -1431,12 +1437,14 @@ fn a_patch_manifest_records_the_copys_secret_commit_and_write_clock() {
 }
 
 fn assert_page_rows(store: &mut Store, last: u64) {
-    let key =
-        crate::keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment), store.limits.store.key)
-            .expect("header key");
+    let key = crate::keys::encode(
+        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
+        store.limits.store.key,
+    )
+    .expect("header key");
     let bytes = fixtures::get_kv(store, &key).expect("page keeps header");
     let record = crate::codec::decode(
-        &jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment),
+        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
         &bytes,
         &store.codec_limits,
         &store.names,
@@ -1540,7 +1548,7 @@ fn assert_check(events: &[Event], store: &Store, why: crate::Check) {
     assert_eq!(store.phase, Phase::Stopped);
 }
 
-fn fixture_with_record(record: jig_domain_core::Record) -> Vec<Item> {
+fn fixture_with_record(record: jig_domain_core_vocabulary::Record) -> Vec<Item> {
     let mut disk = Disk::new(&fixture_baseline(None));
     let mut store = disk.store_with_chunk(CHUNK);
     store.patch_sets(BASE);
@@ -1636,9 +1644,9 @@ fn a_restart_row_at_the_deployments_lowered_limit_loads() {
 // take two two-put commits. The fifth, already crossed and closed, is skipped.
 const FRESH_TASKS: u64 = 5;
 const FRESH_CLOSED_TASK: u64 = 3;
-fn fresh_record(task: u64, crossed: bool) -> jig_domain_core::Record {
-    use jig_domain_core::{CoreRecord, Record};
-    let mut proof = jig_domain_core::RunProof {
+fn fresh_record(task: u64, crossed: bool) -> jig_domain_core_vocabulary::Record {
+    use jig_domain_core_vocabulary::{CoreRecord, Record};
+    let mut proof = jig_domain_core_vocabulary::RunProof {
         accounts: Box::new([]),
         placement: None,
         account_failure: None,
@@ -1647,7 +1655,7 @@ fn fresh_record(task: u64, crossed: bool) -> jig_domain_core::Record {
         attempt: 1,
         conversation: 1,
         credentials: Box::new([]),
-        window: Some(jig_domain_core::CurrentWindow { attempt: 1, turn: 1, closed: false }),
+        window: Some(jig_domain_core_vocabulary::CurrentWindow { attempt: 1, turn: 1, closed: false }),
         crossed: false,
         host: jig_domain_fleet::HostKind::Worker,
         offered: None,
@@ -1675,7 +1683,9 @@ fn fresh_baseline() -> Vec<Item> {
             fixtures::header(task),
             fixtures::save(fixtures::live_task(task)),
             fixtures::save(fresh_record(task, false)),
-            fixtures::save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))),
+            fixtures::save(jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::Turn(
+                turn,
+            ))),
         ]);
         let events = disk.request(&mut store, fixtures::commit(task, writes));
         let [Event::Committed { number, .. }] = events.as_ref() else { panic!("fresh fixture commit: {events:?}") };
@@ -1692,18 +1702,18 @@ fn fresh_store(disk: &Harness, after: bool) -> Store {
 // One credential exercises the closing walk's deployment-bounded decoder.
 const FRESH_CREDENTIALS: &[u32] = &[2];
 const FRESH_PROOF_TASK: u64 = 1;
-fn bounded_fresh_proof() -> jig_domain_core::Record {
-    let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(mut proof)) =
+fn bounded_fresh_proof() -> jig_domain_core_vocabulary::Record {
+    let jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(mut proof)) =
         fresh_record(FRESH_PROOF_TASK, false)
     else {
         panic!("fresh proof fixture")
     };
     proof.credentials = Box::from(FRESH_CREDENTIALS);
-    jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof))
+    jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(proof))
 }
 fn fresh_proof_key() -> Box<[u8]> {
     crate::keys::encode(
-        &jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(FRESH_PROOF_TASK)),
+        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::RunProof(FRESH_PROOF_TASK)),
         fixtures::KEY_LIMIT,
     )
     .expect("fresh proof key")
@@ -1744,13 +1754,14 @@ fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
     store.codec_limits = crate::codec::limits(&store.limits.core).expect("exact proof decode limit");
     let events = disk.open(&mut store);
     let Some(Event::Opened { .. }) = events.last() else { panic!("valid closing proof: {events:?}") };
-    let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(mut expected)) = bounded_fresh_proof()
+    let jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(mut expected)) =
+        bounded_fresh_proof()
     else {
         panic!("proof fixture")
     };
     expected.window.as_mut().expect("window").closed = true;
     expected.crossed = true;
-    let record = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(expected));
+    let record = jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(expected));
     assert_eq!(
         proof_bytes(&mut store, FRESH_PROOF_TASK),
         crate::codec::encode(&record, &store.codec_limits, &[]).expect("proof")
@@ -1760,7 +1771,7 @@ fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
 }
 // Private raw KV setup, driven by the existing disk: the public writer never
 // produces these mismatched or malformed run-proof keys.
-fn fresh_with_raw_proof(key: Box<[u8]>, record: jig_domain_core::Record) -> Vec<Item> {
+fn fresh_with_raw_proof(key: Box<[u8]>, record: jig_domain_core_vocabulary::Record) -> Vec<Item> {
     let (mut disk, mut store) = fresh_source();
     let ops = Box::new([
         fixtures::header_put(fixtures::DEPLOYMENT, FRESH_TASKS + 1),
@@ -1811,7 +1822,7 @@ fn a_malformed_closing_proof_key_refuses_load() {
 }
 fn proof_bytes(store: &mut Store, task: u64) -> Box<[u8]> {
     let key = crate::keys::encode(
-        &jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(task)),
+        &jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::RunProof(task)),
         store.limits.store.key,
     )
     .expect("proof key");

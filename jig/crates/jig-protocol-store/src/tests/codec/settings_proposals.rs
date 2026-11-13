@@ -1,6 +1,6 @@
 //! The current families change in place, with settings heads kept after decisions.
 use super::{ask_round_trip, core_round_trip, fixtures, people_round_trip, saved_tasks};
-use jig_domain_core as c;
+use jig_domain_core_vocabulary as c;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::Wall;

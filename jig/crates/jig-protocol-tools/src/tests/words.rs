@@ -27,7 +27,7 @@ fn a_proposal_decision_reads_as_inbox_words_did() {
 #[test]
 fn a_subscribe_call_may_ask_to_hear_a_tasks_holds() {
     match crate::decode(b"subscribe", br#"{"kind":"task","target":3,"held":true}"#, &fixtures::LIMITS) {
-        crate::Decoded::Action(jig_domain_core::NamedAction::Subscribe { kind }) => {
+        crate::Decoded::Action(jig_domain_core_vocabulary::NamedAction::Subscribe { kind }) => {
             assert_eq!(kind, SubscriptionKind::Task { target: TARGET, held: true, result: true });
         }
         other @ (crate::Decoded::Action(_)
