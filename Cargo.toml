@@ -215,6 +215,7 @@ members = [
     "jig/testing/jig-test-worker",
     "jig/testing/jig-test-service",
     "jig/testing/jig-client-test-protocol-wire",
+    "jig/testing/jig-client-test-protocol-wire-codec",
     "jig/testing/jig-client-test-domain",
     "jig/testing/jig-client-test-kit",
     "jig/testing/jig-test-connector-kit",
@@ -595,6 +596,7 @@ jig-client-protocol-link = { path = "jig/crates/jig-client-protocol-link" }
 jig-client-protocol-http = { path = "jig/crates/jig-client-protocol-http" }
 jig-test-service = { path = "jig/testing/jig-test-service" }
 jig-client-test-protocol-wire = { path = "jig/testing/jig-client-test-protocol-wire" }
+jig-client-test-protocol-wire-codec = { path = "jig/testing/jig-client-test-protocol-wire-codec" }
 jig-protocol-engine-clients-http = { path = "jig/crates/jig-protocol-engine-clients-http" }
 jig-protocol-engine-clients = { path = "jig/crates/jig-protocol-engine-clients" }
 jig-test-worker = { path = "jig/testing/jig-test-worker" }
