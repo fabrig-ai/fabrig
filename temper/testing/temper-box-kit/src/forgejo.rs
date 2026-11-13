@@ -532,7 +532,14 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64, workflow:
     request(instance, person, "PATCH", "/api/v1/repos/acme/widget", &json!({"has_actions":true}), 200);
     // The hinted job sleeps 5 s, outlasting its overridden 3 s settle window
     // (protocol/setup/testing.md 4).
-    let check = format!("test ! -e slow || sleep {sleep_seconds}\ntest -s README.md\n");
+    let check = format!(
+        "test ! -e slow || sleep {sleep_seconds}\n\
+         for file in batch-*.txt; do\n\
+           [ -f \"$file\" ] || continue\n\
+           if grep -qx red \"$file\"; then exit 1; fi\n\
+         done\n\
+         test -s README.md\n"
+    );
     for (path, content) in [("check.sh", check.as_str()), (".forgejo/workflows/check.yaml", workflow)] {
         let length = skein_lib::base64::encoded_len(
             skein_lib::base64::Alphabet::Standard,
