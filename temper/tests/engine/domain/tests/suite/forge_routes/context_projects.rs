@@ -25,6 +25,48 @@ fn adopt_pair_configured(
     cued: bool,
     context: bool,
 ) {
+    let workflows: Box<[_]> = if following { Box::new([follow_workflow(cued)]) } else { Box::new([]) };
+    adopt_pair_workflows(world, source, target, passes, &workflows, context);
+}
+
+fn follow_workflow(cued: bool) -> raw::Workflow {
+    raw::Workflow {
+        file: b"test.yml".as_slice().into(),
+        jobs: Box::new([b"test".as_slice().into()]),
+        latency_min: Duration::ZERO,
+        latency_max: Duration::ZERO,
+        silent: 0,
+        passes: 1000,
+        fails: Box::new([]),
+        flaky: Box::new([]),
+        select: None,
+        cue: cued.then(|| raw::Cue::Tests { path: b"failures".as_slice().into() }),
+        report: Some(raw::Report {
+            artifact: b"results".as_slice().into(),
+            format: raw::ReportFormat::Lines,
+            deflate: false,
+        }),
+    }
+}
+
+/// The exact-head follow check passes; only the target's after-landing tier reads the failure cue.
+pub(super) fn adopt_pair_with_red_tier(world: &mut World) {
+    let mut fuzz = follow_workflow(true);
+    fuzz.file = b"fuzz.yml".as_slice().into();
+    fuzz.latency_min = Duration::from_secs(90);
+    fuzz.latency_max = fuzz.latency_min;
+    adopt_pair_workflows(world, b"vsr", b"vsr-rs", 1000, &[follow_workflow(false), fuzz], true);
+}
+
+fn adopt_pair_workflows(
+    world: &mut World,
+    source: &[u8],
+    target: &[u8],
+    passes: u32,
+    workflows: &[raw::Workflow],
+    context: bool,
+) {
+    let following = !workflows.is_empty();
     for (id, name) in [(3, source), (4, target)] {
         let full = [b"org/".as_slice(), name].concat();
         let name = full.as_slice();
@@ -37,27 +79,7 @@ fn adopt_pair_configured(
                 default: b"main".as_slice().into(),
                 tree: Box::new([]),
                 labels: Box::new([]),
-                workflows: if following {
-                    Box::new([raw::Workflow {
-                        file: b"test.yml".as_slice().into(),
-                        jobs: Box::new([b"test".as_slice().into()]),
-                        latency_min: Duration::ZERO,
-                        latency_max: Duration::ZERO,
-                        silent: 0,
-                        passes: 1000,
-                        fails: Box::new([]),
-                        flaky: Box::new([]),
-                        select: None,
-                        cue: cued.then(|| raw::Cue::Tests { path: b"failures".as_slice().into() }),
-                        report: Some(raw::Report {
-                            artifact: b"results".as_slice().into(),
-                            format: raw::ReportFormat::Lines,
-                            deflate: false,
-                        }),
-                    }])
-                } else {
-                    Box::new([])
-                },
+                workflows: Box::from(workflows),
                 protection: None,
                 hooked: following,
                 checks: raw::Checks {

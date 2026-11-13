@@ -567,6 +567,12 @@ impl Worker {
                 }
             }
             link::Request::Closed => self.closed = true,
+            link::Request::Refused { reason, text } => {
+                self.notes.push(crate::worker_alone::Note::OpeningRefused { reason, text });
+                if let Connection::Socket(remote) = &mut self.connection {
+                    remote.last_refusal = Some((remote.address, crate::Refusal::Peer(reason)));
+                }
+            }
             link::Request::Fact { why } => {
                 match &mut self.connection {
                     Connection::InProcess(_) => {}

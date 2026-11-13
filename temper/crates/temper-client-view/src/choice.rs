@@ -62,6 +62,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Changes { .. }

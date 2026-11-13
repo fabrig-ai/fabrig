@@ -185,6 +185,7 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
                 }
             }
             Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
@@ -213,4 +214,11 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
         }
     }
     feedback
+}
+
+/// A card's failed outcome in the view's words, without its browser frame (client/tui/pages/talk.md, 1).
+#[must_use]
+pub fn outcome_refusal(outcome: &Outcome, words: &Words) -> Option<Box<[u8]>> {
+    let feedback = outcome_feedback(outcome, words, true)?;
+    Some(feedback.words())
 }

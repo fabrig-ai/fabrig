@@ -88,7 +88,17 @@ impl LinkPeer {
                     name: settings.jig.name.clone(),
                     digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
                 }]),
-                temper_protocol_worker_wire::PAYLOAD_VERSION,
+                {
+                    let mut wires = List::with_capacity(1);
+                    wires
+                        .push(jig_protocol_worker_wire::Spoken::current(
+                            temper_protocol_worker_wire::wire::FAMILY,
+                            temper_protocol_worker_wire::wire::VERSION,
+                            temper_protocol_worker_wire::wire::layout(),
+                        ))
+                        .unwrap();
+                    wires
+                },
             )
             .unwrap(),
             out: Queue::with_capacity(64),
@@ -185,7 +195,9 @@ impl LinkPeer {
                 engine_link::Request::Lower { lower: Lower::Read(stream::Down::Demand { read, .. }), .. } => {
                     self.engine_read = Some(read);
                 }
-                engine_link::Request::Take { .. }
+                engine_link::Request::Opened { .. }
+                | engine_link::Request::Refused { .. }
+                | engine_link::Request::Take { .. }
                 | engine_link::Request::Close { .. }
                 | engine_link::Request::Abort { .. } => {}
                 request @ engine_link::Request::Unsent { .. } => return Some(request),

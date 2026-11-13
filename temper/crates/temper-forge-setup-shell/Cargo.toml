@@ -20,8 +20,10 @@ skein-shell.workspace = true
 skein-world.workspace = true
 skein-scratch.workspace = true
 skein-tls-kit.workspace = true
-rustls-std.workspace = true
 jig-protocol-config.workspace = true
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dev-dependencies]
+rustls-std.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

@@ -301,6 +301,7 @@ fn the_row_carries_the_latest_fetched_line_until_the_next_step() {
         turns(&mut stand);
         stand.service.engine_component().setup_state(OWNED, Connection::NotSetUp);
         line(&mut stand, b"");
+        while stand.service.notes().pop().is_some() {}
         let bearer = box_sign_in(&mut stand);
         assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
         line(&mut stand, b"step 1 fetch\n");

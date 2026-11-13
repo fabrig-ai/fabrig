@@ -62,6 +62,11 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     the last line is its schema's version and family fingerprint, and git's landed
     list stands unchanged at the head. The base is the branch's merge base with
     `origin/main`, or `HEAD` when that reference is absent, as in the patch check.
+14. **The features check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.3, and
+    `tests/boundary/tests/features.rs`'s module doc: external entries carry every
+    context's feature union, platform entries stay on their platforms, and
+    `.cargo/config.toml` enables Cargo's workspace feature unification.
 
 ## The gate's lists
 

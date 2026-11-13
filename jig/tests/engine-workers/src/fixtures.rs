@@ -8,8 +8,51 @@ pub const WORKER_C: &[u8] = b"worker-c";
 pub const SECRET_C: &[u8] = b"secret-c";
 pub const SECRET_A: &[u8] = b"secret-a";
 pub const SECRET_B: &[u8] = b"secret-b";
-pub const PAYLOAD: u32 = 3;
-pub const OTHER_PAYLOAD: u32 = 4;
+pub const APPLICATION_VERSION: u32 = 3;
+pub const OTHER_VERSION: u32 = 4;
+
+#[must_use]
+pub fn application() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
+    let mut wires = skein_lib::List::with_capacity(1);
+    wires.push(jig_protocol_worker_wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
+    wires
+}
+#[must_use]
+pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire> {
+    use jig_protocol_worker_wire as wire;
+    let mut wires = skein_lib::List::with_capacity(16);
+    for spoken in &wire::spoken() {
+        wires
+            .push(
+                wire::Wire::new(
+                    &wire::CEILINGS,
+                    wire::WireParts {
+                        name: spoken.name.as_bytes().into(),
+                        lowest: spoken.lowest,
+                        layouts: spoken.layouts.clone(),
+                    },
+                )
+                .expect("wire"),
+            )
+            .expect("wire slot");
+    }
+    let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
+    wires
+        .push(
+            wire::Wire::new(
+                &wire::CEILINGS,
+                wire::WireParts {
+                    name: current.name.as_bytes().into(),
+                    lowest: current.lowest,
+                    layouts: current.layouts,
+                },
+            )
+            .expect("wire"),
+        )
+        .expect("wire slot");
+    wires
+}
+
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
     program_sources: 2,
     piece: 16,
@@ -68,17 +111,17 @@ pub fn workers() -> Box<[Worker]> {
 }
 
 #[must_use]
-pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
-    credential_with_output(name, secret, payload, LIMITS.room)
+pub fn credential(name: &[u8], secret: &[u8], version: u32) -> Box<[u8]> {
+    credential_with_output(name, secret, version, LIMITS.room)
 }
-fn credential_with_output(name: &[u8], secret: &[u8], payload: u32, output: u32) -> Box<[u8]> {
+fn credential_with_output(name: &[u8], secret: &[u8], version: u32, output: u32) -> Box<[u8]> {
     let limits = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec limits");
     let value = jig_protocol_worker_wire::Credential::new(
         &limits,
         jig_protocol_worker_wire::CredentialParts {
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
-            payload,
+            wires: statement(version),
             output,
         },
     )
@@ -116,34 +159,34 @@ pub fn schema() -> skein_channel::Schema {
 #[must_use]
 pub fn peer(
     schema: skein_channel::Schema,
-    version: u16,
+    channel_version: u16,
     name: &[u8],
     secret: &[u8],
-    payload: u32,
+    version: u32,
 ) -> skein_fake_channel::ScriptedPeer {
-    peer_with_output(schema, version, name, secret, payload, LIMITS.room)
+    peer_with_output(schema, channel_version, name, secret, version, LIMITS.room)
 }
 #[must_use]
 pub fn peer_with_output(
     schema: skein_channel::Schema,
-    version: u16,
+    channel_version: u16,
     name: &[u8],
     secret: &[u8],
-    payload: u32,
+    version: u32,
     output: u32,
 ) -> skein_fake_channel::ScriptedPeer {
     skein_fake_channel::ScriptedPeer::new(
         schema,
         skein_channel::Role::Initiator,
         channel_limits(),
-        version,
-        credential_with_output(name, secret, payload, output),
+        channel_version,
+        credential_with_output(name, secret, version, output),
     )
     .expect("scripted worker")
 }
 #[must_use]
-pub fn worker(name: &[u8], secret: &[u8], payload: u32) -> skein_fake_channel::ScriptedPeer {
-    peer(schema(), jig_protocol_worker_wire::VERSION, name, secret, payload)
+pub fn worker(name: &[u8], secret: &[u8], version: u32) -> skein_fake_channel::ScriptedPeer {
+    peer(schema(), jig_protocol_worker_wire::VERSION, name, secret, version)
 }
 
 #[must_use]
@@ -213,7 +256,7 @@ pub fn hello_frame() -> skein_channel::Frame {
 }
 #[must_use]
 pub fn reporting_worker(name: &[u8], secret: &[u8]) -> skein_fake_channel::ScriptedPeer {
-    let mut peer = worker(name, secret, PAYLOAD);
+    let mut peer = worker(name, secret, APPLICATION_VERSION);
     peer.play(hello_frame());
     peer
 }
@@ -328,7 +371,7 @@ pub fn account_refused_record() -> jig_protocol_worker_wire::AccountRefused {
     .expect("account refused")
 }
 
-fn codec() -> jig_protocol_worker_wire::v9::Limits {
+fn codec() -> jig_protocol_worker_wire::v10::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {

@@ -232,6 +232,8 @@ impl Joint {
                     | kit::Request::Hello { .. }
                     | kit::Request::Up { .. }
                     | kit::Request::Lost { .. }
+                    | kit::Request::Opened { .. }
+                    | kit::Request::Refused { .. }
                     | kit::Request::Ended { .. }
                     | kit::Request::Closed) => {
                         panic!("unexpected engine output; the link must stay up: {other:?}")

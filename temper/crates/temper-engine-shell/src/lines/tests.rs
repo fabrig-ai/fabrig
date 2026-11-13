@@ -1,6 +1,49 @@
 use super::*;
 
 #[test]
+fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
+    use jig_protocol_worker_wire::Agreed;
+    let wires = skein_lib::List::from_boxed(Box::new([
+        Agreed { name: "jig-worker-wire", version: 10 },
+        Agreed { name: "smith-channel", version: 7 },
+        Agreed { name: "smith-charter", version: 4 },
+        Agreed { name: "smith-transcript", version: 7 },
+        Agreed { name: "temper-worker-wire", version: 2 },
+    ]));
+    assert_eq!(
+        note_line("custom", temper_engine_service::Note::WorkerOpened { worker: b"worker-a".as_slice().into(), wires }),
+        "custom serve: worker worker-a opened: jig-worker-wire 10, smith-channel 7, smith-charter 4, smith-transcript 7, temper-worker-wire 2\n"
+    );
+}
+
+#[test]
+fn opening_refusal_lines_name_the_worker_or_the_precredential_version() {
+    use temper_engine_service::Note;
+    assert_eq!(
+        note_line(
+            "custom",
+            Note::WorkerOpeningRefused {
+                worker: Some(b"worker-a".as_slice().into()),
+                reason: 257,
+                text: b"wire smith-charter: the worker states none".as_slice().into(),
+            }
+        ),
+        "custom serve: worker worker-a refused at its opening: wires: wire smith-charter: the worker states none\n"
+    );
+    assert_eq!(
+        note_line(
+            "custom",
+            Note::WorkerOpeningRefused {
+                worker: None,
+                reason: 1,
+                text: b"speaks 10..10, offered 9..9".as_slice().into(),
+            }
+        ),
+        "custom serve: a worker refused at its opening: version: speaks 10..10, offered 9..9\n"
+    );
+}
+
+#[test]
 fn github_start_refusals_name_their_paths() {
     use skein_forge_connection::{StartRead, Stopped};
     for (why, words) in [
@@ -290,8 +333,8 @@ fn engine_worker_loss_lines_name_each_cause_and_refusal_exactly() {
         ),
         (
             Loss::Refused { reason: 257 },
-            "temper serve: worker lost worker=worker-a channel=7: refused application\n",
-            "temper serve: worker opening ended worker=-: refused application\n",
+            "temper serve: worker lost worker=worker-a channel=7: refused wires\n",
+            "temper serve: worker opening ended worker=-: refused wires\n",
         ),
         (
             Loss::Refused { reason: 258 },
@@ -335,8 +378,8 @@ fn engine_worker_loss_lines_name_each_cause_and_refusal_exactly() {
         ),
         (
             Loss::RefusedPeer { reason: 257 },
-            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer application\n",
-            "temper serve: worker opening ended worker=-: refused-by-peer application\n",
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer wires\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer wires\n",
         ),
         (
             Loss::RefusedPeer { reason: 258 },

@@ -128,6 +128,14 @@ impl Bindings {
                         filter.goal = if value.is_empty() { None } else { Some(skein_ui::number(&value)?) };
                         PageAct::Filter { filter }
                     }
+                    (
+                        PageAct::HandArea(
+                            act @ (temper_client_domain::pages::team::hand::Act::Area(_)
+                            | temper_client_domain::pages::team::hand::Act::Role(_)
+                            | temper_client_domain::pages::team::hand::Act::Stock(_)),
+                        ),
+                        skein_ui::Act::Toggle,
+                    ) => PageAct::HandArea(act.clone()),
                     (PageAct::StartWay { template }, skein_ui::Act::Toggle) => {
                         PageAct::StartWay { template: *template }
                     }
@@ -136,6 +144,18 @@ impl Bindings {
                         PageAct::StartDraft { words: value }
                     }
                     (PageAct::StartName { .. }, skein_ui::Act::Input { value }) => PageAct::StartName { words: value },
+                    (
+                        PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Name(_)),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Name(value)),
+                    (
+                        PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Words(_)),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Words(value)),
+                    (
+                        PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Budget(_)),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Budget(value)),
                     (PageAct::AmendWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::AmendWords { words: value }
                     }
@@ -416,6 +436,7 @@ fn all_projects(
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Ask { .. }
         | Address::Settings { .. }
@@ -870,7 +891,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Task { .. } => (false, false, true, false),
-        Address::Chat { .. } => (false, false, !crate::pages::chat::asking(root), false),
+        Address::Chat { .. } | Address::Talk { .. } => (false, false, !crate::pages::chat::asking(root), false),
         Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
@@ -1080,6 +1101,7 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Ask { .. }
         | Address::Settings { .. }
@@ -1201,6 +1223,17 @@ pub(crate) fn toast(
                 None,
             )
         }
+        Toasted::AreaHanded { title, revision } => (
+            w.say(
+                Word::HandToast,
+                &[skein_ui::phrases::Hole::Name(title.clone()), skein_ui::phrases::Hole::Number(u64::from(*revision))],
+            ),
+            None,
+        ),
+        Toasted::AreasGivenBack { revision } => {
+            (w.say(Word::GiveToast, &[skein_ui::phrases::Hole::Number(u64::from(*revision))]), None)
+        }
+        Toasted::AreasProposed => (w.say(Word::HandProposed, &[]), None),
         Toasted::StopApplied => (w.say(Word::StopAskingApplied, &[]), None),
         Toasted::StopProposed => (w.say(Word::StopAskingProposed, &[]), None),
         Toasted::KeptAsking => (w.say(Word::KeepAskingKept, &[]), None),
@@ -1208,6 +1241,7 @@ pub(crate) fn toast(
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
         Toasted::NotSent => (w.say(Word::ToastNotSent, &[]), None),
         Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
+        Toasted::LeftTalk => (w.say(Word::LeftTalk, &[]), None),
         Toasted::Resumed => (w.say(Word::ToastResumed, &[]), None),
         Toasted::AwayOn { project, until } => {
             let name =
@@ -1275,7 +1309,10 @@ pub(crate) fn toast(
                 );
             }
         }
-        Toasted::StopApplied
+        Toasted::AreaHanded { .. }
+        | Toasted::AreasGivenBack { .. }
+        | Toasted::AreasProposed
+        | Toasted::StopApplied
         | Toasted::StopProposed
         | Toasted::KeptAsking
         | Toasted::KeepAskingRefused
@@ -1291,6 +1328,7 @@ pub(crate) fn toast(
         | Toasted::Later
         | Toasted::NotSent
         | Toasted::Paused
+        | Toasted::LeftTalk
         | Toasted::Resumed => b.text(Run::Plain, &said),
     }
     if let Toasted::AwayOn { project, .. } = toast {

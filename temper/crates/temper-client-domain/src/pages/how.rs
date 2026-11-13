@@ -381,13 +381,13 @@ pub fn follows(
     path: Option<&w::BranchPath>,
     members: Option<&[c::ProjectMember]>,
     reader: u64,
+    roles: &[Standing],
 ) -> Landed {
     let mut follows = List::uncapped();
     if let Some(panel) = panel {
         for row in panel.follows() {
             let setting = row.setting();
-            let w::FollowOwner::Person(person) = setting.owner();
-            let owner = follow_owner(person.person(), members, reader);
+            let owner = follow_owner(setting.owner(), members, reader, roles);
             let code_starts = match setting.start() {
                 w::FollowStart::Code => true,
                 w::FollowStart::Owner => false,
@@ -433,7 +433,23 @@ pub fn follows(
     };
     Landed { follows: follows.into_boxed(), tiers }
 }
-fn follow_owner(owner: u64, members: Option<&[c::ProjectMember]>, reader: u64) -> Owner {
+fn follow_owner(
+    owner: &w::FollowOwner,
+    members: Option<&[c::ProjectMember]>,
+    reader: u64,
+    roles: &[Standing],
+) -> Owner {
+    let owner = match owner {
+        w::FollowOwner::Person(person) => person.person(),
+        w::FollowOwner::Task(task) => {
+            for role in roles {
+                if role.number == task.task() {
+                    return Owner::Named(role.title.clone());
+                }
+            }
+            return Owner::Named(skein_lib::bytes::concat(&[b"task ", skein_lib::Decimal::of(task.task()).as_bytes()]));
+        }
+    };
     if owner == reader {
         return Owner::You;
     }
@@ -452,7 +468,7 @@ fn follow_owner(owner: u64, members: Option<&[c::ProjectMember]>, reader: u64) -
 pub fn landed(root: &crate::Domain, project: u32) -> Landed {
     let pages = root.pages();
     if pages.address() != &(crate::Address::Settings { project }) {
-        return follows(None, None, None, 0);
+        return follows(None, None, None, 0, &[]);
     }
     let panel = match &pages.how {
         Some(open) => open.panel(root.client()),
@@ -470,7 +486,11 @@ pub fn landed(root: &crate::Domain, project: u32) -> Landed {
         Some(me) => me.party.number,
         None => 0,
     };
-    follows(panel.as_ref(), path, members, reader)
+    let roles = match &pages.how {
+        Some(open) => open.standing(root.client(), project),
+        None => Box::default(),
+    };
+    follows(panel.as_ref(), path, members, reader, &roles)
 }
 /// Settings-only watches (client/pages/settings.md, 2, *What the client holds*).
 #[derive(Debug)]

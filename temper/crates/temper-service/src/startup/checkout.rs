@@ -27,10 +27,10 @@ fn payload(checkout: &limits::Checkout) -> payload::Limits {
 /// Measure the same answer as jig's sizes, with its frame header. Other body
 /// fields remain at their ceilings: they do not occur in an Answer.
 fn answer(jig: &config::Limits, payload: &payload::Limits) -> Option<u64> {
-    use jig_protocol_worker_wire::{CEILINGS, v9};
+    use jig_protocol_worker_wire::{CEILINGS, v10};
     let saved = payload::Saved::encoded_bound(payload)?;
     let ceiling = u64::from(CEILINGS.work_saved_some);
-    let limits = v9::Limits {
+    let limits = v10::Limits {
         work_left_some: u32::try_from(payload::Left::encoded_bound(payload)?).ok()?,
         work_saved_some: u32::try_from(saved.min(ceiling)).ok()?,
         answer_refused: jig.core.tasks.run_inbox,
@@ -43,7 +43,7 @@ fn answer(jig: &config::Limits, payload: &payload::Limits) -> Option<u64> {
     // At the saved ceiling, the largest ending contains Work, not a refusal.
     // Any excess extends that same byte field; measure even a ceiling shortfall
     // so it cannot hide the rooms that must rise with it.
-    v9::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
+    v10::Answer::encoded_bound(&limits)?.checked_add(saved.saturating_sub(ceiling))?.checked_add(8)
 }
 
 fn room(jig: Option<&config::Limits>, payload: &payload::Limits) -> Option<(u32, u32)> {

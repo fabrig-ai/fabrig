@@ -59,10 +59,10 @@ fn a_wrong_secret_is_refused_as_unauthorized() {
 }
 
 #[test]
-fn openings_with_another_family_version_application_or_terms_are_refused() {
+fn openings_with_another_family_version_wires_or_terms_are_refused() {
     for (label, case, expected) in [
         ("version", Opening::Version, Some(1)),
-        ("application", Opening::Application, Some(257)),
+        ("wires", Opening::Wires, Some(257)),
         ("terms", Opening::Terms, Some(2)),
         ("family", Opening::Family, Some(3)),
         ("garbage", Opening::Garbage, Some(3)),

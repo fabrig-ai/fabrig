@@ -25,6 +25,10 @@
 
 extern crate alloc;
 
+// Native rustls comes through its bridge (skein/docs/foundation/cli.md, 3).
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+extern crate skein_rustls_std as rustls;
+
 pub mod client;
 mod config;
 mod held;

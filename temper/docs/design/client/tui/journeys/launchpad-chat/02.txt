@@ -1,4 +1,4 @@
-╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:44207 ─╮
+╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:32779 ─╮
 │ Nothing needs you.                                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
@@ -6,7 +6,6 @@
    /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
    /ask      Ask temper
-
 
 ────────────────────────────────────────────────────────────────────────────────
 ❯ /
@@ -19,6 +18,7 @@
   /new      Start a new chat
   /chats    Open another chat
   /open     Open this on the web
+  /tell     Tell temper what's off
   /theme    Auto, light or dark
   /help     Commands and keys
   /quit     Close temper

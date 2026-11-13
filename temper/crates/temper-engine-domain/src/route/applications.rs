@@ -145,6 +145,7 @@ pub(super) fn admitted(
             let authorized = match domain.forge.follow(project, follow) {
                 Some(setting) => match setting.owner {
                     forge::settings::FollowOwner::Person(owner) => owner == person,
+                    forge::settings::FollowOwner::Task(_) => false,
                 },
                 None => false,
             } || domain.core.people.role(person, project) == Some(people::Role::Owner);

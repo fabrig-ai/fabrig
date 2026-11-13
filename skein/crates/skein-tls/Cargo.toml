@@ -9,12 +9,15 @@ publish.workspace = true
 
 [dependencies]
 skein-lib.workspace = true
-rustls.workspace = true
 ring.workspace = true
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+rustls.workspace = true
 ring = { workspace = true }
 rustls-pki-types = { workspace = true }
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+skein-rustls-std.workspace = true
 
 [lints]
 workspace = true

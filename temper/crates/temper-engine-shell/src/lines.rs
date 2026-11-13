@@ -336,6 +336,28 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             format!("listening {name} {addr}\n")
         }
 
+        temper_engine_service::Note::WorkerOpened { worker, wires } => {
+            use std::fmt::Write as _;
+            let mut line = format!("{binary} serve: worker {} opened: ", String::from_utf8_lossy(&worker));
+            let mut separator = "";
+            for wire in &wires {
+                write!(line, "{separator}{} {}", wire.name, wire.version).expect("wire version line");
+                separator = ", ";
+            }
+            line.push('\n');
+            line
+        }
+        temper_engine_service::Note::WorkerOpeningRefused { worker, reason, text } => {
+            let worker = match worker {
+                Some(name) => format!("worker {}", String::from_utf8_lossy(&name)),
+                None => "a worker".into(),
+            };
+            format!(
+                "{binary} serve: {worker} refused at its opening: {}: {}\n",
+                opening_reason(reason),
+                String::from_utf8_lossy(&text)
+            )
+        }
         temper_engine_service::Note::WorkerLost { worker, channel, why } => {
             format!(
                 "{binary} serve: worker lost worker={} channel={}: {}\n",
@@ -596,6 +618,15 @@ fn listener_failed_line(
     format!("{binary} serve: {name} listener {address} failed: {why}\n")
 }
 
+fn opening_reason(code: u16) -> String {
+    match code {
+        1 => "version".into(),
+        2 => "limits".into(),
+        3 => "framing".into(),
+        code => refusal(temper_engine_service::Refusal::Peer(code)),
+    }
+}
+
 fn loss_refusal(code: u16) -> String {
     refusal(match code {
         2 => temper_engine_service::Refusal::Terms,
@@ -639,7 +670,7 @@ fn refusal(reason: temper_engine_service::Refusal) -> String {
         temper_engine_service::Refusal::Malformed => "malformed".into(),
         temper_engine_service::Refusal::Peer(code) => match Reason::from_code(code) {
             Some(Reason::Unauthorized) => "unauthorized".into(),
-            Some(Reason::Application) => "application".into(),
+            Some(Reason::Wires) => "wires".into(),
             Some(Reason::Busy) => "busy".into(),
             Some(Reason::Replaced) => "replaced".into(),
             Some(Reason::NotAdmitted) => "not-admitted".into(),

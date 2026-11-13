@@ -388,7 +388,7 @@ impl Component {
                     Ok(None) => self.machine.down(Request::Read, &mut self.events, below),
                     Err(error) => self.refuse_rules(receive::refusal_text(kind, error), below),
                 },
-                Some(Event::Closed { why }) => self.end(why, to_service),
+                Some(Event::Closed { why, .. }) => self.end(why, to_service),
                 Some(Event::Ended) => {
                     // Clean EOF between demands stays in the machine's ReadState::Ended.
                     if self.reading {
@@ -513,8 +513,8 @@ mod tests {
         let mut component = component();
         let mut above = Queue::with_capacity(8);
         let mut below = Queue::with_capacity(16);
-        component.events.push(Event::Closed { why: skein_channel::Closed::Truncated });
-        component.events.push(Event::Closed { why: skein_channel::Closed::Stream });
+        component.events.push(Event::Closed { why: skein_channel::Closed::Truncated, text: Box::new([]) });
+        component.events.push(Event::Closed { why: skein_channel::Closed::Stream, text: Box::new([]) });
         component.events.push(Event::Ended);
         component.drain(&mut above, &mut below);
         assert!(above.is_empty(), "closure between reads is held");
@@ -522,7 +522,7 @@ mod tests {
         assert_eq!(above.pop(), Some(Received::Hangup { why: skein_channel::Closed::Truncated }));
         assert!(!component.reading);
         assert!(below.is_empty(), "held closure answers synchronously");
-        component.events.push(Event::Closed { why: skein_channel::Closed::Stream });
+        component.events.push(Event::Closed { why: skein_channel::Closed::Stream, text: Box::new([]) });
         component.events.push(Event::Ended);
         component.drain(&mut above, &mut below);
         assert!(above.is_empty(), "duplicate closure cannot repeat the end");

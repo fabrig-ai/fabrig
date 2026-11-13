@@ -8,6 +8,7 @@
 
 - **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4).
 
+
 - **Not yet:** "The box's limits for that work", conflicted paths in one merge: both profiles hold `checkout.conflicts` 4 and `git_component.stdout_bytes` 1,024 (`temper-service/src/limits.rs`, `CHECKOUT`, `GIT`).
 
 - **Not yet:** the whole document: the largest-turn remeasurement and runtime results remain `settings.status.md`, 7.
@@ -29,3 +30,4 @@ remain `README.md`, section 9's deferred work.
 - **Design departs:** from the request `ui-walk-large` of 2026-11-06, decided by its plan's cut: the room outside the pool is one chat's 24K, where the request has the status agent's small allowance, because a run's spend stays spent, so K would pay for one brief in a period and 24K for at least twenty-four.
 
 - **Design departs:** from the request `ui-home-status` of 2026-11-05, decided by its plan's cut: the status agent is stock charter 9, where the request has 7, because the reference's settings already number its designer 7 and its triage 8 (`reference.md`), so a stock 7 would run the designer's words there. Its "no tools but finish" holds by the run's authority, which names none, since the host part declares its fixed tools whatever a charter says, but for the settings and delegate families', which charter 9 doesn't name (`../../domain/agent/tools.md`).
+

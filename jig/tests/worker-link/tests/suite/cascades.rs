@@ -64,7 +64,7 @@ fn jobs_mixed_with_runs_keep_their_order() {
             world.down(Event::Up { up: fixtures::turn(), parts: Box::new([]) });
             world.down(Event::Up { up: super::jobs::answer(), parts: fixtures::work_parts() });
             world.down(Event::Up { up: fixtures::answer(), parts: fixtures::work_parts() });
-            expected.extend([0x0101, 0x018c, 0x0103]);
+            expected.extend([0x0101, 0x010c, 0x0103]);
         }
         assert_eq!(world.records()[0].iter().map(|r| r.kind).collect::<Vec<_>>(), expected, "seed {seed}");
     }

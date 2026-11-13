@@ -97,6 +97,11 @@ fn provider_line(
 
 /// The disclosure, fixed words, or nothing without a usable model.
 pub(crate) fn picker(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings) {
+    if let Some(chat) = root.pages().chat()
+        && chat.talk().is_some()
+    {
+        return;
+    }
     if !can_send(root) {
         return;
     }

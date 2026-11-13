@@ -248,6 +248,17 @@ pub enum Note {
         listener: Listening,
         addr: core::net::SocketAddr,
     },
+    /// An accepted opening's agreed versions (protocol/wires.md, 4).
+    WorkerOpened {
+        worker: Box<[u8]>,
+        wires: skein_lib::List<jig_protocol_worker_wire::Agreed>,
+    },
+    /// A refusal at the opening, including skein's pre-credential refusal.
+    WorkerOpeningRefused {
+        worker: Option<Box<[u8]>>,
+        reason: u16,
+        text: Box<[u8]>,
+    },
     WorkerLost {
         worker: Option<Box<[u8]>>,
         channel: skein_lib::Token,
