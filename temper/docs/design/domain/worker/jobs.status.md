@@ -1,6 +1,6 @@
 # jobs: status
 
-2026-11-12. Where the tree's code lags or departs from [jobs.md](jobs.md).
+2026-11-13. Where the tree's code lags or departs from [jobs.md](jobs.md).
 
 
 `jobs.md`'s close kind is built: kind 4 is declared with its bounds,
@@ -42,16 +42,12 @@ transient failures` with no line in either log, stands on reading: its
 evidence is outside the repository, and its proof is the next
 deployment's lines, which no record shows.
 
-- **Not yet:** `jobs.md`, *The prepare kind*: the worker declares no kind 1
-  and an empty command is refused (`temper-worker-domain-tooling`), so no
-  round's base is combined with its member's head by merge or squash and
-  pushed to a landing's branch [in flight: change 816].
-
 - **Not yet:** the whole document: a result missing and one past its bound fail with the same why,
   `result missing or past its bound`, where `jobs.md` has the why say which: the
   job capability's `Read` answers no bytes for both
   (`temper-worker-domain-tooling/src/boundary.rs`, `Event::Read`).
-- **Not yet:** the whole document: the prepare and key kinds: neither kind's entry is
-  built, so the worker's hello declares the merge and close kinds
-  (`temper/crates/temper-service/src/limits.rs`, `job_kinds`), and with prepare the
+- **Not yet:** the whole document: the key kind, and the prepare kind's
+  project command: the worker's hello declares the prepare, merge and
+  close kinds (`temper-worker-service/src/worker_settings.rs`,
+  `job_kinds`), its prepare temper's own alone, and with neither the
   `Rewrite` delivery (`../../protocol/git.md`, 4.10).

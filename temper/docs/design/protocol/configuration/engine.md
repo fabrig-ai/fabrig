@@ -101,9 +101,15 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../../domain/after-landing.md`, sections 3 and 6).
+- **The batch,** beside `by`: `batch`, a u16 from 1 to the deployment's
+  `forge.landing_members`, 1 when absent: the most changes a landing
+  into a repository's main forms with (`../../domain/landing.md`,
+  section 9 and 13.1). One past its bounds refuses the start at its
+  member, `application.landing.projects[i].batch`, naming
+  `forge.landing_members` where it passes that.
 - **The trains' way of combining,** beside `by`: `combine`,
   `{"main": "merge" | "squash", "other": "merge" | "squash"}`, how a
-  train under `turn` combines its member onto the candidate, `main` for
+  train under `turn` combines each member onto the prefix below, `main` for
   the trains into a repository's main and `other` for those into any
   other branch; a member absent, or `combine` absent, takes its stock,
   `merge` for `main` and `squash` for `other`

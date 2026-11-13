@@ -1,15 +1,11 @@
 # tooling: status
 
-2026-11-12. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-13. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 
-- **Not yet:** 4: temper's own prepare, its `request.json` (`combine`,
-  `train_upstream`, a member's `message` and `squash` with its trailers)
-  and its results, exit 0's `{"combined": [...]}` and exit 3's conflict:
-  no job of kind 1 runs [in flight: change 816].
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
-  contract, since neither kind is built (`../domain/worker/jobs.md`): no
-  project names one, and the worker declares the merge and close kinds alone,
+  contract (`../domain/worker/jobs.md`): no project names one, and the
+  worker's prepare kind is temper's own alone, with no key kind,
   though the job capability that would run them is built
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:
