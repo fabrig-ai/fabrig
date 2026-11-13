@@ -93,10 +93,15 @@ pub(crate) fn answered(d: &mut Domain, wall: Wall, row: &mut ChangeRow, child: u
 }
 
 pub(crate) fn recorded(d: &mut Domain, wall: Wall, row: &mut ChangeRow, pull: &Pull, out: &mut Queue<Request>) {
-    let state = if pull.merged.is_some() { history::RecordedState::Merged } else {
-        match pull.state { State::Closed => history::RecordedState::Closed, State::Open => return }
-    };
-    let mut event = step(d, row, history::What::Recorded { state });
+    if pull.merged.is_none() { return; }
+    // Squashed members are recorded by their landing's own effect step.
+    for (_, landing) in &d.landing.rows {
+        for member in &landing.landing.members {
+            if member.change == row.task && member.landed.is_some()
+                && member.combined == Some(temper_engine_domain_forge_landing::Combine::Squash) { return; }
+        }
+    }
+    let mut event = step(d, row, history::What::Recorded { state: history::RecordedState::Merged });
     event.operation = history::Operation::Of(pull.number);
     event.head = pull.merged;
     write(d, wall, row, event, out);

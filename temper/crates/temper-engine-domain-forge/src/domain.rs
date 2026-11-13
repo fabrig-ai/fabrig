@@ -232,7 +232,7 @@ pub struct Domain {
     pub(crate) goal_files: Map<u64, topics::Files>,
     pub(crate) goal_file_reads: Map<Token, topics::Pending>,
     pub(crate) heads: Map<Name, BranchHead>,
-    pulls: Map<Name, PullState>,
+    pub(crate) pulls: Map<Name, PullState>,
     /// Each pull's last mergeable, unsaved: a restart reads it afresh.
     pull_mergeable: Map<Name, bool>,
     /// Last judged reviews per live change, unsaved: a restart reads them afresh.
