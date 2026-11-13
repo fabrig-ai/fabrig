@@ -55,7 +55,6 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "jig-client-view", until: "G3" },
     Exception { what: "skein-ui-example-view", until: "G3" },
     Exception { what: "skein-oauth", until: "G3" },
-    Exception { what: "jig-protocol-accounts", until: "G3" },
 ];
 
 #[derive(Debug)]

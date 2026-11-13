@@ -165,7 +165,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "accounts moved",
         root: "crates/jig-protocol-accounts",
-        codec_root: "crates/jig-protocol-accounts",
+        codec_root: "crates/jig-protocol-accounts-codec",
         schemas: &["schema/moved-v1.schema"],
         generated: &["src/generated/v1.rs"],
         golden: "golden",
