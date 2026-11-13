@@ -12,6 +12,7 @@ mod landing;
 mod landing_batches;
 mod landing_judgement;
 mod landing_leaving;
+mod landing_proofs;
 mod landing_rounds;
 mod member_message;
 mod memory;
