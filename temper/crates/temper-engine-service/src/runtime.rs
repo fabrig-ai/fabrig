@@ -71,13 +71,13 @@ impl engine::Engine {
         let notes = Queue::with_capacity(settings.limits.forge.forges);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let mut core = core_config(&settings.jig, seeds);
-        core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
+        core.kinds.clone_from(&settings.kinds);
         core.jobs = limits::jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
             host_part: settings.host_part,
             kinds_stock: settings.kinds_stock,
             ways_stock: settings.ways_stock,
-            period_span: crate::stock::PERIOD_SPAN,
+            period_span: settings.period_span,
             core,
             landings: settings.landings,
             forge: forge_config,

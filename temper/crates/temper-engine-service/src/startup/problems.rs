@@ -1,4 +1,5 @@
 //! Engine startup problems around the core's vocabulary (protocol/services.md, 3).
+use super::{AGENT_WORDS, admission};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 use temper_service_core::startup::problems::{put, render_past, render_path, render_problem};
@@ -43,7 +44,7 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::Connectors => b"must be [1], the forge connector",
         EngineWhat::OldAgentCommand => b"\"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's",
         EngineWhat::NoWebhooks => b"needs application.webhooks",
-        EngineWhat::Agent => b"not in the agent's configuration under the same name",
+        EngineWhat::Agent => AGENT_WORDS,
         EngineWhat::Adapter => b"program adapter not declared in the agent's programs",
         EngineWhat::Redirect(_) => b"fixed port conflicts with ",
         EngineWhat::NoHub => b"the root has no hub, so the fleet must place every run on a worker",
@@ -69,71 +70,6 @@ fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mu
         super::Listener::Fake(_) => b"application.machine.fake.listen".as_slice(),
     };
     put(writer, length, measuring, name);
-}
-/// The admission paragraph shared by startup paths and hello refusals (protocol/cluster.md, 3).
-pub(crate) fn admission_words(why: jig_domain_fleet::AgentShortfall, offered: u64, required: u64) -> Box<[u8]> {
-    let mut length = 0;
-    admission(why, offered, required, &mut Writer::new(0), &mut length, true);
-    let mut writer = Writer::new(length);
-    let mut written = 0;
-    admission(why, offered, required, &mut writer, &mut written, false);
-    assert_eq!(written, length, "admission passes measure identically");
-    writer.finish()
-}
-
-fn admission(
-    why: jig_domain_fleet::AgentShortfall,
-    offered: u64,
-    required: u64,
-    writer: &mut Writer,
-    length: &mut usize,
-    measuring: bool,
-) {
-    use jig_domain_fleet::AgentShortfall;
-    // Missing names carry no numerical claim, even if constructed by a caller.
-    if let AgentShortfall::Model { .. } = why {
-        put(writer, length, measuring, words(EngineWhat::Agent));
-        return;
-    }
-    let (before, between, after): (&[u8], &[u8], &[u8]) = match why {
-        AgentShortfall::Model { .. } => unreachable!("name diagnostic above"),
-        AgentShortfall::Window { .. } => (b"needs a context window of ", b" tokens; the agent offers ", b" tokens"),
-        AgentShortfall::Output { .. } => (b"needs ", b" output tokens; the agent offers ", b" tokens"),
-        AgentShortfall::Turns { .. } => (b"needs ", b" turns; the agent's profile.policy.max_turns allows ", b""),
-        AgentShortfall::Spend => {
-            (b"needs a spend allowance of ", b"; the agent's profile.policy.max_spend allows ", b"")
-        }
-        AgentShortfall::Time { .. } => {
-            (b"needs ", b" ms of run time; the agent's profile.policy.max_time allows ", b" ms")
-        }
-        AgentShortfall::Waiting { .. } => {
-            (b"needs ", b" ms of waiting; the agent's profile.policy.max_waiting allows ", b" ms")
-        }
-        AgentShortfall::Checks { .. } => {
-            (b"needs checks within ", b" ms; the agent's profile.policy.check_timeout is ", b" ms")
-        }
-        AgentShortfall::Message => {
-            (b"needs ", b"-byte messages (tasks.message_bytes); the agent offers ", b" (tool_payload less 2)")
-        }
-        AgentShortfall::Inbox => {
-            (b"needs an inbox of ", b" (tasks.run_inbox); the agent's profile.policy.inbox allows ", b"")
-        }
-        AgentShortfall::Unacknowledged => (
-            b"needs an unacknowledged-turn allowance of ",
-            b" (hub.turns); the agent's profile.policy.unacknowledged allows ",
-            b"",
-        ),
-    };
-    put(writer, length, measuring, before);
-    put(writer, length, measuring, Decimal::of(required).as_bytes());
-    put(writer, length, measuring, between);
-    put(writer, length, measuring, Decimal::of(offered).as_bytes());
-    put(writer, length, measuring, after);
-    if let AgentShortfall::Checks { charter } = why {
-        put(writer, length, measuring, b"; raise charter ");
-        put(writer, length, measuring, Decimal::of(u64::from(charter)).as_bytes());
-        put(writer, length, measuring, b"'s reserve_time (temper help settings) or lower the timeout");
-    }
 }
 fn store_page(frame: u32, ceiling: u32, writer: &mut Writer, length: &mut usize, measuring: bool) {
     put(writer, length, measuring, b"its turn's transcript frame, ");

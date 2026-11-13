@@ -1,10 +1,10 @@
 //! The engine's startup envelopes and declarations (protocol/services.md, 4).
+pub use super::shared::membership;
 use super::{Problems, What};
 use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
-use jig_domain_link::Problem;
-use jig_protocol_config::{self as config, Path, Segment};
+use jig_protocol_config::{self as config, Path};
 use skein_io::Addr;
 use skein_lib::{Decimal, Duration, List, Map, Writer};
 use temper_engine_domain as domain;
@@ -526,14 +526,12 @@ pub fn root(
 ) {
     let landings = landing_config(engine);
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
-    if let Some(&connector) = core.connectors.first() {
-        core.kinds = crate::stock::kinds(limits, connector);
-    }
+    core.kinds.clone_from(&engine.kinds);
     let config = domain::Config {
         host_part: engine.host_part,
         kinds_stock: engine.kinds_stock.clone(),
         ways_stock: engine.ways_stock.clone(),
-        period_span: crate::stock::PERIOD_SPAN,
+        period_span: engine.period_span,
         playground: crate::system::playground_config(engine.demo.as_ref(), true, engine.limits.setup.deadline),
         core,
         landings,
@@ -1025,17 +1023,6 @@ pub fn store_refusal(refused: crate::store::Refusal) -> Problems {
     let mut problems = Problems::empty();
     problems.push(path, what);
     problems
-}
-
-/// Translate the kit's configured membership refusal into its startup path.
-pub(crate) fn membership(problem: Problem) -> (Path, config::What) {
-    let hosts = Path::root().member(b"engine").member(b"hosts").member(b"workers");
-    match problem {
-        Problem::Workers { .. } => (hosts, config::What::Bound),
-        Problem::WorkerName { worker, .. } => {
-            (hosts.child(Segment::Index(worker)).member(b"name"), config::What::Bound)
-        }
-    }
 }
 
 /// Only an agent running locally must hold the answer in its tool payload.

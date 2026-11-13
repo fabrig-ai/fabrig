@@ -18,8 +18,10 @@ pub struct Origin {
     pub name: Box<[u8]>,
 }
 impl Origin {
+    /// Parse a configured browser origin for the startup (protocol/sign-in.md, 2.2).
     #[expect(clippy::disallowed_methods, reason = "the configuration protocol parses URL hosts and ports")]
-    pub(super) fn parse(input: &[u8]) -> Option<Self> {
+    #[must_use]
+    pub fn parse(input: &[u8]) -> Option<Self> {
         let (scheme, authority) = if let Some(rest) = input.strip_prefix(b"https://") {
             (Scheme::Https, rest)
         } else {

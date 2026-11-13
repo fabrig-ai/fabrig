@@ -51,7 +51,12 @@ pub fn engine() -> settings::Engine {
     let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
     // This typed fixture reaches the core's start; policy 1 needs 6074 bytes with the standing charter executors.
 
+    let own = small_limits();
+    let root = limits::engine(&jig.limits, &own).unwrap();
+    let connector = *jig.connectors.first().unwrap();
     settings::Engine {
+        kinds: crate::stock::kinds(&root, connector),
+        period_span: crate::stock::PERIOD_SPAN,
         host_reply_bytes: None,
         agent_charter_bytes: None,
         machine: machine(),
@@ -73,7 +78,7 @@ pub fn engine() -> settings::Engine {
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
-        limits: small_limits(),
+        limits: own,
     }
 }
 
@@ -1087,7 +1092,7 @@ pub fn clients() -> crate::clients::Clients {
     .unwrap()
 }
 mod startup;
-pub use startup::{APPLICATION, Json, demo_service, document, value, with};
+pub use startup::{APPLICATION, Json, demo_service, document, files, value, with};
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime
