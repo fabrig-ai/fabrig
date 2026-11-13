@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-12. Where temper's code lags or departs from [README.md](README.md).
+2026-11-13. Where temper's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 4.1 and `checkouts.md`, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages.
@@ -69,12 +69,7 @@ AGENT.json`, with the same program used for a model list
 them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
-- **Not yet:** 4.3: a held task names no run's failure, which the user's
-  request of 2026-11-05 asked for if cheap: it needs a stored-format
-  change, so it is section 10's question. The `ctl-words` request requires
-  the user's decision on the bound and readers before that text is kept;
-  no such decision is supplied. The log directions leave this question open.
-  4.3: `temper help task` says an "invalid results" hold may mean an
+- **Not yet:** 4.3: `temper help task` says an "invalid results" hold may mean an
   assignment was refused before any model turn (`temper/docs/help/task.md`),
   where such a start spends a permanent try, and a hold for it says
   permanent failures; `temper-docs`'s `tests/rules.rs` finds that page by

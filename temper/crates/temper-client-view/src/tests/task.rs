@@ -717,7 +717,7 @@ fn index_of(tree: &Tree, role: Role, name: &[u8]) -> usize {
             return index;
         }
     }
-    panic!("missing {role:?}: {}", String::from_utf8_lossy(name));
+    panic!("missing {role:?}: {}", name.escape_ascii());
 }
 fn assert_status(tree: &Tree, name: &[u8], token: skein_ui::Style) {
     let index = index_of(tree, Role::Status, name);

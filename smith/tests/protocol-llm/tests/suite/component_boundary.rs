@@ -522,19 +522,34 @@ fn skeins_report_reaches_the_session_whole() {
             b"code".as_slice(),
             b"".as_slice(),
             b"".as_slice(),
-            llm::Report { code: b"code".as_slice().into(), request: Box::default(), field: Box::default() },
+            llm::Report {
+                status: None,
+                code: b"code".as_slice().into(),
+                request: Box::default(),
+                field: Box::default(),
+            },
         ),
         (
             b"".as_slice(),
             b"request".as_slice(),
             b"".as_slice(),
-            llm::Report { code: Box::default(), request: b"request".as_slice().into(), field: Box::default() },
+            llm::Report {
+                status: None,
+                code: Box::default(),
+                request: b"request".as_slice().into(),
+                field: Box::default(),
+            },
         ),
         (
             b"".as_slice(),
             b"".as_slice(),
             b"field".as_slice(),
-            llm::Report { code: Box::default(), request: Box::default(), field: b"field".as_slice().into() },
+            llm::Report {
+                status: None,
+                code: Box::default(),
+                request: Box::default(),
+                field: b"field".as_slice().into(),
+            },
         ),
         (b"".as_slice(), b"".as_slice(), b"".as_slice(), llm::Report::none()),
     ] {

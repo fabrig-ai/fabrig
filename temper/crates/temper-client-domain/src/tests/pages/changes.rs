@@ -52,7 +52,6 @@ fn panel(tasks: &[u64], landed: &[u64]) -> w::ChangesPanel {
                         task: *task,
                         title: b"Queued change".as_slice().into(),
                         ready_since: 0,
-                        alone: false,
                         checks_since: None,
                     },
                 )

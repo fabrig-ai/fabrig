@@ -37,7 +37,12 @@
   reviewer that could not read what it judges (the pull request, its
   files, the head), or could not judge it for any other reason of its
   own, ends its task failed, saying why, within the verdict contract's
-  failure (`../../agent/charter.md`, 3); its charter's words say so. A failed
+  failure (`../../agent/charter.md`, 3); its charter's words say so. A
+  review's run that ended for its model's provider being unreachable (an
+  outage, jig's `domain/hosts/hub.md`, 3) did not fail the review: its
+  task tries again as any infrastructure failure does, and is held past
+  that bound with the call's words (jig's `domain/tasks/lifecycle.md`,
+  6). Any other failure of its model fails the review. A failed
   review is no verdict: the change asks for the gate again once, a
   fresh review at the same head, whose brief says it is asked again
   and gives the first review's failure in its words, so the reviewer

@@ -73,6 +73,7 @@ impl RateLimit {
     }
 }
 /// A route's named error decides before its HTTP status (llm/README.md, sections 4.7 and 4.8).
+/// A 403 without a decoded provider error is unavailable (section 2.5).
 #[must_use]
 pub fn classify(
     provider: Provider,
@@ -94,7 +95,11 @@ pub fn classify(
     }
     match status {
         401 => Failure::Unauthorized,
-        403 | 404 | 422 => Failure::Invalid,
+        403 => match error {
+            Some(_) => Failure::Invalid,
+            None => Failure::Unavailable,
+        },
+        404 | 422 => Failure::Invalid,
         429 => Failure::RateLimited { retry_after: rate.delay(error, wall) },
         529 => Failure::Overloaded,
         500..=599 => {

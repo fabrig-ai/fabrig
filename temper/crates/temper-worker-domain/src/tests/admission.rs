@@ -81,7 +81,7 @@ fn admission_classes() -> Box<[(Event, bool, bool)]> {
             false,
             false,
         ),
-        (Event::Decoded { agent: OWNER, start: Err(host::Undecoded::Charter) }, false, false),
+        (Event::Decoded { agent: OWNER, start: Err(host::Undecoded::Charter), endpoints: Box::new([]) }, false, false),
         (Event::Encoded { owner: OWNER, encoded: Encoded::Undecodable }, false, false),
         (Event::Activity { owner: OWNER, activity: None }, false, false),
         (Event::Done { owner: OWNER, done: checkout::git::Done::Succeeded }, false, false),

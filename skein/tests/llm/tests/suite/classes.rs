@@ -27,6 +27,7 @@ fn expected(failure: Failure, code: &str) -> (Failure, Report) {
 fn anthropic_failures_are_classed_by_type_first() {
     for (kind, status, message, headers, class) in [
         ("permission_error", 403, "denied", "", Failure::Refused),
+        ("synthetic_unknown", 403, "unknown", "", Failure::Invalid),
         ("rate_limit_error", 429, "slow", "", Failure::RateLimited { retry_after: Duration::ZERO }),
         ("billing_error", 402, "spent", "Retry-After: 9\r\n", Failure::Exhausted { retry_after: None }),
         (

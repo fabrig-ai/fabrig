@@ -691,6 +691,7 @@ fn transcript_failure() -> jig_domain_host::Ending {
         failure: jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Transcript),
         detail: Box::new([]),
         work: jig_domain_host::Work { left: None, saved: None },
+        model: None,
     }
 }
 
@@ -721,6 +722,7 @@ fn an_unrelated_infrastructure_try_does_not_disable_a_later_windows_resume() {
             failure: host::Failure::Unprepared(host::Preparation::Transient),
             detail: Box::from(b"fetch: TimedOut".as_slice()),
             work: host::Work { left: None, saved: None },
+            model: None,
         },
         0,
     );
@@ -756,6 +758,7 @@ fn unusable_history_closes_its_committed_window_before_the_retry() {
             failure: host::Failure::Run(host::RunFailure::Transcript),
             detail: Box::new([]),
             work: host::Work { left: None, saved: None },
+            model: None,
         },
         host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)),
         host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
@@ -1126,4 +1129,90 @@ fn replenished_work() -> World {
     assert_eq!(funding_chat(&mut world, 163), None, "the exhausted pool refuses the third chat");
     raise_run_funding(&mut world);
     world
+}
+
+#[test]
+fn named_model_failures_retry_and_hold_with_only_the_calls_words() {
+    use jig_domain_host as host;
+    for (kind, evidence, status, class, words) in [
+        (
+            host::ModelFailureKind::Unavailable,
+            host::ModelEvidence::Unsent,
+            Some(403),
+            tasks::Class::Infrastructure,
+            b"anthropic claude-opus-5-5: unavailable, status 403, unsent".as_slice(),
+        ),
+        (
+            host::ModelFailureKind::Invalid,
+            host::ModelEvidence::Response,
+            Some(400),
+            tasks::Class::Run,
+            b"anthropic claude-opus-5-5: invalid, status 400, response".as_slice(),
+        ),
+    ] {
+        let mut setup = Setup { seed: 150, ..Setup::default() };
+        setup.limits.core.tasks.retries.infrastructure.retries = 12;
+        setup.limits.core.tasks.retries.run.retries = 3;
+        let mut world = World::new(setup);
+        let run_tries = if class == tasks::Class::Infrastructure {
+            world.end(tasks::End::Failed(tasks::Class::Run), 0);
+            world.retry_due();
+            1
+        } else {
+            0
+        };
+        let allowance = world.env().limits.core.tasks.retries.of(class).retries;
+        for count in 1..=allowance + 1 {
+            host_ending(
+                &mut world,
+                host::Ending::Failed {
+                    failure: host::Failure::Run(host::RunFailure::Model),
+                    detail: b"provider body must not be shown".as_slice().into(),
+                    work: host::Work { left: None, saved: None },
+                    model: Some(host::ModelFailure {
+                        endpoint: b"anthropic".as_slice().into(),
+                        model: b"claude-opus-5-5".as_slice().into(),
+                        kind,
+                        evidence,
+                        status,
+                    }),
+                },
+                0,
+            );
+            let task = world.domain.core().tasks.task(world.task()).expect("live chat");
+            assert_eq!(task.tries.of(class), count);
+            if class == tasks::Class::Infrastructure {
+                assert_eq!(task.tries.run, run_tries);
+            }
+            if count <= allowance {
+                assert!(matches!(task.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+                assert_eq!(
+                    task.retry_notice,
+                    Some(tasks::RetryNotice::Failed { class, count, allowance, reason: Some(words.into()) })
+                );
+                world.retry_due();
+                assert!(world.assigned.is_some(), "the hosted run retries");
+            } else {
+                assert_eq!(
+                    task.phase,
+                    tasks::Phase::Held {
+                        was: tasks::Was::Active(tasks::Active::Due),
+                        why: tasks::Hold::Failures(class),
+                        source: Some(Box::new(tasks::HoldSource::Preparation { words: words.into() })),
+                    }
+                );
+            }
+        }
+        let task = world.task();
+        world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+        jig_core_world::reads::ask(&mut world, 91, core::reads::Read::Task { task });
+        let core::reads::Answer::Document(document) = jig_core_world::reads::latest(&world) else {
+            panic!("task document")
+        };
+        let core::documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
+        let hold = document.hold.as_ref().expect("model failure hold");
+        assert_eq!(hold.reason, tasks::Hold::Failures(class));
+        assert_eq!(hold.words.as_ref().expect("call words").bytes.as_ref(), words);
+        world.close();
+    }
 }

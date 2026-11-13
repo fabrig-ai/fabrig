@@ -642,7 +642,7 @@ impl World {
                     }
                     host::Finish::Ended { .. } => Word::Ended,
                     host::Finish::Parked => Word::Parked,
-                    host::Finish::Failed { failure } => Word::Failed(*failure),
+                    host::Finish::Failed { failure, .. } => Word::Failed(*failure),
                 };
                 Taken::Finished { owner: *owner, word }
             }

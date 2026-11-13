@@ -199,7 +199,7 @@ impl Walk {
                     self.calls.push(visitor.send(
                         fixtures::CLIENTS,
                         Method::Get,
-                        format!("/jig/v1/public/2/1/2/{project:016x}").as_bytes(),
+                        format!("/jig/v1/public/2/2/2/{project:016x}").as_bytes(),
                         &[(b"Host", b"one.example")],
                     ));
                     self.stage = 100;
@@ -234,7 +234,7 @@ impl Walk {
                     .expect("untracked forge envelope");
                 assert!(app.tasks().is_empty(), "no excluded task enters the envelope");
                 let mut fields = Reader::new(app.record());
-                assert_eq!(fields.u16(), Some(1));
+                assert_eq!(fields.u16(), Some(2));
                 assert_eq!(fields.u8(), Some(0), "no excluded turn holder");
                 assert_eq!(fields.u32(), Some(0), "no excluded landing counted");
                 assert_eq!(fields.u32(), Some(0), "no excluded queue counted or ordered");
@@ -249,11 +249,11 @@ impl Walk {
                     "/jig/v1/public/0/1/1".to_owned(),
                     format!("/jig/v1/public/0/1/2/{project:016x}"),
                     format!("/jig/v1/public/0/1/3/{project:016x}/{task:016x}"),
-                    format!("/jig/v1/public/2/1/1/{project:016x}/{task:016x}"),
-                    format!("/jig/v1/public/2/1/2/{project:016x}"),
-                    format!("/jig/v1/public/2/1/3/{project:016x}/{task:016x}"),
-                    "/jig/v1/public/0/2/1".to_owned(),
+                    format!("/jig/v1/public/2/2/1/{project:016x}/{task:016x}"),
                     format!("/jig/v1/public/2/2/2/{project:016x}"),
+                    format!("/jig/v1/public/2/2/3/{project:016x}/{task:016x}"),
+                    "/jig/v1/public/0/2/1".to_owned(),
+                    format!("/jig/v1/public/2/1/2/{project:016x}"),
                     "/jig/v1/public/0/1/65535".to_owned(),
                     format!("/jig/v1/public/65535/1/2/{project:016x}"),
                 ];
@@ -420,7 +420,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) {
             let versions = w::NotServed::decode(&w::CEILINGS, &mut reader).expect("not-served record");
             assert_eq!(versions.served().len(), 1);
             let version = versions.served().iter().next().expect("served version");
-            assert_eq!((version.first(), version.last()), (1, 1));
+            assert_eq!((version.first(), version.last()), if row == 6 { (1, 1) } else { (2, 2) });
         }
         _ => assert!(answer.body.is_empty(), "unknown carries no body"),
     }
@@ -430,7 +430,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) {
 // The public wire's leading fields bind task references to envelope places (temper/docs/design/client/forge/README.md, 9.4).
 fn forge_references(row: usize, record: &[u8]) {
     let mut fields = Reader::new(record);
-    assert_eq!(fields.u16(), Some(1), "the declared public record version");
+    assert_eq!(fields.u16(), Some(2), "the declared public record version");
     match row {
         3 => assert_eq!(fields.u16(), Some(0), "a change names its envelope place, never its internal task number"),
         4 => {

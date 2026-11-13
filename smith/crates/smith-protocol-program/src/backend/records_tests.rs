@@ -381,3 +381,75 @@ fn finish_verdict(backend: &mut Backend, id: &[u8], text: &[u8], error: bool, be
         below,
     );
 }
+
+#[test]
+fn failed_results_keep_status_and_classify_without_transport_evidence() {
+    for (extra, expected, status) in [
+        (
+            json!({"api_error_status":403_u16,"result":"API Error: 403 <!DOCTYPE html><title>Attention Required! | Cloudflare</title>"}),
+            llm::Failure::Unavailable,
+            Some(403),
+        ),
+        (
+            json!({"api_error_status":403_u16,"errors":["other", "API Error: 403 {\"type\":\"error\",\"error\":{\"type\":\"permission_error\",\"message\":\"denied\"}}"]}),
+            llm::Failure::Invalid,
+            Some(403),
+        ),
+        (
+            json!({"api_error_status":403_u16,"result":"API Error: 403 {\"error\" \t: \n{\"message\":\"denied\"}}"}),
+            llm::Failure::Invalid,
+            Some(403),
+        ),
+        (json!({"api_error_status":403_u16,"errors":["{\"error\":\"denied\"}"]}), llm::Failure::Unavailable, Some(403)),
+        (json!({"api_error_status":403_u16}), llm::Failure::Unavailable, Some(403)),
+        (json!({"api_error_status":500_u16}), llm::Failure::Unavailable, Some(500)),
+        (json!({"api_error_status":502_u16}), llm::Failure::Unavailable, Some(502)),
+        (json!({"api_error_status":503_u16}), llm::Failure::Unavailable, Some(503)),
+        (json!({"api_error_status":529_u16}), llm::Failure::Overloaded, Some(529)),
+        (json!({"api_error_status":400_u16}), llm::Failure::Invalid, Some(400)),
+        (json!({"api_error_status":401_u16}), llm::Failure::SignedOut, Some(401)),
+        (
+            json!({"api_error_status":429_u16,"rate_limit_info":{"resetsAt":120_u16}}),
+            llm::Failure::Exhausted { retry_after: Some(Duration::from_secs(120)) },
+            Some(429),
+        ),
+        (json!({"terminal_reason":"usage_limit"}), llm::Failure::Exhausted { retry_after: None }, None),
+        (
+            json!({"api_error_status":503_u16,"terminal_reason":"usage_limit"}),
+            llm::Failure::Exhausted { retry_after: None },
+            Some(503),
+        ),
+        (json!({}), llm::Failure::Invalid, None),
+    ] {
+        let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
+        let mut result = json!({"type":"result","is_error":true});
+        result.as_object_mut().expect("result object").extend(extra.as_object().expect("fields").clone());
+        feed(&mut backend, result, &mut up, &mut below);
+        let Some(ToDomain::Failed { owner, failure, evidence, report, .. }) = up.pop() else {
+            panic!("failed result {extra}")
+        };
+        assert_eq!(owner, COMPLETION);
+        assert_eq!(failure, expected, "{extra}");
+        assert_eq!(evidence, llm::Evidence::Unsent, "{extra}");
+        assert_eq!(report, llm::Report { status, ..llm::Report::none() }, "{extra}");
+    }
+}
+
+#[test]
+fn a_result_without_an_owner_keeps_its_report_until_the_next_completion() {
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
+    // A delivered tool message has no current completion while its result arrives.
+    feed(&mut backend, tool("a", json!({})), &mut up, &mut below);
+    let Some(ToDomain::Completed { .. }) = up.pop() else { panic!("delivered completion") };
+    feed(&mut backend, json!({"type":"result","is_error":true,"api_error_status":403_u16}), &mut up, &mut below);
+    assert!(up.is_empty());
+    backend.from_domain(&env(0), request(&backend), &mut up, &mut below);
+    let Some(ToDomain::Failed { owner, failure, evidence, detail, report }) = up.pop() else {
+        panic!("pending failure")
+    };
+    assert_eq!(owner, COMPLETION);
+    assert_eq!(failure, llm::Failure::Unavailable);
+    assert_eq!(evidence, llm::Evidence::Unknown);
+    assert_eq!(report, llm::Report { status: Some(403), ..llm::Report::none() });
+    assert_eq!(detail.as_ref(), b"smith: the program reported a failed result");
+}

@@ -103,10 +103,10 @@ fn a_delegate_preflight_uses_the_parents_financial_payer() {
     let key = CallKey { task: 1, attempt: 1, completion: 1, position: 0 };
     assert_eq!(
         core.delegate_preflight(&limits.tasks, key, &[delegate], Wall::from_nanos(0)),
-        Err(CallPart::DelegationRefused(tasks::Problem::new(
+        Err(Box::new(CallPart::DelegationRefused(tasks::Problem::new(
             None,
             tasks::Refusal::Account { account: ACCOUNT, why: tasks::AccountWhy::Uses }
-        )))
+        ))))
     );
 }
 
