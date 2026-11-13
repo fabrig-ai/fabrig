@@ -663,7 +663,13 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             }
             prepare_next(holding, &mut domain.cache, id, next, detail, asked, env, out)
         }
-        State::Reds(running) => reds::done(holding, id, running, env, out),
+        State::Reds(running) => {
+            if hold.cut {
+                reds::stopped(holding, running, out)
+            } else {
+                reds::done(holding, id, running, env, out)
+            }
+        }
         State::Pushing { mut push, step, asked } if hold.cut => {
             // Only a completed push proves a landing without further IO.
             if let PushStep::Push { repository }
@@ -2782,6 +2788,9 @@ pub(crate) fn reds(
 ) {
     let Some(id) = addressed(&domain.holds, token) else { return };
     let hold = domain.holds.get_mut(id).expect("addressed hold");
+    if hold.cut {
+        return;
+    }
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = reds::update(&hold.holding, id, state, action, env, out);
 }

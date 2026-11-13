@@ -1483,6 +1483,14 @@ fn a_stop_bound_cut_cancels_a_push_without_verifying_and_never_starts_another_sa
         assert_eq!(&*landings(end), &[Landing::Aborted, Landing::Aborted]);
         assert_eq!(h.one(Event::Release { hold }), Request::Released { client: Token::new(1) });
     }
+    let mut h = Harness::new(LIMITS);
+    let hold = h.ready(1, one(b"reds-cut"));
+    let _write = h.one(Event::Reds { hold, action: crate::git::Reds::Write { reds: Box::new([]) } });
+    h.none(Event::Reds { hold, action: crate::git::Reds::Write { reds: Box::new([]) } });
+    assert_eq!(h.one(Event::Cut { hold }), Request::Cancel { owner: hold });
+    h.none(Event::Done { owner: hold, done: failed(Fault::Cancelled) });
+    h.none(Event::Reds { hold, action: crate::git::Reds::Clear });
+    h.none(Event::Reds { hold, action: crate::git::Reds::Write { reds: Box::new([]) } });
 }
 
 #[test]

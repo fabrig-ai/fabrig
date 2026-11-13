@@ -97,3 +97,15 @@ fn run(holding: &Holding, id: Id<Hold>, mut running: Running, env: &Env<Limits>,
         Asked::Abort | Asked::Nothing => State::Ready,
     }
 }
+
+pub(super) fn stopped(holding: &Holding, running: Running, out: &mut Queue<Request>) -> State {
+    if let Some((to, message)) = running.push {
+        let push =
+            super::Push { to, message, landings: skein_lib::List::with_capacity(count(holding.repositories.len())) };
+        return end_push(holding, push, running.asked, out);
+    }
+    match running.asked {
+        Asked::Release => released(holding.client, out),
+        Asked::Abort | Asked::Nothing => State::Ready,
+    }
+}
