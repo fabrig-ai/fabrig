@@ -2132,6 +2132,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             }
         }
     }
+    crate::landing_history::transition(d, env.wall, &prior, &row, out);
     let decision = stepped.decision;
     for (member, old) in row.landing.members.iter().zip(&prior.landing.members) {
         if member.landed.is_some() && old.landed.is_none() {
@@ -3549,6 +3550,9 @@ impl Domain {
     #[must_use]
     pub fn landing_hold_words(&self, task: u64) -> Option<Box<[u8]>> {
         let row = self.landing.rows.get(&task)?;
+        self.landing_hold_reason(row)
+    }
+    pub(crate) fn landing_hold_reason(&self, row: &LandingRow) -> Option<Box<[u8]>> {
         let failure = crate::preparation::failure(&row.landing.round.failure);
         let policy::Phase::Held { why, .. } = row.landing.phase else { return None };
         match why {
@@ -3867,6 +3871,7 @@ pub(crate) fn closing(
         return;
     }
     if let Some(mut row) = d.landing.rows.get(&task).cloned() {
+        let prior = row.clone();
         let mut told = List::with_capacity(env.limits.landing_members);
         for (index, member) in row.landing.members.iter_mut().enumerate() {
             if member.landed.is_some() && !member.told {
@@ -3896,6 +3901,7 @@ pub(crate) fn closing(
                 emit(out, Request::WakeProcedure { task: member.change });
             }
         }
+        crate::landing_history::transition(d, env.wall, &prior, &row, out);
         let project = row.landing.project;
         save(d, row, out);
         for member in told.into_boxed() {
@@ -3911,6 +3917,7 @@ pub(crate) fn closing(
         }
         let prior = row.clone();
         row.landing = policy::leave(row.landing, task);
+        crate::landing_history::transition(d, env.wall, &prior, &row, out);
         remap_members(d, &mut row, &prior);
         let change = d.changes.get_mut(&task).expect("cancelled member");
         change.change.landing = None;
