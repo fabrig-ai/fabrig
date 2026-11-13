@@ -53,13 +53,14 @@ fn base(root: &Path) -> String {
 }
 
 fn landed(owner: &Path, base: &str) -> Result<Landed, String> {
-    let paths = git(owner, &["ls-tree", "-r", "--name-only", "-z", base, "--", "patches", "schema/kept"])?;
+    let paths =
+        git(owner, &["ls-tree", "-r", "--name-only", "-z", base, "--", "patches", "schema/kept", "schema/wires"])?;
     let mut files = BTreeMap::new();
     for bytes in paths.split(|byte| *byte == 0).filter(|path| !path.is_empty()) {
         let name = std::str::from_utf8(bytes).map_err(|why| format!("git path is not UTF-8: {why}"))?;
         let path = PathBuf::from(name);
         if path.components().any(|part| !matches!(part, Component::Normal(_)))
-            || !(path.starts_with("patches") || path.starts_with("schema/kept"))
+            || !(path.starts_with("patches") || path.starts_with("schema/kept") || path == Path::new("schema/wires"))
         {
             return Err(format!("git returned a path outside the crate: {name}"));
         }

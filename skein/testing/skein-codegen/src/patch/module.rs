@@ -41,7 +41,13 @@ fn ident(name: &str) -> String {
 
 pub(crate) fn function_names(patch: &PatchText) -> Result<Vec<String>, Error> {
     let mut names = BTreeMap::new();
-    patch.sites().map(|(_, target, _)| unique(&mut names, ident(&snake(target)), target)).collect()
+    patch
+        .sites()
+        .map(|(_, target, _, down)| {
+            let name = if down { format!("{}_down", snake(target)) } else { snake(target) };
+            unique(&mut names, ident(&name), target)
+        })
+        .collect()
 }
 
 pub(crate) fn read_patch(source: &str, number: u32) -> Result<PatchText, Error> {

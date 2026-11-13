@@ -207,6 +207,7 @@ mod tests {
         for version in [1, 2] {
             let now = format!("family w {version}\nenum E {{ a, b, c }}\n");
             put(root, &format!("schema/w-v{version}.schema"), &now);
+            put(root, "schema/wires", &format!("w {version}\n"));
             let report = run(root, &Landed::none(), &options()).expect("not landed: keep afresh");
             assert_eq!(report.outcomes, [Outcome::Kept { family: "w".into(), version }]);
             assert_eq!(report.findings, []);
@@ -221,6 +222,7 @@ mod tests {
     fn wire_unknown_family_is_an_error_without_writes() {
         let (scratch, base) = fixture("unknown", KEPT, KEPT, "w 1\nunknown 1\n");
         let root = scratch.path();
+        let before = Landed::read(root).expect("snapshot includes schema/wires");
         let expected = Error::Wire { family: "unknown".into() };
         assert_eq!(expected.to_string(), "schema/wires: unknown: no family of the crate");
         assert_eq!(check(root, &base), Err(expected.clone()));
@@ -228,7 +230,7 @@ mod tests {
         text(root, "schema/wires", "w 1\nunknown 1\n");
         text(root, "schema/kept/w-v1.schema", KEPT);
         text(root, "schema/w-v1.schema", KEPT);
-        assert_eq!(Landed::read(root).expect("no command files written"), base);
+        assert_eq!(Landed::read(root).expect("no command files written"), before);
     }
 
     #[test]
