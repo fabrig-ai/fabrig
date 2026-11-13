@@ -366,6 +366,36 @@ settings (decided 2026-11-03).
   an upgrade (temper's `draft/upgrades.md`, 3.1), which says it cannot
   tell where a store has none. A store of a build before the row gains
   it at its next start, and no open refuses for it.
+- **The workers' openings,** in rows of their own beside it
+  (`WorkerOpening`, the component's), one per worker, keyed by its
+  name: what the engine last authenticated of each worker's opening
+  (`../channel/wires.md`, 3, *The statement handed up whole*), so that
+  the tool that rehearses an upgrade can judge, with the engine
+  stopped, whether each worker may stay (temper's `draft/redeploys.md`,
+  5.1; temper's `protocol/wires.md`, 9.2):
+
+  ```
+  record OpenedWire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
+  record OpenedTerm { kind: u16 largest: u32 }
+  versioned record WorkerOpening { worker: text 256 wires: list 16 OpenedWire output: u32 terms: list 64 OpenedTerm at: u64 }
+  ```
+
+  `at` is the wall time the engine accepted the opening, in nanoseconds
+  since the Unix epoch (skein's `Wall`). The terms' bound is the most
+  skein's opening admits, if that is fewer.
+  - **Written** by the root, in a decision of its own, at each opening
+    accepted (`Write::Opening`), replacing that worker's row; an opening
+    heard before the start's wires are durable is written after them.
+  - **Cleared** by the start's wires commit: every start's
+    `Write::Wires` deletes every row of them in the same commit, so the
+    rows a store keeps are the openings since its last start.
+  - **Read** by the rehearsal alone (`opening.md`, 5), from `A` before
+    the plan, by the kept text of the component's version `A` holds; a
+    version without them reads none. A start loads none.
+
+  Adding them moves the component's version by jig's next patch, whose
+  forward patch changes no row, since no store holds one before
+  (skein's `data/codec/command.md`, 2).
 - **The layouts,** in a row of their own beside it (`Layouts`, the
   component's): each of jig's families' fingerprint, and each family of
   an upstream owner's that the store keeps (skein-oauth's `SavedToken`
