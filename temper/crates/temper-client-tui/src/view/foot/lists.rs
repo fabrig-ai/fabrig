@@ -12,7 +12,7 @@ use temper_client_domain::{
         terminal::{Command, Listing},
     },
 };
-use temper_client_view::shared;
+use temper_client_view_parts::shared;
 
 pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Options> {
     if let Some(quit) = front::quit(root, tui, words) {
@@ -142,7 +142,7 @@ fn goal(root: &Domain, start: &temper_client_domain::pages::start_goal::StartGoa
         words.say(Word::GoalHead, &[Hole::Name(copy_of(temper_client_domain::pages::goal::file_of(&start.draft)))]);
     let mut items = List::uncapped();
     if let Some(me) = root.pages().me(root.client()) {
-        let ways = temper_client_view::pages::goals::ways(me, start.project, words.view());
+        let ways = temper_client_view_parts::common::goals::ways(me, start.project, words.view());
         for chosen in [true, false] {
             for way in &ways {
                 let selected = start.way == Some(way.number);
@@ -163,7 +163,7 @@ fn goal(root: &Domain, start: &temper_client_domain::pages::start_goal::StartGoa
     }
     items
         .push(OptionItem {
-            name: words.view().say(temper_client_view::words::Word::Cancel, &[]),
+            name: words.view().say(temper_client_view_words::words::Word::Cancel, &[]),
             words: Box::default(),
             selected: false,
             event: Event::Act { act: Act::StartCancel },

@@ -1,4 +1,5 @@
 //! Temper's frame, pages, bindings and checked phrasebook.
+pub use crate::bindings::ShellEvent;
 use crate::{Limits, forge, words::Words};
 use alloc::boxed::Box;
 use skein_lib::{Queue, Wall};
@@ -12,7 +13,7 @@ pub struct View {
     forge_sign_in: crate::forge_sign_in::Forges,
     forge_words: Words,
     forge: forge::bindings::Bindings,
-    pages: crate::frame::Bindings,
+    pages: crate::bindings::Bindings,
     accounts: crate::accounts::Bindings,
     limits: Limits,
     rows: u32,
@@ -42,7 +43,7 @@ impl View {
             forge_sign_in: crate::forge_sign_in::Forges::new(),
             render: skein_ui::View::new(&limits.tree),
             forge: forge::bindings::Bindings::new(limits.tree.bindings, domain.forge.checks, forge),
-            pages: crate::frame::Bindings::new(limits.tree.bindings),
+            pages: crate::bindings::Bindings::new(limits.tree.bindings),
             accounts: crate::accounts::Bindings::new(
                 domain.client.domain.accounts,
                 domain.row_uses,
@@ -135,7 +136,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
                     && root.approval().is_none()
                     && !(crate::sign_in::offered(root, &view.forge_words, &view.sign_in)
                         && view.sign_in.origin.is_some())
-                    && crate::frame::unavailable(root).is_none()
+                    && crate::column::unavailable(root).is_none()
             } else {
                 false
             };
@@ -236,7 +237,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         && let Some(origin) = &view.sign_in.origin
     {
         crate::sign_in::main(&mut builder, root, &view.forge_words, origin, &view.forge_sign_in);
-    } else if let Some(heading) = crate::frame::unavailable(root) {
+    } else if let Some(heading) = crate::column::unavailable(root) {
         crate::outside::column(&mut builder, &view.forge_words.say(heading, &[]), &[]);
         crate::frame::unavailable_main(&mut builder, root, &view.forge_words, &mut view.pages);
         if let Some(page) = root.pages().task()
@@ -480,8 +481,7 @@ pub fn opening_tab(view: &View, root: &Domain, provider: u32) -> Box<[u8]> {
             }
         }
     }
-    words
-        .say(crate::words::Word::WelcomeTabOpening, &[skein_ui::phrases::Hole::Name(crate::choice::shown(name, words))])
+    words.say(crate::words::Word::WelcomeTabOpening, &[skein_ui::phrases::Hole::Name(crate::words::shown(name, words))])
 }
 
 /// The address a link node opens, which the browser shell gives as its href
@@ -512,23 +512,13 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         }
     }
 }
-/// A page act carried by the browser shell rather than the domain (client/view.md, 1).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ShellEvent {
-    Reload,
-}
-
 /// Decode a shell act in the current tree; only a press can reload (client/view.md, 1).
 #[must_use]
 pub fn shell_event(view: &View, node: NodeId, act: &Act) -> Option<ShellEvent> {
     match act {
         Act::Press => {
             let bound = view.render.act(node, Act::Press)?;
-            if bound.binding.owner == crate::frame::owner() {
-                view.pages.shell_event(bound.binding.token)
-            } else {
-                None
-            }
+            if bound.binding.owner == crate::look::owner() { view.pages.shell_event(bound.binding.token) } else { None }
         }
         Act::Input { .. } | Act::Submit | Act::Toggle | Act::Near { .. } | Act::Drawing { .. } => None,
     }
@@ -542,7 +532,7 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<temper_client_domain
     if bound.binding.owner == crate::accounts::owner() {
         return view.accounts.decode(bound.binding.token, bound.act);
     }
-    if bound.binding.owner == crate::frame::owner() {
+    if bound.binding.owner == crate::look::owner() {
         return Some(temper_client_domain::Event::Act { action: view.pages.decode(bound.binding.token, bound.act)? });
     }
     if bound.binding.owner == temper_client_domain::forge::words::owner(view.forge_words.connector) {

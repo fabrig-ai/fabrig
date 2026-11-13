@@ -197,7 +197,8 @@ forge, temper adds:
   `client/web/journeys.md` its pages recorded and printed,
   `client/web/look-requests.md` the look requests' round trip,
   `client/box-binary.md` how `temper box` finds or downloads
-  `temper-box`,
+  `temper-box`, `client/view-crates.md` the view's crates and how it
+  was cut into them,
   `client/drive.md` QA's session driving the browser, the TUI and ctl a
   line at a time from a given build, `client/recipe.md` the recipes it
   walks to the states QA's cases start from,

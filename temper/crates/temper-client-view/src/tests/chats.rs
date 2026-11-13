@@ -1,86 +1,24 @@
 use super::fixtures;
+
 use jig_client::contract::*;
+
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
+
 use skein_ui::{Builder, Role};
+
 use temper_client_domain::ChatsFilter;
+
 use temper_client_domain::{Domain, Request};
-const TASK: u64 = 9;
-const TEXT: u32 = 32;
-const SPENT: u64 = 7;
-const BELOW: u64 = 2;
-const BUDGET: u64 = 100;
-const RESERVED: u64 = 0;
-const LEFT: u64 = 91;
-const LABEL: u32 = 1;
-const DELEGATES: u32 = 3;
-const EMPTY: u32 = 0;
-const ACTIVITY: u64 = 1;
-pub(super) fn line() -> TaskLine {
-    let budget = Budget {
-        numbers: Numbers { budget: BUDGET, spent: SPENT, spent_below: BELOW, reserved: RESERVED },
-        left: LEFT,
-        funder: Funder::Task(TASK),
-        deadline: None,
-    };
-    let details = ChipDetails {
-        dependencies: List::with_capacity(EMPTY),
-        project: fixtures::PROJECT,
-        executor: Executor::Person(PersonAddress::Party(73)),
-        phase_since: Wall::EPOCH,
-        run_since: None,
-        attempt: None,
-        retry: None,
-        wake: WakePolicy {
-            words: WakeRule::Never,
-            notices: WakeRule::Never,
-            news: WakeRule::Never,
-            results: ResultsWake::Never,
-            questions: false,
-            answers: false,
-            timers: false,
-        },
-        person_wait: None,
-        hold: None,
-        budget: budget.clone(),
-        activity: ACTIVITY,
-        resources: List::with_capacity(EMPTY),
-        resources_cut: false,
-        resources_observed: false,
-        procedure: None,
-        live_delegates: DELEGATES,
-        closing_connectors: None,
-        ending: None,
-        ended_at: None,
-        observation: None,
-    };
-    TaskLine {
-        chip: Chip {
-            task: TASK,
-            title: DocumentText::complete(Text::new(Box::from(*b"Hello"), TEXT).expect("title")),
-            executor: ChipExecutor::Party { party: 73 },
-            phase: Phase::Idle,
-            details: Box::new(ChipPhaseFacts { phase: ChipPhase::Active(RunStage::Idle), details: Box::new(details) }),
-        },
-        project: fixtures::PROJECT,
-        requester: Requester::Person(73),
-        tracked: None,
-        label: LABEL,
-        flags: TaskFlags { ended_by: EndedBy::Result, conversation: true, listed: false, retention: Retention::Kept },
-        changed: Wall::EPOCH,
-        last_activity: Wall::EPOCH,
-        ended_at: None,
-        budget,
-        waits_on: WaitsOn::Nothing,
-        phases: PhaseCounts { running: DELEGATES, ..PhaseCounts::ZERO },
-        delegates_done: 0,
-        delegates_total: 0,
-        held_below: EMPTY,
-        conversation: None,
-    }
-}
+
+pub(super) use super::fixtures::chats::{
+    HELD_STATUSES, TASK, TEXT, deliver_live, deployment_chats_root, line, listed, listed_root, no_project_root,
+    open_chats, row_status_styles, status_rows,
+};
+
 pub(super) fn tree(line: &TaskLine) -> (skein_ui::Tree, crate::frame::Bindings) {
     tree_at(line, fixtures::NOW)
 }
+
 fn tree_at(line: &TaskLine, now: Wall) -> (skein_ui::Tree, crate::frame::Bindings) {
     let mut b = Builder::new(&fixtures::tree_limits());
     let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
@@ -94,6 +32,7 @@ fn tree_at(line: &TaskLine, now: Wall) -> (skein_ui::Tree, crate::frame::Binding
     );
     (b.finish(), bindings)
 }
+
 fn style_index(tree: &skein_ui::Tree, style: skein_ui::Style) -> usize {
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.styles.as_slice().contains(&style) {
@@ -102,6 +41,7 @@ fn style_index(tree: &skein_ui::Tree, style: skein_ui::Style) -> usize {
     }
     panic!("missing style {style:?}");
 }
+
 fn role_count(tree: &skein_ui::Tree, role: Role) -> usize {
     let mut count = 0_usize;
     for node in tree.nodes() {
@@ -111,56 +51,7 @@ fn role_count(tree: &skein_ui::Tree, role: Role) -> usize {
     }
     count
 }
-pub(super) fn row_status_styles(token: skein_ui::Style) -> Box<[skein_ui::Style]> {
-    if token == crate::look::STATUS_YOURS || token == crate::look::STATUS_WAITING {
-        Box::from([token, crate::look::STATE_NEEDS])
-    } else {
-        Box::from([token])
-    }
-}
-#[test]
-fn a_chats_row_says_its_status_from_jigs_facts() {
-    let (tree, _) = tree(&line());
-    assert!(fixtures::find(&tree, Role::Status, b"Parked").is_some());
-}
-pub(super) const HELD_STATUSES: [(HoldCategory, &[u8]); 3] = [
-    (
-        HoldCategory::Exceeded(Exceeded { bound: Bound::Reasoning, value: 2048 }),
-        b"Held: the model's reasoning went past its configured allowance of 2048 bytes",
-    ),
-    (
-        HoldCategory::Exceeded(Exceeded { bound: Bound::History, value: 2048 }),
-        b"Held: the run's history no longer fits its configured allowance, even compacted",
-    ),
-    (HoldCategory::Failures { class: HoldFailure::Run }, b"Held"),
-];
 
-#[test]
-fn a_held_chats_row_names_only_its_exceeded_bound() {
-    for (reason, expected) in HELD_STATUSES {
-        let mut line = line();
-        let ChipPhaseFacts { phase, .. } = line.chip.details.as_mut();
-        *phase = ChipPhase::Held { reason, revision: 1 };
-        let (tree, _) = tree(&line);
-        let mut status = None;
-        for node in tree.nodes() {
-            if node.role == Role::Status && node.name.as_deref() == Some(expected) {
-                status = Some(node);
-                break;
-            }
-        }
-        let status = status.expect("held status");
-        assert_eq!(status.styles.as_slice(), [crate::look::STATUS_HELD]);
-        assert!(skein_lib::bytes::find(&fixtures::text(&tree), expected).is_some());
-    }
-}
-
-#[test]
-fn a_chats_row_says_its_spend_and_delegates() {
-    let (tree, _) = tree(&line());
-    assert!(fixtures::find(&tree, Role::Paragraph, "7 spent".as_bytes()).is_some());
-    assert!(skein_lib::bytes::find(&fixtures::text(&tree), "7 spent · 3 delegates".as_bytes()).is_some());
-}
 #[test]
 fn a_chats_row_links_to_its_chat_by_number() {
     let (tree, bindings) = tree(&line());
@@ -183,284 +74,6 @@ fn a_chats_row_links_to_its_chat_by_number() {
     );
 }
 
-#[test]
-fn a_chats_row_offers_its_number_as_a_terminal_command() {
-    // client/pages/README.md: "TN", a link to its page; 6.5: numbered commands.
-    for ended in [false, true] {
-        let mut line = line();
-        if ended {
-            line.chip.phase = Phase::Ended;
-            line.ended_at = Some(Wall::EPOCH);
-        }
-        let (mut tree, bindings) = tree(&line);
-        let limits = fixtures::tree_limits();
-        skein_ui::diff(
-            &skein_ui::Tree::new(limits.nodes),
-            &mut tree,
-            &limits,
-            &mut 0,
-            &mut Queue::with_capacity(limits.patches),
-        );
-        let control = fixtures::find(&tree, Role::Link, b"T9").expect("chat number link");
-        let (node, first) = fixtures::terminal_command(&tree, &limits, control, b"T9", b"Hello");
-        let mut binding = None;
-        for item in tree.nodes() {
-            if item.id == node {
-                binding = item.binding;
-            }
-        }
-        assert_eq!(
-            bindings.decode(binding.expect("chat link binding").token, first),
-            Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Go {
-                address: temper_client_domain::Address::Chat { task: TASK }
-            }))
-        );
-    }
-}
-#[test]
-fn a_chats_row_carries_the_row_token() {
-    let (tree, _) = tree(&line());
-    assert_eq!(fixtures::styles(&tree, Role::Item).as_ref(), [Box::from([crate::look::CHATS_ROW])]);
-    let nodes = tree.nodes();
-    assert_eq!(nodes[0].key, Some(skein_ui::Key { owner: crate::frame::owner(), kind: 10, a: TASK, b: 0 }));
-    assert_eq!(nodes[1].styles.as_slice(), [crate::look::CHATS_TOP]);
-    let title = style_index(&tree, crate::look::CHATS_LINE);
-    assert_eq!(title, 1 + usize::try_from(nodes[1].size).unwrap());
-    assert_eq!(nodes[title].name.as_deref(), Some(b"Hello".as_slice()));
-    assert!(style_index(&tree, crate::look::DETAILS) > title);
-
-    for ended_at in [false, true] {
-        let mut ended = line();
-        if ended_at {
-            ended.ended_at = Some(Wall::EPOCH);
-        } else {
-            ended.chip.phase = Phase::Ended;
-        }
-        let (tree, _) = self::tree(&ended);
-        assert_eq!(
-            fixtures::styles(&tree, Role::Item).as_ref(),
-            [Box::from([crate::look::CHATS_ROW, crate::look::CHATS_ROW_ENDED])]
-        );
-        assert!(fixtures::find(&tree, Role::Status, b"Closed").is_some());
-    }
-}
-
-pub(super) fn status_rows() -> [(TaskLine, skein_ui::Style); 11] {
-    use crate::look;
-    let mut rows = [
-        (line(), look::STATUS_YOURS),
-        (line(), look::STATUS_HELD),
-        (line(), look::STATUS_RETRYING),
-        (line(), look::STATUS_ACTIVE),
-        (line(), look::STATUS_ACTIVE),
-        (line(), look::STATUS_ACTIVE),
-        (line(), look::STATUS_ACTIVE),
-        (line(), look::STATUS_WAITING),
-        (line(), look::STATUS_QUIET),
-        (line(), look::STATUS_QUIET),
-        (line(), look::STATUS_QUIET),
-    ];
-    for (index, (line, _)) in rows.iter_mut().enumerate() {
-        let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
-        details.ended_at = Some(Wall::EPOCH);
-        details.retry =
-            Some(RetryNotice::OwnerFailed { class: HoldFailure::Lost, count: 2, allowance: 3, reason: None });
-        *phase = match index {
-            1 => ChipPhase::Held { reason: HoldCategory::Stopped, revision: 1 },
-            2 => ChipPhase::Active(RunStage::BackingOff { until: Wall::EPOCH }),
-            3 => ChipPhase::Active(RunStage::Due),
-            4..=6 => ChipPhase::Active(RunStage::Running { attempt: 1 }),
-            9 => ChipPhase::Closing(ClosingStage::Delegates),
-            10 => ChipPhase::Ended,
-            _ => ChipPhase::Active(RunStage::Idle),
-        };
-        if index == 0 || index == 7 {
-            line.waits_on = WaitsOn::Party {
-                whom: Whom::Person(if index == 0 { 73 } else { 74 }),
-                entries: 1,
-                task: TASK,
-                kind: WaitedFor::Question,
-            };
-        }
-        if (4..=6).contains(&index) {
-            details.observation = Some(ChipObservation {
-                channel: Token::new(1),
-                work: match index {
-                    4 => ChipWork::Writing,
-                    5 => ChipWork::Tool { call: Box::from(*b"call"), tool: Box::from(*b"search") },
-                    _ => ChipWork::Active,
-                },
-                since: Wall::EPOCH,
-                reported_at: Wall::EPOCH,
-                started: None,
-            });
-        }
-    }
-    rows
-}
-#[test]
-fn each_status_is_styled_by_its_meaning() {
-    for (line, token) in status_rows() {
-        let (tree, _) = tree(&line);
-        assert_eq!(fixtures::styles(&tree, Role::Status).as_ref(), [row_status_styles(token)]);
-        for node in tree.nodes() {
-            assert!(node.styles.len() <= 2);
-        }
-        let root = fixtures::root_in_project(None);
-        let mut b = Builder::new(&fixtures::tree_limits());
-        crate::pages::chats::status(
-            &mut b,
-            &line.chip,
-            (&line.waits_on, None, None),
-            (line.project, line.requester),
-            None,
-            root.pages().me(root.client()).unwrap(),
-            &fixtures::words(),
-        );
-        assert_eq!(fixtures::styles(&b.finish(), Role::Status).as_ref(), [Box::from([token])]);
-    }
-}
-#[test]
-fn a_row_shows_the_real_activity_or_end_time() {
-    let mut live = line();
-    let now = Wall::from_nanos(720_000_000_000);
-    let (shown, _) = tree_at(&live, now);
-    assert_eq!(fixtures::node_text(&shown, style_index(&shown, crate::look::TIME)).as_ref(), b"12 min");
-    live.ended_at = Some(Wall::from_nanos(360_000_000_000));
-    let (shown, _) = tree_at(&live, now);
-    assert_eq!(fixtures::node_text(&shown, style_index(&shown, crate::look::TIME)).as_ref(), b"6 min");
-}
-
-fn open_chats(root: &mut Domain, env: &Env<temper_client_domain::Limits>, out: &mut Queue<Request>) -> (Token, Token) {
-    use temper_client_domain::{Address, Event};
-    temper_client_domain::step(
-        root,
-        env,
-        Event::Went { place: temper_client_domain::Place::Address(Address::Chats { filter: ChatsFilter::All }) },
-        out,
-    );
-    let mut watch = None;
-    let mut read = None;
-    while let Some(request) = out.pop() {
-        if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down:
-                        jig_client::Down::Open { watch: token, subject: jig_client::Watchable::Jig(Subject::Tasks { .. }) },
-                },
-        } = request
-        {
-            watch = Some(token);
-        } else if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Read { read: token, what: jig_client::Readable::Jig(Read::Tasks { .. }) },
-                },
-        } = request
-        {
-            read = Some(token);
-        }
-    }
-    (watch.expect("live watch"), read.expect("closed read"))
-}
-fn deliver_live(
-    root: &mut Domain,
-    env: &Env<temper_client_domain::Limits>,
-    out: &mut Queue<Request>,
-    watch: Token,
-    rows: List<TaskLine>,
-) {
-    use temper_client_domain::Event;
-    temper_client_domain::step(
-        root,
-        env,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch,
-                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks { rows, more: false }))),
-                },
-            },
-        },
-        out,
-    );
-}
-
-pub(super) fn listed_root() -> Domain {
-    let mut ended = line();
-    ended.chip.task = 8;
-    ended.ended_at = Some(Wall::EPOCH);
-    listed(&[line()], &[ended], false)
-}
-pub(super) fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
-    use temper_client_domain::{Address, Event};
-    let limits = fixtures::domain_limits();
-    let (mut root, me_watch, _) =
-        fixtures::root_at(Address::Inbox { filter: temper_client_domain::address::Filter::ALL }, &limits);
-    let template = fixtures::chat::messaging_root();
-    let me = template.pages().me(template.client()).expect("me").clone();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut out = Queue::uncapped();
-    temper_client_domain::step(
-        &mut root,
-        &env,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
-                    watch: me_watch,
-                    event: WatchEvent::Delivered(Delivery::Me(Box::new(me))),
-                },
-            },
-        },
-        &mut out,
-    );
-    let (watch, read) = open_chats(&mut root, &env, &mut out);
-
-    let mut live_rows = List::with_capacity(u32::try_from(live.len()).unwrap());
-    for line in live {
-        live_rows.push(line.clone()).expect("live row");
-    }
-    deliver_live(&mut root, &env, &mut out, watch, live_rows);
-    let mut closed_rows = List::with_capacity(u32::try_from(closed.len()).unwrap());
-    for line in closed {
-        closed_rows.push(line.clone()).expect("closed row");
-    }
-    // A live update refreshes the first ended page; answer the latest read.
-    let mut read = read;
-    while let Some(request) = out.pop() {
-        if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Read { read: token, what: jig_client::Readable::Jig(Read::Tasks { .. }) },
-                },
-        } = request
-        {
-            read = token;
-        }
-    }
-    temper_client_domain::step(
-        &mut root,
-        &env,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(TaskPage {
-                        live: List::with_capacity(0),
-                        live_after: None,
-                        ended: EndedGroup::Rows {
-                            rows: closed_rows,
-                            after: if more { Some(Cursor::new(Box::from(*b"next"), 8).unwrap()) } else { None },
-                            cut: false,
-                        },
-                    })))),
-                },
-            },
-        },
-        &mut out,
-    );
-    root
-}
 #[test]
 fn chats_have_one_list_or_the_empty_sentence() {
     let empty = fixtures::page_view(&fixtures::chats_root());
@@ -535,69 +148,6 @@ fn a_live_playground_chat_is_listed_under_your_chats() {
     assert!(fixtures::find(view.tree(), Role::Button, b"More closed chats").is_none());
 }
 
-#[test]
-fn a_chats_line_counts_the_delegates_it_waits_on() {
-    let mut line = line();
-    line.waits_on = WaitsOn::Delegates;
-    let (tree, _) = tree(&line);
-    assert!(fixtures::find(&tree, Role::Status, b"waiting on 3 delegates").is_some());
-    assert_eq!(
-        fixtures::styles(&tree, Role::Status).as_ref(),
-        [Box::from([crate::look::STATUS_WAITING, crate::look::STATE_NEEDS])]
-    );
-}
-
-#[test]
-fn a_chats_line_reads_its_owner_wake_policy_for_news() {
-    let mut line = line();
-    line.waits_on = WaitsOn::News;
-    let ChipPhaseFacts { details, .. } = line.chip.details.as_mut();
-    details.wake.words = WakeRule::Immediate;
-    details.live_delegates = 0;
-    let (tree, _) = tree(&line);
-    assert!(fixtures::find(&tree, Role::Status, b"waiting on your words").is_some());
-}
-
-#[test]
-fn an_open_chat_at_rest_says_waiting_on_your_words_on_its_line() {
-    let mut line = line();
-    line.flags.ended_by = EndedBy::Requester;
-    line.waits_on = WaitsOn::News;
-    let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
-    *phase = ChipPhase::Active(RunStage::Idle);
-    details.wake.words = WakeRule::Immediate;
-    details.live_delegates = 0;
-    let (tree, _) = tree(&line);
-    assert!(fixtures::find(&tree, Role::Status, b"waiting on your words").is_some());
-}
-#[test]
-fn a_closed_chat_says_closed_on_its_line() {
-    for (by, expected) in [
-        (Some(Requester::Person(73)), b"Closed".as_slice()),
-        (Some(Requester::Person(74)), b"Closed"),
-        (None, b"Closed"),
-    ] {
-        let mut line = line();
-        let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
-        *phase = ChipPhase::Ended;
-        details.ended_at = Some(Wall::EPOCH);
-        details.ending = Some(match by {
-            Some(by) => ChipEnding::Cancelled {
-                by,
-                reason: DocumentText::complete(fixtures::first_run::text(b"Chat closed")),
-                result: None,
-                at: Wall::EPOCH,
-            },
-            None => {
-                ChipEnding::Done(ResultValue::Report(DocumentText::complete(fixtures::first_run::text(b"A report"))))
-            }
-        });
-        let (tree, _) = tree(&line);
-        assert!(fixtures::find(&tree, Role::Status, expected).is_some());
-        assert_eq!(fixtures::styles(&tree, Role::Status).as_ref(), [Box::from([crate::look::STATUS_QUIET])]);
-    }
-}
-
 fn filter(root: &mut Domain, filter: ChatsFilter) {
     fixtures::root_event(
         root,
@@ -618,6 +168,7 @@ fn numbers(tree: &skein_ui::Tree) -> Box<[u64]> {
     }
     numbers.into_boxed()
 }
+
 fn timed(task: u64, activity: u64, ended: Option<u64>) -> TaskLine {
     let mut line = line();
     line.chip.task = task;
@@ -627,6 +178,7 @@ fn timed(task: u64, activity: u64, ended: Option<u64>) -> TaskLine {
     }
     line
 }
+
 #[test]
 fn one_list_merges_activity_and_end_times_with_lower_numbers_first_on_a_tie() {
     // Closed T8's activity is newer than everything, but its end is the tie.
@@ -636,6 +188,7 @@ fn one_list_merges_activity_and_end_times_with_lower_numbers_first_on_a_tie() {
     assert_eq!(numbers(view.tree()).as_ref(), [7, 9, 6, 8]);
     assert_eq!(fixtures::styles(view.tree(), Role::List).as_ref(), [Box::from([crate::look::CHATS_ROWS])]);
 }
+
 #[test]
 fn each_filter_selects_its_lines_and_presses_its_bound_button() {
     use temper_client_domain::{Action, address::ChatsFilter as Filter, pages::Act};
@@ -675,6 +228,7 @@ fn each_filter_selects_its_lines_and_presses_its_bound_button() {
         }
     }
 }
+
 #[test]
 fn empty_filters_all_say_none() {
     use temper_client_domain::address::ChatsFilter as Filter;
@@ -696,6 +250,7 @@ fn empty_filters_all_say_none() {
         assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, words).is_some());
     }
 }
+
 #[test]
 fn more_closed_chats_is_bound_only_under_all_or_closed_with_an_older_page() {
     use temper_client_domain::{Action, address::ChatsFilter as Filter, pages::Act};
@@ -709,26 +264,6 @@ fn more_closed_chats_is_bound_only_under_all_or_closed_with_an_older_page() {
             if let Some(id) = button {
                 assert_eq!(crate::act(&mut view, id, skein_ui::Act::Press), Some(Action::Pages(Act::ClosedChats)));
             }
-        }
-    }
-}
-#[test]
-fn delegate_counts_are_plural_and_absent_at_zero() {
-    for (count, expected) in [(0, None), (1, Some(b"1 delegate".as_slice())), (2, Some(b"2 delegates".as_slice()))] {
-        let mut line = line();
-        let ChipPhaseFacts { details, .. } = line.chip.details.as_mut();
-        details.live_delegates = count;
-        let (tree, _) = tree(&line);
-        if let Some(words) = expected {
-            assert!(skein_lib::bytes::find(&fixtures::text(&tree), words).is_some());
-        } else {
-            let mut paragraphs = 0_u32;
-            for node in tree.nodes() {
-                if node.role == Role::Paragraph {
-                    paragraphs += 1;
-                }
-            }
-            assert_eq!(paragraphs, 3, "status and age, title, spend; number is a command container");
         }
     }
 }
@@ -789,6 +324,7 @@ fn index_of(nodes: &[skein_ui::Node], id: skein_ui::NodeId) -> usize {
     }
     at.expect("node in the tree")
 }
+
 fn main_of(nodes: &[skein_ui::Node]) -> usize {
     let mut main = None;
     for (index, node) in nodes.iter().enumerate() {
@@ -798,6 +334,7 @@ fn main_of(nodes: &[skein_ui::Node]) -> usize {
     }
     main.expect("a main")
 }
+
 #[test]
 fn the_chats_page_opens_with_its_head_band_and_section() {
     use crate::look;
@@ -831,66 +368,6 @@ fn the_chats_page_opens_with_its_head_band_and_section() {
         assert_eq!(nodes[end].styles.as_slice(), [look::EMPTY]);
         assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/chats/new".as_slice()));
     }
-}
-
-#[test]
-fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
-    for ending in [
-        ChipEnding::Done(ResultValue::Report(DocumentText::complete(fixtures::first_run::text(b"Done")))),
-        ChipEnding::Failed(DocumentText::complete(fixtures::first_run::text(b"Failed"))),
-    ] {
-        let mut line = line();
-        let ChipPhaseFacts { phase, details } = line.chip.details.as_mut();
-        *phase = ChipPhase::Ended;
-        details.live_delegates = 0;
-        details.ended_at = Some(Wall::EPOCH);
-        details.ending = Some(ending);
-        let (tree, _) = tree(&line);
-        assert!(fixtures::find(&tree, Role::Status, b"Closed").is_some());
-        let root = fixtures::root_in_project(None);
-        let me = root.pages().me(root.client()).unwrap();
-        let mut bar = Builder::new(&fixtures::tree_limits());
-        crate::pages::chats::status(
-            &mut bar,
-            &line.chip,
-            (&line.waits_on, Some(0), None),
-            (line.project, line.requester),
-            None,
-            me,
-            &fixtures::words(),
-        );
-        assert!(fixtures::find(&bar.finish(), Role::Status, b"Closed").is_some());
-    }
-}
-
-#[test]
-fn rows_omit_their_project_and_name_only_kept_ended_transcripts() {
-    for ended in [false, true] {
-        for kept in [false, true] {
-            let mut line = line();
-            if ended {
-                line.ended_at = Some(Wall::EPOCH);
-            }
-            line.flags.retention = if kept { Retention::Kept } else { Retention::ForgottenOnceRead };
-            let (tree, _) = tree(&line);
-            assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Shop").is_none());
-            assert_eq!(
-                fixtures::find(&tree, Role::Paragraph, b"Closed. Its transcript is kept.").is_some(),
-                ended && kept
-            );
-        }
-    }
-}
-
-#[test]
-fn a_kept_ended_row_without_a_clock_is_closed_even_with_stale_wait_metadata() {
-    let mut line = line();
-    line.chip.phase = Phase::Ended;
-    line.waits_on = WaitsOn::Delegates;
-    let (tree, _) = tree(&line);
-    assert!(fixtures::find(&tree, Role::Status, b"Closed").is_some());
-    assert!(fixtures::find(&tree, Role::Paragraph, b"Closed. Its transcript is kept.").is_some());
-    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"3 delegates").is_none());
 }
 
 #[test]
@@ -963,6 +440,7 @@ fn the_repository_context_links_into_its_project() {
         assert_eq!(d::forge::listed::without_repository(&forges::State::Unknown, None, fixtures::PROJECT), None);
     }
 }
+
 #[test]
 fn an_ended_or_refused_forges_watch_says_nothing_about_a_repository() {
     use temper_client_domain as d;
@@ -979,6 +457,7 @@ fn an_ended_or_refused_forges_watch_says_nothing_about_a_repository() {
         }
     }
 }
+
 #[test]
 fn the_playgrounds_project_keeps_its_context_instead_of_no_repository() {
     use temper_client_domain as d;
@@ -1017,83 +496,6 @@ fn chats_offers_no_first_chat_under_any_filter_even_while_starting() {
             assert!(fixtures::find(view.tree(), Role::Button, b"Tell temper how you work").is_none());
         }
     }
-}
-
-fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
-    use temper_client_domain::{Address, Event};
-    use temper_client_protocol_wire::{self as wire, v1 as w};
-    let limits = fixtures::domain_limits();
-    let env = Env { now: Time::ZERO, wall: fixtures::NOW, limits };
-    let mut root = temper_client_domain::unlinked(&limits, fixtures::SEED);
-    let mut out = Queue::uncapped();
-    for event in [
-        Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
-        Event::Start {
-            address: Address::Chats { filter: ChatsFilter::All },
-            kept: List::with_capacity(0),
-            with: Some(jig_client::With::Transport),
-        },
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
-    ] {
-        temper_client_domain::step(&mut root, &env, event, &mut out);
-    }
-    while let Some(request) = out.pop() {
-        match request {
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(Subject::Me) },
-                    },
-            } => {
-                if let Some(me) = &me {
-                    temper_client_domain::step(
-                        &mut root,
-                        &env,
-                        Event::Client {
-                            event: jig_client::Event::Up {
-                                up: jig_client::Up::Watched {
-                                    watch,
-                                    event: WatchEvent::Delivered(Delivery::Me(Box::new(me.clone()))),
-                                },
-                            },
-                        },
-                        &mut out,
-                    );
-                }
-            }
-            Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
-                    },
-            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Deployment => {
-                if let Some(welcome) = welcome {
-                    fixtures::deliver_deployment(&mut root, read, welcome, false);
-                }
-            }
-            Request::Client { .. }
-            | Request::Unlinked { .. }
-            | Request::Show { .. }
-            | Request::Leave { .. }
-            | Request::SignOut
-            | Request::Dropped { .. }
-            | Request::Screen { .. }
-            | Request::KeepLook { .. }
-            | Request::KeepSignIn { .. }
-            | Request::Tab { .. }
-            | Request::Copy { .. }
-            | Request::Push(_)
-            | Request::Fact { .. } => {}
-        }
-    }
-    root
-}
-
-pub(super) fn no_project_root(welcome: Option<bool>) -> Domain {
-    let template = fixtures::root_in_project(None);
-    let mut me = template.pages().me(template.client()).unwrap().clone();
-    me.projects.clear();
-    deployment_chats_root(welcome, Some(me))
 }
 
 #[test]
@@ -1234,56 +636,6 @@ fn a_known_empty_project_list_is_required_for_no_project() {
 }
 
 #[test]
-fn asking_rows_name_the_chip_executor_in_the_top_line_in_both_shells() {
-    use crate::look;
-    let source = fixtures::chat::messaging_root();
-    for listed in [false, true] {
-        let (mut root, me_watch, _) = fixtures::root_at(
-            temper_client_domain::Address::Chats { filter: ChatsFilter::All },
-            &fixtures::domain_limits(),
-        );
-        let mut me = source.pages().me(source.client()).expect("me").clone();
-        if listed {
-            me = fixtures::asking_me(me);
-        }
-        fixtures::deliver_me(&mut root, me_watch, me);
-        for (executor, tagged) in [
-            (ChipExecutor::Agent { charter: 37 }, listed),
-            (ChipExecutor::Agent { charter: 1 }, false),
-            (ChipExecutor::Party { party: 37 }, false),
-        ] {
-            for words in [fixtures::words(), fixtures::browser_words()] {
-                let mut line = line();
-                line.chip.executor = executor;
-                let mut b = Builder::new(&fixtures::tree_limits());
-                crate::pages::chats::row(
-                    &mut b,
-                    &root,
-                    &line,
-                    &words,
-                    &mut crate::frame::Bindings::new(16),
-                    &mut crate::words::Times::new(fixtures::NOW),
-                );
-                let tree = b.finish();
-                let top = style_index(&tree, look::CHATS_TOP);
-                let top_text = fixtures::node_text(&tree, top);
-                assert_eq!(skein_lib::bytes::find(&top_text, "T9 · Ask temper".as_bytes()).is_some(), tagged);
-                assert_eq!(tree.nodes()[top].role, Role::Slot);
-                let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
-                skein_ui_text::render(&tree, b"temper", None, &mut print);
-                assert_eq!(skein_lib::bytes::find(print.text.as_slice(), b"Ask temper").is_some(), tagged);
-                if tagged && words.shell == crate::words::Shell::Terminal {
-                    assert!(
-                        skein_lib::bytes::find(print.text.as_slice(), "[1] T9 · Ask temper\n".as_bytes()).is_some()
-                    );
-                }
-                assert!(skein_lib::bytes::find(print.text.as_slice(), b"A renamed role").is_none());
-            }
-        }
-    }
-}
-
-#[test]
 fn chats_keeps_its_list_without_playground_suggestions_or_composer() {
     use crate::look;
     use temper_client_domain::Address;
@@ -1309,6 +661,7 @@ fn chats_keeps_its_list_without_playground_suggestions_or_composer() {
 }
 
 const DRAFT_GOAL: u64 = 42;
+
 const DRAFT_LEDE: &[u8] = b"A chat answers a question or changes the code, and can write a draft beside it. A draft becomes a goal for bigger work.";
 
 struct DraftsPage {
@@ -1317,6 +670,7 @@ struct DraftsPage {
     goal_watch: Option<Token>,
     note_reads: u32,
 }
+
 impl DraftsPage {
     #[expect(clippy::too_many_lines, reason = "the fixture answers Chats through the public client events")]
     fn new(offered: bool, asking: bool, linked: bool) -> Self {
@@ -1526,6 +880,7 @@ fn drafts_keeps_rows_with_a_document() {
         assert_eq!(filters.as_slice(), [b"All".as_slice(), b"Live", b"Drafts", b"Closed"]);
     }
 }
+
 #[test]
 fn drafts_isnt_offered_with_no_tracked_template() {
     let mut page = DraftsPage::new(false, false, false);
@@ -1538,6 +893,7 @@ fn drafts_isnt_offered_with_no_tracked_template() {
         view.tree().nodes()[index_of(view.tree().nodes(), all)].states.as_slice().contains(&skein_ui::State::Pressed)
     );
 }
+
 #[test]
 fn a_row_says_what_it_writes() {
     let page = DraftsPage::new(true, false, false);
@@ -1545,6 +901,7 @@ fn a_row_says_what_it_writes() {
         assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"writes away-mode.md").is_some());
     }
 }
+
 #[test]
 fn a_row_says_which_goal_it_started() {
     let page = DraftsPage::new(true, false, true);
@@ -1563,6 +920,7 @@ fn a_row_says_which_goal_it_started() {
         assert!(skein_lib::bytes::find(print.text.as_slice(), b"Keep working").is_some());
     }
 }
+
 #[test]
 fn the_lede_grows_with_the_offer() {
     for offered in [false, true] {
@@ -1572,6 +930,7 @@ fn the_lede_grows_with_the_offer() {
         }
     }
 }
+
 #[test]
 fn an_asking_chat_keeps_its_tag() {
     let page = DraftsPage::new(true, true, false);
@@ -1591,79 +950,6 @@ fn an_asking_chat_keeps_its_tag() {
         assert!(found);
     }
 }
-#[test]
-fn watches_the_goals_chips_and_closes_them() {
-    use temper_client_domain::{Address, Event, Place};
-    let mut page = DraftsPage::new(true, false, true);
-    let watch = page.goal_watch.unwrap();
-    temper_client_domain::step(
-        &mut page.root,
-        &Env { now: Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
-        Event::Went { place: Place::Address(Address::NewChat { draft: false }) },
-        &mut page.out,
-    );
-    let mut closed = false;
-    while let Some(request) = page.out.pop() {
-        if let Request::Unlinked {
-            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Close { watch: ended } },
-        } = request
-        {
-            closed |= ended == watch;
-        }
-    }
-    assert!(closed);
-    temper_client_domain::step(
-        &mut page.root,
-        &Env { now: Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() },
-        Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::Drafts }) },
-        &mut page.out,
-    );
-    assert!(page.root.pages().chats().unwrap().documents.is_empty());
-    let mut reopened = false;
-    while let Some(request) = page.out.pop() {
-        if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down:
-                        jig_client::Down::Read {
-                            what: jig_client::Readable::Jig(Read::Notes { scope: NoteScope::Tasks { project }, .. }),
-                            ..
-                        },
-                },
-        } = request
-        {
-            reopened |= project == fixtures::PROJECT;
-        }
-    }
-    assert!(reopened, "the next open reads a later document");
-}
-
-#[test]
-fn a_paused_chat_s_row_says_paused() {
-    let mut line = line();
-    super::chat::pause_chip(&mut line.chip);
-    for words in [fixtures::words(), fixtures::browser_words()] {
-        let mut b = Builder::new(&fixtures::tree_limits());
-        crate::pages::chats::row(
-            &mut b,
-            &fixtures::root_in_project(Some(fixtures::PROJECT)),
-            &line,
-            &words,
-            &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
-            &mut crate::words::Times::new(fixtures::NOW),
-        );
-        let tree = b.finish();
-        let mut status = None;
-        for node in tree.nodes() {
-            if node.role == Role::Status && node.name.as_deref() == Some(b"Paused") {
-                status = Some(node);
-                break;
-            }
-        }
-        let status = status.expect("paused row");
-        assert_eq!(status.styles.as_slice(), [crate::look::STATUS_QUIET]);
-    }
-}
 
 #[test]
 fn behind_with_unanswered_reads_chats_claims_no_empty() {
@@ -1676,6 +962,7 @@ fn behind_with_unanswered_reads_chats_claims_no_empty() {
         }
     }
 }
+
 #[test]
 fn a_lost_closed_read_keeps_the_closed_rows() {
     let mut page = fixtures::ReadPage::new(temper_client_domain::Address::Chats { filter: ChatsFilter::All });
@@ -1689,6 +976,7 @@ fn a_lost_closed_read_keeps_the_closed_rows() {
         assert!(skein_lib::bytes::find(&fixtures::main_text(view.tree()), ended.chip.title.bytes()).is_some());
     }
 }
+
 #[test]
 fn drafts_claims_no_empty_until_its_notes_answer() {
     let mut page = fixtures::ReadPage::new(temper_client_domain::Address::Chats { filter: ChatsFilter::Drafts });

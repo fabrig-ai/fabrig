@@ -1,7 +1,6 @@
 use super::fixtures;
 use skein_ui::{Act, Role};
-use temper_client_domain::ChatsFilter;
-use temper_client_domain::{Action, pages};
+use temper_client_domain::{Action, ChatsFilter, pages};
 
 #[test]
 fn the_top_bar_says_the_links_state_and_the_persons_name() {
@@ -51,11 +50,6 @@ fn the_top_bar_says_the_links_state_and_the_persons_name() {
     assert!(fixtures::find(view.tree(), Role::Status, b"Pat").is_some());
 }
 
-#[test]
-fn the_project_chosen_is_the_first_of_me_at_start() {
-    let root = fixtures::root_in_project(None);
-    assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
-}
 #[test]
 fn the_running_playground_project_button_is_named_by_its_record() {
     let root = fixtures::playground_root(
@@ -412,10 +406,7 @@ fn only_the_current_reload_press_gives_the_shell_event() {
     assert_eq!(crate::shell_event(&view, reload, &Act::Press), None);
     assert_eq!(crate::shell_event(&view, current, &Act::Press), Some(crate::ShellEvent::Reload));
 }
-#[test]
-fn the_browser_words_fit_the_views_limits() {
-    assert!(crate::Limits::of(&fixtures::domain_limits(), &fixtures::browser_words()).is_some());
-}
+
 #[test]
 fn signed_out_the_top_bar_says_the_links_state_alone() {
     let view = fixtures::page_view(&fixtures::signed_out());
@@ -1179,21 +1170,6 @@ fn accounts_navigation_reads_attention_as_needing_and_spent_usage_as_limited() {
     assert_account_mark(&root, Some((Mark::Limited, b"an account is limited")));
 }
 
-#[test]
-fn known_sign_in_ways_ignore_unknown_words_and_duplicates() {
-    for (content, google) in
-        [("", false), ("unknown", false), ("google", true), ("future google google", true), ("Google", false)]
-    {
-        assert_eq!(
-            crate::sign_in::Ways::parse(content, b"https://temper.example.com"),
-            crate::sign_in::Ways { google, origin: Some(Box::from(b"https://temper.example.com".as_slice())) },
-            "{content}"
-        );
-    }
-    for origin in [b"".as_slice(), b"null", b"file://", b"chrome-extension://x"] {
-        assert_eq!(crate::sign_in::Ways::parse("google", origin), crate::sign_in::Ways::NONE);
-    }
-}
 #[test]
 fn browser_google_sign_in_has_the_mark_heading_and_return_link() {
     use crate::{sign_in::Ways, words::Shell};

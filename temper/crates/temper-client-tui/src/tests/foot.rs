@@ -11,7 +11,7 @@ use temper_client_domain::{
     self as d, Address, Domain, Event, Place,
     pages::terminal::{Command, Listing},
 };
-use temper_client_view::shared;
+use temper_client_view_parts::shared;
 
 fn text(bytes: &[u8]) -> c::Text {
     c::Text::new(bytes.into(), 32).unwrap()

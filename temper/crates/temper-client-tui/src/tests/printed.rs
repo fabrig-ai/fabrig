@@ -211,7 +211,7 @@ fn each_view_prints_its_lines() {
     ];
     let mut failures = Vec::new();
     let domain = f::limits();
-    let page = temper_client_view::Limits::of(&domain, f::words().view()).unwrap();
+    let page = temper_client_view_words::Limits::of(&domain, f::words().view()).unwrap();
     let limits = crate::limits(&domain, &page.tree, 512).unwrap();
     let words = f::words();
     for (name, shown, want) in rows {

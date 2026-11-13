@@ -302,7 +302,7 @@ fn the_trees_fit_their_limits() {
             needs
                 .push(launchpad::NeedRow {
                     since: None,
-                    mark: temper_client_view::shared::NeedMark::SignOff,
+                    mark: temper_client_view_parts::shared::NeedMark::SignOff,
                     project: name.into(),
                     words: Box::new([b'w'; 512]),
                 })
@@ -336,7 +336,7 @@ fn the_trees_fit_their_limits() {
         fits(view.tree(), &bounds);
     }
     // Each retained view can replace an address with two full printed paths.
-    let page = temper_client_view::Limits::of(&domain, words.view()).unwrap();
+    let page = temper_client_view_words::Limits::of(&domain, words.view()).unwrap();
     let chat_bounds = crate::limits(&domain, &page.tree, 512).unwrap();
     let part = chat_views();
     let mut chat_view = View::new(&chat_bounds, words);
@@ -368,7 +368,7 @@ fn chat_views() -> crate::view::chat::Chat {
         printed::Printed,
     };
     use temper_client_protocol_wire::v1 as w;
-    let words = vec![b'w'; usize::try_from(temper_client_view::paths::WORDS).unwrap()];
+    let words = vec![b'w'; usize::try_from(temper_client_view_words::paths::WORDS).unwrap()];
     let stops: Vec<_> = (0..WIRE_STOPS).map(|_| (w::Actor::Code, w::PathStep::Check, words.as_slice())).collect();
     let path = super::printed::path(&stops);
     let pieces = (0..temper_client_domain::Limits::chat_views())

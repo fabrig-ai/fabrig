@@ -53,10 +53,10 @@ pub fn limits() -> Limits {
 }
 
 pub fn words() -> crate::words::Words {
-    let shared = temper_client_view::words::Words::english(
+    let shared = temper_client_view_words::words::Words::english(
         temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge),
         limits().client.domain.text,
-        temper_client_view::words::Shell::Terminal,
+        temper_client_view_words::words::Shell::Terminal,
     )
     .expect("view English fits");
     crate::words::Words::english(shared, &limits()).expect("TUI English fits")
