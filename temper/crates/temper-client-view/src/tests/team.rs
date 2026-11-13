@@ -9,13 +9,12 @@ mod areas;
 mod hand;
 use super::fixtures as f;
 use crate::{look, pages::team::draw};
+use f::team::{READER, SAM, person};
 use jig_client::contract::HeldRole;
 use skein_lib::List;
 use skein_ui::{Builder, Role, Run};
 use temper_client_domain::pages::team::{Facts, Person, Shown, Waits};
 
-const READER: u64 = 7;
-const SAM: u64 = 8;
 type BoxWords = (&'static str, &'static str, Option<&'static str>);
 struct Row {
     label: &'static str,
@@ -25,9 +24,7 @@ struct Row {
     shared: Option<&'static str>,
     boxes: Vec<BoxWords>,
 }
-fn person(you: bool, name: &[u8], role: HeldRole, waits: Option<Waits>) -> Person {
-    Person { party: if you { READER } else { SAM }, you, name: name.into(), role, waits, signed: None }
-}
+
 fn read(label: &'static str, people: Vec<Person>, cut: bool, lede: &'static str, boxes: Vec<BoxWords>) -> Row {
     Row {
         label,

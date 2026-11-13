@@ -3,6 +3,8 @@ use super::fixtures as f;
 use jig_client::{contract as c, thread::Thread};
 use skein_lib::{List, Writer};
 
+pub(super) use super::fixtures::limits_helpers::repeated;
+
 #[test]
 fn a_window_full_of_markdown_builds() {
     // Empty three-cell table rows stress nodes; plain text is copied into
@@ -256,10 +258,4 @@ fn a_request_and_a_composer_at_long_text_build() {
     // The document's Markdown takes twice its bytes; the request, composer
     // and one question read whole each take their bytes once, independent of lines.
     assert_eq!(after.tree.text_bytes - before.tree.text_bytes, 5 * bound);
-}
-
-pub(super) fn repeated(byte: u8, length: u32) -> Box<[u8]> {
-    let mut bytes = skein_lib::bytes::zeroed(usize::try_from(length).unwrap());
-    bytes.fill(byte);
-    bytes
 }

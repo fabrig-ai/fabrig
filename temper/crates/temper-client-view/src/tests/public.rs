@@ -1,28 +1,21 @@
 //! Anonymous view checks (temper/docs/design/client/web/public.md, 4).
 use super::fixtures;
+use super::fixtures::public_records::{self as records, PROJECT, TASK, answer, board, reader};
 use crate::{
     public::{PublicView, build_public},
     sign_in::Ways,
 };
-use jig_client_protocol_wire::public_v1 as j;
-use skein_lib::{Duration, List, Queue, Time, Wall, Writer};
+use skein_lib::{Duration, Queue, Time, Wall};
 use skein_ui::Role;
 use temper_client_domain::{
     address::Public,
-    public::{Doc, Heard, PublicEvent, PublicLimits, Reader},
+    public::{Doc, Heard, PublicEvent},
 };
-mod records;
 mod rules;
-const PROJECT: u64 = 0x3f2a_9c01_7654_3210;
-const TASK: u64 = 0x9abc_def0_7654_3210;
+
 // The board and card fixtures each carry a goal/task and one delegate with the same title.
 const TITLED_LINES: usize = 2;
-fn reader(page: Public) -> Reader {
-    let limits = PublicLimits { jig: j::CEILINGS, forge: temper_client_protocol_wire::public_v1::CEILINGS };
-    let mut reader = Reader::new(&limits);
-    reader.step(Time::ZERO, PublicEvent::Open { page }, &mut Queue::uncapped());
-    reader
-}
+
 fn view() -> PublicView {
     PublicView::new(
         &fixtures::tree_limits(),
@@ -30,31 +23,7 @@ fn view() -> PublicView {
         Ways::parse("google", b"https://temper.example"),
     )
 }
-fn answer(reader: &mut Reader, doc: Doc, heard: Heard) {
-    reader.step(Time::ZERO, PublicEvent::Heard { doc, heard }, &mut Queue::uncapped());
-}
-fn board() -> Box<[u8]> {
-    let line = records::line(true);
-    let goal = j::PublicGoal::new(
-        &j::CEILINGS,
-        j::PublicGoalParts { line, tree: List::from_boxed(Box::new([records::line(false)])), folded: 2 },
-    )
-    .expect("goal");
-    let board = j::PublicBoard::new(
-        &j::CEILINGS,
-        j::PublicBoardParts {
-            project: PROJECT,
-            name: b"A public project".as_slice().into(),
-            live: List::from_boxed(Box::new([goal])),
-            live_folded: 0,
-            ended: List::with_capacity(0),
-        },
-    )
-    .expect("board");
-    let mut writer = Writer::new(usize::try_from(board.measure()).expect("small board"));
-    board.encode(&mut writer).expect("board");
-    writer.finish()
-}
+
 #[test]
 fn the_view_shows_only_what_the_records_carry() {
     let mut reader = reader(Public::Board { project: PROJECT });

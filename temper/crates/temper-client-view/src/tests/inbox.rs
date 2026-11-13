@@ -3,11 +3,13 @@ use crate::look;
 use jig_client::contract as c;
 use skein_ui::{Node, State, Tree};
 use temper_client_domain::{
-    Address, Domain, Event,
+    Address, Event,
     address::{Filter, Kind},
 };
 
+pub(super) use super::fixtures::inbox::{question_root, styled, subtree};
 use skein_ui::{Act, Role};
+
 const GOAL: u64 = 7;
 #[test]
 fn entries_are_named_by_kind_and_source_task() {
@@ -87,18 +89,6 @@ fn the_goal_filter_keeps_its_project_and_kind() {
     );
 }
 
-pub(super) fn subtree(tree: &Tree, index: usize) -> &[Node] {
-    let node = &tree.nodes()[index];
-    &tree.nodes()[index..index.checked_add(usize::try_from(node.size).expect("subtree size")).expect("subtree end")]
-}
-pub(super) fn styled(tree: &Tree, token: skein_ui::Style) -> usize {
-    for (index, node) in tree.nodes().iter().enumerate() {
-        if node.styles.as_slice().contains(&token) {
-            return index;
-        }
-    }
-    panic!("styled node {token:?}");
-}
 fn heading(tree: &Tree, name: &[u8]) -> usize {
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.styles.as_slice().contains(&look::HEADING) {
@@ -276,25 +266,7 @@ fn absent_groups_have_no_empty_lists() {
     assert_eq!(style_count(filtered.tree().nodes(), look::CARDS), 1);
     assert_eq!(style_count(filtered.tree().nodes(), look::UPDATES), 0);
 }
-pub(super) fn question_root() -> Domain {
-    let task = fixtures::task::document();
-    let page = c::Question {
-        task: task.chip,
-        from: None,
-        message: fixtures::INBOX_QUESTION,
-        words: c::DocumentText::complete(c::Text::new(Box::from(*b"Which path?"), 32).expect("question")),
-        since: skein_lib::Wall::EPOCH,
-        acts: skein_lib::List::with_capacity(0),
-        ending: None,
-    };
-    fixtures::inbox_with_document(
-        Filter::ALL,
-        Some((
-            c::Read::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION },
-            c::ReadValue::Question(Box::new(page)),
-        )),
-    )
-}
+
 #[test]
 fn a_question_keeps_its_title_in_its_line_and_has_no_heading() {
     let root = question_root();
