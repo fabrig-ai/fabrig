@@ -1790,7 +1790,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 if !gate.blocking {
                     continue;
                 }
-                if !member.judging
+                if !(if row.landing.round.branch.is_empty() { row.landing.round.judging } else { member.judging })
                     && (gate.kind == change::GateKind::Check || gate.freshness == change::Freshness::Exact)
                 {
                     fact.judgement = policy::Status::Pending;
@@ -3501,21 +3501,30 @@ pub(crate) fn closing(
     ending: crate::ReleaseEnding,
     out: &mut Queue<Request>,
 ) {
+    if let Some(change) = d.changes.get_mut(&task) && change.change.alone {
+        change.change.alone = false;
+        let saved = change.clone();
+        super::domain::save_change(d, out, saved);
+    }
     if ending != crate::ReleaseEnding::Cancelled {
         return;
     }
     if let Some(mut row) = d.landing.rows.get(&task).cloned() {
-        let tell_landed = !row.landing.round.told
-            && match row.landing.members.first() {
-                Some(member) => member.landed.is_some(),
-                None => false,
-            };
-        row.landing.round.told |= tell_landed;
+        let mut told = List::with_capacity(env.limits.landing_members);
+        for (index, member) in row.landing.members.iter_mut().enumerate() {
+            if member.landed.is_some() && !member.told {
+                member.told = true;
+                told.push(u16::try_from(index).expect("member")).expect("bounded news");
+            }
+        }
+        row.landing.round.told |= !told.is_empty();
+        let solo = row.landing.members.len() == 1;
         row.landing.phase = policy::Phase::Cancelled;
         d.landing.due.remove(&task);
         for member in &row.landing.members {
             if let Some(change) = d.changes.get_mut(&member.change) {
                 change.change.landing = None;
+                if solo { change.change.alone = false; }
                 if let Some(merge) = member.landed {
                     change.change.state = change::State::Landed { merge, since: env.wall };
                 } else if let change::State::Judging { head, ready_since, .. } = change.change.state {
@@ -3534,9 +3543,7 @@ pub(crate) fn closing(
         }
         let project = row.landing.project;
         save(d, row, out);
-        if tell_landed {
-            emit(out, Request::LandingNews { task, member: 0, step: crate::LandingNews::Landed });
-        }
+        for member in told.into_boxed() { emit(out, Request::LandingNews { task, member, step: crate::LandingNews::Landed }); }
         wake_project_ready(d, project, out);
     } else if let Some(change) = d.changes.get(&task)
         && let Some(landing) = change.change.landing

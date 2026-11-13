@@ -139,14 +139,12 @@ fn step(value: crate::LandingStep) -> w::PublicLandingStep {
 }
 fn left(value: policy::Leave) -> Option<w::PublicLeave> {
     Some(match value {
-        policy::Leave::Conflict => w::PublicLeave::Conflict,
-        policy::Leave::EarlierConflict => w::PublicLeave::Conflict,
+        policy::Leave::Conflict | policy::Leave::EarlierConflict => w::PublicLeave::Conflict,
         policy::Leave::Unit { .. }
         | policy::Leave::Dependency { .. }
-        | policy::Leave::Fallback { .. } => w::PublicLeave::Held,
+        | policy::Leave::Fallback { .. } | policy::Leave::Held => w::PublicLeave::Held,
         policy::Leave::HeadMoved { .. } => w::PublicLeave::HeadMoved,
         policy::Leave::Cancelled => w::PublicLeave::Cancelled,
-        policy::Leave::Held => w::PublicLeave::Held,
         policy::Leave::Refused { gate } => {
             w::PublicLeave::Refused(w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate }).ok()?)
         }

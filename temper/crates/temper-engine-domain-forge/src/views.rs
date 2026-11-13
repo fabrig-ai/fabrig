@@ -303,8 +303,9 @@ impl Domain {
             branch: row.branch.clone(),
         })
     }
-    pub(crate) fn prefix_judgement(&self, _row: &policy::Landing, member: &policy::Member) -> Option<PrefixJudgement> {
+    pub(crate) fn prefix_judgement(&self, row: &policy::Landing, member: &policy::Member) -> Option<PrefixJudgement> {
         use temper_engine_domain_forge_change as c;
+        let judging = if row.round.branch.is_empty() { row.round.judging } else { member.judging };
         let prefix = member.candidate?;
         let head = member.head?;
         let change = self.changes.get(&member.change)?;
@@ -312,7 +313,7 @@ impl Domain {
         let mut verdict = c::Status::Passed;
         for gate in &change.change.gates {
             let status =
-                if !member.judging && (gate.kind == c::GateKind::Check || gate.freshness == c::Freshness::Exact) {
+                if !judging && (gate.kind == c::GateKind::Check || gate.freshness == c::Freshness::Exact) {
                     c::Status::Unknown
                 } else {
                     c::prefix_verdict(&change.change, *gate, &change.verdicts, head, prefix)
