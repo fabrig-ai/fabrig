@@ -157,7 +157,7 @@ impl<'a> Run<'a> {
         let calls = self.calls.clone();
         let Some(line) = self.line(current, running, words, terminal) else { return };
         b.open(Role::Slot);
-        b.key(key.unwrap_or(Key { owner: crate::frame::owner(), kind: 52, a: 0, b: 0 }));
+        b.key(key.unwrap_or(Key { owner: look::owner(), kind: 52, a: 0, b: 0 }));
         b.style(look::TURN);
         b.open(Role::Disclosure);
         b.style(look::WORK);

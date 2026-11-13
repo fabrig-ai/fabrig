@@ -1,7 +1,7 @@
 //! The person's own preferences (temper/docs/design/client/pages/remembered.md).
 use super::settings;
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{TimeForm, Times, Word, Words},
 };
@@ -51,7 +51,7 @@ fn rows(b: &mut Builder, root: &Domain, page: &Remembered, w: &Words, bindings: 
         }
         count = count.checked_add(1).expect("party lines fit");
         b.open(Role::Slot);
-        b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 70, a: note, b: 0 });
+        b.key(skein_ui::Key { owner: look::owner(), kind: 70, a: note, b: 0 });
         b.open(Role::Slot);
         crate::cards::text(b, Role::Text, line);
         let date = match changed {

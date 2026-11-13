@@ -1,9 +1,8 @@
 //! Kept forge rows and confirmed removal (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/forge/family.md, 7).
 use super::{bindings::Bindings as ForgeBindings, connect};
 use crate::{
-    flow,
-    frame::Bindings,
-    look,
+    bindings::Bindings,
+    flow, look,
     pages::settings,
     words::{Word, Words},
 };

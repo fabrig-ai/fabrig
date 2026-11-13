@@ -1,6 +1,6 @@
 //! Shared card words and parts (temper/docs/design/client/pages/README.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times, Word, Words},
 };
@@ -319,7 +319,7 @@ pub(crate) fn button(b: &mut Builder, bindings: &mut Bindings, words: &[u8], act
     b.close();
 }
 pub(crate) fn link(b: &mut Builder, bindings: &mut Bindings, words: &[u8], address: Address) {
-    crate::link(b, words, bindings.insert(Act::Go { address }));
+    crate::bindings::link(b, words, bindings.insert(Act::Go { address }));
     b.text(Run::Plain, words);
     b.close();
 }

@@ -1,7 +1,7 @@
 //! A delegation's card in a chat (client/view.md, 5).
 use super::{name, text};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, Word, Words},
 };
@@ -72,7 +72,7 @@ pub(crate) fn card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mu
         b.close();
     }
     let name = words.say(Word::Task, &[Hole::Number(facts.task)]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: facts.task } }));
+    crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: facts.task } }));
     b.open(Role::Text);
     match words.shell {
         Shell::Browser => words.text(b, Word::DelegationOpen, &[]),
@@ -151,7 +151,7 @@ pub(crate) fn terminal_card(b: &mut Builder, task: &c::Task, words: &Words, bind
     let token = status_token(facts.state);
     status_name(b, token, &line.state);
     let name = words.say(Word::Task, &[Hole::Number(facts.task)]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: facts.task } }));
+    crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: facts.task } }));
     words.text(b, Word::DelegationOpen, &[]);
     b.close();
     b.close();

@@ -1,7 +1,7 @@
 //! Open needs in order, with one card shown in the browser (temper/docs/design/client/pages/README.md).
 use super::ask;
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Times, Word, Words},
 };
@@ -66,7 +66,7 @@ pub(crate) fn main(
         ask::answered_lines(b, root, &lines, w, bindings);
         if let Some(address) = home_address(root) {
             b.open(Role::Paragraph);
-            crate::link(b, &w.say(Word::RailHome, &[]), bindings.insert(Act::Go { address }));
+            crate::bindings::link(b, &w.say(Word::RailHome, &[]), bindings.insert(Act::Go { address }));
             b.style(look::NEEDS_HOME);
             b.text(Run::Plain, &w.say(Word::RailHome, &[]));
             b.close();

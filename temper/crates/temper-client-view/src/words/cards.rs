@@ -1,5 +1,5 @@
 //! Temper conversation and request phrases, separate from jig decision words.
-use super::super::words::Words;
+use crate::words::Words;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::phrases::{Form, Hole, HoleKind, HoleShape, Phrase, PhraseId, PhraseShape, PluralClass, Segment};
@@ -225,7 +225,7 @@ impl CardWord {
     #[must_use]
     pub fn id(self) -> PhraseId {
         PhraseId {
-            owner: crate::frame::owner(),
+            owner: crate::look::owner(),
             number: 200_u16.checked_add(self.data().0).expect("closed card phrase ids fit"),
         }
     }

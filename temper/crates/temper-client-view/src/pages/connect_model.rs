@@ -23,7 +23,7 @@ fn say(w: &Words, word: W) -> Box<[u8]> {
     words::say(w, word, &[])
 }
 fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
-    words::say(w, word, &[Hole::Name(crate::choice::shown(name, w))])
+    words::say(w, word, &[Hole::Name(crate::words::shown(name, w))])
 }
 fn text(b: &mut Builder, w: &Words, role: Role, word: W) {
     crate::cards::text(b, role, &say(w, word));
@@ -98,14 +98,14 @@ pub(super) fn choice(
     let heading = match way {
         Way::Key { .. } => key_heading(brand, w),
         Way::Program { .. } => named(w, W::SubscriptionWay, plan),
-        Way::SignIn { .. } => crate::choice::shown(plan, w),
+        Way::SignIn { .. } => crate::words::shown(plan, w),
     };
     let (description, note) = match way {
         Way::SignIn { plan: true, .. } => (
             words::say(
                 w,
                 W::ChatDescription,
-                &[Hole::Name(crate::choice::shown(plan, w)), Hole::Name(crate::choice::shown(plan, w))],
+                &[Hole::Name(crate::words::shown(plan, w)), Hole::Name(crate::words::shown(plan, w))],
             ),
             W::BrowserMinute,
         ),
@@ -216,7 +216,7 @@ fn plan_card(
 ) {
     let Some(me) = accounts::current_me(root.client()) else { return };
     let (_, plan) = names(me, way);
-    let heading = crate::choice::shown(plan, w);
+    let heading = crate::words::shown(plan, w);
     b.open(Role::Region);
     b.name(&heading);
     if welcome(root) {
@@ -229,7 +229,7 @@ fn plan_card(
         }
     }
     crate::cards::text(b, Role::Heading { level: 2 }, &heading);
-    let name = [Hole::Name(crate::choice::shown(plan, w))];
+    let name = [Hole::Name(crate::words::shown(plan, w))];
     let connected = model::connected(root, way);
     let lendable = match root.pages().connect_model() {
         Some(page) => page.lendable(root.client()),
@@ -321,7 +321,7 @@ pub(super) fn other_ways(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
         return;
     }
     if let Some(to) = bindings.insert(Meaning::Go(model::address(root.pages().address(), None))) {
-        crate::link(b, &say(w, W::AllWays), to);
+        crate::bindings::link(b, &say(w, W::AllWays), to);
         b.style(look::CONNECT_QUIET);
         b.text(Run::Plain, &say(w, W::AllWays));
         b.close();
@@ -390,7 +390,7 @@ pub(crate) fn main(
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
-    pages: &mut crate::frame::Bindings,
+    pages: &mut crate::bindings::Bindings,
     project: Option<u32>,
     text_per_node: u32,
 ) {
@@ -406,8 +406,8 @@ pub(crate) fn main(
     {
         let (brand, plan) = names(me, way);
         let name = match way {
-            Way::SignIn { plan: true, .. } | Way::Program { .. } => crate::choice::shown(plan, w),
-            Way::SignIn { plan: false, .. } => crate::choice::shown(brand, w),
+            Way::SignIn { plan: true, .. } | Way::Program { .. } => crate::words::shown(plan, w),
+            Way::SignIn { plan: false, .. } => crate::words::shown(brand, w),
             Way::Key { .. } => named(w, W::ApiKeyBrand, brand),
         };
         super::settings::way_path(
@@ -452,7 +452,7 @@ fn way_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
     match way {
         Way::SignIn { plan: true, .. } => named(w, W::YourPlan, plan),
         Way::SignIn { plan: false, .. } => signing_heading(root, w, way),
-        Way::Program { .. } => w.say(Word::ModelProgramTitle, &[Hole::Name(crate::choice::shown(plan, w))]),
+        Way::Program { .. } => w.say(Word::ModelProgramTitle, &[Hole::Name(crate::words::shown(plan, w))]),
         Way::Key { .. } => key_heading(brand, w),
     }
 }
@@ -501,7 +501,7 @@ fn description(b: &mut Builder, words: &[u8]) {
 pub(super) fn signing_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
     let Some(me) = accounts::current_me(root.client()) else { return say(w, W::SigningIn) };
     let (_, plan) = names(me, way);
-    w.say(Word::ModelSigningIn, &[Hole::Name(crate::choice::shown(plan, w))])
+    w.say(Word::ModelSigningIn, &[Hole::Name(crate::words::shown(plan, w))])
 }
 pub(super) fn key_field(b: &mut Builder, root: &Domain, bindings: &mut Bindings, busy: bool, word: &[u8]) {
     let Some(page) = root.pages().connect_model() else { return };
@@ -567,7 +567,7 @@ pub(super) fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &
                 (c::AskAccountHolder::Own, W::OwnChoice)
             };
             if let Some(to) = bindings.insert(Meaning::Model(Act::Holder { holder })) {
-                crate::link(b, &say(w, word), to);
+                crate::bindings::link(b, &say(w, word), to);
                 b.style(look::CONNECT_QUIET);
                 b.text(Run::Plain, &say(w, word));
                 if page.request.busy(root.client()) {
@@ -748,7 +748,7 @@ pub(crate) fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]
     } else if let Some(answer) = root.forge().deployment()
         && let Some(line) = &answer.program_login
     {
-        words::join(&[line, b" ", &crate::choice::shown(name, w)])
+        words::join(&[line, b" ", &crate::words::shown(name, w)])
     } else {
         named(w, W::Command, name)
     }
@@ -1008,7 +1008,7 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
         && let Some(template) = jig_client::shapes::template(me, project, jig_client::shapes::CHAT)
         && let Some(choice) = &template.llm
     {
-        pair(b, w, W::ReadyModel, &crate::choice::shown(choice.main.model.bytes(), w));
+        pair(b, w, W::ReadyModel, &crate::words::shown(choice.main.model.bytes(), w));
     }
     pair(
         b,

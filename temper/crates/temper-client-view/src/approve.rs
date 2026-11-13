@@ -1,7 +1,7 @@
 //! The browser's approval column (temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 1 and 6;
 //! temper/docs/design/client/web/look.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look, outside,
     sign_in::{self, Ways},
     words::{TimeForm, Times, Word, Words},

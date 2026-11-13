@@ -1,53 +1,11 @@
 //! The frame and the column outside a project
 //! (temper/docs/design/client/view.md, 1; temper/docs/design/client/web/look.md).
+pub(crate) use crate::column::{column, words};
 use crate::{
     look,
     words::{Word, Words},
 };
-use skein_ui::{Builder, Role, Run, Style, phrases::Hole};
-
-/// Opens the column's main, `look::OUTSIDE`, then `extra` styles in order, and writes its
-/// level-1 heading, named and worded `heading`; the caller draws the rest and closes the main.
-pub(crate) fn column(b: &mut Builder, heading: &[u8], extra: &[Style]) {
-    b.open(Role::Main);
-    b.style(look::OUTSIDE);
-    for style in extra {
-        b.style(*style);
-    }
-    b.open(Role::Heading { level: 1 });
-    b.name(heading);
-    b.text(Run::Plain, heading);
-    b.close();
-}
-
-/// One paragraph of the column's words.
-pub(crate) fn words(b: &mut Builder, words: &Words, word: Word, holes: &[Hole]) {
-    b.open(Role::Paragraph);
-    b.name(&words.say(word, holes));
-    words.text(b, word, holes);
-    b.close();
-}
-
-/// The Welcome step's paragraph under the cards: what temper box is for,
-/// and where running temper on a server is told (client/pages/welcome.md, 1).
-pub(crate) fn box_line(builder: &mut Builder, words: &Words) {
-    use crate::words::Word;
-    let name = words.say(Word::WelcomeBoxName, &[]);
-    let line = words.say(Word::WelcomeBoxLine, &[]);
-    let server = words.say(Word::WelcomeBoxServer, &[]);
-    builder.open(Role::Paragraph);
-    builder.style(look::WELCOME_AFTER);
-    builder.style(look::WELCOME_BOX_NOTE);
-    builder.open(Role::Text);
-    builder.run(Run::Strong, &name);
-    builder.run(Run::Plain, &line);
-    builder.close();
-    crate::flow::control(
-        builder,
-        crate::flow::Control::External { name: &server, address: crate::forge::connect::DEPLOYMENT },
-    );
-    builder.close();
-}
+use skein_ui::{Builder, Role, Run, Style};
 
 /// The top bar outside a project (temper/docs/design/client/view.md, 1).
 #[expect(clippy::collapsible_if, reason = "the welcome keeps its deployment content separate from the shared end")]
@@ -55,7 +13,7 @@ pub(crate) fn top(
     b: &mut Builder,
     root: &temper_client_domain::Domain,
     w: &Words,
-    bindings: &mut crate::frame::Bindings,
+    bindings: &mut crate::bindings::Bindings,
     welcome: bool,
 ) {
     use crate::words::Shell;
@@ -134,7 +92,7 @@ fn status(b: &mut Builder, said: &[u8], style: Option<Style>) {
 /// `me` is being read where the page needs it: the page draws the top bar alone
 /// (temper/docs/design/client/view.md, 1).
 pub(crate) fn reading_me(root: &temper_client_domain::Domain, words: &Words, ways: &crate::sign_in::Ways) -> bool {
-    crate::frame::unavailable(root).is_none()
+    crate::column::unavailable(root).is_none()
         && root.authorization().is_none()
         && root.approval().is_none()
         && !crate::sign_in::offered(root, words, ways)
@@ -154,7 +112,7 @@ pub(crate) fn no_project_main(
     b: &mut Builder,
     root: &temper_client_domain::Domain,
     w: &Words,
-    bindings: &mut crate::frame::Bindings,
+    bindings: &mut crate::bindings::Bindings,
 ) {
     use alloc::boxed::Box;
     use temper_client_domain::{

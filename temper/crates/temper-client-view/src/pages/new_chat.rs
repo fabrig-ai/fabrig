@@ -1,6 +1,6 @@
 //! A new chat on the session layout (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7 and temper/docs/design/client/pages/welcome.md, 2).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Times, Word, Words},
 };

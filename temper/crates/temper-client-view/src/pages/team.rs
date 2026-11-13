@@ -7,8 +7,8 @@ mod hand;
 mod sessions;
 pub(crate) mod wakes;
 use crate::{
+    bindings::Bindings,
     cards::text,
-    frame::Bindings,
     look,
     words::{TimeForm, Times, Word, Words},
 };
@@ -189,7 +189,7 @@ fn standing(b: &mut Builder, w: &Words, project: u32, facts: &team::Facts, bindi
                 }
                 b.open(Role::Item);
                 b.style(look::TEAM_ROW);
-                crate::link(
+                crate::bindings::link(
                     b,
                     &role.name,
                     bindings.insert(Act::Go { address: Address::Team { project, role: Some(role.task) } }),
@@ -267,7 +267,7 @@ fn card(
     b.open(Role::Slot);
     b.open(Role::Heading { level: 2 });
     b.name(name);
-    crate::link(b, name, bindings.insert(Act::Go { address: Address::Task { task: role.task } }));
+    crate::bindings::link(b, name, bindings.insert(Act::Go { address: Address::Task { task: role.task } }));
     b.text(Run::Plain, name);
     b.close();
     b.close();
@@ -311,7 +311,7 @@ fn card(
         b.style(look::TEAM_ACTS);
         if parts.talk {
             let talk = w.say(Word::TeamTalk, &[]);
-            crate::link(b, &talk, bindings.insert(Act::Go { address: Address::Task { task: role.task } }));
+            crate::bindings::link(b, &talk, bindings.insert(Act::Go { address: Address::Task { task: role.task } }));
             b.style(look::TEAM_TALK);
             b.text(Run::Plain, &talk);
             b.close();

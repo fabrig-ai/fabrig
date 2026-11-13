@@ -20,7 +20,7 @@ use temper_client_domain::{
 pub(super) fn said(w: &Words, root: &Domain, word: Word) -> Box<[u8]> {
     let Some(page) = root.pages().connect_model() else { return w.say(word, &[]) };
     if [Word::WelcomePasteOpen, Word::WelcomeAwayTitle, Word::WelcomeAwayOwn].contains(&word) {
-        w.say(word, &[Hole::Name(crate::choice::shown(accounts::paste_plan(root, &page.request), w))])
+        w.say(word, &[Hole::Name(crate::words::shown(accounts::paste_plan(root, &page.request), w))])
     } else {
         w.say(word, &[])
     }
@@ -125,7 +125,7 @@ fn key(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: 
     b.close();
     b.open(Role::Paragraph);
     b.style(look::FLOW_FACTS);
-    w.text(b, Word::WelcomeKeyFacts, &[Hole::Name(crate::choice::shown(brand, w))]);
+    w.text(b, Word::WelcomeKeyFacts, &[Hole::Name(crate::words::shown(brand, w))]);
     b.close();
     accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
     b.close();

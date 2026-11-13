@@ -1,7 +1,7 @@
 //! Home on All projects (temper/docs/design/client/pages/home.md, 1, Home on All projects).
 use super::{ask, home};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times, Word, Words},
 };

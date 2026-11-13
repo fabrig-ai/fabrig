@@ -1,9 +1,9 @@
 //! A bound conversation reads at either edge; Latest returns to its end (client/pages/chat/conversation.md, 2).
-use crate::{cards::P, look};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     words::{Shell, TimeForm, Times, Word, Words},
 };
+use crate::{cards::P, look};
 use alloc::boxed::Box;
 use jig_client::{
     contract as c,
@@ -946,10 +946,10 @@ pub(crate) fn line_key(line: &Line<'_>) -> Option<Key> {
         },
         Line::Activity { line } => (42, line.source.position, 0),
     };
-    Some(Key { owner: crate::frame::owner(), kind, a, b })
+    Some(Key { owner: look::owner(), kind, a, b })
 }
 pub(super) fn fixed_key(kind: u16) -> Key {
-    Key { owner: crate::frame::owner(), kind, a: 0, b: 0 }
+    Key { owner: look::owner(), kind, a: 0, b: 0 }
 }
 // A turn's later blocks share its name, with a separate high word for their place.
 fn block_key(key: Key, place: u32) -> Key {
