@@ -18,17 +18,17 @@ fn owned_world() -> (World, engine::Assignment) {
     follow.owner = s::FollowOwner::Task(owner.task);
     change_setting(&mut world, Some(follow), 116);
     assert!(row(&world).heard.is_some());
-    assert_eq!(world.root.tasks().task(owner.task).unwrap().label, 3);
+    assert_eq!(world.root.tasks().task(owner.task).expect("standing owner task").label, 3);
     (world, owner)
 }
 fn tool(world: &mut World, run: &engine::Assignment, number: u64, input: &str) -> engine::CallAnswer {
-    let input = smith_domain_run::HostInput::attested(input.as_bytes().into()).unwrap();
+    let input = smith_domain_run::HostInput::attested(input.as_bytes().into()).expect("attested follow input");
     let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
         smith_domain_run::CallName { activation: run.attempt, completion: 1, position: 1 },
         b"follow",
         &input,
     )
-    .unwrap() else {
+    .expect("valid follow call") else {
         panic!("decoded follow")
     };
     world.scripted_call(run, number, call.tool)
@@ -41,7 +41,7 @@ fn kept(world: &mut World, run: &engine::Assignment, number: u64, input: &str) {
     settle(world);
 }
 fn hex(after: &skein_forge::api::Commit) -> String {
-    String::from_utf8(forge_top::commit_text(after).into_vec()).unwrap()
+    String::from_utf8(forge_top::commit_text(after).into_vec()).expect("hex commit text")
 }
 #[test]
 fn a_standing_owners_follow_tool_holds_starts_skips_and_merges_the_chain() {
