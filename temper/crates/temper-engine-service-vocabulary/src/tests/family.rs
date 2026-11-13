@@ -4976,3 +4976,45 @@ fn a_batch_panel_keeps_its_members_when_round_diagnostics_pass_the_wire_bound() 
         assert_eq!(failure.ends_with(b"..."), extra == 1);
     }
 }
+
+#[test]
+fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
+    use forge::history as h;
+    use skein_lib::Wall;
+    let cursor = h::Cursor { upper: 40, after: 32 };
+    let bytes: [u8; 17] = cursor.encode().as_ref().try_into().unwrap();
+    for (of, expected) in [
+        (w::HistoryOf::Project, h::Of::Project),
+        (w::HistoryOf::Change(w::HistoryTask::new(&w::CEILINGS, w::HistoryTaskParts { task: 51 }).unwrap()), h::Of::Change(51)),
+        (w::HistoryOf::Landing(w::HistoryTask::new(&w::CEILINGS, w::HistoryTaskParts { task: 61 }).unwrap()), h::Of::Landing(61)),
+    ] {
+        let reading = w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::History(w::HistoryRead::new(&w::CEILINGS, w::HistoryReadParts { project: 7, of, since: Some(5), until: Some(9), after: Some(bytes) }).unwrap()) }).unwrap();
+        let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) = away_family(kit::ToApplication::Read { reply: REPLY, sign_in: 3, family: wire::FORGE, version: wire::CLIENT_VERSION, record: wire::reading(&reading), window: jig_domain_core::documents::Window { rows: 0, after: None }, scope: people::ApplicationScope::Project(7) }) else { panic!("history read") };
+        assert_eq!((reply, sign_in, scope, query), (REPLY, 3, people::ApplicationScope::Project(7), root::ForgeRead::History(h::Query { project: 7, of: expected, since: Some(Wall::from_nanos(5)), until: Some(Wall::from_nanos(9)), after: Some(cursor) })));
+    }
+    let event = h::Event {
+        project: 7, number: 33, at: Wall::from_nanos(6), source_at: Some(Wall::from_nanos(4)), change: 51,
+        repository: skein_forge::api::Repository { forge: 2, repository: 3 }, landing: Some(h::InLanding { task: 61, round: 2, unit: 1 }), head: Some([1; 32]), base: Some([2; 32]), operation: 99, attempt: 3,
+        what: h::What::Formed { members: Box::new([h::Member { change: 51, unit: 1, head: [1; 32] }]), place: 1 },
+    };
+    let encoded = family::forge_read(root::ForgeReadAnswer::History(h::Reply::Page { events: Box::new([event]), after: Some(cursor), upper: 40, whole_since: Some(Wall::from_nanos(3)) }), b"", &w::CEILINGS).unwrap();
+    let answer = wire::decode_history_answer(&encoded, &w::CEILINGS).unwrap();
+    let w::HistoryReply::Page(page) = answer.result() else { panic!("page") };
+    assert_eq!((page.upper(), page.after(), page.whole_since()), (40, &Some(bytes), &Some(3)));
+    let event = page.events().get(0).unwrap();
+    assert_eq!((event.project(), event.number(), event.change(), event.at(), *event.source_at(), event.operation(), event.attempt()), (7, 33, 51, 6, Some(4), 99, 3));
+    assert_eq!((event.repository().forge(), event.repository().repository()), (2, 3));
+    assert_eq!((*event.head(), *event.base()), (Some([1; 32]), Some([2; 32])));
+    let landing = event.landing().as_ref().unwrap(); assert_eq!((landing.task(), landing.round(), landing.unit()), (61, 2, 1));
+    let w::HistoryWhat::Formed(formed) = event.what() else { panic!("formed fields") };
+    assert_eq!((formed.place(), formed.members().len()), (1, 1));
+    let member = formed.members().get(0).unwrap(); assert_eq!((member.change(), member.unit(), *member.head()), (51, 1, [1; 32]));
+    for (reply, expected) in [
+        (h::Reply::Gone { from: 32, first: Some(35) }, w::HistoryReply::Gone(w::HistoryGone::new(&w::CEILINGS, w::HistoryGoneParts { from: 32, first: Some(35) }).unwrap())),
+        (h::Reply::Gone { from: 40, first: None }, w::HistoryReply::Gone(w::HistoryGone::new(&w::CEILINGS, w::HistoryGoneParts { from: 40, first: None }).unwrap())),
+        (h::Reply::Busy, w::HistoryReply::Busy),
+    ] {
+        let bytes = family::forge_read(root::ForgeReadAnswer::History(reply), b"", &w::CEILINGS).unwrap();
+        assert_eq!(wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result, expected);
+    }
+}
