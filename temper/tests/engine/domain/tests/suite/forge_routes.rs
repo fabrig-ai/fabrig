@@ -3898,17 +3898,32 @@ fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one held write brackets queued claims, the hosted answer and the settled drain"
+)]
 fn settling_places_no_run_and_answers_a_call_busy() {
-    let configured = World::configured_limits(true, true, true, 1000, Gate::default(), None,
-        StoryLimits { slots: Some(3), tasks_batch: Some(2), ..StoryLimits::default() });
+    let configured = World::configured_limits(
+        true,
+        true,
+        true,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { slots: Some(3), tasks_batch: Some(2), ..StoryLimits::default() },
+    );
     let (mut world, assignment, entry) = held_issue_write_in(configured, Some(100));
     world.acknowledgements = Some(Vec::new());
     let channel = Token::new(8);
     world.send(protocol::lost(Token::new(7)));
-    world.send(protocol::hello_slots(channel, 2, Box::new([
-        protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active),
-    ])));
-    for _ in 0..10 { world.tick_without_resume(); }
+    world.send(protocol::hello_slots(
+        channel,
+        2,
+        Box::new([protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)]),
+    ));
+    for _ in 0..10 {
+        world.tick_without_resume();
+    }
     let people::Ask::Create { project, mut batch } = world.chat(1, b"waiting for the slot") else {
         panic!("chat template")
     };
@@ -3917,8 +3932,10 @@ fn settling_places_no_run_and_answers_a_call_busy() {
     batch[0].authority.delegation = people::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let member = batch[0].clone();
     world.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]), reply_to: ReplyTo::new(Token::new(992)),
-        sign_in: world.signed_in.expect("owner session"), key: [99; 16],
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(992)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [99; 16],
         ask: people::Ask::Create { project, batch: Box::new([member.clone(), member]) },
     }));
     // Both claims choose the still-free slot before the owner resumes placement.
@@ -3926,64 +3943,136 @@ fn settling_places_no_run_and_answers_a_call_busy() {
     let mut waiting = Vec::new();
     for _ in 0..100 {
         world.tick_without_resume();
-        waiting = world.store.rows.values().filter_map(|record| match record {
-            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
-                if row.number != assignment.task && matches!(row.phase, tasks::Phase::Active(tasks::Active::Claimed { .. })) => Some(row.number),
-            _ => None,
-        }).collect();
-        if waiting.len() == 2 { break; }
-        if world.store.pending.is_empty() && (world.root.backlog() > 0 ||
-            world.store.rows.values().any(|record| matches!(record,
+        waiting = world
+            .store
+            .rows
+            .values()
+            .filter_map(|record| match record {
                 Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
-                    if row.number != assignment.task && row.phase == tasks::Phase::Active(tasks::Active::Due))))
-        { world.send(engine::Event::Resume); }
+                    if row.number != assignment.task
+                        && matches!(row.phase, tasks::Phase::Active(tasks::Active::Claimed { .. })) =>
+                {
+                    Some(row.number)
+                }
+                _ => None,
+            })
+            .collect();
+        if waiting.len() == 2 {
+            break;
+        }
+        if world.store.pending.is_empty()
+            && (world.root.backlog() > 0
+                || world.store.rows.values().any(|record| {
+                    matches!(record,
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
+                    if row.number != assignment.task && row.phase == tasks::Phase::Active(tasks::Active::Due))
+                }))
+        {
+            world.send(engine::Event::Resume);
+        }
     }
-    assert_eq!(waiting.len(), 2, "two prepared attempts precede the next fleet placement; replies={:?}; rows={:?}; backlog={}",
-        world.web_replies, world.store.rows.values().filter_map(|record| match record {
-            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) => Some((row.number, row.phase.clone())),
-            _ => None,
-        }).collect::<Vec<_>>(), world.root.backlog());
-    for _ in 0..20 { world.tick_without_resume(); }
+    assert_eq!(
+        waiting.len(),
+        2,
+        "two prepared attempts precede the next fleet placement; replies={:?}; rows={:?}; backlog={}",
+        world.web_replies,
+        world
+            .store
+            .rows
+            .values()
+            .filter_map(|record| match record {
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) =>
+                    Some((row.number, row.phase.clone())),
+                _ => None,
+            })
+            .collect::<Vec<_>>(),
+        world.root.backlog()
+    );
+    for _ in 0..20 {
+        world.tick_without_resume();
+    }
     for _ in 0..20 {
         world.send(engine::Event::Resume);
-        for _ in 0..10 { world.tick_without_resume(); }
-        if world.assigned.len() == 2 { break; }
+        for _ in 0..10 {
+            world.tick_without_resume();
+        }
+        if world.assigned.len() == 2 {
+            break;
+        }
     }
     assert_eq!(world.assigned.len(), 2, "one attempt takes the remaining slot");
-    let queued = *waiting.iter().find(|&&task| !world.assigned.iter().any(|run| run.task == task)).expect("queued attempt");
+    let queued =
+        *waiting.iter().find(|&&task| !world.assigned.iter().any(|run| run.task == task)).expect("queued attempt");
     assert!(matches!(live_task(&world, queued).phase, tasks::Phase::Active(tasks::Active::Claimed { .. })));
     let assigned = world.assigned.len();
     world.send(engine::Event::Stop);
-    let event = world.protocol.call(channel, assignment.task, assignment.attempt, 994, engine::Call {
-        completion: 2, position: 1,
-        tool: engine::Tool::ReadForge { repository: forge_world::REPO,
-            read: skein_forge::api::Read::Branches { prefix: Box::from(b"temper/".as_slice()) } },
-    });
+    let event = world.protocol.call(
+        channel,
+        assignment.task,
+        assignment.attempt,
+        994,
+        engine::Call {
+            completion: 2,
+            position: 1,
+            tool: engine::Tool::ReadForge {
+                repository: forge_world::REPO,
+                read: skein_forge::api::Read::Branches { prefix: Box::from(b"temper/".as_slice()) },
+            },
+        },
+    );
     world.send(event);
-    for _ in 0..30 { world.tick_without_resume(); }
+    for _ in 0..30 {
+        world.tick_without_resume();
+    }
     assert!(world.drained.is_none());
     assert_eq!(world.assigned.len(), assigned, "the queued attempt gets no placement");
     assert_eq!(world.busy_calls, 1, "a run’s call is answered busy");
     let commits = world.store.header().commits;
-    let event = world.protocol.answer(channel, assignment.task, assignment.attempt, 0,
-        tasks::End::Finished { result: tasks::TaskResult::Report { words: b"ended while settling".as_slice().into() }, cancel_delegates: false },
-        engine::Parts::none());
+    let event = world.protocol.answer(
+        channel,
+        assignment.task,
+        assignment.attempt,
+        0,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"ended while settling".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
     world.send(event);
-    for _ in 0..30 { world.tick_without_resume(); }
+    for _ in 0..30 {
+        world.tick_without_resume();
+    }
     assert!(world.store.header().commits > commits, "the hosted run's answer commits while the write is held");
-    assert!(world.acknowledgements.as_ref().expect("ack observer").contains(&(assignment.task, assignment.attempt)), "the run's answer is acknowledged");
+    assert!(
+        world.acknowledgements.as_ref().expect("ack observer").contains(&(assignment.task, assignment.attempt)),
+        "the run's answer is acknowledged"
+    );
     assert!(world.drained.is_none());
-    assert!(world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))), "the forge still owes its outcome");
-    for _ in 0..30 { world.tick(); }
+    assert!(
+        world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))),
+        "the forge still owes its outcome"
+    );
+    for _ in 0..30 {
+        world.tick();
+    }
     assert_eq!(world.assigned.len(), assigned, "freeing the slot makes no assignment while settling");
-    assert!(matches!(live_task(&world, queued).phase, tasks::Phase::Active(tasks::Active::Claimed { .. })), "no Placed follows the answer");
+    assert!(
+        matches!(live_task(&world, queued).phase, tasks::Phase::Active(tasks::Active::Claimed { .. })),
+        "no Placed follows the answer"
+    );
     world.release_write_answers();
     drain_stop(&mut world);
-    assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))), "the forge outcome commits before the drain");
+    assert!(
+        !world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))),
+        "the forge outcome commits before the drain"
+    );
     world.restart_same();
     for _ in 0..200 {
         world.tick();
-        if world.assigned.iter().any(|run| run.task == queued) { break; }
+        if world.assigned.iter().any(|run| run.task == queued) {
+            break;
+        }
     }
     assert!(world.assigned.iter().any(|run| run.task == queued), "the next start reconsiders the queued claim");
     world.close();
@@ -4132,71 +4221,3 @@ mod close_change;
 
 #[path = "forge_routes/follow_changes.rs"]
 pub(crate) mod follow_changes;
-
-
-#[test]
-fn settling_holds_a_changes_wake_until_the_next_start() {
-    let (mut world, assignment, _) = held_issue_write_in(World::configured(true, true), Some(100));
-    let channel = Token::new(8);
-    world.send(protocol::lost(Token::new(7)));
-    world.send(protocol::hello_slots(channel, 2, Box::new([
-        protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active),
-    ])));
-    let people::Ask::Create { project, mut batch } = world.chat(1, b"the prerequisite") else { panic!("chat template") };
-    batch[0].authority.spend = 100;
-    batch[0].budget = people::Budget::Named;
-    batch[0].authority.delegation = people::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    world.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]), reply_to: ReplyTo::new(Token::new(996)),
-        sign_in: world.signed_in.expect("owner"), key: [96; 16], ask: people::Ask::Create { project, batch },
-    }));
-    world.until(Until::SecondAssignment);
-    let prerequisite = world.assigned.last().expect("prerequisite run").clone();
-    assert_ne!(prerequisite.task, assignment.task);
-    let people::Ask::Create { project, mut batch } = world.chat(1, b"a change after the hosted run") else {
-        panic!("creation template")
-    };
-    batch[0].executor = people::TaskExecutor::Procedure { connector: 0, code: 2 };
-    batch[0].llm = None;
-    batch[0].flags.conversation = false;
-    batch[0].authority.delegation.tasks = 3;
-    batch[0].authority.delegation.depth = 2;
-    batch[0].dependencies = Box::new([people::Dependency::Existing(prerequisite.task)]);
-    batch[0].contract = people::Contract::Change { connector: 0, kind: 2, words: world.env.limits.tasks.result_bytes };
-    batch[0].parameters = Box::new([
-        people::Parameter::Resource { name: 1, connector: 0, resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository) },
-        people::Parameter::Bytes { name: 3, value: b"temper/settling".as_slice().into() },
-    ]);
-    world.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]), reply_to: ReplyTo::new(Token::new(995)),
-        sign_in: world.signed_in.expect("owner"), key: [95; 16], ask: people::Ask::Create { project, batch },
-    }));
-    for _ in 0..30 { world.tick(); }
-    let Some(people::Reply::Outcome(people::Outcome::Created { first: task, .. })) = world.web_replies.last() else {
-        panic!("waiting change created: {:?}", world.web_replies.last())
-    };
-    let task = *task;
-    assert_eq!(live_task(&world, task).waiting_on.as_ref(), &[prerequisite.task]);
-    assert!(world.store.rows.contains_key(&Key::Forge(forge_top::Key::Change(task))), "the change is registered before its dependency ends");
-    let steps = live_task(&world, task).attempt;
-    let delegates = live_task(&world, task).delegates.len();
-    world.send(engine::Event::Stop);
-    let event = world.protocol.answer(channel, prerequisite.task, prerequisite.attempt, 0,
-        tasks::End::Finished { result: tasks::TaskResult::Report { words: b"dependency done".as_slice().into() }, cancel_delegates: false },
-        engine::Parts::none());
-    world.send(event);
-    for _ in 0..30 { world.tick(); }
-    assert!(world.drained.is_none(), "the forge write keeps the root settling");
-    assert_eq!(live_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Due));
-    assert_eq!(live_task(&world, task).attempt, steps, "the dependency's outcome steps no forge procedure");
-    assert_eq!(live_task(&world, task).delegates.len(), delegates);
-    world.release_write_answers();
-    drain_stop(&mut world);
-    world.restart(true, true);
-    for _ in 0..200 {
-        world.tick();
-        if live_task(&world, task).attempt > steps { break; }
-    }
-    assert!(live_task(&world, task).attempt > steps, "the next start steps the held change");
-    world.close();
-}

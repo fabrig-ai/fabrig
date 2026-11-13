@@ -1053,7 +1053,10 @@ fn continue_ready(domain: &mut Domain, env: &Env<Limits>) {
             decide(domain, env, Work::Core(core::Event::Activate { context, ready: true, busy: false }));
             return;
         }
-        if domain.core.fleet.ready_to_resume(!domain.core.settling()) || domain.core.finish_owed() || timers_due(domain, env) {
+        if domain.core.fleet.ready_to_resume(!domain.core.settling())
+            || domain.core.finish_owed()
+            || timers_due(domain, env)
+        {
             decide(domain, env, Work::ResumeFleet);
         }
     }

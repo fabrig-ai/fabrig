@@ -1522,17 +1522,26 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
     );
 }
 
-
 #[test]
 fn resume_without_placement_keeps_waiting_runs_and_jobs_for_a_later_start() {
     let mut h = Harness::new(LIMITS);
     let job = jig_domain_link::JobBound {
-        kind: jig_domain_link::JobKind(7), spec: 4, result: 8, deadline: Duration::from_secs(3),
+        kind: jig_domain_link::JobKind(7),
+        spec: 4,
+        result: 8,
+        deadline: Duration::from_secs(3),
     };
     h.step(Event::Hello {
-        worker: 0, channel: C1,
-        hello: Hello { slots: 1, stop_bound: Duration::ZERO, bounds: fixtures::bounds(), jobs: Box::new([job]),
-            workstreams: Box::new([]), hosting: Box::new([]) },
+        worker: 0,
+        channel: C1,
+        hello: Hello {
+            slots: 1,
+            stop_bound: Duration::ZERO,
+            bounds: fixtures::bounds(),
+            jobs: Box::new([job]),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        },
     });
     assert_eq!(h.place(R1, A1, 1), C1);
     h.start(R2, A2, 2);
@@ -1549,7 +1558,6 @@ fn resume_without_placement_keeps_waiting_runs_and_jobs_for_a_later_start() {
     h.acknowledge(R2, A2);
     assert_eq!(&*h.settle(), &[Request::AssignJob { channel: C1, run: R3, attempt: A3 }, placed(R3, A3)]);
 }
-
 
 #[test]
 fn resume_without_placement_still_releases_a_held_turn() {

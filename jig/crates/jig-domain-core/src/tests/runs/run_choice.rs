@@ -1903,7 +1903,6 @@ fn a_version_refusal_pauses_without_closing_the_window_or_counting_a_try() {
     );
 }
 
-
 #[test]
 fn a_settling_core_leaves_a_waiting_attempt_unplaced_after_a_slot_frees() {
     let (mut core, limits) = ready(false);
@@ -1911,11 +1910,22 @@ fn a_settling_core_leaves_a_waiting_attempt_unplaced_after_a_slot_frees() {
     let choice = core.run_choice(2).expect("the second claim chose its host while it was free");
     let placement = choice.placement;
     send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(FIRST), task: 2 });
-    send_task(&mut core, &limits, tasks::Event::Claim {
-        session_end: None, offered: tasks::Reasons::ALL, reasons: tasks::Reasons::FIRST,
-        reply_to: ReplyTo::new(FIRST), task: 2, attempt: 12, resumed: false, budget: 10,
-        account: Some(0), writes: Box::new([]),
-    });
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Claim {
+            session_end: None,
+            offered: tasks::Reasons::ALL,
+            reasons: tasks::Reasons::FIRST,
+            reply_to: ReplyTo::new(FIRST),
+            task: 2,
+            attempt: 12,
+            resumed: false,
+            budget: 10,
+            account: Some(0),
+            writes: Box::new([]),
+        },
+    );
     assert_eq!(core.tasks.task(2).unwrap().phase, tasks::Phase::Active(tasks::Active::Claimed { attempt: 12 }));
     let mut proof = RunProof::claimed(2, 12, 12, None, placement.kind);
     proof.accounts = choice.accounts;
@@ -1927,24 +1937,38 @@ fn a_settling_core_leaves_a_waiting_attempt_unplaced_after_a_slot_frees() {
     // Both claims preceded placement, so the second is already queued when the
     // first occupies their checked host's only slot.
     for (run, attempt) in [(1, 11), (2, 12)] {
-        fleet::step(&mut core.fleet, &fleet_env, fleet::Event::Start {
-            placement: Some(placement),
-            version: fleet::Version { charter: 1, revision: 1 },
-            grants: Box::new([]), reply_to: ReplyTo::new(Token::new(attempt)),
-            run: Token::new(run), attempt: Token::new(attempt), workstream: run,
-            kinds: fleet::Kinds::Workers,
-            assignment: fleet::Assignment { turns: Token::new(run), answered: Token::new(run) },
-        }, &mut out);
+        fleet::step(
+            &mut core.fleet,
+            &fleet_env,
+            fleet::Event::Start {
+                placement: Some(placement),
+                version: fleet::Version { charter: 1, revision: 1 },
+                grants: Box::new([]),
+                reply_to: ReplyTo::new(Token::new(attempt)),
+                run: Token::new(run),
+                attempt: Token::new(attempt),
+                workstream: run,
+                kinds: fleet::Kinds::Workers,
+                assignment: fleet::Assignment { turns: Token::new(run), answered: Token::new(run) },
+            },
+            &mut out,
+        );
     }
     fleet::resume(&mut core.fleet, &fleet_env, true, &mut out);
-    assert!(out.iter().any(|request| {
-        if let fleet::Request::Assign { run, .. } = request { run.raw() == 1 } else { false }
-    }));
+    assert!(
+        out.iter()
+            .any(|request| { if let fleet::Request::Assign { run, .. } = request { run.raw() == 1 } else { false } })
+    );
     while out.pop().is_some() {}
     drop(step(&mut core, &env, Event::Settling));
     for event in [
-        fleet::Event::Answer { channel: placement.channel, run: Token::new(1), attempt: Token::new(11),
-            answer: fleet::Answer::Ended, payload: Token::new(1) },
+        fleet::Event::Answer {
+            channel: placement.channel,
+            run: Token::new(1),
+            attempt: Token::new(11),
+            answer: fleet::Answer::Ended,
+            payload: Token::new(1),
+        },
         fleet::Event::Acknowledge { run: Token::new(1), attempt: Token::new(11) },
     ] {
         fleet::step(&mut core.fleet, &fleet_env, event, &mut out);
@@ -1954,7 +1978,8 @@ fn a_settling_core_leaves_a_waiting_attempt_unplaced_after_a_slot_frees() {
     assert!(!core.fleet.ready_to_resume(false), "the root need not spin on held placement");
     // The claim still fits its checked host. Nothing discarded the queued attempt.
     fleet::resume(&mut core.fleet, &fleet_env, true, &mut out);
-    assert!(out.iter().any(|request| {
-        if let fleet::Request::Assign { run, .. } = request { run.raw() == 2 } else { false }
-    }));
+    assert!(
+        out.iter()
+            .any(|request| { if let fleet::Request::Assign { run, .. } = request { run.raw() == 2 } else { false } })
+    );
 }

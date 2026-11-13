@@ -23,14 +23,13 @@ fn an_unknown_unwatch_answers_with_its_ending() {
     assert!(out.is_empty());
 }
 
-
 #[test]
 fn settling_latches_even_after_stopping() {
     let (mut core, limits) = core();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     assert!(!core.settling());
     drop(step(&mut core, &env, Event::Stopping));
-    for _ in 0..2 {
+    for _ in 0_u32..2 {
         let out = step(&mut core, &env, Event::Settling);
         assert!(out.is_empty(), "settling after stopping adds no effect");
         assert!(core.settling(), "Settling latches even after Stopping");

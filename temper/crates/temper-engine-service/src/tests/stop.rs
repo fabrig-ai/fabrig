@@ -373,7 +373,6 @@ fn missing_forge_links_panic_before_startup_wires() {
     assert!(!engine.domain.ready(), "no decisions before link");
 }
 
-
 #[test]
 fn a_ready_signal_routes_the_stop_before_a_later_resume() {
     let mut service = fixtures::ready();

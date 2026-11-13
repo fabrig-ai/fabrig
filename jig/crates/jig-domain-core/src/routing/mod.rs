@@ -445,7 +445,9 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 
 fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Work>) -> Queue<Request> {
     match next {
-        Work::StartBrief { .. } | Work::BriefNotes { .. } | Work::PreparationFailed { .. } if core.stopping || core.settling => {
+        Work::StartBrief { .. } | Work::BriefNotes { .. } | Work::PreparationFailed { .. }
+            if core.stopping || core.settling =>
+        {
             stopping::empty()
         }
         Work::Event(event) => step_one(core, env, event, work),
@@ -507,7 +509,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         | Event::ProcedureStep { .. }
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
-        | Event::Period { .. } if core.settling => stopping::empty(),
+        | Event::Period { .. }
+            if core.settling =>
+        {
+            stopping::empty()
+        }
         Event::Stopping => stopping::start(core, env),
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
@@ -739,9 +745,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
     }
     core.run_now = env.now;
     core.run_wall = env.wall;
-    if (core.stopping && jig_domain_core_vocabulary::vocabulary::waits(timer))
-        || (core.settling && timer.new_work())
-    {
+    if (core.stopping && jig_domain_core_vocabulary::vocabulary::waits(timer)) || (core.settling && timer.new_work()) {
         return stopping::empty();
     }
     let oldest = core.current.oldest;

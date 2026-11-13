@@ -159,9 +159,9 @@ pub struct World {
     /// Hold decoded write answers after the independent forge has made the effect.
     pub hold_write_answers: Option<HoldWrite>,
     pub held_write_answers: Vec<engine::Event>,
-    /// Hold the named branch's read answers across the root's settling boundary.
-    pub hold_branch_answers: Option<Box<[u8]>>,
-    pub held_branch_answers: Vec<engine::Event>,
+    /// Hold final ancestry answers across the root's settling boundary.
+    pub hold_ancestry_answers: bool,
+    pub held_ancestry_answers: Vec<engine::Event>,
     /// Timeouts before dispatch: the caller cannot know the write was never made.
     pub lose_writes: u32,
     pub fail_issue_writes: bool,
@@ -1244,8 +1244,8 @@ impl World {
             fail_comparisons: false,
             hold_write_answers: None,
             held_write_answers: Vec::new(),
-            hold_branch_answers: None,
-            held_branch_answers: Vec::new(),
+            hold_ancestry_answers: false,
+            held_ancestry_answers: Vec::new(),
             lose_writes: 0,
             fail_issue_writes: false,
             fail_open_writes: false,
@@ -1920,8 +1920,8 @@ impl World {
         self.out = Queue::uncapped();
         self.events.clear();
         self.held_write_answers.clear();
-        self.held_branch_answers.clear();
-        self.hold_branch_answers = None;
+        self.held_ancestry_answers.clear();
+        self.hold_ancestry_answers = false;
         self.hold_write_answers = None;
         self.drained = None;
         self.unsettled.clear();
@@ -2663,10 +2663,10 @@ impl World {
                     };
                     if held {
                         self.held_write_answers.push(event);
-                    } else if self.hold_branch_answers.as_deref().is_some_and(|expected|
-                        matches!(&op, skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch }) if branch.as_ref() == expected))
+                    } else if self.hold_ancestry_answers
+                        && matches!(&op, skein_forge::api::Op::Read(skein_forge::api::Read::Commits { .. }))
                     {
-                        self.held_branch_answers.push(event);
+                        self.held_ancestry_answers.push(event);
                     } else {
                         self.events.push_back(event);
                     }
