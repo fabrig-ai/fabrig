@@ -153,6 +153,8 @@ fn a_refused_record_holds_with_the_member_landed_and_release_records_it_again() 
         task: LANDING,
         entry: 202,
         heard: top::LandingHeard {
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
             held: Box::new([]),
             preparation: landing::Preparation::Idle,
             failure: Box::new([]),
@@ -205,6 +207,8 @@ fn an_exhausted_prepare_job_holds_its_landing_not_its_member() {
         task: LANDING,
         entry: 102,
         heard: top::LandingHeard {
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
             held: Box::new([]),
             preparation: landing::Preparation::Failed,
             failure: b"push refused".as_slice().into(),
@@ -303,6 +307,8 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
         task: LANDING,
         entry: 102,
         heard: top::LandingHeard {
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
             held: Box::new([]),
             preparation: landing::Preparation::Conflict,
             failure: b"file".as_slice().into(),
@@ -338,6 +344,7 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
     let mut row = landings::landing_row(world.change(CHANGE));
     row.landing.task = 62;
     row.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
+    row.landing.members[0].branch.clone_from(&row.landing.round.branch);
     world.event(top::Event::Landing { row });
     landings::drive_landing(&mut world, 62);
     assert!(world.landing(62).landing.members[0].landed.is_some());
@@ -357,11 +364,9 @@ fn cancelling_after_the_prefix_is_recorded_tells_the_change_landed_as_its_pull_s
     assert!(matches!(world.change(CHANGE).change.state, change::State::Landed { merge, .. } if merge == prefix));
     assert_eq!(world.change(CHANGE).change.landing, None);
     assert_eq!(world.inspect(&raw::Read::Pull { number: pull }), before);
-    assert!(
-        world.take_seen().iter().any(|request| matches!(
-            request,
-            top::Request::LandingNews { task: LANDING, step: top::LandingNews::Landed }
-        ))
-    );
+    assert!(world.take_seen().iter().any(|request| matches!(
+        request,
+        top::Request::LandingNews { task: LANDING, member: 0, step: top::LandingNews::Landed }
+    )));
     assert!(!world.take_calls().iter().any(|op| matches!(op, api::Op::Write(_))));
 }

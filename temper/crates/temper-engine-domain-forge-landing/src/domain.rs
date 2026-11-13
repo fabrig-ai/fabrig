@@ -54,29 +54,106 @@ pub fn leave(mut landing: Landing, change: u64) -> Landing {
     landing
 }
 
-fn leaving(mut landing: Landing, member: u16, why: crate::Leave) -> Stepped {
+// Leaves are committed as a closure before the first notification is emitted.
+fn cascade(landing: &mut Landing, facts: &Facts) {
+    for _pass in 0..landing.members.len() {
+        for index in 0..landing.members.len() {
+            let member = landing.members.get(index).expect("member");
+            if member.left.is_some() || member.landed.is_some() {
+                continue;
+            }
+            let mut why = None;
+            for prior in &landing.members {
+                if prior.left.is_some() && prior.unit == member.unit {
+                    why = Some(crate::Leave::Unit { change: prior.change });
+                    break;
+                }
+            }
+            if why.is_none() {
+                for dependency in &facts.members.get(index).expect("facts").dependencies {
+                    let prior = landing.members.get(usize::from(*dependency)).expect("dependency admitted");
+                    if prior.left.is_some() {
+                        why = Some(crate::Leave::Dependency { change: prior.change });
+                        break;
+                    }
+                }
+            }
+            if let Some(why) = why {
+                landing.members.get_mut(index).expect("member").left = Some(why);
+            }
+        }
+    }
+    for (index, member) in landing.members.iter().enumerate() {
+        if member.left.is_some() && !member.leave_told && member.candidate.is_some() {
+            changed(&mut landing.round, position(index));
+        }
+    }
+}
+
+fn changed(round: &mut crate::Round, member: u16) {
+    round.ending = Some(crate::RoundEnd::Leave);
+    round.changed = Some(match round.changed {
+        Some(prior) => prior.min(member),
+        None => member,
+    });
+}
+
+fn notify_leave(landing: &mut Landing) -> Option<Decision> {
+    for (index, member) in landing.members.iter_mut().enumerate() {
+        if !member.leave_told
+            && let Some(why) = member.left
+        {
+            member.leave_told = true;
+            return Some(Decision::Leave { member: position(index), why });
+        }
+    }
+    None
+}
+
+fn leaving(mut landing: Landing, facts: &Facts, member: u16, why: crate::Leave) -> Stepped {
     landing.members.get_mut(usize::from(member)).expect("member").left = Some(why);
-    landing.round.ending = Some(crate::RoundEnd::Leave);
-    done(landing, Decision::Leave { member, why })
+    cascade(&mut landing, facts);
+    let decision = notify_leave(&mut landing).expect("a new leave");
+    done(landing, decision)
+}
+
+fn active(member: &Member) -> bool {
+    member.left.is_none() && member.landed.is_none()
+}
+
+pub(crate) fn matches_turn(phase: &Phase) -> bool {
+    match phase {
+        Phase::Turn { .. } => true,
+        Phase::Waiting
+        | Phase::Preparing
+        | Phase::Proving
+        | Phase::Proved { .. }
+        | Phase::Landed
+        | Phase::Held { .. }
+        | Phase::Cancelled => false,
+    }
+}
+
+fn top(landing: &Landing) -> Option<u16> {
+    let mut top = None;
+    for (index, member) in landing.members.iter().enumerate() {
+        if active(member) && member.candidate.is_some() {
+            top = Some(position(index));
+        }
+    }
+    top
 }
 
 /// Decide against a coherent snapshot. The top commits the state and its
 /// effect together; effect facts always describe the current preparation/try.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "ordered phase, leave closure, cleanup and freshness decisions")]
 pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, now: Wall) -> Stepped {
     if landing.round.branch.is_empty() {
         return crate::single::step(landing, facts, project, limits, now);
     }
     admitted(landing, facts, limits);
     let mut next = landing.clone();
-    if let Some(ending) = next.round.ending {
-        if ending == crate::RoundEnd::Leave
-            && let Some(decision) = failed_post(&mut next, facts)
-        {
-            return done(next, decision);
-        }
-        return closing(next, facts, ending);
-    }
     match &landing.phase {
         Phase::Landed => return done(next, Decision::Finish),
         Phase::Cancelled => return done(next, Decision::None),
@@ -99,29 +176,66 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
         }
         Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } => {}
     }
-    for (index, (member, fresh)) in next.members.iter().zip(&facts.members).enumerate() {
-        if member.landed.is_some() || member.candidate == Some(fresh.main) {
-            continue;
-        }
-        let why = if let Some(gate) = fresh.refused {
-            Some(crate::Leave::Refused { gate })
-        } else if fresh.cancelled {
-            Some(crate::Leave::Cancelled)
-        } else if member.head.is_some() && member.head != Some(fresh.head) {
-            Some(crate::Leave::HeadMoved { head: fresh.head })
-        } else if fresh.held {
-            Some(crate::Leave::Held)
-        } else {
-            member.left
+    if next.round.ending.is_none() {
+        // A successful turn is read back before heads that its changes may now delete.
+        let readback = match top(&next) {
+            Some(index) => {
+                let member = next.members.get(usize::from(index)).expect("top");
+                let fresh = facts.members.get(usize::from(index)).expect("top facts");
+                match next.phase {
+                    Phase::Turn { .. } => member.candidate == Some(fresh.main),
+                    Phase::Waiting
+                    | Phase::Preparing
+                    | Phase::Proving
+                    | Phase::Proved { .. }
+                    | Phase::Landed
+                    | Phase::Held { .. }
+                    | Phase::Cancelled => false,
+                }
+            }
+            None => false,
         };
-        if let Some(why) = why {
-            return leaving(next, position(index), why);
+        if !readback {
+            for (member, fresh) in next.members.iter_mut().zip(&facts.members) {
+                if !active(member) {
+                    continue;
+                }
+                member.left = if let Some(gate) = fresh.refused {
+                    Some(crate::Leave::Refused { gate })
+                } else if fresh.cancelled {
+                    Some(crate::Leave::Cancelled)
+                } else if member.head.is_some() && member.head != Some(fresh.head) {
+                    Some(crate::Leave::HeadMoved { head: fresh.head })
+                } else if fresh.held {
+                    Some(crate::Leave::Held)
+                } else {
+                    None
+                };
+            }
         }
+    }
+    cascade(&mut next, facts);
+    if let Some(decision) = notify_leave(&mut next) {
+        return done(next, decision);
+    }
+    if let Some(ending) = next.round.ending {
+        if let Some(decision) = failed_post(&mut next, facts) {
+            return done(next, decision);
+        }
+        return closing(next, facts, ending);
+    }
+    let mut remaining = false;
+    for member in &next.members {
+        remaining |= active(member);
+    }
+    if !remaining && !matches_turn(&next.phase) {
+        next.phase = Phase::Landed;
+        return done(next, Decision::Finish);
     }
     match landing.phase {
         Phase::Waiting | Phase::Preparing | Phase::Proving => {
             for (member, fresh) in next.members.iter().zip(&facts.members) {
-                if member.landed.is_none() && !fresh.ready {
+                if active(member) && !fresh.ready {
                     next.phase = Phase::Waiting;
                     if let Some(decision) = failed_post(&mut next, facts) {
                         return done(next, decision);
@@ -166,7 +280,15 @@ fn admitted(landing: &Landing, facts: &Facts, limits: &Limits) {
     }
 }
 
-fn done(landing: Landing, decision: Decision) -> Stepped {
+fn done(mut landing: Landing, decision: Decision) -> Stepped {
+    if landing.members.len() == 1
+        && let Some(member) = landing.members.first()
+    {
+        landing.round.combined = member.combined;
+        landing.round.recorded = member.recorded;
+        landing.round.told = member.told;
+        landing.round.judging = member.judging;
+    }
     Stepped { landing, decision }
 }
 fn wait(landing: Landing, until: Option<Wall>) -> Stepped {
@@ -174,49 +296,85 @@ fn wait(landing: Landing, until: Option<Wall>) -> Stepped {
 }
 
 fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
-    for (index, (member, fresh)) in landing.members.iter_mut().zip(&facts.members).enumerate() {
-        if member.landed.is_some() {
-            continue;
-        }
-        if member.base.is_none() {
-            landing.preparation = landing.preparation.checked_add(1).expect("round fits u16");
+    let mut new_round = false;
+    for (member, fresh) in landing.members.iter_mut().zip(&facts.members) {
+        if active(member) && member.base.is_none() {
+            new_round = true;
             member.head = Some(fresh.head);
             member.base = Some(fresh.main);
         }
-        if member.head != Some(fresh.head) || member.base != Some(fresh.main) {
-            landing.round.ending =
-                Some(if member.head == Some(fresh.head) { crate::RoundEnd::Stale } else { crate::RoundEnd::Leave });
-            return done(landing, Decision::None);
+    }
+    if new_round {
+        landing.preparation = landing.preparation.checked_add(1).expect("round fits u16");
+    }
+    let mut found = false;
+    for (index, (member, fresh)) in landing.members.iter_mut().zip(&facts.members).enumerate() {
+        if !active(member) {
+            continue;
         }
-        if fresh.contained == Status::Passed {
+        if fresh.contained == Status::Passed && member.candidate.is_none() {
             member.landed = Some(fresh.main);
-            landing.round.told = true;
-            landing.phase = Phase::Landed;
+            member.told = true;
             return done(landing, Decision::Landed { member: position(index), prefix: fresh.main });
         }
-        if let Some((candidate, combined)) = fresh.candidate {
+        if member.candidate.is_none()
+            && let Some((candidate, combined)) = fresh.candidate
+        {
             member.candidate = Some(candidate);
-            landing.round.combined = Some(combined);
+            member.combined = Some(combined);
+            found = true;
         }
-        if member.candidate.is_none() {
-            match fresh.preparation {
-                crate::Preparation::Running => return wait(landing, None),
-                crate::Preparation::Conflict => {
-                    return leaving(landing, position(index), crate::Leave::Conflict);
-                }
-                crate::Preparation::Failed => {
-                    let why = Hold::Prepare;
-                    landing.phase = Phase::Held { was: Box::new(landing.phase), why };
-                    return done(landing, Decision::Hold(why));
-                }
-                crate::Preparation::Idle => {
-                    return done(
-                        landing,
-                        Decision::Prepare { member: position(index), head: fresh.head, main: fresh.main },
-                    );
-                }
+    }
+    if found {
+        for member in &mut landing.members {
+            member.asked = None;
+        }
+    }
+    for (index, fresh) in facts.members.iter().enumerate() {
+        if !active(landing.members.get(index).expect("member")) {
+            continue;
+        }
+        let why = match fresh.outcome {
+            Some(crate::Outcome::Conflict) => Some(crate::Leave::Conflict),
+            Some(crate::Outcome::EarlierConflict) => Some(crate::Leave::EarlierConflict),
+            Some(crate::Outcome::Combined) | None => None,
+        };
+        if let Some(why) = why {
+            return leaving(landing, facts, position(index), why);
+        }
+    }
+    let mut from = None;
+    for (index, member) in landing.members.iter().enumerate() {
+        if !active(member) {
+            continue;
+        }
+        from = from.or(member.base);
+        if let Some(candidate) = member.candidate {
+            from = Some(candidate);
+            continue;
+        }
+        let main = from.expect("round base");
+        let head = member.head.expect("round head");
+        match facts.preparation {
+            crate::Preparation::Running => return wait(landing, None),
+            crate::Preparation::Failed if member.asked == Some(landing.preparation) && !found => {
+                let why = Hold::Prepare;
+                landing.phase = Phase::Held { was: Box::new(landing.phase), why };
+                return done(landing, Decision::Hold(why));
+            }
+            crate::Preparation::Conflict => return leaving(landing, facts, position(index), crate::Leave::Conflict),
+            crate::Preparation::Idle | crate::Preparation::Failed => {}
+        }
+        for member in &mut landing.members {
+            if active(member) && member.candidate.is_none() {
+                member.asked = Some(landing.preparation);
             }
         }
+        return done(landing, Decision::Prepare { member: position(index), head, main });
+    }
+    if top(&landing).is_none() {
+        landing.phase = Phase::Landed;
+        return done(landing, Decision::Finish);
     }
     if landing.round.pull.is_none() {
         if let Some(pull) = facts.opened {
@@ -238,33 +396,57 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
     if landing.round.pull.is_some() && facts.closed != Status::Passed {
         return if facts.closed == Status::Pending { wait(landing, None) } else { done(landing, Decision::Close) };
     }
-    if facts.deleted != Status::Passed {
-        return if facts.deleted == Status::Pending { wait(landing, None) } else { done(landing, Decision::Delete) };
+    let first = match ending {
+        crate::RoundEnd::Stale => 0,
+        crate::RoundEnd::Leave | crate::RoundEnd::Conflict => landing.round.changed.unwrap_or(0),
+    };
+    for (index, (member, fresh)) in landing.members.iter().zip(&facts.members).enumerate() {
+        if index < usize::from(first) || member.candidate.is_none() {
+            continue;
+        }
+        if fresh.deleted != Status::Passed {
+            return if fresh.deleted == Status::Pending {
+                wait(landing, None)
+            } else {
+                done(landing, Decision::Delete { member: position(index) })
+            };
+        }
     }
     landing.round.pull = None;
-    landing.round.combined = None;
     landing.round.ending = None;
+    landing.round.changed = None;
+    for member in landing.members.get_mut(usize::from(first)..).expect("changed member") {
+        member.base = None;
+        member.candidate = None;
+        member.combined = None;
+        member.asked = None;
+        member.judging = false;
+        for gate in &mut member.gates {
+            *gate = GateProof { proof: Proof::Unkeyed, posted: Posted::Nothing, faults: 0 };
+        }
+    }
+    landing.phase = Phase::Preparing;
     match ending {
         crate::RoundEnd::Stale => {
             landing.stale_proofs = landing.stale_proofs.checked_add(1).expect("stale count fits");
-            landing.phase = Phase::Preparing;
-            landing.round.judging = false;
-            for member in &mut landing.members {
-                member.base = None;
-                member.candidate = None;
-                member.asked = None;
-                for gate in &mut member.gates {
-                    *gate = GateProof { proof: Proof::Unkeyed, posted: Posted::Nothing, faults: 0 };
-                }
-            }
             done(landing, Decision::Stale)
         }
-        crate::RoundEnd::Conflict => {
-            let base = landing.members.first().expect("one member").base.expect("round base");
-            landing.phase = Phase::Landed;
-            done(landing, Decision::Resolve { member: 0, base })
-        }
-        crate::RoundEnd::Leave => {
+        crate::RoundEnd::Leave | crate::RoundEnd::Conflict => {
+            let mut remaining = false;
+            let mut missing = false;
+            for member in &landing.members {
+                if active(member) {
+                    remaining = true;
+                    missing |= member.base.is_none();
+                }
+            }
+            if remaining {
+                // A kept top opens another round without initializing any new member.
+                if !missing {
+                    landing.preparation = landing.preparation.checked_add(1).expect("round fits u16");
+                }
+                return done(landing, Decision::None);
+            }
             landing.phase = Phase::Landed;
             done(landing, Decision::Finish)
         }
@@ -307,19 +489,21 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
     let mut blocked = false;
     let mut poll = false;
     for (index, fresh) in facts.members.iter().enumerate() {
-        if let Some(gate) = fresh.refused {
-            return leaving(landing, position(index), crate::Leave::Refused { gate });
+        let member = landing.members.get_mut(index).expect("member");
+        if !active(member) {
+            continue;
         }
         if fresh.judgement != Status::Passed {
             blocked = true;
-            if !landing.round.judging {
-                landing.round.judging = true;
+            if !member.judging {
+                member.judging = true;
                 return done(landing, Decision::Judge { member: position(index) });
             }
         }
     }
+    let top = top(&landing).expect("proving has a top");
     for (index, (member, fresh)) in landing.members.iter_mut().zip(&facts.members).enumerate() {
-        if member.landed.is_some() {
+        if position(index) != top {
             continue;
         }
         let candidate = member.candidate.expect("proving has every candidate");
@@ -352,7 +536,7 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
                         .get(usize::from(gate))
                         .expect("gate")
                         .run;
-                    return leaving(landing, member, crate::Leave::Failed { gate, run });
+                    return red(landing, facts, gate, run);
                 }
                 Decision::Prepare { .. }
                 | Decision::Leave { .. }
@@ -364,7 +548,7 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
                 | Decision::Cancel
                 | Decision::Open
                 | Decision::Close
-                | Decision::Delete
+                | Decision::Delete { .. }
                 | Decision::Record { .. }
                 | Decision::Landed { .. }
                 | Decision::Resolve { .. } => unreachable!("gate decisions only"),
@@ -481,16 +665,63 @@ fn gate_step(
     }
 }
 
+fn red(mut landing: Landing, facts: &Facts, gate: u16, run: u64) -> Stepped {
+    let mut units = skein_lib::Set::with_capacity(u32::try_from(landing.members.len()).expect("members admitted"));
+    for member in &landing.members {
+        if active(member) {
+            units.insert(member.unit).expect("unit room");
+        }
+    }
+    let top = top(&landing).expect("red has a top");
+    let candidate = landing.members.get(usize::from(top)).expect("top").candidate.expect("top prefix");
+    let why = if units.len() == 1 {
+        crate::Leave::Failed { gate, run }
+    } else {
+        crate::Leave::Fallback { units: u16::try_from(units.len()).expect("units admitted"), top: candidate }
+    };
+    for member in &mut landing.members {
+        if active(member) {
+            member.left = Some(why);
+        }
+    }
+    cascade(&mut landing, facts);
+    let decision = notify_leave(&mut landing).expect("red leaves members");
+    done(landing, decision)
+}
+
 fn turn(mut landing: Landing, facts: &Facts) -> Stepped {
-    for (index, (member, fresh)) in landing.members.iter_mut().zip(&facts.members).enumerate() {
+    let top = top(&landing);
+    if let Some(top) = top {
+        let member = landing.members.get(usize::from(top)).expect("top");
+        let fresh = facts.members.get(usize::from(top)).expect("top facts");
         let candidate = member.candidate.expect("proved candidate");
         if fresh.main == candidate {
-            member.landed = Some(candidate);
+            for member in &mut landing.members {
+                if active(member) {
+                    member.landed = member.candidate;
+                }
+            }
+        } else {
+            if member.base != Some(fresh.main) {
+                landing.round.ending = Some(crate::RoundEnd::Stale);
+                landing.round.changed = Some(0);
+                return done(landing, Decision::None);
+            }
+            return match fresh.merge {
+                Status::Unknown => done(landing, Decision::Merge { member: top, candidate }),
+                Status::Pending | Status::Passed => wait(landing, None),
+                Status::Failed => {
+                    landing.phase = Phase::Held { was: Box::new(landing.phase), why: Hold::Turn };
+                    done(landing, Decision::Hold(Hold::Turn))
+                }
+            };
         }
+    }
+    for (index, (member, fresh)) in landing.members.iter_mut().zip(&facts.members).enumerate() {
         if let Some(prefix) = member.landed {
-            if landing.round.combined == Some(crate::Combine::Squash) && !landing.round.recorded {
+            if member.combined == Some(crate::Combine::Squash) && !member.recorded {
                 match fresh.record {
-                    Status::Passed => landing.round.recorded = true,
+                    Status::Passed => member.recorded = true,
                     Status::Unknown => return done(landing, Decision::Record { member: position(index), prefix }),
                     Status::Pending => return wait(landing, None),
                     Status::Failed => {
@@ -500,26 +731,11 @@ fn turn(mut landing: Landing, facts: &Facts) -> Stepped {
                     }
                 }
             }
-            if !landing.round.told {
-                landing.round.told = true;
+            if !member.told {
+                member.told = true;
                 return done(landing, Decision::Landed { member: position(index), prefix });
             }
-            continue;
         }
-        if member.head == Some(fresh.head) && member.base == Some(fresh.main) && fresh.merge == Status::Failed {
-            landing.phase = Phase::Held { was: Box::new(landing.phase), why: Hold::Turn };
-            return done(landing, Decision::Hold(Hold::Turn));
-        }
-        if member.head != Some(fresh.head) || member.base != Some(fresh.main) {
-            landing.round.ending =
-                Some(if member.head == Some(fresh.head) { crate::RoundEnd::Stale } else { crate::RoundEnd::Leave });
-            return done(landing, Decision::None);
-        }
-        return match fresh.merge {
-            Status::Unknown => done(landing, Decision::Merge { member: position(index), candidate }),
-            Status::Pending | Status::Passed => wait(landing, None),
-            Status::Failed => unreachable!("refused merges ended above"),
-        };
     }
     landing.phase = Phase::Landed;
     done(landing, Decision::Finish)

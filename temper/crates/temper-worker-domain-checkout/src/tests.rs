@@ -205,6 +205,7 @@ fn bytes(text: &[u8]) -> Box<[u8]> {
 fn repository(name: &[u8], writable: bool) -> Repository {
     let push = if writable { Some(bytes(b"main")) } else { None };
     Repository {
+        prefixes: Box::new([]),
         save: Some(bytes(b"saved/1")),
         git: None,
         name: bytes(name),

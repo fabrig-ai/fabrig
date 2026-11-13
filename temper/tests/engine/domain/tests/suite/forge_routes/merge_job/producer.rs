@@ -292,7 +292,7 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
         request["members"][0]["head"],
         String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("head text")
     );
-    let conflict = format!("{{\"conflict\":{{\"member\":{task},\"with\":\"branch\",\"files\":[\"file\"]}}}}");
+    let conflict = r#"{"conflicts":[{"member":1,"with":"branch","files":["file"],"cut":false}]}"#;
     finish_job(&mut world, &job, conflict.as_bytes());
     let resolution = super::super::reviews::next_assignment(&mut world, 3);
     assert!(

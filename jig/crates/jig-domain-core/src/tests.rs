@@ -3926,7 +3926,7 @@ pub(crate) fn settle_fleet(domain: &mut fleet::Domain, env: &Env<fleet::Limits>)
             return;
         }
         let mut out = Queue::uncapped();
-        fleet::resume(domain, env, &mut out);
+        fleet::resume(domain, env, true, &mut out);
         assert!(out.is_empty(), "fixture fleet pass must be empty: {out:?}");
     }
     assert!(!domain.is_ready(), "fixture fleet readiness settles within four passes");

@@ -133,6 +133,7 @@ pub struct Domain {
     pub(crate) store_answers: Queue<Event>,
     pub(crate) call_renders: Map<Token, host_route::Flight>,
     pub(crate) work: Queue<Work>,
+    pub(crate) openings: Queue<crate::WorkerOpening>,
     pub(crate) facts: Queue<Fact>,
     pub(crate) run_diagnostics: RunDiagnostics,
     pub(crate) facts_lost: u64,
@@ -543,6 +544,7 @@ impl Domain {
             door_pass: false,
             catalogue_pending: false,
             pending_now: 0,
+            openings: Queue::uncapped(),
             door_count: 0,
             startup_range: None,
             start_wall: None,
@@ -730,6 +732,7 @@ impl Domain {
             && self.core.quiescent(self.journal.idle())
             && self.loads.quiescent()
             && self.work.is_empty()
+            && self.openings.is_empty()
             && self.assignment_parts.is_empty()
             && self.job_workspaces.is_empty()
             && self.hub_link.payload_count() == 0
@@ -1112,6 +1115,17 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         close(domain, env, decision, out);
         return;
     }
+    // Wires' continuation only enters runtime after its commit is durable.
+    // One queued opening makes one decision, never joined to another opening or start.
+    if domain.start_runtime()
+        && !domain.core.stopping()
+        && let Some(opening) = domain.openings.pop()
+    {
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        save(&mut decision, &env.limits, Write::Opening(opening));
+        close(domain, env, decision, out);
+        return;
+    }
     if backlog(domain) >= u64::from(env.limits.watermark) {
         return;
     }
@@ -1149,7 +1163,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             close(domain, env, decision, out);
             return;
         }
-        if !domain.core.fleet.is_ready() && !domain.core.finish_owed() {
+        if !domain.core.fleet.ready_to_resume(!domain.core.settling()) && !domain.core.finish_owed() {
             let due = match domain.next_deadline(env) {
                 Some(deadline) => deadline <= env.now,
                 None => false,
@@ -1214,6 +1228,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     route_into(domain, env, &mut decision);
     if domain.ready() {
         if !domain.core.stopping()
+            && !domain.core.settling()
             && let Some(next) = domain.trials.next_due()
             && next <= env.wall
         {
@@ -1221,16 +1236,19 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
             route_into(domain, env, &mut decision);
         }
         if !domain.core.stopping()
+            && !domain.core.settling()
             && let Some(next) = domain.calendar.next_start()
             && next <= env.wall
         {
             crate::route::calendar::route(domain, env, calendar::Event::Due, None);
             route_into(domain, env, &mut decision);
         }
-        let routed =
-            jig_domain_core::step(&mut domain.core, &environment_core(env), jig_domain_core::Event::EffectDeadline);
-        route_core_requests(domain, env, &mut decision, routed);
-        route_into(domain, env, &mut decision);
+        if !domain.core.settling() {
+            let routed =
+                jig_domain_core::step(&mut domain.core, &environment_core(env), jig_domain_core::Event::EffectDeadline);
+            route_core_requests(domain, env, &mut decision, routed);
+            route_into(domain, env, &mut decision);
+        }
     }
     close(domain, env, decision, out);
 }

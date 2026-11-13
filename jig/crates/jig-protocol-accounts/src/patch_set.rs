@@ -20,6 +20,14 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            name: "jig-store-openings",
+            texts: patches::kept::jig_store_openings::TEXTS,
+            map: KeptMap::Store,
+            keys: &[Keys { from: &[0, 5], to: &[0, 6], root: "WorkerOpening" }],
+            frames: None,
+            flights: &[],
+        },
+        KeptFamily {
             name: "jig-store-core",
             texts: patches::kept::jig_store_core::TEXTS,
             map: KeptMap::Store,

@@ -491,7 +491,7 @@ impl Referee {
                                     at: skein_lib::Wall::EPOCH, choice: choice(decision),
                                 }))
                     }
-                    Write::DropTranscript { .. } | Write::Wires | Write::CopySettingsRevision(_) | Write::Save(_) | Write::Erase(_) => false,
+                    Write::DropTranscript { .. } | Write::Opening(_) | Write::Wires | Write::CopySettingsRevision(_) | Write::Save(_) | Write::Erase(_) => false,
                 });
                 if !atomic {
                     return Err("archive semantic change and keyed outcome are not one transaction");

@@ -102,10 +102,13 @@ pub use follows::{
     FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
     FollowSkip, FollowState, FollowVerdict, followed,
 };
+mod forming;
+pub use forming::{Selection, WaitingUnit, select_units};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod landing;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod landing_log;
+pub mod preparation;
 pub use landing_log::LOGGED_TITLE_BYTES;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::limits;

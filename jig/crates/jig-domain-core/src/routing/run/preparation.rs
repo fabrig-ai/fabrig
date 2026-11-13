@@ -663,7 +663,7 @@ pub(crate) fn route_activate(
     if core.tasks.task(number).expect("current activation").phase != tasks::Phase::Active(tasks::Active::Due) {
         return out;
     }
-    if !ready || !core.start_opened() || core.start_stopped() {
+    if core.settling || !ready || !core.start_opened() || core.start_stopped() {
         remember_due(core, context);
     } else if core.tasks.recurring_template(number).is_none() {
         match context.executor {

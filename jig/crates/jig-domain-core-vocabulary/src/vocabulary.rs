@@ -640,6 +640,8 @@ pub enum Event {
     Fill { bytes: u64 },
     /// Refuse new decisions while the service drains (domain/engine/restart.md, 1).
     Stopping,
+    /// Place nothing while taking every commit (domain/engine/restart.md, 1).
+    Settling,
     /// A connector's state change names its opaque subjects in this decision.
     Marked { connector: u16, subjects: List<Token> },
     /// Exactly one terminal for a previously admitted read load.
@@ -1122,6 +1124,7 @@ impl Event {
             | Self::NamedAction { .. } => true,
             Self::SettingsCommit { .. }
             | Self::Fill { .. }
+            | Self::Settling
             | Self::Stopping
             | Self::Marked { .. }
             | Self::ReadLoaded { .. }

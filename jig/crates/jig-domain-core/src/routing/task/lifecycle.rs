@@ -195,7 +195,7 @@ pub(crate) fn release(
 }
 
 pub(crate) fn activate(core: &mut Core, context: Box<tasks::RunContext>, out: &mut Queue<Request>) {
-    if core.pending_note_briefs.get(&context.task) == Some(&crate::routing::NoteBrief::Activation) {
+    if core.settling || core.pending_note_briefs.get(&context.task) == Some(&crate::routing::NoteBrief::Activation) {
         let _pending = core.pending_note_briefs.remove(&context.task);
         crate::routing::children::remember_due(core, context);
         return;

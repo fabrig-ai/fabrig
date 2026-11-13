@@ -713,17 +713,25 @@ from its restore on.
 A stop settles first (`../draft/upgrades.md`, section 8), then the core
 drains as jig's `domain/engine/restart.md`, 1 says.
 
-- **Settling.** Told to stop, the root tells the forge to settle
-  (forge/README.md, section 4) and holds the core's stop until the forge says
-  it has. Meanwhile:
+- **Settling.** Told to stop, the root tells the core it settles
+  (jig's `domain/engine/restart.md`, 1, *Settling before the stop*),
+  then tells the forge to settle (forge/README.md, section 4), and holds
+  the core's stop until the forge says it has. The service routes the
+  root's stop before anything else it would hand the root once told, so
+  that nothing is decided between the signal and the settling. Meanwhile:
   - the forge starts no write and retries none: what it was told to
     make stays in its outbox, durable, for the next start;
   - the writes it sent before finish as ever, each with its answer
     and, for a review, a merge or an update, the read that proves it,
     and each outcome commits as any outcome does;
-  - the root activates no due task, so no run is placed and no
-    procedure steps, and answers every run's call busy, since a call may
-    start an effect: its host sends it again, to the next engine;
+  - the root activates no due task and the core places nothing, so no
+    run or job is placed, not even where a worker's slot frees, and no
+    procedure steps, jig's or the forge's own (a change's step, a
+    closer's): what would have stepped is decided afresh at the next
+    start (8.1). The root answers every run's call busy, since a call
+    may start an effect: its host sends it again, to the next engine;
+  - workers' links stay up, so their grace has not begun
+    (jig's `domain/hosts/hub.md`, 6), and the runs they host go on;
   - workers' turns and answers, and the commits they make, go on; the
     listeners already refuse new openings and parties' requests
     (jig's `protocol/service.md`, section 5).

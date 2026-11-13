@@ -61,7 +61,7 @@ fn hosted() -> Domain {
     assert_eq!(step(&mut domain, start).len(), 0);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
     let mut out = Queue::uncapped();
-    fleet::resume(&mut domain, &env, &mut out);
+    fleet::resume(&mut domain, &env, true, &mut out);
     assert!(matches!(out.pop(), Some(Request::Assign { channel: WORKER, .. })));
     assert!(matches!(out.pop(), Some(Request::Placed { .. })));
     domain.reclaim();

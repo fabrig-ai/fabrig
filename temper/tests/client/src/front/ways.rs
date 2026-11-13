@@ -63,7 +63,7 @@ fn configured(
     let mut config = kinds::configuration(&engine_limits);
     config.core.seed = seed;
     config.core.connectors = Box::new([fixtures::FORGE]);
-    config.core.kinds = temper_engine_service::stock::kinds(&engine_limits, fixtures::FORGE);
+    config.core.kinds = temper_engine_service_stock::stock::kinds(&engine_limits, fixtures::FORGE);
     let models = config
         .core
         .settings
@@ -82,7 +82,7 @@ fn configured(
             estimated: false,
         })
         .collect();
-    let stock = temper_engine_service::stock::with_models(models, engine_limits.tasks.result_bytes);
+    let stock = temper_engine_service_stock::stock::with_models(models, engine_limits.tasks.result_bytes);
     let mut templates = config.core.defaults.templates.into_vec();
     templates.push(stock.templates.iter().find(|template| template.number == 4).expect("stock draft goal").clone());
     config.core.defaults.templates = templates.into_boxed_slice();
@@ -205,6 +205,7 @@ fn configured(
                         1,
                         engine::ProjectLanding {
                             gate_retries: 2,
+                            batch: 1,
                             combine_main: engine::Combine::Merge,
                             combine_other: engine::Combine::Squash,
                             gate_timeout: skein_lib::Duration::from_millis(3_600_000),

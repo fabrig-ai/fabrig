@@ -257,7 +257,8 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
 
 fn worker_completes(worker: &WorkerInput) -> bool {
     match worker {
-        WorkerInput::DecodedHostCall { .. }
+        WorkerInput::Opened { .. }
+        | WorkerInput::DecodedHostCall { .. }
         | WorkerInput::RenderedHostCall { .. }
         | WorkerInput::ResultRead { .. }
         | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost | Link::Mismatch, .. } => true,

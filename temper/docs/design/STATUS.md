@@ -5,7 +5,13 @@ the engine, its workers, their agents and the clients move their
 versions with their layouts, stated and checked at the channel's
 opening; each build speaks each wire from its floor, and jig's channel
 translates between the versions an engine and a worker share by each
-wire's bridge (`protocol/wires.md`; `draft/redeploys.md`, R1 and R4). Remaining work spans
+wire's bridge (`protocol/wires.md`; `draft/redeploys.md`, R1 and R4). The engine restarts
+alone, its workers keeping their runs: its stop settles placing
+nothing, the workers' grace covers a start that patches, with the
+engine's grace above their stop bound, and `upgrade --check` names
+each worker that may stay by the opening the engine kept of it
+(`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
+Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
@@ -77,6 +83,16 @@ name the box's values, and a recipe's `forge` lines commit files it
 holds, with no credential named. Its passes follow landing
 (`testing/qa/README.md`; `testing/qa/setups.md`;
 `draft/landed-qa.status.md`).
+
+The merge queue's milestones M1 and M2, goals 683 and 2175, make
+landing by `turn` a merge queue (`domain/landing.md`): a train per
+repository and branch, one landing at a time on each, a batch of
+waiting units up to the project's `batch`, stacked by the worker's
+merge train with a branch per member, proved once at the top, and
+landed by one fast-forward of the landing's own pull request; a red
+round of several units falls back to one unit at a time until M3's
+search by prefixes. Its process story and staging walks follow landing
+(`draft/merge-queue.status.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a

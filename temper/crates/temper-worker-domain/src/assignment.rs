@@ -78,6 +78,17 @@ fn repository(repository: &Repository, limits: &Limits) -> Result<(), &'static [
     }
     match &repository.access {
         Access::ReadOnly => Ok(()),
+        Access::Prefixes { branches } => {
+            if branches.is_empty() || branches.len() > 5 {
+                return Err(b"prefix branches");
+            }
+            for branch in branches {
+                if !name(branch, limits) {
+                    return Err(b"prefix branch");
+                }
+            }
+            Ok(())
+        }
         Access::Writable { push, landing, .. } => {
             if let Some(branch) = landing
                 && !name(branch, limits)
@@ -104,4 +115,15 @@ fn component(name: &[u8]) -> bool {
 /// The length of `bytes`.
 pub(crate) fn len(bytes: &[u8]) -> u64 {
     skein_lib::len_u64(bytes.len())
+}
+
+/// Prefix access belongs only to temper's built prepare job.
+pub(crate) fn has_prefixes(items: &Workspace) -> bool {
+    for repository in &items.repositories {
+        match repository.access {
+            Access::Prefixes { .. } => return true,
+            Access::ReadOnly | Access::Writable { .. } => {}
+        }
+    }
+    false
 }

@@ -29,6 +29,7 @@ pub(crate) enum Refusal {
     FrameTooLarge { task: u64, bytes: u32, limit: u32 },
 }
 
+#[expect(clippy::too_many_lines, reason = "one ordered translation of root writes, including atomic opening erases")]
 pub(crate) fn operations(
     store: &mut Store,
     number: u64,
@@ -38,7 +39,9 @@ pub(crate) fn operations(
     if writes.len() > usize::try_from(store.limits.commits.writes).ok().ok_or(Refusal::Failed)? {
         return Err(Refusal::Failed);
     }
-    let capacity = most_ops(store.limits.commits.writes, store.limits.orphan_erases).ok_or(Refusal::Failed)?;
+    // Wires can erase every opening as well as the root's writes.
+    let base = most_ops(store.limits.commits.writes, store.limits.orphan_erases).ok_or(Refusal::Failed)?;
+    let capacity = base.checked_add(store.limits.store.ops).ok_or(Refusal::Failed)?;
     let mut ops = List::with_capacity(capacity);
     let mut frames = Queue::uncapped();
     let mut drops = Queue::uncapped();
@@ -51,6 +54,7 @@ pub(crate) fn operations(
                 if crate::patching::switch::pending(store) {
                     return Err(Refusal::Failed);
                 }
+                crate::openings::clear(store, &mut ops).ok_or(Refusal::Failed)?;
                 wires = true;
                 ops.push(operation(store, Write::Wires).ok_or(Refusal::Failed)?).ok().ok_or(Refusal::Failed)?;
             }
@@ -94,6 +98,7 @@ pub(crate) fn operations(
                 | Record::Notes(_)
                 | Record::Accounts(_),
             )
+            | Write::Opening(_)
             | Write::Copy { .. }
             | Write::Erase(_)
             | Write::Put { .. }
@@ -143,6 +148,12 @@ fn operation(store: &mut Store, write: Write) -> Option<skein_kv::Op> {
             key: keys::encode_own(&keys::Own::Wires, limit)?,
             value: codec::component::wires(store.wires),
         }),
+        Write::Opening(opening) => {
+            let key = keys::encode_own(&keys::Own::Opening(opening.worker.clone()), limit)?;
+            let value = codec::openings::encode(opening)?;
+            store.opening_keys.insert(key.clone(), ()).ok()?;
+            Some(skein_kv::Op::Put { key, value })
+        }
         Write::Copy { from, to } => copy(store, from, to),
         Write::Save(record) => Some(skein_kv::Op::Put {
             key: keys::encode(&record.key(), limit)?,
@@ -178,6 +189,7 @@ fn header_id(write: &Write) -> Option<[u8; 16]> {
         )
         | Write::Copy { .. }
         | Write::Wires
+        | Write::Opening(_)
         | Write::Erase(_)
         | Write::Put { .. }
         | Write::Remove { .. }

@@ -71,6 +71,13 @@ merged into main brought, each key once. Each is dropped once fixed.
 - lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
 - lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
 - lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
+- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
+
+- lint temper-engine-domain-world clippy::similar_names temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/role.rs
+- lint temper-engine-domain-world clippy::large_types_passed_by_value temper/tests/engine/domain/tests/suite/forge_routes/catch_up.rs
+- lint temper-engine-domain-world clippy::assert_is_empty temper/tests/engine/domain/tests/suite/forge_routes/squash_in.rs
+- lint temper-engine-domain-world clippy::assert_is_empty temper/tests/engine/domain/tests/suite/forge_routes/red_findings/follows.rs
+- lint temper-engine-domain-world clippy::unwrap_used temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/tool.rs
 
 Inherited from goal 1705 at this merge, 2026-11-13:
 
@@ -87,3 +94,7 @@ checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
+
+Confirmed outside the settled-stop change, from goal 2288's graces, 2026-11-13:
+
+- test jig-channel-world::suite channel::a_link_cut_mid_frame_redials_and_each_turn_reaches_the_engine_once

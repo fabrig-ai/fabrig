@@ -188,8 +188,8 @@ If not: 502: engine down or listening elsewhere; read its journal.
   path of its `agent.json`, and `agent.arguments`: a one-element list
   of that same path. Unit as step 3's, with
   `KillMode=control-group` so no agent or command outlives the worker,
-  and `TimeoutStopSec=240s`: above its 186-second stop bound with a
-  54-second margin. Raising the worker's bound raises this timeout too.
+  and `TimeoutStopSec=360s`: above its 326-second stop bound with a
+  34-second margin. Raising the worker's bound raises this timeout too.
   `ReadWritePaths` its own home: without `PrivateTmp=yes` a Claude Code
   run fails `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
   `agent.json`'s `environment` is a list of entries,

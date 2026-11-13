@@ -565,7 +565,7 @@ pub fn root() -> (engine::Domain, Env<engine::Limits>) {
     let (mut root, env) = root_with_config(config(7));
     // Settle the startup placement probe before tests measure empty runtime resumes.
     let mut out = skein_lib::Queue::uncapped();
-    fleet::resume(&mut root.core.fleet, &env.with(env.limits.fleet), &mut out);
+    fleet::resume(&mut root.core.fleet, &env.with(env.limits.fleet), true, &mut out);
     assert!(out.is_empty(), "the fixture restores no claims or workers");
     (root, env)
 }
@@ -696,7 +696,7 @@ impl StartStore {
     pub fn apply(&mut self, writes: &[engine::Write]) {
         for write in writes {
             match write {
-                engine::Write::DropTranscript { .. } => {}
+                engine::Write::Opening(_) | engine::Write::DropTranscript { .. } => {}
                 engine::Write::Wires => self.wires = self.wires.checked_add(1).unwrap(),
                 engine::Write::Save(row) => {
                     self.rows.insert(row.key(), row.clone());

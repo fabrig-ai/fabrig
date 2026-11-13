@@ -15,8 +15,7 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
 
-- **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`; a stack of
-  members in one repository, whose second member a later landing takes
+- **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
   prepare and key commands, as jobs (`worker/jobs.md`). 6.2: the baseline
   at main's tip; a failed receipt rerun first when its tests match open

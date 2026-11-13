@@ -852,21 +852,22 @@ fn a_settings_file_changes_a_projects_questions_and_a_change_takes_them() {
     let c::SettingEdit::Set(set) = &item.edit else { panic!("set questions") };
     let c::SettingValue::Application(bytes) = &set.value else { panic!("questions bytes") };
     let against = kinds::revision(&world.store.rows);
-    let input = temper_engine_service::clients::translation::to_root(jig_domain_core::Event::ChangeSettings {
-        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(94)),
-        sign_in: world.signed_in.expect("owner"),
-        key: [94; 16],
-        digest: [94; 32],
-        change: Box::new(settings::Change {
-            against,
-            running: settings::Running::Stays,
-            items: Box::new([settings::Item {
-                setting: settings::Setting::Application { kind, scope, number },
-                edit: settings::Edit::Set(settings::Value::Application(bytes.clone())),
-            }]),
-        }),
-    })
-    .expect("client entrance");
+    let input =
+        temper_engine_service_vocabulary::clients::translation::to_root(jig_domain_core::Event::ChangeSettings {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(94)),
+            sign_in: world.signed_in.expect("owner"),
+            key: [94; 16],
+            digest: [94; 32],
+            change: Box::new(settings::Change {
+                against,
+                running: settings::Running::Stays,
+                items: Box::new([settings::Item {
+                    setting: settings::Setting::Application { kind, scope, number },
+                    edit: settings::Edit::Set(settings::Value::Application(bytes.clone())),
+                }]),
+            }),
+        })
+        .expect("client entrance");
     world.send(engine::Event::Party(input));
     world.until(Until::Ready);
     assert_eq!(kinds::revision(&world.store.rows), against + 1, "{:?}", world.web_replies);

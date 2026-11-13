@@ -82,7 +82,8 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                 },
             ..
         } => true,
-        WorkerInput::ResultRead { .. }
+        WorkerInput::Opened { .. }
+        | WorkerInput::ResultRead { .. }
         | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost | Link::Mismatch, .. }
         | WorkerInput::Link {
             link:

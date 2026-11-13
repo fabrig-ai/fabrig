@@ -1902,6 +1902,7 @@ pub(crate) fn workspace_repository(
         forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
     };
     Some(ForgeRepository {
+        prefixes: Box::new([]),
         delivers: item.delivers && push.is_some(),
         save: if push.is_some() { Some(save) } else { None },
         tag: forge::tag(item.provider.forge, item.provider.repository),
@@ -1930,20 +1931,29 @@ pub(crate) fn claimed_writes(
     let mut designs = List::with_capacity(env.limits.forge.resources_per_task);
     let mut holders = List::with_capacity(env.limits.forge.resources_per_task);
     for repository in &workspace.repositories {
-        let Some(push) = &repository.push else { continue };
-        let name = forge::Name {
-            forge: repository.provider.forge,
-            repository: repository.provider.repository,
-            what: branch_what(push, env.limits.forge.name_bytes)?,
-        };
-        let holder = domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &env.limits.tasks)?)?;
-        if holder != task {
-            holders.push(holder).ok()?;
+        let mut branches = List::with_capacity(env.limits.forge.resources_per_task);
+        if let Some(push) = &repository.push {
+            branches.push(push.clone()).ok()?;
         }
-        if repository.landing.as_ref() == repository.push.as_ref() {
-            designs.push(name).ok()?;
-        } else {
-            writes.push(name).ok()?;
+        for prefix in &repository.prefixes {
+            branches.push(prefix.clone()).ok()?;
+        }
+        for push in &branches {
+            let name = forge::Name {
+                forge: repository.provider.forge,
+                repository: repository.provider.repository,
+                what: branch_what(push, env.limits.forge.name_bytes)?,
+            };
+            let holder =
+                domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &env.limits.tasks)?)?;
+            if holder != task {
+                holders.push(holder).ok()?;
+            }
+            if repository.landing.as_ref() == Some(push) {
+                designs.push(name).ok()?;
+            } else {
+                writes.push(name).ok()?;
+            }
         }
     }
     Some((writes.into_boxed(), designs.into_boxed(), holders.into_boxed()))
@@ -2559,6 +2569,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                     ready_since: None,
                     owns_turn: false,
                     last_head: None,
+                    alone: false,
                 },
                 pull: None,
                 pending: None,
@@ -4706,7 +4717,7 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
                 && row.waiting_on.contains(&dependency)
                 && let tasks::Phase::Active(_) = row.phase
             {
-                if domain.core.tasks.procedure_due(task).is_some() {
+                if !domain.core.settling() && domain.core.tasks.procedure_due(task).is_some() {
                     // An idle-only wake cannot refresh a step already reading its facts.
                     let repository = change.repository;
                     let base = change.base.clone();
@@ -4925,7 +4936,8 @@ pub(crate) fn outputs(
                 // A restored change also repairs names saved before its pull was known.
                 if let Some(row) = domain.forge.change(task).cloned() {
                     watch_change(domain, env, &row);
-                    if forge_change::held_on_ci(&row.change.state)
+                    if !domain.core.settling()
+                        && forge_change::held_on_ci(&row.change.state)
                         && let Some(record) = domain.core.tasks.task(task)
                         && own_hold(record)
                         && let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow)
@@ -5099,7 +5111,7 @@ pub(crate) fn outputs(
                     }
                 }
             }
-            forge::Request::LandingNews { task, step } => landing_route::tell(domain, env, task, step),
+            forge::Request::LandingNews { task, member, step } => landing_route::tell(domain, env, task, member, step),
             forge::Request::FileRedFinding { task, follow, mut finding } => {
                 if let Some(follow) = follow {
                     finding.area = super::findings::follow_area(domain, finding.project, follow);
@@ -5397,15 +5409,7 @@ pub(crate) fn outputs(
                             .forge_effects
                             .insert(
                                 owner,
-                                EffectFlight::Landing {
-                                    description: Box::new(description),
-                                    entry,
-                                    task,
-                                    evidence: match evidence {
-                                        Some(evidence) => Some(Box::new(evidence)),
-                                        None => None,
-                                    },
-                                },
+                                EffectFlight::Landing { description: Box::new(description), entry, task, evidence },
                             )
                             .expect("bounded landing effect handoff");
                         domain.work.push(Work::Core(jig_domain_core::Event::EffectStart {
@@ -5573,7 +5577,7 @@ pub(crate) enum EffectFlight {
         description: Box<EffectDescription>,
         entry: u64,
         task: u64,
-        evidence: Option<Box<forge::LandingEvidence>>,
+        evidence: Option<Box<[forge::LandingEvidence]>>,
     },
     Tier {
         description: Box<EffectDescription>,
@@ -5862,7 +5866,16 @@ pub(crate) fn effect_ask(
                     if description.effect.kind == 4
                         && let Some(evidence) = evidence
                     {
-                        keep_sign_offs(domain, env, task, evidence.change, description.effect.state, &evidence.facts);
+                        for evidence in evidence {
+                            keep_sign_offs(
+                                domain,
+                                env,
+                                task,
+                                evidence.change,
+                                evidence.facts.head.expect("prefix evidence"),
+                                &evidence.facts,
+                            );
+                        }
                     }
                 }
                 Some(EffectFlight::Tier { entry: kept, .. }) => {
@@ -6024,13 +6037,15 @@ fn drop_landing(
     env: &Env<Limits>,
     entry: u64,
     task: u64,
-    evidence: Option<Box<forge::LandingEvidence>>,
+    evidence: Option<Box<[forge::LandingEvidence]>>,
     answer: authority::Answer,
 ) {
     domain.work.push(Work::Forge(forge::Event::VetoLanding { task, entry }));
     if answer == authority::Answer::Wait {
         if let Some(evidence) = evidence {
-            retain_review_wait(domain, env, evidence.change, &evidence.facts);
+            for evidence in evidence {
+                retain_review_wait(domain, env, evidence.change, &evidence.facts);
+            }
         }
         domain.forge.wait_landing(&super::environment_forge(env), task, None);
     } else {
@@ -6119,33 +6134,40 @@ fn judge_effect(
             (verdict, guarded)
         }
         Some(EffectFlight::Landing { task, evidence: Some(evidence), description, .. }) => {
-            let Some(row) = domain.forge.change(evidence.change) else { return (authority::Verdict::Refuse, false) };
-            let Some(repository) = domain.forge.repository(row.repository) else {
+            let mut verdict = authority::Verdict::Met;
+            let mut guarded = true;
+            if evidence.is_empty() {
                 return (authority::Verdict::Refuse, false);
-            };
-            let Some(reviewers) = landing_reviewers(domain, env, row, &evidence.facts) else {
-                return (authority::Verdict::Refuse, false);
-            };
-            let guarded = description.effect.kind == 4
-                && domain.forge.guards_landing(repository.project, judge.requirement, judge.parameters);
-            let verdict = domain.forge.judge_landing(
-                repository.project,
-                judge.requirement,
-                judge.parameters,
-                *task,
-                state,
-                &evidence.facts,
-                &reviewers.reviewers,
-            );
-            (
-                match verdict {
-                    Some(forge::JudgeVerdict::Met) => authority::Verdict::Met,
-                    Some(forge::JudgeVerdict::Refuse) => authority::Verdict::Refuse,
-                    Some(forge::JudgeVerdict::Wait) | None => authority::Verdict::Wait,
-                },
-                guarded,
-            )
+            }
+            for evidence in evidence {
+                let Some(row) = domain.forge.change(evidence.change) else {
+                    return (authority::Verdict::Refuse, false);
+                };
+                let Some(repository) = domain.forge.repository(row.repository) else {
+                    return (authority::Verdict::Refuse, false);
+                };
+                let Some(reviewers) = landing_reviewers(domain, env, row, &evidence.facts) else {
+                    return (authority::Verdict::Refuse, false);
+                };
+                guarded &= description.effect.kind == 4
+                    && domain.forge.guards_landing(repository.project, judge.requirement, judge.parameters);
+                match domain.forge.judge_landing(
+                    repository.project,
+                    judge.requirement,
+                    judge.parameters,
+                    *task,
+                    evidence.facts.head.unwrap_or(state),
+                    &evidence.facts,
+                    &reviewers.reviewers,
+                ) {
+                    Some(forge::JudgeVerdict::Met) => {}
+                    Some(forge::JudgeVerdict::Refuse) => return (authority::Verdict::Refuse, guarded),
+                    Some(forge::JudgeVerdict::Wait) | None => verdict = authority::Verdict::Wait,
+                }
+            }
+            (verdict, guarded)
         }
+
         Some(EffectFlight::Landing { evidence: None, .. } | EffectFlight::Tier { .. }) => {
             (authority::Verdict::Refuse, false)
         }

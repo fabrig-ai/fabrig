@@ -16,7 +16,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Reader, Token};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
-use temper_engine_service::{settings, translate};
+use temper_engine_service_vocabulary::{settings, translate};
 use temper_protocol_worker_wire::v1;
 use temper_worker_domain::wire;
 use temper_worker_domain_world::protocol as worker_protocol;
@@ -28,17 +28,17 @@ pub const GIT_BASE: &[u8] = b"http://forge.test";
 #[must_use]
 pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::Workspace) {
     let forges = forges();
-    let encoding = temper_engine_service::assignment::Encoding {
+    let encoding = temper_engine_service_vocabulary::assignment::Encoding {
         limits: v1::CEILINGS,
         endpoints: worker_protocol::endpoints(),
         deployment: [0; 16],
         charter_bytes: 65_536,
     };
-    let event = temper_engine_service::assignment::down(
+    let event = temper_engine_service_vocabulary::assignment::down(
         assignment.clone(),
         &forges,
         &encoding,
-        &temper_engine_service::values::Values::new(0, 0),
+        &temper_engine_service_vocabulary::values::Values::new(0, 0),
         Token::new(7),
         skein_lib::Time::ZERO,
     )
@@ -59,18 +59,18 @@ pub fn job(
     workspace: Option<&engine::ForgeWorkspace>,
     limits: &v1::Limits,
 ) -> temper_worker_domain::Event {
-    let encoding = temper_engine_service::assignment::Encoding {
+    let encoding = temper_engine_service_vocabulary::assignment::Encoding {
         limits: *limits,
         endpoints: worker_protocol::endpoints(),
         deployment: [0; 16],
         charter_bytes: 65_536,
     };
-    let event = temper_engine_service::assignment::job_down(
+    let event = temper_engine_service_vocabulary::assignment::job_down(
         job,
         workspace,
         &forges(),
         &encoding,
-        &temper_engine_service::values::Values::new(0, 0),
+        &temper_engine_service_vocabulary::values::Values::new(0, 0),
         Token::new(7),
         skein_lib::Time::ZERO,
     )
@@ -122,7 +122,7 @@ pub fn render(
     page: Option<(u32, u32)>,
     ask: engine::AskHow,
 ) -> core::SettledAnswer {
-    let event = temper_engine_service::render_for_task_page(
+    let event = temper_engine_service_vocabulary::tools::render_for_task_page(
         skein_lib::ReplyTo::new(Token::new(1)),
         answer,
         tool,
@@ -163,8 +163,8 @@ pub fn end_with(outcome: &[u8], change: Option<temper_engine_smith::ChangeResour
     temper_engine_smith::result(answer, change).expect("a result the engine takes").end
 }
 
-fn forges() -> temper_engine_service::forges::Forges {
-    let mut table = temper_engine_service::forges::Forges::with_capacity(1);
+fn forges() -> temper_engine_service_vocabulary::forges::Forges {
+    let mut table = temper_engine_service_vocabulary::forges::Forges::with_capacity(1);
     assert!(table.insert(settings::Forge {
         log_origins: None,
         mode: temper_engine_domain_forge::Mode::Connected,

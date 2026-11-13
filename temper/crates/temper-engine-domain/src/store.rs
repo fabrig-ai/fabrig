@@ -517,6 +517,7 @@ pub struct CallRecord {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Wires,
+    Opening(Box<str>),
     Core(jig_domain_core::Key),
     Forge(temper_engine_domain_forge::Key),
 }
@@ -599,7 +600,7 @@ impl Range {
     #[must_use]
     pub fn contains(&self, key: &Key) -> bool {
         let core = match key {
-            Key::Wires => return false,
+            Key::Wires | Key::Opening(_) => return false,
             Key::Core(core) => core,
             Key::Forge(_) => return *self == Range::Forge,
         };
@@ -785,6 +786,32 @@ impl Record {
     }
 }
 
+/// The accepted worker statement, without a channel or protocol encoding (protocol/wires.md, 10.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WorkerStatement {
+    pub wires: Box<[OpenedWire]>,
+    pub output: u32,
+    pub terms: Box<[OpenedTerm]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct OpenedWire {
+    pub name: Box<str>,
+    pub lowest: u16,
+    pub layouts: Box<[[u8; 32]]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct OpenedTerm {
+    pub kind: u16,
+    pub largest: u32,
+}
+/// The root timestamps each accepted opening before queuing it for its own decision.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct WorkerOpening {
+    pub worker: Box<str>,
+    pub statement: WorkerStatement,
+    pub at: skein_lib::Wall,
+}
+
 /// Root to store: one unique-key operation within an atomic commit. Child
 /// saves/erases acquire no separate terminal; the ordered commit answers once
 /// (domain/root.md, 7).
@@ -794,6 +821,8 @@ pub enum Write {
     DropTranscript { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,
+    /// A worker's accepted statement since the start's wires (protocol/wires.md, 10.1).
+    Opening(WorkerOpening),
     /// Copy a held revision to its history destination before its held row is erased.
     CopySettingsRevision(u32),
     /// Replace the row at its own key.
@@ -803,7 +832,7 @@ pub enum Write {
 }
 
 impl Write {
-    /// Pure fixed-size key projection for replacement/erase coalescing; it emits no effect or
+    /// Pure key projection for replacement/erase coalescing; it emits no effect or
     /// terminal.
     #[must_use]
     pub fn key(&self) -> Key {
@@ -817,6 +846,7 @@ impl Write {
                 turn: 0,
             })),
             Write::Wires => Key::Wires,
+            Write::Opening(opening) => Key::Opening(opening.worker.clone()),
             Write::Save(row) => row.key(),
             Write::Erase(key) => key.clone(),
         }
@@ -1096,6 +1126,24 @@ pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
     match write {
         Write::CopySettingsRevision(_) => u64::try_from(size_of::<u32>()).ok(), // The store copies the payload; only the number crosses this boundary.
         Write::DropTranscript { .. } => Some(8),
+        Write::Opening(opening) => {
+            let mut bytes = skein_lib::len_u64(opening.worker.len())
+                .checked_add(
+                    skein_lib::len_u64(opening.statement.wires.len())
+                        .checked_mul(u64::try_from(size_of::<OpenedWire>()).ok()?)?,
+                )?
+                .checked_add(
+                    skein_lib::len_u64(opening.statement.terms.len())
+                        .checked_mul(u64::try_from(size_of::<OpenedTerm>()).ok()?)?,
+                )?;
+            for wire in &opening.statement.wires {
+                bytes = bytes
+                    .checked_add(skein_lib::len_u64(wire.name.len()))?
+                    .checked_add(skein_lib::len_u64(wire.layouts.len()).checked_mul(32)?)?;
+            }
+            Some(bytes)
+        }
+        Write::Erase(Key::Opening(worker)) => Some(skein_lib::len_u64(worker.len())),
         Write::Save(record) => record_bytes(record),
         Write::Erase(Key::Core(jig_domain_core::Key::Notes(jig_domain_notes::Key::Line { scope, .. }))) => {
             note_scope_bytes(scope)

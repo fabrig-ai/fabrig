@@ -1423,6 +1423,41 @@ versioned record Row { value: Value }
             }
         }
     }
+    pub mod jig_store_openings {
+        pub const TEXTS: &[&str] = &[r"family jig-store-openings 1
+
+record OpenedWire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
+record OpenedTerm { kind: u16 largest: u32 }
+versioned record WorkerOpening {
+    worker: text 256
+    wires: list 16 OpenedWire
+    output: u32
+    terms: list 64 OpenedTerm
+    at: u64
+}
+"];
+        pub mod v1 {
+            pub mod opened_wire {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(0);
+                pub const LOWEST: FieldIx = FieldIx::new(1);
+                pub const LAYOUTS: FieldIx = FieldIx::new(2);
+            }
+            pub mod opened_term {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(3);
+                pub const LARGEST: FieldIx = FieldIx::new(4);
+            }
+            pub mod worker_opening {
+                use skein_codec::schema::FieldIx;
+                pub const WORKER: FieldIx = FieldIx::new(5);
+                pub const WIRES: FieldIx = FieldIx::new(6);
+                pub const OUTPUT: FieldIx = FieldIx::new(7);
+                pub const TERMS: FieldIx = FieldIx::new(8);
+                pub const AT: FieldIx = FieldIx::new(9);
+            }
+        }
+    }
     pub mod jig_store_people {
         pub const TEXTS: &[&str] = &[
             r"family jig-store-people 14

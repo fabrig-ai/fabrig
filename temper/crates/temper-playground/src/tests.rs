@@ -111,7 +111,7 @@ fn the_owned_values_equal_the_test_kits_values() {
     }
     assert_eq!(owned, source);
     let mut worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
-    worker["workers"][0]["graces"]["grace_ms"] = 60_000.into();
+    worker["workers"][0]["graces"]["grace_ms"] = 300_000.into();
     assert_eq!(serde_json::from_slice::<serde_json::Value>(documents::WORKER_DOCUMENT).expect("worker JSON"), worker);
 
     let mut profile = smith_agent_process_world::profile();

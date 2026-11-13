@@ -51,6 +51,8 @@ pub enum Request {
 pub enum Write {
     /// The start's component-owned wires row, from `Store::wires` (protocol/store/records.md 3).
     Wires,
+    /// The worker's last accepted opening (protocol/store/records.md 3).
+    Opening(WorkerOpening),
     /// Copy the bytes the map holds under `from` to `to` in this commit (protocol/store/README.md 5).
     Copy { from: core::Key, to: core::Key },
     /// jig's save: a put of its encoded key and record; a turn's save
@@ -517,6 +519,7 @@ pub enum Event {
     Rehearsing {
         owner: Token,
         wires: Option<Box<[KeptWire]>>,
+        openings: Box<[WorkerOpening]>,
         fresh: bool,
     },
     Decoded {
@@ -682,6 +685,31 @@ pub enum Event {
 pub struct KeptWire {
     pub name: Box<str>,
     pub version: u32,
+}
+
+/// A worker's last authenticated opening (protocol/store/opening.md 5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct WorkerOpening {
+    pub worker: Box<str>,
+    pub wires: Box<[OpenedWire]>,
+    pub output: u32,
+    pub terms: Box<[OpenedTerm]>,
+    pub at: skein_lib::Wall,
+}
+
+/// A wire's lowest version and ordered layouts (protocol/store/opening.md 5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct OpenedWire {
+    pub name: Box<str>,
+    pub lowest: u16,
+    pub layouts: Box<[[u8; 32]]>,
+}
+
+/// An opening term's largest supported value (protocol/store/opening.md 5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct OpenedTerm {
+    pub kind: u16,
+    pub largest: u32,
 }
 
 /// Why the active generation cannot go back (protocol/store/opening.md 5).

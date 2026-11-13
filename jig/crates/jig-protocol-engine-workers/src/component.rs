@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{self as wire, Reason};
-use skein_channel::{Closed, Event as ChannelEvent, Request as ChannelRequest, Role};
+use skein_channel::{Closed, Event as ChannelEvent, Request as ChannelRequest};
 use skein_lib::{Decimal, List, Map, Queue, Reader, Time, Token, bytes};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unusable {
@@ -425,19 +425,20 @@ impl Component {
                         self.refuse(now, connection, state, reason.code(), text, out);
                         return;
                     }
-                    Verdict::OutputRoom { worker, output } => {
+                    Verdict::OutputRoom { worker, output, text } => {
                         state.worker = Some(worker);
                         ended(connection, state, Loss::OutputRoom { engine: self.limits.room, worker: output }, out);
-                        let text = crate::opening::output_room_words(self.limits.room, output);
                         self.refuse(now, connection, state, 2, text, out);
                         return;
                     }
-                    Verdict::Accept { worker, wires } => {
+                    Verdict::Accept { worker, wires, statement } => {
                         state.wires = wires;
+                        state.statement = Some(statement);
                         worker
                     }
-                    Verdict::Replace { worker, older, wires } => {
+                    Verdict::Replace { worker, older, wires, statement } => {
                         state.wires = wires;
+                        state.statement = Some(statement);
                         if let Some(mut old) = self.connections.remove(&older) {
                             self.refuse(now, older, &mut old, Reason::Replaced.code(), Box::new([]), out);
                             old.poll(older, out);
@@ -478,8 +479,7 @@ impl Component {
             }
             ChannelEvent::Ready { version, terms } => {
                 state.version = version;
-                if let Some(kind) = wire::terms_gap(&self.schema, version, Role::Responder, &terms) {
-                    let text = bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes());
+                if let Err(text) = crate::statement::terms(&self.schema, version, &terms) {
                     self.refuse(now, connection, state, 2, text, out);
                 } else {
                     if self.schema.version(version).expect("agreed version").kind(wire::Kind::Wires.number()).is_some()
@@ -511,9 +511,12 @@ impl Component {
                             Some(Sending { kind: wire::Kind::Wires, bytes: frame.wire_len(), reply: Reply::Drop });
                         state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
                     }
+                    let mut statement = state.statement.take().expect("authenticated statement");
+                    statement.terms = terms;
                     out.push(Request::Opened {
                         worker: state.worker.expect("authenticated worker"),
                         wires: state.wires.clone(),
+                        statement,
                     });
                     state.phase = Phase::Hello;
                     state.deadline = state.hello_deadline;

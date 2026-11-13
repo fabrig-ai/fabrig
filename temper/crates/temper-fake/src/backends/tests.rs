@@ -567,7 +567,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let llm = &effective["engine"]["llm"];
     assert_program_provider(llm, &temper);
     assert!(llm.get("models").is_none());
-    let stock = temper_engine_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+    let stock = temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     let model = stock.models.iter().find(|entry| entry.model.name.as_ref() == super::PROGRAM_MODEL.as_bytes()).unwrap();
     assert_eq!(model.model.endpoint, 2);
     let engine_endpoint = llm["endpoints"]
@@ -593,7 +593,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         let actual = if field == "window" { model.model.window } else { model.model.output };
         assert_eq!(json!(actual), agent_limits[field], "program quantities agree: {field}");
     }
-    let stock = temper_engine_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+    let stock = temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {
         assert_eq!(charter.policy.model.name.as_ref(), super::PROGRAM_MODEL.as_bytes());
         let names: Vec<_> = stock
@@ -699,7 +699,8 @@ fn the_templates_list_patterns_keep_every_stock_model() {
         let (mut value, _, _, _) = fixture();
         value["engine"]["llm"]["providers"] = json(template)["engine"]["llm"]["providers"].clone();
         let admitted = admit(&serde_json::to_vec(&value).unwrap());
-        let stock = temper_engine_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+        let stock =
+            temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
         for provider in &admitted.llm.providers {
             if provider.number == 3 {
                 assert!(provider.list.is_none(), "the scripted provider reads no list");
@@ -737,7 +738,7 @@ fn the_fake_list_preserves_openais_stock() {
     let docs = write(&temper, &agent, &paths, &peers).unwrap();
     let fake = crate::llm::Document::decode(&docs.llm).unwrap();
     let admitted = admit(&docs.temper);
-    let stock = temper_engine_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+    let stock = temper_engine_service_stock::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     let body = crate::wire::llm_config(fake.models()).list.unwrap();
     let listed = skein_llm::list::parse(skein_llm::Provider::OpenAi, &body, &skein_llm::list::Limits::DEFAULT).unwrap();
     for row in stock.models.iter().filter(|row| row.model.provider == 1) {

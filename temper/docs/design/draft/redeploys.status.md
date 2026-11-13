@@ -21,10 +21,12 @@ the engine's temper. The clients' wires keep no kept text and no bridge;
 temper's side of section 8 is `../protocol/wires.md`, section 9.
 The rest remains below.
 
+Section 5 is designed (milestone R5). 5.1 in `../protocol/wires.md`, 10: the engine keeps each worker's last opening since its start (jig's `protocol/store/records.md`, 3, *The workers' openings*), and `upgrade --check` judges each configured worker by it, with the function the opening judges by (jig's `protocol/channel/wires.md`, 3), and the engine's own wires, `temper-host-tools`, by the stored wires. 5.2 in `../domain/root.md`, 8.2 and jig's `domain/engine/restart.md`, 1, *Settling before the stop*: no run or job placed and no procedure stepped while the engine settles. 5.3 in `../protocol/configuration/README.md` (the workers' grace) and jig's `domain/engine/fleet.md` (the engine's grace above the stop bound). 5.4 is the workers' admission of preparations, section 6.4's.
+
 Section 9 is designed and built: jig's `domain/tasks/lifecycle.md`, 6 gives infrastructure failures a class and a bound of their own.
 
 - **Design lags:**
-  - 5.1: `../protocol/binaries.md`'s `upgrade --check` compares the stored wires' names and versions, not each worker's ranges, fingerprints and terms.
+  - None.
 - **Design departs:**
   - 4.2: a git identity's value is translated by jig's workers component at each send, by temper's bridge, rather than encoded by temper for each channel; the engine keeps its two newest generations in its current version alone (`../protocol/wires.md`, 6; `../protocol/channel.md`, 6). Because one place then translates everything an assignment carries, so one that cannot go down is refused whole before anything is sent (the designer, 2026-11-13).
   - 4.2: a call's name and a delivery's evidence, the family `smith-pieces`, have no reverse: every move of it is breaking, its floor its current (smith's `protocol/README.md`, section 8). Because the engine keeps a delivery's evidence as bytes without their version, so no reader could tell which version to translate from (the designer, 2026-11-13).
@@ -33,5 +35,4 @@ Section 9 is designed and built: jig's `domain/tasks/lifecycle.md`, 6 gives infr
   - 3.1: the host tools' contract's layout is each declaration's name, effect and input schema; what a tool means, and its description, move the version by its author's hand (`../protocol/wires.md`, section 7). Because a description's wording is no layout a gate can judge; the goal of 2026-11-12 decided it.
   - 6.1: a job whose delivery began when the cancel after the drain reaches it lets the delivery settle and answers as it ends, finished or failed, rather than being left for the next attempt to recover; only a delivery the stop bound cuts is left to it (jig's `domain/hosts/hub.md`, 9). The delivery settles in any case, so its outcome is known and nothing need be run again (the designer, 2026-11-12).
   - 6.1: in one process, `temper-box serve`, the worker does not drain: it is stopped after the engine has settled its claims, so a turn it let end could not be committed, and it cancels at once as before (`../protocol/README.md`, section 6; the designer, 2026-11-12).
-  - 6.1: the engine's grace rises with the drain, 240 seconds in jig's profiles, above the 186-second stop bound the drain's default gives (jig's `domain/engine/fleet.md`, *The grace is derived from that bound*; the user, 2026-11-12). This is 5.3's rule, met before 5.3's own figures.
 - **Open:** none.

@@ -981,3 +981,105 @@ fn start_phases(domain: &Domain) -> List<jig_domain_core::start::Phase> {
     }
     phases
 }
+
+fn accepted_statement() -> crate::WorkerStatement {
+    crate::WorkerStatement {
+        wires: Box::new([crate::OpenedWire {
+            name: "example-wire".into(),
+            lowest: 3,
+            layouts: Box::new([[4; 32], [5; 32]]),
+        }]),
+        output: 4096,
+        terms: Box::new([crate::OpenedTerm { kind: 12, largest: 34 }]),
+    }
+}
+
+#[test]
+fn accepted_openings_commit_separately_after_the_starts_wires_are_durable() {
+    for early in [true, false] {
+        let (mut domain, mut env) = at_switch(false);
+        let mut restored = Queue::uncapped();
+        temper_engine_domain_forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            temper_engine_domain_forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+            &mut restored,
+        );
+        let heard = Wall::from_nanos(123_456_789);
+        env.wall = heard;
+        if early {
+            crate::try_step(
+                &mut domain,
+                &env,
+                Event::Worker(crate::WorkerInput::Opened { worker: "w1".into(), statement: accepted_statement() }),
+            )
+            .unwrap();
+            crate::step(&mut domain, &env, Event::Resume);
+            let mut out = Queue::uncapped();
+            crate::release(&mut domain, &env, &mut out);
+            assert!(out.is_empty(), "opening before wires waits");
+        }
+        serve_switch(&mut domain, &env);
+        let wires = wires_commit(&mut domain, &env);
+        crate::step(&mut domain, &env, Event::Resume);
+        let mut out = Queue::uncapped();
+        crate::release(&mut domain, &env, &mut out);
+        assert!(out.is_empty(), "opening waits for the wires' durability, not just their issue");
+        crate::step(&mut domain, &env, Event::Store(StoreInput::Committed { number: wires, fill: 0 }));
+        crate::release(&mut domain, &env, &mut out);
+        crate::release(&mut domain, &env, &mut out);
+        let Some(Request::ToChild(released)) = out.pop() else { panic!("wires' durable continuation") };
+        assert!(out.is_empty());
+        crate::step(&mut domain, &env, Event::Released(released));
+        if !early {
+            crate::try_step(
+                &mut domain,
+                &env,
+                Event::Worker(crate::WorkerInput::Opened { worker: "w1".into(), statement: accepted_statement() }),
+            )
+            .unwrap();
+        }
+        // A second accepted opening, even for the same worker, must not coalesce with the first.
+        crate::try_step(
+            &mut domain,
+            &env,
+            Event::Worker(crate::WorkerInput::Opened { worker: "w1".into(), statement: accepted_statement() }),
+        )
+        .unwrap();
+        env.wall = Wall::from_nanos(987_654_321);
+        let expected = crate::Write::Opening(crate::WorkerOpening {
+            worker: "w1".into(),
+            statement: accepted_statement(),
+            at: heard,
+        });
+        let mut commits = List::with_capacity(2);
+        for _ in 0_u32..16 {
+            crate::step(&mut domain, &env, Event::Resume);
+            crate::release(&mut domain, &env, &mut out);
+            while let Some(request) = out.pop() {
+                if let Request::Store(crate::StoreRequest::Commit { number, writes }) = request {
+                    if writes.contains(&expected) {
+                        assert!(number > wires);
+                        assert!(!writes.contains(&crate::Write::Wires));
+                        assert_eq!(writes.len(), 2, "only the opening and deployment header");
+                        commits.push(number).unwrap();
+                    }
+                    crate::step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 }));
+                } else if let Request::ToChild(released) = request {
+                    crate::step(&mut domain, &env, Event::Released(released));
+                } else {
+                    panic!("unexpected opening output {request:?}");
+                }
+            }
+            if commits.len() == 2 {
+                break;
+            }
+        }
+        assert_eq!(
+            commits.len(),
+            2,
+            "each accepted opening commits its own statement and heard wall time; early={early}"
+        );
+        assert!(commits.get(0).unwrap() < commits.get(1).unwrap());
+    }
+}

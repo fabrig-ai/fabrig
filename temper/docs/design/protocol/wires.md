@@ -40,7 +40,10 @@ them.
 - **Clients' versions move with their layouts too** (9), with no kept
   text and no bridge; a page refused reloads once to the engine's
   bundle.
-- **`versions` prints each wire's range and layouts** (10).
+- **`versions` prints each wire's range and layouts** (10), and the store
+  keeps the wires the engine's last start spoke and each worker's last
+  opening since (10.1), by which `upgrade --check` says which workers may
+  stay (10.2).
 
 ## 2. The wires
 
@@ -321,7 +324,7 @@ them.
   they do. A kept request of another version is dropped with a notice
   (jig's `protocol/client/README.md`, section 7).
 
-## 10. `versions` and the stored wires
+## 10. `versions`, the stored wires and the workers' openings
 
 - **One table,** `temper_engine_service::wires()`, in this order: jig's
   four (`jig_protocol_worker_wire::spoken()`), then `temper-worker-wire`,
@@ -341,8 +344,71 @@ them.
   64 lowercase hex digits, LOWEST the floor.
 - **The store keeps the wires** the last start spoke (jig's
   `protocol/store/records.md`, 3, `Wires`): one `{name, version}` per
-  wire of the table, its version the highest. What `upgrade --check`
-  reads of them, and of each worker's opening, is `binaries.md`'s.
+  wire of the table, its version the highest.
+
+### 10.1 The workers' openings kept
+
+- **At each opening the engine accepts,** its workers component hands
+  the service the worker's name, its agreed versions and its statement
+  (jig's `protocol/channel/wires.md`, 3, *The statement handed up
+  whole*). The service logs it as before (section 4) and hands the root
+  the name and the statement; the root commits them, `Write::Opening`,
+  in a decision of its own, `at` its wall time (jig's
+  `protocol/store/records.md`, 3, *The workers' openings*).
+- **Since the engine's last start:** each start's wires commit clears
+  them, and an opening the root hears before that commit is durable is
+  committed once it is, so what the store keeps is each worker's last
+  opening since the engine's last start.
+- **Never read by the engine:** they are for `upgrade --check` (10.2),
+  which runs with the engine stopped (`../draft/redeploys.md`, 5.1).
+
+### 10.2 Whether the workers may stay
+
+`upgrade --check` (`binaries.md`, section 2) judges each worker by its
+kept opening (`../draft/redeploys.md`, 5.1), after its patches' and
+restores' lines. Every line starts with the binary's name and
+`upgrade:`, as the check's others do, and none changes its exit code.
+
+1. **A pending patch marked fresh:** no worker may stay, `a pending
+   patch requires fresh workers; stop the workers`, then `workers may
+   stay: no`, and nothing more.
+2. **The copy keeps no wires,** a store from before the row: `workers
+   may stay: unknown; the copy keeps no wires`, and nothing more.
+3. **The engine's own wires,** those of the table the opening does not
+   state (`temper-host-tools`, section 2): each must be kept, at a
+   version within this binary's range of it, from its floor to its
+   current, since a run adopted across the restart goes on calling the
+   tools of the contract it started with (section 7). Else, for each,
+   `wire NAME: kept V, this binary speaks L..H` or `wire NAME is not
+   kept by the copy`, and no worker may stay. A kept wire the table
+   lacks is passed over.
+4. **Each worker the configuration names,** in its order, by its kept
+   opening, judged by `jig_protocol_engine_workers::judge` (jig's
+   `protocol/channel/wires.md`, 3) with this binary's table, `wires()`,
+   and the room and kinds' bounds its engine's workers component would
+   take from the configuration, as that engine's opening would judge it:
+   - `worker NAME may stay: opened AT`, AT the opening's time in UTC
+     to the second, `YYYY-MM-DDTHH:MM:SSZ`;
+   - `worker NAME may not stay: wires: TEXT` or `worker NAME may not
+     stay: limits: TEXT`, TEXT the opening's refusal's words;
+   - with no opening kept: `worker NAME unknown: no opening kept since
+     the engine's last start`, and it may not stay.
+
+   A kept opening of a name the configuration no longer names is not
+   judged.
+5. **The verdict:** `workers may stay: yes` when step 3 passed and every
+   worker named may stay, with none named too; else `workers may stay:
+   no`.
+
+- **One judgement, at every floor:** a breaking change raises its wire's
+  floor to its own version (`../draft/redeploys.md`, 4.5), so a worker
+  below it fails step 4's ranges with no rule of its own. A wire moved
+  with its reverse keeps workers of the previous version within the
+  range; a breaking move refuses them by name.
+- **The window is not judged here:** the patches' times are the
+  rehearsal's lines (`binaries.md`, section 2), and comparing the window
+  with the workers' grace is the redeploy's referee's
+  (`../draft/redeploys.md`, 7.5).
 
 ## 11. Testing
 
@@ -379,6 +445,18 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   passed without a breaking file, refused; an older version's changed
   tool without its adapter, refused.
 - **`versions`:** its lines for the table, whole, in the binaries' tests.
+- **The openings kept** (10.1): the engine's workers component handing up
+  a statement as the worker stated it; the store keeping one row per
+  worker, replaced by its next opening and cleared by a start's wires,
+  and the rehearsal answering them; the root committing an opening, and
+  one heard before its start's wires after them.
+- **The verdict** (10.2), over kept openings and wires made by hand:
+  every worker opened as this binary speaks, yes; one with another
+  layout, one with no version in common, one whose output differs, each
+  named with the opening's words; one with no opening, unknown; a fresh
+  patch; `temper-host-tools` kept at another version; the copy keeping
+  no wires. And in the one-process world, a rehearsal of a deployment
+  whose worker opened says it may stay, by name.
 
 ## 12. Open questions
 

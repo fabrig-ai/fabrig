@@ -62,7 +62,7 @@ impl Measured {
     fn settle(&mut self) -> Vec<Request> {
         let mut requests = Vec::new();
         while self.domain.is_ready() {
-            resume(&mut self.domain, &self.env, &mut self.out);
+            resume(&mut self.domain, &self.env, true, &mut self.out);
             requests.extend(self.drain());
         }
         requests

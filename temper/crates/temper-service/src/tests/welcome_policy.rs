@@ -76,12 +76,15 @@ fn generated() -> (engine::Config, engine::Limits) {
         program_environment: Box::new([]),
         host_part: None,
         ways_stock: crate::stock::ways(),
+        kinds: Box::default(),
+        period_span: crate::stock::PERIOD_SPAN,
         kinds_stock: Box::default(),
         landings: parsed.application.landings,
         limits: parsed.application.limits,
     };
     let limits = super::engine_limits(&mut settings.jig.limits, &settings.limits, settings.jig.memory)
         .expect("unchanged effective limits");
+    settings.kinds = crate::stock::kinds(&limits, *settings.jig.connectors.first().unwrap());
     let seeds = fixtures::seeds();
     let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
     let (forge, identities) = crate::forge::config(&settings, seeds.deployment);

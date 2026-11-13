@@ -2,6 +2,7 @@ mod debug;
 pub(crate) mod fixtures;
 mod opening;
 mod room;
+mod statement;
 mod translate;
 
 #[test]

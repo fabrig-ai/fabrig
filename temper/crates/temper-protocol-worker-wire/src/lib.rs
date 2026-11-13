@@ -38,6 +38,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         merged_heads: v1::CEILINGS.merged_heads,
         branch_branch: bounds.name_bytes,
         writable_push: bounds.name_bytes,
+        prefixes_branches: v1::CEILINGS.prefixes_branches,
+        prefixes_branches_item: bounds.name_bytes,
         writable_landing_some: bounds.name_bytes,
         repository_save_some: bounds.name_bytes,
         repository_remote: bounds.remote_bytes,
@@ -165,7 +167,7 @@ pub mod wire {
     pub const FAMILY: &str = "temper-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 5;
+    pub const VERSION: u16 = 6;
 
     /// The oldest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;

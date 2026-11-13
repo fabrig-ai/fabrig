@@ -26,7 +26,7 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
-    Opened { worker: Box<[u8]>, wires: List<Agreed> },
+    Opened { worker: Box<[u8]>, wires: List<Agreed>, statement: crate::Statement },
     Refused { worker: Option<Box<[u8]>>, reason: u16, text: Box<[u8]> },
     Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
     Up { channel: Token, up: hub::LinkUp, parts: Box<[Part]> },
@@ -247,7 +247,7 @@ impl Workers {
                     });
                 }
             }
-            Request::Opened { worker, wires } => {
+            Request::Opened { worker, wires, statement } => {
                 return Some(Output::Opened {
                     worker: self
                         .component
@@ -257,6 +257,7 @@ impl Workers {
                         .name
                         .clone(),
                     wires,
+                    statement,
                 });
             }
             Request::Refused { worker, reason, text } => {

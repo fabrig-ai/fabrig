@@ -5,7 +5,7 @@ use skein_lib::{Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 use temper_engine_domain::{self as engine, Deployment, JournalLimits, Key, Range, Record, Write};
-use temper_engine_service::store::route::{self, Up};
+use temper_engine_service_vocabulary::store::route::{self, Up};
 
 pub const LIMITS: JournalLimits = JournalLimits {
     commits: 3,
@@ -152,7 +152,7 @@ impl Store {
             &models,
             stores,
         );
-        assert!(component.wires(&temper_engine_service::store::WIRES));
+        assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
         let mut store = Self::empty(limits, &component_limits, models);
         store.component = Some(component);
         store.open();
@@ -259,7 +259,9 @@ impl Store {
             &self.models,
             stores,
         ));
-        assert!(self.component.as_mut().expect("live component").wires(&temper_engine_service::store::WIRES));
+        assert!(
+            self.component.as_mut().expect("live component").wires(&temper_engine_service_vocabulary::store::WIRES)
+        );
         if let Some(names) = &self.catalogue {
             self.component.as_mut().expect("live component").catalogue(names.clone());
         }
@@ -525,7 +527,7 @@ impl Store {
                                 }
                             });
                         }
-                        Write::Wires => {}
+                        Write::Opening(_) | Write::Wires => {}
                         Write::CopySettingsRevision(number) => {
                             let held = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(
                                 jig_domain_core::settings::Key::Held(*number),
@@ -700,7 +702,8 @@ fn component_limits(limits: &engine::Limits) -> Limits {
     profile.store.queued_bytes = u64::MAX;
     profile.store.page.bytes = u32::MAX;
     profile.store.page.rows = 8;
-    temper_engine_service::store::limits(limits, &limits.forge, &profile).expect("world sizes fit real store")
+    temper_engine_service_vocabulary::store::limits(limits, &limits.forge, &profile)
+        .expect("world sizes fit real store")
 }
 
 /// The only mirrored row changed by a write-free restart's required start mark.
@@ -770,7 +773,7 @@ fn walk_position(range: &Range, key: &Key) -> Result<(u32, Key), &'static str> {
                 jig_domain_core::restore_cursor(range.restore_ranges(), key).ok_or("cursor outside walk")?;
             Ok((interval, Key::Core(key)))
         }
-        (_, Key::Wires) => Err("wires are not a load cursor"),
+        (_, Key::Wires | Key::Opening(_)) => Err("wires are not a load cursor"),
         _ => Ok((0, key.clone())),
     }
 }

@@ -85,13 +85,17 @@ The fleet child domain knows the hosts and the runs they host:
   next attempt while a worker may still host the last, and one run at
   most writes a resource at a time.
 - **The grace is derived from that bound.** jig's profiles give
-  `fleet.grace` 240 seconds, above the stop bound of a worker on their
-  link profile (5 and 15 seconds) with the drain's default of 180
-  seconds: 186 seconds with 5 for an agent's stop and 1 for a save (the
-  user, 2026-11-12; `../../protocol/configuration.md`, section 4). The drain dominates
-  that bound, so a change to the drain's default, or to the link
-  profile, moves the grace with it, and says why; a deployment that
-  raises a worker's bound raises the grace with it.
+  `fleet.grace` 360 seconds, above the stop bound of a worker on their
+  link profile (5 and 15 seconds) with an engine-away grace of 300
+  seconds, the five minutes that cover an engine's start that patches
+  its store (temper's `draft/redeploys.md`, 5.3), and the drain's
+  default of 180 seconds: 326 seconds, 20 of notice and 300 of grace
+  outlasting the drain, then 5 for an agent's stop and 1 for a save
+  (`../../protocol/configuration.md`, section 4). The engine-away grace dominates
+  that bound, so a change to its default, to the drain's or to the link
+  profile moves this grace with it, and says why; a deployment that
+  raises a worker's bound raises the grace with it. A worker gone for
+  good has its runs placed elsewhere once this grace has passed.
 - **A host's agent must run the engine's charters.** The fleet refuses
   a hello, as not admitted and naming why, whose agent's bounds
   (../hosts/README.md, section 2) do not hold every run the engine may place there:

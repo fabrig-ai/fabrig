@@ -79,7 +79,7 @@ fn agreement_keeps_statement_order_and_passes_over_unknown_wires() {
     statement.push(first).expect("uncapped");
     statement.push(stated(b"unknown-wire", 1, &[[7; 32]])).expect("uncapped");
     let credential = fixtures::credential_with(WORKER_A, fixtures::SECRET_A, statement.clone());
-    let Verdict::Accept { worker, wires } = component.judge(&credential) else { panic!("accepted") };
+    let Verdict::Accept { worker, wires, .. } = component.judge(&credential) else { panic!("accepted") };
     assert_eq!(worker, 0);
     assert_eq!(wires.len(), 5);
     for (agreed, stated) in wires.iter().zip(statement.iter()) {
@@ -136,7 +136,7 @@ fn worker_names_are_bounded_independently_of_channels() {
 fn a_configured_worker_authenticates_with_its_secret() {
     let component = fixtures::component();
     let bytes = fixtures::credential(WORKER_A, fixtures::SECRET_A, APPLICATION_VERSION);
-    let Verdict::Accept { worker, wires } = component.judge(&bytes) else { panic!("accepted") };
+    let Verdict::Accept { worker, wires, .. } = component.judge(&bytes) else { panic!("accepted") };
     assert_eq!(worker, 0);
     assert_eq!(wires.len(), 5);
     for (agreed, stated) in wires.iter().zip(fixtures::statement(APPLICATION_VERSION).iter()) {

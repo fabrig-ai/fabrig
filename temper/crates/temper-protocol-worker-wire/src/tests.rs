@@ -45,6 +45,8 @@ fn limits_take_each_bound_from_its_source_field() {
             merged_heads: 64,
             branch_branch: 16,
             writable_push: 16,
+            prefixes_branches: 5,
+            prefixes_branches_item: 16,
             writable_landing_some: 16,
             repository_name: 16,
             repository_remote: 48,
@@ -167,9 +169,15 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     assert_eq!(u64::from(sizes.resource), v1::Preparation::encoded_bound(&limits).expect("preparation"));
     assert_eq!(u64::from(sizes.grant), v1::Identity::encoded_bound(&limits).expect("identity"));
     // Merged adds a list length and 64 full ids in place of Merge's base id.
-    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(792_262));
-    // At ceilings: 64 * 12,379-byte repositories + the four-byte list length + the two-byte version.
-    assert_eq!(sizes, crate::Largest { items: 12732, left: 84, saved: 1084, resource: 41, grant: 233 });
+    // Five prefix branches fit the channel's 1 MiB Items ceiling; six do not.
+    let largest = v1::Items::encoded_bound(&v1::CEILINGS).expect("ceiling bound");
+    // At ceilings: 64 * 15,433-byte repositories, a four-byte list length and the two-byte version.
+    assert_eq!(largest, 987_718);
+    assert!(largest <= 1_048_576);
+    let one_more =
+        largest + u64::from(v1::CEILINGS.items_repositories) * (4 + u64::from(v1::CEILINGS.prefixes_branches_item));
+    assert!(one_more > 1_048_576);
+    assert_eq!(sizes, crate::Largest { items: 12792, left: 84, saved: 1084, resource: 41, grant: 233 });
 }
 
 #[test]
@@ -283,7 +291,7 @@ fn an_entrys_token_and_login_stop_at_their_bounds() {
 
 #[test]
 fn landing_branch_uses_the_name_bound_and_largest_items_count_it() {
-    let limits = fixtures::limits();
+    let limits = v1::Limits { prefixes_branches: 0, ..fixtures::limits() };
     for length in [16, 17] {
         let parts = v1::WritableParts {
             push: Box::from(&b"topic"[..]),
@@ -359,4 +367,45 @@ fn merged_heads_stop_at_sixty_four_when_built_and_decoded() {
     }
     parts.heads = heads;
     assert_eq!(v1::Merged::new(&limits, parts).expect_err("past bound").path, v1::Path::MergedHeads);
+}
+
+#[test]
+fn prefixes_bound_the_branch_count_and_each_name_when_built_and_decoded() {
+    let limits = fixtures::limits();
+    for count in [5_u32, 6] {
+        let mut branches = List::with_capacity(count);
+        for _ in 0..count {
+            branches.push(Box::from(b"prefix".as_slice())).expect("fixture");
+        }
+        let value = v1::Prefixes::new(&limits, v1::PrefixesParts { branches });
+        if count == 5 {
+            let value = value.expect("five branches");
+            let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded"));
+            value.encode(&mut bytes).expect("measured");
+            let bytes = bytes.finish();
+            assert_eq!(v1::Prefixes::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("roundtrip"), value);
+        } else {
+            assert_eq!(value.expect_err("six branches").path, v1::Path::PrefixesBranches);
+            let raw = [0, 0, 0, 6];
+            assert_eq!(
+                v1::Prefixes::decode(&limits, &mut skein_lib::Reader::new(&raw)).expect_err("wire count bound").path,
+                v1::Path::PrefixesBranches
+            );
+        }
+    }
+    for length in [16_usize, 17] {
+        let mut branches = List::with_capacity(1);
+        branches.push(skein_lib::bytes::zeroed(length)).expect("fixture");
+        let value = v1::Prefixes::new(&limits, v1::PrefixesParts { branches });
+        if length == 16 {
+            value.expect("name at bound");
+        } else {
+            assert_eq!(value.expect_err("name past bound").path, v1::Path::PrefixesBranches);
+            let raw = skein_lib::bytes::concat(&[&[0, 0, 0, 1, 0, 0, 0, 17], &[0; 17]]);
+            assert_eq!(
+                v1::Prefixes::decode(&limits, &mut skein_lib::Reader::new(&raw)).expect_err("wire name bound").path,
+                v1::Path::PrefixesBranches
+            );
+        }
+    }
 }

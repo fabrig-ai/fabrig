@@ -110,6 +110,61 @@ rule); an application names its own wires (temper's
   reason and text, before it redials. skein's own refusal of a range
   with no version in common names both ranges (skein's
   `net/channel.md`, 5.2).
+- **The statement handed up whole** (temper's `draft/redeploys.md`,
+  5.1): with the channel accepted, beside the agreed versions, the
+  engine's side hands its owner what the worker stated: its wires as
+  its credential gives them, in their order, its `io.output`, and its
+  terms as its channel's ready event gave them (5), so that the owner
+  may keep the opening (`../store/records.md`, 3, *The workers'
+  openings*):
+
+  ```rust
+  // jig_protocol_engine_workers
+  #[derive(Clone, Debug, PartialEq, Eq)]
+  pub struct Stated {                    // a wire as a worker states it
+      pub name: Box<str>,
+      pub lowest: u16,
+      pub layouts: List<[u8; 32]>,       // each version's layout from `lowest`
+  }
+  #[derive(Clone, Debug, PartialEq, Eq)]
+  pub struct Statement {
+      pub wires: List<Stated>,           // the credential's, in its order
+      pub output: u32,                   // the credential's io.output
+      pub terms: List<skein_channel::Term>, // the worker's, as its ready event gave them
+  }
+  // Request::Opened and host::Output::Opened carry `statement: Statement`
+  // beside `worker` and `wires` (the agreed versions).
+  ```
+- **The checks as one function,** which the opening runs and which a
+  tool runs over a kept opening, with the engine stopped (temper's
+  `protocol/wires.md`, 10.2): after the name and the secret, the wires
+  (above), then the worker's `io.output` against the engine's room, then
+  its terms against the largest body of each kind the engine sends, as
+  the agreed `jig-worker-wire` version encodes it (5):
+
+  ```rust
+  // jig_protocol_engine_workers
+  pub enum Unfit {
+      Wires(Box<[u8]>),                  // *wires*, with the text above
+      Limits(Box<[u8]>),                 // skein's *limits*, with the opening's words for an output or a kind
+  }
+  pub fn judge(
+      spoken: &List<Spoken>,             // what the engine speaks, its table
+      room: u32,                         // the engine's io.output
+      schema: &skein_channel::Schema,    // its kinds' bounds, from its limits, as its component makes it
+      statement: &Statement,
+  ) -> Result<List<Agreed>, Unfit>;
+  ```
+
+  The opening runs the same code at its moments: the wires and the
+  output when the credential is read, the terms at the ready event, so
+  its refusals and their order are as before. `judge` runs all three in
+  that order over a whole statement. Its texts are the opening's, word
+  for word, so a kept opening judged by a new build says what that
+  build's opening would refuse it with.
+  A floor below the current (temper's `draft/redeploys.md`, 3.3) is
+  judged by the same function, through the ranges `Spoken` and the
+  statement give.
 
 ## 4. The kinds' table in the schema
 

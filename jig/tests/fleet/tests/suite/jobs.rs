@@ -56,7 +56,7 @@ impl Harness {
             if !self.domain.is_ready() {
                 break;
             }
-            jig_domain_fleet::resume(&mut self.domain, &self.env, &mut out);
+            jig_domain_fleet::resume(&mut self.domain, &self.env, true, &mut out);
         }
         assert!(!self.domain.is_ready());
         self.drain(&mut out)

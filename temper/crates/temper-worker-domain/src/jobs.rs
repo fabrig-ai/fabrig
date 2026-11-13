@@ -78,6 +78,9 @@ pub(crate) fn assign(
         Ok(_) if job.kind == JobKind(1) => return refuse(domain, run, attempt, b"prepare command", env, out),
         Ok(_) | Err(wire::Undecodable) => None,
     };
+    if own.is_none() && crate::assignment::has_prefixes(&items) {
+        return refuse(domain, run, attempt, b"prefixes require temper prepare", env, out);
+    }
     if domain.job_specs.len() == domain.job_specs.capacity() || workspace::stage_job(domain, &mut job, items).is_none()
     {
         refused(domain, run, attempt, host::JobRefusal::Busy, out);
@@ -409,7 +412,9 @@ fn delivery_why(outcome: &crate::checkout::Outcome) -> Option<Box<[u8]>> {
     };
     for landing in landings {
         let why = match landing {
-            Landing::Landed { .. } | Landing::DesignMerged { .. } | Landing::Unchanged => continue,
+            Landing::Landed { .. } | Landing::Prefixes { .. } | Landing::DesignMerged { .. } | Landing::Unchanged => {
+                continue;
+            }
             Landing::Moved => Box::from(b"branch moved".as_slice()),
             Landing::Conflicted { .. } | Landing::DesignConflict { .. } => {
                 Box::from(b"unresolved conflict markers".as_slice())
@@ -488,7 +493,6 @@ pub(crate) fn checkout_spec(domain: &Domain, owner: Token, spec: &mut crate::che
 pub(crate) fn candidate(domain: &mut Domain, owner: Token, outcome: &crate::checkout::Candidate) {
     let hosting = domain.host.hosting(owner).expect("a job prepared a candidate");
     let job = domain.job_specs.get_mut(&(hosting.run, hosting.attempt)).expect("own request lives through preparation");
-    let request = job.own.as_ref().expect("a candidate belongs to temper's prepare");
-    job.result =
-        Some(prepare::result(request.member, outcome, 4_096).expect("an empty conflict result fits the prepare bound"));
+    assert!(job.own.is_some(), "a candidate belongs to temper's prepare");
+    job.result = Some(prepare::result(outcome, 4_096).expect("an empty conflict result fits the prepare bound"));
 }
