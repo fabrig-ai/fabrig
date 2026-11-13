@@ -9,14 +9,17 @@ mod checkout;
 
 pub mod checks;
 mod problems;
+mod shared;
+mod start;
+pub use shared::{AGENT_WORDS, admission, admission_words};
+pub use start::{restoring_prepared, restoring_with, with_setup_given};
 
-use crate::{AccountsRuntime, Service, settings};
+use crate::{AccountsRuntime, settings};
 use alloc::boxed::Box;
 pub use application::sign_in::{Endpoints, SignIn, url as sign_in_url};
 pub use application::{Forge, Identity, Transport, USER_BYTES, User};
 pub use checks::redirect_ports;
 use jig_protocol_config::{self as config, Path, Segment, read};
-pub(crate) use problems::admission_words;
 pub use problems::{EngineWhat, Problem, Problems, What, lines};
 use skein_lib::List;
 
@@ -582,12 +585,14 @@ fn check_files(parsed: &Parsed, files: &settings::Files) -> Result<(), Problems>
     }
     if problems.is_empty() { Ok(()) } else { Err(problems) }
 }
-pub(crate) struct CheckedStart {
-    warnings: Problems,
-    not_set_up: List<u16>,
-    pub(crate) engine: settings::Engine,
-    io: skein_io::Limits,
-    forges: skein_forge_connection::Settings,
+/// The checked settings and runtime facts handed from startup to the engine's start.
+#[derive(Debug)]
+pub struct CheckedStart {
+    pub warnings: Problems,
+    pub not_set_up: List<u16>,
+    pub engine: settings::Engine,
+    pub io: skein_io::Limits,
+    pub forges: skein_forge_connection::Settings,
 }
 /// Every check startup makes, without constructing a service.
 /// # Errors
@@ -606,12 +611,13 @@ pub fn check(
     checked_start(document, directories, files, Some(agent), seeds, forges, setup)?;
     Ok(())
 }
+/// Check the document and runtime facts into settings for the engine's start.
 #[expect(
     clippy::too_many_arguments,
     clippy::too_many_lines,
     reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
 )]
-pub(crate) fn checked_start_with(
+pub fn checked_start_with(
     document: &[u8],
     directories: &config::Directories,
     files: &settings::Files,
@@ -713,6 +719,8 @@ pub(crate) fn checked_start_with(
         demo: parsed.application.demo,
         welcome: parsed.application.welcome,
         program_environment: Box::new([]),
+        kinds: Box::default(),
+        period_span: crate::stock::PERIOD_SPAN,
         kinds_stock: Box::default(),
         ways_stock: match given {
             crate::stock::Given::Stock => crate::stock::ways(),
@@ -722,6 +730,9 @@ pub(crate) fn checked_start_with(
         limits: parsed.application.limits,
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
+    if let Some(&connector) = core.connectors.first() {
+        engine.kinds = crate::stock::kinds(&root, connector);
+    }
     engine.kinds_stock = match given {
         crate::stock::Given::Stock => crate::stock::forge(&root),
         crate::stock::Given::Own { forge, .. } => forge.clone(),
@@ -749,74 +760,6 @@ fn checked_start(
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<CheckedStart, Problems> {
     checked_start_with(document, directories, files, agent, seeds, forges, setup, &crate::stock::Given::Stock)
-}
-/// Check serve's configuration, building only the engine for an upgrade tool (protocol/binaries.md).
-pub fn restoring_with(
-    document: &[u8],
-    directories: &config::Directories,
-    files: &settings::Files,
-    agent: Option<&settings::Agent>,
-    seeds: &settings::Seeds,
-    accounts: Option<AccountsRuntime>,
-    given: &crate::stock::Given,
-) -> Result<Service, Problems> {
-    let CheckedStart { engine, io, forges, .. } =
-        checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given)?;
-    restoring_prepared(engine, seeds, accounts, forges, io)
-}
-
-/// Restore an engine whose document and runtime facts were checked by the composing service.
-pub fn restoring_prepared(
-    engine: settings::Engine,
-    seeds: &settings::Seeds,
-    accounts: Option<AccountsRuntime>,
-    forges: skein_forge_connection::Settings,
-    io: skein_io::Limits,
-) -> Result<Service, Problems> {
-    match Service::prepared(engine, seeds, accounts, forges, io, None, None) {
-        Ok(service) => Ok(service),
-        Err(found) => Err(Problems::jig(found, &Path::root())),
-    }
-}
-
-/// Start an engine alone with the checked runtime facts.
-#[expect(clippy::too_many_arguments, reason = "the engine start takes its runtime facts beside the document")]
-pub fn with_setup_given(
-    document: &[u8],
-    directories: &config::Directories,
-    files: &settings::Files,
-    seeds: &settings::Seeds,
-    accounts: Option<AccountsRuntime>,
-    forges: List<crate::ForgeRuntime>,
-    setup: Option<&temper_forge_setup::check::Checked>,
-    given: &crate::stock::Given,
-    program_environment: Box<[u8]>,
-) -> Result<Service, Problems> {
-    let CheckedStart { mut engine, io, forges, not_set_up, warnings } =
-        checked_start_with(document, directories, files, None, seeds, forges, setup, given)?;
-    engine.program_environment = program_environment;
-
-    match Service::prepared(engine, seeds, accounts, forges, io, None, None) {
-        Ok(mut service) => {
-            for warning in &warnings.problems {
-                let mut found = Problems::empty();
-                found.push(warning.path.clone(), warning.what);
-                let line = lines(&found);
-                service.notes().push(crate::Note::StartupWarning {
-                    line: line.strip_suffix(b"\n").expect("one warning line").into(),
-                });
-            }
-            for number in &not_set_up {
-                crate::setup::lifecycle::state(
-                    service.engine.as_mut().expect("engine startup"),
-                    *number,
-                    temper_engine_domain_forge::Connection::NotSetUp,
-                );
-            }
-            Ok(service)
-        }
-        Err(found) => Err(Problems::jig(found, &Path::root())),
-    }
 }
 pub fn prepare_forges(
     engine: &settings::Engine,

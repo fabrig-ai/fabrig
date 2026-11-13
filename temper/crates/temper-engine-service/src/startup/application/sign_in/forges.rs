@@ -1,15 +1,11 @@
 //! The provider clients joined to Forgejo (protocol/openid-provider.md, 7).
 use super::super::read;
+use super::ForgeSignIn;
 use crate::startup::{Problems, What};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
 use skein_json::Document;
 use skein_lib::List;
-#[derive(Clone, Debug)]
-pub struct ForgeSignIn {
-    pub forge: u16,
-    pub client: Box<[u8]>,
-}
 pub(super) fn parse(
     document: &Document,
     object: &mut crate::startup::members::Object,

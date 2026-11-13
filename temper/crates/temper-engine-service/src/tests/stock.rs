@@ -65,6 +65,31 @@ fn without_projects() -> Box<[u8]> {
 }
 
 #[test]
+fn startup_carries_the_components_stock_kinds_and_period_span() {
+    let document = fixtures::engine_part(&fixtures::document());
+    let seeds = fixtures::seeds();
+    let start = crate::startup::checked_start_with(
+        &document,
+        &config::Directories::working(),
+        &fixtures::files(),
+        None,
+        &seeds,
+        fixtures::forge_runtime(),
+        None,
+        &crate::stock::Given::Stock,
+    )
+    .unwrap();
+    let settings = start.engine;
+    let mut limits = crate::limits::engine(&settings.jig.limits, &settings.limits).unwrap();
+    limits.memory_bytes = settings.jig.memory;
+    limits.host_reply_bytes = settings.host_reply_bytes;
+    let core = crate::system::core_config(&settings.jig, &seeds);
+    let connector = *core.connectors.first().unwrap();
+    assert_eq!(settings.kinds, crate::stock::kinds(&limits, connector));
+    assert_eq!(settings.period_span, crate::stock::PERIOD_SPAN);
+}
+
+#[test]
 fn stock_chats_can_delegate_message_and_read_the_forge() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);

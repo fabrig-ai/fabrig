@@ -119,6 +119,10 @@ pub struct Engine {
     pub welcome: bool,
     pub program_environment: Box<[u8]>,
     pub ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
+    /// Core kinds carried by startup at the start's limits and first connector (protocol/services.md, 4.2).
+    pub kinds: Box<[jig_domain_core::settings::Kind]>,
+    /// The stock period span carried by startup (protocol/services.md, 4.2).
+    pub period_span: skein_lib::Duration,
     pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
     pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     pub limits: super::limits::Limits,

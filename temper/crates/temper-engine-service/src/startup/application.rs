@@ -5,6 +5,7 @@ mod landing;
 mod public;
 pub mod push;
 mod read;
+mod shared;
 pub mod sign_in;
 use super::{Problems, What};
 use crate::{limits, settings};
@@ -12,6 +13,7 @@ use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
 pub use public::Origin;
 pub use public::Scheme;
+pub use shared::{Clients, forge_origin};
 use skein_json::{Document, document::Kind};
 use skein_lib::{List, bytes};
 
@@ -30,16 +32,6 @@ pub struct Members {
     pub limits: limits::Limits,
     pub overrides: Box<[(Box<[u8]>, u64)]>,
     pub workers: Box<[Worker]>,
-}
-/// The application's clients listener (protocol/configuration/engine.md).
-#[derive(Debug)]
-pub struct Clients {
-    /// The socket address used for the listener, Host guard and printed links.
-    pub listener: config::Address,
-    /// `application.clients.bundle`: the bundle's directory; `None` serves no browser.
-    pub bundle: Option<Box<[u8]>>,
-    /// The browser origin and jig public name (protocol/sign-in.md, 2.2).
-    pub public: Option<Origin>,
 }
 /// The optional webhook listener (protocol/configuration/engine.md).
 #[derive(Debug)]
@@ -92,31 +84,6 @@ pub fn clients(document: &Document, at: u32, path: &Path, bundle: bool, problems
     };
     read::form(socket, path, problems);
     Some(Clients { listener, bundle: directory, public })
-}
-/// The forge's browser origin (protocol/openid-provider.md, 1 and 7).
-pub(crate) fn forge_origin(
-    git: &[u8],
-    web: Option<&[u8]>,
-    public: Option<&temper_forge_setup::setup::Origin>,
-) -> Box<[u8]> {
-    let Some(public) = public else { return bytes::copy_of(web.unwrap_or(git)) };
-    let port = skein_lib::Decimal::of(u64::from(public.port));
-    let mut parts = List::with_capacity(4);
-    parts.push(b"https://".as_slice()).expect("four origin pieces");
-    parts.push(public.host.as_ref()).expect("four origin pieces");
-    if public.port != 443 {
-        parts.push(b":".as_slice()).expect("four origin pieces");
-        parts.push(port.as_bytes()).expect("four origin pieces");
-    }
-    let mut length = 0_usize;
-    for part in &parts {
-        length = length.checked_add(part.len()).expect("bounded origin");
-    }
-    let mut out = skein_lib::Writer::new(length);
-    for part in &parts {
-        out.put(part).expect("measured origin");
-    }
-    out.finish()
 }
 #[derive(Debug)]
 pub struct Forge {
