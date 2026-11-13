@@ -1,5 +1,10 @@
 # Known reds
 
+Failures on the goal branch that no live change of goal 2173 owns; delivery
+checks count them as inherited (`tools/pre-pr/design.md`, section 5).
+Inherited from main at the goal's start, 2026-11-13, from goals 1983, 1984,
+1985, 1987, 1988 and 2105, each entry once. Each is dropped once fixed.
+
 Failures on the goal branch that no live change of goal 2234 owns; delivery
 checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
@@ -77,3 +82,9 @@ merged into main brought, each key once. Each is dropped once fixed.
 - lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
 - lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
 - lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
+
+Failures on the goal branch that no live change of goal 2176 owns; delivery
+checks count them as inherited (`tools/pre-pr/design.md`, section 5).
+
+- lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
+- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs

@@ -31,7 +31,7 @@ pub struct HeldArea {
     pub name: Box<[u8]>,
     pub holder: Option<Holder>,
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Holder {
     Task(u64),
     Party(u64),
@@ -56,7 +56,7 @@ pub fn areas(root: &crate::Domain, project: u32) -> Option<HeldAreas> {
         triager: if document.triager().is_some() { Some(area_holder(document.holder())) } else { None },
     })
 }
-fn area_holder(value: &w::Holder) -> Holder {
+pub(super) fn area_holder(value: &w::Holder) -> Holder {
     match value {
         w::Holder::Task(task) => Holder::Task(task.number()),
         w::Holder::Party(party) => Holder::Party(party.number()),
@@ -519,6 +519,9 @@ impl Default for Team {
     }
 }
 impl Team {
+    pub(crate) fn role_title(&self, task: u64) -> Option<Box<[u8]>> {
+        self.standing.title(task)
+    }
     pub(crate) fn document(&self, project: u32) -> Option<&c::Project> {
         if self.project == Some(project) { self.document.as_deref() } else { None }
     }
@@ -537,7 +540,9 @@ impl Team {
         next: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        let Some(project) = super::address_project(address) else {
+        let project =
+            if let Address::Inbox { filter } = address { filter.project } else { super::address_project(address) };
+        let Some(project) = project else {
             self.leave(out);
             return;
         };
