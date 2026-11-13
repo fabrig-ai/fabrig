@@ -8,7 +8,7 @@ use std::path::Path;
 use super::files::{Crate, Text};
 use super::run::{historical, read_optional};
 use super::text::{Block, PatchText};
-use super::{Error, Finding, Landed, derive};
+use super::{Error, Finding, FloorWrong, Landed, derive};
 use crate::diff::Version;
 
 /// Finds every change or refusal without writing a file (data/codec/command.md 7); a
@@ -17,7 +17,7 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
     let tree = Crate::read(owner)?;
     let base = Crate::base(owner, landed)?;
     let patches = derive::patches(&tree)?;
-    let _branch = derive::branch(&tree, &base)?;
+    let branch = derive::branch(&tree, &base)?;
     let frozen = derive::frozen(&derive::patches(&base)?, &base, &tree.wires);
     let mut findings = Vec::new();
     for (family, current) in &tree.current {
@@ -73,7 +73,56 @@ pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
             }
         }
     }
+    floors(&tree, &base, &patches, branch, &mut findings);
     Ok(findings)
+}
+
+fn floors(
+    tree: &Crate,
+    base: &Crate,
+    patches: &BTreeMap<u32, PatchText>,
+    branch: Option<u32>,
+    findings: &mut Vec<Finding>,
+) {
+    for (family, floor) in &tree.wire_floors {
+        let Some(floor) = *floor else { continue };
+        let mut wrongs = Vec::new();
+        if tree.current.get(family).is_some_and(|current| floor > current.version) {
+            wrongs.push(FloorWrong::Above);
+        }
+        if tree.kept.get(family).and_then(|texts| texts.first_key_value()).is_some_and(|(first, _)| floor < *first) {
+            wrongs.push(FloorWrong::Unkept);
+        }
+        let base_floor = base.wire_floors.get(family).and_then(|floor| match floor {
+            Some(floor) => Some(*floor),
+            None => base.kept.get(family)?.last_key_value().map(|(version, _)| *version),
+        });
+        if base_floor.is_some_and(|base| floor < base) {
+            wrongs.push(FloorWrong::Lowered);
+        }
+        for block in branch
+            .and_then(|number| patches.get(&number))
+            .into_iter()
+            .flat_map(|patch| &patch.blocks)
+            .filter(|block| block.family == *family)
+        {
+            if block.breaking().is_some() {
+                if floor != block.to {
+                    wrongs.push(FloorWrong::Breaking);
+                }
+            } else if floor > block.from {
+                wrongs.push(FloorWrong::Passed);
+            }
+        }
+        findings.extend(wrongs.into_iter().map(|wrong| Finding::Floor { family: family.clone(), floor, wrong }));
+        for (number, patch) in patches {
+            for block in patch.blocks.iter().filter(|block| block.family == *family && block.to > floor) {
+                if let Err(error) = reversed(tree, *number, block) {
+                    findings.push(Finding::Unbridged { family: family.clone(), version: block.to, error });
+                }
+            }
+        }
+    }
 }
 
 fn moves_to(patches: &BTreeMap<u32, PatchText>, family: &str, version: u16) -> bool {
@@ -124,6 +173,15 @@ fn current_findings(
 }
 
 pub(super) fn planned(tree: &Crate, number: u32, block: &Block) -> Result<(), String> {
+    plan(tree, number, block, false)?.map_or(Ok(()), |error| Err(spell(error)))
+}
+
+pub(super) fn reversed(tree: &Crate, number: u32, block: &Block) -> Result<(), String> {
+    plan(tree, number, block, true)?.map_or(Ok(()), |error| Err(spell(error)))
+}
+
+/// A planner refusal kept structured for `asked`; setup failures are already spelled.
+pub(super) fn plan(tree: &Crate, number: u32, block: &Block, reverse: bool) -> Result<Option<PatchError>, String> {
     let source = tree.patches.get(&number).expect("parsed patch has source");
     let texts = tree.kept.get(&block.family);
     let old = texts.and_then(|texts| texts.get(&block.from));
@@ -145,7 +203,12 @@ pub(super) fn planned(tree: &Crate, number: u32, block: &Block) -> Result<(), St
             })?;
         }
     }
-    patcher.plan(source.as_bytes()).map_err(spell)?.ok_or_else(|| {
+    let planned = if reverse { patcher.reverse(source.as_bytes()) } else { patcher.plan(source.as_bytes()) };
+    let planned = match planned {
+        Ok(planned) => planned,
+        Err(error) => return Ok(Some(error)),
+    };
+    planned.ok_or_else(|| {
         let line = source
             .lines()
             .position(|line| {
@@ -157,7 +220,7 @@ pub(super) fn planned(tree: &Crate, number: u32, block: &Block) -> Result<(), St
             .expect("bounded patch lines");
         format!("line {line}: Unkept")
     })?;
-    Ok(())
+    Ok(None)
 }
 
 fn spell(error: PatchError) -> String {

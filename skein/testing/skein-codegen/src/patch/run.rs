@@ -90,6 +90,7 @@ pub fn run(owner: &Path, landed: &Landed, options: &Options) -> Result<Report, E
     report.restored.dedup();
     apply(owner, &writes)?;
     generated(owner, report.patch)?;
+    reverse_asks(&Crate::read(owner)?, report.patch, &mut report)?;
     report.findings = check(owner, landed)?;
     Ok(report)
 }
@@ -120,7 +121,10 @@ fn generated(owner: &Path, branch: Option<u32>) -> Result<(), Error> {
     apply(owner, &writes)?;
     if let Some((number, text)) = &text
         && text.sites().next().is_none()
-        && text.blocks.iter().all(|block| check::planned(&krate, *number, block).is_ok())
+        && text.blocks.iter().all(|block| {
+            check::planned(&krate, *number, block).is_ok()
+                && needs_reverse(&krate, block).is_none_or(|_| check::reversed(&krate, *number, block).is_ok())
+        })
     {
         golden::run_goldens::<()>(&krate, *number, unwritten, true)?;
     }
@@ -262,9 +266,46 @@ fn asks(number: u32, patch: &PatchText, report: &mut Report) {
             }
         }
     }
-    for (block, target, _) in patch.sites() {
-        report.asked.push(format!("patch {number:04}, {}: written {target}", block.family));
+    for (block, target, _, down) in patch.sites() {
+        let prefix = if down { "down " } else { "" };
+        report.asked.push(format!("patch {number:04}, {}: {prefix}written {target}", block.family));
     }
+}
+
+pub(super) fn needs_reverse(tree: &Crate, block: &Block) -> Option<u16> {
+    tree.wire_floors.get(&block.family).copied().flatten().filter(|floor| block.to > *floor)
+}
+
+fn reverse_asks(tree: &Crate, branch: Option<u32>, report: &mut Report) -> Result<(), Error> {
+    let Some(number) = branch else { return Ok(()) };
+    let source = tree.patches.get(&number).expect("branch written");
+    let patch = module::read_patch(source, number)?;
+    for block in &patch.blocks {
+        if !tree.wire_floors.get(&block.family).is_some_and(Option::is_some) {
+            continue;
+        }
+        if let Some(reason) = block.breaking() {
+            report
+                .asked
+                .push(format!("patch {number:04}, {}: breaking {reason}; floor must be {}", block.family, block.to));
+        } else if let Ok(Some(error)) = check::plan(tree, number, block, true)
+            && error.wrong == skein_codec::patch::PatchWrong::Irreversible
+        {
+            let line = source
+                .lines()
+                .nth(usize::try_from(error.line).expect("bounded patch line").checked_sub(1).expect("one-based line"))
+                .unwrap_or_default();
+            let target = line.split_whitespace().nth(1).unwrap_or_default();
+            let decl = target.split('.').next().unwrap_or_default();
+            let value = if line.starts_with("drop ") && target.contains('.') {
+                format!("give `down {target} VALUE`, ")
+            } else {
+                String::new()
+            };
+            report.asked.push(format!("patch {number:04}, {}: {line}: {value}write `down written {decl}`, or declare the block breaking; bridgeable: keep {target} beside its replacement until the floor passes it", block.family));
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn remove_goldens(owner: &Path, number: u32, writes: &mut Writes) -> Result<(), Error> {

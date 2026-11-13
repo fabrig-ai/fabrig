@@ -101,6 +101,12 @@ impl Crate {
                 }
             }
         }
+        if let Some(bytes) = landed.files.get(Path::new("schema/wires")) {
+            let source = core::str::from_utf8(bytes)
+                .map_err(|error| Error::Schema { path: PathBuf::from("schema/wires"), error: error.to_string() })?;
+            base.wire_floors = floors(source, |family| base.kept.contains_key(family))?;
+            base.wires = base.wire_floors.keys().cloned().collect();
+        }
         Ok(base)
     }
 
@@ -120,31 +126,7 @@ impl Crate {
         let mut wire_floors = BTreeMap::new();
         if root.join(wires_path).try_exists().map_err(|error| Error::io(wires_path, &error))? {
             let source = unconflicted(root, wires_path)?;
-            for line in source
-                .lines()
-                .map(|line| line.split('#').next().unwrap_or_default().trim())
-                .filter(|line| !line.is_empty())
-            {
-                let words = line.split_whitespace().collect::<Vec<_>>();
-                let family = words.first().copied().unwrap_or_default();
-                let [_, floor] = words.as_slice() else {
-                    return Err(Error::Wire { family: family.into() });
-                };
-                let floor = if *floor == "build" {
-                    None
-                } else {
-                    Some(
-                        floor
-                            .parse::<u16>()
-                            .ok()
-                            .filter(|_| floor.bytes().all(|byte| byte.is_ascii_digit()))
-                            .ok_or_else(|| Error::Wire { family: family.into() })?,
-                    )
-                };
-                if !current.contains_key(family) || wire_floors.insert(family.to_owned(), floor).is_some() {
-                    return Err(Error::Wire { family: family.into() });
-                }
-            }
+            wire_floors = floors(&source, |family| current.contains_key(family))?;
         }
         let wires = wire_floors.keys().cloned().collect();
         let mut kept: BTreeMap<String, BTreeMap<u16, Text>> = BTreeMap::new();
@@ -180,8 +162,8 @@ impl Crate {
     }
 }
 
-/// Every file under the crate's `patches/` and `schema/kept/`, by path
-/// relative to the crate: [`super::Landed::read`].
+/// Every file under the crate's `patches/` and `schema/kept/`, and `schema/wires`,
+/// by path relative to the crate: [`super::Landed::read`].
 pub(crate) fn landed(root: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>, Error> {
     let mut files = BTreeMap::new();
     let mut directories = vec![PathBuf::from(PATCHES), PathBuf::from(KEPT)];
@@ -202,7 +184,39 @@ pub(crate) fn landed(root: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>, Error> {
             }
         }
     }
+    let wires = PathBuf::from("schema/wires");
+    if root.join(&wires).try_exists().map_err(|error| Error::io(&wires, &error))? {
+        files.insert(wires.clone(), fs::read(root.join(&wires)).map_err(|error| Error::io(&wires, &error))?);
+    }
     Ok(files)
+}
+
+fn floors(source: &str, known: impl Fn(&str) -> bool) -> Result<BTreeMap<String, Option<u16>>, Error> {
+    let mut floors = BTreeMap::new();
+    for line in
+        source.lines().map(|line| line.split('#').next().unwrap_or_default().trim()).filter(|line| !line.is_empty())
+    {
+        let words = line.split_whitespace().collect::<Vec<_>>();
+        let family = words.first().copied().unwrap_or_default();
+        let [_, floor] = words.as_slice() else {
+            return Err(Error::Wire { family: family.into() });
+        };
+        let floor = if *floor == "build" {
+            None
+        } else {
+            Some(
+                floor
+                    .parse::<u16>()
+                    .ok()
+                    .filter(|_| floor.bytes().all(|byte| byte.is_ascii_digit()))
+                    .ok_or_else(|| Error::Wire { family: family.into() })?,
+            )
+        };
+        if !known(family) || floors.insert(family.to_owned(), floor).is_some() {
+            return Err(Error::Wire { family: family.into() });
+        }
+    }
+    Ok(floors)
 }
 
 /// A four-digit patch number.
