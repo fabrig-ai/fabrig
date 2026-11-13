@@ -51,3 +51,4 @@ Failing on goal 2474's branch at 50daec66, no live change's (seen by change
 HeldChange story):
 
 - test temper-one-process-world world::tests::a_restart_over_a_live_change_answers_a_person
+- test temper-one-process-world::suite core_after_project::the_incident_s_whole_sequence_answers
