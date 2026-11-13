@@ -36,3 +36,5 @@ mod fuzzy {
 }
 
 mod kept_change;
+
+mod history;

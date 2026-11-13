@@ -1267,6 +1267,7 @@ pub(crate) enum EndedRead {
 
 #[derive(Hash, Debug)]
 pub(crate) enum Read {
+    History { load: u64, most: u32 },
     Escalation(escalation::Query),
     Proposal(proposals::Query),
     TaskProposal { to: ReplyTo, key: CallKey, proposal: u64 },

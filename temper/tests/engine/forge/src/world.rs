@@ -117,6 +117,7 @@ struct Pending {
 }
 
 mod follows;
+mod history;
 
 struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
@@ -126,6 +127,7 @@ struct ReadScript {
 }
 
 /// Scripted root and forge protocol surrounding the connector top.
+#[expect(clippy::struct_excessive_bools, reason = "independent world faults include held history loads")]
 pub struct World {
     pub(crate) top: top::Domain,
     env: Env<top::Limits>,
@@ -137,6 +139,10 @@ pub struct World {
     top_out: Queue<top::Request>,
     pending: Map<Token, Pending>,
     stored: Map<top::Key, top::Stored>,
+    history_loads: Vec<(top::HistoryRange, Option<top::Key>, u32)>,
+    history_page_rows: u32,
+    history_hold: bool,
+    history_held: Vec<top::Event>,
     seen: List<top::Request>,
     serial: u64,
     generation: u64,
@@ -650,7 +656,11 @@ impl World {
             to_top: Queue::with_capacity(32),
             top_out: Queue::uncapped(),
             pending: Map::with_capacity(32),
-            stored: Map::with_capacity(128),
+            stored: Map::with_capacity(4096),
+            history_loads: Vec::new(),
+            history_page_rows: 32,
+            history_hold: false,
+            history_held: Vec::new(),
             seen: List::with_capacity(256),
             serial: 0,
             generation: 1,
@@ -1439,6 +1449,10 @@ impl World {
         for _ in 0..self.top_out.len() {
             let request = self.top_out.pop().expect("counted top output");
             match request {
+                top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
+                page @ top::Request::HistoryPage { .. } => {
+                    self.seen.push(page).expect("world output room");
+                }
                 top::Request::AdoptAccess { forge, request, .. } => {
                     top::step(
                         &mut self.top,
