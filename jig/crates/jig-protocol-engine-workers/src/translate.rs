@@ -501,6 +501,7 @@ pub(crate) fn call(record: wire::Call) -> host::LinkUp {
     host::LinkUp::Call {
         run: Token::new(fields.task),
         attempt: Token::new(fields.attempt),
+        contract: fields.contract,
         call: fields.name,
         tool: fields.tool,
         writes: fields.writes,

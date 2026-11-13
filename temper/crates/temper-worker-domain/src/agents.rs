@@ -266,6 +266,11 @@ pub(crate) fn decoded(
     }
     let event = match start {
         Ok(mut start) => {
+            route::host_step(
+                domain,
+                env,
+                host::Event::Agent(host::FromAgent::Decoded { owner, contract: start.charter.value().grants.contract }),
+            );
             // Earlier answers cross the same agent channel as live replies
             // (`domain/agent/tools.md`), after the protocol decodes the start.
             for call in &mut start.answered {

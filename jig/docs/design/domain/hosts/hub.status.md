@@ -7,4 +7,3 @@
   1: the engine hub's hello before placement.  the test-root message rendering gap remains `charters.status.md` (Not yet, the whole document).  contained agent trees remain `README.status.md`, 8.
 
 - **Not yet:** 8: the channel's components translating smith's bytes by bridges [in flight: change 2313]
-- **Not yet:** 8: *A call carries its charter's contract* [in flight: change 2314]

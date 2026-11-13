@@ -93,7 +93,7 @@ fn pieces_are_fenced_before_the_agent_is_live_and_after_it_leaves_live() {
     h.step(Event::Prepared { owner, workspace: Token::new(201) });
     assert!(h.step(Event::Agent(crate::FromAgent::Piece { owner, piece: piece() })).is_empty());
     assert_eq!((h.domain.pieces_fenced(), h.domain.pieces_lost()), (2, 0));
-    assert!(h.step(Event::Agent(crate::FromAgent::Started { owner, agent: Token::new(301) })).is_empty());
+    assert!(h.started(owner, Token::new(301)).is_empty());
     h.step(fixtures::finished(owner, Finish::Ended { outcome: Box::new([]) }));
     assert!(h.step(Event::Agent(crate::FromAgent::Piece { owner, piece: piece() })).is_empty());
     assert_eq!((h.domain.pieces_fenced(), h.domain.pieces_lost()), (3, 0));

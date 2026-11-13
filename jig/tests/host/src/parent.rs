@@ -399,7 +399,10 @@ impl Parent {
         let steps = u32::try_from(self.rng.below(u64::from(self.script.steps) + 1)).expect("fits");
         let entry = Agent { owner, fate, phase: Phase::Working { steps }, wake: 0, calls: 0 };
         self.agents.insert(agent, entry);
-        let mut out = vec![host(after, Event::Agent(FromAgent::Started { owner, agent }))];
+        let mut out = vec![
+            host(after, Event::Agent(FromAgent::Decoded { owner, contract: 1 })),
+            host(after, Event::Agent(FromAgent::Started { owner, agent })),
+        ];
         let step = self.script.step.draw(&mut self.rng);
         out.push(self.rearm(agent, after.saturating_add(step)));
         out

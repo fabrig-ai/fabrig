@@ -56,6 +56,11 @@ impl Harness {
         requests.into_boxed()
     }
 
+    fn started(&mut self, owner: Token, agent: Token) -> Box<[Request]> {
+        assert!(self.step(Event::Agent(crate::FromAgent::Decoded { owner, contract: 1 })).is_empty());
+        self.step(Event::Agent(crate::FromAgent::Started { owner, agent }))
+    }
+
     fn assign(&mut self, run: u64) -> (Token, Token) {
         let assignment = assignment(run);
         let requests = self.step(fixtures::assign(assignment));
@@ -75,7 +80,7 @@ impl Harness {
         };
         assert_eq!((*started, prepared.workspace), (owner, Some(workspace)));
         let agent = Token::new(run.checked_add(300).expect("small run"));
-        assert!(self.step(Event::Agent(crate::FromAgent::Started { owner, agent })).is_empty());
+        assert!(self.started(owner, agent).is_empty());
         (owner, workspace, agent)
     }
 }
@@ -90,6 +95,34 @@ fn assignment(run: u64) -> RunAssignment {
         live: crate::LiveAsk::NONE,
         charter: Box::from(&b"charter"[..]),
         grants: Box::new([]),
+    }
+}
+
+#[test]
+fn a_hosted_run_keeps_its_decoded_contract_across_hellos() {
+    let mut h = Harness::new();
+    let (owner, workspace) = h.assign(1);
+    h.step(Event::Prepared { owner, workspace });
+    h.step(Event::Agent(crate::FromAgent::Decoded { owner, contract: 3 }));
+    h.step(Event::Agent(crate::FromAgent::Started { owner, agent: owner }));
+    for name in [1, 2] {
+        let requests = h.step(fixtures::called(
+            owner,
+            Token::new(name),
+            Ask::Relay {
+                tool: b"read".as_slice().into(),
+                writes: false,
+                input: b"{}".as_slice().into(),
+                deadline: skein_lib::Duration::from_secs(1),
+            },
+        ));
+        let [Request::Up(LinkUp::Call { contract, .. })] = requests.as_ref() else {
+            panic!("relayed call: {requests:?}")
+        };
+        assert_eq!(*contract, 3);
+        let hello = h.step(jobs::opened());
+        let [Request::Hello { hello }] = hello.as_ref() else { panic!("hello: {hello:?}") };
+        assert_eq!(hello.hosting.len(), 1, "the same run is offered for adoption");
     }
 }
 
@@ -116,7 +149,7 @@ fn an_itemless_run_starts_and_ends_without_a_workspace() {
     assert_eq!(start.workspace, None);
     let owner = *owner;
     let agent = Token::new(301);
-    assert!(h.step(Event::Agent(crate::FromAgent::Started { owner, agent })).is_empty());
+    assert!(h.started(owner, agent).is_empty());
     let call = Token::new(42);
     assert_eq!(
         &*h.step(fixtures::called(owner, call, fixtures::deliver(Box::from(&b"work"[..])))),
@@ -165,7 +198,7 @@ fn turns_stay_in_the_host_until_their_own_ack_and_credit_returns() {
     assert_eq!(start.workspace, None);
     let owner = *owner;
     let agent = Token::new(301);
-    assert!(h.step(Event::Agent(crate::FromAgent::Started { owner, agent })).is_empty());
+    assert!(h.started(owner, agent).is_empty());
     for number in 1..=2 {
         let usage = u64::from(number == 1);
         let turn = crate::Turn {
@@ -393,7 +426,7 @@ fn held_finish_messages_reach_the_agent_after_start() {
         h.step(Event::Prepared { owner, workspace });
         let agent = Token::new(301);
         assert_eq!(
-            &*h.step(Event::Agent(crate::FromAgent::Started { owner, agent })),
+            &*h.started(owner, agent),
             &[Request::Agent(crate::ToAgent::Message {
                 agent,
                 name,
@@ -446,10 +479,7 @@ fn cancellation_returns_messages_held_before_the_agent_starts() {
     assert!(h.step(fixtures::inbound(run, attempt, name, Box::from(&b"question"[..]))).is_empty());
     assert_eq!(&*h.step(Event::Down(LinkDown::Cancel { run, attempt })), []);
     let agent = Token::new(301);
-    assert_eq!(
-        &*h.step(Event::Agent(crate::FromAgent::Started { owner, agent })),
-        [Request::Agent(crate::ToAgent::Cancel { agent })]
-    );
+    assert_eq!(&*h.started(owner, agent), [Request::Agent(crate::ToAgent::Cancel { agent })]);
     let requests = h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: Box::new([]) }));
     assert_eq!(&*requests, [Request::Save { owner, workspace }]);
     let requests = h.step(Event::Saved { owner, at: None });
@@ -551,7 +581,7 @@ fn a_program_grant_reaches_the_agents_start_and_renewals() {
     let (owner, start) = assigned_grants(&mut h, Box::new([fixtures::program_grant(1)]));
     assert_eq!(&*start.grants, &[fixtures::program_grant(1)]);
     let agent = Token::new(301);
-    h.step(Event::Agent(crate::FromAgent::Started { owner, agent }));
+    h.started(owner, agent);
     assert_eq!(
         &*renewal(&mut h, fixtures::program_grant(2)),
         &[Request::Agent(crate::ToAgent::Grant { agent, grant: fixtures::program_grant(2) })]
@@ -565,7 +595,7 @@ fn a_program_renewal_while_starting_reaches_the_agent() {
     renewal(&mut h, fixtures::program_grant(2));
     let agent = Token::new(301);
     assert_eq!(
-        &*h.step(Event::Agent(crate::FromAgent::Started { owner, agent })),
+        &*h.started(owner, agent),
         &[Request::Agent(crate::ToAgent::Grant { agent, grant: fixtures::program_grant(2) })]
     );
 }
@@ -583,7 +613,7 @@ fn an_applications_grant_is_kept_and_never_handed_to_the_agent() {
     let (owner, start) = assigned_grants(&mut h, Box::new([fixtures::application_grant(1)]));
     assert!(start.grants.is_empty());
     assert!(renewal(&mut h, fixtures::application_grant(2)).is_empty());
-    assert!(h.step(Event::Agent(crate::FromAgent::Started { owner, agent: Token::new(301) })).is_empty());
+    assert!(h.started(owner, Token::new(301)).is_empty());
     assert!(renewal(&mut h, fixtures::application_grant(3)).is_empty());
     assert_eq!(kept_grants(&h, owner), &[fixtures::application_grant(3)]);
 }
@@ -593,7 +623,7 @@ fn an_accounts_grant_renews_the_agents_grant() {
     let mut h = Harness::new();
     let (owner, _) = assigned_grants(&mut h, Box::new([fixtures::account_grant(1), fixtures::application_grant(1)]));
     let agent = Token::new(301);
-    h.step(Event::Agent(crate::FromAgent::Started { owner, agent }));
+    h.started(owner, agent);
     let newest = crate::Grant { form: crate::Form::Credential(crate::Scheme::Key), ..fixtures::account_grant(2) };
     assert_eq!(&*renewal(&mut h, newest), &[Request::Agent(crate::ToAgent::Grant { agent, grant: newest })]);
     assert_eq!(kept_grants(&h, owner), &[newest, fixtures::application_grant(1)]);
@@ -607,7 +637,7 @@ fn a_renewal_while_starting_sends_the_agent_accounts_grants_only() {
     assert!(renewal(&mut h, fixtures::application_grant(2)).is_empty());
     let agent = Token::new(301);
     assert_eq!(
-        &*h.step(Event::Agent(crate::FromAgent::Started { owner, agent })),
+        &*h.started(owner, agent),
         &[Request::Agent(crate::ToAgent::Grant { agent, grant: fixtures::account_grant(2) })]
     );
 }
@@ -616,7 +646,7 @@ fn a_renewal_while_starting_sends_the_agent_accounts_grants_only() {
 fn an_equal_or_older_generation_does_not_renew_an_agent() {
     let mut h = Harness::new();
     let (owner, _) = assigned_grants(&mut h, Box::new([fixtures::account_grant(2)]));
-    h.step(Event::Agent(crate::FromAgent::Started { owner, agent: Token::new(301) }));
+    h.started(owner, Token::new(301));
     assert!(renewal(&mut h, fixtures::account_grant(2)).is_empty());
     assert!(renewal(&mut h, fixtures::account_grant(1)).is_empty());
 }

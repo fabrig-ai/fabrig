@@ -15,9 +15,10 @@ fn translated(kind: u16, bytes: &[u8], limits: &wire::v12::Limits) -> (host::Lin
     (down, payloads.into_boxed(), values)
 }
 #[test]
-fn calls_state_contract_one() {
+fn calls_carry_the_charters_contract() {
     let limits = fixtures::codec();
     let up = host::LinkUp::Call {
+        contract: 3,
         run: Token::new(7),
         attempt: Token::new(2),
         call: b"call".as_slice().into(),
@@ -28,7 +29,7 @@ fn calls_state_contract_one() {
     };
     let frame = translate::up(up, &[], &limits).expect("call frame");
     let record = wire::Call::decode(&limits, &mut body(&frame)).expect("call");
-    assert_eq!(record.contract(), 1);
+    assert_eq!(record.contract(), 3);
 }
 
 fn assigned() -> (host::Assignment, Box<[Part]>, Queue<Request>) {
