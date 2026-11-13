@@ -1,6 +1,6 @@
 //! The host tools' kept contract (protocol/wires.md, 6).
 
-use std::{fs, path::Path};
+use std::fs;
 
 use smith_domain_run::HostEffect;
 
@@ -24,8 +24,7 @@ fn check_current(rendered: &[u8], kept: &[u8]) -> Result<(), &'static str> {
 )]
 fn host_tools_contract_is_current() {
     let rendered = render(&SPECS);
-    let path =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("contract").join(format!("host-tools-v{}.txt", wire::VERSION));
+    let path = skein_scratch::paths::package().join("contract").join(format!("host-tools-v{}.txt", wire::VERSION));
     if std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1")) {
         fs::create_dir_all(path.parent().expect("contract directory")).expect("create contract directory");
         fs::write(&path, &rendered).expect("write current host-tool contract");

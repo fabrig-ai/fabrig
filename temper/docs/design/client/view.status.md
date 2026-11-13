@@ -2,12 +2,8 @@
 
 2026-11-12. Where the tree's code lags or departs from [view.md](view.md).
 
-- **Departs:** 1: in the browser, a page whose link turns out of date, or whose
-  forge's records are not served, first reloads itself once, and shows the
-  column and its Reload only when it is out of date again
-  (`../protocol/wires.md`, section 8, change 1740). This section, as goal 1960
-  wrote it, has the person reload; the merge of main into goal 1705 kept its
-  words and the code alike.
+- **Not yet:** 1: an out-of-date page reloads itself once before it shows the column [in flight: change 1740].
+
 
 - **Not yet:** 6: the *dated* form, `TimeForm::Dated` [in flight: change 784].
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
