@@ -17,11 +17,9 @@ use skein_ui::{Act, Node, Role, State, Style, Tree};
 
 use temper_client_domain::{self as d, Address, pages};
 
-
 const ENTRY: &[u8] = b"What do you want done?";
 
 const DRAFT: &[u8] = b"Make the change";
-
 
 fn root() -> d::Domain {
     f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true)
@@ -58,7 +56,6 @@ fn parts(tree: &Tree, style: Style) -> Vec<(Role, Vec<Style>)> {
 fn disabled(node: &Node) -> bool {
     node.states.as_slice().contains(&State::Disabled)
 }
-
 
 #[test]
 fn session_parts_follow_the_requested_order_in_both_shells() {
@@ -104,7 +101,6 @@ fn session_parts_follow_the_requested_order_in_both_shells() {
     }
 }
 
-
 #[test]
 fn meta_line_uses_the_home_repository_or_the_project_name() {
     use temper_client_protocol_wire::v1 as w;
@@ -147,7 +143,6 @@ fn meta_line_uses_the_home_repository_or_the_project_name() {
         }
     }
 }
-
 
 #[test]
 fn path_links_lead_through_chats_with_or_without_a_project() {
@@ -197,7 +192,6 @@ fn path_links_lead_through_chats_with_or_without_a_project() {
     }
 }
 
-
 #[test]
 fn opening_focuses_the_entry_except_while_renaming() {
     let (mut root, watch, _) = f::root_at(Address::NewChat { draft: false }, &f::domain_limits());
@@ -218,7 +212,6 @@ fn opening_focuses_the_entry_except_while_renaming() {
         }
     }
 }
-
 
 #[test]
 fn empty_not_ready_and_pending_disable_send_but_keep_the_draft_editable() {
@@ -273,7 +266,6 @@ fn empty_not_ready_and_pending_disable_send_but_keep_the_draft_editable() {
     }
 }
 
-
 #[test]
 fn input_enter_and_send_emit_the_chat_acts() {
     let mut root = root();
@@ -291,7 +283,6 @@ fn input_enter_and_send_emit_the_chat_acts() {
         assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::StartChat)));
     }
 }
-
 
 fn start(root: &mut d::Domain) -> skein_lib::Token {
     input(root, pages::Act::ChatWords { words: DRAFT.into() });
@@ -334,7 +325,6 @@ fn answer(root: &mut d::Domain, attempt: skein_lib::Token, answer: c::Answer) ->
     out
 }
 
-
 #[test]
 fn refused_start_keeps_the_words_and_feedback_under_the_composer() {
     let mut root = root();
@@ -348,7 +338,6 @@ fn refused_start_keeps_the_words_and_feedback_under_the_composer() {
         assert!(String::from_utf8_lossy(&f::main_text(view.tree())).contains("not offered"));
     }
 }
-
 
 #[test]
 fn only_the_starts_address_focuses_its_composer_including_the_playground() {
@@ -375,7 +364,6 @@ fn only_the_starts_address_focuses_its_composer_including_the_playground() {
     }
 }
 
-
 #[test]
 fn the_placeholder_and_the_meta_line() {
     let root = f::playground_root(Address::NewChat { draft: true }, f::PROJECT, true);
@@ -393,7 +381,6 @@ fn the_placeholder_and_the_meta_line() {
         }));
     }
 }
-
 
 #[test]
 fn the_bar_offers_the_modes_when_the_setting_offers_them() {

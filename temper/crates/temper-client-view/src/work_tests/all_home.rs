@@ -28,7 +28,6 @@ use temper_client_domain::{
 
 use temper_client_protocol_wire::v1 as w;
 
-
 // Sunday 08:04, with brief and decision clocks on the same day.
 const MINUTE: u64 = 60_000_000_000;
 
@@ -384,7 +383,6 @@ fn the_phone_has_its_short_words_and_decisions_link() {
     }
 }
 
-
 #[test]
 fn main_fills_only_the_unfiltered_needs_and_its_confirmation() {
     for filter in [d::address::Filter::ALL, d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL }]
@@ -426,7 +424,6 @@ fn main_tree(root: &d::Domain, words: &Words) -> (Tree, Bindings) {
     pages::all_home::main(&mut b, root, words, &mut bindings, &mut Times::new(f::NOW), 40);
     (b.finish(), bindings)
 }
-
 
 #[test]
 fn the_shared_headline_and_joined_brief_are_the_pages_words() {

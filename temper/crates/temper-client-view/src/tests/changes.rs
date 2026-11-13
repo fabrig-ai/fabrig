@@ -23,7 +23,6 @@ const SIX_MIN_AGO: u64 = 1_792_655_640_000_000_000;
 
 const FIRST: u64 = 9;
 
-
 fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQueue {
     let mut changes = List::with_capacity(32);
     for index in 0..count {
@@ -434,7 +433,6 @@ fn a_changes_task_bar_opens_with_its_projects_changes_breadcrumb() {
     assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/7/changes".as_slice()));
 }
 
-
 #[test]
 fn a_searching_train_shows_probing_at_its_prefix() {
     let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
@@ -461,7 +459,6 @@ fn a_searching_train_shows_probing_at_its_prefix() {
     assert!(contains(&text, "Landing 61 · member 51 · round 2"));
     assert!(contains(&text, "probing at 3333333"));
 }
-
 
 #[test]
 fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {

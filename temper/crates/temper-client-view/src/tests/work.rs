@@ -14,13 +14,9 @@ use skein_lib::{List, Queue, Time, Token, Wall};
 
 use skein_ui::{Builder, Role, Tree};
 
-use temper_client_domain::{
-    Address, Domain, Event, Place, Request, WorkFilter,
-    forge::ways::Ways,
-};
+use temper_client_domain::{Address, Domain, Event, Place, Request, WorkFilter, forge::ways::Ways};
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
-
 
 const NOW: Wall = Wall::from_nanos(1_792_656_000_000_000_000);
 

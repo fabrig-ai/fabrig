@@ -22,7 +22,6 @@ use temper_client_domain::{
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-
 const NOW: Wall = Wall::from_nanos(1_792_656_000_000_000_000);
 
 const RECENT: u64 = 1_792_655_640_000_000_000;
@@ -626,7 +625,6 @@ fn the_terminal_numbers_filters_and_cards_with_their_from_headline_and_rows() {
     }
 }
 
-
 #[test]
 fn work_rows_draw_signers_after_the_title_in_the_byline_style() {
     for words in [f::browser_words(), f::words()] {
@@ -664,9 +662,8 @@ fn work_rows_draw_signers_after_the_title_in_the_byline_style() {
     }
 }
 
-
 const READY: u64 = 1_792_159_800_000_000_000;
- // Friday 14:10 in the clock's preceding week.
+// Friday 14:10 in the clock's preceding week.
 fn landed_draft(path: &[u8], title: &[u8]) -> w::LandedDraft {
     w::LandedDraft::new(
         &w::CEILINGS,

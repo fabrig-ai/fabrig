@@ -1,24 +1,12 @@
 //! Browser needs words, roles and acts (temper/docs/design/client/pages/README.md).
-#![expect(
-    clippy::disallowed_methods,
-    reason = "ordinary tests inspect semantic subtrees and actions"
-)]
+#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic subtrees and actions")]
 use super::fixtures as f;
 
-
-
-
-
-use temper_client_domain::{
-    self as d,
-};
-
+use temper_client_domain::{self as d};
 
 pub(super) use super::fixtures::needs::{
-    approval_row, approvals, check_size, fixture, kinds, person,
-    proposal, size_cases, stop_root,
+    approval_row, approvals, check_size, fixture, kinds, person, proposal, size_cases, stop_root,
 };
-
 
 fn approval_people(people: &[(u64, &str)]) -> Box<[d::forge::approvals::ApprovalPerson]> {
     people
@@ -26,7 +14,6 @@ fn approval_people(people: &[(u64, &str)]) -> Box<[d::forge::approvals::Approval
         .map(|&(person, name)| d::forge::approvals::ApprovalPerson { person, name: name.as_bytes().into() })
         .collect()
 }
-
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "each row pins a distinct who-sentence rule in 4.1")]

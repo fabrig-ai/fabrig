@@ -1,17 +1,12 @@
 use super::fixtures::{self, task as f};
 
-
 use jig_client::contract as c;
-
 
 use skein_ui::Role;
 
 use temper_client_domain::pages::Act;
 
-
-pub(super) use super::fixtures::goal::{
-    offers, paused_document, press, with_goal_answer,
-};
+pub(super) use super::fixtures::goal::{offers, paused_document, press, with_goal_answer};
 
 #[test]
 fn an_agents_close_uses_the_same_sheet() {

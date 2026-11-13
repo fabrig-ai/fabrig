@@ -19,13 +19,11 @@ use temper_client_domain::{
     pages::{self, needs},
 };
 
-
 pub(super) use super::fixtures::needs::{
     QUESTION, approval_row, approvals, check_size, decided_fixture, deliver_asked, event, fixture, fixture_classes,
     fixture_classes_role, fixture_title, fixture_watched, held, kinds, kinds_read, limits, object, offers, person,
     proposal, settings_owned, size_cases, stop_root, words,
 };
-
 
 fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -503,7 +501,6 @@ fn phone_bar_links_home_and_counts_answered_including_cut() {
     }
 }
 
-
 #[test]
 fn opened_card_and_later_order() {
     let (mut root, _, decided) = fixture_watched(
@@ -581,7 +578,6 @@ fn answered_lines_have_links_labels_and_undo_only_during_hold() {
         assert!(f::find(view.tree(), Role::Button, b"Undo").is_none());
     }
 }
-
 
 #[test]
 fn done_with_and_without_lines_and_home_project() {
@@ -829,7 +825,6 @@ fn answered_lines_expire_and_schedule_the_oldest_end() {
     assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::ANSWERED)));
 }
 
-
 #[test]
 fn refused_answers_reopen_with_the_engines_words_on_the_card() {
     let mut root = root();
@@ -878,7 +873,6 @@ fn refused_answers_reopen_with_the_engines_words_on_the_card() {
     assert!(refused < choices);
 }
 
-
 #[test]
 fn unnamed_cards_and_answered_lines_use_task_number() {
     let mut root = fixture_title(QUESTION, false, 1, false, d::address::Filter::ALL, Some(b""));
@@ -893,7 +887,6 @@ fn unnamed_cards_and_answered_lines_use_task_number() {
     assert!(has(&view, b"Task 9:"));
     assert!(f::find(view.tree(), Role::Link, b"Task 9").is_some());
 }
-
 
 fn word_person(words: &str, words_cut: bool, document_cut: bool, requester: c::Requester) -> d::Domain {
     word_person_read(words, words_cut, document_cut, requester, None)
@@ -940,7 +933,6 @@ fn finished_person(whole: bool) -> d::Domain {
     };
     word_person_read("Fix the dropped watch", true, false, c::Requester::Task(42), Some(result))
 }
-
 
 fn proposal_row(p: c::Proposal) -> (c::ObjectKey, c::Read, c::ReadValue) {
     (c::ObjectKey::Proposal(p.key), c::Read::Proposal { proposal: p.key }, c::ReadValue::Proposal(Box::new(p)))
@@ -1173,7 +1165,6 @@ fn mixed_kinds_keep_each_short_and_later_order() {
     }
 }
 
-
 fn page_act(root: &mut d::Domain, action: pages::Act, out: &mut Queue<d::Request>) {
     event(root, Event::Act { action: d::Action::Pages(action) }, out);
 }
@@ -1276,7 +1267,6 @@ fn sent_cards_replace_all_acts_with_progress_and_the_returned_outcome() {
     assert!(root.pages().needs().answered(f::NOW, needs::ANSWERED_ON_NEEDS, None).is_empty());
 }
 
-
 #[test]
 fn a_refresh_of_the_same_rows_leaves_the_tree_unchanged() {
     for filter in [d::address::Filter::ALL, d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL }]
@@ -1316,7 +1306,6 @@ fn a_refresh_of_the_same_rows_leaves_the_tree_unchanged() {
     }
 }
 
-
 fn stable_nodes(tree: &skein_ui::Tree) -> Vec<skein_ui::Node> {
     let mut nodes = tree.nodes().to_vec();
     // Binding tokens and input write revisions are renewed on every build.
@@ -1330,7 +1319,6 @@ fn stable_nodes(tree: &skein_ui::Tree) -> Vec<skein_ui::Node> {
     }
     nodes
 }
-
 
 fn empty_column(root: &d::Domain) {
     let view = f::browser_page_view(root);
@@ -1371,7 +1359,6 @@ fn a_known_empty_stays_through_a_refresh() {
     );
 }
 
-
 #[test]
 fn approval_size_is_one_plain_chip_after_context_before_acts_or_nothing() {
     for (size, words, files) in size_cases() {
@@ -1401,7 +1388,6 @@ fn approval_size_is_one_plain_chip_after_context_before_acts_or_nothing() {
         );
     }
 }
-
 
 #[test]
 #[expect(
@@ -1740,7 +1726,6 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
         )
     );
 }
-
 
 fn rule_in_terminal(root: &d::Domain, rule: &[u8]) {
     use crate::frame::Bindings;

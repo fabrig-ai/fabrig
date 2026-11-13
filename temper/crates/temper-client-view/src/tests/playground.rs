@@ -6,7 +6,6 @@ use temper_client_domain::ChatsFilter;
 
 use temper_client_domain::{Action, Address, Event, pages::Act};
 
-
 #[test]
 fn suggestions_show_only_in_the_playground_project() {
     for (row, project, model, playground, shown) in [
@@ -73,7 +72,6 @@ fn suggestion_buttons_wait_for_a_start_and_press_their_own_cue() {
     }
 }
 
-
 #[test]
 fn the_playground_banner_is_absent_when_the_link_is_unavailable() {
     for (row, up) in [
@@ -87,7 +85,6 @@ fn the_playground_banner_is_absent_when_the_link_is_unavailable() {
         assert!(f::find(view.tree(), Role::List, b"Suggested requests").is_none(), "{row}");
     }
 }
-
 
 #[test]
 fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
@@ -139,7 +136,6 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
     }
 }
 
-
 #[test]
 fn the_playground_chooser_names_the_provider_and_model_but_keeps_the_configured_choice() {
     let mut root = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
@@ -165,7 +161,6 @@ fn the_playground_chooser_names_the_provider_and_model_but_keeps_the_configured_
     );
 }
 
-
 #[test]
 fn the_playground_account_is_in_its_own_folded_section() {
     // The fixture supplies no provider name and an old display name: the playground's
@@ -186,7 +181,6 @@ fn the_playground_account_is_in_its_own_folded_section() {
             .is_some()
     );
 }
-
 
 #[test]
 fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_project() {
@@ -255,7 +249,6 @@ fn the_accounts_banner_is_hidden_only_in_the_running_or_leaving_playground_proje
         assert!(playground.unwrap() < main.unwrap());
     }
 }
-
 
 #[test]
 fn the_frame_banner_follows_the_page_and_leaving_rules() {

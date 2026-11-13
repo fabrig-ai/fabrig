@@ -1,3 +1,4 @@
+//! Tests of work pages (temper/docs/design/client/view-crates.md, 4.3).
 pub(crate) mod fixtures;
 pub use fixtures::documents;
 mod all_home;
@@ -15,4 +16,4 @@ mod start_goal;
 mod task;
 mod tell;
 mod work;
-use fixtures::{inbox, cards, limits_helpers as limits};
+use fixtures::{cards, inbox, limits_helpers as limits};

@@ -1,8 +1,8 @@
 use super::fixtures;
 
 use fixtures::chat::{
-    ATTEMPT, BYTES, GRACES, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_root,
-    closing, messaging_root, projected_tree as tree, proposal_root, rejecting_chat,
+    ATTEMPT, BYTES, GRACES, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_root, closing, messaging_root,
+    projected_tree as tree, proposal_root, rejecting_chat,
 };
 
 use jig_client::{contract as c, thread::Thread};
@@ -11,12 +11,10 @@ use skein_lib::{List, Wall};
 
 use skein_ui::Role;
 
-
 pub(super) use super::fixtures::chat_helpers::{
     asking_task, asking_task_root, asking_task_root_owned, assert_run_line, deliver_chat, long_line_page, model_choice,
     model_effort, model_line_page, model_line_root, named_position, pause_chip, structured_thread,
 };
-
 
 fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree, crate::frame::Bindings) {
     let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
@@ -33,18 +31,15 @@ fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree, crate::fra
     (b.finish(), bindings)
 }
 
-
 fn reading_thread() -> Thread {
     Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT })
 }
-
 
 #[test]
 fn no_page_offers_older() {
     let view = fixtures::page_view(&chat_with_history());
     assert!(fixtures::find(view.tree(), Role::Button, b"Older").is_none());
 }
-
 
 #[test]
 fn sending_moves_the_logs_end_request() {
@@ -66,7 +61,6 @@ fn sending_moves_the_logs_end_request() {
     let (tree, _) = reading_tree(&reading_thread(), false);
     assert_eq!(tree.nodes()[0].end_request, None);
 }
-
 
 #[test]
 fn conversation_children_after_the_head_have_distinct_keys() {
@@ -95,7 +89,6 @@ fn conversation_children_after_the_head_have_distinct_keys() {
     }
 }
 
-
 #[test]
 fn a_started_or_sent_chat_asks_for_its_composer_and_an_opened_one_does_not() {
     use temper_client_domain::{Action, Event, pages::Act};
@@ -118,7 +111,6 @@ fn a_started_or_sent_chat_asks_for_its_composer_and_an_opened_one_does_not() {
     }
 }
 
-
 #[test]
 fn the_playground_project_is_named_playground() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
@@ -138,7 +130,6 @@ fn the_playground_project_is_named_playground() {
         assert!(skein_lib::bytes::find(&fixtures::node_text(tree, context), "Shop · acme/shop".as_bytes()).is_some());
     }
 }
-
 
 #[test]
 fn the_session_heading_keeps_its_name_and_shows_the_title_in_the_browser() {
@@ -208,7 +199,6 @@ fn the_session_heading_keeps_its_name_and_shows_the_title_in_the_browser() {
         assert_eq!(root.pages().chat().unwrap().task(root.client()).unwrap().chip.title.bytes(), title);
     }
 }
-
 
 #[test]
 fn a_chat_proposal_is_named_from_its_source_task() {
@@ -324,7 +314,6 @@ fn the_close_confirmation_says_how_the_chat_ends() {
     }
 }
 
-
 fn messaging_task(task: c::Task) -> temper_client_domain::Domain {
     let (mut root, _, watch) =
         fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &fixtures::domain_limits());
@@ -349,7 +338,6 @@ fn an_open_chat_at_rest_says_waiting_on_your_words_and_keeps_its_composer() {
     assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_some());
 }
 
-
 #[test]
 fn pressing_close_opens_the_chat_confirmation() {
     let mut root = chat_root();
@@ -363,7 +351,6 @@ fn pressing_close_opens_the_chat_confirmation() {
     let mut view = fixtures::view();
     assert!(fixtures::find(fixtures::build(&mut view, &root), Role::Dialog, b"Close this chat?").is_some());
 }
-
 
 #[test]
 fn the_close_confirmation_says_the_cancellations_facts() {
@@ -379,7 +366,6 @@ fn the_close_confirmation_says_the_cancellations_facts() {
     assert!(skein_lib::bytes::find(&said, b"1 task below it is cancelled.").is_some());
     assert!(skein_lib::bytes::find(&said, b"Dangerous action").is_none());
 }
-
 
 #[test]
 fn an_unanchored_proposal_is_shown_once_in_the_conversation_tail() {
@@ -427,7 +413,6 @@ fn a_chat_rejection_confirmation_keeps_the_persons_reason() {
     assert!(skein_lib::bytes::find(&fixtures::text(tree), b"Too costly").is_some());
 }
 
-
 #[test]
 fn the_message_composer_keeps_its_name_and_has_a_numbered_placeholder() {
     let view = fixtures::page_view(&messaging_root());
@@ -437,7 +422,6 @@ fn the_message_composer_keeps_its_name_and_has_a_numbered_placeholder() {
     // messaging_root's chat is TASK, T9.
     assert_eq!(composer.placeholder.as_deref(), Some(b"Reply to T9".as_slice()));
 }
-
 
 #[test]
 fn the_composer_asks_what_should_change_until_it_is_answered() {
@@ -478,7 +462,6 @@ fn the_composer_asks_what_should_change_until_it_is_answered() {
         check(&root, b"Reply to T9");
     }
 }
-
 
 #[test]
 fn enter_in_the_message_composer_sends() {
@@ -521,7 +504,6 @@ fn a_line_break_counts_within_the_message_bound() {
     }
 }
 
-
 #[test]
 fn enter_in_a_cards_reason_does_nothing() {
     let mut view = fixtures::page_view(&proposal_root());
@@ -540,7 +522,6 @@ fn a_chats_card_carries_the_card_token() {
     }
 }
 
-
 fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -> Option<usize> {
     for (index, node) in nodes.iter().enumerate() {
         if node.styles.as_slice().contains(&token) {
@@ -549,7 +530,6 @@ fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -> Option<us
     }
     None
 }
-
 
 fn styled(tree: &skein_ui::Tree, token: skein_ui::Style) -> usize {
     style_position(tree.nodes(), token).expect("styled node")
@@ -635,7 +615,6 @@ fn the_chat_entry_has_the_shared_hint_after_message_and_send() {
     );
 }
 
-
 #[test]
 fn a_chat_without_message_has_no_composer_area() {
     let view = fixtures::page_view(&chat_root());
@@ -655,7 +634,6 @@ fn chat_cards_are_items_inside_the_logs_column_after_the_turns() {
     assert_eq!(inner, log + 1);
     assert!(cards > inner && cards < log + usize::try_from(tree.nodes()[log].size).unwrap());
 }
-
 
 fn chat_event(
     root: &mut temper_client_domain::Domain,
@@ -890,7 +868,6 @@ fn a_refused_message_draws_its_refusal_after_send() {
     assert!(status < area + usize::try_from(nodes[area].size).unwrap());
 }
 
-
 fn header_with_status(waits_on: c::WaitsOn, live: u32, wake: c::WakeRule, requester: c::Requester) -> crate::View {
     use temper_client_domain::{Address, Event};
     let (mut root, _, watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
@@ -915,7 +892,6 @@ fn header_with_status(waits_on: c::WaitsOn, live: u32, wake: c::WakeRule, reques
     fixtures::page_view(&root)
 }
 
-
 #[test]
 fn the_status_line_counts_the_delegates_it_waits_on() {
     // One and two distinguish the shared goal phrase's plural forms.
@@ -925,7 +901,6 @@ fn the_status_line_counts_the_delegates_it_waits_on() {
         assert_eq!(view.tree().find(status).unwrap().styles.as_slice(), [crate::look::STATUS_LINE]);
     }
 }
-
 
 #[test]
 fn the_status_line_waits_on_the_requesting_persons_words() {
@@ -942,7 +917,6 @@ fn the_status_line_waits_on_the_requesting_persons_words() {
     }
 }
 
-
 #[test]
 fn the_status_line_keeps_jigs_word_without_the_requesters_words_wake() {
     const OTHER_PERSON: u64 = 74;
@@ -957,7 +931,6 @@ fn the_status_line_keeps_jigs_word_without_the_requesters_words_wake() {
         assert!(fixtures::find(view.tree(), Role::Status, b"Parked").is_some());
     }
 }
-
 
 fn result_view(result: c::TaskResult) -> crate::View {
     result_view_at(result, None)
@@ -989,7 +962,6 @@ fn result_view_at(result: c::TaskResult, at: Option<Wall>) -> crate::View {
     fixtures::page_view(&root)
 }
 
-
 fn result_document(ending: c::Ending) -> c::TaskResult {
     c::TaskResult::Document(Box::new(c::Result {
         task: fixtures::task::document().chip,
@@ -1000,7 +972,6 @@ fn result_document(ending: c::Ending) -> c::TaskResult {
         acts: List::with_capacity(0),
     }))
 }
-
 
 #[test]
 fn every_chat_end_line_carries_ended_and_omits_the_whole_composer() {
@@ -1052,7 +1023,6 @@ fn every_chat_end_line_carries_ended_and_omits_the_whole_composer() {
         assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
     }
 }
-
 
 fn cancelled_by(by: c::Requester) -> c::ChipEnding {
     c::ChipEnding::Cancelled {
@@ -1134,7 +1104,6 @@ fn a_chats_end_line_says_who_ended_it() {
     }
 }
 
-
 #[test]
 fn a_live_chat_keeps_its_choice_line_and_composer() {
     let view = fixtures::page_view(&messaging_root());
@@ -1142,7 +1111,6 @@ fn a_live_chat_keeps_its_choice_line_and_composer() {
     assert!(style_position(view.tree().nodes(), crate::look::MODEL).is_some());
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_some());
 }
-
 
 #[test]
 fn a_chats_end_and_its_phase_keep_the_supplied_clock() {
@@ -1169,7 +1137,6 @@ fn a_chats_end_and_its_phase_keep_the_supplied_clock() {
         assert_eq!(view.next_change(), Some(Wall::from_nanos(86_400_000_000_000)));
     }
 }
-
 
 #[test]
 fn an_automatic_seen_draws_no_progress() {
@@ -1247,7 +1214,6 @@ fn a_chat_rebuilds_its_day_at_midnight_and_keeps_the_turn_clock() {
     }
 }
 
-
 #[test]
 fn the_chatbar_draws_the_supplied_budget_including_zero() {
     use temper_client_domain::{Address, Event};
@@ -1272,7 +1238,6 @@ fn the_chatbar_draws_the_supplied_budget_including_zero() {
     }
 }
 
-
 #[test]
 fn a_chat_proposal_links_to_the_inbox_filtered_to_proposals() {
     let mut view = fixtures::page_view(&proposal_root());
@@ -1290,7 +1255,6 @@ fn a_chat_proposal_links_to_the_inbox_filtered_to_proposals() {
     );
 }
 
-
 fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
     let mut count = 0_u32;
     for node in tree.nodes() {
@@ -1301,7 +1265,6 @@ fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
     count
 }
 
-
 #[test]
 fn the_playground_chats_bar_names_the_default_model() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
@@ -1311,7 +1274,6 @@ fn the_playground_chats_bar_names_the_default_model() {
     let node = &view.tree().nodes()[bar + 1 + byline];
     assert_eq!(node.description.as_deref().or(node.name.as_deref()), Some(b"T9".as_slice()));
 }
-
 
 #[test]
 fn unavailable_models_block_send_and_enter_in_the_view() {
@@ -1325,7 +1287,6 @@ fn unavailable_models_block_send_and_enter_in_the_view() {
         assert_eq!(crate::act(&mut view, node, event), None);
     }
 }
-
 
 fn resting_task() -> c::Task {
     let mut task = asking_task();
@@ -1431,7 +1392,6 @@ fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
     assert!(skein_lib::bytes::find(printed, b"Change model").is_none());
 }
 
-
 #[test]
 fn only_a_delivered_template_five_executor_changes_chat_path_and_navigation() {
     use crate::look;
@@ -1469,7 +1429,6 @@ fn only_a_delivered_template_five_executor_changes_chat_path_and_navigation() {
     assert!(style_position(view.tree().nodes(), look::AGENT_PAGE).is_none());
 }
 
-
 #[test]
 fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
     for asking in [false, true] {
@@ -1502,7 +1461,6 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
         }
     }
 }
-
 
 #[test]
 fn asking_chats_keep_message_refusals_below_the_entry() {
@@ -1554,7 +1512,6 @@ fn asking_chats_keep_message_refusals_below_the_entry() {
     }
 }
 
-
 #[test]
 fn asking_chats_keep_the_conversation_and_proposals_whole() {
     use fixtures::first_run as run;
@@ -1596,7 +1553,6 @@ fn asking_chats_keep_the_conversation_and_proposals_whole() {
     }
 }
 
-
 fn goals_navigation(root: &temper_client_domain::Domain, shown: bool) {
     let view = fixtures::browser_page_view(root);
     // Work stays in both navigation surfaces while Goals is offered or held.
@@ -1635,7 +1591,6 @@ fn goals_navigation_keeps_an_existing_goal_when_kind_seven_hides_it() {
     super::rail::with_goal_fact(&mut root, me, Some(true));
     goals_navigation(&root, true);
 }
-
 
 #[test]
 fn every_chat_bar_orders_its_byline_allowed_acts_group_and_spend_and_links_its_path() {
@@ -1720,7 +1675,6 @@ fn every_chat_bar_orders_its_byline_allowed_acts_group_and_spend_and_links_its_p
     }
 }
 
-
 #[test]
 fn the_status_line_is_the_composers_first_row_at_rest_and_working() {
     use crate::look;
@@ -1749,7 +1703,6 @@ fn the_status_line_is_the_composers_first_row_at_rest_and_working() {
     }
 }
 
-
 #[test]
 fn the_session_send_arrow_waits_for_words_in_every_chat() {
     use temper_client_domain::{self as d, pages::Act};
@@ -1770,7 +1723,6 @@ fn the_session_send_arrow_waits_for_words_in_every_chat() {
         }
     }
 }
-
 
 #[test]
 fn working_dots_follow_each_status_in_the_browser_alone_including_asking_chats() {
@@ -1800,7 +1752,6 @@ fn working_dots_follow_each_status_in_the_browser_alone_including_asking_chats()
         }
     }
 }
-
 
 fn full_window(dropped: bool) -> (temper_client_domain::Domain, temper_client_domain::Limits) {
     let mut limits = fixtures::domain_limits();
@@ -1856,7 +1807,6 @@ fn the_log_has_one_column_for_its_turns() {
     }
 }
 
-
 fn whole_turn_shell_limits() -> temper_client_domain::Limits {
     let mut domain = fixtures::domain_limits();
     let receiving = &mut domain.client.domain;
@@ -1872,7 +1822,6 @@ fn whole_turn_shell_limits() -> temper_client_domain::Limits {
     receiving.ask_bytes = 4_194_304;
     domain
 }
-
 
 fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: u32) -> c::ActivityPage {
     use fixtures::first_run as run;
@@ -1890,7 +1839,6 @@ fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: 
     }
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
-
 
 #[test]
 fn a_whole_markdown_turn_builds_and_prints_at_the_shells_limits() {
@@ -1920,7 +1868,6 @@ fn a_whole_markdown_turn_builds_and_prints_at_the_shells_limits() {
     }
 }
 
-
 fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
     let mut input = skein_lib::bytes::zeroed(length);
     for (at, byte) in input.iter_mut().enumerate() {
@@ -1928,7 +1875,6 @@ fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
     }
     input
 }
-
 
 #[test]
 fn latest_is_a_browsers_alone_and_goes_to_the_log_end() {
@@ -1950,7 +1896,6 @@ fn latest_is_a_browsers_alone_and_goes_to_the_log_end() {
     }
 }
 
-
 #[test]
 fn latest_is_bound_only_where_the_window_let_the_end_go() {
     use temper_client_domain::{Action, pages::Act};
@@ -1967,7 +1912,6 @@ fn latest_is_bound_only_where_the_window_let_the_end_go() {
         );
     }
 }
-
 
 #[test]
 fn the_head_says_when_an_earlier_read_is_out() {
@@ -2009,7 +1953,6 @@ fn the_head_says_when_an_earlier_read_is_out() {
     let inner = styled(view.tree(), crate::look::THREAD_INNER);
     assert_eq!(nodes[inner + 1].name.as_deref(), Some(b"Loading earlier messages".as_slice()));
 }
-
 
 #[test]
 fn a_closed_chat_says_what_it_ran_on() {
@@ -2089,7 +2032,6 @@ fn a_closed_chat_says_what_it_ran_on() {
     }
 }
 
-
 #[test]
 fn a_closed_chat_ends_on_one_line() {
     use temper_client_domain::{Action, Address, Event, pages::Act};
@@ -2159,7 +2101,6 @@ fn a_closed_chat_ends_on_one_line() {
     assert!(skein_lib::bytes::find(&text, b"Decision made").is_none());
 }
 
-
 #[test]
 fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
     use crate::look;
@@ -2224,7 +2165,6 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
     }
 }
 
-
 pub(super) fn assert_long_line(
     root: &temper_client_domain::Domain,
     domain: &temper_client_domain::Limits,
@@ -2255,7 +2195,6 @@ pub(super) fn assert_long_line(
     }
 }
 
-
 #[test]
 fn a_chats_long_line_draws_whole() {
     for length in [1149, 10_660] {
@@ -2273,7 +2212,6 @@ fn a_chats_long_line_draws_whole() {
         assert_long_line(&root, &domain, &bytes);
     }
 }
-
 
 // client/pages/README.md: this hold is the reader's own Stop on this chat.
 
@@ -2443,7 +2381,6 @@ fn a_refused_resume_says_why() {
         assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"not offered").is_some());
     }
 }
-
 
 // client/view.md, 4: the message composers share the bound.
 fn bounded_composers(browser: bool) -> Box<[temper_client_domain::Domain]> {

@@ -11,7 +11,6 @@ use skein_ui::{Builder, Role, Shortcut, State, Tree};
 
 use temper_client_domain::{Action, Address, Domain, Event, pages::Act};
 
-
 const PATH: &[u8] = b"docs/design/draft/away-mode.md";
 
 const CHAT: u64 = 4;
@@ -23,7 +22,6 @@ const SECOND: u32 = 4;
 const CUSTOM: u32 = 9;
 
 const TEXT: u32 = 256;
-
 
 struct Sheet {
     root: Domain,
@@ -102,7 +100,6 @@ fn styled(tree: &Tree, style: skein_ui::Style) -> Option<usize> {
 fn press(tree: &Tree, bindings: &Bindings, role: Role, name: &[u8]) -> Action {
     bindings.decode(node(tree, role, name).binding.unwrap().token, skein_ui::Act::Press).unwrap()
 }
-
 
 #[test]
 fn no_draft_opens_the_sheet() {
@@ -242,7 +239,6 @@ fn its_settings_link() {
     );
 }
 
-
 #[test]
 fn when_it_needs_you_follows_by_default_and_binds_both_choices() {
     let mut sheet = Sheet::open();
@@ -276,7 +272,6 @@ fn when_it_needs_you_follows_by_default_and_binds_both_choices() {
         assert!(node(&tree, Role::Choice, name).states.as_slice().contains(&State::Disabled));
     }
 }
-
 
 #[test]
 fn no_funds_says_why_and_clears_when_me_gives_budget() {

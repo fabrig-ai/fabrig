@@ -226,7 +226,6 @@ fn proposals_held_tasks_and_approvals_keep_their_acts() {
     }
 }
 
-
 #[test]
 fn approval_size_follows_the_question_before_acts_or_draws_nothing() {
     let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);
@@ -253,7 +252,6 @@ fn approval_size_follows_the_question_before_acts_or_draws_nothing() {
         );
     }
 }
-
 
 #[test]
 fn reason_line_stays_under_the_question_and_keeps_asking_under_its_offers() {

@@ -8,16 +8,13 @@ use skein_lib::List;
 
 use skein_ui::{Builder, Role};
 
-
 use super::inbox::{styled, subtree};
 
 use crate::look;
 
 use skein_ui::{Node, Tree};
 
-
 use temper_client_domain::{Action, pages::Act};
-
 
 const TASK: u64 = 9;
 
@@ -34,7 +31,6 @@ const PARTY: u64 = 73;
 const ONE: u32 = 1;
 
 const NO_ROWS: u32 = 0;
-
 
 #[test]
 fn a_plans_chip_links_to_its_tasks_page_by_number() {
@@ -105,7 +101,6 @@ fn index_of_text(tree: &Tree, expected: &[u8]) -> Option<usize> {
     None
 }
 
-
 #[test]
 fn a_plans_items_are_nested_under_their_supplied_parent() {
     let mut delivery = f::tree();
@@ -124,7 +119,6 @@ fn a_plans_items_are_nested_under_their_supplied_parent() {
     assert!(fixtures::find(&tree, Role::TreeItem, b"Task 9").is_none());
 }
 
-
 // README 5.8: "a live root's own delegates stay under it, in the tree's order".
 #[test]
 fn a_later_grandchild_nests_under_its_parent_not_after_its_parents_sibling() {
@@ -136,7 +130,6 @@ fn a_later_grandchild_nests_under_its_parent_not_after_its_parents_sibling() {
     assert_plan_roots(&tree, &[b"Task 12", b"Task 13"]);
     assert!(index_of(&tree, Role::TreeItem, b"Task 14") < index_of(&tree, Role::TreeItem, b"Task 13"));
 }
-
 
 // README 5.8: "a live root's own delegates stay under it, in the tree's order".
 #[test]
@@ -158,7 +151,6 @@ fn a_plans_deeper_delegates_follow_parents_even_when_children_arrive_first() {
     }
 }
 
-
 // README 5.8: "An ended delegate is drawn before the first live root with a higher number";
 // "a live root's own delegates stay under it, in the tree's order".
 #[test]
@@ -175,14 +167,12 @@ fn an_ended_delegate_follows_the_whole_subtree_of_the_live_root_before_it() {
     assert_tree_items(tree, &[b"Task 12", b"Task 15", b"Task 13", b"Task 14"]);
 }
 
-
 // README 5.8: "Its delegates are the plan's roots"; "in the tree's order".
 #[test]
 fn a_plan_row_with_its_parent_outside_the_window_stays_at_the_plan_level() {
     let tree = plan(&plan_rows(&[(12, 9, 1), (14, 30, 2)]));
     assert_plan_roots(&tree, &[b"Task 12", b"Task 14"]);
 }
-
 
 // README 5.8: "a live root's own delegates stay under it, in the tree's order".
 #[test]
@@ -191,7 +181,6 @@ fn a_plans_siblings_keep_their_supplied_order_even_out_of_number_order() {
     assert_plan_roots(&tree, &[b"Task 18", b"Task 12"]);
     assert_tree_items(&tree, &[b"Task 18", b"Task 12", b"Task 16", b"Task 14"]);
 }
-
 
 fn plan_rows(rows: &[(u64, u64, u32)]) -> c::Delivery {
     let mut delivery = f::tree();
@@ -207,7 +196,6 @@ fn plan_rows(rows: &[(u64, u64, u32)]) -> c::Delivery {
     delivery
 }
 
-
 fn assert_plan_roots(tree: &Tree, names: &[&[u8]]) {
     let roots = children(tree, styled(tree, look::PLAN));
     assert_eq!(roots.as_slice().len(), names.len());
@@ -216,7 +204,6 @@ fn assert_plan_roots(tree: &Tree, names: &[&[u8]]) {
         assert_eq!(tree.nodes()[*index].name.as_deref(), Some(*name));
     }
 }
-
 
 #[test]
 fn a_moved_hold_is_refused_and_the_card_asks_to_look_again() {
@@ -246,9 +233,7 @@ const NEW_HOLD_REVISION: c::Revision = c::Revision { value: 8 };
 
 fn has_release_card(tree: &Tree) -> bool {
     for node in tree.nodes() {
-        if node.role == Role::Item
-            && node.key == Some(skein_ui::Key { owner: look::owner(), kind: 2, a: TASK, b: 0 })
-        {
+        if node.role == Role::Item && node.key == Some(skein_ui::Key { owner: look::owner(), kind: 2, a: TASK, b: 0 }) {
             return true;
         }
     }
@@ -357,7 +342,6 @@ fn the_title_sits_between_the_headers_two_meta_rows_without_a_title_paragraph() 
     assert_eq!(children(&tree, parts[3]).len(), 2);
 }
 
-
 #[test]
 fn the_first_meta_omits_absent_priority_and_uses_the_project_fallback_and_procedure_part() {
     let mut task = titled();
@@ -460,7 +444,6 @@ fn every_phase_has_the_same_status_token_in_the_header_and_its_plan_row() {
     }
 }
 
-
 const RESULT_TASK: u64 = 7;
 
 const HEARD_WORDS: &[u8] = b"Two crates hold the export";
@@ -477,13 +460,11 @@ fn heard_word(from: c::Requester, kind: c::MessageKind) -> c::Word {
     }
 }
 
-
 fn assert_no_activity_link(tree: &Tree) {
     for node in tree.nodes() {
         assert_ne!(node.role, Role::Link);
     }
 }
-
 
 #[test]
 fn the_chats_owner_activity_draws_no_link() {
@@ -498,7 +479,6 @@ fn the_chats_owner_activity_draws_no_link() {
     assert_eq!(fixtures::text(&tree).as_ref(), HEARD_WORDS);
 }
 
-
 #[test]
 fn a_kept_activity_is_parked() {
     let mut builder = Builder::new(&fixtures::tree_limits());
@@ -509,7 +489,6 @@ fn a_kept_activity_is_parked() {
     );
     assert_eq!(fixtures::text(&builder.finish()).as_ref(), b"parked");
 }
-
 
 fn region_index(tree: &Tree, name: &[u8]) -> usize {
     let id = fixtures::find(tree, Role::Region, name).expect("page region");
@@ -524,7 +503,6 @@ fn region_index(tree: &Tree, name: &[u8]) -> usize {
 fn result_words(bytes: &[u8]) -> c::Text {
     c::Text::new(Box::from(bytes), 256).expect("result words")
 }
-
 
 const DEPENDENCY: u64 = 17;
 
@@ -592,7 +570,6 @@ fn assert_status(tree: &Tree, name: &[u8], token: skein_ui::Style) {
     assert_eq!(tree.nodes()[index].styles.as_slice(), [token]);
     assert_eq!(fixtures::node_text(tree, index).as_ref(), name);
 }
-
 
 #[test]
 fn a_plan_row_says_what_its_task_waits_for() {
@@ -836,7 +813,6 @@ fn the_header_says_what_the_task_waits_for() {
     assert_status(&header(&task, None), b"waiting on task 17", look::STATUS_WAITING);
 }
 
-
 fn observed(chip: &mut c::Chip, work: Option<c::ChipWork>) {
     owner_phase(chip, c::ChipPhase::Active(c::RunStage::Running { attempt: ONE.into() }));
     let c::ChipPhaseFacts { details, .. } = chip.details.as_mut();
@@ -979,7 +955,6 @@ fn has_style(nodes: &[Node], style: skein_ui::Style) -> bool {
     }
     false
 }
-
 
 const ENDED_CHILD: u64 = 23;
 
@@ -1183,7 +1158,6 @@ fn an_ended_task_still_in_its_live_tree_is_drawn_once_in_that_tree() {
     assert!(child > parent && child < parent + usize::try_from(tree.nodes()[parent].size).unwrap());
 }
 
-
 /// The tree's items by name, in order and none else.
 fn assert_tree_items(tree: &Tree, expected: &[&[u8]]) {
     let mut at = 0;
@@ -1225,7 +1199,6 @@ fn ended_rows_merge_among_roots_and_leave_each_roots_delegates_under_it() {
     assert!(!has_style(subtree(tree, ended), look::DEPENDENCIES));
 }
 
-
 #[test]
 fn a_heard_or_notified_long_word_draws_whole() {
     for length in [1149, 10_660] {
@@ -1246,7 +1219,6 @@ fn a_heard_or_notified_long_word_draws_whole() {
         }
     }
 }
-
 
 #[test]
 fn invalid_run_ends_draw_their_reason() {

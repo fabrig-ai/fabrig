@@ -27,7 +27,6 @@ use temper_client_domain::{
 
 use temper_client_protocol_wire::v1 as w;
 
-
 // Sunday 08:04, with brief and decision clocks on the same day.
 const MINUTE: u64 = 60_000_000_000;
 
@@ -165,7 +164,6 @@ fn done_home_and_the_rail_use_all_projects() {
         );
     }
 }
-
 
 #[test]
 fn follows_boxes_keep_their_names_words_marks_and_wide_only_region() {

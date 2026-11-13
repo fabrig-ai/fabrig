@@ -22,7 +22,6 @@ use temper_client_domain::{
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-
 // These navigation fixtures hold the rail, Team's card, and both Tell placements' reads.
 fn limits() -> d::Limits {
     let mut limits = f::domain_limits();
@@ -376,7 +375,6 @@ fn tell_ignores_a_kept_page_of_another_project_and_keeps_overlong_words() {
     let file = named(&view, Role::Button, "File it");
     assert!(!view.tree().nodes().iter().find(|n| n.id == file).unwrap().states.as_slice().contains(&State::Disabled));
 }
-
 
 fn sent(out: &Queue<Request>) -> (Token, w::FileFinding) {
     let mut sends = Vec::new();

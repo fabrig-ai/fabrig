@@ -1,15 +1,10 @@
 //! Tell temper's two placements and single filing (client/pages/needs-you.md, 1).
-#![expect(
-    clippy::disallowed_methods,
-    reason = "ordinary tests inspect semantic subtrees and hand-built deliveries"
-)]
+#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic subtrees and hand-built deliveries")]
 use super::fixtures as f;
-
 
 use jig_client::{Down, Readable, Up, Watchable, contract as c};
 
 use skein_lib::{List, Queue, Token};
-
 
 use temper_client_domain::{
     self as d, Address, Event, Place, Request,
@@ -17,7 +12,6 @@ use temper_client_domain::{
 };
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
-
 
 // These navigation fixtures hold the rail, Team's card, and both Tell placements' reads.
 fn limits() -> d::Limits {

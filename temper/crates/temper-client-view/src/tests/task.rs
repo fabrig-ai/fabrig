@@ -8,16 +8,13 @@ use skein_lib::List;
 
 use skein_ui::{Builder, Role};
 
-
 use super::inbox::{styled, subtree};
 
 use crate::look;
 
 use skein_ui::{Node, Tree};
 
-
 use temper_client_domain::{Action, Domain, Event, pages::Act};
-
 
 const TASK: u64 = 9;
 
@@ -148,7 +145,6 @@ fn index_of_text(tree: &Tree, expected: &[u8]) -> Option<usize> {
     None
 }
 
-
 #[test]
 fn the_release_confirmation_says_what_releasing_does() {
     use temper_client_domain::{Action, Event, pages::Act};
@@ -172,7 +168,6 @@ fn the_release_confirmation_says_what_releasing_does() {
     );
     assert!(skein_lib::bytes::find(&text, b"Hold revision 7").is_some());
 }
-
 
 #[test]
 fn a_held_plans_release_has_its_public_escalation_card_identity() {
@@ -293,7 +288,6 @@ fn the_agents_held_card_keeps_its_key_without_an_own_row() {
     assert!(fixtures::find(tree, Role::TreeItem, b"Task 9").is_none());
 }
 
-
 const RESULT_TASK: u64 = 7;
 
 const HEARD_WORDS: &[u8] = b"Two crates hold the export";
@@ -310,7 +304,6 @@ fn heard_word(from: c::Requester, kind: c::MessageKind) -> c::Word {
     }
 }
 
-
 fn region_index(tree: &Tree, name: &[u8]) -> usize {
     let id = fixtures::find(tree, Role::Region, name).expect("page region");
     for (index, node) in tree.nodes().iter().enumerate() {
@@ -324,7 +317,6 @@ fn region_index(tree: &Tree, name: &[u8]) -> usize {
 fn result_words(bytes: &[u8]) -> c::Text {
     c::Text::new(Box::from(bytes), 256).expect("result words")
 }
-
 
 const DEPENDENCY: u64 = 17;
 
@@ -445,11 +437,9 @@ fn assert_dependency_item(tree: &Tree, item: usize, number: u64, status: Option<
     assert_eq!(parts.as_slice().len(), count);
 }
 
-
 pub(super) fn dependency_plan() -> Tree {
     plan_with_row(dependency_row())
 }
-
 
 fn has_role(nodes: &[Node], role: Role) -> bool {
     for node in nodes {
@@ -1168,11 +1158,9 @@ fn press_button(root: &mut Domain, name: &[u8]) {
     fixtures::root_event(root, Event::Act { action });
 }
 
-
 fn contains(tree: &Tree, expected: &[u8]) -> bool {
     skein_lib::bytes::find(&fixtures::text(tree), expected).is_some()
 }
-
 
 #[test]
 fn task_acts_show_their_name_and_admission_or_nothing_when_absent() {
@@ -1207,7 +1195,6 @@ fn task_acts_show_their_name_and_admission_or_nothing_when_absent() {
     }
 }
 
-
 #[test]
 fn a_send_asks_for_the_agents_composer() {
     let mut task = f::delegate();
@@ -1221,7 +1208,6 @@ fn a_send_asks_for_the_agents_composer() {
         fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::Send) });
     }
 }
-
 
 #[test]
 fn an_agents_taskbar_has_pause_and_its_composer_has_the_steering_note() {
@@ -1365,7 +1351,6 @@ fn an_agents_log_reads_at_its_head_and_foot() {
     assert!(fixtures::find(view.tree(), Role::Button, b"Latest").is_some());
 }
 
-
 fn sending_task_act(root: &mut Domain, act: Act) -> skein_lib::Token {
     let mut out = skein_lib::Queue::uncapped();
     temper_client_domain::step(
@@ -1467,7 +1452,6 @@ fn an_agents_own_pause_has_resume_and_close_without_its_held_card() {
     }
 }
 
-
 #[test]
 fn a_held_procedure_goal_shows_its_own_release_before_its_plan() {
     let source = held_agent_root();
@@ -1482,7 +1466,6 @@ fn a_held_procedure_goal_shows_its_own_release_before_its_plan() {
     assert!(region_index(tree, b"Task details") < release);
     assert!(release < plan);
 }
-
 
 fn send_amendment(root: &mut Domain) -> skein_lib::Token {
     let limits = fixtures::domain_limits();
@@ -1630,7 +1613,6 @@ fn a_moved_amendment_hides_send_and_its_refusal_offers_look_again() {
     assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Button, b"Send amendment").is_some());
 }
 
-
 #[test]
 fn amendment_progress_and_done_stay_in_its_region_until_amend_again() {
     let mut root = amend_root(false);
@@ -1678,7 +1660,6 @@ fn amendment_progress_and_done_stay_in_its_region_until_amend_again() {
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Specification").is_some());
     assert!(!contains(view.tree(), b"Applied"));
 }
-
 
 const ENDED_CHILD: u64 = 23;
 
@@ -1751,7 +1732,6 @@ fn its_tasks_without_a_tree_draws_its_answered_ended_page() {
     }
 }
 
-
 #[test]
 fn a_procedures_plan_keeps_rows_folds_held_counts_and_held_cards() {
     let source = held_agent_root();
@@ -1789,7 +1769,6 @@ fn a_procedures_plan_keeps_rows_folds_held_counts_and_held_cards() {
     assert!(named(nodes, Role::TreeItem, b"Task 23"));
     assert!(named(nodes, Role::Paragraph, b"More of its ended tasks are not shown."));
 }
-
 
 fn unread_task() -> (Domain, skein_lib::Token) {
     let (root, _, watch) =
@@ -1900,7 +1879,6 @@ fn a_task_document_replaces_its_reading_status() {
     assert!(fixtures::find(tree, Role::Heading { level: 2 }, b"Task details").is_some());
 }
 
-
 #[test]
 fn a_too_linked_task_page_says_so() {
     let (mut root, watch) = unread_task();
@@ -1919,7 +1897,6 @@ fn a_too_linked_task_page_says_so() {
     }
 }
 
-
 #[test]
 fn a_tracked_task_hands_over_to_the_goals_page() {
     let root = f::root_with(f::document());
@@ -1932,7 +1909,6 @@ fn a_tracked_task_hands_over_to_the_goals_page() {
         assert!(fixtures::find(view.tree(), Role::Region, name).is_none());
     }
 }
-
 
 #[test]
 fn a_goals_terminal_delegate_line_separates_title_and_state() {
@@ -1951,7 +1927,6 @@ fn a_goals_terminal_delegate_line_separates_title_and_state() {
     assert!(contains(view.tree(), "Review the change · running".as_bytes()));
 }
 
-
 #[test]
 fn an_agents_long_line_draws_whole() {
     for length in [1149, 10_660] {
@@ -1969,7 +1944,6 @@ fn an_agents_long_line_draws_whole() {
         super::chat::assert_long_line(&root, &domain, &bytes);
     }
 }
-
 
 #[test]
 fn a_goals_own_long_line_draws_whole() {
@@ -1990,7 +1964,6 @@ fn a_goals_own_long_line_draws_whole() {
     }
 }
 
-
 #[test]
 fn an_agents_heard_or_notified_long_word_draws_whole() {
     for length in [1149, 10_660] {
@@ -2007,7 +1980,6 @@ fn an_agents_heard_or_notified_long_word_draws_whole() {
         }
     }
 }
-
 
 // client/pages/task.md, 4: a role's talk is distinct from steering.
 fn role_talk_document() -> c::Task {

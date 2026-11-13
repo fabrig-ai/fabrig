@@ -1,4 +1,4 @@
-//! Chat render adapters, which depend on the page and confirmation parts.
+//! Chat render adapters used by whole-view tests.
 use super as fixtures;
 pub use crate::view_kit::chat::*;
 use jig_client::{contract as c, thread::Thread};

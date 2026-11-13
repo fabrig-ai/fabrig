@@ -1,16 +1,8 @@
 use super::fixtures;
 
-use super::fixtures::chat::{
-    CLOSE_GRACE,
-    closing,
-};
-
-
+use super::fixtures::chat::{CLOSE_GRACE, closing};
 
 use skein_ui::Role;
-
-
-
 
 #[test]
 fn a_chats_heading_is_its_first_sentence_or_line_cut_on_a_word() {
@@ -46,7 +38,6 @@ fn a_chats_heading_is_its_first_sentence_or_line_cut_on_a_word() {
         assert_eq!(crate::common::chat::short_title(title.as_bytes()).as_ref(), short.as_bytes(), "{title:?}");
     }
 }
-
 
 #[test]
 fn the_close_confirmation_names_each_live_delegates_fate() {

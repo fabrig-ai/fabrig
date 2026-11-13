@@ -429,7 +429,6 @@ fn the_card_keeps_the_parts_in_design_order() {
     }
 }
 
-
 #[test]
 fn a_full_length_safe_forge_address_fits_with_its_label() {
     let mut parts = p::panel(TASK, p::queued()).into_parts();
@@ -450,7 +449,6 @@ fn a_full_length_safe_forge_address_fits_with_its_label() {
     assert_eq!(links.as_slice()[0].external.as_deref().unwrap(), address.as_ref());
     assert!(contains(&tree, "View on forge ↗"));
 }
-
 
 fn playground_toolbar(on_playground: bool, address: &[u8]) -> Tree {
     let root = f::playground_root(temper_client_domain::Address::Forges, f::PROJECT, true);
@@ -510,7 +508,6 @@ fn a_playground_address_at_its_receiving_bound_is_still_readable() {
     }
 }
 
-
 #[test]
 fn an_authority_hold_draws_its_count_release_and_way_out() {
     let reason = b"its 6 tasks are made; released without more tasks; cancel: task cancel 2 REASON; or ask afresh; bare release holds again";
@@ -523,7 +520,6 @@ fn an_authority_hold_draws_its_count_release_and_way_out() {
     assert_eq!(notice.len(), 1);
     assert_eq!(f::node_text(&tree, notice[0]).as_ref(), joined(&[b"Held while gating: ", reason, b"."]).as_ref());
 }
-
 
 #[test]
 fn after_landing_page_draws_each_tier_line_and_the_merge() {
@@ -570,7 +566,6 @@ fn after_landing_page_draws_each_tier_line_and_the_merge() {
         assert_eq!(styled(&tree, look::STEP_DONE).len(), 6);
     }
 }
-
 
 #[test]
 fn no_ci_rule_draws_not_required_for_a_retained_pending_verdict() {

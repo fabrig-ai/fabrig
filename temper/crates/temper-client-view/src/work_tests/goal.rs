@@ -18,15 +18,12 @@ use skein_ui::{Builder, Role, Run, Style, Tree};
 
 use temper_client_domain::{Address, Domain, Event, Request, pages::Act};
 
-
 pub(super) use super::fixtures::goal::{
     DONE, DRAFT_WORDS, MADE, MINUTE, NOW, Side, TASK, TOTAL, document, offers, paused_document, press, question, root,
     root_with_side, sent_attempt, text,
 };
 
-
 const UPDATED: Wall = Wall::from_nanos(380 * MINUTE);
-
 
 fn note(body: &[u8]) -> c::Note {
     c::Note {
@@ -42,7 +39,6 @@ fn note(body: &[u8]) -> c::Note {
         cut: false,
     }
 }
-
 
 fn draw(root: &Domain, words: &Words) -> (Tree, Bindings, Times) {
     let mut b = Builder::new(&fixtures::tree_limits());
@@ -86,7 +82,6 @@ fn end(task: &mut c::Task, ending: c::ChipEnding) {
     task.chip.details.details.ending = Some(ending.clone());
     task.result = Some(c::TaskResult::Ending(Box::new(ending)));
 }
-
 
 #[test]
 fn the_meta_says_title_state_count_spend_and_since() {
@@ -439,7 +434,6 @@ fn an_unread_document_draws_as_a_task_read() {
     }
 }
 
-
 fn delegate(number: u64, title: &[u8], phase: c::ChipPhase) -> c::TreeRow {
     let mut task = document();
     task.chip.task = number;
@@ -752,7 +746,6 @@ fn landed_rows_fold_under_n_landed_with_their_end() {
     }
 }
 
-
 fn section_text(tree: &Tree, name: &[u8]) -> Box<[u8]> {
     for (at, node) in tree.nodes().iter().enumerate() {
         if node.role == Role::Region && node.name.as_deref() == Some(name) {
@@ -935,7 +928,6 @@ fn decided_only_with_a_decided_line() {
     }
 }
 
-
 // The ordering fixture has two questions; choosing one records one answer.
 const OPEN_QUESTIONS: usize = 2;
 
@@ -946,7 +938,6 @@ const FIRST_MESSAGE: u64 = 7;
 const SECOND_MESSAGE: u64 = 3;
 
 const CHOICES: &[u8] = b"Where?\nChoice: First\nChoice: Second (recommended)";
-
 
 fn question_row(message: u64, words: &[u8]) -> (c::ObjectKey, c::Read, c::ReadValue) {
     (
@@ -1322,7 +1313,6 @@ fn a_need_makes_the_state_needs() {
     );
 }
 
-
 fn acts_names(tree: &Tree) -> Box<[&[u8]]> {
     let mut names = List::uncapped();
     for node in band_nodes(tree, styled(tree, look::GOAL_ACTS)) {
@@ -1341,7 +1331,6 @@ fn named_index(tree: &Tree, role: Role, name: &[u8]) -> usize {
     }
     panic!("missing {role:?} {name:?}")
 }
-
 
 #[test]
 fn the_acts_in_order_by_offer() {
@@ -1488,7 +1477,6 @@ fn the_editor_sits_between_header_and_bands() {
         assert!(!node.styles.as_slice().contains(&look::TASK_AMEND));
     }
 }
-
 
 mod composer {
     use super::*;
@@ -1727,7 +1715,6 @@ mod composer {
         assert!(skein_lib::bytes::find(&said, b"A tool or agent.").is_none());
     }
 }
-
 
 #[test]
 fn how_it_runs_reads_the_asking_line() {

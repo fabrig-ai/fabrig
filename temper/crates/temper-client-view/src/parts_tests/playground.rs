@@ -1,7 +1,5 @@
 use super::fixtures as f;
 
-
-
 use temper_client_domain::Address;
 
 #[test]
@@ -29,14 +27,12 @@ fn the_playground_names_default_for_a_resolved_model() {
     assert_eq!(using_text(&root), "Scripted model · Default");
 }
 
-
 #[test]
 fn a_real_account_keeps_the_playgrounds_scripted_model() {
     let root = f::playground_kept_root();
     assert!(root.forge().playground().is_some());
     assert_eq!(using_text(&root), "Scripted model · Default");
 }
-
 
 #[test]
 fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
@@ -53,15 +49,14 @@ fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
     }
 }
 
-#[expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "the render adapter inspects model-line words with ordinary Rust")]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the render adapter inspects model-line words with ordinary Rust"
+)]
 fn using_text(root: &temper_client_domain::Domain) -> String {
     let mut b = skein_ui::Builder::new(&f::tree_limits());
-    crate::choice::using(
-        &mut b,
-        root,
-        root.pages().chat().and_then(|chat| chat.task(root.client())),
-        &f::words(),
-    );
+    crate::choice::using(&mut b, root, root.pages().chat().and_then(|chat| chat.task(root.client())), &f::words());
     let text = String::from_utf8(f::text(&b.finish()).into_vec()).unwrap();
     let text = text.split(" · Manage usage").next().unwrap();
     if text == "Using the default model" {

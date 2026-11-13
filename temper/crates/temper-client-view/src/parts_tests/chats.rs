@@ -4,15 +4,11 @@ use jig_client::contract::*;
 
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 
-
 use temper_client_domain::ChatsFilter;
 
 use temper_client_domain::{Domain, Request};
 
-
-pub(super) use super::fixtures::chats::{
-    TASK, TEXT, line,
-};
+pub(super) use super::fixtures::chats::{TASK, TEXT, line};
 
 fn timed(task: u64, activity: u64, ended: Option<u64>) -> TaskLine {
     let mut line = line();
@@ -24,9 +20,7 @@ fn timed(task: u64, activity: u64, ended: Option<u64>) -> TaskLine {
     line
 }
 
-
 const DRAFT_GOAL: u64 = 42;
-
 
 struct DraftsPage {
     root: Domain,

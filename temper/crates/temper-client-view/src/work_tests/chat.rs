@@ -1,7 +1,8 @@
 use super::fixtures;
 
 use super::fixtures::chat::{
-    ATTEMPT, BYTES, COMMITTED, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_header, projected_tree as tree, provisional, provisional_with_text,
+    ATTEMPT, BYTES, COMMITTED, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_header, projected_tree as tree,
+    provisional, provisional_with_text,
 };
 
 use jig_client::{contract as c, thread::Thread};
@@ -10,11 +11,9 @@ use skein_lib::{List, Wall};
 
 use skein_ui::Role;
 
-
 pub(super) use super::fixtures::chat_helpers::{
     asking_task, asking_task_root, assert_run_line, named_position, pause_chip, structured_thread,
 };
-
 
 fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree, crate::bindings::Bindings) {
     let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
@@ -31,11 +30,9 @@ fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree, crate::bin
     (b.finish(), bindings)
 }
 
-
 fn reading_thread() -> Thread {
     Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT })
 }
-
 
 #[test]
 fn the_log_is_bound_while_it_can_read_on() {
@@ -56,7 +53,6 @@ fn the_log_is_bound_while_it_can_read_on() {
     }
 }
 
-
 #[test]
 fn near_decodes_to_older_and_newer() {
     use skein_ui::{Act, LogEdge};
@@ -73,7 +69,6 @@ fn near_decodes_to_older_and_newer() {
     }
 }
 
-
 #[test]
 fn a_log_continues_while_the_window_let_its_end_go() {
     use jig_client::thread::window::Edge;
@@ -86,7 +81,6 @@ fn a_log_continues_while_the_window_let_its_end_go() {
         }
     }
 }
-
 
 #[test]
 fn a_log_is_busy_while_a_read_is_out_or_failed() {
@@ -109,7 +103,6 @@ fn a_log_is_busy_while_a_read_is_out_or_failed() {
     }
 }
 
-
 fn page_words(positions: &[u64]) -> c::ActivityPage {
     let mut rows = List::with_capacity(u32::try_from(positions.len()).unwrap());
     for position in positions {
@@ -127,7 +120,6 @@ fn page_words(positions: &[u64]) -> c::ActivityPage {
     }
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
-
 
 #[test]
 fn an_earlier_page_only_inserts() {
@@ -165,7 +157,6 @@ fn an_earlier_page_only_inserts() {
         assert!(inserts > 0);
     }
 }
-
 
 #[test]
 fn reading_past_the_bound_only_removes_released_lines() {
@@ -207,7 +198,6 @@ fn reading_past_the_bound_only_removes_released_lines() {
     assert_eq!(removed.as_slice(), [released]);
 }
 
-
 #[test]
 fn a_run_of_calls_takes_its_first_turns_key() {
     use super::fixtures::first_run as run;
@@ -239,7 +229,6 @@ fn a_run_of_calls_takes_its_first_turns_key() {
     );
 }
 
-
 #[test]
 fn a_provisional_turn_and_its_committed_one_share_a_key() {
     let live = tree(&provisional());
@@ -250,7 +239,6 @@ fn a_provisional_turn_and_its_committed_one_share_a_key() {
     let key = live.nodes()[styled(&live, crate::look::TURN)].key.expect("provisional key");
     assert_eq!(committed.nodes()[styled(&committed, crate::look::TURN)].key, Some(key));
 }
-
 
 #[test]
 fn a_failed_read_says_so_at_the_head() {
@@ -283,7 +271,6 @@ fn a_failed_read_says_so_at_the_head() {
     }
 }
 
-
 #[test]
 fn a_failed_first_read_says_so() {
     let mut thread = reading_thread();
@@ -296,7 +283,6 @@ fn a_failed_first_read_says_so() {
         .expect("a failed first read says why the empty conversation cannot load");
     assert_eq!(fixtures::node_text(&drawn, status).as_ref(), b"Couldn't load earlier messages");
 }
-
 
 fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) -> skein_ui::Tree {
     let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
@@ -316,20 +302,17 @@ fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) ->
     b.finish()
 }
 
-
 #[test]
 fn a_chats_bar_draws_no_status() {
     let tree = chat_header();
     assert!(fixtures::find(&tree, Role::Status, b"Parked").is_none());
 }
 
-
 #[test]
 fn a_chats_header_says_its_spend_including_delegates() {
     let tree = chat_header();
     assert!(fixtures::find(&tree, Role::Paragraph, "7 spent · of 7".as_bytes()).is_some());
 }
-
 
 #[test]
 fn the_end_goes_when_the_turn_commits() {
@@ -363,7 +346,6 @@ fn the_end_goes_when_the_turn_commits() {
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
     assert_eq!(fixtures::find(&tree(&thread), Role::Status, "▍".as_bytes()), None);
 }
-
 
 #[test]
 fn a_committed_redraw_keeps_the_nodes_of_the_words_being_read() {
@@ -414,7 +396,6 @@ fn a_committed_redraw_keeps_the_nodes_of_the_words_being_read() {
     }
 }
 
-
 // Compare the shell-visible nodes, discounting only the live end and its size.
 fn said_without_end(tree: &skein_ui::Tree) -> List<skein_ui::Made> {
     let says = styled(tree, crate::look::SAYS);
@@ -436,7 +417,6 @@ fn said_without_end(tree: &skein_ui::Tree) -> List<skein_ui::Made> {
     }
     result
 }
-
 
 #[test]
 fn a_turn_being_written_draws_as_its_committed_turn_with_its_end() {
@@ -482,7 +462,6 @@ fn a_turn_being_written_draws_as_its_committed_turn_with_its_end() {
     }
 }
 
-
 #[test]
 fn a_closed_block_emits_no_patch_as_words_arrive_after_it() {
     let limits = fixtures::tree_limits();
@@ -524,7 +503,6 @@ fn a_closed_block_emits_no_patch_as_words_arrive_after_it() {
     }
 }
 
-
 #[test]
 fn a_turn_being_written_shows_no_raw_marker() {
     for (input, expected, run) in [
@@ -553,7 +531,6 @@ fn a_turn_being_written_shows_no_raw_marker() {
     }
 }
 
-
 fn working_tree(thread: &Thread) -> skein_ui::Tree {
     use crate::pages::chat::{Drawn, Speakers, conversation_with_times};
     let mut task = asking_task();
@@ -572,7 +549,6 @@ fn working_tree(thread: &Thread) -> skein_ui::Tree {
     b.finish()
 }
 
-
 #[test]
 fn a_turn_with_no_words_draws_nothing_and_the_dots_stand() {
     let empty = provisional_with_text(b"");
@@ -583,7 +559,6 @@ fn a_turn_with_no_words_draws_nothing_and_the_dots_stand() {
     assert!(style_position(working_tree(&empty).nodes(), crate::look::TYPING).is_some());
 }
 
-
 #[test]
 fn the_first_word_takes_the_dots_place() {
     let tree = working_tree(&provisional());
@@ -591,13 +566,11 @@ fn the_first_word_takes_the_dots_place() {
     assert!(fixtures::find(&tree, Role::Status, "▍".as_bytes()).is_some());
 }
 
-
 #[test]
 fn an_owner_activity_message_is_shown_in_the_chat() {
     let thread = owner_words_thread();
     assert!(skein_lib::bytes::find(&fixtures::text(&tree(&thread)), b"An owner message").is_some());
 }
-
 
 #[test]
 fn an_inbox_answer_is_acknowledged_in_the_chat_conversation() {
@@ -630,7 +603,6 @@ fn an_inbox_answer_is_acknowledged_in_the_chat_conversation() {
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"You answered question 42 in your inbox").is_some());
 }
 
-
 // The chat gallery's T10: a chat started with no spec, its request a words line.
 #[test]
 fn a_chat_whose_spec_is_empty_draws_no_opening_turn() {
@@ -658,7 +630,6 @@ fn a_chat_whose_spec_is_empty_draws_no_opening_turn() {
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"An owner message").is_some());
 }
 
-
 fn owner_words_thread() -> Thread {
     let mut thread =
         Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
@@ -683,7 +654,6 @@ fn owner_words_thread() -> Thread {
     thread
 }
 
-
 const LONG_PROVISIONAL: &[u8] = b"a234567890123456789012345678901\xc3\xa9 and more";
 
 #[test]
@@ -696,7 +666,6 @@ fn a_long_provisional_text_says_nothing_of_what_was_cut() {
         assert!(skein_lib::bytes::find(&said, "…".as_bytes()).is_none());
     }
 }
-
 
 fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
     let mut kept = List::with_capacity(u32::try_from(messages.len()).expect("message count"));
@@ -726,7 +695,6 @@ fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
     thread
 }
 
-
 #[test]
 fn a_cut_committed_turn_says_nothing_of_what_was_cut() {
     use super::fixtures::first_run as run;
@@ -740,7 +708,6 @@ fn a_cut_committed_turn_says_nothing_of_what_was_cut() {
         assert!(skein_lib::bytes::find(&said, "Kept…".as_bytes()).is_some());
     }
 }
-
 
 #[test]
 fn a_turns_opaque_blocks_are_not_drawn() {
@@ -760,7 +727,6 @@ fn a_turns_opaque_blocks_are_not_drawn() {
     }
 }
 
-
 #[test]
 fn a_message_of_opaque_blocks_alone_draws_no_message() {
     use super::fixtures::first_run as run;
@@ -775,7 +741,6 @@ fn a_message_of_opaque_blocks_alone_draws_no_message() {
         }
     }
 }
-
 
 #[test]
 fn an_agents_result_line_is_its_first_line() {
@@ -793,7 +758,6 @@ fn an_agents_result_line_is_its_first_line() {
         assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"second").is_none());
     }
 }
-
 
 #[test]
 fn a_conversation_past_its_rows_says_nothing_of_what_was_cut() {
@@ -815,7 +779,6 @@ fn a_conversation_past_its_rows_says_nothing_of_what_was_cut() {
         }
     }
 }
-
 
 #[test]
 fn a_request_being_read_ends_in_the_mark() {
@@ -849,7 +812,6 @@ fn each_turn_carries_the_turn_token() {
     assert_eq!(count, 1);
 }
 
-
 fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -> Option<usize> {
     for (index, node) in nodes.iter().enumerate() {
         if node.styles.as_slice().contains(&token) {
@@ -858,7 +820,6 @@ fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -> Option<us
     }
     None
 }
-
 
 fn styled(tree: &skein_ui::Tree, token: skein_ui::Style) -> usize {
     style_position(tree.nodes(), token).expect("styled node")
@@ -869,7 +830,6 @@ fn subtree(tree: &skein_ui::Tree, at: usize) -> &[skein_ui::Node] {
     let through = at.checked_add(usize::try_from(tree.nodes()[at].size).expect("size")).expect("subtree end");
     &tree.nodes()[from..through]
 }
-
 
 #[test]
 fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
@@ -903,7 +863,6 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
     }
     assert_run_line(&tree, b"Read 1 file", b"", &[b"Read: Done"]);
 }
-
 
 fn assistant_blocks(blocks: &[c::Block]) -> skein_ui::Tree {
     use super::fixtures::first_run as run;
@@ -1052,7 +1011,6 @@ fn an_opaque_block_draws_nothing_and_no_shell() {
     }
 }
 
-
 #[test]
 fn a_persons_words_are_paragraphs_without_a_read_label() {
     let mut thread = structured_thread();
@@ -1078,7 +1036,6 @@ fn a_persons_words_are_paragraphs_without_a_read_label() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"Second line").is_some());
     assert!(fixtures::find(&tree, Role::Status, b"Read").is_none());
 }
-
 
 #[test]
 fn an_owners_person_words_have_a_person_shell_and_one_paragraph_per_line() {
@@ -1110,7 +1067,6 @@ fn an_owners_person_words_have_a_person_shell_and_one_paragraph_per_line() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"Second line").is_some());
     assert!(fixtures::find(&tree, Role::Status, b"Read").is_none());
 }
-
 
 #[test]
 fn a_tasks_words_have_an_agent_shell_named_by_the_task() {
@@ -1164,7 +1120,6 @@ fn a_tasks_words_have_an_agent_shell_named_by_the_task() {
     assert!(style_position(agent.nodes(), crate::look::BY_DELEGATE).is_none());
 }
 
-
 #[test]
 fn committed_text_exceeds_field_text_on_both_conversation_pages() {
     use super::fixtures::first_run as run;
@@ -1188,7 +1143,6 @@ fn committed_text_exceeds_field_text_on_both_conversation_pages() {
         assert!(fixtures::find(&drawn, Role::Status, b"Earlier text omitted").is_none());
     }
 }
-
 
 // Thursday 22 October 2026, noon UTC, and its neighbouring days.
 const TURN_NOON: u64 = 1_792_670_400;
@@ -1419,7 +1373,6 @@ fn an_undecodable_turn_keeps_its_clock_and_day_on_both_paths() {
     }
 }
 
-
 #[test]
 fn the_chatbar_and_chats_line_share_every_status_phrase() {
     const STATES: u32 = 18;
@@ -1492,7 +1445,6 @@ fn the_chatbar_and_chats_line_share_every_status_phrase() {
         assert!(fixtures::find(&b.finish(), Role::Status, expected).is_some(), "chatbar: {expected:?}");
     }
 }
-
 
 #[test]
 fn a_proposals_fold_precedes_its_card_after_the_message() {
@@ -1570,7 +1522,6 @@ fn a_proposals_fold_precedes_its_card_after_the_message() {
     assert!(skein_lib::bytes::find(&said, b"propose").is_none());
 }
 
-
 fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
     let mut count = 0_u32;
     for node in tree.nodes() {
@@ -1580,7 +1531,6 @@ fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
     }
     count
 }
-
 
 #[test]
 fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() {
@@ -1620,7 +1570,6 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
     }
 }
 
-
 #[test]
 fn a_cut_text_says_nothing() {
     use super::fixtures::first_run as run;
@@ -1647,7 +1596,6 @@ fn a_cut_text_says_nothing() {
     }
 }
 
-
 fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: u32) -> c::ActivityPage {
     use super::fixtures::first_run as run;
     let mut rows = List::with_capacity(count);
@@ -1664,7 +1612,6 @@ fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: 
     }
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
-
 
 #[test]
 fn a_full_window_of_dense_turn_markdown_fits_the_derived_bound() {
@@ -1705,7 +1652,6 @@ fn a_full_window_of_dense_turn_markdown_fits_the_derived_bound() {
     }
 }
 
-
 fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
     let mut input = skein_lib::bytes::zeroed(length);
     for (at, byte) in input.iter_mut().enumerate() {
@@ -1713,7 +1659,6 @@ fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
     }
     input
 }
-
 
 // Placement fixtures use empty call objects, as a model's tool calls do.
 const PLACE_TEXT: u32 = 512;
@@ -1724,7 +1669,6 @@ const PLACE_ROWS: u32 = 6;
 const FIRST_CARD: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Task(TASK), number: 1 };
 
 const SECOND_CARD: c::ProposalKey = c::ProposalKey { number: FIRST_CARD.number + 1, ..FIRST_CARD };
-
 
 fn place_turn(position: u64, at: u64, words: &[u8]) -> c::DecodedActivityLine {
     use super::fixtures::first_run as run;
@@ -2131,7 +2075,6 @@ fn cards_at_one_place_stand_in_number_order() {
     assert_place_order(&root, &["First reply", "First card", "Second card"]);
 }
 
-
 #[test]
 fn a_card_keeps_its_element_as_lines_arrive_around_it() {
     let rows = [place_made(2, 2, FIRST_CARD), place_turn(3, 3, b"Making turn")];
@@ -2159,7 +2102,6 @@ fn a_card_keeps_its_element_as_lines_arrive_around_it() {
         }
     }
 }
-
 
 fn place_decision(position: u64, key: c::ProposalKey) -> c::DecodedActivityLine {
     let mut line = place_made(position, position, key);

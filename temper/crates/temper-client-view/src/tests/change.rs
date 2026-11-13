@@ -192,7 +192,6 @@ fn a_full_bound_panel_fits_the_production_tree_text_and_links() {
     assert!(contains(tree, "Repairs 1 of 2 · resolutions 3 of 4 · updates 5 of 6"));
 }
 
-
 #[test]
 fn the_queue_offers_each_task_ahead_as_a_terminal_command() {
     let (mut root, watch) = opened();
@@ -216,7 +215,6 @@ fn the_queue_offers_each_task_ahead_as_a_terminal_command() {
         );
     }
 }
-
 
 #[test]
 fn a_change_panel_names_its_way_and_retained_landing() {

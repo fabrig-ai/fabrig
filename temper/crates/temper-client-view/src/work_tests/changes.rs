@@ -3,11 +3,6 @@ use super::fixtures as f;
 
 use crate::pages::changes::ordinal;
 
-
-
-
-
-
 #[test]
 fn ordinals_follow_english_endings_including_the_teens() {
     for (number, expected) in [

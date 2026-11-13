@@ -6,11 +6,9 @@
 )]
 use super::fixtures as f;
 
-
 use jig_client::contract as c;
 
 use skein_lib::{Env, List, Queue, Time};
-
 
 use temper_client_domain::{self as d, Address, pages};
 
@@ -19,7 +17,6 @@ const DRAFT: &[u8] = b"Make the change";
 fn input(root: &mut d::Domain, act: pages::Act) {
     f::root_event(root, d::Event::Act { action: d::Action::Pages(act) });
 }
-
 
 fn start(root: &mut d::Domain) -> skein_lib::Token {
     input(root, pages::Act::ChatWords { words: DRAFT.into() });
@@ -61,7 +58,6 @@ fn answer(root: &mut d::Domain, attempt: skein_lib::Token, answer: c::Answer) ->
     );
     out
 }
-
 
 #[test]
 fn made_chat_replaces_only_the_new_chat_address() {

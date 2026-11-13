@@ -8,12 +8,7 @@ use skein_ui::{Builder, Role};
 
 use temper_client_domain::ChatsFilter;
 
-
-
-pub(super) use super::fixtures::chats::{
-    HELD_STATUSES, TASK, line, row_status_styles, status_rows,
-};
-
+pub(super) use super::fixtures::chats::{HELD_STATUSES, TASK, line, row_status_styles, status_rows};
 
 pub(super) fn tree(line: &TaskLine) -> (skein_ui::Tree, crate::bindings::Bindings) {
     tree_at(line, fixtures::NOW)
@@ -42,13 +37,11 @@ fn style_index(tree: &skein_ui::Tree, style: skein_ui::Style) -> usize {
     panic!("missing style {style:?}");
 }
 
-
 #[test]
 fn a_chats_row_says_its_status_from_jigs_facts() {
     let (tree, _) = tree(&line());
     assert!(fixtures::find(&tree, Role::Status, b"Parked").is_some());
 }
-
 
 #[test]
 fn a_held_chats_row_names_only_its_exceeded_bound() {
@@ -70,14 +63,12 @@ fn a_held_chats_row_names_only_its_exceeded_bound() {
     }
 }
 
-
 #[test]
 fn a_chats_row_says_its_spend_and_delegates() {
     let (tree, _) = tree(&line());
     assert!(fixtures::find(&tree, Role::Paragraph, "7 spent".as_bytes()).is_some());
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), "7 spent · 3 delegates".as_bytes()).is_some());
 }
-
 
 #[test]
 fn a_chats_row_offers_its_number_as_a_terminal_command() {
@@ -142,7 +133,6 @@ fn a_chats_row_carries_the_row_token() {
     }
 }
 
-
 #[test]
 fn each_status_is_styled_by_its_meaning() {
     for (line, token) in status_rows() {
@@ -177,7 +167,6 @@ fn a_row_shows_the_real_activity_or_end_time() {
     assert_eq!(fixtures::node_text(&shown, style_index(&shown, crate::look::TIME)).as_ref(), b"6 min");
 }
 
-
 #[test]
 fn a_chats_line_counts_the_delegates_it_waits_on() {
     let mut line = line();
@@ -190,7 +179,6 @@ fn a_chats_line_counts_the_delegates_it_waits_on() {
     );
 }
 
-
 #[test]
 fn a_chats_line_reads_its_owner_wake_policy_for_news() {
     let mut line = line();
@@ -201,7 +189,6 @@ fn a_chats_line_reads_its_owner_wake_policy_for_news() {
     let (tree, _) = tree(&line);
     assert!(fixtures::find(&tree, Role::Status, b"waiting on your words").is_some());
 }
-
 
 #[test]
 fn an_open_chat_at_rest_says_waiting_on_your_words_on_its_line() {
@@ -265,7 +252,6 @@ fn delegate_counts_are_plural_and_absent_at_zero() {
     }
 }
 
-
 #[test]
 fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
     for ending in [
@@ -296,7 +282,6 @@ fn done_and_failed_chats_say_closed_in_the_list_and_bar() {
     }
 }
 
-
 #[test]
 fn rows_omit_their_project_and_name_only_kept_ended_transcripts() {
     for ended in [false, true] {
@@ -316,7 +301,6 @@ fn rows_omit_their_project_and_name_only_kept_ended_transcripts() {
     }
 }
 
-
 #[test]
 fn a_kept_ended_row_without_a_clock_is_closed_even_with_stale_wait_metadata() {
     let mut line = line();
@@ -327,7 +311,6 @@ fn a_kept_ended_row_without_a_clock_is_closed_even_with_stale_wait_metadata() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"Closed. Its transcript is kept.").is_some());
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"3 delegates").is_none());
 }
-
 
 #[test]
 fn asking_rows_name_the_chip_executor_in_the_top_line_in_both_shells() {
@@ -378,7 +361,6 @@ fn asking_rows_name_the_chip_executor_in_the_top_line_in_both_shells() {
         }
     }
 }
-
 
 #[test]
 fn a_paused_chat_s_row_says_paused() {

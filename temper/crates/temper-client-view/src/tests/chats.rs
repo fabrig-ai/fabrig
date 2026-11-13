@@ -10,12 +10,10 @@ use temper_client_domain::ChatsFilter;
 
 use temper_client_domain::{Domain, Request};
 
-
 pub(super) use super::fixtures::chats::{
     HELD_STATUSES, TASK, TEXT, deliver_live, deployment_chats_root, line, listed, listed_root, no_project_root,
     open_chats, row_status_styles, status_rows,
 };
-
 
 pub(super) fn tree(line: &TaskLine) -> (skein_ui::Tree, crate::frame::Bindings) {
     tree_at(line, fixtures::NOW)
@@ -76,7 +74,6 @@ fn a_chats_row_links_to_its_chat_by_number() {
     );
 }
 
-
 #[test]
 fn chats_have_one_list_or_the_empty_sentence() {
     let empty = fixtures::page_view(&fixtures::chats_root());
@@ -101,7 +98,6 @@ fn chats_have_one_list_or_the_empty_sentence() {
         }
     }
 }
-
 
 #[test]
 fn playground_chats_show_the_list_without_the_start() {
@@ -129,7 +125,6 @@ fn playground_chats_show_the_list_without_the_start() {
     assert!(fixtures::find(view.tree(), Role::Button, b"Try again").is_none());
 }
 
-
 #[test]
 fn a_live_playground_chat_is_listed_under_your_chats() {
     use temper_client_domain::Address;
@@ -153,7 +148,6 @@ fn a_live_playground_chat_is_listed_under_your_chats() {
     assert!(fixtures::find(view.tree(), Role::Button, b"More closed chats").is_none());
 }
 
-
 fn filter(root: &mut Domain, filter: ChatsFilter) {
     fixtures::root_event(
         root,
@@ -162,7 +156,6 @@ fn filter(root: &mut Domain, filter: ChatsFilter) {
         },
     );
 }
-
 
 fn numbers(tree: &skein_ui::Tree) -> Box<[u64]> {
     let mut numbers = List::with_capacity(u32::try_from(tree.nodes().len()).expect("tree nodes fit"));
@@ -275,7 +268,6 @@ fn more_closed_chats_is_bound_only_under_all_or_closed_with_an_older_page() {
     }
 }
 
-
 #[test]
 fn an_accepted_start_draws_no_applied_status() {
     use temper_client_domain::{self as d, Action, Event, pages::Act};
@@ -322,7 +314,6 @@ fn an_accepted_start_draws_no_applied_status() {
     let view = fixtures::page_view(&root);
     assert!(fixtures::find(view.tree(), Role::Status, b"Applied").is_none());
 }
-
 
 fn index_of(nodes: &[skein_ui::Node], id: skein_ui::NodeId) -> usize {
     let mut at = None;
@@ -378,7 +369,6 @@ fn the_chats_page_opens_with_its_head_band_and_section() {
         assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/chats/new".as_slice()));
     }
 }
-
 
 #[test]
 fn the_repository_context_links_into_its_project() {
@@ -488,7 +478,6 @@ fn the_playgrounds_project_keeps_its_context_instead_of_no_repository() {
     }
 }
 
-
 #[test]
 fn chats_offers_no_first_chat_under_any_filter_even_while_starting() {
     use temper_client_domain::{Action, Event, pages::Act};
@@ -508,7 +497,6 @@ fn chats_offers_no_first_chat_under_any_filter_even_while_starting() {
         }
     }
 }
-
 
 #[test]
 fn no_welcome_and_no_project_says_so() {
@@ -566,7 +554,6 @@ fn no_welcome_and_no_project_says_so() {
     }
 }
 
-
 #[test]
 fn the_chats_page_offers_nothing_of_the_welcome() {
     let root = no_project_root(Some(false));
@@ -585,7 +572,6 @@ fn the_chats_page_offers_nothing_of_the_welcome() {
         }
     }
 }
-
 
 #[test]
 fn welcome_or_unknown_deployments_choose_their_no_project_page() {
@@ -637,7 +623,6 @@ fn welcome_or_unknown_deployments_choose_their_no_project_page() {
     }
 }
 
-
 #[test]
 fn a_known_empty_project_list_is_required_for_no_project() {
     let template = fixtures::root_in_project(None);
@@ -649,7 +634,6 @@ fn a_known_empty_project_list_is_required_for_no_project() {
         assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"No project yet").is_none());
     }
 }
-
 
 #[test]
 fn chats_keeps_its_list_without_playground_suggestions_or_composer() {
@@ -676,11 +660,9 @@ fn chats_keeps_its_list_without_playground_suggestions_or_composer() {
     }
 }
 
-
 const DRAFT_GOAL: u64 = 42;
 
 const DRAFT_LEDE: &[u8] = b"A chat answers a question or changes the code, and can write a draft beside it. A draft becomes a goal for bigger work.";
-
 
 struct DraftsPage {
     root: Domain,
@@ -879,7 +861,6 @@ impl DraftsPage {
     }
 }
 
-
 #[test]
 fn drafts_keeps_rows_with_a_document() {
     let mut page = DraftsPage::new(true, false, false);
@@ -969,7 +950,6 @@ fn an_asking_chat_keeps_its_tag() {
         assert!(found);
     }
 }
-
 
 #[test]
 fn behind_with_unanswered_reads_chats_claims_no_empty() {

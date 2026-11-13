@@ -18,11 +18,9 @@ use temper_client_domain::{
     pages::{goals::State, report::Report},
 };
 
-
 // The mock's row has six landed tasks out of nine (client/pages/README.md).
 
 pub(super) use super::fixtures::goals::{TEXT_BYTES, TOTAL, line, template};
-
 
 const EMPTY: u32 = 0;
 
@@ -69,7 +67,6 @@ const NOON: u64 = THURSDAY + 12 * HOUR;
 const TODAY_END: u64 = THURSDAY + HOUR + 12 * MINUTE;
 
 const MONDAY_END: u64 = MONDAY + 18 * HOUR + 40 * MINUTE;
-
 
 fn tree(line: &c::TaskLine, state: State, report: Option<&Report>, words: &Words) -> (Tree, Bindings) {
     let mut b = Builder::new(&fixtures::tree_limits());
@@ -249,7 +246,6 @@ fn a_row_reads_in_the_terminal() {
     }
 }
 
-
 // The state table has five live rows (two needs) and three ended rows.
 const PAGE_ROWS: u32 = 8;
 
@@ -270,7 +266,6 @@ const CLOSED_TASK: u64 = 107;
 const FAILED_TASK: u64 = 108;
 
 const CURSOR_BYTES: u32 = 32;
-
 
 struct Page {
     root: temper_client_domain::Domain,
@@ -789,7 +784,6 @@ fn the_page_draws_no_spend() {
         );
     }
 }
-
 
 #[test]
 fn the_link_shows_with_a_tracked_template() {

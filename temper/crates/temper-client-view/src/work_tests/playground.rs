@@ -2,9 +2,6 @@ use super::fixtures as f;
 
 use skein_ui::Role;
 
-
-
-
 #[test]
 fn conversation_speakers_use_you_temper_or_the_other_person() {
     for (row, person, requester, person_word, party_word) in [
@@ -41,7 +38,6 @@ fn conversation_speakers_use_you_temper_or_the_other_person() {
         assert!(skein_lib::bytes::find(&said, b"Temper").is_none(), "{row}: a call-only message has no heading");
     }
 }
-
 
 #[test]
 fn pending_words_without_a_party_are_named_you() {

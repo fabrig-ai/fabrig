@@ -1,27 +1,20 @@
 use super::fixtures;
 
-
 use jig_client::contract as c;
 
 use skein_lib::{List, Queue, Wall};
 
 use skein_ui::Role;
 
-use temper_client_domain::{
-    Address, GoalsFilter,
-    pages::goals::State,
-};
-
+use temper_client_domain::{Address, GoalsFilter, pages::goals::State};
 
 // The mock's row has six landed tasks out of nine (client/pages/README.md).
 
 pub(super) use super::fixtures::goals::{TEXT_BYTES, line, template};
 
-
 const EMPTY: u32 = 0;
 
 const ONE: u32 = 1;
-
 
 // The state table has five live rows (two needs) and three ended rows.
 const PAGE_ROWS: u32 = 8;
@@ -29,7 +22,6 @@ const PAGE_ROWS: u32 = 8;
 const RUNNING_TASK: u64 = 105;
 
 const CURSOR_BYTES: u32 = 32;
-
 
 struct Page {
     root: temper_client_domain::Domain,
@@ -213,7 +205,6 @@ fn page_line(task: u64, state: State) -> c::TaskLine {
     }
     line
 }
-
 
 #[test]
 fn an_unanswered_goals_page_claims_no_empty() {

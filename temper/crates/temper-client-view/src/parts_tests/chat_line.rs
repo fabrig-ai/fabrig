@@ -1,9 +1,6 @@
 use super::{fixtures, fixtures::first_run as f};
 
-use crate::{
-    look,
-    common::chat_line::Run,
-};
+use crate::{common::chat_line::Run, look};
 
 use jig_client::contract as c;
 
@@ -204,7 +201,6 @@ fn settings_and_minutes_keep_their_counted_words() {
     assert_eq!(disclosure(&tree).description.as_deref(), Some(b"4 min".as_slice()));
 }
 
-
 fn live(tool: &[u8], input: &[u8]) -> c::CurrentCall {
     let mut call = current();
     call.tool = f::text(tool);
@@ -359,7 +355,6 @@ fn the_terminal_writes_the_ellipsis() {
     assert!(skein_lib::bytes::find(print.text.as_slice(), "Read 2 files: reading src/main.rs…".as_bytes()).is_some());
 }
 
-
 #[test]
 fn failed_settings_proposals_do_not_claim_a_change() {
     let input = br#"{"reason":"private reason","items":[]}"#;
@@ -404,7 +399,6 @@ fn failed_settings_proposals_do_not_claim_a_change() {
     }
 }
 
-
 #[test]
 fn proposing_settings_says_a_change_without_its_reason() {
     let input = br#"{"reason":"private reason","items":[]}"#;
@@ -420,7 +414,6 @@ fn proposing_settings_says_a_change_without_its_reason() {
     assert_eq!(disclosure(&tree).description.as_deref(), Some(b"proposing a change".as_slice()));
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"private reason").is_none());
 }
-
 
 type SeeRow = (&'static [&'static [u8]], Option<&'static [u8]>, &'static [u8], Option<&'static [u8]>);
 

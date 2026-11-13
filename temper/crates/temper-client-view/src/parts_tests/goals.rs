@@ -2,16 +2,11 @@ use super::fixtures;
 
 use crate::common::goals;
 
-
 use skein_lib::List;
-
-
-
 
 // The mock's row has six landed tasks out of nine (client/pages/README.md).
 
 pub(super) use super::fixtures::goals::template;
-
 
 const EMPTY: u32 = 0;
 
@@ -24,7 +19,6 @@ const WHOLE_WAY: u32 = 4;
 const UNTRACKED_WAY: u32 = 7;
 
 const OTHER_WAY: u32 = 9;
-
 
 #[test]
 fn ways_name_their_templates_in_number_order() {
