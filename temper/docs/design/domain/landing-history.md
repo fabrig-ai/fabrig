@@ -151,10 +151,11 @@ what the row's `head` and `base` hold.
 ### 3.1 The writer
 
 One writer in the forge's top, `Domain::write_event`
-(`temper-engine-domain-forge`), which every step calls:
+(`temper-engine-domain-forge`), which every step calls; public, so the
+forge world's stories set up a history by writing through it:
 
 ```rust
-pub(crate) fn write_event(
+pub fn write_event(
     &mut self,
     wall: Wall,
     change: u64,
