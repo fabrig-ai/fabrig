@@ -282,7 +282,7 @@ record LandingRecordHold { member: u16 }
 enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn }
 record LandingSearch { green: u16 red: u16 }
 record LandingRound { branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 judging: bool changed: option u16 search: option LandingSearch }
-record LandingState { task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: option LandingRound own_hold: option LandingOwnHold }
+record LandingState { last_left: option u16 task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: option LandingRound own_hold: option LandingOwnHold }
 record LandingPrepare { head: fixed 32 main: fixed 32 }
 record LandingRepairAsk { gate: u16 candidate: fixed 32 below: option LandingBelow }
 record LandingPrefix { prefix: fixed 32 }

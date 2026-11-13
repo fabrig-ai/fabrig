@@ -2115,6 +2115,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         },
         env.wall,
     );
+    if let Some(job) = p.heard.job.take() {
+        crate::landing_history::prepared_job(d, env.wall, &row, &p.facts, job, out);
+    }
     let prior = row.clone();
     row.landing = stepped.landing;
     if !row.landing.round.branch.is_empty() {
@@ -3399,6 +3402,7 @@ pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
             task,
             0,
             LandingHeard {
+                job: None,
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),

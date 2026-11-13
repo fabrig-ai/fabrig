@@ -2,6 +2,7 @@ patch 1
 owner temper 10 after jig 5
 
 family temper-store 20 to 21
+add LandingState.last_left option u16 none
 add ChangeHistory
 add HistoryMark
 add HistoryProject

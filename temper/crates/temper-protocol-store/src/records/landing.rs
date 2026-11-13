@@ -348,6 +348,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             members,
             preparation: row.landing.preparation,
             stale_proofs: row.landing.stale_proofs,
+            last_left: row.landing.last_left,
             branch: row.landing.branch.clone(),
             round: if row.landing.round.branch.is_empty() { None } else { Some(encode_round(&row.landing.round)) },
             own_hold: match row.landing.phase {
@@ -410,7 +411,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
 }
 pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
     let w::LandingRowParts { landing, asks, entries } = row.into_parts();
-    let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs, branch, round, own_hold } =
+    let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs, branch, round, own_hold, last_left } =
         landing.into_parts();
     let mut decoded_members = List::with_capacity(members.len());
     for member in members.into_boxed() {
@@ -434,6 +435,7 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
     }
     top::LandingRow {
         landing: d::Landing {
+            last_left,
             task,
             project,
             phase: match own_hold {

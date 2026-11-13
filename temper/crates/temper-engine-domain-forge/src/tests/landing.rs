@@ -287,6 +287,7 @@ fn landing_fixture() -> Domain {
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         landing: policy::Landing {
+            last_left: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task,
@@ -354,6 +355,7 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    job: None,
                     outcomes: Box::new([]),
                     dependencies: Box::new([]),
                     held: Box::new([]),
@@ -468,6 +470,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                job: None,
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),
@@ -592,6 +595,7 @@ fn landing_merge_evidence(single: bool) {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    job: None,
                     outcomes: Box::new([]),
                     dependencies: Box::new([]),
                     held: Box::new([]),
@@ -729,6 +733,7 @@ fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                job: None,
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),
@@ -975,6 +980,7 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                job: None,
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),
@@ -1438,6 +1444,7 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    job: None,
                     outcomes: Box::new([]),
                     dependencies: Box::new([]),
                     held: Box::new([]),
@@ -1657,6 +1664,7 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    job: None,
                     outcomes: Box::new([]),
                     dependencies: Box::new([]),
                     held: Box::new([]),

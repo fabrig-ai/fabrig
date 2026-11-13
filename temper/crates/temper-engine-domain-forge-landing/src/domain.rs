@@ -46,8 +46,9 @@ pub fn leave(mut landing: Landing, change: u64) -> Landing {
     if landing.round.branch.is_empty() {
         return crate::single::leave(landing, change);
     }
-    for member in &mut landing.members {
-        if member.change == change && member.landed.is_none() {
+    for (index, member) in landing.members.iter_mut().enumerate() {
+        if member.change == change && member.landed.is_none() && member.left.is_none() {
+            landing.last_left = Some(position(index));
             member.left = Some(crate::Leave::Cancelled);
         }
     }
@@ -250,8 +251,21 @@ fn followed_post(landing: &mut Landing, facts: &Facts) -> Option<Decision> {
 /// Decide against a coherent snapshot. The top commits the state and its
 /// effect together; effect facts always describe the current preparation/try.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "ordered phase, leave closure, cleanup and freshness decisions")]
 pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, now: Wall) -> Stepped {
+    let mut stepped = decide(landing, facts, project, limits, now);
+    remember_left(landing, &mut stepped.landing);
+    stepped
+}
+fn remember_left(before: &Landing, after: &mut Landing) {
+    for (index, (old, member)) in before.members.iter().zip(&after.members).enumerate() {
+        if old.left.is_none() && member.left.is_some() {
+            after.last_left = Some(position(index));
+        }
+    }
+}
+
+#[expect(clippy::too_many_lines, reason = "ordered phase, leave closure, cleanup and freshness decisions")]
+fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, now: Wall) -> Stepped {
     if landing.round.branch.is_empty() {
         return crate::single::step(landing, facts, project, limits, now);
     }

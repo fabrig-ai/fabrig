@@ -1892,6 +1892,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::ProducedTitle { task, child, title, report } => produced_title(d, task, child, &title, report, out),
+        Event::JobHistory { task, job } => crate::landing_history::job(d, env.wall, task, job, out),
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),

@@ -27,7 +27,9 @@ fn batch_root(count: u64) -> (World, Trains) {
     (world, trains)
 }
 pub(crate) fn heard(preparation: landing::Preparation, failure: &[u8]) -> top::LandingHeard {
+    job: None,
     top::LandingHeard {
+        job: None,
         outcomes: Box::new([]),
         dependencies: Box::new([]),
         held: Box::new([]),

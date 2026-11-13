@@ -1169,6 +1169,7 @@ pub enum Operation {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
+    pub job: Option<crate::history::JobStep>,
     pub outcomes: Box<[crate::preparation::Prepared]>,
     pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
@@ -1937,6 +1938,8 @@ pub enum Event {
         owner: u64,
         repair: u64,
     },
+    /// A job attempt was claimed or its result consumed in the root decision.
+    JobHistory { task: u64, job: crate::history::JobStep },
     /// Remember a committed procedure child and its role in this change.
     Delegated {
         task: u64,

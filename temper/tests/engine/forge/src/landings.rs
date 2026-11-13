@@ -36,6 +36,7 @@ pub fn turn_in(mut world: World) -> World {
 pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
     top::LandingRow {
         landing: landing::Landing {
+            last_left: None,
             round: landing::Round::new(format!("temper/1/l{LANDING}").into_bytes().into_boxed_slice()),
 
             task: LANDING,
@@ -92,6 +93,7 @@ pub fn step_landing_raw(world: &mut World, task: u64, entry: u64) -> landing::De
         task,
         entry,
         top::LandingHeard {
+            job: None,
             outcomes: Box::new([]),
             dependencies: Box::new([]),
             held: Box::new([]),

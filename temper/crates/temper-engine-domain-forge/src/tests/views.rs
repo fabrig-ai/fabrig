@@ -117,6 +117,7 @@ fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
 fn row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         landing: policy::Landing {
+            last_left: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task,

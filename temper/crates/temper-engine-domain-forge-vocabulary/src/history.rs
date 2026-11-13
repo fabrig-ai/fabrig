@@ -28,6 +28,15 @@ pub enum Operation {
     Own,
     Of(u64),
 }
+/// A job's durable attempt transition, supplied by the root; never stored here.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct JobStep {
+    pub task: u64,
+    pub attempt: u32,
+    pub job: Job,
+    pub outcome: Option<JobOutcome>,
+    pub head: Option<Commit>,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Event {
     pub project: u32,

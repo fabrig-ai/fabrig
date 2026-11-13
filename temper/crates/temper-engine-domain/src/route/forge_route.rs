@@ -36,6 +36,7 @@ pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
 mod landing_route;
+pub(super) mod job_history;
 pub(crate) use landing_route::form_landings;
 #[cfg(test)]
 use landing_route::start_landing;
@@ -2663,6 +2664,9 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext) {
     let task = context.task;
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
+        if let Some(job) = job_history::ended(domain, context, word, forge::history::Job::Merge) {
+            domain.work.push(Work::Forge(forge::Event::JobHistory { task, job }));
+        }
         let closing = domain.forge.change(task).expect("registered change").delegate
             == Some((child, forge_change::Delegate::Close));
         let held = closing && close::failed(domain, child, &word.kind);
