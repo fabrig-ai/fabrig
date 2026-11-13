@@ -39,7 +39,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "view records",
         root: "crates/jig-client-view",
-        codec_root: "crates/jig-client-view",
+        codec_root: "crates/jig-client-view-codec",
         schemas: &["schema/records-v1.schema"],
         generated: &["src/generated/records_v1.rs"],
         golden: "golden",
