@@ -19,7 +19,7 @@ pub struct Limits {
     /// Engine-slot run hub.
     pub host: host::Limits,
     /// The charter codec's bounds.
-    pub charter: smith_charter::v4::Limits,
+    pub charter: smith_charter::v5::Limits,
     /// How many endpoint names the charter codec holds.
     pub endpoints: u32,
     /// Held outputs the journal releases in one call (`domain/root.md` 4).

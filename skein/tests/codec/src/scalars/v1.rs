@@ -10,6 +10,19 @@ pub struct Limits {
 pub const CEILINGS: Limits = Limits {
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 0] = [
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 0] {
+        [
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

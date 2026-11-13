@@ -42,6 +42,11 @@ const ALLOWED: &[Allowance] = &[
         dependency: "smith-transcript",
         reason: "protocol/channel/wires.md, 2: spoken() states smith's transcript identity",
     },
+    Allowance {
+        package: "temper-protocol-worker-wire",
+        dependency: "jig-protocol-worker-wire",
+        reason: "protocol/wires.md, 6: application() builds jig's Application, Spoken and roots for temper's payloads",
+    },
 ];
 
 struct Exception {
@@ -49,16 +54,7 @@ struct Exception {
     until: &'static str,
 }
 
-const EXCEPTIONS: &[Exception] = &[
-    Exception { what: "jig-client-test-protocol-wire", until: "G3" },
-    Exception { what: "jig-test-store", until: "G3" },
-    Exception { what: "jig-protocol-engine-clients", until: "G3" },
-    Exception { what: "smith-local-protocol", until: "G3" },
-    Exception { what: "jig-client-view", until: "G3" },
-    Exception { what: "skein-ui-example-view", until: "G3" },
-    Exception { what: "skein-oauth", until: "G3" },
-    Exception { what: "jig-protocol-accounts", until: "G3" },
-];
+const EXCEPTIONS: &[Exception] = &[];
 
 struct VersionAllowance {
     package: &'static str,

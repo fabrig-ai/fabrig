@@ -82,7 +82,7 @@ mod records {
                 vec![0; usize::try_from(limits.sizes.charter).expect("fixture charter bound")].into();
             world.down(valid);
             world.run();
-            assert_eq!(world.observed(connection).len(), 1, "assignment at the bound crosses the wire");
+            assert_eq!(world.observed(connection).len(), 2, "assignment at the bound crosses the wire");
             let Event::Down { mut down, parts, values, .. } = fixtures::assignment_down(channel) else {
                 panic!("assignment event");
             };
@@ -111,10 +111,10 @@ mod records {
                 why.as_ref(),
                 &b"assignment cannot encode"[..usize::try_from(detail).expect("fixture detail bound")]
             );
-            assert_eq!(world.observed(connection).len(), 1, "invalid assignment never reaches worker");
+            assert_eq!(world.observed(connection).len(), 2, "invalid assignment never reaches worker");
             world.down(fixtures::assignment_down(channel));
             world.run();
-            assert_eq!(world.observed(connection).len(), 2, "channel remains available");
+            assert_eq!(world.observed(connection).len(), 3, "channel remains available");
             assert_eq!(world.root().len(), 2, "no duplicate refusal");
         }
     }
@@ -315,7 +315,7 @@ mod down_records {
         });
         world.run();
         let kinds: Vec<_> = world.observed(connection).iter().map(|record| record.kind).collect();
-        assert_eq!(kinds, [0x0180, 0x0181, 0x0182, 0x0183, 0x0185, 0x0186, 0x0184, 0x0187]);
+        assert_eq!(kinds, [0x018d, 0x0180, 0x0181, 0x0182, 0x0183, 0x0185, 0x0186, 0x0184, 0x0187]);
     }
     #[test]
     fn a_replaced_channel_receives_no_later_down_record() {

@@ -173,6 +173,10 @@ pub fn written(site: Site, old: &Old, new: &mut Build, at: Node, cx: &mut Contex
     }
 }
 
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -230,6 +234,10 @@ pub mod refusal {}
 
 pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
+}
+
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
 }
 
 #[cfg(test)]
@@ -327,5 +335,30 @@ mod tests {
             assert_eq!(module::current(&root), Ok(()), "{label}");
             fs::remove_dir_all(root).expect("remove fixture");
         }
+    }
+    #[test]
+    fn wire_module_holds_the_floor_factory_and_default_sites() {
+        let root = scratch("wire-floor-module");
+        put(&root, "schema/w-v2.schema", "family w 2\nrecord R {}\n");
+        put(&root, "schema/kept/w-v1.schema", "family w 1\nrecord R {}\n");
+        put(&root, "schema/kept/w-v2.schema", "family w 2\nrecord R {}\n");
+        put(&root, "schema/wires", "w 1\n");
+        let generated = module::module(&root).expect("wire module");
+        assert!(generated.contains("pub const FLOOR: u16 = 1;"));
+        assert!(generated.contains("pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError>"));
+        assert!(generated.contains("Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)"));
+        assert_eq!(generated.matches("pub fn sites(").count(), 1);
+        assert!(generated.contains("written(site, old, new, at, &mut Context::default())"));
+        put(&root, "patches/mod.rs", &generated);
+        assert_eq!(module::current(&root), Ok(()));
+        put(&root, "schema/wires", "w build\n");
+        assert_eq!(module::current(&root), Err(Error::Stale));
+        let build = module::module(&root).expect("per-build module");
+        assert!(build.contains("pub const FLOOR: u16 = 2;"));
+        put(&root, "patches/mod.rs", &build);
+        assert_eq!(module::current(&root), Ok(()));
+        put(&root, "schema/wires", "w 1\n");
+        assert_eq!(module::current(&root), Err(Error::Stale));
+        fs::remove_dir_all(root).expect("remove fixture");
     }
 }

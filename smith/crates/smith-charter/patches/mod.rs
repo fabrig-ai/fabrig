@@ -6,11 +6,20 @@ pub use context::Context;
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
-pub const PATCHES: &[&str] = &[];
+pub const PATCHES: &[&str] = &[r"patch 1
+owner smith 1
+
+family smith-charter 4 to 5
+add Tools.contract u16 1
+"];
 
 pub mod kept {
     pub mod smith_charter {
-        pub const TEXTS: &[&str] = &[r"family smith-charter 4
+        use skein_codec::bridge::{Bridge, BridgeError};
+        use skein_codec::patch::Capacity;
+
+        pub const TEXTS: &[&str] = &[
+            r"family smith-charter 4
 
 # Section bounds cover host brief text; admission also applies Limits.run_bytes.
 record Section { title: text 1024 body: text 262144 }
@@ -92,7 +101,97 @@ versioned record RunResult {
     fields: list 32 Field
     items: list 256 Item
 }
-"];
+",
+            r"family smith-charter 5
+
+# Section bounds cover host brief text; admission also applies Limits.run_bytes.
+record Section { title: text 1024 body: text 262144 }
+record Families { inspect: bool modify: bool shell: bool agents: bool }
+enum Effect { read, write }
+enum Mode { finite, open }
+
+# Schema bytes match HostInput::CAPACITY (65536); host tool names and text
+# are included in the run's aggregate ownership cap.
+record HostTool {
+    reserve: bool
+    name: text 64
+    description: text 8192
+    input: bytes 65536
+    effect: Effect
+    deadline: duration
+}
+
+# Counts and text ceilings bound one declaration; run admission checks the
+# complete contract against Limits.run_bytes and Limits.verdicts.
+record FieldRule { name: text 64 max: u32 }
+record TextRule { max: u32 fields: list 32 FieldRule }
+record ItemKind { kind: text 64 fields: list 32 FieldRule }
+record VerdictRule {
+    label: text 64
+    text_max: u32
+    fields: list 32 FieldRule
+    least: u32
+    most: u32
+    kinds: list 32 ItemKind
+}
+record ChangeRule { checks_must_pass: bool fields: list 32 FieldRule }
+record Contract {
+    report: option TextRule
+    verdicts: list 32 VerdictRule
+    change: option ChangeRule
+    failure: option TextRule
+}
+
+# The host-tool count covers the current configured maximum; the domain
+# checks it again at the entrance against Limits.host_tools.
+record Tools {
+    families: Families
+    wait: bool
+    deliver: option ChangeRule
+    save: bool
+    host: list 128 HostTool
+    contract: u16
+}
+record Conventions { guide: text 1024 checks: text 1024 }
+record Prices { input: u64 cached: u64 cache_write: option u64 output: u64 unit: u32 }
+record Llm { endpoint: text 64 account: option u32 model: text 128 effort: option text 32 window: u32 output: u32 prices: Prices }
+record Reserve { turns: u32 time: duration }
+record Budget { turns: u32 spend: u64 time: duration reserve: Reserve }
+
+# The complete charter is also bounded by the receiving run's Limits.run_bytes.
+versioned record Charter {
+    instructions: text 262144
+    brief: list 64 Section
+    tools: Tools
+    contract: Contract
+    conventions: option Conventions
+    budget: Budget
+    main: Llm
+    models: list 63 Llm
+    waiting: duration
+    resume: bool
+    mode: Mode
+    check_timeout: option duration
+}
+
+# Result ownership is checked against Limits.outcome_bytes before judgement.
+record Field { name: text 64 text: text 262144 }
+record Item { kind: text 64 fields: list 32 Field }
+enum Form { report, verdict, change, failure }
+versioned record RunResult {
+    form: Form
+    label: option text 64
+    text: text 262144
+    fields: list 32 Field
+    items: list 256 Item
+}
+",
+        ];
+        pub const FLOOR: u16 = 4;
+
+        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {
+            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)
+        }
         pub mod v4 {
             pub mod section {
                 use skein_codec::schema::FieldIx;
@@ -245,6 +344,163 @@ versioned record RunResult {
                 pub const ITEMS: FieldIx = FieldIx::new(75);
             }
         }
+        pub mod v5 {
+            pub mod section {
+                use skein_codec::schema::FieldIx;
+                pub const TITLE: FieldIx = FieldIx::new(0);
+                pub const BODY: FieldIx = FieldIx::new(1);
+            }
+            pub mod families {
+                use skein_codec::schema::FieldIx;
+                pub const INSPECT: FieldIx = FieldIx::new(2);
+                pub const MODIFY: FieldIx = FieldIx::new(3);
+                pub const SHELL: FieldIx = FieldIx::new(4);
+                pub const AGENTS: FieldIx = FieldIx::new(5);
+            }
+            pub mod effect {
+                use skein_codec::schema::VariantIx;
+                pub const READ: VariantIx = VariantIx::new(0);
+                pub const WRITE: VariantIx = VariantIx::new(1);
+            }
+            pub mod mode {
+                use skein_codec::schema::VariantIx;
+                pub const FINITE: VariantIx = VariantIx::new(2);
+                pub const OPEN: VariantIx = VariantIx::new(3);
+            }
+            pub mod host_tool {
+                use skein_codec::schema::FieldIx;
+                pub const RESERVE: FieldIx = FieldIx::new(6);
+                pub const NAME: FieldIx = FieldIx::new(7);
+                pub const DESCRIPTION: FieldIx = FieldIx::new(8);
+                pub const INPUT: FieldIx = FieldIx::new(9);
+                pub const EFFECT: FieldIx = FieldIx::new(10);
+                pub const DEADLINE: FieldIx = FieldIx::new(11);
+            }
+            pub mod field_rule {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(12);
+                pub const MAX: FieldIx = FieldIx::new(13);
+            }
+            pub mod text_rule {
+                use skein_codec::schema::FieldIx;
+                pub const MAX: FieldIx = FieldIx::new(14);
+                pub const FIELDS: FieldIx = FieldIx::new(15);
+            }
+            pub mod item_kind {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(16);
+                pub const FIELDS: FieldIx = FieldIx::new(17);
+            }
+            pub mod verdict_rule {
+                use skein_codec::schema::FieldIx;
+                pub const LABEL: FieldIx = FieldIx::new(18);
+                pub const TEXT_MAX: FieldIx = FieldIx::new(19);
+                pub const FIELDS: FieldIx = FieldIx::new(20);
+                pub const LEAST: FieldIx = FieldIx::new(21);
+                pub const MOST: FieldIx = FieldIx::new(22);
+                pub const KINDS: FieldIx = FieldIx::new(23);
+            }
+            pub mod change_rule {
+                use skein_codec::schema::FieldIx;
+                pub const CHECKS_MUST_PASS: FieldIx = FieldIx::new(24);
+                pub const FIELDS: FieldIx = FieldIx::new(25);
+            }
+            pub mod contract {
+                use skein_codec::schema::FieldIx;
+                pub const REPORT: FieldIx = FieldIx::new(26);
+                pub const VERDICTS: FieldIx = FieldIx::new(27);
+                pub const CHANGE: FieldIx = FieldIx::new(28);
+                pub const FAILURE: FieldIx = FieldIx::new(29);
+            }
+            pub mod tools {
+                use skein_codec::schema::FieldIx;
+                pub const FAMILIES: FieldIx = FieldIx::new(30);
+                pub const WAIT: FieldIx = FieldIx::new(31);
+                pub const DELIVER: FieldIx = FieldIx::new(32);
+                pub const SAVE: FieldIx = FieldIx::new(33);
+                pub const HOST: FieldIx = FieldIx::new(34);
+                pub const CONTRACT: FieldIx = FieldIx::new(35);
+            }
+            pub mod conventions {
+                use skein_codec::schema::FieldIx;
+                pub const GUIDE: FieldIx = FieldIx::new(36);
+                pub const CHECKS: FieldIx = FieldIx::new(37);
+            }
+            pub mod prices {
+                use skein_codec::schema::FieldIx;
+                pub const INPUT: FieldIx = FieldIx::new(38);
+                pub const CACHED: FieldIx = FieldIx::new(39);
+                pub const CACHE_WRITE: FieldIx = FieldIx::new(40);
+                pub const OUTPUT: FieldIx = FieldIx::new(41);
+                pub const UNIT: FieldIx = FieldIx::new(42);
+            }
+            pub mod llm {
+                use skein_codec::schema::FieldIx;
+                pub const ENDPOINT: FieldIx = FieldIx::new(43);
+                pub const ACCOUNT: FieldIx = FieldIx::new(44);
+                pub const MODEL: FieldIx = FieldIx::new(45);
+                pub const EFFORT: FieldIx = FieldIx::new(46);
+                pub const WINDOW: FieldIx = FieldIx::new(47);
+                pub const OUTPUT: FieldIx = FieldIx::new(48);
+                pub const PRICES: FieldIx = FieldIx::new(49);
+            }
+            pub mod reserve {
+                use skein_codec::schema::FieldIx;
+                pub const TURNS: FieldIx = FieldIx::new(50);
+                pub const TIME: FieldIx = FieldIx::new(51);
+            }
+            pub mod budget {
+                use skein_codec::schema::FieldIx;
+                pub const TURNS: FieldIx = FieldIx::new(52);
+                pub const SPEND: FieldIx = FieldIx::new(53);
+                pub const TIME: FieldIx = FieldIx::new(54);
+                pub const RESERVE: FieldIx = FieldIx::new(55);
+            }
+            pub mod charter {
+                use skein_codec::schema::FieldIx;
+                pub const INSTRUCTIONS: FieldIx = FieldIx::new(56);
+                pub const BRIEF: FieldIx = FieldIx::new(57);
+                pub const TOOLS: FieldIx = FieldIx::new(58);
+                pub const CONTRACT: FieldIx = FieldIx::new(59);
+                pub const CONVENTIONS: FieldIx = FieldIx::new(60);
+                pub const BUDGET: FieldIx = FieldIx::new(61);
+                pub const MAIN: FieldIx = FieldIx::new(62);
+                pub const MODELS: FieldIx = FieldIx::new(63);
+                pub const WAITING: FieldIx = FieldIx::new(64);
+                pub const RESUME: FieldIx = FieldIx::new(65);
+                pub const MODE: FieldIx = FieldIx::new(66);
+                pub const CHECK_TIMEOUT: FieldIx = FieldIx::new(67);
+            }
+            pub mod field {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(68);
+                pub const TEXT: FieldIx = FieldIx::new(69);
+            }
+            pub mod item {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(70);
+                pub const FIELDS: FieldIx = FieldIx::new(71);
+            }
+            pub mod form {
+                use skein_codec::schema::VariantIx;
+                pub const REPORT: VariantIx = VariantIx::new(4);
+                pub const VERDICT: VariantIx = VariantIx::new(5);
+                pub const CHANGE: VariantIx = VariantIx::new(6);
+                pub const FAILURE: VariantIx = VariantIx::new(7);
+            }
+            pub mod run_result {
+                use skein_codec::schema::FieldIx;
+                pub const FORM: FieldIx = FieldIx::new(72);
+                pub const LABEL: FieldIx = FieldIx::new(73);
+                pub const TEXT: FieldIx = FieldIx::new(74);
+                pub const FIELDS: FieldIx = FieldIx::new(75);
+                pub const ITEMS: FieldIx = FieldIx::new(76);
+            }
+        }
+        pub mod p0001 {
+            pub use super::v4 as old;
+            pub use super::v5 as new;
+        }
     }
 }
 
@@ -252,6 +508,10 @@ pub mod refusal {}
 
 pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
+}
+
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
 }
 
 #[cfg(test)]
@@ -265,5 +525,10 @@ mod tests {
     #[test]
     fn current() {
         assert_eq!(skein_codegen::patch::current(&owner()), Ok(()), "run skein-codegen patch for this owner");
+    }
+
+    #[test]
+    fn p0001_goldens() {
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 1, super::written), Ok(()), "patch 0001 goldens");
     }
 }

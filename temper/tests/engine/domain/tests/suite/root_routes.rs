@@ -5000,6 +5000,7 @@ fn a_rendered_call_answer_one_byte_past_its_configured_bound_is_busy() {
 /// it, and gets the decode request's reply right back.
 fn typed_call(driver: &mut Driver, assignment: &engine::Assignment, name: &[u8]) -> ReplyTo {
     let up = host::LinkUp::Call {
+        contract: 1,
         run: Token::new(assignment.task),
         attempt: Token::new(assignment.attempt),
         call: name.into(),

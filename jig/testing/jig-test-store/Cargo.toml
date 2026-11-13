@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-test-store-codec.workspace = true
 jig-protocol-transcript.workspace = true
 jig-test-connector.workspace = true
 jig-test-domain.workspace = true

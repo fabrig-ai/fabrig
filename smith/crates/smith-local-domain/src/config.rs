@@ -381,6 +381,7 @@ pub fn charter(config: &Config) -> charter::Charter {
         brief: charter::Brief { sections: sections.into_boxed() },
         conventions: config.conventions.clone(),
         grants: charter::Grants {
+            contract: 1,
             wait: true,
             deliver: config.deliver.clone(),
             save: false,

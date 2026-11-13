@@ -511,7 +511,17 @@ claims at once (../engine/restart.md, 1).
   and an application's roots that compose smith's agent capability, with
   their protocol layers' routing, which also runs smith's components
   where it composes them. Never the hub, the core, or jig's channel's components,
-  which pass smith's bytes through (`jig/docs/design/protocol/channel/README.md`, 5.1).
+  which pass smith's bytes through (`jig/docs/design/protocol/channel/README.md`, 5.1),
+  translating them by smith's bridges, as bytes, between versions
+  (`../../protocol/channel/bridges.md`, 5.3).
+- **A call carries its charter's contract.** The worker's routing, as it
+  decodes a start, hands the hub the version of the host's tools
+  contract its charter names (smith's `protocol/charter.md`, 2), a
+  `u16` the hub keeps with the hosted run and never reads; the hub puts
+  it on each of that run's calls, and jig's channel carries it up
+  (`../../protocol/channel/records.md`, 1), so the engine answers the
+  call by the contract the run was written for, whichever engine wrote
+  its charter (temper's `protocol/wires.md`, 7).
 
 ## 9. Jobs
 

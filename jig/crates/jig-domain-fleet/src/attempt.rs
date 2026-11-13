@@ -720,6 +720,12 @@ pub(crate) fn answer(
         out.push(Request::Drop { payload });
         return;
     };
+    if answer == Answer::Untranslated {
+        let host = domain.channels.get_mut(from).expect("connected host");
+        if !host.untranslated.as_slice().contains(&run) {
+            host.untranslated.push(run).expect("uncapped channel exclusions");
+        }
+    }
     if answer == Answer::Version {
         channel::mismatch(domain, from);
     }
@@ -746,9 +752,12 @@ pub(crate) fn answer(
                 resent(payload, &mut domain.facts, out);
                 State::Adopted { to, until }
             }
-            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid | Answer::Version => {
-                handed(to, answer, payload, on, names, &mut domain.facts, out)
-            }
+            Answer::Ended
+            | Answer::Parked
+            | Answer::Failed { .. }
+            | Answer::Invalid
+            | Answer::Version
+            | Answer::Untranslated => handed(to, answer, payload, on, names, &mut domain.facts, out),
         },
         State::Claimed { claiming, at: _ } => match answer {
             Answer::Busy => {
@@ -756,18 +765,24 @@ pub(crate) fn answer(
                 let serial = next_serial(&mut domain.serial);
                 State::Waiting { claiming, serial }
             }
-            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid | Answer::Version => {
-                handed(claiming.to, answer, payload, on, names, &mut domain.facts, out)
-            }
+            Answer::Ended
+            | Answer::Parked
+            | Answer::Failed { .. }
+            | Answer::Invalid
+            | Answer::Version
+            | Answer::Untranslated => handed(claiming.to, answer, payload, on, names, &mut domain.facts, out),
         },
         State::Cancelled { to, at: _ } => match answer {
             Answer::Busy => {
                 refused(payload, &mut domain.facts, out);
                 withdrawn(to, Withdrawal::Cancelled, names, out)
             }
-            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid | Answer::Version => {
-                handed(to, answer, payload, on, names, &mut domain.facts, out)
-            }
+            Answer::Ended
+            | Answer::Parked
+            | Answer::Failed { .. }
+            | Answer::Invalid
+            | Answer::Version
+            | Answer::Untranslated => handed(to, answer, payload, on, names, &mut domain.facts, out),
         },
         State::Crossed { to, .. } => {
             out.push(Request::Acknowledge { channel, run, attempt });
@@ -796,7 +811,12 @@ pub(crate) fn answer(
     match answer {
         // After the attempt has left its slot, which would lift the busy mark.
         Answer::Busy => channel::drain(domain, from),
-        Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid | Answer::Version => {}
+        Answer::Ended
+        | Answer::Parked
+        | Answer::Failed { .. }
+        | Answer::Invalid
+        | Answer::Version
+        | Answer::Untranslated => {}
     }
 }
 
@@ -948,22 +968,29 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
             }
         };
         let channel = match entry.job {
-            Some(job) => channel::choose_job(domain, workstream, job),
+            Some(job) => channel::choose_job(domain, entry.run, workstream, job),
             None => match entry.placement {
                 Some(placement) => match channel::constrained(domain, placement, kinds) {
                     Some(id)
-                        if crate::needs::fits(
-                            &domain.needs,
-                            version,
-                            &domain.channels.get(id).expect("connected host").evidence,
-                            placement.kind,
-                        ) =>
+                        if !domain
+                            .channels
+                            .get(id)
+                            .expect("connected host")
+                            .untranslated
+                            .as_slice()
+                            .contains(&entry.run)
+                            && crate::needs::fits(
+                                &domain.needs,
+                                version,
+                                &domain.channels.get(id).expect("connected host").evidence,
+                                placement.kind,
+                            ) =>
                     {
                         Some(id)
                     }
                     Some(_) | None => None,
                 },
-                None => channel::choose(domain, workstream, kinds, version),
+                None => channel::choose(domain, entry.run, workstream, kinds, version),
             },
         };
         if let Some(channel) = channel {
@@ -1145,7 +1172,7 @@ fn handed(
     facts.push(Fact::Answered { answer });
     out.push(Request::Answered { to, run: names.run, attempt: names.attempt, answer, payload });
     match answer {
-        Answer::Invalid | Answer::Version => State::Closed,
+        Answer::Invalid | Answer::Version | Answer::Untranslated => State::Closed,
         Answer::Ended | Answer::Parked | Answer::Failed { .. } => State::Handed { at },
         Answer::Busy => unreachable!("a busy refusal is placed again, not handed on"),
     }

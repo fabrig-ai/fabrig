@@ -35,7 +35,7 @@
 | `schema/<family>-v<N>.schema` | the current text of each family, its one version there; a fixture's may hold several, its greatest the current (below) | the author's |
 | `schema/kept/<family>-v<N>.schema` | every kept version's text from the family's first (11) | the command's |
 | `schema/kept/<family>.renames` | the renames waiting for the family's next patch (4), `rename` lines | the command's |
-| `schema/wires` | the crate's families that cross a wire, one name a line, each held to the wire rule (2) | the author's |
+| `schema/wires` | the crate's families that cross a wire, one a line with its floor or `build`, each held to the wire rule (2) and its floor's rules (`bridges.md`, 4) | the author's |
 | `patches/NNNN.patch` | the patch's text (`patches.md`, 1) | the command's lines, the author's values, sites and refusals |
 | `patches/pNNNN.rs` | its written functions, for a patch with sites (`patches.md`, 5) | the command's skeleton, then the author's |
 | `patches/context.rs` | the `Context`, written once, empty, deriving `Default` | the author's |

@@ -108,7 +108,10 @@ impl Build {
         let mut reader = Reader::new(spelled(old.value.bytes(), rest));
         match crate::piece::split_bytes(&mut reader) {
             Ok(Some(_)) => {}
-            Ok(None) => return self.write_length(length, bound, new.path),
+            Ok(None) => {
+                let result = self.write_length(length, bound, new.path);
+                return self.derived_result(old, at, result);
+            }
             Err(reason) => {
                 let path = match old.value.path(at) {
                     Ok(path) => path,
@@ -174,6 +177,41 @@ impl Build {
     ) -> Result<Option<Step>, Halt> {
         let old_ty = ty(self.old_schema(), old.source(at)?);
         let new_ty = ty(self.new_schema(), new.source);
+        if self.current().reverse {
+            match old_ty {
+                Type::Option(_) => match new_ty {
+                    Type::Option(_) => {}
+                    Type::U8
+                    | Type::U16
+                    | Type::U32
+                    | Type::U64
+                    | Type::Bool
+                    | Type::Duration
+                    | Type::Fixed(_)
+                    | Type::Secret { .. }
+                    | Type::Text(_)
+                    | Type::Bytes { .. }
+                    | Type::List { .. }
+                    | Type::Named(_) => {
+                        let child = old.some(at)?.ok_or(Self::unheld(old, at)?)?;
+                        self.push(Frame::Enter { at: child, new, ignore_site })?;
+                        return Ok(None);
+                    }
+                },
+                Type::U8
+                | Type::U16
+                | Type::U32
+                | Type::U64
+                | Type::Bool
+                | Type::Duration
+                | Type::Fixed(_)
+                | Type::Secret { .. }
+                | Type::Text(_)
+                | Type::Bytes { .. }
+                | Type::List { .. }
+                | Type::Named(_) => {}
+            }
+        }
         match new_ty {
             Type::Named(decl) => return self.declaration(old, at, decl, new, ignore_site, carrying),
             Type::U8
@@ -203,7 +241,10 @@ impl Build {
         }
         self.count_nodes(1)?;
         match new_ty {
-            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Duration => self.write_uint(new, old.uint(at)?)?,
+            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Duration => {
+                let result = self.write_uint(new, old.uint(at)?);
+                self.derived_result(old, at, result)?;
+            }
             Type::Bool => self.put(&[u8::from(old.boolean(at)?)])?,
             Type::Fixed(_) | Type::Secret { .. } | Type::Text(_) | Type::Bytes { .. } => {
                 let bytes = match old_ty {
@@ -221,48 +262,46 @@ impl Build {
                     | Type::Option(_)
                     | Type::Named(_) => old.content(at)?,
                 };
-                match old_ty {
-                    Type::Bytes { held: Held::Pieces(item), .. } | Type::Secret { held: Held::Pieces(item), .. } => {
-                        let converted = self.current().declarations.get(item.index()).expect("pieces item conversion");
-                        if !converted.copies {
-                            if carrying {
-                                return Err(Halt::Misbuilt(new.path));
-                            }
-                            let span = match old.value.span(at) {
-                                Ok(span) => span,
-                                Err(error) => return Err(Halt::Misread(error.node)),
-                            };
-                            let length = self.out.len();
-                            self.put(&0_u32.to_be_bytes())?;
-                            self.push(Frame::Pieces {
-                                at,
-                                rest: Span { start: add(span.start, 4), end: span.end },
-                                item,
-                                new,
-                                length,
-                                piece: None,
-                            })?;
-                            return Ok(None);
-                        }
+                let item = if self.current().reverse {
+                    match plan::piece_type(new_ty) {
+                        Some(item) => *self.current().olds.get(item.index()).expect("destination pieces item"),
+                        None => None,
                     }
-                    Type::U8
-                    | Type::U16
-                    | Type::U32
-                    | Type::U64
-                    | Type::Bool
-                    | Type::Duration
-                    | Type::Fixed(_)
-                    | Type::Secret { held: Held::Opaque | Held::Record { .. }, .. }
-                    | Type::Text(_)
-                    | Type::Bytes { held: Held::Opaque | Held::Record { .. }, .. }
-                    | Type::List { .. }
-                    | Type::Option(_)
-                    | Type::Named(_) => {}
+                } else {
+                    plan::piece_type(old_ty)
+                };
+                if let Some(item) = item {
+                    let converted = self.current().declarations.get(item.index()).expect("pieces item conversion");
+                    if !converted.copies {
+                        if carrying {
+                            return Err(Halt::Misbuilt(new.path));
+                        }
+                        let span = match old.value.span(at) {
+                            Ok(span) => span,
+                            Err(error) => return Err(Halt::Misread(error.node)),
+                        };
+                        let length = self.out.len();
+                        self.put(&0_u32.to_be_bytes())?;
+                        self.push(Frame::Pieces {
+                            at,
+                            rest: Span { start: add(span.start, 4), end: span.end },
+                            item,
+                            new,
+                            length,
+                            piece: None,
+                        })?;
+                        return Ok(None);
+                    }
                 }
-                self.write_content(new, bytes)?;
+                let result = self.write_content(new, bytes);
+                self.derived_result(old, at, result)?;
             }
-            Type::List { item, .. } => {
-                self.put(&old.count(at)?.to_be_bytes())?;
+            Type::List { item, bound } => {
+                let count = old.count(at)?;
+                if self.current().reverse && count > bound {
+                    return Err(Self::unheld(old, at)?);
+                }
+                self.put(&count.to_be_bytes())?;
                 self.push(Frame::List { items: old.items(at)?, item, path: new.path })?;
             }
             Type::Option(item) => {
@@ -355,6 +394,7 @@ impl Build {
                 if versioned {
                     self.put(&self.new_schema().version().to_be_bytes())?;
                 }
+                self.check_guards(old, at, old_decl)?;
                 self.push(Frame::Record { at, decl, next: first.index(), end: add(first.index(), count) })?;
             }
             Shape::Enum { first, count } => {
@@ -367,8 +407,9 @@ impl Build {
                 if carrying && !*self.current().variant_derived.get(old_tag.index()).expect("old variant flag") {
                     return Err(Halt::Misbuilt(tag_path));
                 }
-                let variant =
-                    self.current().variants.get(old_tag.index()).copied().flatten().ok_or(Halt::Misbuilt(tag_path))?;
+                let Some(variant) = self.current().variants.get(old_tag.index()).copied().flatten() else {
+                    return Err(if self.current().reverse { Self::unheld(old, at)? } else { Halt::Misbuilt(tag_path) });
+                };
                 let tag = variant.index().checked_sub(first.index()).ok_or(Halt::Misbuilt(tag_path))?;
                 if tag >= count {
                     return Err(Halt::Misbuilt(tag_path));
@@ -385,6 +426,52 @@ impl Build {
             }
         }
         Ok(None)
+    }
+    fn unheld(old: &Old, at: Node) -> Result<Halt, Halt> {
+        match old.value.path(at) {
+            Ok(path) => Ok(Halt::Unheld(path)),
+            Err(error) => Err(Halt::Misread(error.node)),
+        }
+    }
+    pub(super) fn derived_result(&self, old: &Old, at: Node, result: Result<(), Halt>) -> Result<(), Halt> {
+        match result {
+            Err(Halt::Built(_)) if self.current().reverse => Err(Self::unheld(old, at)?),
+            Err(
+                error @ (Halt::Decode(_)
+                | Halt::Refused(_)
+                | Halt::Undeclared(_)
+                | Halt::Misread(_)
+                | Halt::Misbuilt(_)
+                | Halt::Built(_)
+                | Halt::Unheld(_)
+                | Halt::Altered
+                | Halt::Room
+                | Halt::Order
+                | Halt::NoSite(_)),
+            ) => Err(error),
+            Ok(()) => Ok(()),
+        }
+    }
+    fn check_guards(&self, old: &Old, at: Node, decl: DeclIx) -> Result<(), Halt> {
+        match self.old_schema().declaration(decl).shape {
+            Shape::Record { first, count, .. } => {
+                for offset in 0..count {
+                    let field = FieldIx::new(add(first.index(), offset));
+                    if let Some(span) = *self.current().guards.get(field.index()).expect("source field guard") {
+                        let node = old.field(at, field)?;
+                        let actual = match old.value.span(node) {
+                            Ok(span) => span,
+                            Err(error) => return Err(Halt::Misread(error.node)),
+                        };
+                        if spelled(old.value.bytes(), actual) != spelled(self.current().pool.as_slice(), span) {
+                            return Err(Self::unheld(old, node)?);
+                        }
+                    }
+                }
+            }
+            Shape::Enum { .. } => {}
+        }
+        Ok(())
     }
     fn record(
         &mut self,

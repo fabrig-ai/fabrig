@@ -58,6 +58,45 @@ pub const CEILINGS: Limits = Limits {
     turn_record_transcript: 33_554_432,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 23] = [
+    "escalation_decision_reject_reason",
+    "settled_answer_host_body",
+    "settled_answer_delivery_evidence",
+    "settled_call_tool",
+    "call_part_effect_denied_findings",
+    "call_part_tool_denied_findings",
+    "call_part_delegation_denied_findings",
+    "task_bytes_value",
+    "call_part_delegated_value",
+    "note_bytes_value",
+    "call_part_note_recalled_entries",
+    "settings_refusal_value",
+    "phase_bytes_value",
+    "change_bytes_value",
+    "end_bytes_value",
+    "projection_goal_words",
+    "projection_task_words",
+    "projection_milestone_words",
+    "projection_goal_row_pending",
+    "run_proof_accounts",
+    "run_proof_credentials",
+    "run_proof_outstanding",
+    "turn_record_transcript",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 23] {
+        [
+            self.escalation_decision_reject_reason, self.settled_answer_host_body, self.settled_answer_delivery_evidence, self.settled_call_tool, self.call_part_effect_denied_findings, self.call_part_tool_denied_findings, self.call_part_delegation_denied_findings, self.task_bytes_value,
+            self.call_part_delegated_value, self.note_bytes_value, self.call_part_note_recalled_entries, self.settings_refusal_value, self.phase_bytes_value, self.change_bytes_value, self.end_bytes_value, self.projection_goal_words,
+            self.projection_task_words, self.projection_milestone_words, self.projection_goal_row_pending, self.run_proof_accounts, self.run_proof_credentials, self.run_proof_outstanding, self.turn_record_transcript,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

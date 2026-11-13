@@ -144,10 +144,14 @@ fn an_answer_hands_left_and_saved_work_up_as_parts() {
 }
 #[test]
 fn a_call_record_keeps_its_name_bytes() {
-    let link = up(translate::Up::Call(fixtures::call_record()));
-    let jig_domain_host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } = link else {
+    let mut parts = fixtures::call_record().into_parts();
+    parts.contract = 3;
+    let record = jig_protocol_worker_wire::Call::new(&jig_protocol_worker_wire::v13::CEILINGS, parts).expect("call");
+    let link = up(translate::Up::Call(record));
+    let jig_domain_host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } = link else {
         panic!("call");
     };
+    assert_eq!(contract, 3);
     assert_eq!(call.as_ref(), &[0, 2, 7]);
     assert_eq!((run, attempt), (Token::new(7), Token::new(2)));
     assert_eq!(tool.as_ref(), b"read");
@@ -194,7 +198,7 @@ fn down(record: jig_domain_host::LinkDown) -> translate::Down {
     };
     translated.expect("complete output")
 }
-fn codec() -> jig_protocol_worker_wire::v12::Limits {
+fn codec() -> jig_protocol_worker_wire::v13::Limits {
     jig_protocol_worker_wire::sizes::limits(&fixtures::SIZES).expect("small codec")
 }
 fn assignment_output() -> jig_domain_host::LinkDown {
