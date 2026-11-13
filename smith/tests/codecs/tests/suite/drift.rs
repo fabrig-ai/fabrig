@@ -76,7 +76,7 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens()
     let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
     let schema = parse(&source).expect("local store schema valid");
     let output = generate(&schema);
-    let generated = root.join("src/generated/local_store_v1.rs");
+    let generated = crates.join("smith-local-protocol-codec/src/generated/local_store_v1.rs");
     let goldens = root.join("golden/v1");
     check_artifact(&generated, output.rust.as_bytes());
     for golden in output.goldens {

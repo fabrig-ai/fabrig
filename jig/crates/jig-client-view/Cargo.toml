@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 skein-codec.workspace = true
 jig-client.workspace = true
+jig-client-view-codec.workspace = true
 skein-ui.workspace = true
 skein-lib.workspace = true
 

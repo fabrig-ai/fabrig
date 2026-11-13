@@ -82,6 +82,15 @@ records kept in files or stores.
   code compiles beside the domains rather than after them, and only a
   change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
   An owner's patches may name its domain's types, so they stay with it.
+- **A codec crate is named for its owner,** `<owner>-codec`, in a
+  directory beside the owner's that takes the owner's directory name
+  with `-codec` (`skein/crates/skein-oauth-codec`,
+  `skein/examples/ui/view-codec`); an owner whose families are split by
+  size names each crate for its family instead (jig's store,
+  `jig-protocol-store-people`). Each generated module keeps its name at
+  the codec crate's root (`v3`, `cursor_v1`), and the owner names it
+  where it named it before: a public module is re-exported at the
+  owner's same path, which callers keep, and either path names it.
 - **An owner with no domain to translate is its own codec crate,**
   holding schemas, code, golden bytes and drift test together: smith's
   `smith-charter`, `smith-channel` and `smith-transcript`, and the
@@ -91,9 +100,11 @@ records kept in files or stores.
   crate with no other family (`tools/crates/design.md`, 3.1), so that a
   change to one family recompiles it alone and the families compile side
   by side. An owner's smaller families may share one codec crate.
-- **The packages that still hold generated record code beside other
-  dependencies** are the codec check's exceptions, each until its crate's
-  milestone (`tools/crates/design.md`, 3.2).
+- **No package holds generated record code beside other workspace
+  dependencies,** and the codec check keeps it so, with no exception
+  (`tools/crates/design.md`, 3.2). skein's two owners, `skein-oauth` and
+  `skein-ui-example-view`, keep theirs in `skein-oauth-codec` and
+  `skein-ui-example-view-codec`.
 
 ## 3. The schema
 

@@ -53,16 +53,7 @@ struct Exception {
     until: &'static str,
 }
 
-const EXCEPTIONS: &[Exception] = &[
-    Exception { what: "jig-client-test-protocol-wire", until: "G3" },
-    Exception { what: "jig-test-store", until: "G3" },
-    Exception { what: "jig-protocol-engine-clients", until: "G3" },
-    Exception { what: "smith-local-protocol", until: "G3" },
-    Exception { what: "jig-client-view", until: "G3" },
-    Exception { what: "skein-ui-example-view", until: "G3" },
-    Exception { what: "skein-oauth", until: "G3" },
-    Exception { what: "jig-protocol-accounts", until: "G3" },
-];
+const EXCEPTIONS: &[Exception] = &[];
 
 #[derive(Debug)]
 struct Package {
