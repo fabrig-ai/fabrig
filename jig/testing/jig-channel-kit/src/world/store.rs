@@ -116,9 +116,9 @@ impl Capture {
                 path.starts_with(b"transcripts/") && path.len() == 45 && path.get(28) == Some(&b'/')
             })
             && let Ok(mut turn) = transcripts::frame::decode(bytes, limits)
-            && let Some(first) = turn.transcript.first_mut()
+            && let Some(body) = turn.transcript.get_mut(2..)
         {
-            *first = 0xff;
+            body.fill(0xff);
             *bytes = transcripts::frame::encode(&turn, limits).expect("same turn bounds");
         }
     }

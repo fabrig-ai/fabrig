@@ -109,6 +109,7 @@ fn choose(domain: &Domain, endpoint: u32) -> Option<Token> {
             || !channel.sources.ready()
             || channel.draining
             || channel.shutting_down
+            || channel.mismatched
             || domain.reads.on(channel.token)
         {
             continue;

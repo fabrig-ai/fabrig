@@ -5,7 +5,7 @@ use skein_lib::bytes;
 fn patched(version: u16, patch: usize, root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {
     let texts = crate::patches::kept::jig_store_tasks::TEXTS;
     let mut patcher = Patcher::new(Capacity {
-        versions: 3,
+        versions: u32::try_from(texts.len()).expect("kept task versions"),
         patches: 2,
         text: skein_codec::schema::MAX_TEXT,
         bytes: 131_072,
@@ -57,9 +57,10 @@ fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     let expected = bytes::concat(&[&[0, 10, *tag, 0, 0], fields, &[0, 0, 0, 0]]);
     assert_eq!(bytes.as_ref(), expected.as_ref());
     let bytes = patched(10, 2, b"Row", bytes);
-    let row = crate::tasks_v11::Row::decode(&crate::tasks_v11::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let bytes = patched(11, 3, b"Row", bytes);
+    let row = crate::tasks_v12::Row::decode(&crate::tasks_v12::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("current row");
-    let crate::tasks_v11::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };
+    let crate::tasks_v12::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };
     assert!(!record.activation_open());
     assert_eq!(record.session(), &None);
     assert_eq!(record.outcome().tries().infrastructure(), 0);
@@ -72,7 +73,7 @@ fn a_stored_counter_before_infrastructure_decodes_with_zero_tries() {
         old.put(&count.to_be_bytes()).unwrap();
     }
     let bytes = patched(10, 2, b"Tries", old.finish());
-    let wire = crate::tasks_v11::Tries::decode(&crate::tasks_v11::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let wire = crate::tasks_v12::Tries::decode(&crate::tasks_v12::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("patched tries");
     assert_eq!(
         crate::codec::tasks::value::read_tries(wire),

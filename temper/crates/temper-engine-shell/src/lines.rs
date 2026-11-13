@@ -466,6 +466,12 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
 fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalDiagnostic) -> String {
     let temper_engine_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
     let (class, detail) = match &reason {
+        jig_domain_host::Refusal::Version(mismatch) => {
+            return run_detail_line(
+                format!("{binary} serve: task {task} run {run} attempt {attempt} refused: "),
+                &mismatch.reason(),
+            );
+        }
         jig_domain_host::Refusal::Busy => (String::from("Busy"), b"".as_slice()),
         jig_domain_host::Refusal::Invalid(jig_domain_host::Invalid::Start { cause, why }) => {
             (format!("Invalid(Start({cause:?}))"), why.as_ref())

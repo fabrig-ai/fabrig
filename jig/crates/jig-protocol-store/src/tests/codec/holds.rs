@@ -1,6 +1,6 @@
 //! Each holds/pieces word reads the bytes its owner wrote (protocol/store/records.md, 1).
 use super::fixtures;
-use crate::{codec, core_v6 as core, people_v16 as people, tasks_v11 as tasks};
+use crate::{codec, core_v6 as core, people_v16 as people, tasks_v12 as tasks};
 use jig_domain_core_vocabulary as c;
 use jig_domain_people as p;
 use jig_domain_tasks as t;

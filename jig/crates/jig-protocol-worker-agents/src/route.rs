@@ -143,10 +143,14 @@ pub fn decode(
     endpoints: &Endpoints,
     evidence: Evidence,
 ) -> Result<Box<smith::Start>, hub::Undecoded> {
+    version(&source.charter, smith_charter::wire::FAMILY, smith_charter::wire::VERSION)?;
     let Ok(charter) = smith_protocol_channel::decode_charter(&source.charter, &limits.charter, endpoints) else {
         return Err(hub::Undecoded::Charter);
     };
     let charter = smith::Charter::new(charter, host_limits.charter_bytes).ok_or(hub::Undecoded::Charter)?;
+    for turn in &source.turns {
+        version(turn, smith_transcript::wire::FAMILY, smith_transcript::wire::VERSION)?;
+    }
     let piece = smith_protocol_channel::transcript_piece(&source.turns).ok_or(hub::Undecoded::Transcript)?;
     let transcript = match smith_protocol_channel::decode_transcript(
         &piece,
@@ -223,6 +227,21 @@ pub fn decode(
         directories: Box::default(),
         grants: grants.into_boxed(),
     }))
+}
+
+fn version(bytes: &[u8], wire: &str, current: u16) -> Result<(), hub::Undecoded> {
+    let mut reader = Reader::new(bytes);
+    if let Some(version) = reader.u16()
+        && version != current
+    {
+        return Err(hub::Undecoded::Version(hub::Mismatch {
+            wire: Box::from(wire.as_bytes()),
+            version,
+            lowest: current,
+            highest: current,
+        }));
+    }
+    Ok(())
 }
 
 fn delivery(outcome: hub::DeliveryOutcome, evidence: Box<[u8]>) -> Result<smith::Delivery, hub::Undecoded> {

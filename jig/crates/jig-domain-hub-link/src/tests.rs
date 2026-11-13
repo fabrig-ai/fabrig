@@ -676,3 +676,43 @@ fn a_runs_transient_preparation_is_infrastructure_with_its_detail() {
         }
     );
 }
+
+#[test]
+fn a_version_refusal_pauses_with_its_reason_and_keeps_history_usable() {
+    let ending = host::Ending::Refused(host::Refusal::Version(host::Mismatch {
+        wire: b"smith-charter".as_slice().into(),
+        version: 5,
+        lowest: 4,
+        highest: 4,
+    }));
+    let end = tasks::End::RefusedWithReason {
+        reason: b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into(),
+    };
+    assert_eq!(payload::ending(&ending), end);
+    assert!(!payload::unusable_history(&ending));
+    let mut link = link();
+    let mut out = Queue::uncapped();
+    step(
+        &mut link,
+        Time::ZERO,
+        Event::Up {
+            channel: CHANNEL,
+            value: host::LinkUp::Answer {
+                run: RUN,
+                attempt: ATTEMPT,
+                answer: host::RunAnswer { turns: 0, spent: 0, read: None, refused: Box::new([]), ending },
+            },
+        },
+        &mut out,
+    );
+    let Request::Core(core::Event::Fleet(fleet::Event::Answer { answer, payload, .. })) = out.pop().unwrap() else {
+        panic!("fleet answer")
+    };
+    assert_eq!(answer, fleet::Answer::Version);
+    step(&mut link, Time::ZERO, Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload }, &mut out);
+    let Request::Core(core::Event::AnswerPayload { end: actual, unusable_history, .. }) = out.pop().unwrap() else {
+        panic!("task terminal")
+    };
+    assert_eq!(actual, end);
+    assert!(!unusable_history);
+}

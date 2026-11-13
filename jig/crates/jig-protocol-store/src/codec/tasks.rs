@@ -10,7 +10,7 @@ pub mod proposals;
 pub mod record;
 pub mod state;
 pub mod value;
-use crate::tasks_v11 as wire;
+use crate::tasks_v12 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{Reader, Writer};
@@ -18,6 +18,7 @@ use skein_lib::{Reader, Writer};
 /// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
     end_failed_with_reason_reason: 0,
+    end_refused_with_reason_reason: 0,
     failed_retry_reason_some: 0,
     refused_retry_reason_some: 0,
     hold_preparation_words: 0,
@@ -136,6 +137,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
     )?;
     let limits = wire::Limits {
         end_failed_with_reason_reason: domain::REASON_BYTES,
+        end_refused_with_reason_reason: domain::REASON_BYTES,
         failed_retry_reason_some: domain::REASON_BYTES,
         refused_retry_reason_some: domain::REASON_BYTES,
         hold_preparation_words: domain::REASON_BYTES,

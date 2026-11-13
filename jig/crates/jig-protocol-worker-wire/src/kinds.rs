@@ -1,5 +1,5 @@
 //! Project record sizes into skein's schema (protocol/channel/README.md, 4.1).
-use crate::{MAGIC, VERSION, v10};
+use crate::{MAGIC, VERSION, v11};
 use skein_channel::{Direction, Kind as ChannelKind, Role, Schema, Term, Version};
 use skein_lib::List;
 
@@ -90,36 +90,36 @@ pub enum Overflow {
     Frame,
 }
 
-pub fn schema(limits: &v10::Limits) -> Result<Schema, Overflow> {
+pub fn schema(limits: &v11::Limits) -> Result<Schema, Overflow> {
     let mut kinds = List::with_capacity(u32::try_from(KINDS.len()).expect("kind count fits"));
     for rule in KINDS {
         let largest = match rule.body {
-            Kind::Hello => v10::Hello::encoded_bound(limits),
-            Kind::Turn => v10::Turn::encoded_bound(limits),
-            Kind::Call => v10::Call::encoded_bound(limits),
-            Kind::Answer => v10::Answer::encoded_bound(limits),
-            Kind::Fact => v10::Fact::encoded_bound(limits),
-            Kind::Unauthorized => v10::Unauthorized::encoded_bound(limits),
-            Kind::Limited => v10::Limited::encoded_bound(limits),
-            Kind::AccountRefused => v10::AccountRefused::encoded_bound(limits),
-            Kind::Assignment => v10::Assignment::encoded_bound(limits),
-            Kind::Message => v10::Inbound::encoded_bound(limits),
-            Kind::Relayed => v10::Relayed::encoded_bound(limits),
-            Kind::TurnKept => v10::TurnKept::encoded_bound(limits),
-            Kind::TurnBusy => v10::TurnBusy::encoded_bound(limits),
-            Kind::Acknowledge => v10::Acknowledge::encoded_bound(limits),
-            Kind::Cancel => v10::Cancel::encoded_bound(limits),
-            Kind::Sources => v10::Sources::encoded_bound(limits),
-            Kind::ReadList => v10::ReadList::encoded_bound(limits),
-            Kind::Draining => v10::Draining::encoded_bound(limits),
-            Kind::ListRead => v10::ListRead::encoded_bound(limits),
-            Kind::Check => v10::Check::encoded_bound(limits),
-            Kind::SignOut => v10::SignOut::encoded_bound(limits),
-            Kind::Logins => v10::Logins::encoded_bound(limits),
-            Kind::SignedOut => v10::SignedOut::encoded_bound(limits),
-            Kind::Job => v10::Job::encoded_bound(limits),
-            Kind::JobAnswer => v10::JobAnswer::encoded_bound(limits),
-            Kind::Grant => v10::Granted::encoded_bound(limits),
+            Kind::Hello => v11::Hello::encoded_bound(limits),
+            Kind::Turn => v11::Turn::encoded_bound(limits),
+            Kind::Call => v11::Call::encoded_bound(limits),
+            Kind::Answer => v11::Answer::encoded_bound(limits),
+            Kind::Fact => v11::Fact::encoded_bound(limits),
+            Kind::Unauthorized => v11::Unauthorized::encoded_bound(limits),
+            Kind::Limited => v11::Limited::encoded_bound(limits),
+            Kind::AccountRefused => v11::AccountRefused::encoded_bound(limits),
+            Kind::Assignment => v11::Assignment::encoded_bound(limits),
+            Kind::Message => v11::Inbound::encoded_bound(limits),
+            Kind::Relayed => v11::Relayed::encoded_bound(limits),
+            Kind::TurnKept => v11::TurnKept::encoded_bound(limits),
+            Kind::TurnBusy => v11::TurnBusy::encoded_bound(limits),
+            Kind::Acknowledge => v11::Acknowledge::encoded_bound(limits),
+            Kind::Cancel => v11::Cancel::encoded_bound(limits),
+            Kind::Sources => v11::Sources::encoded_bound(limits),
+            Kind::ReadList => v11::ReadList::encoded_bound(limits),
+            Kind::Draining => v11::Draining::encoded_bound(limits),
+            Kind::ListRead => v11::ListRead::encoded_bound(limits),
+            Kind::Check => v11::Check::encoded_bound(limits),
+            Kind::SignOut => v11::SignOut::encoded_bound(limits),
+            Kind::Logins => v11::Logins::encoded_bound(limits),
+            Kind::SignedOut => v11::SignedOut::encoded_bound(limits),
+            Kind::Job => v11::Job::encoded_bound(limits),
+            Kind::JobAnswer => v11::JobAnswer::encoded_bound(limits),
+            Kind::Grant => v11::Granted::encoded_bound(limits),
         };
         let largest = largest.ok_or(Overflow::Body)?;
         let Ok(largest) = u32::try_from(largest) else { return Err(Overflow::Frame) };

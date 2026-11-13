@@ -153,6 +153,7 @@ impl Domain {
                 slots: limits.engine_slots,
                 draining: false,
                 shutting_down: false,
+                mismatched: false,
                 hosts: skein_lib::Set::with_capacity(limits.engine_slots),
                 workstreams: Map::with_capacity(0),
                 uses: 0,
@@ -260,7 +261,7 @@ impl Domain {
                     EngineHello::Expected | EngineHello::Heard => false,
                 },
             };
-            if admitted && kinds.allows(host.kind) && !(host.draining || host.shutting_down) {
+            if admitted && kinds.allows(host.kind) && !(host.draining || host.shutting_down || host.mismatched) {
                 return None;
             }
         }
@@ -298,7 +299,7 @@ impl Domain {
                     EngineHello::Expected | EngineHello::Heard => false,
                 },
             };
-            if !admitted || !kinds.allows(host.kind) || host.draining || host.shutting_down {
+            if !admitted || !kinds.allows(host.kind) || host.draining || host.shutting_down || host.mismatched {
                 continue;
             }
             crate::needs::version_shortfall(&self.needs, version, &host.evidence)?;
@@ -358,7 +359,7 @@ impl Domain {
                     kind: value.kind,
                     slots: value.slots,
                     used: value.hosts.len(),
-                    draining: value.draining || value.shutting_down,
+                    draining: value.draining || value.shutting_down || value.mismatched,
                     connected: true,
                     grace_until: None,
                 })

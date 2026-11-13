@@ -509,3 +509,60 @@ fn infrastructure_backs_off_twelve_times_then_holds_with_its_reason() {
     h.restart();
     assert_eq!(h.domain.task(2).unwrap(), &held);
 }
+
+#[test]
+fn a_version_refusal_keeps_tries_and_its_reason_without_a_retry_bound() {
+    let mut h = running_job();
+    let reason: Box<[u8]> = b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into();
+    let tries = crate::Tries { transient: 1, lost: 1, ..crate::Tries::NONE };
+    for attempt in 1..=5 {
+        let row = &mut crate::domain::task_mut(&mut h.domain, 2).unwrap().record;
+        row.attempt = attempt;
+        row.tries = tries;
+        row.phase = crate::Phase::Active(crate::Active::Claimed { attempt });
+        h.send(Event::Activation {
+            reply_to: super::revisions::to(),
+            task: 2,
+            attempt,
+            cause: crate::Cause::Unpriced,
+            saved: None,
+            end: crate::End::RefusedWithReason { reason: reason.clone() },
+        });
+        let row = h.domain.task(2).unwrap();
+        assert_eq!(row.tries, tries);
+        assert_eq!(
+            row.retry_notice,
+            Some(crate::RetryNotice::Refused { count: u32::try_from(attempt).unwrap(), reason: Some(reason.clone()) })
+        );
+        let crate::Phase::Active(crate::Active::BackingOff { .. }) = row.phase else {
+            panic!("refusal pauses without a bound")
+        };
+        assert_eq!(row.last_answer, Some(attempt));
+    }
+    let notice = h.domain.task(2).unwrap().retry_notice.clone();
+    h.restart();
+    assert_eq!(h.domain.task(2).unwrap().retry_notice, notice);
+    let crate::Phase::Active(crate::Active::BackingOff { until }) = h.domain.task(2).unwrap().phase else {
+        panic!("paused")
+    };
+    h.env.now = h.domain.next_deadline().unwrap();
+    h.env.wall = until;
+    let mut out = skein_lib::Queue::uncapped();
+    crate::fire(&mut h.domain, &h.env, &mut out);
+    assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Due));
+    h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
+    h.send(Event::Claim {
+        session_end: None,
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
+        reply_to: super::revisions::to(),
+        task: 2,
+        attempt: 6,
+        resumed: false,
+        budget: 0,
+        account: None,
+        writes: Box::new([]),
+    });
+    assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Claimed { attempt: 6 }));
+    assert_eq!(h.domain.task(2).unwrap().tries, tries);
+}

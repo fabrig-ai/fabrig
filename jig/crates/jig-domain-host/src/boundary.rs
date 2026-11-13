@@ -10,8 +10,9 @@ use crate::JobKind;
 use skein_lib::{Duration, Token};
 
 /// What of the hub's start did not decode (jig/docs/design/protocol/service.md, 11.2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Undecoded {
+    Version(Mismatch),
     Charter,
     Transcript,
     CallName,
@@ -225,6 +226,8 @@ pub enum FromAgent {
     StartRefused { cause: StartCause, owner: Token, why: Box<[u8]> },
     /// The agent had no room for the run's start, before any run began.
     StartBusy { owner: Token },
+    /// The start carries a wire version the worker cannot read.
+    StartVersion { owner: Token, mismatch: Mismatch },
     /// The agent could not take an inbound event for the run.
     Refused { owner: Token, name: Token, reason: MessageRefusal },
     /// The run waits for its next inbound event.
@@ -429,6 +432,8 @@ pub struct Work {
 /// Why an assignment was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    /// A payload carries a wire version this worker cannot read.
+    Version(Mismatch),
     /// Every slot is taken (by a run hosted, or one whose answer the engine
     /// has yet to acknowledge), the run is hosted already under another
     /// attempt that has not answered yet, or the host is shutting down. A
@@ -436,6 +441,44 @@ pub enum Refusal {
     Busy,
     /// The assignment does not fit the limits.
     Invalid(Invalid),
+}
+
+/// The wire and both sides' versions (protocol/channel/wires.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Mismatch {
+    pub wire: Box<[u8]>,
+    pub version: u16,
+    pub lowest: u16,
+    pub highest: u16,
+}
+
+impl Mismatch {
+    /// The operator reason shared by the retry notice and the engine's log.
+    #[must_use]
+    pub fn reason(&self) -> Box<[u8]> {
+        let version = skein_lib::Decimal::of(u64::from(self.version));
+        let lowest = skein_lib::Decimal::of(u64::from(self.lowest));
+        let highest = skein_lib::Decimal::of(u64::from(self.highest));
+        let parts: [&[u8]; 8] = [
+            b"version mismatch: ",
+            &self.wire,
+            b" ",
+            version.as_bytes(),
+            b", the worker reads ",
+            lowest.as_bytes(),
+            b"..",
+            highest.as_bytes(),
+        ];
+        let mut length = 0_usize;
+        for part in parts {
+            length = length.checked_add(part.len()).expect("bounded mismatch reason");
+        }
+        let mut writer = skein_lib::Writer::new(length);
+        for part in parts {
+            writer.put(part).expect("measured mismatch reason");
+        }
+        writer.finish()
+    }
 }
 
 /// What about an assignment does not fit the limits.
@@ -626,6 +669,7 @@ impl FromAgent {
             | FromAgent::Started { .. }
             | FromAgent::StartRefused { .. }
             | FromAgent::StartBusy { .. }
+            | FromAgent::StartVersion { .. }
             | FromAgent::Refused { .. }
             | FromAgent::Yielded { .. }
             | FromAgent::Faulted { .. }
