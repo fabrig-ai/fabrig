@@ -49,6 +49,7 @@ fn client_wire_schema_matches_generated_code_and_goldens() {
 
 #[test]
 fn store_schema_matches_generated_code_and_goldens() {
+    schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v16");
     schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v17");
 }
 

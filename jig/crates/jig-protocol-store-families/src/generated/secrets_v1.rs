@@ -21,6 +21,25 @@ pub const CEILINGS: Limits = Limits {
     carried_moved_moved: 131_072,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 5] = [
+    "source_record_record",
+    "source_key_key",
+    "carried_key_key",
+    "carried_value_value",
+    "carried_moved_moved",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 5] {
+        [
+            self.source_record_record, self.source_key_key, self.carried_key_key, self.carried_value_value, self.carried_moved_moved,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

@@ -146,6 +146,95 @@ pub const CEILINGS: Limits = Limits {
     listed_rows_rows: 256,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 67] = [
+    "wire_name",
+    "wire_layouts",
+    "credential_name",
+    "credential_secret",
+    "credential_wires",
+    "bounds_endpoints",
+    "bounds_program_endpoints",
+    "hello_workstreams",
+    "hello_hosting",
+    "hello_jobs",
+    "turn_refused",
+    "turn_body",
+    "call_name",
+    "call_tool",
+    "call_input",
+    "invalid_start_why",
+    "mismatch_wire",
+    "work_left_some",
+    "work_saved_some",
+    "ended_outcome",
+    "resource_resource_some",
+    "failed_detail",
+    "answer_refused",
+    "input_call_id",
+    "input_call_tool",
+    "piece_bytes",
+    "account_refused_code",
+    "account_refused_reason",
+    "message_sender",
+    "message_words",
+    "workspace_items",
+    "host_answer_body",
+    "delivery_answer_evidence",
+    "answered_call_name",
+    "answered_call_tool",
+    "credential_value_bytes",
+    "application_value_secret",
+    "program_value_name",
+    "assignment_charter",
+    "assignment_transcript",
+    "assignment_answered",
+    "assignment_messages",
+    "assignment_grants",
+    "job_spec",
+    "job_grants",
+    "job_invalid_start_why",
+    "job_finished_result",
+    "job_failed_detail",
+    "inbound_sender",
+    "inbound_words",
+    "relay_text_text",
+    "relayed_name",
+    "program_source_name",
+    "sources_sources",
+    "check_name",
+    "sign_out_name",
+    "source_failed_detail",
+    "login_otherwise_method",
+    "login_name",
+    "login_email_some",
+    "logins_logins",
+    "signed_out_name",
+    "list_row_name",
+    "list_row_shown_some",
+    "list_row_efforts",
+    "list_row_efforts_item",
+    "listed_rows_rows",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 67] {
+        [
+            self.wire_name, self.wire_layouts, self.credential_name, self.credential_secret, self.credential_wires, self.bounds_endpoints, self.bounds_program_endpoints, self.hello_workstreams,
+            self.hello_hosting, self.hello_jobs, self.turn_refused, self.turn_body, self.call_name, self.call_tool, self.call_input, self.invalid_start_why,
+            self.mismatch_wire, self.work_left_some, self.work_saved_some, self.ended_outcome, self.resource_resource_some, self.failed_detail, self.answer_refused, self.input_call_id,
+            self.input_call_tool, self.piece_bytes, self.account_refused_code, self.account_refused_reason, self.message_sender, self.message_words, self.workspace_items, self.host_answer_body,
+            self.delivery_answer_evidence, self.answered_call_name, self.answered_call_tool, self.credential_value_bytes, self.application_value_secret, self.program_value_name, self.assignment_charter, self.assignment_transcript,
+            self.assignment_answered, self.assignment_messages, self.assignment_grants, self.job_spec, self.job_grants, self.job_invalid_start_why, self.job_finished_result, self.job_failed_detail,
+            self.inbound_sender, self.inbound_words, self.relay_text_text, self.relayed_name, self.program_source_name, self.sources_sources, self.check_name, self.sign_out_name,
+            self.source_failed_detail, self.login_otherwise_method, self.login_name, self.login_email_some, self.logins_logins, self.signed_out_name, self.list_row_name, self.list_row_shown_some,
+            self.list_row_efforts, self.list_row_efforts_item, self.listed_rows_rows,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

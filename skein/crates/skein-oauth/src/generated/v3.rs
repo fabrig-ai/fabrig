@@ -25,6 +25,27 @@ pub const CEILINGS: Limits = Limits {
     saved_token_id_token_some: 65_536,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 7] = [
+    "saved_token_access_token",
+    "saved_token_refresh_token_some",
+    "saved_token_metadata_some",
+    "saved_token_issued_client_id_some",
+    "saved_token_granted_scopes_some",
+    "saved_token_subject_some",
+    "saved_token_id_token_some",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 7] {
+        [
+            self.saved_token_access_token, self.saved_token_refresh_token_some, self.saved_token_metadata_some, self.saved_token_issued_client_id_some, self.saved_token_granted_scopes_some, self.saved_token_subject_some, self.saved_token_id_token_some,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {
