@@ -3,6 +3,17 @@
 //! Limits and typed field paths for data/codec/README.md, section 4.
 
 use crate::{Declaration, analysis::Context};
+pub(crate) use skein_codec::schema::LimitLevel;
+
+pub(crate) fn bound_name(record: &str, field: &str) -> String {
+    String::from_utf8(skein_codec::schema::limit_name(record.as_bytes(), field.as_bytes()).into_vec())
+        .expect("schema identifiers are ASCII")
+}
+
+pub(crate) fn child_name(parent: &str, level: LimitLevel) -> String {
+    String::from_utf8(skein_codec::schema::limit_child(parent.as_bytes(), level).into_vec())
+        .expect("schema identifiers are ASCII")
+}
 
 /// Lowers capitals into words separated by underscores, mapping dots and hyphens to underscores.
 #[must_use]
@@ -63,7 +74,9 @@ pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
     for (name, bound, _) in bounds {
         out.push_str(&format!("    {name}: {},\n", literal(*bound)));
     }
-    out.push_str("};\n\n/// A field or tag that caused a codec problem.\n#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]\npub enum Path {\n");
+    out.push_str("};\n\n");
+    emit_names(schema, out);
+    out.push_str("/// A field or tag that caused a codec problem.\n#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]\npub enum Path {\n");
     for declaration in schema.declarations {
         match declaration {
             Declaration::Record(record) => {
@@ -86,6 +99,23 @@ pub(crate) fn emit(schema: &Context<'_>, out: &mut String) {
     }
     out.push_str("}\n\n/// A decoding or bound failure at a schema path.\n#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]\npub struct Problem {\n    pub path: Path,\n    pub reason: skein_codec::Reason,\n}\n\n");
     emit_check(schema, out);
+}
+
+fn emit_names(schema: &Context<'_>, out: &mut String) {
+    let count = schema.bounds.len();
+    out.push_str(&format!(
+        "/// The limits' field names, in field order.\npub const LIMIT_NAMES: [&str; {count}] = [\n"
+    ));
+    for (name, _, _) in &schema.bounds {
+        out.push_str(&format!("    \"{name}\",\n"));
+    }
+    out.push_str("];\n\nimpl Limits {\n    /// The limits' values, in `LIMIT_NAMES` order.\n    #[must_use]\n");
+    out.push_str(&format!("    pub fn values(&self) -> [u32; {count}] {{\n        [\n"));
+    for chunk in schema.bounds.chunks(8) {
+        let values = chunk.iter().map(|(name, _, _)| format!("self.{name}")).collect::<Vec<_>>().join(", ");
+        out.push_str(&format!("            {values},\n"));
+    }
+    out.push_str("        ]\n    }\n}\n\n");
 }
 
 /// One public family check where its owner makes the limits.

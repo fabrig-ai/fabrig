@@ -11,7 +11,7 @@ pub fn answer_record(
     answer: run::Answer,
     read: Option<Token>,
     bodies: &channel::Limits,
-    charter: &wire::v4::Limits,
+    charter: &wire::v5::Limits,
 ) -> Result<channel::Answer, Error> {
     let (turns, spent, result) = match answer {
         run::Answer::Refused(refusal) => {
@@ -190,6 +190,7 @@ fn model_fault(
                         code: report.code,
                         request_id: report.request,
                         field: report.field,
+                        status: report.status,
                     },
                 ) {
                     Ok(value) => value,

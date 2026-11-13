@@ -330,6 +330,7 @@ pub(crate) fn charter() -> Charter {
         },
 
         grants: Grants {
+            contract: 1,
             wait: true,
             deliver: None,
             save: false,

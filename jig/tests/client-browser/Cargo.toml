@@ -9,7 +9,6 @@ publish.workspace = true
 jig-client-fake-person-browser.workspace = true
 skein-fake-person-browser.workspace = true
 skein-fake-person.workspace = true
-skein-ui-bundle.workspace = true
 skein-scratch.workspace = true
 skein-lib.workspace = true
 skein-ui.workspace = true

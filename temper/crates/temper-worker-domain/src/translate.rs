@@ -257,6 +257,27 @@ pub(crate) const fn run_failure(failure: &agent::RunFailure) -> host::RunFailure
     }
 }
 
+/// Structured call classes, without provider prose (domain/worker/README.md, 4.3).
+pub(crate) const fn model_failure_kind(failure: &agent::CompletionFailure) -> host::ModelFailureKind {
+    match failure {
+        agent::CompletionFailure::Unavailable => host::ModelFailureKind::Unavailable,
+        agent::CompletionFailure::Overloaded => host::ModelFailureKind::Overloaded,
+        agent::CompletionFailure::RateLimited { .. } => host::ModelFailureKind::RateLimited,
+        agent::CompletionFailure::Exhausted { .. } => host::ModelFailureKind::Exhausted,
+        agent::CompletionFailure::TimedOut { .. } => host::ModelFailureKind::TimedOut,
+        agent::CompletionFailure::ContextTooLong => host::ModelFailureKind::ContextTooLong,
+        agent::CompletionFailure::Invalid => host::ModelFailureKind::Invalid,
+        agent::CompletionFailure::Refused => host::ModelFailureKind::Refused,
+        agent::CompletionFailure::Unsupported => host::ModelFailureKind::Unsupported,
+        agent::CompletionFailure::Unauthorized => host::ModelFailureKind::Unauthorized,
+        agent::CompletionFailure::Protocol => host::ModelFailureKind::Protocol,
+        agent::CompletionFailure::Cancelled => host::ModelFailureKind::Cancelled,
+        agent::CompletionFailure::Limit { .. } | agent::CompletionFailure::ApplicationLimit => {
+            host::ModelFailureKind::Limit
+        }
+    }
+}
+
 /// The configured call bounds that jig holds instead of retrying (domain/worker/README.md, 4.3).
 const fn exceeded(which: &agent::Limit) -> Option<host::Bound> {
     match which {

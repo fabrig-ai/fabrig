@@ -4,9 +4,7 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
-#[rustfmt::skip]
-#[path = "generated/v3.rs"]
-pub mod v3;
+pub use skein_oauth_codec::v3;
 mod common;
 mod documents;
 mod json;

@@ -1,6 +1,6 @@
 //! Jobs retain their own records (jig/docs/design/protocol/channel/records.md, 4).
 use super::{fixtures, records::through_bytes};
-use crate::{self as wire, v11};
+use crate::{self as wire, v13};
 use skein_lib::{Duration, List};
 
 const TASK: u64 = 3;
@@ -77,7 +77,7 @@ fn a_job_at_its_spec_bound_round_trips() {
 #[test]
 fn a_job_one_byte_past_its_spec_bound_is_refused() {
     let problem = wire::Job::new(&fixtures::LIMITS, job_parts(&[b's'; SPEC_BYTES + 1])).expect_err("spec past bound");
-    assert_eq!(problem, v11::Problem { path: v11::Path::JobSpec, reason: skein_codec::Reason::Bound });
+    assert_eq!(problem, v13::Problem { path: v13::Path::JobSpec, reason: skein_codec::Reason::Bound });
 }
 
 /// Finished, failed and refused answers keep their payloads (jig/docs/design/protocol/channel/records.md, 4).
@@ -121,5 +121,5 @@ fn a_hello_one_job_kind_past_its_bound_is_refused() {
     const THIRD_KIND: u32 = 19;
     let problem = wire::Hello::new(&fixtures::LIMITS, hello_parts(&[FIRST_KIND, SECOND_KIND, THIRD_KIND]))
         .expect_err("third job kind");
-    assert_eq!(problem, v11::Problem { path: v11::Path::HelloJobs, reason: skein_codec::Reason::Bound });
+    assert_eq!(problem, v13::Problem { path: v13::Path::HelloJobs, reason: skein_codec::Reason::Bound });
 }

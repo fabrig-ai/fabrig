@@ -71,7 +71,7 @@ pub fn limits() -> Limits {
 // Smith's smallest v4 golden, used by its agent-process world's charter fixture.
 #[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to worker unit tests")]
 const SMALLEST: &[u8] =
-    include_bytes!("../../../../../smith/crates/smith-charter/golden/v4/record_charter_smallest.bin");
+    include_bytes!("../../../../../smith/crates/smith-charter/golden/v5/record_charter_smallest.bin");
 
 pub fn charter_bytes() -> Box<[u8]> {
     let source =

@@ -479,6 +479,33 @@ it a unit the tag does not identify.
   the nine call bounds. Other completion failures retain their `Model`
   classification.
 
+**A model call's failure is named.** A run failed for its completion
+(smith's `ModelFault::Completion`) and reported as `Model` carries jig's
+`ModelFailure` beside it (jig's `domain/hosts/hub.md`, 3), from smith's
+structured fields alone:
+
+- **The endpoint and the model** are those the run's charter names for
+  the failure's model index (`Charter::model`): the endpoint's configured
+  name and the model's name, each cut to `ModelFailure::NAME_BYTES` at a
+  character's boundary. The worker keeps them from the start it decoded
+  until the run's answer; a run whose index names no model carries none.
+- **The kind** is smith's `CompletionFailure` by name, one to one:
+  `Unavailable`, `Overloaded`, `RateLimited`, `Exhausted`, `TimedOut`,
+  `ContextTooLong`, `Invalid`, `Refused`, `Unsupported`, `Unauthorized`,
+  `Protocol` and `Cancelled` as themselves, and `Limit` and
+  `ApplicationLimit` as `Limit`; the worker classifies it exhaustively,
+  without a wildcard. The evidence is smith's, one to one.
+- **The status** is the evidence's response status where it has one,
+  else the report's status, which a program's result gives (smith's
+  `protocol/programs.md`, 5.6), else none.
+- **Every other model fault** (a provider failed for good, a model that
+  kept declining, ran out of tokens or named no tool, a program that
+  could not run) carries none, nor does an account's or a bound's
+  failure, which have their own (above).
+
+No provider code, request id, detail or diagnostic goes into it: the
+report's other fields, and the bounded detail, stay the operator's.
+
 ## 5. Agent processes
 
 The agent child is smith's host domain, `smith-host-domain` (smith's
@@ -740,7 +767,11 @@ for; and that nothing is live once it settles.
   deployment asks for more than they hold. The user's to decide.
 - **jig's:** saving periodically, and a worker's failed dials before its
   first channel (jig's `domain/hosts/README.md`, section 10).
-- **A hold naming an agent run's last failure.** An agent task held
+- **A hold naming an agent run's last failure.** Settled for a model
+  call's failure (the user, 2026-11-13; `../../draft/run-provider-outage.md`,
+  2): its hold names the call from structured fields alone, the endpoint,
+  model, kind, evidence and status (4.3; jig's `domain/hosts/hub.md`, 3),
+  and no free text. For any other run failure the question stands: an agent task held
   `out of tries: run failures` names no failure: the reason is 4.3's
   operator line alone. Job failures carry their bounded cause into the
   hold (`jobs.md`). Default for an agent run: the line alone, which `task

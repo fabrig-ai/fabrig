@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 skein-codec.workspace = true
+skein-oauth-codec.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true
 skein-tls.workspace = true

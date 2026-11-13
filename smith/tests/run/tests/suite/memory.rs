@@ -120,6 +120,7 @@ fn charter(held: u64) -> Charter {
         brief,
 
         grants: Grants {
+            contract: 1,
             wait: true,
             deliver: None,
             save: false,
@@ -703,6 +704,7 @@ fn full_delivery_charter(limits: &Limits) -> Charter {
         brief,
 
         grants: Grants {
+            contract: 1,
             wait: true,
             deliver: Some(ChangeSpec { checks_must_pass: true, fields: Box::new([]) }),
             save: false,

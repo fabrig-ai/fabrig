@@ -21,7 +21,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "engine cursor",
         root: "crates/jig-protocol-engine-clients",
-        codec_root: "crates/jig-protocol-engine-clients",
+        codec_root: "crates/jig-protocol-engine-clients-codec",
         schemas: &["schema/cursor-v1.schema"],
         generated: &["src/generated/cursor_v1.rs"],
         golden: "golden",
@@ -39,7 +39,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "view records",
         root: "crates/jig-client-view",
-        codec_root: "crates/jig-client-view",
+        codec_root: "crates/jig-client-view-codec",
         schemas: &["schema/records-v1.schema"],
         generated: &["src/generated/records_v1.rs"],
         golden: "golden",
@@ -57,7 +57,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "test client",
         root: "testing/jig-client-test-protocol-wire",
-        codec_root: "testing/jig-client-test-protocol-wire",
+        codec_root: "testing/jig-client-test-protocol-wire-codec",
         schemas: &["schema/test-client-v2.schema"],
         generated: &["src/generated/v2.rs"],
         golden: "golden",
@@ -147,7 +147,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "test connector",
         root: "testing/jig-test-store",
-        codec_root: "testing/jig-test-store",
+        codec_root: "testing/jig-test-store-codec",
         schemas: &["schema/test-connector-v2.schema"],
         generated: &["src/generated/v2.rs"],
         golden: "golden",
@@ -157,15 +157,15 @@ pub const FAMILIES: &[Family] = &[
         name: "worker wire",
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
-        schemas: &["schema/worker-wire-v11.schema"],
-        generated: &["src/generated/v11.rs"],
+        schemas: &["schema/worker-wire-v13.schema"],
+        generated: &["src/generated/v13.rs", "src/generated/v12.rs"],
         golden: "golden",
         fixtures: &[],
     },
     Family {
         name: "accounts moved",
         root: "crates/jig-protocol-accounts",
-        codec_root: "crates/jig-protocol-accounts",
+        codec_root: "crates/jig-protocol-accounts-codec",
         schemas: &["schema/moved-v1.schema"],
         generated: &["src/generated/v1.rs"],
         golden: "golden",
@@ -248,6 +248,15 @@ pub fn check() {
     }
     // Patch 1 keeps its v16 executor decoder after the live people family moves.
     let kept_people = tree.join("crates/jig-protocol-store-people/src/generated");
+    let source = fs::read_to_string(tree.join("crates/jig-protocol-store/schema/kept/jig-store-people-v16.schema"))
+        .expect("kept people schema");
+    let code = generate(&parse(&source).expect("kept people schema valid")).rust;
+    let path = kept_people.join("people_v16.rs");
+    if write {
+        fs::write(&path, &code).expect("write kept people codec");
+    } else {
+        assert_eq!(fs::read_to_string(&path).expect("kept people codec"), code, "kept people: {again}");
+    }
     inventories
         .get_mut(&kept_people)
         .expect("the live people codec has an inventory")
@@ -258,5 +267,10 @@ pub fn check() {
 }
 
 fn entries(path: &Path) -> BTreeSet<PathBuf> {
-    fs::read_dir(path).expect("directory readable").map(|entry| entry.expect("entry readable").path()).collect()
+    let entries = match fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return BTreeSet::new(),
+        Err(why) => panic!("{}: directory readable: {why}", path.display()),
+    };
+    entries.map(|entry| entry.expect("entry readable").path()).collect()
 }

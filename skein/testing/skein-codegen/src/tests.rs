@@ -5,6 +5,70 @@ use core::fmt::Write;
 use crate::{generate, parse};
 
 #[test]
+fn limit_names_and_values_follow_field_order() {
+    for text in [
+        "family f 1 record HTTPRecord { raw: secret 64 maybe: option text 32 rows: list 3 list 2 option bytes 8 }",
+        "family f 1 record Empty {}",
+    ] {
+        let schema = parse(text).expect("fixture family");
+        let output = generate(&schema);
+        let fields = output
+            .rust
+            .split_once("pub struct Limits {\n")
+            .expect("limits struct")
+            .1
+            .split_once("}\n")
+            .expect("limits end")
+            .0
+            .lines()
+            .map(|line| line.trim().strip_prefix("pub ").expect("public limit").split_once(':').expect("field type").0)
+            .collect::<Vec<_>>();
+        let names = output.rust.split_once("pub const LIMIT_NAMES: [&str; ").expect("names constant").1;
+        let (count, names) = names.split_once("] = [\n").expect("array length");
+        let names = names
+            .split_once("];\n")
+            .expect("names end")
+            .0
+            .lines()
+            .map(|line| line.trim().trim_end_matches(',').trim_matches('"'))
+            .collect::<Vec<_>>();
+        assert_eq!(count.parse::<usize>().expect("length"), fields.len());
+        assert_eq!(names, fields);
+        let values = output.rust.split_once("pub fn values(&self) -> [u32; ").expect("values method").1;
+        let (count, values) = values.split_once("] {\n        [\n").expect("returned array");
+        let values = values
+            .split_once("        ]\n")
+            .expect("values end")
+            .0
+            .split_whitespace()
+            .map(|field| field.trim_end_matches(',').strip_prefix("self.").expect("limit value"))
+            .collect::<Vec<_>>();
+        assert_eq!(count.parse::<usize>().expect("length"), fields.len());
+        assert_eq!(values, fields);
+        if !fields.is_empty() {
+            use skein_codec::schema::{LimitLevel, limit_child, limit_name};
+            let raw = limit_name(b"HTTPRecord", b"raw");
+            let maybe = limit_child(&limit_name(b"HTTPRecord", b"maybe"), LimitLevel::Some);
+            let rows = limit_name(b"HTTPRecord", b"rows");
+            let item = limit_child(&rows, LimitLevel::Item);
+            let nested = limit_child(&limit_child(&item, LimitLevel::Item), LimitLevel::Some);
+            let expected = [&raw, &maybe, &rows, &item, &nested].map(|name| core::str::from_utf8(name).expect("ASCII"));
+            assert_eq!(names, expected);
+            assert_eq!(
+                names,
+                [
+                    "h_t_t_p_record_raw",
+                    "h_t_t_p_record_maybe_some",
+                    "h_t_t_p_record_rows",
+                    "h_t_t_p_record_rows_item",
+                    "h_t_t_p_record_rows_item_item_some"
+                ]
+            );
+        }
+    }
+}
+
+#[test]
 fn records_are_apart_from_the_embedded_tests() {
     let schema = parse("family sample 1\nrecord Note { body: text 8 }\nenum Entry { note: Note, empty }")
         .expect("valid bounded record and enum");

@@ -892,6 +892,8 @@ pub enum CompletionEvidence {
 /// Bounded provider evidence, kept outside history and content-free facts (smith/docs/design/domain/run.md, section 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Report {
+    /// HTTP status reported apart from transport evidence, such as a program result's status.
+    pub status: Option<u16>,
     pub code: Box<[u8]>,
     pub request: Box<[u8]>,
     pub field: Box<[u8]>,
@@ -904,7 +906,7 @@ impl Report {
     /// No provider evidence was supplied.
     #[must_use]
     pub fn none() -> Self {
-        Self { code: Box::default(), request: Box::default(), field: Box::default() }
+        Self { status: None, code: Box::default(), request: Box::default(), field: Box::default() }
     }
 }
 

@@ -3,9 +3,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-#[rustfmt::skip]
-#[path = "generated/v1.rs"]
-pub mod records;
+pub use skein_ui_example_view_codec::records;
 pub mod draw;
 pub mod limits;
 pub mod places;

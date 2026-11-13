@@ -176,6 +176,7 @@ host would be another.
 | `smith-protocol-translate` | component | the translations between the channel's, the charter's and the transcript's records and the domains' values, shared by both halves and the local host's store (channel.md, charter.md, transcript.md) |
 | `smith-host-protocol` | component | the host's half: skein's channel and smith's codecs on the streams it is given, translated to and from `smith-host-domain` (host.md) |
 | `smith-local-protocol` | protocol layer | the local host's: the terminal, transcripts in files, signing in and committing in place (host.md) |
+| `smith-local-protocol-codec` | codecs | the local store's generated record code, below `smith-local-protocol`, which keeps its schema, layouts and golden bytes and translates it (`tools/crates/design.md`, 3.2) |
 | `smith-inline-agent` | domain | an agent capability in its host's process: one composed `smith-domain` per run, speaking `smith-host-domain`'s vocabulary (domain/host.md, section 9) |
 | `smith-agent-service`, `smith-local-service` | service | the agent process's and the product's `iterate`; each holds its profiles as step code, the `standard` profile among them, derives its limits and checks them (limits.md), and owns its event sink (events.md) |
 | `smith-agent-shell` | shell | the agent process, as a library: its configuration, its startup, and the one adapter that its binary and the worlds both run (agent.md) |
@@ -332,7 +333,23 @@ to an older reader or writer. Each has one version at a time.
   with their layouts (`temper/docs/design/protocol/wires.md`, 3.1):
   `smith-channel`, `smith-charter` and `smith-transcript` are patch
   owners, each marked a wire in its crate's `schema/wires` (skein's
-  `data/codec/command.md`, 2). A landing that changes one's layout in
+  `data/codec/command.md`, 2), with its floor (skein's
+  `data/codec/bridges.md`, 4): `smith-channel` per-build, the others
+  bridged by their reverses, which a host that speaks several versions
+  runs, never the agent (jig's `protocol/channel/bridges.md`, 5.3).
+- **The pieces a host keeps are a wire of their own,** `smith-pieces`:
+  a call's name (`CallName`) and a delivery's evidence (`DeliveryReply`
+  and what it reaches), declared in `smith-channel`'s crate as a second
+  family, `schema/pieces-v1.schema`, laid out as `smith-channel`'s
+  declarations of the same names, which a focused test holds. A host
+  that keeps them across its agents' builds (jig's engine) states
+  `smith-pieces` at its workers' opening in place of `smith-channel`,
+  so a change of the channel's other records leaves its workers
+  speaking to it. The engine keeps a delivery's evidence as bytes
+  without its version, so `smith-pieces` has no bridge: its floor is
+  its current, and every move of it is breaking (skein's
+  `data/codec/bridges.md`, 3), raising the floor. Its version starts at
+  1, its module `smith_channel::pieces::wire` saying what it speaks. A landing that changes one's layout in
   anything but names, comments, `boxed` and the text's layout moves its
   version by one, keeps the old text and brings its forward patch;
   `fabrig-boundary`'s `patches` test refuses one changed in place. Each
@@ -372,8 +389,9 @@ to an older reader or writer. Each has one version at a time.
     section 12), so a reader is still handed one version.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
-- **Where each is.** The channel speaks version 7 (channel.md, section
-  2); the charter and its result, version 4 (charter.md, section 5); turns
+- **Where each is.** The channel speaks version 8 (channel.md, section
+  2); the pieces a host keeps, `smith-pieces`, version 1 (above); the
+  charter and its result, version 5 (charter.md, section 5); turns
   and transcripts, version 7 (transcript.md, section 6); the event
   stream, version 4 (events.md, section 6); and the local host's store,
   version 1 (host.md, section 5.3).

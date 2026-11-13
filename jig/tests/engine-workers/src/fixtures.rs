@@ -321,6 +321,7 @@ pub fn call_record() -> jig_protocol_worker_wire::Call {
             writes: false,
             input: Box::from(b"input".as_slice()),
             deadline: Duration::from_secs(4),
+            contract: 1,
         },
     )
     .expect("call")
@@ -371,7 +372,7 @@ pub fn account_refused_record() -> jig_protocol_worker_wire::AccountRefused {
     .expect("account refused")
 }
 
-fn codec() -> jig_protocol_worker_wire::v11::Limits {
+fn codec() -> jig_protocol_worker_wire::v13::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {

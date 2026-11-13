@@ -46,6 +46,39 @@ pub const CEILINGS: Limits = Limits {
     every_items: 64,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 17] = [
+    "strings_raw",
+    "strings_key",
+    "strings_words",
+    "stamp_note_some",
+    "nest_blanks",
+    "nest_lights",
+    "nest_maybe_lights",
+    "nest_grid",
+    "nest_grid_item",
+    "nest_maybe_list_some",
+    "nest_shapes",
+    "nest_secrets",
+    "nest_secrets_item",
+    "nest_stamps",
+    "nest_pairs",
+    "every_held",
+    "every_items",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 17] {
+        [
+            self.strings_raw, self.strings_key, self.strings_words, self.stamp_note_some, self.nest_blanks, self.nest_lights, self.nest_maybe_lights, self.nest_grid,
+            self.nest_grid_item, self.nest_maybe_list_some, self.nest_shapes, self.nest_secrets, self.nest_secrets_item, self.nest_stamps, self.nest_pairs, self.every_held,
+            self.every_items,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

@@ -1,5 +1,5 @@
 //! Project record sizes into skein's schema (protocol/channel/README.md, 4.1).
-use crate::{MAGIC, VERSION, v11};
+use crate::{MAGIC, VERSION, v13};
 use skein_channel::{Direction, Kind as ChannelKind, Role, Schema, Term, Version};
 use skein_lib::List;
 
@@ -31,6 +31,7 @@ pub enum Kind {
     SignedOut,
     Job,
     JobAnswer,
+    Wires,
 }
 
 impl Kind {
@@ -82,6 +83,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x018a, direction: Direction::FromResponder, body: Kind::SignOut },
     KindRule { kind: 0x018b, direction: Direction::FromResponder, body: Kind::Job },
     KindRule { kind: 0x018c, direction: Direction::FromResponder, body: Kind::ReadList },
+    KindRule { kind: 0x018d, direction: Direction::FromResponder, body: Kind::Wires },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -90,44 +92,78 @@ pub enum Overflow {
     Frame,
 }
 
-pub fn schema(limits: &v11::Limits) -> Result<Schema, Overflow> {
-    let mut kinds = List::with_capacity(u32::try_from(KINDS.len()).expect("kind count fits"));
-    for rule in KINDS {
-        let largest = match rule.body {
-            Kind::Hello => v11::Hello::encoded_bound(limits),
-            Kind::Turn => v11::Turn::encoded_bound(limits),
-            Kind::Call => v11::Call::encoded_bound(limits),
-            Kind::Answer => v11::Answer::encoded_bound(limits),
-            Kind::Fact => v11::Fact::encoded_bound(limits),
-            Kind::Unauthorized => v11::Unauthorized::encoded_bound(limits),
-            Kind::Limited => v11::Limited::encoded_bound(limits),
-            Kind::AccountRefused => v11::AccountRefused::encoded_bound(limits),
-            Kind::Assignment => v11::Assignment::encoded_bound(limits),
-            Kind::Message => v11::Inbound::encoded_bound(limits),
-            Kind::Relayed => v11::Relayed::encoded_bound(limits),
-            Kind::TurnKept => v11::TurnKept::encoded_bound(limits),
-            Kind::TurnBusy => v11::TurnBusy::encoded_bound(limits),
-            Kind::Acknowledge => v11::Acknowledge::encoded_bound(limits),
-            Kind::Cancel => v11::Cancel::encoded_bound(limits),
-            Kind::Sources => v11::Sources::encoded_bound(limits),
-            Kind::ReadList => v11::ReadList::encoded_bound(limits),
-            Kind::Draining => v11::Draining::encoded_bound(limits),
-            Kind::ListRead => v11::ListRead::encoded_bound(limits),
-            Kind::Check => v11::Check::encoded_bound(limits),
-            Kind::SignOut => v11::SignOut::encoded_bound(limits),
-            Kind::Logins => v11::Logins::encoded_bound(limits),
-            Kind::SignedOut => v11::SignedOut::encoded_bound(limits),
-            Kind::Job => v11::Job::encoded_bound(limits),
-            Kind::JobAnswer => v11::JobAnswer::encoded_bound(limits),
-            Kind::Grant => v11::Granted::encoded_bound(limits),
-        };
-        let largest = largest.ok_or(Overflow::Body)?;
-        let Ok(largest) = u32::try_from(largest) else { return Err(Overflow::Frame) };
-        kinds.push(ChannelKind { kind: rule.kind, direction: rule.direction, largest }).expect("one slot per kind");
+pub fn schema(limits: &v13::Limits) -> Result<Schema, Overflow> {
+    use skein_codec::schema::{Shape, VariantIx};
+    let mut versions = List::uncapped();
+    for text in crate::patches::kept::jig_worker_wire::TEXTS {
+        let kept = skein_codec::schema::parse(text.as_bytes()).expect("valid kept worker schema");
+        let version = kept.version();
+        if version < crate::wire::FLOOR {
+            continue;
+        }
+        let mut kinds = List::uncapped();
+        for (name, base, direction) in [
+            (b"FromWorker".as_slice(), 0x0100_u16, Direction::FromInitiator),
+            (b"FromEngine".as_slice(), 0x0180_u16, Direction::FromResponder),
+        ] {
+            let at = kept.find(name).expect("kept kinds enumeration");
+            let Shape::Enum { first, count } = kept.declaration(at).shape else {
+                unreachable!("kinds are enumerations")
+            };
+            for tag in 0..count {
+                let variant = kept.variant(VariantIx::new(first.index().checked_add(tag).expect("bounded variants")));
+                let kind = base.checked_add(u16::try_from(tag).expect("variant tag fits")).expect("kind fits");
+                let largest = if version == VERSION {
+                    let rule = current_kind(kind);
+                    crate::sizes::body(limits, rule)
+                } else {
+                    let record = variant.record.expect("each kind holds a record");
+                    let bound =
+                        kept.most_bytes_within(record, &v13::LIMIT_NAMES, &limits.values()).ok_or(Overflow::Body)?;
+                    let Ok(bound) = u32::try_from(bound) else { return Err(Overflow::Frame) };
+                    Some(bound)
+                }
+                .ok_or(Overflow::Body)?;
+                kinds.push(ChannelKind { kind, direction, largest }).expect("uncapped kinds");
+            }
+        }
+        versions.push(Version { version, kinds }).expect("uncapped versions");
     }
-    let mut versions = List::with_capacity(1);
-    versions.push(Version { version: VERSION, kinds }).expect("one version has one slot");
     Ok(Schema { magic: MAGIC, versions })
+}
+
+/// The channel offers the range stated for jig's own wire.
+#[must_use]
+pub fn schema_for(limits: &v13::Limits, wires: &List<crate::Spoken>) -> Option<Schema> {
+    let mut stated = None;
+    for wire in wires {
+        if wire.name == crate::wire::FAMILY {
+            if stated.is_some() || wire.layouts.is_empty() {
+                return None;
+            }
+            stated = Some(wire);
+        }
+    }
+    let stated = stated?;
+    let full = schema(limits).ok()?;
+    full.version(stated.lowest)?;
+    full.version(stated.highest())?;
+    let mut versions = List::uncapped();
+    for version in &full.versions {
+        if version.version >= stated.lowest && version.version <= stated.highest() {
+            versions.push(version.clone()).expect("uncapped versions");
+        }
+    }
+    Some(Schema { magic: MAGIC, versions })
+}
+
+fn current_kind(number: u16) -> Kind {
+    for rule in KINDS {
+        if rule.kind == number {
+            return rule.body;
+        }
+    }
+    unreachable!("every current variant has a kind rule")
 }
 
 /// The first sending kind whose peer bound does not hold this side's largest.

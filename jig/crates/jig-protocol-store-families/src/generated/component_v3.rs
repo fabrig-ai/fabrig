@@ -20,6 +20,24 @@ pub const CEILINGS: Limits = Limits {
     manifest_counts: 64,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 4] = [
+    "wire_name",
+    "wires_wires",
+    "count_family",
+    "manifest_counts",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 4] {
+        [
+            self.wire_name, self.wires_wires, self.count_family, self.manifest_counts,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

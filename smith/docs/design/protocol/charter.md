@@ -73,6 +73,13 @@ A versioned record (skein's `data/codec/README.md`, section 3):
     - its deadline, as a duration;
     - `reserve`, a boolean granting it during Finite reserve completions;
       it grants no tool to Open final replies or to children;
+  - the version of the host's tools contract these declarations were
+    written in, `contract`, a `u16` from 1 that smith never reads: the
+    host that answers the run's calls answers them by it, so a run
+    outlives a change of its host's tools (temper's
+    `protocol/wires.md`, 7), and the worker carries it on each call
+    (jig's `domain/hosts/hub.md`, 8). A charter of version 4, written
+    before it, reads as contract 1;
 - **the result contract** (2.1);
 - **conventions,** if any: the relative paths of the guide and the checks;
   without them, smith's defaults apply (domain/run.md, 8.1);
@@ -186,7 +193,11 @@ version at a time, and any change a reader would notice is a new one.
 
 - **The charter's first field is its version.** The agent reads its one
   version and refuses any other as an invalid start (domain/run.md,
-  section 4). Nothing is translated.
+  section 4). The agent translates nothing: a host that speaks several
+  versions of the charter, jig's worker channel, translates it to the
+  agent's version before the start, and the result back, by
+  `smith-charter`'s bridge (skein's `data/codec/bridges.md`; jig's
+  `protocol/channel/bridges.md`, 5.3).
 - **A charter that does not decode** in the version the agent reads is an
   invalid start too, with a reason of its own: its writer has a bug to
   fix, where another version needs a writer and an agent of the same
@@ -196,9 +207,11 @@ version at a time, and any change a reader would notice is a new one.
 - **A writer writes the version of its release.** `smith check` prints the
   version an agent reads (`../shell/README.md`), so a writer and its
   agents that differ find out before a run.
-- **Version 4 is current.** Both versioned records, Charter and
-  RunResult, carry family version 4. Versions 1–3 are refused, with no
-  decoder of their own.
+- **Version 5 is current,** adding the host tools' `contract` to
+  `Tools`. Both versioned records, Charter and RunResult, carry family
+  version 5. Version 4 is kept, its forward patch giving `contract` 1,
+  and its reverse taking a charter whose contract is 1 down to it; the
+  floor is 4. Versions 1–3 are refused, with no decoder of their own.
 - **Before v0.1.0 a format changes in place.** The `save` grant (section
   2) was added to version 4 as it is, with no new version (the owner,
   2026-11-09), and so was the charter's last field, the checks' bound

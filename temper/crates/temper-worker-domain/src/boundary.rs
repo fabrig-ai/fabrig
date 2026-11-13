@@ -101,7 +101,12 @@ pub enum Event {
     /// up (jig's `domain/hosts/hub.md`, 5).
     Live { agent: Token, piece: host::Piece },
     /// Terminal for `Decode`: smith's start, typed, or what did not decode.
-    Decoded { agent: Token, start: Result<Box<agent::Start>, host::Undecoded> },
+    Decoded {
+        agent: Token,
+        start: Result<Box<agent::Start>, host::Undecoded>,
+        /// Configured endpoint names in charter model-index order, resolved by the decoder.
+        endpoints: Box<[Box<[u8]>]>,
+    },
     /// Terminal for `Encode`.
     Encoded { owner: Token, encoded: Encoded },
     /// Terminal for `Fact`: the fact as jig's activity, if it decoded.

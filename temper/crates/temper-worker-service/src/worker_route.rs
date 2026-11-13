@@ -36,6 +36,35 @@ pub fn decode(
     route::decode(run, source, &agent.limits, &agent.host_limits, &agent.endpoints, route::Evidence::Reply)
 }
 
+/// Resolve call names beside a decoded start; the worker domain keeps only bounded names.
+#[must_use]
+pub fn decoded(
+    owner: Token,
+    run: Token,
+    source: hub::Start,
+    agent: &crate::settings::Agent,
+) -> temper_worker_domain::Event {
+    let start = decode(run, source, agent);
+    let endpoints = match &start {
+        Ok(start) => {
+            let charter = start.charter.value();
+            let count = u32::try_from(charter.models.len())
+                .expect("decoded charter models")
+                .checked_add(1)
+                .expect("main and sub-agent models");
+            let mut names = List::with_capacity(count);
+            for index in 0..count {
+                let llm = charter.model(index).expect("charter model index");
+                let name = agent.endpoints.name_for(llm.endpoint.0).expect("decoder resolved the configured endpoint");
+                names.push(Box::from(name)).expect("one endpoint per charter LLM");
+            }
+            names.into_boxed()
+        }
+        Err(_) => Box::new([]),
+    };
+    temper_worker_domain::Event::Decoded { agent: owner, start, endpoints }
+}
+
 #[must_use]
 pub fn process(event: smith_host_protocol::ProcessEvent) -> Option<temper_worker_domain::Event> {
     match route::process(event)? {

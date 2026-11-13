@@ -152,6 +152,7 @@ impl Agents {
                     agent.remember(turn);
                 }
                 self.live.insert(owner, agent);
+                out.push(host::FromAgent::Decoded { owner, contract: 1 });
                 out.push(host::FromAgent::Started { owner, agent: owner });
             }
             host::ToAgent::Message { agent: owner, name, words, .. } => {
@@ -182,7 +183,7 @@ impl Agents {
                             owner,
                             turns: agent.turns,
                             spent: agent.spent,
-                            finish: host::Finish::Failed { failure: host::RunFailure::Cancelled },
+                            finish: host::Finish::Failed { failure: host::RunFailure::Cancelled, model: None },
                         });
                     }
                     out.push(host::FromAgent::Gone { owner, detail: Box::new([]) });
@@ -543,7 +544,7 @@ pub(super) fn result(
     text: &[u8],
     fields: &[(&str, &str)],
 ) -> Box<[u8]> {
-    let limits = smith_charter::v4::CEILINGS;
+    let limits = smith_charter::v5::CEILINGS;
     let mut list = List::with_capacity(u32::try_from(fields.len()).expect("few fields"));
     for (name, value) in fields {
         list.push(
