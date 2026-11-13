@@ -1,8 +1,9 @@
 # The playground world's native heap
 
 These are native counting-allocator bytes, not browser memory or resident size.
-The playground binary's test holds each figure in the current table below with
-a quarter's margin, as a regression bound
+The playground binary's test holds the service's 2026-11-13 figures below
+with a quarter's margin rounded up to two significant digits. Other
+regression bounds retain their 2026-11-12 figures plus a quarter
 ([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
 the memory's bar itself to the user.
 
@@ -18,7 +19,7 @@ cargo nextest run -p temper-one-process-world --test memory --run-ignored only -
 
 The playground measurement passes. The first step is one world step, including
 one turn of every admitted process. Start is the first idle boundary with
-nothing due now: 150 world steps in the current table. The two snapshots use separate identical
+nothing due now: 159 world steps in the current table. The two snapshots use separate identical
 worlds, so each disk can be destroyed and its retained heap measured separately.
 The service process contains both engine and worker; they are not separate
 process measurements. The visitor is admitted at both snapshots; no agent
@@ -44,7 +45,7 @@ the composition still captures the sign-in line as its normal `step` does.
 
 Measured 2026-11-03 (`date -u +%F`), on a builder, at commit
 `79d1b7c27b20bce64fcc5e6b3e75c3db3732948e`. This historical table is retained
-for comparison; the test binds the 2026-11-12 table below.
+for comparison; the service's bounds now follow the 2026-11-13 table below.
 
 | Process | First step held | First step peak | Start held | Start peak | Story A high water |
 |---|---:|---:|---:|---:|---|
@@ -59,8 +60,8 @@ for comparison; the test binds the 2026-11-12 table below.
 | Shared forge before start | 6,981 | not separately measured at start |
 
 Measured 2026-11-08 (`date -u +%F`), on a builder, at trunk commit
-`2c7e0d079e92266a03d667dba08dca3fd52ca062`. This historical table is retained for comparison; the test binds the
-2026-11-12 table below. Start took 147 world steps. The visitor is process 3, so four processes are measured at
+`2c7e0d079e92266a03d667dba08dca3fd52ca062`. This historical table is retained for comparison; the service's bounds now follow the
+2026-11-13 table below. Start took 147 world steps. The visitor is process 3, so four processes are measured at
 the first step and five at start, with hosted git now process 4. The bounds
 are keyed by the test's process names, including `visitor` and `git`.
 
@@ -78,12 +79,11 @@ are keyed by the test's process names, including `visitor` and `git`.
 | Shared forge before start | 6,981 | not separately measured at start |
 
 Measured 2026-11-12 (`date -u +%F`), on a builder, from the stock-charter
-source at commit `a983a9a0aff2d8d51333bd917164fedeefe61e35`. The focused
-`story_as_world_at_its_first_step_and_start` test binds every figure in this
-table to `figure + figure / 4`, with the same set of figures and margin.
-All figures came from one run of that test, with its regression comparisons
-suspended for measurement and then restored against this table. Start takes
-150 world steps.
+source at commit `a983a9a0aff2d8d51333bd917164fedeefe61e35`. This table is
+retained as history. All figures came from one run of the focused
+`story_as_world_at_its_first_step_and_start` test, with its regression
+comparisons suspended for measurement and then restored against this table
+at `figure + figure / 4`. Start took 150 world steps.
 
 | Process | First step held | First step peak | Start held | Start peak |
 |---|---:|---:|---:|---:|
@@ -104,6 +104,35 @@ and implementer charters, up from 11,451 bytes. Service held growth is
 62,191 bytes at the first step and 101,991 bytes at start, much more than the
 21,734-byte text growth: this points to multiple owned copies of the text,
 not one copy. These snapshots do not attribute each allocation to a copy.
+
+Measured 2026-11-13 (`date -u`), on a builder, from source commit
+`157d31cc0c709e45cd720859f78706992c613e6c` on `temper62287/c2316`.
+Every figure below came from one run of
+`story_as_world_at_its_first_step_and_start`, with comparisons suspended
+only for measurement and restored afterwards. First step takes one world
+step; start takes 159 world steps.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 264,685 | 419,385 | 478,318 | 605,314 |
+| 1: fake LLM | 27,585 | 27,585 | 28,321 | 28,321 |
+| 2: fake forge HTTP | 30,394 | 30,394 | 31,135 | 31,179 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,450 | 5,990 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,393 | 249,617 |
+| Shared forge before start | 7,229 | not separately measured at start |
+
+The service's parsed bridges and roots at both ends add 20,518 held bytes
+at the first step (244,167 to 264,685), isolated against an opaque-Application
+control. Nonservice drift from the 2026-11-12 table came with the prerequisite
+changes and is identical in that control: LLM +136, forge +264, shared forge
++168, git start peak +1, disk start +32,979 bytes. Only the service's ceilings
+move: each measured figure plus a quarter, rounded up to two significant
+digits, giving 340,000/530,000 bytes at the first step and 600,000/760,000
+at start (held/peak). Every nonservice ceiling stays unchanged.
 
 The following one-process observation is the unbound 2026-11-08 measurement;
 its ignored test has no active figures to repin. The one-process binary takes the same entry as

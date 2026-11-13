@@ -183,11 +183,25 @@ fn write_bound_type(ty: &Type, name: &str, target: &str, count: u32, schema: &Co
         match ty {
             Type::Option(item) => {
                 out.push(1);
-                write_bound_type(item, &format!("{name}_some"), target, count, schema, out);
+                write_bound_type(
+                    item,
+                    &emit_limits::child_name(name, emit_limits::LimitLevel::Some),
+                    target,
+                    count,
+                    schema,
+                    out,
+                );
             }
             Type::List(_, item) => {
                 out.extend_from_slice(&1_u32.to_be_bytes());
-                write_bound_type(item, &format!("{name}_item"), target, count, schema, out);
+                write_bound_type(
+                    item,
+                    &emit_limits::child_name(name, emit_limits::LimitLevel::Item),
+                    target,
+                    count,
+                    schema,
+                    out,
+                );
             }
             Type::U8
             | Type::U16
@@ -211,7 +225,7 @@ fn bound_wire(record: &Record, field_index: usize, target: &str, count: u32, sch
     }
     for (index, field) in record.fields.iter().enumerate() {
         if index == field_index {
-            let name = format!("{}_{}", emit_limits::snake(&record.name), field.name);
+            let name = emit_limits::bound_name(&record.name, &field.name);
             write_bound_type(&field.ty, &name, target, count, schema, &mut bytes);
         } else {
             write_type(&field.ty, false, schema, &mut bytes);
@@ -226,10 +240,10 @@ fn field_bounds(ty: &Type, name: &str, bounds: &mut Vec<(String, u32)>) {
         Type::List(bound, item) => {
             bounds.push((name.into(), *bound));
             if *bound > 0 {
-                field_bounds(item, &format!("{name}_item"), bounds);
+                field_bounds(item, &emit_limits::child_name(name, emit_limits::LimitLevel::Item), bounds);
             }
         }
-        Type::Option(item) => field_bounds(item, &format!("{name}_some"), bounds),
+        Type::Option(item) => field_bounds(item, &emit_limits::child_name(name, emit_limits::LimitLevel::Some), bounds),
         Type::U8
         | Type::U16
         | Type::U32
@@ -243,7 +257,7 @@ fn field_bounds(ty: &Type, name: &str, bounds: &mut Vec<(String, u32)>) {
 
 fn bound_cases(record: &Record, schema: &Context<'_>, cases: &mut Vec<String>) {
     for (index, field) in record.fields.iter().enumerate() {
-        let name = format!("{}_{}", emit_limits::snake(&record.name), field.name);
+        let name = emit_limits::bound_name(&record.name, &field.name);
         let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
         let mut bounds = Vec::new();
         field_bounds(&field.ty, &name, &mut bounds);
@@ -314,7 +328,7 @@ fn named_goldens(schema: &Context<'_>, cases: &mut Vec<String>) -> Vec<(skein_co
     goldens
 }
 
-pub(crate) fn emit(schema: &Context<'_>, out: &mut String) -> Vec<Golden> {
+pub(crate) fn emit(schema: &Context<'_>, header: String) -> (crate::Tests, Vec<Golden>) {
     let mut imports = vec!["CEILINGS".to_string()];
     let mut bounds = Vec::new();
     for declaration in schema.declarations {
@@ -332,25 +346,22 @@ pub(crate) fn emit(schema: &Context<'_>, out: &mut String) -> Vec<Golden> {
     }
     let mut cases = Vec::new();
     let goldens = golden_cases(schema, &mut cases);
-    out.push_str("\n#[cfg(test)]\nmod golden_tests {\n");
-    if !cases.is_empty() {
-        out.push_str(&format!("    use super::{{{}}};\n", imports.join(", ")));
-        if !bounds.is_empty() {
-            out.push_str("    use super::Limits;\n");
-        }
+    let mut body = String::new();
+    if cases.is_empty() {
+        imports.clear();
+    } else {
         let helpers = include_str!("test_helpers.rs");
         let helpers =
             if bounds.is_empty() { helpers.split("type BoundDecode").next().expect("golden helper") } else { helpers };
         for line in helpers.lines().skip(1) {
             if line.is_empty() {
-                out.push('\n');
+                body.push('\n');
             } else {
-                out.push_str(&format!("    {line}\n"));
+                body.push_str(&format!("    {line}\n"));
             }
         }
     }
-    tables("golden", &cases, out);
-    tables("bounds", &bounds, out);
-    out.push_str("}\n");
-    goldens
+    tables("golden", &cases, &mut body);
+    tables("bounds", &bounds, &mut body);
+    (crate::Tests { header, imports, limits: !bounds.is_empty(), body }, goldens)
 }

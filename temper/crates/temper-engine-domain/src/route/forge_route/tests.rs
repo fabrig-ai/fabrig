@@ -4459,6 +4459,31 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
     );
 }
 
+/// temper/docs/design/protocol/wires.md, 6: the channel root names the job encoder's declaration.
+#[test]
+fn the_job_root_names_the_declaration_the_engine_encodes() {
+    use jig_protocol_worker_wire::Carried;
+    use temper_protocol_worker_wire::{application, v1, wire};
+    let application = application(&v1::CEILINGS).expect("temper's application");
+    let mut found = None;
+    for root in &application.roots {
+        if root.carried == Carried::JobSpec {
+            found = Some(root);
+        }
+    }
+    let root = found.expect("job spec root");
+    assert_eq!(root.wire, wire::FAMILY);
+    assert_eq!(root.declaration, "JobSpec");
+    for bytes in [
+        super::close::spec(b"repo", b"close", b"{}", 4096).expect("close spec"),
+        super::merge::spec(b"repo", b"merge", &[3; 32], &[4; 32], 4096).expect("merge spec"),
+    ] {
+        let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("JobSpec bytes");
+        assert_ne!(spec.command(), []);
+        assert_ne!(spec.request(), []);
+    }
+}
+
 /// temper/docs/design/domain/worker/jobs.md: preserve the close request whole.
 #[test]
 fn a_close_jobs_spec_is_its_command_and_its_request() {

@@ -77,6 +77,8 @@ pub struct Unsent {
 pub enum Bound {
     /// Past the stream's room, in bytes.
     Room(u32),
+    /// Translation halted before a frame was sent.
+    Translation { version: u16, halt: skein_codec::patch::Halt },
     /// Refused at the channel's entrance; never `skein_channel::Unsent::Full`.
     Channel(skein_channel::Unsent),
 }

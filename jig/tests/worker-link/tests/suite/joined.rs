@@ -264,10 +264,10 @@ mod joined_story {
     fn another_wire_version_worker_redials_after_wires() {
         refusal(
             Credential {
-                wires: {
+                application: {
                     let mut wires = fixtures::application();
                     wires.get_mut(0).expect("application wire").lowest = 4;
-                    wires
+                    jig_protocol_worker_wire::Application::opaque(wires)
                 },
                 ..fixtures::credential()
             },

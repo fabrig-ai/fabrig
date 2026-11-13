@@ -184,6 +184,7 @@ fn a_completion_passes_new_work_held_at_the_watermark() {
         channel: Token::new(7),
         link: root::Link::Up {
             up: host::LinkUp::Call {
+                contract: 1,
                 run: Token::new(run.task),
                 attempt: Token::new(run.attempt),
                 call: b"held-call".as_slice().into(),

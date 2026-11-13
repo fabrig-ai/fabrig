@@ -82,7 +82,7 @@ impl Room {
                 identity: None,
                 activation: 1,
                 charter: Box::from(
-                    include_bytes!("../../../../smith-charter/golden/v4/record_charter_smallest.bin").as_slice(),
+                    include_bytes!("../../../../smith-charter/golden/v5/record_charter_smallest.bin").as_slice(),
                 ),
                 workspace: None,
                 transcript: smith_protocol_translate::transcript_piece(&[]).unwrap(),

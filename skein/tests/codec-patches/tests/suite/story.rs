@@ -16,6 +16,7 @@ mod tests {
     const RENAMES: &str = "03-renames";
     const WRITTEN: &str = "04-written";
     const RENUMBERED: &str = "05-renumbered";
+    const WIRE: &str = "06-wire";
     // Two records and three enum variants, each smallest and full.
     const SHELF_GOLDENS: [&str; 10] = [
         "enum_format_audio_full.bin",
@@ -60,12 +61,17 @@ mod tests {
     fn author(root: &Path, path: &str, step: &str, name: &str) {
         put(root, Path::new(path), &fs::read(input(step, name)).expect("author's input"));
     }
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "reads SKEIN_PATCH_WRITE to regenerate the command's module fixtures"
+    )]
     fn text(root: &Path, path: &str, step: &str, name: &str) {
-        assert_eq!(
-            fs::read_to_string(root.join(path)).expect("command's text"),
-            fs::read_to_string(input(step, name)).expect("expected text"),
-            "{step}: {path}"
-        );
+        let actual = fs::read_to_string(root.join(path)).expect("command's text");
+        let write = std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1");
+        if path == "patches/mod.rs" && write {
+            fs::write(input(step, name), &actual).expect("regenerate the command's module fixture");
+        }
+        assert_eq!(actual, fs::read_to_string(input(step, name)).expect("expected text"), "{step}: {path}");
     }
     fn files(root: &Path, directory: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
         let mut result = BTreeMap::new();
@@ -99,6 +105,83 @@ mod tests {
             "{directory}: every golden, no stale files"
         );
     }
+    #[expect(clippy::disallowed_methods, reason = "SKEIN_PATCH_WRITE regenerates the story's down golden fixtures")]
+    fn down_files(root: &Path, number: u32) {
+        let directory = format!("patches/golden/{number:04}/label/down");
+        let actual = files(root, Path::new(&directory));
+        let fixture = input(WIRE, &format!("golden/{number:04}"));
+        if std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1") {
+            for (path, bytes) in &actual {
+                let name = path.file_name().expect("golden name");
+                fs::create_dir_all(&fixture).expect("golden fixtures");
+                fs::write(fixture.join(name), bytes).expect("regenerate down golden");
+            }
+        }
+        let expected = files(&fixture, Path::new(""));
+        assert!(!expected.is_empty(), "down goldens required");
+        assert_eq!(actual.len(), expected.len(), "every down golden");
+        for (path, bytes) in expected {
+            assert_eq!(actual.get(&Path::new(&directory).join(&path)), Some(&bytes), "{}", path.display());
+        }
+    }
+
+    fn wire_steps(root: &Path) {
+        // 6. A wire moves above its floor with a derived reverse and goldens down.
+        let before = Landed::read(root).expect("written patch lands");
+        author(root, "schema/wires", WIRE, "wires");
+        let marked = patch::run(root, &before, &Options::default()).expect("mark label a wire");
+        assert_eq!(marked, Report { outcomes: vec![current("label"), current("shelf")], ..Report::default() });
+        text(root, "schema/wires", WIRE, "wires");
+        text(root, "patches/mod.rs", WIRE, "marked-mod.rs");
+        let marked = Landed::read(root).expect("wire floor lands");
+        author(root, "schema/label-v3.schema", WIRE, "label-v3.schema");
+        let report = patch::run(root, &marked, &Options::default()).expect("wire widens");
+        assert_eq!(
+            report,
+            Report {
+                outcomes: vec![Outcome::Patched { family: "label".into(), from: 2, to: 3 }, current("shelf")],
+                patch: Some(4),
+                ..Report::default()
+            }
+        );
+        text(root, "patches/0004.patch", WIRE, "0004.patch");
+        text(root, "schema/kept/label-v3.schema", WIRE, "label-v3.schema");
+        text(root, "patches/mod.rs", WIRE, "mod.rs");
+        down_files(root, 4);
+        assert_eq!(patch::golden(root, 4, patches::written, Mode::Check), Ok(()));
+        clean(root, &marked);
+        let widened = Landed::read(root).expect("wire move lands");
+
+        // 7. Dropping color needs the author's down value, never the command's.
+        author(root, "schema/label-v4.schema", WIRE, "label-v4.schema");
+        let report = patch::run(root, &widened, &Options::default()).expect("asks down value");
+        assert_eq!(report.outcomes, [Outcome::Patched { family: "label".into(), from: 3, to: 4 }, current("shelf")]);
+        assert_eq!(report.patch, Some(5));
+        assert_eq!(
+            report.asked,
+            [
+                "patch 0005, label: drop Label.color: give `down Label.color VALUE`, write `down written Label`, or declare the block breaking; bridgeable: keep Label.color beside its replacement until the floor passes it"
+            ]
+        );
+        assert_eq!(
+            report.findings,
+            [Finding::Unbridged { family: "label".into(), version: 4, error: "line 5 at 48..53: Irreversible".into() }]
+        );
+        text(root, "patches/0005.patch", WIRE, "asked.patch");
+        text(root, "schema/kept/label-v4.schema", WIRE, "label-v4.schema");
+        text(root, "patches/mod.rs", WIRE, "asked-mod.rs");
+        assert!(!root.join("patches/golden/0005").exists());
+        author(root, "patches/0005.patch", WIRE, "0005.patch");
+        let report = patch::run(root, &widened, &Options::default()).expect("down value kept");
+        assert_eq!(report.asked, Vec::<String>::new());
+        assert_eq!(report.findings, []);
+        text(root, "patches/0005.patch", WIRE, "0005.patch");
+        text(root, "patches/mod.rs", WIRE, "down-mod.rs");
+        down_files(root, 5);
+        assert_eq!(patch::golden(root, 5, patches::written, Mode::Check), Ok(()));
+        clean(root, &widened);
+    }
+
     fn current(family: &str) -> Outcome {
         Outcome::Current { family: family.into() }
     }
@@ -332,5 +415,6 @@ mod tests {
                 }
             }
         }
+        wire_steps(root);
     }
 }

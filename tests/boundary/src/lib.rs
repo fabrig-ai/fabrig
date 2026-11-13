@@ -191,6 +191,20 @@ fn literal(bytes: &[u8]) -> Option<(usize, bool)> {
     None
 }
 
+/// Whether generated record code holds `cfg(test)` or `#[test]` outside
+/// comments and literals (tools/crates/design.md, 3.4). Whitespace and comments
+/// between the tokens do not change the finding.
+#[must_use]
+pub fn has_test_code(source: &str) -> bool {
+    let tokens = tokens(source);
+    tokens
+        .windows(4)
+        .any(|window| window == [Token::Word("cfg"), Token::Symbol(b'('), Token::Word("test"), Token::Symbol(b')')])
+        || tokens.windows(4).any(|window| {
+            window == [Token::Symbol(b'#'), Token::Symbol(b'['), Token::Word("test"), Token::Symbol(b']')]
+        })
+}
+
 fn string(token: &Token<'_>) -> Option<String> {
     if let Token::String(text) = token {
         syn::parse_str::<syn::LitStr>(text).ok().map(|literal| literal.value())

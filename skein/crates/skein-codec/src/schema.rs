@@ -6,8 +6,10 @@ use skein_lib::{List, Map, bytes, usize_of};
 mod fingerprint;
 mod grammar;
 mod layout;
+mod limits;
 mod tokens;
 pub use fingerprint::{Fingerprint, Fingerprints};
+pub use limits::{LimitLevel, limit_child, limit_name};
 
 #[cfg(test)]
 mod tests;
@@ -378,6 +380,13 @@ impl Schema {
     #[must_use]
     pub fn most_bytes(&self, at: DeclIx) -> u32 {
         *self.maximum.get(at.0).expect("checked declaration has its worst case")
+    }
+
+    /// The encoded worst case with matching named limits no larger than the text's bounds.
+    /// Returns `None` for unequal slice lengths or arithmetic overflow.
+    #[must_use]
+    pub fn most_bytes_within(&self, at: DeclIx, names: &[&str], values: &[u32]) -> Option<u64> {
+        limits::most_bytes_within(self, at, names, values)
     }
 }
 

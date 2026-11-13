@@ -90,6 +90,7 @@ fn charter(settings: &Settings, instructions: &str) -> run::Charter {
             ]),
         },
         grants: Grants {
+            contract: 1,
             wait: true,
             deliver: None,
             save: false,

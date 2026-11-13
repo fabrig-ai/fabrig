@@ -132,6 +132,10 @@ pub fn written(site: Site, old: &Old, new: &mut Build, at: Node, cx: &mut Contex
     }
 }
 
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
