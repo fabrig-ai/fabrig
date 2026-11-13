@@ -2,7 +2,6 @@
 
 2026-11-13. Where the tree's code lags or departs from [limits.md](limits.md).
 
-- **Not yet:** "A project's landing history": `forge.history_days` and `forge.history_events` [in flight: change 2506].
 
 
 - **Not yet:** "Two profiles, as jig's", a change's policy's `reruns`: no profile or override names `forge.change_policy.reruns` (`temper-service/src/limits.rs`; `limits/names.rs`).

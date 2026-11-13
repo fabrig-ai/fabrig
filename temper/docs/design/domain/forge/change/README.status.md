@@ -2,7 +2,6 @@
 
 2026-11-13. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 7, *A dropped change reads as an unknown task*: `change show` printing its last events from its landing history [in flight: change 2509].
 
 
 - **Not yet:** 1: parameter 18, the source landings a follow change
