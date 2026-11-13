@@ -32,4 +32,3 @@ allowance, 65,536 where its process has no local agent
 instructions, template 4's closer and reference delegation are built.
 `temper-service`'s stock tables check the configured editions; the
 engine-domain world's goal closer stories exercise their composition.
-- **Not yet:** *The batch*: `application.landing.projects[i]` has no `batch` member, and the start refuses it as unknown (`temper-engine-service/src/startup/application/landing.rs`, `project_landing`) [in flight: change 2209].
