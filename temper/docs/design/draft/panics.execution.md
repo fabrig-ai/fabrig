@@ -19,7 +19,7 @@
 
 ## 2. Order
 
-- **No priority mark:** panics aren't one of v0.1.0's critical pieces. Plans start when places are free and marked work isn't about to arrive.
+- **No priority mark:** panics aren't one of v0.1.0's critical pieces. Each plan starts once the user approves it, when places are free and marked work isn't about to arrive.
 - **P1 first:** it's the one with a stake, a person's login and real processes left running. Until it lands, a held-login story builds with LLVM.
 - **P2 beside P1:** the words and the count stop new catches before the conversions start.
 - **P3 before P4:** jig's and temper's kits are built on skein's world.
