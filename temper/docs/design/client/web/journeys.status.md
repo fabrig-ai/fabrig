@@ -1,8 +1,10 @@
 # journeys: status
 
-2026-11-12. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-13. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-
+- **Not yet:** 8.1: without `--prepared`, `again`'s scratch directory
+  sits under a named `/tmp`, not the platform's temporary directory, and
+  the `tui_again` tests name `/tmp` paths [in flight: change 2637].
 
 
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the

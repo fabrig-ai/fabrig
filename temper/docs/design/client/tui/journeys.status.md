@@ -1,8 +1,9 @@
 # journeys: status
 
-2026-11-12. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-13. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-
+- **Not yet:** 8.2: `again`'s scratch directory sits under a named
+  `/tmp`, not the platform's temporary directory [in flight: change 2637].
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
