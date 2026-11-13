@@ -114,7 +114,7 @@ enum Stage {
 #[derive(Clone, Copy, Hash, Debug)]
 enum RoundRead {
     Branch,
-    Prefix,
+    Prefix(u32),
     Head,
     Contained,
     Pull,
@@ -1597,15 +1597,24 @@ fn round_read(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, r
         }
         RoundRead::Branch => {
             candidate = match answer { Ok(api::Answer::Commit(tip)) => Some(tip), Err(api::Error::Missing) => None, Ok(_) | Err(_) => { wait(d, p.task, env, p.repository, out); return; } };
-            match candidate { Some(tip) => (RoundRead::Prefix, api::Read::Commits { before: below, after: tip, page: 1 }), None => (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 }) }
+            match candidate { Some(tip) => (RoundRead::Prefix(1), api::Read::Commits { before: below, after: tip, page: 1 }), None => (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 }) }
         }
-        RoundRead::Prefix => {
+        RoundRead::Prefix(page) => {
             let mut merge = false; fact.candidate = None;
-            if let Some(tip) = candidate && let Ok(api::Answer::Commits { commits, .. }) = answer {
+            if let Some(tip) = candidate && let Ok(api::Answer::Commits { commits, more }) = answer {
+                let mut seen = false;
                 for commit in &commits {
+                    if commit.id == tip { seen = true; }
                     if !chain || commit.id != tip || commit.parents.first() != Some(&below) { continue; }
                     if commit.parents.as_ref() == [below] && squash_head(&commit.message, head) { fact.candidate = Some((tip, policy::Combine::Squash)); }
                     else { merge = true; }
+                }
+                if !seen && more && page < env.limits.client.rows {
+                    let page = page.checked_add(1).expect("bounded commit pages");
+                    p.stage = Stage::Round { member: index, stage: RoundRead::Prefix(page), candidate };
+                    let repo = repository(member);
+                    ask(d, env, owner, p, repo, api::Read::Commits { before: below, after: tip, page }, out);
+                    return;
                 }
             }
             if merge { (RoundRead::Head, api::Read::Commits { before: candidate.expect("prefix"), after: head, page: 1 }) }
@@ -1632,7 +1641,11 @@ fn round_read(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, r
     p.stage = Stage::Round { member: index, stage, candidate };
     let repo = repository(member); ask(d, env, owner, p, repo, read, out);
 }
-fn stack_candidate(row: &LandingRow) -> Option<api::Commit> { row.landing.members.get(usize::from(round_top(row)?))?.candidate }
+fn stack_candidate(row: &LandingRow) -> Option<api::Commit> {
+    let mut top = None;
+    for member in &row.landing.members { if member.left.is_none() { top = member.candidate.or(top); } }
+    top
+}
 fn round_effect_top(row: &LandingRow) -> u16 {
     let mut top = 0;
     for (index, member) in row.landing.members.iter().enumerate() { if member.candidate.is_some() { top = u16::try_from(index).expect("member"); } }

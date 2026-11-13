@@ -282,3 +282,15 @@ fn a_path_in_the_lower_member_governs_the_turn_for_every_members_evidence() {
     }
     panic!("merge evidence not offered");
 }
+
+#[test]
+fn a_prefix_with_a_long_member_history_is_validated_past_the_first_page() {
+    let mut world = landings::turn_in(World::batch_turn(11, Some(workflow(false))));
+    world.produce_file(b"temper/c51", b"history", b"first");
+    for byte in 0..10 { world.push_file(b"temper/c51", b"history", &[byte]); }
+    landings::ready_change(&mut world, 51, b"temper/c51"); Trains::default().judge(&mut world);
+    start_prepare(&mut world); let prefix = translate::commit(world.prepare_landing(LANDING, false));
+    assert_eq!(landings::step_landing_raw(&mut world, LANDING, 200), landing::Decision::Open);
+    assert_eq!(world.landing(LANDING).landing.members[0].candidate, Some(prefix));
+    assert!(world.take_calls().iter().any(|op| matches!(op, api::Op::Read(api::Read::Commits { after, page: 2, .. }) if *after == prefix)));
+}
