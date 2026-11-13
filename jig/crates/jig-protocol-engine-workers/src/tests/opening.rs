@@ -7,14 +7,14 @@ fn a_wrong_secret_and_an_unknown_name_refuse_alike() {
     let component = fixtures::component();
     for name in [WORKER_A, b"unknown"] {
         let bytes = fixtures::credential(name, b"wrong", PAYLOAD);
-        assert_eq!(component.judge(&bytes), Verdict::Refuse(Reason::Unauthorized));
+        assert_eq!(component.judge(&bytes), Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) });
     }
 }
 #[test]
-fn a_wrong_secret_with_another_payload_is_unauthorized() {
+fn a_wrong_secret_with_other_wires_is_unauthorized() {
     let component = fixtures::component();
     let bytes = fixtures::credential(WORKER_A, b"wrong", 4);
-    assert_eq!(component.judge(&bytes), Verdict::Refuse(Reason::Unauthorized));
+    assert_eq!(component.judge(&bytes), Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) });
 }
 #[test]
 fn digests_differing_in_the_last_word_are_not_the_same() {
@@ -23,13 +23,13 @@ fn digests_differing_in_the_last_word_are_not_the_same() {
 #[test]
 fn an_undecodable_credential_is_unauthorized() {
     let component = fixtures::component();
-    assert_eq!(component.judge(b"bad"), Verdict::Refuse(Reason::Unauthorized));
+    assert_eq!(component.judge(b"bad"), Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) });
 }
 
 #[test]
 fn worker_names_are_bounded_independently_of_channels() {
     let limits = crate::Limits { names: 1, ..fixtures::LIMITS };
-    let result = crate::Component::new(&limits, fixtures::workers(), PAYLOAD);
+    let result = crate::Component::new(&limits, fixtures::workers(), fixtures::application());
     assert_eq!(result.err(), Some(crate::Unusable::Workers));
 }
 
@@ -37,5 +37,7 @@ fn worker_names_are_bounded_independently_of_channels() {
 fn a_configured_worker_authenticates_with_its_secret() {
     let component = fixtures::component();
     let bytes = fixtures::credential(WORKER_A, fixtures::SECRET_A, PAYLOAD);
-    assert_eq!(component.judge(&bytes), Verdict::Accept { worker: 0 });
+    let Verdict::Accept { worker, wires } = component.judge(&bytes) else { panic!("accepted") };
+    assert_eq!(worker, 0);
+    assert_eq!(wires.len(), 5);
 }

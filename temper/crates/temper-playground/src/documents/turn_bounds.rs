@@ -64,7 +64,7 @@ pub fn apply(document: &mut Value, turn: u32) {
 }
 fn worker_output(limits: &Value, turn: u64) -> u64 {
     use jig_protocol_config::{Profile, profile};
-    use jig_protocol_worker_wire::v9;
+    use jig_protocol_worker_wire::v10;
 
     let defaults = profile(match limits["profile"].as_str().expect("worker profile") {
         "small" => Profile::Small,

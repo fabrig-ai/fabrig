@@ -1,7 +1,7 @@
 //! One accepted stream and its opening (protocol/channel/README.md, 9.3).
 use crate::{Limits, Loss};
 use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, WriteWait};
-use skein_lib::{Queue, Time, Token};
+use skein_lib::{List, Queue, Time, Token};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Phase {
     Opening,
@@ -17,11 +17,14 @@ pub(crate) enum Ending {
     Abort,
 }
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent terminal, log and hello lifecycle facts")]
 pub(crate) struct Connection {
     pub machine: Machine,
     pub phase: Phase,
     pub worker: Option<u32>,
     pub channel: Token,
+    pub wires: List<jig_protocol_worker_wire::Agreed>,
+    pub refusal: bool,
     pub deadline: Option<Time>,
     pub above: Queue<Event>,
     pub below: Queue<Lower>,
@@ -44,6 +47,8 @@ impl Connection {
             phase: Phase::Opening,
             worker: None,
             channel: Token::new(0),
+            wires: List::with_capacity(0),
+            refusal: false,
             deadline: Some(now.saturating_add(limits.handshake)),
             above: Queue::uncapped(),
             below: Queue::uncapped(),

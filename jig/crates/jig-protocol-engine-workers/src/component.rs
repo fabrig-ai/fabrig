@@ -7,7 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{self as wire, Reason};
 use skein_channel::{Closed, Event as ChannelEvent, Request as ChannelRequest, Role};
-use skein_lib::{Decimal, Map, Queue, Reader, Time, Token, bytes};
+use skein_lib::{Decimal, List, Map, Queue, Reader, Time, Token, bytes};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unusable {
     Limits,
@@ -37,8 +37,8 @@ struct Sending {
 pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
-    pub(crate) payload: u32,
-    pub(crate) codec: wire::v9::Limits,
+    pub(crate) wires: List<wire::Spoken>,
+    pub(crate) codec: wire::v10::Limits,
     pub(crate) connections: Map<Token, Connection>,
     schema: skein_channel::Schema,
     next_channel: u64,
@@ -53,7 +53,7 @@ impl core::fmt::Debug for Component {
     }
 }
 impl Component {
-    pub fn new(limits: &Limits, workers: Box<[Worker]>, payload: u32) -> Result<Self, Unusable> {
+    pub fn new(limits: &Limits, workers: Box<[Worker]>, application: List<wire::Spoken>) -> Result<Self, Unusable> {
         if !crate::valid(limits) {
             return Err(Unusable::Limits);
         }
@@ -72,11 +72,18 @@ impl Component {
                 }
             }
         }
+        let mut wires = List::uncapped();
+        for wire in &wire::spoken() {
+            wires.push(wire.clone()).expect("uncapped wire list");
+        }
+        for wire in &application {
+            wires.push(wire.clone()).expect("uncapped wire list");
+        }
         let connections = Map::with_capacity(limits.workers.checked_add(limits.opening).expect("checked limits"));
         Ok(Self {
             limits: *limits,
             workers,
-            payload,
+            wires,
             codec,
             connections,
             schema,
@@ -372,6 +379,7 @@ impl Component {
             }
         }
     }
+    #[expect(clippy::too_many_lines, reason = "opening, ready and terminal events keep their ordered transitions together")]
     fn heard(
         &mut self,
         now: Time,
@@ -381,15 +389,16 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         match event {
-            ChannelEvent::Opening { credential, .. } => {
+            ChannelEvent::Opening { credential, highest, .. } => {
                 let verdict = self.judge(&credential);
                 if self.life != Life::Running {
                     self.refuse(now, connection, state, Reason::Stopping.code(), Box::new([]), out);
                     return;
                 }
                 let worker = match verdict {
-                    Verdict::Refuse(reason) => {
-                        self.refuse(now, connection, state, reason.code(), Box::new([]), out);
+                    Verdict::Refuse { worker, reason, text } => {
+                        state.worker = worker;
+                        self.refuse(now, connection, state, reason.code(), text, out);
                         return;
                     }
                     Verdict::OutputRoom { worker, output } => {
@@ -399,8 +408,12 @@ impl Component {
                         self.refuse(now, connection, state, 2, text, out);
                         return;
                     }
-                    Verdict::Accept { worker } => worker,
-                    Verdict::Replace { worker, older } => {
+                    Verdict::Accept { worker, wires } => {
+                        state.wires = wires;
+                        worker
+                    },
+                    Verdict::Replace { worker, older, wires } => {
+                        state.wires = wires;
                         if let Some(mut old) = self.connections.remove(&older) {
                             self.refuse(now, older, &mut old, Reason::Replaced.code(), Box::new([]), out);
                             old.poll(older, out);
@@ -432,13 +445,14 @@ impl Component {
                     self.next_channel.checked_add(1).expect("channel tokens never wrap in a process life");
                 state.phase = Phase::Terms;
                 state.hello_deadline = Some(now.saturating_add(self.limits.hello));
-                state.down(ChannelRequest::Accept { version: wire::VERSION }, connection, out);
+                state.down(ChannelRequest::Accept { version: highest }, connection, out);
             }
-            ChannelEvent::Ready { terms, .. } => {
-                if let Some(kind) = wire::terms_gap(&self.schema, Role::Responder, &terms) {
+            ChannelEvent::Ready { version, terms } => {
+                if let Some(kind) = wire::terms_gap(&self.schema, version, Role::Responder, &terms) {
                     let text = bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes());
                     self.refuse(now, connection, state, 2, text, out);
                 } else {
+                    out.push(Request::Opened { worker: state.worker.expect("authenticated worker"), wires: state.wires.clone() });
                     state.phase = Phase::Hello;
                     state.deadline = state.hello_deadline;
                     state.down(ChannelRequest::Read, connection, out);
@@ -540,6 +554,10 @@ impl Component {
         text: Box<[u8]>,
         out: &mut Queue<Request>,
     ) {
+        if !state.heard && !state.refusal {
+            out.push(Request::Refused { worker: state.worker, reason, text: text.clone() });
+            state.refusal = true;
+        }
         ended(connection, state, Loss::Refused { reason }, out);
         lose(now, self.limits.stall, state, out);
         state.worker = None;

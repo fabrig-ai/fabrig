@@ -8,6 +8,23 @@ pub const WORKER_B: &[u8] = b"worker-b";
 pub const SECRET_A: &[u8] = b"secret-a";
 pub const SECRET_B: &[u8] = b"secret-b";
 pub const PAYLOAD: u32 = 3;
+pub fn application() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
+    let mut wires = skein_lib::List::with_capacity(1);
+    wires.push(jig_protocol_worker_wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("one application wire");
+    wires
+}
+pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire> {
+    use jig_protocol_worker_wire as wire;
+    let spoken = wire::spoken();
+    let mut wires = skein_lib::List::uncapped();
+    // Jig's current wires precede the fixture application's.
+    for wire in &spoken {
+        wires.push(wire::Wire::new(&wire::CEILINGS, wire::WireParts { name: Box::from(wire.name.as_bytes()), lowest: wire.lowest, layouts: wire.layouts.clone() }).expect("wire")).expect("uncapped");
+    }
+    let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
+    wires.push(wire::Wire::new(&wire::CEILINGS, wire::WireParts { name: Box::from(current.name.as_bytes()), lowest: current.lowest, layouts: current.layouts }).expect("wire")).expect("uncapped");
+    wires
+}
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
     program_sources: 2,
     piece: 16,
@@ -63,7 +80,7 @@ pub fn workers() -> Box<[Worker]> {
     ])
 }
 pub fn component() -> Component {
-    Component::new(&LIMITS, workers(), PAYLOAD).expect("small component")
+    Component::new(&LIMITS, workers(), application()).expect("small component")
 }
 pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
     let limits = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec limits");
@@ -72,7 +89,7 @@ pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
         jig_protocol_worker_wire::CredentialParts {
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
-            payload,
+            wires: statement(payload),
             output: LIMITS.room,
         },
     )
@@ -259,7 +276,7 @@ pub fn refused_account() -> jig_protocol_worker_wire::RunFailure {
     wire::RunFailure::Refused(refused)
 }
 
-fn codec() -> jig_protocol_worker_wire::v9::Limits {
+fn codec() -> jig_protocol_worker_wire::v10::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {

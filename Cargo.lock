@@ -2120,7 +2120,12 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
+ "smith-channel",
+ "smith-charter",
+ "smith-transcript",
 ]
 
 [[package]]

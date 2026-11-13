@@ -813,7 +813,7 @@ fn a_program_grant_needs_no_table_entry() {
 
 #[test]
 fn program_names_share_the_wire_and_domain_bounds() {
-    use jig_protocol_worker_wire::v9;
+    use jig_protocol_worker_wire::v10;
     // Schema source names and grant names both admit exactly 32 bytes.
     let bound = skein_lib::length::usize_of(v9::CEILINGS.program_value_name);
     assert_eq!(v9::CEILINGS.program_value_name, v9::CEILINGS.program_source_name);

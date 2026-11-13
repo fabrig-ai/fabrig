@@ -12,3 +12,5 @@ mod jobs;
 mod lists;
 
 mod fit;
+
+mod kinds;

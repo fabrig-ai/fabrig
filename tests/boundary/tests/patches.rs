@@ -15,6 +15,7 @@ const OWNERS: &[&str] = &[
     "smith/crates/smith-transcript",
     "smith/crates/smith-charter",
     "smith/crates/smith-channel",
+    "jig/crates/jig-protocol-worker-wire",
     "jig/crates/jig-protocol-store",
     "jig/crates/jig-protocol-accounts",
     "temper/crates/temper-protocol-store",

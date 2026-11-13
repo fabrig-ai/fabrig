@@ -5,7 +5,7 @@ use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
 // Hello151 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 151 + 4 + crate::v9::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+const HELLO_MAX: u32 = 151 + 4 + crate::v10::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
@@ -27,7 +27,7 @@ fn hello_terms(largest: u32) -> List<Term> {
         (0x0109, 58),
         (0x010a, 96013),
         (0x010b, 0),
-        (0x018c, 102),
+        (0x010c, 102),
     ] {
         terms.push(Term { kind, largest }).expect("one term per up kind");
     }
@@ -50,7 +50,7 @@ fn down_terms() -> List<Term> {
         (0x0189, 36),
         (0x018a, 36),
         (0x018b, 229),
-        (0x018d, 70),
+        (0x018c, 70),
     ] {
         terms.push(Term { kind, largest }).expect("one term per down kind");
     }
@@ -173,8 +173,8 @@ fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
         (at_cap, Ok(ENDPOINT_CAP)),
         (
             past_cap,
-            Err(crate::v9::Problem {
-                path: crate::v9::Path::BoundsProgramEndpoints,
+            Err(crate::v10::Problem {
+                path: crate::v10::Path::BoundsProgramEndpoints,
                 reason: skein_codec::Reason::Bound,
             }),
         ),
@@ -191,7 +191,7 @@ fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
 fn every_reason_reads_back_from_its_code() {
     for (reason, code) in [
         (Reason::Unauthorized, 256),
-        (Reason::Application, 257),
+        (Reason::Wires, 257),
         (Reason::Busy, 258),
         (Reason::Replaced, 259),
         (Reason::NotAdmitted, 260),
@@ -212,7 +212,7 @@ fn a_reason_below_256_reads_as_none() {
 #[test]
 fn the_schema_lists_the_hello_from_the_initiator() {
     let schema = hello_schema();
-    let version = schema.version(9).expect("one version");
+    let version = schema.version(crate::VERSION).expect("one version");
     assert_eq!(schema.magic, *b"jigw");
     assert_eq!(version.kinds.len(), 26);
     assert_eq!(
@@ -223,22 +223,22 @@ fn the_schema_lists_the_hello_from_the_initiator() {
 
 #[test]
 fn terms_that_take_every_kind_leave_no_gap() {
-    assert_eq!(crate::terms_gap(&hello_schema(), Role::Initiator, &hello_terms(HELLO_MAX)), None);
+    assert_eq!(crate::terms_gap(&hello_schema(), crate::VERSION, Role::Initiator, &hello_terms(HELLO_MAX)), None);
 }
 
 #[test]
 fn terms_below_the_hello_bound_name_the_hello_kind() {
-    assert_eq!(crate::terms_gap(&hello_schema(), Role::Initiator, &hello_terms(HELLO_MAX - 1)), Some(0x0100));
+    assert_eq!(crate::terms_gap(&hello_schema(), crate::VERSION, Role::Initiator, &hello_terms(HELLO_MAX - 1)), Some(0x0100));
 }
 
 #[test]
 fn terms_without_the_hello_name_the_hello_kind() {
-    assert_eq!(crate::terms_gap(&hello_schema(), Role::Initiator, &no_terms()), Some(0x0100));
+    assert_eq!(crate::terms_gap(&hello_schema(), crate::VERSION, Role::Initiator, &no_terms()), Some(0x0100));
 }
 
 #[test]
 fn the_responder_needs_no_sending_hello_term() {
-    assert_eq!(crate::terms_gap(&hello_schema(), Role::Responder, &down_terms()), None);
+    assert_eq!(crate::terms_gap(&hello_schema(), crate::VERSION, Role::Responder, &down_terms()), None);
 }
 
 fn answer_through_bytes(answer: &crate::Answer) -> crate::Answer {
@@ -350,7 +350,7 @@ pub(super) fn through_bytes<T>(
     value: &T,
     measure: fn(&T) -> u32,
     encode: fn(&T, &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>,
-    decode: fn(&crate::v9::Limits, &mut Reader<'_>) -> Result<T, crate::v9::Problem>,
+    decode: fn(&crate::v10::Limits, &mut Reader<'_>) -> Result<T, crate::v10::Problem>,
 ) -> T {
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(measure(value)));
     encode(value, &mut writer).expect("measured room");
@@ -455,20 +455,6 @@ fn a_long_operation_fact_keeps_its_span() {
         }
     }
     assert_eq!(decoded, fact);
-}
-
-#[test]
-fn the_schema_lists_every_up_kind_from_the_initiator() {
-    let schema = hello_schema();
-    assert_eq!(schema.versions.len(), 1);
-    for version in &schema.versions {
-        assert_eq!(version.kinds.len(), 26);
-        for number in
-            [0x0100, 0x0101, 0x0102, 0x0103, 0x0104, 0x0105, 0x0106, 0x0107, 0x0108, 0x0109, 0x010a, 0x010b, 0x018c]
-        {
-            assert_eq!(version.kind(number).expect("every up kind").direction, Direction::FromInitiator);
-        }
-    }
 }
 
 fn assignment_through_bytes(assignment: &crate::Assignment) -> crate::Assignment {
@@ -586,7 +572,7 @@ fn an_assignment_past_its_grant_bound_is_refused() {
 #[test]
 fn the_schema_lists_every_down_kind_from_the_responder() {
     let schema = hello_schema();
-    let version = schema.version(9).expect("one version");
+    let version = schema.version(crate::VERSION).expect("one version");
     assert_eq!(version.kinds.len(), 26);
     for term in &down_terms() {
         assert_eq!(

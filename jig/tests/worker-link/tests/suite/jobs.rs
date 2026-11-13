@@ -23,7 +23,7 @@ pub(super) fn answer() -> host::LinkUp {
         },
     }
 }
-fn job_record(limits: &wire::v9::Limits) -> wire::Job {
+fn job_record(limits: &wire::v10::Limits) -> wire::Job {
     let mut grants = List::with_capacity(1);
     grants.push(fixtures::grant_record(fixtures::application_value())).expect("grant");
     wire::Job::new(

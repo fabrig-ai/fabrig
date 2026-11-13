@@ -1,7 +1,8 @@
-family jig-worker-wire 9
+family jig-worker-wire 10
 
 # The worker's credential (protocol/channel/README.md, 4.1).
-record Credential { name: text 256 secret: secret 1024 payload: u32 output: u32 }
+record Wire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
+record Credential { name: text 256 secret: secret 1024 wires: list 16 Wire output: u32 }
 
 # The worker's hello and agent bounds (protocol/channel/records.md, 1).
 record JobBound { kind: u32 spec: u32 result: u32 deadline: duration }
@@ -189,3 +190,16 @@ record ListRead { read: u64 outcome: ListOutcome }
 
 # A shutting worker leaves placement (jig/docs/design/protocol/channel/records.md, 1).
 record Draining {}
+
+# The channel's kinds (protocol/channel/wires.md, 4).
+enum FromWorker {
+    hello: Hello, turn: Turn, call: Call, answer: Answer, fact: Fact,
+    unauthorized: Unauthorized, limited: Limited, account_refused: AccountRefused,
+    logins: Logins, signed_out: SignedOut, list_read: ListRead, draining: Draining,
+    job_answer: JobAnswer
+}
+enum FromEngine {
+    assignment: Assignment, message: Inbound, relayed: Relayed, turn_kept: TurnKept,
+    turn_busy: TurnBusy, acknowledge: Acknowledge, cancel: Cancel, grant: Granted,
+    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList
+}
