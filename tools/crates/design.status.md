@@ -14,3 +14,4 @@
 - **Not yet:** 3.3: no `.cargo/config.toml` sets Cargo's unification, and the features check has no settings finding [in flight: change 2121].
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still gives `temper-engine-domain-forge`'s exception as lasting until G5 [in flight: change 2193]
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `temper-engine-service` until G4 [in flight: change 2280].
+- **Not yet:** 3.4: no generated-tests check, `tests/boundary/tests/generated_tests.rs` [in flight: change 2457].
