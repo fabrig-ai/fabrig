@@ -108,7 +108,7 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
         | Address::Repositories { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
-        | Address::Ask { .. }
+        | Address::Ask { .. } | Address::Tell { .. }
         | Address::Adopt { .. } => return,
     };
     b.open(Role::Paragraph);

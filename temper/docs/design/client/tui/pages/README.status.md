@@ -1,12 +1,15 @@
 # pages: status
 
-2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-13. Where the tree's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 2, *`/quit`*: the commands reference's notes for bare
   `temper` (`temper-shell`'s `rows.rs`, printed into
   `../../../../help/reference/commands.md` and held by `temper-box-shell`'s
   `tests/help.rs`) say "`/exit` or Ctrl+C closes it", where
   `temper help tui` and the TUI's list name `/quit`.
+- **Not yet:** 2, *`/tell`*: its `about`, the screen, so that a word told
+  in a standing role's talk goes to the area the role holds [in flight:
+  change 2180].
 
 The document's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known

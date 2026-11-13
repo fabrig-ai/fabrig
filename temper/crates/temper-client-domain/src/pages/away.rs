@@ -199,6 +199,7 @@ fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out
         | Address::Remembered
         | Address::Members
         | Address::Limits
+        | Address::Tell { .. }
         | Address::Adopt { .. } => None,
     };
     if root.pages.overturn_busy() {

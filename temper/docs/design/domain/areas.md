@@ -92,10 +92,14 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 
 - **Filed with an area** of the project: its owner's at once, state
   `new`, with no agent's run. An area the project lacks refuses the
-  filing, naming the project's areas.
+  filing, naming the project's areas. A person's word through Tell
+  temper said on a standing role's page, its card on Team or its talk is
+  filed with the first area that role holds
+  (`../client/pages/needs-you.md`, 1, *Tell temper*, *Where it goes*).
 - **Filed with none:** the triager's, state `new`. A red of no goal's
-  (`after-landing.md`, section 7) and a person's word through Tell
-  temper (`../draft/whole-story.md`, section 2) are filed so, but for a
+  (`after-landing.md`, section 7) and any other person's word through
+  Tell temper (`../draft/whole-story.md`, section 2), its body naming the
+  page it was said on, are filed so, but for a
   red whose landing brought a follow change, filed with the area its
   follow's owner owns where it owns one (`forge/follows.md`, section
   6).
@@ -138,7 +142,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 
 ## 6. The triager
 
-- **Kind 13,** an owner, or none. With none, or one that does not stand,
+- **Kind 15,** an owner, or none. With none, or one that does not stand,
   the project's owners triage (section 4).
 - **Its work:** it reads each finding that is its own against the
   areas' words and its own rules, and hands it to the area it fits,

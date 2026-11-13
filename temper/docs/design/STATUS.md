@@ -1,6 +1,6 @@
 # Status
 
-2026-11-12. The first milestone stands in the code. Remaining work spans
+2026-11-13. The first milestone stands in the code. Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
@@ -15,6 +15,13 @@ person's areas, a card's "owns AREA", "Talk to it", "Give the area back"
 and weekly report, and "+ Hand an area to a role"; a role's page talks
 with it. A line's sign-offs wait on a read of what another person can
 still sign (`client/pages/team.status.md`; `draft/surfaces.status.md`, 6).
+P5b, goal 2173, draws Tell temper at a project's Needs you's foot, on the
+phone's `Tell` page and under Ask temper's composer, saying "About" and
+"Goes to" before "File it": a word told on a standing role's page, card or
+talk is filed with the area the role holds, any other with none and the
+page in its body, for the triager to hand on; the terminal's `/tell` sends
+its screen. What became of a word in the brief waits for a design
+(`client/pages/needs-you.status.md`; `draft/surfaces.status.md`, 9).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
