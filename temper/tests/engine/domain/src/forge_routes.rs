@@ -159,6 +159,8 @@ pub struct World {
     /// Hold decoded write answers after the independent forge has made the effect.
     pub hold_write_answers: Option<HoldWrite>,
     pub held_write_answers: Vec<engine::Event>,
+    /// Serve a lagging pull head while the branch reads remain current.
+    pub lagging_pull_head: Option<skein_forge::api::Commit>,
     /// Hold final ancestry answers across the root's settling boundary.
     pub hold_ancestry_answers: bool,
     pub held_ancestry_answers: Vec<engine::Event>,
@@ -1255,6 +1257,7 @@ impl World {
             fail_comparisons: false,
             hold_write_answers: None,
             held_write_answers: Vec::new(),
+            lagging_pull_head: None,
             hold_ancestry_answers: false,
             held_ancestry_answers: Vec::new(),
             lose_writes: 0,
@@ -1941,6 +1944,7 @@ impl World {
         self.held_write_answers.clear();
         self.held_ancestry_answers.clear();
         self.hold_ancestry_answers = false;
+        self.lagging_pull_head = None;
         self.hold_write_answers = None;
         self.drained = None;
         self.unsettled.clear();
@@ -2648,6 +2652,11 @@ impl World {
                     let result = match result {
                         Ok(answer) => {
                             let mut answer = translate::answer(&op, answer, &self.env.limits.forge.client);
+                            if let Some(head) = self.lagging_pull_head
+                                && let Ok(skein_forge::api::Answer::Pull(pull)) = &mut answer
+                            {
+                                pull.commit = head;
+                            }
                             if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
                                 let raw::Answer::Jobs(jobs) = self
                                     .fake

@@ -2,7 +2,13 @@
 use super::super::{Domain, Env, Limits, List, append, commit_text, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 
-pub(in super::super) fn account(domain: &Domain, env: &Env<Limits>, task: u64, why: change::Hold) -> Option<Box<[u8]>> {
+pub(in super::super) fn account(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    why: change::Hold,
+    evidence: Option<&forge::ChangeEvidence>,
+) -> Option<Box<[u8]>> {
     let row = domain.forge.change(task)?;
     let change::State::Held { was, .. } = &row.change.state else { return None };
     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
@@ -11,11 +17,11 @@ pub(in super::super) fn account(domain: &Domain, env: &Env<Limits>, task: u64, w
             &forge::Topic::Landings { repository: row.repository, branch: row.branch.clone() },
             &env.limits.forge,
         )?;
-        let mut observed = match row.ci {
-            Some(ci) => Some(ci.head),
+        let mut observed = match evidence {
+            Some(read) => read.head,
             None => domain.forge.branch_head(&name),
         };
-        let mut expected = row.change.last_head;
+        let mut expected = expected_head(was).or(row.change.last_head);
         if let Some(hold) = domain.forge.hold(&name)
             && let Some(forge::Drift {
                 change: forge::DriftChange::Branch { expected: before, observed: found }, ..
@@ -42,6 +48,34 @@ pub(in super::super) fn account(domain: &Domain, env: &Env<Limits>, task: u64, w
         return None;
     }
     Some(forge::text::fit(words.as_slice(), skein_lib::usize_of(tasks::HOLD_ACCOUNT_BYTES), b"..."))
+}
+
+fn expected_head(state: &change::State) -> Option<[u8; 32]> {
+    match state {
+        change::State::Checking { head }
+        | change::State::Gating { head, .. }
+        | change::State::Queued { head, .. }
+        | change::State::First { head, .. }
+        | change::State::Ready { head, .. }
+        | change::State::Judging { head, .. }
+        | change::State::CancellingGates { head }
+        | change::State::Recreating { head }
+        | change::State::Landing { head } => Some(*head),
+        change::State::Updating { from, .. } | change::State::Preparing { from, .. } => Some(*from),
+        change::State::Held { was, .. } => expected_head(was),
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Reopening { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended => None,
+    }
 }
 
 fn head(words: &mut List<u8>, commit: Option<&[u8; 32]>) {

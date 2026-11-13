@@ -96,6 +96,27 @@ fn follower_facts(d: &Domain) -> change::Facts {
 }
 
 #[test]
+fn a_drift_hold_carries_the_branch_read_that_decided_it() {
+    let mut d = changes_setup(change::State::Opening { requested: true }, SINCE);
+    let mut read = pending(OWNER);
+    let observed = [5; 32];
+    read.branch = Some(observed);
+    let mut out = Queue::uncapped();
+    decide_step(&mut d, &env(), read, &mut out);
+    let mut carried = None;
+    while let Some(request) = out.pop() {
+        if let Request::ChangeDecision {
+            decision: change::Decision::Hold(change::Hold::BranchMoved), evidence, ..
+        } = request
+        {
+            carried = evidence;
+        }
+    }
+    assert_eq!(carried.expect("the held step carries its deciding read").head, Some(observed));
+    assert_eq!(d.change(OWNER).expect("held change").change.last_head, Some(HEAD));
+}
+
+#[test]
 fn a_turn_is_exclusive_through_update_checks_gates_and_merge() {
     for (state, second_since) in [
         (first(), SINCE),

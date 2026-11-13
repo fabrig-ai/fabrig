@@ -4391,7 +4391,13 @@ fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Bo
     }
 }
 
-fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forge_change::Hold) -> ProcedureStep {
+fn hold_change_decision(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    why: forge_change::Hold,
+    evidence: Option<&forge::ChangeEvidence>,
+) -> ProcedureStep {
     // The hold keeps the delegate's account whole; its inbox notice has its own bound.
     if why == forge_change::Hold::Failed
         && let Some((category, words)) = producer_failure_words(domain, task)
@@ -4439,7 +4445,7 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     } else if let forge_change::Hold::Authority(cause) = why {
         Some(forge_change::authority_words(cause))
     } else {
-        holds::change_account(domain, env, task, why)
+        holds::change_account(domain, env, task, why, evidence)
     };
     let message = if let forge_change::Hold::Authority(cause) = why {
         authority_hold_message(domain, env, task, cause)
@@ -4818,7 +4824,17 @@ fn change_rehold(domain: &Domain, task: u64) -> Option<forge_change::Hold> {
     Some(why)
 }
 
-fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, mut choice: forge_change::Decision) {
+fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
+    change_decision_from_read(domain, env, task, choice, None);
+}
+
+fn change_decision_from_read(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    mut choice: forge_change::Decision,
+    evidence: Option<&forge::ChangeEvidence>,
+) {
     if choice == forge_change::Decision::None
         && let Some(why) = change_rehold(domain, task)
     {
@@ -4829,7 +4845,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, mut choice
         Some(_) | None => {
             if let forge_change::Decision::Hold(why) = choice {
                 // The row's hold reaches its task even after another step has parked it.
-                let end = hold_change_decision(domain, env, task, why).end;
+                let end = hold_change_decision(domain, env, task, why, evidence).end;
                 domain.work.push(Work::Tasks(change_hold_event(task, &end)));
             } else if let forge_change::Decision::Delegate(kind) = choice {
                 domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
@@ -4856,7 +4872,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, mut choice
             };
             ProcedureStep::new(StepEnd::Result(tasks::TaskResult::NoChange { words: words.clone() }))
         }
-        forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why),
+        forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why, evidence),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
         forge_change::Decision::CancelResolution { head } => cancel_change_resolution(domain, task, head),
@@ -5586,7 +5602,9 @@ pub(crate) fn outputs(
                 | forge_change::Decision::QueueRepair
                 | forge_change::Decision::NoChange
                 | forge_change::Decision::Finish { .. }
-                | forge_change::Decision::Hold(_) => change_decision(domain, env, task, choice),
+                | forge_change::Decision::Hold(_) => {
+                    change_decision_from_read(domain, env, task, choice, evidence.as_ref());
+                }
                 forge_change::Decision::Cancel => cancel_change(domain, task),
                 forge_change::Decision::EndHold => end_change_hold(domain, task),
             },
