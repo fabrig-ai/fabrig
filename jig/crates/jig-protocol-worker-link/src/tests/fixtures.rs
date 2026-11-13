@@ -59,7 +59,11 @@ pub const LIMITS: Limits = Limits {
     busy: Duration::from_millis(200),
 };
 pub fn credential() -> Credential {
-    Credential { name: WORKER_A.into(), secret: Secret::new(SECRET_A.into()), wires: application() }
+    Credential {
+        name: WORKER_A.into(),
+        secret: Secret::new(SECRET_A.into()),
+        application: jig_protocol_worker_wire::Application::opaque(application()),
+    }
 }
 
 use jig_domain_host as host;
@@ -68,7 +72,7 @@ use skein_lib::{List, Token, Writer};
 pub const TOKEN_ONE: &[u8] = b"access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
-pub fn codec() -> wire::v11::Limits {
+pub fn codec() -> wire::v13::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 pub fn hello() -> Hello {

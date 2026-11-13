@@ -673,6 +673,7 @@ fn grant_charter() -> smith_domain::run::Charter {
         brief: run::Brief { sections: Box::default() },
         conventions: None,
         grants: charter::Grants {
+            contract: 1,
             wait: true,
             deliver: None,
             save: false,

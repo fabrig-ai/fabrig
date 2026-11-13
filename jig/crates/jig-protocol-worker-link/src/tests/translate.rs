@@ -3,7 +3,7 @@ use jig_domain_host as host;
 use jig_domain_link::{CountKind, Form, Grant, Hello, PROGRAM_ENDPOINTS, Scheme, SourceName};
 use jig_protocol_worker_wire::{self as wire, Part};
 use skein_lib::{List, Queue, Reader, Time, Token};
-fn translated(kind: u16, bytes: &[u8], limits: &wire::v11::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
+fn translated(kind: u16, bytes: &[u8], limits: &wire::v13::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
     let mut parts = Queue::uncapped();
     let mut values = Queue::with_capacity(4);
     let down =
@@ -14,6 +14,24 @@ fn translated(kind: u16, bytes: &[u8], limits: &wire::v11::Limits) -> (host::Lin
     }
     (down, payloads.into_boxed(), values)
 }
+#[test]
+fn calls_carry_the_charters_contract() {
+    let limits = fixtures::codec();
+    let up = host::LinkUp::Call {
+        contract: 3,
+        run: Token::new(7),
+        attempt: Token::new(2),
+        call: b"call".as_slice().into(),
+        tool: b"tool".as_slice().into(),
+        writes: false,
+        input: b"input".as_slice().into(),
+        deadline: skein_lib::Duration::from_secs(1),
+    };
+    let frame = translate::up(up, &[], &limits).expect("call frame");
+    let record = wire::Call::decode(&limits, &mut body(&frame)).expect("call");
+    assert_eq!(record.contract(), 3);
+}
+
 fn assigned() -> (host::Assignment, Box<[Part]>, Queue<Request>) {
     let record = fixtures::assignment_record(fixtures::window());
     let bytes = fixtures::assignment_bytes(&record);
@@ -291,6 +309,7 @@ fn a_failed_answer_keeps_the_limited_or_refused_account_in_its_record() {
             failure: host::Failure::Run(failure),
             detail: Box::new([]),
             work: host::Work { left: None, saved: None },
+            model: None,
         };
         let frame =
             translate::up(host::LinkUp::Answer { run, attempt, answer }, &[], &fixtures::codec()).expect("answer");
@@ -408,7 +427,7 @@ fn a_refused_later_program_grant_leaves_no_value_queued() {
 
 #[test]
 fn the_hosts_endpoint_cap_is_the_worker_wires_ceiling() {
-    assert_eq!(PROGRAM_ENDPOINTS, wire::v11::CEILINGS.bounds_program_endpoints);
+    assert_eq!(PROGRAM_ENDPOINTS, wire::v13::CEILINGS.bounds_program_endpoints);
 }
 
 fn hello_with_program_endpoints(count: u32) -> Hello {

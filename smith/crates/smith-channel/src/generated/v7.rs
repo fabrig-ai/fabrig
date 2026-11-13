@@ -100,6 +100,69 @@ pub const CEILINGS: Limits = Limits {
     live_bytes: 4_096,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 44] = [
+    "directory_name",
+    "directory_path",
+    "directory_conflicts",
+    "directory_conflicts_item",
+    "workspace_directories",
+    "credential_value_bytes",
+    "list_row_name",
+    "list_row_shown_some",
+    "list_row_efforts",
+    "list_row_efforts_item",
+    "list_rows_rows",
+    "program_value_name",
+    "receipt_text",
+    "delivered_receipts",
+    "marker_path",
+    "delivery_refusal_explanation",
+    "delivery_failure_diagnostic",
+    "host_reply_text",
+    "answered_call_tool",
+    "message_label",
+    "message_text",
+    "start_charter",
+    "start_transcript",
+    "start_answered",
+    "start_grants",
+    "start_messages",
+    "host_ask_tool",
+    "host_ask_input",
+    "field_name",
+    "field_text",
+    "deliver_ask_fields",
+    "turn_body",
+    "account_refused_code",
+    "account_refused_reason",
+    "completion_fault_code",
+    "completion_fault_request_id",
+    "completion_fault_field",
+    "refused_fault_code",
+    "program_fault_name",
+    "program_fault_detail",
+    "accepted_result",
+    "live_call_id",
+    "live_call_tool",
+    "live_bytes",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 44] {
+        [
+            self.directory_name, self.directory_path, self.directory_conflicts, self.directory_conflicts_item, self.workspace_directories, self.credential_value_bytes, self.list_row_name, self.list_row_shown_some,
+            self.list_row_efforts, self.list_row_efforts_item, self.list_rows_rows, self.program_value_name, self.receipt_text, self.delivered_receipts, self.marker_path, self.delivery_refusal_explanation,
+            self.delivery_failure_diagnostic, self.host_reply_text, self.answered_call_tool, self.message_label, self.message_text, self.start_charter, self.start_transcript, self.start_answered,
+            self.start_grants, self.start_messages, self.host_ask_tool, self.host_ask_input, self.field_name, self.field_text, self.deliver_ask_fields, self.turn_body,
+            self.account_refused_code, self.account_refused_reason, self.completion_fault_code, self.completion_fault_request_id, self.completion_fault_field, self.refused_fault_code, self.program_fault_name, self.program_fault_detail,
+            self.accepted_result, self.live_call_id, self.live_call_tool, self.live_bytes,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

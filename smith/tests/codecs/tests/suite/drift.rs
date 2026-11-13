@@ -6,17 +6,18 @@ use skein_codegen::{generate, parse};
 
 #[test]
 fn charter_schema_matches_generated_code_and_all_goldens() {
-    assert_family("charter", 4);
+    assert_family("charter", 5);
 }
 
 #[test]
 fn transcript_schema_matches_generated_code_and_all_goldens() {
+    assert_family("transcript", 6);
     assert_family("transcript", 7);
 }
 
 #[test]
 fn channel_schema_matches_generated_code_and_all_goldens() {
-    assert_family("channel", 7);
+    assert_family("channel", smith_channel::wire::VERSION);
 }
 
 fn assert_family(family: &str, version: u16) {
@@ -75,7 +76,7 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens()
     let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
     let schema = parse(&source).expect("local store schema valid");
     let output = generate(&schema);
-    let generated = root.join("src/generated/local_store_v1.rs");
+    let generated = crates.join("smith-local-protocol-codec/src/generated/local_store_v1.rs");
     let goldens = root.join("golden/v1");
     check_artifact(&generated, output.rust.as_bytes());
     for golden in output.goldens {

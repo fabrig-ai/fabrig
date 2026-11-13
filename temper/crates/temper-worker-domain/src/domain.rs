@@ -47,6 +47,8 @@ pub struct Domain {
     pub(crate) jobs: Map<Token, Token>,
     /// The agents smith started, by their runs' tokens.
     pub(crate) agents: Map<Token, Bound>,
+    /// Decoded call names until smith's process reports Started or Gone.
+    pub(crate) starting_models: Map<Token, Box<[crate::hand_out::ModelName]>>,
     /// The runs' calls in flight, by their runs' tokens and smith's callbacks.
     pub(crate) calls: Map<(Token, Token), Call>,
     /// The hand-outs out, oldest first.
@@ -197,6 +199,7 @@ impl Domain {
             job_evidence: Map::with_capacity(slots.saturating_add(1)),
             jobs: Map::with_capacity(slots),
             agents: Map::with_capacity(agents),
+            starting_models: Map::with_capacity(slots),
             calls: Map::with_capacity(agents.checked_mul(limits.agent.calls).expect("valid accepted the calls")),
             pending: Queue::uncapped(),
             gone: Map::with_capacity(agents),

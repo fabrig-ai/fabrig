@@ -200,9 +200,10 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) -> Result<bool, Rejection> {
-        if let Some(failure) = result_failure(document, env.wall) {
+        if let Some((failure, status)) = result_failure(document, env.wall) {
             self.turns.result = true;
-            self.fail(env, failure, b"smith: the program reported a failed result", up, below);
+            let report = llm::Report { status, ..llm::Report::none() };
+            self.fail_report(env, failure, b"smith: the program reported a failed result", report, up, below);
             return Ok(false);
         }
         if self.turns.result {
@@ -650,21 +651,79 @@ fn token_kind(document: &skein_json::Document, index: Option<u32>) -> Option<Kin
     Some(document.token(index?)?.kind)
 }
 
-fn result_failure(document: &skein_json::Document, wall: skein_lib::Wall) -> Option<llm::Failure> {
+fn result_failure(document: &skein_json::Document, wall: skein_lib::Wall) -> Option<(llm::Failure, Option<u16>)> {
     if token_kind(document, json::field(document, 0, b"is_error")) != Some(Kind::True) {
         return None;
     }
     let status = turns::number(document, json::field(document, 0, b"api_error_status"));
+    let status = match status {
+        Some(status) => u16::try_from(status).ok(),
+        None => None,
+    };
     let reason = json::text_in(document, json::field(document, 0, b"terminal_reason"));
     let retry_after = retry_after(document, wall);
-    Some(match status {
+    let failure = match status {
         Some(401) => llm::Failure::SignedOut,
         Some(429) => llm::Failure::Exhausted { retry_after },
         Some(_) | None => match reason {
             Some(b"usage_limit" | b"rate_limit" | b"limited") => llm::Failure::Exhausted { retry_after },
-            Some(_) | None => llm::Failure::Invalid,
+            Some(_) | None => match status {
+                Some(403) if !provider_error(document) => llm::Failure::Unavailable,
+                Some(529) => llm::Failure::Overloaded,
+                Some(500..=599) => llm::Failure::Unavailable,
+                Some(_) | None => llm::Failure::Invalid,
+            },
         },
-    })
+    };
+    Some((failure, status))
+}
+
+fn provider_error(document: &skein_json::Document) -> bool {
+    if let Some(text) = json::text_in(document, json::field(document, 0, b"result"))
+        && error_object(text)
+    {
+        return true;
+    }
+    let Some(errors) = json::field(document, 0, b"errors") else {
+        return false;
+    };
+    if token_kind(document, Some(errors)) != Some(Kind::ArrayStart) {
+        return false;
+    }
+    let mut next = errors.checked_add(1).expect("array start has an end");
+    for _ in 0..document.len() {
+        if token_kind(document, Some(next)) == Some(Kind::ArrayEnd) {
+            break;
+        }
+        if let Some(text) = json::text(document, next)
+            && error_object(text)
+        {
+            return true;
+        }
+        let Some(after) = json::after(document, next) else {
+            break;
+        };
+        next = after;
+    }
+    false
+}
+
+// Program error text may prefix its JSON with "API Error: <status>".
+// Search the bounded decoded text for an object-valued error key, keeping none of it.
+fn error_object(text: &[u8]) -> bool {
+    const KEY: &[u8] = b"\"error\"";
+    for (offset, candidate) in text.windows(KEY.len()).enumerate() {
+        if candidate == KEY {
+            let after = offset.checked_add(KEY.len()).expect("matched key fits text");
+            let rest = text.get(after..).expect("matched key fits text").trim_ascii_start();
+            if let Some(value) = rest.strip_prefix(b":")
+                && value.trim_ascii_start().starts_with(b"{")
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn retry_after(document: &skein_json::Document, wall: skein_lib::Wall) -> Option<skein_lib::Duration> {

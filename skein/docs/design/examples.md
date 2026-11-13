@@ -54,6 +54,7 @@ The UI example's crates (section 9):
 
 ```
 examples/ui/view        skein-ui-example-view       the notes' state, view, drawing code, phrasebook, codec for places and records: step code
+examples/ui/view-codec  skein-ui-example-view-codec the notes' records' generated code, below the view: step code
 examples/ui/shell-web   skein-ui-example-shell-web  the reference shell: its start, its loop, its look and stylesheet, its component and its snippet; wasm32 only
 examples/ui/server      skein-ui-example-server     its server on skein's HTTP: the bundle, its exchanges, its stream; the binary skein-ui-example
 tests/ui-web            skein-ui-web-tests          the browser parts' host tests, and the UI example's browser tier

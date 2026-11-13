@@ -339,7 +339,7 @@ fn channel_limits(
     domain: &domain::Limits,
     policy: &Policy,
     bodies: smith_channel::Limits,
-    charter: smith_charter::v4::Limits,
+    charter: smith_charter::v5::Limits,
     transcript: smith_transcript::v7::Limits,
     io: &io::Limits,
 ) -> Result<channel::Limits, Refusal> {
@@ -388,7 +388,7 @@ fn channel_limits(
             skip: channel_start_bytes(&bodies)?.max(output_bytes),
             output_bytes,
             output_frames,
-            kinds: u32::try_from(smith_channel::V7.len()).or(Err(derived(Layer::Channel, "kinds")))?,
+            kinds: u32::try_from(smith_channel::V8.len()).or(Err(derived(Layer::Channel, "kinds")))?,
         },
         endpoints: ENDPOINTS,
         calls: domain.run.calls,

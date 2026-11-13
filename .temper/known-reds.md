@@ -15,9 +15,6 @@ once fixed.
 Inherited from main, 2026-11-13: the lists the goals
 merged into main brought, each key once. Each is dropped once fixed.
 
-- lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
-
-
 - test temper-real-loop-world::suite lost::a_lost_answer_reaches_its_name_from_another_directory
 - test temper-box::suite box_listeners::a_fresh_box_prints_its_block_and_nothing_else
 - test temper-real-loop-world::suite terminal::up_down_and_the_page_up_line_read_the_conversation
@@ -32,29 +29,10 @@ merged into main brought, each key once. Each is dropped once fixed.
 - test temper-box::suite box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document
 - test temper-box::suite support_tests::github_file_scan_excludes_only_jigs_generation_secrets_store
 
-
-
 - test smith-bench::suite pipeline::grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
 - test smith-bench::suite runner::a_recorded_answer_is_observed_before_the_tree_settles
 - test smith-bench::suite runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree
-- lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
-- lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
-- lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
-- lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
-- lint jig-protocol-config clippy::disallowed_methods jig/crates/jig-protocol-config/src/tests/seed_policy.rs
-- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
 
-
-- lint jig-domain-fleet clippy::unneeded_wildcard_pattern jig/crates/jig-domain-fleet/src/attempt.rs
-- lint jig-domain-fleet clippy::needless_bool jig/crates/jig-domain-fleet/src/sources.rs
-- lint jig-domain-accounts clippy::needless_bool jig/crates/jig-domain-accounts/src/limits.rs
-- lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
-- lint temper-client-view clippy::disallowed_types temper/crates/temper-client-view/src/tests/task.rs
-- lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
-- lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/codecs.rs
-- lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/shared_test_code.rs
-
-- lint skein-http clippy::question_mark skein/crates/skein-http/src/server.rs
 - test temper-box::suite forge_land::setup_accepts_a_project_free_first_repository_row
 - test temper-box::suite forge_land::terminal_login_cleanup_excludes_a_restart_import
 - test temper-box::suite forge_land::a_held_login_returns_when_validation_panics_between_boxes
@@ -63,37 +41,6 @@ merged into main brought, each key once. Each is dropped once fixed.
 - test temper-box::suite startup::a_held_record_at_its_path_owes_the_guard_nothing
 - test temper-box::suite startup::a_lent_record_not_back_keeps_its_store_and_the_storys_panic
 - test temper-box::suite support_tests::printed_links_count_and_fail_without_disclosing_secrets
-
-
-- lint temper-worker-domain clippy::chunks_exact_to_as_chunks temper/crates/temper-worker-domain/src/jobs/prepare.rs
-
-- lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
-- lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
-- lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
-- lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
-- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
-
-- lint temper-engine-domain-world clippy::similar_names temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/role.rs
-- lint temper-engine-domain-world clippy::large_types_passed_by_value temper/tests/engine/domain/tests/suite/forge_routes/catch_up.rs
-- lint temper-engine-domain-world clippy::assert_is_empty temper/tests/engine/domain/tests/suite/forge_routes/squash_in.rs
-- lint temper-engine-domain-world clippy::assert_is_empty temper/tests/engine/domain/tests/suite/forge_routes/red_findings/follows.rs
-- lint temper-engine-domain-world clippy::unwrap_used temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/tool.rs
-
-Inherited from goal 1705 at this merge, 2026-11-13:
-
-- lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/landing.rs
-- lint temper-engine-domain-forge clippy::needless_borrow temper/crates/temper-engine-domain-forge/src/landing.rs
-- lint temper-engine-domain-forge clippy::needless_bool temper/crates/temper-engine-domain-forge/src/landing.rs
-- lint temper-engine-domain-forge clippy::disallowed_methods temper/crates/temper-engine-domain-forge/src/landing.rs
-- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
-- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
-- lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
-
-Failures on the goal branch that no live change of goal 2176 owns; delivery
-checks count them as inherited (`tools/pre-pr/design.md`, section 5).
-
-- lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
-- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
 
 Confirmed outside the settled-stop change, from goal 2288's graces, 2026-11-13:
 

@@ -241,7 +241,14 @@ fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<B
         return;
     }
     match start {
-        Ok(start) => parent(domain, env, smith::parent::Event::Spawn { client: owner, start: *start }),
+        Ok(start) => {
+            hub(
+                domain,
+                env,
+                HubEvent::Agent(FromAgent::Decoded { owner, contract: start.charter.value().grants.contract }),
+            );
+            parent(domain, env, smith::parent::Event::Spawn { client: owner, start: *start });
+        }
         Err(host::Undecoded::Version(mismatch)) => {
             hub(domain, env, HubEvent::Agent(FromAgent::StartVersion { owner, mismatch }));
         }
@@ -544,7 +551,7 @@ fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, encoded: Encode
             let finish = match finish {
                 Finish::Ended => host::Finish::Ended { outcome: body },
                 Finish::Parked => host::Finish::Parked,
-                Finish::Failed(failure) => host::Finish::Failed { failure },
+                Finish::Failed(failure) => host::Finish::Failed { failure, model: None },
                 Finish::Busy => {
                     hub(domain, env, HubEvent::Agent(FromAgent::StartBusy { owner }));
                     return;

@@ -148,6 +148,7 @@ fn decode(
     driver.send(protocol::up(
         Token::new(7),
         jig_domain_host::LinkUp::Call {
+            contract: 1,
             run: Token::new(run.task),
             attempt: Token::new(run.attempt),
             call: name.into(),

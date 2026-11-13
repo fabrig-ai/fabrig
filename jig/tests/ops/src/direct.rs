@@ -115,6 +115,7 @@ impl Driver {
                 if let root::Output::Agent(host::ToAgent::Start { owner, .. }) = output { Some(*owner) } else { None }
             })
             .expect("started chat");
+        self.send(root::Event::Agent(host::FromAgent::Decoded { owner: self.owner, contract: 1 }));
         self.send(root::Event::Agent(host::FromAgent::Started { owner: self.owner, agent: self.owner }));
         self.settle();
         self.released.clear();

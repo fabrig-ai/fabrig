@@ -392,7 +392,15 @@ fn charter() -> Charter {
             }]),
         },
 
-        grants: Grants { wait: true, deliver: None, save: false, tools: TOOLS, agents: true, host_tools: Box::new([]) },
+        grants: Grants {
+            contract: 1,
+            wait: true,
+            deliver: None,
+            save: false,
+            tools: TOOLS,
+            agents: true,
+            host_tools: Box::new([]),
+        },
         outcome: OutcomeSpec { change: None, verdicts: Box::new([rule(b"approve")]), report: None, failure: None },
         budget: BUDGET,
         llm: Llm {
@@ -2226,7 +2234,12 @@ fn a_refused_account_raises_one_notice_with_its_reason() {
         failure: crate::llm::Failure::Refused,
         evidence: crate::llm::Evidence::Unknown,
         detail: bytes(b"provider reason"),
-        report: crate::llm::Report { code: bytes(b"not-eligible"), request: Box::default(), field: Box::default() },
+        report: crate::llm::Report {
+            status: None,
+            code: bytes(b"not-eligible"),
+            request: Box::default(),
+            field: Box::default(),
+        },
     }));
     let notices = account_notices(&emitted).into_boxed();
     assert_eq!(

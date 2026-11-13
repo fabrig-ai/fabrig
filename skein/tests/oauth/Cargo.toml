@@ -13,9 +13,6 @@ doctest = false
 
 [dependencies]
 skein-lib.workspace = true
-skein-io.workspace = true
-skein-http.workspace = true
-skein-sim.workspace = true
 skein-oauth.workspace = true
 skein-fake-oauth.workspace = true
 

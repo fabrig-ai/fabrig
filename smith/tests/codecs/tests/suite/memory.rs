@@ -4,7 +4,7 @@
 use skein_heap::Meter;
 use skein_lib::{List, Reader, Writer};
 
-use smith_charter::v4 as charter;
+use smith_charter::v5 as charter;
 use smith_transcript::v7 as transcript;
 
 fn charter_limits() -> charter::Limits {
@@ -86,7 +86,7 @@ fn transcript_limits() -> transcript::Limits {
 fn charter_at_its_largest_instruction_payload_stays_within_the_configured_heap_bound() {
     let limits = charter_limits();
     let smallest = std::fs::read(
-        skein_scratch::paths::package().join("../../crates/smith-charter/golden/v4/record_charter_smallest.bin"),
+        skein_scratch::paths::package().join("../../crates/smith-charter/golden/v5/record_charter_smallest.bin"),
     )
     .expect("smallest charter");
     let size = limits.charter_instructions;

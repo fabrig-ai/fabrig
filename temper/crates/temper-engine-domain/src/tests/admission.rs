@@ -65,6 +65,7 @@ fn a_full_payload_table_returns_payload_records_but_takes_metadata() {
     for up in [
         host::LinkUp::Logins { logins: Box::new([]) },
         host::LinkUp::Call {
+            contract: 1,
             run: Token::new(999),
             attempt: Token::new(999),
             call: Box::new([]),

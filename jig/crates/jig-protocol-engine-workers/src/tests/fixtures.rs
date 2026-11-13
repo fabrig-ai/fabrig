@@ -106,7 +106,13 @@ pub fn workers() -> Box<[Worker]> {
     ])
 }
 pub fn component() -> Component {
-    Component::new(&LIMITS, workers(), application()).expect("small component")
+    Component::new(
+        &LIMITS,
+        workers(),
+        jig_protocol_worker_wire::spoken(),
+        jig_protocol_worker_wire::Application::opaque(application()),
+    )
+    .expect("small component")
 }
 pub fn credential(name: &[u8], secret: &[u8], version: u32) -> Box<[u8]> {
     credential_with(name, secret, statement(version))
@@ -240,6 +246,7 @@ pub fn call_record() -> jig_protocol_worker_wire::Call {
             writes: false,
             input: Box::from(b"input".as_slice()),
             deadline: Duration::from_secs(4),
+            contract: 1,
         },
     )
     .expect("call")
@@ -287,6 +294,7 @@ pub fn answer_failed_on(failure: jig_protocol_worker_wire::RunFailure) -> jig_pr
     let failed = wire::Failed::new(
         &codec,
         wire::FailedParts {
+            model: None,
             failure: wire::Failure::Run(run),
             detail: Box::from(b"detail".as_slice()),
             work: ended.into_parts().work,
@@ -309,7 +317,7 @@ pub fn refused_account() -> jig_protocol_worker_wire::RunFailure {
     wire::RunFailure::Refused(refused)
 }
 
-fn codec() -> jig_protocol_worker_wire::v11::Limits {
+fn codec() -> jig_protocol_worker_wire::v13::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
@@ -342,6 +350,7 @@ pub fn answer_with_resource() -> jig_protocol_worker_wire::Answer {
     let failed = wire::Failed::new(
         &codec,
         wire::FailedParts {
+            model: None,
             failure: wire::Failure::Unprepared(preparation),
             detail: Box::from(b"detail".as_slice()),
             work: ended.into_parts().work,

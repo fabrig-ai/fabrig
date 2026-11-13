@@ -22,6 +22,25 @@ pub const CEILINGS: Limits = Limits {
     worker_opening_terms: 64,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 5] = [
+    "opened_wire_name",
+    "opened_wire_layouts",
+    "worker_opening_worker",
+    "worker_opening_wires",
+    "worker_opening_terms",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 5] {
+        [
+            self.opened_wire_name, self.opened_wire_layouts, self.worker_opening_worker, self.worker_opening_wires, self.worker_opening_terms,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

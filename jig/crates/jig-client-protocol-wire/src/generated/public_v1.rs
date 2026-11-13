@@ -34,6 +34,32 @@ pub const CEILINGS: Limits = Limits {
     public_application_record: 16_777_216,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 11] = [
+    "public_line_title",
+    "public_project_name",
+    "public_projects_projects",
+    "public_goal_tree",
+    "public_board_name",
+    "public_board_live",
+    "public_board_ended",
+    "public_card_lineage",
+    "public_card_delegates",
+    "public_application_tasks",
+    "public_application_record",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 11] {
+        [
+            self.public_line_title, self.public_project_name, self.public_projects_projects, self.public_goal_tree, self.public_board_name, self.public_board_live, self.public_board_ended, self.public_card_lineage,
+            self.public_card_delegates, self.public_application_tasks, self.public_application_record,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

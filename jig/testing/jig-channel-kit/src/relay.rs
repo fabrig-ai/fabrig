@@ -89,7 +89,7 @@ impl Peer {
         for spoken in &wire::spoken() {
             let mut spoken = spoken.clone();
             if matches!(case, Some(Opening::Wires)) && spoken.name == wire::wire::FAMILY {
-                spoken.lowest = spoken.lowest.checked_add(1).expect("another version");
+                spoken.lowest = spoken.highest().checked_add(1).expect("another version");
             }
             wires
                 .push(
@@ -121,10 +121,11 @@ impl Peer {
             schema.magic = *b"else";
         }
         if matches!(case, Some(Opening::Version)) {
+            schema.versions.truncate(1);
             schema.versions.get_mut(0).expect("one version").version = chosen;
         }
         if matches!(case, Some(Opening::Terms)) {
-            let kinds = &mut schema.versions.get_mut(0).expect("one version").kinds;
+            let kinds = &mut schema.versions.get_mut(1).expect("current version").kinds;
             for index in 0..kinds.len() {
                 let kind = kinds.get_mut(index).expect("kind slot");
                 if kind.kind == 0x0180 {

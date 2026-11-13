@@ -1277,9 +1277,10 @@ impl World {
 
     fn remember_call(&mut self, up: &host::LinkUp) {
         if let Some((pending, _)) = &mut self.replay
-            && let host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } = up
+            && let host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } = up
         {
             *pending = Some(host::LinkUp::Call {
+                contract: *contract,
                 run: *run,
                 attempt: *attempt,
                 call: call.clone(),
@@ -1357,7 +1358,7 @@ impl World {
             worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
                 let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
-                self.worker_events.push_back(worker::Event::Decoded { agent, start });
+                self.worker_events.push_back(worker::Event::Decoded { agent, start, endpoints: Box::new([]) });
             }
             worker::Request::Encode { owner, value } => {
                 let encoded = worker_protocol::encode(value);

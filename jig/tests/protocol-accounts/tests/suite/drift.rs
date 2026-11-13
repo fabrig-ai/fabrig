@@ -11,7 +11,7 @@ fn moved_schema_matches_generated_code_and_goldens() {
     let source = fs::read_to_string(root.join("schema/moved-v1.schema")).expect("schema");
     let schema = parse(&source).expect("schema valid");
     let output = generate(&schema);
-    let code = root.join("src/generated/v1.rs");
+    let code = skein_scratch::paths::tree().join("crates/jig-protocol-accounts-codec/src/generated/v1.rs");
     let goldens = root.join("golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-protocol-accounts-world --test drift";

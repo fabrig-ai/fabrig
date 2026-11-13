@@ -17,7 +17,10 @@ mod memory;
 mod records;
 mod relays;
 mod sources;
+mod statement;
+mod translation;
 
 mod fuzzy {
+    mod translation;
     mod worker_side;
 }

@@ -34,6 +34,8 @@ pub struct WorkerRuntime {
     pub root: Fd,
     pub path: Box<[u8]>,
     pub agent: jig_protocol_config::Agent,
+    /// A world's wire statement and bridges; production uses the build's whole ranges.
+    pub wires: Option<worker_settings::Wires>,
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
@@ -122,8 +124,17 @@ impl Worker {
         if bytes.len() > usize::try_from(config.limits.link.secret).expect("secret bound") {
             return Err(problem(b"secret", What::Bound));
         }
-        let link = link::Component::new(&prepared.link, worker_settings::credential(settings, secret), seed)
+        let mut credential = worker_settings::credential(settings, secret, &prepared.payload)
             .or(Err(problem(b"limits", What::Bound)))?;
+        let jig = match runtime.wires {
+            Some(wires) => {
+                credential.application = wires.application;
+                wires.jig
+            }
+            None => jig_protocol_worker_wire::spoken(),
+        };
+        let link =
+            link::Component::new(&prepared.link, jig, credential, seed).or(Err(problem(b"limits", What::Bound)))?;
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
         let operations = worker_settings::operations(git.component.limits()).ok_or(problem(b"limits", What::Bound))?;
@@ -488,6 +499,12 @@ impl Worker {
     #[expect(clippy::too_many_lines, reason = "the worker link dispatch keeps every protocol request arm together")]
     pub fn link(&mut self, _now: Time, request: link::Request) {
         match request {
+            link::Request::CannotSendWhole { wire, version } => {
+                self.notes.push(crate::worker_alone::Note::CannotSendWhole { wire, version });
+            }
+            link::Request::Untranslated { kind, halt } => {
+                self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
+            }
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
                     remote.hello_pending = true;
@@ -608,6 +625,7 @@ impl Worker {
                     | link::Loss::Full
                     | link::Loss::Busy
                     | link::Loss::Fault
+                    | link::Loss::EngineStatesNoWires
                     | link::Loss::Unreachable => None,
                 };
                 if let Some(reason) = reason
@@ -822,8 +840,8 @@ impl Worker {
             }
             root::Request::Process(request) => self.process(*request),
             root::Request::Decode { agent, run, start } => {
-                let start = worker_route::decode(run, *start, &self.agent);
-                root::step(&mut self.root, &self.env, root::Event::Decoded { agent, start }, &mut self.out);
+                let event = worker_route::decoded(agent, run, *start, &self.agent);
+                root::step(&mut self.root, &self.env, event, &mut self.out);
             }
             root::Request::Encode { owner, value } => {
                 let encoded = worker_route::encode(value, &self.agent);

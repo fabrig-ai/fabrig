@@ -7,7 +7,7 @@ use smith_charter as wire;
 use smith_domain::run;
 
 /// Decode the accepted outcome body after the host channel has bounded it.
-pub fn decode_declared(bytes: &[u8], limits: &smith_charter::v4::Limits) -> Result<run::outcome::Declared, Error> {
+pub fn decode_declared(bytes: &[u8], limits: &smith_charter::v5::Limits) -> Result<run::outcome::Declared, Error> {
     let mut reader = Reader::new(bytes);
     let Ok(record) = smith_charter::RunResult::decode(limits, &mut reader) else {
         return Err(Error::InvalidResult);
@@ -64,7 +64,7 @@ fn decode_fields(source: &List<smith_charter::Field>) -> Result<Box<[run::outcom
 }
 
 /// Write an accepted domain result in the current charter family.
-pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v4::Limits) -> Result<Box<[u8]>, Error> {
+pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v5::Limits) -> Result<Box<[u8]>, Error> {
     let mut fields = List::with_capacity(limits.run_result_fields);
     let mut items = List::with_capacity(limits.run_result_items);
     let (form, label, text, values) = match result {
@@ -111,7 +111,7 @@ pub fn encode_result(result: &run::outcome::Declared, limits: &wire::v4::Limits)
 fn copy_fields(
     values: &[run::outcome::Field],
     target: &mut List<wire::Field>,
-    limits: &wire::v4::Limits,
+    limits: &wire::v5::Limits,
 ) -> Result<(), Error> {
     for field in values {
         let value =

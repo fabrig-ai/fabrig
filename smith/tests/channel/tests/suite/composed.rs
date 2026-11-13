@@ -154,7 +154,7 @@ fn the_host_start_enters_the_agent_domain_and_its_answer_returns_to_the_host_dom
 }
 
 fn composed_charter() -> host::Charter {
-    let smallest = include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
+    let smallest = include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin");
     let source =
         smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(smallest)).expect("golden charter");
     let mut parts = source.into_parts();
@@ -533,6 +533,7 @@ fn notice_cases() -> [NoticeCase; 3] {
         NoticeCase {
             failure: agent::llm::Failure::Refused,
             report: agent::llm::Report {
+                status: None,
                 code: Box::from(b"not-eligible".as_slice()),
                 request: Box::default(),
                 field: Box::default(),

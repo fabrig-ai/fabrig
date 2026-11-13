@@ -11,7 +11,7 @@ use smith_domain::run;
 #[expect(clippy::too_many_lines, reason = "total checked translation of the complete charter vocabulary")]
 pub fn encode_charter(
     source: &run::Charter,
-    limits: &wire::v4::Limits,
+    limits: &wire::v5::Limits,
     endpoints: &Endpoints,
 ) -> Result<Box<[u8]>, Error> {
     let mut brief = List::with_capacity(count(source.brief.sections.len())?);
@@ -80,6 +80,7 @@ pub fn encode_charter(
             deliver,
             save: source.grants.save,
             host,
+            contract: source.grants.contract,
         },
     ) {
         Ok(value) => value,
@@ -215,7 +216,7 @@ fn count(length: usize) -> Result<u32, Error> {
     }
 }
 
-fn fields(source: &[run::outcome::FieldRule], limits: &wire::v4::Limits) -> Result<List<wire::FieldRule>, Error> {
+fn fields(source: &[run::outcome::FieldRule], limits: &wire::v5::Limits) -> Result<List<wire::FieldRule>, Error> {
     let mut fields = List::with_capacity(count(source.len())?);
     for field in source {
         let item = match wire::FieldRule::new(limits, wire::FieldRuleParts { name: field.name.clone(), max: field.max })
@@ -230,7 +231,7 @@ fn fields(source: &[run::outcome::FieldRule], limits: &wire::v4::Limits) -> Resu
     Ok(fields)
 }
 
-fn change(source: &run::outcome::ChangeSpec, limits: &wire::v4::Limits) -> Result<wire::ChangeRule, Error> {
+fn change(source: &run::outcome::ChangeSpec, limits: &wire::v5::Limits) -> Result<wire::ChangeRule, Error> {
     Ok(
         match wire::ChangeRule::new(
             limits,
@@ -245,7 +246,7 @@ fn change(source: &run::outcome::ChangeSpec, limits: &wire::v4::Limits) -> Resul
     )
 }
 
-fn text(source: &run::outcome::TextSpec, limits: &wire::v4::Limits) -> Result<wire::TextRule, Error> {
+fn text(source: &run::outcome::TextSpec, limits: &wire::v5::Limits) -> Result<wire::TextRule, Error> {
     Ok(
         match wire::TextRule::new(
             limits,
@@ -257,7 +258,7 @@ fn text(source: &run::outcome::TextSpec, limits: &wire::v4::Limits) -> Result<wi
     )
 }
 
-fn llm(source: &run::charter::Llm, limits: &wire::v4::Limits, endpoints: &Endpoints) -> Result<wire::Llm, Error> {
+fn llm(source: &run::charter::Llm, limits: &wire::v5::Limits, endpoints: &Endpoints) -> Result<wire::Llm, Error> {
     let endpoint = match endpoints.name_of(source.endpoint.0, source.dialect) {
         Some(name) => Box::from(name),
         None => return Err(Error::Endpoints),
@@ -304,7 +305,7 @@ mod tests {
         let mut endpoints = List::with_capacity(1);
         endpoints.push(crate::Endpoint { name: Box::default(), number: 17, dialect: 23 }).expect("one endpoint");
         let endpoints = Endpoints::new(endpoints);
-        let source = include_bytes!("../../smith-charter/golden/v4/record_charter_smallest.bin");
+        let source = include_bytes!("../../smith-charter/golden/v5/record_charter_smallest.bin");
         let mut charter = crate::decode_charter(source, &wire::CEILINGS, &endpoints).expect("smallest charter");
         assert_eq!(charter.check_timeout, None);
         for bound in [None, Some(Duration::from_secs(1)), Some(Duration::from_secs(86_400))] {
@@ -324,7 +325,7 @@ mod tests {
         let mut endpoints = List::with_capacity(1);
         endpoints.push(crate::Endpoint { name: Box::default(), number: 17, dialect: 23 }).expect("one endpoint");
         let endpoints = Endpoints::new(endpoints);
-        let golden = include_bytes!("../../smith-charter/golden/v4/record_charter_smallest.bin");
+        let golden = include_bytes!("../../smith-charter/golden/v5/record_charter_smallest.bin");
         let charter = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(golden)).expect("current golden");
         let mut writer = Writer::new(usize::try_from(charter.measure()).expect("bounded charter"));
         charter.encode(&mut writer).expect("measured charter");

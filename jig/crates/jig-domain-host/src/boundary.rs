@@ -220,6 +220,8 @@ pub enum FromAgent {
     AccountRefused { owner: Token, account: u32, code: Box<[u8]>, reason: Box<[u8]> },
     /// Last word, with cumulative accounting.
     Finished { owner: Token, turns: u32, spent: u64, read: Option<Token>, finish: Finish },
+    /// Routing decoded the start's charter (domain/hosts/hub.md, 8).
+    Decoded { owner: Token, contract: u16 },
     /// The agent started, and `agent` names it from now on.
     Started { owner: Token, agent: Token },
     /// The agent refused its start, before any run began.
@@ -324,7 +326,7 @@ pub struct Turn {
 pub enum Finish {
     Ended { outcome: Box<[u8]> },
     Parked,
-    Failed { failure: RunFailure },
+    Failed { failure: RunFailure, model: Option<crate::ModelFailure> },
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -341,7 +343,7 @@ pub enum Ending {
     Refused(Refusal),
     Ended { outcome: Box<[u8]>, work: Work },
     Parked { work: Work },
-    Failed { failure: Failure, detail: Box<[u8]>, work: Work },
+    Failed { failure: Failure, detail: Box<[u8]>, work: Work, model: Option<crate::ModelFailure> },
 }
 
 /// The application's workspace items, held by its root.
@@ -432,6 +434,8 @@ pub struct Work {
 /// Why an assignment was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    /// The engine could not translate this assignment for this channel.
+    Untranslated(Mismatch),
     /// A payload carries a wire version this worker cannot read.
     Version(Mismatch),
     /// Every slot is taken (by a run hosted, or one whose answer the engine
@@ -666,6 +670,7 @@ impl FromAgent {
             | FromAgent::Limited { .. }
             | FromAgent::AccountRefused { .. }
             | FromAgent::Finished { .. }
+            | FromAgent::Decoded { .. }
             | FromAgent::Started { .. }
             | FromAgent::StartRefused { .. }
             | FromAgent::StartBusy { .. }
@@ -723,6 +728,8 @@ pub enum JobFailure {
 /// Why a job's assignment was refused at the entrance; a run's `Refusal` is unchanged.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum JobRefusal {
+    /// The engine could not translate this job for this channel.
+    Untranslated(Mismatch),
     /// As a run's `Refusal::Busy`.
     Busy,
     Invalid(JobInvalid),

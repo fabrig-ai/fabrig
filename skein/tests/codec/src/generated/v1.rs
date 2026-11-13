@@ -20,6 +20,24 @@ pub const CEILINGS: Limits = Limits {
     report_fields: 2,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 4] = [
+    "field_name",
+    "field_value",
+    "report_title",
+    "report_fields",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 4] {
+        [
+            self.field_name, self.field_value, self.report_title, self.report_fields,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

@@ -161,6 +161,7 @@ fn charter(settings: &Settings, cue: &[u8], rates: &[Rate]) -> run::Charter {
             }]),
         },
         grants: Grants {
+            contract: 1,
             wait: true,
             deliver: None,
             save: false,

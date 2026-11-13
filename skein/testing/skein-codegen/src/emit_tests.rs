@@ -183,11 +183,25 @@ fn write_bound_type(ty: &Type, name: &str, target: &str, count: u32, schema: &Co
         match ty {
             Type::Option(item) => {
                 out.push(1);
-                write_bound_type(item, &format!("{name}_some"), target, count, schema, out);
+                write_bound_type(
+                    item,
+                    &emit_limits::child_name(name, emit_limits::LimitLevel::Some),
+                    target,
+                    count,
+                    schema,
+                    out,
+                );
             }
             Type::List(_, item) => {
                 out.extend_from_slice(&1_u32.to_be_bytes());
-                write_bound_type(item, &format!("{name}_item"), target, count, schema, out);
+                write_bound_type(
+                    item,
+                    &emit_limits::child_name(name, emit_limits::LimitLevel::Item),
+                    target,
+                    count,
+                    schema,
+                    out,
+                );
             }
             Type::U8
             | Type::U16
@@ -211,7 +225,7 @@ fn bound_wire(record: &Record, field_index: usize, target: &str, count: u32, sch
     }
     for (index, field) in record.fields.iter().enumerate() {
         if index == field_index {
-            let name = format!("{}_{}", emit_limits::snake(&record.name), field.name);
+            let name = emit_limits::bound_name(&record.name, &field.name);
             write_bound_type(&field.ty, &name, target, count, schema, &mut bytes);
         } else {
             write_type(&field.ty, false, schema, &mut bytes);
@@ -226,10 +240,10 @@ fn field_bounds(ty: &Type, name: &str, bounds: &mut Vec<(String, u32)>) {
         Type::List(bound, item) => {
             bounds.push((name.into(), *bound));
             if *bound > 0 {
-                field_bounds(item, &format!("{name}_item"), bounds);
+                field_bounds(item, &emit_limits::child_name(name, emit_limits::LimitLevel::Item), bounds);
             }
         }
-        Type::Option(item) => field_bounds(item, &format!("{name}_some"), bounds),
+        Type::Option(item) => field_bounds(item, &emit_limits::child_name(name, emit_limits::LimitLevel::Some), bounds),
         Type::U8
         | Type::U16
         | Type::U32
@@ -243,7 +257,7 @@ fn field_bounds(ty: &Type, name: &str, bounds: &mut Vec<(String, u32)>) {
 
 fn bound_cases(record: &Record, schema: &Context<'_>, cases: &mut Vec<String>) {
     for (index, field) in record.fields.iter().enumerate() {
-        let name = format!("{}_{}", emit_limits::snake(&record.name), field.name);
+        let name = emit_limits::bound_name(&record.name, &field.name);
         let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
         let mut bounds = Vec::new();
         field_bounds(&field.ty, &name, &mut bounds);

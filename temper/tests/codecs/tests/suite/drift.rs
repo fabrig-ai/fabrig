@@ -33,11 +33,15 @@ fn schema_matches(
     check_text(&code, &output.records, write);
     check_text(&tests.join(format!("{module}.rs")), &output.tests.text(records), write);
     check_text(&tests.join("main.rs"), &tests_main(modules), write);
+    check_goldens(&goldens, output.goldens, write);
+}
+
+fn check_goldens(directory: &Path, goldens: Vec<skein_codegen::Golden>, write: bool) {
     if write {
-        fs::create_dir_all(&goldens).expect("create golden directory");
+        fs::create_dir_all(directory).expect("create golden directory");
     }
-    for golden in output.goldens {
-        let path = goldens.join(golden.name);
+    for golden in goldens {
+        let path = directory.join(golden.name);
         if write {
             fs::write(&path, golden.bytes).expect("write golden bytes");
         } else {
@@ -85,8 +89,25 @@ fn client_wire_schema_matches_generated_code_and_goldens() {
     );
 }
 
+// Older store versions keep their inline tests until C2 (gate-compile.status.md, Design departs).
+fn legacy_store_schema_matches(version: &str) {
+    let crates = skein_scratch::paths::tree().join("crates");
+    let root = crates.join("temper-protocol-store");
+    let source =
+        fs::read_to_string(root.join("schema").join(format!("store-{version}.schema"))).expect("family schema");
+    let output = generate(&parse(&source).expect("schema valid"));
+    let code = crates.join("temper-protocol-store-codec/src/generated").join(format!("{version}.rs"));
+    let write = temper_test_env::rewrite();
+    check_text(&code, &output.rust, write);
+    check_goldens(&root.join("golden").join(version), output.goldens, write);
+}
+
 #[test]
 fn store_schema_matches_generated_code_and_goldens() {
+    legacy_store_schema_matches("v16");
+    legacy_store_schema_matches("v17");
+    legacy_store_schema_matches("v18");
+    legacy_store_schema_matches("v19");
     schema_matches(
         "temper-protocol-store",
         "temper-protocol-store-codec",

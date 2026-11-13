@@ -28,6 +28,28 @@ pub const CEILINGS: Limits = Limits {
     facts_facts: 24,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 8] = [
+    "account_uses_some",
+    "account_subject",
+    "account_display",
+    "source_name",
+    "issued_name",
+    "fact_text_text",
+    "fact_label",
+    "facts_facts",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 8] {
+        [
+            self.account_uses_some, self.account_subject, self.account_display, self.source_name, self.issued_name, self.fact_text_text, self.fact_label, self.facts_facts,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

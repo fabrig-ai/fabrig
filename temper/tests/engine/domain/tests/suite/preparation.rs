@@ -526,6 +526,7 @@ fn failed_preparation(run: &engine::Assignment, preparation: engine::Preparation
         failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: None }),
         detail: Box::new([]),
         work: host::Work { left: None, saved: None },
+        model: None,
     };
     let answer = host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent: 1, ending };
     let parts = engine::Parts { saved: None, pushed: Box::new([]), preparation: Some(preparation) };

@@ -66,6 +66,50 @@ pub const CEILINGS: Limits = Limits {
     identity_email: 256,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 27] = [
+    "merge_branch",
+    "merged_branch",
+    "merged_heads",
+    "branch_branch",
+    "writable_push",
+    "writable_landing_some",
+    "prefixes_branches",
+    "prefixes_branches_item",
+    "repository_name",
+    "repository_remote",
+    "repository_git_some",
+    "repository_save_some",
+    "items_repositories",
+    "job_spec_command",
+    "job_spec_request",
+    "left_landed",
+    "files_files",
+    "files_files_item",
+    "diagnostic_output",
+    "saved_repositories",
+    "token_token",
+    "entry_account_login",
+    "entry_token",
+    "entries_entries",
+    "identity_login",
+    "identity_name",
+    "identity_email",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 27] {
+        [
+            self.merge_branch, self.merged_branch, self.merged_heads, self.branch_branch, self.writable_push, self.writable_landing_some, self.prefixes_branches, self.prefixes_branches_item,
+            self.repository_name, self.repository_remote, self.repository_git_some, self.repository_save_some, self.items_repositories, self.job_spec_command, self.job_spec_request, self.left_landed,
+            self.files_files, self.files_files_item, self.diagnostic_output, self.saved_repositories, self.token_token, self.entry_account_login, self.entry_token, self.entries_entries,
+            self.identity_login, self.identity_name, self.identity_email,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

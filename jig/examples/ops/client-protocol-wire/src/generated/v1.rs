@@ -68,6 +68,51 @@ pub const CEILINGS: Limits = Limits {
     observability_value_project_incidents: 128,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 28] = [
+    "infrastructure_service_environment",
+    "infrastructure_service_name",
+    "infrastructure_environment_pool",
+    "infrastructure_environment_name",
+    "infrastructure_pool_value",
+    "infrastructure_effect_rollback_from",
+    "infrastructure_effect_rollback_to",
+    "infrastructure_description_resources",
+    "infrastructure_service_fact_version",
+    "infrastructure_drift_account_by_some",
+    "infrastructure_value_panel_resources",
+    "infrastructure_value_panel_effects",
+    "infrastructure_value_result_resources",
+    "infrastructure_value_hold_resources",
+    "infrastructure_value_hold_drift",
+    "infrastructure_value_hold_effects",
+    "infrastructure_value_project_resources",
+    "infrastructure_value_project_environments",
+    "infrastructure_value_deployment_effects",
+    "observability_service_environment",
+    "observability_service_name",
+    "observability_fact_load",
+    "observability_incident_alerts",
+    "observability_incident_timeline",
+    "observability_effect_rule",
+    "observability_value_deployment_effects",
+    "observability_value_project_services",
+    "observability_value_project_incidents",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 28] {
+        [
+            self.infrastructure_service_environment, self.infrastructure_service_name, self.infrastructure_environment_pool, self.infrastructure_environment_name, self.infrastructure_pool_value, self.infrastructure_effect_rollback_from, self.infrastructure_effect_rollback_to, self.infrastructure_description_resources,
+            self.infrastructure_service_fact_version, self.infrastructure_drift_account_by_some, self.infrastructure_value_panel_resources, self.infrastructure_value_panel_effects, self.infrastructure_value_result_resources, self.infrastructure_value_hold_resources, self.infrastructure_value_hold_drift, self.infrastructure_value_hold_effects,
+            self.infrastructure_value_project_resources, self.infrastructure_value_project_environments, self.infrastructure_value_deployment_effects, self.observability_service_environment, self.observability_service_name, self.observability_fact_load, self.observability_incident_alerts, self.observability_incident_timeline,
+            self.observability_effect_rule, self.observability_value_deployment_effects, self.observability_value_project_services, self.observability_value_project_incidents,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

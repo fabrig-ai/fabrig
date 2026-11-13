@@ -32,6 +32,31 @@ pub const CEILINGS: Limits = Limits {
     pasted_items: 3,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 10] = [
+    "admin_token_value",
+    "api_token_value",
+    "git_token_value",
+    "webhook_secret_value",
+    "app_slug_value",
+    "app_key_value",
+    "accepted_values",
+    "origin_api",
+    "pem_value",
+    "pasted_items",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 10] {
+        [
+            self.admin_token_value, self.api_token_value, self.git_token_value, self.webhook_secret_value, self.app_slug_value, self.app_key_value, self.accepted_values, self.origin_api,
+            self.pem_value, self.pasted_items,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {
