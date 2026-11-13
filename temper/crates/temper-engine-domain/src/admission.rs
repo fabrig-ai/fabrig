@@ -180,6 +180,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Follow { .. }
             | forge::Event::FollowChangeAmended { .. }
             | forge::Event::FollowAct { .. }
+            | forge::Event::JobHistory { .. }
             | forge::Event::SettleOutbox => true,
         },
     }

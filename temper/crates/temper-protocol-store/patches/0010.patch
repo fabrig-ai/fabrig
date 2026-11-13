@@ -2,8 +2,14 @@ patch 1
 owner temper 10 after jig 5
 
 family temper-store 20 to 21
+add LandingMember.round option u16 none
+add LandingState.last_left option u16 none
 add LandingRun
 add LandingEntry.run option LandingRun none
+add HistoryJob
+add HistoryJobOutcome
+add HistoryJobRecord
+add LandingRow.job option HistoryJobRecord none
 add ChangeHistory
 add HistoryMark
 add HistoryProject
@@ -17,9 +23,7 @@ add HistoryDeparted
 add HistoryUpdate
 add HistoryUpdateOutcome
 add HistoryUpdated
-add HistoryJob
 add HistoryJobStarted
-add HistoryJobOutcome
 add HistoryJobEnded
 add HistoryWith
 add HistoryConflict
@@ -59,6 +63,7 @@ add HistoryEvent
 add HistoryChange
 add HistoryLanding
 add HistoryLast
+add ChangeRow.job option HistoryJobRecord none
 add ChangeRow.history option ChangeHistory none
 add Value.history_project
 add Value.history_event

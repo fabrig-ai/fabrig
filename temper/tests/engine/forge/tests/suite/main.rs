@@ -10,6 +10,7 @@ mod history_world;
 mod hooks;
 mod landing;
 mod landing_batches;
+mod landing_history;
 mod landing_judgement;
 mod landing_leaving;
 mod landing_proofs;

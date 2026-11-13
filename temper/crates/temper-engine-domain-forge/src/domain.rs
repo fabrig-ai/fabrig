@@ -1904,6 +1904,21 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::ProducedTitle { task, child, title, report } => produced_title(d, task, child, &title, report, out),
+        Event::JobHistory { task, job } => {
+            if job.outcome.is_some() {
+                let mut reading = None;
+                for (owner, pending) in &d.steps {
+                    if pending.task == task {
+                        reading = Some(*owner);
+                    }
+                }
+                if let Some(owner) = reading {
+                    d.steps.get_mut(&owner).expect("pending gather").woken = true;
+                }
+                crate::landing::job_woken(d, task);
+            }
+            crate::job_history::heard(d, env.wall, task, job, out);
+        }
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
@@ -4995,6 +5010,7 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 #[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
 fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
     let Some(mut row) = titled_change(d, env, &pending, out) else { return };
+    crate::job_history::merged(d, env.wall, &mut row, pending.branch, out);
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
     // Producing without a head uses no base facts except early starts and catch-ups.

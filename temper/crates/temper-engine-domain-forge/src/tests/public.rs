@@ -216,6 +216,7 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        job: None,
         signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
@@ -317,6 +318,7 @@ fn ask(kind: u16, task: Option<u64>, public: &[PublicTask]) -> PublicAsk<'_> {
 }
 fn member(task: u64) -> policy::Member {
     policy::Member {
+        round: None,
         unit: 0,
         branch: Box::from(b"temper/1/l61".as_slice()),
         combined: None,
@@ -404,7 +406,9 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             LANDING,
             LandingRow {
+                job: None,
                 landing: policy::Landing {
+                    last_left: None,
                     round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                     task: LANDING,
@@ -891,7 +895,9 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
             .insert(
                 task,
                 LandingRow {
+                    job: None,
                     landing: policy::Landing {
+                        last_left: None,
                         round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                         task,
