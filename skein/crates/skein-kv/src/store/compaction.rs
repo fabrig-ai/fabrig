@@ -7,9 +7,9 @@ use skein_io::kernel::{Error, Fd};
 use skein_lib::{Env, List, Queue, Token, usize_of};
 
 use super::{Dir, IO_OWNER, Log, Phase, Repair, State, Step, Store, announce_recovered, commits_failed, log_number};
-use crate::Limits;
 use crate::boundary::Row;
 use crate::snapshot;
+use crate::{Census, Limits};
 
 #[derive(Debug)]
 pub(super) enum Compaction {
@@ -76,10 +76,11 @@ impl Compaction {
         }
     }
 
-    pub(super) fn announced(self, log_bytes: &mut u64) -> Self {
+    pub(super) fn announced(self, log_bytes: &mut u64, census: &mut Census) -> Self {
         match self {
             Self::Due { start } => {
                 *log_bytes = 0;
+                census.restart(start);
                 Self::Create { start }
             }
             state @ (Self::Idle
