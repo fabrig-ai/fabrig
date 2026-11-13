@@ -314,7 +314,7 @@ fn named_goldens(schema: &Context<'_>, cases: &mut Vec<String>) -> Vec<(skein_co
     goldens
 }
 
-pub(crate) fn emit(schema: &Context<'_>, out: &mut String) -> Vec<Golden> {
+pub(crate) fn emit(schema: &Context<'_>, header: String) -> (crate::Tests, Vec<Golden>) {
     let mut imports = vec!["CEILINGS".to_string()];
     let mut bounds = Vec::new();
     for declaration in schema.declarations {
@@ -332,25 +332,22 @@ pub(crate) fn emit(schema: &Context<'_>, out: &mut String) -> Vec<Golden> {
     }
     let mut cases = Vec::new();
     let goldens = golden_cases(schema, &mut cases);
-    out.push_str("\n#[cfg(test)]\nmod golden_tests {\n");
-    if !cases.is_empty() {
-        out.push_str(&format!("    use super::{{{}}};\n", imports.join(", ")));
-        if !bounds.is_empty() {
-            out.push_str("    use super::Limits;\n");
-        }
+    let mut body = String::new();
+    if cases.is_empty() {
+        imports.clear();
+    } else {
         let helpers = include_str!("test_helpers.rs");
         let helpers =
             if bounds.is_empty() { helpers.split("type BoundDecode").next().expect("golden helper") } else { helpers };
         for line in helpers.lines().skip(1) {
             if line.is_empty() {
-                out.push('\n');
+                body.push('\n');
             } else {
-                out.push_str(&format!("    {line}\n"));
+                body.push_str(&format!("    {line}\n"));
             }
         }
     }
-    tables("golden", &cases, out);
-    tables("bounds", &bounds, out);
-    out.push_str("}\n");
-    goldens
+    tables("golden", &cases, &mut body);
+    tables("bounds", &bounds, &mut body);
+    (crate::Tests { header, imports, limits: !bounds.is_empty(), body }, goldens)
 }
