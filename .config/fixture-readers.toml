@@ -677,16 +677,40 @@ pair = "default"
 package = "temper-service"
 filter = "kind(lib)"
 
-# The engine service's own step tests keep their private fixture copy.
+# The engine vocabulary's step tests keep their private fixture copy.
 [[fixture]]
-paths = ["temper/crates/temper-engine-service/src/tests/fixtures/*.rs"]
+paths = ["temper/crates/temper-engine-service-vocabulary/src/tests/fixtures/*.rs"]
 [[fixture.reader]]
 pair = "default"
-package = "temper-engine-service"
+package = "temper-engine-service-vocabulary"
+filter = "kind(lib)"
+
+# The engine stock's step tests keep their private fixture copy.
+[[fixture]]
+paths = ["temper/crates/temper-engine-service-stock/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-service-stock"
+filter = "kind(lib)"
+
+# The engine startup's step tests keep their private fixture copy.
+[[fixture]]
+paths = ["temper/crates/temper-engine-service-startup/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-service-startup"
+filter = "kind(lib)"
+
+# The engine component's step tests keep their private fixture copy.
+[[fixture]]
+paths = ["temper/crates/temper-engine-service-component/src/tests/fixtures/*.rs"]
+[[fixture.reader]]
+pair = "default"
+package = "temper-engine-service-component"
 filter = "kind(lib)"
 [[fixture.reader]]
 pair = "fuzzy"
-package = "temper-engine-service"
+package = "temper-engine-service-component"
 filter = "kind(lib)"
 
 # The worker service's own step tests keep their private fixture copy.

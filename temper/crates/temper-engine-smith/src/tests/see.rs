@@ -446,7 +446,7 @@ fn the_address_table_keeps_the_instructions_forms_and_short_lines() {
     forms(&mut out).expect("forms fit ADDRESSES");
     let text = out.finish();
     assert_eq!(text.as_ref(), ADDRESSES.as_bytes());
-    let instructions = include_str!("../../../temper-engine-service/src/stock/ask.txt");
+    let instructions = include_str!("../../../temper-engine-service-stock/src/stock/ask.txt");
     let line = instructions.split_once("see reads by address, in your project:\n").unwrap().1.lines().next().unwrap();
     assert_eq!(ADDRESSES, line);
     let mut seen = alloc::collections::BTreeSet::new();

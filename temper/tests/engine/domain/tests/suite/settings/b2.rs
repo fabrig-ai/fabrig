@@ -261,7 +261,7 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     let chat = assigned(&driver, 1).expect("stock chat assigned");
     assert_eq!(
         chat.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../../crates/temper-engine-service/src/stock/chat.txt"),
+        include_bytes!("../../../../../../crates/temper-engine-service-stock/src/stock/chat.txt"),
         "the chat reports a landed change as its result says it"
     );
     assert_eq!(chat.run.policy.model, box_model());
@@ -509,7 +509,7 @@ pub(super) fn story() {
     let first = assigned(&driver, made[0].task).expect("D1");
     assert_eq!(
         first.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../../crates/temper-engine-service/src/stock/chat.txt"),
+        include_bytes!("../../../../../../crates/temper-engine-service-stock/src/stock/chat.txt"),
         "the goal reports a landed change as its result says it"
     );
     let engine::CallAnswer::Sent { message: question } = call(
