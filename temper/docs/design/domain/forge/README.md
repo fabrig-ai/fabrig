@@ -525,11 +525,15 @@ instead (`../landing.md`, section 5).
   a resolution for what the job leaves.
 - **A catch-up** takes a base's commit into a branch that no update
   reaches, a goal's own (`branches.md`, 1): a change into that branch, made by the
-  goal's coordinator naming the commit (`../agent/tools.md`, 1), its producer
+  goal's coordinator naming the commit (`../agent/tools.md`, 1), main's
+  tip as it reads it, only for a change of the goal that needs what the
+  base gained (`../../draft/squash-in.md`, 4); its producer
   the merge job, which merges the commit into a branch made at the
   landing branch's tip (`change/README.md`, 2, step 1); its project must name a
-  `merge_job`. It lands as any change into the branch does, and nothing
-  makes one but its requester's call.
+  `merge_job`. It lands as any change into the branch does; under
+  `turn` its train merges it, never squashing it (`../landing.md`, 5.2),
+  so the goal's branch shows it as a merge of the base. Nothing makes
+  one but its requester's call.
 - **A semantic conflict** is CI failing on a change's head after a clean
   update. The name records that order, not proof that the base caused
   the failure. Its repair's brief carries the failed check and its output

@@ -103,9 +103,9 @@ pub use amendment::{
 pub use boundary::{
     ADDRESS, AccountChange, AccountHolder, AccountHostFailure, AccountHostWhy, Act, ActGrant, ActKey, ActKind,
     ActStatus, Adoption, Ask, AskFamily, Counts, DeletionStep, Entry, EntryKind, EscalationChoice, EscalationDecision,
-    Event, Holding, Identity, IdentityKey, InitialOwner, KeptDeletion, Key, Kind, Needs, NoteChange, NoteScope,
-    Outcome, OutcomeFamily, PersonResult, ProjectRole, ProposalChoice, ProposalDecision, Proposer, Reply, Request,
-    RequestKey, ResourceName, ResourceRole, Role, Seed, Signer, Stored, USES, Use, Whom,
+    Event, Holding, Identity, IdentityKey, InitialOwner, KeptDeletion, Key, Kind, LoginExit, Needs, NoteChange,
+    NoteScope, Outcome, OutcomeFamily, PersonResult, ProjectRole, ProposalChoice, ProposalDecision, Proposer, Reply,
+    Request, RequestKey, ResourceName, ResourceRole, Role, Seed, Signer, Stored, USES, Use, Whom,
 };
 pub use capacity::{CapacityAction, CapacityCause, CapacityRefusal};
 pub use decisions::{Bound, Exceeded, FailureClass, HoldReason, Moved};

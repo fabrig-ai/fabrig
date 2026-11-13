@@ -67,7 +67,7 @@ fn merging_and_squashing_the_same_member_have_equal_trees_and_keys() {
     assert_eq!(key(&merged), key(&squashed));
     assert_eq!(merge.parents.len(), 2);
     assert_eq!(squash.parents.as_ref(), &[number(squashed.landing(LANDING).landing.members[0].base.expect("base"))]);
-    assert!(String::from_utf8_lossy(&squash.message).contains("Temper-Head: "));
+    assert!(String::from_utf8_lossy(&squash.message).contains("Head: "));
     assert_eq!(
         merged.inspect(&raw::Read::Tree { commit: merge.id }),
         squashed.inspect(&raw::Read::Tree { commit: squash.id })

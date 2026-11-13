@@ -201,6 +201,9 @@ fn filled(why: Refusal) -> bool {
         Refusal::Limit { .. }
         | Refusal::NotWaiting
         | Refusal::NoFurther
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NameTaken
         | Refusal::Unknown
         | Refusal::Provider

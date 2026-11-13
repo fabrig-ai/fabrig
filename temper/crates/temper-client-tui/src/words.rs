@@ -163,6 +163,11 @@ pub enum Word {
     BoxKilled,
     BoxEndNote,
     Asked,
+    LendLine,
+    LoginSignedIn,
+    LoginCancelled,
+    LoginNotFinished,
+    ThroughClaudeCode,
     TeamHead,
     You,
     Triage,
@@ -191,7 +196,7 @@ pub enum Word {
     LeftNow,
     NoRole,
 }
-pub(crate) const ALL: [Word; 180] = [
+pub(crate) const ALL: [Word; 185] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -345,6 +350,11 @@ pub(crate) const ALL: [Word; 180] = [
     Word::BoxKilled,
     Word::BoxEndNote,
     Word::Asked,
+    Word::LendLine,
+    Word::LoginSignedIn,
+    Word::LoginCancelled,
+    Word::LoginNotFinished,
+    Word::ThroughClaudeCode,
     Word::TeamHead,
     Word::You,
     Word::Triage,
@@ -588,6 +598,11 @@ impl Word {
             Self::BoxKilled => 153,
             Self::BoxEndNote => 154,
             Self::Asked => 155,
+            Self::LendLine => 183,
+            Self::LoginSignedIn => 184,
+            Self::LoginCancelled => 185,
+            Self::LoginNotFinished => 186,
+            Self::ThroughClaudeCode => 187,
             Self::TeamHead => 156,
             Self::You => 157,
             Self::Triage => 158,
@@ -665,6 +680,11 @@ impl Word {
             Self::PaneFolds => (&[b"Ctrl-P folds"], &[]),
             Self::PaneGoal => (&[b"/goal starts a goal from the draft"], &[]),
             Self::Asked => (&[b"asked ", b""], &[Slot::Span]),
+            Self::LendLine => (&[b"temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser."], &[]),
+            Self::LoginSignedIn => (&[b"Claude Code signed in"], &[]),
+            Self::LoginCancelled => (&[b"Claude Code's sign-in cancelled"], &[]),
+            Self::LoginNotFinished => (&[b"Claude Code's sign-in didn't finish"], &[]),
+            Self::ThroughClaudeCode => (&[b", through Claude Code"], &[]),
             Self::PaneLinkedGoal => (&[b"goal ", b" \xc2\xb7 /open opens it"], &[Slot::Title]),
 
             Self::GoalHead => (&[b"Start a goal from ", b". How should it run?"], &[Slot::Title]),
@@ -945,6 +965,9 @@ impl Words {
                 self.say(Word::NoRole, &[Hole::Name(project.clone()), Hole::Name(copy_of(bounded))])
             }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+            crate::Notice::LoginSignedIn => self.say(Word::LoginSignedIn, &[]),
+            crate::Notice::LoginCancelled => self.say(Word::LoginCancelled, &[]),
+            crate::Notice::LoginNotFinished => self.say(Word::LoginNotFinished, &[]),
             crate::Notice::Filed { number, project } => {
                 self.say(Word::FiledNotice, &[Hole::Number(u64::from(*number)), Hole::Name(copy_of(project))])
             }

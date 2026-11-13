@@ -1,4 +1,4 @@
-//! Settings' whole values and bounded history on client wire 20 (client/domain/contract/README.md, 4).
+//! Settings' whole values and bounded history on client wire 21 (client/domain/contract/README.md, 4).
 use super::{me, objects, owner, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;

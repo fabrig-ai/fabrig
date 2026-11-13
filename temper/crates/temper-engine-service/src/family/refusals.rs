@@ -1,6 +1,6 @@
 //! Sparse entrance facts without invented names, words or bounds (jig's
 //! client/domain/contract/README.md, 3).
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_people as p;
 use skein_lib::Writer;
 #[expect(
@@ -9,6 +9,9 @@ use skein_lib::Writer;
 )]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
+        p::Refusal::NoTerminal => w::Refusal::NoTerminal,
+        p::Refusal::LoginUnderWay => w::Refusal::LoginUnderWay,
+        p::Refusal::NotLending => w::Refusal::NotLending,
         p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-wire"),
         // Only ChangeSettings emits Stale; forge applications never carry that ask.
         p::Refusal::Stale { .. }

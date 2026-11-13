@@ -14,6 +14,7 @@ use skein_ui_screen_terminal::{Background, Depth, Key, Terminal};
 use temper_client_tui::{BoxLine, Note, Scheme};
 
 mod front;
+mod lending;
 
 const TAG: u64 = 1 << 61;
 const ROOM: u32 = 64;
@@ -40,7 +41,7 @@ pub struct Settings {
 /// The captured box start (temper/docs/design/client/tui/box.md).
 pub struct Front {
     pub executable: Box<[u8]>,
-    pub cache: Box<[u8]>,
+    pub directories: temper_shell::directories::Directories,
     pub arguments: Box<[Box<[u8]>]>,
     pub environment: Box<[Box<[u8]>]>,
     /// An owned descriptor of the captured working directory.
@@ -57,6 +58,9 @@ pub struct Run {
     host: host::Host,
     shell: jig_client_shell_native::Shell,
     terminal: Terminal,
+    kept: Option<skein_shell::Kept>,
+    lending: lending::Lending,
+    close_after_lending: bool,
     io: io::Io,
     env: Env<io::Limits>,
     signals: Option<Token>,
@@ -146,7 +150,7 @@ impl Run {
             .operations()
             .checked_add(Terminal::operations(&terminal_settings).expect("checked terminal operations"))
             .and_then(|n| n.checked_add(io::operations(&limits).expect("signal operations")))
-            .and_then(|n| n.checked_add(2 + if notes.is_some() { 2 } else { 0 } + if front { 2 } else { 0 }))
+            .and_then(|n| n.checked_add(3 + if notes.is_some() { 2 } else { 0 } + if front { 2 } else { 0 }))
             .expect("combined operations");
         let operations =
             operations.checked_add(if recording.is_some() { 2 } else { 0 }).expect("file and cancel operations");
@@ -155,6 +159,9 @@ impl Run {
             host,
             shell,
             terminal,
+            kept: None,
+            lending: lending::Lending::new(input, output),
+            close_after_lending: false,
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             signals: Some(signals),
@@ -222,6 +229,10 @@ impl Run {
     }
 
     fn complete(&mut self, mut complete: Complete) {
+        if complete.op == lending::LINE {
+            self.lending.written(complete);
+            return;
+        }
         let lane = complete.op.tag();
         if lane == 3 || lane == 4 || lane == 5 {
             complete.op = Token::new(complete.op.untagged());
@@ -255,6 +266,9 @@ impl Run {
     }
 
     fn event(&mut self, event: &io::Event) {
+        if self.lending.event(event) {
+            return;
+        }
         if self.box_child.as_mut().is_some_and(|front| front.event(event)) {
             return;
         }
@@ -319,7 +333,7 @@ impl Run {
     /// A termination signal leaves after the TUI's own shutdown, without waiting on the box.
     #[must_use]
     pub fn terminated(&self) -> bool {
-        self.terminated && self.terminal.closed()
+        self.terminated && !self.lending.busy() && self.terminal.closed()
     }
 
     /// The box's exit words, printed only after leaving the terminal.
@@ -329,6 +343,13 @@ impl Run {
     }
 
     fn close(&mut self) {
+        if self.lending.busy() {
+            self.close_after_lending = true;
+            if self.terminated {
+                self.lending.stop();
+            }
+            return;
+        }
         if self.closing {
             return;
         }
@@ -402,6 +423,14 @@ impl Run {
             && let Some(front) = &mut self.box_child
         {
             front.stop(stop);
+        }
+        if let Some(lend) = duties.lend {
+            assert!(!self.lending.busy(), "one terminal loan at a time");
+            self.lending.begin(lend);
+            self.terminal.lend();
+        }
+        if duties.unlend {
+            self.lending.stop();
         }
         if duties.close {
             self.close();
@@ -534,7 +563,8 @@ impl Run {
                 self.report(host::Report::Resize(size));
                 reported = true;
             }
-            while !self.closing {
+            reported |= self.lending_progress();
+            while !self.closing && !self.lending.busy() {
                 let Some(key) = self.terminal.keys().pop() else { break };
                 if self.record_key(&key) {
                     continue;
@@ -550,7 +580,7 @@ impl Run {
         if let Some(recorder) = self.recording.as_mut().and_then(|recording| recording.recorder.as_mut()) {
             recorder.deadline(self.host.deadline());
         }
-        if reported && !self.closing {
+        if reported && !self.closing && !self.lending.busy() {
             self.terminal.draw(self.host.frame());
         }
         if !self.closing
@@ -698,9 +728,11 @@ impl Host for Run {
         if self.recording.as_ref().is_some_and(|recording| recording.save.pending() || recording.save.io.is_due(now)) {
             return true;
         }
-        self.box_child
-            .as_ref()
-            .is_some_and(|front| front.pending() || (!front.reports.is_empty() && self.size.is_some()))
+        self.lending.pending(self.terminal.lent())
+            || self
+                .box_child
+                .as_ref()
+                .is_some_and(|front| front.pending() || (!front.reports.is_empty() && self.size.is_some()))
             || self.spawn_root.as_ref().is_some_and(|root| root.pending() || root.io.is_due(now))
             || self.local.pending()
             || self.local.io.is_due(now)
@@ -745,6 +777,7 @@ impl Host for Run {
             return false;
         }
         self.closing
+            && !self.lending.busy()
             && self.local.closed()
             && self.spawn_root.as_ref().is_none_or(LocalFile::closed)
             && self.notes.as_ref().is_none_or(FileSave::closed)
@@ -1144,7 +1177,12 @@ mod tests {
         let mut settings = settings();
         settings.front = Some(Front {
             executable: b"/bin/temper".as_slice().into(),
-            cache: b"/cache".as_slice().into(),
+            directories: temper_shell::directories::Directories {
+                config: b"/config".as_slice().into(),
+                data: b"/data".as_slice().into(),
+                cache: b"/cache".as_slice().into(),
+                origins: [skein_shell::Origin::Flag; 3],
+            },
             arguments: Box::new([]),
             environment: Box::new([]),
             directory: Fd::new(5),

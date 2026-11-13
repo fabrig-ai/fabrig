@@ -84,6 +84,9 @@ pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> 
         }
         c::Refusal::Unknown => w::Refusal::Unknown,
         c::Refusal::NameTaken => w::Refusal::NameTaken,
+        c::Refusal::NoTerminal => w::Refusal::NoTerminal,
+        c::Refusal::LoginUnderWay => w::Refusal::LoginUnderWay,
+        c::Refusal::NotLending => w::Refusal::NotLending,
         c::Refusal::NotOffered => w::Refusal::NotOffered,
         c::Refusal::ProgramNameReserved => w::Refusal::ProgramNameReserved,
         c::Refusal::KeyConflict => w::Refusal::KeyConflict,

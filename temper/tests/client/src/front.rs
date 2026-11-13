@@ -734,6 +734,10 @@ impl Joint {
 
     /// Replaces the fixture's client component, ending its setup clients first.
     pub(crate) fn offer_printed_link(&mut self, limits: client::Limits) {
+        self.offer_printed_link_with(limits, &walking::config(self.seed));
+    }
+
+    pub(crate) fn offer_printed_link_with(&mut self, limits: client::Limits, config: &engine::Config) {
         for who in self.transport.clients() {
             if let Some(sign_in) = self.transport.sign_in(who) {
                 self.component.sign_out(who, sign_in);
@@ -742,7 +746,7 @@ impl Joint {
             self.detach(who);
         }
         self.component = crate::component::Composition::with_printed_link(
-            &walking::config(self.seed),
+            config,
             limits.client.domain,
             jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),

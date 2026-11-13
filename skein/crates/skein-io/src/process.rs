@@ -72,6 +72,10 @@ impl Child {
 
 pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, alone: bool, subs: &mut Queue<Submit>) {
     for (at, spec) in spawn.pipes.iter().enumerate() {
+        if spec.way == Way::Inherit && spec.child > 2 {
+            io.tables.refused.push(owner);
+            return;
+        }
         let before = spawn.pipes.get(..at).expect("entry prefix is within the table");
         for prior in before {
             if prior.child == spec.child {
@@ -101,7 +105,7 @@ pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, alone: bool, su
                 };
                 spec.parent = Some(fd);
             }
-            Way::In | Way::Out | Way::Null => {}
+            Way::In | Way::Out | Way::Null | Way::Inherit => {}
         }
     }
     let Some(count) = pipe_count(&spawn) else {
@@ -392,7 +396,7 @@ fn spawn_error(error: kernel::Error) -> Error {
 fn is_pipe(way: Way) -> bool {
     match way {
         Way::In | Way::Out => true,
-        Way::Given(_) | Way::Null => false,
+        Way::Given(_) | Way::Null | Way::Inherit => false,
     }
 }
 

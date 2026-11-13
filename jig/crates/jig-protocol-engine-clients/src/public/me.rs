@@ -19,6 +19,7 @@ pub(super) fn frame(document: &Document) -> Option<&Frame> {
         | Document::Project(_)
         | Document::Note(_)
         | Document::Inbox(_)
+        | Document::Terminal { .. }
         | Document::Accounts(_)
         | Document::Deployment(_)
         | Document::Settings(_) => None,

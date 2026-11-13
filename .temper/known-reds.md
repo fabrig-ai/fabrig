@@ -7,6 +7,9 @@ Inherited from main at goal 2172's start, 2026-11-13: the entries of goals
 1983, 1985, 1987, 1988 and 2105 that main carried, each once. Each is dropped
 once fixed.
 
+Inherited from main at goal 2176's start (4d06c93e26), 2026-11-13: the lists the goals
+merged into main brought, each key once. Each is dropped once fixed.
+
 - lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/patches/p0001.rs
 - lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/patches/context.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
@@ -72,7 +75,6 @@ once fixed.
 
 - lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
 - lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
-- lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
-- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
 - lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
+- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs

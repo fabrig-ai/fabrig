@@ -10,6 +10,373 @@ use skein_lib::List;
 use skein_ui::{Act, Role};
 use temper_client_domain::{self as d, pages::connect_model::Act as M};
 const PROVIDER: u32 = 17;
+const LOGIN: u32 = 91;
+const WAITING: &str = "Claude Code is signing in, in the terminal where temper runs";
+const APPROVE: &str = "Approve it on Anthropic’s page, in the tab Claude Code opened. This page moves on by itself.";
+const HELP: &str = "Claude Code’s sign-in is in the terminal where temper runs. If no tab opened, press c there to copy its link. If Anthropic’s page shows a code, paste it there.";
+const NOT_FINISHED: &str = "Claude Code’s sign-in didn’t finish.";
+
+pub(super) fn terminal_root(welcome: bool, doc: c::Accounts) -> (d::Domain, skein_lib::Token) {
+    let address = if welcome {
+        d::Address::Welcome { step: d::Step::Model { way: None } }
+    } else {
+        d::Address::ConnectModel { way: None }
+    };
+    let (mut root, me_watch, _, _, watch) = fixtures::root_at_full(address, &fixtures::limits(), b"Shop");
+    let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+    me.providers = List::from_boxed(Box::new([
+        offer(PROVIDER, b"openai", true, false),
+        offer(PROVIDER + 1, b"anthropic", false, true),
+    ]));
+    fixtures::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: me_watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        },
+    );
+    super::accounts::deliver(&mut root, watch.unwrap(), doc);
+    (root, watch.unwrap())
+}
+pub(super) fn terminal_document(lendable: bool) -> c::Accounts {
+    let mut doc = super::accounts::document(0);
+    doc.lendable = lendable;
+    doc.usable = false;
+    doc.settled = true;
+    doc.cut = false;
+    doc
+}
+fn terminal_lending() -> c::TerminalLogin {
+    c::TerminalLogin { number: LOGIN, provider: PROVIDER + 1, name: b"claude-pat".as_slice().into(), cancelled: false }
+}
+fn terminal_source(usable: bool) -> c::Accounts {
+    let mut doc = super::accounts::card_document(b"anthropic", b"claude-pat", c::AccountKind::Program);
+    doc.accounts.get_mut(0).unwrap().provider = Some(PROVIDER + 1);
+    doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().usable = usable;
+    doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().number = 43;
+    doc.usable = usable;
+    doc.settled = true;
+    doc.cut = false;
+    doc.signing.clear();
+    doc
+}
+fn named_at(tree: &skein_ui::Tree, role: Role, name: &str) -> usize {
+    tree.nodes()
+        .iter()
+        .position(|node| node.role == role && node.name.as_deref() == Some(name.as_bytes()))
+        .unwrap_or_else(|| {
+            panic!(
+                "missing {role:?}: {name}; {:?}",
+                tree.nodes()
+                    .iter()
+                    .filter(
+                        |n| [Role::Heading { level: 1 }, Role::Status, Role::Region, Role::Paragraph].contains(&n.role)
+                    )
+                    .map(|n| (n.role, n.name.as_deref().map(String::from_utf8_lossy)))
+                    .collect::<Vec<_>>()
+            )
+        })
+}
+pub(super) fn assert_terminal_cards(root: &d::Domain, welcome: bool, lendable: bool) {
+    for w in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(w);
+        let tree = fixtures::build(&mut view, root);
+        let cards: Vec<_> = tree
+            .nodes()
+            .iter()
+            .filter(|n| {
+                n.role == Role::Region
+                    && [Some(b"Claude".as_slice()), Some(b"ChatGPT".as_slice())].contains(&n.name.as_deref())
+            })
+            .map(|n| n.name.as_deref().unwrap())
+            .collect();
+        assert_eq!(cards, [b"Claude".as_slice(), b"ChatGPT"]);
+        let claude = named_at(tree, Role::Region, "Claude");
+        let parts = super::inbox::subtree(tree, claude);
+        let named: Vec<_> = parts
+            .iter()
+            .filter(|n| [Role::Heading { level: 2 }, Role::Paragraph, Role::Link, Role::Button].contains(&n.role))
+            .map(|n| (n.role, n.name.as_deref().unwrap()))
+            .collect();
+        let (role, note, label) = if lendable {
+            (Role::Button, "Signs in from the terminal where temper runs", "Sign in to Claude Code")
+        } else {
+            (Role::Link, "One command in a terminal, on this machine", "Use your Claude subscription")
+        };
+        assert_eq!(
+            named,
+            [
+                (Role::Heading { level: 2 }, b"Claude".as_slice()),
+                (Role::Paragraph, b"Your Claude subscription, through a Claude Code temper keeps apart from your own."),
+                (Role::Paragraph, note.as_bytes()),
+                (role, label.as_bytes()),
+            ]
+        );
+        let primary = if welcome { crate::look::FLOW_PRIMARY } else { crate::look::CONNECT_PRIMARY };
+        let secondary = if welcome { crate::look::FLOW_SECONDARY } else { crate::look::CONNECT_SECONDARY };
+        let act = &tree.nodes()[named_at(tree, role, label)];
+        assert!(act.styles.as_slice().contains(&primary));
+        assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&primary)).count(), 1);
+        let chatgpt = &tree.nodes()[named_at(tree, Role::Button, "Continue with ChatGPT")];
+        assert!(chatgpt.styles.as_slice().contains(&secondary));
+        named_at(tree, Role::Paragraph, "Sign in, in a new tab");
+        assert!(!parts.iter().any(|n| n.role == Role::Code || n.role == Role::TextField));
+        if !welcome {
+            assert!(tree.nodes()[claude].styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
+        }
+        let id = act.id;
+        if lendable {
+            assert_eq!(
+                crate::act(&mut view, id, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::ConnectModel(M::LoginProgram {
+                    name: root.pages().account_name()
+                })))
+            );
+        } else {
+            assert_eq!(
+                crate::act(&mut view, id, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go {
+                    address: d::pages::connect_model::address(
+                        root.pages().address(),
+                        Some(d::ModelWay { source: None, provider: PROVIDER + 1, kind: d::WayKind::Program })
+                    )
+                }))
+            );
+        }
+    }
+}
+#[test]
+fn choose_puts_claude_first_with_the_documents_terminal_form() {
+    for lendable in [false, true] {
+        let (root, _) = terminal_root(false, terminal_document(lendable));
+        assert_terminal_cards(&root, false, lendable);
+    }
+}
+fn assert_terminal_note(root: &d::Domain, welcome: bool) {
+    for w in [fixtures::words(), fixtures::browser_words()] {
+        let browser = w.shell == crate::words::Shell::Browser;
+        let mut view = fixtures::view_of(w);
+        let tree = fixtures::build(&mut view, root);
+        let title = named_at(tree, Role::Status, WAITING);
+        let body = named_at(tree, Role::Paragraph, APPROVE);
+        let cancel = named_at(tree, Role::Button, "Cancel");
+        let help = named_at(tree, Role::Paragraph, HELP);
+        assert!(title < body && body < cancel && cancel < help);
+        assert!(tree.nodes()[body].styles.as_slice().contains(&crate::look::FLOW_MUTED));
+        assert!(tree.nodes()[help].styles.as_slice().contains(&crate::look::FLOW_MUTED));
+        assert!(tree.nodes()[cancel].styles.as_slice().contains(&if welcome {
+            crate::look::FLOW_SECONDARY
+        } else {
+            crate::look::CONNECT_SECONDARY
+        }));
+        assert_eq!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::WELCOME_SPIN)), browser);
+        if browser {
+            let disclosure = named_at(tree, Role::Disclosure, "No tab opened, or a code to paste?");
+            assert!(cancel < disclosure && disclosure < help);
+        }
+        let note = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_AWAY)).unwrap();
+        assert!(!super::inbox::subtree(tree, note).iter().any(|n| n.role == Role::TextField));
+        assert!(fixtures::find(tree, Role::Region, b"Claude").is_none());
+        if browser {
+            let disclosure = named_at(tree, Role::Disclosure, "No tab opened, or a code to paste?");
+            assert!(!super::inbox::subtree(tree, disclosure).iter().any(|n| n.role == Role::TextField));
+        }
+        let lead = if welcome {
+            "temper’s agents run on a plan you sign in to."
+        } else {
+            "temper’s agents run on a plan you sign in to, or on an API key."
+        };
+        assert!(fixtures::find(tree, Role::Paragraph, lead.as_bytes()).is_none());
+        let cancel_id = tree.nodes()[cancel].id;
+        assert_eq!(
+            crate::act(&mut view, cancel_id, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::ConnectModel(M::CancelLogin)))
+        );
+    }
+}
+pub(super) fn terminal_note_states(welcome: bool) {
+    let (mut root, watch) = terminal_root(welcome, terminal_document(true));
+    let name = root.pages().account_name();
+    model_action(&mut root, M::LoginProgram { name });
+    assert_terminal_note(&root, welcome);
+    let mut doc = terminal_document(true);
+    doc.lending = Some(terminal_lending());
+    super::accounts::deliver(&mut root, watch, doc.clone());
+    assert_terminal_note(&root, welcome);
+    let (root, _) = terminal_root(welcome, doc);
+    assert_terminal_note(&root, welcome);
+    let mut doc = terminal_source(false);
+    doc.settled = false;
+    doc.lent_end = Some(c::AccountLentEnd { number: LOGIN, end: c::LoginEnd::SignedIn { source: 43 } });
+    let (root, _) = terminal_root(welcome, doc);
+    assert_terminal_note(&root, welcome);
+}
+#[test]
+fn settings_keeps_the_terminal_login_note_across_documents_and_reopening() {
+    terminal_note_states(false);
+}
+pub(super) fn terminal_ending_rows(welcome: bool) {
+    let (mut root, watch) = terminal_root(welcome, terminal_document(true));
+    let name = root.pages().account_name();
+    let attempt = sent(&mut root, M::LoginProgram { name });
+    answer(&mut root, attempt, c::DocumentOutcome::AccountLoginAsked { number: LOGIN });
+    model_action(&mut root, M::CancelLogin);
+    let mut doc = terminal_document(true);
+    doc.lent_end = Some(c::AccountLentEnd { number: LOGIN, end: c::LoginEnd::Cancelled });
+    super::accounts::deliver(&mut root, watch, doc);
+    // The cancel's answer may still be out: the end leaves no progress or result line.
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        let heading = named_at(tree, Role::Heading { level: 1 }, "Connect a model");
+        let card = named_at(tree, Role::Region, "Claude");
+        let between: Vec<_> = tree.nodes()[heading.checked_add(1).unwrap()..card]
+            .iter()
+            .filter(|n| n.role == Role::Paragraph || n.role == Role::Status)
+            .map(|n| n.name.as_deref().unwrap_or_default())
+            .collect();
+        let lead = if welcome {
+            "temper’s agents run on a plan you sign in to."
+        } else {
+            "temper’s agents run on a plan you sign in to, or on an API key."
+        };
+        assert_eq!(between, [lead.as_bytes()]);
+    }
+    for lendable in [false, true] {
+        for (end, line) in [
+            (c::LoginEnd::NotFinished { exit: None }, Some(NOT_FINISHED)),
+            (c::LoginEnd::NotFinished { exit: Some(c::LoginExit::Exited { code: 1 }) }, Some(NOT_FINISHED)),
+            (c::LoginEnd::SignedIn { source: 43 }, Some(NOT_FINISHED)),
+            (
+                c::LoginEnd::Refused { refusal: c::AccountRefusal::Uses },
+                Some("The provider does not permit these uses."),
+            ),
+            (c::LoginEnd::Cancelled, None),
+        ] {
+            let mut doc = terminal_source(false);
+            doc.lendable = lendable;
+            // The failed source is not a connected card in these rows.
+            doc.accounts.clear();
+            doc.lent_end = Some(c::AccountLentEnd { number: LOGIN, end });
+            let (root, _) = terminal_root(welcome, doc);
+            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let tree = view.tree();
+                assert!(
+                    fixtures::find(tree, Role::Region, b"Claude").is_some(),
+                    "end {end:?}, lendable {lendable}: {:?}",
+                    root.pages().connect_model().unwrap().login_state(root.client())
+                );
+                let claude = named_at(tree, Role::Region, "Claude");
+                assert!(fixtures::find(tree, Role::Status, WAITING.as_bytes()).is_none());
+                if let Some(line) = line {
+                    let at = tree
+                        .nodes()
+                        .iter()
+                        .enumerate()
+                        .find(|(i, n)| {
+                            n.role == Role::Paragraph
+                                && super::inbox::subtree(tree, *i)
+                                    .iter()
+                                    .flat_map(|n| n.text.iter().flat_map(|r| r.text.iter().copied()))
+                                    .collect::<Vec<_>>()
+                                    == line.as_bytes()
+                        })
+                        .map(|(i, _)| i)
+                        .unwrap();
+                    assert!(at < claude);
+                    assert!(tree.nodes()[at].styles.as_slice().contains(&crate::look::FLOW_MUTED));
+                } else {
+                    assert!(fixtures::find(tree, Role::Paragraph, NOT_FINISHED.as_bytes()).is_none());
+                }
+                assert!(
+                    fixtures::find(
+                        tree,
+                        if lendable { Role::Button } else { Role::Link },
+                        if lendable { b"Sign in to Claude Code" } else { b"Use your Claude subscription" }
+                    )
+                    .is_some()
+                );
+            }
+        }
+    }
+    terminal_press_refusals(welcome);
+}
+fn terminal_press_refusals(welcome: bool) {
+    for (refusal, line) in [
+        (c::Refusal::NoTerminal, None),
+        (c::Refusal::LoginUnderWay, None),
+        (c::Refusal::NotOffered, Some("This provider offers you no program login. Choose another way to connect.")),
+    ] {
+        let (mut root, _) = terminal_root(welcome, terminal_document(true));
+        let name = root.pages().account_name();
+        let attempt = sent(&mut root, M::LoginProgram { name });
+        fixtures::root_event(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt,
+                        envelope: skein_lib::RequestEnvelope::Final,
+                        why: None,
+                        answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                            refusal: refusal.clone(),
+                            at: None,
+                        })),
+                    },
+                },
+            },
+        );
+        if refusal == c::Refusal::LoginUnderWay {
+            assert_terminal_note(&root, welcome);
+        } else {
+            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+                let tree = view.tree();
+                assert!(
+                    fixtures::find(tree, Role::Region, b"Claude").is_some(),
+                    "press refused {refusal:?}: {:?}",
+                    root.pages().connect_model().unwrap().login_state(root.client())
+                );
+                let claude = named_at(tree, Role::Region, "Claude");
+                if refusal == c::Refusal::NoTerminal {
+                    named_at(tree, Role::Link, "Use your Claude subscription");
+                }
+                if let Some(line) = line {
+                    assert!(named_at(tree, Role::Paragraph, line) < claude);
+                }
+            }
+        }
+    }
+}
+#[test]
+fn settings_terminal_login_endings_and_refusals_put_the_cards_back() {
+    terminal_ending_rows(false);
+}
+#[test]
+fn a_connected_claude_card_keeps_its_way_and_defaults_to_chatgpt() {
+    let mut doc = terminal_source(false);
+    doc.lendable = true;
+    let (root, _) = terminal_root(false, doc);
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let tree = view.tree();
+        let claude = named_at(tree, Role::Region, "Claude");
+        assert!(!tree.nodes()[claude].styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
+        let chatgpt = named_at(tree, Role::Region, "ChatGPT");
+        assert!(tree.nodes()[chatgpt].styles.as_slice().contains(&crate::look::CONNECT_DEFAULT));
+        let another = tree.nodes()[named_at(tree, Role::Link, "Add another plan")].id;
+        assert_eq!(
+            crate::act(&mut view, another, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go {
+                address: d::Address::ConnectModel {
+                    way: Some(d::ModelWay { source: None, provider: PROVIDER + 1, kind: d::WayKind::Program })
+                }
+            }))
+        );
+    }
+}
+
 fn model_action(root: &mut d::Domain, act: M) {
     fixtures::root_event(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::ConnectModel(act)) });
 }

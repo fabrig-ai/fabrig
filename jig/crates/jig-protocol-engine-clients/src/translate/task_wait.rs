@@ -1,5 +1,5 @@
 //! Task wait facts are already joined and translated to wall time by the core.
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_core_vocabulary::documents as d;
 
 pub(super) fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Result<Option<w::TaskRunWait>, w::Problem> {

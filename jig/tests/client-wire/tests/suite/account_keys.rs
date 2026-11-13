@@ -1,5 +1,5 @@
-//! Client v20 account changes and typed outcomes.
-use jig_client_protocol_wire::v20::*;
+//! Client v21 account changes and typed outcomes.
+use jig_client_protocol_wire::v21::*;
 use skein_lib::{List, Reader, Writer};
 #[test]
 fn all_eight_account_changes_and_their_outcomes_round_trip() {

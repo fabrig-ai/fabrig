@@ -55,7 +55,7 @@ fn launcher(directory: &Path, right_size: bool) -> PathBuf {
     let file = PathBuf::from(std::ffi::OsStr::from_bytes(&claude_code::file(cache.as_os_str().as_bytes())));
     fs::create_dir_all(file.parent().expect("build directory")).expect("cache directory");
     fs::write(&file, format!(
-        "#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s' \"$DISABLE_AUTOUPDATER\" > '{}/updater'\nprintf 'command stdout\\n'\nexit 0\n",
+        "#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s %s' \"$DISABLE_AUTOUPDATER\" \"$DISABLE_UPDATES\" > '{}/updater'\nprintf 'command stdout\\n'\nexit 0\n",
         directory.display(), directory.display(),
     )).expect("recording build");
     let length = if right_size { build.bytes } else { build.bytes.checked_sub(1).expect("nonempty build") };
@@ -158,7 +158,7 @@ fn the_binary_runs_every_mode_as_temper_does() {
             Invocation::Program(expected) => assert_eq!(status(u8::try_from(code).expect("byte status"), &output.stdout), expected, "{case}"),
             Invocation::Launcher { right_size: true } => {
                 assert_eq!(fs::read(directory.join("arguments")).expect("recorded arguments"), b"one \xff\n'\0--two=$x\0");
-                assert_eq!(fs::read(directory.join("updater")).expect("recorded updater"), b"1");
+                assert_eq!(fs::read(directory.join("updater")).expect("recorded updater"), b"1 1");
             }
             Invocation::Binary | Invocation::Launcher { right_size: false } => {}
         }

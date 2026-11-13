@@ -1,4 +1,6 @@
 //! The client's TUI and its real box on a pseudo-terminal (client/tui/box.md, Its tests).
+#[path = "tui_box/lending.rs"]
+mod lending;
 use crate::{box_link, support};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Signal, Size, Submit};
 use skein_lib::{Queue, Time, Token, Wall};
@@ -360,6 +362,82 @@ fn run(case: Case, name: &str) {
     assert_eq!(client.tree_status().cleanup(), Cleanup::None, "no child needed the test's cleanup");
     assert!(client.tree_status().live_pids.is_empty(), "no surviving box or step");
     assert!(ended.procs.iter().all(Host::is_empty));
+    scratch.remove();
+}
+
+struct LoginJudge {
+    settled: bool,
+}
+impl Referee<Root> for LoginJudge {
+    fn observe(&mut self, _now: Time, roots: &[Root]) {
+        self.settled = roots.iter().all(Host::is_empty);
+    }
+    fn passed(&self) -> bool {
+        self.settled
+    }
+}
+
+#[test]
+fn program_login_takes_its_background_groups_terminal_before_claude_reads() {
+    use std::os::unix::fs::PermissionsExt;
+    use temper_fetch::claude_code::{self, Libc};
+    let scratch = support::Scratch::startup("login-background-terminal");
+    let directory = scratch.path();
+    let build = claude_code::build(
+        if cfg!(target_os = "macos") {
+            skein_forge::forgejo::pin::Platform::Macos
+        } else {
+            skein_forge::forgejo::pin::Platform::Linux
+        },
+        std::env::consts::ARCH,
+        if cfg!(target_env = "musl") { Libc::Musl } else { Libc::Gnu },
+    )
+    .expect("pinned host build");
+    let claude =
+        Path::new(std::ffi::OsStr::from_bytes(&claude_code::file(directory.as_os_str().as_bytes()))).to_path_buf();
+    fs::create_dir_all(claude.parent().expect("cached build directory")).expect("cache");
+    fs::write(
+        &claude,
+        b"#!/bin/sh\n[ \"$DISABLE_AUTOUPDATER\" = 1 ] && [ \"$DISABLE_UPDATES\" = 1 ] || exit 10\n[ \"$#\" -eq 2 ] && [ \"$1\" = auth ] && [ \"$2\" = login ] || exit 9\nIFS= read -r answer || exit 8\n[ -z \"$answer\" ] || exit 7\nprintf 'login read its terminal\\n'\nexit 0\n",
+    )
+    .expect("fake claude reads its inherited terminal");
+    fs::OpenOptions::new().write(true).open(&claude).expect("cached fake").set_len(build.bytes).expect("pinned size");
+    fs::set_permissions(&claude, fs::Permissions::from_mode(0o700)).expect("executable claude");
+    support::program_login::configuration(directory, Some(&directory.join("programs")), Path::new("fetched"));
+    // Job control gives the async command a background group, but not the foreground.
+    // Explicit /dev/tty keeps the shell from replacing its background stdin with /dev/null.
+    let arguments = [
+        OsString::from("-c"),
+        OsString::from("set -m || exit 6; \"$@\" </dev/tty & child=$!; wait \"$child\""),
+        OsString::from("background-login"),
+        skein_scratch::paths::binary("temper-box").into_os_string(),
+        OsString::from("program-login"),
+    ]
+    .into_iter()
+    .chain(support::configuration::flags(directory))
+    .chain([OsString::from("source")])
+    .collect();
+    let mut binary = Binary::start(
+        Command { program: "/bin/sh".into(), arguments, environment: vec![], directory: directory.into() },
+        Mode::Terminal,
+        8192,
+    )
+    .expect("background login on a pseudo-terminal");
+    let Streams::Terminal { stream } = binary.take_streams().expect("terminal master") else {
+        panic!("pseudo-terminal");
+    };
+    let mut world = real::World::new(LoginJudge { settled: false });
+    world.spawn_with_fds(binary.descriptors(), || Root::Client(Box::new(binary)));
+    // Terminal supplies one empty line; the fake must read it from the foreground.
+    world.spawn_with_fds(vec![stream], || Root::Terminal(Box::new(Terminal::new(stream))));
+    let ended = world.run(&skein_shell::Clock::new(), support::WITHIN);
+    let [Root::Client(binary), Root::Terminal(terminal)] = ended.procs.as_slice() else {
+        panic!("login and terminal settled");
+    };
+    assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "{}", String::from_utf8_lossy(binary.stderr()));
+    assert!(terminal.has(b"login read its terminal"), "{}", String::from_utf8_lossy(&terminal.bytes));
+    assert!(ended.procs.iter().all(Host::is_empty), "login and terminal drained");
+    assert_eq!(binary.tree_status().cleanup(), Cleanup::None, "no stopped login left to clean up");
     scratch.remove();
 }
 

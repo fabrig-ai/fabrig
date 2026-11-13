@@ -17,7 +17,8 @@
   in front, which needs the terminal and prints no link on a stream; the
   redaction across a wrapped link waits with it. Temper/tui owns this
   `tui-box-front` deferral: the journey is recorded once `again` can start
-  the box in the pseudo-terminal.
+  the box in the pseudo-terminal. `box-claude-sign-in` waits with it, for
+  the same reason.
 
 - **Not yet:** 9's `role-talk`: recorded once T3 has landed, its fake model scripting a standing role's replies and its rule question, owned by temper/tui (`../../draft/whole-story.execution.md`, T3).
 

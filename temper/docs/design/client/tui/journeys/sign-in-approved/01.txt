@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:34035                                     │
+│ Sign in this terminal to 127.0.0.1:41907                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ DSMM-NWLR, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:34035/terminal?code=DSMM-NWLR                  │
+│ HMLT-KHXB, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:41907/terminal?code=HMLT-KHXB                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:34035/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:41907/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

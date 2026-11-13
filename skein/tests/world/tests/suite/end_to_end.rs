@@ -1444,3 +1444,45 @@ fn a_group_refuses_beside_a_subreaper() {
 #[cfg(target_os = "linux")]
 #[path = "supervised_referee.rs"]
 mod referee_steps;
+
+#[test]
+fn kept_modes_can_be_set_back_and_raw_again_without_being_given_up() {
+    use skein_shell::Modes;
+    for (option, signals) in [("kept-pass", false), ("kept-signal", true)] {
+        let mut command = terminal_fixture();
+        command.arguments.push(option.into());
+        let outcome = run(
+            command,
+            Mode::Terminal,
+            &[
+                Act::AwaitStderr(b"raw\n"),
+                Act::Modes(0),
+                Act::Write(0, b"a"),
+                Act::AwaitStderr(b"kept\n"),
+                Act::Modes(0),
+                Act::Write(0, b"b\n"),
+                Act::AwaitStderr(b"raw again\n"),
+                Act::Modes(0),
+                Act::Write(0, b"q"),
+                Act::AwaitStderr(b"restored\n"),
+                Act::Modes(0),
+                Act::Write(0, b"z\n"),
+                Act::ReadUntil(0, b"done"),
+                Act::Read(0),
+            ],
+            false,
+        );
+        let (child, person) = observations(&outcome);
+        assert_eq!(child.exit_status(), Some(Exit::Code(0)));
+        assert_eq!(
+            person.modes,
+            [
+                Modes { echo: false, lines: false, signals },
+                Modes { echo: true, lines: true, signals: true },
+                Modes { echo: false, lines: false, signals },
+                Modes { echo: true, lines: true, signals: true },
+            ],
+            "{option}"
+        );
+    }
+}

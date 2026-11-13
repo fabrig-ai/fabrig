@@ -1,5 +1,5 @@
 //! The shipped TUI host on the engine (temper/docs/design/client/testing.md).
-use jig_client::ApprovalCode;
+use jig_client::{ApprovalCode, contract as c};
 use jig_client_kit::harness::{App, ClientId, FrontFault, Settings, World};
 use skein_lib::{Duration, Queue, Secret, Token, Wall};
 use skein_ui_screen_terminal::Key;
@@ -449,6 +449,207 @@ fn a_tuis_fast_completed_chats_keep_the_opening_said_row() {
     assert_said_before_answer(&mut tui, "What is next?", FAST_ANSWER);
     resize_tui(&mut tui, 80, 24);
     assert_said_before_answer(&mut tui, "What is next?", FAST_ANSWER);
+}
+
+// Lending's joint stories (temper/docs/design/client/tui/box.md, Lending's tests).
+fn terminal_login() -> (World<Temper, Joint>, Tui, ClientId) {
+    let mut world = fixtures::tui_lending_world(fixtures::SEED);
+    let browser = world.client(fixtures::PARTY, client::Address::Welcome { step: client::Step::Model { way: None } });
+    let mut tui = Tui::front(&mut world, TUI, None);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(tui.credential().is_some(), "the in-front TUI signed in as the owner");
+    (world, tui, browser)
+}
+
+fn browser_accounts(world: &World<Temper, Joint>, browser: ClientId) -> &c::Accounts {
+    client::pages::accounts::document(world.root(browser).person().client())
+        .unwrap_or_else(|| panic!("the browser's accounts watch: {}", browser_text(world, browser)))
+}
+
+fn browser_text(world: &World<Temper, Joint>, browser: ClientId) -> String {
+    let bytes: Vec<_> = world
+        .tree(browser)
+        .nodes()
+        .iter()
+        .flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied()))
+        .collect();
+    String::from_utf8(bytes).expect("the browser's words")
+}
+
+fn browser_press(world: &mut World<Temper, Joint>, browser: ClientId, role: skein_ui::Role, name: &[u8]) {
+    let id = world
+        .tree(browser)
+        .nodes()
+        .iter()
+        .find(|node| node.role == role && node.name.as_deref() == Some(name))
+        .unwrap_or_else(|| {
+            panic!("browser control {}: {}", String::from_utf8_lossy(name), browser_text(world, browser))
+        })
+        .id;
+    world.act(browser, id, skein_ui::Act::Press);
+}
+
+fn browser_lends(world: &mut World<Temper, Joint>, tui: &mut Tui, browser: ClientId) -> u32 {
+    browser_press(world, browser, skein_ui::Role::Button, b"Sign in to Claude Code");
+    tui.run(world, fixtures::WITHIN);
+    let [lend] = tui.lends.as_slice() else { panic!("one browser press lends the terminal: {:?}", tui.lends) };
+    assert_eq!(lend.name.as_ref(), b"claude-person", "the owner's default NAME reaches the host");
+    let login = browser_accounts(world, browser).lending.as_ref().expect("the engine's login under way");
+    assert_eq!(login.number, lend.number);
+    assert_eq!(login.provider, account_acts::PROVIDER);
+    assert_eq!(login.name, lend.name);
+    assert!(!login.cancelled);
+    assert!(browser_text(world, browser).contains("Claude Code is signing in, in the terminal where temper runs"));
+    assert_eq!(tui.unlends, 0);
+    lend.number
+}
+
+#[test]
+fn a_tui_in_front_offers_its_terminal_to_the_browsers_model_step() {
+    let (world, mut tui, browser) = terminal_login();
+    assert!(browser_accounts(&world, browser).lendable, "the TUI's watch offers its terminal to the owner");
+    let text = browser_text(&world, browser);
+    assert!(text.contains("Claude"), "{text}");
+    assert!(text.contains("Signs in from the terminal where temper runs"), "{text}");
+    assert!(
+        world
+            .tree(browser)
+            .nodes()
+            .iter()
+            .any(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Sign in to Claude Code"))
+    );
+    assert!(tui.text().contains("3 Model"));
+    assert!(tui.lends.is_empty(), "an offer alone lends nothing");
+}
+
+#[test]
+fn the_browsers_claude_sign_in_lends_the_tui_and_declares_a_usable_source() {
+    let (mut world, mut tui, browser) = terminal_login();
+    let number = browser_lends(&mut world, &mut tui, browser);
+    let inventories = world.front().engine.protocol.sources.len();
+    tui.lent(&mut world, number, c::LoginExit::Exited { code: 0 });
+    tui.run(&mut world, fixtures::WITHIN);
+    let doc = browser_accounts(&world, browser);
+    let c::AccountLentEnd { number: ended, end: c::LoginEnd::SignedIn { source } } =
+        doc.lent_end.expect("LoginEnded reached the engine")
+    else {
+        panic!("exit zero declares the source: {:?}", doc.lent_end)
+    };
+    assert_eq!(ended, number);
+    assert!(doc.lendable, "the TUI still offers its terminal");
+    assert!(doc.lending.is_none());
+    let account = doc
+        .accounts
+        .iter()
+        .find(|account| account.sources.iter().any(|login| login.number == source))
+        .expect("the declared source's account");
+    assert_eq!(account.holder, c::AccountHolder::Party(fixtures::PARTY));
+    let login = account.sources.iter().find(|login| login.number == source).expect("the declared source");
+    assert_eq!(login.kind, c::AccountKind::Program);
+    assert_eq!(login.name.as_deref(), Some(b"claude-person".as_slice()));
+    assert!(!login.usable, "exit zero is not the host's observation");
+    assert!(world.front().engine.protocol.sources.len() > inventories, "the host receives the new source inventory");
+    // The world's worker answers the declared source's login check through its real link.
+    let worker = *world.front().engine.protocol.sources.last().expect("the host checking the source");
+    // The welcome's background model trial is not the terminal login; let its scripted worker finish it.
+    world.front().reply_at_once(b"Yes");
+    world.front().engine.send(temper_engine_domain_world::protocol::up(
+        worker,
+        jig_domain_host::LinkUp::Logins {
+            logins: Box::new([jig_domain_link::Login {
+                name: jig_domain_link::SourceName::new(b"claude-person").expect("default NAME"),
+                state: jig_domain_link::LoginState::Usable,
+                email: None,
+            }]),
+        },
+        temper_engine_domain::Parts::none(),
+    ));
+    world.front().engine.settle();
+    tui.run(&mut world, STEP);
+    assert!(
+        browser_accounts(&world, browser)
+            .accounts
+            .iter()
+            .flat_map(|account| account.sources.iter())
+            .any(|login| login.number == source && login.usable)
+    );
+    let text = browser_text(&world, browser);
+    assert!(text.contains("Claude subscription"), "{text}");
+    assert!(text.contains("through Claude Code, signed in"), "{text}");
+    assert!(
+        world
+            .tree(browser)
+            .nodes()
+            .iter()
+            .any(|node| node.role == skein_ui::Role::Link && node.name.as_deref() == Some(b"Continue"))
+    );
+    assert_eq!(
+        world.root(browser).person().pages().address(),
+        &client::Address::Welcome { step: client::Step::Model { way: None } },
+        "the page waits for Continue"
+    );
+    assert!(tui.text().contains("Claude Code signed in"), "{}", tui.text());
+    assert_eq!(tui.lends.len(), 1);
+    assert_eq!(tui.unlends, 0);
+}
+
+#[test]
+fn the_browsers_cancel_unlends_the_tui_and_returns_to_the_model_cards() {
+    let (mut world, mut tui, browser) = terminal_login();
+    let number = browser_lends(&mut world, &mut tui, browser);
+    browser_press(&mut world, browser, skein_ui::Role::Button, b"Cancel");
+    tui.run(&mut world, STEP);
+    assert_eq!(tui.unlends, 1, "the browser's cancel reaches the TUI's host");
+    assert!(browser_accounts(&world, browser).lending.as_ref().expect("cancel waits for the child").cancelled);
+    assert!(browser_accounts(&world, browser).lent_end.is_none());
+    tui.lent(&mut world, number, c::LoginExit::Killed { signal: 15 });
+    tui.run(&mut world, fixtures::WITHIN);
+    let doc = browser_accounts(&world, browser);
+    assert_eq!(doc.lent_end, Some(c::AccountLentEnd { number, end: c::LoginEnd::Cancelled }));
+    assert!(doc.lending.is_none());
+    assert!(doc.accounts.is_empty(), "cancel declares no source");
+    let text = browser_text(&world, browser);
+    assert!(text.contains("temper’s agents run on a plan you sign in to."), "{text}");
+    assert!(
+        world
+            .tree(browser)
+            .nodes()
+            .iter()
+            .any(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Sign in to Claude Code")),
+        "the terminal-backed card stands again: {text}"
+    );
+    assert!(!text.contains("Claude Code’s sign-in didn’t finish."), "cancel puts nothing under the lead");
+    assert!(!text.contains("Claude Code is signing in"));
+    assert!(tui.text().contains("Claude Code's sign-in cancelled"), "{}", tui.text());
+    assert_eq!(tui.unlends, 1);
+    assert_eq!(tui.lends.len(), 1);
+}
+
+#[test]
+fn the_tuis_end_during_claude_sign_in_returns_the_browser_to_its_no_terminal_card() {
+    let (mut world, mut tui, browser) = terminal_login();
+    let number = browser_lends(&mut world, &mut tui, browser);
+    world.front().close_client(TUI);
+    world.run(jig_client_kit::harness::Until::Time(world.now().saturating_add(STEP)));
+    let doc = browser_accounts(&world, browser);
+    assert!(!doc.lendable, "ending the TUI withdraws its terminal");
+    assert!(doc.lending.is_none());
+    assert_eq!(doc.lent_end, Some(c::AccountLentEnd { number, end: c::LoginEnd::NotFinished { exit: None } }));
+    let text = browser_text(&world, browser);
+    let lead = text.find("temper’s agents run on a plan you sign in to.").expect("the Model lead returns");
+    let notice = text.find("Claude Code’s sign-in didn’t finish.").expect("the unfinished sign-in's words");
+    assert!(lead < notice, "the notice stands under the lead: {text}");
+    assert!(text.contains("One command in a terminal, on this machine"), "{text}");
+    assert!(
+        world
+            .tree(browser)
+            .nodes()
+            .iter()
+            .any(|node| node.role == skein_ui::Role::Link
+                && node.name.as_deref() == Some(b"Use your Claude subscription"))
+    );
+    assert!(!world.tree(browser).nodes().iter().any(|node| node.name.as_deref() == Some(b"Sign in to Claude Code")));
+    assert!(!text.contains("Claude Code is signing in"));
 }
 
 fn file_secret_is_in_no_frame(tui: &Tui, link: &[u8]) {

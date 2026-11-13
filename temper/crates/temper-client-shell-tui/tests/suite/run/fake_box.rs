@@ -2,6 +2,51 @@
 use super::*;
 use std::collections::VecDeque;
 
+/// The login's end is the world's, including after a caught termination signal.
+/// Inherit's descriptor copying is skein's rule; this world's terminal is above 2.
+pub(super) struct Login {
+    pid: Pid,
+    signals: Fd,
+    exit: Option<Exit>,
+    complete: Queue<Complete>,
+    pub(super) finished: bool,
+}
+impl Login {
+    pub(super) fn new(sim: &mut Sim, parent: Pid, pidfd: Fd) -> Self {
+        let (pid, pipes) = sim.bind_service(parent, pidfd);
+        assert!(pipes.is_empty(), "this simulated parent's terminal descriptors are above 2");
+        Self {
+            pid,
+            signals: sim.open_signal_source(pid),
+            exit: None,
+            complete: Queue::with_capacity(1),
+            finished: false,
+        }
+    }
+    pub(super) fn finish(&mut self, sim: &mut Sim, exit: Exit) {
+        self.exit = Some(exit);
+        let mut submit = Queue::with_capacity(1);
+        submit.push(Submit { op: Token::new(1), kind: Op::Close { fd: self.signals } });
+        sim.submit(self.pid, &mut submit);
+    }
+    pub(super) fn iterate(&mut self, sim: &mut Sim) {
+        if self.finished {
+            return;
+        }
+        sim.reap(self.pid, &mut self.complete);
+        if let Some(complete) = self.complete.pop() {
+            assert_eq!(complete.result, Ok(io::kernel::Done::Nothing));
+            sim.finish_service(self.pid, self.exit.take().expect("asked end"));
+            sim.assert_no_open_fds(self.pid);
+            sim.assert_quiescent(self.pid);
+            self.finished = true;
+        }
+    }
+    pub(super) fn pending(&self, sim: &Sim) -> bool {
+        !self.finished && (sim.ready(self.pid) > 0 || sim.deferred(self.pid))
+    }
+}
+
 struct Output {
     number: u32,
     token: Token,

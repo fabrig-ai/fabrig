@@ -48,6 +48,7 @@ pub(crate) fn inbox(delivery: &jig_client::contract::Delivery) -> Part<'_> {
         | Delivery::Chips(_)
         | Delivery::Settings(_)
         | Delivery::Deployment(_)
+        | Delivery::Terminal(_)
         | Delivery::Accounts(_) => unreachable!("inbox watch form"),
     }
 }

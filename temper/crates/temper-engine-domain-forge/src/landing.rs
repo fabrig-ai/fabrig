@@ -1657,17 +1657,7 @@ fn upstream_branch(d: &Domain, row: &LandingRow) -> Option<Box<[u8]>> {
 }
 
 fn squash_head(message: &[u8], head: api::Commit) -> bool {
-    let expected = concat(&[b"Temper-Head: ", &commit_hex(head)]);
-    let mut start = 0;
-    for (index, byte) in message.iter().enumerate() {
-        if *byte == b'\n' {
-            if message.get(start..index) == Some(expected.as_ref()) {
-                return true;
-            }
-            start = index.checked_add(1).expect("message bound");
-        }
-    }
-    message.get(start..) == Some(expected.as_ref())
+    crate::member_message::names_head(message, head)
 }
 
 fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {

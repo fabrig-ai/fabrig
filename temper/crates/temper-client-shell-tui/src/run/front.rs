@@ -95,7 +95,7 @@ impl Child {
                     Box::from(b"internal".as_slice()),
                     Box::from(b"fetch-box".as_slice()),
                     Box::from(b"--cache".as_slice()),
-                    self.settings.cache.clone(),
+                    self.settings.directories.cache.clone(),
                 ],
                 vec![
                     Pipe { child: 0, way: Way::Null, parent: None },
@@ -123,6 +123,25 @@ impl Child {
             dir: Box::from(b".".as_slice()),
             pipes: pipes.into(),
         }
+    }
+    pub(super) fn login(&self, name: &[u8]) -> Option<Spawn> {
+        if !(1..=32).contains(&name.len())
+            || !name.iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'-')
+        {
+            return None;
+        }
+        let program = self.found.clone()?;
+        let mut args = vec![Box::from(b"program-login".as_slice())];
+        args.extend(self.settings.directories.flags());
+        args.push(name.into());
+        Some(Spawn {
+            program,
+            args: args.into(),
+            env: self.settings.environment.clone(),
+            root: self.settings.directory,
+            dir: Box::from(b".".as_slice()),
+            pipes: (0..3).map(|child| Pipe { child, way: Way::Inherit, parent: None }).collect(),
+        })
     }
     pub(super) fn progress(&mut self) {
         if let Some(kind) = self.wanted.take() {
