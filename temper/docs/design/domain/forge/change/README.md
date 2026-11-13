@@ -459,8 +459,8 @@ the change reads the head afresh once the slot is freed. Otherwise:
   kept from an earlier read, its CI's, or its pull request's
   (2026-11-13). So the two always differ: a branch found at the head
   the change expects is no drift, whatever its pull request names
-  (2, step 2), and a branch the forge says is missing is deleted
-  (below), never moved. Under its
+  (2, step 2), and a branch its own step reads as missing is deleted
+  (below), not moved. Under its
   project's turn, no prepare writes the change's branch: its landing's
   job pushes to the landing's own (`../../landing.md`, 5.2). A head
   moved while the change is in a landing takes it out of the landing
