@@ -14,3 +14,5 @@
 - **Not yet:** 3.3: no `.cargo/config.toml` sets Cargo's unification, and the features check has no settings finding [in flight: change 2121].
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still gives `temper-engine-domain-forge`'s exception as lasting until G5 [in flight: change 2193]
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `temper-engine-service` until G4 [in flight: change 2280].
+- **Not yet:** 3.2: no `jig-test-store-codec`: `jig-test-store` holds its generated record code and is the codec check's exception [in flight: change 2376].
+- **Not yet:** 3.2: no `jig-protocol-engine-clients-codec`: `jig-protocol-engine-clients` holds its generated record code and is the codec check's exception [in flight: change 2377].
