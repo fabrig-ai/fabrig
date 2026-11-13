@@ -130,7 +130,8 @@ impl Operation {
             Command::SnapshotFetch { .. } => Some(git::Kind::Fetch),
             Command::Clean => None,
             Command::Unmerged if kind == Some(git::Kind::Merge) => None,
-            Command::SnapshotHead
+            Command::Reds(_)
+            | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotReachable { .. }
             | Command::SnapshotReset { .. }
@@ -160,7 +161,8 @@ impl Operation {
     fn is_commit_tree(&self) -> bool {
         match self.command {
             Command::CommitTree { .. } => true,
-            Command::SnapshotHead
+            Command::Reds(_)
+            | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotFetch { .. }
             | Command::SnapshotReachable { .. }
@@ -208,7 +210,8 @@ impl Operation {
         {
             match next {
                 Next::End(_) => return,
-                Next::Run(_)
+                Next::Reds { .. }
+                | Next::Run(_)
                 | Next::Snapshot { .. }
                 | Next::Make
                 | Next::Store
@@ -255,6 +258,7 @@ impl Operation {
                     | git::Op::Make { .. }
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }
+                    | git::Op::Reds { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
@@ -269,7 +273,8 @@ impl Operation {
             };
         let progress = match self.command {
             Command::Merge { .. } => true,
-            Command::SnapshotHead
+            Command::Reds(_)
+            | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotFetch { .. }
             | Command::SnapshotReachable { .. }
@@ -324,7 +329,8 @@ impl Operation {
     fn delimiter(&self) -> u8 {
         match self.command {
             Command::Unmerged | Command::DiffPaths { .. } => 0,
-            Command::SnapshotHead
+            Command::Reds(_)
+            | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotFetch { .. }
             | Command::SnapshotReachable { .. }
@@ -384,6 +390,7 @@ impl Operation {
                         git::Op::Store { .. }
                         | git::Op::Make { .. }
                         | git::Op::Clone { .. }
+                        | git::Op::Reds { .. }
                         | git::Op::Point { .. }
                         | git::Op::Fetch { .. }
                         | git::Op::Create { .. }
@@ -653,7 +660,8 @@ fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
             }
         }
         git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => Box::new([]),
-        git::Op::Point { at, .. }
+        git::Op::Reds { at, .. }
+        | git::Op::Point { at, .. }
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::DiffPaths { at, .. }

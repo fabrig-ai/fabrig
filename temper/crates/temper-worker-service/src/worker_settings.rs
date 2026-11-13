@@ -229,6 +229,7 @@ pub fn checkout(limits: limits::Checkout) -> temper_worker_domain_checkout::Limi
         conflicts: limits.conflicts,
         path_bytes: limits.path_bytes,
         remote_timeout: limits.remote_timeout,
+        reds_read_ms: limits.reds_read_ms,
         local_timeout: limits.local_timeout,
         facts: limits.facts,
     }

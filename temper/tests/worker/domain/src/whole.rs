@@ -173,7 +173,12 @@ impl World {
 
     fn take(&mut self, request: Request) {
         match request {
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::RedsAsk { .. }
+            | Request::RedsAnswer { .. }
+            | Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
             Request::Hello(hello) => {

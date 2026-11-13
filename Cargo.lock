@@ -7466,6 +7466,7 @@ dependencies = [
  "temper-engine-domain-forge-vocabulary",
  "temper-worker-domain-checkout",
  "temper-worker-domain-tooling",
+ "temper-worker-protocol-git",
 ]
 
 [[package]]
@@ -7507,6 +7508,7 @@ version = "0.0.0"
 dependencies = [
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "temper-worker-domain-checkout",
 ]
 

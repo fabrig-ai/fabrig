@@ -137,6 +137,7 @@ fn mutated_outputs_parse_to_none_never_to_another_value() {
             conflicts: 2,
             path_bytes: 64,
             remote_timeout: skein_lib::Duration::from_secs(30),
+            reds_read_ms: 5_000,
             local_timeout: skein_lib::Duration::from_secs(5),
             facts: 2,
         };

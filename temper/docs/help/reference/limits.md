@@ -156,6 +156,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `checkout.path_bytes`: bytes, 255. Bounds one full relative conflicted path.
 - `checkout.remote_timeout_ms`: milliseconds, 60,000. Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing.
 - `checkout.local_timeout_ms`: milliseconds, 10,000. Bounds an operation on the worker's disk, including checking out, merging and committing.
+- `checkout.reds_read_ms`: milliseconds, 5,000. Waits for the goal’s reds at each check; 100 to 60,000 milliseconds.
 - `checkout.facts`: count, 256. Bounds facts kept until the parent drains them; later facts are dropped and counted.
 
 ## git_component

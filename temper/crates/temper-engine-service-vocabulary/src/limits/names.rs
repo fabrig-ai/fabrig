@@ -349,7 +349,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 187] = [
+pub static NAMES: [Name; 188] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -1159,6 +1159,12 @@ pub static NAMES: [Name; 187] = [
         unit: Unit::Milliseconds,
         line: "Bounds an operation on the worker's disk, including checking out, merging and committing.",
         value: |limits| limits.checkout.local_timeout.as_millis(),
+    },
+    Name {
+        name: "checkout.reds_read_ms",
+        unit: Unit::Milliseconds,
+        line: "Waits for the goal’s reds at each check; 100 to 60,000 milliseconds.",
+        value: |limits| u64::from(limits.checkout.reds_read_ms),
     },
     Name {
         name: "checkout.facts",

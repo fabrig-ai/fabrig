@@ -43,6 +43,8 @@ pub fn is_new_work(event: &Event) -> bool {
         | Event::Encoded { .. }
         | Event::Activity { .. }
         | Event::Done { .. }
+        | Event::RedsAsk { .. }
+        | Event::RedsAnswer { .. }
         | Event::Shutdown { .. } => false,
     }
 }
@@ -87,6 +89,8 @@ pub fn passes(event: &Event) -> bool {
         | Event::Encoded { .. }
         | Event::Activity { .. }
         | Event::Done { .. }
+        | Event::RedsAsk { .. }
+        | Event::RedsAnswer { .. }
         | Event::Shutdown { .. } => false,
     }
 }
