@@ -574,7 +574,7 @@ fn project_spend_answer_bytes_match_the_current_schema() {
     // PolicyChanged and its project, then the answer's wall time.
     let mut before = skein_lib::Writer::new(58);
     for field in [
-        [0, 16, 6].as_slice(),
+        [0, 17, 6].as_slice(),
         &2_u64.to_be_bytes(),
         &[7; 16],
         &[21, 0, 0, 0, 1, 0],
