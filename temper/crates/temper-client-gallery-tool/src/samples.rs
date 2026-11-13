@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 438;
+pub const N: usize = 439;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -814,6 +814,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "ask-chat-withdrawn", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "ask-chats-tag", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-draft-empty", world: Solo, address: Address::Chat { task: 1 }, then: Then::DraftEmpty },
+        Sample {
+            name: "ask-chat-draft-empty",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Then::DraftEmpty,
+        },
         Sample { name: "chat-start-goal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-goal-linked", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -2134,7 +2140,13 @@ pub fn domain(sample: &Sample) -> Domain {
         return root;
     }
     if sample.name == "chat-draft-empty" {
-        step(&mut root, Event::Act { action: Action::Pages(Act::AddDraft) }, &mut out);
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Pages(Act::Mode { mode: temper_client_domain::pages::chat::document::Mode::Split }),
+            },
+            &mut out,
+        );
     }
     if sample.name == "models-add" {
         step(
@@ -2513,9 +2525,19 @@ fn ask_domain(sample: &Sample) -> Domain {
     ) {
         return crate::worlds::settings_chat_world(sample.name);
     }
-    if matches!(sample.name, "ask-chat" | "ask-chats-tag" | "ask-chat-document" | "ask-chat-document-split") {
+    if matches!(
+        sample.name,
+        "ask-chat" | "ask-chats-tag" | "ask-chat-document" | "ask-chat-document-split" | "ask-chat-draft-empty"
+    ) {
         let mut root = crate::worlds::asking_world(sample.world, sample.address.clone(), sample.then).0;
-        if let Then::Mode(mode) = sample.then {
+        let mode = if sample.then == Then::DraftEmpty {
+            Some(temper_client_domain::pages::chat::document::Mode::Split)
+        } else if let Then::Mode(mode) = sample.then {
+            Some(mode)
+        } else {
+            None
+        };
+        if let Some(mode) = mode {
             step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut Queue::uncapped());
         }
         return root;

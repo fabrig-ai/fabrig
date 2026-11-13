@@ -780,6 +780,20 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
     assert_eq!(nodes[at].name.as_deref(), Some(b"Deployment".as_slice()));
     at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
     assert_eq!(at, end, "the disclosure ends with its acts");
+    for node in &nodes[index..end] {
+        let phone = node.role == Role::Link
+            && match node.name.as_deref() {
+                Some(name) => {
+                    name.starts_with(b"Team for ") || name.starts_with(b"How work runs for ") || name == b"Deployment"
+                }
+                None => false,
+            };
+        if phone {
+            assert_eq!(node.styles.as_slice(), [crate::look::PROJECTS_PHONE]);
+        } else {
+            assert!(!node.styles.as_slice().contains(&crate::look::PROJECTS_PHONE));
+        }
+    }
 }
 
 #[test]
@@ -2082,6 +2096,7 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
                 task,
                 &words,
                 &mut crate::words::Times::new(fixtures::NOW),
+                &mut bindings,
             );
             builder.close();
             let tree = builder.finish();

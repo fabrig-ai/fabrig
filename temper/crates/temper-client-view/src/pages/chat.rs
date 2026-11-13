@@ -109,26 +109,19 @@ pub(crate) fn main(
                 words.text(b, Word::Asking, &[]);
                 b.close();
             }
-            super::document::seg(b, chat, words, bindings);
-            if chat.draft.is_none()
-                && !chat.writing
-                && task.result.is_none()
-                && !super::chats::ended(&task.chip)
-                && temper_client_domain::pages::chat_offers_draft(root, task)
-            {
-                super::document::add(b, words, bindings, Act::AddDraft);
-            }
-            super::session::to_terminal(b, words, bindings);
             super::chat_sheet::bar(b, root, words, bindings);
-            if asking && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
+            if asking && task.result.is_none() && !super::chats::ended(&task.chip) {
                 b.open(Role::Button);
                 b.name(&words.say(Word::StartOver, &[]));
                 b.style(look::START_OVER);
                 b.bind(bindings.insert(Act::StartOver));
                 b.close();
             }
-            bar_status(b, root, task, words, times);
             bar_actions(b, root, task, words, bindings);
+            if super::document::offers_group(root, chat, task) {
+                super::document::seg(b, chat, words, bindings);
+            }
+            spend(b, task, words);
             b.close();
             b.close();
         }
@@ -172,7 +165,7 @@ pub(crate) fn main(
         }
         session_composer(b, root, chat, task, words, bindings);
         b.close();
-        super::document::pane(b, root, chat, task, words, times);
+        super::document::pane(b, root, chat, task, words, times, bindings);
     }
     if !terminal || !super::terminal::confirms(root) {
         crate::confirm::main(b, root, words, bindings, rows);
@@ -372,31 +365,38 @@ pub(crate) fn asking(root: &Domain) -> bool {
     let Some(me) = root.pages().me(root.client()) else { return false };
     temper_client_domain::pages::chats::asking(me, task.project, &task.chip.executor)
 }
-fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, _times: &mut Times) {
-    if task.result.is_some() || super::chats::ended(&task.chip) {
-        closed_status(b, words);
-    } else if let Some(me) = root.pages().me(root.client()) {
-        let (token, name) = super::chats::status_words(
-            &task.chip,
-            (
-                &task.waits_on,
-                Some(root.pages().chat().expect("chat page").waiting_delegates(root.client())),
-                task.run_wait.as_ref(),
-            ),
-            (task.project, task.requester),
-            Some(&task.wake),
-            me,
-            words,
-        );
-        b.open(Role::Status);
-        b.style(token);
-        if token == look::STATUS_YOURS || token == look::STATUS_WAITING {
-            b.style(look::STATE_NEEDS);
-        }
-        b.name(&name);
-        b.text(Run::Plain, &name);
-        b.close();
+fn status_line(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words) {
+    let Some(me) = root.pages().me(root.client()) else { return };
+    let (token, name) = super::chats::status_words(
+        &task.chip,
+        (
+            &task.waits_on,
+            Some(root.pages().chat().expect("chat page").waiting_delegates(root.client())),
+            task.run_wait.as_ref(),
+        ),
+        (task.project, task.requester),
+        Some(&task.wake),
+        me,
+        words,
+    );
+    let writing = jig_client::facts::chat_status(&task.chip, &task.waits_on, task.run_wait.as_ref(), task.project, me)
+        == jig_client::facts::ChatStatus::Writing;
+    let name = if token == look::STATUS_ACTIVE && writing { words.say(Word::RunningWork, &[]) } else { name };
+    b.open(Role::Status);
+    b.style(look::STATUS_LINE);
+    if super::chats::active(root, words) {
+        b.style(look::STATUS_WORKING);
     }
+    b.name(&name);
+    b.open(Role::Slot);
+    b.style(look::STATUS_STAR);
+    b.text(Run::Plain, &crate::shared::say(words, crate::shared::TerminalWord::Star));
+    b.close();
+    if words.shell == Shell::Terminal {
+        b.text(Run::Plain, b" ");
+    }
+    b.text(Run::Plain, &name);
+    b.close();
 }
 fn bar_actions(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, bindings: &mut Bindings) {
     if let Some(chat) = root.pages().chat()
@@ -415,7 +415,6 @@ fn bar_actions(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, bi
     if temper_client_domain::pages::chat::allowed(task, c::ActKind::Cancel) {
         control(b, bindings, Role::Button, &words.say(Word::Close, &[]), Act::Close);
     }
-    spend(b, task, words);
 }
 fn session_composer(
     b: &mut Builder,
@@ -448,7 +447,9 @@ fn session_composer(
         super::session::composer(b);
         super::terminal::prompt(b, words);
     } else {
-        super::session::foot(b, &words.say(Word::Message, &[]));
+        super::session::form(b, &words.say(Word::Message, &[]));
+        status_line(b, root, task, words);
+        super::session::composer(b);
     }
     b.open(Role::TextArea);
     b.name(&words.say(Word::Message, &[]));
@@ -487,8 +488,8 @@ fn session_composer(
         && is_paused(root, task)
         && temper_client_domain::pages::chat::allowed(task, c::ActKind::Release)
     {
-        Word::ChatSendResumes
-    } else if chat.draft.is_some() || chat.writing {
+        if super::document::offers_group(root, chat, task) { Word::DraftSendResumes } else { Word::ChatSendResumes }
+    } else if super::document::offers_group(root, chat, task) {
         Word::DraftSendHint
     } else {
         Word::ChatSendHint
@@ -508,14 +509,6 @@ fn session_composer(
     }
     super::session::over(b, words, over);
     super::session::refusals(b, root, words);
-    b.close();
-}
-fn closed_status(b: &mut Builder, words: &Words) {
-    let name = words.say(Word::ChatClosed, &[]);
-    b.open(Role::Status);
-    b.style(look::STATUS_QUIET);
-    b.name(&name);
-    b.text(Run::Plain, &name);
     b.close();
 }
 fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {

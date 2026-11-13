@@ -130,7 +130,16 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
                 &view.forge_sign_in,
             );
         } else {
-            crate::outside::top(&mut builder, root, &view.forge_words, &mut view.pages);
+            let welcome = if let temper_client_domain::Address::Welcome { .. } = root.pages().address() {
+                root.authorization().is_none()
+                    && root.approval().is_none()
+                    && !(crate::sign_in::offered(root, &view.forge_words, &view.sign_in)
+                        && view.sign_in.origin.is_some())
+                    && crate::frame::unavailable(root).is_none()
+            } else {
+                false
+            };
+            crate::outside::top(&mut builder, root, &view.forge_words, &mut view.pages, welcome);
         }
         match root.pages().address() {
             temper_client_domain::Address::Welcome { .. } => {}

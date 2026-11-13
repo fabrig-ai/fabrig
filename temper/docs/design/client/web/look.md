@@ -132,20 +132,22 @@
   Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
   1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
   name in the signal colour (#c2410c). Its frame is the top bar
-  (*Outside a project*, below), 22 px by 32 px, the brand, temper box's line in 14 px muted words, its
-  "temper box" ink and bold, and the steps at its right in 14.5 px
+  (*Outside a project*, below), 22 px by 32 px, the brand and the steps at its right in 14.5 px
   words, each a link holding a numbered 24 px circle and its label, the
   current one filled ink, a done one ticked green, joined by short
-  hairlines, hovered ink; below 760 px only the current label shows; at 1100 px and
-  under, temper box's line takes its own row under them. After the
-  steps, the top bar's end as on every page outside a project, signed
-  in the person's name and "Sign out". The bar packs its rows to their
+  hairlines, hovered ink; below 760 px only the current label shows. After the
+  steps, the top bar's end, the link region alone, which takes no room
+  but while it says "Offline" (the look request `welcome-top`). The bar packs its rows to their
   end (`justify-content: flex-end`) and the steps take the free space at
-  their left (`margin-left: auto`, where temper box's line took it at its
-  right), so that the steps and the end keep to the right, temper box's
-  line beside the brand, and an end the row cannot hold wraps to the
+  their left (`margin-left: auto`), so that the steps and the end keep
+  to the right, and an end the row cannot hold wraps to the
   right of the next; an end straight after the brand, before the
-  deployment's read answers, takes the free space at its own left. The main is
+  deployment's read answers, takes the free space at its own left.
+  temper box's line, on the Welcome step alone, is a paragraph 28 px
+  under the cards' note, in the note's size and muted colour, wrapping
+  as the note does, "temper box" in ink at 600, its link underlined in
+  the line's colour (`--gf-line-2`, 3 px under), in the line's own size
+  and colour (`welcome-top`). The main is
   one 680 px column: the tagline (14 px) above the level-1 heading
   (32 px, 500),
   the lead (17 px), then the choices as cards side by side, white on
@@ -180,7 +182,10 @@
   2026-11-04). Ready's pane is Model's, its lines 18 px apart:
   each stacks its mark, a quiet ring, a green tick or the signal's "✕", its
   name in ink at 500 and what it says muted, "Open Forgejo ↗" under the
-  forge line's words; a stopped line's "WHO didn’t answer" is in the signal's
+  forge line's words, on Model's pane and Ready's alike: at the line's
+  text indent (24 px), 2 px under its words, muted, 13.5 px, underlined in
+  the line's colour (`--gf-line-2`, 3 px under), a quiet link under its
+  forge's words (the look request `forgejo-link`); a stopped line's "WHO didn’t answer" is in the signal's
   colour, its why 13.5 px under it, its "Try again" and quiet act a row under
   that (the request `model-check-pane`). After the lead,
   the first project's form, its
@@ -251,7 +256,13 @@
   "+ New change", the dashed box `div.temper-rail-new` keeps, one button or
   one link filling it, its menu the panel the box opened before; "Deployment"
   at the foot, a row as the link's state's, above the person's row, its
-  dots after its word. The rules go under `temper.css`'s marker `/* ==== ui:
+  dots after its word. The switcher's menu ends at "Rename PROJECT" where
+  offered and "New project" on a wide page; at 760 px and under it adds
+  "Team for PROJECT" where Team shows, "How work runs for PROJECT" and
+  "Deployment", in that order. Each of those three links carries
+  `temper-projects-phone`, hidden from 761 px under the switcher's acts;
+  the terminal still prints them (`../view.md`, 3; the look request
+  `switcher-links`). The rules go under `temper.css`'s marker `/* ==== ui:
   rail ==== */`, before the switcher's; the rules they replace go where they
   stand.
 - **Work's look** (`../pages/README.md`, *Work*; the mockup's `work.html` and
@@ -324,9 +335,26 @@
   the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
   `.temper-doc-sec`, `.temper-doc-changed`, `.temper-doc-note`, `.temper-seg`, and
   the rail's strip with `.temper-rail-unfold` and `files/menu.svg`. What those
-  name is drawn; a flow takes the tokens' look below. The sheet to start a goal
+  name is drawn; a flow takes the tokens' look below. The view group stands after
+  the document's act, Pause or Resume, and Close, before the hidden spend, on a
+  chat with a document or a live offer and on `NewChat` while drafts are offered.
+  Choosing Split or Draft without a document opens the empty pane, sending
+  nothing; its button alone asks the write-up. The sheet to start a goal
   is the mock's `dialog.sheet`, `.option`, `.field` and `.text`, and `Ctrl+\` steps
-  through the modes.
+  through the modes. The empty pane's acts, `.temper-doc-acts`, stand 16 px under
+  its words, and "Write it up from this chat", `.temper-doc-write-up`, has the
+  bar's quiet bordered look: an inline flex button at least 34 px high, 5 px by
+  12 px, a 1 px `--gf-line-2` border with 8 px corners on `--gf-surface`, ink,
+  13.5/1.6 in the sans, its border `--gf-control-hover-line` hovered (the look
+  request `chat-bar`).
+- **A chat's status line** (`../pages/chat/README.md`, 1, *Its status line*), the
+  look request `chat-bar`'s rules: `.temper-status-line`, the form's first row, a
+  baseline flex row with an 8 px gap, the full width up to 720 px and centred, as
+  the composer is, 8 px above it and 6 px in from its left, 13/1.5 and muted;
+  its star, `.temper-status-star`, faint; with `.temper-status-working`, the
+  star ink-2 and pulsing with the conversation's dots' animation
+  (`chat-typing`, 1.4 s, ease-in-out, repeated). Reduced motion stills it, as
+  it stills the terminal look's running star. The bar keeps no status of its own.
 - **A chat's terminal** (`../pages/README.md`) is the requests `chat-terminal`,
   `chat-terminal-font` and `chat-terminal-draft`'s `terminal.css`, in `temper.css`
   under `/* ==== ui: chats ==== */`, its selectors on temper's tokens:
@@ -338,7 +366,9 @@
     `-hint` for the quiet line, whose model button takes no token, as the
     request's `.tt-model`, and so none of `-btn`'s padding or ground;
     `temper-terminal-head` for a list's head;
-    `temper-terminal-note` for a note; `temper-to-terminal` for `>_` in the bar.
+    `temper-terminal-note` for a note. No bar draws the terminal entrance
+    (`../pages/chat/terminal.md`, 1, *Entered*); the terminal look's tokens and
+    rules stay for a browser whose kept look selects it.
     The conversation, the box, the list and the pane keep the page's own tokens
     (`SESSION_COMPOSER`, `TURN_TOOL`, `DOC` and the rest), which the terminal's
     rules reach under `.temper-terminal`; the list is skein's options menu, whose
@@ -389,6 +419,13 @@
   "Yours", at 760 px and under the tabs stand two by two, as the whole
   story's `whole-story.css` has them, so that "Agents review" keeps its
   words whole on a phone.
+  Ask temper's lede reads "Choose how work runs, or describe how you work
+  below.", naming no project. Its acts row holds "How does temper work?"
+  before the way's act, alone where the way has none; the button has no
+  style token of its own, taking `.temper-ways-acts > button`'s outlined
+  look. Its hint names the fixed message it sends (`../pages/ask-temper.md`, 1).
+  The row's buttons wrap on a phone. This button is Ask's opening's alone,
+  never How work runs' (`ask-opening`, 2026-11-12).
   A path's marks take no stroke but their own rules', as the request's
   page has none: skein's default stroke for a scene's marks (skein's
   `ui/web/README.md`, 10) gives way under `.temper-ways-path` by one rule of the

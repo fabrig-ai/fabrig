@@ -18,7 +18,7 @@
   - *After a send,* by Enter or by "Send", whether or not it went out, the focus
     is in the composer, on a chat's, a goal's and an agent's task's (`../task.md`, 4) alike:
     "Send" disables as the words clear, and a disabled button holds no focus.
-    "Pause", "Resume" and "+ Draft" send too, and ask for nothing.
+    "Pause", "Resume" and "Write it up from this chat" send too, and ask for nothing.
   - *While the rename's form is open* it keeps the focus (`../../view.md`, 3), and a composer
     that has asked for it takes it back as the form closes.
   - *On a phone* the same acts ask the same, as a phone's messaging app does:

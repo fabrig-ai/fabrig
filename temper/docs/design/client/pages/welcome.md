@@ -19,20 +19,24 @@
     alike, moves on to the inbox, its address replacing the welcome's,
     and the store's state is not judged: the rest of this entry holds
     where the document shows it.
-  - *Its frame* is the top bar (`../view.md`, 1; the look request `outside-pages`):
-    temper's mark, a link to `/` (named "temper"), temper box's line and
-    the steps, then the top bar's right as on any other page outside a
-    project: the link region, and, signed in, the person's name and "Sign
-    out" (`../view.md`, 1). No project, navigation or switcher, and no accounts' banner
+  - *Its frame* is the top bar (`../view.md`, 1; the look requests `outside-pages`
+    and `welcome-top`): temper's mark, a link to `/` (named "temper"), and
+    the steps, then the top bar's right: the link region alone, which the
+    browser draws only while it says "Offline". No person's name and no
+    "Sign out", at every step: where a person signs out during the welcome
+    is not decided (`welcome-top`, 2026-11-12). No project, navigation or switcher, and no accounts' banner
     (`../view.md`, 1); the playground's line while the playground is leaving, as on
-    every page but `Chats` and `NewChat` (`../forge/family.md`, 7, `../view.md`, 1, `welcome.md`, 2). temper box's line says what this
+    every page but `Chats` and `NewChat` (`../forge/family.md`, 7, `../view.md`, 1, `welcome.md`, 2). Each
+    step's heading is the page's level-1 heading.
+  - *temper box's line* is the Welcome step's alone, in its main under the
+    cards' note (*The Welcome step*, below), not in the bar; Forge, Model and
+    Ready draw none. It says what this
     temper is for, in fixed words: "**temper box** · on this machine,
     to try it · more later, from Settings · Run temper on a server ↗",
     the last an external link to temper's help on running a server
     (`temper/docs/help/server.md`), the welcome being a quick way to
-    try temper, not a deployment's wizard (the user, 2026-11-04). Each
-    step's heading is the page's level-1 heading.
-  - *Its steps,* after temper box's line, before the top bar's right, are
+    try temper, not a deployment's wizard (the user, 2026-11-04).
+  - *Its steps,* after the mark, before the top bar's right, are
     a list named Steps of four links,
     each to its own step in every state: Welcome to `/welcome?at=welcome`,
     Forge, Model and Ready to their `?at=`, with no choice or way. They
@@ -102,7 +106,10 @@
     end it (`../forge/family.md`, 7).
   - *The Welcome step* draws "Set up temper"'s card, then, while the
     playground is offered, "Try the playground"'s and the note under them;
-    not offered, both are left out. With a real forge kept, the card's
+    not offered, both are left out. Then temper box's line (*temper box's
+    line*, above), a paragraph of its own under the note, or under the
+    cards where there is no note, in the welcome's look
+    (`../web/look.md`, *The welcome's look*). With a real forge kept, the card's
     button reads "Go on setting up" and goes to Ready when a model is
     usable, else to Model; with none, it reads "Set up temper" and goes to
     Forge.
@@ -700,10 +707,10 @@ repository, and the cues the playground's, copied in from its read:
   project with no repository says "No repository yet", with "Adopt a
   repository" (`README.md`).
   *Where it departs from its mockup, since 2026-11-04* (the user's
-  greenfield pass; the mockup is not edited): the frame holds temper
-  box's line and the steps, then the top bar's right as on every page
-  outside a project, signed in the person's name and "Sign out" (1, *Its
-  frame*; the look request `outside-pages`); the
+  greenfield pass; the mockup is not edited): the frame holds the
+  steps, then the link region alone, no person and no "Sign out", and
+  temper box's line stands under the Welcome step's cards (1, *Its
+  frame*; the look requests `outside-pages` and `welcome-top`); the
   Welcome step's "Set up temper" card comes first and is the default,
   its words "Your forge: a Forgejo temper runs for you, or GitHub. Your
   model: ChatGPT or Claude.", the playground's card after it, "A
