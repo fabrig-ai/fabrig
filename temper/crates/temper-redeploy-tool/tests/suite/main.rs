@@ -5,6 +5,7 @@ mod fake;
 mod fuzzy;
 mod hosts;
 mod record;
+mod referee;
 mod reference;
 mod stage;
 
