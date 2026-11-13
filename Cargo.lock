@@ -4007,7 +4007,16 @@ dependencies = [
  "skein-http",
  "skein-lib",
  "skein-ui",
+ "skein-ui-example-view-codec",
  "skein-ui-text",
+]
+
+[[package]]
+name = "skein-ui-example-view-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-lib",
 ]
 
 [[package]]
