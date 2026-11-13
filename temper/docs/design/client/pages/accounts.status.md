@@ -2,9 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [accounts.md](accounts.md).
 
-- **Not yet:** 1: `ConnectModel`'s *Claude Code's sign-in*, the
-  welcome's card, note, Cancel and endings through the TUI in front,
-  landing on `Accounts` signed in [in flight: change 1945].
 
 - **Not yet:** 2: an Anthropic key's details read "From Anthropic’s platform" rather than the Claude Console, and the welcome's key panel words OpenAI's key alone [in flight: change 915].
 

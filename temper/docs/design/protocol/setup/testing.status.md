@@ -2,9 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 1: *Claude Code's offer and launcher*, the build reached
-  with `DISABLE_UPDATES=1` in its environment beside
-  `DISABLE_AUTOUPDATER=1` [in flight: change 1934].
 
 - **Not yet:** 4: the file's secret on no log: the fresh box's story
   reads stdout, stderr and `box.log` for it, not `serve.log`, which

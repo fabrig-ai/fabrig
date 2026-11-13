@@ -4,10 +4,6 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
-- **Not yet:** 2: the Model step's Claude Code states,
-  `welcome-model-claude-terminal`, `-signing-in`, `-signed-in`,
-  `-no-terminal` and `-not-finished`, and `welcome-model-choose` with no
-  terminal to lend [in flight: change 1946].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:

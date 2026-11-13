@@ -19,4 +19,3 @@ consumed. Section 9's renderer, key and simulated-terminal rows cover
 these paths. Section 10 keeps log-edge reporting and the other deferred
 rendering and input extensions.
 
-- **Not yet:** 8: *Lent to a child*, `Terminal::lend`, `lent` and `resume` [in flight: change 1927].
