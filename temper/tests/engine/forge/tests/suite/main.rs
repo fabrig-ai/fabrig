@@ -17,6 +17,7 @@ mod member_message;
 mod memory;
 mod protection;
 mod public;
+mod readiness;
 mod replay;
 mod rules_by_path;
 mod settle;
