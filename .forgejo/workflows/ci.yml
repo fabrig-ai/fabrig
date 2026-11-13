@@ -6,6 +6,22 @@ jobs:
   check:
     runs-on: dogfood
     steps:
+      # A coding agent's save before a question pushes a half-finished tree under this exact subject
+      # (temper/docs/design/domain/agent/README.md, 5). Never gate it, and never pass it: end red at once.
+      # A read that fails gates the head as any other.
+      - run: |
+          set -u
+          d=$(mktemp -d)
+          export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: token ${CI_GATE_TOKEN:-}"
+          subject=$(git -C "$d" init -q && git -C "$d" fetch -q --depth=1 --filter=blob:none "${CI_GATE_REMOTE:-http://127.0.0.1:3000/$GITHUB_REPOSITORY.git}" "$HEAD" && git -C "$d" log -1 --format=%s FETCH_HEAD) || subject=
+          rm -rf "$d"
+          if [ "$subject" = "Unchecked: work in progress, saved before a question" ]; then
+            echo "unchecked save, not gated"
+            exit 1
+          fi
+        env:
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: '"$CI_GATE" "${{ github.event.pull_request.head.sha }}" "${{ github.event.pull_request.base.sha }}"'
         env:
           CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
