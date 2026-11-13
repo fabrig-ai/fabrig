@@ -24,7 +24,7 @@ pub fn encode_start(
     window: channel::Window,
     values: Values,
     limits: &wire::Limits,
-    charter_limits: &smith_charter::v4::Limits,
+    charter_limits: &smith_charter::v5::Limits,
     transcript_limits: &smith_transcript::v7::Limits,
     endpoints: &smith_protocol_translate::Endpoints,
 ) -> Result<Frame, Error> {

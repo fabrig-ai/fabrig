@@ -6,6 +6,32 @@ use jig_domain_core as core;
 use jig_domain_host as host;
 use skein_lib::{Duration, Env, Queue, Token, Wall};
 
+#[test]
+fn the_engine_hubs_call_carries_its_charters_contract_to_decode() {
+    let (mut domain, env, owner) = super::started_chat_with_contract(3);
+    step(
+        &mut domain,
+        &env,
+        Event::Agent(host::FromAgent::Called {
+            owner,
+            call: call_name(1, 1, 0),
+            ask: host::Ask::Relay {
+                tool: b"read".as_slice().into(),
+                writes: false,
+                input: b"{}".as_slice().into(),
+                deadline: Duration::from_secs(1),
+            },
+        }),
+    );
+    let mut contract = None;
+    for output in take(&mut domain, &env) {
+        if let Output::Now(core::Now::Call { call, .. }) = output {
+            assert!(contract.replace(call.contract).is_none(), "one call handed out");
+        }
+    }
+    assert_eq!(contract, Some(3));
+}
+
 fn subscription_call(domain: &mut Domain, env: &Env<Limits>, owner: Token) -> (skein_lib::ReplyTo, core::CallKey) {
     step(
         domain,

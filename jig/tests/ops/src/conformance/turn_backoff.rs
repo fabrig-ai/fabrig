@@ -86,6 +86,7 @@ impl World {
                 if let root::Output::Agent(host::ToAgent::Start { owner, .. }) = output { Some(owner) } else { None }
             })
             .expect("started chat");
+        world.send(root::Event::Agent(host::FromAgent::Decoded { owner: world.owner, contract: 1 }));
         world.send(root::Event::Agent(host::FromAgent::Started { owner: world.owner, agent: world.owner }));
         world.settle();
         world

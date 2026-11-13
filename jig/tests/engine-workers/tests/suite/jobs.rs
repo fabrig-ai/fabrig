@@ -5,7 +5,7 @@ use jig_protocol_engine_workers::{Event, GrantValue, Request};
 use jig_protocol_worker_wire as wire;
 use skein_lib::{Duration, List, Reader, Secret, Token, Writer};
 
-fn codec() -> wire::v12::Limits {
+fn codec() -> wire::v13::Limits {
     wire::sizes::limits(&fixtures::SIZES).expect("codec")
 }
 pub(super) fn assignment(channel: Token) -> Event {
@@ -52,9 +52,9 @@ fn a_job_is_encoded_with_its_workspace_and_grants() {
     world.down(assignment(channel));
     world.run();
     let records = world.observed(connection);
-    assert_eq!(records.len(), 1);
-    assert_eq!(records[0].kind, wire::Kind::Job.number());
-    let job = wire::Job::decode(&codec(), &mut Reader::new(&records[0].body)).expect("job");
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[1].kind, wire::Kind::Job.number());
+    let job = wire::Job::decode(&codec(), &mut Reader::new(&records[1].body)).expect("job");
     assert_eq!((job.task(), job.attempt(), job.kind(), job.deadline()), (8, 3, 42, Duration::from_secs(4)));
     assert_eq!(job.spec(), [0, 255, 127]);
     let workspace = job.workspace().as_ref().expect("workspace");
@@ -177,7 +177,7 @@ fn a_job_past_its_bounds_or_missing_its_parts_is_dropped() {
         world.run();
     }
     assert_eq!(world.dropped_down(), 2);
-    assert_eq!((world.observed(connection)).len(), 0);
+    assert_eq!((world.observed(connection)).len(), 1);
 }
 
 /// An oversized answer never reaches the fleet (jig/docs/design/protocol/channel/records.md, 4).

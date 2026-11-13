@@ -373,7 +373,7 @@ settings (decided 2026-11-03).
   (`../channel/wires.md`, 3, *The statement handed up whole*), so that
   the tool that rehearses an upgrade can judge, with the engine
   stopped, whether each worker may stay (temper's `draft/redeploys.md`,
-  5.1; temper's `protocol/wires.md`, 9.2):
+  5.1; temper's `protocol/wires.md`, 10.2):
 
   ```
   record OpenedWire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }

@@ -80,6 +80,58 @@ pub const CEILINGS: Limits = Limits {
     turn_messages: 4,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 34] = [
+    "replay_bytes",
+    "text_text",
+    "opaque_bytes",
+    "call_id",
+    "call_name",
+    "call_input",
+    "entry_name",
+    "hit_path",
+    "hit_text",
+    "read_content",
+    "listed_entries",
+    "found_hits",
+    "command_end_head",
+    "command_end_last",
+    "command_running_head",
+    "command_running_last",
+    "job_read_head",
+    "job_read_last",
+    "ambiguous_lines",
+    "working_path_path",
+    "other_path_directory",
+    "other_path_path",
+    "outside_path_path",
+    "field_problem_field",
+    "said_text",
+    "call_name_name",
+    "allowed_calls_names",
+    "tool_result_id",
+    "message_blocks",
+    "program_name",
+    "turn_endpoint",
+    "turn_model",
+    "turn_effort_some",
+    "turn_messages",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 34] {
+        [
+            self.replay_bytes, self.text_text, self.opaque_bytes, self.call_id, self.call_name, self.call_input, self.entry_name, self.hit_path,
+            self.hit_text, self.read_content, self.listed_entries, self.found_hits, self.command_end_head, self.command_end_last, self.command_running_head, self.command_running_last,
+            self.job_read_head, self.job_read_last, self.ambiguous_lines, self.working_path_path, self.other_path_directory, self.other_path_path, self.outside_path_path, self.field_problem_field,
+            self.said_text, self.call_name_name, self.allowed_calls_names, self.tool_result_id, self.message_blocks, self.program_name, self.turn_endpoint, self.turn_model,
+            self.turn_effort_some, self.turn_messages,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

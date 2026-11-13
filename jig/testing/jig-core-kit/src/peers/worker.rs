@@ -98,7 +98,7 @@ impl Peers {
                     channel: Token::new(channel),
                     run: Token::new(key.task),
                     attempt: Token::new(key.attempt),
-                    call: fleet::Call { name, tool, input, writes, deadline: Duration::from_secs(1) },
+                    call: fleet::Call { contract: 1, name, tool, input, writes, deadline: Duration::from_secs(1) },
                 }))
             }
             workers::Call::ProposeGoal { words, budget, priority } => root::Event::Core(core::Event::NamedAction {

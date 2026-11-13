@@ -13,7 +13,7 @@ pub struct RootParts<'a> {
     pub tools: Box<[crate::Tool]>,
     pub endpoints: &'a [crate::EndpointName],
     pub deployment: &'a [u8; 16],
-    pub limits: &'a smith_charter::v4::Limits,
+    pub limits: &'a smith_charter::v5::Limits,
 }
 
 /// Assemble the hub's hand-over, refusing unsupported sections or exceeded bounds.

@@ -63,7 +63,9 @@ records kept in files or stores.
   And, as step code, what reads schemas and records at run time:
   - `schema`: the parser and the layout checks (section 7);
   - `value`: generic values (section 8);
-  - `patch`: patches and the machine that runs them (`patches.md`).
+  - `patch`: patches and the machine that runs them (`patches.md`);
+  - `bridge`: a wire's reverses, its floor, and the bridge that
+    translates a record between the versions it speaks (`bridges.md`).
 - **`skein-codegen`** is the generator, and the tooling of upgrades: the
   diff (`diff.md`) and the command (`command.md`). Ordinary Rust, not
   step code. It reads schemas through `skein-codec`'s parser and adds
@@ -207,6 +209,12 @@ For each family:
   than its ceiling, so no value past a ceiling exists or decodes, whatever
   limits they are given, and a call costs what its value holds, not the
   family's size.
+- **Its limits by name.** `LIMIT_NAMES: [&str; N]`, each limit's field
+  name in the struct's order, and `Limits::values(&self) -> [u32; N]`,
+  their values in the same order, so that a kept version's bounds can be
+  computed at run time with these limits (7.3, `most_bytes_within`). A
+  limit's name is the rule's `schema::limit_name` gives (7.3), the one
+  the generator names the field by.
 - **Its problems.** An enumeration of the family's fields, and a problem
   that names one of them with `skein-codec`'s reason.
 
@@ -471,6 +479,7 @@ impl Schema {
     pub fn find(&self, name: &[u8]) -> Option<DeclIx>;
     pub fn fewest_bytes(&self, at: TypeIx) -> u32;
     pub fn most_bytes(&self, at: DeclIx) -> u32;  // the encoded worst case
+    pub fn most_bytes_within(&self, at: DeclIx, names: &[&str], values: &[u32]) -> Option<u64>;
 }
 
 pub struct SchemaError { pub line: u32, pub at: Span, pub wrong: Wrong }
@@ -491,6 +500,22 @@ message from it and the text. A type's fewest bytes are the generator's
 a length or a count, 1 for an `option`, a record's fields' sum (2 more
 if `versioned`), and an enumeration's 1 more than its smallest
 variant's.
+
+- **A kept version's bounds under a side's limits:**
+  `most_bytes_within(at, names, values)` is the most bytes `at` encodes
+  to, as `most_bytes` computes it, with each bound of the text replaced
+  by the value of the limit of the same name, when `names` holds it and
+  the value is no larger than the bound, and the text's own bound
+  otherwise. Names follow the generator's rule (section 4, *Its limits
+  by name*): the record's name in snake case, an underscore and the
+  field's, `_some` for an option's value and `_item` for a list's item,
+  level by level. The rule lives in `skein-codec` beside the parser,
+  and the generator names its limits by it, so the two never differ.
+  `None` when `names` and `values` differ in length or the sum
+  overflows. So a channel that speaks an older version states and checks
+  its terms from that version's kept text with its current limits
+  (jig's `protocol/channel/wires.md`): an appended field, absent
+  there, counts nothing.
 
 ## 8. Generic values
 

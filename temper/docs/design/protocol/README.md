@@ -511,9 +511,9 @@ section 8 give them. temper's sit beside them:
 | Version | Owner | Covers | Checked |
 |---|---|---|---|
 | `temper-worker-wire` | `temper-protocol-worker-wire` | temper's parts: the workspace items, the saved-work branch, the work, the preparation, a job's spec; a git identity's value | the worker's credential at the link's opening: another layout is refused as *wires* (channel.md, section 3; wires.md, section 4) |
-| `temper-host-tools` | `temper-engine-smith` | the host tools a charter offers: names, effects, inputs | its kept text, by the gate (wires.md, section 6) |
+| `temper-host-tools` | `temper-engine-smith` | the host tools a charter offers: names, effects, inputs | its kept text, by the gate (wires.md, section 7) |
 | `STORE_VERSION` | `temper-protocol-store` | temper's families | at the store's opening: a store written by another refuses to open (store.md, section 4) |
-| `CLIENT_VERSION` | `temper-client-protocol-wire` | the forge's client family's records | per owner, as jig's: the engine serves exactly its own, and `temper-box open`, from the same binary, speaks it (`../client/forge/records.md`); it moves with its layout (wires.md, section 8) |
+| `CLIENT_VERSION` | `temper-client-protocol-wire` | the forge's client family's records | per owner, as jig's: the engine serves exactly its own, and `temper-box open`, from the same binary, speaks it (`../client/forge/records.md`); it moves with its layout (wires.md, section 9) |
 | keys' markers | the forge connector | the keys temper writes into forge bodies | the key's version, its first byte; the marker has none of its own (forge/README.md, section 3) |
 | configuration | none | — | unknown members refuse the start (configuration/README.md, section 2) |
 
@@ -522,15 +522,15 @@ section 8 give them. temper's sit beside them:
   temper's families lands with its patch, which moves `STORE_VERSION`
   (`baseline.md`, 7). The wires' and the clients' versions are no
   store's: from 2026-11-12 each moves at the landing that changes its
-  layout (wires.md, sections 3 and 8).
+  layout (wires.md, sections 3 and 9).
 - **Both channel components are given temper's wire,** its `Spoken`
-  statement, when they are made; neither knows what it covers
-  (wires.md, section 4).
+  statement, its bridge and the declarations its parts hold, when they
+  are made; neither knows what it covers (wires.md, sections 4 and 6).
 - **The store keeps the wires** the last start spoke (jig's
   `protocol/store/records.md`, 3, `Wires`): temper's shell hands jig's store
   every wire of `temper_engine_service::wires()`, jig's and smith's beside
   temper's, so the next binary's rehearsal can say whether the workers
-  may stay (wires.md, section 9).
+  may stay (wires.md, section 10).
 - **What the baseline freezes.** From it (`baseline.md`), every byte of
   temper's a deployment keeps must stay readable by every later build
   (`../draft/upgrades.md`, 4.1, 6.3, 10 and 11). Made before it, in place, each

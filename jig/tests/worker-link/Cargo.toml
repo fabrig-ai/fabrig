@@ -22,6 +22,9 @@ skein-channel.workspace = true
 skein-fake-channel.workspace = true
 
 [dev-dependencies]
+skein-codegen.workspace = true
+smith-charter.workspace = true
+smith-transcript.workspace = true
 skein-world.workspace = true
 jig-protocol-config.workspace = true
 jig-test-service.workspace = true

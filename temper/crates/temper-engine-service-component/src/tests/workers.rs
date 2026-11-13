@@ -694,6 +694,7 @@ fn refused_read_call(service: &mut crate::Service, run: &temper_engine_domain::A
         channel: Token::new(7),
         link: root::Link::Up {
             up: host::LinkUp::Call {
+                contract: 1,
                 run: Token::new(run.task),
                 attempt: Token::new(run.attempt),
                 call: name,

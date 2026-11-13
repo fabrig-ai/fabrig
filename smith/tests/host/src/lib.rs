@@ -406,6 +406,7 @@ pub fn charter_value(bytes: u64) -> host::Charter {
         brief: run::charter::Brief { sections: Box::new([]) },
         conventions: None,
         grants: run::charter::Grants {
+            contract: 1,
             wait: false,
             deliver: None,
             save: false,
