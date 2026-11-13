@@ -25,6 +25,7 @@ pub struct WorkerRuntime {
 }
 #[derive(Debug)]
 pub struct Worker {
+    asked: Queue<(Token, Token, u64, jig_domain_host::AskAnswer)>,
     pub(super) root: root::Domain,
     pub(super) root_steps: u64,
     admission_waits: u64,
@@ -114,6 +115,7 @@ impl Worker {
         let slots = config.slots;
         let prefix = crate::tokens::worker(index).ok_or(problem(index, b"slots", What::Bound))?;
         Ok(Self {
+            asked: Queue::uncapped(),
             root: root::Domain::new(&root_limits),
             root_steps: 0,
             admission_waits: 0,
@@ -177,6 +179,13 @@ impl Worker {
             directory: Box::from(b".".as_slice()),
         });
         self.sources.configure(resources)
+    }
+    /// Ask through the hosted attempt's application port.
+    pub fn ask(&mut self, run: Token, attempt: Token, bytes: Box<[u8]>) {
+        self.events.push(root::Event::Source(Box::new(jig_domain_host::Event::Ask { run, attempt, bytes })));
+    }
+    pub fn pop_asked(&mut self) -> Option<(Token, Token, u64, jig_domain_host::AskAnswer)> {
+        self.asked.pop()
     }
     pub fn stop(&mut self) {
         if !self.stopping {
@@ -382,6 +391,9 @@ impl Worker {
             for _ in 0..self.out.len() {
                 let request = self.out.pop().expect("worker output count");
                 match request {
+                    root::Request::Asked { run, attempt, number, answer } => {
+                        self.asked.push((run, attempt, number, answer));
+                    }
                     root::Request::ReadList { read, endpoint, grant } => {
                         let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
                         self.next = self.next.checked_add(1).expect("source owner sequence");
@@ -1077,7 +1089,7 @@ mod admission_tests {
                     )
                     .expect("four wires");
             }
-            let record = wire::v13::Agreed::new(&codec, wire::v13::AgreedParts { wires }).expect("statement");
+            let record = wire::v14::Agreed::new(&codec, wire::v14::AgreedParts { wires }).expect("statement");
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut body).expect("statement body");
             let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");
@@ -1194,7 +1206,8 @@ mod admission_tests {
                         layer.link_down(layer.env.now, link::Event::Up { up, parts: Box::default() });
                     }
                     root::Request::Process(_) => {}
-                    other @ (root::Request::ReadList { .. }
+                    other @ (root::Request::Asked { .. }
+                    | root::Request::ReadList { .. }
                     | root::Request::CancelRead { .. }
                     | root::Request::Source { .. }
                     | root::Request::SourceFault

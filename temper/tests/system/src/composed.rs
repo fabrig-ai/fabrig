@@ -1339,6 +1339,7 @@ impl World {
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
                     | host::LinkUp::JobAnswer { .. }
+                    | host::LinkUp::Ask { .. }
                     | host::LinkUp::Answer { .. } => {}
                 }
                 self.up(engine::Link::Up { up, parts: engine::Parts::none() });

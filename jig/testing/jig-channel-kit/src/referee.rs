@@ -161,6 +161,10 @@ impl skein_world::Referee<Proc> for Referee {
         }
         self.stopped = self.passed;
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the referee settles the channel story and its application read together"
+    )]
     fn observe(&mut self, now: Time, procs: &[Proc]) {
         if self.observe_probe(procs) {
             return;
@@ -243,6 +247,7 @@ impl skein_world::Referee<Proc> for Referee {
             && replied
             && self.rules.complete()
             && self.provisional_committed()
+            && (!matches!(self.story, crate::stories::Story::Ask) || self.views.borrow().application_answer.is_some())
             && (!matches!(self.story, crate::stories::Story::Providers)
                 || !self.views.borrow().providers_after.1.is_empty())
         {
@@ -606,7 +611,26 @@ impl Referee {
         }
     }
 
+    fn inject_ask(&mut self, procs: &mut [Proc]) {
+        if matches!(self.story, crate::stories::Story::Ask)
+            && procs.iter().any(|proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).next().is_some()))
+        {
+            for proc in procs.iter_mut() {
+                if let Proc::Worker(host) = proc {
+                    if !self.injected && let Some((&(run, attempt), _)) = host.wire.placements.iter().next() {
+                        host.service.worker(0).expect("reference worker").ask(skein_lib::Token::new(run), skein_lib::Token::new(attempt), b"x".as_slice().into());
+                        self.injected = true;
+                    }
+                    if let Some(answer) = host.service.worker(0).expect("reference worker").pop_asked() {
+                        assert!(self.views.borrow().application_answer.is_none(), "the worker's root hears one answer");
+                        self.views.borrow_mut().application_answer = Some(answer);
+                    }
+                }
+            }
+        }
+    }
     fn inject(&mut self, now: Time, procs: &mut [Proc]) {
+        self.inject_ask(procs);
         if matches!(self.story, crate::stories::Story::HeldCommit) && now >= Time::from_nanos(1_000_000_000) {
             self.injected = true;
         }
@@ -653,7 +677,8 @@ impl Referee {
             crate::stories::Story::BeyondGrace => {
                 (skein_lib::Duration::from_secs(40), skein_lib::Duration::from_secs(40))
             }
-            crate::stories::Story::Chat
+            crate::stories::Story::Ask
+            | crate::stories::Story::Chat
             | crate::stories::Story::ApplicationGeneration
             | crate::stories::Story::Key { .. }
             | crate::stories::Story::Stalled

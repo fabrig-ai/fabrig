@@ -421,3 +421,10 @@ pub enum ListOutcome {
     Listed(Box<[ListedModel]>),
     Failed(ListFailure),
 }
+
+/// An application's read-only answer (jig/docs/design/domain/hosts/hub.md, 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum AskAnswer {
+    Bytes(Box<[u8]>),
+    Refused,
+}

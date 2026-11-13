@@ -12,6 +12,8 @@ pub enum Carried {
     JobSpec,
     JobResult,
     Grant,
+    Ask,
+    Answer,
 }
 
 #[derive(Clone, Copy, Debug)]
