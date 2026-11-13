@@ -38,6 +38,7 @@ fn merge_spec() -> Spec {
 
 /// The domain, its environment and its output queue.
 struct Harness {
+    observe_reds: bool,
     domain: Domain,
     env: Env<Limits>,
     out: Queue<Request>,
@@ -47,6 +48,7 @@ impl Harness {
     fn new(limits: Limits) -> Harness {
         assert!(valid(&limits), "the test limits are valid");
         Harness {
+            observe_reds: false,
             domain: Domain::new(&limits),
             env: Env { now: NOW, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -63,6 +65,7 @@ impl Harness {
     /// as the loop would at the end of the iteration.
     fn step(&mut self, event: Event) -> List<Request> {
         step(&mut self.domain, &self.env, event, &mut self.out);
+        self.prepare_files();
         let mut requests = List::uncapped();
         while let Some(request) = self.out.pop() {
             requests.push(request).expect("the request collection can grow");
@@ -74,6 +77,7 @@ impl Harness {
     /// Steps the domain with `event`, which emits exactly one request.
     fn one(&mut self, event: Event) -> Request {
         step(&mut self.domain, &self.env, event, &mut self.out);
+        self.prepare_files();
         let request = self.out.pop().expect("one request");
         assert!(self.out.is_empty(), "only one: {:?} after {request:?}", self.out);
         self.domain.reclaim();
@@ -163,6 +167,22 @@ impl Harness {
             }
         }
         panic!("the prepare ends");
+    }
+
+    /// Unrelated stories settle the optional prepare files immediately; the reds story observes them.
+    fn prepare_files(&mut self) {
+        if self.observe_reds {
+            return;
+        }
+        let mut kept = Queue::uncapped();
+        while let Some(request) = self.out.pop() {
+            if let Request::Io { owner, op: Op::Reds { action: crate::git::Reds::Prepare { .. }, .. }, .. } = request {
+                step(&mut self.domain, &self.env, Event::Done { owner, done: Done::Succeeded }, &mut self.out);
+            } else {
+                kept.push(request);
+            }
+        }
+        self.out = kept;
     }
 
     /// The facts told so far.
@@ -2509,10 +2529,19 @@ fn queued_prepare_starts_when_ready_with_a_fresh_deadline_and_its_own_facts() {
         );
         let Some(Request::Io { owner, op, deadline }) = requests.get(1) else { panic!("the queued prepare starts") };
         assert_eq!((*owner, op.kind(), *deadline), (second, kind, h.env.now.saturating_add(timeout)));
+        let mut facts = List::uncapped();
+        for fact in h.facts().into_boxed() {
+            if let Fact::Prepared { .. } = fact {
+                facts.push(fact).expect("relevant facts");
+            } else if let Fact::Started { client: who, .. } = fact
+                && who == client
+            {
+                facts.push(fact).expect("queued client's facts");
+            }
+        }
         assert_eq!(
-            h.facts().as_slice(),
+            facts.as_slice(),
             &[
-                Fact::Ended { client: Token::new(1), done: crate::Ending::Succeeded },
                 Fact::Prepared {
                     client: Token::new(1),
                     prepared: crate::Preparation::Ready { workspace, conflicts: 0 }

@@ -3,6 +3,7 @@ use crate::git::Reds;
 #[test]
 fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_failures() {
     let mut h = Harness::new(LIMITS);
+    h.observe_reds = true;
     let (hold, mut op) = h.begin(1, two(b"reds"));
     let mut pinned = false;
     let mut marked = 0_u32;

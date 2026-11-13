@@ -560,8 +560,9 @@ fn resumed_merge(world: &mut World, at: &[u8]) -> u64 {
     };
     assert_eq!((*ours, *base, *identity), (translate::commit(world.ours), translate::commit(world.base), 0));
     assert_eq!(title, expected_merge_message(world.base).as_bytes());
+    let trace: Vec<_> = world.trace.iter().filter(|line| !line.contains("op: Reds {")).collect();
     assert!(
-        world.trace.windows(3).any(|steps| {
+        trace.windows(3).any(|steps| {
             steps[0].contains("op: Commit {") && steps[1].contains("op: CheckOut {") && steps[2].contains("Ready {")
         }),
         "the trace commits and checks out before ready"
