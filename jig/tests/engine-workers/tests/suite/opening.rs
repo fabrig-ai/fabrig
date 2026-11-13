@@ -17,6 +17,12 @@ mod opening {
         world.refusal(connection).expect("a refusal").0
     }
     fn stating(wires: skein_lib::List<jig_protocol_worker_wire::Wire>) -> skein_fake_channel::ScriptedPeer {
+        stating_with_schema(wires, fixtures::schema())
+    }
+    fn stating_with_schema(
+        wires: skein_lib::List<jig_protocol_worker_wire::Wire>,
+        schema: skein_channel::Schema,
+    ) -> skein_fake_channel::ScriptedPeer {
         use jig_protocol_worker_wire as wire;
         let value = wire::Credential::new(
             &wire::CEILINGS,
@@ -31,7 +37,7 @@ mod opening {
         let mut bytes = skein_lib::Writer::new(usize::try_from(value.measure()).expect("credential length"));
         value.encode(&mut bytes).expect("credential");
         skein_fake_channel::ScriptedPeer::new(
-            fixtures::schema(),
+            schema,
             skein_channel::Role::Initiator,
             fixtures::channel_limits(),
             wire::VERSION,
@@ -50,12 +56,51 @@ mod opening {
         let connection = world.connect(stating(statement.clone()));
         world.run();
         assert!(world.ready(connection));
-        let [Request::Opened { worker: 0, wires }] = world.openings() else { panic!("one agreed statement") };
+        let [Request::Opened { worker: 0, wires, .. }] = world.openings() else { panic!("one agreed statement") };
         assert_eq!(wires.len(), statement.len());
         for (agreed, stated) in wires.iter().zip(&statement) {
             assert_eq!(agreed.name.as_bytes(), stated.name());
             assert_eq!(agreed.version, stated.lowest());
         }
+        assert!(world.root().is_empty(), "the domain has heard no hello");
+    }
+
+    #[test]
+    fn a_workers_whole_statement_reaches_the_owner_with_its_ready_terms() {
+        use jig_protocol_engine_workers::{Request, Stated, Statement};
+        use skein_channel::{Direction, Term};
+        use skein_lib::List;
+        let mut world = world();
+        let mut wires = fixtures::statement(APPLICATION_VERSION);
+        let first = wires.swap_remove(0).expect("first wire");
+        wires.push(first).expect("wire slot");
+        let mut schema = fixtures::schema();
+        let table = &mut schema.versions.get_mut(0).expect("channel version").kinds;
+        let first = table.iter().position(|kind| kind.direction == Direction::FromResponder).expect("sending kind");
+        let kind = table.swap_remove(u32::try_from(first).expect("kind index")).expect("sending kind");
+        table.push(kind).expect("kind slot");
+        let mut terms = List::with_capacity(table.len());
+        for kind in table.iter() {
+            if kind.direction == Direction::FromResponder {
+                terms.push(Term { kind: kind.kind, largest: kind.largest }).expect("term slot");
+            }
+        }
+        let mut stated = List::with_capacity(wires.len());
+        for wire in &wires {
+            stated
+                .push(Stated {
+                    name: core::str::from_utf8(wire.name()).expect("wire name").into(),
+                    lowest: wire.lowest(),
+                    layouts: wire.layouts().clone(),
+                })
+                .expect("wire slot");
+        }
+        let expected = Statement { wires: stated, output: fixtures::LIMITS.room, terms };
+        let connection = world.connect(stating_with_schema(wires, schema));
+        world.run();
+        assert!(world.ready(connection));
+        let [Request::Opened { worker: 0, statement, .. }] = world.openings() else { panic!("one statement") };
+        assert_eq!(statement, &expected);
         assert!(world.root().is_empty(), "the domain has heard no hello");
     }
 

@@ -1,6 +1,8 @@
 # fleet: status
 
-2026-11-12. Where the tree's code lags or departs from [fleet.md](fleet.md).
+2026-11-13. Where the tree's code lags or departs from [fleet.md](fleet.md).
+
+- **Not yet:** *The grace is derived from that bound*: jig's profiles give `fleet.grace` 240 seconds, sized for the drain's 186-second bound, below a worker's 326 seconds with a five-minute engine-away grace [in flight: change 2304]
 
 
 - **Not yet:** the whole document: runs on the engine's own slots under

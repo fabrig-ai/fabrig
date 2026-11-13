@@ -624,7 +624,9 @@ deployment's lock as a start does (1, step 1).
   the patches with their counts and times (`Event::Patched`), the
   refusal a start would meet, or the restores whole; the wires `A`'s
   last start spoke (`records.md`, 3), with whether a pending patch is marked fresh
-  (3), from which the application says whether its workers may
+  (3), and the workers' openings `A` keeps since that start
+  (`records.md`, 3, *The workers' openings*), from which the application
+  says whether each of its workers may
   stay; and that what follows the switch (adopting runs, reading the
   systems, settling the outboxes) is not rehearsed. The scratch is
   emptied as it ends.
@@ -662,8 +664,12 @@ deployment's lock as a start does (1, step 1).
 
 ```rust
 Request::Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] } // `directory` never written; `scratch` emptied, never removed
-Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool }           // before `Opened` or `OpenRefused`
+Event::Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool, openings: Box<[WorkerOpening]> } // before `Opened` or `OpenRefused`
 pub struct KeptWire { pub name: Box<str>, pub version: u32 }                               // `None`: A's last start kept none
+pub struct WorkerOpening { pub worker: Box<str>, pub wires: Box<[OpenedWire]>, pub output: u32, pub terms: Box<[OpenedTerm]>, pub at: Wall } // in the workers' names' order
+pub struct OpenedWire { pub name: Box<str>, pub lowest: u16, pub layouts: Box<[[u8; 32]]> }
+pub struct OpenedTerm { pub kind: u16, pub largest: u32 }
+Write::Opening(WorkerOpening)                         // replaces that worker's row; `Write::Wires` clears them all
 Event::Decoded { owner: Token, records: u64 }                                              // every record of A decoded; the plan runs
 Event::Undecodable { owner: Token, family: Box<str>, version: u32, at: Undecoded }          // the rehearsal's last event but `Closed`
 pub enum Undecoded { Record { map: KeptMap, key: Box<[u8]> }, Frame { transcript: Box<str>, offset: u64 } }

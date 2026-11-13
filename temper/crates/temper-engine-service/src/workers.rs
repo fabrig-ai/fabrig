@@ -150,7 +150,9 @@ impl Workers {
     }
     pub(crate) fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
         match output {
-            kit::host::Output::Opened { worker, wires } => self.notes.push(crate::Note::WorkerOpened { worker, wires }),
+            kit::host::Output::Opened { worker, wires, statement: _ } => {
+                self.notes.push(crate::Note::WorkerOpened { worker, wires });
+            }
             kit::host::Output::Refused { worker, reason, text } => {
                 self.notes.push(crate::Note::WorkerOpeningRefused { worker, reason, text });
             }

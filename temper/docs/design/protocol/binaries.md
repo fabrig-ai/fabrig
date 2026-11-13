@@ -220,11 +220,12 @@ default; the document is `temper.json` in the configuration directory
   its counts and time, the time
   of the whole, and the refusal a start would meet, in a start's words,
   or that the patches and the restores pass, saying that what follows
-  the switch is not rehearsed; then whether the workers may stay: yes
-  when the copy's wires equal this binary's (`wires.md`, section 9) and
-  no pending patch is marked fresh, no saying which differs, unknown
-  when the copy keeps none (`../draft/upgrades.md`, section 3.1;
-  `../draft/redeploys.md`, 5.1). Exit 0 when the
+  the switch is not rehearsed; then whether each worker may stay, by
+  the opening the copy keeps of it, and whether the workers may: yes
+  when every worker the configuration names may and no pending patch
+  is marked fresh, no naming each that may not and why, unknown when
+  the copy keeps no wires (`wires.md`, 9.2; `../draft/upgrades.md`,
+  section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
   patches and restores pass, 1 when a start would be refused there.
 - **`temper-box upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store/opening.md`, 5), for a binary that patched and

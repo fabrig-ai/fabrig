@@ -3,6 +3,7 @@ pub mod accounts;
 pub mod component;
 pub mod core;
 pub mod notes;
+pub(crate) mod openings;
 pub mod people;
 mod pieces;
 pub mod settings;

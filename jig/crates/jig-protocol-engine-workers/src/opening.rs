@@ -1,15 +1,15 @@
 //! Ordered authentication, wires and capacity checks (protocol/channel/wires.md, 3).
-use crate::Component;
+use crate::{Component, Statement};
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Agreed, Credential, Reason};
 use skein_io::digest::{Digest, digest};
 use skein_lib::{List, Reader, Token};
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) enum Verdict {
-    Accept { worker: u32, wires: List<Agreed> },
+    Accept { worker: u32, wires: List<Agreed>, statement: Statement },
     Refuse { worker: Option<u32>, reason: Reason, text: Box<[u8]> },
-    OutputRoom { worker: u32, output: u32 },
-    Replace { worker: u32, older: Token, wires: List<Agreed> },
+    OutputRoom { worker: u32, output: u32, text: Box<[u8]> },
+    Replace { worker: u32, older: Token, wires: List<Agreed>, statement: Statement },
 }
 impl Component {
     pub(crate) fn judge(&self, credential: &[u8]) -> Verdict {
@@ -26,17 +26,18 @@ impl Component {
         let Some(worker) = found else {
             return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) };
         };
-        let wires = match crate::wires::agree(&self.wires, credential.wires()) {
+        let statement = Statement::credential(&credential);
+        let wires = match crate::wires::agree(&self.wires, &statement.wires) {
             Ok(wires) => wires,
             Err(text) => return Verdict::Refuse { worker: Some(worker), reason: Reason::Wires, text },
         };
-        if credential.output() != self.limits.room {
-            return Verdict::OutputRoom { worker, output: credential.output() };
+        if let Err(text) = crate::statement::output(self.limits.room, statement.output) {
+            return Verdict::OutputRoom { worker, output: statement.output, text };
         }
         let mut open = 0_u32;
         for (token, connection) in &self.connections {
             if connection.worker == Some(worker) {
-                return Verdict::Replace { worker, older: *token, wires };
+                return Verdict::Replace { worker, older: *token, wires, statement };
             }
             if connection.worker.is_some() {
                 open = open.saturating_add(1);
@@ -45,7 +46,7 @@ impl Component {
         if open >= self.limits.workers {
             Verdict::Refuse { worker: Some(worker), reason: Reason::Busy, text: Box::new([]) }
         } else {
-            Verdict::Accept { worker, wires }
+            Verdict::Accept { worker, wires, statement }
         }
     }
 }

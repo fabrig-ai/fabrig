@@ -1091,7 +1091,12 @@ fn opening_agreements_and_each_refusals_text_reach_shell_notes() {
     let wires =
         skein_lib::List::from_boxed(Box::new([jig_protocol_worker_wire::Agreed { name: "example-wire", version: 7 }]));
     let mut events = skein_lib::Queue::uncapped();
-    workers.route(Output::Opened { worker: worker.clone(), wires: wires.clone() }, &mut events);
+    let statement = jig_protocol_engine_workers::Statement {
+        wires: skein_lib::List::with_capacity(0),
+        output: 0,
+        terms: skein_lib::List::with_capacity(0),
+    };
+    workers.route(Output::Opened { worker: worker.clone(), wires: wires.clone(), statement }, &mut events);
     assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpened { worker: worker.clone(), wires }));
     let text: Box<[u8]> = b"wire example-wire: the worker states none".as_slice().into();
     for _ in 0_u8..2 {

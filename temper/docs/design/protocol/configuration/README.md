@@ -288,10 +288,13 @@ have one, an engine alone none. Each:
 **The engine-away bound** is jig's worker member `graces.grace_ms`: how
 long a worker keeps hosting its runs with no engine that has admitted
 its hello (jig's `domain/hosts/hub.md`, 6; `../../domain/worker/README.md`, section
-2). `temper-box init` writes 60,000, so that an engine's restart (its
-store's load, its switch, its listeners again) passes within it and
-each run is adopted where it stands; a deployment whose engine takes
-longer to start raises it.
+2). `temper-box init` writes 300,000, five minutes
+(`../../draft/redeploys.md`, 5.3), so that an engine's restart (its
+settled stop, the swap, its store's patching, its switch, its listeners
+again) passes within it and each run is adopted where it stands; a
+deployment whose engine takes longer to start raises it, and the
+engine's grace with it (below). The playground's worker document
+writes the same.
 
 - **The drain's bound** is jig's worker member `graces.drain_ms`: how
   long a worker told to stop lets its runs end their turns before it
@@ -301,19 +304,19 @@ longer to start raises it.
 - **It is ordered under the engine's grace.** The stop bound a worker
   states is the longer of its ping interval, its silence deadline and
   this grace together, and its drain's bound; then the longer of
-  `agent_stop_ms` and `delivery_ms`, then `save_ms`: 186 seconds with
+  `agent_stop_ms` and `delivery_ms`, then `save_ms`: 326 seconds with
   jig's link profile (5 and 15 seconds), `temper-box init`'s graces
-  (60,000, 5,000, 1,000 and 1,000) and the drain's default, which
-  outlasts the 80 seconds of notice and grace. It is a deadline the
+  (300,000, 5,000, 1,000 and 1,000) and the drain's default, which the
+  320 seconds of notice and grace outlast. It is a deadline the
   worker keeps (jig's `domain/hosts/hub.md`, 6), and it must stay below
-  the engine's `fleet.grace`, 240 seconds in both of jig's profiles,
+  the engine's `fleet.grace`, 360 seconds in both of jig's profiles,
   derived from it (jig's `domain/engine/fleet.md`), or the hello is
   refused; a deployment that raises the one raises the other with it.
 - **The service manager's stop timeout** sits above the stop bound: a
   unit that kills the worker sooner is a crash, losing the workspace's
   changes since its last save or delivery, and the attempt is lost
   (`../../draft/redeploys.md`, 6.1). The worker's unit in `temper help
-  server` gives `TimeoutStopSec=` the stop bound and a margin, 240
+  server` gives `TimeoutStopSec=` the stop bound and a margin, 360
   seconds with these graces.
 - **A hello refused for a charter's reserve names the setting.** The
   fleet judges a worker's checks' timeout against each modifying
