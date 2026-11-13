@@ -613,6 +613,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::MakingAct { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
+                | top::Request::LoadHistory { .. }
+                | top::Request::HistoryPage { .. }
                 | top::Request::Call { .. } => {}
             }
         }

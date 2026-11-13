@@ -104,3 +104,5 @@ impl Domain {
 fn save(out: &mut Queue<Request>, record: Stored) {
     out.push(Request::Save { record, release: None, read_afresh: None });
 }
+
+pub(crate) mod read;

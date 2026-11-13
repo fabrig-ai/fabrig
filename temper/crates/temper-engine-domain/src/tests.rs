@@ -16,6 +16,7 @@ mod chat_document;
 mod dismiss;
 mod documents;
 mod forge_route;
+mod history;
 mod looked;
 mod projection_room;
 mod projection_settled;

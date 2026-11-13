@@ -1,7 +1,7 @@
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
-use temper_engine_domain_forge::{self as top, history};
+use temper_engine_domain_forge as top;
 
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
@@ -117,6 +117,7 @@ struct Pending {
 }
 
 mod follows;
+mod history;
 
 struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
@@ -126,6 +127,7 @@ struct ReadScript {
 }
 
 /// Scripted root and forge protocol surrounding the connector top.
+#[expect(clippy::struct_excessive_bools, reason = "independent world faults include held history loads")]
 pub struct World {
     pub(crate) top: top::Domain,
     env: Env<top::Limits>,
@@ -137,6 +139,10 @@ pub struct World {
     top_out: Queue<top::Request>,
     pending: Map<Token, Pending>,
     stored: Map<top::Key, top::Stored>,
+    history_loads: Vec<(top::HistoryRange, Option<top::Key>, u32)>,
+    history_page_rows: u32,
+    history_hold: bool,
+    history_held: Vec<top::Event>,
     seen: List<top::Request>,
     serial: u64,
     generation: u64,
@@ -650,7 +656,11 @@ impl World {
             to_top: Queue::with_capacity(32),
             top_out: Queue::uncapped(),
             pending: Map::with_capacity(32),
-            stored: Map::with_capacity(1024),
+            stored: Map::with_capacity(4096),
+            history_loads: Vec::new(),
+            history_page_rows: 32,
+            history_hold: false,
+            history_held: Vec::new(),
             seen: List::with_capacity(256),
             serial: 0,
             generation: 1,
@@ -1025,7 +1035,7 @@ impl World {
     /// A change's indexed events across projects, in event-number order
     /// (temper/docs/design/domain/landing-history.md, 4.1).
     #[must_use]
-    pub fn history(&self, change: u64) -> Vec<history::Event> {
+    pub fn history(&self, change: u64) -> Vec<top::history::Event> {
         let mut events = Vec::new();
         for (_, record) in &self.stored {
             if let top::Stored::HistoryChange(index) = record
@@ -1042,7 +1052,7 @@ impl World {
 
     /// A landing's indexed events across projects, in event-number order.
     #[must_use]
-    pub fn landing_history(&self, landing: u64) -> Vec<history::Event> {
+    pub fn landing_history(&self, landing: u64) -> Vec<top::history::Event> {
         let mut events = Vec::new();
         for (_, record) in &self.stored {
             if let top::Stored::HistoryLanding(index) = record
@@ -1058,7 +1068,7 @@ impl World {
     }
 
     /// Write a fixture event through the domain and keep its store requests.
-    pub fn write_event(&mut self, change: u64, step: history::Step) -> Option<u64> {
+    pub fn write_event(&mut self, change: u64, step: top::history::Step) -> Option<u64> {
         let number = self.top.write_event(self.env.wall, change, step, &mut self.top_out);
         self.take_top();
         number
@@ -1486,6 +1496,10 @@ impl World {
         for _ in 0..self.top_out.len() {
             let request = self.top_out.pop().expect("counted top output");
             match request {
+                top::Request::LoadHistory { load, range, after, most } => self.history_load(load, range, after, most),
+                page @ top::Request::HistoryPage { .. } => {
+                    self.seen.push(page).expect("world output room");
+                }
                 top::Request::AdoptAccess { forge, request, .. } => {
                     top::step(
                         &mut self.top,
