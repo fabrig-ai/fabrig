@@ -365,6 +365,9 @@ fn conversation_tail(
 /// The delivered chat's chip decides its path and current navigation entry (client/pages/README.md).
 pub(crate) fn asking(root: &Domain) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
+    if chat.talk().is_some() {
+        return false;
+    }
     let Some(task) = chat.task(root.client()) else { return false };
     let Some(me) = root.pages().me(root.client()) else { return false };
     temper_client_domain::pages::chats::asking(me, task.project, &task.chip.executor)
@@ -396,6 +399,12 @@ fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, _ti
     }
 }
 fn bar_actions(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+    if let Some(chat) = root.pages().chat()
+        && chat.talk().is_some()
+    {
+        spend(b, task, words);
+        return;
+    }
     if is_paused(root, task) {
         if temper_client_domain::pages::chat::allowed(task, c::ActKind::Release) {
             control(b, bindings, Role::Button, &words.say(Word::Resume, &[]), Act::Resume);
@@ -421,7 +430,8 @@ fn session_composer(
     if ended && !terminal {
         return;
     }
-    if !terminal && !temper_client_domain::pages::chat::allowed(task, c::ActKind::Message) {
+    let send = if chat.talk().is_some() { c::ActKind::Talk } else { c::ActKind::Message };
+    if !terminal && !temper_client_domain::pages::chat::allowed(task, send) {
         b.open(Role::Slot);
         b.style(look::FOOT_ROW);
         crate::choice::picker(b, root, Some(task), words, bindings);
@@ -473,7 +483,10 @@ fn session_composer(
         b.bind(bindings.insert(Act::Send));
         b.close();
     }
-    let hint = if is_paused(root, task) && temper_client_domain::pages::chat::allowed(task, c::ActKind::Release) {
+    let hint = if chat.talk().is_none()
+        && is_paused(root, task)
+        && temper_client_domain::pages::chat::allowed(task, c::ActKind::Release)
+    {
         Word::ChatSendResumes
     } else if chat.draft.is_some() || chat.writing {
         Word::DraftSendHint

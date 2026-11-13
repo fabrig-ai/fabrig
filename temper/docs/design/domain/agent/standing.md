@@ -130,9 +130,13 @@ the triager first, are charters 14 to 16
   branch lands on its repository's landing branch
   (`../forge/change/README.md`); answer its own work's questions, and
   call `decided` where its project's classes let it
-  (`../forge/attention.md`, 5); write its Now; and propose changes to its
+  (`../forge/attention.md`, 5); write its Now; propose changes to its
   own rules, its wakes or its budget, as a proposal of settings (jig's
-  `domain/engine/settings.md`, 6).
+  `domain/engine/settings.md`, 6); and own a follow (`../forge/follows.md`,
+  sections 2 and 4): its follow task is its delegate, funded by it, its
+  producers' questions and its changes' holds reach it, it acts with
+  its `follow` tool, and a red after landing of a follow change reaches
+  it by the area it owns.
 - **It may not** accept its own proposal: an owner decides it, and its
   own decision of it is refused (jig's `domain/tasks/proposals.md`);
   spend past its period's budget; or decide what
@@ -177,7 +181,12 @@ role does with what it hears, and the tools.
 - **What lasts goes where it belongs,** by charter 13's instructions
   (`../../protocol/configuration/stock.md`):
   - *an instruction for every case* ("from now on…") it asks to make a
-    rule ("Add it to my rules?"), and on yes proposes a change of its
+    rule ("Add it to my rules?"), its reply ending with the choices as a
+    numbered list, "1. Yes, add it", then one keeping it for the work at
+    hand, "2. Just for this port", worded for that work, and "3. Tell it
+    something else" last, so that a terminal offers them as a prompt
+    (`../../client/tui/pages/talk.md`, 1, *The role's choices*); on yes it
+    proposes a change of its
     charter's instructions with `propose_settings`, the rule added in
     its words, its reason naming the talk; it says in its reply that an
     owner of the deployment accepts it, and names the proposal;

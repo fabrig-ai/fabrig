@@ -477,8 +477,19 @@ fn role_now(ctl: &mut Ctl, run: &engine::Assignment, words: &str) {
     assert!(!failed, "{}", String::from_utf8_lossy(&answer));
 }
 fn role_turn(ctl: &mut Ctl, run: &engine::Assignment, words: &[u8]) {
+    role_turn_in(&mut ctl.front, run, words);
+}
+pub(super) fn scripted_talk_reply(front: &mut Joint, task: u64, words: &[u8]) {
+    let run = front.assignments.last().expect("talk assigned to the scripted model").clone();
+    assert_eq!(run.task, task);
+    role_turn_in(front, &run, words);
+    let spent = front.engine.task(task).expect("standing role").run_spent;
+    front.engine.answer(WORKER, task, run.attempt, spent, tasks::End::Parked, engine::Parts::none());
+    front.engine.settle();
+}
+fn role_turn_in(front: &mut Joint, run: &engine::Assignment, words: &[u8]) {
     use temper_engine_domain_world::protocol;
-    let task = ctl.front.engine.task(run.task).expect("role run");
+    let task = front.engine.task(run.task).expect("role run");
     let number = task.turn + 1;
     let spent = task.run_spent.max(3);
     // A live run also reads words delivered after its assignment, such as after the rules move.
@@ -491,8 +502,8 @@ fn role_turn(ctl: &mut Ctl, run: &engine::Assignment, words: &[u8]) {
         &temper_worker_domain_world::protocol::endpoints(),
     )
     .expect("role reply encodes");
-    ctl.front.engine.send(protocol::turn(WORKER, run.task, run.attempt, number, spent, read, &body));
-    ctl.front.engine.settle();
+    front.engine.send(protocol::turn(WORKER, run.task, run.attempt, number, spent, read, &body));
+    front.engine.settle();
 }
 fn role_park(ctl: &mut Ctl, run: &engine::Assignment) {
     let spent = ctl.front.engine.task(run.task).expect("standing role").run_spent;
@@ -901,4 +912,64 @@ fn a_started_standing_role_has_its_budget_on_how_work_runs() {
             .as_deref()
             .is_some_and(|name| name.starts_with("a standing role · ".as_bytes()) && name.ends_with(b" left"))
     }));
+}
+
+// client/pages/task.md, 4: the page and ctl share R3's scripted standing worker.
+#[test]
+fn a_person_talks_on_the_roles_page_reads_its_run_reply_and_leaves() {
+    use jig_client_kit::harness::{Settings, Until, World};
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    use skein_world::domain::Verdict;
+    use temper_client_domain::Address;
+    use temper_client_world::app::Temper;
+    const WORDS: &[u8] = b"From now on, reproduce a flake twice before routing it.";
+    let (ctl, task) = parked_role_ctl();
+    let mut world: World<Temper, Joint> = World::new(
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
+        ctl.front,
+    );
+    world.randomness(0, 0, 0);
+    let reader = world.client(fixtures::PARTY, Address::Task { task });
+    world.person(
+        reader,
+        vec![
+            Step::See { find: Find::exactly_named(Role::TextArea, b"Talk"), within: fixtures::WITHIN },
+            Step::Type { find: Find::exactly_named(Role::TextArea, b"Talk"), words: WORDS.into() },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Send") },
+            Step::See { find: Find::text(WORDS), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"Talk opened by party"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Button, b"Leave"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert_eq!(world.front().engine.task(task).unwrap().talk.as_ref().unwrap().party, fixtures::PARTY);
+    let run = world.front().assignments.last().expect("talk wakes a run").clone();
+    assert!(run.messages.iter().any(|message| message.words.as_ref() == WORDS));
+    role_turn_in(world.front(), &run, b"Add it to my rules?");
+    let spent = world.front().engine.task(task).unwrap().run_spent;
+    world.front().engine.answer(WORKER, task, run.attempt, spent, tasks::End::Parked, engine::Parts::none());
+    world.front().engine.settle();
+    world.person(
+        reader,
+        vec![
+            Step::See { find: Find::text(b"Add it to my rules?"), within: fixtures::WITHIN },
+            Step::See { find: Find::text(WORDS), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Leave") },
+            Step::See {
+                find: Find::text(b"Left: its next session starts fresh from its Now."),
+                within: fixtures::WITHIN,
+            },
+            Step::See { find: Find::text(b"Talk ended"), within: fixtures::WITHIN },
+            Step::Gone { find: Find::exactly_named(Role::Button, b"Leave"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert!(world.front().engine.task(task).unwrap().talk.is_none());
+    let thread = &world.root(reader).person().pages().task().unwrap().thread;
+    assert!(thread.lines().iter().any(|line| matches!(line,
+        jig_client::thread::Line::Turn { turn, .. } if turn.messages.iter().any(|message|
+            message.blocks.iter().any(|block| matches!(block, jig_client::contract::Block::Text(text) if text.bytes() == b"Add it to my rules?"))))));
 }

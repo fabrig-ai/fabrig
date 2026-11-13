@@ -149,8 +149,9 @@ fn expected(goal: u64, subscription: u64, commit: api::Commit, failing: p::Failu
 fn filings(out: &[Request]) -> Vec<FileFinding> {
     out.iter()
         .filter_map(|request| match request {
-            Request::FileRedFinding { task, finding } => {
+            Request::FileRedFinding { task, follow, finding } => {
                 assert_eq!(*task, TIER_TASK);
+                assert_eq!(*follow, None);
                 Some(finding.clone())
             }
             _ => None,
@@ -380,6 +381,36 @@ fn a_landing_temper_did_not_make_asks_to_file_its_red() {
     assert_eq!(news(&out).len(), 0);
     assert!(row(&d).record.run.is_none());
     assert_eq!(filings(&out), [expected_finding()]);
+}
+
+#[test]
+fn a_red_names_the_lowest_kept_member_follow() {
+    let mut d = one();
+    d.subscriptions.remove(&(GOAL, Topic::Landings { repository: REPO, branch: b"main".as_slice().into() }));
+    d.changes.remove(&CHANGE);
+    // Deliberately not in member order; CHANGE's row has already been forgotten.
+    verification(&mut d, NEXT_TIP, &[THIRD_CHANGE, CHANGE, SECOND_CHANGE, 1]);
+    let mut ordinary = fixtures::opening_row();
+    ordinary.task = 1;
+    ordinary.follows = None;
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(ordinary)) });
+    for (task, follow) in [(THIRD_CHANGE, 9), (SECOND_CHANGE, 4)] {
+        let mut change = fixtures::opening_row();
+        change.task = task;
+        change.follows = Some(ChangeFollows { follow, commits: Box::new([BASE]) });
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
+    }
+    tier_step(&mut d, RELEASE, false);
+    logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = tier_step(&mut d, RELEASE + 1, false);
+    let filings: Vec<_> = out
+        .iter()
+        .filter_map(|request| match request {
+            Request::FileRedFinding { follow, finding, .. } => Some((*follow, finding)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(filings, [(Some(4), &expected_finding())]);
 }
 
 #[test]

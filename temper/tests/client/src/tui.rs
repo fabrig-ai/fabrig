@@ -38,6 +38,13 @@ pub struct Tui {
 }
 
 impl Tui {
+    /// A setup role's joint keeps its engine and gains the TUI's printed-link client.
+    pub fn role_launchpad(world: &mut World<Temper, Joint>, who: ClientId) -> Self {
+        world.front().offer_printed_link(limits::tui().native.client);
+        world.client(crate::fixtures::PARTY, crate::fixtures::inbox());
+        Self::hello_launchpad(world, who)
+    }
+
     /// Signs in on Hello's launchpad after naming the seeded project through the engine.
     pub fn hello_launchpad(world: &mut World<Temper, Joint>, who: ClientId) -> Self {
         let engine = &mut world.front().engine;

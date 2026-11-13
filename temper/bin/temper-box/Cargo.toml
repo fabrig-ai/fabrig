@@ -103,7 +103,6 @@ jig-domain-fleet.workspace = true
 jig-domain-tasks.workspace = true
 skein-fake-llm-domain.workspace = true
 skein-llm.workspace = true
-rustls.workspace = true
 temper-real-loop-world = { path = "../../tests/real-loop" }
 temper-engine-domain.workspace = true
 skein-throwaway-forgejo.workspace = true
@@ -115,6 +114,9 @@ jig-channel-kit.workspace = true
 skein-tls-kit.workspace = true
 serde_json.workspace = true
 temper-box-shell.workspace = true
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dev-dependencies]
+rustls-std.workspace = true
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

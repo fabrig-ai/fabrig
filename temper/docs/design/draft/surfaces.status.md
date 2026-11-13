@@ -30,29 +30,21 @@
     `pair/needs.html`'s table of its files with their counts, an open
     question there (section 8), or its chips for CI at the head and its
     repairs, "CI green at 9c04d7e" and "repaired once".
-  - 6: `../client/pages/team.md`, 1 holds a project's people and
-    what waits on each, the project's triager once a setting names
-    one, its standing roles in a section of their own, each reached from
-    its row there, and a role's card but for "owns AREA", "Talk to it",
-    "Give the area back" and its weekly report; no design holds a
-    project's areas, an area's owner, a person's areas on their box or
-    "Hand an area to a role" (`standing-roles.md`, 4 has no design yet
-    either), and its lede counts the people alone. A card's rules are its
-    charter's "Asked to", its instructions' first sentence, not the words
-    kept with it; what wakes it says "News from the forge" for a forge
-    topic and "A timer" for a timer, with no branch, check, paths or
-    purpose, which no client read gives; and a session's line on what it
-    did is a run's finished words, where one finished, since no record
-    keeps a session's (`../client/pages/team.md`, 2, *A role's card,
-    where a read lacks*). This section has the triager as Who routes, a chip
-    under the areas, where `../client/pages/team.md`, 1 has a line at
-    People's foot, "Findings with no area go to NAME.", which nothing
-    draws yet (`whole-story.execution.md`, P4c); and `team/team.html`
-    gives a person's line what they can still sign and asked for, which
-    waits for a read of the sign-offs another person can still give: the
-    `approvals` rows name who can still sign only the changes their watcher
-    sees (`../domain/forge/change/questions.md`, 2, *Who can still sign*);
+  - 6: `../client/pages/team.md`, 1 holds a project's areas and their
+    owners with Who routes, its people and what waits on each, its
+    standing roles that own no area, and a role's card. A card's rules
+    are its charter's "Asked to", its instructions' first sentence, not
+    the words kept with it; what wakes it says "News from the forge" for
+    a forge topic and "A timer" for a timer, with no branch, check, paths
+    or purpose, which no client read gives (`../client/pages/team.md`,
+    2, *A role's card, where a read lacks*). `team/team.html` gives a person's line what
+    they can still sign and asked for, which waits for a read of the
+    sign-offs another person can still give: the `approvals` rows name
+    who can still sign only the changes their watcher sees
+    (`../domain/forge/change/questions.md`, 2, *Who can still sign*);
     what they signed is `../client/pages/team.md`, 1, *What each signed*.
+    No design holds `team/team.html`'s "Open" column or its next step's
+    card with suggested areas (`../client/pages/team.md`, 2).
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
     classes, Roles by when each runs and what it does, and a goal's
@@ -76,20 +68,24 @@
     project holds yet (`../domain/landing.md`, 13.1); no design has the
     brief tell what became of a finding (`../domain/forge/attention.md`, 3). Its
     routing to an area's owner is P5b's (`whole-story.execution.md`,
-    section 3).
+    section 3). The domain's act files a person's word, kind `feedback`
+    with no area, and the terminal's `/tell` sends it
+    (`../client/pages/needs-you.md`, 1, *Tell temper*); the web draws no
+    Tell temper yet.
   - 11: `../client/tui/README.md`, 3, `../client/tui/pages/launchpad.md` and
     `../client/tui/pages/README.md` hold the launchpad as 11.1 draws it, its
     brief, Where you left off and Needs you across the person's projects,
-    but for its team lines and `/talk` in Start, 11.4's commands but for
-    `/talk` and `/tell`, and 11.5's printed views (the plan
-    `tui-whole-t1` and T1's repair); a walked need says why it reached
+    its team lines and `/talk` in Start, 11.4's commands, `/talk` and
+    `/tell` among them, and 11.5's printed views (the plan
+    `tui-whole-t1`, T1's repair and T3, goal 1984); a walked need says why it reached
     the person but offers no Stop asking, which stays the web's, and a
     chat's question says no reason (`../client/tui/pages/launchpad.md`, 8).
     `../client/tui/pages/design-session.md`, 1, holds 11.2 and
     11.1's and 11.4's `/draft`, where it
     departs from `design-session.html` as it says and
-    `tui-design-session.status.md` records. No design holds 11.3's
-    talking with a role, or the launchpad's "checked · +142 -18 in 4
+    `tui-design-session.status.md` records. `../client/tui/pages/talk.md`,
+    1, and `../client/pages/talk.md` hold 11.3, where they depart from
+    `role.html` as they say. No design holds the launchpad's "checked · +142 -18 in 4
     files" on an approval's row, as `pair/launchpad.html` draws it, which
     temper/tui's design would draw from the row's size
     (`../client/forge/records.md`, the subject `approvals`).
@@ -121,8 +117,9 @@
     and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
-    `night-team`), and a role's card, by day and at night (`team-role`,
-    `night-team-role`), with no areas. No state holds Tell
+    `night-team`), its areas and a role's card, by day and at night
+    (`team-role`, `night-team-role`), its hand-off's sheet (`team-hand`)
+    and a role's talk on its page (`role-talk`). No state holds Tell
     temper's card, which nothing draws yet (9); the phone's tabs and a
     need at 390 pixels are `all-home`'s, `needs-list`'s and `ask-chat`'s
     prints read at a phone's width, a print being one page at every
@@ -147,6 +144,25 @@
     role they hold (`../client/pages/README.md`, *Team*): no read gives
     another party's inbox (jig's `domain/people/README.md`, section 5). Decided
     by `ui-p4a-team`'s cut, 2026-11-08, on today's engine.
+  - 6: `../client/pages/team.md`, 1, *A role's card*, says a role "owns
+    tests, since 2 November" from the day the role started, where this
+    section's "since DATE" is when it took the area: nothing keeps when an
+    area changed owner. Its weekly report is the card's last part, drawn
+    whole as its Now is, where this section links it: no page shows a
+    note alone. "Hand an area to a role" and "Give the area back" save
+    kind 14 at once for an owner of the project and propose it for anyone
+    else, as Stop asking's narrower rule does, where this section says
+    "by proposal"; given back, an area's owner is the role's person, its
+    requester. The sheet offers the project's roles and the stock's
+    prover and porter, started with the hand-off; a role written with Ask
+    temper is a charter Ask temper proposes, started with `temper ctl role
+    start --charter N`, since no page starts a role under any charter.
+    Standing roles stays, for the roles that own no area, which the
+    areas' table can't reach. "Talk to it" opens the role's task page,
+    whose composer talks and whose conversation is the role's whole
+    activity, its talks among its wakes, and gives `temper ctl role
+    talk`'s command until the terminal's `/talk` (11.3). Decided by goal
+    1983's design, 2026-11-12.
   - 6: a role's card's "Pause" is jig's `Stop` of the role, as a goal's
     page's Pause is (`../client/pages/team.md`, 1, *A role's card*): it
     stops its live run and holds the role and every task it started
@@ -221,6 +237,30 @@
     sentence, where the at-scale mockup has one brief across projects in
     the status agent's words: the engine keeps one brief a project (15's
     default). Decided by T1's repair's design, 2026-11-11.
+  - 11.1 and 13: `../client/tui/pages/launchpad.md`, 4, lists no talk
+    with a role under Where you left off, where 11.1 has one among the
+    conversations to go back to: no read lists the talks a person has
+    open, jig's `TaskLine` carrying no `talk`, and a talk lapses 30
+    minutes after its last words; `/talk NAME` opens the role, and its
+    open talk with it (`../client/pages/talk.md`, 4). Its Team on PROJECT
+    (7) words each row's areas by their names, labels, where `launchpad.html`
+    has a phrase ("tests and proof"), and draws at most four rows, a
+    person holding an area among them as "You" with Team's line of what
+    waits on them. Decided by goal 1984's design, 2026-11-12.
+  - 11.3 and 13: `../client/tui/pages/talk.md`, 1, sets the talk's head
+    and its Now inside its frame, where `role.html` draws an empty frame
+    and the two lines under it; says "this period S of B" where the
+    project's period is no week; names no model in the quiet line, a
+    role's runs taking its charter's; has the role ask "Add it to my
+    rules?" in its own words; and accepts its proposal in place by a
+    prompt of the proposal's own after "Yes, add it", where `role.html`'s
+    one answer adds the rule: an owner decides a proposal of settings,
+    never the role. Decided by goal 1984's design, 2026-11-12.
+  - 9, 11.4 and 13: `../client/tui/pages/README.md`, 2, *`/tell`*, files
+    the words at once, with no "About" and "Goes to" before and no "Ask
+    temper instead", which section 9's card has: the words are typed to
+    be filed, and a question is `/ask`'s. Decided by goal 1984's design,
+    2026-11-12.
   - 10 and 13: on a phone, `../client/view.md`, 3, reaches Team, How
     work runs and Deployment by the switcher's menu alone, where this
     section has Team and How work runs from Home's project rows too and

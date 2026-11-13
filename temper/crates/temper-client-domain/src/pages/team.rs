@@ -8,15 +8,78 @@ use skein_lib::Queue;
 use skein_lib::{Decimal, Duration, List, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
 
+mod areas;
+pub mod follows;
+pub mod hand;
+pub use areas::{Area, AreaName, AreaPart, Areas};
 mod rules;
 mod standing;
 pub mod wakes;
 pub use rules::{Rules, asked};
+pub(crate) use standing::now;
 pub use standing::{Card, Now, Role, StartedBy};
 pub(crate) mod sessions;
 pub use sessions::Session;
+/// A project's areas from its findings document (client/pages/talk.md, 3).
+#[derive(Debug, PartialEq, Eq)]
+pub struct HeldAreas {
+    pub rows: Box<[HeldArea]>,
+    pub triager: Option<Holder>,
+}
+#[derive(Debug, PartialEq, Eq)]
+pub struct HeldArea {
+    pub name: Box<[u8]>,
+    pub holder: Option<Holder>,
+}
+#[derive(Debug, PartialEq, Eq)]
+pub enum Holder {
+    Task(u64),
+    Party(u64),
+    Role(u32),
+}
+#[must_use]
+pub fn areas(root: &crate::Domain, project: u32) -> Option<HeldAreas> {
+    let document = root.pages.needs.findings.document(project)?;
+    let mut rows = List::with_capacity(document.areas().len());
+    for area in document.areas() {
+        rows.push(HeldArea {
+            name: area.name().into(),
+            holder: match area.holder() {
+                Some(value) => Some(area_holder(value)),
+                None => None,
+            },
+        })
+        .expect("document's areas fit");
+    }
+    Some(HeldAreas {
+        rows: rows.into_boxed(),
+        triager: if document.triager().is_some() { Some(area_holder(document.holder())) } else { None },
+    })
+}
+fn area_holder(value: &w::Holder) -> Holder {
+    match value {
+        w::Holder::Task(task) => Holder::Task(task.number()),
+        w::Holder::Party(party) => Holder::Party(party.number()),
+        w::Holder::Role(role) => Holder::Role(role.number()),
+    }
+}
+
 /// The standing roles watch’s window.
 pub const ROLES: u32 = 16;
+
+/// The project's open period lasts seven days (client/pages/talk.md, 2).
+#[must_use]
+pub fn weekly(root: &crate::Domain, project: u32) -> bool {
+    let Some(document) = root.pages().team.document(project) else { return false };
+    let Some(period) = &document.current_period else { return false };
+    if period.closed {
+        return false;
+    }
+    match (period.began, period.next) {
+        (Some(began), Some(next)) => next.as_nanos().checked_sub(began.as_nanos()) == Some(604_800_000_000_000),
+        (Some(_), None) | (None, Some(_) | None) => false,
+    }
+}
 
 /// Other people whose waits are read, one `tasks{query}` watch each.
 pub const OTHERS: u32 = 8;
@@ -75,12 +138,15 @@ pub struct Signed {
 /// Team's facts: plain values its reads give.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Facts {
+    /// The reader holds a role in this project, from me.
+    pub member: bool,
     /// The project's members of kind person, the reader first, then in the document's order, each once.
     pub people: List<Person>,
     /// The project's document was cut: its members may be more.
     pub cut: bool,
-    /// The project's triager, as its line names it; no read gives it yet.
-    pub triager: Option<Box<[u8]>>,
+    /// The project's areas and routing holder, once the findings document answers.
+    pub areas: Option<Areas>,
+    pub follows: List<follows::Follow>,
     pub roles: List<Role>,
     pub roles_cut: bool,
     /// The address’s requested role; falls back to the first listed.
@@ -98,10 +164,26 @@ pub struct Parts {
     pub people: bool,
     /// People's head's shared role; never `Policy`.
     pub shared: Option<c::HeldRole>,
-    /// The triager's line: a triager is read.
-    pub triager: bool,
+    pub areas: bool,
+    pub hand_area: bool,
+    /// Named areas held by the selected role, excluding Anything else.
+    pub give_areas: u32,
+    pub areas_table: bool,
+    pub areas_empty: bool,
+    pub who_routes: bool,
+    pub lede_areas: bool,
+    pub area_rows: List<AreaPart>,
+    /// Listed roles that hold no table row, in watch order.
+    pub standing: List<u64>,
+    /// The person's table rows, by party, never an empty list.
+    pub box_areas: List<(u64, List<AreaName>)>,
+    /// The selected card's table rows, in table order.
+    pub owns: List<AreaName>,
+    pub talk: bool,
     /// Positive sign-off counts, in words, by party.
     pub signed: List<(u64, Box<[u8]>)>,
+    pub follows: List<follows::Follow>,
+    pub card_follows: List<follows::Follow>,
     pub standing_roles: bool,
     pub roles_cut: bool,
     pub card: Option<u64>,
@@ -109,6 +191,7 @@ pub struct Parts {
     pub resume: bool,
     pub now: bool,
     pub sessions: bool,
+    pub report: bool,
     pub rules: bool,
     pub wakes: bool,
     pub wakes_cut: bool,
@@ -119,9 +202,22 @@ impl Default for Parts {
     fn default() -> Self {
         Self {
             signed: List::with_capacity(0),
+            follows: List::with_capacity(0),
+            card_follows: List::with_capacity(0),
             people: false,
             shared: None,
-            triager: false,
+            areas: false,
+            hand_area: false,
+            give_areas: 0,
+            areas_table: false,
+            areas_empty: false,
+            who_routes: false,
+            lede_areas: false,
+            area_rows: List::with_capacity(0),
+            standing: List::with_capacity(0),
+            box_areas: List::with_capacity(0),
+            owns: List::with_capacity(0),
+            talk: false,
             standing_roles: false,
             roles_cut: false,
             card: None,
@@ -129,6 +225,7 @@ impl Default for Parts {
             resume: false,
             now: false,
             sessions: false,
+            report: false,
             rules: false,
             wakes: false,
             wakes_cut: false,
@@ -195,23 +292,40 @@ pub fn parts(facts: &Facts) -> Parts {
         Some(detail) if Some(detail.task) == card => Some(detail),
         Some(_) | None => None,
     };
+    let (follows, card_follows) = follows::parts(facts, card);
     let mut parts = Parts {
         signed,
+        follows,
+        card_follows,
         people: !facts.people.is_empty(),
         shared: shared(facts),
-        triager: facts.triager.is_some(),
-        standing_roles: !facts.roles.is_empty(),
-        roles_cut: !facts.roles.is_empty() && facts.roles_cut,
+        roles_cut: facts.roles_cut,
         card,
         pause: false,
         resume: false,
         now: false,
         sessions: false,
+        report: false,
         rules: false,
         wakes: false,
         wakes_cut: false,
         right: false,
+        ..Parts::default()
     };
+    areas::parts(facts, &mut parts);
+    parts.hand_area = parts.areas && facts.member;
+    if facts.member
+        && let Some(task) = parts.card
+        && let Some(areas) = &facts.areas
+    {
+        for area in &areas.rows {
+            if let Some(w::Holder::Task(holder)) = &area.holder
+                && holder.number() == task
+            {
+                parts.give_areas = parts.give_areas.saturating_add(1);
+            }
+        }
+    }
     if let Some(detail) = detail {
         if let Some(rules) = &detail.rules {
             parts.rules = !rules.asked.is_empty();
@@ -219,7 +333,11 @@ pub fn parts(facts: &Facts) -> Parts {
         parts.wakes = !detail.wakes.is_empty();
         parts.wakes_cut = parts.wakes && detail.wakes_cut;
         parts.sessions = !detail.sessions.is_empty();
-        parts.right = parts.wakes || parts.sessions;
+        if let Some(report) = &detail.report {
+            parts.report = !report.body.is_empty();
+        }
+        parts.right = parts.wakes || parts.sessions || parts.report;
+        parts.talk = detail.talk;
         parts.pause = detail.hold.is_none() && detail.pause;
         parts.resume = detail.hold.is_some() && detail.paused && detail.resume;
         if let Some(now) = &detail.now {
@@ -304,10 +422,16 @@ pub fn gather(
                 .expect("at most one person per document member");
         }
     }
+    let mut member = false;
+    for row in &project.members {
+        member |= row.party == you;
+    }
     Facts {
+        member,
         people,
         cut: project.cut,
-        triager: None,
+        areas: None,
+        follows: List::with_capacity(0),
         roles: List::with_capacity(0),
         roles_cut: false,
         selected: None,
@@ -356,6 +480,10 @@ pub struct Team {
     sessions: sessions::Reader,
     changes_handle: Option<Handle>,
     changes: Option<Box<w::ChangesPanel>>,
+    areas_handle: Option<Handle>,
+    areas: Option<Areas>,
+    follows_handle: Option<Handle>,
+    follows: Option<Box<w::FollowsPanel>>,
 }
 #[derive(Debug, PartialEq, Eq)]
 enum Reading {
@@ -383,6 +511,10 @@ impl Default for Team {
             sessions: sessions::Reader::default(),
             changes_handle: None,
             changes: None,
+            areas_handle: None,
+            areas: None,
+            follows_handle: None,
+            follows: None,
         }
     }
 }
@@ -394,9 +526,11 @@ impl Team {
         clippy::match_like_matches_macro,
         reason = "the step crate excludes matches!; its address check uses if let"
     )]
+    #[expect(clippy::too_many_arguments, reason = "launchpad enables Home's Now reads, not Team's other reads")]
     pub(crate) fn configure(
         &mut self,
         address: &Address,
+        launchpad: bool,
         you: u64,
         env: &skein_lib::Env<Limits>,
         client: &Client,
@@ -437,8 +571,34 @@ impl Team {
             }
             self.changes = None;
         }
+        if on_team && self.areas_handle.is_none() {
+            if let Some(subject) =
+                crate::forge::findings::watching(project, Some(w::FindingState::New), false, &env.limits.forge)
+            {
+                let handle = new_handle(next);
+                self.areas_handle = Some(handle);
+                out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+            }
+        } else if !on_team {
+            if let Some(handle) = self.areas_handle.take() {
+                out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+            }
+            self.areas = None;
+        }
+        if on_team && self.follows_handle.is_none() {
+            if let Some(subject) = crate::forge::follows::watch(project, &env.limits.forge) {
+                let handle = new_handle(next);
+                self.follows_handle = Some(handle);
+                out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+            }
+        } else if !on_team {
+            if let Some(handle) = self.follows_handle.take() {
+                out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+            }
+            self.follows = None;
+        }
         self.configure_others(you, on_team, &env.limits, next, out);
-        self.standing.configure(project, address, next, out);
+        self.standing.configure(project, address, launchpad, next, out);
         let wanted = if on_team { self.standing.activity(client) } else { None };
         self.sessions.configure(wanted, env.wall, next, out);
         self.standing.configure_rules(client, env.limits.forge, next, out);
@@ -503,8 +663,15 @@ impl Team {
         if let Some(handle) = self.changes_handle {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
+        if let Some(handle) = self.areas_handle {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+        }
+        if let Some(handle) = self.follows_handle {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
+        }
         *self = Self::default();
     }
+    #[expect(clippy::too_many_lines, reason = "Team correlates its independent people, changes and areas reads")]
     pub(super) fn told(
         &mut self,
         env: &skein_lib::Env<Limits>,
@@ -522,6 +689,37 @@ impl Team {
             return true;
         }
         match told {
+            Told::Changed { handle } if Some(*handle) == self.areas_handle => {
+                let document = match client.document(*handle) {
+                    Some(document) if document.state == jig_client::State::Ended => None,
+                    Some(document) => match document.latest {
+                        Some(Latest::Family(record)) => crate::forge::findings::document(record, &env.limits.forge),
+                        Some(Latest::Jig(_)) => None,
+                        None => return true,
+                    },
+                    None => return true,
+                };
+                self.areas = match document {
+                    Some(document) if Some(document.project()) == self.project => Some(areas::gather(&document)),
+                    Some(_) | None => None,
+                };
+                true
+            }
+            Told::Ended { handle, .. } if Some(*handle) == self.areas_handle => {
+                self.areas = None;
+                true
+            }
+            Told::Changed { handle } if Some(*handle) == self.follows_handle => {
+                self.follows = match follows_panel(client, *handle, env.limits.forge, self.project) {
+                    Some(panel) => Some(Box::new(panel)),
+                    None => None,
+                };
+                true
+            }
+            Told::Ended { handle, .. } if Some(*handle) == self.follows_handle => {
+                self.follows = None;
+                true
+            }
             Told::Changed { handle } if Some(*handle) == self.changes_handle => {
                 let panel = match client.document(*handle) {
                     Some(document) if document.state == jig_client::State::Ended => None,
@@ -602,6 +800,20 @@ impl Team {
         }
     }
 }
+fn follows_panel(
+    client: &Client,
+    handle: Handle,
+    limits: crate::forge::Limits,
+    project: Option<u32>,
+) -> Option<w::FollowsPanel> {
+    let document = client.document(handle)?;
+    if document.state == jig_client::State::Ended {
+        return None;
+    }
+    let Latest::Family(record) = document.latest? else { return None };
+    let panel = temper_client_protocol_wire::decode_follows_panel(&record.bytes, &crate::forge::wire_limits(&limits)?)?;
+    if Some(panel.project()) == project { Some(panel) } else { None }
+}
 fn new_handle(next: &mut u64) -> Handle {
     let handle = Handle { asker: Owner::Pages.asker(), number: *next };
     *next = next.checked_add(1).expect("page handles fit");
@@ -655,22 +867,27 @@ pub fn shown_at(root: &crate::Domain, project: u32, wall: Wall) -> Shown {
         gather(document, you, yours(root, project), others.as_slice(), state.changes.as_deref(), wall)
     } else {
         Facts {
+            member: false,
             people: List::with_capacity(0),
             cut: false,
-            triager: None,
+            areas: None,
+            follows: List::with_capacity(0),
             roles: List::with_capacity(0),
             roles_cut: false,
             selected: None,
             card: None,
         }
     };
+    facts.member = hand::member(root, project);
+    facts.areas.clone_from(&state.areas);
+    facts.follows = follows::gather(state.follows.as_deref());
     state.standing.gather(root.client(), state.document.as_deref(), you, &mut facts);
     if let Some(card) = &mut facts.card {
         card.sessions = state.sessions.rows(wall);
     }
     if state.document.is_some() {
         Shown::Read(facts)
-    } else if facts.roles.is_empty() {
+    } else if facts.roles.is_empty() && !facts.roles_cut && facts.areas.is_none() {
         if state.reading == Reading::Failed || state.reading == Reading::Gone {
             Shown::Unreadable
         } else {

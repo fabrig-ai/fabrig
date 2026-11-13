@@ -384,6 +384,30 @@
     toast says "Filed for NAME."; refused, the words stay and the refusal
     says why under the field. Words past the finding's bound are cut
     nowhere: "File it" is disabled while they are past it, saying how far.
+  - *The domain's act,* which "File it" sends and the terminal's `/tell`
+    sends (`../tui/pages/README.md`, 2, *`/tell`*): `pages::Act::Tell {
+    project: u32, words: Box<[u8]> }`, its words trimmed of white space at
+    both ends. Empty, it does nothing; past 4,096 bytes, the finding's
+    body's bound, it sends nothing and keeps `tell::State::Long { over }`,
+    the bytes past it; else one `FileFinding` of the project
+    (`../forge/records.md`), sent through the forge's family as a finding
+    card's acts send theirs: kind `feedback`, severity `medium`, no area,
+    so that the triager holds it, or the project's owners while none
+    stands (`../../domain/areas.md`, section 4); its title the words'
+    first line, cut at a character's edge to at most 200 bytes; its body
+    the words whole. One at a time: a `Tell` while one is sent does
+    nothing.
+    - *What it keeps:* `Pages::tell(&self) -> Option<&tell::Tell>`, the
+      last one's until the next, `tell::Tell { serial: u64, project: u32,
+      words: Box<[u8]>, state: tell::State }`, `serial` counting the
+      session's `Tell`s from 1, so that a shell says each outcome once;
+      `tell::State` one of `Sending`, `Filed { number: u32 }` once the
+      row has committed, `Refused(w::FindingRefusal)`, `Lost` where the
+      request ended with no outcome or *unknown*, and `Long { over: u32
+      }`.
+    - *Its words:* a refusal's are a finding card's, the view's
+      `shared::finding_refusal(w: &Words, refusal: &w::FindingRefusal)
+      -> Box<[u8]>`, which the card's own words call too.
   - *Shown* while the engine files a person's word and the project's
     settings name its triager; neither holds yet (`../../domain/findings.md`,
     sections 4 and 6; `../../domain/landing.md`, 13.1), so no page draws it,

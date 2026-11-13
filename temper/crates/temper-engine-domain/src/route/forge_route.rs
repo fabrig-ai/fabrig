@@ -5100,7 +5100,10 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::LandingNews { task, step } => landing_route::tell(domain, env, task, step),
-            forge::Request::FileRedFinding { task, finding } => {
+            forge::Request::FileRedFinding { task, follow, mut finding } => {
+                if let Some(follow) = follow {
+                    finding.area = super::findings::follow_area(domain, finding.project, follow);
+                }
                 // A full findings table never holds the tier's judgement.
                 let _answer = super::findings::file_finding(domain, env, decision, forge::Filer::Task(task), finding);
             }
@@ -5353,16 +5356,11 @@ pub(crate) fn outputs(
                 status_route::start_status_run(domain, env, project, words, &signers);
             }
             forge::Request::FollowRun { project, follow } => follow_route::start(domain, env, project, follow),
-            forge::Request::CancelFollow { project, task } => {
+            forge::Request::CancelFollow { project, task, reason } => {
                 domain.work.push(Work::Tasks(tasks::Event::Cancel {
                     reply_to: ReplyTo::new(Token::new(task)),
                     by: tasks::Party::Deployment { project },
-                    operation: tasks::Cancel {
-                        task,
-                        reason: b"the follow was removed".as_slice().into(),
-                        grace: None,
-                        message: None,
-                    },
+                    operation: tasks::Cancel { task, reason, grace: None, message: None },
                 }));
             }
             forge::Request::TierRun { repository, tier, number, tip } => {
@@ -6246,3 +6244,5 @@ fn catch_up_parameter_requires_a_lowercase_commit_and_pads_sha_one() {
         assert_eq!(catch_up_commit(text), None);
     }
 }
+
+pub(crate) use follow_route::make_refused as follow_make_refused;

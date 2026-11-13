@@ -1241,6 +1241,7 @@ pub struct NamedCall {
 /// The connector's part of a named answer; core decisions remain outside it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPayload {
+    Follow { follow: u32, refusal: Option<Box<[u8]>> },
     Finding(Box<crate::FindingReply>),
     Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> },
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
@@ -2193,6 +2194,7 @@ pub enum Request {
     CancelFollow {
         project: u32,
         task: u64,
+        reason: Box<[u8]>,
     },
     TierRun {
         repository: skein_forge::api::Repository,
@@ -2203,6 +2205,8 @@ pub enum Request {
     /// File a red of no goal's in the decision keeping its verdict.
     FileRedFinding {
         task: u64,
+        /// The landing's first kept follow, numbered within the finding's project.
+        follow: Option<u32>,
         finding: crate::FileFinding,
     },
     TierDecision {

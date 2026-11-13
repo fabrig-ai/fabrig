@@ -252,7 +252,7 @@ fn sweep(seed: u64) -> bool {
         "seed {seed}: first Person members once, reader first, document order, names, roles and first waits"
     );
     assert_eq!(facts.cut, project.cut, "seed {seed}: document cut");
-    assert_eq!(facts.triager, None, "seed {seed}: triager is unread");
+    assert_eq!(facts.areas, None, "seed {seed}: triager is unread");
     let count = rng.between(0, 16);
     facts.roles = List::with_capacity(16);
     for task in 1..=count {
@@ -305,6 +305,16 @@ fn sweep(seed: u64) -> bool {
             paused: rng.chance(500),
             pause: rng.chance(500),
             resume: rng.chance(500),
+            talk: rng.chance(500),
+            report: if rng.chance(500) {
+                Some(team::Now {
+                    body: if rng.chance(500) { Box::default() } else { b"- Report".as_slice().into() },
+                    changed: None,
+                    cut: rng.chance(500),
+                })
+            } else {
+                None
+            },
             sessions: random_sessions(&mut rng),
             rules: random_rules(&mut rng),
             wakes: random_wakes(&mut rng),
@@ -320,11 +330,18 @@ fn sweep(seed: u64) -> bool {
             },
         }));
     }
+    facts.areas = random_areas(&mut rng);
     let detail = facts.card.as_ref().filter(|card| Some(card.task) == chosen);
     let parts = team::parts(&facts);
-    assert_eq!(parts.standing_roles, count != 0, "seed {seed}: Standing roles needs a listed role");
-    assert_eq!(parts.roles_cut, count != 0 && facts.roles_cut, "seed {seed}: cut belongs to the list");
+    check_areas(&facts, &parts);
+    assert_eq!(
+        parts.standing_roles,
+        !parts.standing.is_empty() || facts.roles_cut,
+        "seed {seed}: Standing roles needs a row or cut"
+    );
+    assert_eq!(parts.roles_cut, facts.roles_cut, "seed {seed}: cut belongs to the watch");
     assert_eq!(parts.card, chosen, "seed {seed}: listed selection, else first");
+    assert_eq!(parts.talk, detail.is_some_and(|card| card.talk));
     assert_eq!(
         parts.pause,
         detail.is_some_and(|card| card.hold.is_none() && card.pause),
@@ -340,11 +357,16 @@ fn sweep(seed: u64) -> bool {
         detail.is_some_and(|card| !card.sessions.is_empty()),
         "seed {seed}: Sessions needs rows in the shown card"
     );
-    assert_eq!(parts.right, parts.sessions || parts.wakes, "seed {seed}: right column needs a part");
+    assert_eq!(parts.right, parts.sessions || parts.wakes || parts.report, "seed {seed}: right column needs a part");
     assert_eq!(
         parts.now,
         detail.is_some_and(|card| card.now.as_ref().is_some_and(|now| !now.body.is_empty())),
         "seed {seed}: Now needs a nonempty read"
+    );
+    assert_eq!(
+        parts.report,
+        detail.is_some_and(|card| card.report.as_ref().is_some_and(|report| !report.body.is_empty())),
+        "seed {seed}: report needs a nonempty read in the shown card"
     );
     assert_eq!(parts.rules, detail.is_some_and(|card| card.rules.is_some()), "seed {seed}: rules need Asked to read");
     assert_eq!(parts.wakes, detail.is_some_and(|card| !card.wakes.is_empty()), "seed {seed}: wakes need subscriptions");
@@ -356,7 +378,7 @@ fn sweep(seed: u64) -> bool {
     assert!(!parts.wakes || parts.right, "seed {seed}: wakes keep their right column");
     assert_eq!(
         team::parts(&facts),
-        team::Parts { people: !expected.is_empty(), shared: shared_role(&project), triager: false, ..parts.clone() },
+        team::Parts { people: !expected.is_empty(), shared: shared_role(&project), ..parts.clone() },
         "seed {seed}: parts show exactly when their facts exist"
     );
     for person in &expected {
@@ -400,6 +422,127 @@ fn team_parts_follow_their_rules() {
         }
     }
     assert!(shared > 0, "the sweep reaches a shared built-in role");
+}
+
+fn random_owner(rng: &mut Rng) -> (w::AreaOwner, Option<w::Holder>) {
+    let number = rng.between(1, 20);
+    let (owner, holder) = match rng.below(4) {
+        0 => (
+            w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("task in 1..=20")),
+            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("task in 1..=20")),
+        ),
+        1 => (
+            w::AreaOwner::Party(
+                w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number }).expect("party in 1..=20"),
+            ),
+            w::Holder::Party(
+                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number }).expect("party in 1..=20"),
+            ),
+        ),
+        2 => {
+            let number = u32::try_from(number).expect("number in 1..=20");
+            (
+                w::AreaOwner::Role(
+                    w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number }).expect("role in 1..=20"),
+                ),
+                w::Holder::Role(
+                    w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number }).expect("role in 1..=20"),
+                ),
+            )
+        }
+        _ => (
+            w::AreaOwner::Charter(
+                w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number: 15 }).expect("charter 15"),
+            ),
+            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("task in 1..=20")),
+        ),
+    };
+    let standing = matches!(owner, w::AreaOwner::Role(_)) || rng.chance(750);
+    (owner, if standing { Some(holder) } else { None })
+}
+fn random_areas(rng: &mut Rng) -> Option<team::Areas> {
+    if rng.chance(250) {
+        return None;
+    }
+    let mut rows = List::with_capacity(16);
+    for index in 0..rng.between(0, 16) {
+        let (owner, holder) = random_owner(rng);
+        rows.push(team::Area {
+            name: format!("area-{index}").into_bytes().into_boxed_slice(),
+            words: b"Its scope".as_slice().into(),
+            owner,
+            holder,
+        })
+        .expect("sixteen areas");
+    }
+    let (owner, holder) = random_owner(rng);
+    Some(team::Areas {
+        rows,
+        triager: if rng.chance(750) { Some(owner) } else { None },
+        holder: holder.unwrap_or_else(|| {
+            w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).expect("built-in role"))
+        }),
+    })
+}
+fn check_areas(facts: &team::Facts, parts: &team::Parts) {
+    assert_eq!(parts.areas, facts.areas.is_some(), "Areas exactly while the document is read");
+    let table = facts.areas.as_ref().is_some_and(|areas| !areas.rows.is_empty() || areas.triager.is_some());
+    assert_eq!(parts.areas_table, table);
+    assert_eq!(parts.who_routes, table);
+    assert_eq!(parts.lede_areas, table);
+    assert_eq!(parts.areas_empty, parts.areas && !table);
+    let expected: Vec<_> = facts
+        .areas
+        .as_ref()
+        .filter(|_| table)
+        .map(|areas| {
+            areas
+                .rows
+                .iter()
+                .map(|row| team::AreaName::Named(row.name.clone()))
+                .chain([team::AreaName::AnythingElse])
+                .collect()
+        })
+        .unwrap_or_default();
+    assert_eq!(
+        parts.area_rows.iter().map(|row| row.name.clone()).collect::<Vec<_>>(),
+        expected,
+        "each area once, in order, then Anything else"
+    );
+    let listed: std::collections::BTreeSet<_> = facts.roles.iter().map(|role| role.task).collect();
+    let mut reached = std::collections::BTreeMap::<u64, u32>::new();
+    for row in &parts.area_rows {
+        let expected = match &row.holder {
+            Some(w::Holder::Task(task)) if listed.contains(&task.number()) => Some(task.number()),
+            _ => None,
+        };
+        assert_eq!(row.role, expected);
+        if let Some(task) = row.role {
+            assert!(!parts.standing.as_slice().contains(&task), "a table owner never stands in the list");
+            let times = reached.entry(task).or_default();
+            assert_eq!(row.first, *times == 0);
+            assert_eq!(row.current, *times == 0 && parts.card == Some(task));
+            *times += 1;
+        }
+    }
+    for task in &listed {
+        assert_eq!(
+            u32::from(reached.contains_key(task))
+                + u32::try_from(parts.standing.iter().filter(|n| *n == task).count()).expect("few standing roles"),
+            1,
+            "each listed role reached by its first chip or its Standing row"
+        );
+    }
+    assert!(!parts.standing_roles || !parts.standing.is_empty() || parts.roles_cut);
+    assert!(!parts.areas_table || !parts.area_rows.is_empty());
+    assert!(parts.box_areas.iter().all(|(_, names)| !names.is_empty()));
+    let owned: Vec<_> = parts
+        .area_rows
+        .iter()
+        .filter(|row| row.role.is_some() && row.role == parts.card)
+        .map(|row| row.name.clone())
+        .collect();
+    assert_eq!(parts.owns.as_slice(), owned);
 }
 
 fn random_sessions(rng: &mut Rng) -> List<team::Session> {
