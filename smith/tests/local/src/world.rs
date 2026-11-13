@@ -1473,6 +1473,7 @@ impl World {
                         evidence: agent::llm::Evidence::Response { status: Some(403) },
                         detail: b"contact support\nprivate".as_slice().into(),
                         report: agent::llm::Report {
+                            status: None,
                             code: b"billing".as_slice().into(),
                             request: Box::default(),
                             field: Box::default(),

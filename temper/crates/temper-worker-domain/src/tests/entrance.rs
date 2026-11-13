@@ -64,7 +64,7 @@ fn workspace_items_without_a_workstream_are_refused_as_an_invalid_start() {
 fn an_undecodable_call_name_refuses_the_start_as_invalid_naming_it() {
     let mut h = Harness::new();
     let (agent, _) = h.decode(Box::new([]));
-    let rows = h.step(Event::Decoded { agent, start: Err(host::Undecoded::CallName) });
+    let rows = h.step(Event::Decoded { agent, start: Err(host::Undecoded::CallName), endpoints: Box::new([]) });
     assert!(rows.contains(&refused(b"call name")));
 }
 
@@ -72,7 +72,7 @@ fn an_undecodable_call_name_refuses_the_start_as_invalid_naming_it() {
 fn undecodable_delivery_evidence_refuses_the_start_as_invalid_naming_it() {
     let mut h = Harness::new();
     let (agent, _) = h.decode(Box::new([]));
-    let rows = h.step(Event::Decoded { agent, start: Err(host::Undecoded::Evidence) });
+    let rows = h.step(Event::Decoded { agent, start: Err(host::Undecoded::Evidence), endpoints: Box::new([]) });
     assert!(rows.contains(&refused(b"delivery evidence")));
 }
 
@@ -80,7 +80,7 @@ fn undecodable_delivery_evidence_refuses_the_start_as_invalid_naming_it() {
 fn a_start_refused_as_invalid_frees_its_slot_unacknowledged() {
     let mut h = Harness::new();
     let (agent, _) = h.decode(Box::new([]));
-    h.step(Event::Decoded { agent, start: Err(host::Undecoded::Charter) });
+    h.step(Event::Decoded { agent, start: Err(host::Undecoded::Charter), endpoints: Box::new([]) });
     assert_eq!(h.domain.host().hosted(), 0);
 }
 
@@ -407,7 +407,11 @@ fn version_refusals_cross_the_root_without_an_agent_or_a_kept_slot() {
             })
         } else {
             let (agent, _) = h.decode(Box::new([]));
-            h.step(Event::Decoded { agent, start: Err(host::Undecoded::Version(mismatch.clone())) })
+            h.step(Event::Decoded {
+                agent,
+                start: Err(host::Undecoded::Version(mismatch.clone())),
+                endpoints: Box::new([]),
+            })
         };
         let mut answered = false;
         for row in &rows {

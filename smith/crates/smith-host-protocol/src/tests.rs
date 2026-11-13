@@ -675,6 +675,7 @@ fn wire_completion(failure: smith_channel::CompletionFailure) -> smith_channel::
         wire::CompletionFault::new(
             &wire::CEILINGS,
             wire::CompletionFaultParts {
+                status: None,
                 failure,
                 evidence: wire::CompletionEvidence::Unknown,
                 retry_after: None,
@@ -697,6 +698,7 @@ fn host_completion(failure: smith_host_domain::CompletionFailure) -> smith_host_
         model: 1,
         attempts: 2,
         report: host::Report {
+            status: None,
             code: b"code".as_slice().into(),
             request: b"request".as_slice().into(),
             field: b"feature".as_slice().into(),
@@ -776,5 +778,45 @@ fn a_save_ask_has_no_fields_and_requires_a_write_effect() {
         .expect("save envelope");
         let expected = if record.effect() == &wire::Effect::Write { Some(smith_host_domain::Ask::Save) } else { None };
         assert_eq!(crate::translate::decode_ask(&record).expect("typed save"), expected);
+    }
+}
+
+#[test]
+fn a_completion_report_keeps_status_separate_from_evidence() {
+    use smith_channel as wire;
+    use smith_host_domain as host;
+    let limits = &wire::CEILINGS;
+    for status in [Some(403), None] {
+        let wire::ModelFault::Completion(fault) = wire_completion(wire::CompletionFailure::Unavailable) else {
+            panic!("completion fixture")
+        };
+        let mut parts = fault.into_parts();
+        parts.status = status;
+        parts.evidence = wire::CompletionEvidence::Unsent;
+        let fault = wire::ModelFault::Completion(wire::CompletionFault::new(limits, parts).expect("fault"));
+        let fault = wire::ModelFaultValue::new(limits, wire::ModelFaultValueParts { value: fault }).expect("model");
+        let result = wire::RunResult::Failed(
+            wire::Failed::new(limits, wire::FailedParts { reason: wire::RunFailure::Model(fault) }).expect("failed"),
+        );
+        let record = wire::Answer::new(limits, wire::AnswerParts { turns: 0, spent: 0, last_read: None, result })
+            .expect("answer");
+        let decoded = crate::answer::decode_answer(&record, &smith_charter::CEILINGS).expect("host answer");
+        assert_eq!(
+            decoded.result,
+            host::RunResult::Failed {
+                failure: host::RunFailure::Model(host::ModelFault::Completion {
+                    failure: host::CompletionFailure::Unavailable,
+                    evidence: host::CompletionEvidence::Unsent,
+                    model: 1,
+                    attempts: 2,
+                    report: host::Report {
+                        status,
+                        code: b"code".as_slice().into(),
+                        request: b"request".as_slice().into(),
+                        field: b"feature".as_slice().into(),
+                    },
+                })
+            }
+        );
     }
 }
