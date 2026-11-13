@@ -606,7 +606,7 @@ fn fields(what: &w::HistoryWhat, out: &mut Fields<'_>) {
             for proof in value.proofs() {
                 out.object_start();
                 out.number(b"gate", u64::from(proof.gate()));
-                out.number(b"run", proof.run());
+                out.optional(b"run", *proof.run());
                 out.object_end();
             }
             out.array_end();

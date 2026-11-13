@@ -13028,14 +13028,14 @@ pub struct HistoryProofParts {
     /// The `gate` field.
     pub gate: u16,
     /// The `run` field.
-    pub run: u64,
+    pub run: Option<u64>,
 }
 
 /// `HistoryProof` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct HistoryProof {
     gate: u16,
-    run: u64,
+    run: Option<u64>,
 }
 
 impl HistoryProof {
@@ -13052,7 +13052,7 @@ impl HistoryProof {
 
     /// Reads the `run` field.
     #[must_use]
-    pub fn run(&self) -> u64 { self.run }
+    pub fn run(&self) -> &Option<u64> { &self.run }
 
     /// Moves the fields out without copying.
     #[must_use]
@@ -30456,7 +30456,11 @@ impl HistoryProof {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(2).expect("schema ceilings fit u32");
+        let field_run = &self.run;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_run.is_some() {
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -30465,7 +30469,13 @@ impl HistoryProof {
         let field_gate = &self.gate;
         writer.put(&field_gate.to_be_bytes())?;
         let field_run = &self.run;
-        writer.put(&field_run.to_be_bytes())?;
+        match field_run {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -30478,7 +30488,7 @@ impl HistoryProof {
 
     fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_gate = reader.u16().ok_or(Problem { path: Path::HistoryProofGate, reason: skein_codec::Reason::Short })?;
-        let decoded_run = reader.u64().ok_or(Problem { path: Path::HistoryProofRun, reason: skein_codec::Reason::Short })?;
+        let decoded_run = match reader.u8().ok_or(Problem { path: Path::HistoryProofRun, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::HistoryProofRun, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::HistoryProofRun, reason: skein_codec::Reason::Tag }) };
         Ok(Self { gate: decoded_gate, run: decoded_run })
     }
 }
@@ -30490,7 +30500,9 @@ impl HistoryProved {
         let mut size = 0_u32;
         let field_proofs = &self.proofs;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(field_proofs.len().checked_mul(10).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        for item_0 in field_proofs.as_slice() {
+        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -30512,7 +30524,7 @@ impl HistoryProved {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_proofs = { let count = match skein_codec::read_count(reader, limits.history_proved_proofs.min(CEILINGS.history_proved_proofs)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryProvedProofs, reason }), }; if count > reader.remaining() / 10 { return Err(Problem { path: Path::HistoryProvedProofs, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = HistoryProof::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_proofs = { let count = match skein_codec::read_count(reader, limits.history_proved_proofs.min(CEILINGS.history_proved_proofs)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HistoryProvedProofs, reason }), }; if count > reader.remaining() / 3 { return Err(Problem { path: Path::HistoryProvedProofs, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = HistoryProof::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { proofs: decoded_proofs })
     }
 }
@@ -45093,7 +45105,7 @@ impl HistoryProof {
 
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(2_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 

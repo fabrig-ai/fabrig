@@ -288,13 +288,25 @@ fn history_ended_kind_names_and_nullable_page_fields_are_stable() {
         w::HistoryRoundEnded::new(&w::CEILINGS, w::HistoryRoundEndedParts { cause: w::HistoryRoundCause::Cut })
             .unwrap(),
     );
+    let proved = w::HistoryWhat::Proved(
+        w::HistoryProved::new(
+            &w::CEILINGS,
+            w::HistoryProvedParts {
+                proofs: List::from_boxed(Box::new([
+                    w::HistoryProof::new(&w::CEILINGS, w::HistoryProofParts { gate: 1, run: Some(7) }).unwrap(),
+                    w::HistoryProof::new(&w::CEILINGS, w::HistoryProofParts { gate: 2, run: None }).unwrap(),
+                ])),
+            },
+        )
+        .unwrap(),
+    );
     let result = w::HistoryReply::Page(
         w::HistoryPage::new(
             &w::CEILINGS,
             w::HistoryPageParts {
-                events: List::from_boxed(Box::new([event(1, gate), event(2, round)])),
+                events: List::from_boxed(Box::new([event(1, gate), event(2, round), event(3, proved)])),
                 after: None,
-                upper: 2,
+                upper: 3,
                 whole_since: None,
             },
         )
@@ -304,6 +316,8 @@ fn history_ended_kind_names_and_nullable_page_fields_are_stable() {
     let call = root.submit(&["landing", "history", "--project", "1", "--json"]);
     serve(&mut root, call, result);
     let json: serde_json::Value = serde_json::from_slice(&root.answer(call).unwrap().stdout).unwrap();
+    assert_eq!(json["events"][2]["what"]["proofs"][0]["run"], 7_u64);
+    assert_eq!(json["events"][2]["what"]["proofs"][1]["run"], serde_json::Value::Null);
     assert_eq!(json["after"], serde_json::Value::Null);
     assert_eq!(json["whole_since"], serde_json::Value::Null);
     assert_eq!(json["events"][0]["what"]["kind"], "gate-ended");

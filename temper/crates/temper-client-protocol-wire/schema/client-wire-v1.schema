@@ -277,7 +277,7 @@ record HistoryRoundEnded { cause: HistoryRoundCause }
 record HistoryGate { gate: u16 key: fixed 32 }
 enum HistoryGateVerdict { passed, failed, fault, timeout, superseded }
 record HistoryGateEnded { gate: u16 key: fixed 32 verdict: HistoryGateVerdict }
-record HistoryProof { gate: u16 run: u64 }
+record HistoryProof { gate: u16 run: option u64 }
 record HistoryProved { proofs: list 64 HistoryProof }
 record HistorySearched { green: option fixed 32 red: fixed 32 blamed: u16 }
 record HistoryProbeEnded { green: bool }
