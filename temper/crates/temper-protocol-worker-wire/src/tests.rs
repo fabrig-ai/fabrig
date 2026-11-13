@@ -166,9 +166,9 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     assert_eq!(u64::from(sizes.resource), v1::Preparation::encoded_bound(&limits).expect("preparation"));
     assert_eq!(u64::from(sizes.grant), v1::Identity::encoded_bound(&limits).expect("identity"));
     // Merged adds a list length and 64 full ids in place of Merge's base id.
-    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(792_260));
-    // At ceilings: 64 * 12,379-byte repositories + the four-byte list length.
-    assert_eq!(sizes, crate::Largest { items: 12730, left: 84, saved: 1084, resource: 41, grant: 233 });
+    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(792_262));
+    // At ceilings: 64 * 12,379-byte repositories + the four-byte list length + the two-byte version.
+    assert_eq!(sizes, crate::Largest { items: 12732, left: 84, saved: 1084, resource: 41, grant: 233 });
 }
 
 #[test]

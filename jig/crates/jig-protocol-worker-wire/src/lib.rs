@@ -115,7 +115,7 @@ pub use v9::{
     ListRefusedParts, ListRow, ListRowParts, ListedRows, ListedRowsParts, ReadList, ReadListParts,
 };
 
-/// This crate's spoken family and layout (temper/docs/design/protocol/wires.md, 3.1).
+/// This crate's spoken family and layout (protocol/channel/wires.md, 2).
 pub mod wire {
     /// The family named by the current schema's header.
     pub const FAMILY: &str = "jig-worker-wire";
