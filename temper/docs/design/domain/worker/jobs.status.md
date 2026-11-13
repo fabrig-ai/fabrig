@@ -51,4 +51,3 @@ deployment's lines, which no record shows.
   close kinds (`temper-worker-service/src/worker_settings.rs`,
   `job_kinds`), its prepare temper's own alone, and with neither the
   `Rewrite` delivery (`../../protocol/git.md`, 4.10).
-- **Not yet:** *The prepare kind* and *Then the delivery*: a request of several members is refused (`temper-worker-domain/src/jobs/prepare.rs`, `decode`): no stack onto the prefix below from the request's `from`, no conflict told apart as `branch` or `member` and skipped, no `Prefixes` access, and one push of one candidate [in flight: change 2203].

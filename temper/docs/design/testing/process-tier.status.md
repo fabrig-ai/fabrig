@@ -88,4 +88,3 @@ the fake's own process story.
    the live held-record guard proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
 - **Not yet:** the whole document: the managed-sitting driver lag remains `live-tier.status.md` (Not yet, the whole document).
-- **Not yet:** *A queue that lands green*: no such story in `bin/temper-box/tests/process.rs` [in flight: change 2205].
