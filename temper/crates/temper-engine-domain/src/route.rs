@@ -316,6 +316,9 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             close(domain, env, decision, out);
             return;
         }
+        Event::Worker(crate::WorkerInput::Asked { channel, run, attempt, number, answer }) => {
+            crate::wire::asked(domain, channel, run, attempt, number, answer);
+        }
         Event::Worker(crate::WorkerInput::Opened { worker, statement }) => {
             domain.openings.push(crate::WorkerOpening { worker, statement, at: env.wall });
             return;

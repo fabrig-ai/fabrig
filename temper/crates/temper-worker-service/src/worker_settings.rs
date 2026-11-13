@@ -84,6 +84,9 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result
 pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &Limits) -> root::Limits {
     let mut host = worker.jig.limits.hub;
     host.slots = worker.jig.slots;
+    let largest = payload::largest(&v1::CEILINGS).expect("schema ceilings fit the channel");
+    host.application_ask_bytes = largest.ask;
+    host.application_answer_bytes = largest.answer;
     root::Limits {
         tooling: tooling(worker.jig.slots),
         host,
@@ -125,8 +128,8 @@ pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -
     let ceilings = jig_protocol_worker_wire::CEILINGS;
     let largest = payload::largest(payload)?;
     let sizes = jig_protocol_worker_wire::sizes::Sizes {
-        application_ask: hub.application_ask_bytes,
-        application_answer: hub.application_answer_bytes,
+        application_ask: largest.ask,
+        application_answer: largest.answer,
         program_sources: core.fleet.program_sources,
         piece: hub.piece_bytes,
         charter: u32::try_from(hub.charter_bytes).ok()?,
@@ -330,6 +333,8 @@ impl Limits {
             entries: self.peer.installations,
             entry_token_bytes: self.peer.token_bytes,
             text_bytes: v1::CEILINGS.identity_name,
+            reds: v1::CEILINGS.reds_reds,
+            red_key_bytes: v1::CEILINGS.red_key,
         }
     }
 }

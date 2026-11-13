@@ -729,6 +729,8 @@ pub enum Fact {
 
 #[derive(Hash, Debug)]
 pub enum WorkerInput {
+    /// The protocol encoded the root's application answer, sent through the fleet's fence.
+    Asked { channel: Token, run: Token, attempt: Token, number: u64, answer: jig_domain_link::AskAnswer },
     /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 10.1).
     Opened { worker: Box<str>, statement: crate::WorkerStatement },
     /// A worker channel's hello, record or loss.
