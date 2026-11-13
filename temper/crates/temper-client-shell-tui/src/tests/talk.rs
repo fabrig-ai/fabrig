@@ -76,11 +76,11 @@ fn talk_host(open: bool, cost: bool) -> Host {
     clippy::fn_params_excessive_bools,
     reason = "fixture flags independently supply the open talk, cost, reply and proposal"
 )]
-#[expect(clippy::too_many_lines, reason = "talk fixture constructs the page's full typed document")]
 fn talk_fixture(open: bool, cost: bool, choices: bool, proposed: bool) -> Host {
     talk_setup(open, cost, choices, proposed).0
 }
 #[expect(clippy::fn_params_excessive_bools, reason = "fixture flags independently supply talk facts")]
+#[expect(clippy::too_many_lines, reason = "talk fixture constructs the page's full typed document")]
 fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, Duties) {
     let (mut host, mut history) = roles_fixture();
     typed(&mut host, b"/talk");
