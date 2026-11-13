@@ -932,3 +932,5 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         | change::State::Uncleared { .. } => Some(0),
     }
 }
+
+pub use history::HistoryRange;

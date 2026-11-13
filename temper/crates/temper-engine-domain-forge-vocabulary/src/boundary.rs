@@ -1509,6 +1509,18 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    HistoryLoaded {
+        load: u64,
+        rows: Box<[Stored]>,
+        next: Option<Key>,
+    },
+    HistoryUnloaded {
+        load: u64,
+    },
+    ReadHistory {
+        read: u64,
+        query: crate::history::Query,
+    },
     /// Keep the merge judgement in the decision admitting its effect.
     Signed {
         task: u64,
@@ -2187,6 +2199,16 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    LoadHistory {
+        load: u64,
+        range: crate::history::HistoryRange,
+        after: Option<Key>,
+        most: u32,
+    },
+    HistoryPage {
+        read: u64,
+        answer: crate::history::Reply,
+    },
     Decided {
         to: skein_lib::ReplyTo,
         key: NamedCall,

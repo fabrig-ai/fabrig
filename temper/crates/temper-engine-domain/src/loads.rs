@@ -90,6 +90,7 @@ pub enum Kind {
     EscalationDecision,
     Census,
     Forge,
+    History,
 }
 
 /// A startup load's terminal failure, retained through the stop notification.
@@ -120,6 +121,7 @@ pub(crate) fn kind(range: &Range) -> Kind {
         Range::Core(CoreRange::EscalationDecision { .. }) => Kind::EscalationDecision,
         Range::Census(_) => Kind::Census,
         Range::Forge => Kind::Forge,
+        Range::History(_) => Kind::History,
     }
 }
 
@@ -234,7 +236,7 @@ pub fn begin(
                 Range::Census(census) => {
                     census_position(census, key)?;
                 }
-                Range::Core(_) | Range::Forge => {
+                Range::Core(_) | Range::Forge | Range::History(_) => {
                     if !range.contains(key) {
                         return None;
                     }
@@ -461,7 +463,7 @@ fn check(entry: &Entry, limits: &Limits, rows: &[Record], next: Option<Key>) -> 
     };
     let continuation = match &entry.range {
         Range::Census(_) => next,
-        Range::Core(_) | Range::Forge => {
+        Range::Core(_) | Range::Forge | Range::History(_) => {
             if cutting {
                 last_kept
             } else {
@@ -510,7 +512,8 @@ fn read_cursor(entry: &Entry, empty: bool, previous: Option<&Key>, cursor: &Key)
             | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. } | jig_domain_notes::Range::Project { .. }),
         )
         | Range::Census(_)
-        | Range::Forge => {}
+        | Range::Forge
+        | Range::History(_) => {}
     }
     Ok(())
 }
@@ -554,6 +557,7 @@ fn census_position(census: &jig_domain_core::Census, key: &Key) -> Option<(u32, 
 
 fn valid_range(range: &Range) -> bool {
     match range {
+        Range::History(range) => range.valid(),
         Range::Core(crate::CoreRange::RequesterWord { task, position }) => *task != 0 && *position != 0,
         Range::Core(
             crate::CoreRange::Deployment

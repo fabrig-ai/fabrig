@@ -29,7 +29,8 @@ pub(super) fn window(range: &Range) -> bool {
             | CoreRange::EscalationDecision { .. },
         )
         | Range::Census(_)
-        | Range::Forge => false,
+        | Range::Forge
+        | Range::History(_) => false,
     }
 }
 
@@ -59,7 +60,8 @@ pub(super) fn starting(range: &Range) -> bool {
             | CoreRange::ProposalDecision { .. }
             | CoreRange::TaskProposal { .. }
             | CoreRange::EscalationDecision { .. },
-        ) => false,
+        )
+        | Range::History(_) => false,
     }
 }
 
@@ -74,7 +76,7 @@ pub(super) fn keeps(range: &Range, key: &Key) -> bool {
             let Key::Core(core::Key::Core(core::CoreKey::RunProof(_))) = key else { return false };
             true
         }
-        Range::Core(_) | Range::Forge => range.contains(key),
+        Range::Core(_) | Range::Forge | Range::History(_) => range.contains(key),
     }
 }
 
@@ -90,11 +92,13 @@ pub(super) fn cursor(range: &Range, key: &Key) -> Option<store::Cursor> {
         (Range::Core(range), Key::Core(_)) if !range.restore_ranges().is_empty() => {
             return store::intervals::cursor(range.restore_ranges(), &after);
         }
-        (Range::Core(_) | Range::Census(_) | Range::Forge, Key::Core(_) | Key::Forge(_)) => 0,
+        (Range::History(range), Key::Forge(key)) => history_cursor(range, key)?,
+        (Range::Core(_) | Range::Census(_) | Range::Forge | Range::History(_), Key::Core(_) | Key::Forge(_)) => 0,
     };
     Some(store::Cursor { interval, after })
 }
 
+#[expect(clippy::too_many_lines, reason = "one dispatcher maps root ranges to jig store requests")]
 pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store::Request> {
     let after = if let Some(cursor) = &flight.cursor {
         Some(cursor.clone())
@@ -107,6 +111,15 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
     let rows = flight.most;
     let bytes = u64::from(flight.bytes);
     let range = match &flight.range {
+        Range::History(range) => {
+            return Some(store::Request::Load {
+                owner,
+                range: store::Load::Application(history_intervals(range)?),
+                after,
+                rows,
+                bytes,
+            });
+        }
         Range::Forge => store::Restore::Application(Box::new([temper_protocol_store::interval()])),
         Range::Census(census) => store::Restore::Jig(Box::new([core::RestoreRange::Census(census.clone())])),
         Range::Core(range) => match range {
@@ -262,4 +275,56 @@ fn text_end(text: &[u8]) -> Box<[u8]> {
     writer.put(MARKER).expect("measured marker");
     writer.put(suffix).expect("measured suffix");
     writer.finish()
+}
+
+/// Intervals stay relative to the application's tag; jig supplies that tag.
+fn history_intervals(range: &temper_engine_domain_forge::HistoryRange) -> Option<Box<[skein_kv::Range]>> {
+    use temper_engine_domain_forge::{HistoryRange, Key};
+    if !range.valid() {
+        return None;
+    }
+    let (key, suffix) = match range {
+        HistoryRange::Events { project } => (Key::HistoryEvent { project: *project, number: 0 }, 8),
+        HistoryRange::Change { project, change } => {
+            (Key::HistoryChange { project: *project, change: *change, number: 0 }, 8)
+        }
+        HistoryRange::Landing { project, landing } => {
+            (Key::HistoryLanding { project: *project, landing: *landing, number: 0 }, 8)
+        }
+        HistoryRange::Last { project } => (Key::HistoryLast { project: *project, number: 0, change: 0 }, 16),
+        HistoryRange::Numbers { project, numbers } => {
+            let mut ordered = skein_lib::Map::with_capacity(32);
+            for number in numbers {
+                ordered.insert(*number, ()).ok()?;
+            }
+            let mut intervals = skein_lib::List::with_capacity(32);
+            for (number, ()) in &ordered {
+                let key = temper_protocol_store::keys::encode(
+                    &Key::HistoryEvent { project: *project, number: *number },
+                    u32::MAX,
+                )?;
+                intervals.push(skein_kv::Range::prefix(&key)).ok()?;
+            }
+            return Some(intervals.into_boxed());
+        }
+    };
+    let key = temper_protocol_store::keys::encode(&key, u32::MAX)?;
+    Some(Box::new([skein_kv::Range::prefix(key.get(..key.len().checked_sub(suffix)?)?)]))
+}
+
+fn history_cursor(
+    range: &temper_engine_domain_forge::HistoryRange,
+    key: &temper_engine_domain_forge::Key,
+) -> Option<u32> {
+    let key = temper_protocol_store::keys::encode(key, u32::MAX)?;
+    for (index, interval) in history_intervals(range)?.iter().enumerate() {
+        let before_end = match &interval.end {
+            Some(end) => &key < end,
+            None => true,
+        };
+        if key >= interval.start && before_end {
+            return u32::try_from(index).ok();
+        }
+    }
+    None
 }

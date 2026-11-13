@@ -1,5 +1,6 @@
 use crate::*;
 mod forge_user;
+mod history_read;
 mod purpose;
 mod rules_by_path;
 const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
