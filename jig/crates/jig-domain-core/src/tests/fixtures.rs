@@ -259,13 +259,13 @@ pub(crate) fn member(words: &[u8], spend: u64) -> jig_domain_people::Member {
 /// Test-only mutators of the settings' current state, kept with the core's
 /// tests now that the state lives in `jig-domain-core-vocabulary`.
 pub(crate) trait CurrentFixtures {
-    fn test_charter_mut(&mut self, number: u32) -> &mut crate::Charter;
-    fn test_templates(&mut self, templates: Box<[crate::Template]>);
+    fn test_charter_mut(&mut self, number: u32) -> &mut Charter;
+    fn test_templates(&mut self, templates: Box<[Template]>);
 }
 
 #[expect(clippy::panic, reason = "the core's test fixtures assert their setup values")]
 impl CurrentFixtures for crate::settings::Current {
-    fn test_charter_mut(&mut self, number: u32) -> &mut crate::Charter {
+    fn test_charter_mut(&mut self, number: u32) -> &mut Charter {
         use crate::settings::{Setting, Value};
         drop(self.resolved.remove(&number));
         match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
@@ -280,9 +280,9 @@ impl CurrentFixtures for crate::settings::Current {
             }
         }
     }
-    fn test_templates(&mut self, templates: Box<[crate::Template]>) {
+    fn test_templates(&mut self, templates: Box<[Template]>) {
         use crate::settings::{Setting, Value};
-        let mut old = skein_lib::List::with_capacity(self.defaults.capacity());
+        let mut old = List::with_capacity(self.defaults.capacity());
         for (&setting, _) in &self.defaults {
             match setting {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
