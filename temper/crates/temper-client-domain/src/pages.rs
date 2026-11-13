@@ -235,6 +235,7 @@ pub enum Act {
     Tell {
         project: u32,
         words: Box<[u8]>,
+        about: Option<tell::About>,
     },
     StopAsking(stop_asking::Act),
     HandArea(team::hand::Act),
@@ -882,7 +883,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
         }
         Event::Act { act: Act::Finding(act) } => findings::act(pages, env, act, out),
-        Event::Act { act: Act::Tell { project, words } } => tell::act(pages, env, project, &words, out),
+        Event::Act { act: Act::Tell { project, words, about } } => tell::act(pages, env, project, &words, about, out),
         Event::Act { act: Act::Needs(act) } => {
             needs::act(pages, env, client, &crate::forge::approvals::Approvals::default(), act, out);
         }
