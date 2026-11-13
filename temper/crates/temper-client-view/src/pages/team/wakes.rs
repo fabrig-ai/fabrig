@@ -1,7 +1,7 @@
 //! Rules and wake rows on the role card (client/pages/team.md, 1).
 use super::{paragraph, text};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{TimeForm, Times, Word, Words},
 };
@@ -29,7 +29,11 @@ pub(super) fn rules(b: &mut Builder, w: &Words, project: u32, rules: &team::Rule
     let proposal = w.say(Word::TeamChangeProposal, &[]);
     b.name(&concat(&[&prefix, &proposal]));
     b.text(Run::Plain, &prefix);
-    crate::link(b, &proposal, bindings.insert(Act::Go { address: Address::Role { project, charter: rules.charter } }));
+    crate::bindings::link(
+        b,
+        &proposal,
+        bindings.insert(Act::Go { address: Address::Role { project, charter: rules.charter } }),
+    );
     b.text(Run::Plain, &proposal);
     b.close();
     b.close();
@@ -58,7 +62,11 @@ pub(super) fn draw(
             Interest::Task { target, held, result } => {
                 b.text(Run::Plain, &w.say(Word::WakeTask, &[]));
                 let number = Decimal::of(target);
-                crate::link(b, number.as_bytes(), bindings.insert(Act::Go { address: Address::Task { task: target } }));
+                crate::bindings::link(
+                    b,
+                    number.as_bytes(),
+                    bindings.insert(Act::Go { address: Address::Task { task: target } }),
+                );
                 b.text(Run::Plain, number.as_bytes());
                 b.close();
                 b.text(Run::Plain, &w.say(task_suffix(held, result), &[]));

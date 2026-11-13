@@ -110,7 +110,7 @@ fn control_in(b: &mut Builder, action: Control<'_>, style: skein_ui::Style) {
             b.text(Run::Plain, name);
         }
         Control::PrimaryLink { name, to } | Control::SecondaryLink { name, to } | Control::Link { name, to } => {
-            crate::link(b, name, to);
+            crate::bindings::link(b, name, to);
             b.text(Run::Plain, name);
         }
         Control::PrimaryButton { name, to } | Control::Button { name, to } => {

@@ -1,4 +1,5 @@
 //! Accounts bindings contain row targets and operation names, never a key value.
+pub(crate) use crate::words::accounts as words;
 use alloc::boxed::Box;
 use skein_lib::{List, Secret, Token};
 use skein_ui::{Act, Binding};
@@ -6,7 +7,7 @@ use temper_client_domain::{
     Action, Event,
     pages::{self, accounts::Act as AccountAct},
 };
-pub(crate) mod words;
+pub(crate) use words::owner;
 #[derive(Clone, Debug)]
 pub(crate) enum Meaning {
     Copy { words: Box<[u8]> },
@@ -25,10 +26,6 @@ pub(crate) struct Bindings {
     revision: u64,
     counts: jig_client::AccountCounts,
     row_uses: u32,
-}
-pub(crate) const fn owner() -> skein_ui::Owner {
-    // View-local owner, outside the u16 wire family/asker namespace.
-    skein_ui::Owner { number: 65536 }
 }
 impl Bindings {
     pub fn new(counts: jig_client::AccountCounts, row_uses: u32, providers: u32) -> Self {

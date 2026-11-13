@@ -33,7 +33,7 @@ impl TerminalWord {
         }
     }
     fn id(self) -> PhraseId {
-        PhraseId { owner: crate::frame::owner(), number: self.data().0 }
+        PhraseId { owner: crate::look::owner(), number: self.data().0 }
     }
 }
 pub(crate) fn say(w: &Words, word: TerminalWord) -> Box<[u8]> {

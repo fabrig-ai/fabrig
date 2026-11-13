@@ -1,6 +1,6 @@
 //! How work runs' heading, path, reaches, roles and budget (temper/docs/design/client/pages/settings.md, 2).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
@@ -116,7 +116,7 @@ pub(crate) fn rules(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
     super::settings::section_head(b, &w.say(Word::HowRules, &[]));
     if parts.add {
         let name = w.say(Word::HowAddRule, &[]);
-        crate::link(b, &name, bindings.insert(Act::Go { address: Address::Ask { project } }));
+        crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Ask { project } }));
         b.style(look::HOW_ADD);
         b.text(Run::Plain, &name);
         b.close();
@@ -184,7 +184,11 @@ pub(crate) fn roles(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
         b.open(Role::Paragraph);
         b.style(look::HOW_ROLE_MORE);
         let name = w.say(Word::HowRoleInstructions, &[]);
-        crate::link(b, &name, bindings.insert(Act::Go { address: Address::Role { project, charter: role.charter() } }));
+        crate::bindings::link(
+            b,
+            &name,
+            bindings.insert(Act::Go { address: Address::Role { project, charter: role.charter() } }),
+        );
         b.text(Run::Plain, &name);
         b.close();
         b.close();

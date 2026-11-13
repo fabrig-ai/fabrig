@@ -1,6 +1,6 @@
 //! A chat's entry to the shared goal sheet and its start fact (client/pages/README.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
@@ -20,7 +20,7 @@ pub(crate) fn bar(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut 
     if chat.goal_from(root).is_some() {
         if let Some(chip) = chat.goal_chip(root) {
             let name = words.say(Word::ChatGoalLink, &[Hole::Name(skein_lib::bytes::copy_of(chip.title.bytes()))]);
-            crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: chip.task } }));
+            crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: chip.task } }));
             b.style(look::CHAT_GOAL);
             b.text(Run::Plain, &name);
             b.close();
@@ -90,7 +90,7 @@ pub(crate) fn before(
     b.text(Run::Plain, &state);
     b.close();
     let name = words.say(Word::DelegationOpen, &[]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: chip.task } }));
+    crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: chip.task } }));
     b.text(Run::Plain, &name);
     b.close();
     b.close();

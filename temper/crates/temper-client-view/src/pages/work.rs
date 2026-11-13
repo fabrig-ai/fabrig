@@ -1,6 +1,6 @@
 //! Work's head, filters and cards (temper/docs/design/client/pages/README.md; client/web/look.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times, Word, Words},
 };
@@ -680,7 +680,7 @@ fn text(b: &mut Builder, role: Role, style: Style, value: &[u8]) {
     b.close();
 }
 fn link(b: &mut Builder, _words: &Words, bindings: &mut Bindings, label: &[u8], address: Address) {
-    crate::link(b, label, bindings.insert(Act::Go { address }));
+    crate::bindings::link(b, label, bindings.insert(Act::Go { address }));
     b.text(Run::Plain, label);
 }
 

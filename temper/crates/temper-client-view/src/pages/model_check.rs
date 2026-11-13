@@ -180,7 +180,7 @@ fn row_trial(root: &Domain, w: &Words, row: &trials::Row) -> Trial {
                 Some(name) => name.bytes(),
                 None => account.display.bytes(),
             };
-            let who = crate::choice::shown(crate::accounts::words::provider_words(provider).1, w);
+            let who = crate::words::shown(crate::accounts::words::provider_words(provider).1, w);
             (name, detail, who, sign_in(account, source))
         }
         (Some(_), None) | (None, Some(_) | None) => {

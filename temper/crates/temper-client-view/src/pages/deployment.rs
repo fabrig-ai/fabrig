@@ -1,7 +1,7 @@
 //! Deployment's read-only pages (temper/docs/design/client/pages/README.md, Members and Limits).
 use super::settings::{self, Tab};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };

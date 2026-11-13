@@ -1,6 +1,6 @@
 //! The project goals' page (temper/docs/design/client/pages/README.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times, Word, Words},
 };
@@ -287,7 +287,7 @@ pub(crate) fn row(
     };
     let title = line.chip.title.bytes();
     let name = crate::accounts::words::join(&[title, &words.say(Word::ToolSeparator, &[]), &count, &status]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
+    crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
     b.style(look::GOALS_ROW);
     match state {
         State::Landed | State::Closed | State::Failed => b.style(look::GOALS_ROW_ENDED),

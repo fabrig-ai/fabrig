@@ -85,7 +85,7 @@ fn front(
     query: Option<&[u8]>,
 ) {
     let heading = words.say(Word::SignInTitle, &[]);
-    crate::outside::column(b, &heading, &[]);
+    crate::column::column(b, &heading, &[]);
     if let Some(query) = query {
         b.open(Role::Paragraph);
         words.text(b, Word::SignInContinue, &[]);
@@ -95,7 +95,7 @@ fn front(
     }
     if root.signed_out() {
         for forge in forges.entries() {
-            crate::outside::words(b, words, Word::SignInSignedOut, &[Hole::Name(forge.name(words))]);
+            crate::column::words(b, words, Word::SignInSignedOut, &[Hole::Name(forge.name(words))]);
         }
     }
     if let Some(origin) = origin {
@@ -116,7 +116,7 @@ fn front(
         words.text(b, Word::ContinueGoogle, &[]);
         b.close();
     } else {
-        crate::outside::words(b, words, Word::SignedOutMain, &[]);
+        crate::column::words(b, words, Word::SignedOutMain, &[]);
     }
     if let Some(origin) = origin {
         let mut address = Writer::new(origin.len().checked_add(b"/public".len()).expect("bounded public address"));
@@ -162,11 +162,11 @@ pub(crate) fn authorize(
         State::SignedOut => unreachable!("signed-out front drawn above"),
     };
     let heading = words.say(title, &[]);
-    crate::outside::column(b, &heading, &[]);
+    crate::column::column(b, &heading, &[]);
     match state {
         State::Waiting | State::Pending | State::Continuing => {
             if let Some(me) = root.pages().me(root.client()) {
-                crate::outside::words(
+                crate::column::words(
                     b,
                     words,
                     Word::AuthorizeContinuing,
@@ -179,7 +179,7 @@ pub(crate) fn authorize(
             }
         }
         State::Refused(AuthorizeWhy::UnknownClient | AuthorizeWhy::UnknownRedirect) => {
-            crate::outside::words(b, words, Word::AuthorizeUnknown, &[]);
+            crate::column::words(b, words, Word::AuthorizeUnknown, &[]);
             if let Some(origin) = &ways.origin {
                 let mut url = Writer::new(origin.len().checked_add(1).expect("origin bound"));
                 url.put(origin).expect("sized URL");
@@ -195,7 +195,7 @@ pub(crate) fn authorize(
             }
         }
         State::Busy => {
-            crate::outside::words(b, words, Word::AuthorizeBusyBody, &[]);
+            crate::column::words(b, words, Word::AuthorizeBusyBody, &[]);
         }
         State::Refused(AuthorizeWhy::Malformed | AuthorizeWhy::NoProvider | AuthorizeWhy::NotAPerson)
         | State::SignedOut => {}

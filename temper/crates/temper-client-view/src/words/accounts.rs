@@ -4,6 +4,11 @@ use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::phrases::{Form, Hole, HoleKind, HoleShape, Phrase, PhraseId, PhraseShape, PluralClass, Segment};
 /// Who an account is: the email its provider gave, else what it was named.
+pub(crate) const fn owner() -> skein_ui::Owner {
+    // View-local owner, outside the u16 wire family/asker namespace.
+    skein_ui::Owner { number: 65536 }
+}
+
 pub(crate) fn who<'a>(email: Option<&'a [u8]>, named: &'a [u8]) -> &'a [u8] {
     match email {
         Some(email) => email,
@@ -449,7 +454,7 @@ pub(crate) fn key_description(brand: &[u8], words: &Words) -> Box<[u8]> {
     if brand == b"Anthropic" {
         say(words, Word::KeyConsoleDetails, &[])
     } else {
-        words.say(crate::words::Word::ModelKeyDescription, &[Hole::Name(crate::choice::shown(brand, words))])
+        words.say(crate::words::Word::ModelKeyDescription, &[Hole::Name(crate::words::shown(brand, words))])
     }
 }
 pub(crate) fn join(parts: &[&[u8]]) -> Box<[u8]> {
@@ -527,7 +532,7 @@ const ENDS: &[EndWords] = &[
     EndWords { literals: &[b"Sign in with your ", b" account."], indices: &[0] },
 ];
 fn id(number: u16) -> PhraseId {
-    PhraseId { owner: super::owner(), number }
+    PhraseId { owner: owner(), number }
 }
 pub(crate) fn say(words: &Words, word: Word, holes: &[Hole]) -> Box<[u8]> {
     let number = if word == Word::OwnCount {

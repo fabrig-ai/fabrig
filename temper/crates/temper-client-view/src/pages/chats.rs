@@ -1,6 +1,6 @@
 //! The Chats page (temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 1 and temper/docs/design/client/pages/welcome.md, 2).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     words::{TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
@@ -97,7 +97,7 @@ fn repository_context(b: &mut Builder, root: &Domain, words: &Words, bindings: &
         }
         words.text(b, Word::ChatsNoRepositoryLine, &[Hole::Name(project_name(root, words))]);
         b.close();
-        crate::link(
+        crate::bindings::link(
             b,
             &words.say(Word::ForgeAdopt, &[]),
             bindings.insert(Act::Go { address: Address::Adopt { project } }),
@@ -147,7 +147,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         b.close();
     }
     b.close();
-    crate::link(
+    crate::bindings::link(
         b,
         &words.say(Word::NewChatLink, &[]),
         bindings.insert(Act::Go { address: Address::NewChat { draft: false } }),
@@ -242,7 +242,7 @@ pub(crate) fn row(
     if line.ended_at.is_some() || ended(&line.chip) {
         b.style(crate::look::CHATS_ROW_ENDED);
     }
-    b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 10, a: line.chip.task, b: 0 });
+    b.key(skein_ui::Key { owner: crate::look::owner(), kind: 10, a: line.chip.task, b: 0 });
     b.open(Role::Slot);
     b.style(crate::look::CHATS_TOP);
     // A slot keeps the number's command available in the terminal (client/pages/README.md).
@@ -252,7 +252,7 @@ pub(crate) fn row(
         None => false,
     };
     let number = words.say(Word::Chat, &[Hole::Number(line.chip.task)]);
-    crate::link(b, &number, bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }));
+    crate::bindings::link(b, &number, bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }));
     b.text(Run::Plain, &number);
     if asking && words.shell == crate::words::Shell::Terminal {
         words.text(b, Word::ToolSeparator, &[]);
@@ -278,7 +278,11 @@ pub(crate) fn row(
         {
             words.text(b, Word::ToolSeparator, &[]);
             words.text(b, Word::ChatRowGoal, &[]);
-            crate::link(b, chip.title.bytes(), bindings.insert(Act::Go { address: Address::Task { task: goal } }));
+            crate::bindings::link(
+                b,
+                chip.title.bytes(),
+                bindings.insert(Act::Go { address: Address::Task { task: goal } }),
+            );
             b.text(Run::Plain, chip.title.bytes());
             b.close();
         }

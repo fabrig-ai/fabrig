@@ -1,7 +1,7 @@
 //! Home's first three needs (temper/docs/design/client/pages/README.md, Home, The cards).
 use super::ask;
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, Times, Word, Words},
 };

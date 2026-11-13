@@ -1,6 +1,6 @@
 //! First-run pages (temper/docs/design/client/pages/README.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
@@ -51,7 +51,7 @@ fn control(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, act:
     let name = w.say(word, &[]);
     let binding = bindings.insert(act.clone());
     if let Act::Go { .. } = act {
-        crate::link(b, &name, binding);
+        crate::bindings::link(b, &name, binding);
         b.text(Run::Plain, &name);
     } else {
         b.open(Role::Button);
@@ -93,7 +93,7 @@ pub(crate) fn steps(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
             b.style(look::FLOW_DONE);
         }
         let name = w.say(word, &[]);
-        crate::link(b, &name, bindings.insert(Act::Go { address: Address::Welcome { step } }));
+        crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Welcome { step } }));
         if mark.ticked && w.shell == crate::words::Shell::Terminal {
             b.text(Run::Plain, "✓ ".as_bytes());
         }
@@ -167,7 +167,7 @@ pub(crate) fn main(
                 if playground {
                     paragraph(b, w, Word::WelcomeAfter, look::WELCOME_AFTER);
                 }
-                crate::outside::box_line(b, w);
+                crate::column::box_line(b, w);
             }
         }
         Step::Forge { forge: forge_choice } => {

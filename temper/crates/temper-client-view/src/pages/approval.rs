@@ -1,8 +1,8 @@
 //! A change waiting on a forge review (temper/docs/design/client/forge/README.md, 4.1).
 use super::ask;
 use crate::{
+    bindings::Bindings,
     forge_sign_in::Forges,
-    frame::Bindings,
     look,
     words::{TimeForm, Times, Word, Words},
 };
@@ -282,7 +282,7 @@ pub(crate) fn band(b: &mut Builder, row: &Row, me: u64, w: &Words, bindings: &mu
     b.open(Role::Slot);
     b.style(look::GOAL_CHOICES);
     if !review(b, row, w, sign_in, look::GOAL_PRIMARY) {
-        crate::link(
+        crate::bindings::link(
             b,
             &w.say(Word::HomeOpen, &[]),
             bindings.insert(Act::Go { address: Address::Task { task: row.task } }),

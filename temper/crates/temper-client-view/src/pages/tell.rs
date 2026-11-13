@@ -1,6 +1,6 @@
 //! One Tell temper card on Needs you and the Ask tab (client/pages/needs-you.md, 1).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };

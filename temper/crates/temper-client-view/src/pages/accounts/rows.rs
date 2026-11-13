@@ -777,7 +777,7 @@ fn models(root: &Domain, w: &Words, account: u32, bound: u32) -> Box<[u8]> {
                     continue;
                 }
                 let name = model.shown.as_ref().unwrap_or(&model.name);
-                let shown = crate::choice::shown(name.bytes(), w);
+                let shown = crate::words::shown(name.bytes(), w);
                 let next = words::join(&[&result, if result.is_empty() { b"" } else { b", " }, &shown]);
                 if next.len() > usize::try_from(bound).expect("text bound fits") {
                     return result;

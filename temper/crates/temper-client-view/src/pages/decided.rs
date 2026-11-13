@@ -1,6 +1,6 @@
 //! The shared decided region (temper/docs/design/client/pages/README.md, Decided for you).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times, Word, Words},
 };
