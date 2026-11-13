@@ -185,6 +185,7 @@ pub enum Tool {
     Decided(forge::DecidedCall),
     /// File, triage or read findings in the caller's project (domain/agent/tools.md).
     Finding(FindingCall),
+    Red(RedCall),
     Follow(FollowCall),
     /// Read related task specifications or proven descendant reports.
     ReadTask {
@@ -373,6 +374,20 @@ pub enum FollowToolAnswer {
     Write { follow: u32, refusal: Option<Box<[u8]>> },
     List(forge::FollowsView),
     Show { follow: u32, view: Option<Box<forge::FollowView>> },
+}
+
+/// A goal's red acts; the caller's task is always the goal (forge/reds.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RedCall {
+    Record { key: Box<[u8]>, at: Box<[u8]>, why: Box<[u8]> },
+    End { key: Box<[u8]>, why: Box<[u8]> },
+    List,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RedToolAnswer {
+    Write(forge::RedReply),
+    List { goal: u64, bound: u32, reds: Box<[forge::Red]> },
+    NoGoal { task: u64 },
 }
 
 /// Finding acts never take a project or actor from the agent (domain/areas.md, 7).

@@ -653,21 +653,23 @@ mod red_tests {
         for selected in [Profile::Small, Profile::Standard] {
             let limits = profile(selected);
             assert_eq!((limits.forge.branch_reds, limits.forge.red_key_bytes), (64, 256));
-            for name in [b"forge.branch_reds".as_slice(), b"forge.red_key_bytes"] {
-                for value in [1, 1024] {
+            for (name, most) in [(b"forge.branch_reds".as_slice(), 256), (b"forge.red_key_bytes".as_slice(), 512)] {
+                for value in [1, most] {
                     let mut changed = limits;
                     apply(&mut changed, name, value).unwrap();
                     assert_eq!((find(name).unwrap().value)(&changed), value);
                     assert!(forge::valid(&changed.forge));
                 }
-                for value in [0, 1025, u64::MAX] {
+                for value in [0, most + 1, u64::MAX] {
                     let mut changed = limits;
                     assert_eq!(apply(&mut changed, name, value), Err(Refused::Range));
                     assert_eq!((find(name).unwrap().value)(&changed), (find(name).unwrap().value)(&limits));
                 }
             }
-            for value in [0, 1025] {
+            for value in [0, 257] {
                 assert!(!forge::valid(&forge::Limits { branch_reds: value, ..limits.forge }));
+            }
+            for value in [0, 513] {
                 assert!(!forge::valid(&forge::Limits { red_key_bytes: value, ..limits.forge }));
             }
             assert!(!forge::valid(&forge::Limits { holds: u32::MAX, ..limits.forge }));

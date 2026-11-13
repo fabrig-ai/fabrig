@@ -213,7 +213,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
                 Tool::RejectedNote(jig_domain_notes::Refusal::Oversized)
             }
             Tool::Follow(_)
-            | Tool::Finding(_)
+            | Tool::Finding(_) | Tool::Red(_)
             | Tool::Decided(_)
             | Tool::Goal { .. }
             | Tool::ReadTask { .. }
@@ -255,7 +255,7 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
         }
         Tool::Recall { by, .. } => (!notes::valid_recall(by, &limits.notes)).then_some(notes::Refusal::Oversized),
         Tool::Follow(_)
-        | Tool::Finding(_)
+        | Tool::Finding(_) | Tool::Red(_)
         | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
@@ -306,7 +306,7 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     match tool {
         Tool::Goal { agree, .. } => *agree,
         Tool::Follow(_)
-        | Tool::Finding(_)
+        | Tool::Finding(_) | Tool::Red(_)
         | Tool::Decided(_)
         | Tool::ReadTask { .. }
         | Tool::See { .. }
@@ -369,7 +369,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
         },
         Tool::Follow(_)
-        | Tool::Finding(_)
+        | Tool::Finding(_) | Tool::Red(_)
         | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
@@ -511,7 +511,7 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         Tool::Settings { .. } | Tool::ProposeSettings { .. } | Tool::ProposeSettingsNote { .. } => {
             jig_domain_core::ToolKind::Settings
         }
-        Tool::Follow(_) | Tool::Finding(_) | Tool::Goal { .. } | Tool::Change { .. } | Tool::Delegate { .. } => {
+        Tool::Follow(_) | Tool::Finding(_) | Tool::Red(_) | Tool::Goal { .. } | Tool::Change { .. } | Tool::Delegate { .. } => {
             jig_domain_core::ToolKind::Delegate
         }
         Tool::Message { target, .. } => jig_domain_core::ToolKind::Message { target: *target },
@@ -560,6 +560,7 @@ pub(crate) fn call_payload_answer(payload: forge::CallPayload) -> CallAnswer {
         forge::CallPayload::Follow { follow, refusal } => {
             CallAnswer::Follow(Box::new(crate::FollowToolAnswer::Write { follow, refusal }))
         }
+        forge::CallPayload::Red(reply) => CallAnswer::Red(Box::new(crate::RedToolAnswer::Write(*reply))),
         forge::CallPayload::Finding(reply) => CallAnswer::Finding(Box::new(crate::FindingToolAnswer::Write(*reply))),
         forge::CallPayload::Decided { took, reach } => CallAnswer::Decided { took, reach },
         forge::CallPayload::Effect { entry, deadline, outcome } => CallAnswer::ForgeEffect { entry, deadline, outcome },
@@ -583,6 +584,10 @@ pub(crate) fn keep_connector_answer(
             crate::FollowToolAnswer::List(_) | crate::FollowToolAnswer::Show { .. } => {
                 unreachable!("follow reads are not recorded")
             }
+        },
+        CallAnswer::Red(answer) => match *answer {
+            crate::RedToolAnswer::Write(reply) => forge::CallPayload::Red(Box::new(reply)),
+            crate::RedToolAnswer::List { .. } | crate::RedToolAnswer::NoGoal { .. } => unreachable!("red reads are not recorded"),
         },
         CallAnswer::Finding(answer) => match *answer {
             crate::FindingToolAnswer::Write(reply) => forge::CallPayload::Finding(Box::new(reply)),
@@ -647,6 +652,10 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
         Tool::Follow(call) => match call {
             crate::FollowCall::List | crate::FollowCall::Show { .. } => true,
             crate::FollowCall::Act { .. } => false,
+        },
+        Tool::Red(call) => match call {
+            crate::RedCall::List => true,
+            crate::RedCall::Record { .. } | crate::RedCall::End { .. } => false,
         },
         Tool::Finding(call) => match call {
             crate::FindingCall::List { .. } | crate::FindingCall::Show { .. } => true,

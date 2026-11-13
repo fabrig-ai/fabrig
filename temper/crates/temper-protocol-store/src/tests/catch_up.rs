@@ -69,8 +69,8 @@ fn a_baseline_adopted_row_has_no_contexts() {
     let adopted = kept_golden(11, "record_adopted_full.bin");
     let before = bytes::concat(&[&[0, 11, 2], &adopted]); // Row version, repository variant.
     let bytes = current(b"Row", before);
-    let row = crate::v21::Row::decode(&crate::v21::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
-    let crate::v21::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
+    let row = crate::v22::Row::decode(&crate::v22::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
+    let crate::v22::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
     assert!(record.contexts().is_empty());
     assert_eq!(record.project(), u32::MAX);
     assert!(record.home());
@@ -81,8 +81,8 @@ fn a_foreman_with_a_task_becomes_retired() {
     let before = kept_golden(11, "enum_stands_foreman_full.bin");
     let bytes = current(b"Stands", before);
     let value =
-        crate::v21::Stands::decode(&crate::v21::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
-    assert_eq!(value, crate::v21::Stands::Retired);
+        crate::v22::Stands::decode(&crate::v22::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
+    assert_eq!(value, crate::v22::Stands::Retired);
 }
 
 #[test]
@@ -104,8 +104,8 @@ fn a_v16_person_owned_follow_keeps_its_bytes_and_owner() {
     let before = kept_golden(16, "record_follow_full.bin");
     let bytes = patched(16, 5, b"Follow", before.clone());
     assert_eq!(bytes, before, "adding task owners leaves person owners unchanged");
-    let follow = crate::v21::Follow::decode(&crate::v21::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-    let crate::v21::FollowOwner::Person(owner) = follow.owner() else { panic!("old person owner") };
+    let follow = crate::v22::Follow::decode(&crate::v22::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    let crate::v22::FollowOwner::Person(owner) = follow.owner() else { panic!("old person owner") };
     assert_eq!(owner.person(), u64::MAX);
 }
 

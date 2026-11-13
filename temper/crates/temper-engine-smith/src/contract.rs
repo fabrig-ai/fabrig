@@ -8,7 +8,7 @@ use temper_engine_domain as engine;
 use crate::{Decoded, Problem, answers::Text};
 
 #[expect(clippy::disallowed_macros, reason = "protocol/wires.md, 7 embeds every kept contract for versioned answering")]
-pub(crate) const KEPT: &[&str] = &[include_str!("../contract/host-tools-v1.txt")];
+pub(crate) const KEPT: &[&str] = &[include_str!("../contract/host-tools-v1.txt"), include_str!("../contract/host-tools-v2.txt")];
 const ADAPTERS: &[Adapter] = &[];
 const CONTRACT: Contract =
     Contract { floor: crate::wire::FLOOR, current: crate::wire::VERSION, kept: KEPT, adapters: ADAPTERS };

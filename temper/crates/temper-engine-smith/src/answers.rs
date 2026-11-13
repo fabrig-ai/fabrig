@@ -273,6 +273,7 @@ fn bounded(
     if let CallAnswer::Follow(answer) = answer {
         return crate::follow::render(answer, cap);
     }
+    if let CallAnswer::Red(answer) = answer { return crate::red::render(answer, cap); }
     if let CallAnswer::Finding(answer) = answer {
         return crate::finding::render(answer, cap);
     }
@@ -617,6 +618,7 @@ fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>, forge: Forge
             | Problem::Type(_)
             | Problem::Range(_)
             | Problem::Beside(_)
+            | Problem::ActMember { .. }
             | Problem::UnknownTool,
         ) => HostAnswer::new(bytes::copy_of(b"The recorded answer cannot be rendered as text."), true)
             .expect("fixed host feedback fits"),
@@ -702,6 +704,7 @@ fn rendered(
 ) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
+        CallAnswer::Red(answer) => return Ok(crate::red::render(answer, HostAnswer::CAPACITY)),
         CallAnswer::Finding(answer) => return Ok(crate::finding::render(answer, HostAnswer::CAPACITY)),
         CallAnswer::Follow(answer) => return Ok(crate::follow::render(answer, HostAnswer::CAPACITY)),
         CallAnswer::Decided { took: choice, reach } => {

@@ -57,7 +57,7 @@ impl RememberFlight {
             }),
             answer @ (CallAnswer::ToolDenied { .. }
             | CallAnswer::Follow(_)
-            | CallAnswer::Finding(_)
+            | CallAnswer::Finding(_) | CallAnswer::Red(_)
             | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::SettingsRefused(_)

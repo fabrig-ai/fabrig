@@ -149,9 +149,9 @@ pub fn valid(l: &Limits) -> bool {
         || l.tasks == 0
         || l.holds == 0
         || l.branch_reds == 0
-        || l.branch_reds > 1024
+        || l.branch_reds > 256
         || l.red_key_bytes == 0
-        || l.red_key_bytes > 1024
+        || l.red_key_bytes > 512
         || l.branch_reds.checked_mul(l.holds).is_none()
         || l.subscriptions == 0
         || l.entries == 0

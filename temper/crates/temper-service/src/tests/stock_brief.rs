@@ -106,6 +106,26 @@ fn workspace(writable: bool) -> run::Workspace {
 }
 
 #[test]
+fn red_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
+    let limits = configured().service.limits.domain.run;
+    for charter in &engine(&generated()).charters {
+        let number = charter.number;
+        let charter = temper_engine_smith::charter(&assignment(number, false, 0));
+        assert!(run::brief_room(&charter, None, &limits).unwrap() >= 2_048, "charter {number}");
+        if number == 5 {
+            let room = run::brief_room(&charter, Some(&workspace(true)), &limits).unwrap();
+            eprintln!("red charter 5 with workspace: room={room}");
+            assert!(room >= 335_752 + 64 * (16 + 7) + 195, "charter 5's pinned whole-brief margin: {room}");
+        }
+        assert_eq!(
+            charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"red"),
+            [1, 5, 13, 14, 15, 16].contains(&number),
+            "charter {number}"
+        );
+    }
+}
+
+#[test]
 fn finding_is_offered_only_to_stock_delegators_with_room_for_their_briefs() {
     let limits = configured().service.limits.domain.run;
     let mut declarations = skein_lib::List::uncapped();
