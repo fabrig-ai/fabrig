@@ -119,11 +119,15 @@ gives a rule, and an owner that gives none pays nothing.
   recovery that starts the map again starts the census with it. Nothing
   of the census is written to disk.
 - **Bounded by constants,** as `CHUNK_TARGET` is: at most
-  `CENSUS_KEYSPACES` (128) keyspaces and `CENSUS_HEADS` (8) heads in
-  each. A key of a keyspace past the bound counts under the empty prefix,
-  which sorts first, and a head past the bound under no head. A head
-  with no row leaves at once; a keyspace with no row leaves at the next
-  snapshot's start. An apply's step finds each operation's keyspace by
+  `CENSUS_KEYSPACES` (128) keyspaces with a prefix, and the empty
+  prefix's beside them, 129 in all; at most `CENSUS_HEADS` (8) heads in
+  each, no head among them, so 7 with a `u16` beside it. A key of a
+  keyspace past the bound counts under the empty prefix, which sorts
+  first, and a head past the bound under no head. A head with no row
+  leaves at once; a keyspace with no row leaves at the next snapshot's
+  start. A new keyspace or head is admitted only while no row folded
+  under its overflow for the bound is left there, so an erase never
+  takes a row from an entry that didn't count it. An apply's step finds each operation's keyspace by
   a search of at most `CENSUS_KEYSPACES` entries, and the census's memory
   grows with the keyspaces it holds, up to its bound.
 - **Read whole,** at once and with no event: `Store::census()` gives the
