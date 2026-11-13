@@ -2238,6 +2238,7 @@ pub enum Request {
     },
     LandingNews {
         task: u64,
+        member: u16,
         step: LandingNews,
     },
     LandingDecision {

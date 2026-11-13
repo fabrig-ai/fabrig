@@ -402,6 +402,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
             PROJECT,
             engine::ProjectLanding {
                 gate_retries: 2,
+                batch: 1,
                 combine_main: engine::Combine::Merge,
                 combine_other: engine::Combine::Squash,
                 gate_timeout: skein_lib::Duration::from_millis(3_600_000),
@@ -782,6 +783,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                     PROJECT,
                     engine::ProjectLanding {
                         gate_retries: 2,
+                        batch: 1,
                         combine_main: engine::Combine::Merge,
                         combine_other: engine::Combine::Squash,
                         gate_timeout: skein_lib::Duration::from_millis(3_600_000),

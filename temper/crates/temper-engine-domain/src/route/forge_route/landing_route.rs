@@ -7,17 +7,20 @@ use super::{
 fn changes(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u64]> {
     let Some(change) = domain.forge.change(task) else { return Box::new([task]) };
     let Some(repository) = domain.forge.repository(change.repository) else { return Box::new([task]) };
+    let graph = dependencies(domain, env, repository.project);
+    domain.forge.joined_changes(repository.project, task, &graph)
+}
+
+fn dependencies(domain: &Domain, env: &Env<Limits>, project: u32) -> Box<[forge::ChangeDependencies]> {
     let mut graph = List::with_capacity(env.limits.forge.changes);
-    for repository in domain.forge.writable_repositories(repository.project) {
+    for repository in domain.forge.writable_repositories(project) {
         for change in domain.forge.changes_for(repository.provider, env.limits.forge.changes) {
             if let Some(row) = domain.core.tasks.task(change) {
-                graph
-                    .push(forge::ChangeDependencies { change, pending: row.waiting_on.clone() })
-                    .expect("bounded changes");
+                graph.push(forge::ChangeDependencies { change, pending: row.waiting_on.clone() }).expect("bounded changes");
             }
         }
     }
-    domain.forge.joined_changes(repository.project, task, graph.as_slice())
+    graph.into_boxed()
 }
 
 /// Joined dependencies permit the forming decision to refuse the whole unit.
@@ -167,43 +170,61 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+    let Some(repo) = domain.forge.repository(repository) else { return false };
+    let project = repo.project;
     let mut excluded = List::with_capacity(env.limits.forge.changes);
-    for candidate in domain.forge.waiting_changes(repository, branch) {
-        let Some(task) = domain.core.tasks.task(candidate.task) else { continue };
-        let held = match task.phase {
-            tasks::Phase::Active(_) | tasks::Phase::Waiting => false,
-            tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
-        };
-        if held || kept(domain, env, candidate.task) || super::change_delegate_live(domain, candidate.task) {
-            excluded.push(candidate.task).expect("bounded changes");
+    for (provider, base) in domain.forge.waiting_trains() {
+        for candidate in domain.forge.waiting_changes(provider, &base) {
+            let Some(task) = domain.core.tasks.task(candidate.task) else {
+                excluded.push(candidate.task).expect("bounded changes");
+                continue;
+            };
+            let held = match task.phase {
+                tasks::Phase::Active(_) | tasks::Phase::Waiting => false,
+                tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
+            };
+            if held || kept(domain, env, candidate.task) || super::change_delegate_live(domain, candidate.task) {
+                excluded.push(candidate.task).expect("bounded changes");
+            }
         }
     }
-    let Some(task) = domain.forge.first_waiting(repository, branch, excluded.as_slice(), env.wall) else {
-        return false;
-    };
-    let change = domain.forge.change(task).expect("waiting change");
-    let project = domain.forge.repository(change.repository).expect("train repository").project;
-    let joined = changes(domain, env, task);
-    if joined.len() > 1 {
-        let words = domain.forge.unit_words(&joined);
-        super::holds::hold(domain, task, &words);
-        return domain.core.tasks.task(task).is_some();
+    let graph = dependencies(domain, env, project);
+    let units = domain.forge.waiting_units(repository, branch, excluded.as_slice(), &graph, env.wall);
+    let selection = domain.forge.select_waiting(repository, branch, &units);
+    // A hold is a committed decision too: judge the remaining train again afterwards.
+    if let Some(index) = selection.hold.first() {
+        let unit = units.get(skein_lib::usize_of(*index)).expect("selected unit");
+        let Some(task) = unit.changes.first() else { return false };
+        let words = domain.forge.unit_words(&unit.changes);
+        super::holds::hold(domain, *task, &words);
+        return true;
     }
-    create_landing(domain, env, task, project, branch)
+    let mut members = List::with_capacity(env.limits.forge.landing_members);
+    let mut changes = List::with_capacity(env.limits.forge.landing_members);
+    for (number, index) in selection.take.iter().enumerate() {
+        let unit = units.get(skein_lib::usize_of(*index)).expect("selected unit");
+        for task in &unit.changes {
+            let Some(mut member) = member(domain, env, *task) else { return false };
+            member.unit = u16::try_from(number).expect("bounded units");
+            members.push(member).expect("selected members");
+            changes.push(*task).expect("selected members");
+        }
+    }
+    if domain.forge.landing_admits(project, changes.as_slice()).is_err() { return false; }
+    create_landing(domain, env, members, project, branch)
 }
 
-fn create_landing(domain: &mut Domain, env: &Env<Limits>, task: u64, project: u32, branch: &[u8]) -> bool {
+fn create_landing(domain: &mut Domain, env: &Env<Limits>, mut members: List<landing::Member>, project: u32, branch: &[u8]) -> bool {
+    let Some(first) = members.as_slice().first() else { return false };
+    let task = first.change;
     let change = domain.forge.change(task).expect("waiting change");
     let mut words = List::with_capacity(env.limits.tasks.spec_bytes.saturating_sub(32));
     append(&mut words, b"Land ");
     let room = skein_lib::usize_of(words.capacity().saturating_sub(words.len()));
     let title = temper_engine_domain_forge_issues::text::fit(&change.title, room, "…".as_bytes());
     append(&mut words, &title);
-    let mut members = List::with_capacity(env.limits.forge.landing_members);
     let mut asks = List::with_capacity(env.limits.forge.landing_members);
-    let Some(member) = member(domain, env, task) else { return false };
-    members.push(member).expect("one admitted member");
-    asks.push(None).expect("one admitted member");
+    for _ in &members { asks.push(None).expect("selected members"); }
     let Some(seed) = domain.core.procedure_seed(project) else { return false };
     let number = seed.number();
     let provider = domain.forge.change(task).expect("member").repository;
@@ -212,13 +233,19 @@ fn create_landing(domain: &mut Domain, env: &Env<Limits>, task: u64, project: u3
     else {
         return false;
     };
-    members.get_mut(0).expect("one member").branch.clone_from(&own_branch);
-    let Some(what) = super::branch_what(&own_branch, env.limits.forge.name_bytes) else { return false };
-    let name = forge::Name { forge: provider.forge, repository: provider.repository, what };
-    let Some(holding) = super::write_holding(domain.config.forge_connector, &name, &env.limits.tasks) else {
-        return false;
-    };
-    super::report_resource(domain, env, project, &name);
+    let mut holdings = List::with_capacity(env.limits.forge.landing_members);
+    let mut names = List::with_capacity(env.limits.forge.landing_members);
+    for (index, member) in members.iter_mut().enumerate() {
+        let suffix = if index == 0 { None } else { Some(u64::try_from(index).expect("member index").saturating_add(1)) };
+        let Some(branch) = super::tree_branch(repository, number, b'l', number, suffix, env.limits.forge.name_bytes) else { return false };
+        let Some(what) = super::branch_what(&branch, env.limits.forge.name_bytes) else { return false };
+        member.branch = branch;
+        let name = forge::Name { forge: provider.forge, repository: provider.repository, what };
+        let Some(holding) = super::write_holding(domain.config.forge_connector, &name, &env.limits.tasks) else { return false };
+        holdings.push(holding).expect("one holding per member");
+        names.push(name).expect("one branch per member");
+    }
+    for name in &names { super::report_resource(domain, env, project, name); }
     domain.work.push(Work::Forge(forge::Event::Landing {
         row: forge::LandingRow {
             landing: landing::Landing {
@@ -250,9 +277,11 @@ fn create_landing(domain: &mut Domain, env: &Env<Limits>, task: u64, project: u3
             inputs: Box::new([]),
         },
         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
-        holdings: Box::new([holding]),
+        holdings: holdings.into_boxed(),
     }));
-    domain.work.push(Work::Forge(forge::Event::Hold { entry: 0, task: number, resource: name, from: None }));
+    for name in &names {
+        domain.work.push(Work::Forge(forge::Event::Hold { entry: 0, task: number, resource: name.clone(), from: None }));
+    }
     true
 }
 
@@ -620,8 +649,8 @@ fn prepare_failure(context: &tasks::RunContext) -> Box<[u8]> {
     Box::from(b"job failed past its tries".as_slice())
 }
 
-pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, step: forge::LandingNews) {
-    let Some((change, words)) = domain.forge.landing_news_words(task, step) else { return };
+pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, member: u16, step: forge::LandingNews) {
+    let Some((change, words)) = domain.forge.landing_news_words(task, member, step) else { return };
     let Some(row) = domain.forge.change(change) else { return };
     let Some(goal) = row.goal else { return };
     let words = forge::text::fit(&words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");

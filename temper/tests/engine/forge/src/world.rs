@@ -53,7 +53,7 @@ pub const LIMITS: top::Limits = top::Limits {
     bindings: 4,
     collaborators: 8,
     landings: 8,
-    landing_members: 2,
+    landing_members: 3,
     landings_kept: 16,
     changes_rows: 32,
     changes_landed: 8,
@@ -155,6 +155,7 @@ pub struct World {
     held_compares: Option<Vec<(u64, top::Event)>>,
     read_script: ReadScript,
     landing_policy: temper_engine_domain_forge_landing::Project,
+    landing_batch: u16,
     landing_config: Option<(u32, temper_engine_domain_forge_change::Way, Box<[top::RepositoryGates]>)>,
 }
 
@@ -227,6 +228,11 @@ impl World {
         }
         accepted
     }
+    pub fn batch(&mut self, batch: u16) {
+        let project = self.landing_config.as_ref().expect("landing configured").0;
+        assert!(self.top.project_batch(project, batch));
+        self.landing_batch = batch;
+    }
     pub fn gate_policy(&mut self, settings: temper_engine_domain_forge_landing::Project) {
         self.landing_policy = settings;
         let (project, way, gates) = self.landing_config.clone().expect("landing configured");
@@ -234,6 +240,14 @@ impl World {
     }
     pub fn runner_setup_faults(&mut self, faults: u32) {
         self.forge_env.limits.setup_faults = faults;
+    }
+    #[must_use]
+    pub fn hold(&self, name: &top::Name) -> Option<&top::Hold> {
+        self.top.hold(name)
+    }
+    #[must_use]
+    pub fn unit_words(&self, changes: &[u64]) -> Box<[u8]> {
+        self.top.unit_words(changes)
     }
     #[must_use]
     pub fn first_waiting_change(&self) -> Option<u64> {
@@ -612,6 +626,7 @@ impl World {
                 files_page: None,
             },
             landing_policy: temper_engine_domain_forge_landing::Project::DEFAULT,
+            landing_batch: 1,
             landing_config: None,
         };
         world.top.restore_begin(world.env.wall);
@@ -1022,6 +1037,12 @@ impl World {
         records
     }
 
+    pub fn ended_landing_fixture(&mut self, task: u64) {
+        let mut row = self.landing(task).clone();
+        row.landing.phase = temper_engine_domain_forge_landing::Phase::Landed;
+        self.stored.insert(top::Key::Landing(task), top::Stored::Landing(row)).expect("existing landing");
+        self.restart();
+    }
     pub fn restart(&mut self) {
         self.generation += 1;
         self.top = top::Domain::new(
@@ -1062,6 +1083,7 @@ impl World {
                     bound: Duration::from_millis(7_200_000),
                 },
             ));
+            assert!(self.top.project_batch(*project, self.landing_batch));
         }
         let mut rows = List::with_capacity(self.stored.len());
         for (_, record) in &self.stored {

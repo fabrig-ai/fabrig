@@ -100,6 +100,7 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         }
         b"forge.repositories" => limits.forge.repositories = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.tasks" => limits.forge.tasks = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.landing_members" => limits.forge.landing_members = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.holds" => limits.forge.holds = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.subscriptions" => limits.forge.subscriptions = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.entries" => limits.forge.entries = u32::try_from(value).or(Err(Refused::Range))?,
@@ -624,6 +625,12 @@ pub static NAMES: [Name; 184] = [
         unit: Unit::Count,
         line: "Bounds live issue projections retained by the forge connector.",
         value: |limits| u64::from(limits.forge.issues),
+    },
+    Name {
+        name: "forge.landing_members",
+        unit: Unit::Count,
+        line: "Bounds changes and held member branches in one landing; at least each project's batch.",
+        value: |limits| u64::from(limits.forge.landing_members),
     },
     Name {
         name: "forge.resources_per_task",

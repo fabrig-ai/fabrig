@@ -214,6 +214,7 @@ impl Fixture {
                                 task,
                                 title: title.into(),
                                 ready_since: RECENT,
+                                alone: false,
                                 checks_since: None,
                             },
                         )

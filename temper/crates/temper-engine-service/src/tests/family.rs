@@ -3009,12 +3009,14 @@ fn changes_document_encodes_and_decodes() {
                     task: 51,
                     title: Box::from(b"First".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(123),
+                    alone: false,
                     checks_since: Some(skein_lib::Wall::from_nanos(456)),
                 },
                 forge::ChangesQueued {
                     task: 52,
                     title: Box::from(b"Next".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(789),
+                    alone: false,
                     checks_since: None,
                 },
             ]),
@@ -3669,6 +3671,7 @@ fn the_worst_small_changes_document_fits_its_decision() {
                     task: u64::from(task),
                     title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
                     ready_since: skein_lib::Wall::EPOCH,
+                    alone: false,
                     checks_since: Some(skein_lib::Wall::EPOCH),
                 }]),
             })
