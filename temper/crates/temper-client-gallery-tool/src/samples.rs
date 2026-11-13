@@ -140,7 +140,12 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
-        Sample { name: "tell-area", world: Bare, address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } }, then: Shown },
+        Sample {
+            name: "tell-area",
+            world: Bare,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
         Sample { name: "tell-page", world: Bare, address: Address::Tell { project: 1 }, then: Shown },
         Sample { name: "team-hand", world: Bare, address: Address::Team { project: 1, role: Some(52) }, then: Shown },
         Sample { name: "team-role", world: Bare, address: Address::Team { project: 1, role: Some(52) }, then: Shown },
@@ -1605,7 +1610,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
-        | Address::Ask { .. } | Address::Tell { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. } => {
             return None;
         }
@@ -1654,7 +1660,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Repositories { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
-        | Address::Ask { .. } | Address::Tell { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. } => String::new(),
     };
     let way = if let Address::ConnectModel { way: Some(way) } = sample.address {

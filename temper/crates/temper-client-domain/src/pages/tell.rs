@@ -1,9 +1,9 @@
 //! Tell temper's single filing (temper/docs/design/client/pages/needs-you.md, 1).
 mod context;
-pub(super) use context::{remember, outcome, showing};
 use super::{Pages, Request, team};
 use crate::{Address, Limits, address, forge, owner::Owner};
 use alloc::boxed::Box;
+pub(super) use context::{outcome, remember, showing};
 use jig_client::{Client, Key, Told};
 use skein_lib::{Env, Queue};
 use temper_client_protocol_wire::v1 as w;
@@ -23,7 +23,10 @@ pub enum Goes {
 
 #[must_use]
 pub fn route(document: &w::Findings, about: Option<&About>) -> Goes {
-    let task = match about { Some(about) => about_task(about), None => None };
+    let task = match about {
+        Some(about) => about_task(about),
+        None => None,
+    };
     if let Some(task) = task {
         for area in document.areas() {
             let held = match area.holder() {
@@ -51,16 +54,36 @@ pub fn route(document: &w::Findings, about: Option<&About>) -> Goes {
 }
 fn about_task(about: &About) -> Option<u64> {
     match &about.address {
-        Address::Task { task } | Address::Talk { task, .. } | Address::Chat { task }
+        Address::Task { task }
+        | Address::Talk { task, .. }
+        | Address::Chat { task }
         | Address::Team { role: Some(task), .. } => Some(*task),
-        Address::Inbox { .. } | Address::Chats { .. } | Address::NewChat { .. }
-        | Address::Accounts | Address::Forges | Address::ConnectForge { .. }
-        | Address::ConnectModel { .. } | Address::Welcome { .. } | Address::Home { .. }
-        | Address::AllHome | Address::Goals { .. } | Address::Changes { .. }
-        | Address::Settings { .. } | Address::Repositories { .. } | Address::Models { .. }
-        | Address::Builders { .. } | Address::Role { .. } | Address::Rule { .. }
-        | Address::Team { role: None, .. } | Address::Ask { .. } | Address::Tell { .. } | Address::Adopt { .. }
-        | Address::Work { .. } | Address::Members | Address::Remembered | Address::Told
+        Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::NewChat { .. }
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. }
+        | Address::Home { .. }
+        | Address::AllHome
+        | Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Settings { .. }
+        | Address::Repositories { .. }
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
+        | Address::Team { role: None, .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
+        | Address::Adopt { .. }
+        | Address::Work { .. }
+        | Address::Members
+        | Address::Remembered
+        | Address::Told
         | Address::Limits => None,
     }
 }
@@ -148,7 +171,14 @@ impl Store {
 }
 
 #[expect(clippy::disallowed_methods, reason = "Tell trims Unicode whitespace at the person's input boundary")]
-pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, project: u32, words: &[u8], about: Option<About>, out: &mut Queue<Request>) {
+pub(super) fn act(
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    project: u32,
+    words: &[u8],
+    about: Option<About>,
+    out: &mut Queue<Request>,
+) {
     if pages.tell.pending.is_some() {
         return;
     }

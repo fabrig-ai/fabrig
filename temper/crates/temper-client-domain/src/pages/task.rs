@@ -487,7 +487,8 @@ impl Task {
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
-            | Act::TellWords { .. } | Act::Tell { .. }
+            | Act::TellWords { .. }
+            | Act::Tell { .. }
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
@@ -634,7 +635,8 @@ impl Task {
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
-            | Act::TellWords { .. } | Act::Tell { .. }
+            | Act::TellWords { .. }
+            | Act::Tell { .. }
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)

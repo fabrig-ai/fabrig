@@ -439,7 +439,8 @@ fn all_projects(
         | Address::Chat { .. }
         | Address::Talk { .. }
         | Address::Task { .. }
-        | Address::Ask { .. } | Address::Tell { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
@@ -898,7 +899,8 @@ fn shown(root: &Domain) -> Shown {
         | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Adopt { .. } => (false, false, false, true),
-        Address::Ask { .. } | Address::Tell { .. }
+        Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Team { .. }
         | Address::Accounts
         | Address::Forges
@@ -1011,7 +1013,9 @@ fn needs_link(
     b.close();
 }
 fn ask_current(root: &Domain, project: u32) -> bool {
-    root.pages().address() == &(Address::Ask { project }) || root.pages().address() == &(Address::Tell { project }) || crate::pages::chat::asking(root)
+    root.pages().address() == &(Address::Ask { project })
+        || root.pages().address() == &(Address::Tell { project })
+        || crate::pages::chat::asking(root)
 }
 fn ask_link(
     b: &mut Builder,
@@ -1104,7 +1108,8 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Chat { .. }
         | Address::Talk { .. }
         | Address::Task { .. }
-        | Address::Ask { .. } | Address::Tell { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
@@ -1311,7 +1316,8 @@ pub(crate) fn toast(
                 );
             }
         }
-        Toasted::TellFiled { .. } | Toasted::AreaHanded { .. }
+        Toasted::TellFiled { .. }
+        | Toasted::AreaHanded { .. }
         | Toasted::AreasGivenBack { .. }
         | Toasted::AreasProposed
         | Toasted::StopApplied

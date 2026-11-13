@@ -57,7 +57,8 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
             | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Ask { .. }
-            | Address::Tell { .. } | Address::Adopt { .. } => {}
+            | Address::Tell { .. }
+            | Address::Adopt { .. } => {}
         }
     } else if pointing {
         out.push(Request::Tab { tab: Tab::Close });

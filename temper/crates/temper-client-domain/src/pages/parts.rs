@@ -97,7 +97,8 @@ pub fn needs_facts(root: &Domain, wall: Wall) -> NeedsFacts {
         None => (false, 0),
     };
     let project = if let crate::Address::Inbox { filter } = root.pages().address() { filter.project } else { None };
-    let findings = if let Some(project) = project { root.pages().needs().findings().document(project).is_some() } else { false };
+    let findings =
+        if let Some(project) = project { root.pages().needs().findings().document(project).is_some() } else { false };
     NeedsFacts {
         project: project.is_some(),
         findings,

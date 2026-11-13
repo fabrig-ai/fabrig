@@ -187,7 +187,9 @@ fn needs_counts_all_decisions_with_its_project_filter() {
 
 #[test]
 fn tell_part_needs_a_project_and_its_findings_read() {
-    for (project, findings, expected) in [(false, false, false), (true, false, false), (false, true, false), (true, true, true)] {
+    for (project, findings, expected) in
+        [(false, false, false), (true, false, false), (false, true, false), (true, true, true)]
+    {
         let facts = NeedsFacts { project, findings, ..NeedsFacts::default() };
         assert_eq!(parts::needs(&facts).tell, expected, "{facts:?}");
     }

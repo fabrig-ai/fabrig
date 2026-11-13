@@ -98,7 +98,9 @@ impl Default for Standing {
 impl Standing {
     pub(super) fn title(&self, task: u64) -> Option<Box<[u8]>> {
         for row in &self.rows {
-            if row.line.chip.task == task { return Some(row.line.chip.title.bytes().into()); }
+            if row.line.chip.task == task {
+                return Some(row.line.chip.title.bytes().into());
+            }
         }
         None
     }

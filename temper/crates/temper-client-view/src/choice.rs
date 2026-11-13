@@ -75,7 +75,8 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Repositories { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
-            | Address::Ask { .. } | Address::Tell { .. }
+            | Address::Ask { .. }
+            | Address::Tell { .. }
             | Address::Adopt { .. } => false,
         }
         || (root.forge().playground_running() || root.forge().leaving())

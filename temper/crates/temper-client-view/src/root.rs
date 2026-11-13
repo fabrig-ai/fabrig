@@ -160,7 +160,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Repositories { .. }
             | temper_client_domain::Address::Work { .. }
             | temper_client_domain::Address::Goals { .. }
-            | temper_client_domain::Address::Ask { .. } | temper_client_domain::Address::Tell { .. }
+            | temper_client_domain::Address::Ask { .. }
+            | temper_client_domain::Address::Tell { .. }
             | temper_client_domain::Address::Adopt { .. } => {
                 if !reading && !no_project {
                     crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
@@ -198,7 +199,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Repositories { .. }
             | temper_client_domain::Address::Work { .. }
             | temper_client_domain::Address::Goals { .. }
-            | temper_client_domain::Address::Ask { .. } | temper_client_domain::Address::Tell { .. }
+            | temper_client_domain::Address::Ask { .. }
+            | temper_client_domain::Address::Tell { .. }
             | temper_client_domain::Address::Adopt { .. } => {
                 // Outside Chats and NewChat the line shows only while the
                 // playground is leaving; while it runs, the frame's "Set up

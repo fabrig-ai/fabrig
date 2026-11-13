@@ -67,7 +67,8 @@ impl Roles {
             | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Ask { .. }
-            | Address::Tell { .. } | Address::Adopt { .. } => {
+            | Address::Tell { .. }
+            | Address::Adopt { .. } => {
                 self.leave(out);
                 return;
             }
@@ -200,7 +201,8 @@ fn view_address(address: &Address) -> Box<[u8]> {
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Ask { .. }
-        | Address::Tell { .. } | Address::Adopt { .. } => Box::from(b"".as_slice()),
+        | Address::Tell { .. }
+        | Address::Adopt { .. } => Box::from(b"".as_slice()),
     }
 }
 fn answer(page: &Readout, limits: forge::Limits) -> Option<w::View> {

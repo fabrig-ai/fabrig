@@ -327,29 +327,59 @@ fn a_roles_choices_send_talk_words_and_accept_confirms_the_proposal_in_place() {
 fn telling_on_a_roles_talk_files_in_its_area() {
     use temper_client_protocol_wire::{self as wire, v1 as f};
     let (mut host, duties) = talk_setup(true, false, false, false);
-    let watched = duties.asked.iter().find_map(|request| {
-        let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-        let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-        if open.subject().owner() == &w::Owner::Jig { return None; }
-        let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
-        let reading = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
-        matches!(reading.watch(), f::Watch::Findings(subject) if subject.project() == 3).then_some(open.watch())
-    }).expect("the talk's project reads findings");
+    let watched = duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
+            if open.subject().owner() == &w::Owner::Jig {
+                return None;
+            }
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
+            let reading = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
+            matches!(reading.watch(), f::Watch::Findings(subject) if subject.project() == 3).then_some(open.watch())
+        })
+        .expect("the talk's project reads findings");
     let task = f::Holder::Task(f::HolderTask::new(&f::CEILINGS, f::HolderTaskParts { number: ROLE }).unwrap());
-    let document = f::Findings::new(&f::CEILINGS, f::FindingsParts {
-        project: 3, rows: List::with_capacity(0),
-        areas: List::from_boxed(Box::new([f::AreaRow::new(&f::CEILINGS, f::AreaRowParts {
-            name: b"ports".as_slice().into(), words: b"Porting".as_slice().into(),
-            owner: f::AreaOwner::Task(f::AreaTask::new(&f::CEILINGS, f::AreaTaskParts { number: ROLE }).unwrap()),
-            holder: Some(task.clone()),
-        }).unwrap()])), triager: None, holder: task, cut: false,
-    }).unwrap();
-    let document = w::Owned::new(&w::CEILINGS, w::OwnedParts {
-        owner: w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).unwrap()),
-        version: wire::CLIENT_VERSION, record: wire::findings(&document),
-    }).unwrap();
-    let event = w::StreamEvent::Delivery(w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: watched, document }).unwrap());
-    let duties = host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_bytes(&event)) }));
+    let document = f::Findings::new(
+        &f::CEILINGS,
+        f::FindingsParts {
+            project: 3,
+            rows: List::with_capacity(0),
+            areas: List::from_boxed(Box::new([f::AreaRow::new(
+                &f::CEILINGS,
+                f::AreaRowParts {
+                    name: b"ports".as_slice().into(),
+                    words: b"Porting".as_slice().into(),
+                    owner: f::AreaOwner::Task(
+                        f::AreaTask::new(&f::CEILINGS, f::AreaTaskParts { number: ROLE }).unwrap(),
+                    ),
+                    holder: Some(task.clone()),
+                },
+            )
+            .unwrap()])),
+            triager: None,
+            holder: task,
+            cut: false,
+        },
+    )
+    .unwrap();
+    let document = w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts {
+            owner: w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).unwrap()),
+            version: wire::CLIENT_VERSION,
+            record: wire::findings(&document),
+        },
+    )
+    .unwrap();
+    let event = w::StreamEvent::Delivery(
+        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: watched, document }).unwrap(),
+    );
+    let duties = host.report(Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(stream_bytes(&event)),
+    }));
     admit(&mut host, duties);
     let (_, file) = super::tell::send(&mut host, b"/tell The port is stuck").expect("one filing");
     assert_eq!(file.area().as_deref(), Some(b"ports".as_slice()));

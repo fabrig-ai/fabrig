@@ -540,7 +540,8 @@ impl Team {
         next: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        let project = if let Address::Inbox { filter } = address { filter.project } else { super::address_project(address) };
+        let project =
+            if let Address::Inbox { filter } = address { filter.project } else { super::address_project(address) };
         let Some(project) = project else {
             self.leave(out);
             return;

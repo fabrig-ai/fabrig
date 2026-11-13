@@ -2039,4 +2039,3 @@ mod tests {
         assert_eq!(NAMES.style(HOME_BYLINE), Some(b"temper-home-byline".as_slice()));
     }
 }
-

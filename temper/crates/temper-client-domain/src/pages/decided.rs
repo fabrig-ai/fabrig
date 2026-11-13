@@ -463,7 +463,8 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
         | Address::Remembered
         | Address::Members
         | Address::Limits
-        | Address::Tell { .. } | Address::Adopt { .. } => false,
+        | Address::Tell { .. }
+        | Address::Adopt { .. } => false,
     };
     let pages = &mut root.pages;
     if let Some(inbox) = &pages.inbox {

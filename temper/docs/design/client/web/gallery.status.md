@@ -33,7 +33,8 @@
   record, and Team's role's card's two, `team-role` and
   `night-team-role`, which goal 713 added, with none on record, and
   `team-hand` and `role-talk`, which goal 1983 adds, with none on
-  record.
+  record; `tell-area` and `tell-page` add to it too, with no CPU figure
+  on record.
 
 Section 2 holds what reaches a person, by plan `ui-reaches`: those five
 states and

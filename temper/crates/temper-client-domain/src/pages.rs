@@ -236,7 +236,9 @@ pub enum Act {
     Choice(choice::Act),
     Needs(needs::Act),
     Finding(findings::Act),
-    TellWords { words: Box<[u8]> },
+    TellWords {
+        words: Box<[u8]>,
+    },
     Tell {
         project: u32,
         words: Box<[u8]>,
@@ -916,7 +918,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::AskWith { words } } => {
             if !words.is_empty() {
                 let project = match pages.address {
-                    Address::Home { project } | Address::Team { project, .. } | Address::Tell { project } => Some(project),
+                    Address::Home { project } | Address::Team { project, .. } | Address::Tell { project } => {
+                        Some(project)
+                    }
                     Address::Inbox { filter } => filter.project,
                     Address::AllHome => match pages.project {
                         Some(project) => Some(project),
@@ -1375,7 +1379,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Rule { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
-            | Address::Ask { .. } | Address::Tell { .. }
+            | Address::Ask { .. }
+            | Address::Tell { .. }
             | Address::Adopt { .. } => true,
         };
     pages.needs.configure(showing, &env.limits, out);
@@ -1711,7 +1716,8 @@ fn rail_chats(address: &Address) -> bool {
     match address {
         Address::Home { .. }
         | Address::Settings { .. }
-        | Address::Ask { .. } | Address::Tell { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::NewChat { .. }
         | Address::Chats { .. }
         | Address::Work { .. }
@@ -1754,7 +1760,9 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address, out: &mut Queue<Request>) {
     if pages.address != address {
         tell::remember(pages, client);
-        if !tell::showing(&address) { pages.tell_words = Box::default(); }
+        if !tell::showing(&address) {
+            pages.tell_words = Box::default();
+        }
     }
     if pages.address != address {
         pages.notes.clear();
@@ -1885,7 +1893,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Repositories { .. }
-            | Address::Ask { .. } | Address::Tell { .. }
+            | Address::Ask { .. }
+            | Address::Tell { .. }
             | Address::Adopt { .. } => false,
         };
         pages.roles_open = match &address {
@@ -1914,7 +1923,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
             | Address::Repositories { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
-            | Address::Ask { .. } | Address::Tell { .. }
+            | Address::Ask { .. }
+            | Address::Tell { .. }
             | Address::Adopt { .. } => false,
         };
         let checking_ready = if let Some(page) = &pages.connect_model {
@@ -2026,7 +2036,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
             };
             pages.inbox = Some(inbox::Inbox::new(filter, pages.next, &env.limits, out));
         }
-        if let Address::Settings { .. } | Address::Ask { .. } | Address::Tell { .. } | Address::NewChat { .. } = address {
+        if let Address::Settings { .. } | Address::Ask { .. } | Address::Tell { .. } | Address::NewChat { .. } = address
+        {
             pages.chats = Some(chats::Chats::new(pages.next));
         }
         if let Address::Settings { .. } = address {
@@ -2085,7 +2096,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, client: &Client, address: Address,
             | Address::Role { .. }
             | Address::Rule { .. }
             | Address::Repositories { .. }
-            | Address::Ask { .. } | Address::Tell { .. }
+            | Address::Ask { .. }
+            | Address::Tell { .. }
             | Address::Adopt { .. } => None,
         };
         page.request.return_from(source);
@@ -2518,7 +2530,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::StopAsking(_)
         | Act::Needs(_)
         | Act::Finding(_)
-        | Act::Tell { .. } | Act::TellWords { .. }
+        | Act::Tell { .. }
+        | Act::TellWords { .. }
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::AdoptFirst
@@ -2605,7 +2618,8 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Role { project, .. }
         | Address::Rule { project, .. }
         | Address::Repositories { project }
-        | Address::Ask { project } | Address::Tell { project } => Some(*project),
+        | Address::Ask { project }
+        | Address::Tell { project } => Some(*project),
         Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
@@ -2859,7 +2873,8 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
-        | Address::Ask { .. } | Address::Tell { .. }
+        | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. } => return,
     }
     page.request.return_from(None);

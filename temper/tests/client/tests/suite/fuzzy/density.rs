@@ -148,11 +148,20 @@ impl World {
     }
 
     fn findings(&mut self, project: u32) {
-        let document = w::Findings::new(&w::CEILINGS, w::FindingsParts {
-            project, rows: List::with_capacity(0), areas: List::with_capacity(0), triager: None,
-            holder: w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).expect("owners")),
-            cut: false,
-        }).expect("density findings");
+        let document = w::Findings::new(
+            &w::CEILINGS,
+            w::FindingsParts {
+                project,
+                rows: List::with_capacity(0),
+                areas: List::with_capacity(0),
+                triager: None,
+                holder: w::Holder::Role(
+                    w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).expect("owners"),
+                ),
+                cut: false,
+            },
+        )
+        .expect("density findings");
         self.family(forge::findings::watch(project, &self.env.limits.forge), wire::findings(&document));
     }
 
@@ -625,10 +634,16 @@ impl World {
         let Some(inbox) = self.root.pages().inbox() else { return };
         let open = self.open();
         let needs_facts = parts::needs_facts(&self.root, self.env.wall);
-        let tell_project = if let Address::Inbox { filter } = self.root.pages().address() { filter.project } else { None };
+        let tell_project =
+            if let Address::Inbox { filter } = self.root.pages().address() { filter.project } else { None };
         let tell_ready = tell_project.is_some_and(|project| pages::tell::goes(&self.root, project, None).is_some());
         self.observed.insert(if tell_ready { "Tell shown" } else { "Tell absent" });
-        assert_eq!(parts::needs(&needs_facts).tell, tell_ready, "Tell temper needs a filtered project and its findings read, step {}", self.step);
+        assert_eq!(
+            parts::needs(&needs_facts).tell,
+            tell_ready,
+            "Tell temper needs a filtered project and its findings read, step {}",
+            self.step
+        );
         let only = self.only();
         assert_eq!(needs_facts.only, only, "Only you counts the person's deciding logins, step {}", self.step);
         if self.accounts.is_some() {

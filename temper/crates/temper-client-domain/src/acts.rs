@@ -196,7 +196,8 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::StopAsking(_)
         | Act::Needs(_)
         | Act::Finding(_)
-        | Act::TellWords { .. } | Act::Tell { .. }
+        | Act::TellWords { .. }
+        | Act::Tell { .. }
         | Act::Choice(_)
         | Act::Accounts(_)
         | Act::ConnectModel(_)

@@ -1,9 +1,19 @@
 //! One Tell temper card on Needs you and the Ask tab (client/pages/needs-you.md, 1).
-use crate::{frame::Bindings, look, words::{Word, Words}};
+use crate::{
+    frame::Bindings,
+    look,
+    words::{Word, Words},
+};
 use alloc::boxed::Box;
 use skein_lib::{Wall, bytes::concat};
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
-use temper_client_domain::{Address, Domain, pages::{Act, team, tell::{self, About, Goes}}};
+use temper_client_domain::{
+    Address, Domain,
+    pages::{
+        Act, team,
+        tell::{self, About, Goes},
+    },
+};
 
 pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
     b.open(Role::Main);
@@ -48,10 +58,18 @@ fn project_name(root: &Domain, w: &Words, project: u32) -> Box<[u8]> {
     }
 }
 fn yours(root: &Domain, holder: &team::Holder) -> bool {
-    if let team::Holder::Party(party) = holder && let Some(me) = root.pages().me(root.client()) { me.party.number == *party } else { false }
+    if let team::Holder::Party(party) = holder
+        && let Some(me) = root.pages().me(root.client())
+    {
+        me.party.number == *party
+    } else {
+        false
+    }
 }
 fn holder_name(root: &Domain, w: &Words, project: u32, holder: &team::Holder) -> Box<[u8]> {
-    if yours(root, holder) { return w.say(Word::TellYou, &[]); }
+    if yours(root, holder) {
+        return w.say(Word::TellYou, &[]);
+    }
     let shown = team::shown_at(root, project, Wall::EPOCH);
     super::team::named_holder(w, shown.facts(), holder)
 }
@@ -66,7 +84,9 @@ pub(crate) fn destination(root: &Domain, w: &Words, project: u32, goes: &Goes) -
             }
         }
         Goes::Triager { holder, areas } => {
-            let line = if yours(root, holder) { w.say(Word::TellYourTriager, &[]) } else {
+            let line = if yours(root, holder) {
+                w.say(Word::TellYourTriager, &[])
+            } else {
                 w.say(Word::TellTriager, &[Hole::Name(holder_name(root, w, project, holder)), Hole::Name(name)])
             };
             if *areas { concat(&[&line, &w.say(Word::TellHands, &[])]) } else { line }
@@ -87,7 +107,9 @@ pub(crate) fn filed(root: &Domain, w: &Words, project: u32, goes: Option<&Goes>)
 }
 fn title(w: &Words, about: &About) -> Box<[u8]> {
     match &about.address {
-        Address::Task { task } | Address::Talk { task, .. } | Address::Chat { task }
+        Address::Task { task }
+        | Address::Talk { task, .. }
+        | Address::Chat { task }
         | Address::Team { role: Some(task), .. } => match &about.title {
             Some(title) => title.clone(),
             None => w.say(Word::TeamTaskName, &[Hole::Number(*task)]),
@@ -103,10 +125,19 @@ fn title(w: &Words, about: &About) -> Box<[u8]> {
         Address::Builders { .. } => w.say(Word::SettingsBuildersTab, &[]),
         Address::Chats { .. } => w.say(Word::Chats, &[]),
         Address::NewChat { .. } => w.say(Word::NewChat, &[]),
-        Address::Inbox { .. } | Address::Tell { .. } | Address::Ask { .. }
-        | Address::Adopt { .. } | Address::Members | Address::Remembered | Address::Told
-        | Address::Limits | Address::Accounts | Address::Forges | Address::ConnectForge { .. }
-        | Address::ConnectModel { .. } | Address::Welcome { .. } => Box::default(),
+        Address::Inbox { .. }
+        | Address::Tell { .. }
+        | Address::Ask { .. }
+        | Address::Adopt { .. }
+        | Address::Members
+        | Address::Remembered
+        | Address::Told
+        | Address::Limits
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. } => Box::default(),
     }
 }
 fn card(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, goes: &Goes, page: bool) {
@@ -120,15 +151,30 @@ fn card(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, proj
     b.style(look::TELL_FIELD);
     b.name(&w.say(if page { Word::TellField } else { Word::TellHeadline }, &[]));
     b.value(words, temper_client_domain::shown(root));
-    if sending { b.state(State::Disabled); }
+    if sending {
+        b.state(State::Disabled);
+    }
     b.bind(bindings.insert(Act::TellWords { words: Box::default() }));
     b.close();
     if over > 0 {
-        text(b, Role::Paragraph, &if over == 1 { w.say(Word::TellLongOne, &[]) } else { w.say(Word::TellLong, &[Hole::Number(u64::try_from(over).expect("input fits"))]) }, look::SHEET_ERROR);
+        text(
+            b,
+            Role::Paragraph,
+            &if over == 1 {
+                w.say(Word::TellLongOne, &[])
+            } else {
+                w.say(Word::TellLong, &[Hole::Number(u64::try_from(over).expect("input fits"))])
+            },
+            look::SHEET_ERROR,
+        );
     }
-    if let Some(last) = root.pages().tell() && last.project == project {
+    if let Some(last) = root.pages().tell()
+        && last.project == project
+    {
         match &last.state {
-            tell::State::Refused(reason) => text(b, Role::Paragraph, &crate::shared::finding_refusal(w, reason), look::SHEET_ERROR),
+            tell::State::Refused(reason) => {
+                text(b, Role::Paragraph, &crate::shared::finding_refusal(w, reason), look::SHEET_ERROR);
+            }
             tell::State::Lost => text(b, Role::Paragraph, &w.say(Word::TellLost, &[]), look::SHEET_ERROR),
             tell::State::Filed { .. } | tell::State::Sending | tell::State::Long { .. } => {}
         }
@@ -148,7 +194,9 @@ fn card(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, proj
     b.open(Role::Button);
     b.name(&w.say(Word::TellFile, &[]));
     b.style(look::RECOMMENDED);
-    if sending || over > 0 || blank(words) { b.state(State::Disabled); }
+    if sending || over > 0 || blank(words) {
+        b.state(State::Disabled);
+    }
     b.bind(bindings.insert(Act::Tell { project, words: words.into(), about: about.cloned() }));
     b.close();
     b.open(Role::Button);
@@ -162,5 +210,8 @@ fn card(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, proj
 
 #[expect(clippy::disallowed_methods, reason = "the input boundary tests Unicode whitespace without cutting the field")]
 fn blank(words: &[u8]) -> bool {
-    match core::str::from_utf8(words) { Ok(words) => words.trim().is_empty(), Err(_) => true }
+    match core::str::from_utf8(words) {
+        Ok(words) => words.trim().is_empty(),
+        Err(_) => true,
+    }
 }

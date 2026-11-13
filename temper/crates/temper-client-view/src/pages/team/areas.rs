@@ -56,7 +56,11 @@ pub(super) fn holder_name(words: &Words, facts: &team::Facts, holder: &w::Holder
 pub(crate) fn named_holder(words: &Words, facts: Option<&team::Facts>, holder: &team::Holder) -> Box<[u8]> {
     match holder {
         team::Holder::Task(task) => {
-            if let Some(facts) = facts && let Some(role) = role(facts, *task) { return role.name.clone(); }
+            if let Some(facts) = facts
+                && let Some(role) = role(facts, *task)
+            {
+                return role.name.clone();
+            }
             words.say(Word::TeamTaskName, &[Hole::Number(*task)])
         }
         team::Holder::Party(party) => {

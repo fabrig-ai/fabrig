@@ -155,7 +155,10 @@ pub struct Answered {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Toasted {
-    TellFiled { project: u32, goes: Option<super::tell::Goes> },
+    TellFiled {
+        project: u32,
+        goes: Option<super::tell::Goes>,
+    },
     AreaHanded {
         title: Box<[u8]>,
         revision: u32,
@@ -465,7 +468,8 @@ impl Session {
             | Address::Repositories { .. }
             | Address::Settings { .. }
             | Address::Ask { .. }
-            | Address::Tell { .. } | Address::Adopt { .. } => self.at = None,
+            | Address::Tell { .. }
+            | Address::Adopt { .. } => self.at = None,
         }
     }
     fn cleared(&mut self, object: ObjectKey) {
@@ -848,7 +852,8 @@ pub(crate) fn act(
                             pages.needs.toast = None;
                         }
                     }
-                    Toasted::TellFiled { .. } | Toasted::AreaHanded { .. }
+                    Toasted::TellFiled { .. }
+                    | Toasted::AreaHanded { .. }
                     | Toasted::AreasGivenBack { .. }
                     | Toasted::AreasProposed
                     | Toasted::StopApplied
@@ -905,7 +910,8 @@ pub(crate) fn act(
                 | Address::Repositories { .. }
                 | Address::Settings { .. }
                 | Address::Ask { .. }
-                | Address::Tell { .. } | Address::Adopt { .. } => {}
+                | Address::Tell { .. }
+                | Address::Adopt { .. } => {}
             }
             let project = match pages.address {
                 Address::Home { project } => Some(project),
@@ -936,7 +942,8 @@ pub(crate) fn act(
                 | Address::Repositories { .. }
                 | Address::Settings { .. }
                 | Address::Ask { .. }
-                | Address::Tell { .. } | Address::Adopt { .. } => None,
+                | Address::Tell { .. }
+                | Address::Adopt { .. } => None,
             };
             out.push(Request::Show { address: Address::Inbox { filter: Filter { project, ..Filter::ALL } } });
         }
