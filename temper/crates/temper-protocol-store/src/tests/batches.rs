@@ -3,7 +3,7 @@ use super::{
     catch_up::{kept_golden, patched},
     fixtures,
 };
-use crate::{records, v17, v18};
+use crate::{records, v17, v20};
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_landing as landing;
@@ -21,14 +21,15 @@ fn v17_landing() -> v17::LandingRow {
     row.landing = v17::LandingState::new(&v17::CEILINGS, state).unwrap();
     v17::LandingRow::new(&v17::CEILINGS, row).unwrap()
 }
-fn upgraded(before: &v17::LandingRow) -> v18::LandingRow {
+fn upgraded(before: &v17::LandingRow) -> v20::LandingRow {
     let mut writer = Writer::new(usize::try_from(before.measure()).unwrap());
     before.encode(&mut writer).unwrap();
-    let bytes = patched(17, 6, b"LandingRow", writer.finish());
-    v18::LandingRow::decode(&v18::CEILINGS, &mut Reader::new(&bytes)).unwrap()
+    let bytes =
+        patched(19, 8, b"LandingRow", patched(18, 7, b"LandingRow", patched(17, 6, b"LandingRow", writer.finish())));
+    v20::LandingRow::decode(&v20::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
-fn stored(row: v18::LandingRow) -> forge::Stored {
-    let row = v18::Row::new(&v18::CEILINGS, v18::RowParts { value: v18::Value::Landing(row) }).unwrap();
+fn stored(row: v20::LandingRow) -> forge::Stored {
+    let row = v20::Row::new(&v20::CEILINGS, v20::RowParts { value: v20::Value::Landing(row) }).unwrap();
     let mut writer = Writer::new(usize::try_from(row.measure()).unwrap());
     row.encode(&mut writer).unwrap();
     records::decode(&writer.finish(), &crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap())
@@ -44,7 +45,7 @@ fn a_v17_member_keeps_its_round_values_through_the_batch_patch() {
     let round = before.landing().round().as_ref().unwrap();
     assert_eq!(member.unit(), 0);
     assert_eq!(member.branch(), round.branch());
-    assert_eq!(member.combined(), &Some(v18::LandingCombine::Squash));
+    assert_eq!(member.combined(), &Some(v20::LandingCombine::Squash));
     assert!(member.recorded() && member.told() && member.judging());
     assert!(member.leave_told(), "v17 already emitted its leave");
     assert_eq!(member.head(), prior.head());
@@ -75,7 +76,7 @@ fn batch_members_and_leave_causes_round_trip() {
         Some(landing::Leave::EarlierConflict),
         Some(landing::Leave::Unit { change: 13 }),
         Some(landing::Leave::Dependency { change: 14 }),
-        Some(landing::Leave::Fallback { units: 3, top: [5; 32] }),
+        Some(landing::Leave::Blamed { gate: 1, run: 9, red: [5; 32], green: [4; 32] }),
     ] {
         let mut row = row.clone();
         row.landing.phase = landing::Phase::Preparing;
@@ -96,6 +97,7 @@ fn batch_members_and_leave_causes_round_trip() {
         }
         row.landing.members = members.into_boxed();
         row.landing.round.changed = Some(1);
+        row.landing.round.search = Some(landing::Search { green: 1, red: 2 });
         row.asks = Box::new([None, None, None]);
         let row = forge::Stored::Landing(row);
         let limits = forge::Limits { landing_members: 3, ..fixtures::LIMITS };
@@ -105,16 +107,73 @@ fn batch_members_and_leave_causes_round_trip() {
 }
 
 #[test]
-fn the_alone_mark_round_trips_and_defaults_false_for_v17() {
-    for alone in [false, true] {
-        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: false });
-        row.change.alone = alone;
-        let row = forge::Stored::Change(Box::new(row));
-        let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+fn landing_repair_context_round_trips_and_old_rows_have_none() {
+    use temper_engine_domain_forge_change::{Ask, Below, Landed, Repair, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let forge::Stored::Landing(seed) = stored(upgraded(&v17_landing())) else { panic!("landing") };
+    let mut changes = [None; 4];
+    for (index, slot) in changes.iter_mut().enumerate() {
+        *slot = Some(Landed { change: 2341 + u64::try_from(index).unwrap(), pull: 7 + u64::try_from(index).unwrap() });
+    }
+    for below in
+        [None, Some(Below { green: [0xbb; 32], changes: [None; 4] }), Some(Below { green: [0xbb; 32], changes })]
+    {
+        let mut row = seed.clone();
+        row.landing.phase = landing::Phase::Preparing;
+        row.asks = Box::new([Some(Ask::Repair { gate: 1, candidate: [0xaa; 32], below })]);
+        let row = forge::Stored::Landing(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+        let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Repairing {
+            requested: true,
+            why: Repair::LandingAt { gate: 1, candidate: [0xaa; 32], below },
+        })));
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
-    let before = kept_golden(17, "record_change_full.bin");
-    let bytes = patched(17, 6, b"Change", before);
-    let after = v18::Change::decode(&v18::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    assert!(!after.alone());
+    // Rows of the preceding version acquire no boundary, whether the ask or repair is kept.
+    let before = crate::v19::LandingRepairAt::new(
+        &crate::v19::CEILINGS,
+        crate::v19::LandingRepairAtParts { gate: 1, candidate: [0xaa; 32] },
+    )
+    .unwrap();
+    let mut writer = Writer::new(usize::try_from(before.measure()).unwrap());
+    before.encode(&mut writer).unwrap();
+    let bytes = patched(19, 8, b"LandingRepairAt", writer.finish());
+    let after = v20::LandingRepairAt::decode(&v20::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!((after.gate(), after.candidate(), after.below()), (1, &[0xaa; 32], &None));
+    let before = crate::v19::LandingRepairAsk::new(
+        &crate::v19::CEILINGS,
+        crate::v19::LandingRepairAskParts { gate: 1, candidate: [0xaa; 32] },
+    )
+    .unwrap();
+    let mut writer = Writer::new(usize::try_from(before.measure()).unwrap());
+    before.encode(&mut writer).unwrap();
+    let bytes = patched(19, 8, b"LandingRepairAsk", writer.finish());
+    let after = v20::LandingRepairAsk::decode(&v20::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!((after.gate(), after.candidate(), after.below()), (1, &[0xaa; 32], &None));
+}
+
+#[test]
+fn a_stored_fallback_leaves_as_held_and_the_alone_mark_is_dropped() {
+    let before = kept_golden(18, "record_change_full.bin");
+    let before = crate::v18::Change::decode(&crate::v18::CEILINGS, &mut Reader::new(&before)).unwrap();
+    assert!(before.alone());
+    let mut writer = Writer::new(usize::try_from(before.measure()).unwrap());
+    before.encode(&mut writer).unwrap();
+    let bytes = patched(19, 8, b"Change", patched(18, 7, b"Change", writer.finish()));
+    let after = v20::Change::decode(&v20::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!(after.task(), before.task());
+    assert_eq!(after.landing(), before.landing());
+    let mut row = upgraded(&v17_landing()).into_parts();
+    let mut state = row.landing.into_parts();
+    let member = state.members.get_mut(0).unwrap();
+    let mut parts = member.clone().into_parts();
+    parts.left = Some(v20::LandingLeave::Fallback(
+        v20::LandingFallback::new(&v20::CEILINGS, v20::LandingFallbackParts { units: 3, top: [7; 32] }).unwrap(),
+    ));
+    *member = v20::LandingMember::new(&v20::CEILINGS, parts).unwrap();
+    row.landing = v20::LandingState::new(&v20::CEILINGS, state).unwrap();
+    let forge::Stored::Landing(after) = stored(v20::LandingRow::new(&v20::CEILINGS, row).unwrap()) else {
+        panic!("landing")
+    };
+    assert_eq!(after.landing.members[0].left, Some(landing::Leave::Held));
 }

@@ -6,6 +6,7 @@ pub(super) fn step(value: &w::LandingStep) -> &'static [u8] {
         w::LandingStep::Waiting => b"waiting",
         w::LandingStep::Preparing => b"preparing",
         w::LandingStep::Proving => b"proving",
+        w::LandingStep::Probing => b"probing",
         w::LandingStep::Proved => b"proved",
         w::LandingStep::Turn => b"turn",
         w::LandingStep::Landed => b"landed",
@@ -58,7 +59,21 @@ pub(super) fn round_text(value: &w::LandingRound, out: &mut Text) {
     }
     out.put(b" \xc2\xb7 step: ");
     out.put(step(value.step()));
+    if *value.step() == w::LandingStep::Probing
+        && let Some(search) = value.search()
+        && let Some(prefix) = search.probe()
+    {
+        out.put(b" at ");
+        out.put(&hex(prefix));
+    }
     out.put(b"\n");
+    if let Some(search) = value.search() {
+        out.put(b"search: green member ");
+        bound_text(search.green(), out);
+        out.put(b" \xc2\xb7 red member ");
+        bound_text(search.red(), out);
+        out.put(b"\n");
+    }
     if let Some(upstream) = value.upstream() {
         out.put(b"upstream: ");
         out.put(&hex(upstream));
@@ -69,6 +84,11 @@ pub(super) fn round_text(value: &w::LandingRound, out: &mut Text) {
         out.put(value.failure());
         out.put(b"\n");
     }
+}
+fn bound_text(value: &w::SearchBound, out: &mut Text) {
+    out.number(u64::from(value.member()));
+    out.put(b" at ");
+    out.put(&hex(value.prefix()));
 }
 pub(super) fn member_text(value: &w::Member, out: &mut Text) {
     if let Some(head) = value.head() {
@@ -101,6 +121,16 @@ fn left_text(value: &w::LandingLeave, out: &mut Text) {
         w::LandingLeave::Conflict => out.put(b"conflict"),
         w::LandingLeave::Cancelled => out.put(b"cancelled"),
         w::LandingLeave::Held => out.put(b"held"),
+        w::LandingLeave::Blamed(value) => {
+            out.put(b"blamed by gate ");
+            out.number(u64::from(value.gate()));
+            out.put(b" in run ");
+            out.number(value.run());
+            out.put(b", red at ");
+            out.put(&hex(value.red()));
+            out.put(b", green at ");
+            out.put(&hex(value.green()));
+        }
         w::LandingLeave::HeadMoved(value) => {
             out.put(b"head moved to ");
             out.put(&hex(value.head()));
@@ -187,6 +217,25 @@ pub(super) fn round_json(value: Option<&w::LandingRound>, out: &mut Encoder) {
     optional_hex(value.upstream().as_ref(), out);
     out.key(b"failure");
     out.string(value.failure());
+    if let Some(search) = value.search() {
+        out.key(b"search");
+        out.object_start();
+        out.key(b"green");
+        bound_json(search.green(), out);
+        out.key(b"red");
+        bound_json(search.red(), out);
+        out.key(b"probe");
+        optional_hex(search.probe().as_ref(), out);
+        out.object_end();
+    }
+    out.object_end();
+}
+fn bound_json(value: &w::SearchBound, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"member");
+    out.unsigned(u64::from(value.member()));
+    out.key(b"prefix");
+    out.string(&hex(value.prefix()));
     out.object_end();
 }
 pub(super) fn member_json(value: &w::Member, out: &mut Encoder) {
@@ -228,6 +277,21 @@ fn left_json(value: &w::LandingLeave, out: &mut Encoder) {
         w::LandingLeave::Conflict => out.string(b"conflict"),
         w::LandingLeave::Cancelled => out.string(b"cancelled"),
         w::LandingLeave::Held => out.string(b"held"),
+        w::LandingLeave::Blamed(value) => {
+            out.object_start();
+            out.key(b"blamed");
+            out.object_start();
+            out.key(b"gate");
+            out.unsigned(u64::from(value.gate()));
+            out.key(b"run");
+            out.unsigned(value.run());
+            out.key(b"red");
+            out.string(&hex(value.red()));
+            out.key(b"green");
+            out.string(&hex(value.green()));
+            out.object_end();
+            out.object_end();
+        }
         w::LandingLeave::HeadMoved(value) => {
             out.object_start();
             out.key(b"head_moved");

@@ -131,8 +131,9 @@ fn member(limits: &w::Limits) -> w::PublicMember {
         limits,
         w::PublicMemberParts {
             head: Some([255; 32]),
-            left: Some(w::PublicLeave::Refused(
-                w::PublicGateNumber::new(limits, w::PublicGateNumberParts { gate: u64::MAX }).unwrap(),
+            left: Some(w::PublicLeave::Blamed(
+                w::PublicBlamed::new(limits, w::PublicBlamedParts { gate: u64::MAX, red: [255; 32], green: [255; 32] })
+                    .unwrap(),
             )),
             judgement: Some(judgement(limits)),
             task: u16::MAX,
@@ -153,6 +154,25 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
     w::PublicLanding::new(
         limits,
         w::PublicLandingParts {
+            search: Some(
+                w::PublicSearch::new(
+                    limits,
+                    w::PublicSearchParts {
+                        green: w::PublicSearchBound::new(
+                            limits,
+                            w::PublicSearchBoundParts { member: 0, prefix: [255; 32] },
+                        )
+                        .unwrap(),
+                        red: w::PublicSearchBound::new(
+                            limits,
+                            w::PublicSearchBoundParts { member: u16::MAX, prefix: [255; 32] },
+                        )
+                        .unwrap(),
+                        probe: Some([255; 32]),
+                    },
+                )
+                .unwrap(),
+            ),
             combined: Some(w::PublicCombined::Squash),
             step: Some(w::PublicLandingStep::Held),
             phase: w::PublicLandingPhase::Held,
@@ -269,7 +289,7 @@ fn public_limits_follow_the_panels() {
     assert_eq!(public_bounds(&ceilings), public_bounds(&BOUNDS));
     assert_eq!(
         (crate::PUBLIC_VERSION, crate::PUBLIC_CHANGE, crate::PUBLIC_LANDINGS, crate::PUBLIC_LANDING),
-        (1, 1, 2, 3)
+        (2, 1, 2, 3)
     );
-    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 8102]);
+    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 8716]);
 }

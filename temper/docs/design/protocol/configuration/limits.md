@@ -131,6 +131,10 @@
   (`../../domain/worker/jobs.md`, *The prepare kind*): a sixth would
   take the job's items past the channel's 1 MiB at their ceilings. The
   client wire's landing panel, which holds 8 members, is within it.
+  It bounds a red round's search too: at most `ceil(log2(n))` probes
+  for n units, three at 5 members, each probe's runs bounded as any
+  run, by its project's `gate_timeout`
+  (`../../domain/landing-search.md`, 3), so no limit of its own.
 - **`forge.changes` bounds the changes kept at once,** live and ended
   alike: the forge's change table, whose settled changes leave it,
   oldest first, as new ones need room, those of live goals kept

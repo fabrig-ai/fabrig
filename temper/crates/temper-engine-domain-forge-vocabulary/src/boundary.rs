@@ -1144,6 +1144,10 @@ pub struct LandingRow {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LandingEntry {
+    /// Exact round and base survive a cut while a dispatched run is followed.
+    /// Absent on entries patched from a single-prefix landing.
+    pub preparation: Option<u16>,
+    pub base: Option<landing::Commit>,
     pub entry: u64,
     pub member: u16,
     pub gate: u16,
@@ -2712,6 +2716,7 @@ pub struct LoggedChange {
 /// The five landing transitions reported to its member's goal (domain/landing.md, 4.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LandingNews {
+    Probing,
     Joined,
     Proving,
     Landed,

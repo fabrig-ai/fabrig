@@ -164,6 +164,7 @@ impl Domain {
             train: self.landing_train(row),
             round: round_view(row),
             step: landing_step(self, row),
+            probe: landing_probe(self, row),
         })
     }
     fn landing_train(&self, row: &policy::Landing) -> Option<LandingTrain> {
@@ -295,6 +296,7 @@ pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
             match row.phase {
                 policy::Phase::Waiting => LandingStep::Waiting,
                 policy::Phase::Preparing => LandingStep::Preparing,
+                policy::Phase::Proving if policy::probe(row).is_some() => LandingStep::Probing,
                 policy::Phase::Proving | policy::Phase::Proved { .. } if judging(d, row) => LandingStep::Judging,
                 policy::Phase::Proving => LandingStep::Proving,
                 policy::Phase::Proved { .. } => LandingStep::Proved,
@@ -305,6 +307,12 @@ pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
             }
         }
     }
+}
+pub(crate) fn landing_probe(d: &Domain, row: &policy::Landing) -> Option<[u8; 32]> {
+    if landing_step(d, row) != LandingStep::Probing {
+        return None;
+    }
+    row.members.get(usize::from(policy::probe(row)?))?.candidate
 }
 fn judging(d: &Domain, row: &policy::Landing) -> bool {
     for member in &row.members {
