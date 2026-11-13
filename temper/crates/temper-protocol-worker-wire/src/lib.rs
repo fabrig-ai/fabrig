@@ -26,6 +26,8 @@ pub struct Bounds {
     pub entries: u32,
     pub entry_token_bytes: u32,
     pub text_bytes: u32,
+    pub reds: u32,
+    pub red_key_bytes: u32,
 }
 
 /// Derive every schema limit from its domain bound, refusing past a ceiling.
@@ -59,6 +61,9 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         identity_login: bounds.text_bytes,
         identity_name: bounds.text_bytes,
         identity_email: bounds.text_bytes,
+        reds_reds: bounds.reds,
+        red_key: bounds.red_key_bytes,
+        red_head: v1::CEILINGS.red_head,
     };
     match v1::check_limits(&limits) {
         Ok(()) => Some(limits),
@@ -74,6 +79,8 @@ pub struct Largest {
     pub saved: u32,
     pub resource: u32,
     pub grant: u32,
+    pub ask: u32,
+    pub answer: u32,
 }
 
 /// The generated worst cases, refused if a size does not fit a u32.
@@ -85,6 +92,8 @@ pub fn largest(limits: &v1::Limits) -> Option<Largest> {
         saved: narrow(v1::Saved::encoded_bound(limits)?)?,
         resource: narrow(v1::Preparation::encoded_bound(limits)?)?,
         grant: narrow(v1::Identity::encoded_bound(limits)?)?,
+        ask: narrow(v1::Ask::encoded_bound(limits)?)?,
+        answer: narrow(v1::Answer::encoded_bound(limits)?)?,
     })
 }
 
@@ -122,6 +131,28 @@ pub fn preparation(value: &v1::Preparation) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
+}
+
+/// Encode an Ask into exactly its measured room.
+#[must_use]
+pub fn ask(value: &v1::Ask) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
+    value.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+
+/// Encode an Answer into exactly its measured room.
+#[must_use]
+pub fn answer(value: &v1::Answer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
+    value.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+
+/// Head lengths admitted by the application (domain/forge/reds.md, 5.4).
+#[must_use]
+pub fn red_head(head: &[u8]) -> bool {
+    head.len() == 20 || head.len() == 32
 }
 
 /// Encode an identity directly into a secret (protocol/channel.md, section 6).
@@ -167,7 +198,7 @@ pub mod wire {
     pub const FAMILY: &str = "temper-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 6;
+    pub const VERSION: u16 = 7;
 
     /// The oldest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;

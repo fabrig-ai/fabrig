@@ -12,6 +12,8 @@ pub const BOUNDS: Bounds = Bounds {
     entries: 3,
     entry_token_bytes: 24,
     text_bytes: 16,
+    reds: 2,
+    red_key_bytes: 12,
 };
 
 pub fn limits() -> v1::Limits {

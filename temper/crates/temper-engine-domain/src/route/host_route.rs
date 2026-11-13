@@ -12,6 +12,14 @@ use skein_lib::{Decimal, List, ReplyTo, Token, Writer};
 /// Root to protocol: a relayed call to decode, or one the fleet dropped.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostRequest {
+    /// Decode an admitted application ask before reading its run's reds.
+    Ask {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        bytes: Box<[u8]>,
+    },
     Decode {
         to: ReplyTo,
         task: u64,
