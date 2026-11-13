@@ -44,7 +44,6 @@ fn change(state: State) -> Change {
         ready_since: None,
         owns_turn: false,
         last_head: Some(HEAD),
-        alone: false,
     }
 }
 fn facts() -> Facts {

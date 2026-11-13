@@ -6,14 +6,14 @@ fn unknown_is_one_return() {
     let d = setup();
     let public = handed();
     for (kind, version, project, task) in [
-        (0, 1, 5, None),
-        (w::PUBLIC_CHANGE, 2, 5, Some(CHANGE)),
-        (w::PUBLIC_CHANGE, 1, 5, None),
-        (w::PUBLIC_LANDING, 1, 5, None),
-        (w::PUBLIC_LANDINGS, 1, 5, Some(CHANGE)),
-        (w::PUBLIC_CHANGE, 1, 6, Some(CHANGE)),
-        (w::PUBLIC_LANDING, 1, 6, Some(CHANGE)),
-        (w::PUBLIC_CHANGE, 1, 5, Some(LANDING)),
+        (0, w::PUBLIC_VERSION, 5, None),
+        (w::PUBLIC_CHANGE, 1, 5, Some(CHANGE)),
+        (w::PUBLIC_CHANGE, w::PUBLIC_VERSION, 5, None),
+        (w::PUBLIC_LANDING, w::PUBLIC_VERSION, 5, None),
+        (w::PUBLIC_LANDINGS, w::PUBLIC_VERSION, 5, Some(CHANGE)),
+        (w::PUBLIC_CHANGE, w::PUBLIC_VERSION, 6, Some(CHANGE)),
+        (w::PUBLIC_LANDING, w::PUBLIC_VERSION, 6, Some(CHANGE)),
+        (w::PUBLIC_CHANGE, w::PUBLIC_VERSION, 5, Some(LANDING)),
     ] {
         let mut ask = ask(kind, task, &public);
         ask.version = version;
@@ -241,7 +241,6 @@ fn change_row() -> ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: Some(HEAD),
-            alone: false,
         },
         pull: None,
         pending: Some(OPEN),
@@ -572,6 +571,7 @@ fn expected_landing() -> w::PublicLanding {
     w::PublicLanding::new(
         l,
         w::PublicLandingParts {
+            search: None,
             combined: None,
             step: Some(w::PublicLandingStep::Telling),
             phase: w::PublicLandingPhase::Turn,
@@ -749,7 +749,7 @@ fn the_largest_answers_fit_their_declared_bounds() {
         refusal_bytes: 64,
     };
     let declared = temper_client_protocol_wire::public_bounds(&bounds);
-    assert_eq!(declared, [822, 67_405, 8102]);
+    assert_eq!(declared, [822, 67_405, 8716]);
     for ((kind, task), bound) in
         [(w::PUBLIC_CHANGE, Some(CHANGE)), (w::PUBLIC_LANDINGS, None), (w::PUBLIC_LANDING, Some(CHANGE))]
             .into_iter()
@@ -974,6 +974,7 @@ fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
     w::PublicLanding::new(
         &w::CEILINGS,
         w::PublicLandingParts {
+            search: None,
             combined: None,
             step: None,
             phase: w::PublicLandingPhase::Landed,
@@ -1106,6 +1107,52 @@ fn landings_by_turn_stand_before_queue_merges_within_the_bound() {
     .expect("bounded landings");
     let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("history");
     assert_eq!(record, expected);
+}
+
+#[test]
+fn a_public_search_names_the_bounds_by_member_and_prefix_including_the_base() {
+    let mut d = setup();
+    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
+    row.phase = policy::Phase::Proving;
+    row.round.upstream = Some(BASE);
+    row.round.search = Some(policy::Search { green: 0, red: 2 });
+    for (index, member) in row.members.iter_mut().enumerate() {
+        member.landed = None;
+        member.left = None;
+        member.unit = u16::try_from(index).unwrap();
+        member.candidate = Some(if index == 0 { CANDIDATE } else { MERGE });
+    }
+    let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
+    let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
+    assert_eq!(got.step(), &Some(w::PublicLandingStep::Probing));
+    let search = got.search().as_ref().expect("public search");
+    assert_eq!((search.green().member(), search.green().prefix()), (0, &BASE));
+    assert_eq!((search.red().member(), search.red().prefix()), (2, &MERGE));
+    assert_eq!(search.probe(), &Some(CANDIDATE));
+    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
+    row.round.search = Some(policy::Search { green: 1, red: 2 });
+    row.members[1].candidate = None;
+    row.members[1].left = Some(policy::Leave::Blamed { gate: 0, run: 7, red: MERGE, green: CANDIDATE });
+    let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
+    let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
+    let search = got.search().as_ref().unwrap();
+    assert_eq!((search.green().member(), search.green().prefix()), (1, &CANDIDATE));
+    assert_eq!(search.probe(), &None, "resolved bounds have no running probe");
+    assert_eq!((search.red().member(), search.red().prefix()), (2, &MERGE), "cut red prefix is kept in its blame");
+}
+
+#[test]
+fn a_public_blamed_member_keeps_its_gate_and_both_prefixes() {
+    let mut d = setup();
+    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
+    row.phase = policy::Phase::Landed;
+    row.members[0].left = Some(policy::Leave::Blamed { gate: 3, run: 7, red: CANDIDATE, green: BASE });
+    let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
+    let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
+    let Some(w::PublicLeave::Blamed(blamed)) = got.members().get(0).unwrap().left() else {
+        panic!("blamed, not failed")
+    };
+    assert_eq!((blamed.gate(), blamed.red(), blamed.green()), (3, &CANDIDATE, &BASE));
 }
 
 #[test]

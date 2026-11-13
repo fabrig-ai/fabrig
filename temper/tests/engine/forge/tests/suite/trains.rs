@@ -258,40 +258,21 @@ fn a_formed_batch_is_sealed_against_a_later_ready_change() {
     assert_eq!(members(&world, LANDING + 1), [CHANGE + 2]);
 }
 #[test]
-fn a_marked_waiting_change_forms_alone_and_the_view_marks_it() {
-    let mut world = batched();
-    let mut root = Trains::default();
-    landings::ready_marked(&mut world, CHANGE, b"temper/first", b"main", true);
-    for task in [CHANGE + 1, CHANGE + 2] {
-        landings::ready_on(&mut world, task, format!("temper/{task}").as_bytes(), b"main");
-    }
-    // The document is read before forming while the marked row is still waiting.
-    let document = world.document(landings::PROJECT, top::changes_subject(landings::PROJECT)).expect("changes");
-    let top::Document::Changes(view) = document else { panic!("changes view") };
-    assert!(view.queues[0].changes[0].alone);
-    root.judge(&mut world);
-    assert_eq!(members(&world, LANDING), [CHANGE]);
-    assert_eq!(world.change(CHANGE + 1).change.landing, None);
-}
-#[test]
 fn selection_takes_whole_units_and_passes_refusals() {
     struct Case {
         sizes: &'static [usize],
         batch: u16,
         bound: u32,
-        marked: Option<usize>,
         refused: Option<usize>,
         take: &'static [u32],
         hold: &'static [u32],
     }
     for case in [
-        Case { sizes: &[1, 1, 1], batch: 2, bound: 3, marked: None, refused: None, take: &[0, 1], hold: &[] },
-        Case { sizes: &[3], batch: 2, bound: 3, marked: None, refused: None, take: &[0], hold: &[] },
-        Case { sizes: &[1, 2], batch: 2, bound: 3, marked: None, refused: None, take: &[0], hold: &[] },
-        Case { sizes: &[1, 1], batch: 3, bound: 3, marked: Some(0), refused: None, take: &[0], hold: &[] },
-        Case { sizes: &[1, 1], batch: 3, bound: 3, marked: Some(1), refused: None, take: &[0], hold: &[] },
-        Case { sizes: &[1, 1], batch: 3, bound: 3, marked: None, refused: Some(0), take: &[1], hold: &[0] },
-        Case { sizes: &[3, 1], batch: 2, bound: 2, marked: None, refused: None, take: &[1], hold: &[0] },
+        Case { sizes: &[1, 1, 1], batch: 2, bound: 3, refused: None, take: &[0, 1], hold: &[] },
+        Case { sizes: &[3], batch: 2, bound: 3, refused: None, take: &[0], hold: &[] },
+        Case { sizes: &[1, 2], batch: 2, bound: 3, refused: None, take: &[0], hold: &[] },
+        Case { sizes: &[1, 1], batch: 3, bound: 3, refused: Some(0), take: &[1], hold: &[0] },
+        Case { sizes: &[3, 1], batch: 2, bound: 2, refused: None, take: &[1], hold: &[0] },
     ] {
         let units: Vec<_> = case
             .sizes
@@ -300,7 +281,6 @@ fn selection_takes_whole_units_and_passes_refusals() {
             .map(|(index, size)| top::WaitingUnit {
                 task: 0,
                 changes: (0..*size as u64).collect(),
-                alone: case.marked == Some(index),
                 refused: case.refused == Some(index),
             })
             .collect();

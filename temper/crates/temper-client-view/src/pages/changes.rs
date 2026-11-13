@@ -273,7 +273,13 @@ fn queues(
                 W::TrainFlight,
                 &[Hole::Number(flight.task()), Hole::Number(flight.member()), Hole::Number(u64::from(flight.round()))],
             );
-            let status = super::change::say(words, step_word(flight.step()), &[]);
+            let status = if let Some(prefix) = flight.probe()
+                && *flight.step() == w::LandingStep::Probing
+            {
+                super::change::say(words, W::ProbingAt, &[Hole::Name(crate::public::short(prefix).as_slice().into())])
+            } else {
+                super::change::say(words, step_word(flight.step()), &[])
+            };
             let label = crate::accounts::words::join(&[&identity, &words.say(Word::ToolSeparator, &[]), &status]);
             row_start(b, root, words, bindings, flight.member(), flight.title(), &label);
             row_when(b, words, &label);
@@ -309,15 +315,6 @@ fn queues(
                         ),
                     ),
                 }
-            };
-            let when = if row.alone() {
-                crate::accounts::words::join(&[
-                    &when,
-                    &words.say(Word::ToolSeparator, &[]),
-                    &super::change::say(words, W::LandAlone, &[]),
-                ])
-            } else {
-                when
             };
             let label = if checking {
                 crate::accounts::words::join(&[&words.say(Word::ChangesChecking, &[]), &when])
@@ -414,6 +411,7 @@ pub(crate) fn step_word(step: &w::LandingStep) -> W {
         w::LandingStep::Waiting => W::Waiting,
         w::LandingStep::Preparing => W::HeldPreparing,
         w::LandingStep::Proving => W::Checking,
+        w::LandingStep::Probing => W::Probing,
         w::LandingStep::Proved => W::Proved,
         w::LandingStep::Turn => W::HeldLanding,
         w::LandingStep::Landed => W::Landed,
