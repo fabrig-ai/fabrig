@@ -4,10 +4,8 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+pub use jig_protocol_engine_clients_codec::cursor_v1;
 pub use jig_protocol_transcript::Private;
-#[rustfmt::skip]
-#[path = "generated/cursor_v1.rs"]
-pub mod cursor_v1;
 pub mod boundary;
 mod component;
 mod exchange;
