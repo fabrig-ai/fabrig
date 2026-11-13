@@ -84,3 +84,4 @@ Failing on goal 1985's branch and owned by none of its live changes; delivery's 
 - lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
+- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
