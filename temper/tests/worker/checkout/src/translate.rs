@@ -110,6 +110,11 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
 pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
     match op {
         Op::Reds { at, action } => {
+            if !matches!(action, temper_worker_domain_checkout::git::Reds::Clear)
+                && disk.content(&[path(&at).as_slice(), b"/.git/refs/temper/landing"].concat()).is_none()
+            {
+                return Done::Succeeded;
+            }
             let directory = [path(&at).as_slice(), b"/.git/temper"].concat();
             let file = [directory.as_slice(), b"/reds"].concat();
             match action {
