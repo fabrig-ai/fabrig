@@ -9,4 +9,3 @@
    the child-timer departure remains `README.status.md`, 4.1.
    the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
 
-- **Not yet:** 1, *Settling before the stop*: the core has no `Event::Settling` and no `Core::settling()`; a root that settles before its stop still has its fleet place waiting attempts and jobs, and its timers activate tasks [in flight: change 2291]
