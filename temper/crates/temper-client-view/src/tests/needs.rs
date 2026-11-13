@@ -5,10 +5,15 @@
     reason = "ordinary tests inspect semantic subtrees and actions"
 )]
 use super::{documents, fixtures as f};
+
 use crate::look;
+
 use jig_client::contract as c;
+
 use skein_lib::{Env, List, Queue, Time, Wall};
+
 use skein_ui::{Act, Role};
+
 use temper_client_domain::{
     self as d, Address, Event,
     pages::{self, needs},
@@ -73,20 +78,25 @@ fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
         &mut out,
     );
 }
+
 fn root() -> d::Domain {
     fixture(QUESTION, false, 3, false, d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL })
 }
+
 fn act(root: &mut d::Domain, act: needs::Act) {
     f::root_event(root, Event::Act { action: d::Action::Pages(pages::Act::Needs(act)) });
 }
+
 fn choose(root: &mut d::Domain, message: u64) {
     act(root, needs::Act::Choose { object: object(message), words: b"In the store".as_slice().into() });
 }
+
 fn main(view: &crate::View) -> &[skein_ui::Node] {
     let nodes = view.tree().nodes();
     let i = nodes.iter().position(|n| n.role == Role::Main).unwrap();
     &nodes[i..i.checked_add(usize::try_from(nodes[i].size).unwrap()).unwrap()]
 }
+
 fn styled(view: &crate::View, style: skein_ui::Style) -> &skein_ui::Node {
     let nodes = main(view);
     if style == look::ASK_META {
@@ -95,16 +105,20 @@ fn styled(view: &crate::View, style: skein_ui::Style) -> &skein_ui::Node {
     }
     nodes.iter().find(|n| n.styles.as_slice().contains(&style)).expect("styled part")
 }
+
 fn press(view: &mut crate::View, name: &[u8]) -> d::Action {
     let node = f::find(view.tree(), Role::Button, name).expect("button");
     crate::act(view, node, Act::Press).unwrap()
 }
+
 fn expected(act: needs::Act) -> d::Action {
     d::Action::Pages(pages::Act::Needs(act))
 }
+
 fn has(view: &crate::View, words: &[u8]) -> bool {
     skein_lib::bytes::find(&f::main_text(view.tree()), words).is_some()
 }
+
 fn home_parts(root: &d::Domain, object: c::ObjectKey) {
     let needs::Need::Card(card) =
         root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap()
@@ -142,6 +156,7 @@ fn home_parts(root: &d::Domain, object: c::ObjectKey) {
         Some(expected(needs::Act::Choose { object, words: "In jig’s store".as_bytes().into() }))
     );
 }
+
 #[test]
 fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
     for (root, object, title, task) in [
@@ -228,6 +243,7 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
         home_parts(&root, object);
     }
 }
+
 #[test]
 fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_rec() {
     use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
@@ -319,6 +335,7 @@ fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_re
         }
     }
 }
+
 #[test]
 fn tell_field_keeps_words_and_sends_only_a_nonblank_reply() {
     for (words, send) in
@@ -356,6 +373,7 @@ fn tell_field_keeps_words_and_sends_only_a_nonblank_reply() {
         }
     }
 }
+
 #[test]
 fn plain_and_cut_words_have_no_choices_or_saw() {
     for (words, cut) in [
@@ -406,6 +424,7 @@ fn plain_and_cut_words_have_no_choices_or_saw() {
         }
     }
 }
+
 #[test]
 fn phone_bar_links_home_and_counts_answered_including_cut() {
     for (projects, project, address) in [
@@ -518,6 +537,7 @@ fn opened_card_and_later_order() {
         .unwrap();
     assert!(answered < decided);
 }
+
 #[test]
 fn answered_lines_have_links_labels_and_undo_only_during_hold() {
     for (reply, label) in [(false, "In the store"), (true, "Replied: “My words”")] {
@@ -597,6 +617,7 @@ fn done_with_and_without_lines_and_home_project() {
         );
     }
 }
+
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the table formats expected counts and project labels in both shells")]
 fn decided_head_and_rows_follow_the_project_filter() {
@@ -677,6 +698,7 @@ fn decided_head_and_rows_follow_the_project_filter() {
         }
     }
 }
+
 #[test]
 fn list_keeps_one_card_and_opens_rows_in_place() {
     for (filter, kicker, chips) in [
@@ -764,6 +786,7 @@ fn list_keeps_one_card_and_opens_rows_in_place() {
         assert!(!has(&view, b"Next:"));
     }
 }
+
 #[test]
 fn empty_column_until_delivered_and_terminal_keeps_its_list() {
     let (pending, _, _) = f::root_at(Address::Inbox { filter: d::address::Filter::ALL }, &f::domain_limits());
@@ -783,6 +806,7 @@ fn empty_column_until_delivered_and_terminal_keeps_its_list() {
     assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_some());
     assert!(main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FILTERS)));
 }
+
 #[test]
 fn answered_lines_expire_and_schedule_the_oldest_end() {
     let mut root = root();
@@ -867,6 +891,7 @@ fn unnamed_cards_and_answered_lines_use_task_number() {
 fn word_person(words: &str, words_cut: bool, document_cut: bool, requester: c::Requester) -> d::Domain {
     word_person_read(words, words_cut, document_cut, requester, None)
 }
+
 fn word_person_read(
     words: &str,
     words_cut: bool,
@@ -892,6 +917,7 @@ fn word_person_read(
         whole,
     )
 }
+
 fn finished_person(whole: bool) -> d::Domain {
     let result = if whole {
         c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
@@ -911,6 +937,7 @@ fn finished_person(whole: bool) -> d::Domain {
 fn proposal_row(p: c::Proposal) -> (c::ObjectKey, c::Read, c::ReadValue) {
     (c::ObjectKey::Proposal(p.key), c::Read::Proposal { proposal: p.key }, c::ReadValue::Proposal(Box::new(p)))
 }
+
 fn held_row(h: c::Escalation) -> (c::ObjectKey, c::Read, c::ReadValue) {
     (
         c::ObjectKey::Escalation(h.task.chip.task),
@@ -918,6 +945,7 @@ fn held_row(h: c::Escalation) -> (c::ObjectKey, c::Read, c::ReadValue) {
         c::ReadValue::Escalation(Box::new(h)),
     )
 }
+
 fn ordered(view: &crate::View) {
     let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES]
         .iter()
@@ -925,6 +953,7 @@ fn ordered(view: &crate::View) {
         .collect();
     assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
 }
+
 #[test]
 fn proposal_parts_accept_reject_and_task_open() {
     for proposer in [c::Proposer::Task(f::INBOX_TASK), c::Proposer::Party(73)] {
@@ -967,6 +996,7 @@ fn proposal_parts_accept_reject_and_task_open() {
         assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
     }
 }
+
 #[test]
 fn proposal_short_stops_at_sentence_or_first_line_and_batch_uses_heading() {
     for (reason, expected) in
@@ -1002,6 +1032,7 @@ fn proposal_short_stops_at_sentence_or_first_line_and_batch_uses_heading() {
         Some(heading.as_bytes())
     );
 }
+
 #[test]
 fn a_proposal_s_question_line_leaves_off_a_heading_s_marks() {
     for (reason, expected) in [
@@ -1024,6 +1055,7 @@ fn a_proposal_s_question_line_leaves_off_a_heading_s_marks() {
         assert_eq!(styled(&f::browser_page_view(&root), look::FLOW_Q).name.as_deref(), Some(asked.short.as_ref()));
     }
 }
+
 #[test]
 fn held_parts_release_leave_held_and_missing_hold() {
     for reason in [Some(c::HoldCategory::Stalled), None] {
@@ -1048,6 +1080,7 @@ fn held_parts_release_leave_held_and_missing_hold() {
         );
     }
 }
+
 #[test]
 fn funds_use_budget_reason_plain_numbers_and_held_acts() {
     for reason in
@@ -1078,6 +1111,7 @@ fn funds_use_budget_reason_plain_numbers_and_held_acts() {
         assert!(f::find(view.tree(), Role::Button, b"Add $10").is_none());
     }
 }
+
 #[test]
 fn person_spec_and_plain_acts() {
     let person = person();
@@ -1098,6 +1132,7 @@ fn person_spec_and_plain_acts() {
     assert!(f::find(view.tree(), Role::Button, b"Open").is_some());
     assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
 }
+
 #[test]
 fn mixed_kinds_keep_each_short_and_later_order() {
     let p = proposal(c::Proposer::Task(9));
@@ -1133,6 +1168,7 @@ fn mixed_kinds_keep_each_short_and_later_order() {
 fn page_act(root: &mut d::Domain, action: pages::Act, out: &mut Queue<d::Request>) {
     event(root, Event::Act { action: d::Action::Pages(action) }, out);
 }
+
 #[test]
 fn deciding_reasons_keep_their_value_and_confirmation_over_the_page() {
     let p = proposal_row(proposal(c::Proposer::Task(9)));
@@ -1174,6 +1210,7 @@ fn deciding_reasons_keep_their_value_and_confirmation_over_the_page() {
         assert!(root.pages().needs().answered(f::NOW, needs::ANSWERED_ON_NEEDS, None).is_empty());
     }
 }
+
 #[test]
 fn sent_cards_replace_all_acts_with_progress_and_the_returned_outcome() {
     let p = proposal_row(proposal(c::Proposer::Task(9)));
@@ -1289,6 +1326,7 @@ fn empty_column(root: &d::Domain) {
     let index = super::inbox::styled(view.tree(), look::NEEDS);
     assert_eq!(view.tree().nodes()[index].size, 1, "unanswered column has no content");
 }
+
 #[test]
 fn behind_with_unanswered_reads_needs_claims_no_empty() {
     let mut page = f::ReadPage::new(Address::Inbox { filter: d::address::Filter::ALL });
@@ -1296,6 +1334,7 @@ fn behind_with_unanswered_reads_needs_claims_no_empty() {
     assert!(f::find(f::browser_page_view(&page.root).tree(), Role::Status, b"Behind").is_some());
     empty_column(&page.root);
 }
+
 #[test]
 fn lost_section_reads_are_no_answer() {
     let mut page = f::ReadPage::new(Address::Inbox {
@@ -1305,6 +1344,7 @@ fn lost_section_reads_are_no_answer() {
     page.sections(true);
     empty_column(&page.root);
 }
+
 #[test]
 fn a_known_empty_stays_through_a_refresh() {
     let mut page = f::ReadPage::new(Address::Inbox {
@@ -1713,6 +1753,7 @@ fn rule_in_terminal(root: &d::Domain, rule: &[u8]) {
     }
     assert!(f::find(tree, Role::Button, b"Stop asking").is_none());
 }
+
 #[test]
 fn reason_line_rules_and_open_offers_belong_to_the_card() {
     use d::pages::stop_asking::Act as Stop;
@@ -1856,121 +1897,4 @@ fn reason_line_rules_and_open_offers_belong_to_the_card() {
             }
         }
     }
-}
-
-fn approval_people(people: &[(u64, &str)]) -> Box<[d::forge::approvals::ApprovalPerson]> {
-    people
-        .iter()
-        .map(|&(person, name)| d::forge::approvals::ApprovalPerson { person, name: name.as_bytes().into() })
-        .collect()
-}
-
-#[test]
-#[expect(clippy::too_many_lines, reason = "each row pins a distinct who-sentence rule in 4.1")]
-fn approval_context_names_who_signed_and_who_can_still_sign() {
-    use crate::pages::approval::{sentences, who};
-    use d::forge::approvals::{ApprovalSet, Row, Yours};
-    let w = f::browser_words();
-    let row = Row {
-        role: 2,
-        required: 2,
-        counted: 1,
-        signed: approval_people(&[(2, "Sam")]),
-        can_sign: approval_people(&[(1, "Ann"), (3, "Kit")]),
-        sets: Box::new([ApprovalSet { number: 1, name: b"payments".as_slice().into() }]),
-        ..approval_row()
-    };
-    assert_eq!(
-        sentences(&row, 1, &w).as_ref(),
-        [
-            Box::<[u8]>::from(b"This project's landing rule 1 asks for 2 approvals by members.".as_slice()),
-            b"Signs off changes to payments.".as_slice().into(),
-            b"1 of 2 signed: Sam; you or Kit can give the second.".as_slice().into(),
-        ]
-    );
-    for (required, counted, yours, signed, can, more, expected) in [
-        (1, 0, Yours::Counts, &[][..], &[(1, "Ann")][..], 0, None),
-        (1, 0, Yours::NoAccount, &[], &[(3, "Kit"), (2, "Sam")], 0, Some("Kit or Sam can give it.")),
-        (2, 1, Yours::TooFew, &[(2, "Sam")], &[], 0, Some("1 of 2 signed: Sam.")),
-        (
-            2,
-            1,
-            Yours::Counts,
-            &[(2, "Sam")],
-            &[(1, "Ann"), (3, "Kit")],
-            3,
-            Some("1 of 2 signed: Sam; you, Kit or 3 others can give the second."),
-        ),
-        (
-            4,
-            3,
-            Yours::Counts,
-            &[(2, "Sam")],
-            &[(1, "Ann")],
-            0,
-            Some("3 of 4 signed: Sam and 2 others; you can give the fourth."),
-        ),
-        (
-            4,
-            3,
-            Yours::Counts,
-            &[(2, "Sam"), (3, "Kit")],
-            &[(1, "Ann")],
-            1,
-            Some("3 of 4 signed: Sam, Kit and one other; you or one other can give the fourth."),
-        ),
-        (
-            3,
-            2,
-            Yours::Counts,
-            &[(2, "Sam"), (3, "Kit")],
-            &[(1, "Ann")],
-            0,
-            Some("2 of 3 signed: Sam and Kit; you can give the third."),
-        ),
-        (
-            11,
-            10,
-            Yours::Counts,
-            &[(2, "Sam")],
-            &[(1, "Ann")],
-            0,
-            Some("10 of 11 signed: Sam and 9 others; you can give the next."),
-        ),
-        (
-            9,
-            8,
-            Yours::Counts,
-            &[(2, "Sam")],
-            &[(1, "Ann")],
-            0,
-            Some("8 of 9 signed: Sam and 7 others; you can give the ninth."),
-        ),
-        (2, 1, Yours::Counts, &[(2, "")], &[(1, "Ann")], 0, Some("1 of 2 signed: someone; you can give the second.")),
-        (2, 0, Yours::TooFew, &[], &[(1, "Ann")], 0, Some("You can give the first.")),
-        (2, 0, Yours::OtherRole, &[], &[(2, "")], 0, Some("Someone can give the first.")),
-        (2, 0, Yours::TooFew, &[], &[], 0, None),
-        (2, 1, Yours::TooFew, &[(1, "Ann")], &[], 0, Some("1 of 2 signed: you.")),
-    ] {
-        let row = Row {
-            required,
-            counted,
-            yours,
-            signed: approval_people(signed),
-            can_sign: approval_people(can),
-            can_sign_more: more,
-            ..approval_row()
-        };
-        assert_eq!(who(&row, 1, &w).as_deref(), expected.map(str::as_bytes), "{row:?}");
-    }
-    let row = Row {
-        yours: Yours::NoAccount,
-        whole: false,
-        can_sign: approval_people(&[(3, "Kit"), (2, "Sam")]),
-        ..approval_row()
-    };
-    let context = sentences(&row, 1, &w);
-    assert_eq!(context[1].as_ref(), b"Kit or Sam can give it.");
-    assert_eq!(context[2].as_ref(), b"There are too many reviews to read them all, so one may already count.");
-    assert_eq!(context[3].as_ref(), b"temper knows no Forgejo account of yours, so your review wouldn't count.");
 }

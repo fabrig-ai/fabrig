@@ -1,7 +1,5 @@
 //! A bound conversation reads at either edge; Latest returns to its end (client/pages/chat/conversation.md, 2).
 pub(crate) use crate::common::chat::asking;
-#[cfg(test)]
-pub(crate) use crate::common::chat::short_title;
 use crate::{
     bindings::Bindings,
     words::{Shell, TimeForm, Times, Word, Words},

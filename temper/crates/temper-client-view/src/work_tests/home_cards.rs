@@ -6,14 +6,19 @@
     reason = "view tables inspect semantic nodes and bindings"
 )]
 use super::fixtures as f;
+
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Times, Words},
 };
+
 use jig_client::contract as c;
+
 use skein_ui::{Builder, Role, Tree};
+
 use temper_client_domain::{self as d, pages::needs::Need};
+
 fn draw(root: &d::Domain, needs: &[Need<'_>], across: bool, w: &Words) -> (Tree, Bindings) {
     let mut b = Builder::new(&f::tree_limits());
     let mut bindings = Bindings::new(128);
@@ -22,6 +27,7 @@ fn draw(root: &d::Domain, needs: &[Need<'_>], across: bool, w: &Words) -> (Tree,
     b.close();
     (b.finish(), bindings)
 }
+
 fn control(tree: &Tree, bindings: &Bindings, name: &str) -> d::Action {
     let n = tree
         .nodes()
@@ -30,6 +36,7 @@ fn control(tree: &Tree, bindings: &Bindings, name: &str) -> d::Action {
         .expect("bound control");
     bindings.decode(n.binding.unwrap().token, skein_ui::Act::Press).unwrap()
 }
+
 fn question_card(root: &d::Domain) -> d::pages::inbox::Card {
     let mut card =
         root.pages().inbox().unwrap().cards.iter().find(|card| card.group == c::InboxGroup::Questions).unwrap().clone();
@@ -51,6 +58,7 @@ fn question_card(root: &d::Domain) -> d::pages::inbox::Card {
     card.page = Some(c::ReadValue::Question(Box::new(question)));
     card
 }
+
 #[test]
 fn three_cards_keep_order_project_scope_and_the_remaining_link() {
     let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);
@@ -105,6 +113,7 @@ fn three_cards_keep_order_project_scope_and_the_remaining_link() {
         }
     }
 }
+
 #[test]
 fn a_question_orders_the_primary_choice_before_other_acts() {
     let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);
@@ -132,6 +141,7 @@ fn a_question_orders_the_primary_choice_before_other_acts() {
         assert_eq!(f::find(&tree, Role::Button, b"More").is_some(), w.shell == crate::words::Shell::Browser);
     }
 }
+
 #[test]
 fn plain_questions_have_a_primary_way_to_tell() {
     let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);
@@ -149,6 +159,7 @@ fn plain_questions_have_a_primary_way_to_tell() {
         );
     }
 }
+
 #[test]
 fn proposals_held_tasks_and_approvals_keep_their_acts() {
     let mut proposal = super::needs::proposal(c::Proposer::Task(f::INBOX_TASK));

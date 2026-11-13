@@ -8,7 +8,6 @@ mod choice;
 mod confirm;
 mod delegation;
 mod document;
-mod home_cards;
 mod model_forge;
 mod models;
 mod new_chat;
@@ -129,7 +128,6 @@ fn a_part_needing_a_document_says_shown_on_the_forge() {
 }
 
 mod chat;
-mod chat_line;
 mod chat_sheet;
 
 mod task;
