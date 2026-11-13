@@ -1,50 +1,13 @@
 use super::fixtures;
-use jig_client::contract::{self as c, ActKind, Admission, ObjectKey, Read, ReadValue};
+use jig_client::contract::{self as c, ActKind, Admission, ObjectKey};
 use skein_lib::{List, Wall};
 use skein_ui::Role;
-use temper_client_domain::{Action, Event, address::Filter, pages::Act};
-const PARTY: u64 = 73;
-const TEXT_BYTES: u32 = 32;
-const SINGLE_OFFER: u32 = 1;
-const FUNDING_PERIOD: u64 = 1;
-const FUNDING_NEEDED: u64 = 5;
-const FUNDING_LEFT: u64 = 20;
-const FUNDING_AFTER: u64 = 15;
-const EMPTY_BATCH: u32 = 0;
+use temper_client_domain::{Action, Event, pages::Act};
+
+pub(super) use super::fixtures::confirm::{PARTY, PROPOSAL, root};
+
 const PROPOSAL_INDEX: u32 = 1;
-const PROPOSAL: c::ProposalKey =
-    c::ProposalKey { proposer: c::Proposer::Task(fixtures::INBOX_TASK), number: fixtures::INBOX_QUESTION };
-fn text(words: &[u8]) -> c::Text {
-    c::Text::new(Box::from(words), TEXT_BYTES).expect("fixture text")
-}
-pub(super) fn root(act: ActKind, admission: Admission) -> temper_client_domain::Domain {
-    let mut acts = List::with_capacity(SINGLE_OFFER);
-    acts.push(c::Offered { act, admission, effect: None }).expect("one act");
-    let mut funding = List::with_capacity(SINGLE_OFFER);
-    funding
-        .push(c::FundingOffer {
-            source: c::Funder::Pool { project: fixtures::PROJECT, person: PARTY, period: FUNDING_PERIOD },
-            needed: FUNDING_NEEDED,
-            left: Some(FUNDING_LEFT),
-            after: Some(FUNDING_AFTER),
-        })
-        .expect("one funding source");
-    let page = c::Proposal {
-        key: PROPOSAL,
-        project: fixtures::PROJECT,
-        projects: List::from_boxed(Box::new([fixtures::PROJECT])),
-        reason: c::DocumentText::complete(text(b"Make a goal")),
-        action: c::ProposalAction::Batch(List::with_capacity(EMPTY_BATCH)),
-        as_holder: true,
-        waiting: c::ProposalWaiting { holder: c::HistoryHolder::Person(PARTY), since: Wall::EPOCH },
-        funding,
-        acts,
-    };
-    fixtures::inbox_with_document(
-        Filter::ALL,
-        Some((Read::Proposal { proposal: PROPOSAL }, ReadValue::Proposal(Box::new(page)))),
-    )
-}
+
 fn press(root: &mut temper_client_domain::Domain, act: Act) {
     fixtures::root_event(root, Event::Act { action: Action::Pages(act) });
 }

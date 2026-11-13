@@ -72,7 +72,7 @@ pub fn queued() -> w::Step {
     w::Step::Queued(w::Queued::new(&limits, w::QueuedParts { place: 65, ahead }).expect("queued"))
 }
 
-fn field(byte: u8, count: u32) -> Box<[u8]> {
+pub fn field(byte: u8, count: u32) -> Box<[u8]> {
     let mut bytes = skein_lib::bytes::zeroed(usize::try_from(count).unwrap());
     bytes.fill(byte);
     bytes

@@ -1,7 +1,9 @@
+pub(super) use super::fixtures::task_helpers::held_agent_root;
 use super::fixtures::{self, task as f};
 use jig_client::contract as c;
 use skein_lib::List;
 use skein_ui::{Builder, Role};
+
 const TASK: u64 = 9;
 // Small's join bound, supplied as the read refusal fact.
 const READ_JOINS: u32 = 4;
@@ -2677,14 +2679,6 @@ fn a_too_linked_task_page_says_so() {
                 .is_some()
         );
     }
-}
-
-/// A held agent task keeps the cards shared by the other task pages (5.11).
-pub(super) fn held_agent_root() -> Domain {
-    let root = f::held_root();
-    let mut task = root.pages().task().expect("task page").document(root.client()).expect("task").clone();
-    task.priority = None;
-    f::supplied_root(task, true)
 }
 
 #[test]

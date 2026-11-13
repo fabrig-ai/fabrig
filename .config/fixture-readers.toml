@@ -655,7 +655,11 @@ filter = "kind(lib)"
 
 # temper/crates/temper-client-view/src/tests.rs and its fixture helper modules; all unit callers.
 [[fixture]]
-paths = ["temper/crates/temper-client-view/src/tests/fixtures/*.rs"]
+paths = [
+    "temper/crates/temper-client-view/src/tests/fixtures/*.rs",
+    "temper/crates/temper-client-view/src/view_kit.rs",
+    "temper/crates/temper-client-view/src/view_kit/*.rs",
+]
 [[fixture.reader]]
 pair = "default"
 package = "temper-client-view"
