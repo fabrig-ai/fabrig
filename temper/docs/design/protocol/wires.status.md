@@ -14,3 +14,4 @@
 - **Not yet:** 8: a page refused reloads once [in flight: change 1740].
 - **Not yet:** 4: the engine's workers component given its statement from the table, and `temper-service`'s test holding the worker's equal [in flight: change 1756].
 - **Not yet:** 9: `temper_engine_service::wires()`, `versions`' wire and layout lines, and the stored row from the table [in flight: change 1756].
+- **Not yet:** 10: the one-process world's mismatch story. The world composes the real local worker and has no seam to make it answer an assignment with a version refusal, so the focused tests of jig's `protocol/channel/wires.md`, 7 cover the path alone.
