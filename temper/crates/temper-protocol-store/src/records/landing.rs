@@ -536,7 +536,7 @@ pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, 
     })
 }
 
-fn encode_leave(why: d::Leave) -> w::LandingLeave {
+pub(super) fn encode_leave(why: d::Leave) -> w::LandingLeave {
     match why {
         d::Leave::Conflict => w::LandingLeave::Conflict,
         d::Leave::EarlierConflict => w::LandingLeave::EarlierConflict,
@@ -562,7 +562,7 @@ fn encode_leave(why: d::Leave) -> w::LandingLeave {
         ),
     }
 }
-fn decode_leave(why: w::LandingLeave) -> d::Leave {
+pub(super) fn decode_leave(why: w::LandingLeave) -> d::Leave {
     match why {
         w::LandingLeave::Conflict => d::Leave::Conflict,
         w::LandingLeave::EarlierConflict => d::Leave::EarlierConflict,

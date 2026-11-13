@@ -901,6 +901,7 @@ mod tests {
             catch_up: None,
             close: None,
             merge_result: None,
+            history: None,
             follow_check: None,
         }
     }
