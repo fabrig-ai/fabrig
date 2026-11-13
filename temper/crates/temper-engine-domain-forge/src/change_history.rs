@@ -21,17 +21,33 @@ pub(crate) fn landing(d: &Domain, row: &ChangeRow) -> Option<history::InLanding>
 }
 
 pub(crate) fn base(d: &Domain, row: &ChangeRow) -> Option<Commit> {
-    if let Some(base) = crate::domain::updating_base(&row.change.state) { return Some(base); }
-    if let change::State::Resolving { base, .. } | change::State::WaitingProducer { base } = row.change.state { return Some(base); }
+    if let Some(base) = crate::domain::updating_base(&row.change.state) {
+        return Some(base);
+    }
+    if let change::State::Resolving { base, .. } | change::State::WaitingProducer { base } = row.change.state {
+        return Some(base);
+    }
     for (name, head) in &d.heads {
-        if name.forge == row.repository.forge && name.repository == row.repository.repository
-            && crate::items::branch_matches(name, &row.base) { return Some(head.commit); }
+        if name.forge == row.repository.forge
+            && name.repository == row.repository.repository
+            && crate::items::branch_matches(name, &row.base)
+        {
+            return Some(head.commit);
+        }
     }
     None
 }
 
 pub(crate) fn step(d: &Domain, row: &ChangeRow, what: history::What) -> history::Step {
-    history::Step { what, landing: landing(d, row), head: None, base: None, operation: history::Operation::Own, attempt: 0, source_at: None }
+    history::Step {
+        what,
+        landing: landing(d, row),
+        head: None,
+        base: None,
+        operation: history::Operation::Own,
+        attempt: 0,
+        source_at: None,
+    }
 }
 
 /// Keep the writer's cursor alongside a caller's changed row.
@@ -45,9 +61,13 @@ pub(crate) fn write(d: &mut Domain, wall: Wall, row: &mut ChangeRow, step: histo
 pub(crate) fn pushed(d: &mut Domain, wall: Wall, name: &crate::Name, head: Commit, out: &mut Queue<Request>) {
     let mut changes = List::uncapped();
     for (_, row) in &d.changes {
-        if row.repository.forge == name.forge && row.repository.repository == name.repository
-            && crate::items::branch_matches(name, &row.branch) && row.change.last_head != Some(head)
-        { changes.push(row.clone()).expect("live changes"); }
+        if row.repository.forge == name.forge
+            && row.repository.repository == name.repository
+            && crate::items::branch_matches(name, &row.branch)
+            && row.change.last_head != Some(head)
+        {
+            changes.push(row.clone()).expect("live changes");
+        }
     }
     for row in changes.into_boxed() {
         let mut event = step(d, &row, history::What::Pushed);
@@ -72,33 +92,62 @@ pub(crate) fn asked(kind: change::Delegate) -> Option<(history::Ask, Option<u16>
     }
 }
 
-pub(crate) fn delegated(d: &mut Domain, wall: Wall, row: &mut ChangeRow, child: u64, kind: change::Delegate, out: &mut Queue<Request>) {
+pub(crate) fn delegated(
+    d: &mut Domain,
+    wall: Wall,
+    row: &mut ChangeRow,
+    child: u64,
+    kind: change::Delegate,
+    out: &mut Queue<Request>,
+) {
     let Some((ask, gate)) = asked(kind) else { return };
     let mut event = step(d, row, history::What::Asked { ask, gate, task: child });
     event.operation = history::Operation::Of(child);
     event.head = match kind {
         change::Delegate::Gate { head, .. } => Some(head),
-        change::Delegate::Resolve { base } => { event.base = Some(base); row.change.last_head }
-        change::Delegate::Repair(_) | change::Delegate::Produce | change::Delegate::Close | change::Delegate::Merge { .. } => row.change.last_head,
+        change::Delegate::Resolve { base } => {
+            event.base = Some(base);
+            row.change.last_head
+        }
+        change::Delegate::Repair(_)
+        | change::Delegate::Produce
+        | change::Delegate::Close
+        | change::Delegate::Merge { .. } => row.change.last_head,
     };
     write(d, wall, row, event, out);
 }
 
-pub(crate) fn answered(d: &mut Domain, wall: Wall, row: &mut ChangeRow, child: u64, kind: change::Delegate, outcome: history::Answer, out: &mut Queue<Request>) {
+pub(crate) fn answered(
+    d: &mut Domain,
+    wall: Wall,
+    row: &mut ChangeRow,
+    child: u64,
+    kind: change::Delegate,
+    outcome: history::Answer,
+    out: &mut Queue<Request>,
+) {
     let Some((ask, _)) = asked(kind) else { return };
     let mut event = step(d, row, history::What::Answered { ask, outcome });
     event.operation = history::Operation::Of(child);
-    if outcome == history::Answer::Pushed { event.head = row.change.last_head; }
+    if outcome == history::Answer::Pushed {
+        event.head = row.change.last_head;
+    }
     write(d, wall, row, event, out);
 }
 
 pub(crate) fn recorded(d: &mut Domain, wall: Wall, row: &mut ChangeRow, pull: &Pull, out: &mut Queue<Request>) {
-    if pull.merged.is_none() { return; }
+    if pull.merged.is_none() {
+        return;
+    }
     // Squashed members are recorded by their landing's own effect step.
     for (_, landing) in &d.landing.rows {
         for member in &landing.landing.members {
-            if member.change == row.task && member.landed.is_some()
-                && member.combined == Some(temper_engine_domain_forge_landing::Combine::Squash) { return; }
+            if member.change == row.task
+                && member.landed.is_some()
+                && member.combined == Some(temper_engine_domain_forge_landing::Combine::Squash)
+            {
+                return;
+            }
         }
     }
     let mut event = step(d, row, history::What::Recorded { state: history::RecordedState::Merged });
@@ -110,12 +159,25 @@ pub(crate) fn recorded(d: &mut Domain, wall: Wall, row: &mut ChangeRow, pull: &P
 /// A gather's terminal pull observation is not a keep poll: it changes no CI,
 /// wake or drift facts. Its saved pull state fences a later poll or restart.
 pub(crate) fn observed_pull(d: &mut Domain, wall: Wall, task: u64, pull: &Pull, out: &mut Queue<Request>) {
-    if pull.state == State::Open && pull.merged.is_none() { return; }
+    if pull.state == State::Open && pull.merged.is_none() {
+        return;
+    }
     let Some(mut row) = d.changes.get(&task).cloned() else { return };
-    let name = crate::Name { forge: row.repository.forge, repository: row.repository.repository, what: crate::What::Pull(pull.number) };
-    if let Some(prior) = d.pulls.get(&name) && prior.head == pull.commit && prior.state == pull.state { return; }
+    let name = crate::Name {
+        forge: row.repository.forge,
+        repository: row.repository.repository,
+        what: crate::What::Pull(pull.number),
+    };
+    if let Some(prior) = d.pulls.get(&name)
+        && prior.head == pull.commit
+        && prior.state == pull.state
+    {
+        return;
+    }
     let state = crate::PullState { name: name.clone(), head: pull.commit, ci: pull.ci, state: pull.state };
-    if d.pulls.insert(name, state.clone()).is_err() { return; }
+    if d.pulls.insert(name, state.clone()).is_err() {
+        return;
+    }
     out.push(Request::Save { record: crate::Stored::PullState(state), release: None, read_afresh: None });
     recorded(d, wall, &mut row, pull, out);
 }
@@ -127,9 +189,19 @@ pub(crate) fn conflict(d: &mut Domain, wall: Wall, row: &mut ChangeRow, out: &mu
     write(d, wall, row, event, out);
 }
 
-pub(crate) fn advanced(d: &mut Domain, wall: Wall, row: &mut ChangeRow, prior: &change::Change, out: &mut Queue<Request>) {
-    if row.change.resolutions > prior.resolutions && row.effect != change::EffectResult::Conflict
-        && row.change.way == change::Way::Queue { conflict(d, wall, row, out); }
+pub(crate) fn advanced(
+    d: &mut Domain,
+    wall: Wall,
+    row: &mut ChangeRow,
+    prior: &change::Change,
+    out: &mut Queue<Request>,
+) {
+    if row.change.resolutions > prior.resolutions
+        && row.effect != change::EffectResult::Conflict
+        && row.change.way == change::Way::Queue
+    {
+        conflict(d, wall, row, out);
+    }
     if crate::domain::landed_commit(&prior.state).is_none()
         && let Some(head) = crate::domain::landed_commit(&row.change.state)
     {
@@ -142,18 +214,34 @@ pub(crate) fn advanced(d: &mut Domain, wall: Wall, row: &mut ChangeRow, prior: &
         event.head = Some(head);
         write(d, wall, row, event, out);
     }
-    if prior.state == row.change.state { return; }
+    if prior.state == row.change.state {
+        return;
+    }
     let verdict = match row.change.state {
         change::State::Red { .. } => history::AfterVerdict::Red,
         change::State::Cleared { .. } => history::AfterVerdict::Cleared,
         change::State::Uncleared { .. } => history::AfterVerdict::Uncleared,
-        change::State::Producing { .. } | change::State::Opening { .. } | change::State::Recreating { .. }
-        | change::State::Reopening { .. } | change::State::Checking { .. } | change::State::Judging { .. }
-        | change::State::Gating { .. } | change::State::CancellingGates { .. } | change::State::Ready { .. }
-        | change::State::Preparing { .. } | change::State::Queued { .. } | change::State::First { .. }
-        | change::State::Updating { .. } | change::State::WaitingProducer { .. } | change::State::Resolving { .. }
-        | change::State::Repairing { .. } | change::State::Landing { .. } | change::State::Landed { .. }
-        | change::State::NoChange { .. } | change::State::Ended | change::State::Held { .. } => return,
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Judging { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Landed { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Held { .. } => return,
     };
     let mut event = step(d, row, history::What::After { verdict });
     event.head = crate::domain::landed_commit(&row.change.state);

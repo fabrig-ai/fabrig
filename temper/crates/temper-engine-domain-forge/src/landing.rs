@@ -3891,11 +3891,7 @@ pub(crate) fn closing(
                 d.changes.insert(member.change, changed.clone()).expect("retained member");
                 emit(
                     out,
-                    Request::Save {
-                        record: Stored::Change(Box::new(changed)),
-                        release: None,
-                        read_afresh: None,
-                    },
+                    Request::Save { record: Stored::Change(Box::new(changed)), release: None, read_afresh: None },
                 );
                 emit(out, Request::WakeProcedure { task: member.change });
             }

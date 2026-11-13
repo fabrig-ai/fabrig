@@ -2,8 +2,8 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod brief;
-mod changes;
 mod change_history;
+mod changes;
 mod follow_check;
 mod follows;
 mod green;

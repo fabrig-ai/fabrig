@@ -101,7 +101,10 @@ pub(crate) fn record(
     let commit = head.commit;
     match d.heads.insert(name.clone(), head) {
         Ok(prior) => {
-            let changed = match prior { Some(prior) => prior.commit != commit, None => true };
+            let changed = match prior {
+                Some(prior) => prior.commit != commit,
+                None => true,
+            };
             if changed {
                 crate::change_history::pushed(d, env.wall, &name, commit, out);
             }

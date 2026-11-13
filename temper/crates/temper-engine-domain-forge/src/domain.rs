@@ -1484,14 +1484,19 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::ChangeEnding { task, ending } => {
             if let Some(row) = d.changes.get_mut(&task) {
-                let verified = row.ending.is_none() && ending == crate::Ending::Landed
+                let verified = row.ending.is_none()
+                    && ending == crate::Ending::Landed
                     && crate::change_history::unfollowed(&row.change.state);
                 let owned = row.change.owns_turn;
                 row.change.owns_turn = false;
                 row.ending = Some(ending);
                 let mut row = row.clone();
                 if verified {
-                    let mut event = crate::change_history::step(d, &row, crate::history::What::After { verdict: crate::history::AfterVerdict::Verified });
+                    let mut event = crate::change_history::step(
+                        d,
+                        &row,
+                        crate::history::What::After { verdict: crate::history::AfterVerdict::Verified },
+                    );
                     event.head = landed_commit(&row.change.state);
                     crate::change_history::write(d, env.wall, &mut row, event, out);
                 }
@@ -3474,7 +3479,9 @@ fn delegated(
         emit(out, Request::Refused { task });
         return;
     };
-    if row.delegate == Some((child, kind)) { return; }
+    if row.delegate == Some((child, kind)) {
+        return;
+    }
     match kind {
         change::Delegate::Repair(why) => {
             row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
@@ -3665,8 +3672,10 @@ fn delegate_result(
     // Its terminal still releases the procedure's conflict wait.
     d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     let Some((expected, kind)) = row.delegate else { return };
-    if expected != child || (crate::change_history::asked(kind).is_some()
-        && (row.delegate_status == change::Status::Passed || row.delegate_status == change::Status::Failed)) {
+    if expected != child
+        || (crate::change_history::asked(kind).is_some()
+            && (row.delegate_status == change::Status::Passed || row.delegate_status == change::Status::Failed))
+    {
         return;
     }
     let owned = row.change.owns_turn;
@@ -3735,13 +3744,19 @@ fn delegate_result(
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     }
     let mut saved = row.clone();
-    let outcome = if cancelled { crate::history::Answer::Cancelled }
-        else if failed { crate::history::Answer::Failed }
-        else if no_change { crate::history::Answer::Nothing }
-        else if let change::Delegate::Gate { .. } = kind {
-            if status == change::Status::Passed { crate::history::Answer::Passed } else { crate::history::Answer::Refused }
-        } else if status == change::Status::Passed { crate::history::Answer::Pushed }
-        else { crate::history::Answer::Failed };
+    let outcome = if cancelled {
+        crate::history::Answer::Cancelled
+    } else if failed {
+        crate::history::Answer::Failed
+    } else if no_change {
+        crate::history::Answer::Nothing
+    } else if let change::Delegate::Gate { .. } = kind {
+        if status == change::Status::Passed { crate::history::Answer::Passed } else { crate::history::Answer::Refused }
+    } else if status == change::Status::Passed {
+        crate::history::Answer::Pushed
+    } else {
+        crate::history::Answer::Failed
+    };
     crate::change_history::answered(d, env.wall, &mut saved, child, kind, outcome, out);
     d.changes.insert(task, saved.clone()).expect("retained change");
     wake_after_turn(d, &saved, owned);
@@ -5765,11 +5780,18 @@ pub(crate) fn change_outcome(
     let mut saved = row.clone();
     if update {
         let result = match outcome {
-            skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(head), .. } => (crate::history::UpdateOutcome::Updated, Some(head)),
-            skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => (crate::history::UpdateOutcome::Conflict, None),
-            skein_forge_client::Outcome::Made { .. } | skein_forge_client::Outcome::Failed(_)
-            | skein_forge_client::Outcome::Raced { .. } | skein_forge_client::Outcome::Uncertain
-            | skein_forge_client::Outcome::Queued | skein_forge_client::Outcome::Held
+            skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(head), .. } => {
+                (crate::history::UpdateOutcome::Updated, Some(head))
+            }
+            skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => {
+                (crate::history::UpdateOutcome::Conflict, None)
+            }
+            skein_forge_client::Outcome::Made { .. }
+            | skein_forge_client::Outcome::Failed(_)
+            | skein_forge_client::Outcome::Raced { .. }
+            | skein_forge_client::Outcome::Uncertain
+            | skein_forge_client::Outcome::Queued
+            | skein_forge_client::Outcome::Held
             | skein_forge_client::Outcome::Withdrawn => (crate::history::UpdateOutcome::Failed, None),
         };
         let mut event = crate::change_history::step(d, &saved, crate::history::What::Updated { outcome: result.0 });
