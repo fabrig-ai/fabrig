@@ -18,7 +18,10 @@ pub const WIRES: [protocol::Wire; 6] = [
         name: jig_protocol_worker_wire::wire::FAMILY,
         version: wire_version(jig_protocol_worker_wire::wire::VERSION),
     },
-    protocol::Wire { name: smith_channel::wire::FAMILY, version: wire_version(smith_channel::wire::VERSION) },
+    protocol::Wire {
+        name: smith_channel::pieces::wire::FAMILY,
+        version: wire_version(smith_channel::pieces::wire::VERSION),
+    },
     protocol::Wire { name: smith_charter::wire::FAMILY, version: wire_version(smith_charter::wire::VERSION) },
     protocol::Wire { name: smith_transcript::wire::FAMILY, version: wire_version(smith_transcript::wire::VERSION) },
     protocol::Wire {

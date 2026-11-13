@@ -1,4 +1,4 @@
-family smith-charter 4
+family smith-charter 5
 
 # Section bounds cover host brief text; admission also applies Limits.run_bytes.
 record Section { title: text 1024 body: text 262144 }
@@ -46,6 +46,7 @@ record Tools {
     deliver: option ChangeRule
     save: bool
     host: list 128 HostTool
+    contract: u16
 }
 record Conventions { guide: text 1024 checks: text 1024 }
 record Prices { input: u64 cached: u64 cache_write: option u64 output: u64 unit: u32 }

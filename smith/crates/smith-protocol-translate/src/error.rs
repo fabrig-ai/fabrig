@@ -11,7 +11,7 @@ pub enum Error {
     /// Configured endpoint names exceed their count or byte allowance.
     Endpoints,
     /// The accepted result is outside the configured charter codec limits.
-    CharterBody(smith_charter::v4::Problem),
+    CharterBody(smith_charter::v5::Problem),
     /// A bounded result list had no room for a field or item.
     Capacity,
     /// A saved answer decodes but fails the domain's sealed result bounds.

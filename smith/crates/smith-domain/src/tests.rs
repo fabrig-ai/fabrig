@@ -392,7 +392,15 @@ fn charter() -> Charter {
             }]),
         },
 
-        grants: Grants { wait: true, deliver: None, save: false, tools: TOOLS, agents: true, host_tools: Box::new([]) },
+        grants: Grants {
+            contract: 1,
+            wait: true,
+            deliver: None,
+            save: false,
+            tools: TOOLS,
+            agents: true,
+            host_tools: Box::new([]),
+        },
         outcome: OutcomeSpec { change: None, verdicts: Box::new([rule(b"approve")]), report: None, failure: None },
         budget: BUDGET,
         llm: Llm {
