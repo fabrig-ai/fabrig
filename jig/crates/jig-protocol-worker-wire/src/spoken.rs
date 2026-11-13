@@ -43,7 +43,11 @@ pub fn spoken() -> List<Spoken> {
         Spoken::current(crate::wire::FAMILY, crate::wire::VERSION, crate::wire::layout()),
         Spoken::current(smith_channel::wire::FAMILY, smith_channel::wire::VERSION, smith_channel::wire::layout()),
         Spoken::current(smith_charter::wire::FAMILY, smith_charter::wire::VERSION, smith_charter::wire::layout()),
-        Spoken::current(smith_transcript::wire::FAMILY, smith_transcript::wire::VERSION, smith_transcript::wire::layout()),
+        Spoken::current(
+            smith_transcript::wire::FAMILY,
+            smith_transcript::wire::VERSION,
+            smith_transcript::wire::layout(),
+        ),
     ] {
         wires.push(wire).expect("four wires have four slots");
     }

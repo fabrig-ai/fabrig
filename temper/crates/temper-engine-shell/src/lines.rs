@@ -352,7 +352,11 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Some(name) => format!("worker {}", String::from_utf8_lossy(&name)),
                 None => "a worker".into(),
             };
-            format!("{binary} serve: {worker} refused at its opening: {}: {}\n", opening_reason(reason), String::from_utf8_lossy(&text))
+            format!(
+                "{binary} serve: {worker} refused at its opening: {}: {}\n",
+                opening_reason(reason),
+                String::from_utf8_lossy(&text)
+            )
         }
         temper_engine_service::Note::WorkerLost { worker, channel, why } => {
             format!(

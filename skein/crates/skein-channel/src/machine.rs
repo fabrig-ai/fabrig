@@ -888,7 +888,10 @@ impl Machine {
     }
 
     #[expect(clippy::manual_let_else, reason = "step code uses exhaustive matches instead of let-else")]
-    #[expect(clippy::too_many_lines, reason = "the control variants keep their opening and terminal transitions together")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the control variants keep their opening and terminal transitions together"
+    )]
     fn received(&mut self, kind: u16, body: Box<[u8]>, above: &mut Queue<Event>) {
         if kind >= 0x0100 {
             above.push(Event::Body { kind, body });
@@ -916,7 +919,7 @@ impl Machine {
                         } else {
                             self.auto_refuse(reason);
                         }
-                    },
+                    }
                 },
                 Phase::Idle
                 | WaitOwner { .. }

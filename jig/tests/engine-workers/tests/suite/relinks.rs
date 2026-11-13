@@ -106,25 +106,25 @@ fn end(world: &mut World, mode: End) -> (Token, Option<u32>, Option<Token>) {
         End::NoRoom => {
             let room = fixtures::LIMITS.workers + fixtures::LIMITS.opening;
             for _ in 0..room {
-                world.connect(fixtures::worker(WORKER_A, SECRET_A, fixtures::PAYLOAD));
+                world.connect(fixtures::worker(WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION));
             }
             (world.connect(fixtures::reporting_worker(WORKER_A, SECRET_A)), None, None)
         }
         End::HelloDeadline => {
-            let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, fixtures::PAYLOAD));
+            let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION));
             world.run();
             world.advance(fixtures::LIMITS.hello);
             (connection, Some(0), None)
         }
         End::HandshakeDeadline => {
-            let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, fixtures::PAYLOAD));
+            let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION));
             world.withhold_write_room(connection);
             world.run();
             world.advance(fixtures::LIMITS.handshake);
             (connection, Some(0), None)
         }
         End::BeforeAuthentication => {
-            let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, fixtures::PAYLOAD));
+            let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, fixtures::APPLICATION_VERSION));
             world.fail_stream(connection);
             (connection, None, None)
         }

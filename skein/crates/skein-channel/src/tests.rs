@@ -291,16 +291,24 @@ fn opening_refusal_reasons_cover_magic_range_version_and_owner() {
 fn a_version_refusal_names_both_ranges_to_the_peer_and_its_owner() {
     let mut peer = Peer::new(Role::Initiator);
     let mut responder = Peer::new(Role::Responder);
-    let frame = control_frame(&Control::Open {
-        magic: *b"test", lowest: 3, highest: 4, features: 0, credential: Box::from(*b"unread"),
-    }, &limits()).expect("Open");
+    let frame = control_frame(
+        &Control::Open { magic: *b"test", lowest: 3, highest: 4, features: 0, credential: Box::from(*b"unread") },
+        &limits(),
+    )
+    .expect("Open");
     responder.input.extend(frame.bytes().iter().copied());
     for _ in 0_u32..30 {
         responder.step(&mut peer);
     }
     let mut sent = Vec::new();
-    for byte in peer.input { sent.push(byte); }
-    let Control::Refuse { reason, text } = decode_control(3, sent.get(8..).expect("Refuse body"), &limits()).expect("Refuse") else { panic!("refusal") };
+    for byte in peer.input {
+        sent.push(byte);
+    }
+    let Control::Refuse { reason, text } =
+        decode_control(3, sent.get(8..).expect("Refuse body"), &limits()).expect("Refuse")
+    else {
+        panic!("refusal")
+    };
     assert_eq!(reason, 1);
     assert_eq!(text.as_ref(), b"speaks 1..2, offered 3..4");
     let mut terminal = 0_u32;

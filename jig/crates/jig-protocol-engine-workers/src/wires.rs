@@ -32,27 +32,48 @@ pub(crate) fn agree(engine: &List<Spoken>, worker: &List<Wire>) -> Result<List<A
         let high = wire.highest().min(highest(stated).expect("validated range"));
         if low > high {
             return Err(words(&[
-                b"wire ", wire.name.as_bytes(), b": the engine speaks ",
-                Decimal::of(u64::from(wire.lowest)).as_bytes(), b"..",
-                Decimal::of(u64::from(wire.highest())).as_bytes(), b", the worker ",
-                Decimal::of(u64::from(stated.lowest())).as_bytes(), b"..",
+                b"wire ",
+                wire.name.as_bytes(),
+                b": the engine speaks ",
+                Decimal::of(u64::from(wire.lowest)).as_bytes(),
+                b"..",
+                Decimal::of(u64::from(wire.highest())).as_bytes(),
+                b", the worker ",
+                Decimal::of(u64::from(stated.lowest())).as_bytes(),
+                b"..",
                 Decimal::of(u64::from(highest(stated).expect("validated range"))).as_bytes(),
             ]));
         }
-        let ours = wire.layout(high).expect("common version");
-        let theirs = *stated.layouts().get(u32::from(high.checked_sub(stated.lowest()).expect("common version"))).expect("common layout");
-        if ours != theirs {
-            return Err(words(&[
-                b"wire ", wire.name.as_bytes(), b" version ", Decimal::of(u64::from(high)).as_bytes(),
-                b": the engine's layout ", &hex(&ours), b", the worker's ", &hex(&theirs),
-            ]));
+        for version in low..=high {
+            let ours = wire.layout(version).expect("common version");
+            let theirs = *stated
+                .layouts()
+                .get(u32::from(version.checked_sub(stated.lowest()).expect("common version")))
+                .expect("common layout");
+            if ours != theirs {
+                return Err(words(&[
+                    b"wire ",
+                    wire.name.as_bytes(),
+                    b" version ",
+                    Decimal::of(u64::from(version)).as_bytes(),
+                    b": the engine's layout ",
+                    &hex(&ours),
+                    b", the worker's ",
+                    &hex(&theirs),
+                ]));
+            }
         }
     }
     let mut agreed = List::with_capacity(engine.len());
     for stated in worker {
         for wire in engine {
             if stated.name() == wire.name.as_bytes() {
-                agreed.push(Agreed { name: wire.name, version: wire.highest().min(highest(stated).expect("validated range")) }).expect("one agreement per engine wire");
+                agreed
+                    .push(Agreed {
+                        name: wire.name,
+                        version: wire.highest().min(highest(stated).expect("validated range")),
+                    })
+                    .expect("one agreement per engine wire");
             }
         }
     }

@@ -61,25 +61,32 @@ impl Component {
         let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
         let mut wires = List::with_capacity(bodies.credential_wires);
         for spoken in &wire::spoken() {
-            let wire = wire::Wire::new(&bodies, wire::WireParts {
-                name: bytes::copy_of(spoken.name.as_bytes()), lowest: spoken.lowest, layouts: spoken.layouts.clone(),
-            }).or(Err(Unusable::Credential))?;
+            let wire = wire::Wire::new(
+                &bodies,
+                wire::WireParts {
+                    name: bytes::copy_of(spoken.name.as_bytes()),
+                    lowest: spoken.lowest,
+                    layouts: spoken.layouts.clone(),
+                },
+            )
+            .or(Err(Unusable::Credential))?;
             wires.push(wire).or(Err(Unusable::Credential))?;
         }
         for spoken in &credential.wires {
-            let wire = wire::Wire::new(&bodies, wire::WireParts {
-                name: bytes::copy_of(spoken.name.as_bytes()), lowest: spoken.lowest, layouts: spoken.layouts.clone(),
-            }).or(Err(Unusable::Credential))?;
+            let wire = wire::Wire::new(
+                &bodies,
+                wire::WireParts {
+                    name: bytes::copy_of(spoken.name.as_bytes()),
+                    lowest: spoken.lowest,
+                    layouts: spoken.layouts.clone(),
+                },
+            )
+            .or(Err(Unusable::Credential))?;
             wires.push(wire).or(Err(Unusable::Credential))?;
         }
         let credential = wire::Credential::new(
             &bodies,
-            wire::CredentialParts {
-                name: credential.name,
-                secret: credential.secret,
-                wires,
-                output: limits.room,
-            },
+            wire::CredentialParts { name: credential.name, secret: credential.secret, wires, output: limits.room },
         );
         let Ok(credential) = credential else { return Err(Unusable::Credential) };
         let backoff = Backoff::new(limits, seed);

@@ -120,10 +120,22 @@ impl Peer {
                     let mut wires = skein_lib::List::with_capacity(4);
                     for spoken in &wire::spoken() {
                         let mut spoken = spoken.clone();
-                        if matches!(case, Some(Opening::Application)) && spoken.name == wire::wire::FAMILY {
+                        if matches!(case, Some(Opening::Wires)) && spoken.name == wire::wire::FAMILY {
                             spoken.lowest = spoken.lowest.checked_add(1).expect("another version");
                         }
-                        wires.push(wire::Wire::new(&wire::CEILINGS, wire::WireParts { name: spoken.name.as_bytes().into(), lowest: spoken.lowest, layouts: spoken.layouts }).expect("wire")).expect("four wire slots");
+                        wires
+                            .push(
+                                wire::Wire::new(
+                                    &wire::CEILINGS,
+                                    wire::WireParts {
+                                        name: spoken.name.as_bytes().into(),
+                                        lowest: spoken.lowest,
+                                        layouts: spoken.layouts,
+                                    },
+                                )
+                                .expect("wire"),
+                            )
+                            .expect("four wire slots");
                     }
                     wires
                 },

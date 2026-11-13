@@ -17,5 +17,5 @@ fn every_connection_holds_frames_at_its_cap() {
         }
         assert!(!world.gone(connection), "every frame fits the cap");
     }
-    world.connect(fixtures::worker(fixtures::WORKER_C, fixtures::SECRET_C, fixtures::PAYLOAD));
+    world.connect(fixtures::worker(fixtures::WORKER_C, fixtures::SECRET_C, fixtures::APPLICATION_VERSION));
 }

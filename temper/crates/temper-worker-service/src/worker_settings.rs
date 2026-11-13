@@ -186,12 +186,14 @@ fn programs_valid(programs: &[settings::Program]) -> bool {
 #[must_use]
 pub fn credential(worker: &settings::Worker, secret: &[u8]) -> link::Credential {
     let mut wires = skein_lib::List::with_capacity(1);
-    wires.push(jig_protocol_worker_wire::Spoken::current(payload::wire::FAMILY, payload::wire::VERSION, payload::wire::layout())).expect("one application wire");
-    link::Credential {
-        name: worker.jig.name.clone(),
-        secret: config::secret(secret.into()),
-        wires,
-    }
+    wires
+        .push(jig_protocol_worker_wire::Spoken::current(
+            payload::wire::FAMILY,
+            payload::wire::VERSION,
+            payload::wire::layout(),
+        ))
+        .expect("one application wire");
+    link::Credential { name: worker.jig.name.clone(), secret: config::secret(secret.into()), wires }
 }
 
 fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {

@@ -246,10 +246,23 @@ impl Workers {
                     });
                 }
             }
-            Request::Opened { worker, wires } => return Some(Output::Opened { worker: self.component.workers.get(skein_lib::usize_of(worker)).expect("configured worker").name.clone(), wires }),
+            Request::Opened { worker, wires } => {
+                return Some(Output::Opened {
+                    worker: self
+                        .component
+                        .workers
+                        .get(skein_lib::usize_of(worker))
+                        .expect("configured worker")
+                        .name
+                        .clone(),
+                    wires,
+                });
+            }
             Request::Refused { worker, reason, text } => {
                 let worker = match worker {
-                    Some(index) => Some(self.component.workers.get(skein_lib::usize_of(index)).expect("configured worker").name.clone()),
+                    Some(index) => Some(
+                        self.component.workers.get(skein_lib::usize_of(index)).expect("configured worker").name.clone(),
+                    ),
                     None => None,
                 };
                 return Some(Output::Refused { worker, reason, text });

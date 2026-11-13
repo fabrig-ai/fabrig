@@ -23,7 +23,9 @@ impl Component {
                 found = Some(u32::try_from(index).expect("bounded workers"));
             }
         }
-        let Some(worker) = found else { return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) } };
+        let Some(worker) = found else {
+            return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) };
+        };
         let wires = match crate::wires::agree(&self.wires, credential.wires()) {
             Ok(wires) => wires,
             Err(text) => return Verdict::Refuse { worker: Some(worker), reason: Reason::Wires, text },

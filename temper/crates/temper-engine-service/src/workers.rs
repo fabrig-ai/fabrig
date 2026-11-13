@@ -37,7 +37,13 @@ impl Workers {
             connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
         };
         let mut wires = List::with_capacity(1);
-        wires.push(jig_protocol_worker_wire::Spoken::current(temper_protocol_worker_wire::wire::FAMILY, temper_protocol_worker_wire::wire::VERSION, temper_protocol_worker_wire::wire::layout())).expect("one application wire");
+        wires
+            .push(jig_protocol_worker_wire::Spoken::current(
+                temper_protocol_worker_wire::wire::FAMILY,
+                temper_protocol_worker_wire::wire::VERSION,
+                temper_protocol_worker_wire::wire::layout(),
+            ))
+            .expect("one application wire");
         let host = kit::host::Workers::new(config, files, tokens, wires, limits)?;
         let mut table = crate::forges::Forges::with_capacity(forge_limit);
         for forge in forges {
@@ -146,7 +152,9 @@ impl Workers {
     pub(crate) fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
         match output {
             kit::host::Output::Opened { worker, wires } => self.notes.push(crate::Note::WorkerOpened { worker, wires }),
-            kit::host::Output::Refused { worker, reason, text } => self.notes.push(crate::Note::WorkerOpeningRefused { worker, reason, text }),
+            kit::host::Output::Refused { worker, reason, text } => {
+                self.notes.push(crate::Note::WorkerOpeningRefused { worker, reason, text });
+            }
             kit::host::Output::Hello { channel, worker, hello } => {
                 let name = self.worker_names.get(worker).expect("hello's configured worker position");
                 let _last = self.opening_ends.remove(&Some(name.clone()));

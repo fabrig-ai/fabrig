@@ -6,8 +6,16 @@ const BINARY: &str = "temper-worker";
 #[test]
 fn opening_refusals_name_the_reason_and_the_engines_text() {
     for (reason, text, expected) in [
-        (257, "wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000", "temper-worker worker: the engine refused the opening: wires: wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000\n"),
-        (1, "speaks 10..10, offered 9..9", "temper-worker worker: the engine refused the opening: version: speaks 10..10, offered 9..9\n"),
+        (
+            257,
+            "wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000",
+            "temper-worker worker: the engine refused the opening: wires: wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000\n",
+        ),
+        (
+            1,
+            "speaks 10..10, offered 9..9",
+            "temper-worker worker: the engine refused the opening: version: speaks 10..10, offered 9..9\n",
+        ),
     ] {
         let note = worker::Note::OpeningRefused { reason, text: text.as_bytes().into() };
         assert_eq!(worker_note_words(BINARY, note), expected);
@@ -110,7 +118,7 @@ fn worker_link_notes_print_each_address_and_refusal_exactly() {
         );
         for (reason, expected) in [
             (Refusal::Peer(256), "unauthorized"),
-            (Refusal::Peer(257), "application"),
+            (Refusal::Peer(257), "wires"),
             (Refusal::Peer(258), "busy"),
             (Refusal::Peer(259), "replaced"),
             (Refusal::Peer(260), "not-admitted"),

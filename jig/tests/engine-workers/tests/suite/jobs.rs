@@ -145,7 +145,7 @@ fn a_hello_carries_its_job_kinds() {
     let record = wire::Hello::new(&codec(), fields).expect("hello");
     let mut writer = Writer::new(usize::try_from(record.measure()).expect("small"));
     record.encode(&mut writer).expect("hello");
-    let mut peer = fixtures::worker(fixtures::WORKER_A, fixtures::SECRET_A, fixtures::PAYLOAD);
+    let mut peer = fixtures::worker(fixtures::WORKER_A, fixtures::SECRET_A, fixtures::APPLICATION_VERSION);
     peer.play(fixtures::frame(wire::Kind::Hello.number(), &writer.finish()));
     let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
     world.connect(peer);

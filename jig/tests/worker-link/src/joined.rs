@@ -155,6 +155,7 @@ pub struct Joined {
     pipe: Option<net::Pipe>,
     pub engine_root: Vec<engine::Request>,
     pub engine_ended: Vec<engine::Request>,
+    pub engine_openings: Vec<engine::Request>,
     pub worker_root: Vec<Request>,
     pub values: Vec<Request>,
     pub worker_order: Vec<&'static str>,
@@ -220,6 +221,7 @@ impl Joined {
             pipe: None,
             engine_root: Vec::new(),
             engine_ended: Vec::new(),
+            engine_openings: Vec::new(),
             worker_root: Vec::new(),
             values: Vec::new(),
             worker_order: Vec::new(),
@@ -385,7 +387,8 @@ impl Joined {
                 }
             }
             engine::Request::Ended { .. } => self.engine_ended.push(request),
-            engine::Request::Opened { .. } | engine::Request::Refused { .. } | engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
+            engine::Request::Opened { .. } | engine::Request::Refused { .. } => self.engine_openings.push(request),
+            engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
                 self.engine_root.push(request);
             }
         }

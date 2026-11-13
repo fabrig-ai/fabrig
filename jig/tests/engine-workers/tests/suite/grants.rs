@@ -146,7 +146,8 @@ mod grants {
     #[test]
     fn a_down_record_before_the_hello_is_dropped() {
         let mut world = world();
-        let connection = world.connect(fixtures::worker(fixtures::WORKER_A, fixtures::SECRET_A, fixtures::PAYLOAD));
+        let connection =
+            world.connect(fixtures::worker(fixtures::WORKER_A, fixtures::SECRET_A, fixtures::APPLICATION_VERSION));
         world.run();
         send_grant(
             &mut world,

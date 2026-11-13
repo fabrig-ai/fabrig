@@ -418,6 +418,7 @@ impl Task {
             | c::ChipExecutor::Role { .. } => None,
         }
     }
+    #[expect(clippy::too_many_lines, reason = "task composer dispatch lists every page act")]
     pub(crate) fn act(
         &mut self,
         env: &Env<Limits>,

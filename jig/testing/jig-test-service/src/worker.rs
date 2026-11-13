@@ -102,7 +102,11 @@ impl Worker {
         let link_limits = crate::limits::worker_link(&config);
         let link = link::Component::new(
             &link_limits,
-            link::Credential { name: config.name, secret: config::secret(secret.into()), wires: List::with_capacity(0) },
+            link::Credential {
+                name: config.name,
+                secret: config::secret(secret.into()),
+                wires: List::with_capacity(0),
+            },
             seed,
         )
         .or(Err(problem(index, b"limits", What::Bound)))?;

@@ -10,7 +10,16 @@ pub(super) fn version_words(ours: (u16, u16), offered: (u16, u16)) -> Box<[u8]> 
     let high = Decimal::of(u64::from(ours.1));
     let peer_low = Decimal::of(u64::from(offered.0));
     let peer_high = Decimal::of(u64::from(offered.1));
-    let parts: [&[u8]; 8] = [b"speaks ", low.as_bytes(), b"..", high.as_bytes(), b", offered ", peer_low.as_bytes(), b"..", peer_high.as_bytes()];
+    let parts: [&[u8]; 8] = [
+        b"speaks ",
+        low.as_bytes(),
+        b"..",
+        high.as_bytes(),
+        b", offered ",
+        peer_low.as_bytes(),
+        b"..",
+        peer_high.as_bytes(),
+    ];
     let mut length = 0_usize;
     for part in parts {
         length = length.checked_add(part.len()).expect("four u16 ranges fit");

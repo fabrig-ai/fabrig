@@ -228,7 +228,10 @@ fn terms_that_take_every_kind_leave_no_gap() {
 
 #[test]
 fn terms_below_the_hello_bound_name_the_hello_kind() {
-    assert_eq!(crate::terms_gap(&hello_schema(), crate::VERSION, Role::Initiator, &hello_terms(HELLO_MAX - 1)), Some(0x0100));
+    assert_eq!(
+        crate::terms_gap(&hello_schema(), crate::VERSION, Role::Initiator, &hello_terms(HELLO_MAX - 1)),
+        Some(0x0100)
+    );
 }
 
 #[test]

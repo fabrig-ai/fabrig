@@ -26,6 +26,9 @@ const ALLOWED: &[Allowance] = &[
         reason: "it declares its channel's kinds and schema in skein-channel's vocabulary beside its records, and skein-channel depends on skein-lib alone",
     },
     Allowance { package: "smith-channel", dependency: "skein-channel", reason: "the same, for smith's channel" },
+    Allowance { package: "jig-protocol-worker-wire", dependency: "smith-channel", reason: "protocol/channel/wires.md, 2: spoken() states smith's channel identity" },
+    Allowance { package: "jig-protocol-worker-wire", dependency: "smith-charter", reason: "protocol/channel/wires.md, 2: spoken() states smith's charter identity" },
+    Allowance { package: "jig-protocol-worker-wire", dependency: "smith-transcript", reason: "protocol/channel/wires.md, 2: spoken() states smith's transcript identity" },
 ];
 
 struct Exception {

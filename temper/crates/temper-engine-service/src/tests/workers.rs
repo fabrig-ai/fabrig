@@ -1088,14 +1088,18 @@ fn opening_agreements_and_each_refusals_text_reach_shell_notes() {
     let mut service = fixtures::started();
     let workers = &mut service.engine.as_mut().unwrap().workers;
     let worker: Box<[u8]> = b"worker-a".as_slice().into();
-    let wires = skein_lib::List::from_boxed(Box::new([jig_protocol_worker_wire::Agreed { name: "example-wire", version: 7 }]));
+    let wires =
+        skein_lib::List::from_boxed(Box::new([jig_protocol_worker_wire::Agreed { name: "example-wire", version: 7 }]));
     let mut events = skein_lib::Queue::uncapped();
     workers.route(Output::Opened { worker: worker.clone(), wires: wires.clone() }, &mut events);
     assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpened { worker: worker.clone(), wires }));
     let text: Box<[u8]> = b"wire example-wire: the worker states none".as_slice().into();
-    for _ in 0..2 {
+    for _ in 0_u8..2 {
         workers.route(Output::Refused { worker: Some(worker.clone()), reason: 257, text: text.clone() }, &mut events);
-        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpeningRefused { worker: Some(worker.clone()), reason: 257, text: text.clone() }));
+        assert_eq!(
+            workers.notes.pop(),
+            Some(crate::Note::WorkerOpeningRefused { worker: Some(worker.clone()), reason: 257, text: text.clone() })
+        );
     }
     assert!(events.is_empty(), "operator notes reach no domain");
     assert!(workers.notes.is_empty());

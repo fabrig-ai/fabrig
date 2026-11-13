@@ -13,9 +13,9 @@ pub mod v10;
 mod kinds;
 mod spoken;
 pub use spoken::{Agreed, Spoken, spoken};
+mod loss;
 #[path = "../patches/mod.rs"]
 pub mod patches;
-mod loss;
 pub use loss::Loss;
 pub mod sizes;
 

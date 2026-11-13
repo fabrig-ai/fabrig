@@ -37,7 +37,11 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         service::Note::Lost { worker, address, why } => {
             format!("lost {} {address} {}\n", String::from_utf8_lossy(&worker), worker_loss(why))
         }
-        service::Note::OpeningRefused { reason, text } => format!("{binary} worker: the engine refused the opening: {}: {}\n", opening_reason(reason), String::from_utf8_lossy(&text)),
+        service::Note::OpeningRefused { reason, text } => format!(
+            "{binary} worker: the engine refused the opening: {}: {}\n",
+            opening_reason(reason),
+            String::from_utf8_lossy(&text)
+        ),
         service::Note::Refused { worker, address, reason } => {
             let reason = refusal(reason);
             format!("refused {} {address} {reason}\n", String::from_utf8_lossy(&worker))

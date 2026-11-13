@@ -379,7 +379,10 @@ impl Component {
             }
         }
     }
-    #[expect(clippy::too_many_lines, reason = "opening, ready and terminal events keep their ordered transitions together")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "opening, ready and terminal events keep their ordered transitions together"
+    )]
     fn heard(
         &mut self,
         now: Time,
@@ -411,7 +414,7 @@ impl Component {
                     Verdict::Accept { worker, wires } => {
                         state.wires = wires;
                         worker
-                    },
+                    }
                     Verdict::Replace { worker, older, wires } => {
                         state.wires = wires;
                         if let Some(mut old) = self.connections.remove(&older) {
@@ -420,7 +423,9 @@ impl Component {
                             for _ in 0..skein_channel::MAX_UP {
                                 let Some(event) = old.above.pop() else { break };
                                 match event {
-                                    ChannelEvent::Closed { why, text } => closed(older, &mut old, why, text, self.life, out),
+                                    ChannelEvent::Closed { why, text } => {
+                                        closed(older, &mut old, why, text, self.life, out);
+                                    }
                                     ChannelEvent::Opening { .. }
                                     | ChannelEvent::Ready { .. }
                                     | ChannelEvent::Body { .. }
@@ -452,7 +457,10 @@ impl Component {
                     let text = bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes());
                     self.refuse(now, connection, state, 2, text, out);
                 } else {
-                    out.push(Request::Opened { worker: state.worker.expect("authenticated worker"), wires: state.wires.clone() });
+                    out.push(Request::Opened {
+                        worker: state.worker.expect("authenticated worker"),
+                        wires: state.wires.clone(),
+                    });
                     state.phase = Phase::Hello;
                     state.deadline = state.hello_deadline;
                     state.down(ChannelRequest::Read, connection, out);
@@ -556,8 +564,8 @@ impl Component {
     ) {
         if !state.heard && !state.refusal {
             out.push(Request::Refused { worker: state.worker, reason, text: text.clone() });
-            state.refusal = true;
         }
+        state.refusal = true;
         ended(connection, state, Loss::Refused { reason }, out);
         lose(now, self.limits.stall, state, out);
         state.worker = None;
@@ -639,12 +647,21 @@ impl Component {
     }
 }
 
-fn closed(connection: Token, state: &mut Connection, why: Closed, text: Box<[u8]>, life: Life, out: &mut Queue<Request>) {
+fn closed(
+    connection: Token,
+    state: &mut Connection,
+    why: Closed,
+    text: Box<[u8]>,
+    life: Life,
+    out: &mut Queue<Request>,
+) {
     if state.terminal {
         return;
     }
     if let Closed::RefusedHere(reason) = why
-        && !state.heard && !state.refusal {
+        && !state.heard
+        && !state.refusal
+    {
         out.push(Request::Refused { worker: state.worker, reason, text });
         state.refusal = true;
     }
