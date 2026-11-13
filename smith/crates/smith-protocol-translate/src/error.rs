@@ -33,7 +33,7 @@ pub enum Error {
     /// The measured result did not fit its output writer.
     Write(skein_lib::Overflow),
     /// A domain answer exceeds the configured channel body limits.
-    ChannelBody(smith_channel::v7::Problem),
+    ChannelBody(smith_channel::v8::Problem),
     /// A measured application frame could not be built.
     Frame(skein_channel::FrameError),
 }

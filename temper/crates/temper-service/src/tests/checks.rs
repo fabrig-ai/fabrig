@@ -214,7 +214,7 @@ fn checkout_capacity_names_stdout_and_both_link_rooms() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401142 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401142 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401236 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401236 bytes\n"
     );
 }
 
@@ -248,7 +248,7 @@ fn checkout_capacity_keeps_the_agent_saved_and_rooms_in_one_refusal() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 4: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].agent.conflicts: 512 paths, short of checkout.conflicts, 1024 paths\nworkers[0].agent.path_bytes: 255 bytes, short of checkout.path_bytes, 4096 bytes\njig's Work.saved: 16777216 bytes, short of Saved's encoded bound, 16793660 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798050 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798050 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 4: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].agent.conflicts: 512 paths, short of checkout.conflicts, 1024 paths\nworkers[0].agent.path_bytes: 255 bytes, short of checkout.path_bytes, 4096 bytes\njig's Work.saved: 16777216 bytes, short of Saved's encoded bound, 16793660 bytes\nengine.limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798144 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 16798144 bytes\n"
     );
 }
 

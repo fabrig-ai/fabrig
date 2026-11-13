@@ -652,7 +652,7 @@ fn lower_eof_with_a_buffered_provider_terminal_closes_without_another_next() {
 
 #[test]
 fn non_json_errors_keep_their_status_and_exact_error_body_bound() {
-    for status in [401, 429, 503] {
+    for status in [401, 404, 422, 429, 500, 503, 529] {
         let body = b"upstream failed";
         for bound in [body.len(), body.len() - 1] {
             let mut bounds = limits();
@@ -675,8 +675,10 @@ fn non_json_errors_keep_their_status_and_exact_error_body_bound() {
             assert_eq!(*evidence, client::Evidence::Response { status });
             let expected = match status {
                 401 => Failure::Unauthorized,
+                404 | 422 => Failure::Invalid,
                 429 => Failure::RateLimited { retry_after: Duration::ZERO },
-                503 => Failure::Unavailable,
+                500 | 503 => Failure::Unavailable,
+                529 => Failure::Overloaded,
                 _ => unreachable!(),
             };
             assert_eq!(*failure, expected);
@@ -695,7 +697,7 @@ fn undecoded_error_bodies_keep_their_clipped_provider_text_for_both_dialects() {
     let bodies: &[&[u8]] = &[
         br#"{"message":"another envelope"}"#,
         b"upstream failed",
-        b"<html>proxy denied</html>",
+        b"<!DOCTYPE html><title>Attention Required! | Cloudflare</title>",
         br#"{"error":{"message":"missing kind"}}"#,
         br#"{"error":"wrong type"}"#,
         br#"{"error":{"code": "#,
@@ -703,33 +705,37 @@ fn undecoded_error_bodies_keep_their_clipped_provider_text_for_both_dialects() {
     ];
     for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for chunked in [false, true] {
-            for body in bodies {
-                for detail_bound in [0, 1, body.len().saturating_sub(1), body.len()] {
-                    let mut bounds = skein_llm_world::limits_for(provider);
-                    bounds.detail_bytes = u32::try_from(detail_bound).unwrap();
-                    let mut input = call(12);
-                    if provider == skein_llm::Provider::Anthropic {
-                        input.endpoint = skein_llm::Endpoint::anthropic();
-                        input.credential = Some(skein_llm::Credential::key(b"fixture".as_slice().into()));
-                        input.prompt.affinity = None;
-                    }
-                    let mut world = World::new(input, bounds, response(400, "", body, chunked), 12);
-                    world.fragmentation(1, 1);
-                    world.request(client::Request::Start);
-                    world.run();
-                    world.settle();
-                    world.assert_once();
-                    assert!(
-                        world.seen.iter().any(|event| matches!(event,
+            for (status, expected) in [(400, Failure::Invalid), (403, Failure::Unavailable)] {
+                for body in bodies {
+                    for detail_bound in [0, 1, body.len().saturating_sub(1), body.len()] {
+                        let mut bounds = skein_llm_world::limits_for(provider);
+                        bounds.detail_bytes = u32::try_from(detail_bound).unwrap();
+                        let mut input = call(12);
+                        if provider == skein_llm::Provider::Anthropic {
+                            input.endpoint = skein_llm::Endpoint::anthropic();
+                            input.credential = Some(skein_llm::Credential::key(b"fixture".as_slice().into()));
+                            input.prompt.affinity = None;
+                        }
+                        let mut world = World::new(input, bounds, response(status, "", body, chunked), 12);
+                        world.fragmentation(1, 1);
+                        world.request(client::Request::Start);
+                        world.run();
+                        world.settle();
+                        world.assert_once();
+                        assert!(
+                            world.seen.iter().any(|event| matches!(event,
                         client::Event::Failed {
-                            failure: Failure::Invalid,
-                            evidence: client::Evidence::Response { status: 400 },
+                            failure,
+                            evidence: client::Evidence::Response { status: observed },
                             detail,
+                            report,
                             ..
-                        } if detail.as_ref() == &body[..detail_bound.min(body.len())])),
-                        "{provider:?}, {chunked}, {body:?}, {detail_bound}: {:?}",
-                        world.seen
-                    );
+                        } if *failure == expected && *observed == status && report.code.is_empty()
+                            && detail.as_ref() == &body[..detail_bound.min(body.len())])),
+                            "{provider:?}, {status}, {chunked}, {body:?}, {detail_bound}: {:?}",
+                            world.seen
+                        );
+                    }
                 }
             }
         }
@@ -776,9 +782,11 @@ fn decoded_error_messages_and_undecoded_utf8_bodies_keep_the_detail_boundary() {
 fn an_oversized_error_body_keeps_unparsed_detail_and_closes_without_draining() {
     let json = br#"{"error":{"code":"subscription_sharing_usage_limit_exceeded","message":"unparsed prefix"}}"#;
     for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
-        for (status, expected) in
-            [(503, Failure::Unavailable), (429, Failure::RateLimited { retry_after: Duration::from_secs(4) })]
-        {
+        for (status, expected) in [
+            (403, Failure::Unavailable),
+            (503, Failure::Unavailable),
+            (429, Failure::RateLimited { retry_after: Duration::from_secs(4) }),
+        ] {
             for chunked in [false, true] {
                 let mut bounds = skein_llm_world::limits_for(provider);
                 bounds.error_bytes = u32::try_from(json.len()).unwrap();
@@ -800,7 +808,7 @@ fn an_oversized_error_body_keeps_unparsed_detail_and_closes_without_draining() {
                 world.settle();
                 world.assert_once();
                 assert!(world.source_at < wire_length, "the remaining page is not drained");
-                assert!(world.seen.iter().any(|event| matches!(event, client::Event::Failed { failure, evidence: client::Evidence::Response { status: observed }, detail, .. } if *failure == expected && *observed == status && detail.len() == 48 && detail.starts_with(b"error body cut: {\"error\":{\"code\":\"subscription"))));
+                assert!(world.seen.iter().any(|event| matches!(event, client::Event::Failed { failure, evidence: client::Evidence::Response { status: observed }, detail, report, .. } if *failure == expected && *observed == status && report.code.is_empty() && detail.len() == 48 && detail.starts_with(b"error body cut: {\"error\":{\"code\":\"subscription"))));
                 assert!(world.seen.iter().any(|event| matches!(event, client::Event::Close)));
                 assert!(!world.seen.iter().any(|event| matches!(event, client::Event::Reusable)));
             }

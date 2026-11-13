@@ -38,7 +38,7 @@ pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v11::Limits,
+    pub(crate) codec: wire::v12::Limits,
     pub(crate) connections: Map<Token, Connection>,
     schema: skein_channel::Schema,
     next_channel: u64,
