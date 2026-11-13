@@ -32,8 +32,8 @@ fn stored(row: v20::LandingRow) -> forge::Stored {
     let row = v20::Row::new(&v20::CEILINGS, v20::RowParts { value: v20::Value::Landing(row) }).unwrap();
     let mut writer = Writer::new(usize::try_from(row.measure()).unwrap());
     row.encode(&mut writer).unwrap();
-    records::decode(&writer.finish(), &crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap())
-        .unwrap()
+    let bytes = patched(20, 9, b"Row", writer.finish());
+    records::decode(&bytes, &crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap()).unwrap()
 }
 
 #[test]

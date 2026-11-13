@@ -176,7 +176,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(37) {
+    match random.below(42) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -227,6 +227,26 @@ pub fn key(random: &mut Rng) -> top::Key {
         35 => top::Key::Finding {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+        },
+        37 => top::Key::HistoryProject { project: u32::try_from(number & u64::from(u32::MAX)).unwrap() },
+        38 => top::Key::HistoryEvent {
+            project: u32::try_from(number & u64::from(u32::MAX)).unwrap(),
+            number: random.next_u64(),
+        },
+        39 => top::Key::HistoryChange {
+            project: u32::try_from(number & u64::from(u32::MAX)).unwrap(),
+            change: number,
+            number: random.next_u64(),
+        },
+        40 => top::Key::HistoryLanding {
+            project: u32::try_from(number & u64::from(u32::MAX)).unwrap(),
+            landing: number,
+            number: random.next_u64(),
+        },
+        41 => top::Key::HistoryLast {
+            project: u32::try_from(number & u64::from(u32::MAX)).unwrap(),
+            number,
+            change: random.next_u64(),
         },
         36 => top::Key::Follow {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
@@ -659,7 +679,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v20::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v21::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -717,13 +737,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v20::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v21::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v20::Row {
-    use crate::v20 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v21::Row {
+    use crate::v21 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),
@@ -920,6 +940,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }

@@ -86,7 +86,7 @@ fn check_range(index: usize, request: store::Request) {
             let store::Request::Restore { range: store::Restore::Application(ranges), .. } = request else {
                 panic!("application")
             };
-            assert_eq!(ranges.as_ref(), [skein_kv::Range { start: Box::new([]), end: None }]);
+            assert_eq!(ranges.as_ref(), [skein_kv::Range { start: Box::new([]), end: Some(Box::new([128])) }]);
         }
         7..=9 => {
             let store::Request::Get { key: store::Get::Jig(key), .. } = request else { panic!("get {index}") };
