@@ -400,7 +400,7 @@ fn fixture_root(
     }
     let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|index| {
         let mut config = walking::config(seed);
-        if trial_story {
+        if trial_story || lending_story {
             config.core.workers_in_process = true;
         }
         // The joined world's worker scripts trials through the same model as its chats (domain/trial.md, 2).
@@ -432,7 +432,7 @@ fn fixture_root(
                 }),
                 signed_in_plan: plan,
                 manage_usage: None,
-                offers: a::Offers { sign_in: true, key: true, programs: Box::new([]) },
+                offers: a::Offers { sign_in: !lending_story, key: true, programs: Box::new([]) },
             }]),
         };
         // The runtime offers the playground and the real provider.
