@@ -69,3 +69,4 @@ Inherited from main at the goal's start, 2026-11-13, from goals 1983, 1984,
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
 - lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
 - lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
+- lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
