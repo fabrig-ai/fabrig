@@ -21,5 +21,6 @@
 - **Not yet:** "`forge.changes` bounds the changes kept at once": its bound is 128, not 1024, while the store schema's tier-row ceilings stay 257 (`../store.md`, 4).
 
 - **Not yet:** "A goal's reds", `forge.branch_reds` and `forge.red_key_bytes` [in flight: change 2492].
+- **Not yet:** "A goal's reds", their ranges: at most 256 and 512, not 1024 [in flight: change 2494].
 
 - **Not yet:** "A goal's reds", `checkout.reds_read_ms` [in flight: change 2514].
