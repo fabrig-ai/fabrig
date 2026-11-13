@@ -1,6 +1,6 @@
 # design: status
 
-2026-11-12. Where the repository lags or departs from [design.md](design.md).
+2026-11-13. Where the repository lags or departs from [design.md](design.md).
 
 - **Not yet:** 3.2: no shared-test-code check, `tests/boundary/tests/shared_test_code.rs`, and no reader in `fabrig-boundary`'s library: `sizes.rs` holds its own [in flight: change 2020].
 - **Not yet:** 3.2: no `skein-browser-rig`: `skein-browser-world`'s test binaries each compile its real rig and its pages [in flight: change 2049].
@@ -12,3 +12,4 @@
 - **Not yet:** 3.3: `skein/docs/foundation/cli.md`, 9's check 3 doesn't find a member's bare version, and members name seven external crates so [in flight: change 2116].
 - **Not yet:** 3.3: `tests/boundary/` has no features check, and the root's entries ask for fewer features than their crates resolve to [in flight: change 2120].
 - **Not yet:** 3.3: no `.cargo/config.toml` sets Cargo's unification, and the features check has no settings finding [in flight: change 2121].
+- **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still gives `temper-engine-domain-forge`'s exception as lasting until G5 [in flight: change 2193]

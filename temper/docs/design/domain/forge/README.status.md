@@ -1,6 +1,10 @@
 # forge: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-13. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 3: the top's vocabulary is still part of `temper-engine-domain-forge`; `temper-engine-domain-forge-vocabulary` doesn't exist yet [in flight: change 2193]
+
+- **Not yet:** 3, *Each crate names the one it needs*: the libraries that need only the vocabulary, `temper-protocol-store`, `temper-engine-domain-ways` and `temper-fake`, still depend on `temper-engine-domain-forge` [in flight: change 2195]
 
 - **Not yet:** 2: the follow procedure, its task making follow changes
   (`follows.md`) [in flight: change 110].
