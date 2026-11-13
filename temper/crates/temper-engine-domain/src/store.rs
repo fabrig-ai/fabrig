@@ -602,7 +602,10 @@ impl Range {
         let core = match key {
             Key::Wires | Key::Opening(_) => return false,
             Key::Core(core) => core,
-            Key::Forge(_) => return *self == Range::Forge,
+            Key::Forge(key) => {
+                return *self == Range::Forge
+                    && *key < temper_engine_domain_forge::Key::HistoryEvent { project: 0, number: 0 };
+            }
         };
         match self {
             Range::Forge => false,
