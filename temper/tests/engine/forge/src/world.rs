@@ -1,7 +1,7 @@
 use crate::translate;
 use skein_fake_forge_domain::{self as forge, api as raw};
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Time, Token, Wall};
-use temper_engine_domain_forge::{self as top, history};
+use temper_engine_domain_forge as top;
 
 pub const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
@@ -1040,7 +1040,7 @@ impl World {
     /// A change's indexed events across projects, in event-number order
     /// (temper/docs/design/domain/landing-history.md, 4.1).
     #[must_use]
-    pub fn history(&self, change: u64) -> Vec<history::Event> {
+    pub fn history(&self, change: u64) -> Vec<top::history::Event> {
         let mut events = Vec::new();
         for (_, record) in &self.stored {
             if let top::Stored::HistoryChange(index) = record
@@ -1057,7 +1057,7 @@ impl World {
 
     /// A landing's indexed events across projects, in event-number order.
     #[must_use]
-    pub fn landing_history(&self, landing: u64) -> Vec<history::Event> {
+    pub fn landing_history(&self, landing: u64) -> Vec<top::history::Event> {
         let mut events = Vec::new();
         for (_, record) in &self.stored {
             if let top::Stored::HistoryLanding(index) = record
@@ -1073,7 +1073,7 @@ impl World {
     }
 
     /// Write a fixture event through the domain and keep its store requests.
-    pub fn write_event(&mut self, change: u64, step: history::Step) -> Option<u64> {
+    pub fn write_event(&mut self, change: u64, step: top::history::Step) -> Option<u64> {
         let number = self.top.write_event(self.env.wall, change, step, &mut self.top_out);
         self.take_top();
         number
