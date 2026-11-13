@@ -524,12 +524,14 @@ pub fn root(
     limits: &domain::Limits,
     problems: &mut Problems,
 ) {
+    short(problems, own(b"forge.landing_members"), u64::from(limits.forge.landing_members), b"prepare prefixes", Some(5));
     let landings = landing_config(engine);
     let mut turn = false;
     for (_, project) in &landings {
         turn |= project.by == domain::Way::Turn;
     }
     if turn {
+        if limits.authority.writes < limits.forge.landing_members { against(problems, b"forge.landing_members", b"authority.writes"); }
         if limits.forge.resources_per_task <= limits.forge.landing_members {
             against(problems, b"forge.resources_per_task", b"forge.landing_members + 1");
         }

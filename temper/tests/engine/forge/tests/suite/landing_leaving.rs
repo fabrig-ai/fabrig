@@ -106,6 +106,8 @@ fn a_held_member_leaves_and_keeps_its_place_ahead_of_a_later_waiter() {
         task: LANDING,
         entry: 200,
         heard: top::LandingHeard {
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
             held: Box::new([CHANGE]),
             failure: Box::new([]),
             preparation: landing::Preparation::Idle,
@@ -281,6 +283,8 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
                 task: LANDING,
                 entry: 300,
                 heard: top::LandingHeard {
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: landing::Preparation::Idle,
@@ -312,6 +316,8 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
             task: LANDING,
             entry: 400,
             heard: top::LandingHeard {
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: landing::Preparation::Idle,

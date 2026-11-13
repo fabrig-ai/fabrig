@@ -67,9 +67,9 @@ fn repository_item(
         remote.put(segment).expect("measured remote");
     }
     let access = if !repository.prefixes.is_empty() {
-        let mut branches = skein_lib::List::with_capacity(u32::try_from(repository.prefixes.len()).expect("bounded prefixes"));
+        let mut branches = List::with_capacity(u32::try_from(repository.prefixes.len()).expect("bounded prefixes"));
         for branch in &repository.prefixes {
-            branches.push(v1::Branch::new(limits, v1::BranchParts { branch: branch.clone() })?).expect("measured branches");
+            branches.push(branch.clone()).expect("measured branches");
         }
         v1::Access::Prefixes(v1::Prefixes::new(limits, v1::PrefixesParts { branches })?)
     } else { match &repository.push {

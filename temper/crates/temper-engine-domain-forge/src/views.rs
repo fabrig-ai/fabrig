@@ -303,7 +303,7 @@ impl Domain {
             branch: row.branch.clone(),
         })
     }
-    pub(crate) fn prefix_judgement(&self, row: &policy::Landing, member: &policy::Member) -> Option<PrefixJudgement> {
+    pub(crate) fn prefix_judgement(&self, _row: &policy::Landing, member: &policy::Member) -> Option<PrefixJudgement> {
         use temper_engine_domain_forge_change as c;
         let prefix = member.candidate?;
         let head = member.head?;
@@ -312,7 +312,7 @@ impl Domain {
         let mut verdict = c::Status::Passed;
         for gate in &change.change.gates {
             let status =
-                if !row.round.judging && (gate.kind == c::GateKind::Check || gate.freshness == c::Freshness::Exact) {
+                if !member.judging && (gate.kind == c::GateKind::Check || gate.freshness == c::Freshness::Exact) {
                     c::Status::Unknown
                 } else {
                     c::prefix_verdict(&change.change, *gate, &change.verdicts, head, prefix)
@@ -420,11 +420,8 @@ pub(crate) fn landing_step(d: &Domain, row: &policy::Landing) -> LandingStep {
     }
 }
 fn judging(d: &Domain, row: &policy::Landing) -> bool {
-    if !row.round.judging {
-        return false;
-    }
     for member in &row.members {
-        if let Some(judgement) = d.prefix_judgement(row, member)
+        if member.left.is_none() && member.landed.is_none() && member.judging && let Some(judgement) = d.prefix_judgement(row, member)
             && judgement.verdict != temper_engine_domain_forge_change::Status::Passed
         {
             return true;
