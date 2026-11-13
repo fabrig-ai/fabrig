@@ -1,4 +1,6 @@
-use crate::{
+#![cfg(test)]
+
+use jig_ops_client_protocol_wire::{
     codec::{self, infrastructure as infra, observability as obs},
     v1 as w,
 };

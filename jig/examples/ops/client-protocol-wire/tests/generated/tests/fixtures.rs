@@ -1,4 +1,4 @@
-use crate::v1 as w;
+use jig_ops_client_protocol_wire::v1 as w;
 use skein_lib::List;
 
 pub const PROJECT: u32 = 7;
