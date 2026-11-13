@@ -29,7 +29,6 @@ fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQ
                             b"Another change".as_slice().into()
                         },
                         ready_since: SIX_MIN_AGO,
-                        alone: false,
                         checks_since: if index == 0 { Some(SIX_MIN_AGO) } else { None },
                     },
                 )
@@ -427,6 +426,33 @@ fn a_changes_task_bar_opens_with_its_projects_changes_breadcrumb() {
 }
 
 #[test]
+fn a_searching_train_shows_probing_at_its_prefix() {
+    let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
+    busy.way = w::Way::Turn;
+    busy.in_flight = Some(
+        w::TrainLanding::new(
+            &w::CEILINGS,
+            w::TrainLandingParts {
+                task: 61,
+                member: 51,
+                round: 2,
+                step: w::LandingStep::Probing,
+                probe: Some([0x33; 32]),
+                title: b"In flight".as_slice().into(),
+                ready_since: SIX_MIN_AGO,
+            },
+        )
+        .unwrap(),
+    );
+    let value = panel(&[w::ChangesQueue::new(&w::CEILINGS, busy).unwrap()], 0, false, b"main");
+    let (mut root, watch) = opened();
+    show(&mut root, watch, &value);
+    let text = main_words(&root);
+    assert!(contains(&text, "Landing 61 · member 51 · round 2"));
+    assert!(contains(&text, "probing at 3333333"));
+}
+
+#[test]
 fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
     let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
     busy.way = w::Way::Turn;
@@ -434,6 +460,7 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
         w::TrainLanding::new(
             &w::CEILINGS,
             w::TrainLandingParts {
+                probe: None,
                 task: 61,
                 member: 51,
                 round: 2,
@@ -447,7 +474,6 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
     let mut waiting = busy.changes.get(0).unwrap().clone().into_parts();
     waiting.title = b"Waiting behind".as_slice().into();
     waiting.checks_since = None;
-    waiting.alone = true;
     busy.changes = List::from_boxed(Box::new([w::ChangesQueued::new(&w::CEILINGS, waiting).unwrap()]));
     let mut free = queue(b"work/hello", b"release", 2, false).into_parts();
     free.way = w::Way::Turn;
@@ -472,7 +498,6 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
         "Landing 61 · member 51 · round 2",
         "held",
         "Train · work/hello release",
-        "land alone",
         "2nd",
         "1st",
     ] {

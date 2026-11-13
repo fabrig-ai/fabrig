@@ -266,6 +266,7 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
     w::PublicLanding::new(
         limits,
         w::PublicLandingParts {
+            search: None,
             combined: None,
             step: None,
             phase: w::PublicLandingPhase::Held,

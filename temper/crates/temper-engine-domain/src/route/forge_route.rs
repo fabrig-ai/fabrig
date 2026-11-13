@@ -2569,7 +2569,6 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                     ready_since: None,
                     owns_turn: false,
                     last_head: None,
-                    alone: false,
                 },
                 pull: None,
                 pending: None,
@@ -3947,6 +3946,9 @@ fn repair_words(
     parameters: &[tasks::Parameter],
     bound: u32,
 ) -> Option<Box<[u8]>> {
+    if let forge_change::Repair::LandingAt { candidate, below: Some(below), .. } = why {
+        return blamed_repair_words(row, why, candidate, below, parameters, bound);
+    }
     let previous: &[u8] = match why {
         forge_change::Repair::Ci => b"Repair the failed CI on the change branch.",
         forge_change::Repair::Semantic => b"CI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.",
@@ -4001,6 +4003,67 @@ fn repair_words(
     append(&mut words, identity.as_slice());
     append(&mut words, b"\n");
     append(&mut words, previous);
+    append(&mut words, REPAIR_PRESERVATION);
+    Some(words.into_boxed())
+}
+
+/// domain/landing-search.md, 7: the boundary and preservation survive a cut list.
+fn blamed_repair_words(
+    row: &forge::ChangeRow,
+    why: forge_change::Repair,
+    red: skein_forge::api::Commit,
+    below: forge_change::Below,
+    parameters: &[tasks::Parameter],
+    bound: u32,
+) -> Option<Box<[u8]>> {
+    let opening = repair_opening(row, why)?;
+    let head = commit_text(&row.change.last_head?);
+    let red = commit_text(&red);
+    let green = commit_text(&below.green);
+    let head = head.get(..12)?;
+    let red = red.get(..12)?;
+    let green = green.get(..12)?;
+    let before: [&[u8]; 11] = [
+        &opening,
+        head,
+        b": failed at prefix ",
+        red,
+        b" above ",
+        green,
+        b"\nRepair the failed landing gate. The landing's gates passed at ",
+        green,
+        b" and failed at ",
+        red,
+        b", with this change's unit on top of it; a change below may still share the cause.",
+    ];
+    let ci = b" The CI section gives its run, base and failed jobs.";
+    let mut required = ci.len().checked_add(REPAIR_PRESERVATION.len())?;
+    for part in before {
+        required = required.checked_add(part.len())?;
+    }
+    let room = parameter_word_room(parameters, bound);
+    let list_room = usize::try_from(room).ok()?.checked_sub(required)?;
+    // Four u64 pairs and their punctuation fit here even at their greatest values.
+    let mut list = List::with_capacity(256);
+    let mut separator = b" Changes landing below it: ".as_slice();
+    for landed in below.changes.into_iter().flatten() {
+        append(&mut list, separator);
+        append(&mut list, skein_lib::Decimal::of(landed.change).as_bytes());
+        append(&mut list, b" (#");
+        append(&mut list, skein_lib::Decimal::of(landed.pull).as_bytes());
+        append(&mut list, b")");
+        separator = b", ";
+    }
+    if !list.is_empty() {
+        append(&mut list, b".");
+    }
+    let list = forge::text::fit(list.as_slice(), list_room, b"...");
+    let mut words = List::with_capacity(room);
+    for part in before {
+        append(&mut words, part);
+    }
+    append(&mut words, &list);
+    append(&mut words, ci);
     append(&mut words, REPAIR_PRESERVATION);
     Some(words.into_boxed())
 }

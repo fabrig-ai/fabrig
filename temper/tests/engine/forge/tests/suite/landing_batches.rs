@@ -398,68 +398,174 @@ pub(crate) fn workflow(red: bool) -> raw::Workflow {
         cue: red.then(|| raw::Cue::File { path: b"file".as_slice().into(), green: b"fixed".as_slice().into() }),
     }
 }
-#[test]
-fn a_red_batch_marks_every_unit_alone_then_clears_each_mark_and_batches_again() {
-    let mut world = landings::turn_in(World::batch_turn(31, Some(workflow(true))));
-    world.batch(2);
+fn red_batch(breaking: u64) -> World {
+    red_batch_workflow(breaking, workflow(true))
+}
+fn red_batch_workflow(breaking: u64, workflow: raw::Workflow) -> World {
+    let mut world = landings::turn_in(World::batch_turn(31, Some(workflow)));
+    world.batch(3);
     world.push_file(b"main", b"file", b"fixed");
-    for (task, path, bytes) in [(51, b"safe".as_slice(), b"one".as_slice()), (52, b"file", b"broken")] {
+    for task in 51..=53 {
         let branch = format!("temper/c{task}");
         world.external(
             raw::Op::Git(raw::Git::Create { branch: branch.as_bytes().into(), commit: world.branch(b"main") }),
             2,
         );
-        world.push_file(branch.as_bytes(), path, bytes);
+        if task == breaking {
+            world.push_file(branch.as_bytes(), b"file", b"broken");
+        } else {
+            world.push_file(branch.as_bytes(), format!("safe{task}").as_bytes(), b"safe");
+        }
         landings::ready_change(&mut world, task, branch.as_bytes());
     }
-    let mut trains = Trains::default();
-    trains.judge(&mut world);
+    Trains::default().judge(&mut world);
+    world
+}
+
+#[test]
+fn the_changes_document_shows_a_running_probe_and_its_prefix() {
+    let mut world = red_batch(52);
+    for entry in 1000..1100 {
+        if !matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Dispatch { member: 0, .. })
+        {
+            continue;
+        }
+        let prefix = world.landing(LANDING).landing.members[0].candidate.unwrap();
+        let Some(top::Document::Changes(view)) =
+            world.document(landings::PROJECT, top::changes_subject(landings::PROJECT))
+        else {
+            panic!("changes document");
+        };
+        let flight = view.queues[0].in_flight.as_ref().expect("train's landing");
+        assert_eq!((flight.task, flight.step, flight.probe), (LANDING, top::LandingStep::Probing, Some(prefix)));
+        return;
+    }
+    panic!("middle red member never led to a probe");
+}
+
+#[test]
+fn a_red_middle_unit_is_blamed_the_green_prefix_lands_and_the_suffix_stacks_again() {
+    let mut world = red_batch(52);
     landings::drive_landing(&mut world, LANDING);
-    for member in &world.landing(LANDING).landing.members {
-        assert!(matches!(member.left, Some(landing::Leave::Fallback { units: 2, .. })));
-        assert!(world.change(member.change).change.alone);
-        assert_eq!(world.change(member.change).change.repairs, 0);
-        assert!(world.landing(LANDING).asks.iter().all(Option::is_none));
+    let row = world.landing(LANDING).clone();
+    let first = row.landing.members[0].landed.expect("green landed");
+    let Some(landing::Leave::Blamed { gate, red, green, .. }) = row.landing.members[1].left else { panic!("blame") };
+    assert_eq!((gate, green), (0, first));
+    assert_eq!(world.change(52).change.repairs, 1);
+    assert!(matches!(world.change(52).change.state, change::State::Repairing {
+        why: change::Repair::LandingAt { candidate, .. }, ..
+    } if candidate == red));
+    assert_eq!(row.landing.preparation, 2);
+    assert!(row.landing.members[2].landed.is_some());
+    let calls = world.take_calls();
+    let dispatches: Vec<_> = calls
+        .iter()
+        .filter_map(|op| {
+            if let api::Op::Write(api::Write::Dispatch { branch, inputs, .. }) = op {
+                Some((branch, inputs))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(dispatches.len(), 4);
+    for (index, commit) in [(1, first), (2, red)] {
         assert!(
-            String::from_utf8_lossy(&world.landing_member_leave_words(LANDING, member.unit).expect("cause"))
-                .ends_with(": landing one at a time")
+            dispatches[index]
+                .1
+                .iter()
+                .any(|input| input.name.as_ref() == b"temper_commit" && input.value == top::commit_text(&commit))
         );
     }
-    landings::close_landing(&mut world, LANDING);
-    trains.judge(&mut world);
-    let good = world.change(51).change.landing.expect("first solo");
-    assert_eq!(world.landing(good).landing.members.len(), 1);
-    landings::drive_landing(&mut world, good);
-    assert!(!world.change(51).change.alone);
-    assert!(world.change(52).change.alone);
-    landings::close_landing(&mut world, good);
-    trains.judge(&mut world);
-    let bad = world.change(52).change.landing.expect("second solo");
-    assert_eq!(world.landing(bad).landing.members.len(), 1);
-    landings::drive_landing(&mut world, bad);
-    assert!(matches!(world.landing(bad).landing.members[0].left, Some(landing::Leave::Failed { .. })));
-    assert!(!world.change(52).change.alone);
-    assert_eq!(world.change(52).change.repairs, 1);
-    landings::close_landing(&mut world, bad);
-    world.push_file(b"temper/c52", b"file", b"fixed");
-    for entry in 3000..3020 {
-        changes::change_step_task(&mut world, 52, entry, change::Status::Passed, Box::new([]), false, false);
-        if matches!(world.change(52).change.state, change::State::Ready { .. }) {
-            break;
+    assert_eq!(dispatches[1].0, &row.landing.members[0].branch);
+    assert_eq!(dispatches[2].0, &row.landing.members[1].branch);
+    let opens: Vec<_> = calls
+        .iter()
+        .filter_map(|op| {
+            if let api::Op::Write(api::Write::OpenPull { head, body, .. }) = op { Some((head, body)) } else { None }
+        })
+        .collect();
+    assert_eq!(opens.len(), 3);
+    assert_eq!(opens[1].0, &row.landing.members[0].branch);
+    assert!(String::from_utf8_lossy(opens[1].1).contains(&format!(
+        "Search: red at {}, change 52 blamed; green at {}.",
+        String::from_utf8_lossy(&top::commit_text(&red)),
+        String::from_utf8_lossy(&top::commit_text(&green))
+    )));
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Close { .. }))).count(), 1);
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::DeleteBranch { .. }))).count(), 2);
+    let merges: Vec<_> = calls
+        .iter()
+        .filter_map(|op| {
+            if let api::Op::Write(api::Write::Merge { number, head, how: api::MergeHow::FastForwardOnly }) = op {
+                Some((*number, *head))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(merges.len(), 2);
+    assert_eq!(merges[0].1, first);
+    let raw::Answer::Pull(pull) = world.inspect(&raw::Read::Pull { number: merges[0].0 }) else { panic!("green pull") };
+    assert_eq!(pull.head, row.landing.members[0].branch);
+    assert_eq!(pull.merged.map(translate::commit), Some(first));
+}
+
+#[test]
+fn a_blamed_repair_keeps_the_green_members_and_the_red_receipts_brief() {
+    for breaking in [51, 52] {
+        let mut world = red_batch(breaking);
+        landings::drive_landing(&mut world, LANDING);
+        let row = world.landing(LANDING);
+        let member = &row.landing.members[usize::try_from(breaking - 51).unwrap()];
+        let Some(landing::Leave::Blamed { gate, red, green, run }) = member.left else { panic!("blamed member") };
+        let below = change::Below {
+            green,
+            changes: if breaking == 51 {
+                [None; 4]
+            } else {
+                [Some(change::Landed { change: 51, pull: row.landing.members[0].pull }), None, None, None]
+            },
+        };
+        assert_eq!(
+            world.change(breaking).change.state,
+            change::State::Repairing {
+                requested: true,
+                why: change::Repair::LandingAt { gate, candidate: red, below: Some(below) },
+            }
+        );
+        // A restored change and receipt still brief the red, not its own branch head or the top.
+        world.restart();
+        let head = world.change(breaking).change.last_head.unwrap();
+        assert_ne!(head, red);
+        let brief = String::from_utf8(world.ci_brief(breaking, head).into_vec()).unwrap();
+        for words in [
+            format!("Candidate: {}", String::from_utf8_lossy(&top::commit_text(&red))),
+            format!("Run: http://forge/org/repo/actions/runs/{run}"),
+            "Base: ".to_owned(),
+            "Failed job: test".to_owned(),
+            "Failed step: ".to_owned(),
+            "End of its log:".to_owned(),
+        ] {
+            assert!(brief.contains(&words), "missing {words}: {brief}");
         }
     }
-    assert!(
-        matches!(world.change(52).change.state, change::State::Ready { .. }),
-        "{:?}",
-        world.change(52).change.state
-    );
-    world.produce_file(b"temper/c53", b"next", b"next change");
-    landings::ready_change(&mut world, 53, b"temper/c53");
-    trains.judge(&mut world);
-    let next = world.change(52).change.landing.expect("batch resumed");
-    assert_eq!(world.landing(next).landing.members.len(), 2);
-    landings::drive_landing(&mut world, next);
-    assert!(world.landing(next).landing.members.iter().all(|m| m.landed.is_some()));
+}
+
+#[test]
+fn a_red_first_unit_has_no_turn_and_the_other_two_land_in_round_two() {
+    let mut world = red_batch(51);
+    landings::drive_landing(&mut world, LANDING);
+    let row = world.landing(LANDING);
+    assert!(matches!(row.landing.members[0].left, Some(landing::Leave::Blamed { .. })));
+    assert_eq!(row.landing.preparation, 2);
+    assert!(row.landing.members[1..].iter().all(|m| m.landed.is_some()));
+    let calls = world.take_calls();
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Merge { .. }))).count(), 1);
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::OpenPull { .. }))).count(), 2);
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(), 3);
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Close { .. }))).count(), 1);
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::DeleteBranch { .. }))).count(), 3);
 }
 #[test]
 fn an_outside_base_move_rebuilds_every_member_after_restart() {
@@ -687,5 +793,162 @@ fn a_prefix_with_a_long_member_history_is_validated_past_the_first_page() {
             .take_calls()
             .iter()
             .any(|op| matches!(op, api::Op::Read(api::Read::Commits { after, page: 2, .. }) if *after == prefix))
+    );
+}
+
+#[test]
+fn searching_restarts_after_probes_leaves_cut_open_and_merge_without_repeating_writes() {
+    for checkpoint in ["probing", "leaves", "cut", "open", "merge"] {
+        let mut world = red_batch(52);
+        let mut reached = false;
+        for entry in 1000..1100 {
+            let decision = landings::step_landing(&mut world, LANDING, entry);
+            let row = world.landing(LANDING);
+            reached = match checkpoint {
+                "probing" => matches!(decision, landing::Decision::Dispatch { member: 0, .. }),
+                "leaves" => matches!(decision, landing::Decision::Leave { member: 1, .. }),
+                "cut" => {
+                    row.landing.round.search.is_some()
+                        && row.landing.round.ending.is_none()
+                        && row.landing.members[1].candidate.is_none()
+                }
+                "open" => decision == landing::Decision::Open && row.landing.round.search.is_some(),
+                "merge" => matches!(decision, landing::Decision::Merge { member: 0, .. }),
+                _ => unreachable!(),
+            };
+            if reached {
+                break;
+            }
+        }
+        assert!(reached, "{checkpoint}");
+        world.restart();
+        landings::drive_landing(&mut world, LANDING);
+        let row = world.landing(LANDING);
+        assert!(row.landing.members[0].landed.is_some() && row.landing.members[2].landed.is_some(), "{checkpoint}");
+        let calls = world.take_calls();
+        for (name, expected, count) in [
+            (
+                "dispatch",
+                4,
+                calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(),
+            ),
+            ("open", 3, calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::OpenPull { .. }))).count()),
+            ("close", 1, calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Close { .. }))).count()),
+            (
+                "delete",
+                2,
+                calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::DeleteBranch { .. }))).count(),
+            ),
+            ("merge", 2, calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Merge { .. }))).count()),
+        ] {
+            assert_eq!(count, expected, "{checkpoint}: {name}");
+        }
+    }
+}
+
+#[test]
+fn each_probe_tells_every_prefixed_member_once_and_blame_tells_its_red_and_green() {
+    let mut world = red_batch(52);
+    let mut lines = Vec::new();
+    let mut prefixes = None;
+    for entry in 1000..1100 {
+        let result = landings::read_landing_step(&mut world, LANDING, entry, heard(landing::Preparation::Idle, b""));
+        lines.extend(result.news);
+        if let Some(entry) = result.entry {
+            world.event(top::Event::Committed { entry });
+            world.run_for(1);
+        }
+        if matches!(result.decision, landing::Decision::Prepare { .. }) {
+            world.prepare_landing(LANDING, false);
+        }
+        if prefixes.is_none() && world.landing(LANDING).landing.phase == landing::Phase::Proving {
+            prefixes =
+                Some(world.landing(LANDING).landing.members.iter().map(|m| m.candidate.unwrap()).collect::<Vec<_>>());
+        }
+        if matches!(result.decision, landing::Decision::Leave { member: 1, .. }) {
+            break;
+        }
+    }
+    let prefixes = prefixes.unwrap();
+    let text = |commit| String::from_utf8(top::commit_text(&commit).into_vec()).unwrap();
+    let base = world.landing(LANDING).landing.members[0].base.unwrap();
+    for change in 51..=53 {
+        for probe in &prefixes[..2] {
+            let line = format!(
+                "landing {LANDING}: change {change} probing at {}, red at {}, on {}",
+                text(*probe),
+                text(prefixes[2]),
+                text(base)
+            );
+            assert_eq!(
+                lines.iter().filter(|(task, words)| *task == change && words.as_ref() == line.as_bytes()).count(),
+                1,
+                "{line}"
+            );
+        }
+    }
+    let words = String::from_utf8(world.landing_member_leave_words(LANDING, 1).unwrap().into_vec()).unwrap();
+    assert!(words.starts_with("gate gate failed in "));
+    assert!(words.ends_with(&format!(" at {}, above {}", text(prefixes[1]), text(prefixes[0]))));
+    assert!(
+        lines
+            .iter()
+            .any(|(task, line)| *task == 52 && String::from_utf8_lossy(line).ends_with(&format!("left: {words}")))
+    );
+}
+
+#[test]
+fn a_probe_ending_after_its_round_only_makes_a_receipt_and_a_later_probe_uses_it() {
+    let mut workflow = workflow(true);
+    workflow.latency_min = skein_lib::Duration::from_secs(300);
+    workflow.latency_max = workflow.latency_min;
+    let mut world = red_batch_workflow(52, workflow);
+    let mut dispatched = false;
+    for entry in 1000..1600 {
+        if matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Dispatch { member: 0, .. }) {
+            dispatched = true;
+            break;
+        }
+    }
+    assert!(dispatched);
+    let prefix = world.landing(LANDING).landing.members[0].candidate.unwrap();
+    assert!(!world.has_receipt_at(prefix));
+    world.push_file(b"temper/c53", b"moved", b"new head");
+    let mut ended = false;
+    for entry in 2000..2040 {
+        landings::step_landing(&mut world, LANDING, entry);
+        if world.landing(LANDING).landing.preparation == 2 {
+            ended = true;
+            break;
+        }
+    }
+    assert!(ended);
+    assert!(!world.has_receipt_at(prefix), "probe still running after its round");
+    assert!(world.landing(LANDING).landing.round.search.is_none());
+    world.restart();
+    world.run_for(400);
+    for entry in 2100..2110 {
+        landings::step_landing(&mut world, LANDING, entry);
+        if world.has_receipt_at(prefix) {
+            break;
+        }
+    }
+    if !world.has_receipt_at(prefix) {
+        let calls: Vec<_> = world
+            .take_calls()
+            .into_iter()
+            .filter(|op| matches!(op, api::Op::Read(api::Read::Runs { .. } | api::Read::Run { .. })))
+            .collect();
+        panic!("late receipt missing: {:?}; reads: {calls:?}", world.landing(LANDING));
+    }
+    assert!(world.landing(LANDING).landing.round.search.is_none(), "old verdict moves no new bound");
+    landings::drive_landing(&mut world, LANDING);
+    let row = world.landing(LANDING);
+    assert_eq!(row.landing.members[0].landed, Some(prefix));
+    assert!(matches!(row.landing.members[1].left, Some(landing::Leave::Blamed { .. })));
+    assert!(matches!(row.landing.members[2].left, Some(landing::Leave::HeadMoved { .. })));
+    assert_eq!(
+        world.take_calls().iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(),
+        3
     );
 }
