@@ -28,9 +28,16 @@ fn show(row: &w::FollowView, out: &mut Text) {
     repository(row.setting().target().repository(), out);
     out.put(b")\nbranch: ");
     out.put(row.target_branch());
-    out.put(b"\nowner: person ");
+    out.put(b"\nowner: ");
     match row.setting().owner() {
-        w::FollowOwner::Person(owner) => out.number(owner.person()),
+        w::FollowOwner::Person(owner) => {
+            out.put(b"person ");
+            out.number(owner.person());
+        }
+        w::FollowOwner::Task(owner) => {
+            out.put(b"task ");
+            out.number(owner.task());
+        }
     }
     out.put(b"\nstart: ");
     out.put(match row.setting().start() {
@@ -171,9 +178,15 @@ fn setting(value: &w::Follow, out: &mut Encoder) {
     out.object_end();
     out.key(b"owner");
     out.object_start();
-    out.key(b"person");
     match value.owner() {
-        w::FollowOwner::Person(person) => out.unsigned(person.person()),
+        w::FollowOwner::Person(person) => {
+            out.key(b"person");
+            out.unsigned(person.person());
+        }
+        w::FollowOwner::Task(task) => {
+            out.key(b"task");
+            out.unsigned(task.task());
+        }
     }
     out.object_end();
     out.key(b"start");

@@ -80,7 +80,8 @@
     role's name, its task's title (the first line of its spec's words),
     in an agent's chip, a link to `Team { project, role: Some(N) }`,
     current while its card is the one shown;
-    its Now's first line, while one is read; and at its right what it has
+    its Now's first line, while one is read; under it, a line for each
+    follow it owns (*Follows*, below); and at its right what it has
     spent of its period's budget, "21 of 40", its budget's `spent` and
     `budget` as they come, unscaled, as a chat's bar gives them. A role
     holding a row of the areas' table is reached from its chip there, as
@@ -120,6 +121,8 @@
       line opening "- " a list item, the other lines paragraphs, nothing
       composed; a cut body ends "…". A role that has written none has no
       Now part.
+    - *its follows:* the kicker "Follows", then each follow the role
+      owns, as *Follows* below draws it on a card.
     - *its rules:* the kicker "Its rules · change by proposal", "change by
       proposal" a link to its charter's page, `Role { project, charter }`
       (`settings.md`, 1, *A role's or a rule's page*); then its charter's
@@ -140,9 +143,29 @@
       then its body drawn as the Now's is, nothing composed, a cut body
       ending "…". A role that has written none has no report part.
 
-    On a wide page the card has two columns, its Now and its rules on the
-    left, what wakes it, its sessions and its weekly report on the right,
-    as `team.html`'s card; on a phone one, in that order.
+    On a wide page the card has two columns, its Now, its follows and its
+    rules on the left, what wakes it, its sessions and its weekly report
+    on the right, as `team.html`'s card; on a phone one, in that order.
+  - *Follows* (`../../domain/forge/follows.md`, section 7;
+    `../../draft/follows.md`, section 5), from the project's `follows`
+    document: each follow is drawn on its owner's row, its owner's
+    `task` naming a listed standing role or its `person` a listed person,
+    in the document's order; one whose owner isn't listed is drawn
+    nowhere on Team, and a role holding a row of the areas' table, having
+    no row under Standing roles, has its follows on its card alone.
+    - *its line,* small and muted: "Follows SOURCE · LAG · PARITY",
+      SOURCE the source repository as the document names it,
+      `OWNER/NAME`, LAG and PARITY as `temper ctl follow list` words them
+      (the client's `forge::follows`): "Follows cowsql/vsr · 2 behind ·
+      check passes at 9c04d7e1a2b3"; a stopped follow's, "Follows
+      SOURCE · stopped". On a role's row, under its Now's line; on a
+      person's box, after their line and what they signed.
+    - *on a role's card,* under the kicker "Follows", each follow's line,
+      then its lag's entries, oldest first, a row each: AFTER12 in code's
+      mark, then the entry's state as `temper ctl follow show` words it
+      (`forge::follows`'s `state`), "held by its owner: waits for the
+      handoff fix", "producing as change 812"; at most eight, then, small
+      and muted, "and K more."; a follow caught up has its line alone.
   - *What wakes it,* from the role's task document's `subscriptions` and
     `wake` (jig's `client/domain/contract/README.md`, section 4; jig's
     `domain/tasks/messages.md`, 3 and 4), a row each, in the document's
@@ -209,7 +232,8 @@
     project's policy adds, then, while they hold rows of the areas' table
     as a party, " · " and those rows' names in the table's order, joined
     with ", ", "Anything else" for its last row, as `team/team.html`'s
-    "Owner · Payments"; then their line.
+    "Owner · Payments"; then their line; then what they signed, and a
+    line for each follow they own (*Follows*, above).
   - *People's head* holds, at its right and muted, the role the people
     share, while two people or more are listed, the project's document
     isn't cut, and every one listed holds the same role of the four
@@ -342,9 +366,12 @@
     offer, Pause or Resume by its hold, and "Give the area back" by the
     areas it holds; each other part of the card while
     what it draws is read and holds something, and "Not all are shown."
-    by the document's cut. No part is drawn empty, each person and each
-    role is drawn once in People and Standing roles, each area once in
-    the table, and a role holding a row of the table is never a row of
+    by the document's cut; a follow's line on its owner's row or box
+    while the `follows` watch has answered and its owner is listed, and
+    the card's follows while the card's role owns one. No part is drawn
+    empty, each person and each role is drawn once in People and
+    Standing roles, each area once in the table, each follow once in its
+    place, and a role holding a row of the table is never a row of
     Standing roles.
   - *Its reads:* `me`, for the party and the project's name; jig's
     `Read::Project { project }` on opening, and again on each `me`
@@ -352,7 +379,10 @@
     (jig's `client/domain/contract/README.md`, 5.1); the standing inbox watch
     and the person's approvals, as Needs you's; one `tasks{query}` watch
     for each other person read, and the subject `changes`, as Work
-    watches it (`work.md`, 1, *Its reads*), while the page is open. Before the
+    watches it (`work.md`, 1, *Its reads*), and the project's `follows`
+    document, as How work runs watches it (`settings.md`, 2, *What
+    follows a landing*), while the page is open; until it answers, or
+    once refused or failed, no follow is drawn. Before the
     document answers, the intro, and "People" with no line under it; a
     refused or failed read says, under "People", "This project's people
     can't be read now."

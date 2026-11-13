@@ -53,43 +53,87 @@ impl Changed {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallAnswer {
     /// The named decision keeps the taken option, or asks the person (domain/forge/attention.md, 5).
-    Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> },
+    Decided {
+        took: Option<Box<[u8]>>,
+        reach: Option<temper_protocol_reaches::Reach>,
+    },
     /// A fresh task read; it never becomes a durable call part.
     TaskRead(Box<Result<jig_domain_core::reads::run_task::TaskRead, jig_domain_tasks::Refusal>>),
     /// Settings proposal admission failed before mutation.
     SettingsRefused(jig_domain_people::Refusal),
     /// The placed hold owner refused this release, with the facts needed to propose it.
-    HoldOwner { task: u64, hold: u64, revision: u64, owner: jig_domain_people::HoldOwner },
+    HoldOwner {
+        task: u64,
+        hold: u64,
+        revision: u64,
+        owner: jig_domain_people::HoldOwner,
+    },
     /// A release must name again exactly when its effect is uncertain.
-    Again { task: u64, required: bool },
+    Again {
+        task: u64,
+        required: bool,
+    },
     /// The caller exceeded its authority and passed the escalation up.
-    PassedUp { task: u64 },
+    PassedUp {
+        task: u64,
+    },
     /// A control committed at the spec revision its next amendment names.
-    Revised { task: u64, revision: u64 },
+    Revised {
+        task: u64,
+        revision: u64,
+    },
     /// An amendment committed, naming the controls it changed.
-    Amended { task: u64, revision: u64, changed: Changed },
+    Amended {
+        task: u64,
+        revision: u64,
+        changed: Changed,
+    },
     /// The revision named by the caller moved to this value.
-    Moved { task: u64, now: jig_domain_people::Moved },
+    Moved {
+        task: u64,
+        now: jig_domain_people::Moved,
+    },
     /// A forge write joined the named call's decision; later attempts can reask for its settled result.
-    ForgeEffect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
+    ForgeEffect {
+        entry: u64,
+        deadline: skein_lib::Wall,
+        outcome: Option<skein_forge_client::Outcome>,
+    },
     /// A forge write was refused before an outbox entry existed.
     ForgeEffectRefused(skein_forge::api::Error),
     /// The pure policy check declined a forge write, retaining its bounded reasons.
-    ForgeEffectDenied { answer: jig_domain_authority::Answer, findings: Box<[jig_domain_authority::Finding]> },
+    ForgeEffectDenied {
+        answer: jig_domain_authority::Answer,
+        findings: Box<[jig_domain_authority::Finding]>,
+    },
     /// An engine tool was refused with the authority findings.
-    ToolDenied { answer: jig_domain_authority::Answer, findings: Box<[jig_domain_authority::Finding]> },
+    ToolDenied {
+        answer: jig_domain_authority::Answer,
+        findings: Box<[jig_domain_authority::Finding]>,
+    },
     /// Finding snapshots for the agent tool (domain/agent/tools.md).
     Finding(Box<crate::FindingToolAnswer>),
+    Follow(Box<crate::FollowToolAnswer>),
     /// One fresh bounded forge read, retained for named-call replay.
     ForgeRead(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
     /// One held descendant decision reached its semantic terminal.
-    EscalationDecided { task: u64, revision: u64, outcome: jig_domain_tasks::EscalationOutcome },
+    EscalationDecided {
+        task: u64,
+        revision: u64,
+        outcome: jig_domain_tasks::EscalationOutcome,
+    },
     /// A task holder's held-decision call was refused before mutation.
     EscalationRefused(jig_domain_tasks::Problem),
     /// Proposal entered its proposer's durable pending state.
-    Proposed { proposal: u64, holder: jig_domain_tasks::ProposalHolder },
+    Proposed {
+        proposal: u64,
+        holder: jig_domain_tasks::ProposalHolder,
+    },
     /// Proposal was accepted, rejected, passed, or withdrawn.
-    ProposalDecided { proposal: u64, outcome: jig_domain_tasks::ProposalOutcome },
+    ProposalDecided {
+        proposal: u64,
+        outcome: jig_domain_tasks::ProposalOutcome,
+    },
     /// Proposal action or current standing failed before mutation.
     ProposalRefused(jig_domain_tasks::Problem),
     /// A named task control change entered the same durable decision.
@@ -99,15 +143,21 @@ pub enum CallAnswer {
     /// An effect was refused before mutation.
     EffectRefused(jig_domain_tasks::Problem),
     /// A requested widening needs a holder or violates a hard ceiling.
-    ControlDenied { answer: jig_domain_authority::Answer },
+    ControlDenied {
+        answer: jig_domain_authority::Answer,
+    },
     /// Message entered its target's inbox at this commit position.
-    Sent { message: u64 },
+    Sent {
+        message: u64,
+    },
     /// Reciprocal task references were installed.
     Introduced,
     /// A message or introduction failed its live reference or inbox check.
     MessageRefused(jig_domain_tasks::Problem),
     /// One standing interest was installed.
-    Subscribed { subscription: u64 },
+    Subscribed {
+        subscription: u64,
+    },
     /// One standing interest was removed.
     Unsubscribed,
     /// A standing interest failed admission.
@@ -123,21 +173,47 @@ pub enum CallAnswer {
     /// All members of an authorized batch, in call order.
     Delegated(Box<[jig_domain_core::Made]>),
     /// A whole batch declined by authority, with its independent findings.
-    DelegationDenied { answer: jig_domain_authority::Answer, findings: Box<[jig_domain_authority::Finding]> },
+    DelegationDenied {
+        answer: jig_domain_authority::Answer,
+        findings: Box<[jig_domain_authority::Finding]>,
+    },
     /// A whole batch refused by structural or finite-funding admission.
     DelegationRefused(jig_domain_tasks::Problem),
     /// Render-only repository choice feedback; only the underlying refusal is stored.
-    ReadRepositoryRefused { named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
+    ReadRepositoryRefused {
+        named: Option<Box<[u8]>>,
+        repositories: Box<[Box<[u8]>]>,
+    },
     /// A subscription could not choose a readable adoption; its settled choice feedback replays.
-    SubscriptionRepositoryRefused { task: u64, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
+    SubscriptionRepositoryRefused {
+        task: u64,
+        named: Option<Box<[u8]>>,
+        repositories: Box<[Box<[u8]>]>,
+    },
     /// Box the problem to keep the existing answer slots within their allocation budget.
-    ChangeRefused { problem: Box<jig_domain_tasks::Problem>, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
+    ChangeRefused {
+        problem: Box<jig_domain_tasks::Problem>,
+        named: Option<Box<[u8]>>,
+        repositories: Box<[Box<[u8]>]>,
+    },
     /// A note write's durable name and revision.
-    NoteWritten { name: u64, revision: u32, lines: u32, added: u32, removed: u32, first: u32 },
+    NoteWritten {
+        name: u64,
+        revision: u32,
+        lines: u32,
+        added: u32,
+        removed: u32,
+        first: u32,
+    },
     /// A scoped note deleted by the run (jig jig/docs/design/domain/engine/briefs.md, 2.1).
-    NoteDeleted { name: u64 },
+    NoteDeleted {
+        name: u64,
+    },
     /// One bounded notes recall page.
-    NoteRecalled { entries: Box<[jig_domain_notes::Entry]>, more: bool },
+    NoteRecalled {
+        entries: Box<[jig_domain_notes::Entry]>,
+        more: bool,
+    },
     /// A note request changed nothing.
     NoteRefused(jig_domain_notes::Refusal),
     /// The document call joined with its note write (domain/agent/ask-temper.md, 3).
@@ -280,7 +356,8 @@ impl CallAnswer {
                 };
                 jig_domain_core::CallPart::Effect { connector, entry: *entry, deadline: *deadline, outcome }
             }
-            CallAnswer::Finding(_)
+            CallAnswer::Follow(_)
+            | CallAnswer::Finding(_)
             | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::ForgeEffectRefused(_)
@@ -1058,6 +1135,17 @@ fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> u64 {
 #[expect(clippy::too_many_lines, reason = "exhaustive answer sizing includes project-only findings topics")]
 pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
+        CallAnswer::Follow(answer) => match answer.as_ref() {
+            crate::FollowToolAnswer::Write { refusal, .. } => {
+                u64::try_from(size_of_val(answer.as_ref())).ok()?.checked_add(match refusal {
+                    Some(words) => skein_lib::len_u64(words.len()),
+                    None => 0,
+                })
+            }
+            crate::FollowToolAnswer::List(_) | crate::FollowToolAnswer::Show { .. } => {
+                unreachable!("follow reads have no retained answer")
+            }
+        },
         CallAnswer::Finding(answer) => match answer.as_ref() {
             crate::FindingToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref()))
                 .ok()?

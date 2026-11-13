@@ -586,6 +586,10 @@ pub enum Word {
     TeamNow,
     TeamReportAt,
     TeamReport,
+    TeamFollows,
+    TeamFollow,
+    TeamFollowEntry,
+    TeamFollowsMore,
     TeamStartedPerson,
     TeamStartedTask,
     TeamStartedDeployment,
@@ -2033,7 +2037,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2605;
+const PHRASES: u32 = 2609;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2060,10 +2064,10 @@ const PHRASES: u32 = 2605;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4741;
+const SEGMENTS: u32 = 4755;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 61753;
-const ALL: [Word; 1896] = [
+const ENGLISH_BYTES: u32 = 61786;
+const ALL: [Word; 1900] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2629,6 +2633,10 @@ const ALL: [Word; 1896] = [
     Word::TeamNow,
     Word::TeamReportAt,
     Word::TeamReport,
+    Word::TeamFollows,
+    Word::TeamFollow,
+    Word::TeamFollowEntry,
+    Word::TeamFollowsMore,
     Word::TeamStartedPerson,
     Word::TeamStartedTask,
     Word::TeamStartedDeployment,
@@ -4601,6 +4609,10 @@ impl Word {
             Self::TeamNow => 4983,
             Self::TeamReportAt => 5184,
             Self::TeamReport => 5185,
+            Self::TeamFollows => 9234,
+            Self::TeamFollow => 9235,
+            Self::TeamFollowEntry => 9236,
+            Self::TeamFollowsMore => 9237,
             Self::TeamStartedPerson => 4984,
             Self::TeamStartedTask => 4985,
             Self::TeamStartedDeployment => 4986,
@@ -8020,6 +8032,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TeamNow => (&[b"Its Now"], &[]),
         Word::TeamReportAt => (&[b"Its weekly report \xc2\xb7 written ", b""], &[Name]),
         Word::TeamReport => (&[b"Its weekly report"], &[]),
+        Word::TeamFollows => (&[b"Follows"], &[]),
+        Word::TeamFollow => (&[b"Follows ", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::TeamFollowEntry => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::TeamFollowsMore => (&[b"and ", b" more."], &[Number]),
         Word::TeamStartedPerson => (&[b"person ", b""], &[Number]),
         Word::TeamStartedTask => (&[b"task ", b""], &[Number]),
         Word::TeamStartedDeployment => (&[b"deployment ", b""], &[Number]),

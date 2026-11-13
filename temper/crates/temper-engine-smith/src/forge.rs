@@ -254,7 +254,7 @@ pub(crate) fn write(value: &Value) -> Result<api::Write, Problem> {
     }
 }
 
-fn commit(value: &Value, member: &'static [u8]) -> Result<api::Commit, Problem> {
+pub(crate) fn commit(value: &Value, member: &'static [u8]) -> Result<api::Commit, Problem> {
     let text = value.text(member)?;
     let identifier = b"full commit identifier".as_slice();
     if text.len() != 40 && text.len() != 64 {

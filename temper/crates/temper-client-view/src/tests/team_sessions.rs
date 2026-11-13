@@ -16,6 +16,7 @@ pub(super) fn facts() -> Facts {
         people: List::with_capacity(0),
         cut: false,
         areas: None,
+        follows: List::with_capacity(0),
         roles: List::from_boxed(Box::new([team::Role {
             task: 52,
             name: b"Prover".as_slice().into(),

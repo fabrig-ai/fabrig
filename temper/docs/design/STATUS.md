@@ -75,10 +75,14 @@ follow change per landing in order, its words made by code, parameter
 18 naming what it follows; the owner's start, hold, skip and merge in
 `temper ctl`, keeping the chain whole; the follow's check dispatched by
 its change with the followed commit; and lag and parity in the forge's
-`follows` document. A standing role as owner waits on R1; the follow
-change's words carry no diff, and a person's follow's holds reach the
-project's escalation role, each asked of the user
-(`domain/forge/follows.status.md`; `draft/follows.status.md`). A
+`follows` document. A standing role may own one: its follow task is its
+delegate, funded by it, its producers' questions relayed to it and its
+changes' holds reaching it as escalations; it acts with the agents'
+`follow` tool; a red after landing of a follow change is filed with the
+area its owner owns; and Team draws a follow on its owner's row and a
+role's card. The follow change's words carry no diff, and a person's
+follow's holds reach the project's escalation role, each asked of the
+user (`domain/forge/follows.status.md`; `draft/follows.status.md`). A
 project's dependency on another is milestone F2
 (`domain/forge/dependencies.md`): kind 13, naming another project of
 the deployment, carried in the `follows` document beside the follows

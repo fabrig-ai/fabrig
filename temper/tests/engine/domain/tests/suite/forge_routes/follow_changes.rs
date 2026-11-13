@@ -1,6 +1,10 @@
 //! The standing follow and its target-project work, on the independent fake forge.
 #[path = "follow_changes/proof.rs"]
 pub(crate) mod proof;
+#[path = "follow_changes/role.rs"]
+pub(crate) mod role;
+#[path = "follow_changes/tool.rs"]
+mod tool;
 use super::*;
 use forge_top::{FollowRow, FollowState, settings as s};
 use jig_domain_core::settings as cs;
@@ -335,6 +339,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         None,
         StoryLimits {
             kinds: true,
+            workflow_dispatch: true,
             // A seeded source stream and its ports retain more than the basic fake's 16 commits.
             forge_commits: cued.then_some(256),
             brief: cued.then(|| {
