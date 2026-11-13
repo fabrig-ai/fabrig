@@ -54,6 +54,7 @@ fn store_schema_matches_generated_code_and_goldens() {
     schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v18");
     schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v19");
     schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v20");
+    schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v21");
 }
 
 #[test]

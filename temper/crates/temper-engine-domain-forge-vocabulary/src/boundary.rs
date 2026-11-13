@@ -1355,6 +1355,10 @@ pub enum Stored {
     Device(crate::Device),
     Finding(crate::Finding),
     LandedDraft(crate::LandedDraft),
+    Red(crate::Red),
+    RedNumber {
+        last: u64,
+    },
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1407,6 +1411,8 @@ pub enum Key {
     Device { party: u64, number: u32 },
     LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
     Follow { project: u32, follow: u32 },
+    Red { goal: u64, key: Box<[u8]> },
+    RedNumber,
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

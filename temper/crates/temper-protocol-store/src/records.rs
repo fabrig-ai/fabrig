@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v20 as w};
+use crate::{Bounds, Undecodable, v21 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge_vocabulary as d;
@@ -13,6 +13,7 @@ mod closer;
 mod drafts;
 mod findings;
 mod follows;
+mod reds;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
@@ -39,6 +40,10 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
         d::Stored::LandedDraft(row) => w::Value::LandedDraft(drafts::encode(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
+        d::Stored::Red(row) => w::Value::Red(reds::encode(row)),
+        d::Stored::RedNumber { last } => {
+            w::Value::RedNumber(w::RedNumber::new(&w::CEILINGS, w::RedNumberParts { last: *last }).expect(FITS))
+        }
         d::Stored::Finding(row) => w::Value::Finding(findings::encode(row)),
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
@@ -117,6 +122,8 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?;
     Ok(match row.into_parts().value {
+        w::Value::Red(row) => d::Stored::Red(reds::decode(row, bounds)?),
+        w::Value::RedNumber(row) => d::Stored::RedNumber { last: row.last() },
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),

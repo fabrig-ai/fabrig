@@ -39,6 +39,7 @@ pub mod public;
 pub mod purpose;
 pub mod reconcile;
 pub mod red;
+pub mod reds;
 pub mod refusal;
 pub mod resources;
 pub mod restore;
@@ -107,6 +108,7 @@ pub use panel::{
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};
+pub use reds::{RecordRed, Recorder, Red, RedRecorded, RedRefusal};
 pub use refusal::{RefusalCause, bound_words};
 pub use restore::{RestoreFit, RestoreSet};
 pub use result::{ChangeResult, ResultText};
@@ -302,6 +304,8 @@ pub fn stored_key(row: &Stored) -> Key {
     match row {
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
+        Stored::Red(row) => Key::Red { goal: row.goal, key: row.key.clone() },
+        Stored::RedNumber { .. } => Key::RedNumber,
         Stored::Playground(_) => Key::Playground,
         Stored::Follow(row) => Key::Follow { project: row.project, follow: row.follow },
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
@@ -531,6 +535,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::Red(row) => skein_lib::len_u64(row.key.len())
+            .checked_add(skein_lib::len_u64(row.head.len()))?
+            .checked_add(skein_lib::len_u64(row.why.len())),
         Stored::Finding(row) => {
             let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
@@ -665,6 +672,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::PullState(row) => name(&row.name),
         Stored::LandedDraft(row) => bytes(&row.path).checked_add(bytes(&row.branch))?.checked_add(bytes(&row.title)),
         Stored::RefusedSetting(_)
+        | Stored::RedNumber { .. }
         | Stored::Away(_)
         | Stored::Looked(_)
         | Stored::Dismissed { .. }

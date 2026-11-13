@@ -1,6 +1,7 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
 
+mod reds;
 mod room;
 
 const SHA1: [u8; 32] = [

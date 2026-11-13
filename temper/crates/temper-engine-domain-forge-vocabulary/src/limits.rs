@@ -20,6 +20,9 @@ pub struct Limits {
     pub repositories: u32,
     pub tasks: u32,
     pub holds: u32,
+    /// A goal's reds (temper/docs/design/domain/forge/reds.md, 7).
+    pub branch_reds: u32,
+    pub red_key_bytes: u32,
     pub subscriptions: u32,
     pub entries: u32,
     /// Connector payloads of live named calls, priced independently of outbox entries.
@@ -145,6 +148,11 @@ pub fn valid(l: &Limits) -> bool {
         || l.repositories == 0
         || l.tasks == 0
         || l.holds == 0
+        || l.branch_reds == 0
+        || l.branch_reds > 1024
+        || l.red_key_bytes == 0
+        || l.red_key_bytes > 1024
+        || l.branch_reds.checked_mul(l.holds).is_none()
         || l.subscriptions == 0
         || l.entries == 0
         || l.resources_per_task == 0
