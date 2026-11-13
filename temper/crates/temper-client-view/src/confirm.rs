@@ -1,7 +1,7 @@
 //! The page's deciding controls, their supplied facts, and its one confirmation.
 use crate::cards::P;
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
@@ -59,7 +59,7 @@ pub(crate) fn controls(b: &mut Builder, root: &Domain, card: &Card, words: &Word
     card_controls(b, root, card, words, bindings);
     if proposal_object(card.object) {
         let name = words.say(Word::ProposalInbox, &[]);
-        crate::link(
+        crate::bindings::link(
             b,
             &name,
             bindings.insert(Act::Go {
@@ -210,7 +210,7 @@ fn sheet_why(b: &mut Builder, root: &Domain, words: &Words) {
 }
 fn sheet_acts(b: &mut Builder, bindings: &mut Bindings, words: &Words, sheet: &Sheet) {
     b.open(Role::Slot);
-    b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 60, a: 0, b: 0 });
+    b.key(skein_ui::Key { owner: crate::look::owner(), kind: 60, a: 0, b: 0 });
     b.style(crate::look::CONFIRM_ACTS);
     b.open(Role::Button);
     b.name(&words.say(sheet.keep, &[]));
@@ -320,7 +320,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
             && *effect == ReleaseEffect::Uncertain
         {
             b.open(Role::Slot);
-            b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 61, a: 0, b: 0 });
+            b.key(skein_ui::Key { owner: crate::look::owner(), kind: 61, a: 0, b: 0 });
             b.style(crate::look::CONFIRM_CHOICES);
             button(b, bindings, words, Word::Again, Act::Again { again: true });
             button(b, bindings, words, Word::DoNotRepeat, Act::Again { again: false });

@@ -1,6 +1,6 @@
 //! An agent's task's lineage, brief, run and conversation (client/pages/task.md, 2).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, Times, Word, Words},
 };

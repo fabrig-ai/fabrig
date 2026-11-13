@@ -22,13 +22,13 @@ pub(crate) fn draw(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
-    bindings: &mut crate::frame::Bindings,
+    bindings: &mut crate::bindings::Bindings,
     forge: &mut Bindings,
     project: u32,
 ) {
     let Some(sheet) = root.forge().sheet() else { return };
     let Some(form) = root.forge().form() else { return };
-    let project_name = match crate::pages::project_name(root.pages().me(root.client()), project) {
+    let project_name = match crate::common::project_name(root.pages().me(root.client()), project) {
         Some(name) => name,
         None => words::say(w, Word::SheetProject, &[Hole::Number(u64::from(project))]),
     };
@@ -408,7 +408,7 @@ fn not_listed(
     root: &Domain,
     sheet: &sheet::Sheet,
     w: &Words,
-    pages: &mut crate::frame::Bindings,
+    pages: &mut crate::bindings::Bindings,
     bindings: &mut Bindings,
 ) {
     b.open(Role::Disclosure);
@@ -454,7 +454,7 @@ fn not_listed(
             }
             sheet::Remedy::NotInstalled { owner } => {
                 text(b, w, Role::Paragraph, Word::NotInstalled, &[Hole::Name(owner)]);
-                crate::link(
+                crate::bindings::link(
                     b,
                     &words::say(w, Word::InstallAnother, &[]),
                     pages.insert(pages::Act::Go { address: Address::Forges }),
@@ -601,7 +601,7 @@ fn reading(
     b: &mut Builder,
     sheet: &sheet::Sheet,
     w: &Words,
-    pages: &mut crate::frame::Bindings,
+    pages: &mut crate::bindings::Bindings,
     bindings: &mut Bindings,
 ) {
     let sheet::Reading::Refused(why) = &sheet.reading else { return };
@@ -625,7 +625,7 @@ fn reading(
         b.bind(bindings.insert(Meaning::Sheet(Act::NearEnd)));
         b.close();
     } else if *why != sheet::Refused::Role {
-        crate::link(
+        crate::bindings::link(
             b,
             &w.say(crate::words::Word::SettingsForgesHeading, &[]),
             pages.insert(pages::Act::Go { address: Address::Forges }),

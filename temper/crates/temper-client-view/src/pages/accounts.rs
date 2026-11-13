@@ -98,7 +98,7 @@ fn kind(b: &mut Builder, w: &Words, value: c::AccountKind) {
     );
 }
 pub(crate) fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
-    words::say(w, word, &[Hole::Name(crate::choice::shown(name, w))])
+    words::say(w, word, &[Hole::Name(crate::words::shown(name, w))])
 }
 fn provider_name(name: Option<&c::DocumentText>) -> Option<&[u8]> {
     let name = name?;
@@ -151,7 +151,7 @@ fn heading(
     let label = if program {
         named(w, W::Subscription, plan_name)
     } else if plan || sign_in {
-        crate::choice::shown(if plan { plan_name } else { brand }, w)
+        crate::words::shown(if plan { plan_name } else { brand }, w)
     } else {
         named(w, W::ApiKeyBrand, brand)
     };
@@ -169,7 +169,7 @@ fn heading(
     } else {
         b""
     };
-    let brand = crate::choice::shown(brand, w);
+    let brand = crate::words::shown(brand, w);
     words::join(&[
         &label,
         if display.is_empty() { b"" } else { &separator },
@@ -346,7 +346,7 @@ pub(crate) fn main(
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
-    pages: &mut crate::frame::Bindings,
+    pages: &mut crate::bindings::Bindings,
     project: Option<u32>,
     text_per_node: u32,
 ) {
@@ -920,10 +920,10 @@ pub(crate) fn account_words(
     let (label, display) = match source.kind {
         c::AccountKind::Program => (named(w, W::Subscription, plan_name), row.email().unwrap_or(b"")),
         c::AccountKind::SignIn if row.plan => (
-            w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan_name, w))]),
+            w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::words::shown(plan_name, w))]),
             words::who(row.email(), row.display.bytes()),
         ),
-        c::AccountKind::SignIn => (crate::choice::shown(brand, w), words::who(row.email(), row.display.bytes())),
+        c::AccountKind::SignIn => (crate::words::shown(brand, w), words::who(row.email(), row.display.bytes())),
         c::AccountKind::Key => (named(w, W::ApiKeyBrand, brand), b"".as_slice()),
         c::AccountKind::None => return account_heading(root, w, row),
     };
@@ -955,9 +955,9 @@ pub(crate) fn own_signing_name(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
             if offer.provider == signing.provider {
                 let (brand, plan) = words::provider_words(offer.name.bytes());
                 return Some(if offer.signed_in_plan {
-                    w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan, w))])
+                    w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::words::shown(plan, w))])
                 } else {
-                    crate::choice::shown(brand, w)
+                    crate::words::shown(brand, w)
                 });
             }
         }

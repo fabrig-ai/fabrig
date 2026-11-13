@@ -1,7 +1,7 @@
 //! Deployment's Workers tab (temper/docs/design/client/pages/README.md, Workers).
 use super::settings::{self, Tab};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };

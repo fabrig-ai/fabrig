@@ -2,8 +2,8 @@
 //! `ConnectForge` and the welcome's shared forge body (client/forge/deployment.md).
 use super::bindings::{Bindings as ForgeBindings, Meaning};
 use crate::{
+    bindings::Bindings,
     flow::{self, Control, Mark},
-    frame::Bindings,
     look,
     words::{Shell, Word, Words},
 };
@@ -652,7 +652,7 @@ fn panel(b: &mut Builder, w: &Words, way: forge::admin::Way, number: Option<u16>
         forge::admin::Way::Admin => 0,
         forge::admin::Way::Tokens => 1,
     };
-    b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 62, a: way, b: u64::from(number.unwrap_or(0)) });
+    b.key(skein_ui::Key { owner: look::owner(), kind: 62, a: way, b: u64::from(number.unwrap_or(0)) });
     b.name(&w.say(Word::ConnectManaged, &[]));
     b.style(look::CONNECT_PANEL);
 }

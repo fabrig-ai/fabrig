@@ -1,6 +1,6 @@
 //! The document beside a chat (temper/docs/design/client/pages/README.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times, Word, Words},
 };
@@ -145,7 +145,7 @@ pub(crate) fn pane(
             .expect("one name per section");
         b.open(Role::Slot);
         b.style(look::DOC_SEC);
-        b.key(Key { owner: crate::frame::owner(), kind: 11, a: heading_hash(section.heading), b: nth });
+        b.key(Key { owner: look::owner(), kind: 11, a: heading_hash(section.heading), b: nth });
         let flashed = flashed == Some(index);
         if flashed && root.pages().switcher().renaming().is_none() {
             b.focus(chat.shown_count);
@@ -156,7 +156,7 @@ pub(crate) fn pane(
         }
         if flashed {
             b.style(look::DOC_FLASH);
-            b.key(Key { owner: crate::frame::owner(), kind: 12, a: chat.shown_count, b: 0 });
+            b.key(Key { owner: look::owner(), kind: 12, a: chat.shown_count, b: 0 });
         }
         if index == 0 {
             first_section(b, section.bytes, chat, words);

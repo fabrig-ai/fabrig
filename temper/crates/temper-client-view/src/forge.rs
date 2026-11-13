@@ -10,7 +10,7 @@ pub(crate) mod forges;
 pub mod page;
 pub(crate) mod repository;
 pub(crate) mod sheet;
-pub mod words;
+pub use crate::words::forge as words;
 fn path_text(builder: &mut Builder, path: &[Box<[u8]>], words: &Words) {
     let (word, holes) = shared::path(path, words.path_bytes());
     words.resource_text(builder, word, &holes);

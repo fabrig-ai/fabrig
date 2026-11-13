@@ -1,6 +1,11 @@
 //! temper's style tokens and their names (client/web/look.md), as jig's `jig-client-shell-web` `look.rs`.
-use crate::frame::owner;
 use skein_ui::{Style, look::Names};
+
+#[must_use]
+pub const fn owner() -> skein_ui::Owner {
+    skein_ui::Owner { number: temper_client_domain::owner::Owner::Pages.asker().0 }
+}
+
 /// The goal column (client/web/look.md).
 pub const GOAL: Style = Style { owner: owner(), token: 377 };
 /// The goal heading (client/web/look.md).

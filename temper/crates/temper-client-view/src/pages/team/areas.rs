@@ -2,8 +2,8 @@
 use super::super::how::{Who, chip};
 use super::paragraph;
 use crate::{
+    bindings::Bindings,
     cards::text,
-    frame::Bindings,
     look,
     words::{Word, Words},
 };
@@ -180,7 +180,7 @@ pub(super) fn draw(
             if let Some(holder) = &row.holder {
                 let name = holder_name(words, facts, holder);
                 if let Some(task) = row.role {
-                    crate::link(
+                    crate::bindings::link(
                         b,
                         &name,
                         bindings.insert(Act::Go { address: Address::Team { project, role: Some(task) } }),
@@ -290,7 +290,7 @@ fn routes(b: &mut Builder, words: &Words, project: u32, facts: &team::Facts, bin
     b.text(Run::Plain, &words.say(word, &[]));
     b.text(Run::Plain, b" ");
     let change = words.say(Word::TeamRoutingChange, &[]);
-    crate::link(b, &change, bindings.insert(Act::Go { address: Address::Ask { project } }));
+    crate::bindings::link(b, &change, bindings.insert(Act::Go { address: Address::Ask { project } }));
     b.text(Run::Plain, &change);
     b.close();
     b.close();

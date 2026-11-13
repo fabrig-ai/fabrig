@@ -1,5 +1,5 @@
 //! temper's own page content.
-use alloc::boxed::Box;
+pub(crate) use crate::common::{project_name, serves_pages};
 mod account_programs;
 pub(crate) mod accounts;
 pub(crate) mod agent;
@@ -46,22 +46,5 @@ pub(crate) mod welcome;
 mod welcome_copy;
 mod welcome_model;
 pub(crate) mod work;
-
-pub(crate) fn project_name(me: Option<&jig_client::contract::Me>, project: u32) -> Option<Box<[u8]>> {
-    for row in &me?.projects {
-        if row.project == project {
-            return Some(skein_lib::bytes::copy_of(row.name.bytes()));
-        }
-    }
-    None
-}
-
-/// The playground's forge has no external pages (temper/docs/design/client/forge/family.md, 7).
-pub(crate) fn serves_pages(root: &temper_client_domain::Domain, forge: u16) -> bool {
-    match root.forge().playground() {
-        Some(playground) => playground.forge != forge,
-        None => true,
-    }
-}
 
 pub(crate) mod deployment;

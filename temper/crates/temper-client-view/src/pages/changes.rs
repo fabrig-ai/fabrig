@@ -1,6 +1,6 @@
 //! A project's queues and recent landings (temper/docs/design/client/pages/README.md, Changes).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times, Word, Words},
 };
@@ -370,7 +370,7 @@ fn row_start(
     };
     let label = crate::accounts::words::join(&[title, b" ", &from, &words.say(Word::ToolSeparator, &[]), when]);
     b.open(Role::Item);
-    crate::link(b, &label, bindings.insert(Act::Go { address: Address::Task { task } }));
+    crate::bindings::link(b, &label, bindings.insert(Act::Go { address: Address::Task { task } }));
     b.open(Role::Text);
     b.run(Run::Plain, title);
     if !from.is_empty() {

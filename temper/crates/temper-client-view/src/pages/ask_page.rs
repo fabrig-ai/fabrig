@@ -1,6 +1,6 @@
 //! Ask temper before its first words (temper/docs/design/client/pages/README.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
@@ -93,7 +93,7 @@ pub(crate) fn main(
     };
     composer(b, root, w, bindings, pending);
     if !terminal {
-        crate::link(
+        crate::bindings::link(
             b,
             &w.say(Word::TellTitle, &[]),
             bindings.insert(Act::Go { address: temper_client_domain::Address::Tell { project } }),

@@ -1,6 +1,6 @@
 //! Other task pages and shared task parts (temper/docs/design/client/pages/goal.md, 2, and temper/docs/design/client/pages/task.md, 2–4).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Times, Word, Words},
 };
@@ -65,7 +65,7 @@ pub(crate) fn main(
         b.style(look::PAGEBAR);
         if let Some(panel) = root.forge().panel() {
             let label = words.say(Word::Changes, &[]);
-            crate::link(
+            crate::bindings::link(
                 b,
                 &label,
                 bindings.insert(Act::Go { address: Address::Changes { project: panel.subject.project } }),
@@ -498,7 +498,7 @@ fn chip(b: &mut Builder, chip: &c::Chip, words: &Words, bindings: &mut Bindings)
 }
 pub(crate) fn task_link(b: &mut Builder, task: u64, words: &Words, bindings: &mut Bindings) {
     let name = words.say(Word::Task, &[Hole::Number(task)]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task } }));
+    crate::bindings::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task } }));
     b.text(Run::Plain, &name);
     b.close();
 }

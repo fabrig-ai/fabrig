@@ -1,7 +1,7 @@
 //! Telling you in Deployment's column (temper/docs/design/client/pages/told.md).
 use super::{remembered::text, settings};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{TimeForm, Times, Word, Words},
 };
@@ -92,7 +92,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
                     b.style(look::REMEMBERED_ROWS);
                     for row in rows {
                         b.open(Role::Slot);
-                        b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 71, a: u64::from(row.number), b: 0 });
+                        b.key(skein_ui::Key { owner: look::owner(), kind: 71, a: u64::from(row.number), b: 0 });
                         b.open(Role::Slot);
                         crate::cards::text(b, Role::Text, &row.label);
                         if let Some(current) = page.current()

@@ -1,6 +1,6 @@
 //! A session's path, bar and composer (temper/docs/design/client/pages/README.md).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
@@ -146,7 +146,7 @@ fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style
     b.close();
 }
 fn link(b: &mut Builder, bindings: &mut Bindings, words: &[u8], address: Address, style: Option<skein_ui::Style>) {
-    crate::link(b, words, bindings.insert(Act::Go { address }));
+    crate::bindings::link(b, words, bindings.insert(Act::Go { address }));
     if let Some(style) = style {
         b.style(style);
     }
