@@ -1,0 +1,20 @@
+patch 1
+owner temper 7 after jig 3
+
+family temper-store 17 to 18
+add Change.alone bool false
+add LandingLeftChange
+add LandingFallback
+add LandingLeave.earlier_conflict
+add LandingLeave.unit
+add LandingLeave.dependency
+add LandingLeave.fallback
+add LandingMember.unit u16 0
+add LandingMember.branch bytes 4096 0x
+add LandingMember.combined option LandingCombine none
+add LandingMember.recorded bool false
+add LandingMember.told bool false
+add LandingMember.judging bool false
+add LandingMember.leave_told bool false
+add LandingRound.changed option u16 none
+written LandingState.members

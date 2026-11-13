@@ -247,6 +247,13 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     project: 5,
                     phase: policy::Phase::Turn { at: env().wall },
                     members: Box::new([policy::Member {
+                        unit: 0,
+                        branch: Box::from(b"temper/1/l61".as_slice()),
+                        combined: None,
+                        recorded: false,
+                        told: false,
+                        judging: false,
+                        leave_told: false,
                         left: None,
                         change: fixtures::CHANGE,
                         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },

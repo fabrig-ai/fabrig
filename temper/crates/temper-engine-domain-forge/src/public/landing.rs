@@ -140,6 +140,8 @@ fn step(value: crate::LandingStep) -> w::PublicLandingStep {
 fn left(value: policy::Leave) -> Option<w::PublicLeave> {
     Some(match value {
         policy::Leave::Conflict => w::PublicLeave::Conflict,
+        policy::Leave::EarlierConflict | policy::Leave::Unit { .. } | policy::Leave::Dependency { .. }
+        | policy::Leave::Fallback { .. } => return None,
         policy::Leave::HeadMoved { .. } => w::PublicLeave::HeadMoved,
         policy::Leave::Cancelled => w::PublicLeave::Cancelled,
         policy::Leave::Held => w::PublicLeave::Held,

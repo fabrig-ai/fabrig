@@ -1234,6 +1234,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: None,
+            alone: false,
         },
         pull,
         pending: None,
