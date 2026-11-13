@@ -1,4 +1,4 @@
-//! The host tools' contract and its fingerprint (protocol/wires.md, 3.1 and 6).
+//! The host tools' contract and its fingerprint (protocol/wires.md, 3.1 and 7).
 
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits};
@@ -11,6 +11,8 @@ use crate::calls::{SPECS, Spec};
 pub const FAMILY: &str = "temper-host-tools";
 /// The current host-tool contract's version.
 pub const VERSION: u16 = 1;
+/// The oldest host-tool contract this engine answers.
+pub const FLOOR: u16 = 1;
 
 /// SHA-256 of the rendered contract, including every declaration in `SPECS`.
 #[must_use]

@@ -76,10 +76,16 @@ fn a_workers_call_carries_its_contract_to_application_decoding() {
     }
     assert!(decoded, "the live worker call reaches decode_configured");
     let event = engine.events.pop().expect("decoder's answer");
-    let root::Event::Worker(root::WorkerInput::DecodedHostCall { body, .. }) = event else {
-        panic!("decoded: {event:?}")
+    let root::Event::Worker(root::WorkerInput::RenderedHostCall { answer, .. }) = event else {
+        panic!("version error: {event:?}")
     };
-    assert_eq!(body.tool, root::Tool::Release { target: 5, revision: 1, again: None });
+    assert_eq!(
+        answer,
+        core::SettledAnswer::Host {
+            error: true,
+            body: b"this run's host tools are version 3; this engine answers 1..1".as_slice().into(),
+        }
+    );
 }
 
 #[test]
@@ -136,6 +142,26 @@ fn a_mismatched_activation_is_malformed_without_a_commit() {
     assert_eq!(answer, Some(host::Relayed::Answer { error: true, text: b"malformed host call".as_slice().into() }));
     assert_eq!(service.engine.as_ref().expect("engine").domain.deployment().commits, commits);
     assert_eq!(service.end(), None);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test formats expected contract-version diagnostics")]
+fn unsupported_host_contracts_are_relayed_as_errors_without_a_commit() {
+    for version in [0, temper_engine_smith::wire::VERSION.checked_add(1).unwrap()] {
+        let (mut service, run) = fixtures::claimed_chat();
+        let commits = service.engine.as_ref().expect("engine").domain.deployment().commits;
+        let mut call = call(run.attempt, b"read_docs", br#"{"search":"WireGuard"}"#);
+        call.contract = version;
+        let answer = answered_at_decode(&mut service, &run, call);
+        let expected = format!(
+            "this run's host tools are version {version}; this engine answers {}..{}",
+            temper_engine_smith::wire::FLOOR,
+            temper_engine_smith::wire::VERSION
+        );
+        assert_eq!(answer, Some(host::Relayed::Answer { error: true, text: expected.as_bytes().into() }));
+        assert_eq!(service.engine.as_ref().expect("engine").domain.deployment().commits, commits);
+        assert_eq!(service.end(), None);
+    }
 }
 
 #[test]
