@@ -94,6 +94,26 @@ fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the test builds dotted red-limit overrides and their named refusals")]
+fn red_limit_overrides_past_their_ranges_refuse_start_by_name() {
+    for (name, value) in [("forge.branch_reds", 257_u64), ("forge.red_key_bytes", 513)] {
+        let input = format!(r#"{{"{name}":{value}}}"#);
+        let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", input.as_bytes());
+        let directories = jig_protocol_config::Directories::working();
+        for problems in [
+            crate::startup::named(&document, &directories).unwrap_err(),
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+                .unwrap_err(),
+        ] {
+            assert_eq!(
+                crate::startup::lines(&problems).as_ref(),
+                format!("application.limits.overrides.{name}: outside its type\n").as_bytes()
+            );
+        }
+    }
+}
+
+#[test]
 fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
     let document =
         fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"forge.change_policy.tasks":0}"#);
@@ -248,7 +268,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
         root: limits::Root {
             brief: temper_engine_domain::BriefLimits {
                 read_bytes: 131_584,
-                brief_bytes: 335_752,
+                brief_bytes: 335_619,
                 budgets: temper_engine_domain::BriefBudgets {
                     task: 131_584,
                     pull: 131_584,
@@ -260,7 +280,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             journal: temper_engine_domain::JournalLimits {
                 // The deep task row's 22,467,664 bytes plus 21 eight-byte executors.
                 transcript_bytes: 22_467_832,
-                result_bytes: 335_752,
+                result_bytes: 335_619,
                 ..small.root.journal
             },
             loads: temper_engine_domain::loads::Limits {

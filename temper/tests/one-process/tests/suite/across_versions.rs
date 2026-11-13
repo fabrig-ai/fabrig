@@ -7,7 +7,7 @@ fn a_goal_lands_across_wire_versions() {
 }
 
 #[test]
-fn a_renewed_identity_reaches_the_worker_at_the_wire_floors() {
+fn a_renewed_identity_reaches_the_worker_at_compatible_wire_versions() {
     across_versions::renewal();
 }
 

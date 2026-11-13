@@ -221,6 +221,7 @@ impl DocumentFlight {
             },
             answer @ (CallAnswer::Follow(_)
             | CallAnswer::Finding(_)
+            | CallAnswer::Red(_)
             | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::SettingsRefused(_)
@@ -323,6 +324,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let mut job = None;
     let mut page = None;
     let render = if let crate::Tool::Finding(crate::FindingCall::List { .. } | crate::FindingCall::Show { .. })
+    | crate::Tool::Red(crate::RedCall::List)
     | crate::Tool::Follow(crate::FollowCall::List | crate::FollowCall::Show { .. }) = &body.tool
     {
         FlightRender::ProjectRead

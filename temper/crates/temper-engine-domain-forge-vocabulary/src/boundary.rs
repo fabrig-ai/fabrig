@@ -1253,6 +1253,7 @@ pub enum CallPayload {
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
+    Red(Box<crate::RedReply>),
 }
 
 /// The connector's durable records, wrapped by the root store.

@@ -130,13 +130,13 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.landings_kept" => limits.forge.landings_kept = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.landings" => limits.forge.landings = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.branch_reds" => {
-            if value == 0 || value > 1024 {
+            if value == 0 || value > 256 {
                 return Err(Refused::Range);
             }
             limits.forge.branch_reds = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"forge.red_key_bytes" => {
-            if value == 0 || value > 1024 {
+            if value == 0 || value > 512 {
                 return Err(Refused::Range);
             }
             limits.forge.red_key_bytes = u32::try_from(value).or(Err(Refused::Range))?;

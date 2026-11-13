@@ -614,6 +614,7 @@ impl Domain {
                 | crate::CallPayload::Refused(_)
                 | crate::CallPayload::Follow { .. }
                 | crate::CallPayload::Finding(_)
+                | crate::CallPayload::Red(_)
                 | crate::CallPayload::Decided { .. } => {}
             }
         }
@@ -633,6 +634,7 @@ impl Domain {
             | crate::CallPayload::Refused(_)
             | crate::CallPayload::Follow { .. }
             | crate::CallPayload::Finding(_)
+            | crate::CallPayload::Red(_)
             | crate::CallPayload::Decided { .. } => {
                 unreachable!("effect payload")
             }

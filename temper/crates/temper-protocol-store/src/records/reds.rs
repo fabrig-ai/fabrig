@@ -3,6 +3,68 @@ use super::{FITS, w};
 use crate::{Bounds, Undecodable};
 use temper_engine_domain_forge_vocabulary as d;
 
+pub(super) fn encode_reply(reply: &d::RedReply) -> w::RedReply {
+    let result = match &reply.result {
+        Ok(d::RedOutcome::Recorded { head, recorded }) => w::RedResult::Recorded(
+            w::RedRecorded::new(
+                &w::CEILINGS,
+                w::RedRecordedParts {
+                    head: head.clone(),
+                    generation: recorded.generation,
+                    replaced: match &recorded.replaced {
+                        Some(red) => Some(encode(red)),
+                        None => None,
+                    },
+                },
+            )
+            .expect(FITS),
+        ),
+        Ok(d::RedOutcome::Ended(red)) => w::RedResult::Ended(encode(red)),
+        Err(why) => w::RedResult::Refused(
+            w::RedRefused::new(
+                &w::CEILINGS,
+                w::RedRefusedParts {
+                    why: match why {
+                        d::RedRefusal::NoGoal => w::RedRefusal::NoGoal,
+                        d::RedRefusal::Full { bound } => w::RedRefusal::Full(
+                            w::RedFull::new(&w::CEILINGS, w::RedFullParts { bound: *bound }).expect(FITS),
+                        ),
+                        d::RedRefusal::NoSuch => w::RedRefusal::NoSuch,
+                    },
+                },
+            )
+            .expect(FITS),
+        ),
+    };
+    w::RedReply::new(&w::CEILINGS, w::RedReplyParts { goal: reply.goal, key: reply.key.clone(), result }).expect(FITS)
+}
+pub(super) fn decode_reply(reply: w::RedReply, bounds: &Bounds) -> Result<d::RedReply, Undecodable> {
+    let w::RedReplyParts { goal, key, result } = reply.into_parts();
+    if !d::reds::key_fits(&key, bounds.forge().red_key_bytes) {
+        return Err(Undecodable::Malformed);
+    }
+    let result = match result {
+        w::RedResult::Recorded(recorded) => {
+            let w::RedRecordedParts { head, generation, replaced } = recorded.into_parts();
+            if head.len() != 20 && head.len() != 32 {
+                return Err(Undecodable::Malformed);
+            }
+            let replaced = match replaced {
+                Some(red) => Some(decode(red, bounds)?),
+                None => None,
+            };
+            Ok(d::RedOutcome::Recorded { head, recorded: d::RedRecorded { generation, replaced } })
+        }
+        w::RedResult::Ended(red) => Ok(d::RedOutcome::Ended(decode(red, bounds)?)),
+        w::RedResult::Refused(why) => Err(match why.into_parts().why {
+            w::RedRefusal::NoGoal => d::RedRefusal::NoGoal,
+            w::RedRefusal::Full(bound) => d::RedRefusal::Full { bound: bound.bound() },
+            w::RedRefusal::NoSuch => d::RedRefusal::NoSuch,
+        }),
+    };
+    Ok(d::RedReply { goal, key, result })
+}
+
 pub(super) fn encode(row: &d::Red) -> w::Red {
     let by = match row.by {
         d::Recorder::Task(number) => {
