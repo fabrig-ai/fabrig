@@ -87,3 +87,9 @@ checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
+
+Failures on the goal branch that no live change of goal 2288 owns, since
+2026-11-13: the small profile's fleet grace went to 360 s (goal 2288's graces
+change), past the channel world's 300 s horizon. Dropped once fixed.
+
+- test jig-channel-world::suite channel::a_link_cut_mid_frame_redials_and_each_turn_reaches_the_engine_once
