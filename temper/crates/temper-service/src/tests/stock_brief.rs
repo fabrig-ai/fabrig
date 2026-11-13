@@ -199,11 +199,13 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         );
         temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
         if number == 5 {
-            assert_eq!(original.owned_bytes().unwrap(), 82_577);
+            assert_eq!(original.owned_bytes().unwrap(), 82_979);
 
             assert_eq!(receiving, 65_463);
             assert!(original.owned_bytes().unwrap() > receiving, "the goal's larger charter needs receiving fitting");
-            assert_ne!(charter.brief, original.brief);
+        }
+        if original.owned_bytes().unwrap() > receiving {
+            assert_ne!(charter.brief, original.brief, "charter {number} needs receiving fitting");
         } else {
             assert_eq!(charter.brief, original.brief, "charter {number} keeps its whole maximal brief");
         }
@@ -212,7 +214,7 @@ fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
         charter.brief.sections = sections;
         let fitted = run::brief_bytes(&charter.brief).unwrap();
         if number == 5 {
-            assert_eq!(fitted, 499, "the goal's brief fits the joint receiving bound");
+            assert_eq!(fitted, 122, "the goal's brief fits the joint receiving bound");
         }
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();

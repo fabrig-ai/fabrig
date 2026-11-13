@@ -45,8 +45,11 @@ fn at_compatible_versions(run: impl FnOnce()) {
             STATE.with(|state| *state.borrow_mut() = State::default());
         }
     }
-    // wires.md, 11: contract 2 needs smith-charter 5; every other worker wire stays at its floor.
-    STATE.with(|state| *state.borrow_mut() = State { versions: Some(vec![("smith-charter", 5)]), opened: 0 });
+    // wires.md, 11: contract 2 needs smith-charter 5 and jig-worker-wire 13;
+    // every other worker wire stays at its floor.
+    STATE.with(|state| {
+        *state.borrow_mut() = State { versions: Some(vec![("smith-charter", 5), ("jig-worker-wire", 13)]), opened: 0 };
+    });
     let _reset = Reset;
     run();
     STATE.with(|state| assert!(state.borrow().opened > 0, "the engine logged the bridged opening"));
@@ -69,7 +72,7 @@ pub(crate) fn note(note: &temper_service::Note) {
             "temper",
             temper_engine_service::Note::WorkerOpened { worker: worker.clone(), wires: wires.clone() },
         );
-        assert!(line.contains("opened: jig-worker-wire 12,"), "{line}");
+        assert!(line.contains("opened: jig-worker-wire 13,"), "{line}");
         assert!(line.contains("smith-charter 5,"), "{line}");
         STATE.with(|state| state.borrow_mut().opened += 1);
     }
