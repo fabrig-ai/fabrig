@@ -14,6 +14,7 @@ fn breaches(source: &str) -> Vec<String> {
                 "skein-oauth",
                 "skein-oauth-accounts",
                 "skein-io",
+                "jig-protocol-accounts-codec",
                 "jig-domain-accounts",
                 "jig-domain-link",
                 "jig-protocol-store",

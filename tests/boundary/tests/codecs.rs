@@ -51,7 +51,6 @@ struct Exception {
 const EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith-local-protocol", until: "G3" },
     Exception { what: "skein-oauth", until: "G3" },
-    Exception { what: "jig-protocol-accounts", until: "G3" },
 ];
 
 #[derive(Debug)]
