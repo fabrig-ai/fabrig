@@ -447,6 +447,7 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
     let mut waiting = busy.changes.get(0).unwrap().clone().into_parts();
     waiting.title = b"Waiting behind".as_slice().into();
     waiting.checks_since = None;
+    waiting.alone = true;
     busy.changes = List::from_boxed(Box::new([w::ChangesQueued::new(&w::CEILINGS, waiting).unwrap()]));
     let mut free = queue(b"work/hello", b"release", 2, false).into_parts();
     free.way = w::Way::Turn;
@@ -471,6 +472,7 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
         "Landing 61 · member 51 · round 2",
         "held",
         "Train · work/hello release",
+        "land alone",
         "2nd",
         "1st",
     ] {

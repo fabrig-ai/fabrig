@@ -64,6 +64,3 @@ Failures on goal 2175's branch that none of its live changes owns, inherited fro
 - lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
-- lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
-- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
-- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs

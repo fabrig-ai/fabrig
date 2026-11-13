@@ -125,7 +125,12 @@
   (`../../domain/landing.md`, 5.1), so `forge.resources_per_task` has
   room for `forge.landing_members` branches beside the train's, and
   `forge.holds` for that many per live landing, where the start ties
-  them as it ties the rest.
+  them as it ties the rest. It is at most 5, and the start refuses one
+  past that, naming `forge.landing_members`. The cap is the worker
+  wire's `Prefixes` bound, 5 branches of 1,024 bytes
+  (`../../domain/worker/jobs.md`, *The prepare kind*): a sixth would
+  take the job's items past the channel's 1 MiB at their ceilings. The
+  client wire's landing panel, which holds 8 members, is within it.
 - **`forge.changes` bounds the changes kept at once,** live and ended
   alike: the forge's change table, whose settled changes leave it,
   oldest first, as new ones need room, those of live goals kept

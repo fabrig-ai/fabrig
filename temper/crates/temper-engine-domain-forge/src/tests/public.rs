@@ -393,6 +393,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                 None,
                 None,
                 policy::Project::DEFAULT,
+                1,
             ),
         )
         .expect("project");
