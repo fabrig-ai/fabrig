@@ -76,6 +76,7 @@ impl Domain {
                 | State::Recreating { .. }
                 | State::Reopening { .. }
                 | State::Checking { .. }
+                | State::Judging { .. }
                 | State::Gating { .. }
                 | State::Ready { .. }
                 | State::Preparing { .. }

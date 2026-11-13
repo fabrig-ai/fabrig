@@ -7,9 +7,6 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[features]
-fixtures = []
-
 [dependencies]
 skein-lib.workspace = true
 jig-domain-accounts.workspace = true

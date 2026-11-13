@@ -416,7 +416,7 @@ fn a_one_byte_needle_is_found_as_the_two_way_search_finds_it() {
             *byte = b'b';
         }
     }
-    for byte in [b'a', b'b'] {
+    for byte in *b"ab" {
         let needle = [byte];
         for from in 0..=haystack.len() + 1 {
             assert_eq!(find_from(&haystack, &needle, from), naive(&haystack, &needle, from), "{byte} at {from}");

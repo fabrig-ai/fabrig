@@ -14,50 +14,6 @@ enum Report {
     Told,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Inbox;
-    use crate::MessageRefusal;
-    use skein_lib::Token;
-
-    #[test]
-    fn admission_uses_the_runs_rendered_bound_and_keeps_each_accepted_name() {
-        let mut inbox = Inbox::new(1);
-        assert_eq!(inbox.admit(Token::new(1), b"p", b"hi", 4), Err(MessageRefusal::TooLarge));
-        assert_eq!(inbox.admit(Token::new(1), b"p", b"hi", 5), Ok(()));
-        assert_eq!(inbox.admit(Token::new(1), b"p", b"hi", 5), Err(MessageRefusal::NameInUse));
-        assert_eq!(inbox.admit(Token::new(2), b"p", b"hi", 5), Err(MessageRefusal::Full));
-        assert_eq!(inbox.report().expect("one report").as_ref(), &[Token::new(1)]);
-    }
-
-    #[test]
-    fn a_fence_covers_only_the_seen_sent_prefix_and_reports_queued_names() {
-        let mut inbox = Inbox::new(3);
-        for name in 1..=3 {
-            inbox.admit(Token::new(name), b"p", b"hi", 5).expect("accepted message");
-        }
-        inbox.sent(Token::new(1));
-        inbox.sent(Token::new(2));
-        assert!(!inbox.known(Some(Token::new(3))), "queued names cannot be read");
-        inbox.fence(Some(Token::new(1)));
-        assert!(inbox.refused(Token::new(2)));
-        assert_eq!(inbox.report().expect("one report").as_ref(), &[Token::new(3)]);
-        assert!(inbox.report().is_none());
-        assert!(!inbox.refused(Token::new(3)), "no refusal follows an unread terminal");
-    }
-
-    #[test]
-    fn an_empty_report_is_still_once_and_closes_message_admission() {
-        let mut inbox = Inbox::new(1);
-        inbox.admit(Token::new(1), b"p", b"hi", 5).expect("accepted message");
-        inbox.sent(Token::new(1));
-        inbox.fence(Some(Token::new(1)));
-        assert!(inbox.report().expect("empty report").is_empty());
-        assert!(inbox.report().is_none());
-        assert_eq!(inbox.admit(Token::new(2), b"p", b"hi", 5), Err(MessageRefusal::Ending));
-    }
-}
-
 /// An agent capability's accepted names, ending read, refused or unread once.
 #[derive(Debug)]
 pub struct Inbox {
@@ -222,5 +178,49 @@ impl Inbox {
         }
         self.sent = 0;
         Some(names.into_boxed())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Inbox;
+    use crate::MessageRefusal;
+    use skein_lib::Token;
+
+    #[test]
+    fn admission_uses_the_runs_rendered_bound_and_keeps_each_accepted_name() {
+        let mut inbox = Inbox::new(1);
+        assert_eq!(inbox.admit(Token::new(1), b"p", b"hi", 4), Err(MessageRefusal::TooLarge));
+        assert_eq!(inbox.admit(Token::new(1), b"p", b"hi", 5), Ok(()));
+        assert_eq!(inbox.admit(Token::new(1), b"p", b"hi", 5), Err(MessageRefusal::NameInUse));
+        assert_eq!(inbox.admit(Token::new(2), b"p", b"hi", 5), Err(MessageRefusal::Full));
+        assert_eq!(inbox.report().expect("one report").as_ref(), &[Token::new(1)]);
+    }
+
+    #[test]
+    fn a_fence_covers_only_the_seen_sent_prefix_and_reports_queued_names() {
+        let mut inbox = Inbox::new(3);
+        for name in 1..=3 {
+            inbox.admit(Token::new(name), b"p", b"hi", 5).expect("accepted message");
+        }
+        inbox.sent(Token::new(1));
+        inbox.sent(Token::new(2));
+        assert!(!inbox.known(Some(Token::new(3))), "queued names cannot be read");
+        inbox.fence(Some(Token::new(1)));
+        assert!(inbox.refused(Token::new(2)));
+        assert_eq!(inbox.report().expect("one report").as_ref(), &[Token::new(3)]);
+        assert!(inbox.report().is_none());
+        assert!(!inbox.refused(Token::new(3)), "no refusal follows an unread terminal");
+    }
+
+    #[test]
+    fn an_empty_report_is_still_once_and_closes_message_admission() {
+        let mut inbox = Inbox::new(1);
+        inbox.admit(Token::new(1), b"p", b"hi", 5).expect("accepted message");
+        inbox.sent(Token::new(1));
+        inbox.fence(Some(Token::new(1)));
+        assert!(inbox.report().expect("empty report").is_empty());
+        assert!(inbox.report().is_none());
+        assert_eq!(inbox.admit(Token::new(2), b"p", b"hi", 5), Err(MessageRefusal::Ending));
     }
 }

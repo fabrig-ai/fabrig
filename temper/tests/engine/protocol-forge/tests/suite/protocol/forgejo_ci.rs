@@ -2,7 +2,7 @@
 use super::*;
 use skein_lib::Duration;
 use std::fmt::Write;
-use temper_service::limits::{Profile, profile};
+use temper_engine_service::limits::{Profile, profile};
 
 fn pending(hearing: bool) -> (Protocol, Wall, Wall, u64) {
     let shipped = profile(Profile::Small).forge;

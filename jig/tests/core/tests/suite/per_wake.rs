@@ -168,7 +168,7 @@ fn first(seed: u64, parts: bool, later: bool) -> (World, (u64, u64)) {
     world.grant_account(2);
     let task = story::delegate(&mut world, later);
     assert_assignment(&world, task, if parts { b"S\n\nF" } else { b"S" }, story::M1, &[]);
-    assert!(world.inbound.is_empty());
+    assert_eq!(world.inbound.len(), 0);
     let row = live_row(&world, task);
     assert_eq!(row.reasons, tasks::Reasons::FIRST);
     assert_eq!(row.offered, if parts { tasks::Reasons::EMPTY } else { tasks::Reasons::ALL });

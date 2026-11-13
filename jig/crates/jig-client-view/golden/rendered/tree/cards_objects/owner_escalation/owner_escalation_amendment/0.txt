@@ -55,6 +55,7 @@ Review before confirming:
   Agent tries: 4
   Lost tries: 5
   Invalid tries: 6
+  Infrastructure tries: 7
   Release continues from the shown lifecycle; failure counts reset
   * Supply the amendment
   [-] Confirm (disabled)

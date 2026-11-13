@@ -170,13 +170,13 @@ fn a_cancelled_exchange_sends_none_of_its_queued_output_and_signs_out_clean() {
     );
     assert!(stale_output.is_empty(), "no queued output reaches the cancelled socket: {stale_output:?}");
     assert_eq!(aborted, ONE_TERMINAL);
-    assert!(
-        cancelled
-            == [accounts::Event::Failed {
-                account: ACCOUNT,
-                ends: accounts::Ends::Grant,
-                failure: Failure::Exchange(oauth::Failure::Cancelled),
-            }]
+    assert_eq!(
+        cancelled,
+        [accounts::Event::Failed {
+            account: ACCOUNT,
+            ends: accounts::Ends::Grant,
+            failure: Failure::Exchange(oauth::Failure::Cancelled),
+        }]
     );
     world.ask(accounts::Request::SignOut { account: ACCOUNT });
     for _ in 0..DRAIN_TURNS {
@@ -186,7 +186,7 @@ fn a_cancelled_exchange_sends_none_of_its_queued_output_and_signs_out_clean() {
     while let Some(event) = world.up.pop() {
         signed_out.push(event);
     }
-    assert!(signed_out == [accounts::Event::SignedOut { account: ACCOUNT, revoked: false }]);
+    assert_eq!(signed_out, [accounts::Event::SignedOut { account: ACCOUNT, revoked: false }]);
     assert!(world.io.is_empty() && world.files.is_empty());
     world.ask(accounts::Request::SignIn { account: ACCOUNT, subject: None });
     for _ in 0..DRAIN_TURNS {
@@ -203,14 +203,14 @@ fn a_cancelled_exchange_sends_none_of_its_queued_output_and_signs_out_clean() {
     for _ in 0..DRAIN_TURNS {
         world.fire();
     }
-    assert!(
-        world.up.pop()
-            == Some(accounts::Event::Failed {
-                account: ACCOUNT,
-                ends: accounts::Ends::SignIn,
-                failure: Failure::Exchange(oauth::Failure::Cancelled),
-            })
+    assert_eq!(
+        world.up.pop(),
+        Some(accounts::Event::Failed {
+            account: ACCOUNT,
+            ends: accounts::Ends::SignIn,
+            failure: Failure::Exchange(oauth::Failure::Cancelled),
+        })
     );
-    assert!(world.up.pop() == Some(accounts::Event::Closed));
+    assert_eq!(world.up.pop(), Some(accounts::Event::Closed));
     assert!(world.up.is_empty() && world.io.is_empty() && world.files.is_empty());
 }

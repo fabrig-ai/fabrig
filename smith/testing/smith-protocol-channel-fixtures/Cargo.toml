@@ -1,0 +1,18 @@
+[package]
+license.workspace = true
+name = "smith-protocol-channel-fixtures"
+description = "Shared test fixtures for smith-protocol-channel"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-channel.workspace = true
+smith-channel.workspace = true
+smith-charter.workspace = true
+smith-protocol-channel.workspace = true
+smith-transcript.workspace = true
+
+[lints]
+workspace = true

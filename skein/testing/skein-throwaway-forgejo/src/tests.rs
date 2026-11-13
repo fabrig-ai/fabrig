@@ -101,7 +101,7 @@ fn a_repository_survives_a_kill_and_restart_on_the_same_scratch_and_port() {
         let outgoing = Outgoing::get(&target, Some(&admin.token));
         let before = instance.exchange(&outgoing).expect("read before kill");
         assert_eq!(before.status, 200);
-        assert!(!before.body.is_empty());
+        assert_ne!(before.body.len(), 0);
         let port = instance.port();
         instance.kill().expect("killed");
         assert!(scratch.join("forgejo.db").is_file(), "kill keeps the database");

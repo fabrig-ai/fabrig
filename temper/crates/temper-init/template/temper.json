@@ -5,8 +5,6 @@
       "profile": "standard",
       "overrides": {
         "authority.executors": 21,
-        "tasks.executor_kinds": 21,
-        "tasks.charters": 16,
         "clients.exchanges": 12,
         "clients.streams": 8,
         "clients_http.calls": 12,
@@ -20,6 +18,8 @@
         "hub.turn_bytes": 16803810,
         "hub.turn_queue_bytes": 134430480,
         "io.output": 16804602,
+        "tasks.charters": 16,
+        "tasks.executor_kinds": 21,
         "tasks.inbox_bytes": 874120,
         "tasks.message_bytes": 10660,
         "tasks.result_bytes": 10660

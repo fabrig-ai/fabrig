@@ -169,7 +169,7 @@ fn foreign_fields(path: &Path, source: &str) -> Vec<usize> {
                 depth = depth.saturating_sub(1);
             }
             _ => {
-                let field = [b'g', b'i', b't'];
+                let field = [0x67, 0x69, 0x74];
                 if directories.last() == Some(&depth)
                     && bytes.get(index..index + field.len()) == Some(&field)
                     && !index
@@ -199,7 +199,7 @@ fn vocabulary_matches(path: &Path, source: &str, words: &[String]) -> Vec<String
     let foreign = foreign_fields(path, source);
     for (word_index, word) in words.iter().enumerate() {
         for (at, _) in lower.match_indices(word.as_str()) {
-            if word.as_bytes() == [b'g', b'i', b't'] && foreign.contains(&at) {
+            if word.as_bytes() == [0x67, 0x69, 0x74] && foreign.contains(&at) {
                 continue;
             }
             if !at.checked_sub(1).and_then(|before| bytes.get(before)).is_some_and(u8::is_ascii_alphanumeric)

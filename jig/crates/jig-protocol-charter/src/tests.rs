@@ -858,7 +858,7 @@ fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
     .expect("hosted assignment");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
     assert_eq!(decoded.brief().len(), 19);
-    for ((_, title), pair) in titles.iter().zip(decoded.brief().as_slice().chunks_exact(2)) {
+    for ((_, title), pair) in titles.iter().zip(decoded.brief().as_slice().as_chunks::<2>().0) {
         assert_eq!(pair[0].title(), *title);
         assert_eq!(pair[0].body(), b"section text");
         assert_eq!(pair[1].title(), *title);

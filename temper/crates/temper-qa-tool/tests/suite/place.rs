@@ -241,7 +241,7 @@ fn a_matching_copy_is_checked_without_saving_and_uses_the_places_build() {
     assert!(output.contains("setup chat-draft: restored from its copy made at aaaaaaaaaaaa"), "{output}");
     assert_eq!(world.setup_file(), format!("chat-draft {CHAT}\n"));
     assert_eq!(world.place.archive.restored, [copy]);
-    assert!(world.place.archive.saved.is_empty());
+    assert_eq!(world.place.archive.saved.len(), 0);
     assert_eq!(
         world.walks(),
         [format!(
@@ -328,7 +328,7 @@ fn box_and_other_walk_failures_stop_with_only_the_last_forty_lines() {
         assert_eq!(world.walks().len(), 1);
         assert!(fs::read_to_string(&world.place.paths.walk_log).expect("log").starts_with("answer 1\n"));
         assert!(!world.place.paths.setup.exists());
-        assert!(world.place.archive.saved.is_empty());
+        assert_eq!(world.place.archive.saved.len(), 0);
     }
 }
 
@@ -365,7 +365,7 @@ fn fresh_removes_only_config_and_data_and_writes_its_single_word() {
     assert!(!world.place.paths.scratch.join("data").exists());
     assert!(world.place.paths.scratch.join("cache").is_dir());
     assert_eq!(world.setup_file(), "fresh\n");
-    assert!(world.walks().is_empty());
+    assert_eq!(world.walks().len(), 0);
 }
 
 #[test]
@@ -389,7 +389,7 @@ fn unknown_unread_and_nonpass_setups_refuse_before_touching_the_box() {
         world.place.setup("welcome", &mut output).expect_err("catalogue refused").to_string(),
         "recipe welcome: welcome/README.md: unread"
     );
-    assert!(world.walks().is_empty());
+    assert_eq!(world.walks().len(), 0);
     assert!(PassPlace::for_session(&world.home, 1, RealDrive { environment: vec![] }, Archive::default()).is_err());
     world
         .home
@@ -428,7 +428,7 @@ fn another_process_holding_the_drive_lock_refuses_setup_and_recipe_and_probe_rel
     assert!(!place_busy(&world.place.paths).expect("free again"));
     let lock = fs::OpenOptions::new().read(true).write(true).open(&world.place.paths.drive_lock).expect("lock");
     lock.try_lock().expect("probe did not keep it");
-    assert!(output.is_empty());
+    assert_eq!(output.len(), 0);
 }
 
 #[test]
@@ -547,7 +547,7 @@ fn a_missing_commit_file_refuses_by_name_and_removes_the_recipe() {
     let why = world.place.recipe("added", &commit_input(), &[], &mut Vec::new()).expect_err("missing file");
     assert!(why.to_string().contains("dir/b.txt"), "{why}");
     assert!(!world.place.setups.join("added").exists(), "no partially written recipe");
-    assert!(world.walks().is_empty());
+    assert_eq!(world.walks().len(), 0);
 }
 
 #[test]
@@ -579,7 +579,7 @@ fn an_unread_or_failed_new_recipe_is_removed_with_the_walks_exit() {
         assert_eq!(exit, expected, "{output}");
         assert!(!world.place.setups.join("added").exists());
         assert!(!world.place.paths.setup.exists());
-        assert!(world.place.archive.saved.is_empty());
+        assert_eq!(world.place.archive.saved.len(), 0);
     }
 }
 

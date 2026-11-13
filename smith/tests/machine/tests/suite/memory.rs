@@ -25,7 +25,7 @@ fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
         search_line_bytes: 256,
         env_bytes: 128,
         group_stop: Duration::from_millis(1),
-        ..smith_protocol_machine::fixture::SMALL
+        ..smith_protocol_machine_fixtures::SMALL
     };
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
@@ -90,7 +90,7 @@ fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
     let line =
         br#"{"type":"match","data":{"path":{"text":"a"},"lines":{"text":"needle\n"},"line_number":1,"submatches":[]}}"#;
     meter.start();
-    for byte in line.iter().copied().chain([b'\n']) {
+    for byte in line.iter().copied().chain(*b"\n") {
         component.from_below(
             &env,
             BelowEvent::Pipe(skein_io::Event::Stream { owner: Token::new(30), up: Up::Bytes(Box::new([byte])) }),
@@ -161,14 +161,14 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
             search_line_bytes: 0,
             env_bytes: 128,
             group_stop: Duration::from_millis(1),
-            ..smith_protocol_machine::fixture::SMALL
+            ..smith_protocol_machine_fixtures::SMALL
         };
         let variables = if many {
             (0_u8..64)
                 .map(|index| machine::Variable { name: Box::new([b'A' + index]), value: Box::new([]) })
                 .collect::<Vec<_>>()
         } else {
-            vec![machine::Variable { name: Box::new([b'A']), value: Box::new([b'x'; 126]) }]
+            vec![machine::Variable { name: Box::new(*b"A"), value: Box::new([b'x'; 126]) }]
         };
         let workspace = run::Workspace {
             directories: Box::new([run::Directory {

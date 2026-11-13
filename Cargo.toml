@@ -66,6 +66,7 @@ members = [
     "skein/testing/skein-codegen",
     "skein/testing/skein-conformance",
     "skein/testing/skein-browser",
+    "skein/testing/skein-browser-rig",
     "skein/testing/skein-echo-client",
     "skein/testing/skein-fake-channel",
     "skein/testing/skein-protocol-kit",
@@ -74,6 +75,7 @@ members = [
     "skein/testing/skein-tls-kit",
     "skein/testing/skein-llm-kit",
     "skein/testing/skein-forge-kit",
+    "skein/testing/skein-forge-connection-fixtures",
     "skein/testing/skein-fake-person",
     "skein/testing/skein-fake-person-browser",
     "skein/testing/skein-heap",
@@ -114,6 +116,17 @@ members = [
     "skein/tests/world",
     "smith",
     "smith/benchmarks",
+    "smith/testing/smith-events-fixtures",
+    "smith/testing/smith-protocol-events-fixtures",
+    "smith/testing/smith-agent-profile-fixtures",
+    "smith/testing/smith-agent-document-fixtures",
+    "smith/testing/smith-bench-fixtures",
+    "smith/testing/smith-domain-tools-fixtures",
+    "smith/testing/smith-domain-run-fixtures",
+    "smith/testing/smith-domain-session-fixtures",
+    "smith/testing/smith-domain-fixtures",
+    "smith/testing/smith-inline-agent-fixtures",
+    "smith/testing/smith-protocol-channel-fixtures",
     "smith/crates/smith-agent-profile",
     "smith/crates/smith-agent-service",
     "smith/crates/smith-protocol-events",
@@ -127,17 +140,25 @@ members = [
     "smith/crates/smith-domain-tools",
     "smith/crates/smith-events",
     "smith/crates/smith-host-domain",
+    "smith/testing/smith-host-domain-fixtures",
     "smith/crates/smith-host-protocol",
+    "smith/testing/smith-host-protocol-fixtures",
     "smith/crates/smith-inline-agent",
     "smith/crates/smith-local-domain",
+    "smith/testing/smith-local-domain-fixtures",
     "smith/crates/smith-local-protocol",
+    "smith/testing/smith-local-protocol-fixtures",
     "smith/crates/smith-local-service",
+    "smith/testing/smith-local-service-fixtures",
     "smith/crates/smith-local-shell",
     "smith/crates/smith-protocol-channel",
     "smith/crates/smith-protocol-translate",
     "smith/crates/smith-protocol-llm",
+    "smith/testing/smith-protocol-llm-fixtures",
     "smith/crates/smith-protocol-machine",
+    "smith/testing/smith-protocol-machine-fixtures",
     "smith/crates/smith-protocol-program",
+    "smith/testing/smith-protocol-program-fixtures",
     "smith/crates/smith-transcript",
     "smith/tests/tools",
     "smith/tests/session",
@@ -163,6 +184,7 @@ members = [
     "jig/tests/client-browser",
     "jig/tests/one-process",
     "jig/testing/jig-test",
+    "jig/testing/jig-test-kit",
     "jig/crates/jig-client-shell-native",
     "jig/crates/jig-client-shell-web",
     "jig/tests/client-protocol",
@@ -236,6 +258,11 @@ members = [
     "jig/crates/jig-protocol-tools",
     "jig/crates/jig-protocol-config",
     "jig/crates/jig-protocol-store",
+    "jig/crates/jig-protocol-store-people",
+    "jig/crates/jig-protocol-store-tasks",
+    "jig/crates/jig-protocol-store-core",
+    "jig/crates/jig-protocol-store-settings",
+    "jig/crates/jig-protocol-store-families",
     "jig/tests/accounts",
     "jig/tests/protocol-accounts",
     "jig/tests/brief",
@@ -277,6 +304,7 @@ members = [
     "temper/crates/temper-fake-git",
     "temper/crates/temper-fake-git-hosted",
     "temper/testing/temper-github-app",
+    "temper/testing/temper-box-kit",
     "temper/testing/temper-fixtures",
     "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
@@ -303,6 +331,8 @@ members = [
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
     "temper/crates/temper-service-core",
+    "temper/crates/temper-worker-service",
+    "temper/testing/temper-worker-service-fixtures",
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
     "temper/crates/temper-fetch",
@@ -326,6 +356,7 @@ members = [
     "temper/crates/temper-protocol-worker-wire",
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
+    "temper/crates/temper-protocol-store-codec",
     "temper/crates/temper-protocol-brief",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
@@ -409,7 +440,7 @@ skein-ui-example-server = { path = "skein/examples/ui/server" }
 skein-ui-web = { path = "skein/crates/skein-ui-web" }
 wasm-bindgen = { version = "=0.2.126" }
 js-sys = { version = "=0.3.103" }
-web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions", "HtmlHeadElement", "Navigator", "ServiceWorkerContainer", "ServiceWorkerRegistration", "PushManager", "PushSubscription", "PushSubscriptionOptionsInit", "PushEncryptionKeyName", "Notification", "NotificationPermission"] }
+web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions", "DedicatedWorkerGlobalScope", "WorkerGlobalScope", "MessageEvent", "Performance", "CssStyleDeclaration", "NodeList", "Text", "HtmlCollection", "HtmlInputElement", "HtmlOptionElement", "HtmlOptionsCollection", "HtmlTextAreaElement", "HtmlDialogElement", "MouseEvent", "WheelEvent", "InputEvent", "ResizeObserver", "ResizeObserverEntry", "DomRect", "DomRectReadOnly", "Request", "RequestInit", "RequestCredentials", "RequestCache", "RequestMode", "Response", "AbortController", "AbortSignal", "Headers", "Navigator", "Crypto", "ReadableStream", "ReadableStreamDefaultReader", "Storage", "PopStateEvent", "BeforeUnloadEvent", "ScrollRestoration", "ScrollIntoViewOptions", "ScrollLogicalPosition", "Worker", "WorkerOptions", "WorkerType", "ErrorEvent", "HtmlScriptElement", "HtmlLinkElement", "StyleSheetList", "StyleSheet", "CssStyleSheet", "HtmlHeadElement", "ServiceWorkerContainer", "ServiceWorkerRegistration", "PushManager", "PushSubscription", "PushSubscriptionOptionsInit", "PushEncryptionKeyName", "Notification", "NotificationPermission"] }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }
@@ -450,6 +481,7 @@ skein-fail-stop = { path = "skein/crates/skein-fail-stop" }
 skein-sim = { path = "skein/crates/skein-sim" }
 skein-conformance = { path = "skein/testing/skein-conformance" }
 skein-browser = { path = "skein/testing/skein-browser" }
+skein-browser-rig = { path = "skein/testing/skein-browser-rig" }
 skein-heap = { path = "skein/testing/skein-heap" }
 skein-scratch = { path = "skein/testing/skein-scratch" }
 skein-echo-domain = { path = "skein/examples/echo/domain" }
@@ -464,6 +496,7 @@ skein-http-kit = { path = "skein/testing/skein-http-kit" }
 skein-tls-kit = { path = "skein/testing/skein-tls-kit" }
 skein-llm-kit = { path = "skein/testing/skein-llm-kit" }
 skein-forge-kit = { path = "skein/testing/skein-forge-kit" }
+skein-forge-connection-fixtures = { path = "skein/testing/skein-forge-connection-fixtures" }
 skein-fake-checkout = { path = "skein/crates/skein-fake-checkout" }
 skein-sim-world = { path = "skein/crates/skein-sim-world" }
 skein-playground = { path = "skein/crates/skein-playground" }
@@ -471,19 +504,21 @@ skein-world = { path = "skein/testing/skein-world" }
 wasm-bindgen-cli-support = { version = "=0.2.126" }
 io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
-ring = { version = "0.17" }
+ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
 # rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4):
 # its std, whose clock wasm32-unknown-unknown lacks, is native only, asked for by each crate
 # that uses it.
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
 # rustls for native crates needing std; the plain entry stays without it for wasm32.
 rustls-std = { package = "rustls", version = "=0.23.41", default-features = false, features = ["ring", "tls12", "std"] }
-rustls-pki-types = { version = "1.15" }
+rustls-pki-types = { version = "1.15", features = ["web"] }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 smith-host-domain = { path = "smith/crates/smith-host-domain" }
+smith-host-domain-fixtures = { path = "smith/testing/smith-host-domain-fixtures" }
 smith-inline-agent = { path = "smith/crates/smith-inline-agent" }
 smith-local-domain = { path = "smith/crates/smith-local-domain" }
+smith-local-domain-fixtures = { path = "smith/testing/smith-local-domain-fixtures" }
 smith-host-world = { path = "smith/tests/host" }
 smith-local-world = { path = "smith/tests/local" }
 smith-agent-world = { path = "smith/tests/agent" }
@@ -493,34 +528,51 @@ smith-domain-run = { path = "smith/crates/smith-domain-run" }
 smith-domain-session = { path = "smith/crates/smith-domain-session" }
 smith-domain-tools = { path = "smith/crates/smith-domain-tools" }
 smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }
+smith-protocol-llm-fixtures = { path = "smith/testing/smith-protocol-llm-fixtures" }
 smith-protocol-machine = { path = "smith/crates/smith-protocol-machine" }
+smith-protocol-machine-fixtures = { path = "smith/testing/smith-protocol-machine-fixtures" }
 smith-protocol-program = { path = "smith/crates/smith-protocol-program" }
+smith-protocol-program-fixtures = { path = "smith/testing/smith-protocol-program-fixtures" }
 smith-events = { path = "smith/crates/smith-events" }
+smith-events-fixtures = { path = "smith/testing/smith-events-fixtures" }
+smith-protocol-events-fixtures = { path = "smith/testing/smith-protocol-events-fixtures" }
+smith-agent-profile-fixtures = { path = "smith/testing/smith-agent-profile-fixtures" }
+smith-agent-document-fixtures = { path = "smith/testing/smith-agent-document-fixtures" }
+smith-bench-fixtures = { path = "smith/testing/smith-bench-fixtures" }
+smith-domain-tools-fixtures = { path = "smith/testing/smith-domain-tools-fixtures" }
+smith-domain-run-fixtures = { path = "smith/testing/smith-domain-run-fixtures" }
+smith-domain-session-fixtures = { path = "smith/testing/smith-domain-session-fixtures" }
+smith-domain-fixtures = { path = "smith/testing/smith-domain-fixtures" }
+smith-inline-agent-fixtures = { path = "smith/testing/smith-inline-agent-fixtures" }
+smith-protocol-channel-fixtures = { path = "smith/testing/smith-protocol-channel-fixtures" }
 smith-charter = { path = "smith/crates/smith-charter" }
 smith-transcript = { path = "smith/crates/smith-transcript" }
 smith-channel = { path = "smith/crates/smith-channel" }
 smith-protocol-channel = { path = "smith/crates/smith-protocol-channel" }
 smith-protocol-translate = { path = "smith/crates/smith-protocol-translate" }
 smith-host-protocol = { path = "smith/crates/smith-host-protocol" }
+smith-host-protocol-fixtures = { path = "smith/testing/smith-host-protocol-fixtures" }
 smith-agent-service = { path = "smith/crates/smith-agent-service" }
 smith-agent-profile = { path = "smith/crates/smith-agent-profile" }
 smith-protocol-events = { path = "smith/crates/smith-protocol-events" }
 smith-local-protocol = { path = "smith/crates/smith-local-protocol" }
+smith-local-protocol-fixtures = { path = "smith/testing/smith-local-protocol-fixtures" }
 smith-local-service = { path = "smith/crates/smith-local-service" }
+smith-local-service-fixtures = { path = "smith/testing/smith-local-service-fixtures" }
 smith-agent-process-world = { path = "smith/tests/agent-process" }
 smith-real-world = { path = "smith/tests/real" }
 smith-local-process-world = { path = "smith/tests/local-process" }
 smith-local-shell = { path = "smith/crates/smith-local-shell" }
 smith-agent-shell = { path = "smith/crates/smith-agent-shell" }
 smith-agent-document = { path = "smith/crates/smith-agent-document" }
-smith-run-world = { path = "smith/tests/run" }
 smith-session-world = { path = "smith/tests/session" }
 smith-tools-world = { path = "smith/tests/tools" }
 jig-test-patches = { path = "jig/testing/jig-test-patches" }
 jig-test-patches-jig = { path = "jig/testing/jig-test-patches-jig" }
 jig-test-patches-smith = { path = "jig/testing/jig-test-patches-smith" }
 serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["raw_value"] }
+serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }
+time = { version = "0.3", features = ["formatting", "parsing"] }
 jig-client-shell-web = { path = "jig/crates/jig-client-shell-web" }
 jig-client-domain = { path = "jig/crates/jig-client-domain" }
 jig-client = { path = "jig/crates/jig-client" }
@@ -539,8 +591,12 @@ jig-protocol-worker-wire = { path = "jig/crates/jig-protocol-worker-wire" }
 jig-client-protocol-wire = { path = "jig/crates/jig-client-protocol-wire" }
 jig-protocol-config = { path = "jig/crates/jig-protocol-config" }
 jig-protocol-store = { path = "jig/crates/jig-protocol-store" }
+jig-protocol-store-people = { path = "jig/crates/jig-protocol-store-people" }
+jig-protocol-store-tasks = { path = "jig/crates/jig-protocol-store-tasks" }
+jig-protocol-store-core = { path = "jig/crates/jig-protocol-store-core" }
+jig-protocol-store-settings = { path = "jig/crates/jig-protocol-store-settings" }
+jig-protocol-store-families = { path = "jig/crates/jig-protocol-store-families" }
 jig-protocol-tools = { path = "jig/crates/jig-protocol-tools" }
-jig-client-world = { path = "jig/tests/client" }
 jig-protocol-transcript = { path = "jig/crates/jig-protocol-transcript" }
 jig-client-view = { path = "jig/crates/jig-client-view" }
 jig-client-scripted-engine = { path = "jig/testing/jig-client-scripted-engine" }
@@ -549,7 +605,6 @@ jig-domain-accounts = { path = "jig/crates/jig-domain-accounts" }
 jig-test-connector = { path = "jig/testing/jig-test-connector" }
 jig-test-store = { path = "jig/testing/jig-test-store" }
 jig-test-store-files = { path = "jig/testing/jig-test-store-files" }
-jig-test-connector-world = { path = "jig/tests/test-connector" }
 jig-test-domain = { path = "jig/testing/jig-test-domain" }
 jig-test-profile = { path = "jig/testing/jig-test-profile" }
 jig-client-test-domain = { path = "jig/testing/jig-client-test-domain" }
@@ -560,6 +615,7 @@ jig-client-kit = { path = "jig/testing/jig-client-kit" }
 jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
 jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }
 jig-protocol-accounts-kit = { path = "jig/testing/jig-protocol-accounts-kit" }
+jig-test-kit = { path = "jig/testing/jig-test-kit" }
 jig-people-kit = { path = "jig/testing/jig-people-kit" }
 jig-tasks-kit = { path = "jig/testing/jig-tasks-kit" }
 jig-channel-kit = { path = "jig/testing/jig-channel-kit" }
@@ -596,6 +652,7 @@ settings-form = { package = "temper-settings-form", path = "temper/crates/temper
 temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-test-env = { path = "temper/testing/temper-test-env" }
+temper-box-kit = { path = "temper/testing/temper-box-kit" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
@@ -615,15 +672,12 @@ temper-client-bundle = { path = "temper/crates/temper-client-bundle" }
 jig-boundary = { path = "jig/tests/boundary" }
 temper-fake-git = { path = "temper/crates/temper-fake-git" }
 temper-fake-git-hosted = { path = "temper/crates/temper-fake-git-hosted" }
-jig-channel-world = { path = "jig/tests/channel" }
 temper-client-shell = { path = "temper/crates/temper-client-shell" }
 temper-client-shell-terminal = { path = "temper/crates/temper-client-shell-terminal" }
 temper-client-shell-tui = { path = "temper/crates/temper-client-shell-tui" }
 temper-client-shell-cli = { path = "temper/crates/temper-client-shell-cli" }
 temper-client-redaction = { path = "temper/crates/temper-client-redaction" }
 temper-client-shell-web = { path = "temper/crates/temper-client-shell-web" }
-temper-client-web-page = { path = "temper/crates/temper-client-web-page" }
-temper-playground-page = { path = "temper/crates/temper-playground-page" }
 jig-client-test-records = { path = "jig/testing/jig-client-test-records" }
 jig-client-shell-native = { path = "jig/crates/jig-client-shell-native" }
 temper-client-view = { path = "temper/crates/temper-client-view" }
@@ -640,13 +694,17 @@ temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }
+temper-worker-service-fixtures = { path = "temper/testing/temper-worker-service-fixtures" }
+temper-worker-service = { path = "temper/crates/temper-worker-service" }
 temper-service-core = { path = "temper/crates/temper-service-core" }
-temper-service = { path = "temper/crates/temper-service", default-features = false }
+temper-service = { path = "temper/crates/temper-service" }
+temper-engine-service = { path = "temper/crates/temper-engine-service" }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }
 temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git" }
 temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wire" }
 temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wire" }
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
+temper-protocol-store-codec = { path = "temper/crates/temper-protocol-store-codec" }
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
@@ -666,9 +724,6 @@ temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge"
 temper-worker-domain = { path = "temper/crates/temper-worker-domain" }
 temper-worker-domain-checkout = { path = "temper/crates/temper-worker-domain-checkout" }
 temper-worker-domain-tooling = { path = "temper/crates/temper-worker-domain-tooling" }
-jig-core-world = { path = "jig/tests/core" }
-jig-tasks-world = { path = "jig/tests/tasks" }
-jig-people-world = { path = "jig/tests/people" }
 temper-fake-checkout = { path = "temper/tests/fake-checkout" }
 temper-worker-checkout-world = { path = "temper/tests/worker/checkout" }
 
@@ -699,7 +754,7 @@ hearth-lib = { path = "hearth/crates/hearth-lib" }
 hearth-protocol-template = { path = "hearth/crates/hearth-protocol-template" }
 hearth-protocol-git = { path = "hearth/crates/hearth-protocol-git" }
 sha1 = { version = "=0.10.7" }
-minijinja = { version = "=2.20.0" }
+minijinja = { version = "=2.20.0", features = ["json"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

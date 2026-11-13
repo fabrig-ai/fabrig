@@ -151,7 +151,7 @@ impl ChangeResult {
             change::Repair::Review { .. } => self.repairs.add(b"a person asked for changes on the forge", bound),
             change::Repair::Gate(_) => self.repairs.add(b"review asked for changes", bound),
             change::Repair::Semantic => self.repairs.add(b"the base broke it", bound),
-            change::Repair::Landing { gate } => {
+            change::Repair::LandingAt { gate, .. } | change::Repair::Landing { gate } => {
                 self.repairs.add(b"landing gate ", bound);
                 self.repairs.add(Decimal::of(u64::from(gate)).as_bytes(), bound);
                 self.repairs.add(b" failed", bound);

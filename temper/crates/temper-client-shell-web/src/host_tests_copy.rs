@@ -117,13 +117,13 @@ fn the_press_returns_its_copy_duty_and_reports_rebuild_until_the_deadline() {
     assert_eq!(duties.copy, Some((1, words.clone())));
     host.report(Report::Copied { token: 1, written: Written::Done });
     let patches = build(&mut host);
-    assert!(!patches.is_empty());
+    assert_ne!(patches.len(), 0);
     node(&host, Role::Button, b"Copied");
     let deadline = Time::ZERO.checked_add(root::copy::SHOWN).unwrap();
     assert_eq!(host.deadline(), Some(deadline));
     host.clocks(deadline, Wall::EPOCH);
     host.report(Report::Due);
-    assert!(!build(&mut host).is_empty());
+    assert_ne!(build(&mut host).len(), 0);
     node(&host, Role::Button, b"Copy");
 }
 

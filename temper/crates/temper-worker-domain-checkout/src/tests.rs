@@ -139,7 +139,7 @@ impl Harness {
                 | Op::Create { .. }
                 | Op::CheckOut { .. }
                 | Op::Push { .. } => Done::Succeeded,
-                Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Commit { .. } => {
+                Op::Brings { .. } | Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Commit { .. } => {
                     panic!("a prepare commits or compares nothing")
                 }
             };
@@ -148,7 +148,7 @@ impl Harness {
                     assert_eq!(owner, hold, "an operation is the hold's");
                     op = next;
                 }
-                Request::Prepared { client: to, prepared: Prepared::Ready { workspace: _, .. } } => {
+                Request::Prepared { client: to, prepared: Prepared::Ready { .. } } => {
                     assert_eq!(to, Token::new(client), "the client's token is echoed");
                     return hold;
                 }
@@ -323,6 +323,7 @@ fn workspace_of(op: &Op) -> Token {
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
         | Op::DiffPaths { at, .. }
+        | Op::Brings { at, .. }
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
@@ -889,6 +890,7 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
             Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
             Op::Fetch { .. } => Done::Fetched { commit: commit(1) },
             Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
+            Op::Brings { .. } => Done::Brings { brings: false },
             Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
             Op::Merge { .. } => Done::Merged,
             Op::Commit { .. } => Done::Committed { commit: commit(3) },
@@ -1080,6 +1082,7 @@ fn pin_count(ops: &List<Op>) -> usize {
             | Op::Point { .. }
             | Op::Create { .. }
             | Op::CheckOut { .. }
+            | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }
             | Op::Merge { .. }
@@ -1187,6 +1190,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                     Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit },
                     Op::CheckOut { .. } => Done::Succeeded,
                     Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
+                    Op::Brings { .. } => Done::Brings { brings: false },
                     Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
                     other @ (Op::Point { .. }
                     | Op::Store { .. }
@@ -1221,7 +1225,7 @@ fn supplied_landing_cannot_invent_eligibility_or_change_saved_semantics() {
         let (branch, saved, merge) = match start {
             Start::Branch { .. } => (true, false, false),
             Start::Saved { .. } => (false, true, false),
-            Start::Merge { .. } | Start::Merged { .. } => (false, false, true),
+            Start::Prepare { .. } | Start::Merge { .. } | Start::Merged { .. } => (false, false, true),
             Start::Base { .. } | Start::Commit { .. } => (false, false, false),
         };
         let mut h = Harness::new(MERGES);
@@ -1432,6 +1436,26 @@ fn an_abort_mid_push_waits_for_the_push_keeps_what_landed_and_reports_the_rest_a
     h.none(Event::Abort { hold });
     let end = h.one(Event::Done { owner: hold, done: failed(Fault::Cancelled) });
     assert_eq!(&*landings(end), &[Landing::Aborted, Landing::Aborted]);
+}
+
+#[test]
+fn a_stop_bound_cut_cancels_a_push_without_verifying_and_never_starts_another_save() {
+    for (done, first) in [
+        (failed(Fault::Cancelled), explained(Fault::Cancelled)),
+        (Done::Succeeded, Landing::Landed { commit: commit(11) }),
+    ] {
+        let mut h = Harness::new(LIMITS);
+        let hold = h.ready(1, spec(b"w", Box::new([repository(b"a", true), repository(b"b", true)])));
+        h.one(Event::Push { hold, message: message() });
+        h.next(hold, Done::Committed { commit: commit(11) });
+        assert_eq!(h.one(Event::Cut { hold }), Request::Cancel { owner: hold });
+        h.none(Event::Cut { hold });
+        let end = h.one(Event::Done { owner: hold, done });
+        assert_eq!(&*landings(end), &[first, Landing::Aborted]);
+        let end = h.one(Event::Save { hold, message: message() });
+        assert_eq!(&*landings(end), &[Landing::Aborted, Landing::Aborted]);
+        assert_eq!(h.one(Event::Release { hold }), Request::Released { client: Token::new(1) });
+    }
 }
 
 #[test]
@@ -1696,7 +1720,7 @@ fn merge_preparation_transfers_conflict_paths_and_facts_keep_only_counts() {
     let Op::Merge { theirs, .. } = h.next(hold, Done::Succeeded) else { panic!("merge") };
     assert_eq!(theirs, commit(7));
     let files = Box::new([bytes(b"src/a"), bytes(b"src/b")]);
-    let ready = h.one(Event::Done { owner: hold, done: Done::Conflicted { files } });
+    let ready = h.one(Event::Done { owner: hold, done: Done::Conflicted { files, cut: false } });
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } = ready else {
         panic!("ready with conflicts")
     };
@@ -1718,7 +1742,8 @@ fn merge_marker_refusal_preserves_second_parent_until_commit_and_verification_ad
     let asked = io(h.one(Event::Push { hold, message: message() }), hold);
     let Op::Commit { parent, merging, .. } = asked else { panic!("merge commit") };
     assert_eq!((parent, merging), (commit(1), Some(commit(7))));
-    let end = h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"src/a")]) } });
+    let end =
+        h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"src/a")]), cut: false } });
     assert_eq!(
         end,
         Request::Pushed {
@@ -1784,7 +1809,7 @@ fn oversized_or_duplicate_terminal_paths_are_dropped_without_retention() {
         let mut h = Harness::new(MERGES);
         let hold = h.ready(1, merge_spec());
         h.one(Event::Push { hold, message: message() });
-        let end = h.one(Event::Done { owner: hold, done: Done::Conflicted { files } });
+        let end = h.one(Event::Done { owner: hold, done: Done::Conflicted { files, cut: false } });
         let Request::Pushed { outcome: Outcome::Pushed { landings }, .. } = end else { panic!("ended") };
         let Landing::Explained { fault: Fault::Broken, .. } = &landings[0] else { panic!("broken terminal") };
     }
@@ -1792,7 +1817,9 @@ fn oversized_or_duplicate_terminal_paths_are_dropped_without_retention() {
 
 #[test]
 fn releasing_an_inflight_merge_waits_for_its_terminal_and_never_exposes_a_ready_workspace() {
-    for done in [Done::Merged, Done::Conflicted { files: Box::new([bytes(b"src/a")]) }, failed(Fault::Cancelled)] {
+    for done in
+        [Done::Merged, Done::Conflicted { files: Box::new([bytes(b"src/a")]), cut: false }, failed(Fault::Cancelled)]
+    {
         let mut h = Harness::new(MERGES);
         let (hold, _) = h.prepare(1, merge_spec());
         h.next(hold, Done::Succeeded);
@@ -1872,6 +1899,7 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         | Op::Clone { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
@@ -2148,7 +2176,7 @@ fn a_producers_uncontained_base_still_leaves_a_conflicted_two_parent_merge() {
     let Op::Merge { theirs, .. } = h.next(hold, Done::Fetched { commit: commit(7) }) else { panic!("merge base") };
     assert_eq!(theirs, commit(7));
     let files = Box::new([bytes(b"code")]);
-    let ready = h.one(Event::Done { owner: hold, done: Done::Conflicted { files } });
+    let ready = h.one(Event::Done { owner: hold, done: Done::Conflicted { files, cut: false } });
     let Request::Prepared { prepared: Prepared::Ready { conflicts, .. }, .. } = ready else {
         panic!("ready with conflicts")
     };
@@ -2227,7 +2255,7 @@ fn merged_head_conflict_fails_naming_it() {
     h.next(hold, Done::Succeeded);
     h.next(hold, Done::IsAncestor { contains: false });
     assert_eq!(
-        h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"code")]) } }),
+        h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"code")]), cut: false } }),
         Request::Prepared {
             client: Token::new(1),
             prepared: Prepared::Failed {
@@ -2766,6 +2794,7 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
                 | Op::DiffPaths { .. }
                 | Op::Merge { .. }
                 | Op::Commit { .. }
+                | Op::Brings { .. }
                 | Op::Push { .. } => panic!("branch preparation only"),
             };
             match h.one(Event::Done { owner: hold, done }) {

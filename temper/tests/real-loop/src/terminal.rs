@@ -1,4 +1,5 @@
 //! The person's terminal client in the loop, and the typist at it (testing/real-loop.md).
+use crate::calls::Step;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Token};
 use skein_shell::Host;
@@ -65,6 +66,16 @@ pub fn see(holds: &'static [u8]) -> crate::calls::Step {
 #[must_use]
 pub fn see_without(holds: &'static [u8], lacks: &'static [u8]) -> crate::calls::Step {
     crate::calls::Step::Terminal(Act::See { holds, lacks: Some(lacks) })
+}
+/// Rail steps shared by the terminal stories (temper/docs/design/client/view.md, 3).
+#[must_use]
+pub fn start_change(drafts: bool) -> Vec<Step> {
+    if drafts {
+        // The terminal prints a menu's items inline, with no separate open act.
+        vec![see(b"New draft or change"), type_on(b"Change", b"")]
+    } else {
+        vec![type_on(b"New change", b"")]
+    }
 }
 #[must_use]
 pub fn close() -> crate::calls::Step {

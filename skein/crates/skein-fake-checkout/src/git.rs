@@ -48,6 +48,12 @@ pub trait Remote {
     /// (testing/fakes/checkout.md, section 4).
     fn create(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Created, Fault>;
 
+    /// Upload a store commit and create the branch only if absent. None means
+    /// created; Some is the existing head, with no move or upload.
+    fn push_new(&mut self, _remote: &[u8], _branch: &[u8], _commit: u64) -> Result<Option<u64>, Fault> {
+        panic!("the world supplies create-by-push")
+    }
+
     /// Caller delegates push policy. `None` supplies no old-head condition;
     /// `Some` requires that exact old head in addition to the implementation’s
     /// fast-forward rules. Rejection/refusal must leave the reference unchanged

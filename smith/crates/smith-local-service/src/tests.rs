@@ -50,7 +50,7 @@ fn a_resize_during_a_window_read_is_read_after_its_terminal() {
 const EXTERNAL_QUEUE_SLOTS: u32 = 64;
 
 pub(crate) fn config() -> Config {
-    let mut local_limits = local::Limits { models: 1, ..local::fixture::small(smith_agent_world::LIMITS) };
+    let mut local_limits = local::Limits { models: 1, ..smith_local_domain_fixtures::small(smith_agent_world::LIMITS) };
     let mut host_limits = smith_host_world::limits();
     host_limits.agents = 1;
     host_limits.accounts = 1;
@@ -75,7 +75,7 @@ pub(crate) fn config() -> Config {
                 retry: Duration::from_millis(1),
             },
             {
-                let mut fixture_limits = smith_host_protocol::fixture::small();
+                let mut fixture_limits = smith_host_protocol_fixtures::small();
                 fixture_limits.bodies = agent_limits.channel.bodies;
                 fixture_limits.charter = agent_limits.channel.charter;
                 fixture_limits.transcript = agent_limits.channel.transcript;
@@ -144,7 +144,7 @@ fn the_local_service_loads_then_routes_durable_start_requests_to_the_shell() {
     let mut service = Service::new(config(), 7).expect("bounded local service");
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     let Some(smith_local_protocol::StoreRequest::Load) = service.store_requests().pop() else { panic!("load first") };
-    service.local_event(local::fixture::loaded());
+    service.local_event(smith_local_domain_fixtures::loaded());
     for byte in b"hello\n" {
         service.feed(*byte);
     }
@@ -167,7 +167,7 @@ fn idle_chat_selection_routes_to_the_store_and_back_before_loading() {
     let Some(smith_local_protocol::StoreRequest::Load) = service.store_requests().pop() else {
         panic!("load selected chat")
     };
-    service.local_event(local::fixture::loaded());
+    service.local_event(smith_local_domain_fixtures::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     service.local_event(local::Event::SelectChat { name: b"next".as_slice().into(), create: true });
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
@@ -200,7 +200,7 @@ fn line_mode_selects_the_initial_chat_before_loading_and_shows_its_read_fence() 
     let Some(smith_local_protocol::StoreRequest::Load) = service.store_requests().pop() else {
         panic!("load selection")
     };
-    service.local_event(local::fixture::loaded());
+    service.local_event(smith_local_domain_fixtures::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert_eq!(service.output().pop().unwrap().as_ref(), b"> ");
 }
@@ -211,7 +211,7 @@ fn slash_new_and_resume_route_only_to_the_idle_store() {
     service.line_mode(true);
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     service.store_requests().pop().unwrap();
-    service.local_event(local::fixture::loaded());
+    service.local_event(smith_local_domain_fixtures::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     for (line, expected, create) in [(b"/new\n".as_slice(), b"7".as_slice(), true), (b"/resume main\n", b"main", false)]
     {
@@ -232,7 +232,7 @@ fn slash_new_and_resume_route_only_to_the_idle_store() {
         let Some(smith_local_protocol::StoreRequest::Load) = service.store_requests().pop() else {
             panic!("load selection")
         };
-        service.local_event(local::fixture::loaded());
+        service.local_event(smith_local_domain_fixtures::loaded());
         iterate(&mut service, Time::ZERO, Wall::EPOCH);
     }
 }
@@ -243,7 +243,7 @@ fn an_unknown_slash_line_never_requests_a_credential_or_starts_a_run() {
     service.line_mode(true);
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     service.store_requests().pop().unwrap();
-    service.local_event(local::fixture::loaded());
+    service.local_event(smith_local_domain_fixtures::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     while service.output().pop().is_some() {}
     for byte in b"/unknown\n" {
@@ -261,7 +261,7 @@ fn model_and_effort_are_refused_in_words_without_changing_the_chat() {
     service.line_mode(true);
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     service.store_requests().pop().unwrap();
-    service.local_event(local::fixture::loaded());
+    service.local_event(smith_local_domain_fixtures::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     while service.output().pop().is_some() {}
     for (line, words) in [
@@ -322,7 +322,7 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
     let mut host_requests = Queue::with_capacity(256);
     let mut terminal_events = Queue::with_capacity(256);
     let mut terminal = smith_local_protocol::Terminal::new({
-        let mut fixture_limits = smith_local_protocol::fixture::TERMINAL;
+        let mut fixture_limits = smith_local_protocol_fixtures::TERMINAL;
         fixture_limits.line_bytes = 256;
         fixture_limits.show_bytes = 1024;
         fixture_limits
@@ -393,7 +393,7 @@ pub(crate) fn settle_file_io(
     let mut host_requests = skein_lib::Queue::with_capacity(256);
     let mut terminal_events = skein_lib::Queue::with_capacity(256);
     let mut terminal = smith_local_protocol::Terminal::new({
-        let mut fixture_limits = smith_local_protocol::fixture::TERMINAL;
+        let mut fixture_limits = smith_local_protocol_fixtures::TERMINAL;
         fixture_limits.line_bytes = 256;
         fixture_limits.show_bytes = 1024;
         fixture_limits
@@ -513,7 +513,7 @@ fn a_colocated_chat_routes_a_turn_through_the_shared_plaintext_effects_without_s
         while let Some(request) = service.store_requests().pop() {
             match request {
                 smith_local_protocol::StoreRequest::Load => {
-                    service.local_event(local::fixture::loaded());
+                    service.local_event(smith_local_domain_fixtures::loaded());
                     if !sent {
                         for byte in b"hello\n" {
                             service.feed(*byte);
@@ -631,7 +631,7 @@ fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
         while let Some(request) = service.store_requests().pop() {
             match request {
                 smith_local_protocol::StoreRequest::Load => {
-                    service.local_event(local::fixture::loaded());
+                    service.local_event(smith_local_domain_fixtures::loaded());
                     service.local_event(local::Event::Line { text: b"hello".as_slice().into() });
                 }
                 smith_local_protocol::StoreRequest::SaveState { .. } => state_pending = true,
@@ -689,7 +689,7 @@ fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
         }
         while let Some(request) = service.store_requests().pop() {
             match request {
-                smith_local_protocol::StoreRequest::Load => service.local_event(local::fixture::loaded()),
+                smith_local_protocol::StoreRequest::Load => service.local_event(smith_local_domain_fixtures::loaded()),
                 smith_local_protocol::StoreRequest::SaveTurn { number, .. } => {
                     turns.push(number);
                     service.local_event(local::Event::TurnSaved { number });

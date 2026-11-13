@@ -77,6 +77,7 @@ fn startup(
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("occupied listener");
     let scratch = skein_scratch::Scratch::new("failed-start");

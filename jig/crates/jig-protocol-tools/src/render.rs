@@ -609,6 +609,7 @@ fn hold_reason(reason: &jig_domain_people::HoldReason) -> &'static [u8] {
             FailureClass::Agent => b"for agent failures",
             FailureClass::Lost => b"for lost runs",
             FailureClass::Invalid => b"for invalid results",
+            FailureClass::Infrastructure => b"for infrastructure failures",
         },
         HoldReason::Stalled => b"because it stalled",
         HoldReason::Dependency { .. } => b"for its dependency",

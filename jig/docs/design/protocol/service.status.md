@@ -1,6 +1,7 @@
 # service: status
 
-2026-11-08. Where jig's code lags or departs from [service.md](service.md).
+2026-11-12. Where jig's code lags or departs from [service.md](service.md).
+
 
 Sections 5 and 10 have no known gap in settling in-process agent claims
 before the engine reports drained. The one-process drain story checks

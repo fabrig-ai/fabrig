@@ -1,6 +1,4 @@
 //! The real box's first block and held socket (temper/docs/design/protocol/setup/box.md, 2, and temper/docs/design/protocol/setup/testing.md, 4).
-#[path = "../fake_backends/box_link.rs"]
-mod box_link;
 use box_link::command;
 use skein_world::{Deadline, Expired};
 use std::{
@@ -11,6 +9,7 @@ use std::{
     process::{Child, Stdio},
     time::Duration,
 };
+use temper_box_kit::box_link;
 
 fn scratch(name: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!("temper-box-listeners-{}-{name}", std::process::id()));

@@ -158,6 +158,7 @@ fn failure_class(class: tasks::Class) -> people::FailureClass {
         tasks::Class::Agent => people::FailureClass::Agent,
         tasks::Class::Lost => people::FailureClass::Lost,
         tasks::Class::Invalid => people::FailureClass::Invalid,
+        tasks::Class::Infrastructure => people::FailureClass::Infrastructure,
     }
 }
 

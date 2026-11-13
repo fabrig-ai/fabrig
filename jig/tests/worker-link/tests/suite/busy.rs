@@ -55,7 +55,7 @@ fn the_hub_never_hears_a_turn_busy() {
     let before = world.root().len();
     world.play(fixtures::turn_busy());
     assert_eq!(world.root().len(), before);
-    assert!(world.refusals().is_empty());
+    assert_eq!((world.refusals()).len(), 0);
 }
 #[test]
 fn acknowledging_the_attempt_cancels_its_busy_resend() {

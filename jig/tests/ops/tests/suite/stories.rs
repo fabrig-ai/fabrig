@@ -5,7 +5,7 @@ use jig_ops_world::conformance::night;
 #[test]
 fn the_night_scales_staging_under_an_observed_requirement_without_an_agent() {
     let world = night(17, Cut::None);
-    assert!(world.peers.assignments.is_empty());
+    assert_eq!(world.peers.assignments.len(), 0);
     assert_eq!(
         world
             .systems
@@ -33,7 +33,7 @@ fn the_nights_scale_entry_survives_the_commits_around_its_admission() {
     for commit in [entry - 1, entry, entry + 1] {
         let world = night(17, Cut::AfterCommit(commit));
         assert_eq!(world.outcome().crashes, vec![commit]);
-        assert!(world.peers.assignments.is_empty());
+        assert_eq!(world.peers.assignments.len(), 0);
         assert_eq!(
             world
                 .systems

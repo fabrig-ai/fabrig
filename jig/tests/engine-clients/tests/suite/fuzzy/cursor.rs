@@ -39,7 +39,7 @@ fn goldens() -> Vec<Vec<u8>> {
         Held::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("held golden");
         values.push(bytes);
     }
-    assert!(!values.is_empty());
+    assert_ne!(values.len(), 0);
     values
 }
 #[test]

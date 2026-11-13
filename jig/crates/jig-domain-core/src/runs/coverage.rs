@@ -47,7 +47,7 @@ pub(crate) fn serves(
             if !named {
                 return false;
             }
-            true
+            named
         }
     };
     if !account.plan() {

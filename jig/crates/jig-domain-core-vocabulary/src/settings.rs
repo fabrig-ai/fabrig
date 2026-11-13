@@ -631,50 +631,6 @@ pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
 }
 
-#[cfg(any(test, feature = "fixtures"))]
-#[expect(clippy::panic, reason = "the core's test fixtures assert their setup values")]
-impl Current {
-    pub fn test_charter_mut(&mut self, number: u32) -> &mut Charter {
-        drop(self.resolved.remove(&number));
-        match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
-            Value::Charter(value) => value,
-            Value::Overlay(_)
-            | Value::Template(_)
-            | Value::Policy(_)
-            | Value::Rules(_)
-            | Value::Model(_)
-            | Value::Application(_) => {
-                panic!("fixture charter value")
-            }
-        }
-    }
-    pub fn test_templates(&mut self, templates: Box<[Template]>) {
-        let mut old = List::with_capacity(self.defaults.capacity());
-        for (&setting, _) in &self.defaults {
-            match setting {
-                Setting::Template(_) => old.push(setting).expect("fixture defaults"),
-                Setting::Charter(_)
-                | Setting::Policy(_)
-                | Setting::Model(_)
-                | Setting::Rules
-                | Setting::ProjectPolicy { .. } => {}
-                Setting::Application { .. } => panic!("fixture defaults contain only jig settings"),
-            }
-        }
-        for setting in old.into_boxed() {
-            self.defaults.remove(&setting);
-        }
-        for template in templates {
-            self.defaults
-                .insert(
-                    Setting::Template(template.number),
-                    Default { value: Value::Template(Box::new(template)), revision: 1 },
-                )
-                .expect("fixture templates");
-        }
-    }
-}
-
 /// The first start or a revision's largest write set, including its deployment
 /// header, one steady-state history erase and a list's account record (domain/engine/settings.md, 7, 12).
 #[must_use]

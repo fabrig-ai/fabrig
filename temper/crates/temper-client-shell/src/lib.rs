@@ -94,7 +94,6 @@ fn capture(line: &str) -> Capture {
     }
 }
 
-#[must_use]
 pub fn main(line: &str) -> ExitCode {
     let captured = capture(line);
     match run(&captured) {

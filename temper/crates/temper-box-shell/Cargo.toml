@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 temper-service-shell.workspace = true
 temper-engine-shell.workspace = true
+temper-engine-service.workspace = true
 temper-agent-shell.workspace = true
 temper-worker-shell.workspace = true
 temper-launcher.workspace = true
@@ -28,7 +29,7 @@ temper-client-shell-cli.workspace = true
 temper-client-tools.workspace = true
 skein-forge.workspace = true
 jig-client-protocol-link.workspace = true
-temper-service = { workspace = true, features = ["worker"] }
+temper-service.workspace = true
 temper-box-machine.workspace = true
 temper-forge-setup.workspace = true
 temper-forge-setup-shell.workspace = true

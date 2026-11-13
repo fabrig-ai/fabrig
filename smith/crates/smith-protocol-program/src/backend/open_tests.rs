@@ -133,7 +133,7 @@ fn an_open_final_request_enters_the_wind_down() {
     prompt.choice = llm::ToolChoice::None;
     prompt.messages = Box::new([user(b"Reply now with what you have")]);
     backend.resume(&env(0), Complete::from_request(next), &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
-    assert!(backend.stopping.intent() == stopping::Intent::Finishing);
+    assert_eq!(backend.stopping.intent(), stopping::Intent::Finishing);
     assert_eq!(backend.startup.phase(), State::Running);
     let line: serde_json::Value =
         serde_json::from_slice(backend.outgoing.as_ref().expect("finishing input")).expect("user line");

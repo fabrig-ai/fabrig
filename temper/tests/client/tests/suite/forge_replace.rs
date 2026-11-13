@@ -264,7 +264,7 @@ fn ctl_refuses_a_disconnected_forge_and_a_broken_tokens_line() {
     assert_eq!(answer.status, 2);
     assert!(skein_lib::bytes::find(&answer.stderr, b"not connected").is_some());
     printed_private(&answer, &git);
-    assert!(world.front().replacements.is_empty());
+    assert_eq!(world.front().replacements.len(), 0);
     let answer = ctl(
         &mut world,
         agent,
@@ -285,8 +285,8 @@ fn ctl_refuses_a_disconnected_forge_and_a_broken_tokens_line() {
     assert_eq!(answer.status, 1);
     assert!(skein_lib::bytes::find(&answer.stderr, b"tokens file line 2").is_some());
     printed_private(&answer, &git);
-    assert!(world.front().admin_connects.is_empty());
-    assert!(world.front().replacements.is_empty());
+    assert_eq!(world.front().admin_connects.len(), 0);
+    assert_eq!(world.front().replacements.len(), 0);
 }
 
 #[test]

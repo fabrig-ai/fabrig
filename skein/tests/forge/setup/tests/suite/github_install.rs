@@ -137,7 +137,7 @@ fn a_reused_or_wrong_install_state_sends_nothing() {
         &Failure { forge: 5, step: Stage::State, subject: b"accept".as_slice().into(), why: Why::Unknown }
     );
     assert_eq!(world.reads(), &[Item::AppSlug]);
-    assert!(world.connects().is_empty());
+    assert_eq!((world.connects()).len(), 0);
     closed(&mut world);
 }
 #[test]
@@ -180,7 +180,7 @@ fn a_busy_accept_leaves_its_state_usable() {
     world.settle();
     accept(&mut world, 4, &state, INSTALLATION);
     assert_eq!(world.pending_reads(), &[(Token::new(4), Item::AppId)]);
-    assert!(world.connects().is_empty());
+    assert_eq!((world.connects()).len(), 0);
     closed(&mut world);
 }
 #[test]

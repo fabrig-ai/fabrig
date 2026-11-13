@@ -160,6 +160,7 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn another_connectors_resource_report_is_not_loading_input() {
     let (mut core, env) = fresh();
     to_connectors(&mut core, &env);

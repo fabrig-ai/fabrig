@@ -49,7 +49,7 @@ impl Settings {
                 file_bytes: 4096,
                 tool_payload: 4096,
                 read_bytes: 1024,
-                ..tools::fixture::SMALL
+                ..smith_domain_tools_fixtures::SMALL
             },
             io: Span::millis(1, 20),
             faults: 0,

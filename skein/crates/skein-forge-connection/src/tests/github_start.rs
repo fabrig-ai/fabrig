@@ -1,6 +1,7 @@
 //! GitHub mint plan and component completion step tests.
 use super::fixtures;
 use crate::Component;
+use crate::seam::Access;
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Wall};
 const SMALL_TOKEN_BOUND: u32 = 8;

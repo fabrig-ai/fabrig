@@ -30,7 +30,7 @@ impl Harness for Upgrade {
     type Service = Observer;
     type Process = HarnessProcess;
     fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
-        Some(STATE.with(|s| if s.borrow().upgrade { FIXTURE_SETS } else { temper_service::store::PATCH_SETS }))
+        Some(STATE.with(|s| if s.borrow().upgrade { FIXTURE_SETS } else { temper_engine_service::store::PATCH_SETS }))
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
         fixtures::seeds()

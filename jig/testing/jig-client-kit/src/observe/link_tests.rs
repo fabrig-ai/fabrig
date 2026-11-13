@@ -61,15 +61,15 @@ fn a_current_live_frame_is_observed_independently_of_retained_offline_notices() 
 fn a_connecting_frame_does_not_inherit_link_observations_from_notices_or_navigation() {
     for retained in [b"Live".as_slice(), b"Offline"] {
         let view = view(Some(b"Connecting"), retained);
-        assert!(jig_seen(view.tree()).is_empty());
-        assert!(seen(view.tree()).is_empty());
+        assert_eq!(jig_seen(view.tree()).len(), 0);
+        assert_eq!(seen(view.tree()).len(), 0);
     }
 }
 #[test]
 fn a_notice_without_a_frame_does_not_claim_a_current_link() {
     for retained in [b"Live".as_slice(), b"Offline"] {
         let view = view(None, retained);
-        assert!(jig_seen(view.tree()).is_empty());
-        assert!(seen(view.tree()).is_empty());
+        assert_eq!(jig_seen(view.tree()).len(), 0);
+        assert_eq!(seen(view.tree()).len(), 0);
     }
 }

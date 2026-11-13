@@ -27,7 +27,7 @@ fn every_account_holds_a_maximal_record_under_its_heap_ceiling() {
             &mut Queue::uncapped(),
             &mut Queue::with_capacity(1),
         );
-        assert!(out.pop() == Some(skein_oauth_accounts::Event::Lock { account }));
+        assert_eq!(out.pop(), Some(skein_oauth_accounts::Event::Lock { account }));
         shared_reads.push(Request::Locked {
             account,
             answer: skein_oauth_accounts::Locked::Held { record: Some(shared_memory_record(account)) },

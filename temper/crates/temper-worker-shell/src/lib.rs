@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 mod binary;
+pub mod lines;
 pub mod served;
 pub use binary::{WORKER, main};
 use temper_shell::directories::EnvironmentEntry;
@@ -48,7 +49,7 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 #[cfg(test)]
-#[path = "../../../bin/temper-box/tests/support/configuration.rs"]
+#[path = "../../../testing/temper-box-kit/src/configuration.rs"]
 pub mod test_configuration;
 #[cfg(test)]
 mod tests;

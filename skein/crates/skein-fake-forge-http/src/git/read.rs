@@ -175,6 +175,14 @@ pub(super) fn call(doc: &Document, name: Name, limits: &Limits) -> Result<Call, 
             };
             Ok(Call::Fetch { repository: string(doc, m.at(0)?, strings)?, want })
         }
+        Name::PushNew => {
+            let m = object(doc, 0, &[b"repository", b"branch", b"commit"], &[])?;
+            Ok(Call::PushNew {
+                repository: string(doc, m.at(0)?, strings)?,
+                branch: string(doc, m.at(1)?, strings)?,
+                commit: number(doc, m.at(2)?)?,
+            })
+        }
         Name::Create | Name::Push => {
             let optional: &[&[u8]] = if name == Name::Push { &[b"expected"] } else { &[] };
             let m = object(doc, 0, &[b"repository", b"branch", b"commit"], optional)?;
@@ -233,6 +241,7 @@ pub(super) fn call(doc: &Document, name: Name, limits: &Limits) -> Result<Call, 
                 }),
                 Name::Clone
                 | Name::Fetch
+                | Name::PushNew
                 | Name::Create
                 | Name::Push
                 | Name::Branch
@@ -275,6 +284,10 @@ pub(super) fn answer(doc: &Document, name: Name, limits: &Limits) -> Result<Answ
         Name::Fetch | Name::Branch => {
             let m = object(doc, 0, &[b"commit"], &[])?;
             Ok(Answer::Commit(number(doc, m.at(0)?)?))
+        }
+        Name::PushNew => {
+            let m = object(doc, 0, &[b"existing"], &[])?;
+            Ok(Answer::PushNew { existing: optional(doc, m.at(0)?)? })
         }
         Name::Create => {
             let m = object(doc, 0, &[b"result"], &[])?;

@@ -32,11 +32,17 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         .is_some_and(|grants| !grants.is_empty())
     {
         for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
+            let job = serde_json::json!({"kind":"job","number":1});
+            let kinds = project["policy"]["ceiling"]["delegation"]["kinds"].as_array_mut().expect("kinds");
+            if !kinds.contains(&job) {
+                kinds.push(job);
+            }
             for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
                 let grants = project.pointer_mut(pointer).expect("world grants");
                 let prototype = grants[0].clone();
                 *grants = temper_engine_domain_forge::CHANGE_KINDS
                     .into_iter()
+                    .chain([15])
                     .map(|kind| {
                         let mut grant = prototype.clone();
                         grant["kind"] = kind.into();
@@ -47,6 +53,8 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         }
         for (name, count) in [
             ("tasks.authority_grants", 8),
+            ("tasks.executor_kinds", 3),
+            ("authority.executors", 3),
             ("authority.grants", 8),
             ("notes.scopes", 12),
             ("people.amendment_bytes", 2048),
@@ -58,8 +66,21 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
     // Workflow discovery can share the fixture's four foreground logical-call slots.
     value["application"]["limits"]["overrides"]["forge.client.pending"] = 5.into();
+    value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 4096.into();
+    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 4098.into();
     // Merge setup and workflow discovery fit one forge rate window before visitor reads.
     value["application"]["limits"]["overrides"]["forge.client.rate"] = 1000.into();
+    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
+    for worker in value["workers"].as_array_mut().expect("workers") {
+        worker["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
+        worker["limits"]["overrides"]["hub.outcome_bytes"] = 4098.into();
+        worker["limits"]["overrides"]["hub.event_bytes"] = 4096.into();
+        worker["limits"]["overrides"]["tasks.spec_bytes"] = 16_384.into();
+        worker["limits"]["overrides"]["tasks.result_bytes"] = 4096.into();
+        worker["limits"]["overrides"]["tasks.message_bytes"] = 4096.into();
+        worker["limits"]["overrides"]["tasks.inbox_bytes"] = 32_768.into();
+    }
     value["application"]["clients"]["public"] = "https://one.example".into();
     value["application"]["landing"] = serde_json::json!({"projects": [{"project": 1, "by": "turn"}]});
     for (name, count) in [
@@ -77,10 +98,15 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         ("core.public.depth", 4),
         ("people.projects", 4),
         ("authority.projects", 3),
-        ("tasks.spec_bytes", 256),
+        ("tasks.spec_bytes", 16_384),
+        ("tasks.batch_bytes", 32_768),
+        ("tasks.result_bytes", 4096),
+        ("tasks.message_bytes", 4096),
+        ("tasks.inbox_bytes", 32_768),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
+    temper_playground::documents::turn_bounds::apply(value, service::agent_settings().limits.bodies.turn_body);
     previous::configure(value);
 }
 

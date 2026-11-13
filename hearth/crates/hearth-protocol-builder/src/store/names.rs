@@ -82,10 +82,7 @@ fn digest(name: &[u8]) -> Option<Digest> {
         return None;
     }
     let mut bytes = [0; 32];
-    for (byte, pair) in bytes.iter_mut().zip(name.chunks_exact(2)) {
-        let [high, low] = pair else {
-            return None;
-        };
+    for (byte, [high, low]) in bytes.iter_mut().zip(name.as_chunks::<2>().0) {
         *byte = digit(*high)?.checked_mul(16)?.checked_add(digit(*low)?)?;
     }
     Some(Digest(bytes))

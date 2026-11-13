@@ -10,7 +10,7 @@ fn again_without_a_name_is_usage() {
     let output =
         Command::new(paths::binary("temper-client-journeys")).arg("again").output().expect("run the journeys program");
     assert_eq!(output.status.code(), Some(2));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout.len(), 0);
     assert_eq!(
         String::from_utf8(output.stderr).expect("usage is text"),
         "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again [--prepared DIR] NAME\n"
@@ -72,7 +72,7 @@ fn a_stale_recording_prints_no_line_of_its_own() {
         assert!(!text.contains(&marker), "a stale refusal exposes no exchange body");
         assert!(!text.contains("\"/jig"), "a stale refusal exposes no exchange path");
     }
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout.len(), 0);
     let expected = format!(
         "temper-client-journeys: {name} is stale at turn 1, line {exchange_line}: recorded exchange, asked exchange; record it again (client/web/journeys.md, 8); nothing was written\n"
     );
@@ -84,13 +84,13 @@ fn a_stale_recording_prints_no_line_of_its_own() {
 fn help_says_what_is_left_to_the_person() {
     let output = Command::new(paths::binary("temper-client-journeys")).arg("--help").output().expect("help");
     assert_eq!(output.status.code(), Some(0));
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr.len(), 0);
     let help = String::from_utf8(output.stdout).expect("help text");
     assert!(super::help(&help), "the bare page lists only public entries");
     let output =
         Command::new(paths::binary("temper-client-journeys")).args(["add", "--help"]).output().expect("add help");
     assert_eq!(output.status.code(), Some(0));
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr.len(), 0);
     let help =
         String::from_utf8(output.stdout).expect("add help text").split_whitespace().collect::<Vec<_>>().join(" ");
     for sentence in [

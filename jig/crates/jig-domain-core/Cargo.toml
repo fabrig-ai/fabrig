@@ -20,8 +20,5 @@ jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
 jig-domain-views.workspace = true
 
-[dev-dependencies]
-jig-domain-core-vocabulary = { workspace = true, features = ["fixtures"] }
-
 [lints]
 workspace = true

@@ -155,7 +155,13 @@ pub(crate) fn fields(kind: WriteKind) -> &'static [Field] {
         }
         WriteKind::Reviewers => const { &[field(b"reviewers", Read::Array(Kind::Write(WriteKind::Logins)), true)] },
         WriteKind::Merge => {
-            const { &[field(b"Do", Read::Text, true), field(b"head_commit_id", Read::Id { empty: false }, true)] }
+            const {
+                &[
+                    field(b"Do", Read::Text, true),
+                    field(b"head_commit_id", Read::Id { empty: false }, false),
+                    field(b"MergeCommitID", Read::Id { empty: false }, false),
+                ]
+            }
         }
         WriteKind::Status => {
             const {
@@ -355,6 +361,7 @@ fn route_tail(
             0
         }),
         terminal: false,
+        merge_id: None,
         committer: crate::forgejo::request::Author { name: Box::new([]), email: Box::new([]) },
     }))
 }
@@ -365,6 +372,8 @@ pub struct BodyDecoder {
     pub(super) texts: List<Box<[u8]>>,
     pub(super) inputs: List<crate::api::Input>,
     pub(super) terminal: bool,
+    /// The merge body supplies exactly one id, chosen by its style.
+    pub(super) merge_id: Option<&'static [u8]>,
     pub(super) committer: crate::forgejo::request::Author,
 }
 pub fn body(decoder: &mut BodyDecoder, limits: &Limits, event: &tokenizer::Event) -> BodyStep {
@@ -398,6 +407,19 @@ pub fn body(decoder: &mut BodyDecoder, limits: &Limits, event: &tokenizer::Event
         }
         Move::Done => {
             decoder.terminal = true;
+            if let Request::Merge { style, .. } = &decoder.request {
+                let key: &'static [u8] = match style {
+                    MergeStyle::ManuallyMerged => b"MergeCommitID",
+                    MergeStyle::Merge
+                    | MergeStyle::Rebase
+                    | MergeStyle::RebaseMerge
+                    | MergeStyle::Squash
+                    | MergeStyle::FastForwardOnly => b"head_commit_id",
+                };
+                if decoder.merge_id != Some(key) {
+                    return BodyStep::Malformed(Malformed::Shape { field: key });
+                }
+            }
             if let Request::CreateFile { author, .. } = &decoder.request
                 && *author != decoder.committer
             {
@@ -568,6 +590,12 @@ impl BodyDecoder {
             Value::Text(text) | Value::Body(crate::forgejo::document::Body::Kept(text)) => Some(text),
             Value::Body(crate::forgejo::document::Body::Long(_)) => return Err(Malformed::TooLong { field: key }),
             Value::Id(id) => {
+                if kind == Kind::Write(WriteKind::Merge) {
+                    if self.merge_id.is_some() {
+                        return Err(Malformed::Shape { field: key });
+                    }
+                    self.merge_id = Some(key);
+                }
                 self.set_id(id.expect("required id"));
                 return Ok(());
             }

@@ -252,7 +252,11 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
         Some(&temper_playground::documents::agent()),
         &ReadyWorld::seeds(parameters.seed),
         None,
-        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
+        Some(temper_service::WorkerRuntime {
+            root: worker,
+            path: b"/worker".as_slice().into(),
+            agent: temper_playground::documents::pinned_agent(),
+        }),
         temper_playground::documents::forges(),
         None,
         Some(BOX_BYTES),
@@ -445,7 +449,7 @@ impl skein_world::Referee<Proc> for Judge {
                 panic!("one connected forge")
             };
             assert_eq!(forge["number"], 1);
-            assert!(forge["makings"].as_array().expect("making rows").is_empty());
+            assert_eq!(forge["makings"].as_array().expect("making rows").len(), 0);
             let project = copy::json(project);
             assert_eq!(project["number"], 1);
             let resources = project["resources"].as_array().expect("project resources");

@@ -42,6 +42,11 @@ transient failures` with no line in either log, stands on reading: its
 evidence is outside the repository, and its proof is the next
 deployment's lines, which no record shows.
 
+- **Not yet:** `jobs.md`, *The prepare kind*: the worker declares no kind 1
+  and an empty command is refused (`temper-worker-domain-tooling`), so no
+  round's base is combined with its member's head by merge or squash and
+  pushed to a landing's branch [in flight: change 816].
+
 - **Not yet:** the whole document: a result missing and one past its bound fail with the same why,
   `result missing or past its bound`, where `jobs.md` has the why say which: the
   job capability's `Read` answers no bytes for both

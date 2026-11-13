@@ -508,7 +508,7 @@ fn a_fence_still_open_is_code() {
 fn a_fence_being_opened_or_closed_shows_no_backticks() {
     for input in [b"```ru".as_slice(), b"`", b"``", b"```"] {
         let (tree, calls) = growing(input, true);
-        assert!(text(&tree).is_empty());
+        assert_eq!(text(&tree).len(), 0);
         assert_eq!(calls, 0);
     }
     for input in [b"```\nlet a\n`".as_slice(), b"```\nlet a\n``"] {

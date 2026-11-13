@@ -109,7 +109,7 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     const MAX_FRAME: u64 = 33_554_496;
     // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 4_270_667), (Profile::Standard, 262_144, 100_883_575)] {
+    for (kind, request, page) in [(Profile::Small, 65_536, 4_582_931), (Profile::Standard, 262_144, 100_883_575)] {
         let configured = profile(kind);
         let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);
@@ -136,9 +136,9 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(tasks.spec_bytes, 131_072);
     assert_eq!(tasks.result_bytes, 262_144);
     assert_eq!(tasks.message_bytes, 262_144);
-    assert_eq!(tasks.charters, 12);
-    // The development delegation needs eighteen executor places.
-    assert_eq!(tasks.executor_kinds, 18);
+    assert_eq!(tasks.charters, 16);
+    // The development delegation has twenty-one executor places.
+    assert_eq!(tasks.executor_kinds, 21);
     assert_eq!(tasks.authority_grants, 16);
     assert_eq!(tasks.authority_segments, 8);
     assert_eq!(tasks.hold_segments, 8);
@@ -154,8 +154,8 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(limits.core.people.inbox_recipients, 176);
     assert_eq!(limits.core.people.words, 8_192);
     assert_eq!(limits.core.authority.grants, 16);
-    // The development delegation needs eighteen executor places.
-    assert_eq!(limits.core.authority.executors, 18);
+    // The development delegation has twenty-one executor places.
+    assert_eq!(limits.core.authority.executors, 21);
     assert_eq!(limits.core.authority.segments, 8);
     assert_eq!(limits.core.authority.batch, 32);
     assert_eq!(limits.hub.charter_bytes, 262_144);
@@ -180,14 +180,14 @@ fn standard_page_holds_smiths_largest_turn() {
 }
 
 #[test]
-fn small_is_unchanged() {
+fn small_holds_composed_settings() {
     let limits = profile(Profile::Small);
     let tasks = limits.core.tasks;
     assert_eq!(tasks.tasks, 8);
     assert_eq!(tasks.batch, 2);
     assert_eq!(tasks.spec_bytes, 4_096);
     assert_eq!(tasks.result_bytes, 512);
-    assert_eq!(limits.store.store.value, 4_268_588);
+    assert_eq!(limits.store.store.value, 4_580_852);
 }
 
 #[test]
@@ -223,6 +223,25 @@ fn supplied_profiles_keep_four_exchanges_beside_every_stream() {
         let minimum = streams.checked_add(ORDINARY_EXCHANGES).expect("profile carrier count");
         assert!(limits.clients_http.calls >= minimum, "{selected:?} HTTP calls carry streams and ordinary exchanges");
         assert!(limits.clients.exchanges >= limits.clients_http.calls, "{selected:?} component carries HTTP calls");
+    }
+}
+
+#[test]
+fn profiles_give_infrastructure_its_own_allowance_and_backoff() {
+    use jig_domain_tasks::{Class, Retry};
+    use skein_lib::Duration;
+    for selected in [Profile::Small, Profile::Standard] {
+        let retries = profile(selected).core.tasks.retries;
+        assert_eq!(
+            retries.infrastructure,
+            Retry { retries: 12, base: Duration::from_millis(10_000), max: Duration::from_millis(300_000) }
+        );
+        for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid] {
+            assert_eq!(
+                retries.of(class),
+                Retry { retries: 3, base: Duration::from_millis(1_000), max: Duration::from_millis(30_000) }
+            );
+        }
     }
 }
 

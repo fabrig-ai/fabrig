@@ -776,7 +776,7 @@ fn public_id(bytes: &[u8]) -> Option<u64> {
 fn public_digits(id: u64) -> [u8; 16] {
     const HEX: &[u8] = b"0123456789abcdef";
     let mut digits = [0; 16];
-    for (byte, pair) in id.to_be_bytes().iter().zip(digits.chunks_exact_mut(2)) {
+    for (byte, pair) in id.to_be_bytes().iter().zip(digits.as_chunks_mut::<2>().0.iter_mut()) {
         for (digit, nibble) in pair.iter_mut().zip([byte >> 4_u8, byte & 15_u8]) {
             *digit = *HEX.get(usize::from(nibble)).expect("nibble in hex alphabet");
         }

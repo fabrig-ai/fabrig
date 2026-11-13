@@ -103,7 +103,7 @@ fn stop(task: u64) -> Ask {
 }
 fn assert_one_refusal(story: &Story) {
     let answers = story.answered(STOP);
-    let [Outcome::Answered(Answered::Jig(contract::Answer::Refused { refusal: _, .. }))] = answers.as_slice() else {
+    let [Outcome::Answered(Answered::Jig(contract::Answer::Refused { .. }))] = answers.as_slice() else {
         panic!("one refusal: {answers:?}");
     };
     assert_eq!(story.made(fixtures::FIRST_OWNER), 1);
@@ -226,6 +226,7 @@ fn an_engine_outside_jig_s_version_leaves_the_client_out_of_date_sending_nothing
     let mut story = Story::live(fixtures::SEED);
     story.serve_jig(8);
     assert!(story.run_until(|s| s.client.link().state == Link::OutOfDate, Duration::from_secs(1)));
+    assert!(!story.client.link().unreadable);
     let exchanges = story.exchanges();
     story.send(STOP, stop(STOP_TASK));
     story.read(PROJECT_PAGE, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));

@@ -9,7 +9,7 @@ use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
-use temper_service::{
+use temper_engine_service::{
     clients::bundle::{Bundle, File, NAME_BYTES, compressed_of, kind},
     limits::Clients,
 };

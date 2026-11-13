@@ -183,6 +183,7 @@ fn configuration_follows_operational_reports() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn kinds_validate_connector_ownership() {
     let (mut domain, env, mut out) = fresh();
     assert!(
@@ -200,6 +201,7 @@ fn kinds_validate_connector_ownership() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn charters_validate_model_efforts() {
     let (mut domain, env, mut out) = fresh();
     assert!(

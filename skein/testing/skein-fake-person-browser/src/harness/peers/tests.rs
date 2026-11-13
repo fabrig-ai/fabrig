@@ -161,7 +161,7 @@ fn ready_and_drained(mut peer: Peer) -> (SocketAddr, usize) {
                 Expired::Starved(verdict) => starved = Some(verdict),
             }
         }
-        assert!(peers.drive(&mut ring, stamp.now, stamp.wall, address.is_some() || starved.is_some()).is_empty());
+        assert_eq!(peers.drive(&mut ring, stamp.now, stamp.wall, address.is_some() || starved.is_some()).len(), 0);
         if starved.is_none() && address.is_none() && peers.ready() {
             let [(name, bound)] = peers.addresses().try_into().expect("one lent listener");
             assert_eq!(name.as_ref(), b"listener");

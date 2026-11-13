@@ -26,7 +26,7 @@ fn scenario_restart_cuts_offline_and_retained_keys() {
     engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(3), Subject::Task { task: 8 }).expect("watch");
     engine.read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(4), Read::Task { task: 8 }).expect("read");
     engine.fault(at(1), Fault::Restart { offline: Duration::from_millis(10) });
-    assert!(engine.commits().is_empty());
+    assert_eq!((engine.commits()).len(), 0);
     assert!(engine.runs.is_empty());
     assert!(engine.keys.is_empty());
     assert!(
@@ -72,7 +72,7 @@ fn scenario_busy_not_ready_loss_sign_out_versions_and_watch_faults() {
     send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
     send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
     engine.fault(at(1), Fault::Lose { attempt: Token::new(1) });
-    assert!(engine.poll(at(9_999_999)).is_empty());
+    assert_eq!(engine.poll(at(9_999_999)).len(), 0);
     assert_eq!(
         engine.poll(at(10_000_000)),
         vec![
@@ -110,7 +110,7 @@ fn scenario_busy_not_ready_loss_sign_out_versions_and_watch_faults() {
     engine.fault(Time::ZERO, Fault::Versions(VersionRange { first: 2, last: 2 }));
     assert_eq!(engine.versions(), VersionRange { first: 2, last: 2 });
     assert!(engine.commits().is_empty(), "a hello range is protocol configuration, not a business commit");
-    assert!(engine.poll(at(9_999_999)).is_empty());
+    assert_eq!(engine.poll(at(9_999_999)).len(), 0);
     assert!(engine.poll(at(10_000_000)).is_empty(), "changing hello never rewrites Me");
     let versions = VersionRange { first: u32::MAX, last: u32::MAX };
     engine.fault(at(10_000_000), Fault::Versions(versions));
@@ -131,7 +131,7 @@ fn scenario_slow_current_documents_preserve_in_flight_and_barriers() {
     let mut latest = frame(REQUESTER);
     latest.needs.questions = 7;
     engine.act(at(10_000_000), Wall::EPOCH, Change::Me(latest.clone())).expect("latest frame");
-    assert!(engine.poll(at(49_999_999)).is_empty());
+    assert_eq!(engine.poll(at(49_999_999)).len(), 0);
     let up = engine.poll(at(60_000_000));
     assert!(
         up.contains(&Up::Watch { token: Token::new(1), event: WatchEvent::Delivered(Delivery::Me(Box::new(latest))) })

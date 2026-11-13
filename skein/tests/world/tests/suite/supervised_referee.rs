@@ -65,6 +65,7 @@ fn escalation_at_or_after_grace_requests_kill_once() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn missing_grace_observation_fails_immediately_and_stays_failed() {
     let tree = live_tree();
     for (trigger, stderr, overflowed) in TRIGGERS {

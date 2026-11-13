@@ -214,6 +214,7 @@ enum Delivery {
     Host { relay: run::RelayName, reply: run::HostReply },
     Job { owner: Token },
     Cancel,
+    Drain,
     Grant { grant: Grant },
 }
 
@@ -656,6 +657,11 @@ impl<B: Backend> World<B> {
     /// Script a parent input; delivery requires prior Admitted, as the host does.
     pub fn message_at(&mut self, at: Time, name: Token, label: Box<[u8]>, text: Box<[u8]>) {
         self.schedule.send(at, Delivery::Message { finish_requested: false, name, label, text });
+    }
+
+    /// Ask the host to finish the current main turn, without cutting its calls.
+    pub fn drain_at(&mut self, at: Time) {
+        self.schedule.send(at, Delivery::Drain);
     }
 
     /// Script durable host acknowledgement of this turn and its prefix.
@@ -1375,6 +1381,11 @@ impl<B: Backend> World<B> {
                 self.stage.push(Event::HostReturned { relay, reply });
                 self.terminals += 1;
             }
+            Delivery::Drain => {
+                if let Some(run) = self.admitted {
+                    self.stage.push(Event::Drain { run });
+                }
+            }
             Delivery::Cancel => {
                 if let Some(run) = self.admitted {
                     self.host_history.shutdown(self.now);
@@ -1462,6 +1473,7 @@ impl<B: Backend> World<B> {
             | Event::Acknowledge { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
+            | Event::Drain { .. }
             | Event::Delivered { .. }
             | Event::Below(
                 smith_domain::Below::BuiltinResult { .. }
@@ -1531,6 +1543,7 @@ impl<B: Backend> World<B> {
             | Event::Start(_)
             | Event::Grant { .. }
             | Event::Cancel { .. }
+            | Event::Drain { .. }
             | Event::Below(
                 smith_domain::Below::BuiltinResult { .. }
                 | smith_domain::Below::ReadVersion { .. }
@@ -1550,6 +1563,7 @@ impl<B: Backend> World<B> {
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::CompletionEnded));
             }
             Event::Cancel { .. }
+            | Event::Drain { .. }
             | Event::Start(_)
             | Event::Message { .. }
             | Event::Acknowledge { .. }
@@ -2018,7 +2032,7 @@ pub fn world(settings: &Settings, charter: run::Charter, granted: &[u32]) -> Wor
         .collect();
     World::with_start(
         *settings,
-        Event::Start(smith_domain::Start { grants, ..smith_domain::fixture::start(Token::new(1), charter) }),
+        Event::Start(smith_domain::Start { grants, ..smith_domain_fixtures::start(Token::new(1), charter) }),
     )
 }
 
@@ -2211,7 +2225,7 @@ mod bridge_tests {
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(7200),
             }]),
-            ..smith_domain::fixture::start(Token::new(71), charter(&settings))
+            ..smith_domain_fixtures::start(Token::new(71), charter(&settings))
         });
         let mut world = World::with_start(settings, start);
         world.enable_parent_host_calls();
@@ -2231,7 +2245,7 @@ mod bridge_tests {
         );
         world.return_host_reply(relay, run::HostReply::Answered(answer.clone())).expect("pending relay");
         assert_eq!(world.return_host_reply(relay, run::HostReply::Busy), Err("host relay terminal is already queued"));
-        assert!(world.pending_host_calls().is_empty());
+        assert_eq!(world.pending_host_calls().len(), 0);
         assert!(world.drive(20_000));
         assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
         assert_eq!(world.host_terminals().len(), 1);
@@ -2251,7 +2265,7 @@ mod bridge_tests {
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(7200),
             }]),
-            ..smith_domain::fixture::start(Token::new(71), charter)
+            ..smith_domain_fixtures::start(Token::new(71), charter)
         });
         let scripts = Box::new([Script {
             cue: b"@hosttools".as_slice().into(),

@@ -59,6 +59,12 @@ pub(crate) struct Walking {
     refusal: Option<OpenRefusal>,
 }
 impl Walking {
+    pub(crate) fn at_site(&self) -> bool {
+        match self.waiting {
+            Waiting::Site(_) => true,
+            Waiting::Ready | Waiting::Commit { .. } => false,
+        }
+    }
     pub(super) fn ready(&self) -> bool {
         match self.waiting {
             Waiting::Ready => true,

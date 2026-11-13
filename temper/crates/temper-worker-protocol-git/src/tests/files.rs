@@ -139,7 +139,10 @@ fn a_merging_commit_with_markers_left_ends_conflicted_staging_nothing() {
         component.done(),
         Some((
             fixtures::OWNER,
-            git::Done::Conflicted { files: Box::new([Box::from(&b"first"[..]), Box::from(&b"second"[..])]) }
+            git::Done::Conflicted {
+                files: Box::new([Box::from(&b"first"[..]), Box::from(&b"second"[..])]),
+                cut: false
+            }
         ))
     );
     assert!(component.below.out.io.is_empty(), "nothing staged");
@@ -313,4 +316,33 @@ fn an_unset_start_refuses_existing_workspaces_after_the_rename() {
         component.below.out.events.pop(),
         Some(Event::Unusable { why: Unusable::Layout { error: Error::Exists } })
     );
+}
+
+#[test]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the layout observer rejects any operation other than named directory operations"
+)]
+fn the_layout_never_names_the_pinned_agent_or_its_files() {
+    for keep in [false, true] {
+        let mut component =
+            if keep { fixtures::Started::version_checked_keeping() } else { fixtures::Started::version_checked() };
+        let mut started = false;
+        for _ in 0_u8..16 {
+            let operation = component.file_operation();
+            let name = match &operation {
+                Op::MakeDirectory { name, .. } | Op::Remove { name, .. } => name,
+                Op::Open { path, .. } => path,
+                Op::Rename { from, .. } => from,
+                _ => panic!("unexpected layout operation: {operation:?}"),
+            };
+            assert!(name.as_ref() != b"agent" && !name.starts_with(b"agent/"), "pinned agent touched: {operation:?}");
+            component.complete_ok();
+            if component.below.out.events.pop() == Some(Event::Started) {
+                started = true;
+                break;
+            }
+        }
+        assert!(started, "the layout must finish without touching the pinned files");
+    }
 }

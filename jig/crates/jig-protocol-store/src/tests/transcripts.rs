@@ -640,13 +640,13 @@ fn exhausted_pages_remain_empty_terminal_answers() {
         let (events, below) = ask(&mut store, 801, read, 0, 0);
         assert!(below.transcripts.is_empty());
         let (_, found, next) = page(&events);
-        assert!(found.is_empty());
+        assert_eq!((found).len(), 0);
         assert_eq!(next, None);
     }
     let (_, below) = ask(&mut store, 801, window(Some(len_u64(disk.len()))), 1, 0);
     let events = answer_reads(&mut store, below, &disk, 4096);
     let (_, found, next) = page(&events);
-    assert!(found.is_empty());
+    assert_eq!((found).len(), 0);
     assert_eq!(next, None);
 }
 

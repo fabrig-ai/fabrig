@@ -258,7 +258,7 @@ pub(crate) fn sent(
                 return;
             }
         },
-        Answer::Refused { refusal: _, .. } => return,
+        Answer::Refused { .. } => return,
     };
     if message_task != task || domain.confirmed != Some(scope) {
         return;

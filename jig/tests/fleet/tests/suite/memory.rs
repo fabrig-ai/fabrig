@@ -162,7 +162,7 @@ fn placed(requests: &[Request]) -> Vec<(Token, Token, Token)> {
 fn fill(limits: Limits) -> (Measured, Vec<(Token, Token, Token)>, Vec<ReplyTo>) {
     let mut fleet = Measured::new(limits);
     for nth in 0..limits.workers {
-        assert!(fleet.hello(channel(nth), Vec::new()).is_empty());
+        assert_eq!(fleet.hello(channel(nth), Vec::new()).len(), 0);
     }
     for _ in 0..limits.attempts {
         fleet.start();

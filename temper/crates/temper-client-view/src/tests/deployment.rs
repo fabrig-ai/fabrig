@@ -268,7 +268,7 @@ fn check(tree: &Tree, case: Case) {
                 }
                 Read::Unread | Read::Refused => {
                     named(tree, Role::Heading { level: 2 }, "Shop");
-                    assert!(lines.is_empty());
+                    assert_eq!(lines.len(), 0);
                     assert_eq!(all.contains("Read by the project’s members."), case.read == Read::Refused);
                 }
             }
@@ -276,11 +276,11 @@ fn check(tree: &Tree, case: Case) {
     } else if case.role.is_none() {
         named(tree, Role::Paragraph, "Limits are seen by the deployment’s owners.");
         assert!(!all.contains("Capacities"), "no role must not draw capacities");
-        assert!(lines.is_empty());
+        assert_eq!(lines.len(), 0);
     } else if case.read == Read::Unread {
         named(tree, Role::Heading { level: 2 }, "Limits");
         assert!(!all.contains("Capacities"));
-        assert!(lines.is_empty());
+        assert_eq!(lines.len(), 0);
     } else {
         named(tree, Role::Heading { level: 2 }, "Capacities");
         named(tree, Role::Heading { level: 2 }, "By project");

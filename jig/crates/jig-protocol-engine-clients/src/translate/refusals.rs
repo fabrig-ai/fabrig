@@ -356,6 +356,7 @@ fn hold(value: p::HoldReason, limits: &w::Limits) -> Result<w::HoldCategory, w::
                 p::FailureClass::Agent => w::HoldFailure::Agent,
                 p::FailureClass::Lost => w::HoldFailure::Lost,
                 p::FailureClass::Invalid => w::HoldFailure::Invalid,
+                p::FailureClass::Infrastructure => w::HoldFailure::Infrastructure,
             };
             w::HoldCategory::Failures(w::HoldCategoryFailures::new(limits, w::HoldCategoryFailuresParts { class })?)
         }

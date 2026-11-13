@@ -1078,7 +1078,7 @@ fn a_charter_changed_while_its_goal_runs_keeps_the_run_and_the_goal_on_their_ver
     change_instructions(&mut world, signed);
     assert_eq!(world.assignments, assignments);
     assert_eq!(world.assigned.as_ref().expect("unchanged assignment").run.policy, old_policy);
-    assert!(world.cancellations.is_empty());
+    assert_eq!(world.cancellations.len(), 0);
     world.park_for_message(0);
     let reply =
         ask(&mut world, signed, 103, people::Ask::Say { project: 1, task: goal, words: b"Continue".as_slice().into() });

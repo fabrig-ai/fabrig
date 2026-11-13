@@ -60,5 +60,5 @@ fn the_nonce_is_drawn_from_the_seeded_generator() {
     crypto(17).fill(&mut raw);
     let mut expected = Writer::new(32);
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, &raw[56..], &mut expected).expect("nonce room");
-    assert!(nonce == Some(expected.finish().as_ref()));
+    assert_eq!(nonce, Some(expected.finish().as_ref()));
 }

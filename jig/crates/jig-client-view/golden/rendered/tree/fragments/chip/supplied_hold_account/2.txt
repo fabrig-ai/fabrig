@@ -31,6 +31,7 @@ Project: 4294967295:
   Agent tries: 4
   Lost tries: 5
   Invalid tries: 4294967295
+  Infrastructure tries: 0
   Hold wait began: 40
   Budget: 100:
     Budget: 100

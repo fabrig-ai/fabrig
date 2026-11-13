@@ -31,7 +31,7 @@ fn failed(world: &mut World, expected: RestoreLimit) {
         world.restore(later.clone());
         assert_eq!(restore_limit(&world.domain), Some(expected));
     }
-    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.step(Event::Want).len(), 0);
     assert_eq!(restore_limit(&world.domain), Some(expected));
     assert!(!world.domain.restore_finished());
 
@@ -39,12 +39,12 @@ fn failed(world: &mut World, expected: RestoreLimit) {
     assert_eq!(restore_limit(&world.domain), Some(expected));
     world.restore(vec![Stored::Next { number: 900 }, held(800, b"later")]);
     assert_eq!(restore_limit(&world.domain), Some(expected));
-    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.step(Event::Want).len(), 0);
     assert_eq!(restore_limit(&world.domain), Some(expected));
     assert!(!world.domain.restore_finished());
 
     assert_eq!(world.domain.next_number(), 900);
-    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.step(Event::Want).len(), 0);
     assert_eq!(restore_limit(&world.domain), Some(expected));
     assert!(!world.domain.restore_finished());
 }
@@ -74,8 +74,8 @@ fn records_are_linked_after_loading_in_any_order() {
     let out = world.step(Event::Want);
     assert!(world.domain.restore_finished());
     assert_eq!(world.domain.account_facts(ACCOUNT), &[fact]);
-    assert!(world.domain.account_facts(orphan).is_empty());
-    assert!(world.domain.account_facts(22).is_empty());
+    assert_eq!((world.domain.account_facts(orphan)).len(), 0);
+    assert_eq!((world.domain.account_facts(22)).len(), 0);
 
     assert_eq!(restore_limit(&world.domain), None);
     assert_eq!(world.domain.account(ACCOUNT).expect("linked").sources().get(&PROGRAM_PLACE), Some(&PROGRAM_SOURCE));
@@ -267,11 +267,11 @@ fn retained_capacities_bound_accounts_and_lifetime_names_after_limits_grow() {
 
 fn refused_link(world: &mut World, key: Key, target: Key) {
     let expected = jig_domain_accounts::RestoreLink { key, target };
-    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.step(Event::Want).len(), 0);
     assert_eq!(world.domain.restore_link(), Some(expected));
     assert_eq!(world.domain.restore_limit(), None);
     assert!(!world.domain.restore_finished());
-    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.step(Event::Want).len(), 0);
     assert_eq!(world.domain.restore_link(), Some(expected));
 }
 
@@ -320,7 +320,7 @@ fn an_empty_start_finishes_once() {
     assert!(!world.domain.restore_finished());
     world.step(Event::Want);
     assert!(world.domain.restore_finished());
-    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.step(Event::Want).len(), 0);
     assert_eq!(restore_limit(&world.domain), None);
 }
 

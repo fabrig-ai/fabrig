@@ -47,7 +47,7 @@ pub(crate) fn answer_status(answer: &smith_host_domain::Answer, account: Option<
             Refusal::Invalid(_) => ExitStatus::Refused,
         },
         RunResult::Failed { failure } => match failure {
-            RunFailure::Budget { exhausted: _, .. } => ExitStatus::Budget,
+            RunFailure::Budget { .. } => ExitStatus::Budget,
             RunFailure::Cancelled => ExitStatus::Interrupted,
             RunFailure::Model(fault) => match fault {
                 smith_host_domain::ModelFault::Completion {

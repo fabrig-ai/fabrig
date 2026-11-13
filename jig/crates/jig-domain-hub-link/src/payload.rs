@@ -164,7 +164,7 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
         )) => tasks::End::Failed(tasks::Class::Transient),
         host::Ending::Refused(host::Refusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::Ending::Parked { .. } => tasks::End::Parked,
-        host::Ending::Failed { failure, .. } => match failure {
+        host::Ending::Failed { failure, detail, .. } => match failure {
             host::Failure::Run(host::RunFailure::Exceeded(value)) => tasks::End::Exceeded(tasks::Exceeded {
                 bound: match value.bound {
                     host::Bound::Reasoning => tasks::Bound::Reasoning,
@@ -179,8 +179,14 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
                 },
                 value: value.value,
             }),
-            host::Failure::Unprepared(host::Preparation::Transient)
-            | host::Failure::Run(host::RunFailure::Transcript) => tasks::End::Failed(tasks::Class::Transient),
+            host::Failure::Unprepared(host::Preparation::Transient) => {
+                if detail.is_empty() {
+                    tasks::End::Failed(tasks::Class::Infrastructure)
+                } else {
+                    tasks::End::FailedWithReason { class: tasks::Class::Infrastructure, reason: job_reason(detail) }
+                }
+            }
+            host::Failure::Run(host::RunFailure::Transcript) => tasks::End::Failed(tasks::Class::Transient),
             host::Failure::Unprepared(host::Preparation::Permanent { .. }) => {
                 tasks::End::Failed(tasks::Class::Permanent)
             }
@@ -299,10 +305,10 @@ pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
         host::JobEnding::Refused(host::JobRefusal::Busy) => tasks::End::Refused,
         host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::JobEnding::Failed { failure, .. } => match failure {
-            host::JobFailure::Unprepared(host::Preparation::Transient)
-            | host::JobFailure::Undelivered(host::DeliveryOutcome::Failed) => {
-                tasks::End::Failed(tasks::Class::Transient)
+            host::JobFailure::Unprepared(host::Preparation::Transient) => {
+                tasks::End::Failed(tasks::Class::Infrastructure)
             }
+            host::JobFailure::Undelivered(host::DeliveryOutcome::Failed) => tasks::End::Failed(tasks::Class::Transient),
             host::JobFailure::Unprepared(host::Preparation::Permanent { .. })
             | host::JobFailure::Undelivered(host::DeliveryOutcome::Stale | host::DeliveryOutcome::Refused) => {
                 tasks::End::Failed(tasks::Class::Permanent)
@@ -310,9 +316,8 @@ pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
             host::JobFailure::Failed | host::JobFailure::Deadline => tasks::End::Failed(tasks::Class::Run),
             host::JobFailure::Unstarted => tasks::End::Failed(tasks::Class::Agent),
             host::JobFailure::Result => tasks::End::Failed(tasks::Class::Invalid),
-            host::JobFailure::Cancelled(host::Reason::Contact | host::Reason::Shutdown) => {
-                tasks::End::Failed(tasks::Class::Lost)
-            }
+            host::JobFailure::Cancelled(host::Reason::Shutdown) => tasks::End::Recheck,
+            host::JobFailure::Cancelled(host::Reason::Contact) => tasks::End::Failed(tasks::Class::Lost),
             host::JobFailure::Cancelled(host::Reason::Engine) => tasks::End::Refused,
             host::JobFailure::Undelivered(host::DeliveryOutcome::Delivered | host::DeliveryOutcome::Nothing) => {
                 tasks::End::Failed(tasks::Class::Invalid)

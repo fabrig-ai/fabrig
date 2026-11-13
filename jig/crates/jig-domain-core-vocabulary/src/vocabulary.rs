@@ -1422,6 +1422,40 @@ impl Timer {
     }
 }
 
+/// The store transport's transcript answer (jig/docs/design/domain/engine/README.md, 4.1, and jig/docs/design/domain/engine/executors.md, 2).
+#[derive(Hash, Debug)]
+pub enum TranscriptLoad {
+    Page {
+        rows: Box<[crate::TranscriptRow]>,
+        done: bool,
+    },
+    /// A window's turn past its store page's room, alone in its page: its
+    /// fields, `turn.transcript` empty and its transcript's length
+    /// (jig/docs/design/domain/engine/executors.md, 2).
+    Cut {
+        turn: crate::TurnRecord,
+        bytes: u64,
+        done: bool,
+    },
+    Unread,
+    Failed,
+}
+
+impl Timer {
+    /// Whether the core pauses this child timer while the service stops.
+    #[must_use]
+    pub fn waits_while_stopping(self) -> bool {
+        waits(self)
+    }
+}
+
+pub fn waits(timer: Timer) -> bool {
+    match timer {
+        Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief => true,
+        Timer::Account => false,
+    }
+}
+
 #[cfg(test)]
 mod admission_tests {
     use super::{Event, Timer};
@@ -1464,39 +1498,5 @@ mod admission_tests {
         ] {
             assert_eq!(timer.new_work(), new, "the timer's work fixes its admission");
         }
-    }
-}
-
-/// The store transport's transcript answer (jig/docs/design/domain/engine/README.md, 4.1, and jig/docs/design/domain/engine/executors.md, 2).
-#[derive(Hash, Debug)]
-pub enum TranscriptLoad {
-    Page {
-        rows: Box<[crate::TranscriptRow]>,
-        done: bool,
-    },
-    /// A window's turn past its store page's room, alone in its page: its
-    /// fields, `turn.transcript` empty and its transcript's length
-    /// (jig/docs/design/domain/engine/executors.md, 2).
-    Cut {
-        turn: crate::TurnRecord,
-        bytes: u64,
-        done: bool,
-    },
-    Unread,
-    Failed,
-}
-
-impl Timer {
-    /// Whether the core pauses this child timer while the service stops.
-    #[must_use]
-    pub fn waits_while_stopping(self) -> bool {
-        waits(self)
-    }
-}
-
-pub fn waits(timer: Timer) -> bool {
-    match timer {
-        Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief => true,
-        Timer::Account => false,
     }
 }

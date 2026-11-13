@@ -36,7 +36,7 @@ fn three_calls_and_a_finish_stream_input_in_each_dialect() {
             assert_eq!(*piece.kind(), smith_channel::LiveKind::Input);
             assert_eq!(piece.retry(), 0);
             let call = piece.call().as_ref().expect("call");
-            assert!(!call.id().is_empty());
+            assert_ne!(call.id().len(), 0);
             if streams.last().is_none_or(|stream| stream.turn != piece.turn() || stream.id.as_slice() != call.id()) {
                 assert_eq!(piece.offset(), 0);
                 assert!(streams.iter().all(|stream| stream.id.as_slice() != call.id()), "distinct call identities");
@@ -88,7 +88,7 @@ fn kinds_not_asked_give_no_piece() {
         world.observe_facts(case, FRAMES);
         world.ask(text, false, input);
         assert!(world.settle());
-        assert!(world.pieces().is_empty());
+        assert_eq!(world.pieces().len(), 0);
     }
 }
 
@@ -106,7 +106,7 @@ fn a_channel_with_no_room_counts_every_input_byte_and_still_sends_the_turn() {
         )]));
         assert!(world.settle());
         assert_eq!(world.lost_live_bytes(), length as u64);
-        assert!(world.pieces().is_empty());
+        assert_eq!(world.pieces().len(), 0);
         assert_eq!(world.observed().iter().filter(|frame| frame.kind == TURN).count(), 1);
     }
 }

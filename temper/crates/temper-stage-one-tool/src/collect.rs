@@ -394,7 +394,6 @@ fn parse_number(text: &str, flag: &str) -> Result<u32, CollectError> {
         .ok_or_else(|| failure("collect", format!("{flag} requires a positive u32")))
 }
 /// Run the collect command, reporting usage and read failures with exit 2.
-#[must_use]
 pub fn main(args: &[String]) -> ExitCode {
     let args = match CollectArgs::parse(args) {
         Ok(args) => args,

@@ -147,7 +147,7 @@ fn ci_evidence_follows_native_commit_and_pull_reads() {
         api::Op::Read(api::Read::Checks { commit: base }),
     );
     forge.poll(clock);
-    assert!(forge.take_observed().is_empty());
+    assert_eq!(forge.take_observed().len(), 0);
 }
 
 #[test]

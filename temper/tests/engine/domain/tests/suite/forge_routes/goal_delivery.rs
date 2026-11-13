@@ -72,7 +72,7 @@ fn assert_design_first_recipe() {
     let charter = crate::reference_settings::charter(&stock, 5);
     let shared = std::str::from_utf8(&charter.policy.instructions).expect("shared instructions");
     assert!(shared.contains("live changes by task number"), "the recipe names live dependencies");
-    let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
+    let ask = include_str!("../../../../../../crates/temper-engine-service/src/stock/ask.txt");
     assert!(ask.contains("Use after only for live prerequisites"), "Ask temper must propose live dependencies");
     assert!(ask.contains("cite design's repository path and section in words; omit its ended task from after"));
 }
@@ -165,7 +165,7 @@ fn assert_confirmed_design_recipe() {
     let charter = crate::reference_settings::charter(&stock, 5);
     let first = std::str::from_utf8(&charter.parts[0].instructions).expect("first instructions");
     assert!(first.contains("deliver a design before you cut the changes that need it"));
-    let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
+    let ask = include_str!("../../../../../../crates/temper-engine-service/src/stock/ask.txt");
     assert!(ask.contains("confirm all required design landed into g before dispatching coding"));
     assert!(ask.contains("A push, delivery or designer report is insufficient"));
 }

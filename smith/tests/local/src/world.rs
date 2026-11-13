@@ -384,7 +384,7 @@ impl World {
             show_bytes: 4096,
             unsaved,
             facts,
-            ..local::fixture::small(agent_world::LIMITS)
+            ..smith_local_domain_fixtures::small(agent_world::LIMITS)
         };
         let saved_disk = store.disk.take();
         let restored = saved_disk.is_some();

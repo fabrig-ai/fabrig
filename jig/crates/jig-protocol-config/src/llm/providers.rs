@@ -563,7 +563,7 @@ fn public_address(value: &[u8]) -> bool {
         return false;
     };
     for byte in rest {
-        if *byte <= b' ' || *byte >= 127 || [b'@', b'?', b'#', b'\\', b'"', b'\'', b'<', b'>'].contains(byte) {
+        if *byte <= b' ' || *byte >= 127 || b"@?#\\\"'<>".contains(byte) {
             return false;
         }
     }

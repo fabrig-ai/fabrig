@@ -44,6 +44,12 @@
 - **The owner's crate** includes `patches/mod.rs` as a module of its
   library (`#[path = "../patches/mod.rs"] pub mod patches;`), and
   depends on skein-codec, and on skein-codegen in its tests.
+- **A codec crate apart from its owner** (`README.md`, section 2) holds
+  the family's generated record code alone. The command keeps the
+  owner's files of the table above, and never reads or writes generated
+  code, wherever it sits. The owner's drift test (`README.md`, section
+  6), which names each family's codec crate, writes the code there when
+  asked.
 - **A family's baseline is its owner's** (`README.md`, section 5). A crate with no
   kept text, landed or its own, is before its baseline, and a run there
   is refused unless given `--baseline`, which its owner passes once, at

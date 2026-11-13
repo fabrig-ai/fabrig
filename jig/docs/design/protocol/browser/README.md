@@ -268,7 +268,9 @@ and the starter. What is jig's follows.
 ### 4.1 The toolchain
 
 - **skein's** (skein's `ui/web/bundle.md`, 1): `wasm32-unknown-unknown`,
-  stable Rust, and the glue crates pinned to exact versions in the
+  on the toolchain the repository's `rust-toolchain.toml` pins
+  (`skein/docs/foundation/programming-model.md`, 10.1), and the glue
+  crates pinned to exact versions in the
   workspace, the only `unsafe` the module runs
   (`skein/docs/foundation/programming-model.md`, 2.1); no wasm-pack, no npm, no binaryen.
   `jig-client-shell-web` forbids `unsafe`, as `skein-ui-web` does; an

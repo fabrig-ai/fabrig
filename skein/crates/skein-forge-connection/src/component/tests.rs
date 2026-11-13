@@ -1,4 +1,5 @@
 use super::*;
+use crate::seam::Access;
 use crate::tests::fixtures;
 
 #[test]

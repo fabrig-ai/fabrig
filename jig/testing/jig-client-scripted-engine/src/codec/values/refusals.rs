@@ -347,6 +347,7 @@ pub(in crate::codec) fn wire_hold_failure(
         c::HoldFailure::Agent => w::HoldFailure::Agent,
         c::HoldFailure::Lost => w::HoldFailure::Lost,
         c::HoldFailure::Invalid => w::HoldFailure::Invalid,
+        c::HoldFailure::Infrastructure => w::HoldFailure::Infrastructure,
     })
 }
 

@@ -285,10 +285,9 @@ impl Call {
 fn encoding_weight(value: &[u8]) -> Option<bool> {
     let (one, rest) = if let Some(rest) = value.strip_prefix(b"0") {
         (false, rest)
-    } else if let Some(rest) = value.strip_prefix(b"1") {
-        (true, rest)
     } else {
-        return None;
+        let rest = value.strip_prefix(b"1")?;
+        (true, rest)
     };
     if rest.is_empty() {
         return Some(one);

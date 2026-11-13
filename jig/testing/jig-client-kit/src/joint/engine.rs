@@ -306,7 +306,7 @@ mod tests {
         let event = driver.transport.start_sign_in(ClientId(0));
         driver.send(now, wall, root::Event::Core(event));
         assert!(driver.poll(now, wall).is_empty());
-        assert!(driver.snapshots().is_empty());
+        assert_eq!(driver.snapshots().len(), 0);
     }
 
     #[test]
@@ -437,7 +437,7 @@ mod tests {
         let people::Reply::SignedIn { person, sign_in, .. } = reply else { panic!("actual person") };
         let session = sign_in;
         driver.transport.signed_in(ClientId(0), person, session);
-        assert!(driver.transport.reply_tokens().is_empty());
+        assert_eq!(driver.transport.reply_tokens().len(), 0);
 
         // A caller can reuse a retired opaque destination. Ownership follows
         // the live route table, never that destination's old person or range.
@@ -500,7 +500,7 @@ mod tests {
             people::Reply::Outcome(people::Outcome::MarkedSeen { seen: people::Seen::Results { through: 0 } })
         );
         driver.transport.detach(ClientId(0));
-        assert!(driver.transport.reply_tokens().is_empty());
+        assert_eq!(driver.transport.reply_tokens().len(), 0);
         assert!(driver.poll(now, wall).is_empty(), "detachment retires registrations without inventing input");
     }
 }
