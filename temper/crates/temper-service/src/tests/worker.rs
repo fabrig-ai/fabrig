@@ -6,7 +6,17 @@ use temper_protocol_worker_wire::v1;
 #[test]
 fn the_workers_credential_uses_the_engines_table_entry() {
     let settings = fixtures::worker_settings();
-    let credential = worker_settings::credential(&settings, b"worker-secret-value");
+    let payload = worker_settings::payload_limits(&fixtures::worker_limits()).unwrap();
+    let credential = worker_settings::credential(&settings, b"worker-secret-value", &payload).unwrap();
+    let engine = temper_engine_service::workers::application(&payload).unwrap();
+    assert_eq!(credential.application.spoken, engine.spoken);
+    assert_eq!(credential.application.roots.len(), engine.roots.len());
+    assert_eq!(engine.roots.len(), 6);
+    for (worker, engine) in credential.application.roots.iter().zip(&engine.roots) {
+        assert_eq!(worker.carried, engine.carried);
+        assert_eq!(worker.wire, engine.wire);
+        assert_eq!(worker.declaration, engine.declaration);
+    }
     let wires = temper_engine_service::wires();
     let mut found = false;
     for wire in &wires {

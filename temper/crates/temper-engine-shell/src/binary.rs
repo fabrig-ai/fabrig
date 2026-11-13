@@ -209,21 +209,31 @@ fn recording(arguments: &[Box<[u8]>]) -> Option<bool> {
 mod tests {
     #[test]
     fn versions_print_each_wire_range_then_its_layout() {
+        use std::fmt::Write;
         let text = super::versions();
         eprintln!("{text}");
         let mut lines = text.lines().skip_while(|line| !line.starts_with("wire "));
         let wires = temper_engine_service::wires();
-        for wire in &wires {
-            let name = wire.name;
-            let lowest = wire.lowest;
-            let highest = wire.highest();
+        assert_eq!(wires.len(), 6);
+        for (wire, (name, lowest, highest)) in wires.iter().zip([
+            ("jig-worker-wire", 11, 12),
+            ("smith-pieces", 1, 1),
+            ("smith-charter", 4, 5),
+            ("smith-transcript", 7, 7),
+            ("temper-worker-wire", 5, 5),
+            ("temper-host-tools", 1, 1),
+        ]) {
+            assert_eq!((wire.name, wire.lowest, wire.highest()), (name, lowest, highest));
             assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));
             for version in lowest..=highest {
                 let layout = lines.next().expect("one layout follows for each spoken version");
                 let fingerprint =
                     layout.strip_prefix(&format!("layout {name} {version} ")).expect("layout name and version");
-                assert_eq!(fingerprint.len(), 64);
-                assert!(fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+                let mut expected = String::new();
+                for byte in wire.layout(version).expect("kept layout") {
+                    write!(expected, "{byte:02x}").expect("writing into a string");
+                }
+                assert_eq!(fingerprint, expected);
             }
         }
         assert_eq!(lines.next(), None);

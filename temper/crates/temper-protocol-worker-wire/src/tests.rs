@@ -1,4 +1,5 @@
 //! Domain bounds and identity field rules (protocol/channel.md, sections 6 and 8).
+mod application;
 mod fixtures;
 use crate::v1;
 use alloc::boxed::Box;

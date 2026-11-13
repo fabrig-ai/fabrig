@@ -5995,6 +5995,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-protocol-config",
+ "jig-protocol-worker-wire",
  "skein-forge",
  "skein-forge-client",
  "skein-json",
@@ -6907,6 +6908,7 @@ dependencies = [
 name = "temper-protocol-worker-wire"
 version = "0.0.0"
 dependencies = [
+ "jig-protocol-worker-wire",
  "skein-codec",
  "skein-codegen",
  "skein-lib",

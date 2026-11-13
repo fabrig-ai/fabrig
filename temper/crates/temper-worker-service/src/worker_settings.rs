@@ -183,21 +183,16 @@ fn programs_valid(programs: &[settings::Program]) -> bool {
 }
 
 /// The application's wire is part of every worker's statement (protocol/wires.md, 4).
-#[must_use]
-pub fn credential(worker: &settings::Worker, secret: &[u8]) -> link::Credential {
-    let mut wires = skein_lib::List::with_capacity(1);
-    wires
-        .push(jig_protocol_worker_wire::Spoken::current(
-            payload::wire::FAMILY,
-            payload::wire::VERSION,
-            payload::wire::layout(),
-        ))
-        .expect("one application wire");
-    link::Credential {
+pub fn credential(
+    worker: &settings::Worker,
+    secret: &[u8],
+    limits: &v1::Limits,
+) -> Result<link::Credential, skein_codec::bridge::BridgeError> {
+    Ok(link::Credential {
         name: worker.jig.name.clone(),
         secret: config::secret(secret.into()),
-        application: jig_protocol_worker_wire::Application::opaque(wires),
-    }
+        application: payload::application(limits)?,
+    })
 }
 
 fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
