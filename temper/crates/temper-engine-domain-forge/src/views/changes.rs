@@ -67,7 +67,6 @@ impl Domain {
                         title: crate::text::fit(&row.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
                         ready_since,
                         checks_since,
-                        alone: row.change.alone,
                     })
                     .ok()?;
                 left = left.checked_sub(1)?;
@@ -120,6 +119,7 @@ impl Domain {
                         member: member.change,
                         round: row.landing.preparation,
                         step: super::landing_step(self, &row.landing),
+                        probe: super::landing_probe(self, &row.landing),
                         title: crate::text::fit(&change.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
                         ready_since: ready_since(change),
                     });

@@ -56,6 +56,20 @@ impl Domain {
         w::PublicLanding::new(
             l,
             w::PublicLandingParts {
+                search: match row.round.search {
+                    Some(search) => Some(
+                        w::PublicSearch::new(
+                            l,
+                            w::PublicSearchParts {
+                                green: search_bound(row, search.green)?,
+                                red: search_bound(row, search.red)?,
+                                probe: crate::views::landing_probe(self, row),
+                            },
+                        )
+                        .ok()?,
+                    ),
+                    None => None,
+                },
                 phase: phase(&row.phase),
                 hold: match row.phase {
                     policy::Phase::Held { why, .. } => Some(match why {
@@ -134,16 +148,14 @@ fn step(value: crate::LandingStep) -> w::PublicLandingStep {
         S::Judging => w::PublicLandingStep::Judging,
         S::Leaving => w::PublicLandingStep::Leaving,
         S::Recording => w::PublicLandingStep::Recording,
+        S::Probing => w::PublicLandingStep::Probing,
         S::Telling => w::PublicLandingStep::Telling,
     }
 }
 fn left(value: policy::Leave) -> Option<w::PublicLeave> {
     Some(match value {
         policy::Leave::Conflict | policy::Leave::EarlierConflict => w::PublicLeave::Conflict,
-        policy::Leave::Unit { .. }
-        | policy::Leave::Dependency { .. }
-        | policy::Leave::Fallback { .. }
-        | policy::Leave::Held => w::PublicLeave::Held,
+        policy::Leave::Unit { .. } | policy::Leave::Dependency { .. } | policy::Leave::Held => w::PublicLeave::Held,
         policy::Leave::HeadMoved { .. } => w::PublicLeave::HeadMoved,
         policy::Leave::Cancelled => w::PublicLeave::Cancelled,
         policy::Leave::Refused { gate } => {
@@ -152,7 +164,26 @@ fn left(value: policy::Leave) -> Option<w::PublicLeave> {
         policy::Leave::Failed { gate, .. } => w::PublicLeave::Failed(
             w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: u64::from(gate) }).ok()?,
         ),
+        policy::Leave::Blamed { gate, red, green, .. } => w::PublicLeave::Blamed(
+            w::PublicBlamed::new(&w::CEILINGS, w::PublicBlamedParts { gate: u64::from(gate), red, green }).ok()?,
+        ),
     })
+}
+
+fn search_bound(row: &policy::Landing, member: u16) -> Option<w::PublicSearchBound> {
+    let prefix = if member == 0 {
+        row.round.upstream?
+    } else {
+        let member = row.members.get(usize::from(member.checked_sub(1)?))?;
+        if let Some(prefix) = member.candidate {
+            prefix
+        } else if let Some(policy::Leave::Blamed { red, .. }) = member.left {
+            red
+        } else {
+            return None;
+        }
+    };
+    w::PublicSearchBound::new(&w::CEILINGS, w::PublicSearchBoundParts { member, prefix }).ok()
 }
 
 fn make_judgement(value: crate::PrefixJudgement) -> Option<w::PublicJudgement> {

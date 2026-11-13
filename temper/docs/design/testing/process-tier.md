@@ -81,6 +81,21 @@
   landings read through ctl. It needs the worker's merge train on real
   git, the owned runner and a dispatched run, so it is this profile's.
 
+- **A red narrowed** (`../draft/merge-queue.md`, 12;
+  `../domain/landing-search.md`), on the same setup as the queue that
+  lands green, never a copy of it: three changes into main ready at
+  once form one landing, the second's file making the gate's `check.sh`
+  fail by its content, the first's and the third's passing it; the run
+  at the top fails, the search probes boundary 1, which passes, then
+  boundary 2, which fails; the first change lands by a fast-forward of
+  a pull request from its branch in the landing, the gate's status on
+  its prefix; the second leaves blamed, its change repairing; the third
+  is stacked on the new tip in the next round, proved and landed. Its
+  proof is the forge's state, its runs, statuses, branches and pull
+  requests, read through Forgejo's API, and the landing read through
+  ctl. It is written and compiled with the search, and runs in this
+  profile after landing.
+
 - **The playground and the set up, in and out,** each a story of its
   own (../protocol/setup/testing.md, 4): a first run into the playground and
   out by its reset, the store then read empty and the welcome at its

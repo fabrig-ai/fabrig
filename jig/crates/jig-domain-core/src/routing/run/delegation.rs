@@ -64,7 +64,7 @@ pub(crate) fn delegate_validated(
     }
     if let Err(part) = core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
         let mut out = Queue::uncapped();
-        call_decision(core, &mut out, to, key, part);
+        call_decision(core, &mut out, to, key, *part);
         return out;
     }
     let context = core.tasks.delegation(key.task).expect("preflighted delegator");

@@ -56,7 +56,16 @@ fn each_page_reads_its_documents() {
     ] {
         reader.step(at(0), PublicEvent::Open { page }, &mut out);
         for &(doc, owner, kind, ids) in expected {
-            assert_eq!(out.pop(), Some(PublicRead { doc, owner, version: 1, kind, ids }));
+            assert_eq!(
+                out.pop(),
+                Some(PublicRead {
+                    doc,
+                    owner,
+                    version: if owner == 2 { forge::PUBLIC_VERSION } else { jig_client_protocol_wire::PUBLIC_VERSION },
+                    kind,
+                    ids
+                })
+            );
         }
         assert!(out.pop().is_none());
     }

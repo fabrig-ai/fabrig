@@ -245,6 +245,7 @@ fn account_completion_record(
     intent(&mut book, owner, session::Choice::Auto, 0);
     book.request(at(3), Time::ZERO, request, &prompt(0));
     let report = llm::Report {
+        status: None,
         field: b"effort".as_slice().into(),
         code: b"not_allowed".as_slice().into(),
         request: b"request-7".as_slice().into(),

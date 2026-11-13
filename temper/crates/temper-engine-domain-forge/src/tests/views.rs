@@ -672,7 +672,6 @@ fn changes_owned_bytes_charges_every_field() {
                 task: fixtures::CHANGE,
                 title: Box::from(TITLE),
                 ready_since: env().wall,
-                alone: false,
                 checks_since: Some(env().wall),
             }]),
         }]),
@@ -871,6 +870,36 @@ fn turn_changes_are_grouped_by_train_with_the_landing_before_its_waiters() {
     assert_eq!(free.in_flight, None);
     assert_eq!(free.changes.len(), 2);
     assert_eq!([free.changes[0].task, free.changes[1].task], [FOURTH, THIRD]);
+}
+
+#[test]
+fn searching_landings_show_the_probe_in_the_landing_and_train() {
+    let mut d = setup();
+    let mut second_change = queued(SECOND, 0, 0);
+    second_change.change.way = change::Way::Turn;
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(second_change)) });
+    let mut landing = row(61, policy::Phase::Proving);
+    let mut second = landing.landing.members[0].clone();
+    second.change = SECOND;
+    second.unit = 2;
+    second.candidate = Some([9; 32]);
+    landing.landing.members = Box::new([landing.landing.members[0].clone(), second]);
+    outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
+    let change = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+    change.change.way = change::Way::Turn;
+    change.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    change.change.ready_since = Some(env().wall);
+    change.change.landing = Some(61);
+    assert_eq!(view(&d, 61).step, LandingStep::Proving, "candidate not red yet");
+    d.landing.rows.get_mut(&61).unwrap().landing.round.search = Some(policy::Search { green: 0, red: 2 });
+    assert_eq!(view(&d, 61).step, LandingStep::Probing);
+    let got = changes(&d);
+    let flight = got.queues[0].in_flight.as_ref().unwrap();
+    assert_eq!((flight.step, flight.probe), (LandingStep::Probing, Some(fixtures::HEAD)));
+    d.landing.rows.get_mut(&61).unwrap().landing.round.search = Some(policy::Search { green: 1, red: 2 });
+    assert_eq!(view(&d, 61).step, LandingStep::Proving, "no internal boundary to probe");
+    d.landing.rows.get_mut(&61).unwrap().landing.round.ending = Some(policy::RoundEnd::Cut);
+    assert_eq!(view(&d, 61).step, LandingStep::Leaving);
 }
 
 #[test]

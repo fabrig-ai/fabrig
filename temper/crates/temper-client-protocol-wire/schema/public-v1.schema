@@ -1,10 +1,13 @@
-family temper-public-wire 1
+family temper-public-wire 2
 
 # The visitor's forge records, apart from the panels.
 # temper/docs/design/client/forge/README.md, 9.1, 9.3 and 9.4.
 # Tasks are places in PublicApplication.tasks; commits are the panels' fixed hashes.
 enum PublicStep { producing, opening, recreating, reopening, checking, gating, queued, first, updating, resolving, repairing, landing, landed, ended, ready, preparing, verifying, red, cleared }
 record PublicGateNumber { gate: u64 }
+record PublicBlamed { gate: u64 red: fixed 32 green: fixed 32 }
+record PublicSearchBound { member: u16 prefix: fixed 32 }
+record PublicSearch { green: PublicSearchBound red: PublicSearchBound probe: option fixed 32 }
 enum PublicRepair { ci, gate: PublicGateNumber, semantic, landing: PublicGateNumber, review }
 enum PublicHold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority, questions }
 enum PublicCi { unknown, pending, passed, failed }
@@ -25,10 +28,10 @@ versioned record PublicLandings { turn: option u16 landings: list 64 PublicLandi
 
 enum PublicLandingHold { faults, prepare, record, timeout, turn }
 enum PublicCombined { merge, squash }
-enum PublicLandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling }
-enum PublicLeave { conflict, head_moved, cancelled, held, refused: PublicGateNumber, failed: PublicGateNumber }
+enum PublicLandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling, probing }
+enum PublicLeave { conflict, head_moved, cancelled, held, refused: PublicGateNumber, failed: PublicGateNumber, blamed: PublicBlamed }
 record PublicJudgement { prefix: fixed 32 verdict: PublicCi gates: list 64 PublicGate }
 enum PublicProof { unkeyed, keyed, dispatched, waiting, passed, failed }
 record PublicGateProof { number: u64 kind: PublicGateKind blocks: bool proof: PublicProof faults: u32 }
 record PublicMember { task: u16 base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 PublicGateProof head: option fixed 32 left: option PublicLeave judgement: option PublicJudgement }
-versioned record PublicLanding { phase: PublicLandingPhase hold: option PublicLandingHold preparation: u32 members: list 8 PublicMember stale_proofs: u32 holds_turn: bool combined: option PublicCombined step: option PublicLandingStep }
+versioned record PublicLanding { phase: PublicLandingPhase hold: option PublicLandingHold preparation: u32 members: list 8 PublicMember stale_proofs: u32 holds_turn: bool combined: option PublicCombined step: option PublicLandingStep search: option PublicSearch }

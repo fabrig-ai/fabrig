@@ -811,8 +811,11 @@ the last message it read (section 6).
   (`budget.md`, 1);
 - **parked,** with its turn count and what it spent;
 - **failed,** typed so the host can act without reading prose: the model
-  (a provider's failure past its retries, with its class, the endpoint
-  and model of the last completion and how many attempts it made; an
+  (a provider's failure past its retries, with its class, its evidence,
+  the endpoint and model of the last completion, how many attempts it
+  made and its report: the provider's code, request id and field, and the
+  HTTP status a program reported for its call, which its evidence does
+  not carry (protocol/programs.md, 5.6); an
   account limited, naming the account and, when its provider said, how
   long until it may be used again, measured when the run answers; an
   account refused, naming it and the provider's code; a program

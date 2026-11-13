@@ -23,8 +23,8 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const READ: Tool = Tool {
     name: b"landing show",
-    line: b"Read a landing: its members, their candidates, each gate's proof and the turn",
-    prints: b"`landing TASK`, its project and phase, each member's change, pull request, candidate and gates, and the turn",
+    line: b"Read a landing: its members, round, search, gate proofs and the turn",
+    prints: b"`landing TASK`, its project and step, round and search bounds, each member's prefix, gates and outcome, and the turn",
     result: b"landing",
     forms: &[&[
         positional(b"task", b"TASK", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"The landing task's number"),

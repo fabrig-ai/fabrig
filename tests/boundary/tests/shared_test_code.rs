@@ -201,7 +201,7 @@ fn repeated_paths_within_one_binary_are_one_file() {
     ]);
     let sharings =
         scan(&scratch, &[package(&scratch, "demo", "", &[target(&scratch, "test", "a", "tests/a.rs", true)])]);
-    assert!(findings(&sharings, &[]).is_empty());
+    assert_eq!(findings(&sharings, &[]), Vec::<String>::new());
 }
 
 #[test]
@@ -218,7 +218,7 @@ fn files_reached_by_different_packages_are_not_shared_within_either() {
             package(&scratch, "two", "two", &[target(&scratch, "test", "b", "two/tests/b.rs", true)]),
         ],
     );
-    assert!(findings(&sharings, &[]).is_empty());
+    assert_eq!(findings(&sharings, &[]), Vec::<String>::new());
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn exceptions_cover_only_the_named_packages_path_and_must_cover_a_finding() {
         Exception { package: "demo", path: "tests/support", until: "kit" },
         Exception { package: "demo", path: "tests/support_extra.rs", until: "move tests" },
     ];
-    assert!(findings(&sharings, &exceptions).is_empty());
+    assert_eq!(findings(&sharings, &exceptions), Vec::<String>::new());
     assert_eq!(findings(&sharings, &exceptions[..1]), ["demo: tests/support_extra.rs: test a, test b"]);
     let wrong = [Exception { package: "other", path: "tests/support", until: "kit" }];
     assert_eq!(

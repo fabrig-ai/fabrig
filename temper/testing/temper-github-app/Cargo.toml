@@ -12,7 +12,6 @@ temper-protocol-records.workspace = true
 temper-protocol-records-forge.workspace = true
 temper-protocol-store.workspace = true
 temper-engine-service-vocabulary.workspace = true
-temper-engine-service-stock.workspace = true
 jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true
 jig-domain-core.workspace = true

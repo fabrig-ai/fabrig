@@ -234,7 +234,7 @@ pub struct Backend {
     startup: startup::Startup,
     stopping: stopping::Stopping,
     current: current::Current,
-    pending_failure: Option<(llm::Failure, Box<[u8]>)>,
+    pending_failure: Option<(llm::Failure, Box<[u8]>, llm::Report)>,
     files: files::Files,
     native: Option<native::Snapshot>,
     native_writes: Map<Box<[u8]>, smith_domain::tools::Place>,
@@ -443,15 +443,9 @@ impl Backend {
                     self.stopping.intend(stopping::Intent::Ordinary);
                 }
                 self.begin_prompt(request.observation.is_some());
-                if let Some((failure, detail)) = self.pending_failure.take() {
+                if let Some((failure, detail, report)) = self.pending_failure.take() {
                     self.terminal_measure(env.now, owner);
-                    up.push(ToDomain::Failed {
-                        owner,
-                        failure,
-                        evidence: llm::Evidence::Unknown,
-                        detail,
-                        report: llm::Report::none(),
-                    });
+                    up.push(ToDomain::Failed { owner, failure, evidence: llm::Evidence::Unknown, detail, report });
                     return;
                 }
                 match self.startup.phase() {
@@ -712,21 +706,26 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
+        self.fail_report(env, failure, detail, llm::Report::none(), up, below);
+    }
+
+    fn fail_report(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        failure: llm::Failure,
+        detail: &[u8],
+        report: llm::Report,
+        up: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) {
         let detail = self.private_diagnostic(detail);
         let restart = self.current.owner().is_some() && recovery::restartable(failure);
         if let Some(owner) = self.current.owner() {
             self.terminal_measure(env.now, owner);
-            self.current.settle(
-                current::Terminal::Failed {
-                    failure,
-                    evidence: llm::Evidence::Unsent,
-                    detail,
-                    report: llm::Report::none(),
-                },
-                up,
-            );
+            self.current
+                .settle(current::Terminal::Failed { failure, evidence: llm::Evidence::Unsent, detail, report }, up);
         } else if self.pending_failure.is_none() {
-            self.pending_failure = Some((failure, detail));
+            self.pending_failure = Some((failure, detail, report));
         }
         if restart {
             let active = self.active_turn();

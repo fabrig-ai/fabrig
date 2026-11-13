@@ -28,7 +28,8 @@ fn the_saved_token_schema_has_no_drift() {
     let schema = skein_codegen::parse(&source).expect("schema valid");
     let output = skein_codegen::generate(&schema);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-    check(&root.join("src/generated/v3.rs"), output.rust.as_bytes(), write);
+    let code = skein_scratch::paths::tree().join("crates/skein-oauth-codec/src/generated/v3.rs");
+    check(&code, output.rust.as_bytes(), write);
     for golden in output.goldens {
         check(&root.join("golden/v3").join(golden.name), &golden.bytes, write);
     }

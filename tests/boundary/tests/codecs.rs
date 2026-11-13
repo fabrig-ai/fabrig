@@ -48,7 +48,7 @@ struct Exception {
     until: &'static str,
 }
 
-const EXCEPTIONS: &[Exception] = &[Exception { what: "skein-oauth", until: "G3" }];
+const EXCEPTIONS: &[Exception] = &[];
 
 #[derive(Debug)]
 struct Package {

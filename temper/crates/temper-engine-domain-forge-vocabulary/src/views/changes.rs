@@ -29,6 +29,7 @@ pub struct TrainLanding {
     pub member: u64,
     pub round: u16,
     pub step: super::LandingStep,
+    pub probe: Option<[u8; 32]>,
     pub title: Box<[u8]>,
     pub ready_since: Wall,
 }
@@ -38,7 +39,6 @@ pub struct ChangesQueued {
     pub title: Box<[u8]>,
     pub ready_since: Wall,
     pub checks_since: Option<Wall>,
-    pub alone: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesLanded {

@@ -172,7 +172,56 @@ baseline recounted, a generated file made again), with no model.
   `SKEIN_CODEGEN_WRITE=1`. A generator that is unavailable, fails or
   does not produce a fresh file free of conflict markers leaves the
   file unmerged. The reference's B0 and B1 recordings require captured data
-  outside the checkout; without that input they stay unmerged.
+  outside the checkout; without that input they stay unmerged. The
+  reference also settles `.temper/known-reds.md` by its entries, below.
+- **The reference's known reds:** a conflicted `.temper/known-reds.md`
+  (`tools/pre-pr/design.md`, 5) is settled by its entries, with no
+  model, until a later draft replaces the file.
+  - **Its lines:** the file is read as UTF-8 and split into lines as
+    the delivery check splits it, each line keeping its ending. A line
+    whose text, its trailing whitespace stripped, is a `- test` or a
+    `- lint` entry of `tools/pre-pr/design.md`, 5 is an entry, and that
+    stripped text is its key, matched exactly; every other line is
+    prose.
+  - **Its sides** are the index's stages: the merge base (stage 1, an
+    empty file when absent), the head's side (2) and the incoming side
+    (3).
+  - **The merged file** is the incoming side's text, its prose and its
+    entries in its order, each line as it is there; less every line
+    whose key the head's side removed (a key of the merge base and the
+    incoming side that the head's side lacks); plus each key the head's
+    side added (a key of the head's side that neither the merge base
+    nor the incoming side holds), once each, in the head's order, each
+    written as its key and `\n`. The added lines go where the incoming
+    side's last entry line stood: straight after it, or in its place
+    when it was removed; at the end of the text when the incoming side
+    holds no entry. A line without its ending, the text's last, gains
+    `\n` before a line is put after it. The head's prose is dropped:
+    the delivery check reads no prose. An example: the merge base
+    holds `- test a x` and `- test b y`; the head's side keeps `a`,
+    drops `b` and adds `- test c z` then `- lint p c f.rs`; the
+    incoming side drops `a`, keeps `b` and adds `- test d w` then
+    `- test c z`.
+    The merged file is the incoming side's prose, then `- test d w`,
+    `- test c z` and `- lint p c f.rs`.
+  - **Settled,** the merged file is written over the work tree's file
+    and staged (`git add`), as a recount is, and listed under
+    `settled`.
+  - **Left:** the work tree's file and the index stay as git left
+    them, the conflicted bytes restored if anything was written, and
+    the file is listed under `left` for the resolution, as any other,
+    when the head's or the incoming side is missing (a deletion on
+    one side), when a stage present or the work tree's file is not a
+    regular file, when a side is not UTF-8, when the merged file is
+    past the cap of `tools/pre-pr/design.md`, 5 (more than 64 entries,
+    every entry line counted, or more than 8,192 bytes), or when
+    writing or staging it fails. Which case and why is one line on the
+    command's standard error, `.temper/known-reds.md: left: WHY`, WHY
+    being `missing on the head's side`, `missing on the incoming side`,
+    `the merged file holds 65 entries, 9,104 bytes; the cap is 64
+    entries and 8,192 bytes` (its two counts the merged file's, with
+    thousands separators) or, for the other cases, the error's words.
+    `result.json`'s form is the one below.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, no file left
   unmerged: temper commits and delivers the merge (`../domain/worker/jobs.md`
   ). A file left unmerged or still marked fails the delivery, and

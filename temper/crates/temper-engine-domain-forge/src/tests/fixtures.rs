@@ -115,7 +115,6 @@ pub fn opening_row() -> ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: Some(HEAD),
-            alone: false,
         },
         pull: None,
         pending: Some(OPEN),
