@@ -32,7 +32,6 @@ skein-io.workspace = true
 skein-lib.workspace = true
 skein-shell.workspace = true
 skein-tls.workspace = true
-rustls-std.workspace = true
 skein-oauth-accounts.workspace = true
 skein-oauth.workspace = true
 smith-host-domain.workspace = true
