@@ -528,7 +528,7 @@ section 8 give them. temper's sit beside them:
   (wires.md, section 4).
 - **The store keeps the wires** the last start spoke (jig's
   `protocol/store/records.md`, 3, `Wires`): temper's shell hands jig's store
-  every wire of `temper_service::wires()`, jig's and smith's beside
+  every wire of `temper_engine_service::wires()`, jig's and smith's beside
   temper's, so the next binary's rehearsal can say whether the workers
   may stay (wires.md, section 9).
 - **What the baseline freezes.** From it (`baseline.md`), every byte of

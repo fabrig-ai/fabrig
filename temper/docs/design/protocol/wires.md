@@ -133,9 +133,11 @@ temper's deployment puts through them.
 - **temper hands both components its own,** `temper-worker-wire`, in
   place of `PAYLOAD_VERSION`: the worker's link and the engine's workers
   component are each given temper's wires as `jig_protocol_worker_wire::Spoken`
-  values (jig's `protocol/channel/wires.md`, 2) when they are made, from
-  `temper_service`'s table (9). Neither component knows what they
-  cover.
+  values (jig's `protocol/channel/wires.md`, 2) when they are made: the
+  engine's from `temper_engine_service`'s table (9), the worker's from
+  `temper_protocol_worker_wire::wire`, the same entry, since the
+  worker's service links no engine crate. `temper-service`, which joins
+  both, holds the two equal. Neither component knows what they cover.
 - **Named in both logs,** in the shell's own lines:
   - the engine, at each worker's channel accepted: `worker NAME opened:
     jig-worker-wire V, smith-channel V, smith-charter V,
@@ -241,11 +243,12 @@ temper's deployment puts through them.
 
 ## 9. `versions` and the stored wires
 
-- **One table,** `temper_service::wires()`, in this order: jig's four
-  (`jig_protocol_worker_wire::spoken()`), then `temper-worker-wire`, then
-  `temper-host-tools`, each a `Spoken`. The worker's link and the
-  engine's workers component take its `temper-worker-wire` entry (4);
-  the store and `versions` take the whole.
+- **One table,** `temper_engine_service::wires()`, in this order: jig's
+  four (`jig_protocol_worker_wire::spoken()`), then `temper-worker-wire`,
+  then `temper-host-tools`, each a `Spoken`. The engine's workers
+  component takes its `temper-worker-wire` entry, and the worker's link
+  states the same entry from its crate (4); the store and `versions`
+  take the whole.
 - **`versions` prints,** after the families' lines (`binaries.md`,
   section 2), for each wire in the table's order:
 

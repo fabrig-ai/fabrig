@@ -12,4 +12,5 @@
 - **Not yet:** 6: the host tools' contract, its version, kept text and tests [in flight: change 1738].
 - **Not yet:** 8: the gate on the clients' families' layouts [in flight: change 1739].
 - **Not yet:** 8: a page refused reloads once [in flight: change 1740].
-- **Not yet:** 9: `temper_service::wires()`, `versions`' wire and layout lines, and the stored row from the table [in flight: change 1756].
+- **Not yet:** 4: the engine's workers component given its statement from the table, and `temper-service`'s test holding the worker's equal [in flight: change 1756].
+- **Not yet:** 9: `temper_engine_service::wires()`, `versions`' wire and layout lines, and the stored row from the table [in flight: change 1756].

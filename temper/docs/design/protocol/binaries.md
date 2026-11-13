@@ -396,7 +396,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     NAME VERSION` for jig's families, `core`, `tasks`, `people`,
     `notes`, `accounts` and `settings`, and `temper`'s, `STORE_VERSION`
     (`README.md`, section 7; jig's `format::current`);
-  - for each wire of `temper_service::wires()`, in its order
+  - for each wire of `temper_engine_service::wires()`, in its order
     (`wires.md`, section 9): `wire NAME LOWEST HIGHEST`, LOWEST its
     floor, then `layout NAME VERSION FINGERPRINT` for each version from
     LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits.
