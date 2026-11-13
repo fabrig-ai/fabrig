@@ -673,6 +673,7 @@ pub(crate) fn release(engine: &mut Engine) {
         }
         if empty == 2 {
             engine.ready = false;
+            retry_blocked(engine);
             break;
         }
     }
@@ -684,6 +685,24 @@ pub(crate) fn release(engine: &mut Engine) {
         engine.settled_revision = Some(engine.domain.revision());
     }
     stop::advance(engine);
+}
+
+// Owner continuations can clear an input's ordering barrier without a request
+// or a quiescent root (including during connector restart). Retry once before
+// parking; a refusal stays blocked until another release pass.
+fn retry_blocked(engine: &mut Engine) {
+    if !engine.blocked {
+        return;
+    }
+    let event = match engine.passing.take() {
+        Some(event) => Some(event),
+        None => engine.pending.take(),
+    };
+    if let Some(event) = event {
+        engine.blocked = false;
+        engine.step(*event);
+        engine.ready = !engine.blocked;
+    }
 }
 
 /// A full diagnostic sink leaves the batch ahead of the next release (protocol/cluster.md, 3).

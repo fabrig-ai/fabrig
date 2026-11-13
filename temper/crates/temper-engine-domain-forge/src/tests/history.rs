@@ -189,6 +189,51 @@ fn saved_row(d: &Domain, change: u64) -> Request {
     saved(Stored::Change(Box::new(d.changes.get(&change).unwrap().clone())))
 }
 
+#[test]
+fn a_restored_history_deadline_advances_when_the_fresh_read_stage_can_fire() {
+    let mut d = domain();
+    let env = Env { now: Time::from_nanos(10_000_000_000), wall: Wall::from_nanos(10_000_000_000), ..env() };
+    d.restore_begin(env.wall);
+    let mut restored = Queue::uncapped();
+    step(
+        &mut d,
+        &env,
+        Event::Restore {
+            record: Stored::HistoryProject(Project {
+                project: 5,
+                next: 2,
+                kept: 1,
+                whole_since: None,
+                marks: Box::new([]),
+                sweeping: None,
+                removing: false,
+            }),
+        },
+        &mut restored,
+    );
+    assert!(restored.is_empty());
+    assert_eq!(crate::history::sweep::deadline(&d), Some(Wall::EPOCH), "the sweep has never fired");
+    assert_eq!(d.next_wall_deadline(), None, "restoration cannot fire policy timers");
+    let mut out = Queue::uncapped();
+    fire(&mut d, &env, &mut out);
+    assert!(out.is_empty());
+    step(&mut d, &env, Event::Restored { clock: skein_forge_client::RecoveryClock::Wall }, &mut restored);
+    step(&mut d, &env, Event::ReadAfresh, &mut restored);
+    assert_eq!(d.restore_fit_failure(), None);
+    assert_eq!(d.next_wall_deadline(), Some(Wall::EPOCH));
+    fire(&mut d, &env, &mut out);
+    if let Some(at) = d.next_wall_deadline() {
+        assert!(at > env.wall, "a fired sweep cannot stay due");
+    }
+    let mut asked = false;
+    for request in rows(out) {
+        if let Request::LoadHistory { range: HistoryRange::Last { project: 5 }, most: 1, .. } = request {
+            asked = true;
+        }
+    }
+    assert!(asked, "the restored project begins its sweep");
+}
+
 fn marks() -> Box<[Mark]> {
     let mut marks = skein_lib::List::with_capacity(MARKS);
     for hour in 0..MARKS {
