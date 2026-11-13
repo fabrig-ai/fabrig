@@ -1,40 +1,23 @@
 //! Starting a goal in a chat uses the shared sheet (client/pages/README.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic trees and prints")]
 use super::{connect_forge, documents, fixtures as f};
-
 use crate::look;
-
 use jig_client::{Down, Readable, Up, Watchable, contract as c};
-
 use skein_lib::{Env, List, Queue, Time, Wall, Writer};
-
 use skein_ui::{Role, Tree};
-
 use temper_client_domain::{Action, Address, Domain, Event, Request, pages::Act};
-
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-
 const CHAT: u64 = f::chat::TASK;
-
 const GOAL: u64 = 42;
-
 const BODY: &[u8] = b"# Away mode\n\n## Setting\n\nAsk first.\n";
-
 const TITLE: &[u8] = b"Away mode";
-
 const START: &[u8] = "Start goal…".as_bytes();
-
 const LINK: &[u8] = "Goal Keep working →".as_bytes();
-
 const BEFORE: u64 = 10;
-
 const MIDDLE: u64 = 20;
-
 const AFTER: u64 = 30;
-
 const TEXT: u32 = 512;
-
 
 #[expect(clippy::struct_excessive_bools, reason = "each prerequisite is varied independently")]
 struct Case {
@@ -45,7 +28,6 @@ struct Case {
     linked: Option<u64>,
     chip: bool,
 }
-
 impl Case {
     const READY: Self =
         Self { body: Some(BODY), offered: true, repository: true, asking: false, linked: None, chip: true };
@@ -246,7 +228,6 @@ impl Case {
         root
     }
 }
-
 fn forges(repository: bool) -> List<w::ForgeRow> {
     let mut rows = connect_forge::first_rows(connect_forge::connected(), connect_forge::made());
     if repository {
@@ -269,7 +250,6 @@ fn forges(repository: bool) -> List<w::ForgeRow> {
     }
     rows
 }
-
 fn activity() -> c::ActivityPage {
     let mut rows = List::uncapped();
     for (number, at, text) in [(1, BEFORE, b"Before".as_slice()), (2, MIDDLE, b"Same time"), (3, AFTER, b"After")] {
@@ -293,11 +273,9 @@ fn activity() -> c::ActivityPage {
     }
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
-
 fn find(tree: &Tree, role: Role, name: &[u8]) -> Option<skein_ui::NodeId> {
     f::find(tree, role, name)
 }
-
 
 #[test]
 fn start_goal_shows_when_it_may() {
@@ -331,7 +309,6 @@ fn start_goal_shows_when_it_may() {
         }
     }
 }
-
 #[test]
 fn none_on_an_asking_chat() {
     for linked in [None, Some(MIDDLE)] {
@@ -343,7 +320,6 @@ fn none_on_an_asking_chat() {
         assert!(find(view.tree(), Role::Paragraph, b"Started goal").is_none());
     }
 }
-
 #[test]
 fn a_linked_goal_shows_its_link() {
     for (body, offered, repository) in [(Some(BODY), true, true), (None, false, false)] {
@@ -367,7 +343,6 @@ fn a_linked_goal_shows_its_link() {
         }
     }
 }
-
 #[test]
 fn the_line_stands_by_its_time() {
     for (at, before, after) in [

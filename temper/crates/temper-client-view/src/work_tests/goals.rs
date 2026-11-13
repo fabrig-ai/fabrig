@@ -22,9 +22,11 @@ use temper_client_domain::{
 // The mock's row has six landed tasks out of nine (client/pages/README.md).
 
 pub(super) use super::fixtures::goals::{TEXT_BYTES, TOTAL, line, template};
-use crate::parts_tests::goals::{EMPTY, OTHER_WAY, TASK_WAY, UNTRACKED_WAY, WHOLE_WAY};
 
-pub(crate) const ONE: u32 = 1;
+
+const EMPTY: u32 = 0;
+
+const ONE: u32 = 1;
 
 // One link, top, title, metadata, state and headline in the browser contract.
 const ROW_NODES: usize = 6;
@@ -35,6 +37,16 @@ const META_NODES: u32 = 2;
 
 // Seven states, with the two needs words checked separately.
 const STATE_CASES: usize = 8;
+
+// The template fixture's bounds and identities, independent of its name.
+
+const TASK_WAY: u32 = 2;
+
+const WHOLE_WAY: u32 = 4;
+
+const UNTRACKED_WAY: u32 = 7;
+
+const OTHER_WAY: u32 = 9;
 
 // Three such names exceed the fixture words' joined-name bound.
 const LONG_WAY: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -59,7 +71,7 @@ const TODAY_END: u64 = THURSDAY + HOUR + 12 * MINUTE;
 const MONDAY_END: u64 = MONDAY + 18 * HOUR + 40 * MINUTE;
 
 
-pub(crate) fn tree(line: &c::TaskLine, state: State, report: Option<&Report>, words: &Words) -> (Tree, Bindings) {
+fn tree(line: &c::TaskLine, state: State, report: Option<&Report>, words: &Words) -> (Tree, Bindings) {
     let mut b = Builder::new(&fixtures::tree_limits());
     let mut bindings = Bindings::new(fixtures::tree_limits().bindings);
     goals::row(&mut b, words, &mut bindings, &mut Times::new(fixtures::NOW), line, state, report);
@@ -239,28 +251,28 @@ fn a_row_reads_in_the_terminal() {
 
 
 // The state table has five live rows (two needs) and three ended rows.
-pub(crate) const PAGE_ROWS: u32 = 8;
+const PAGE_ROWS: u32 = 8;
 
-pub(crate) const NEEDS_TASK: u64 = 101;
+const NEEDS_TASK: u64 = 101;
 
-pub(crate) const FUNDS_TASK: u64 = 102;
+const FUNDS_TASK: u64 = 102;
 
-pub(crate) const PAUSED_TASK: u64 = 103;
+const PAUSED_TASK: u64 = 103;
 
-pub(crate) const PLANNING_TASK: u64 = 104;
+const PLANNING_TASK: u64 = 104;
 
-pub(crate) const RUNNING_TASK: u64 = 105;
+const RUNNING_TASK: u64 = 105;
 
-pub(crate) const LANDED_TASK: u64 = 106;
+const LANDED_TASK: u64 = 106;
 
-pub(crate) const CLOSED_TASK: u64 = 107;
+const CLOSED_TASK: u64 = 107;
 
-pub(crate) const FAILED_TASK: u64 = 108;
+const FAILED_TASK: u64 = 108;
 
-pub(crate) const CURSOR_BYTES: u32 = 32;
+const CURSOR_BYTES: u32 = 32;
 
 
-pub(crate) struct Page {
+struct Page {
     root: temper_client_domain::Domain,
     out: Queue<temper_client_domain::Request>,
     watch: skein_lib::Token,
@@ -420,9 +432,9 @@ impl Page {
 }
 
 // The needs pair, paused, planning and running rows precede the ended page.
-pub(crate) const LIVE_ROWS: usize = 5;
+const LIVE_ROWS: usize = 5;
 
-pub(crate) fn live_lines() -> [c::TaskLine; LIVE_ROWS] {
+fn live_lines() -> [c::TaskLine; LIVE_ROWS] {
     [
         page_line(NEEDS_TASK, State::Needs { funds: false }),
         page_line(FUNDS_TASK, State::Needs { funds: true }),
@@ -432,7 +444,7 @@ pub(crate) fn live_lines() -> [c::TaskLine; LIVE_ROWS] {
     ]
 }
 
-pub(crate) fn page_line(task: u64, state: State) -> c::TaskLine {
+fn page_line(task: u64, state: State) -> c::TaskLine {
     let mut line = line();
     line.chip.task = task;
     match state {

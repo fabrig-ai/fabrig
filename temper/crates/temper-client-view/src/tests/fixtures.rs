@@ -91,4 +91,4 @@ pub fn sign_in_view(
     view
 }
 
-pub use crate::work_tests::fixtures::chat;
+pub mod chat;

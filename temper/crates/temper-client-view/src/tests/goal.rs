@@ -1,27 +1,16 @@
-use super::{
-    chats,
-    fixtures::{self, task as f},
-};
+use super::fixtures::{self, task as f};
 
-use crate::{
-    frame::Bindings,
-    look,
-    pages::goal,
-    words::{Times, Words},
-};
 
-use jig_client::{Down, Event as ClientEvent, Readable, Readout, UnlinkedRequest, Up, contract as c};
+use jig_client::contract as c;
 
-use skein_lib::{Env, List, Queue, Time, Wall};
 
-use skein_ui::{Builder, Role, Run, Style, Tree};
+use skein_ui::Role;
 
-use temper_client_domain::{Address, Domain, Event, Request, pages::Act};
+use temper_client_domain::pages::Act;
 
 
 pub(super) use super::fixtures::goal::{
-    DONE, DRAFT_WORDS, MADE, MINUTE, NOW, Side, TASK, TOTAL, document, offers, paused_document, press, question, root,
-    root_with_side, sent_attempt, text, with_goal_answer,
+    offers, paused_document, press, with_goal_answer,
 };
 
 #[test]

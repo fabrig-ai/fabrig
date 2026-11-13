@@ -16,24 +16,24 @@ use crate::look;
 use skein_ui::{Node, Tree};
 
 
-use temper_client_domain::{Action, Domain, Event, pages::Act};
+use temper_client_domain::{Action, pages::Act};
 
 
-pub(crate) const TASK: u64 = 9;
+const TASK: u64 = 9;
 
-pub(crate) const CHILD: u64 = 12;
+const CHILD: u64 = 12;
 
-pub(crate) const PRIORITY: u32 = 1;
+const PRIORITY: u32 = 1;
 
-pub(crate) const CHARTER: u32 = 1;
+const CHARTER: u32 = 1;
 
-pub(crate) const PROCEDURE: u32 = 2;
+const PROCEDURE: u32 = 2;
 
-pub(crate) const PARTY: u64 = 73;
+const PARTY: u64 = 73;
 
-pub(crate) const ONE: u32 = 1;
+const ONE: u32 = 1;
 
-pub(crate) const NO_ROWS: u32 = 0;
+const NO_ROWS: u32 = 0;
 
 
 #[test]
@@ -96,7 +96,7 @@ fn a_plan_with_no_live_task_says_so_in_its_region() {
     }
 }
 
-pub(crate) fn index_of_text(tree: &Tree, expected: &[u8]) -> Option<usize> {
+fn index_of_text(tree: &Tree, expected: &[u8]) -> Option<usize> {
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.role == Role::Paragraph && &*fixtures::node_text(tree, index) == expected {
             return Some(index);
@@ -244,10 +244,10 @@ const FIRST_CARD: u32 = 0;
 
 const NEW_HOLD_REVISION: c::Revision = c::Revision { value: 8 };
 
-pub(crate) fn has_release_card(tree: &Tree) -> bool {
+fn has_release_card(tree: &Tree) -> bool {
     for node in tree.nodes() {
         if node.role == Role::Item
-            && node.key == Some(skein_ui::Key { owner: crate::look::owner(), kind: 2, a: TASK, b: 0 })
+            && node.key == Some(skein_ui::Key { owner: look::owner(), kind: 2, a: TASK, b: 0 })
         {
             return true;
         }
@@ -281,7 +281,7 @@ fn a_released_tasks_card_keeps_its_decision_result_while_running() {
     assert!(has_release_card(&builder.finish()));
 }
 
-pub(crate) fn children(tree: &Tree, parent: usize) -> List<usize> {
+fn children(tree: &Tree, parent: usize) -> List<usize> {
     let nodes = tree.nodes();
     let end = parent.checked_add(usize::try_from(nodes[parent].size).expect("subtree")).expect("subtree end");
     let mut result = List::with_capacity(nodes[parent].size);
@@ -293,7 +293,7 @@ pub(crate) fn children(tree: &Tree, parent: usize) -> List<usize> {
     result
 }
 
-pub(crate) fn named(nodes: &[Node], role: Role, name: &[u8]) -> bool {
+fn named(nodes: &[Node], role: Role, name: &[u8]) -> bool {
     for node in nodes {
         if node.role == role && node.name.as_deref() == Some(name) {
             return true;
@@ -302,7 +302,7 @@ pub(crate) fn named(nodes: &[Node], role: Role, name: &[u8]) -> bool {
     false
 }
 
-pub(crate) fn header(task: &c::Task, me: Option<&c::Me>) -> Tree {
+fn header(task: &c::Task, me: Option<&c::Me>) -> Tree {
     let mut builder = Builder::new(&fixtures::tree_limits());
     crate::pages::task::header(
         &mut builder,
@@ -315,7 +315,7 @@ pub(crate) fn header(task: &c::Task, me: Option<&c::Me>) -> Tree {
     builder.finish()
 }
 
-pub(crate) fn titled() -> c::Task {
+fn titled() -> c::Task {
     let mut task = f::document();
     task.chip.task = TASK;
     task.chip.title =
@@ -511,7 +511,7 @@ fn a_kept_activity_is_parked() {
 }
 
 
-pub(crate) fn region_index(tree: &Tree, name: &[u8]) -> usize {
+fn region_index(tree: &Tree, name: &[u8]) -> usize {
     let id = fixtures::find(tree, Role::Region, name).expect("page region");
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.id == id {
@@ -526,21 +526,21 @@ fn result_words(bytes: &[u8]) -> c::Text {
 }
 
 
-pub(crate) const DEPENDENCY: u64 = 17;
+const DEPENDENCY: u64 = 17;
 
-pub(crate) const OTHER_DEPENDENCY: u64 = 23;
+const OTHER_DEPENDENCY: u64 = 23;
 
-pub(crate) const GRANDCHILD: u64 = 13;
+const GRANDCHILD: u64 = 13;
 
-pub(crate) const ROW_SPENT: u64 = 5;
+const ROW_SPENT: u64 = 5;
 
-pub(crate) fn owner_phase(chip: &mut c::Chip, phase: c::ChipPhase) {
+fn owner_phase(chip: &mut c::Chip, phase: c::ChipPhase) {
     chip.phase = phase.compact();
     let c::ChipPhaseFacts { phase: target, .. } = chip.details.as_mut();
     *target = phase;
 }
 
-pub(crate) fn row() -> c::TreeRow {
+fn row() -> c::TreeRow {
     let mut chip = f::document().chip;
     chip.task = CHILD;
     let c::ChipPhaseFacts { details, .. } = chip.details.as_mut();
@@ -556,7 +556,7 @@ pub(crate) fn row() -> c::TreeRow {
     }
 }
 
-pub(crate) fn plan(delivery: &c::Delivery) -> Tree {
+fn plan(delivery: &c::Delivery) -> Tree {
     let mut builder = Builder::new(&fixtures::tree_limits());
     crate::pages::task::plan(
         &mut builder,
@@ -570,7 +570,7 @@ pub(crate) fn plan(delivery: &c::Delivery) -> Tree {
     builder.finish()
 }
 
-pub(crate) fn plan_with_row(row: c::TreeRow) -> Tree {
+fn plan_with_row(row: c::TreeRow) -> Tree {
     let mut delivery = f::tree();
     let c::Delivery::Tree(tree) = &mut delivery else { panic!("owner tree") };
     tree.rows = List::with_capacity(ONE);
@@ -578,7 +578,7 @@ pub(crate) fn plan_with_row(row: c::TreeRow) -> Tree {
     plan(&delivery)
 }
 
-pub(crate) fn index_of(tree: &Tree, role: Role, name: &[u8]) -> usize {
+fn index_of(tree: &Tree, role: Role, name: &[u8]) -> usize {
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.role == role && node.name.as_deref() == Some(name) {
             return index;
@@ -617,7 +617,7 @@ fn a_plan_row_says_what_its_task_waits_for() {
     }
 }
 
-pub(crate) fn document_text(words: &[u8]) -> c::DocumentText {
+fn document_text(words: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(skein_lib::bytes::copy_of(words), 32).expect("document text"))
 }
 
@@ -663,7 +663,7 @@ fn a_rows_spend_is_its_supplied_spent() {
     assert!(fixtures::find(&plan_with_row(row), Role::Paragraph, b"0 spent").is_some());
 }
 
-pub(crate) fn dependency_row() -> c::TreeRow {
+fn dependency_row() -> c::TreeRow {
     let mut row = row();
     let mut live = f::document().chip;
     live.task = DEPENDENCY;
@@ -729,7 +729,7 @@ fn a_rows_dependency_line_lists_its_dependencies() {
     }
 }
 
-pub(crate) fn amended_dependency_row() -> c::TreeRow {
+fn amended_dependency_row() -> c::TreeRow {
     let mut row = dependency_row();
     row.dependencies
         .push(c::TaskLink::Stored { number: GRANDCHILD, status: Some(c::TaskStatus::Done) })
@@ -739,7 +739,7 @@ pub(crate) fn amended_dependency_row() -> c::TreeRow {
     row
 }
 
-pub(crate) fn assert_dependency_item(tree: &Tree, item: usize, number: u64, status: Option<&[u8]>, mark: Option<&[u8]>) {
+fn assert_dependency_item(tree: &Tree, item: usize, number: u64, status: Option<&[u8]>, mark: Option<&[u8]>) {
     assert_eq!(tree.nodes()[item].role, Role::Item);
     assert_eq!(tree.nodes()[item].key, Some(crate::pages::inbox::card_key(c::ObjectKey::Task(number))));
     let parts = children(tree, item);
@@ -971,7 +971,7 @@ fn the_plan_omits_the_goal_and_its_hold_and_keep_its_folds() {
     }
 }
 
-pub(crate) fn has_style(nodes: &[Node], style: skein_ui::Style) -> bool {
+fn has_style(nodes: &[Node], style: skein_ui::Style) -> bool {
     for node in nodes {
         if node.styles.as_slice().contains(&style) {
             return true;
@@ -981,9 +981,9 @@ pub(crate) fn has_style(nodes: &[Node], style: skein_ui::Style) -> bool {
 }
 
 
-pub(crate) const ENDED_CHILD: u64 = 23;
+const ENDED_CHILD: u64 = 23;
 
-pub(crate) fn ended_line(number: u64, status: c::TaskStatus) -> c::TaskLine {
+fn ended_line(number: u64, status: c::TaskStatus) -> c::TaskLine {
     let mut line = super::chats::line();
     line.chip = row().chip;
     line.chip.task = number;
@@ -1003,7 +1003,7 @@ pub(crate) fn ended_line(number: u64, status: c::TaskStatus) -> c::TaskLine {
     line
 }
 
-pub(crate) fn tasks_page(lines: &[c::TaskLine], after: bool, cut: bool) -> c::TaskPage {
+fn tasks_page(lines: &[c::TaskLine], after: bool, cut: bool) -> c::TaskPage {
     let mut rows = List::with_capacity(u32::try_from(lines.len()).unwrap());
     for line in lines {
         rows.push(line.clone()).expect("ended rows");
@@ -1019,7 +1019,7 @@ pub(crate) fn tasks_page(lines: &[c::TaskLine], after: bool, cut: bool) -> c::Ta
     }
 }
 
-pub(crate) fn procedure_document(phase: c::Phase) -> c::Task {
+fn procedure_document(phase: c::Phase) -> c::Task {
     let mut task = f::document();
     task.chip.task = TASK;
     task.chip.executor = c::ChipExecutor::Procedure { connector: fixtures::FORGE, kind: PROCEDURE };
@@ -1227,25 +1227,6 @@ fn ended_rows_merge_among_roots_and_leave_each_roots_delegates_under_it() {
 
 
 #[test]
-fn an_agents_long_line_draws_whole() {
-    for length in [1149, 10_660] {
-        let bytes = super::limits::repeated(b'x', length);
-        let (root, domain) = super::chat::long_line_page(
-            temper_client_domain::Address::Task { task: TASK },
-            c::Activity::Words {
-                message: 1,
-                by: c::Requester::Person(1),
-                kind: c::MessageKind::Words,
-                words: fixtures::first_run::text(&bytes),
-            },
-            false,
-        );
-        super::chat::assert_long_line(&root, &domain, &bytes);
-    }
-}
-
-
-#[test]
 fn a_heard_or_notified_long_word_draws_whole() {
     for length in [1149, 10_660] {
         let bytes = super::limits::repeated(b'x', length);
@@ -1262,44 +1243,6 @@ fn a_heard_or_notified_long_word_draws_whole() {
                 crate::pages::task::owner_activity(&mut builder, &event, &words);
                 assert_eq!(fixtures::text(&builder.finish()).as_ref(), bytes.as_ref());
             }
-        }
-    }
-}
-
-
-#[test]
-fn a_goals_own_long_line_draws_whole() {
-    for length in [1149, 10_660] {
-        let bytes = super::limits::repeated(b'x', length);
-        let (root, domain) = super::chat::long_line_page(
-            temper_client_domain::Address::Task { task: TASK },
-            c::Activity::Words {
-                message: 1,
-                by: c::Requester::Person(fixtures::chat::PARTY),
-                kind: c::MessageKind::Words,
-                words: fixtures::first_run::text(&bytes),
-            },
-            true,
-        );
-        assert_eq!(root.pages().task().unwrap().shape, temper_client_domain::pages::task::Shape::Tracked);
-        super::chat::assert_long_line(&root, &domain, &bytes);
-    }
-}
-
-
-#[test]
-fn an_agents_heard_or_notified_long_word_draws_whole() {
-    for length in [1149, 10_660] {
-        let bytes = super::limits::repeated(b'x', length);
-        let mut word = heard_word(c::Requester::Task(RESULT_TASK), c::MessageKind::Words);
-        word.words = fixtures::first_run::text(&bytes);
-        for event in
-            [c::Activity::Heard(word.clone()), c::Activity::Notified { recipient: c::Requester::Person(1), word }]
-        {
-            let (root, domain) =
-                super::chat::long_line_page(temper_client_domain::Address::Task { task: TASK }, event, false);
-            assert_eq!(root.pages().task().unwrap().shape, temper_client_domain::pages::task::Shape::Agent);
-            super::chat::assert_long_line(&root, &domain, &bytes);
         }
     }
 }

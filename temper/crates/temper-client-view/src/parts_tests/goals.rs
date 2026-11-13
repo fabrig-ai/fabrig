@@ -1,40 +1,29 @@
 use super::fixtures;
 
-use crate::{
-    bindings::Bindings,
-    look,
-    common::goals,
-    words::{Times, Words},
-};
+use crate::common::goals;
 
-use jig_client::contract as c;
 
-use skein_lib::{List, Queue, Wall};
+use skein_lib::List;
 
-use skein_ui::{Builder, Role, Style, Tree};
 
-use temper_client_domain::{
-    Address, GoalsFilter,
-    pages::{goals::State, report::Report},
-};
 
 
 // The mock's row has six landed tasks out of nine (client/pages/README.md).
 
-pub(super) use super::fixtures::goals::{TEXT_BYTES, TOTAL, line, template};
+pub(super) use super::fixtures::goals::template;
 
 
-pub(crate) const EMPTY: u32 = 0;
+const EMPTY: u32 = 0;
 
 // The template fixture's bounds and identities, independent of its name.
 
-pub(crate) const TASK_WAY: u32 = 2;
+const TASK_WAY: u32 = 2;
 
-pub(crate) const WHOLE_WAY: u32 = 4;
+const WHOLE_WAY: u32 = 4;
 
-pub(crate) const UNTRACKED_WAY: u32 = 7;
+const UNTRACKED_WAY: u32 = 7;
 
-pub(crate) const OTHER_WAY: u32 = 9;
+const OTHER_WAY: u32 = 9;
 
 
 #[test]

@@ -1,21 +1,15 @@
 use super::fixtures;
 
-use fixtures::chat::{
-    ATTEMPT, BYTES, CLOSE_GRACE, COMMITTED, GRACES, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_header, chat_root,
-    closing, messaging_root, projected_tree as tree, proposal_root, provisional, provisional_with_text, rejecting_chat,
+use super::fixtures::chat::{
+    CLOSE_GRACE,
+    closing,
 };
 
-use jig_client::{contract as c, thread::Thread};
 
-use skein_lib::{List, Wall};
 
 use skein_ui::Role;
 
 
-pub(super) use super::fixtures::chat_helpers::{
-    asking_task, asking_task_root, asking_task_root_owned, assert_run_line, deliver_chat, long_line_page, model_choice,
-    model_effort, model_line_page, model_line_root, named_position, pause_chip, structured_thread,
-};
 
 
 #[test]
@@ -51,4 +45,20 @@ fn a_chats_heading_is_its_first_sentence_or_line_cut_on_a_word() {
     ] {
         assert_eq!(crate::common::chat::short_title(title.as_bytes()).as_ref(), short.as_bytes(), "{title:?}");
     }
+}
+
+
+#[test]
+fn the_close_confirmation_names_each_live_delegates_fate() {
+    let tree = closing(Some(CLOSE_GRACE));
+    let text = fixtures::text(&tree);
+    assert!(skein_lib::bytes::find(&text, b"T12 is cancelled.").is_some());
+    assert!(skein_lib::bytes::find(&text, b"T13 moves to you.").is_some());
+}
+
+#[test]
+fn the_close_confirmation_offers_each_live_delegates_choice() {
+    let tree = closing(Some(CLOSE_GRACE));
+    assert!(fixtures::find(&tree, Role::Button, b"Take it instead").is_some());
+    assert!(fixtures::find(&tree, Role::Button, b"Cancel it instead").is_some());
 }

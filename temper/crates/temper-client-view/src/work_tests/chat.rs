@@ -1,8 +1,7 @@
 use super::fixtures;
 
-use fixtures::chat::{
-    ATTEMPT, BYTES, CLOSE_GRACE, COMMITTED, GRACES, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_header, chat_root,
-    closing, messaging_root, projected_tree as tree, proposal_root, provisional, provisional_with_text, rejecting_chat,
+use super::fixtures::chat::{
+    ATTEMPT, BYTES, COMMITTED, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_header, projected_tree as tree, provisional, provisional_with_text,
 };
 
 use jig_client::{contract as c, thread::Thread};
@@ -13,12 +12,11 @@ use skein_ui::Role;
 
 
 pub(super) use super::fixtures::chat_helpers::{
-    asking_task, asking_task_root, asking_task_root_owned, assert_run_line, deliver_chat, long_line_page, model_choice,
-    model_effort, model_line_page, model_line_root, named_position, pause_chip, structured_thread,
+    asking_task, asking_task_root, assert_run_line, named_position, pause_chip, structured_thread,
 };
 
 
-pub(crate) fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree, crate::bindings::Bindings) {
+fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree, crate::bindings::Bindings) {
     let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
     let mut bindings = crate::bindings::Bindings::new(fixtures::tree_limits().bindings);
     crate::pages::chat::conversation(
@@ -34,7 +32,7 @@ pub(crate) fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree,
 }
 
 
-pub(crate) fn reading_thread() -> Thread {
+fn reading_thread() -> Thread {
     Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT })
 }
 
@@ -212,7 +210,7 @@ fn reading_past_the_bound_only_removes_released_lines() {
 
 #[test]
 fn a_run_of_calls_takes_its_first_turns_key() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let mut thread = reading_thread();
     let mut rows = List::with_capacity(2);
     for number in [TURN, TURN + 1] {
@@ -369,7 +367,7 @@ fn the_end_goes_when_the_turn_commits() {
 
 #[test]
 fn a_committed_redraw_keeps_the_nodes_of_the_words_being_read() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     const WORDS: &[u8] = b"First.\n\nSecond.\n\nThird.";
     let limits = fixtures::tree_limits();
     let mut patches = skein_lib::Queue::with_capacity(limits.patches);
@@ -442,7 +440,7 @@ fn said_without_end(tree: &skein_ui::Tree) -> List<skein_ui::Made> {
 
 #[test]
 fn a_turn_being_written_draws_as_its_committed_turn_with_its_end() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     for input in [
         b"A **bold** reply.\n\nLast words.".as_slice(),
         b"- first\n- last",
@@ -686,22 +684,6 @@ fn owner_words_thread() -> Thread {
 }
 
 
-#[test]
-fn the_close_confirmation_names_each_live_delegates_fate() {
-    let tree = closing(Some(CLOSE_GRACE));
-    let text = fixtures::text(&tree);
-    assert!(skein_lib::bytes::find(&text, b"T12 is cancelled.").is_some());
-    assert!(skein_lib::bytes::find(&text, b"T13 moves to you.").is_some());
-}
-
-#[test]
-fn the_close_confirmation_offers_each_live_delegates_choice() {
-    let tree = closing(Some(CLOSE_GRACE));
-    assert!(fixtures::find(&tree, Role::Button, b"Take it instead").is_some());
-    assert!(fixtures::find(&tree, Role::Button, b"Cancel it instead").is_some());
-}
-
-
 const LONG_PROVISIONAL: &[u8] = b"a234567890123456789012345678901\xc3\xa9 and more";
 
 #[test]
@@ -747,7 +729,7 @@ fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
 
 #[test]
 fn a_cut_committed_turn_says_nothing_of_what_was_cut() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let thread = conversation_turn(
         &[run::message(c::Speaker::Assistant, &[c::Block::Text(run::text("Kept…".as_bytes()))])],
         true,
@@ -762,7 +744,7 @@ fn a_cut_committed_turn_says_nothing_of_what_was_cut() {
 
 #[test]
 fn a_turns_opaque_blocks_are_not_drawn() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let thread = conversation_turn(
         &[run::message(
             c::Speaker::Assistant,
@@ -781,7 +763,7 @@ fn a_turns_opaque_blocks_are_not_drawn() {
 
 #[test]
 fn a_message_of_opaque_blocks_alone_draws_no_message() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     for speaker in [c::Speaker::Assistant, c::Speaker::Person, c::Speaker::Tool, c::Speaker::System] {
         let thread = conversation_turn(
             &[run::message(speaker, &[c::Block::Opaque { dialect: run::text(b"3"), size: 2164 }])],
@@ -797,7 +779,7 @@ fn a_message_of_opaque_blocks_alone_draws_no_message() {
 
 #[test]
 fn an_agents_result_line_is_its_first_line() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     for summary in [b"first\nsecond".as_slice(), b"\n\r\n \t\r\nfirst\r\nsecond"] {
         let thread = conversation_turn(
             &[run::message(
@@ -815,7 +797,7 @@ fn an_agents_result_line_is_its_first_line() {
 
 #[test]
 fn a_conversation_past_its_rows_says_nothing_of_what_was_cut() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let block = c::Block::Text(run::text(b"Kept"));
     let mut blocks = List::with_capacity(LINES + 1);
     let mut messages = List::with_capacity(LINES + 1);
@@ -868,7 +850,7 @@ fn each_turn_carries_the_turn_token() {
 }
 
 
-pub(crate) fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -> Option<usize> {
+fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -> Option<usize> {
     for (index, node) in nodes.iter().enumerate() {
         if node.styles.as_slice().contains(&token) {
             return Some(index);
@@ -878,11 +860,11 @@ pub(crate) fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -
 }
 
 
-pub(crate) fn styled(tree: &skein_ui::Tree, token: skein_ui::Style) -> usize {
+fn styled(tree: &skein_ui::Tree, token: skein_ui::Style) -> usize {
     style_position(tree.nodes(), token).expect("styled node")
 }
 
-pub(crate) fn subtree(tree: &skein_ui::Tree, at: usize) -> &[skein_ui::Node] {
+fn subtree(tree: &skein_ui::Tree, at: usize) -> &[skein_ui::Node] {
     let from = at.checked_add(1).expect("child index");
     let through = at.checked_add(usize::try_from(tree.nodes()[at].size).expect("size")).expect("subtree end");
     &tree.nodes()[from..through]
@@ -924,7 +906,7 @@ fn person_words_keep_their_shell_and_only_assistant_calls_keep_work() {
 
 
 fn assistant_blocks(blocks: &[c::Block]) -> skein_ui::Tree {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let mut thread =
         Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512, live: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
@@ -973,7 +955,7 @@ fn an_agents_pipe_table_keeps_its_rows_cells_and_empty_header() {
 
 #[test]
 fn repeated_calls_fold_in_first_name_order_with_each_outcome_inside() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let tree = assistant_blocks(&[
         run::call(1, b"read", b"{}", Some(b"Read the first file")),
         run::call(2, b"wait", b"{}", None),
@@ -990,7 +972,7 @@ fn repeated_calls_fold_in_first_name_order_with_each_outcome_inside() {
 
 #[test]
 fn a_fold_names_two_repeated_calls_and_two_distinct_calls() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     for (tool, description) in
         [(b"read".as_slice(), "Read 2 files"), (b"edit".as_slice(), "Read 1 file, edited 1 file")]
     {
@@ -1001,7 +983,7 @@ fn a_fold_names_two_repeated_calls_and_two_distinct_calls() {
 
 #[test]
 fn a_tool_name_using_the_whole_turn_budget_fits_its_fold_description() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     const TURN_BYTES: u32 = 4096;
     let mut receiving = fixtures::domain_limits();
     receiving.client.domain.turn_text = TURN_BYTES;
@@ -1044,7 +1026,7 @@ fn a_tool_name_using_the_whole_turn_budget_fits_its_fold_description() {
 
 #[test]
 fn an_opaque_block_draws_nothing_and_no_shell() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     for speaker in [c::Speaker::Assistant, c::Speaker::Person, c::Speaker::Tool, c::Speaker::System] {
         let mut thread =
             Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
@@ -1185,7 +1167,7 @@ fn a_tasks_words_have_an_agent_shell_named_by_the_task() {
 
 #[test]
 fn committed_text_exceeds_field_text_on_both_conversation_pages() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let value = [b'x'; 256];
     let mut thread =
         Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
@@ -1211,11 +1193,11 @@ fn committed_text_exceeds_field_text_on_both_conversation_pages() {
 // Thursday 22 October 2026, noon UTC, and its neighbouring days.
 const TURN_NOON: u64 = 1_792_670_400;
 
-pub(crate) const TURN_DAY: u64 = 86_400;
+const TURN_DAY: u64 = 86_400;
 
 const TURN_MIDNIGHT: u64 = TURN_NOON - TURN_DAY / 2;
 
-pub(crate) fn turn_wall(seconds: u64) -> Wall {
+fn turn_wall(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.checked_mul(1_000_000_000).expect("fixture wall fits"))
 }
 
@@ -1265,7 +1247,7 @@ fn timed_turn() -> jig_client::contract::DecodedActivityLine {
     )
 }
 
-pub(crate) fn timed_tree(
+fn timed_tree(
     thread: &Thread,
     drawn: crate::pages::chat::Drawn<'_>,
     person: Option<u64>,
@@ -1285,7 +1267,7 @@ pub(crate) fn timed_tree(
     (b.finish(), times.next)
 }
 
-pub(crate) fn timed_drawing(projected: bool) -> crate::pages::chat::Drawn<'static> {
+fn timed_drawing(projected: bool) -> crate::pages::chat::Drawn<'static> {
     if projected {
         crate::pages::chat::Drawn::Chat { request: None, delegations: None }
     } else {
@@ -1514,7 +1496,7 @@ fn the_chatbar_and_chats_line_share_every_status_phrase() {
 
 #[test]
 fn a_proposals_fold_precedes_its_card_after_the_message() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let object = c::ObjectKey::Proposal(fixtures::chat::PROPOSAL);
     let mut proposal = run::call(3, b"propose", b"{}", None);
     let c::Block::Call(call) = &mut proposal else { panic!("call") };
@@ -1589,7 +1571,7 @@ fn a_proposals_fold_precedes_its_card_after_the_message() {
 }
 
 
-pub(crate) fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
+fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
     let mut count = 0_u32;
     for node in tree.nodes() {
         if node.role == role && node.name.as_deref() == Some(name) {
@@ -1641,7 +1623,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
 
 #[test]
 fn a_cut_text_says_nothing() {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     for projected in [true, false] {
         let mut blocks = List::with_capacity(2);
         blocks.push(run::call(1, b"note", b"", Some("Note 1 revision 1 written · 12 lines".as_bytes()))).unwrap();
@@ -1666,8 +1648,8 @@ fn a_cut_text_says_nothing() {
 }
 
 
-pub(crate) fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: u32) -> c::ActivityPage {
-    use fixtures::first_run as run;
+fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: u32) -> c::ActivityPage {
+    use super::fixtures::first_run as run;
     let mut rows = List::with_capacity(count);
     let text = c::Text::new(input.into(), domain.client.domain.turn_text).unwrap();
     for position in 1..=count {
@@ -1724,7 +1706,7 @@ fn a_full_window_of_dense_turn_markdown_fits_the_derived_bound() {
 }
 
 
-pub(crate) fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
+fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
     let mut input = skein_lib::bytes::zeroed(length);
     for (at, byte) in input.iter_mut().enumerate() {
         *byte = *pattern.get(at.checked_rem(pattern.len()).unwrap()).unwrap();
@@ -1745,7 +1727,7 @@ const SECOND_CARD: c::ProposalKey = c::ProposalKey { number: FIRST_CARD.number +
 
 
 fn place_turn(position: u64, at: u64, words: &[u8]) -> c::DecodedActivityLine {
-    use fixtures::first_run as run;
+    use super::fixtures::first_run as run;
     let mut line = run::turn(
         position,
         ATTEMPT,

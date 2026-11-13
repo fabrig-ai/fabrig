@@ -11,7 +11,83 @@ use skein_ui::{Role, Tree};
 use temper_client_domain::{Domain, Event, Request, forge};
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
-use crate::work_tests::change::{TASK, contains, deliver, event, joined, opened, panel, parts, position, queued, styled, task_name};
+
+const TASK: u64 = 9;
+
+fn event(root: &mut Domain, up: Up) -> Queue<Request> {
+    let limits = f::limits();
+    let mut out = Queue::uncapped();
+    temper_client_domain::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+        Event::Client { event: jig_client::Event::Up { up } },
+        &mut out,
+    );
+    out
+}
+
+fn opened() -> (Domain, Token) {
+    let mut task = t::document();
+    task.chip.task = TASK;
+    let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
+    details.procedure =
+        Some(c::Part { connector: f::FORGE, kind: c::PartKind::Procedure, key: c::PartKey::Number(TASK) });
+    task.priority = Some(3);
+    task.chip.executor = c::ChipExecutor::Procedure { connector: f::FORGE + 1, kind: 1 };
+    let (mut root, watch) = t::supplied_root_watching(task.clone(), false);
+    task.chip.executor = c::ChipExecutor::Procedure { connector: f::FORGE, kind: 1 };
+    let mut out =
+        event(&mut root, Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))) });
+    let mut family = None;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { .. } } },
+        } = request
+        {
+            assert!(family.is_none());
+            family = Some(watch);
+            event(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
+        }
+    }
+    (root, family.expect("family_open"))
+}
+
+fn deliver(root: &mut Domain, watch: Token, panel: &w::ChangePanel) {
+    event(
+        root,
+        Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::change_panel(panel),
+            },
+        },
+    );
+}
+
+fn parts(step: w::Step) -> w::ChangePanelParts {
+    let mut parts = p::panel(TASK, step).into_parts();
+    parts.owner = Box::from(*b"acme");
+    parts.name = Box::from(*b"shop");
+    parts.branch = Box::from(*b"temper/9");
+    parts.landing = Box::from(*b"main");
+    parts.pull = Some(
+        w::Pull::new(
+            &w::CEILINGS,
+            w::PullParts { number: 23, address: Box::from(*b"https://forge.example/acme/shop/pull/23") },
+        )
+        .unwrap(),
+    );
+    parts.hold = None;
+    parts.runs = None;
+    parts.gates = List::with_capacity(0);
+    parts
+}
+
+fn panel(parts: w::ChangePanelParts) -> w::ChangePanel {
+    w::ChangePanel::new(&w::CEILINGS, parts).unwrap()
+}
 
 fn page_view(root: &Domain) -> crate::View {
     let words = f::words();
@@ -20,6 +96,53 @@ fn page_view(root: &Domain) -> crate::View {
     let mut view = crate::View::new(&limits, &domain, words, f::FORGE);
     f::build(&mut view, root);
     view
+}
+
+fn position(bytes: &[u8], needle: &[u8]) -> Option<usize> {
+    for (index, span) in bytes.windows(needle.len()).enumerate() {
+        if span == needle {
+            return Some(index);
+        }
+    }
+    None
+}
+
+fn contains(tree: &Tree, value: &str) -> bool {
+    position(&f::text(tree), value.as_bytes()).is_some()
+}
+
+fn joined(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).unwrap();
+    }
+    let mut writer = skein_lib::Writer::new(length);
+    for part in parts {
+        writer.put(part).unwrap();
+    }
+    writer.finish()
+}
+
+fn task_name(task: u64) -> Box<[u8]> {
+    joined(&[b"Task ", skein_lib::Decimal::of(task).as_bytes()])
+}
+
+fn styled(tree: &Tree, token: skein_ui::Style) -> Box<[usize]> {
+    let mut found = List::with_capacity(u32::try_from(tree.nodes().len()).unwrap());
+    for (index, node) in tree.nodes().iter().enumerate() {
+        if node.styles.as_slice().contains(&token) {
+            found.push(index).unwrap();
+        }
+    }
+    found.into_boxed()
+}
+
+fn queued(place: u32, names: &[u64]) -> w::Step {
+    let mut ahead = List::with_capacity(u32::try_from(names.len()).unwrap());
+    for n in names {
+        ahead.push(*n).unwrap();
+    }
+    w::Step::Queued(w::Queued::new(&w::CEILINGS, w::QueuedParts { place, ahead }).unwrap())
 }
 
 #[test]

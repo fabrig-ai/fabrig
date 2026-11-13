@@ -1,30 +1,26 @@
 //! Tell temper's two placements and single filing (client/pages/needs-you.md, 1).
 #![expect(
     clippy::disallowed_methods,
-    clippy::disallowed_types,
-    clippy::disallowed_macros,
     reason = "ordinary tests inspect semantic subtrees and hand-built deliveries"
 )]
 use super::fixtures as f;
 
-use crate::look;
 
 use jig_client::{Down, Readable, Up, Watchable, contract as c};
 
 use skein_lib::{List, Queue, Token};
 
-use skein_ui::{Act as UiAct, Role, State};
 
 use temper_client_domain::{
-    self as d, Action, Address, Event, Place, Request,
-    pages::{self, Act, team::Holder, tell::Goes},
+    self as d, Address, Event, Place, Request,
+    pages::{team::Holder, tell::Goes},
 };
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 
 // These navigation fixtures hold the rail, Team's card, and both Tell placements' reads.
-pub(crate) fn limits() -> d::Limits {
+fn limits() -> d::Limits {
     let mut limits = f::domain_limits();
     limits.client.domain.handles = 40;
     limits.client.domain.watches = 40;
@@ -32,17 +28,17 @@ pub(crate) fn limits() -> d::Limits {
     limits
 }
 
-pub(crate) fn event(root: &mut d::Domain, event: Event) -> Queue<Request> {
+fn event(root: &mut d::Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: limits() }, event, &mut out);
     out
 }
 
-pub(crate) fn go(root: &mut d::Domain, address: Address) -> Queue<Request> {
+fn go(root: &mut d::Domain, address: Address) -> Queue<Request> {
     event(root, Event::Went { place: Place::Address(address) })
 }
 
-pub(crate) fn task() -> c::Task {
+fn task() -> c::Task {
     let mut task = super::chat::asking_task();
     task.chip.task = 52;
     task.project = 1;
@@ -51,7 +47,7 @@ pub(crate) fn task() -> c::Task {
     task
 }
 
-pub(crate) fn findings() -> w::Findings {
+fn findings() -> w::Findings {
     let mut areas = List::with_capacity(2);
     for (name, number) in [(b"docs".as_slice(), 40), (b"tests", 52)] {
         areas
@@ -85,7 +81,7 @@ pub(crate) fn findings() -> w::Findings {
     .unwrap()
 }
 
-pub(crate) fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
+fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
     event(
         root,
         Event::Client {
@@ -94,7 +90,7 @@ pub(crate) fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery)
     )
 }
 
-pub(crate) fn family(root: &mut d::Domain, watch: Token, bytes: Box<[u8]>) -> Queue<Request> {
+fn family(root: &mut d::Domain, watch: Token, bytes: Box<[u8]>) -> Queue<Request> {
     event(
         root,
         Event::Client {
@@ -108,7 +104,7 @@ pub(crate) fn family(root: &mut d::Domain, watch: Token, bytes: Box<[u8]>) -> Qu
     )
 }
 
-pub(crate) fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
+fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
     while let Some(request) = out.pop() {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let mut more = match down {
@@ -200,7 +196,7 @@ pub(crate) fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
     }
 }
 
-pub(crate) fn fixture(address: Address) -> d::Domain {
+fn fixture(address: Address) -> d::Domain {
     let (mut root, watch, _, _, _) =
         f::root_at_full(Address::Work { project: 2, filter: d::WorkFilter::All }, &limits(), b"shop");
     let me = f::asking_me(root.pages().me(root.client()).unwrap().clone());
@@ -212,7 +208,7 @@ pub(crate) fn fixture(address: Address) -> d::Domain {
     root
 }
 
-pub(crate) fn filtered() -> Address {
+fn filtered() -> Address {
     Address::Inbox { filter: d::address::Filter { project: Some(1), ..d::address::Filter::ALL } }
 }
 

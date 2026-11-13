@@ -7,10 +7,87 @@ use jig_client::contract as c;
 
 use skein_lib::{Env, List, Queue, Time};
 
-use skein_ui::{Builder, Role, Shortcut, State, Tree};
+use skein_ui::{Builder, Role, Tree};
 
 use temper_client_domain::{Action, Address, Domain, Event, pages::Act};
-use crate::work_tests::start_goal::{CHAT, CUSTOM, FIRST, PATH, SECOND, Sheet, TEXT, node};
+
+
+const PATH: &[u8] = b"docs/design/draft/away-mode.md";
+
+const CHAT: u64 = 4;
+
+const FIRST: u32 = 2;
+
+const SECOND: u32 = 4;
+
+const CUSTOM: u32 = 9;
+
+const TEXT: u32 = 256;
+
+
+struct Sheet {
+    root: Domain,
+    limits: temper_client_domain::Limits,
+}
+
+impl Sheet {
+    fn new() -> Self {
+        let mut limits = f::domain_limits();
+        limits.client.domain.text = TEXT;
+        limits.client.domain.long_text = TEXT;
+        limits.client.domain.turn_text = TEXT;
+        let (mut root, watch, _) = f::root_at(Address::Home { project: f::PROJECT }, &limits);
+        let source = f::playground_root(Address::Home { project: f::PROJECT }, f::PROJECT, false);
+        let mut me = source.pages().me(source.client()).unwrap().clone();
+        let member = me.projects.get_mut(0).unwrap();
+        let stock = super::goals::template(FIRST, b"goal", true);
+        member.templates = List::with_capacity(4);
+        for (number, name, tracked) in [
+            (SECOND, b"goal for a draft".as_slice(), true),
+            (7, b"chat", false),
+            (FIRST, b"goal", true),
+            (CUSTOM, b"Custom way", true),
+        ] {
+            let mut template = stock.clone();
+            template.number = number;
+            template.name = c::DocumentText::complete(c::Text::new(name.into(), TEXT).unwrap());
+            template.tracked = if tracked { Some(1) } else { None };
+            member.templates.push(template).unwrap();
+        }
+        f::deliver_me(&mut root, watch, me);
+        Self { root, limits }
+    }
+    fn act(&mut self, act: Act) {
+        temper_client_domain::step(
+            &mut self.root,
+            &Env { now: Time::ZERO, wall: f::NOW, limits: self.limits },
+            Event::Act { action: Action::Pages(act) },
+            &mut Queue::uncapped(),
+        );
+    }
+    fn open() -> Self {
+        let mut sheet = Self::new();
+        sheet.act(Act::OpenStart { draft: Some(PATH.into()), chat: Some(CHAT) });
+        sheet
+    }
+    fn tree(&self, words: &Words) -> (Tree, Bindings) {
+        let mut b = Builder::new(&f::tree_limits());
+        let mut bindings = Bindings::new(f::tree_limits().bindings);
+        if let Some(start) = self.root.pages().start() {
+            crate::pages::start_goal::sheet(&mut b, &self.root, start, words, &mut bindings);
+        }
+        (b.finish(), bindings)
+    }
+}
+
+fn node<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a skein_ui::Node {
+    for node in tree.nodes() {
+        if node.role == role && node.name.as_deref() == Some(name) {
+            return node;
+        }
+    }
+    panic!("named node: {role:?} {name:?}")
+}
 
 #[test]
 fn a_draft_names_the_sheet_and_its_name() {

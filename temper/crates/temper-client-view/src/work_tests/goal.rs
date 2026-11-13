@@ -21,7 +21,7 @@ use temper_client_domain::{Address, Domain, Event, Request, pages::Act};
 
 pub(super) use super::fixtures::goal::{
     DONE, DRAFT_WORDS, MADE, MINUTE, NOW, Side, TASK, TOTAL, document, offers, paused_document, press, question, root,
-    root_with_side, sent_attempt, text, with_goal_answer,
+    root_with_side, sent_attempt, text,
 };
 
 

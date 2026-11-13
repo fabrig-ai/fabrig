@@ -7,26 +7,20 @@
 pub(super) use super::fixtures::terminal::{
     QUESTION_OBJECT, command_root, command_root_with_watch, state_root, terminal_question_root,
 };
-
 use super::{
     document::{ProposalState, document_root},
     fixtures as f,
 };
-
 use crate::{
     look,
     words::{Shell, Words},
 };
-
 use jig_client::contract as c;
-
 use skein_ui::{Role, State, Style, Tree};
-
 use temper_client_domain::{
     self as d, Action, Address, Event,
     pages::{Act, chat::document::Mode, terminal},
 };
-
 
 #[test]
 fn a_talk_uses_chat_layout_without_chat_commands_request_draft_or_picker() {
@@ -73,12 +67,10 @@ fn a_talk_uses_chat_layout_without_chat_commands_request_draft_or_picker() {
     }
 }
 
-
 fn act(root: &mut d::Domain, act: Act) {
     f::root_event(root, Event::Act { action: Action::Pages(act) });
 }
-
-pub(crate) fn view(root: &d::Domain, shell: Shell) -> crate::View {
+pub(super) fn view(root: &d::Domain, shell: Shell) -> crate::View {
     let words = Words::english(f::FORGE, 512, shell).unwrap();
     let mut limits = f::domain_limits();
     limits.client.domain.text = 512;
@@ -88,11 +80,9 @@ pub(crate) fn view(root: &d::Domain, shell: Shell) -> crate::View {
     f::build(&mut view, root);
     view
 }
-
 fn styled(tree: &Tree, token: Style) -> bool {
     tree.nodes().iter().any(|n| n.styles.as_slice().contains(&token))
 }
-
 #[test]
 fn the_terminal_draws_a_chats_pages_in_the_browser_alone() {
     for address in [
@@ -158,7 +148,6 @@ fn the_terminal_draws_a_chats_pages_in_the_browser_alone() {
         }
     }
 }
-
 fn writing_root(reply: &[u8]) -> d::Domain {
     let (mut root, _, run_watch) = observed_writing_root();
     let mut run = writing_state();
@@ -166,11 +155,9 @@ fn writing_root(reply: &[u8]) -> d::Domain {
     watch_delivery(&mut root, run_watch, c::Delivery::RunState(Box::new(run)));
     root
 }
-
 fn writing_state() -> c::RunState {
     c::RunState { task: f::chat::TASK, attempt: Some(f::chat::ATTEMPT), committed_turn: 0, writing: None, call: None }
 }
-
 fn reply_text(reply: &[u8]) -> c::RunText {
     c::RunText {
         writing: None,
@@ -184,7 +171,6 @@ fn reply_text(reply: &[u8]) -> c::RunText {
         call: None,
     }
 }
-
 
 #[test]
 fn the_terminal_says_where_it_is_and_what_runs() {
@@ -282,7 +268,6 @@ fn the_terminal_says_where_it_is_and_what_runs() {
     }
 }
 
-
 #[test]
 fn a_writing_run_says_working_before_the_first_answer() {
     let (mut root, task_watch, run_watch) = observed_writing_root();
@@ -306,14 +291,12 @@ fn a_writing_run_says_working_before_the_first_answer() {
     assert_working_line(&root, None);
 }
 
-
 fn assert_working_line(root: &d::Domain, expected: Option<&[u8]>) {
     assert_eq!(crate::shared::running(root, &f::browser_words()).as_deref(), expected);
     let terminal = view(root, Shell::Browser);
     let running = terminal.tree().nodes().iter().find(|node| node.styles.as_slice().contains(&look::TERMINAL_RUN));
     assert_eq!(running.and_then(|node| node.name.as_deref()), expected);
 }
-
 
 fn commit_reply(root: &mut d::Domain, task_watch: skein_lib::Token) {
     let mut task = root.pages().chat().unwrap().task(root.client()).unwrap().clone();
@@ -367,7 +350,6 @@ fn commit_reply(root: &mut d::Domain, task_watch: skein_lib::Token) {
     panic!("the completed task asks for its committed reply");
 }
 
-
 fn watch_delivery(
     root: &mut d::Domain,
     watch: skein_lib::Token,
@@ -386,7 +368,6 @@ fn watch_delivery(
     );
     out
 }
-
 
 fn observed_writing_root() -> (d::Domain, skein_lib::Token, skein_lib::Token) {
     let source = state_root(1);
@@ -425,7 +406,6 @@ fn observed_writing_root() -> (d::Domain, skein_lib::Token, skein_lib::Token) {
     panic!("a running chat opens its run watch");
 }
 
-
 #[test]
 fn the_running_line_stands_while_the_reply_is_written_without_browser_dots() {
     const REPLY: &[u8] = b"The checks are running";
@@ -450,7 +430,6 @@ fn the_running_line_stands_while_the_reply_is_written_without_browser_dots() {
     assert_eq!(crate::shared::running(&root, &f::browser_words()).as_deref(), Some(b"Working".as_slice()));
     assert!(!styled(terminal.tree(), look::TYPING));
 }
-
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the offered commands, choice lists and notes are rows of one view table")]
@@ -725,18 +704,15 @@ fn the_commands_list_what_the_page_offers() {
     assert!(text.ends_with("\n\nEnter sends\nShift+Enter makes a new line\nCtrl+\\ shows or hides the draft\nPgUp and PgDn read back\nEsc closes a list"));
 }
 
-
 fn subtree<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a [skein_ui::Node] {
     let at = tree.nodes().iter().position(|n| n.role == role && n.name.as_deref() == Some(name)).unwrap();
     &tree.nodes()[at..at.checked_add(usize::try_from(tree.nodes()[at].size).unwrap()).unwrap()]
 }
-
 fn press(view: &mut crate::View, role: Role, name: &[u8]) -> Act {
     let id = f::find(view.tree(), role, name).unwrap();
     let Some(Action::Pages(act)) = crate::act(view, id, skein_ui::Act::Press) else { panic!("page binding") };
     act
 }
-
 #[test]
 #[expect(
     clippy::too_many_lines,

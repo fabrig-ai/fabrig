@@ -1,8 +1,8 @@
 use super::fixtures;
 
 use fixtures::chat::{
-    ATTEMPT, BYTES, CLOSE_GRACE, COMMITTED, GRACES, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_header, chat_root,
-    closing, messaging_root, projected_tree as tree, proposal_root, provisional, provisional_with_text, rejecting_chat,
+    ATTEMPT, BYTES, GRACES, LINES, MESSAGE, PARTY, TASK, TEXT, TURN, chat_root,
+    closing, messaging_root, projected_tree as tree, proposal_root, rejecting_chat,
 };
 
 use jig_client::{contract as c, thread::Thread};
@@ -16,7 +16,27 @@ pub(super) use super::fixtures::chat_helpers::{
     asking_task, asking_task_root, asking_task_root_owned, assert_run_line, deliver_chat, long_line_page, model_choice,
     model_effort, model_line_page, model_line_root, named_position, pause_chip, structured_thread,
 };
-use crate::work_tests::chat::{TURN_DAY, full_turn_window, named_count, reading_thread, reading_tree, repeated_markdown, style_position, styled, subtree, timed_drawing, timed_tree, turn_wall};
+
+
+fn reading_tree(thread: &Thread, projected: bool) -> (skein_ui::Tree, crate::frame::Bindings) {
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
+    crate::pages::chat::conversation(
+        &mut b,
+        thread,
+        &fixtures::browser_words(),
+        (LINES, TEXT),
+        crate::pages::chat::Speakers { person: None, requester: false },
+        timed_drawing(projected),
+        &mut bindings,
+    );
+    (b.finish(), bindings)
+}
+
+
+fn reading_thread() -> Thread {
+    Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT })
+}
 
 
 #[test]
@@ -520,6 +540,27 @@ fn a_chats_card_carries_the_card_token() {
     }
 }
 
+
+fn style_position(nodes: &[skein_ui::Node], token: skein_ui::Style) -> Option<usize> {
+    for (index, node) in nodes.iter().enumerate() {
+        if node.styles.as_slice().contains(&token) {
+            return Some(index);
+        }
+    }
+    None
+}
+
+
+fn styled(tree: &skein_ui::Tree, token: skein_ui::Style) -> usize {
+    style_position(tree.nodes(), token).expect("styled node")
+}
+
+fn subtree(tree: &skein_ui::Tree, at: usize) -> &[skein_ui::Node] {
+    let from = at.checked_add(1).expect("child index");
+    let through = at.checked_add(usize::try_from(tree.nodes()[at].size).expect("size")).expect("subtree end");
+    &tree.nodes()[from..through]
+}
+
 #[test]
 fn the_chat_bar_contains_identity_spend_and_acts() {
     use temper_client_domain::Event;
@@ -752,7 +793,7 @@ fn reading_is_offered_after_the_first_page_with_more() {
     assert!(nodes[0].binding.is_some());
 }
 
-pub(crate) fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
+pub(super) fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
     use temper_client_domain::{Action, Event, Request, pages::Act};
     let (mut root, mut out) = history();
     let mut seen = None;
@@ -1153,6 +1194,40 @@ fn an_automatic_seen_draws_no_progress() {
     assert!(fixtures::find(view.tree(), Role::Button, b"Mark seen").is_none());
 }
 
+const TURN_DAY: u64 = 86_400;
+
+fn turn_wall(seconds: u64) -> Wall {
+    Wall::from_nanos(seconds.checked_mul(1_000_000_000).expect("fixture wall fits"))
+}
+
+fn timed_tree(
+    thread: &Thread,
+    drawn: crate::pages::chat::Drawn<'_>,
+    person: Option<u64>,
+    now: u64,
+) -> (skein_ui::Tree, Option<Wall>) {
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    let mut times = crate::words::Times::new(turn_wall(now));
+    crate::pages::chat::conversation_with_times(
+        &mut b,
+        thread,
+        &fixtures::words(),
+        (LINES, TEXT),
+        crate::pages::chat::Speakers { person, requester: true },
+        (drawn, Some(&mut times)),
+        &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+    );
+    (b.finish(), times.next)
+}
+
+fn timed_drawing(projected: bool) -> crate::pages::chat::Drawn<'static> {
+    if projected {
+        crate::pages::chat::Drawn::Chat { request: None, delegations: None }
+    } else {
+        crate::pages::chat::Drawn::Lines
+    }
+}
+
 #[test]
 fn a_chat_rebuilds_its_day_at_midnight_and_keeps_the_turn_clock() {
     let root = chat_with_history();
@@ -1213,6 +1288,17 @@ fn a_chat_proposal_links_to_the_inbox_filtered_to_proposals() {
             }
         }))
     );
+}
+
+
+fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
+    let mut count = 0_u32;
+    for node in tree.nodes() {
+        if node.role == role && node.name.as_deref() == Some(name) {
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    count
 }
 
 
@@ -1788,6 +1874,24 @@ fn whole_turn_shell_limits() -> temper_client_domain::Limits {
 }
 
 
+fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: u32) -> c::ActivityPage {
+    use fixtures::first_run as run;
+    let mut rows = List::with_capacity(count);
+    let text = c::Text::new(input.into(), domain.client.domain.turn_text).unwrap();
+    for position in 1..=count {
+        rows.push(run::turn(
+            u64::from(position),
+            ATTEMPT,
+            position,
+            &[run::message(c::Speaker::Assistant, &[c::Block::Text(text.clone())])],
+            domain.client.domain.turn_text,
+        ))
+        .unwrap();
+    }
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+
 #[test]
 fn a_whole_markdown_turn_builds_and_prints_at_the_shells_limits() {
     let domain = whole_turn_shell_limits();
@@ -1814,6 +1918,15 @@ fn a_whole_markdown_turn_builds_and_prints_at_the_shells_limits() {
         assert!(skein_lib::bytes::find(print.text.as_slice(), b"Ordinary Markdown words.").is_some());
         assert!(print.text.len() > 100_000);
     }
+}
+
+
+fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
+    let mut input = skein_lib::bytes::zeroed(length);
+    for (at, byte) in input.iter_mut().enumerate() {
+        *byte = *pattern.get(at.checked_rem(pattern.len()).unwrap()).unwrap();
+    }
+    input
 }
 
 
@@ -2112,7 +2225,7 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
 }
 
 
-pub(crate) fn assert_long_line(
+pub(super) fn assert_long_line(
     root: &temper_client_domain::Domain,
     domain: &temper_client_domain::Limits,
     bytes: &[u8],

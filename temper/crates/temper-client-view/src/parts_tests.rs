@@ -1,4 +1,7 @@
 pub(crate) mod fixtures;
-pub(crate) mod chat;
-pub(crate) mod goals;
-pub(crate) mod needs;
+mod chat;
+mod chat_line;
+mod chats;
+mod goals;
+mod new_chat;
+mod playground;

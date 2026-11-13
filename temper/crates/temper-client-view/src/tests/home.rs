@@ -1,9 +1,6 @@
 use super::fixtures as f;
-
 use skein_ui::{Act, Role};
-
 use temper_client_domain::{self as d, Address, ChatsFilter};
-
 
 pub(super) use super::fixtures::home::{
     ChatFixture, NeedsFixture, STATUS_MINUTE, STATUS_NOW, StatusFixture, away_fixture, away_home, away_home_with_needs,
@@ -11,16 +8,7 @@ pub(super) use super::fixtures::home::{
     status_parts,
 };
 
-
-use jig_client::contract as c;
-
-use skein_lib::{List, Queue, Token};
-
-use temper_client_protocol_wire::{self as wire, v1 as w};
-
-
 const UNKNOWN: u32 = 99;
-
 
 // Home's try survives leaving Ready (temper/docs/design/domain/trial.md, 6.3).
 fn trial_home(beginning: bool) -> d::Domain {
@@ -33,7 +21,6 @@ fn trial_home(beginning: bool) -> d::Domain {
     assert_eq!(d::pages::home::facts(&root, f::PROJECT, f::NOW).to_begin(), beginning);
     root
 }
-
 
 fn trial_rows(root: &mut d::Domain, state: Option<d::forge::trials::State>) {
     let rows: Box<[d::forge::trials::Row]> = match state {
@@ -52,14 +39,11 @@ fn trial_rows(root: &mut d::Domain, state: Option<d::forge::trials::State>) {
     );
 }
 
-
 fn failed_trial() -> d::forge::trials::State {
     d::forge::trials::State::Failed { why: d::forge::trials::Why::Waited }
 }
 
-
 const TRY_STOPPED: &str = "Claude didn’t answer when tried";
-
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic node positions and attributes")]
@@ -93,7 +77,6 @@ fn home_says_a_try_that_stopped() {
     }
 }
 
-
 fn silent_trial(state: d::forge::trials::State) {
     for beginning in [false, true] {
         let mut root = trial_home(beginning);
@@ -105,18 +88,15 @@ fn silent_trial(state: d::forge::trials::State) {
     }
 }
 
-
 #[test]
 fn answered_says_nothing_more() {
     silent_trial(d::forge::trials::State::Answered { seconds: 6 });
 }
 
-
 #[test]
 fn running_says_nothing() {
     silent_trial(d::forge::trials::State::Running);
 }
-
 
 #[test]
 fn try_again_runs_another_and_the_line_goes() {
@@ -143,7 +123,6 @@ fn try_again_runs_another_and_the_line_goes() {
     }
 }
 
-
 #[test]
 fn a_home_with_no_trial_reads_as_today() {
     for beginning in [false, true] {
@@ -159,13 +138,11 @@ fn a_home_with_no_trial_reads_as_today() {
     }
 }
 
-
 fn printed(view: &crate::View) -> Box<[u8]> {
     let mut print = skein_ui_text::Print::new(&view.limits().tree).expect("terminal bounds");
     skein_ui_text::render(view.tree(), b"temper", None, &mut print);
     skein_lib::bytes::copy_of(print.text.as_slice())
 }
-
 
 fn main_nodes(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
     let mut main = None;
@@ -178,7 +155,6 @@ fn main_nodes(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
     main.expect("main subtree")
 }
 
-
 fn main_find(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> skein_ui::NodeId {
     let mut found = None;
     for node in main_nodes(tree) {
@@ -188,7 +164,6 @@ fn main_find(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> skein_ui::NodeId
     }
     found.expect("main control")
 }
-
 
 #[test]
 fn project_pages_draw_their_heading_in_both_shells() {
@@ -209,7 +184,6 @@ fn project_pages_draw_their_heading_in_both_shells() {
         assert!(skein_lib::bytes::find(&printed, heading).is_some());
     }
 }
-
 
 #[test]
 fn unlisted_projects_explain_and_link_to_chats() {
@@ -233,7 +207,6 @@ fn unlisted_projects_explain_and_link_to_chats() {
         assert!(skein_lib::bytes::find(&printed(&view), b"Project 99 is not one of yours.").is_some());
     }
 }
-
 
 fn missing_project(address: Address, project: u32) -> (d::Domain, Token) {
     let limits = f::domain_limits();
@@ -265,7 +238,6 @@ fn missing_project(address: Address, project: u32) -> (d::Domain, Token) {
     (root, token.expect("project read"))
 }
 
-
 fn answer_missing_project(root: &mut d::Domain, read: Token, why: c::ReadNone) {
     let mut out = Queue::uncapped();
     d::step(
@@ -279,7 +251,6 @@ fn answer_missing_project(root: &mut d::Domain, read: Token, why: c::ReadNone) {
         &mut out,
     );
 }
-
 
 #[test]
 fn missing_project_pages_wait_then_name_deleted_projects_in_both_shells() {
@@ -319,7 +290,6 @@ fn missing_project_pages_wait_then_name_deleted_projects_in_both_shells() {
     }
 }
 
-
 #[test]
 fn missing_project_none_answers_other_than_gone_keep_not_yours() {
     for address in [Address::Home { project: 3 }, Address::Settings { project: 3 }] {
@@ -334,7 +304,6 @@ fn missing_project_none_answers_other_than_gone_keep_not_yours() {
         }
     }
 }
-
 
 #[test]
 fn settings_links_carry_the_forge_and_account_marks_in_both_shells() {
@@ -383,7 +352,6 @@ fn settings_links_carry_the_forge_and_account_marks_in_both_shells() {
     }
 }
 
-
 fn subtree(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> &[skein_ui::Node] {
     for (at, node) in tree.nodes().iter().enumerate() {
         if node.id == id {
@@ -394,11 +362,13 @@ fn subtree(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> &[skein_ui::Node] {
     panic!("subtree root exists")
 }
 
+use jig_client::contract as c;
+use skein_lib::{List, Queue, Token};
+use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn home_root(rows: List<w::ForgeRow>, configured: bool, chat: bool) -> (d::Domain, Token) {
     home_with_needs(rows, configured, chat, None)
 }
-
 
 fn home_with_needs(
     rows: List<w::ForgeRow>,
@@ -409,7 +379,6 @@ fn home_with_needs(
     home_documents(rows, configured, chat, needs, None)
 }
 
-
 fn home_documents(
     rows: List<w::ForgeRow>,
     configured: bool,
@@ -419,7 +388,6 @@ fn home_documents(
 ) -> (d::Domain, Token) {
     home_documents_with_reads(rows, configured, chat, needs, chats, Some(&[]), true)
 }
-
 fn home_documents_with_reads(
     rows: List<w::ForgeRow>,
     configured: bool,
@@ -432,20 +400,16 @@ fn home_documents_with_reads(
     home_documents_with_status(rows, configured, chat, needs, chats, dismissed, settings_delivered, None)
 }
 
-
 fn contains(text: &[u8], words: &str) {
     assert!(skein_lib::bytes::find(text, words.as_bytes()).is_some(), "missing {words}: {text:?}");
 }
-
 fn absent(text: &[u8], words: &str) {
     assert!(skein_lib::bytes::find(text, words.as_bytes()).is_none(), "unexpected {words}");
 }
-
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
 fn styled(tree: &skein_ui::Tree, style: skein_ui::Style) -> &skein_ui::Node {
     tree.nodes().iter().find(|node| node.styles.as_slice().contains(&style)).expect("styled Home node")
 }
-
 fn children(nodes: &[skein_ui::Node]) -> Box<[&skein_ui::Node]> {
     let mut children = List::with_capacity(u32::try_from(nodes.len()).unwrap());
     let mut at = 1;
@@ -455,14 +419,12 @@ fn children(nodes: &[skein_ui::Node]) -> Box<[&skein_ui::Node]> {
     }
     children.into_boxed()
 }
-
 fn assert_action(view: &mut crate::View, role: Role, name: &[u8], act: d::pages::Act) {
     let id = main_find(view.tree(), role, name);
     let Some(d::Event::Act { action }) = crate::event(view, id, Act::Press) else { panic!("page act event") };
     assert_eq!(action, d::Action::Pages(act.clone()));
     assert_eq!(crate::act(view, id, Act::Press), Some(d::Action::Pages(act)));
 }
-
 
 fn assert_first_card_action(view: &mut crate::View, name: &[u8], action: d::pages::Act) {
     let card = styled(view.tree(), crate::look::NEED_CARD);
@@ -474,7 +436,6 @@ fn assert_first_card_action(view: &mut crate::View, name: &[u8], action: d::page
     }
     assert_eq!(crate::act(view, id.unwrap(), Act::Press), Some(d::Action::Pages(action)));
 }
-
 fn home_foot(tree: &skein_ui::Tree) -> &skein_ui::Node {
     let mut foot = None;
     for node in children(main_nodes(tree)) {
@@ -484,7 +445,6 @@ fn home_foot(tree: &skein_ui::Tree) -> &skein_ui::Node {
     }
     foot.unwrap()
 }
-
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
@@ -545,7 +505,6 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
     }
 }
 
-
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
 fn adopting(root: &mut d::Domain, refused: Option<w::ForgeReason>) {
     let mut out = drive(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::AdoptFirst) });
@@ -603,7 +562,6 @@ fn adopting(root: &mut d::Domain, refused: Option<w::ForgeReason>) {
         );
     }
 }
-
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
 #[expect(clippy::too_many_lines, reason = "the repository state matrix also checks every shared forge refusal")]
@@ -730,7 +688,6 @@ fn home_repository_states_keep_their_words_and_events() {
     }
 }
 
-
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and their event bindings")]
 fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
@@ -813,7 +770,6 @@ fn home_outline_matches_the_requested_main_and_terminal_lines_join() {
     absent(&printed, "Change model");
 }
 
-
 #[test]
 fn home_kicker_tracks_the_current_day_and_minute() {
     let (root, _) = home_root(List::with_capacity(0), false, false);
@@ -826,7 +782,6 @@ fn home_kicker_tracks_the_current_day_and_minute() {
     crate::build(&mut view, &root, skein_lib::Wall::from_nanos(60_000_000_000), &mut Queue::uncapped());
     contains(styled(view.tree(), crate::look::HOME_KICKER).name.as_deref().unwrap(), "00:01");
 }
-
 
 #[test]
 fn home_unknown_and_ended_forges_draw_only_known_facts() {
@@ -856,7 +811,6 @@ fn home_unknown_and_ended_forges_draw_only_known_facts() {
     }
 }
 
-
 // One featured need plus six others proves Home's five-row limit on both sides.
 const QUESTIONS: [c::ObjectKey; 7] = [
     c::ObjectKey::Question { task: f::INBOX_TASK, message: 1 },
@@ -867,17 +821,14 @@ const QUESTIONS: [c::ObjectKey; 7] = [
     c::ObjectKey::Question { task: f::INBOX_TASK, message: 6 },
     c::ObjectKey::Question { task: f::INBOX_TASK, message: 7 },
 ];
-
 fn everyday(beginning: bool, objects: &[c::ObjectKey], cut: bool, read: bool) -> d::Domain {
     home_with_needs(forge_rows(true), !beginning, true, Some(NeedsFixture { objects, cut, read, decided: true })).0
 }
-
 fn inbox_act() -> d::pages::Act {
     d::pages::Act::Go {
         address: Address::Inbox { filter: d::address::Filter { project: Some(f::PROJECT), kind: None, goal: None } },
     }
 }
-
 #[expect(
     clippy::disallowed_methods,
     reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
@@ -889,7 +840,6 @@ fn section_styles(tree: &skein_ui::Tree) -> Box<[skein_ui::Style]> {
         .map(|node| node.styles.as_slice()[0])
         .collect()
 }
-
 #[test]
 #[expect(
     clippy::disallowed_methods,
@@ -926,7 +876,6 @@ fn everyday_headlines_count_known_needs_and_mark_cut_reads() {
         }
     }
 }
-
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the table inspects semantic cards in both shells")]
 fn first_need_keeps_card_order_navigation_and_terminal_words() {
@@ -990,7 +939,6 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
         }
     }
 }
-
 #[test]
 fn unread_need_waits_in_both_shells_and_keeps_unknown_headline() {
     let root = everyday(false, &QUESTIONS[..1], false, false);
@@ -999,7 +947,6 @@ fn unread_need_waits_in_both_shells_and_keeps_unknown_headline() {
         assert!(!section_styles(view.tree()).contains(&crate::look::HOME_NEEDS));
     }
 }
-
 #[test]
 #[expect(clippy::disallowed_methods, clippy::disallowed_macros, reason = "the table inspects card counts and actions")]
 fn additional_needs_stop_at_three_and_link_to_the_project() {
@@ -1023,7 +970,6 @@ fn additional_needs_stop_at_three_and_link_to_the_project() {
         }
     }
 }
-
 #[test]
 fn nonquestion_need_keeps_its_kind_and_deciding_act() {
     for (object, kind, action) in [
@@ -1046,19 +992,15 @@ fn nonquestion_need_keeps_its_kind_and_deciding_act() {
     }
 }
 
-
 // Home's span cases build four minutes after its fixture's epoch.
 const FOUR_MINUTES: skein_lib::Wall = skein_lib::Wall::from_nanos(240_000_000_000);
-
 fn timed_view(root: &d::Domain, browser: bool) -> crate::View {
     let mut view = f::view_of(if browser { f::browser_words() } else { f::words() });
     crate::build(&mut view, root, FOUR_MINUTES, &mut Queue::uncapped());
     view
 }
-
 // Six rows is one beyond Home's five-row cap; a seventh can be an ended chat.
 const CHAT_TITLES: [&[u8]; 7] = [b"README", b"Rust", b"Repository", b"Tests", b"Docs", b"Checks", b"Release"];
-
 fn chat_fixture(live: usize, ended: usize, more: bool, after: bool) -> ChatFixture {
     let mut live_rows = List::with_capacity(u32::try_from(live).unwrap());
     let mut closed_rows = List::with_capacity(u32::try_from(ended).unwrap());
@@ -1094,7 +1036,6 @@ fn chat_fixture(live: usize, ended: usize, more: bool, after: bool) -> ChatFixtu
         },
     }
 }
-
 fn home_chats(chats: ChatFixture) -> d::Domain {
     home_documents(
         forge_rows(true),
@@ -1105,7 +1046,6 @@ fn home_chats(chats: ChatFixture) -> d::Domain {
     )
     .0
 }
-
 #[test]
 fn chats_keep_live_then_ended_status_age_names_and_events() {
     for (more, after, name, label) in [
@@ -1163,7 +1103,6 @@ fn chats_keep_live_then_ended_status_age_names_and_events() {
         }
     }
 }
-
 #[test]
 fn chat_rows_stop_at_five_without_changing_the_total() {
     for (live, ended, label) in [(5, 0, "All 5 chats"), (6, 0, "All 6 chats"), (2, 4, "All 6 chats")] {
@@ -1177,7 +1116,6 @@ fn chat_rows_stop_at_five_without_changing_the_total() {
         }
     }
 }
-
 #[test]
 #[expect(
     clippy::disallowed_methods,
@@ -1238,7 +1176,6 @@ fn sections_are_hidden_while_to_begin_shows() {
     }
 }
 
-
 #[test]
 fn read_need_without_a_title_links_by_task_number() {
     let root = everyday(false, &QUESTIONS[6..], false, true);
@@ -1257,7 +1194,6 @@ fn read_need_without_a_title_links_by_task_number() {
         );
     }
 }
-
 #[test]
 fn ask_line_reads_back_types_and_sends_on_both_homes() {
     for address in [Address::Home { project: f::PROJECT }, Address::AllHome] {
@@ -1289,7 +1225,6 @@ fn ask_line_reads_back_types_and_sends_on_both_homes() {
     assert!(f::find(f::browser_page_view(&root).tree(), Role::TextField, b"Ask temper").is_none());
 }
 
-
 #[test]
 fn home_notes_name_where_the_remaining_steps_stay() {
     for (configured, repository, note) in [
@@ -1306,7 +1241,6 @@ fn home_notes_name_where_the_remaining_steps_stay() {
     }
 }
 
-
 #[test]
 fn home_waits_for_settings_and_dismissals_before_the_card() {
     for (dismissed, settings) in [(None, true), (Some(&[][..]), false)] {
@@ -1318,7 +1252,6 @@ fn home_waits_for_settings_and_dismissals_before_the_card() {
         }
     }
 }
-
 
 #[test]
 fn home_skipped_project_draws_the_everyday_intro() {
@@ -1339,7 +1272,6 @@ fn home_skipped_project_draws_the_everyday_intro() {
         absent(&text, "Connected");
     }
 }
-
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic nodes and request attempts")]
@@ -1403,7 +1335,6 @@ fn home_skip_hides_the_card_and_refusal_offers_retry() {
     }
 }
 
-
 fn home_accounts_document(holdings: &[(&[u8], c::AccountKind, bool)]) -> c::Accounts {
     let mut doc = super::accounts::document(0);
     doc.accounts = List::with_capacity(u32::try_from(holdings.len()).expect("fixture count"));
@@ -1416,7 +1347,6 @@ fn home_accounts_document(holdings: &[(&[u8], c::AccountKind, bool)]) -> c::Acco
     }
     doc
 }
-
 
 #[test]
 fn home_more_accounts_names_usable_holdings() {
@@ -1458,7 +1388,6 @@ fn home_more_accounts_names_usable_holdings() {
     }
 }
 
-
 #[test]
 fn home_more_accounts_reads_every_source_and_ignores_playground() {
     let (mut root, watch) = home_root(forge_rows(true), false, false);
@@ -1489,7 +1418,6 @@ fn home_more_accounts_reads_every_source_and_ignores_playground() {
     super::accounts::deliver(&mut root, watch.expect("accounts watch"), doc);
     assert_eq!(crate::common::accounts::home_accounts(&root), (false, crate::words::Word::HomeAddChatGpt));
 }
-
 
 #[test]
 fn home_lede_joins_only_the_facts_it_holds() {
@@ -1543,7 +1471,6 @@ fn home_lede_joins_only_the_facts_it_holds() {
     }
 }
 
-
 #[test]
 fn home_accounts_follow_the_lede_in_the_tree_and_terminal() {
     let (mut root, watch) = home_root(forge_rows(true), false, false);
@@ -1578,7 +1505,6 @@ fn home_accounts_follow_the_lede_in_the_tree_and_terminal() {
         absent(&f::main_text(view.tree()), "Add Claude or another plan");
     }
 }
-
 
 #[test]
 fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
@@ -1633,11 +1559,9 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
     }
 }
 
-
 // Four epoch days leave room for the table's three-day previous sitting.
 
 const CHAT_SENTENCE: &str = "A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing.";
-
 
 fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, goals: bool) -> d::Domain {
     let fixture = StatusFixture {
@@ -1660,18 +1584,15 @@ fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, go
     )
     .0
 }
-
 fn status_view(root: &d::Domain, browser: bool) -> crate::View {
     let mut view = f::view_of(if browser { f::browser_words() } else { f::words() });
     crate::build(&mut view, root, skein_lib::Wall::from_nanos(STATUS_NOW), &mut Queue::uncapped());
     view
 }
-
 fn kicker(root: &d::Domain, browser: bool) -> Box<[u8]> {
     let view = status_view(root, browser);
     styled(view.tree(), crate::look::HOME_KICKER).name.clone().unwrap()
 }
-
 #[test]
 fn the_kicker_says_when_you_last_looked() {
     // The fractional spans prove the displayed unit is rounded down.
@@ -1692,7 +1613,6 @@ fn the_kicker_says_when_you_last_looked() {
         }
     }
 }
-
 #[test]
 fn no_previous_says_nothing() {
     let mut parts = status_parts();
@@ -1702,7 +1622,6 @@ fn no_previous_says_nothing() {
         assert_eq!(kicker(&root, browser).as_ref(), "Monday, 00:00".as_bytes());
     }
 }
-
 #[test]
 fn under_a_minute_says_nothing() {
     for seconds in [0, 59, 60] {
@@ -1714,7 +1633,6 @@ fn under_a_minute_says_nothing() {
         }
     }
 }
-
 #[test]
 fn the_headline_counts_what_landed() {
     for (landed, seen, headline) in [
@@ -1734,7 +1652,6 @@ fn the_headline_counts_what_landed() {
         }
     }
 }
-
 #[test]
 fn the_headline_is_as_now_until_status_is_shown() {
     for root in
@@ -1749,7 +1666,6 @@ fn the_headline_is_as_now_until_status_is_shown() {
         }
     }
 }
-
 #[test]
 fn the_foot_says_what_is_queued() {
     for (queued, last, red, branch, expected) in [
@@ -1792,7 +1708,6 @@ fn the_foot_says_what_is_queued() {
         }
     }
 }
-
 #[test]
 fn the_foot_links_to_changes() {
     let root = status_home(status_parts(), true, false, false);
@@ -1813,7 +1728,6 @@ fn the_foot_links_to_changes() {
         );
     }
 }
-
 #[test]
 fn no_foot_while_to_begin_shows() {
     let root = status_home(status_parts(), true, true, false);
@@ -1823,7 +1737,6 @@ fn no_foot_while_to_begin_shows() {
         absent(&f::main_text(view.tree()), "Landing:");
     }
 }
-
 #[test]
 fn chats_says_its_sentence_with_no_goal() {
     for mut root in
@@ -1839,7 +1752,6 @@ fn chats_says_its_sentence_with_no_goal() {
         }
     }
 }
-
 #[test]
 fn chats_has_no_sentence_with_a_goal() {
     let root = status_home(status_parts(), true, false, true);
@@ -1849,13 +1761,10 @@ fn chats_has_no_sentence_with_a_goal() {
     }
 }
 
-
 const PARSED: c::ObjectKey = c::ObjectKey::Question { task: f::INBOX_TASK, message: 8 };
-
 fn needs_act(root: &mut d::Domain, act: d::pages::needs::Act) {
     drive(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Needs(act)) });
 }
-
 #[test]
 fn parsed_home_card_prints_choices_and_opens_needs_for_words() {
     use d::pages::needs::Act as N;
@@ -1891,7 +1800,6 @@ fn parsed_home_card_prints_choices_and_opens_needs_for_words() {
         contains(&print, words);
     }
 }
-
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
 fn home_answered_lines_precede_card_count_falls_and_undo_restores_it() {
@@ -1914,7 +1822,6 @@ fn home_answered_lines_precede_card_count_falls_and_undo_restores_it() {
         assert!(!main_nodes(view.tree()).iter().any(|n| n.styles.as_slice().contains(&crate::look::ANSWERED)));
     }
 }
-
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
 fn home_answered_window_expires_and_sets_the_next_change() {
@@ -1931,7 +1838,6 @@ fn home_answered_window_expires_and_sets_the_next_change() {
         assert!(!main_nodes(view.tree()).iter().any(|n| n.styles.as_slice().contains(&crate::look::ANSWERED)));
     }
 }
-
 #[test]
 fn later_home_card_keeps_its_card_and_meta() {
     use d::pages::needs::Act as N;
@@ -1950,7 +1856,6 @@ fn later_home_card_keeps_its_card_and_meta() {
         contains(&text, "later");
     }
 }
-
 #[test]
 fn phone_cards_keep_recommended_act_and_more() {
     for objects in [&[PARSED][..], &[PARSED, QUESTIONS[0]][..]] {
@@ -1974,7 +1879,6 @@ fn phone_cards_keep_recommended_act_and_more() {
         absent(&f::main_text(view.tree()), "Answer, one at a time");
     }
 }
-
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
@@ -2023,7 +1927,6 @@ fn home_refusal_reopens_the_card_with_the_engines_words() {
         main_find(view.tree(), Role::Heading { level: 1 }, b"One thing needs you.");
     }
 }
-
 #[test]
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
 fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
@@ -2060,7 +1963,6 @@ fn home_funds_and_proposal_keep_decisions_confirmation_and_short_lines() {
         main_find(view.tree(), Role::Paragraph, b"31 of 40 used.");
     }
 }
-
 
 fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
     let mut goals = chat_fixture(live, ended, false, false);
@@ -2101,7 +2003,6 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
     .0
 }
 
-
 #[test]
 fn goals_takes_chats_place() {
     let root = home_goals(2, 3, false);
@@ -2131,7 +2032,6 @@ fn goals_takes_chats_place() {
     }
 }
 
-
 #[test]
 fn goals_rows_are_live_first_and_at_least_five() {
     for (live, ended, shown) in [(2, 5, 5), (6, 1, 6), (0, 3, 3), (1, 1, 2)] {
@@ -2152,7 +2052,6 @@ fn goals_rows_are_live_first_and_at_least_five() {
     }
 }
 
-
 #[test]
 fn all_n_links_to_goals() {
     let root = home_goals(2, 5, false);
@@ -2168,7 +2067,6 @@ fn all_n_links_to_goals() {
         );
     }
 }
-
 
 #[test]
 #[expect(
@@ -2249,12 +2147,9 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
     }
 }
 
-
 const BRIEF_SENTENCE: &str = "41 changes landed overnight.";
-
 const BRIEF_LEDE: &str =
     "first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.";
-
 
 fn brief_parts(landed: u64, lede: &str, at: u64) -> w::ProjectStatusParts {
     let mut parts = status_parts();
@@ -2273,7 +2168,6 @@ fn brief_parts(landed: u64, lede: &str, at: u64) -> w::ProjectStatusParts {
     parts
 }
 
-
 fn no_brief_prose(view: &crate::View) {
     for style in [crate::look::HOME_LEDE, crate::look::HOME_BYLINE] {
         for node in main_nodes(view.tree()) {
@@ -2285,7 +2179,6 @@ fn no_brief_prose(view: &crate::View) {
     absent(&text, BRIEF_LEDE);
     absent(&text, "Written by the status agent");
 }
-
 
 #[test]
 fn a_brief_above_seen_says_its_words() {
@@ -2324,7 +2217,6 @@ fn a_brief_above_seen_says_its_words() {
     }
 }
 
-
 #[test]
 fn an_old_brief_with_new_landings_uses_the_computed_words() {
     for landed in [0, 1] {
@@ -2342,7 +2234,6 @@ fn an_old_brief_with_new_landings_uses_the_computed_words() {
     }
 }
 
-
 #[test]
 fn no_brief_no_lede_no_byline() {
     for root in [
@@ -2354,7 +2245,6 @@ fn no_brief_no_lede_no_byline() {
         }
     }
 }
-
 
 #[test]
 fn an_empty_lede_keeps_the_byline() {
@@ -2370,7 +2260,6 @@ fn an_empty_lede_keeps_the_byline() {
         );
     }
 }
-
 
 #[test]
 fn the_byline_says_its_clock() {
@@ -2395,9 +2284,7 @@ fn the_byline_says_its_clock() {
     }
 }
 
-
 const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
-
 fn copy_forges(states: &[Option<w::MakingState>], unasked: bool) -> List<w::ForgeRow> {
     let rows = forge_rows(false);
     let mut row = rows.get(0).unwrap().clone().into_parts();
@@ -2447,7 +2334,6 @@ fn copy_forges(states: &[Option<w::MakingState>], unasked: bool) -> List<w::Forg
     }
     List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
 }
-
 #[test]
 fn home_copy_lines_keep_order_completion_and_retry_in_browser_and_terminal() {
     let failed = w::MakingState::Failed(
@@ -2508,7 +2394,6 @@ fn home_copy_lines_keep_order_completion_and_retry_in_browser_and_terminal() {
         }
     }
 }
-
 #[test]
 fn home_completed_copies_name_the_sources_and_explain_where_chats_write_in_both_shells() {
     for (count, title, detail) in [
@@ -2539,7 +2424,6 @@ fn home_completed_copies_name_the_sources_and_explain_where_chats_write_in_both_
         }
     }
 }
-
 #[test]
 fn home_unasked_copies_offer_the_filled_addresses_and_one_copy_act_in_both_shells() {
     let (root, _) = home_root(copy_forges(&[None, None], true), false, false);
@@ -2554,18 +2438,15 @@ fn home_unasked_copies_offer_the_filled_addresses_and_one_copy_act_in_both_shell
     contains(&printed(&f::page_view(&root)), "https://github.com/acme/other");
 }
 
-
 fn add_rows() -> List<w::ForgeRow> {
     let mut row = forge_rows(false).get(0).unwrap().clone().into_parts();
     row.first = None;
     row.starts_with = w::StartsWith::Nothing;
     List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, row).unwrap()]))
 }
-
 fn add_act(root: &mut d::Domain, act: d::pages::Act) -> Queue<d::Request> {
     drive(root, d::Event::Act { action: d::Action::Pages(act) })
 }
-
 #[test]
 fn home_add_step_offers_small_make_copy_and_quiet_adoption_in_both_shells() {
     use d::forge::forges::Start;
@@ -2593,7 +2474,6 @@ fn home_add_step_offers_small_make_copy_and_quiet_adoption_in_both_shells() {
     }
     contains(&printed(&f::page_view(&root)), "Add a repository");
 }
-
 #[test]
 fn home_add_sheet_keeps_choices_fields_cancel_escape_and_input_in_both_shells() {
     use d::forge::forges::Start;
@@ -2644,7 +2524,6 @@ fn home_add_sheet_keeps_choices_fields_cancel_escape_and_input_in_both_shells() 
         assert!(root.pages().home().unwrap().add.is_none());
     }
 }
-
 #[test]
 fn home_add_sheet_says_welcome_validation_alerts_in_both_shells() {
     use d::forge::forges::Start;
@@ -2665,7 +2544,6 @@ fn home_add_sheet_says_welcome_validation_alerts_in_both_shells() {
         contains(&printed(&f::page_view(&root)), expected);
     }
 }
-
 #[test]
 fn home_empty_making_has_its_own_words_in_both_shells() {
     let mut row = add_rows().get(0).unwrap().clone().into_parts();
@@ -2688,7 +2566,6 @@ fn home_empty_making_has_its_own_words_in_both_shells() {
     }
     contains(&printed(&f::page_view(&root)), "Making work/hello…");
 }
-
 
 #[test]
 fn home_add_waits_for_kept_and_reports_forge_refusals_in_both_shells() {
@@ -2761,7 +2638,6 @@ fn home_add_waits_for_kept_and_reports_forge_refusals_in_both_shells() {
     }
 }
 
-
 #[test]
 fn the_kicker_reads_since_to_now() {
     let root = default_away(away_fixture(4));
@@ -2769,7 +2645,6 @@ fn the_kicker_reads_since_to_now() {
         assert_eq!(kicker(&root, browser).as_ref(), "While you were away · Sun 23:10 to now".as_bytes());
     }
 }
-
 #[test]
 fn the_kicker_reads_since_to_its_end_once_off() {
     for until in [false, true] {
@@ -2788,7 +2663,6 @@ fn the_kicker_reads_since_to_its_end_once_off() {
         }
     }
 }
-
 #[test]
 fn the_everyday_kicker_with_rows_and_no_spell() {
     let mut away = away_fixture(1);
@@ -2798,7 +2672,6 @@ fn the_everyday_kicker_with_rows_and_no_spell() {
         assert_eq!(kicker(&root, browser).as_ref(), "Monday, 00:00 · you last looked 9 hours ago".as_bytes());
     }
 }
-
 #[test]
 fn the_headline_says_landed_then_decided() {
     for (count, landed, headline) in [
@@ -2813,7 +2686,6 @@ fn the_headline_says_landed_then_decided() {
         }
     }
 }
-
 #[test]
 fn none_for_no_changes() {
     for delivered in [false, true] {
@@ -2835,7 +2707,6 @@ fn none_for_no_changes() {
         );
     }
 }
-
 #[test]
 fn one_thing_was_decided() {
     let root = default_away(away_fixture(1));
@@ -2847,7 +2718,6 @@ fn one_thing_was_decided() {
         );
     }
 }
-
 #[test]
 fn lede_and_byline_stand() {
     let root = away_home(away_fixture(1), false, &[], brief_parts(2, BRIEF_LEDE, STATUS_NOW));
@@ -2860,7 +2730,6 @@ fn lede_and_byline_stand() {
         );
     }
 }
-
 #[test]
 fn spell_intro_without_decisions_uses_the_needs_sentence() {
     for (landed, objects, off, headline, kicker_words) in [
@@ -2900,7 +2769,6 @@ fn spell_intro_without_decisions_uses_the_needs_sentence() {
         }
     }
 }
-
 #[test]
 fn needs_head_is_still_during_the_spell_with_or_without_decisions() {
     for rows in [0, 1] {
@@ -2926,7 +2794,6 @@ fn needs_head_is_still_during_the_spell_with_or_without_decisions() {
         }
     }
 }
-
 #[test]
 fn no_decided_region_with_no_row_or_to_begin() {
     for beginning in [false, true] {
@@ -2938,7 +2805,6 @@ fn no_decided_region_with_no_row_or_to_begin() {
         }
     }
 }
-
 #[test]
 fn the_section_comes_first_after_the_intro() {
     let root = default_away(away_fixture(1));
@@ -2951,7 +2817,6 @@ fn the_section_comes_first_after_the_intro() {
         main_find(view.tree(), Role::Heading { level: 2 }, "Decided for you · 1".as_bytes());
     }
 }
-
 #[test]
 fn its_count_is_every_row_showing() {
     let root = default_away(away_fixture(10));
@@ -2965,7 +2830,6 @@ fn its_count_is_every_row_showing() {
     }
     assert_eq!(count, 7);
 }
-
 #[test]
 fn limits_goes_to_settings() {
     let root = default_away(away_fixture(1));
@@ -2983,7 +2847,6 @@ fn limits_goes_to_settings() {
         );
     }
 }
-
 
 #[test]
 fn a_row_says_title_and_clock() {
@@ -3068,7 +2931,6 @@ fn a_row_says_title_and_clock() {
         }
     }
 }
-
 #[test]
 fn an_unread_task_says_task_n() {
     let mut away = away_fixture(1);
@@ -3076,7 +2938,6 @@ fn an_unread_task_says_task_n() {
     let root = default_away(away);
     contains(&f::main_text(status_view(&root, true).tree()), "Task 99 · Sun 23:05");
 }
-
 fn assert_decision_end(state: d::pages::decided::DecisionTask, overturned: bool, late: &str) {
     let mut away = away_fixture(1);
     away.state = state;
@@ -3094,7 +2955,6 @@ fn assert_decision_end(state: d::pages::decided::DecisionTask, overturned: bool,
         assert_eq!(styled(view.tree(), crate::look::DECISION_TOOK).name.as_deref(), Some(b"In serve".as_slice()));
     }
 }
-
 #[test]
 fn done_says_landed() {
     assert_decision_end(
@@ -3103,7 +2963,6 @@ fn done_says_landed() {
         "landed 00:00 · a new goal can undo it",
     );
 }
-
 #[test]
 fn ended_says_ended() {
     assert_decision_end(
@@ -3112,12 +2971,10 @@ fn ended_says_ended() {
         "ended 00:00 · a new goal can undo it",
     );
 }
-
 #[test]
 fn overturned_says_it_asks_again_and_strikes_took() {
     assert_decision_end(d::pages::decided::DecisionTask::Live, true, "Overturned: it asks you again");
 }
-
 #[test]
 fn ended_and_overturned_says_landed_and_strikes_took() {
     assert_decision_end(
@@ -3126,7 +2983,6 @@ fn ended_and_overturned_says_landed_and_strikes_took() {
         "landed 00:00 · a new goal can undo it",
     );
 }
-
 #[test]
 fn away_needs_head_is_still_only_while_needs_show() {
     for objects in [&[][..], &QUESTIONS[..2]] {
@@ -3141,7 +2997,6 @@ fn away_needs_head_is_still_only_while_needs_show() {
         }
     }
 }
-
 
 #[test]
 fn the_oldest_expiry_wakes_home() {
@@ -3158,7 +3013,6 @@ fn the_oldest_expiry_wakes_home() {
     }
 }
 
-
 #[test]
 fn a_live_row_offers_overturn() {
     let root = default_away(away_fixture(1));
@@ -3174,7 +3028,6 @@ fn a_live_row_offers_overturn() {
         );
     }
 }
-
 #[test]
 fn an_overturned_row_offers_none() {
     let mut away = away_fixture(1);
@@ -3187,7 +3040,6 @@ fn an_overturned_row_offers_none() {
         assert!(f::find(view.tree(), Role::Button, b"Overturn").is_none());
     }
 }
-
 #[test]
 fn only_live_rows_offer_overturn() {
     for state in [
@@ -3203,7 +3055,6 @@ fn only_live_rows_offer_overturn() {
         }
     }
 }
-
 
 #[test]
 fn another_overturn_disables_the_button() {
@@ -3222,7 +3073,6 @@ fn another_overturn_disables_the_button() {
     }
 }
 
-
 #[test]
 fn a_brief_written_since_the_last_look_shows_with_nothing_new_landed() {
     let mut parts = brief_parts(1, BRIEF_LEDE, STATUS_NOW);
@@ -3240,7 +3090,6 @@ fn a_brief_written_since_the_last_look_shows_with_nothing_new_landed() {
     }
 }
 
-
 #[test]
 fn an_old_brief_gives_way_to_the_last_landing() {
     for previous in [STATUS_NOW - STATUS_MINUTE, STATUS_NOW] {
@@ -3256,7 +3105,6 @@ fn an_old_brief_gives_way_to_the_last_landing() {
         }
     }
 }
-
 
 #[test]
 fn a_landing_never_stands_under_nothing_needs_you_alone() {
@@ -3296,13 +3144,11 @@ fn a_landing_never_stands_under_nothing_needs_you_alone() {
     }
 }
 
-
 fn unanswered_home() -> f::ReadPage {
     let mut page = f::ReadPage::new(Address::Home { project: f::PROJECT });
     page.drop_inbox();
     page
 }
-
 fn answered_home(closed: &[jig_client::contract::TaskLine]) -> f::ReadPage {
     let mut page = f::ReadPage::new(Address::Home { project: f::PROJECT });
     page.live_chats(&[]);
@@ -3311,7 +3157,6 @@ fn answered_home(closed: &[jig_client::contract::TaskLine]) -> f::ReadPage {
     page.sections(false);
     page
 }
-
 fn home_empty(root: &d::Domain, expected: bool) {
     for view in [f::page_view(root), f::browser_page_view(root)] {
         let main = f::main_text(view.tree());
@@ -3327,7 +3172,6 @@ fn home_empty(root: &d::Domain, expected: bool) {
         );
     }
 }
-
 #[test]
 fn behind_with_unanswered_reads_home_claims_no_empty() {
     let page = unanswered_home();
@@ -3338,7 +3182,6 @@ fn behind_with_unanswered_reads_home_claims_no_empty() {
         assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"Chats").is_some());
     }
 }
-
 #[test]
 fn answered_empty_reads_still_say_so_on_home() {
     let mut page = answered_home(&[]);
@@ -3346,7 +3189,6 @@ fn answered_empty_reads_still_say_so_on_home() {
     assert!(f::find(f::page_view(&page.root).tree(), Role::Status, b"Behind").is_some());
     home_empty(&page.root, true);
 }
-
 #[test]
 fn home_keeps_what_it_knew_through_a_dropped_link_and_a_lost_read() {
     let mut ended = super::chats::line();

@@ -93,7 +93,7 @@ fn choose(root: &mut d::Domain, message: u64) {
     act(root, needs::Act::Choose { object: object(message), words: b"In the store".as_slice().into() });
 }
 
-pub(crate) fn main(view: &crate::View) -> &[skein_ui::Node] {
+fn main(view: &crate::View) -> &[skein_ui::Node] {
     let nodes = view.tree().nodes();
     let i = nodes.iter().position(|n| n.role == Role::Main).unwrap();
     &nodes[i..i.checked_add(usize::try_from(nodes[i].size).unwrap()).unwrap()]

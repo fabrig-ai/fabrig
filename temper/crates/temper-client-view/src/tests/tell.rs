@@ -17,14 +17,207 @@ use skein_ui::{Act as UiAct, Role, State};
 
 use temper_client_domain::{
     self as d, Action, Address, Event, Place, Request,
-    pages::{self, Act, team::Holder, tell::Goes},
+    pages::{self, Act},
 };
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
-use crate::work_tests::tell::{deliver, event, family, fill, filtered, findings, fixture, go, limits, task};
+
+
+// These navigation fixtures hold the rail, Team's card, and both Tell placements' reads.
+fn limits() -> d::Limits {
+    let mut limits = f::domain_limits();
+    limits.client.domain.handles = 40;
+    limits.client.domain.watches = 40;
+    limits.client.domain.reads = 12;
+    limits
+}
+
+fn event(root: &mut d::Domain, event: Event) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: limits() }, event, &mut out);
+    out
+}
+
+fn go(root: &mut d::Domain, address: Address) -> Queue<Request> {
+    event(root, Event::Went { place: Place::Address(address) })
+}
 
 fn act(root: &mut d::Domain, act: Act) -> Queue<Request> {
     event(root, Event::Act { action: Action::Pages(act) })
+}
+
+fn task() -> c::Task {
+    let mut task = super::chat::asking_task();
+    task.chip.task = 52;
+    task.project = 1;
+    task.label = 3;
+    task.chip.title = c::DocumentText::complete(c::Text::new(b"Prover".as_slice().into(), 32).unwrap());
+    task
+}
+
+fn findings() -> w::Findings {
+    let mut areas = List::with_capacity(2);
+    for (name, number) in [(b"docs".as_slice(), 40), (b"tests", 52)] {
+        areas
+            .push(
+                w::AreaRow::new(
+                    &w::CEILINGS,
+                    w::AreaRowParts {
+                        name: name.into(),
+                        words: name.into(),
+                        owner: w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap()),
+                        holder: Some(w::Holder::Task(
+                            w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap(),
+                        )),
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    w::Findings::new(
+        &w::CEILINGS,
+        w::FindingsParts {
+            project: 1,
+            areas,
+            rows: List::with_capacity(0),
+            cut: false,
+            triager: Some(w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).unwrap())),
+            holder: w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).unwrap()),
+        },
+    )
+    .unwrap()
+}
+
+fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up { up: Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) } },
+        },
+    )
+}
+
+fn family(root: &mut d::Domain, watch: Token, bytes: Box<[u8]>) -> Queue<Request> {
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes },
+                },
+            },
+        },
+    )
+}
+
+fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
+    while let Some(request) = out.pop() {
+        let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
+        let mut more = match down {
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Task { task: 52 }) } => {
+                deliver(root, watch, c::Delivery::Task(Box::new(task())))
+            }
+            Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { query, .. }) }
+                if query.label == Some(3) =>
+            {
+                let task = task();
+                let mut line = super::chats::line();
+                line.chip = task.chip;
+                line.project = 1;
+                line.label = 3;
+                deliver(
+                    root,
+                    watch,
+                    c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+                )
+            }
+            Down::Open { watch, subject: Watchable::Family { record, .. } } => {
+                match wire::decode_watching(&record.bytes, &w::CEILINGS).map(|w| w.watch().clone()) {
+                    Some(w::Watch::Findings(_)) => family(root, watch, wire::findings(&findings())),
+                    Some(w::Watch::Decided(_)) => {
+                        let row = w::Decision::new(
+                            &w::CEILINGS,
+                            w::DecisionParts {
+                                number: 1,
+                                task: 99,
+                                at: 0,
+                                question: b"Which tests?".as_slice().into(),
+                                took: b"The focused suite".as_slice().into(),
+                                why: b"It covers the rule.".as_slice().into(),
+                                overturned: false,
+                                reach: temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
+                                    kind: temper_protocol_reaches::Kind::Tests,
+                                    class: temper_protocol_reaches::Class::Decide,
+                                    reason: temper_protocol_reaches::Reason::Kind,
+                                    under: 0,
+                                    sets: 0,
+                                    matched: 0,
+                                    away: false,
+                                }),
+                            },
+                        )
+                        .unwrap();
+                        family(
+                            root,
+                            watch,
+                            wire::decisions(
+                                &w::Decisions::new(
+                                    &w::CEILINGS,
+                                    w::DecisionsParts {
+                                        project: 1,
+                                        rows: List::from_boxed(Box::new([row])),
+                                        asked: List::with_capacity(0),
+                                        cut: false,
+                                    },
+                                )
+                                .unwrap(),
+                            ),
+                        )
+                    }
+                    _ => Queue::uncapped(),
+                }
+            }
+            Down::Read { read, what: Readable::Jig(_) } => event(
+                root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: Up::ReadDone {
+                            read,
+                            result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)),
+                        },
+                    },
+                },
+            ),
+            Down::Save { .. }
+            | Down::Erase { .. }
+            | Down::Send { .. }
+            | Down::Open { .. }
+            | Down::Continue { .. }
+            | Down::Close { .. }
+            | Down::Read { .. } => Queue::uncapped(),
+        };
+        while let Some(request) = more.pop() {
+            out.push(request);
+        }
+    }
+}
+
+fn fixture(address: Address) -> d::Domain {
+    let (mut root, watch, _, _, _) =
+        f::root_at_full(Address::Work { project: 2, filter: d::WorkFilter::All }, &limits(), b"shop");
+    let me = f::asking_me(root.pages().me(root.client()).unwrap().clone());
+    f::deliver_me(&mut root, watch, me);
+    let out = go(&mut root, Address::Talk { project: 1, task: 52 });
+    fill(&mut root, out);
+    let out = go(&mut root, address);
+    fill(&mut root, out);
+    root
+}
+
+fn filtered() -> Address {
+    Address::Inbox { filter: d::address::Filter { project: Some(1), ..d::address::Filter::ALL } }
 }
 
 fn named(view: &crate::View, role: Role, name: &str) -> skein_ui::NodeId {

@@ -12,20 +12,20 @@ use skein_ui::{Builder, Role, Shortcut, State, Tree};
 use temper_client_domain::{Action, Address, Domain, Event, pages::Act};
 
 
-pub(crate) const PATH: &[u8] = b"docs/design/draft/away-mode.md";
+const PATH: &[u8] = b"docs/design/draft/away-mode.md";
 
-pub(crate) const CHAT: u64 = 4;
+const CHAT: u64 = 4;
 
-pub(crate) const FIRST: u32 = 2;
+const FIRST: u32 = 2;
 
-pub(crate) const SECOND: u32 = 4;
+const SECOND: u32 = 4;
 
-pub(crate) const CUSTOM: u32 = 9;
+const CUSTOM: u32 = 9;
 
-pub(crate) const TEXT: u32 = 256;
+const TEXT: u32 = 256;
 
 
-pub(crate) struct Sheet {
+struct Sheet {
     root: Domain,
     watch: skein_lib::Token,
     limits: temper_client_domain::Limits,
@@ -81,7 +81,7 @@ impl Sheet {
     }
 }
 
-pub(crate) fn node<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a skein_ui::Node {
+fn node<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a skein_ui::Node {
     for node in tree.nodes() {
         if node.role == role && node.name.as_deref() == Some(name) {
             return node;

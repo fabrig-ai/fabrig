@@ -12,9 +12,9 @@ use temper_client_domain::{Domain, Event, Request, forge};
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-pub(crate) const TASK: u64 = 9;
+const TASK: u64 = 9;
 
-pub(crate) fn event(root: &mut Domain, up: Up) -> Queue<Request> {
+fn event(root: &mut Domain, up: Up) -> Queue<Request> {
     let limits = f::limits();
     let mut out = Queue::uncapped();
     temper_client_domain::step(
@@ -26,7 +26,7 @@ pub(crate) fn event(root: &mut Domain, up: Up) -> Queue<Request> {
     out
 }
 
-pub(crate) fn opened() -> (Domain, Token) {
+fn opened() -> (Domain, Token) {
     let mut task = t::document();
     task.chip.task = TASK;
     let c::ChipPhaseFacts { details, .. } = task.chip.details.as_mut();
@@ -52,7 +52,7 @@ pub(crate) fn opened() -> (Domain, Token) {
     (root, family.expect("family_open"))
 }
 
-pub(crate) fn deliver(root: &mut Domain, watch: Token, panel: &w::ChangePanel) {
+fn deliver(root: &mut Domain, watch: Token, panel: &w::ChangePanel) {
     event(
         root,
         Up::FamilyDelivered {
@@ -66,7 +66,7 @@ pub(crate) fn deliver(root: &mut Domain, watch: Token, panel: &w::ChangePanel) {
     );
 }
 
-pub(crate) fn parts(step: w::Step) -> w::ChangePanelParts {
+fn parts(step: w::Step) -> w::ChangePanelParts {
     let mut parts = p::panel(TASK, step).into_parts();
     parts.owner = Box::from(*b"acme");
     parts.name = Box::from(*b"shop");
@@ -85,7 +85,7 @@ pub(crate) fn parts(step: w::Step) -> w::ChangePanelParts {
     parts
 }
 
-pub(crate) fn panel(parts: w::ChangePanelParts) -> w::ChangePanel {
+fn panel(parts: w::ChangePanelParts) -> w::ChangePanel {
     w::ChangePanel::new(&w::CEILINGS, parts).unwrap()
 }
 
@@ -107,7 +107,7 @@ fn draw(parts: w::ChangePanelParts) -> Tree {
     builder.finish()
 }
 
-pub(crate) fn position(bytes: &[u8], needle: &[u8]) -> Option<usize> {
+fn position(bytes: &[u8], needle: &[u8]) -> Option<usize> {
     for (index, span) in bytes.windows(needle.len()).enumerate() {
         if span == needle {
             return Some(index);
@@ -116,11 +116,11 @@ pub(crate) fn position(bytes: &[u8], needle: &[u8]) -> Option<usize> {
     None
 }
 
-pub(crate) fn contains(tree: &Tree, value: &str) -> bool {
+fn contains(tree: &Tree, value: &str) -> bool {
     position(&f::text(tree), value.as_bytes()).is_some()
 }
 
-pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
+fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     let mut length = 0_usize;
     for part in parts {
         length = length.checked_add(part.len()).unwrap();
@@ -132,11 +132,11 @@ pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     writer.finish()
 }
 
-pub(crate) fn task_name(task: u64) -> Box<[u8]> {
+fn task_name(task: u64) -> Box<[u8]> {
     joined(&[b"Task ", skein_lib::Decimal::of(task).as_bytes()])
 }
 
-pub(crate) fn styled(tree: &Tree, token: skein_ui::Style) -> Box<[usize]> {
+fn styled(tree: &Tree, token: skein_ui::Style) -> Box<[usize]> {
     let mut found = List::with_capacity(u32::try_from(tree.nodes().len()).unwrap());
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.styles.as_slice().contains(&token) {
@@ -146,7 +146,7 @@ pub(crate) fn styled(tree: &Tree, token: skein_ui::Style) -> Box<[usize]> {
     found.into_boxed()
 }
 
-pub(crate) fn queued(place: u32, names: &[u64]) -> w::Step {
+fn queued(place: u32, names: &[u64]) -> w::Step {
     let mut ahead = List::with_capacity(u32::try_from(names.len()).unwrap());
     for n in names {
         ahead.push(*n).unwrap();

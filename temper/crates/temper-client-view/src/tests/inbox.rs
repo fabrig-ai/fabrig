@@ -1,24 +1,16 @@
 use super::fixtures;
-
 use crate::look;
-
 use jig_client::contract as c;
-
 use skein_ui::{Node, State, Tree};
-
 use temper_client_domain::{
     Address, Event,
     address::{Filter, Kind},
 };
 
-
 pub(super) use super::fixtures::inbox::{question_root, styled, subtree};
-
 use skein_ui::{Act, Role};
 
-
 const GOAL: u64 = 7;
-
 #[test]
 fn entries_are_named_by_kind_and_source_task() {
     let view = fixtures::page_view(&fixtures::inbox_root());
@@ -34,13 +26,11 @@ fn entries_are_named_by_kind_and_source_task() {
     }
 }
 
-
 #[test]
 fn a_proposal_from_the_signed_in_party_names_them() {
     let view = fixtures::page_view(&fixtures::inbox_from(c::Proposer::Party(fixtures::chat::PARTY)));
     assert!(fixtures::person_find(view.tree(), Role::Item, b"Proposal from Pat").is_some());
 }
-
 
 #[test]
 fn another_partys_proposal_is_named_by_kind_alone() {
@@ -48,20 +38,17 @@ fn another_partys_proposal_is_named_by_kind_alone() {
     assert!(fixtures::person_find(view.tree(), Role::Item, b"Proposal").is_some());
 }
 
-
 #[test]
 fn the_needs_list_is_named_by_its_heading() {
     let view = fixtures::page_view(&fixtures::inbox_root());
     assert!(fixtures::person_find(view.tree(), Role::List, b"Needs you").is_some());
 }
 
-
 #[test]
 fn the_updates_list_is_named_by_its_heading() {
     let view = fixtures::page_view(&fixtures::inbox_root());
     assert!(fixtures::person_find(view.tree(), Role::List, b"Updates").is_some());
 }
-
 
 #[test]
 fn entries_show_proposals_questions_held_and_person_tasks_then_updates() {
@@ -76,7 +63,6 @@ fn entries_show_proposals_questions_held_and_person_tasks_then_updates() {
     }
     assert_eq!(headings.as_slice(), [b"Needs you".as_slice(), b"Updates", b"Task 9", b"Task 10"]);
 }
-
 #[test]
 fn an_entry_naming_a_task_links_to_its_page_by_number() {
     let root = fixtures::inbox_root();
@@ -89,7 +75,6 @@ fn an_entry_naming_a_task_links_to_its_page_by_number() {
         }))
     );
 }
-
 #[test]
 fn the_goal_filter_keeps_its_project_and_kind() {
     let filter = Filter { project: Some(fixtures::PROJECT), kind: Some(Kind::Question), goal: None };
@@ -104,7 +89,6 @@ fn the_goal_filter_keeps_its_project_and_kind() {
     );
 }
 
-
 fn heading(tree: &Tree, name: &[u8]) -> usize {
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.styles.as_slice().contains(&look::HEADING) {
@@ -117,7 +101,6 @@ fn heading(tree: &Tree, name: &[u8]) -> usize {
     }
     panic!("section heading");
 }
-
 fn style_count(nodes: &[Node], token: skein_ui::Style) -> usize {
     let mut count = 0_usize;
     for node in nodes {
@@ -127,7 +110,6 @@ fn style_count(nodes: &[Node], token: skein_ui::Style) -> usize {
     }
     count
 }
-
 fn role_node(nodes: &[Node], role: Role) -> &Node {
     for node in nodes {
         if node.role == role {
@@ -136,7 +118,6 @@ fn role_node(nodes: &[Node], role: Role) -> &Node {
     }
     panic!("role {role:?}");
 }
-
 #[test]
 fn headings_hold_the_page_title_and_filters_without_mark_seen() {
     let view = fixtures::page_view(&fixtures::inbox_root());
@@ -156,7 +137,6 @@ fn headings_hold_the_page_title_and_filters_without_mark_seen() {
         assert_ne!(node.name.as_deref(), Some(b"Mark seen".as_slice()));
     }
 }
-
 #[test]
 fn filters_press_exactly_the_current_project_kind_and_all_goals() {
     for (filter, expected) in [
@@ -189,7 +169,6 @@ fn filters_press_exactly_the_current_project_kind_and_all_goals() {
         }
     }
 }
-
 #[test]
 fn cards_are_grouped_in_lists_with_kinds_and_named_project_paths() {
     let view = fixtures::page_view(&fixtures::inbox_root());
@@ -242,7 +221,6 @@ fn cards_are_grouped_in_lists_with_kinds_and_named_project_paths() {
         assert_eq!(line, expected);
     }
 }
-
 #[test]
 fn absent_groups_have_no_empty_lists() {
     let limits = fixtures::domain_limits();
@@ -289,7 +267,6 @@ fn absent_groups_have_no_empty_lists() {
     assert_eq!(style_count(filtered.tree().nodes(), look::UPDATES), 0);
 }
 
-
 #[test]
 fn a_question_keeps_its_title_in_its_line_and_has_no_heading() {
     let root = question_root();
@@ -303,7 +280,6 @@ fn a_question_keeps_its_title_in_its_line_and_has_no_heading() {
     );
     assert_eq!(style_count(tree.nodes(), look::DETAILS), 0);
 }
-
 #[test]
 fn an_update_omits_its_project_metadata_before_its_title_arrives() {
     let limits = fixtures::domain_limits();
@@ -362,7 +338,6 @@ fn an_update_omits_its_project_metadata_before_its_title_arrives() {
     assert_eq!(style_count(view.tree().nodes(), look::META), 0);
 }
 
-
 #[test]
 fn updates_do_not_repeat_the_playground_project() {
     let (mut root, _, watch, _, _) = fixtures::root_at_with_playground(
@@ -410,7 +385,6 @@ fn updates_do_not_repeat_the_playground_project() {
     assert_eq!(style_count(tree.nodes(), look::META), 0);
 }
 
-
 #[test]
 fn a_reply_card_names_its_task_after_the_task_ends() {
     use skein_fake_person::{Face, Find, Found, Target, TreeFace};
@@ -452,7 +426,6 @@ fn a_reply_card_names_its_task_after_the_task_ends() {
     };
     assert!(found, "ended task's named Item holds its reply heading");
 }
-
 
 #[test]
 fn loaded_task_held_and_result_titles_keep_the_title_token() {
@@ -500,7 +473,6 @@ fn loaded_task_held_and_result_titles_keep_the_title_token() {
     }
 }
 
-
 #[test]
 fn a_result_entry_marks_seen_when_its_link_is_followed() {
     let root = fixtures::inbox_root();
@@ -524,7 +496,6 @@ fn a_result_entry_marks_seen_when_its_link_is_followed() {
     );
 }
 
-
 fn has_named(nodes: &[Node], role: Role, name: &[u8]) -> bool {
     for node in nodes {
         if node.role == role && node.name.as_deref() == Some(name) {
@@ -533,7 +504,6 @@ fn has_named(nodes: &[Node], role: Role, name: &[u8]) -> bool {
     }
     false
 }
-
 fn has_styled_name(nodes: &[Node], style: skein_ui::Style, name: &[u8]) -> bool {
     for node in nodes {
         if node.styles.as_slice().contains(&style) && node.name.as_deref() == Some(name) {
@@ -542,7 +512,6 @@ fn has_styled_name(nodes: &[Node], style: skein_ui::Style, name: &[u8]) -> bool 
     }
     false
 }
-
 #[test]
 fn section_counts_use_listed_cards_and_the_sources_cut_fact() {
     for (cut, needs, updates) in [(false, b"4".as_slice(), b"2 new".as_slice()), (true, b"4+", b"2+ new")] {
@@ -553,7 +522,6 @@ fn section_counts_use_listed_cards_and_the_sources_cut_fact() {
         }
     }
 }
-
 #[test]
 fn the_kind_disclosure_names_the_choice_and_keeps_the_six_buttons_folded() {
     for (kind, name, pressed) in [
@@ -588,7 +556,6 @@ fn the_kind_disclosure_names_the_choice_and_keeps_the_six_buttons_folded() {
         assert_eq!((buttons, selected), (6, 1));
     }
 }
-
 #[test]
 fn the_inbox_proposal_projects_the_same_rows_with_an_h3_and_no_chat_kicker_or_self_link() {
     let root = fixtures::inbox_with_document(
@@ -616,7 +583,6 @@ fn the_inbox_proposal_projects_the_same_rows_with_an_h3_and_no_chat_kicker_or_se
         assert!(has_named(card, Role::Term, label));
     }
 }
-
 #[test]
 fn reply_updates_show_the_task_heading_and_unread_age_without_the_request() {
     for (unread, expected) in [
@@ -646,7 +612,6 @@ fn reply_updates_show_the_task_heading_and_unread_age_without_the_request() {
         assert!(!has_named(card, Role::Paragraph, &request));
     }
 }
-
 #[test]
 fn result_updates_name_the_ending_and_show_only_the_first_nonempty_result_line() {
     let report = c::ResultValue::Report(c::DocumentText::complete(
@@ -679,7 +644,6 @@ fn result_updates_name_the_ending_and_show_only_the_first_nonempty_result_line()
     }
 }
 
-
 #[test]
 fn the_filters_row_starts_with_a_new_chat_link() {
     let root = fixtures::inbox_root();
@@ -702,7 +666,6 @@ fn the_filters_row_starts_with_a_new_chat_link() {
     let id = needs[link].id;
     assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/chats/new".as_slice()));
 }
-
 
 #[test]
 fn the_project_filter_row_appears_only_for_two_or_more_projects() {
@@ -741,7 +704,6 @@ fn the_project_filter_row_appears_only_for_two_or_more_projects() {
     }
 }
 
-
 #[test]
 fn project_and_goal_menus_follow_new_chat_and_precede_kind() {
     for (filter, projects, goals) in [
@@ -761,7 +723,6 @@ fn project_and_goal_menus_follow_new_chat_and_precede_kind() {
         assert_eq!(names.as_slice(), [projects, goals, b"Kind"]);
     }
 }
-
 #[test]
 fn questions_answer_inside_a_folded_disclosure_and_keep_refusals() {
     let task = fixtures::task::document();
@@ -819,7 +780,6 @@ fn questions_answer_inside_a_folded_disclosure_and_keep_refusals() {
     assert!(skein_lib::bytes::find(&fixtures::text(&builder.finish()), b"This act is not offered").is_some());
 }
 
-
 #[test]
 fn each_needs_you_card_offers_its_task_number_as_a_terminal_command() {
     stop_asking_numbers();
@@ -842,7 +802,6 @@ fn each_needs_you_card_offers_its_task_number_as_a_terminal_command() {
         );
     }
 }
-
 
 #[test]
 fn an_unanswered_inbox_claims_no_empty_in_the_terminal() {
@@ -869,7 +828,6 @@ fn an_unanswered_inbox_claims_no_empty_in_the_terminal() {
         assert_eq!(fixtures::find(view.tree(), Role::Paragraph, b"No updates.").is_some(), filter.kind.is_none());
     }
 }
-
 
 fn stop_asking_numbers() {
     use temper_client_domain::pages::{self, stop_asking::Act as Stop};

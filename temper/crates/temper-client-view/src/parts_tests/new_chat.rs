@@ -2,29 +2,26 @@
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
-    clippy::disallowed_macros,
     reason = "ordinary tests inspect semantic subtrees and terminal text"
 )]
 use super::fixtures as f;
 
-use crate::look;
 
 use jig_client::contract as c;
 
 use skein_lib::{Env, List, Queue, Time};
 
-use skein_ui::{Act, Node, Role, State, Style, Tree};
 
 use temper_client_domain::{self as d, Address, pages};
 
-pub(crate) const DRAFT: &[u8] = b"Make the change";
+const DRAFT: &[u8] = b"Make the change";
 
-pub(crate) fn input(root: &mut d::Domain, act: pages::Act) {
+fn input(root: &mut d::Domain, act: pages::Act) {
     f::root_event(root, d::Event::Act { action: d::Action::Pages(act) });
 }
 
 
-pub(crate) fn start(root: &mut d::Domain) -> skein_lib::Token {
+fn start(root: &mut d::Domain) -> skein_lib::Token {
     input(root, pages::Act::ChatWords { words: DRAFT.into() });
     let env = Env { now: Time::ZERO, wall: f::NOW, limits: f::domain_limits() };
     let mut out = Queue::uncapped();
@@ -45,7 +42,7 @@ pub(crate) fn start(root: &mut d::Domain) -> skein_lib::Token {
     panic!("start sent");
 }
 
-pub(crate) fn answer(root: &mut d::Domain, attempt: skein_lib::Token, answer: c::Answer) -> Queue<d::Request> {
+fn answer(root: &mut d::Domain, attempt: skein_lib::Token, answer: c::Answer) -> Queue<d::Request> {
     let mut out = Queue::uncapped();
     d::step(
         root,

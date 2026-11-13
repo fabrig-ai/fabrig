@@ -15,19 +15,96 @@ use crate::{
 
 use skein_lib::Wall;
 
-use skein_ui::{Builder, Role, Run, Tree};
+use skein_ui::{Builder, Role, Tree};
 
 use temper_client_domain::{
     self as d,
     pages::{
         all_home::{self as h, Facts, Project},
-        decided::{DecisionLine, DecisionTask},
         home::{Needs, Status},
     },
 };
 
 use temper_client_protocol_wire::v1 as w;
-use crate::work_tests::all_home::{DAY, MINUTE, NOW, action, drawn, facts, has, named, project, status};
+
+
+// Sunday 08:04, with brief and decision clocks on the same day.
+const MINUTE: u64 = 60_000_000_000;
+
+const DAY: u64 = 24 * 60 * MINUTE;
+
+const NOW: u64 = 3 * DAY + (8 * 60 + 4) * MINUTE;
+
+fn status(
+    project: u32,
+    landed: u64,
+    seen: u64,
+    previous: Option<u64>,
+    last: Option<u64>,
+    red: bool,
+    brief: Option<w::StatusBrief>,
+) -> Status {
+    Status::Shown(Box::new(
+        w::ProjectStatus::new(
+            &w::CEILINGS,
+            w::ProjectStatusParts {
+                project,
+                landed,
+                seen,
+                previous,
+                last_landed: last,
+                queued: 0,
+                red,
+                branch: b"main".as_slice().into(),
+                brief,
+            },
+        )
+        .unwrap(),
+    ))
+}
+
+fn project(number: u32, name: &str, landed: u64, seen: u64) -> Project {
+    Project {
+        project: number,
+        name: name.as_bytes().into(),
+        status: status(number, landed, seen, Some(NOW - 9 * 60 * MINUTE), Some(NOW - 2 * 60 * MINUTE), false, None),
+    }
+}
+
+fn facts(projects: Vec<Project>) -> Facts {
+    Facts {
+        projects: projects.into_boxed_slice(),
+        needs: Needs::Count { count: 0, cut: false },
+        decided: Box::default(),
+        showing: 0,
+        away: None,
+        follows: Box::default(),
+    }
+}
+
+fn drawn(facts: &Facts, words: &Words) -> (Tree, Bindings) {
+    let mut b = Builder::new(&f::tree_limits());
+    let mut bindings = Bindings::new(128);
+    pages::all_home::draw(&mut b, facts, words, &mut bindings, &mut Times::new(Wall::from_nanos(NOW)));
+    (b.finish(), bindings)
+}
+
+fn has(tree: &Tree, text: &str) -> bool {
+    skein_lib::bytes::find(&f::text(tree), text.as_bytes()).is_some()
+}
+
+fn named(tree: &Tree, role: Role, text: &str) -> bool {
+    f::find(tree, role, text.as_bytes()).is_some()
+}
+
+fn action(tree: &Tree, bindings: &Bindings, name: &str) -> d::Action {
+    let node = tree
+        .nodes()
+        .iter()
+        .find(|n| n.name.as_deref() == Some(name.as_bytes()) && n.binding.is_some())
+        .expect("bound control");
+    bindings.decode(node.binding.unwrap().token, skein_ui::Act::Press).unwrap()
+}
 
 #[test]
 fn done_home_and_the_rail_use_all_projects() {

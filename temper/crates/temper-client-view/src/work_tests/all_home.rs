@@ -30,15 +30,15 @@ use temper_client_protocol_wire::v1 as w;
 
 
 // Sunday 08:04, with brief and decision clocks on the same day.
-pub(crate) const MINUTE: u64 = 60_000_000_000;
+const MINUTE: u64 = 60_000_000_000;
 
-pub(crate) const DAY: u64 = 24 * 60 * MINUTE;
+const DAY: u64 = 24 * 60 * MINUTE;
 
-pub(crate) const NOW: u64 = 3 * DAY + (8 * 60 + 4) * MINUTE;
+const NOW: u64 = 3 * DAY + (8 * 60 + 4) * MINUTE;
 
 const BRIEF_AT: u64 = 3 * DAY + (7 * 60 + 52) * MINUTE;
 
-pub(crate) fn status(
+fn status(
     project: u32,
     landed: u64,
     seen: u64,
@@ -66,7 +66,7 @@ pub(crate) fn status(
     ))
 }
 
-pub(crate) fn project(number: u32, name: &str, landed: u64, seen: u64) -> Project {
+fn project(number: u32, name: &str, landed: u64, seen: u64) -> Project {
     Project {
         project: number,
         name: name.as_bytes().into(),
@@ -74,7 +74,7 @@ pub(crate) fn project(number: u32, name: &str, landed: u64, seen: u64) -> Projec
     }
 }
 
-pub(crate) fn facts(projects: Vec<Project>) -> Facts {
+fn facts(projects: Vec<Project>) -> Facts {
     Facts {
         projects: projects.into_boxed_slice(),
         needs: Needs::Count { count: 0, cut: false },
@@ -85,22 +85,22 @@ pub(crate) fn facts(projects: Vec<Project>) -> Facts {
     }
 }
 
-pub(crate) fn drawn(facts: &Facts, words: &Words) -> (Tree, Bindings) {
+fn drawn(facts: &Facts, words: &Words) -> (Tree, Bindings) {
     let mut b = Builder::new(&f::tree_limits());
     let mut bindings = Bindings::new(128);
     pages::all_home::draw(&mut b, facts, words, &mut bindings, &mut Times::new(Wall::from_nanos(NOW)));
     (b.finish(), bindings)
 }
 
-pub(crate) fn has(tree: &Tree, text: &str) -> bool {
+fn has(tree: &Tree, text: &str) -> bool {
     skein_lib::bytes::find(&f::text(tree), text.as_bytes()).is_some()
 }
 
-pub(crate) fn named(tree: &Tree, role: Role, text: &str) -> bool {
+fn named(tree: &Tree, role: Role, text: &str) -> bool {
     f::find(tree, role, text.as_bytes()).is_some()
 }
 
-pub(crate) fn action(tree: &Tree, bindings: &Bindings, name: &str) -> d::Action {
+fn action(tree: &Tree, bindings: &Bindings, name: &str) -> d::Action {
     let node = tree
         .nodes()
         .iter()

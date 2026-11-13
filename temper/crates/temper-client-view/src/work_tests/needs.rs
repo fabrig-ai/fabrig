@@ -1,29 +1,22 @@
 //! Browser needs words, roles and acts (temper/docs/design/client/pages/README.md).
 #![expect(
     clippy::disallowed_methods,
-    clippy::disallowed_types,
     reason = "ordinary tests inspect semantic subtrees and actions"
 )]
-use super::{documents, fixtures as f};
+use super::fixtures as f;
 
-use crate::look;
 
-use jig_client::contract as c;
 
-use skein_lib::{Env, List, Queue, Time, Wall};
 
-use skein_ui::{Act, Role};
 
 use temper_client_domain::{
-    self as d, Address, Event,
-    pages::{self, needs},
+    self as d,
 };
 
 
 pub(super) use super::fixtures::needs::{
-    QUESTION, approval_row, approvals, check_size, decided_fixture, deliver_asked, event, fixture, fixture_classes,
-    fixture_classes_role, fixture_title, fixture_watched, held, kinds, kinds_read, limits, object, offers, person,
-    proposal, settings_owned, size_cases, stop_root, words,
+    approval_row, approvals, check_size, fixture, kinds, person,
+    proposal, size_cases, stop_root,
 };
 
 
@@ -38,7 +31,7 @@ fn approval_people(people: &[(u64, &str)]) -> Box<[d::forge::approvals::Approval
 #[test]
 #[expect(clippy::too_many_lines, reason = "each row pins a distinct who-sentence rule in 4.1")]
 fn approval_context_names_who_signed_and_who_can_still_sign() {
-    use crate::common::approval::{sentences, who};
+    use crate::pages::approval::{sentences, who};
     use d::forge::approvals::{ApprovalSet, Row, Yours};
     let w = f::browser_words();
     let row = Row {

@@ -3,7 +3,7 @@ use super::fixtures as f;
 
 use crate::{
     look,
-    pages::changes::{LandingFacts, landing_line, ordinal},
+    pages::changes::{LandingFacts, landing_line},
     words::Times,
 };
 

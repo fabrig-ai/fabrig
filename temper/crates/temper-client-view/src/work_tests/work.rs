@@ -23,33 +23,33 @@ use temper_client_domain::{
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 
-pub(crate) const NOW: Wall = Wall::from_nanos(1_792_656_000_000_000_000);
+const NOW: Wall = Wall::from_nanos(1_792_656_000_000_000_000);
 
-pub(crate) const RECENT: u64 = 1_792_655_640_000_000_000;
+const RECENT: u64 = 1_792_655_640_000_000_000;
 
-pub(crate) const GOAL: u64 = 1;
+const GOAL: u64 = 1;
 
-pub(crate) const CHAT: u64 = 3;
+const CHAT: u64 = 3;
 
-pub(crate) const DRAFT: u64 = 4;
+const DRAFT: u64 = 4;
 
-pub(crate) const QUEUED_GOAL: u64 = 11;
+const QUEUED_GOAL: u64 = 11;
 
-pub(crate) const QUEUED_CHAT: u64 = 12;
+const QUEUED_CHAT: u64 = 12;
 
-pub(crate) const INDEPENDENT: u64 = 13;
+const INDEPENDENT: u64 = 13;
 
-pub(crate) const LANDED: u64 = 14;
+const LANDED: u64 = 14;
 
-pub(crate) fn list<T: Clone>(rows: &[T]) -> List<T> {
+fn list<T: Clone>(rows: &[T]) -> List<T> {
     List::from_boxed(rows.into())
 }
 
-pub(crate) fn text(value: &[u8]) -> c::DocumentText {
+fn text(value: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(value.into(), 1024).unwrap())
 }
 
-pub(crate) fn line(task: u64, title: &[u8]) -> c::TaskLine {
+fn line(task: u64, title: &[u8]) -> c::TaskLine {
     let mut line = chats::line();
     line.chip.task = task;
     line.chip.title = text(title);
@@ -57,7 +57,7 @@ pub(crate) fn line(task: u64, title: &[u8]) -> c::TaskLine {
     line
 }
 
-pub(crate) fn limits() -> temper_client_domain::Limits {
+fn limits() -> temper_client_domain::Limits {
     let mut limits = f::domain_limits();
     // The small whole project opens three lists, reports and provenance together.
     limits.client.domain.handles = 64;
@@ -66,7 +66,7 @@ pub(crate) fn limits() -> temper_client_domain::Limits {
     limits
 }
 
-pub(crate) fn note(task: u64, description: &[u8]) -> c::Note {
+fn note(task: u64, description: &[u8]) -> c::Note {
     c::Note {
         number: task,
         revision: c::Revision { value: 1 },
@@ -81,11 +81,11 @@ pub(crate) fn note(task: u64, description: &[u8]) -> c::Note {
     }
 }
 
-pub(crate) fn notes(rows: &[c::Note]) -> c::ReadValue {
+fn notes(rows: &[c::Note]) -> c::ReadValue {
     c::ReadValue::Notes(Box::new(c::NotePage { rows: list(rows), before: None, after: None, cut: false }))
 }
 
-pub(crate) struct Fixture {
+struct Fixture {
     root: Domain,
     out: Queue<Request>,
     goals: Token,
@@ -337,11 +337,11 @@ impl Fixture {
     }
 }
 
-pub(crate) fn has(tree: &Tree, value: &str) -> bool {
+fn has(tree: &Tree, value: &str) -> bool {
     skein_lib::bytes::find(&f::text(tree), value.as_bytes()).is_some()
 }
 
-pub(crate) fn styled(tree: &Tree, style: skein_ui::Style) -> Box<[&skein_ui::Node]> {
+fn styled(tree: &Tree, style: skein_ui::Style) -> Box<[&skein_ui::Node]> {
     let mut nodes = List::uncapped();
     for node in tree.nodes() {
         if node.styles.as_slice().contains(&style) {

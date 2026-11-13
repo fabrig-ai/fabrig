@@ -16,14 +16,19 @@ use skein_lib::{Env, List, Queue, Time};
 use skein_ui::{Act, Node, Role, State, Style, Tree};
 
 use temper_client_domain::{self as d, Address, pages};
-use crate::work_tests::new_chat::{DRAFT, answer, input, start};
 
 
 const ENTRY: &[u8] = b"What do you want done?";
 
+const DRAFT: &[u8] = b"Make the change";
+
 
 fn root() -> d::Domain {
     f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true)
+}
+
+fn input(root: &mut d::Domain, act: pages::Act) {
+    f::root_event(root, d::Event::Act { action: d::Action::Pages(act) });
 }
 
 fn named<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a Node {
@@ -285,6 +290,48 @@ fn input_enter_and_send_emit_the_chat_acts() {
         let id = send.id;
         assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::StartChat)));
     }
+}
+
+
+fn start(root: &mut d::Domain) -> skein_lib::Token {
+    input(root, pages::Act::ChatWords { words: DRAFT.into() });
+    let env = Env { now: Time::ZERO, wall: f::NOW, limits: f::domain_limits() };
+    let mut out = Queue::uncapped();
+    for event in [
+        d::Event::Act { action: d::Action::Pages(pages::Act::StartChat) },
+        d::Event::Client { event: jig_client::Event::Stored },
+    ] {
+        d::step(root, &env, event, &mut out);
+    }
+    for request in &out {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            return *attempt;
+        }
+    }
+    panic!("start sent");
+}
+
+fn answer(root: &mut d::Domain, attempt: skein_lib::Token, answer: c::Answer) -> Queue<d::Request> {
+    let mut out = Queue::uncapped();
+    d::step(
+        root,
+        &Env { now: Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Jig(answer)),
+                },
+            },
+        },
+        &mut out,
+    );
+    out
 }
 
 
