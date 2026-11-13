@@ -153,7 +153,7 @@ fn a_transcript_piece_that_does_not_split_is_refused_as_invalid() {
     }
 }
 
-fn check_up_records(records: &[skein_fake_channel::Observed], limits: &wire::v11::Limits) {
+fn check_up_records(records: &[skein_fake_channel::Observed], limits: &wire::v12::Limits) {
     let turn = wire::Turn::decode(limits, &mut Reader::new(&records[1].body)).expect("turn");
     assert_eq!(
         (turn.task(), turn.attempt(), turn.number(), turn.spent(), *turn.read(), turn.opens_window(), turn.body()),
@@ -240,4 +240,64 @@ fn check_down_records(world: &World, records: &[&host::LinkDown]) {
             }
         }
     );
+}
+
+#[test]
+fn a_failed_answers_named_model_call_crosses_both_translations_unchanged() {
+    use host::{ModelEvidence as Evidence, ModelFailureKind as Kind};
+    let mut world = crate::joined_world::Joined::new(&fixtures::joined_limits(), 1);
+    world.run();
+    for (index, model) in [
+        Some(host::ModelFailure {
+            endpoint: b"anthropic".as_slice().into(),
+            model: b"claude-opus-5-5".as_slice().into(),
+            kind: Kind::Unavailable,
+            evidence: Evidence::Unsent,
+            status: Some(403),
+        }),
+        Some(host::ModelFailure {
+            endpoint: Box::new([255; 40]),
+            model: Box::new([0; 40]),
+            kind: Kind::ContextTooLong,
+            evidence: Evidence::Response,
+            status: Some(u16::MAX),
+        }),
+        Some(host::ModelFailure {
+            endpoint: Box::new([]),
+            model: b"model".as_slice().into(),
+            kind: Kind::Invalid,
+            evidence: Evidence::Unknown,
+            status: None,
+        }),
+        None,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let expected = host::LinkUp::Answer {
+            run: Token::new(7),
+            attempt: Token::new(2),
+            answer: host::RunAnswer {
+                turns: 1,
+                spent: 3,
+                read: Some(Token::new(5)),
+                refused: Box::new([]),
+                ending: host::Ending::Failed {
+                    failure: host::Failure::Run(host::RunFailure::Model),
+                    detail: b"diagnostic".as_slice().into(),
+                    work: host::Work { left: None, saved: None },
+                    model,
+                },
+            },
+        };
+        let host::LinkUp::Answer { run, attempt, answer } = &expected else { unreachable!() };
+        world.worker_up(host::LinkUp::Answer { run: *run, attempt: *attempt, answer: answer.clone() }, Box::new([]));
+        world.run();
+        let jig_protocol_engine_workers::Request::Up { up, parts, .. } = &world.engine_root[index + 1] else {
+            panic!("failed answer");
+        };
+        assert_eq!(*up, expected);
+        assert!(parts.is_empty());
+    }
+    world.finish();
 }

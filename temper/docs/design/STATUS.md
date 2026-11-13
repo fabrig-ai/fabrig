@@ -10,6 +10,10 @@ nothing, the workers' grace covers a start that patches, with the
 engine's grace above their stop bound, and `upgrade --check` names
 each worker that may stay by the opening the engine kept of it
 (`protocol/wires.md`, 9; `domain/root.md`, 8.2; R5, goal 2288).
+A model provider unreachable for minutes holds no task: its run's
+failure waits as an infrastructure failure, and a hold for a model
+call's failure names the call from structured fields alone
+(`draft/run-provider-outage.status.md`; `domain/worker/README.md`, 4.3).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
@@ -410,6 +414,7 @@ Drafts:
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/redeploys.md`](draft/redeploys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
+- [`draft/run-provider-outage.md`](draft/run-provider-outage.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.

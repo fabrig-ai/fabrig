@@ -345,7 +345,7 @@ impl Parent {
                 let finish = match self.rng.below(3) {
                     0 => Finish::Ended { outcome: bytes(self.rng.between(1, self.limits.outcome_bytes)) },
                     1 => Finish::Parked,
-                    _ => Finish::Failed { failure: RunFailure::Cancelled },
+                    _ => Finish::Failed { failure: RunFailure::Cancelled, model: None },
                 };
                 let mut out = vec![host(Duration::ZERO, crate::fixtures::finished(self.owner(agent), finish))];
                 out.extend(self.goes(agent, b"cancelled"));
@@ -437,7 +437,7 @@ impl Parent {
                 self.say(agent, Finish::Ended { outcome: bytes(len) })
             }
             Fate::Parked => self.say(agent, Finish::Parked),
-            Fate::Failed(failure) => self.say(agent, Finish::Failed { failure }),
+            Fate::Failed(failure) => self.say(agent, Finish::Failed { failure, model: None }),
             Fate::Oversized => {
                 let finish = Finish::Ended { outcome: bytes(self.limits.outcome_bytes + 1) };
                 self.say(agent, finish)

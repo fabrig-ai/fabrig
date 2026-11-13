@@ -46,6 +46,21 @@ fn every_smith_limit_names_a_hold_or_stays_a_model_failure() {
             None => host::RunFailure::Model,
         };
         assert_eq!(crate::translate::run_failure(&failure), expected, "{name}");
+        let mut h = super::harness::Harness::new();
+        let (_, source) = h.decode(Box::new([]));
+        let start = super::fixtures::start(super::fixtures::RUN, &source);
+        let names = crate::hand_out::model_names(&start, Box::new([b"anthropic".as_slice().into()]));
+        let mut failure = failure;
+        let agent::RunFailure::Model(agent::ModelFault::Completion { model, .. }) = &mut failure else {
+            panic!("completion")
+        };
+        *model = 0;
+        let result = agent::RunResult::Failed { failure };
+        let crate::hand_out::Finish::Failed { failure, model } = crate::hand_out::Finish::of(&result, &names) else {
+            panic!("failed")
+        };
+        assert_eq!(failure, expected);
+        assert_eq!(model.is_some(), bound.is_none(), "only a Model failure names the call: {name}");
     }
 }
 
