@@ -42,6 +42,7 @@ Inherited from main at the goal's start, 2026-11-13, from goals 1983, 1984,
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
+- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - lint jig-protocol-config clippy::disallowed_methods jig/crates/jig-protocol-config/src/tests/seed_policy.rs
