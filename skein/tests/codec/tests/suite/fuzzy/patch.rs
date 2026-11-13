@@ -242,6 +242,56 @@ versioned record Every {
         }
     }
 
+    #[test]
+    fn seeded_every_reverse_is_lossless_or_unheld_and_older_values_read_up() {
+        use skein_codec::bridge::Bridge;
+        use skein_codec::patch::{Build, Halt, Old, Site};
+        fn no_sites(site: Site, _old: &Old, _new: &mut Build, _at: Node) -> Result<(), Halt> {
+            Err(Halt::NoSite(site))
+        }
+        let patch = format!("{}down Every.items 0x\n", core::str::from_utf8(PATCH).expect("patch text"));
+        let mut bridge = Bridge::new(CAPACITY, &[OLD, NEW], &[&patch], 1, no_sites).expect("derived bridge");
+        let older = skein_codec::schema::parse(OLD.as_bytes()).expect("older");
+        let newer = skein_codec::schema::parse(NEW.as_bytes()).expect("newer");
+        let old_drawer = skein_codegen::parse(OLD).expect("old draw schema");
+        let new_drawer = skein_codegen::parse(NEW).expect("new draw schema");
+        let family = generated::families().into_iter().find(|family| family.name == "every").expect("every family");
+        let mut value = Value::with_room(CAPACITY.nodes);
+        let mut accepted = 0_u32;
+        let mut refused = 0_u32;
+        for (index, root) in family.roots.iter().enumerate() {
+            for draw in 0..DRAWS {
+                let seed = u64::try_from(index)
+                    .expect("root index")
+                    .checked_mul(DRAWS)
+                    .expect("seeds")
+                    .checked_add(draw)
+                    .expect("seed");
+                let mut rng = Rng::new(seed);
+                let bytes = generated::draw(&new_drawer, root.name, &mut rng);
+                let name = root.name.as_bytes();
+                match bridge.translate(2, 1, name, bytes.clone().into()) {
+                    Ok(down) => {
+                        value.decode(&older, older.find(name).expect("older root"), down.clone()).expect("older value");
+                        assert_eq!(
+                            bridge.translate(1, 2, name, down).expect("round trip"),
+                            bytes.into_boxed_slice(),
+                            "{} seed {seed}",
+                            root.name
+                        );
+                        accepted = accepted.checked_add(1).expect("draw count");
+                    }
+                    Err(Halt::Unheld(_)) => refused = refused.checked_add(1).expect("draw count"),
+                    Err(error) => unreachable!("derived reverse: {} seed {seed}: {error:?}", root.name),
+                }
+                let bytes = generated::draw(&old_drawer, root.name, &mut rng);
+                let up = bridge.translate(1, 2, name, bytes.into()).expect("older record goes up");
+                value.decode(&newer, newer.find(name).expect("newer root"), up).expect("up decodes by newer text");
+            }
+        }
+        assert!(accepted > 0 && refused > 0, "the property exercises both sides");
+    }
+
     fn rewrite_versions(schema: &Schema, decl: DeclIx, value: &Value, root: Node, bytes: &mut [u8]) {
         let mut pending = vec![(root, Type::Named(decl))];
         while let Some((node, ty)) = pending.pop() {

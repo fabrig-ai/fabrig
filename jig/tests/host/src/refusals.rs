@@ -27,7 +27,8 @@ impl Referee {
                 }
             }
             Event::Agent(
-                FromAgent::Turn { .. }
+                FromAgent::Decoded { .. }
+                | FromAgent::Turn { .. }
                 | FromAgent::Called { .. }
                 | FromAgent::Withdrawn { .. }
                 | FromAgent::Piece { .. }

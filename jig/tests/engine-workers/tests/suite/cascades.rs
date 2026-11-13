@@ -100,7 +100,7 @@ fn jobs_mixed_with_runs_keep_their_order() {
         }
         assert_eq!(
             world.observed(connection).iter().map(|r| r.kind).collect::<Vec<_>>(),
-            [0x0180, 0x018b].repeat(12),
+            [vec![0x018d], [0x0180, 0x018b].repeat(12)].concat(),
             "seed {seed}"
         );
     }

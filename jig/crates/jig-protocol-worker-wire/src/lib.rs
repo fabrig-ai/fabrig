@@ -8,10 +8,13 @@ use alloc::boxed::Box;
 use skein_lib::Token;
 
 #[rustfmt::skip]
-#[path = "generated/v12.rs"]
-pub mod v12;
+#[path = "generated/v13.rs"]
+pub mod v13;
+mod application;
 mod kinds;
 mod spoken;
+pub use application::{Application, Carried, Root};
+pub mod translation;
 pub use spoken::{Agreed, Spoken, spoken};
 mod loss;
 #[path = "../patches/mod.rs"]
@@ -24,10 +27,10 @@ pub mod fit;
 #[cfg(test)]
 mod tests;
 
-pub use v12::{ModelEvidence, ModelFailure, ModelFailureKind, ModelFailureParts};
+pub use v13::{ModelEvidence, ModelFailure, ModelFailureKind, ModelFailureParts};
 
-pub use kinds::{KINDS, Kind, KindRule, Overflow, schema, terms_gap};
-pub use v12::{
+pub use kinds::{KINDS, Kind, KindRule, Overflow, schema, schema_for, terms_gap};
+pub use v13::{
     AccountRefused, AccountRefusedParts, AgentFailure, AgentFailureValue, AgentFailureValueParts, Answer, AnswerParts,
     Bound, Call, CallParts, CancelReason, CancelReasonValue, CancelReasonValueParts, Count, CountKind, CountParts,
     Ended, EndedParts, Ending, Exceeded, ExceededParts, Fact, FactParts, FactValue, Failed, FailedParts, Failure,
@@ -38,7 +41,7 @@ pub use v12::{
     ResourceParts, RunFailure, RunFailureValue, RunFailureValueParts, StartCause, Turn, TurnParts, Unauthorized,
     UnauthorizedParts, Work, WorkParts,
 };
-pub use v12::{
+pub use v13::{
     Acknowledge, AcknowledgeParts, AnsweredCall, AnsweredCallParts, ApplicationValue, ApplicationValueParts,
     Assignment, AssignmentParts, Cancel, CancelParts, CredentialValue, CredentialValueParts, DeliveryAnswer,
     DeliveryAnswerParts, DeliveryOutcome, Grant, GrantParts, GrantValue, Granted, GrantedParts, HostAnswer,
@@ -46,11 +49,11 @@ pub use v12::{
     RelayText, RelayTextParts, Relayed, RelayedParts, Scheme, SettledAnswer, TurnBusy, TurnBusyParts, TurnKept,
     TurnKeptParts, Workspace, WorkspaceParts,
 };
-pub use v12::{
+pub use v13::{AgreedWire, AgreedWireParts, Draining, DrainingParts};
+pub use v13::{
     Bounds, BoundsParts, CEILINGS, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts,
     Hosting, HostingParts, Phase, Wire, WireParts,
 };
-pub use v12::{Draining, DrainingParts};
 
 /// An application's opaque bytes under the token its vocabulary names.
 #[derive(PartialEq, Eq, Debug)]
@@ -59,7 +62,7 @@ pub struct Part {
     pub bytes: Box<[u8]>,
 }
 
-/// The magic and one version this release speaks (protocol/channel/README.md, 4.1).
+/// The magic and current version (protocol/channel/bridges.md, 2).
 pub const MAGIC: [u8; 4] = *b"jigw";
 pub const VERSION: u16 = wire::VERSION;
 
@@ -101,23 +104,23 @@ impl Reason {
     }
 }
 
-pub use v12::{
+pub use v13::{
     Check, CheckParts, Login, LoginOtherwise, LoginOtherwiseParts, LoginParts, LoginState, Logins, LoginsParts,
     ProgramSource, ProgramSourceParts, SignOut, SignOutParts, SignOutResult, SignedOut, SignedOutParts, SourceFailed,
     SourceFailedParts, SourceFailure, Sources, SourcesParts,
 };
 
-pub use v12::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
+pub use v13::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
 
 // Jobs use the worker channel's own records (jig/docs/design/protocol/channel/records.md, 4).
-pub use v12::{
+pub use v13::{
     DeliveryOutcomeValue, DeliveryOutcomeValueParts, Job, JobAnswer, JobAnswerParts, JobBound, JobBoundParts,
     JobEnding, JobFailed, JobFailedParts, JobFailure, JobFinished, JobFinishedParts, JobInvalid, JobInvalidStart,
     JobInvalidStartParts, JobInvalidValue, JobInvalidValueParts, JobParts, JobRefusal, JobRefusalValue,
     JobRefusalValueParts,
 };
 
-pub use v12::{
+pub use v13::{
     ListFailed, ListFailureValue, ListFailureValueParts, ListOutcome, ListRead, ListReadParts, ListRefused,
     ListRefusedParts, ListRow, ListRowParts, ListedRows, ListedRowsParts, ReadList, ReadListParts,
 };
@@ -128,10 +131,13 @@ pub mod wire {
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 12;
+    pub const VERSION: u16 = 13;
+
+    /// The lowest version this build speaks.
+    pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
 
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/worker-wire-v12.schema");
+    const TEXT: &str = include_str!("../schema/worker-wire-v13.schema");
 
     /// The current schema's family fingerprint.
     #[must_use]

@@ -3,6 +3,7 @@ use jig_worker_link_world::fixtures;
 use skein_lib::Token;
 fn full_call(run: u64, name: u8) -> jig_domain_host::LinkUp {
     jig_domain_host::LinkUp::Call {
+        contract: 1,
         run: Token::new(run),
         attempt: Token::new(2),
         call: Box::new([name; 16]),

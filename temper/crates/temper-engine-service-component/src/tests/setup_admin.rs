@@ -180,11 +180,18 @@ fn erased(service: &mut crate::Service, connected: bool) {
         assert_eq!(service.engine.as_ref().unwrap().domain.forge_connection(1), domain::Connection::NotConnected);
     }
 }
+// Keep the two complete service fixtures off the restart story's stack.
+fn boxed_admin_service(forge: &Forge) -> Box<crate::Service> {
+    Box::new(service(forge))
+}
+fn boxed_restarted_service(store: crate::store::Store) -> Box<crate::Service> {
+    Box::new(local_service(config(), store))
+}
 #[test]
 fn admin_paste_reconciles_creates_with_its_label_then_keeps_and_restarts_from_records() {
     let mut forge = forge(true, true, false);
     forge.service.setup_mut().org(b"work", b"elsewhere-owner");
-    let mut service = service(&forge);
+    let mut service = boxed_admin_service(&forge);
     ask(&mut service, bundle(1, ADMIN), Some(first(b"docker_1.x-y")));
     let mut saw_create = false;
     for tick in 1..20_000 {
@@ -229,7 +236,7 @@ fn admin_paste_reconciles_creates_with_its_label_then_keeps_and_restarts_from_re
         service.engine.as_mut().unwrap().forge.iterate(Time::ZERO, Wall::EPOCH);
     }
     let store = service.engine.take().unwrap().store;
-    let mut restarted = local_service(config(), store);
+    let mut restarted = boxed_restarted_service(store);
     restore_local(&mut restarted);
     for tick in 1..20_000 {
         turn(&mut restarted, &mut forge, tick);

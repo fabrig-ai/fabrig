@@ -16,6 +16,9 @@ add Access.prefixes
 
 pub mod kept {
     pub mod temper_worker_wire {
+        use skein_codec::bridge::{Bridge, BridgeError};
+        use skein_codec::patch::Capacity;
+
         pub const TEXTS: &[&str] = &[
             r"family temper-worker-wire 5
 
@@ -107,6 +110,11 @@ enum Kind { forgejo: Token, github: Entries }
 record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }
 ",
         ];
+        pub const FLOOR: u16 = 5;
+
+        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {
+            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)
+        }
         pub mod v5 {
             pub mod merge {
                 use skein_codec::schema::FieldIx;
@@ -471,6 +479,10 @@ pub mod refusal {}
 
 pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
+}
+
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
 }
 
 #[cfg(test)]

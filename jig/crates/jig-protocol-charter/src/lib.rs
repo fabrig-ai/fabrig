@@ -33,6 +33,6 @@ pub use smith_domain_run::Mode;
 
 /// The encoding ceilings already owned by this kit (protocol/channel/README.md, 5.1).
 #[must_use]
-pub const fn limits() -> smith_charter::v4::Limits {
-    smith_charter::v4::CEILINGS
+pub const fn limits() -> smith_charter::v5::Limits {
+    smith_charter::v5::CEILINGS
 }

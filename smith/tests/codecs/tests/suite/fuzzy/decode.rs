@@ -54,8 +54,8 @@ fn arbitrary_and_mutated_wires_never_panic_and_round_trip_when_valid() {
 
     let root = skein_scratch::paths::tree().join("crates");
     for (family, version, record) in [
-        ("smith-charter", "v4", "charter"),
-        ("smith-charter", "v4", "run_result"),
+        ("smith-charter", "v5", "charter"),
+        ("smith-charter", "v5", "run_result"),
         ("smith-transcript", "v6", "turn"),
         ("smith-channel", "v7", "start"),
         ("smith-channel", "v7", "message"),

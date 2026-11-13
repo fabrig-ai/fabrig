@@ -12,6 +12,7 @@ jig-domain-host.workspace = true
 jig-domain-link.workspace = true
 skein-io.workspace = true
 skein-lib.workspace = true
+skein-codec.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
 smith-transcript.workspace = true

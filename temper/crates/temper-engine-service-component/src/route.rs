@@ -396,6 +396,7 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
                 to,
                 task,
                 attempt,
+                call.contract,
                 &call,
                 engine.domain.models(),
                 &engine.domain.catalogue(),

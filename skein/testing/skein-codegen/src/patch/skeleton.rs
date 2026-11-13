@@ -18,15 +18,20 @@ pub(crate) fn skeleton_text(number: u32, patch: &PatchText, existing: Option<&st
             "\nuse super::Context;\nuse skein_codec::patch::{Build, Halt, Old, Site};\nuse skein_codec::value::Node;\n",
         );
     }
-    for (index, ((block, target, refusals), name)) in patch.sites().zip(names).enumerate() {
+    for (index, ((block, target, refusals, down), name)) in patch.sites().zip(names).enumerate() {
         if existing.is_some_and(|text| text.contains(&format!("pub fn {name}("))) {
             continue;
         }
         if !out.ends_with('\n') {
             out.push('\n');
         }
-        writeln!(out, "\n/// Site {index}, `written {target}`, {} {} to {}.\n///", block.family, block.from, block.to)
-            .expect("String write");
+        let (kind, prefix) = if down { ("Down site", "down ") } else { ("Site", "") };
+        writeln!(
+            out,
+            "\n/// {kind} {index}, `{prefix}written {target}`, {} {} to {}.\n///",
+            block.family, block.from, block.to
+        )
+        .expect("String write");
         let declaration = target.split('.').next().expect("site target");
         for line in &block.lines {
             if let Line::Op(line) = line {

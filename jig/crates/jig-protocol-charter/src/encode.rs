@@ -4,7 +4,7 @@
 
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};
-use smith_charter::v4 as wire;
+use smith_charter::v5 as wire;
 use smith_domain_run as run;
 
 /// One configured endpoint name and its domain-visible identities.
@@ -170,6 +170,7 @@ fn tools(source: run::charter::Grants, limits: &wire::Limits) -> Option<wire::To
                 None => None,
             },
             host,
+            contract: source.contract,
         },
     )
     .ok()

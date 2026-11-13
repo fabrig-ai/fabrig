@@ -1277,9 +1277,10 @@ impl World {
 
     fn remember_call(&mut self, up: &host::LinkUp) {
         if let Some((pending, _)) = &mut self.replay
-            && let host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } = up
+            && let host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } = up
         {
             *pending = Some(host::LinkUp::Call {
+                contract: *contract,
                 run: *run,
                 attempt: *attempt,
                 call: call.clone(),

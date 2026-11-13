@@ -10,6 +10,9 @@ pub const PATCHES: &[&str] = &[];
 
 pub mod kept {
     pub mod smith_transcript {
+        use skein_codec::bridge::{Bridge, BridgeError};
+        use skein_codec::patch::Capacity;
+
         pub const TEXTS: &[&str] = &[r"family smith-transcript 7
 
 # The aggregate turn is limited again by the receiving session's
@@ -124,6 +127,11 @@ versioned record Turn {
     system: option text 1048576
 }
 "];
+        pub const FLOOR: u16 = 7;
+
+        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {
+            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)
+        }
         pub mod v7 {
             pub mod usage {
                 use skein_codec::schema::FieldIx;
@@ -540,6 +548,10 @@ pub mod refusal {}
 
 pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
+}
+
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
 }
 
 #[cfg(test)]

@@ -422,6 +422,7 @@ impl Host {
     ///   names and meanings are owned by this host fixture. A readonly job with
     ///   no other result family receives a report contract.
     /// - The budget's turns, tokens and time are drawn from their ranges.
+    #[expect(clippy::too_many_lines, reason = "the complete host fixture constructs one bounded charter")]
     fn charter(&mut self) -> (Charter, Option<Workspace>) {
         let script = self.script;
         let len = self.rng.between(u64::from(script.brief_min), u64::from(script.brief_max));
@@ -494,7 +495,15 @@ impl Host {
                 sections: Box::new([smith_domain_run::Section { title: b"Task".as_slice().into(), text: brief }]),
             },
 
-            grants: Grants { wait: true, deliver, save: false, tools, agents, host_tools: host_tools.into() },
+            grants: Grants {
+                contract: 1,
+                wait: true,
+                deliver,
+                save: false,
+                tools,
+                agents,
+                host_tools: host_tools.into(),
+            },
             outcome: OutcomeSpec {
                 change: change.then_some(ChangeSpec {
                     checks_must_pass: true,
