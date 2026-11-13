@@ -165,7 +165,11 @@ fn a_real_failure_snapshots_each_failed_job_and_only_changed_keys_run_after_repa
     let base = world.landing(LANDING).landing.members[0].base.expect("base");
     assert_eq!(
         step_change(&mut world, 300),
-        change::Decision::Delegate(change::Delegate::Repair(change::Repair::LandingAt { gate, candidate }))
+        change::Decision::Delegate(change::Delegate::Repair(change::Repair::LandingAt {
+            gate,
+            candidate,
+            below: None
+        }))
     );
     let head = world.change(CHANGE).change.last_head.expect("own head");
     let brief = world.ci_brief(CHANGE, head);

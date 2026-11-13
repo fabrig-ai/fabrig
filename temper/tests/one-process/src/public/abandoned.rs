@@ -21,7 +21,7 @@ impl Walk {
             return false;
         }
         self.wake = None;
-        let path = format!("/jig/v1/public/2/1/2/{project:016x}");
+        let path = format!("/jig/v1/public/2/2/2/{project:016x}");
         match self.stage {
             0 => {
                 // Each landings read reserves 198,733 bytes, two within the 512 KiB burst.

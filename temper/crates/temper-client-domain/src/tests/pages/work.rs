@@ -589,7 +589,6 @@ impl Fixture {
                             task,
                             title: b"Change".as_slice().into(),
                             ready_since: wall(40).as_nanos(),
-                            alone: false,
                             checks_since: None,
                         },
                     )

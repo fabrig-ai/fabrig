@@ -98,6 +98,7 @@ impl Domain {
                 return w::PublicLanding::new(
                     l,
                     w::PublicLandingParts {
+                        search: None,
                         combined: None,
                         step: None,
                         phase: w::PublicLandingPhase::Landed,
