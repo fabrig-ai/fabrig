@@ -52,6 +52,7 @@ pub fn priced_charter() -> smith_domain::run::Charter {
         resume: false,
         waiting: Duration::from_secs(300),
         grants: run::charter::Grants {
+            contract: 1,
             wait: true,
             deliver: None,
             save: false,

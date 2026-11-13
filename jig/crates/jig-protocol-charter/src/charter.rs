@@ -148,6 +148,7 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
             None => None,
         },
         grants: run::charter::Grants {
+            contract: 1,
             wait: charter.wait,
             tools: run::charter::Tools {
                 inspect: charter.workspace.inspect,

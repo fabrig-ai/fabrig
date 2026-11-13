@@ -15,6 +15,22 @@ pub const CEILINGS: Limits = Limits {
     credential_value: 64,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 2] = [
+    "credential_name",
+    "credential_value",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 2] {
+        [
+            self.credential_name, self.credential_value,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

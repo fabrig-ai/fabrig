@@ -786,7 +786,7 @@ impl Record {
     }
 }
 
-/// The accepted worker statement, without a channel or protocol encoding (protocol/wires.md, 9.1).
+/// The accepted worker statement, without a channel or protocol encoding (protocol/wires.md, 10.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct WorkerStatement {
     pub wires: Box<[OpenedWire]>,
@@ -821,7 +821,7 @@ pub enum Write {
     DropTranscript { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,
-    /// A worker's accepted statement since the start's wires (protocol/wires.md, 9.1).
+    /// A worker's accepted statement since the start's wires (protocol/wires.md, 10.1).
     Opening(WorkerOpening),
     /// Copy a held revision to its history destination before its held row is erased.
     CopySettingsRevision(u32),

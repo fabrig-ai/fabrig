@@ -24,6 +24,26 @@ pub const CEILINGS: Limits = Limits {
     line_description: 65_536,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 6] = [
+    "segment_bytes",
+    "pattern_segments",
+    "entry_description",
+    "entry_body",
+    "entry_references",
+    "line_description",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 6] {
+        [
+            self.segment_bytes, self.pattern_segments, self.entry_description, self.entry_body, self.entry_references, self.line_description,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

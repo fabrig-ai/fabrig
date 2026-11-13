@@ -3,13 +3,14 @@
 2026-11-13. The first milestone stands in the code. The wires between
 the engine, its workers, their agents and the clients move their
 versions with their layouts, stated and checked at the channel's
-opening, each build's floor its current until bridges
-(`protocol/wires.md`; `draft/redeploys.md`, R1). The engine restarts
+opening; each build speaks each wire from its floor, and jig's channel
+translates between the versions an engine and a worker share by each
+wire's bridge (`protocol/wires.md`; `draft/redeploys.md`, R1 and R4). The engine restarts
 alone, its workers keeping their runs: its stop settles placing
 nothing, the workers' grace covers a start that patches, with the
 engine's grace above their stop bound, and `upgrade --check` names
 each worker that may stay by the opening the engine kept of it
-(`protocol/wires.md`, 9; `domain/root.md`, 8.2; R5, goal 2288).
+(`protocol/wires.md`, 10; `domain/root.md`, 8.2; R5, goal 2288).
 A model provider unreachable for minutes holds no task: its run's
 failure waits as an infrastructure failure, and a hold for a model
 call's failure names the call from structured fields alone

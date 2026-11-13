@@ -30,7 +30,7 @@ impl<'a> Context<'a> {
                 Declaration::Record(record) => {
                     let mut minimum = if record.versioned { 2_u32 } else { 0_u32 };
                     for field in &record.fields {
-                        let prefix = format!("{}_{}", emit_limits::snake(&record.name), field.name);
+                        let prefix = emit_limits::bound_name(&record.name, &field.name);
                         let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
                         collect_bounds(&field.ty, &prefix, &path, &mut context.bounds);
                         minimum = minimum.checked_add(context.min_bytes(&field.ty)).expect("checked ceiling");
@@ -112,9 +112,11 @@ fn collect_bounds(ty: &Type, name: &str, path: &str, result: &mut Vec<(String, u
         Type::Bytes(bound) | Type::Secret(bound) | Type::Text(bound) => result.push((name.into(), *bound, path.into())),
         Type::List(bound, item) => {
             result.push((name.into(), *bound, path.into()));
-            collect_bounds(item, &format!("{name}_item"), path, result);
+            collect_bounds(item, &emit_limits::child_name(name, emit_limits::LimitLevel::Item), path, result);
         }
-        Type::Option(item) => collect_bounds(item, &format!("{name}_some"), path, result),
+        Type::Option(item) => {
+            collect_bounds(item, &emit_limits::child_name(name, emit_limits::LimitLevel::Some), path, result);
+        }
         Type::U8
         | Type::U16
         | Type::U32

@@ -7,9 +7,9 @@ use jig_domain_host::Limits;
 use jig_host_world::engine::ENDINGS;
 use jig_host_world::{Settings, Span, World};
 
-// The unchanged 1000-seed inventory stops growing at 372: 20 endings and 23 paths.
+// With decoded starts, the 2000-seed inventory stops growing at 1496: 20 endings and 23 paths.
 // Keep twice that exact prefix, including the rare agent-start cancellation.
-const COVERAGE_PREFIX: u64 = 372;
+const COVERAGE_PREFIX: u64 = 1496;
 const SWEEP_SEEDS: u64 = 2 * COVERAGE_PREFIX;
 
 const ITERATIONS: u32 = 200_000;

@@ -15,6 +15,22 @@ pub const CEILINGS: Limits = Limits {
     record_record: 65_565,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 2] = [
+    "draft_words",
+    "record_record",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 2] {
+        [
+            self.draft_words, self.record_record,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

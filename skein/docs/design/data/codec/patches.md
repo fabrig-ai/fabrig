@@ -135,6 +135,10 @@ value     = "?" | "written" | "none" | "some" value | "[]"
   a site may give several, and each refusal's name is the patch's once.
 - **Other families' blocks** are read for their grammar alone: each
   family's machine plans its own block (3).
+- **A wire's block may also carry its reverse:** `down` lines and down
+  sites, or `breaking` (`bridges.md`, 3). The grammar above takes them
+  as lines; a store plans its blocks forward alone and never asks for a
+  reverse.
 
 ## 2. Values
 

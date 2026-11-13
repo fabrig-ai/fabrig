@@ -13,6 +13,23 @@ use skein_io::{self as io};
 use skein_lib::{List, Map, Queue, Reader, Time, Token};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
+/// Temper's roots and bridge, with its spoken entry from the engine's table
+/// (temper/docs/design/protocol/wires.md, 4 and 10).
+pub fn application(
+    limits: &wire::Limits,
+) -> Result<jig_protocol_worker_wire::Application, skein_codec::bridge::BridgeError> {
+    let mut application = temper_protocol_worker_wire::application(limits)?;
+    let mut wires = List::with_capacity(1);
+    for wire in crate::wires().into_boxed() {
+        if wire.name == temper_protocol_worker_wire::wire::FAMILY {
+            wires.push(wire).expect("one application wire");
+        }
+    }
+    assert!(wires.len() == 1, "the table names temper's worker wire once");
+    application.spoken = wires;
+    Ok(application)
+}
+
 #[derive(Debug)]
 pub struct Workers {
     pub(crate) host: kit::host::Workers,
@@ -37,14 +54,8 @@ impl Workers {
             listeners: crate::tokens::prefix(Token::new(crate::tokens::WORKER_LISTENERS)),
             connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
         };
-        let mut wires = List::with_capacity(1);
-        for wire in crate::wires().into_boxed() {
-            if wire.name == temper_protocol_worker_wire::wire::FAMILY {
-                wires.push(wire).expect("one application wire");
-            }
-        }
-        assert!(wires.len() == 1, "the table names temper's worker wire once");
-        let host = kit::host::Workers::new(config, files, tokens, wires, limits)?;
+        let application = application(&encoding.limits).or(Err(kit::host::invalid(What::Bound)))?;
+        let host = kit::host::Workers::new(config, files, tokens, application, limits)?;
         let mut table = crate::forges::Forges::with_capacity(forge_limit);
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");
@@ -183,6 +194,38 @@ impl Workers {
                 events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
             }
             kit::host::Output::Unsent { worker, channel, unsent } => {
+                match unsent.bound {
+                    kit::Bound::Room(_) | kit::Bound::Channel(_) => {}
+                    kit::Bound::Translation { .. } => match unsent.kind {
+                        jig_protocol_worker_wire::Kind::Assignment | jig_protocol_worker_wire::Kind::Job => {}
+                        jig_protocol_worker_wire::Kind::Hello
+                        | jig_protocol_worker_wire::Kind::Turn
+                        | jig_protocol_worker_wire::Kind::Call
+                        | jig_protocol_worker_wire::Kind::Answer
+                        | jig_protocol_worker_wire::Kind::Fact
+                        | jig_protocol_worker_wire::Kind::Unauthorized
+                        | jig_protocol_worker_wire::Kind::Limited
+                        | jig_protocol_worker_wire::Kind::AccountRefused
+                        | jig_protocol_worker_wire::Kind::Message
+                        | jig_protocol_worker_wire::Kind::Relayed
+                        | jig_protocol_worker_wire::Kind::TurnKept
+                        | jig_protocol_worker_wire::Kind::TurnBusy
+                        | jig_protocol_worker_wire::Kind::Acknowledge
+                        | jig_protocol_worker_wire::Kind::Cancel
+                        | jig_protocol_worker_wire::Kind::Grant
+                        | jig_protocol_worker_wire::Kind::Sources
+                        | jig_protocol_worker_wire::Kind::Check
+                        | jig_protocol_worker_wire::Kind::ReadList
+                        | jig_protocol_worker_wire::Kind::ListRead
+                        | jig_protocol_worker_wire::Kind::Draining
+                        | jig_protocol_worker_wire::Kind::SignOut
+                        | jig_protocol_worker_wire::Kind::Logins
+                        | jig_protocol_worker_wire::Kind::SignedOut
+                        | jig_protocol_worker_wire::Kind::JobAnswer
+                        | jig_protocol_worker_wire::Kind::Wires => events
+                            .push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Mismatch })),
+                    },
+                }
                 self.notes.push(crate::Note::WorkerUnsent { worker, channel, unsent });
             }
             kit::host::Output::Ended { worker, channel: Some(channel), why } => {

@@ -36,8 +36,8 @@ pub struct Options {
     pub baseline: bool,
 }
 
-/// The base's files under the crate's `patches/` and `schema/kept/`, by path
-/// relative to the crate (data/codec/command.md).
+/// The base's files under the crate's `patches/` and `schema/kept/`, and its
+/// `schema/wires`, by path relative to the crate (data/codec/command.md).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Landed {
     files: BTreeMap<PathBuf, Vec<u8>>,
@@ -50,7 +50,7 @@ impl Landed {
         Self { files }
     }
 
-    /// The tree's own files under `patches/` and `schema/kept/`, as if landed.
+    /// The tree's own `patches/`, `schema/kept/` and `schema/wires`, as if landed.
     ///
     /// # Errors
     ///
@@ -137,6 +137,25 @@ pub enum Finding {
     /// A block that does not plan against its kept texts (11.3), the
     /// planner's refusal spelled.
     Unplanned { patch: u32, family: String, error: String },
+    /// A wire's floor violates data/codec/bridges.md, 4.
+    Floor { family: String, floor: u16, wrong: FloorWrong },
+    /// A reverse above a wire's floor does not plan.
+    Unbridged { family: String, version: u16, error: String },
+}
+
+/// Why a wire's floor is refused (data/codec/bridges.md, 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FloorWrong {
+    /// Past the current version.
+    Above,
+    /// Below the first kept version.
+    Unkept,
+    /// Below the base's floor.
+    Lowered,
+    /// Above the version the branch moves from, without breaking.
+    Passed,
+    /// A breaking block's floor is not its second version.
+    Breaking,
 }
 
 /// Why the command, or one of its parts, stops (data/codec/command.md, 8).
@@ -231,6 +250,25 @@ impl fmt::Display for Finding {
             Self::Unplanned { patch, family, error } => {
                 write!(f, "patch {patch:04}, {family}: does not plan: {error}")
             }
+            Self::Floor { family, floor, wrong } => {
+                let (name, fix) = match wrong {
+                    FloorWrong::Above => ("Above", "past the current; lower it to at most the current"),
+                    FloorWrong::Unkept => ("Unkept", "below the first kept version; raise it to a kept version"),
+                    FloorWrong::Lowered => ("Lowered", "below the base's floor; keep or raise the base's floor"),
+                    FloorWrong::Passed => (
+                        "Passed",
+                        "past the version the branch moves from; keep it there or declare the block breaking",
+                    ),
+                    FloorWrong::Breaking => {
+                        ("Breaking", "a breaking block needs its second version; raise the floor to it")
+                    }
+                };
+                write!(f, "{family}: floor {floor}: {name}: {fix}")
+            }
+            Self::Unbridged { family, version, error } => write!(
+                f,
+                "{family}: version {version}: reverse does not plan: {error}; give a down value or down site, or declare the block breaking and raise its floor"
+            ),
         }
     }
 }

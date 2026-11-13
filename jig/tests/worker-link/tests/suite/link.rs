@@ -48,7 +48,9 @@ fn a_room_below_a_frame_the_worker_sends_is_not_made() {
         ("refuse", base, REFUSE - 1, false),
     ] {
         let limits = Limits { sizes, room, ..fixtures::LIMITS };
-        let result = Component::new(&limits, fixtures::credential(), fixtures::SEED_ONE).map(|_| ());
+        let result =
+            Component::new(&limits, jig_protocol_worker_wire::spoken(), fixtures::credential(), fixtures::SEED_ONE)
+                .map(|_| ());
         assert_eq!(result, if made { Ok(()) } else { Err(Unusable::Limits) }, "{name}: room {room}");
         assert_eq!(valid(&limits), made, "{name}: room {room}");
     }

@@ -32,6 +32,7 @@ pub fn private() -> jig_protocol_transcript::Private {
 
 mod answers;
 mod calls;
+mod contract;
 mod docs;
 mod document;
 mod finding;
@@ -55,6 +56,7 @@ pub use answers::{
     answer_for_tool, unasked_kind,
 };
 pub use calls::{call, call_configured, call_in, tools};
+pub use contract::call_for_contract;
 pub use finish::{ChangeResource, Terminal, result, turn};
 pub use reference::reference;
 pub use see::addresses::see_reference;

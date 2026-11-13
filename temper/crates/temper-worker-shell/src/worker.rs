@@ -70,7 +70,7 @@ pub fn root(
         },
         configuration,
     )?;
-    Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into(), agent })
+    Ok(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into(), agent, wires: None })
 }
 
 /// Write a fresh, private agent from the start's checked bytes

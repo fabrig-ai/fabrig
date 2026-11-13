@@ -227,6 +227,10 @@ fn takes_no_value(schema: &Schema, decl: &str, field: &str) -> bool {
 /// Rebuilds operations, retaining values only for the identical added type;
 /// an added field whose type takes no value is `written` at its own site,
 /// or at its declaration's.
+#[expect(
+    clippy::too_many_lines,
+    reason = "derives forward operations and preserves the author's sites and down lines together"
+)]
 pub(super) fn block(diff: &Diff, current: &Text, old: Option<&Block>) -> Result<Block, Error> {
     let schema = schema(current)?;
     let mut operations = Vec::new();
@@ -253,7 +257,7 @@ pub(super) fn block(diff: &Diff, current: &Text, old: Option<&Block>) -> Result<
         .into_iter()
         .flat_map(|block| &block.lines)
         .filter(|line| match line {
-            Line::Site { target, .. } => target_exists(&schema, target),
+            Line::Site { target, down, .. } => !down && target_exists(&schema, target),
             Line::Op(_) => false,
         })
         .cloned()
@@ -300,7 +304,7 @@ pub(super) fn block(diff: &Diff, current: &Text, old: Option<&Block>) -> Result<
                 })
             }));
         if !provided {
-            sites.push(Line::Site { target, refusals: Vec::new() });
+            sites.push(Line::Site { target, refusals: Vec::new(), down: false });
         }
     }
     // A declaration that is a site gives its added fields too, and has no field site (11.3).
@@ -308,7 +312,7 @@ pub(super) fn block(diff: &Diff, current: &Text, old: Option<&Block>) -> Result<
         let decl = target.split('.').next().unwrap_or_default();
         let site = |name: &str| sites.iter().any(|line| matches!(line, Line::Site { target, .. } if target == name));
         if !site(&target) && !site(decl) {
-            sites.push(Line::Site { target, refusals: Vec::new() });
+            sites.push(Line::Site { target, refusals: Vec::new(), down: false });
         }
     }
     let mut lines = Vec::new();
@@ -329,7 +333,37 @@ pub(super) fn block(diff: &Diff, current: &Text, old: Option<&Block>) -> Result<
         }
     }
     lines.extend(sites);
+    if let Some(old) = old {
+        keep_down(old, &schema, &mut lines);
+    }
     Ok(Block { family: diff.family.clone(), from: diff.kept, to: diff.current, lines })
+}
+
+// Reinsert author-owned down lines at their surviving anchors, preserving text
+// order (and comments when the resulting patch is unchanged).
+fn keep_down(old: &Block, schema: &Schema, lines: &mut Vec<Line>) {
+    for (index, line) in old.lines.iter().enumerate() {
+        let keep = match line {
+            Line::Site { target, down, .. } => *down && target_exists(schema, target),
+            Line::Op(line) => {
+                line.starts_with("breaking ")
+                    || line.strip_prefix("down ").is_some_and(|rest| {
+                        let target = rest.split_whitespace().next().unwrap_or_default();
+                        lines.contains(&Line::Op(format!("drop {target}")))
+                    })
+            }
+        };
+        if keep {
+            let at = old
+                .lines
+                .iter()
+                .take(index)
+                .rev()
+                .find_map(|anchor| lines.iter().position(|line| line == anchor))
+                .map_or(0, |at| at.checked_add(1).expect("bounded patch lines"));
+            lines.insert(at, line.clone());
+        }
+    }
 }
 
 pub(super) fn render(patch: &PatchText) -> String {
@@ -350,8 +384,9 @@ pub(super) fn render(patch: &PatchText) -> String {
         for line in &block.lines {
             match line {
                 Line::Op(line) => writeln!(output, "{line}").expect("String accepts formatting"),
-                Line::Site { target, refusals } => {
-                    writeln!(output, "written {target}").expect("String accepts formatting");
+                Line::Site { target, refusals, down } => {
+                    let prefix = if *down { "down " } else { "" };
+                    writeln!(output, "{prefix}written {target}").expect("String accepts formatting");
                     for refusal in refusals {
                         writeln!(output, "refuses {} {}", refusal.name, refusal.text)
                             .expect("String accepts formatting");

@@ -261,7 +261,7 @@ fn worker_completes(worker: &WorkerInput) -> bool {
         | WorkerInput::DecodedHostCall { .. }
         | WorkerInput::RenderedHostCall { .. }
         | WorkerInput::ResultRead { .. }
-        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. } => true,
+        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost | Link::Mismatch, .. } => true,
         WorkerInput::Link { link: Link::Up { up, .. }, .. } => !up.new_work(),
     }
 }

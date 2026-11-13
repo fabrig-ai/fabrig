@@ -72,7 +72,8 @@ impl Harness for Incident {
         value["engine"]["llm"]["providers"][0]["manage_usage"] = "https://provider.example/usage".into();
         value["engine"]["acts"] = json!([{"connector":1,"may":["adopt"]}]);
         let grant = |kind| json!({"connector":1,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}});
-        let authority = json!({"tools":3,"grants":[grant(3),grant(4),grant(7),grant(8),grant(9),grant(10),grant(11),grant(12)],"delegation":{"kinds":[{"kind":"charter","number":1},{"kind":"charter","number":4},{"kind":"procedure","number":2}],"tasks":8,"depth":5},"budget":{"spend":500,"deadline_unix_seconds":null},"notes":0,"note_resources":[]});
+        let tools = 3 | if crate::across_versions::active() { core::ToolFamilies::JIG.read.0 } else { 0 };
+        let authority = json!({"tools":tools,"grants":[grant(3),grant(4),grant(7),grant(8),grant(9),grant(10),grant(11),grant(12)],"delegation":{"kinds":[{"kind":"charter","number":1},{"kind":"charter","number":4},{"kind":"procedure","number":2}],"tasks":8,"depth":5},"budget":{"spend":500,"deadline_unix_seconds":null},"notes":0,"note_resources":[]});
         let policy = &mut value["world_settings"]["policies"][0]["policy"];
         policy["ceiling"] = authority.clone();
         policy["roles"][0]["authority"] = authority;
@@ -124,6 +125,7 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
         &Incident::seeds(parameters.seed),
         None,
         Some(temper_service::WorkerRuntime {
+            wires: crate::across_versions::worker_wires(),
             root: worker,
             path: b"/worker".as_slice().into(),
             agent: temper_playground::documents::pinned_agent(),
@@ -165,12 +167,23 @@ fn provider() -> skein_fake_peers::llm::Peer {
         {"cue":"Review this change at the named head","turns":[
             call("finish", &json!({"form":"verdict","label":"1","text":"approved","fields":{},"items":[]}))]}
     ]);
+    if crate::across_versions::active() {
+        value["cued"][1]["turns"]
+            .as_array_mut()
+            .expect("change turns")
+            .insert(0, call("read_task", &json!({"task":3})));
+    }
     value["asked"] = json!([]);
     value["otherwise"] = json!([call("finish", &json!({"form":"report","text":"Done","fields":{}}))]);
     value["pace"]["reply_ms"] = 0.into();
     let document = temper_fake::llm::Document::decode(&serde_json::to_vec(&value).expect("provider bytes"))
         .expect("provider document");
-    temper_fake::llm::peer(temper_fake::llm::configuration(&document, fixtures::LLM_TOKEN, 17)).expect("provider")
+    let configuration = temper_fake::llm::configuration(&document, fixtures::LLM_TOKEN, 17);
+    if crate::across_versions::active() {
+        temper_fake::llm::recording_peer(configuration).expect("recorded provider")
+    } else {
+        temper_fake::llm::peer(configuration).expect("provider")
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -208,6 +221,7 @@ struct Judge {
     target: usize,
     answered: usize,
     handed: bool,
+    messaged: Option<(u64, u64)>,
     stopping: bool,
     first_link: Box<[u8]>,
     fresh_at: usize,
@@ -396,6 +410,9 @@ impl skein_world::Referee<Proc> for Judge {
                         ],
                     ];
                     for words in &commands {
+                        if crate::across_versions::active() && words.starts_with(&["account", "declare"]) {
+                            continue;
+                        }
                         Self::command(caller, words);
                     }
                     Self::command(caller, &["settings", "show", "charter", "1", "--json"]);
@@ -419,11 +436,47 @@ impl skein_world::Referee<Proc> for Judge {
                 service.service.pending(now)
             ) + &caller.pending_answer();
         }
+        if crate::across_versions::active() && self.messaged.is_none() && self.stage == Stage::Goal {
+            let running = self.store.borrow().rows.values().find_map(|row| match row {
+                root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task)))
+                    if task.spec.words.windows(b"@incident-edit".len()).any(|part| part == b"@incident-edit")
+                        && matches!(task.phase, tasks::Phase::Active(tasks::Active::Running { .. })) =>
+                {
+                    Some((task.number, task.attempt))
+                }
+                _ => None,
+            });
+            if let Some((task, attempt)) = running {
+                Self::command(
+                    caller,
+                    &[
+                        "task",
+                        "message",
+                        &task.to_string(),
+                        crate::across_versions::MESSAGE,
+                        "--key",
+                        "bridged-message",
+                    ],
+                );
+                self.target += 1;
+                self.messaged = Some((task, attempt));
+            }
+        }
         self.check_answers(caller, now);
         if self.handed && caller.answers.len() >= self.target {
             match self.stage {
                 Stage::Goal if !self.whole || self.ended_goal() => {
-                    if self.whole {
+                    if crate::across_versions::active() {
+                        let (number, attempt) = self.messaged.expect("a message was sent to the goal's running change");
+                        assert!(self.store.borrow().rows.values().any(|row| matches!(row,
+                            root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(task)))
+                            if task.number == number && task.attempt == attempt && matches!(task.phase, tasks::Phase::Ended(tasks::Ending::Done(_)))
+                        )), "the engine read that running attempt's successful result");
+                        bridged_readback(peers);
+                        crate::across_versions::tasks(&self.store.borrow());
+                        assert!(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))), "the bridged goal's change landed");
+                        self.stage = Stage::Done;
+                    } else if self.whole {
                         let saved: Value =
                             serde_json::from_slice(&caller.answers.last().expect("initial charter answer").output)
                                 .expect("initial charter");
@@ -573,6 +626,9 @@ impl skein_world::Referee<Proc> for Judge {
         if self.stage == Stage::Done && !self.stopping {
             caller.closed = true;
             fresh.closed = true;
+            if crate::across_versions::active() {
+                person.saved();
+            }
             person.finish();
             self.controls.signal(0, ServiceSignal::Terminate);
             for proc in peers {
@@ -645,6 +701,7 @@ fn phase(
                 target: 0,
                 answered: 0,
                 handed: false,
+                messaged: None,
                 stopping: false,
                 first_link: Box::new([]),
                 fresh_at: 0,
@@ -741,6 +798,50 @@ fn run_sequence(whole: bool, legacy: bool) -> [Outcome; 2] {
     let (disk, before) = phase(false, whole, legacy, disk, store.clone(), &transport);
     let (_, after) = phase(true, whole, false, disk, store, &transport);
     [before, after]
+}
+
+/// Only the model's goal-through-landing phase, without its cold restart.
+pub(crate) fn bridged_goal() {
+    stories::set(Story::Adopt);
+    stories::setup_settings(world::Phase::Restart);
+    let transport = forge();
+    let store = Rc::new(RefCell::new(Store::new()));
+    let mut disk = temper_playground::machine::fresh();
+    temper_playground::machine::setup(&mut disk);
+    phase(false, true, false, disk, store, &transport);
+}
+
+fn bridged_readback(procs: &[Proc]) {
+    use skein_fake_llm_domain::api::Part;
+    let queries: Vec<_> =
+        procs
+            .iter()
+            .filter_map(|proc| if let Proc::Peer(peer) = proc { Some(peer) } else { None })
+            .flat_map(|peer| peer.observations())
+            .filter_map(|seen| {
+                if let skein_fake_peers::llm::Observation::Query { query, .. } = seen { Some(query) } else { None }
+            })
+            .collect();
+    assert!(
+        queries.iter().any(|query| query.messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
+            let bytes = match part {
+                Part::Text { text } => text,
+                Part::Opaque { bytes } => bytes,
+                Part::ToolOutput { output, .. } => output,
+                Part::ToolCall { .. } => return false,
+            };
+            bytes
+                .windows(crate::across_versions::MESSAGE.len())
+                .any(|part| part == crate::across_versions::MESSAGE.as_bytes())
+        })),
+        "the run read its message across the bridge"
+    );
+    assert!(queries.iter().any(|query| {
+        let parts: Vec<_> = query.messages.iter().flat_map(|message| message.parts.iter()).collect();
+        parts.iter().any(|part| if let Part::ToolCall { id, name, .. } = part {
+            name.as_ref() == b"read_task" && parts.iter().any(|answer| matches!(answer, Part::ToolOutput { id: answered, is_error: false, output } if answered == id && !output.starts_with(b"Error:")))
+        } else { false })
+    }), "the run read its host call's answer across the bridge");
 }
 
 fn forge() -> temper_fake_git_hosted::Typed {
