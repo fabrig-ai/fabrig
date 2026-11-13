@@ -1278,6 +1278,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
     let mut row = fixtures::opening_row();
     row.change.last_head = Some(fixtures::HEAD);
     row.delegate = Some((52, change::Delegate::Gate { number: 1, head: fixtures::HEAD }));
+    row.delegate_status = change::Status::Pending;
     outputs(&mut d, Event::Change { row });
     let words = "Please include the pull request's number and address. ".repeat(100);
     outputs(
@@ -1372,6 +1373,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let mut row = fixtures::opening_row();
         row.delegate = Some((52, change::Delegate::Repair(change::Repair::Ci)));
+        row.delegate_status = change::Status::Pending;
         row.result.repaired(change::Repair::Ci, Some(fixtures::HEAD), LIMITS.client.answer_bytes);
         row.report = b"exports CSV".as_slice().into();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
