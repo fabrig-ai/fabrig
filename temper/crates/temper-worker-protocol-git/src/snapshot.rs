@@ -13,7 +13,8 @@ pub(crate) fn enabled(op: &git::Op) -> bool {
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::Clone { .. }
-        | git::Op::Point { .. }
+        | git::Op::Reds { .. }
+            | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -92,7 +93,8 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
             }
         }
         Command::SnapshotReset { commit } if code == 0 => Some(Next::End(git::Done::Committed { commit: *commit })),
-        Command::SnapshotHead
+        Command::Reds(_)
+        | Command::SnapshotHead
         | Command::SnapshotMerge { .. }
         | Command::SnapshotFetch { .. }
         | Command::SnapshotReachable { .. }
@@ -130,7 +132,8 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
         | git::Op::Make { .. }
         | git::Op::Look { .. }
         | git::Op::Clone { .. }
-        | git::Op::Point { .. }
+        | git::Op::Reds { .. }
+            | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }

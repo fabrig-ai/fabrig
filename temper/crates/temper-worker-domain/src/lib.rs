@@ -59,6 +59,7 @@ mod jobs;
 mod limits;
 mod push;
 mod route;
+mod reds;
 mod smith_delivery;
 mod stopping;
 #[cfg(test)]

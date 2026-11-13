@@ -25,6 +25,8 @@ pub(crate) struct Bound {
     pub(crate) agent: Token,
     /// smith admitted its run, and the hub was told it started.
     pub(crate) admitted: bool,
+    pub(crate) check: Option<crate::reds::Check>,
+    pub(crate) check_number: u64,
     /// The charter's model-indexed call names (domain/worker/README.md, 4.3).
     models: Box<[crate::hand_out::ModelName]>,
     /// Bounded operator evidence retained until process cleanup.
@@ -110,7 +112,7 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             };
             let old = domain
                 .agents
-                .insert(client, Bound { agent, admitted: false, models, detail: Box::new([]), refused: None })
+                .insert(client, Bound { agent, admitted: false, check: None, check_number: 0, models, detail: Box::new([]), refused: None })
                 .expect("smith bounds its agents");
             assert!(old.is_none(), "one agent per hosted run");
             if crate::stopping::cut(domain, client) {
@@ -146,11 +148,12 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
         smith::parent::Request::Waiting { client, read: _ } => {
             host::Event::Agent(host::FromAgent::Yielded { owner: client })
         }
-        smith::parent::Request::Long { client, operation, span } => host::Event::Agent(host::FromAgent::Activity {
-            owner: client,
-            activity: host::AgentActivity::Long { operation: translate::operation(operation), span },
-        }),
+        smith::parent::Request::Long { client, operation, span } => {
+            if operation == smith::Operation::Checks { crate::reds::start(domain, env, client, out); }
+            host::Event::Agent(host::FromAgent::Activity { owner: client, activity: host::AgentActivity::Long { operation: translate::operation(operation), span } })
+        },
         smith::parent::Request::LongDone { client } => {
+            crate::reds::end(domain, env, client);
             host::Event::Agent(host::FromAgent::Activity { owner: client, activity: host::AgentActivity::LongDone })
         }
         smith::parent::Request::Unauthorized { client, account, generation } => {
@@ -465,6 +468,7 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
 
 /// The hub hears the agent has gone, unless its run has answered already.
 fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail: Box<[u8]>) {
+    crate::reds::end(domain, env, owner);
     let bound = domain.agents.remove(&owner);
     let (detail, refused) = match bound {
         Some(bound) => (diagnostic(&bound.detail, &detail, env.limits.host.detail_bytes), bound.refused),

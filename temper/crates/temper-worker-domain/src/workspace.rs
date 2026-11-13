@@ -787,6 +787,18 @@ pub(crate) fn job_run(domain: &Domain, workspace: Token) -> (Token, Token) {
     (hosting.run, hosting.attempt)
 }
 
+/// A check covers every writable repository of its prepared hold.
+pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, owner: Token, action: checkout::git::Reds) {
+    let mut hold = None;
+    for (_, workspace) in &domain.workspaces {
+        if workspace.run == owner {
+            if let State::Ready { hold: ready, .. } = workspace.state { hold = Some(ready); }
+            break;
+        }
+    }
+    if let Some(hold) = hold { route::checkout_step(domain, env, checkout::Event::Reds { hold, action }); }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

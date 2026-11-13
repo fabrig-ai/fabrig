@@ -143,7 +143,8 @@ impl Component {
             | git::Op::Create { .. }
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => true,
-            git::Op::Point { .. }
+            git::Op::Reds { .. }
+            | git::Op::Point { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Look { .. }
@@ -299,7 +300,8 @@ impl Component {
                 let command = if merging.is_some() { Command::Unmerged } else { Command::Add };
                 Next::Run(command)
             }
-            other @ (Next::Run(_)
+            other @ (Next::Reds { .. }
+            | Next::Run(_)
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }
@@ -385,11 +387,13 @@ impl Component {
                 };
                 self.file_start(id, Task::alternates(at, *store, remote.clone()), out);
             }
+            Next::Reds { directory, content, marker } => self.file_start(id, Task::reds(directory, content, marker), out),
             Next::Scan { files } => {
                 let op = self.slots.get(id).expect("live index").op.as_ref().expect("Commit op");
                 let at = match op {
                     git::Op::Commit { at, .. } => at,
-                    git::Op::Point { .. }
+                    git::Op::Reds { .. }
+            | git::Op::Point { .. }
                     | git::Op::Store { .. }
                     | git::Op::Make { .. }
                     | git::Op::Clone { .. }

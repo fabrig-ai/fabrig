@@ -15,6 +15,7 @@ pub mod output;
 pub mod ring;
 pub mod sequence;
 mod snapshot;
+pub mod reds;
 #[cfg(test)]
 mod tests;
 

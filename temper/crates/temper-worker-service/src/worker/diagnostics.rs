@@ -45,6 +45,7 @@ impl Worker {
 
 fn event_tag(event: &root::Event) -> WorkerEvent {
     match event {
+        root::Event::RedsAsk { .. } | root::Event::RedsAnswer { .. } => WorkerEvent::Link(LinkEvent::Asked),
         root::Event::SourceAnswered { .. } | root::Event::ListRead { .. } => WorkerEvent::SourceAnswered,
         root::Event::Assign { .. } | root::Event::AssignJob { .. } => WorkerEvent::Assign,
         root::Event::Link(link) => match link {

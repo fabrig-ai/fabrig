@@ -11,6 +11,7 @@ use temper_worker_domain_checkout::{self as checkout, git};
 #[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline as in git::Done")]
 pub enum Next {
     Run(Command),
+    Reds { directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool },
     Snapshot { parent: git::Commit, merging: Option<git::Commit> },
     Make,
     Store,
@@ -23,6 +24,7 @@ pub enum Next {
 #[must_use]
 pub fn first(op: &git::Op) -> Next {
     Next::Run(match op {
+        git::Op::Reds { .. } => return crate::reds::first(op),
         git::Op::Make { .. } => return Next::Make,
         git::Op::Store { .. } => return Next::Store,
         git::Op::Look { at, .. } => Command::Origin { directory: invocation::place(at) },
@@ -77,10 +79,12 @@ pub fn after(
     cut: u64,
     checkout: &checkout::Limits,
 ) -> Next {
+    if let Command::Reds(check) = ran { return crate::reds::after(op, check, code, stdout); }
     if let Some(next) = crate::snapshot::after(op, ran, code, stdout) {
         return next;
     }
     match ran {
+        Command::Reds(_) => unreachable!("reds handled above"),
         Command::MergeBases { .. } => return merge_bases(op, code, stdout, tail, cut),
         Command::BringsList { .. } => {
             if code == 0 && (stdout.is_empty() || id(stdout).is_some()) {
@@ -99,6 +103,7 @@ pub fn after(
             git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Reds { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -186,6 +191,7 @@ pub fn after(
             git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Reds { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -247,6 +253,7 @@ pub fn after(
             | git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Reds { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -324,7 +331,8 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
-        | git::Op::Point { .. }
+        | git::Op::Reds { .. }
+            | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -344,7 +352,8 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
-        | git::Op::Point { .. }
+        | git::Op::Reds { .. }
+            | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -364,7 +373,8 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Store { .. }
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
-        | git::Op::Point { .. }
+        | git::Op::Reds { .. }
+            | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::Look { .. }
@@ -385,7 +395,8 @@ fn remote(command: &Command) -> bool {
         | Command::Push { .. }
         | Command::CheckOut { .. }
         | Command::Merge { .. } => true,
-        Command::Format
+        Command::Reds(_)
+        | Command::Format
         | Command::Version
         | Command::Origin { .. }
         | Command::Clone { .. }
