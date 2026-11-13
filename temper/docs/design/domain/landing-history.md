@@ -219,8 +219,19 @@ writes one event for each member of the round it concerns, each with
 the landing's task, the round and that member's unit, in the stack's
 order. `formed` carries the round's members whole in each. A landing
 that ends holding no member writes its `landing-ended` for the member
-that left it last. So each change's events are its whole history,
-swept with it (4.5), and a landing's are read through its index (4.1).
+that left it last: the landing's row keeps that member's place,
+`last_left`, set by each leave. So each change's events are its whole
+history, swept with it (4.5), and a landing's are read through its
+index (4.1).
+
+- **A cut that keeps a prefix:** a search's cut (`landing-search.md`,
+  4) takes its suffix out of the round, and the green prefix goes on
+  proving in the same round. The cut writes `round-ended` with `cut`
+  for each member it takes out, at the cleanup that clears their
+  candidates; the members kept get theirs when that round ends, by
+  its own cause (`turned`, most often). Where the cut keeps no prefix,
+  or the round's number moves at that cleanup, every member of the
+  round gets `cut`. So a member has one `round-ended` per round.
 
 ### 3.4 Times
 
