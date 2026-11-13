@@ -92,3 +92,46 @@ fn no_deployment_grants_leaves_no_delegation_executors() {
         assert!(role.authority.delegation.kinds.is_empty());
     }
 }
+
+#[test]
+fn an_unknown_executor_tag_halts_at_the_kinds_node() {
+    use patches::kept::jig_store_people::p0001::old as fields;
+    use skein_codec::patch::Halt;
+
+    let mut policy = fixtures::people_policy();
+    policy.ceiling.delegation.kinds = Box::new([PolicyExecutor::Charter(7)]);
+    let limits = people::limits(&fixtures::CORE_LIMITS).expect("fixture bounds");
+    let record = Stored::Policy { project: 3, name: "Tally".into(), value: policy };
+    let mut bytes = people::encode(&record, &limits, &[]).expect("policy row");
+    *bytes.get_mut(1).expect("version prefix") = 14;
+    let text = patches::kept::jig_store_people::TEXTS.first().expect("people 14");
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept text");
+    let mut value = skein_codec::value::Value::with_room(16_384);
+    let root = value.decode(&schema, schema.find(b"Row").unwrap(), bytes.clone()).expect("policy row");
+    let policy = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
+    let policy = value.field(policy, fields::stored_policy::VALUE).unwrap();
+    let ceiling = value.field(policy, fields::policy_value::CEILING).unwrap();
+    let delegation = value.field(ceiling, fields::authority::DELEGATION).unwrap();
+    let kinds = value.field(delegation, fields::delegation::KINDS).unwrap();
+    // Skip the byte-field length and the first piece's length to reach its tag.
+    let tag = usize::try_from(value.span(kinds).unwrap().start).unwrap() + 8;
+    *bytes.get_mut(tag).expect("first executor tag") = 4;
+
+    let mut patcher = Patcher::new(Capacity {
+        versions: 2,
+        patches: 1,
+        text: skein_codec::schema::MAX_TEXT,
+        bytes: 131_072,
+        nodes: 16_384,
+    });
+    for text in patches::kept::jig_store_people::TEXTS.iter().take(2) {
+        patcher.keep(text.as_bytes()).expect("kept schema");
+    }
+    let root = patcher.schema(14).unwrap().find(b"Row").unwrap();
+    let plan = patcher.plan(patches::PATCHES[0].as_bytes()).unwrap().unwrap();
+    patcher.start(plan, root, bytes).expect("opaque executor piece");
+    let Step::Written { site, at } = patcher.next().expect("patch step") else { panic!("policy conversion") };
+    let (old, new) = patcher.parts();
+    let mut context = patches::Context { executors: Box::new([Executor::Charter(7)]) };
+    assert_eq!(patches::written(site, old, new, at, &mut context), Err(Halt::Misread(kinds)));
+}
