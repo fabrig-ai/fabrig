@@ -1028,14 +1028,12 @@ impl World {
     pub fn history(&self, change: u64) -> Vec<history::Event> {
         let mut events = Vec::new();
         for (_, record) in &self.stored {
-            if let top::Stored::HistoryChange(index) = record {
-                if index.change == change {
-                    if let Some(top::Stored::HistoryEvent(event)) =
-                        self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
-                    {
-                        events.push(event.clone());
-                    }
-                }
+            if let top::Stored::HistoryChange(index) = record
+                && index.change == change
+                && let Some(top::Stored::HistoryEvent(event)) =
+                    self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
+            {
+                events.push(event.clone());
             }
         }
         events.sort_by_key(|event| event.number);
@@ -1047,14 +1045,12 @@ impl World {
     pub fn landing_history(&self, landing: u64) -> Vec<history::Event> {
         let mut events = Vec::new();
         for (_, record) in &self.stored {
-            if let top::Stored::HistoryLanding(index) = record {
-                if index.landing == landing {
-                    if let Some(top::Stored::HistoryEvent(event)) =
-                        self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
-                    {
-                        events.push(event.clone());
-                    }
-                }
+            if let top::Stored::HistoryLanding(index) = record
+                && index.landing == landing
+                && let Some(top::Stored::HistoryEvent(event)) =
+                    self.stored.get(&top::Key::HistoryEvent { project: index.project, number: index.number })
+            {
+                events.push(event.clone());
             }
         }
         events.sort_by_key(|event| event.number);

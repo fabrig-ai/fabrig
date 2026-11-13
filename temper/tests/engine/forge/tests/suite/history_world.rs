@@ -40,8 +40,8 @@ fn saved(world: &World, project: u32, number: u64) -> history::Event {
 #[test]
 fn reads_written_events_through_change_and_landing_indexes() {
     let mut world = world();
-    assert!(world.history(A).is_empty());
-    assert!(world.landing_history(L).is_empty());
+    assert_eq!(world.history(A), []);
+    assert_eq!(world.landing_history(L), []);
     assert_eq!(world.write_event(A, step(None, history::What::Ready)), Some(1));
     assert_eq!(world.write_event(A, step(Some(L), history::What::Selected)), Some(2));
     assert_eq!(world.write_event(B, step(None, history::What::Pushed)), Some(3));
@@ -50,8 +50,8 @@ fn reads_written_events_through_change_and_landing_indexes() {
     assert_eq!(world.history(A), [saved(&world, 5, 1), saved(&world, 5, 2), saved(&world, 5, 4)]);
     assert_eq!(world.history(B), [saved(&world, 5, 3)]);
     assert_eq!(world.landing_history(L), [saved(&world, 5, 2)]);
-    assert!(world.history(99).is_empty());
-    assert!(world.landing_history(99).is_empty());
+    assert_eq!(world.history(99), []);
+    assert_eq!(world.landing_history(99), []);
 }
 
 #[test]
@@ -66,8 +66,8 @@ fn skips_erased_events_without_losing_surviving_indexed_events() {
     assert_eq!(world.history(A), [saved(&world, 5, 2)]);
     assert_eq!(world.landing_history(L), [saved(&world, 5, 2)]);
     world.erase_history_event(5, 2);
-    assert!(world.history(A).is_empty());
-    assert!(world.landing_history(L).is_empty());
+    assert_eq!(world.history(A), []);
+    assert_eq!(world.landing_history(L), []);
 }
 
 fn project(world: &mut World, project: u32) {
@@ -77,6 +77,12 @@ fn project(world: &mut World, project: u32) {
     let mut row = row.clone();
     row.project = project;
     world.event(top::Event::Restore { record: top::Stored::Repository(row) });
+    // Each project's fixture starts with no last-event pointer into another project.
+    for task in [A, B] {
+        let mut row = world.change(task).clone();
+        row.history = None;
+        world.event(top::Event::Restore { record: top::Stored::Change(Box::new(row)) });
+    }
 }
 
 #[test]
