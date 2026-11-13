@@ -155,8 +155,12 @@ rule); an application names its own wires (temper's
   ) -> Result<List<Agreed>, Unfit>;
   ```
 
-  Its texts are the opening's, word for word, so a kept opening judged
-  by a new build says what that build's opening would refuse it with.
+  The opening runs the same code at its moments: the wires and the
+  output when the credential is read, the terms at the ready event, so
+  its refusals and their order are as before. `judge` runs all three in
+  that order over a whole statement. Its texts are the opening's, word
+  for word, so a kept opening judged by a new build says what that
+  build's opening would refuse it with.
   A floor below the current (temper's `draft/redeploys.md`, 3.3) is
   judged by the same function, through the ranges `Spoken` and the
   statement give.
