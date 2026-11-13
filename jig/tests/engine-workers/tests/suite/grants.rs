@@ -22,7 +22,7 @@ mod grants {
         };
         (world, connection, channel)
     }
-    fn codec() -> wire::v12::Limits {
+    fn codec() -> wire::v13::Limits {
         wire::sizes::limits(&fixtures::SIZES).expect("small codec")
     }
     fn received_assignment(world: &World, connection: Token) -> wire::Assignment {

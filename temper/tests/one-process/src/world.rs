@@ -160,6 +160,9 @@ pub(crate) type ServiceHost = temper_playground::service::ServiceHost<OneProcess
 impl Harness for OneProcess {
     type Service = ServiceObserver;
     type Process = HarnessProcess;
+    fn worker_wires() -> Option<temper_service::worker_settings::Wires> {
+        crate::across_versions::worker_wires()
+    }
     fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
         PATCH_SETS.with(std::cell::Cell::get)
     }
@@ -312,6 +315,7 @@ impl Observe for ServiceObserver {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
         while let Some(note) = service.notes().pop() {
+            crate::across_versions::note(&note);
             if let temper_service::Note::Engine(temper_engine_service::Note::Patched { of, patch, counts }) = &note {
                 self.patched.push((*of, *patch, *counts));
             }

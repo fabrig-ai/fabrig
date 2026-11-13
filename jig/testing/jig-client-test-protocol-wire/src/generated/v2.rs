@@ -32,6 +32,31 @@ pub const CEILINGS: Limits = Limits {
     client_document_deployment_outbox: 128,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 10] = [
+    "segment_bytes",
+    "resource_path_segments",
+    "effect_resources",
+    "description_resources",
+    "client_document_panel_resources",
+    "client_document_panel_effects",
+    "client_document_hold_resources",
+    "client_document_hold_effects",
+    "client_document_project_resources",
+    "client_document_deployment_outbox",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 10] {
+        [
+            self.segment_bytes, self.resource_path_segments, self.effect_resources, self.description_resources, self.client_document_panel_resources, self.client_document_panel_effects, self.client_document_hold_resources, self.client_document_hold_effects,
+            self.client_document_project_resources, self.client_document_deployment_outbox,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

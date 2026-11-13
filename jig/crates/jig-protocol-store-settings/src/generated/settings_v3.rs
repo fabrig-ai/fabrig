@@ -120,6 +120,80 @@ pub const CEILINGS: Limits = Limits {
     proposal_applications: 128,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 54] = [
+    "text_bytes",
+    "model_name_name",
+    "model_name_efforts",
+    "model_name_efforts_item",
+    "model_program_some",
+    "model_name",
+    "model_efforts",
+    "model_effort_some",
+    "run_policy_instructions",
+    "run_policy_alternatives",
+    "segment_bytes",
+    "document_name",
+    "document_path",
+    "document_heading_some",
+    "charter_part_instructions",
+    "charter_documents",
+    "charter_parts",
+    "overlay_alternatives_some",
+    "overlay_documents_some",
+    "overlay_instructions",
+    "overlay_parts",
+    "catalogue_model_shown_some",
+    "catalogue_model_description_some",
+    "last_exact_bytes",
+    "last_open_bytes",
+    "pattern_segments",
+    "delegation_kinds",
+    "authority_grants",
+    "authority_note_resources",
+    "rules_implies",
+    "rules_requirements",
+    "policy_projections",
+    "policy_roles",
+    "policy_requirements",
+    "configured_policy_permissions",
+    "configured_policy_templates",
+    "field_rule_name",
+    "verdict_fields",
+    "part_path_segments",
+    "approval_state",
+    "verdict_choices_choices",
+    "llm_later_subagents",
+    "llm_choice_subagents",
+    "template_name",
+    "template_resources",
+    "application_state_charters",
+    "default_models",
+    "changed_models",
+    "revision_models",
+    "revision_items",
+    "revision_applications",
+    "proposal_models",
+    "proposal_items",
+    "proposal_applications",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 54] {
+        [
+            self.text_bytes, self.model_name_name, self.model_name_efforts, self.model_name_efforts_item, self.model_program_some, self.model_name, self.model_efforts, self.model_effort_some,
+            self.run_policy_instructions, self.run_policy_alternatives, self.segment_bytes, self.document_name, self.document_path, self.document_heading_some, self.charter_part_instructions, self.charter_documents,
+            self.charter_parts, self.overlay_alternatives_some, self.overlay_documents_some, self.overlay_instructions, self.overlay_parts, self.catalogue_model_shown_some, self.catalogue_model_description_some, self.last_exact_bytes,
+            self.last_open_bytes, self.pattern_segments, self.delegation_kinds, self.authority_grants, self.authority_note_resources, self.rules_implies, self.rules_requirements, self.policy_projections,
+            self.policy_roles, self.policy_requirements, self.configured_policy_permissions, self.configured_policy_templates, self.field_rule_name, self.verdict_fields, self.part_path_segments, self.approval_state,
+            self.verdict_choices_choices, self.llm_later_subagents, self.llm_choice_subagents, self.template_name, self.template_resources, self.application_state_charters, self.default_models, self.changed_models,
+            self.revision_models, self.revision_items, self.revision_applications, self.proposal_models, self.proposal_items, self.proposal_applications,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

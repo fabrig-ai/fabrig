@@ -106,7 +106,9 @@ fn guards(schema: &Context<'_>, ty: &Type, value: &str, bound_name: &str, path: 
             }
             let suffix = if optional { "some" } else { "item" };
             let item_name = format!("{suffix}_{depth}");
-            let mut inner = guards(schema, item, &item_name, &format!("{bound_name}_{suffix}"), path, next);
+            let level = if optional { emit_limits::LimitLevel::Some } else { emit_limits::LimitLevel::Item };
+            let bound = emit_limits::child_name(bound_name, level);
+            let mut inner = guards(schema, item, &item_name, &bound, path, next);
             if optional && inner.len() == 1 && inner.first().is_some_and(|guard| !guard.condition.is_empty()) {
                 let guard = inner.first_mut().expect("one guard");
                 guard.condition = format!("let Some({item_name}) = {value}.as_ref() && {}", guard.condition);
@@ -132,7 +134,7 @@ fn guards(schema: &Context<'_>, ty: &Type, value: &str, bound_name: &str, path: 
 }
 
 fn emit_check(schema: &Context<'_>, record: &Record, field: &Field, out: &mut Vec<Statement>) {
-    let bound = format!("{}_{}", emit_limits::snake(&record.name), field.name);
+    let bound = emit_limits::bound_name(&record.name, &field.name);
     let path = format!("{}{}", record.name, emit_limits::pascal(&field.name));
     let value = format!("self.{}", field.name);
     out.extend(

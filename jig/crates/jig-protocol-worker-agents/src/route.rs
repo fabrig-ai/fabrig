@@ -143,13 +143,19 @@ pub fn decode(
     endpoints: &Endpoints,
     evidence: Evidence,
 ) -> Result<Box<smith::Start>, hub::Undecoded> {
-    version(&source.charter, smith_charter::wire::FAMILY, smith_charter::wire::VERSION)?;
+    version(
+        &source.charter,
+        smith_charter::wire::FAMILY,
+        first(smith_charter::patches::kept::smith_charter::TEXTS),
+        smith_charter::wire::VERSION,
+    )?;
     let Ok(charter) = smith_protocol_channel::decode_charter(&source.charter, &limits.charter, endpoints) else {
         return Err(hub::Undecoded::Charter);
     };
     let charter = smith::Charter::new(charter, host_limits.charter_bytes).ok_or(hub::Undecoded::Charter)?;
+    let first_turn = first(smith_transcript::patches::kept::smith_transcript::TEXTS);
     for turn in &source.turns {
-        version(turn, smith_transcript::wire::FAMILY, smith_transcript::wire::VERSION)?;
+        version(turn, smith_transcript::wire::FAMILY, first_turn, smith_transcript::wire::VERSION)?;
     }
     let piece = smith_protocol_channel::transcript_piece(&source.turns).ok_or(hub::Undecoded::Transcript)?;
     let transcript = match smith_protocol_channel::decode_transcript(
@@ -229,15 +235,15 @@ pub fn decode(
     }))
 }
 
-fn version(bytes: &[u8], wire: &str, current: u16) -> Result<(), hub::Undecoded> {
+fn version(bytes: &[u8], wire: &str, lowest: u16, current: u16) -> Result<(), hub::Undecoded> {
     let mut reader = Reader::new(bytes);
     if let Some(version) = reader.u16()
-        && version != current
+        && (version < lowest || version > current)
     {
         return Err(hub::Undecoded::Version(hub::Mismatch {
             wire: Box::from(wire.as_bytes()),
             version,
-            lowest: current,
+            lowest,
             highest: current,
         }));
     }
@@ -418,5 +424,27 @@ pub fn list_outcome(outcome: smith::ListOutcome) -> jig_domain_link::ListOutcome
             smith::ListFailure::Deadline => ListFailure::Deadline,
             smith::ListFailure::Agent => ListFailure::Agent,
         }),
+    }
+}
+
+fn first(texts: &[&str]) -> u16 {
+    skein_codec::schema::parse(texts.first().expect("kept family").as_bytes()).expect("kept schema").version()
+}
+
+#[cfg(test)]
+mod versions {
+    use super::{first, version};
+    #[test]
+    fn a_handout_version_refusal_names_first_kept_through_current() {
+        let range = version(&[0, 6], "smith-charter", first(smith_charter::patches::kept::smith_charter::TEXTS), 5);
+        assert_eq!(
+            range,
+            Err(jig_domain_host::Undecoded::Version(jig_domain_host::Mismatch {
+                wire: b"smith-charter".as_slice().into(),
+                version: 6,
+                lowest: 4,
+                highest: 5,
+            }))
+        );
     }
 }

@@ -29,6 +29,30 @@ pub const CEILINGS: Limits = Limits {
     public_landing_members: 8,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 9] = [
+    "public_change_gates",
+    "public_landing_line_members",
+    "public_landing_line_landed",
+    "public_queue_changes",
+    "public_landings_landings",
+    "public_landings_queues",
+    "public_judgement_gates",
+    "public_member_gates",
+    "public_landing_members",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 9] {
+        [
+            self.public_change_gates, self.public_landing_line_members, self.public_landing_line_landed, self.public_queue_changes, self.public_landings_landings, self.public_landings_queues, self.public_judgement_gates, self.public_member_gates,
+            self.public_landing_members,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

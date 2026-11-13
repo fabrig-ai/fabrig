@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use jig_domain_link::{Form, Grant};
 use skein_lib::{Duration, Reader};
-use smith_charter::v4 as wire;
+use smith_charter::v5 as wire;
 
 use crate::{
     Budget, Charter, Contract, EndpointName, Model, Prices, Reserve, Section, TextRule, Tool, ToolEffect, charter,

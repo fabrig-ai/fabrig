@@ -5,14 +5,14 @@ fn accepted_worker_lines_name_each_agreed_wire_in_statement_order() {
     use jig_protocol_worker_wire::Agreed;
     let wires = skein_lib::List::from_boxed(Box::new([
         Agreed { name: "jig-worker-wire", version: 10 },
-        Agreed { name: "smith-channel", version: 7 },
+        Agreed { name: "smith-pieces", version: 1 },
         Agreed { name: "smith-charter", version: 4 },
         Agreed { name: "smith-transcript", version: 7 },
         Agreed { name: "temper-worker-wire", version: 2 },
     ]));
     assert_eq!(
         note_line("custom", temper_engine_service::Note::WorkerOpened { worker: b"worker-a".as_slice().into(), wires }),
-        "custom serve: worker worker-a opened: jig-worker-wire 10, smith-channel 7, smith-charter 4, smith-transcript 7, temper-worker-wire 2\n"
+        "custom serve: worker worker-a opened: jig-worker-wire 10, smith-pieces 1, smith-charter 4, smith-transcript 7, temper-worker-wire 2\n"
     );
 }
 

@@ -26,6 +26,27 @@ pub const CEILINGS: Limits = Limits {
     notes_notes: 64,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 7] = [
+    "note_title",
+    "note_body",
+    "note_due",
+    "add_title",
+    "add_body",
+    "add_due",
+    "notes_notes",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 7] {
+        [
+            self.note_title, self.note_body, self.note_due, self.add_title, self.add_body, self.add_due, self.notes_notes,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

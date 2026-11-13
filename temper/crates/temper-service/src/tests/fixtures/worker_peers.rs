@@ -88,6 +88,7 @@ impl LinkPeer {
                     name: settings.jig.name.clone(),
                     digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
                 }]),
+                jig_protocol_worker_wire::spoken(),
                 {
                     let mut wires = List::with_capacity(1);
                     wires
@@ -97,7 +98,7 @@ impl LinkPeer {
                             temper_protocol_worker_wire::wire::layout(),
                         ))
                         .unwrap();
-                    wires
+                    jig_protocol_worker_wire::Application::opaque(wires)
                 },
             )
             .unwrap(),
