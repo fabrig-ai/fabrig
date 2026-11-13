@@ -20,7 +20,7 @@ You write a design draft and start a goal from it. Designers cut it into parts a
 ## 3. In parallel, kept together
 
 - Coding agents make parts in parallel, each in a slot on a worker. Add a worker or a slot to go faster; each worker keeps its checkouts cached.
-- Every part lands into the goal’s own branch, whose tests run along the way; main’s landings come in by catch-ups, so a goal never drifts far.
+- Every part lands into the goal’s own branch as one commit, and the branch’s tests run along the way; main comes in only when a part needs what it gained, and the goal meets main as it lands.
 - Questions go up only as far as they must: the goal’s agent, then you.
 
 ## 4. Landing many
