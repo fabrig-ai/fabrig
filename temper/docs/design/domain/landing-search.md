@@ -192,10 +192,12 @@ top dispatches, reads and writes for it as for the round's top.
   green prefix, each its change and pull request, in the stack's order.
 - **The ask** that carries them from the landing to each blamed change
   is the landing's repair ask (`landing.md`, 4.3), with the red prefix
-  as its candidate, the green prefix, and the green prefix's members,
-  each its change task and pull request number, at most
-  `forge.landing_members`; the change keeps them in its repair's why, so
-  that a brief made after a restart says the same.
+  as its candidate, the green prefix, and the green prefix's members in
+  the round, each its change task and pull request number: at most
+  four, since a blamed unit sits above them and `forge.landing_members`
+  is at most 5 (`../protocol/configuration/limits.md`). The change keeps
+  them with its repair, so that a brief made after a restart says the
+  same; a repair asked at the candidate of a round of one unit has none.
 - **Its words** open `Repair landing gate N at HEAD: failed at prefix
   RED above GREEN`, as the candidate's open `Repair landing gate N at
   HEAD: failed at landing candidate`, N the gate's number, HEAD, RED and
