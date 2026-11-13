@@ -27,12 +27,13 @@ merged into main brought, each key once. Each is dropped once fixed.
 - lint skein-http clippy::question_mark skein/crates/skein-http/src/server.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
 - lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
+- lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
 - lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
+- lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
 - lint temper-client-view clippy::disallowed_types temper/crates/temper-client-view/src/tests/task.rs
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
-- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain-forge clippy::disallowed_methods temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge clippy::needless_bool temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge clippy::needless_borrow temper/crates/temper-engine-domain-forge/src/landing.rs
@@ -43,7 +44,6 @@ merged into main brought, each key once. Each is dropped once fixed.
 - lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
 - lint temper-service clippy::assigning_clones temper/crates/temper-service/src/engine.rs
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
-- lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-worker-domain clippy::chunks_exact_to_as_chunks temper/crates/temper-worker-domain/src/jobs/prepare.rs
 
 - test skein-conformance-real::suite deadline::an_idle_listener_wait_fails_with_its_figures
