@@ -1656,12 +1656,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_eighteen() {
+fn embedded_client_refusals_keep_their_bytes_at_client_twenty() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v21::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 18);
+    assert_eq!(wire::CLIENT_VERSION, 20);
 }
 
 #[test]
@@ -1805,6 +1805,7 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
 
 fn landing_view() -> forge::LandingView {
     forge::LandingView {
+        probe: None,
         train: Some(forge::LandingTrain {
             repository: skein_forge::api::Repository { forge: 1, repository: 9 },
             owner: b"acme".as_slice().into(),
@@ -1861,6 +1862,45 @@ fn landing_view() -> forge::LandingView {
         }]),
     }
 }
+#[test]
+fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
+    let mut value = landing_view();
+    value.step = forge::LandingStep::Probing;
+    value.probe = Some([0x11; 32]);
+    value.round.upstream = Some([0x22; 32]);
+    value.round.search = Some(forge::LandingSearch { green: 0, red: 2 });
+    let mut red = value.members[0].clone();
+    red.change = 52;
+    red.candidate = Some([0x33; 32]);
+    red.left = None;
+    value.members[0].candidate = Some([0x11; 32]);
+    value.members[0].left = None;
+    value.members = Box::new([value.members[0].clone(), red]);
+    let bytes =
+        family::document(forge::Document::Landing(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let round = got.round().as_ref().unwrap();
+    assert_eq!(round.step(), &w::LandingStep::Probing);
+    let search = round.search().as_ref().expect("search in the client panel");
+    assert_eq!((search.green().member(), search.green().prefix()), (0, &[0x22; 32]));
+    assert_eq!((search.red().member(), search.red().prefix()), (2, &[0x33; 32]));
+    assert_eq!(search.probe(), &Some([0x11; 32]));
+    value.step = forge::LandingStep::Proving;
+    value.probe = None;
+    value.round.search = Some(forge::LandingSearch { green: 1, red: 2 });
+    value.members[1].candidate = None;
+    value.members[1].left = Some(forge::LandingLeave::Blamed { gate: 2, run: 7, red: [0x33; 32], green: [0x11; 32] });
+    let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
+        .expect("cut search still maps");
+    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
+    assert_eq!((search.green().member(), search.green().prefix()), (1, &[0x11; 32]));
+    assert_eq!(search.red().prefix(), &[0x33; 32]);
+    assert_eq!(search.probe(), &None);
+    let Some(w::LandingLeave::Blamed(blamed)) = got.members().get(1).unwrap().left() else { panic!("blamed member") };
+    assert_eq!((blamed.gate(), blamed.run(), blamed.red(), blamed.green()), (2, 7, &[0x33; 32], &[0x11; 32]));
+}
+
 #[test]
 fn a_landing_view_encodes_to_its_panel() {
     let mut forges = fixtures::forges();
@@ -2880,8 +2920,16 @@ fn changes_document_encodes_and_decodes() {
         more: 3,
         landed_more: 4,
         queues: Box::new([forge::ChangesQueue {
-            way: change::Way::Queue,
-            in_flight: None,
+            way: change::Way::Turn,
+            in_flight: Some(forge::TrainLanding {
+                task: 61,
+                member: 51,
+                round: 2,
+                step: forge::LandingStep::Probing,
+                probe: Some([0x33; 32]),
+                title: b"In flight".as_slice().into(),
+                ready_since: skein_lib::Wall::from_nanos(123),
+            }),
             repository: Box::from(b"acme/shop".as_slice()),
             branch: Box::from(b"main".as_slice()),
             red: true,
@@ -2890,14 +2938,12 @@ fn changes_document_encodes_and_decodes() {
                     task: 51,
                     title: Box::from(b"First".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(123),
-                    alone: false,
                     checks_since: Some(skein_lib::Wall::from_nanos(456)),
                 },
                 forge::ChangesQueued {
                     task: 52,
                     title: Box::from(b"Next".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(789),
-                    alone: false,
                     checks_since: None,
                 },
             ]),
@@ -2918,6 +2964,11 @@ fn changes_document_encodes_and_decodes() {
     assert_eq!(got.queues().len(), 1);
     let queue = got.queues().get(0).unwrap();
     assert_eq!((queue.repository(), queue.branch(), queue.red()), (b"acme/shop".as_slice(), b"main".as_slice(), true));
+    let flight = queue.in_flight().as_ref().expect("train's landing");
+    assert_eq!(
+        (flight.task(), flight.member(), flight.round(), flight.step(), flight.probe()),
+        (61, 51, 2, &w::LandingStep::Probing, &Some([0x33; 32]))
+    );
     assert_eq!(queue.changes().len(), 2);
     for (wire, domain) in queue.changes().iter().zip(value.queues[0].changes.iter()) {
         assert_eq!(
@@ -3552,7 +3603,6 @@ fn the_worst_small_changes_document_fits_its_decision() {
                     task: u64::from(task),
                     title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
                     ready_since: skein_lib::Wall::EPOCH,
-                    alone: false,
                     checks_since: Some(skein_lib::Wall::EPOCH),
                 }]),
             })

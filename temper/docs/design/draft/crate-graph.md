@@ -184,7 +184,7 @@ Under Cranelift (section 2), a test build of the workspace compiles crates' own 
 
 - **A test build compiles a library twice:** once as the library its dependents use, and again with `cfg(test)` and its own tests, as one test binary. A change to the crate or to its tests recompiles the second whole.
 - **So in a test build, a crate's size is its hand-written code and its own tests together,** which 7.3 bounds. Sections 4 and 5 cut it where it costs most. `jig-protocol-store`'s 116,000 generated lines leave its own tests for the codec crates' tests, which only a change of schema recompiles. Each split of section 5 halves a crate's own tests with it.
-- **Step tests stay step tests,** in the crate they test (`skein/docs/foundation/testing-strategy.md`, 2.1).
+- **Step tests stay step tests,** in the crate they test (`skein/docs/foundation/testing-strategy.md`, 2.1). A codec crate's generated tests are the exception: they test its public items from outside (`gate-compile.md`, 3.2).
 
 ### 6.3 Shared test code is a crate
 

@@ -175,6 +175,7 @@ pub(super) fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
     let landing = f::PublicLanding::new(
         &f::CEILINGS,
         f::PublicLandingParts {
+            search: None,
             combined: None,
             step: None,
             phase: f::PublicLandingPhase::Landed,
@@ -226,6 +227,7 @@ pub(super) fn landing_commits(
     let landing = f::PublicLanding::new(
         &f::CEILINGS,
         f::PublicLandingParts {
+            search: None,
             combined: None,
             step: None,
             phase: f::PublicLandingPhase::Landed,
@@ -239,6 +241,64 @@ pub(super) fn landing_commits(
     .expect("landing");
     let mut writer = Writer::new(usize::try_from(landing.measure()).expect("small landing"));
     landing.encode(&mut writer).expect("landing");
+    application(writer.finish())
+}
+pub(super) fn searching_landing() -> Box<[u8]> {
+    let member = f::PublicMember::new(
+        &f::CEILINGS,
+        f::PublicMemberParts {
+            task: 0,
+            head: None,
+            base: None,
+            candidate: None,
+            landed: None,
+            gates: List::with_capacity(0),
+            judgement: None,
+            left: Some(f::PublicLeave::Blamed(
+                f::PublicBlamed::new(
+                    &f::CEILINGS,
+                    f::PublicBlamedParts { gate: 3, red: [0x33; 32], green: [0x22; 32] },
+                )
+                .unwrap(),
+            )),
+        },
+    )
+    .unwrap();
+    let landing = f::PublicLanding::new(
+        &f::CEILINGS,
+        f::PublicLandingParts {
+            phase: f::PublicLandingPhase::Proving,
+            hold: None,
+            preparation: 1,
+            members: List::from_boxed(Box::new([member])),
+            stale_proofs: 0,
+            holds_turn: false,
+            combined: None,
+            step: Some(f::PublicLandingStep::Probing),
+            search: Some(
+                f::PublicSearch::new(
+                    &f::CEILINGS,
+                    f::PublicSearchParts {
+                        green: f::PublicSearchBound::new(
+                            &f::CEILINGS,
+                            f::PublicSearchBoundParts { member: 0, prefix: [0x22; 32] },
+                        )
+                        .unwrap(),
+                        red: f::PublicSearchBound::new(
+                            &f::CEILINGS,
+                            f::PublicSearchBoundParts { member: 3, prefix: [0x33; 32] },
+                        )
+                        .unwrap(),
+                        probe: Some([0x11; 32]),
+                    },
+                )
+                .unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    let mut writer = Writer::new(usize::try_from(landing.measure()).unwrap());
+    landing.encode(&mut writer).unwrap();
     application(writer.finish())
 }
 pub(super) fn projects() -> Box<[u8]> {

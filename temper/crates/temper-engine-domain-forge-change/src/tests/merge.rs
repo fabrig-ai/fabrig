@@ -230,6 +230,7 @@ fn a_catch_up_already_contained_ends_with_no_change() {
 
 /// A contained pushed head ends only when no work or hold stands (temper/docs/design/domain/forge/change/README.md, 2).
 #[test]
+#[expect(clippy::large_stack_arrays, reason = "the phase table carries facts with bounded Copy repair context")]
 fn a_pushed_head_already_contained_ends_with_no_change() {
     let mut sha1 = [0; 32];
     sha1.get_mut(..20).expect("SHA-1 width").fill(0xab);

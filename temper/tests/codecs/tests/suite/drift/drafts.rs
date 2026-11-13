@@ -32,7 +32,7 @@ pub(super) fn goldens() -> Vec<Golden> {
         for (change, chat, name) in
             [(0, true, "ready_chat"), (0, false, "ready"), (1, false, "not_ready"), (2, false, "started")]
         {
-            let mut value = 18_u16.to_be_bytes().to_vec();
+            let mut value = 20_u16.to_be_bytes().to_vec();
             value.push(17); // Request::set_draft, after try_account
             value.extend(3_u32.to_be_bytes());
             value.push(u8::from(repository));
@@ -54,19 +54,19 @@ pub(super) fn goldens() -> Vec<Golden> {
         }
     }
     let row = landed();
-    let mut drafted = vec![0, 18, 27]; // Answer::drafted, after not_theirs
+    let mut drafted = vec![0, 20, 27]; // Answer::drafted, after not_theirs
     drafted.extend(&row);
     out.push(golden("answer_drafted", drafted));
     for (tag, name) in
         ["no_repository", "path", "missing", "not_a_file", "unreachable", "unknown", "full"].iter().enumerate()
     {
-        out.push(golden(&format!("answer_{name}"), vec![0, 18, 28, u8::try_from(tag).expect("refusal tag")]));
+        out.push(golden(&format!("answer_{name}"), vec![0, 20, 28, u8::try_from(tag).expect("refusal tag")]));
     }
-    let mut watch = vec![0, 18, 12]; // Watch::drafts, after ways
+    let mut watch = vec![0, 20, 12]; // Watch::drafts, after ways
     watch.extend(3_u32.to_be_bytes());
     out.push(golden("watch", watch));
     for (count, name) in [(0_u32, "smallest"), (64, "full")] {
-        let mut panel = 18_u16.to_be_bytes().to_vec();
+        let mut panel = 20_u16.to_be_bytes().to_vec();
         panel.extend(3_u32.to_be_bytes());
         panel.extend(count.to_be_bytes());
         for _ in 0..count {
