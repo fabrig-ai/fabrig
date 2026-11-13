@@ -166,6 +166,8 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Follow(_)
             | d::Stored::Tier(_)
             | d::Stored::ProjectFacts(_)
+            | d::Stored::Red(_)
+            | d::Stored::RedNumber { .. }
             | d::Stored::Device(_)
             | d::Stored::LandedDraft(_)
             | d::Stored::Away(_)

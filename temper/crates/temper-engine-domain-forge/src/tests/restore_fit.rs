@@ -231,6 +231,16 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             goal: None,
             reason: None,
         }),
+        RecordKind::Red => Stored::Red(Red {
+            goal: n,
+            key: b"test a::t x".as_slice().into(),
+            head: Box::new([1; 20]),
+            why: b"inherited".as_slice().into(),
+            by: Recorder::Task(n),
+            at: 0,
+            generation: n,
+        }),
+        RecordKind::RedNumber => Stored::RedNumber { last: n },
         RecordKind::Client => panic!("no own table"),
     }
 }

@@ -233,3 +233,131 @@ fn branch_heads_free_exactly_the_unneeded_subset() {
         assert!(freed.is_empty(), "all erasures, seed {seed}");
     }
 }
+
+/// A small independent live-record oracle (domain/forge/reds.md, 8).
+#[test]
+#[expect(clippy::too_many_lines, reason = "one seeded oracle compares writes, ends, releases and every live goal read")]
+fn goal_reds_remain_bounded_unique_ordered_and_live_under_random_writes_and_releases() {
+    use crate::{Event, Limits, Red, RedRecorded, RedRefusal, ReleaseEnding, Request, Stored};
+    use skein_lib::{Map, Queue, Set};
+    for seed in 0..128 {
+        let mut rng = Rng::new(seed);
+        let mut env = tests::env();
+        env.limits = Limits { branch_reds: 2, ..env.limits };
+        let mut d = tests::domain_with_limits(&env.limits);
+        tests::outputs(&mut d, Event::Restore { record: Stored::Repository(tests::adopted()) });
+        let mut live = Set::with_capacity(3);
+        let mut model: Map<(u64, Box<[u8]>), Red> = Map::with_capacity(6);
+        let mut last = 0_u64;
+        for goal in 7..10 {
+            tests::reds::take(&mut d, &env.limits, goal);
+            live.insert(goal).unwrap();
+        }
+        for _ in 0_u32..128 {
+            let goal = rng.between(7, 9);
+            let key = skein_lib::Decimal::of(rng.below(4)).as_bytes().into();
+            let address = (goal, key);
+            let mut out = Queue::uncapped();
+            match rng.below(4) {
+                0 | 1 => {
+                    let mut held = 0_u32;
+                    for ((owner, _), _) in &model {
+                        if *owner == goal {
+                            held += 1;
+                        }
+                    }
+                    let replaced = model.get(&address).cloned();
+                    let mut call = tests::reds::call(goal, &address.1);
+                    call.at = rng.next_u64();
+                    call.head = Box::new([u8::try_from(rng.below(256)).unwrap(); 32]);
+                    let result = d.record_red(&env.limits, call.clone(), &mut out);
+                    if !live.contains(&goal) {
+                        assert_eq!(result, Err(RedRefusal::NoGoal), "seed {seed}");
+                        assert!(out.is_empty());
+                    } else if replaced.is_none() && held == 2 {
+                        assert_eq!(result, Err(RedRefusal::Full { bound: 2 }), "seed {seed}");
+                        assert!(out.is_empty());
+                    } else {
+                        last += 1;
+                        assert_eq!(result, Ok(RedRecorded { generation: last, replaced }), "seed {seed}");
+                        let row = Red {
+                            goal,
+                            key: call.key,
+                            head: call.head,
+                            why: call.why,
+                            by: call.by,
+                            at: call.at,
+                            generation: last,
+                        };
+                        model.insert(address, row.clone()).unwrap();
+                        assert_eq!(
+                            out.pop(),
+                            Some(Request::Save { record: Stored::Red(row), release: None, read_afresh: None })
+                        );
+                        assert_eq!(
+                            out.pop(),
+                            Some(Request::Save {
+                                record: Stored::RedNumber { last },
+                                release: None,
+                                read_afresh: None
+                            })
+                        );
+                        assert!(out.is_empty());
+                    }
+                }
+                2 => {
+                    let expected = if live.contains(&goal) {
+                        model.remove(&address).ok_or(RedRefusal::NoSuch)
+                    } else {
+                        Err(RedRefusal::NoGoal)
+                    };
+                    assert_eq!(d.end_red(goal, &address.1, &mut out), expected, "seed {seed}");
+                }
+                3 => {
+                    if live.remove(&goal) {
+                        tests::outputs(
+                            &mut d,
+                            Event::Release {
+                                task: goal,
+                                root: goal,
+                                ending: ReleaseEnding::Cancelled,
+                                reason: None,
+                                entry: 22,
+                            },
+                        );
+                        for key in 0..4 {
+                            model.remove(&(goal, skein_lib::Decimal::of(key).as_bytes().into()));
+                        }
+                    } else {
+                        tests::reds::take(&mut d, &env.limits, goal);
+                        live.insert(goal).unwrap();
+                    }
+                }
+                _ => unreachable!("four acts"),
+            }
+            for goal in 7..10 {
+                let mut previous: Option<&[u8]> = None;
+                let mut count = 0_u32;
+                for (_, row) in d.reds(goal) {
+                    assert!(live.contains(&goal), "seed {seed}: released goal");
+                    assert_eq!(row.goal, goal, "seed {seed}: goal-local read");
+                    if let Some(previous) = previous {
+                        assert!(previous < row.key.as_ref(), "seed {seed}: unique ordered keys");
+                    }
+                    previous = Some(&row.key);
+                    assert_eq!(Some(row), model.get(&(goal, row.key.clone())), "seed {seed}");
+                    assert!(row.generation <= last);
+                    count += 1;
+                }
+                let mut expected = 0_u32;
+                for ((owner, _), _) in &model {
+                    if *owner == goal {
+                        expected += 1;
+                    }
+                }
+                assert_eq!(count, expected, "seed {seed}: complete read");
+                assert!(count <= 2, "seed {seed}: per-goal bound");
+            }
+        }
+    }
+}

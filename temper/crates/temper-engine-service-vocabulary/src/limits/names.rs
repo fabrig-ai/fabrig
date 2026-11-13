@@ -129,6 +129,18 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.changes_landed" => limits.forge.changes_landed = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.landings_kept" => limits.forge.landings_kept = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.landings" => limits.forge.landings = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.branch_reds" => {
+            if value == 0 || value > 1024 {
+                return Err(Refused::Range);
+            }
+            limits.forge.branch_reds = u32::try_from(value).or(Err(Refused::Range))?;
+        }
+        b"forge.red_key_bytes" => {
+            if value == 0 || value > 1024 {
+                return Err(Refused::Range);
+            }
+            limits.forge.red_key_bytes = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"forge.findings_per_project" => {
             limits.forge.findings_per_project = u32::try_from(value).or(Err(Refused::Range))?;
         }
@@ -337,7 +349,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 185] = [
+pub static NAMES: [Name; 187] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -709,6 +721,18 @@ pub static NAMES: [Name; 185] = [
         unit: Unit::Count,
         line: "Bounds live landing procedure rows.",
         value: |limits| u64::from(limits.forge.landings),
+    },
+    Name {
+        name: "forge.branch_reds",
+        unit: Unit::Count,
+        line: "Bounds the reds held by a goal.",
+        value: |limits| u64::from(limits.forge.branch_reds),
+    },
+    Name {
+        name: "forge.red_key_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a goal red's key.",
+        value: |limits| u64::from(limits.forge.red_key_bytes),
     },
     Name {
         name: "forge.findings_per_project",

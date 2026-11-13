@@ -310,6 +310,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.aways.capacity(),
             d.aways.contains_key(&(row.party, row.project)),
         ),
+        Stored::Red(row) => {
+            let replacing = d.reds.contains_key(&(row.goal, row.key.clone()));
+            let held = u32::try_from(d.reds(row.goal).count()).expect("bounded reds");
+            room(K::Red, Rows(K::Red), held, l.branch_reds, replacing)?;
+            room(K::Red, Rows(K::Red), d.reds.len(), d.reds.capacity(), replacing)
+        }
+        Stored::RedNumber { .. } => room(K::RedNumber, Rows(K::RedNumber), u32::from(d.red_number.is_some()), 1, false),
         Stored::Finding(row) => {
             let replacing = d.finding_rows().contains_key(&(row.project, row.number));
             let mut held = 0_u32;
