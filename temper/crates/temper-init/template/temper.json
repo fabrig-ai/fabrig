@@ -195,7 +195,7 @@
       "secret": "worker.secret",
       "slots": 4,
       "graces": {
-        "grace_ms": 60000,
+        "grace_ms": 300000,
         "agent_stop_ms": 5000,
         "delivery_ms": 1000,
         "save_ms": 1000

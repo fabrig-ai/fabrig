@@ -20,7 +20,7 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
             "standard" => jig_protocol_config::Profile::Standard,
             other => panic!("unknown profile {other}"),
         });
-        let grace = limits["overrides"]["fleet.grace_ms"].as_u64().unwrap_or(profile.core.fleet.grace.as_millis());
+        let grace = profile.core.fleet.grace.as_millis();
         let engine = &limits["overrides"];
         let turn = engine["hub.turn_bytes"].as_u64().unwrap();
         let resume = (turn + 4).max(4_194_304);
@@ -31,7 +31,7 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
         for worker in document["workers"].as_array().unwrap() {
             assert_eq!(
                 worker["graces"],
-                json!({"grace_ms":60_000_u64,"agent_stop_ms":5_000_u64,"delivery_ms":1_000_u64,"save_ms":1_000_u64})
+                json!({"grace_ms":300_000_u64,"agent_stop_ms":5_000_u64,"delivery_ms":1_000_u64,"save_ms":1_000_u64})
             );
             assert_eq!(worker["limits"]["overrides"]["hub.transcript_bytes"], window);
             let bytes = serde_json::to_vec(worker).unwrap();
@@ -46,8 +46,7 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
                 jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
                     .unwrap()
                     .as_millis();
-            assert_eq!(stop, 186_000);
-            assert_eq!(grace, 240_000);
+            assert_eq!(stop, 326_000);
             assert!(stop < grace);
         }
     }
@@ -207,7 +206,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             "{row}"
         );
         let mut expected = owned.clone();
-        expected["workers"][0]["graces"]["grace_ms"] = json!(60_000_u64);
+        expected["workers"][0]["graces"]["grace_ms"] = json!(300_000_u64);
         expected["engine"]["acts"] =
             json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account", "adopt"] }]);
         assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);

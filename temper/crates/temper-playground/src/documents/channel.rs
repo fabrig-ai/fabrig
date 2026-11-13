@@ -83,7 +83,7 @@ pub(super) const WORKER_DOCUMENT: &[u8] = br#"{
 "workers":[{
 "engine":{"socket":"127.0.0.1:7200"},"name":"worker-a","secret":"worker.secret","slots":1,
 "programs":{"check_interval_ms":60000},
-"graces":{"grace_ms":60000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
+"graces":{"grace_ms":300000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000},
 "agent":{"program":"agent-program","configuration":"agent.json","arguments":["agent"]},
 "limits":{"profile":"small","overrides":{"hub.slots":1,"hub.run_calls":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}},
 "memory_bytes":1152921504606846976
