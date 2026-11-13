@@ -11,6 +11,7 @@ mod landing;
 mod landing_judgement;
 mod landing_leaving;
 mod landing_rounds;
+mod member_message;
 mod memory;
 mod protection;
 mod public;
@@ -26,6 +27,7 @@ mod writer;
 mod fuzzy {
     mod branch_patterns;
     mod gate_keys;
+    mod member_message;
     mod pull_cutoff;
     mod rules_by_path;
     mod simulation;

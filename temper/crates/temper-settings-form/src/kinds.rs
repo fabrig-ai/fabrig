@@ -117,7 +117,6 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     };
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
-#[expect(clippy::too_many_lines, reason = "each settings kind decodes and measures its own record")]
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
     if kind == 14 || kind == 15 {
         return area_value(d, at, kind);
