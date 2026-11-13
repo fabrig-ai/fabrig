@@ -40,6 +40,7 @@ pub(super) fn facts() -> Facts {
             triager: Some(owner_task(52)),
             holder: holder_task(52),
         }),
+        follows: List::with_capacity(0),
         roles: List::from_boxed(Box::new([team::Role {
             task: 52,
             name: b"Prover".as_slice().into(),
