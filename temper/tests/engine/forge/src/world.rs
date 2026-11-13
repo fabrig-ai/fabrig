@@ -650,7 +650,7 @@ impl World {
             to_top: Queue::with_capacity(32),
             top_out: Queue::uncapped(),
             pending: Map::with_capacity(32),
-            stored: Map::with_capacity(128),
+            stored: Map::with_capacity(1024),
             seen: List::with_capacity(256),
             serial: 0,
             generation: 1,

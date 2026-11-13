@@ -1273,7 +1273,7 @@ fn advance(
                 None => None,
             };
             let flight = d.landing.flights.get(&key).expect("observed flight").clone();
-            let verdict = match &ended {
+            let mut verdict = match &ended {
                 Some(ended) => match ended.outcome {
                     policy::Verdict::Passed => Some(crate::history::GateVerdict::Passed),
                     policy::Verdict::Failed => Some(crate::history::GateVerdict::Failed),
@@ -1282,9 +1282,20 @@ fn advance(
                 },
                 None => None,
             };
+            for entry in &row.entries {
+                if entry.entry == flight.entry {
+                    let member = row.landing.members.get(usize::from(entry.member)).expect("flight member");
+                    let fresh = p.facts.get(usize::from(entry.member)).expect("fresh flight member");
+                    if member.head != Some(fresh.head) {
+                        verdict = Some(crate::history::GateVerdict::Superseded);
+                    }
+                }
+            }
             let mut observed = row.clone();
             crate::landing_proofs::run(d, env, &mut observed, &flight, verdict, out);
-            if observed.entries != row.entries { save(d, observed, out); }
+            if observed.entries != row.entries {
+                save(d, observed, out);
+            }
             if previous_run != current_run {
                 mark_key(d, &key, out);
             }
@@ -2147,7 +2158,8 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     }
     let decision = stepped.decision;
     crate::landing_proofs::search(d, env.wall, &prior, &row, out);
-    if (row.landing.round.ending.is_some() && prior.landing.round.ending.is_none()
+    if (row.landing.round.ending.is_some()
+        && prior.landing.round.ending.is_none()
         && row.landing.round.ending != Some(policy::RoundEnd::Cut))
         || (row.landing.phase == policy::Phase::Cancelled && prior.landing.phase != policy::Phase::Cancelled)
     {
@@ -2587,10 +2599,15 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         }
         policy::Decision::None | policy::Decision::Stale | policy::Decision::Cancel | policy::Decision::Hold(_) => {}
     }
-    if row.landing.preparation != prior.landing.preparation {
+    if row.landing.preparation != prior.landing.preparation
+        || row.landing.phase == policy::Phase::Landed
+        || row.landing.phase == policy::Phase::Cancelled
+    {
         let mut entries = List::with_capacity(d.landing.limits.entries);
         for entry in &row.entries {
-            if d.entries.contains_key(&entry.entry) { entries.push(*entry).expect("live entries"); }
+            if d.entries.contains_key(&entry.entry) {
+                entries.push(*entry).expect("live entries");
+            }
         }
         row.entries = entries.into_boxed();
     }
@@ -2681,10 +2698,14 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     };
     emit(out, Request::LandingDecision { task: p.task, decision, entry: committed, evidence });
 }
-#[expect(clippy::too_many_arguments, reason = "one round's terminal observations join its state transition")]
 fn end_runs(
-    d: &mut Domain, env: &Env<Limits>, prior: &LandingRow, row: &mut LandingRow,
-    verdict: crate::history::GateVerdict, only: Option<(u16, u16)>, out: &mut Queue<Request>,
+    d: &mut Domain,
+    env: &Env<Limits>,
+    prior: &LandingRow,
+    row: &mut LandingRow,
+    verdict: crate::history::GateVerdict,
+    only: Option<(u16, u16)>,
+    out: &mut Queue<Request>,
 ) {
     let mut flights = List::with_capacity(d.landing.limits.entries);
     for (_, flight) in &d.landing.flights {
@@ -2697,14 +2718,21 @@ fn end_runs(
         let mut concerns = false;
         for entry in &observed.entries {
             if entry.entry == flight.entry && entry.run.is_some() {
-                concerns = match only { Some(position) => position == (entry.member, entry.gate), None => true };
+                concerns = match only {
+                    Some(position) => position == (entry.member, entry.gate),
+                    None => true,
+                };
             }
         }
-        if concerns { crate::landing_proofs::run(d, env, &mut observed, &flight, Some(verdict), out); }
+        if concerns {
+            crate::landing_proofs::run(d, env, &mut observed, &flight, Some(verdict), out);
+        }
     }
     for entry in &mut row.entries {
         for old in &observed.entries {
-            if entry.entry == old.entry { entry.run = old.run; }
+            if entry.entry == old.entry {
+                entry.run = old.run;
+            }
         }
     }
 }
@@ -2974,7 +3002,9 @@ fn finish_flight(d: &mut Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
             if d.entries.remove(&entry.entry).is_some() {
                 emit(out, Request::Erase { key: Key::Entry(entry.entry) });
             }
-            if entry.run.is_some() { entries.push(*entry).expect("bounded observations"); }
+            if entry.run.is_some() {
+                entries.push(*entry).expect("bounded observations");
+            }
         } else {
             entries.push(*entry).expect("bounded entries");
         }
@@ -3084,7 +3114,9 @@ pub(crate) fn outcome(
     if status != policy::Status::Pending && item.operation != Operation::Dispatch && item.operation != Operation::Rerun
     {
         let mut row = d.landing.rows.get(&task).expect("landing effect").clone();
-        if status == policy::Status::Passed { crate::landing_proofs::made(d, env.wall, &row, item, out); }
+        if status == policy::Status::Passed {
+            crate::landing_proofs::made(d, env.wall, &row, item, out);
+        }
         let mut entries = List::with_capacity(d.landing.limits.entries);
         for old in &row.entries {
             if old.entry != entry {
@@ -3892,11 +3924,11 @@ impl Domain {
     }
 }
 /// A refused entry never reaches the client and is observed as failed next step.
-pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
+pub(crate) fn veto(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     if !matches_entry(d, task, entry) {
         return;
     }
-    outcome(d, entry, skein_forge_client::Outcome::Failed(api::Error::Refused), out);
+    outcome(d, env, entry, skein_forge_client::Outcome::Failed(api::Error::Refused), out);
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
     if let Some(mut row) = d.landing.rows.get(&task).cloned() {

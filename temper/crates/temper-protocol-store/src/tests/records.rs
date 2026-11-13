@@ -1363,7 +1363,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                     },
                     asks: Box::new([ask]),
                     entries: Box::new([forge::LandingEntry {
-                        run: None,
+                        run: Some(forge::LandingRun { id: 23, attempt: 2, ended: true }),
                         preparation: Some(2),
                         base: Some([5; 32]),
                         entry: 7,
