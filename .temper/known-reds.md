@@ -78,3 +78,9 @@ merged into main brought, each key once. Each is dropped once fixed.
 - lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
 - lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
 - lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
+
+- lint temper-engine-domain-world clippy::similar_names temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/role.rs
+- lint temper-engine-domain-world clippy::large_types_passed_by_value temper/tests/engine/domain/tests/suite/forge_routes/catch_up.rs
+- lint temper-engine-domain-world clippy::assert_is_empty temper/tests/engine/domain/tests/suite/forge_routes/squash_in.rs
+- lint temper-engine-domain-world clippy::assert_is_empty temper/tests/engine/domain/tests/suite/forge_routes/red_findings/follows.rs
+- lint temper-engine-domain-world clippy::unwrap_used temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/tool.rs
