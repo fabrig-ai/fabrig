@@ -1,4 +1,4 @@
-//! Version-six kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
+//! Version-eight kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
 
 use alloc::boxed::Box;
 

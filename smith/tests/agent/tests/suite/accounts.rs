@@ -94,6 +94,7 @@ fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failu
     let mut world = World::with_workspace_scripts_start(settings, Checkout::new(), scripts, start);
     world.fail_calls(failures, failure, RESPONSE_401);
     world.failure_report(llm::Report {
+        status: None,
         code: b"invalid-credential".as_slice().into(),
         request: b"request-401".as_slice().into(),
         field: Box::default(),
@@ -166,6 +167,7 @@ fn nonrenewable_401_count_proof() {
                     model: 0,
                     attempts: u32::try_from(expected.0).expect("bounded attempts"),
                     report: run::Report {
+                        status: None,
                         code: b"invalid-credential".as_slice().into(),
                         request: b"request-401".as_slice().into(),
                         field: Box::default(),

@@ -35,7 +35,7 @@ pub fn failed(
         failure,
         evidence,
         detail,
-        report: llm::Report { code: report.code, request: report.request, field: report.field },
+        report: llm::Report { status: None, code: report.code, request: report.request, field: report.field },
     }))
 }
 

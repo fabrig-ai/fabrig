@@ -2226,7 +2226,12 @@ fn a_refused_account_raises_one_notice_with_its_reason() {
         failure: crate::llm::Failure::Refused,
         evidence: crate::llm::Evidence::Unknown,
         detail: bytes(b"provider reason"),
-        report: crate::llm::Report { code: bytes(b"not-eligible"), request: Box::default(), field: Box::default() },
+        report: crate::llm::Report {
+            status: None,
+            code: bytes(b"not-eligible"),
+            request: Box::default(),
+            field: Box::default(),
+        },
     }));
     let notices = account_notices(&emitted).into_boxed();
     assert_eq!(
