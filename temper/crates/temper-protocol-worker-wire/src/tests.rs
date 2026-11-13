@@ -1,5 +1,6 @@
 //! Domain bounds and identity field rules (protocol/channel.md, sections 6 and 8).
 mod fixtures;
+mod application;
 use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::List;

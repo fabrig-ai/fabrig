@@ -7,15 +7,12 @@ fn the_link_s_credential_names_temper_s_wire() {
     let settings = fixtures::worker_settings();
     let files = fixtures::worker_files();
     let secret = files.contents(&settings.jig.secret).unwrap();
-    let credential = worker_settings::credential(&settings, secret);
+    let payload = worker_settings::payload_limits(&fixtures::worker_limits()).unwrap();
+    let credential = worker_settings::credential(&settings, secret, &payload).unwrap();
     assert_eq!(credential.application.spoken.len(), 1);
     assert_eq!(
         credential.application.spoken.get(0),
-        Some(&jig_protocol_worker_wire::Spoken::current(
-            temper_protocol_worker_wire::wire::FAMILY,
-            temper_protocol_worker_wire::wire::VERSION,
-            temper_protocol_worker_wire::wire::layout()
-        ))
+        Some(&temper_protocol_worker_wire::spoken())
     );
     assert_eq!(credential.secret.expose(), b"worker-secret-value");
     assert_eq!(credential.name.as_ref(), b"worker-a");
