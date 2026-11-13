@@ -857,9 +857,14 @@ pub enum ChangeWord {
     LeftRefused,
     LeftFailed,
     RunnerFaults,
+    Probing,
+    ProbingAt,
+    SearchGreen,
+    SearchRed,
+    LeftBlamed,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 130] = [
+pub const CHANGES: [ChangeRow; 135] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -994,6 +999,11 @@ pub const CHANGES: [ChangeRow; 130] = [
     (ChangeWord::LeftRefused, &[b"Left: judgement refused by gate ", b""], &[Number]),
     (ChangeWord::LeftFailed, &[b"Left: gate ", b" failed"], &[Number]),
     (ChangeWord::RunnerFaults, &[b"Runner faults: ", b""], &[Number]),
+    (ChangeWord::Probing, &[b"probing"], &[]),
+    (ChangeWord::ProbingAt, &[b"probing at ", b""], &[Name]),
+    (ChangeWord::SearchGreen, &[b"Search: green member ", b" at ", b""], &[Number, Name]),
+    (ChangeWord::SearchRed, &[b"Search: red member ", b" at ", b""], &[Number, Name]),
+    (ChangeWord::LeftBlamed, &[b"Left: blamed by gate ", b", red at ", b", green at ", b""], &[Number, Name, Name]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -1023,7 +1033,14 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
                 1024
             }
         }
-        ChangeWord::RoundHead | ChangeWord::PrefixJudgement => 64,
+        ChangeWord::RoundHead | ChangeWord::PrefixJudgement | ChangeWord::ProbingAt => 64,
+        ChangeWord::SearchGreen | ChangeWord::SearchRed | ChangeWord::LeftBlamed => {
+            if index == 0 {
+                0
+            } else {
+                64
+            }
+        }
         ChangeWord::Repository => {
             if index == 0 {
                 513
@@ -1051,6 +1068,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::Leaving
         | ChangeWord::Recording
         | ChangeWord::Telling
+        | ChangeWord::Probing
         | ChangeWord::Cancelled
         | ChangeWord::Proved
         | ChangeWord::LeftConflict

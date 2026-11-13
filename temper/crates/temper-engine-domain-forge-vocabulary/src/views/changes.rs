@@ -29,6 +29,7 @@ pub struct TrainLanding {
     pub member: u64,
     pub round: u16,
     pub step: super::LandingStep,
+    pub probe: Option<[u8; 32]>,
     pub title: Box<[u8]>,
     pub ready_since: Wall,
 }

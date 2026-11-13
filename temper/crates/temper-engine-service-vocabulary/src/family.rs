@@ -1719,6 +1719,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             Some(wire::dismissals(&document))
         }
         forge::Document::Landing(value) => {
+            let search = if value.round.search.is_some() { Some(landing_views::search(&value, limits)?) } else { None };
             let hold = landing_views::hold(&value.phase, limits);
             let train = match value.train {
                 Some(train) => Some(landing_views::train(train, limits)?),
@@ -1744,6 +1745,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     w::LandingRound::new(
                         limits,
                         w::LandingRoundParts {
+                            search,
                             number: value.preparation,
                             branch: value.round.branch,
                             pull,
@@ -1977,6 +1979,7 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                                 w::TrainLanding::new(
                                     limits,
                                     w::TrainLandingParts {
+                                        probe: value.probe,
                                         task: value.task,
                                         member: value.member,
                                         round: value.round,

@@ -50,6 +50,7 @@ pub struct LandingView {
     pub train: Option<LandingTrain>,
     pub round: policy::Round,
     pub step: LandingStep,
+    pub probe: Option<[u8; 32]>,
 }
 /// A train is one repository and landing branch (domain/landing.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -74,6 +75,7 @@ pub enum LandingStep {
     Leaving,
     Recording,
     Telling,
+    Probing,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PrefixJudgement {
