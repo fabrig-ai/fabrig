@@ -457,7 +457,7 @@ fn memory_env(limits: skein_kv::Limits) -> Env<skein_kv::Limits> {
 pub use jig_protocol_store_core::core_v6;
 pub use jig_protocol_store_families::accounts_v2;
 pub use jig_protocol_store_families::notes_v1;
-pub use jig_protocol_store_people::{people_v16, people_v17};
+pub use jig_protocol_store_people::people_v17;
 pub use jig_protocol_store_tasks::tasks_v12;
 pub mod keys;
 mod openings;
