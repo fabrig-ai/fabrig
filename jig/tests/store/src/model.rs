@@ -30,7 +30,7 @@ impl Model {
         self.prefixes.retain(|staged, _| *staged < number);
         for write in writes {
             match write {
-                Write::Wires => {}
+                Write::Wires | Write::Opening(_) => {}
                 Write::Save(core::Record::Core(core::CoreRecord::Turn(turn))) => {
                     state.turns.entry(turn.task).or_default().push(turn.clone());
                 }

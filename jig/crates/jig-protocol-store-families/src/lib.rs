@@ -18,3 +18,7 @@ pub mod notes_v1;
 #[rustfmt::skip]
 #[path = "generated/secrets_v1.rs"]
 pub mod secrets_v1;
+
+#[rustfmt::skip]
+#[path = "generated/openings_v1.rs"]
+pub mod openings_v1;

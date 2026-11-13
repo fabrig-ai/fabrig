@@ -67,10 +67,10 @@ fn another_family_is_refused_naming_the_first_difference() {
         );
     }
 }
-fn a_key_limit_below_the_largest_note_line_is_refused() {
+fn a_key_limit_below_the_largest_opening_is_refused() {
     let mut limits = store();
-    limits.key = 111;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Key { needs: 112, has: 111 }));
+    limits.key = 515;
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Key { needs: 516, has: 515 }));
 }
 fn a_value_limit_below_the_largest_task_record_is_refused() {
     let mut limits = store();
@@ -89,16 +89,16 @@ fn a_value_limit_below_the_largest_core_turn_is_refused() {
 fn a_page_smaller_than_one_row_is_refused() {
     let mut limits = store();
     limits.page.bytes = 81_060;
-    // The page holds a settings revision and its 112-byte key.
+    // The page holds a settings revision and the 516-byte maximum opening key.
     // Both sets include each model's cache lifetime and their policies' model carriers.
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Page { needs: 1_653_444, has: 81_060 }));
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Page { needs: 1_653_848, has: 81_060 }));
 }
 #[test]
 fn fixture_limits_fit_their_store() {
     // The settings revision holds two sets: each adds two 16-byte parts slices
     // and eight templates with 24-byte later choices in both Template and New.
     // Each set's 64 model carriers include cache lifetime; its two policies retain 8 model bytes each.
-    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 112, value: 1_653_332, ops: 11, commit: 17_741 }));
+    assert_eq!(check(&store()), Ok(sizes::Sizes { key: 516, value: 1_653_332, ops: 11, commit: 22_185 }));
 }
 fn too_few_operations_are_refused() {
     let mut limits = store();
@@ -107,8 +107,8 @@ fn too_few_operations_are_refused() {
 }
 fn too_few_commit_bytes_are_refused() {
     let mut limits = store();
-    limits.commit = 17_740;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Commit { needs: 17_741, has: 17_740 }));
+    limits.commit = 22_184;
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::Commit { needs: 22_185, has: 22_184 }));
 }
 fn too_few_in_flight_slots_are_refused() {
     let mut limits = store();
@@ -124,8 +124,8 @@ fn a_journal_bound_past_the_queue_is_refused_at_start() {
 }
 fn too_few_queued_bytes_are_refused() {
     let mut limits = store();
-    limits.queued_bytes = 35_481;
-    assert_eq!(check(&limits), Err(sizes::SizeRefusal::QueuedBytes { needs: 35_482, has: 35_481 }));
+    limits.queued_bytes = 44_369;
+    assert_eq!(check(&limits), Err(sizes::SizeRefusal::QueuedBytes { needs: 44_370, has: 44_369 }));
 }
 #[test]
 fn a_domain_limit_past_its_family_ceiling_is_refused_at_start() {
@@ -194,10 +194,10 @@ fn the_largest_note_line_key_reaches_its_calculated_bound() {
 }
 #[test]
 fn larger_application_encodings_are_included_in_the_bounds() {
-    let application = sizes::Application { version: 1, key: 256, value: 9_000_000 };
+    let application = sizes::Application { version: 1, key: 1023, value: 9_000_000 };
     assert_eq!(
         sizes::check_commits(&fixtures::CORE_LIMITS, &application, &COMMITS, &store(), 0),
-        Ok(sizes::Sizes { key: 257, value: 9_000_000, ops: 11, commit: 19_336 }),
+        Ok(sizes::Sizes { key: 1024, value: 9_000_000, ops: 11, commit: 27_773 }),
     );
 }
 #[test]
@@ -214,8 +214,8 @@ fn a_map_budget_past_the_commit_envelope_is_refused() {
     // The value includes the tasks row's models; the commit adds framing to the map budget.
     // The settings revision includes cache lifetime in its model carriers.
     for (label, budget, expected) in [
-        ("exact_u32_commit", 4_294_965_938, Ok(sizes::Sizes { key: 112, value: 1_653_332, ops: 11, commit: u32::MAX })),
-        ("one_byte_past_u32", 4_294_965_939, Err(sizes::SizeRefusal::Ceiling)),
+        ("exact_u32_commit", 4_294_961_494, Ok(sizes::Sizes { key: 516, value: 1_653_332, ops: 11, commit: u32::MAX })),
+        ("one_byte_past_u32", 4_294_961_495, Err(sizes::SizeRefusal::Ceiling)),
         ("u64_sum_overflows", u64::MAX, Err(sizes::SizeRefusal::Ceiling)),
     ] {
         let limits = skein_kv::Limits { budget, commit: u32::MAX, queued_bytes: u64::MAX, ..store() };
@@ -226,7 +226,7 @@ fn a_map_budget_past_the_commit_envelope_is_refused() {
 #[test]
 fn store_limits_below_their_required_sizes_are_refused() {
     table([
-        ("a_key_limit_below_the_largest_note_line_is_refused", a_key_limit_below_the_largest_note_line_is_refused),
+        ("a_key_limit_below_the_largest_opening_is_refused", a_key_limit_below_the_largest_opening_is_refused),
         (
             "a_value_limit_below_the_largest_task_record_is_refused",
             a_value_limit_below_the_largest_task_record_is_refused,

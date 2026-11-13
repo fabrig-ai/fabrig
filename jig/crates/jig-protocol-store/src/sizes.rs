@@ -1,5 +1,5 @@
 //! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/README.md, 5 and 8).
-use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, people_v17, tasks_v12};
+use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, openings_v1, people_v17, tasks_v12};
 use jig_domain_core_vocabulary as core;
 
 /// Decoded byte allowance for a two-row restart page (protocol/store/loads.md, 2).
@@ -162,7 +162,14 @@ fn largest(
     // A resources line has 32 fixed bytes, three per empty segment, and at
     // most two per payload byte (escaped zero). Notes bounds both count and sum.
     // The largest fixed key is a tasks update: tags plus five widened numbers.
-    let key = domain.notes.pattern_bytes.checked_mul(5)?.checked_add(32)?.max(44).max(application.key.checked_add(1)?);
+    let key = domain
+        .notes
+        .pattern_bytes
+        .checked_mul(5)?
+        .checked_add(32)?
+        .max(44)
+        .max(application.key.checked_add(1)?)
+        .max(openings_v1::CEILINGS.worker_opening_worker.checked_mul(2)?.checked_add(4)?);
     // Tasks price additions and kept lines at dependencies, circle holds at circle;
     // people prices the same refusal names through codec::limits (protocol/store/records.md, 1).
     // Transcript bodies are frames in files; this sizes map values only.
@@ -173,6 +180,7 @@ fn largest(
             .max(tasks_v12::Row::encoded_bound(&limits.tasks)?)
             .max(people_v17::Row::encoded_bound(&limits.people)?)
             .max(notes_v1::Row::encoded_bound(&limits.notes)?)
+            .max(openings_v1::encoded_bound(&openings_v1::CEILINGS)?)
             .max(component_v3::encoded_bound(&component_v3::CEILINGS)?)
             .max(accounts_v2::encoded_bound(&accounts_v2::CEILINGS)?)
             .max(u64::from(settings_value(domain)?))
