@@ -8,6 +8,12 @@ use jig_domain_views as views;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 impl Core {
+    /// Whether the root has told the core to settle before its stop.
+    #[must_use]
+    pub fn settling(&self) -> bool {
+        self.settling
+    }
+
     /// Whether new work is refused while the service drains.
     #[must_use]
     pub fn stopping(&self) -> bool {
@@ -153,7 +159,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
         | Event::ProcedureHoldings { .. }
         | Event::StartRecurring { .. }
         | Event::Period { .. } => Err(empty()),
-        event @ (Event::Fill { .. }
+        event @ (Event::Settling
+        | Event::Fill { .. }
         | Event::Marked { .. }
         | Event::ReadLoaded { .. }
         | Event::Read { .. }

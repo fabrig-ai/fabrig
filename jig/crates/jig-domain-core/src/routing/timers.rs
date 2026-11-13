@@ -66,9 +66,10 @@ impl Core {
     }
 
     fn timer_runs(&self, timer: Timer, new_work: bool) -> bool {
-        !(self.stopping && timer.waits_while_stopping())
-            && (self.start_opened() || !timer.new_work())
-            && (new_work || !timer.new_work())
+        if self.stopping && timer.waits_while_stopping() {
+            return false;
+        }
+        !timer.new_work() || (!self.settling && self.start_opened() && new_work)
     }
 
     /// The deployment row this decision writes, if any (domain/engine/README.md, 5.4).

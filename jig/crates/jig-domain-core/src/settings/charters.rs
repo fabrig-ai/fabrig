@@ -291,6 +291,9 @@ impl Core {
     /// Take an eligible goal-serving task first, lower priority number first,
     /// then earlier Due time and lower task number. Drop tasks no longer due.
     pub fn take_due(&mut self) -> Option<Box<tasks::RunContext>> {
+        if self.settling {
+            return None;
+        }
         let mut taken: Option<Box<tasks::RunContext>> = None;
         for _ in 0..self.due.len() {
             let context = self.due.pop().expect("due count");
@@ -338,6 +341,9 @@ impl Core {
     /// Whether a due procedure or agent with a usable account can start.
     #[must_use]
     pub fn due_ready(&self) -> bool {
+        if self.settling {
+            return false;
+        }
         for context in &self.due {
             if self.context_ready(context) {
                 return true;

@@ -106,7 +106,10 @@ impl World {
                 self.busy_turns.push((run.raw(), attempt.raw(), turn));
             }
             root::Delivery::Core(
-                held @ (core::Held::Drained | core::Held::WatchEnded { .. } | core::Held::Acknowledge { .. }),
+                held @ (core::Held::Drained
+                | core::Held::WatchEnded { .. }
+                | core::Held::Acknowledge { .. }
+                | core::Held::AcknowledgeTurn { .. }),
             ) => {
                 self.stop_deliveries.push(held);
             }
@@ -232,7 +235,6 @@ impl World {
                 | core::Held::Relay { .. }
                 | core::Held::NeedArrived { .. }
                 | core::Held::Result { .. }
-                | core::Held::AcknowledgeTurn { .. }
                 | core::Held::TaskTurnKept { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
                 | core::Held::NotesWritten { .. }

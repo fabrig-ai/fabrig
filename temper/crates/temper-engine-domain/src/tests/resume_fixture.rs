@@ -565,7 +565,7 @@ pub fn root() -> (engine::Domain, Env<engine::Limits>) {
     let (mut root, env) = root_with_config(config(7));
     // Settle the startup placement probe before tests measure empty runtime resumes.
     let mut out = skein_lib::Queue::uncapped();
-    fleet::resume(&mut root.core.fleet, &env.with(env.limits.fleet), &mut out);
+    fleet::resume(&mut root.core.fleet, &env.with(env.limits.fleet), true, &mut out);
     assert!(out.is_empty(), "the fixture restores no claims or workers");
     (root, env)
 }

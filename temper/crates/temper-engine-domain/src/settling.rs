@@ -21,6 +21,7 @@ pub(crate) fn start(domain: &mut Domain) {
         return;
     }
     domain.settling = Phase::Waiting;
+    domain.work.push(Work::Core(core::Event::Settling));
     domain.work.push(Work::Forge(forge::Event::Settle));
 }
 pub(crate) fn finished(domain: &mut Domain, unfinished: Box<[forge::Unfinished]>) {

@@ -125,7 +125,7 @@ pub use jig_domain_core_vocabulary::{
 #[expect(clippy::partial_pub_fields, reason = "the keyed escalation route remains private to the core")]
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "pending generation, worker placement, stopping and role-table fullness are independent facts"
+    reason = "pending generation, worker placement, settling, stopping and role-table fullness are independent facts"
 )]
 pub struct Core {
     erasures: erase::Erasures,
@@ -140,6 +140,7 @@ pub struct Core {
     pub fill: u64,
     pub(crate) workers_in_process: bool,
     pub(crate) stopping: bool,
+    pub(crate) settling: bool,
     pub(crate) draining: Option<bool>,
     pub(crate) question_activity: Map<(u64, u64), tasks::ActivityLine>,
     pub(crate) census_progress: Map<u64, inbox::Progress>,
@@ -386,6 +387,7 @@ impl Core {
             person_answers: false,
             workers_in_process: config.workers_in_process,
             stopping: false,
+            settling: false,
             draining: None,
             question_activity: Map::with_capacity(inbox::question_capacity(limits).expect("validated question bound")),
             census_progress: Map::with_capacity(limits.people.people),

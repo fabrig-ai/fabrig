@@ -99,7 +99,7 @@ impl Harness {
     /// Resumes placement, returning what it emitted.
     fn resume(&mut self) -> Box<[Request]> {
         assert!(self.domain.is_ready(), "placement is ready");
-        resume(&mut self.domain, &self.env, &mut self.out);
+        resume(&mut self.domain, &self.env, true, &mut self.out);
         self.drain()
     }
 
@@ -1520,4 +1520,53 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
             placed(job_run, job_attempt)
         ]
     );
+}
+
+#[test]
+fn resume_without_placement_keeps_waiting_runs_and_jobs_for_a_later_start() {
+    let mut h = Harness::new(LIMITS);
+    let job = jig_domain_link::JobBound {
+        kind: jig_domain_link::JobKind(7),
+        spec: 4,
+        result: 8,
+        deadline: Duration::from_secs(3),
+    };
+    h.step(Event::Hello {
+        worker: 0,
+        channel: C1,
+        hello: Hello {
+            slots: 1,
+            stop_bound: Duration::ZERO,
+            bounds: fixtures::bounds(),
+            jobs: Box::new([job]),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        },
+    });
+    assert_eq!(h.place(R1, A1, 1), C1);
+    h.start(R2, A2, 2);
+    h.step(Event::StartJob { reply_to: to(A3), run: R3, attempt: A3, workstream: 3, job, adopt: false });
+    assert!(h.settle().is_empty(), "both attempts wait for the single slot");
+    h.answer(C1, R1, A1, Answer::Ended, 1);
+    h.acknowledge(R1, A1);
+    assert!(h.domain.ready_to_resume(true));
+    assert!(!h.domain.ready_to_resume(false), "a held placement cannot spin the root");
+    resume(&mut h.domain, &h.env, false, &mut h.out);
+    assert!(h.drain().is_empty(), "no Assign, AssignJob or Placed while settling");
+    assert_eq!(&*h.settle(), &[assign(C1, R2, A2), placed(R2, A2)], "the waiting run was retained");
+    h.answer(C1, R2, A2, Answer::Ended, 1);
+    h.acknowledge(R2, A2);
+    assert_eq!(&*h.settle(), &[Request::AssignJob { channel: C1, run: R3, attempt: A3 }, placed(R3, A3)]);
+}
+
+#[test]
+fn resume_without_placement_still_releases_a_held_turn() {
+    let mut h = Harness::new(Limits { turns: 2, ..LIMITS });
+    h.hello(C1, 1, &[], &[hosted(R1, A1, Phase::Active)]);
+    assert!(turn(&mut h, C1, 1, 1).is_empty());
+    h.step(fixtures::adopt(R1, A1, 0));
+    assert!(h.domain.ready_to_resume(false));
+    resume(&mut h.domain, &h.env, false, &mut h.out);
+    assert_eq!(&*h.drain(), &[Request::Turned { run: R1, attempt: A1, turn: 1, body: payload(1) }]);
+    assert_eq!(&*kept(&mut h, 1), &[turn_ack(C1, 1)]);
 }

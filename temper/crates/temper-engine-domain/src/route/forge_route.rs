@@ -4706,7 +4706,7 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
                 && row.waiting_on.contains(&dependency)
                 && let tasks::Phase::Active(_) = row.phase
             {
-                if domain.core.tasks.procedure_due(task).is_some() {
+                if !domain.core.settling() && domain.core.tasks.procedure_due(task).is_some() {
                     // An idle-only wake cannot refresh a step already reading its facts.
                     let repository = change.repository;
                     let base = change.base.clone();
@@ -4925,7 +4925,8 @@ pub(crate) fn outputs(
                 // A restored change also repairs names saved before its pull was known.
                 if let Some(row) = domain.forge.change(task).cloned() {
                     watch_change(domain, env, &row);
-                    if forge_change::held_on_ci(&row.change.state)
+                    if !domain.core.settling()
+                        && forge_change::held_on_ci(&row.change.state)
                         && let Some(record) = domain.core.tasks.task(task)
                         && own_hold(record)
                         && let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow)

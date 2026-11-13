@@ -521,6 +521,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StartProcedure { context, step } => {
+            if domain.core.settling() {
+                return;
+            }
             let task = context.task;
             let code = match context.executor {
                 tasks::Executor::Job { .. } => return,

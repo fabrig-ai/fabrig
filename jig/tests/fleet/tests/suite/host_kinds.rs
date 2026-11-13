@@ -24,7 +24,7 @@ fn step(domain: &mut Domain, limits: Limits, event: Event) -> Vec<Request> {
 fn place(domain: &mut Domain, limits: Limits) -> Vec<Request> {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
-    fleet::resume(domain, &env, &mut out);
+    fleet::resume(domain, &env, true, &mut out);
     let mut requests = Vec::new();
     while let Some(request) = out.pop() {
         if let Request::Sources { channel, sources } = request {

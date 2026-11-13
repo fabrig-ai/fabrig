@@ -297,7 +297,7 @@ impl World {
             if !self.domain.is_ready() {
                 return;
             }
-            fleet::resume(&mut self.domain, &self.env, &mut self.out);
+            fleet::resume(&mut self.domain, &self.env, true, &mut self.out);
             self.drain();
         }
         panic!("seed {}: ready work did not settle", self.settings.seed);
