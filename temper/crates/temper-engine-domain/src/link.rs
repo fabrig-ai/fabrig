@@ -98,6 +98,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                         | host::LinkUp::Unauthorized { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. },
                     ..
                 },

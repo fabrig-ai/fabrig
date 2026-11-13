@@ -23,6 +23,14 @@ pub enum Undecoded {
 /// parent -> host
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Read for a hosted attempt. An unhosted attempt is refused with number zero.
+    Ask {
+        run: Token,
+        attempt: Token,
+        bytes: Box<[u8]>,
+    },
+    /// The engine link was lost: outstanding reads are refused, not retried.
+    LinkLost,
     ListRead {
         read: u64,
         outcome: jig_domain_link::ListOutcome,
@@ -86,6 +94,12 @@ pub enum Event {
 /// host -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    Asked {
+        run: Token,
+        attempt: Token,
+        number: u64,
+        answer: crate::AskAnswer,
+    },
     ReadList {
         read: u64,
         endpoint: u32,
@@ -627,7 +641,7 @@ impl Event {
     pub fn new_work(&self) -> bool {
         match self {
             Event::Agent(event) => event.new_work(),
-            Event::Opened { .. } => true,
+            Event::Opened { .. } | Event::Ask { .. } => true,
             Event::Down(event) => match event {
                 crate::LinkDown::ReadList { .. }
                 | crate::LinkDown::Sources { .. }
@@ -636,13 +650,15 @@ impl Event {
                 | crate::LinkDown::AssignJob { .. }
                 | crate::LinkDown::Assign { .. }
                 | crate::LinkDown::Message { .. } => true,
-                crate::LinkDown::Relayed { .. }
+                crate::LinkDown::Asked { .. }
+                | crate::LinkDown::Relayed { .. }
                 | crate::LinkDown::TurnKept { .. }
                 | crate::LinkDown::Acknowledge { .. }
                 | crate::LinkDown::Cancel { .. }
                 | crate::LinkDown::Grant { .. } => false,
             },
-            Event::ListRead { .. }
+            Event::LinkLost
+            | Event::ListRead { .. }
             | Event::Job(_)
             | Event::SourceAnswered { .. }
             | Event::SourceLost

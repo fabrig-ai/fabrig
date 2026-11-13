@@ -26,6 +26,8 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         infrastructure: fixtures::infrastructure_limits(),
         observability: fixtures::limits(),
         host: host::Limits {
+            application_ask_bytes: 64,
+            application_answer_bytes: 64,
             slots: 1,
             accounts: 1,
             program_sources: 12,

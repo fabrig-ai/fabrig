@@ -607,6 +607,9 @@ impl World {
     fn route(&mut self, request: Request) {
         self.refusals.request(&request);
         match request {
+            Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
+                unreachable!("the script does not make application asks")
+            }
             Request::Job(_) | Request::DeliverJob { .. } | Request::Up(LinkUp::JobAnswer { .. }) => {
                 unreachable!("jobs are exercised in the host world")
             }

@@ -238,6 +238,8 @@ pub(super) const CORE: core::Limits = core::Limits {
     views: VIEWS,
 };
 pub(super) const HUB: host::Limits = host::Limits {
+    application_ask_bytes: 64,
+    application_answer_bytes: 64,
     slots: 2,
     accounts: 8,
     program_sources: 12,

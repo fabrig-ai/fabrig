@@ -740,7 +740,9 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Acknowledge { .. }
         | Event::Cancel { .. }
         | Event::Relayed { .. } => true,
-        Event::ReadList { .. }
+        Event::Ask { .. }
+        | Event::Asked { .. }
+        | Event::ReadList { .. }
         | Event::ListRead { .. }
         | Event::Needs(_)
         | Event::CleanupPrograms { .. }

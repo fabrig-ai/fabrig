@@ -25,9 +25,17 @@ fn credentials_have_one_layout_from_the_floor() {
 
 #[test]
 fn running_attempt_kinds_are_present_and_total_from_the_floor() {
-    let bridge =
-        kept::bridge(skein_codec::patch::Capacity { versions: 4, patches: 4, text: 32_768, bytes: 1024, nodes: 128 })
-            .expect("worker bridge accepts records and enumeration roots");
+    let versions = u32::try_from(kept::TEXTS.len()).expect("kept version count");
+    let forwards = u32::try_from(crate::patches::PATCHES.len()).expect("forward plans");
+    let reverses = u32::from(wire::VERSION.checked_sub(wire::FLOOR).expect("kept floor"));
+    let bridge = kept::bridge(skein_codec::patch::Capacity {
+        versions,
+        patches: forwards.checked_add(reverses).expect("forward and reverse plans"),
+        text: 32_768,
+        bytes: 1024,
+        nodes: 128,
+    })
+    .expect("worker bridge accepts records and enumeration roots");
     // Enumeration roots are bridgeable too, even though a frame holds a record alone.
     assert_eq!(bridge.total(wire::VERSION, b"FromEngine"), Some(true));
     assert_eq!(bridge.total(wire::VERSION, b"FromWorker"), Some(true));
@@ -75,9 +83,9 @@ fn running_attempt_kinds_are_present_and_total_from_the_floor() {
 fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
     let limits = super::fixtures::LIMITS;
     let schema = crate::schema(&limits).expect("terms");
-    assert_eq!(schema.range(), Some((12, 13)));
+    assert_eq!(schema.range(), Some((wire::FLOOR, wire::VERSION)));
     let old = schema.version(12).expect("floor");
-    let current = schema.version(13).expect("current");
+    let current = schema.version(wire::VERSION).expect("current");
     assert_eq!(old.kind(0x018d), None);
     assert_eq!(current.kind(0x018d).expect("statement").largest, 612);
     assert_eq!(old.kind(0x0102).expect("old call").largest + 2, current.kind(0x0102).expect("current call").largest);
@@ -99,7 +107,7 @@ fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
             for tag in 0..count {
                 let variant = text.variant(VariantIx::new(first.index() + tag));
                 let bound = text
-                    .most_bytes_within(variant.record.expect("record"), &crate::v13::LIMIT_NAMES, &limits.values())
+                    .most_bytes_within(variant.record.expect("record"), &crate::v14::LIMIT_NAMES, &limits.values())
                     .expect("bound");
                 let kind = version.kind(base + u16::try_from(tag).expect("tag fits")).expect("kind");
                 assert_eq!(kind.direction, direction);
