@@ -2,6 +2,8 @@ patch 1
 owner temper 10 after jig 5
 
 family temper-store 20 to 21
+add LandingRun
+add LandingEntry.run option LandingRun none
 add ChangeHistory
 add HistoryMark
 add HistoryProject
@@ -58,8 +60,6 @@ add HistoryChange
 add HistoryLanding
 add HistoryLast
 add ChangeRow.history option ChangeHistory none
-add LandingRun
-add LandingEntry.run option LandingRun none
 add Value.history_project
 add Value.history_event
 add Value.history_change

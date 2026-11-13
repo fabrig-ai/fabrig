@@ -64,7 +64,7 @@ fn kinds() -> Box<[What]> {
             place: 2,
         },
         What::Gate { gate: 3, key: [9; 32] },
-        What::Proved { proofs: Box::new([Proof { gate: 3, run: 31 }, Proof { gate: 4, run: 32 }]) },
+        What::Proved { proofs: Box::new([Proof { gate: 3, run: Some(31) }, Proof { gate: 4, run: None }]) },
         What::Proved { proofs: Box::new([]) },
         What::Search,
         What::Searched { green: Some([2; 32]), red: [4; 32], blamed: 3 },

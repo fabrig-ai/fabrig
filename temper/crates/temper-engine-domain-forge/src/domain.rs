@@ -2221,7 +2221,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 settled_facts(d, env, entry, task, outcome, out);
                 crate::follow_check::outcome(d, entry, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
-                let retain = crate::landing::outcome(d, entry, outcome, out);
+                let retain = crate::landing::outcome(d, env, entry, outcome, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
                     skein_forge_client::Outcome::Held => {
