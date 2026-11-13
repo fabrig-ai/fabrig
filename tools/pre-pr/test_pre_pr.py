@@ -1,5 +1,6 @@
 """Delivery selection, known reds and inherited counts (tools/pre-pr/design.md, 3, 5, 9)."""
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -7,6 +8,8 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import threading
+import time
 import unittest
 from unittest import mock
 
@@ -247,6 +250,184 @@ sys.exit(int(count > 0))
                 self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
                 self.assertFalse((self.root / '.git/temper-pre-pr/base').exists())
                 (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+
+    def goal_file(self, name, content):
+        path = self.root / self.command('git', 'rev-parse', '--git-path', 'temper/' + name).strip()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return path
+
+    def test_goal_reds_judge_tests_and_coded_lints_beside_the_list(self):
+        test = PRE_PR.failure('test api::rules rule', 'test output', ('api::rules', 'rule'), 'api')
+        lint = PRE_PR.failure('clippy api clippy::rule api/src/lib.rs', 'message',
+                              ('api', 'clippy::rule', 'api/src/lib.rs', 'message'), 'api')
+        uncoded = PRE_PR.failure('clippy api  api/src/lib.rs', 'compiler error',
+                                 ('api', '', 'api/src/lib.rs', 'compiler error'), 'api')
+        for entry, check, error, listed, accepted in (
+                ('- test api::rules rule', 'tests', test, '', True),
+                ('- test api::rules rule', 'tests', test, '- test api::rules rule\n', True),
+                ('- test api::rules rule', 'tests', test, '- test api::rules list_only\n' * 65, False),
+                ('- test api::rules rule', 'tests', test, '- test api::rules list_only\n' + 'x' * 8193, False),
+                ('- test api::rules other', 'tests', test, '', False),
+                ('- test api::other rule', 'tests', test, '', False),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy', lint, '', True),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy', lint,
+                 '- lint api clippy::rule api/src/lib.rs\n', True),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy', uncoded, '', False),
+                ('- lint api clippy::other api/src/lib.rs', 'clippy', lint, '', False),
+                ('- lint api clippy::rule api/src/other.rs', 'clippy', lint, '', False),
+                ('- lint other clippy::rule api/src/lib.rs', 'clippy', lint, '', False),
+                ('- test api::rules rule', 'tests', PRE_PR.failure('build', 'no tests ran'), '', False),
+                ('- test api::rules rule', 'tests', PRE_PR.failure('check one-process', 'tool error'), '', False),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy',
+                 PRE_PR.failure('check clippy', 'tool error'), '', False)):
+            with self.subTest(entry=entry, failure=error['name'], listed=listed[:80]):
+                self.goal_file('reds', ('temper-reds 1\n' + entry + '\n').encode())
+                self.write('.temper/known-reds.md', listed)
+                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                over_cap = len(listed.encode()) > 8192 or listed.count('\n') > 64
+                errors = [error.copy()]
+                if over_cap:
+                    errors.append(PRE_PR.failure('test api::rules list_only', 'list-only failure',
+                                                 ('api::rules', 'list_only'), 'api'))
+                answer = (101 if check == 'clippy' else 100, errors)
+                result, log, _, _ = self.deliver(**{
+                    'clippy_answer' if check == 'clippy' else 'one_process_answer':
+                    answer if check == 'clippy' else (*answer, None)})
+                self.assertEqual(result, int(not accepted), log)
+                self.assertIn('pre-pr: reds: 1 entries (temper/reds)', log)
+                inherits = error in (test, lint) and entry in (
+                    '- test api::rules rule', '- lint api clippy::rule api/src/lib.rs')
+                if inherits:
+                    self.assertIn('inherited: ' + error['name'] + ' (red, temper/reds)', log)
+                    self.assertNotIn(' (known red, .temper/known-reds.md)', log)
+                else:
+                    self.assertNotIn('inherited: ' + error['name'], log)
+                if over_cap:
+                    self.assertIn('\nknown-reds\n', log)
+                    self.assertIn('\ntest api::rules list_only\n', log)
+                    self.assertNotIn('inherited: test api::rules list_only', log)
+                self.assertLess(log.index('pre-pr: reds:'), log.index('pre-pr: known reds:'))
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+
+    def test_goal_reds_are_strict_whole_bounded_files(self):
+        entry = b'- test api::rules rule\n'
+        header = b'temper-reds 1\n'
+        # Both sides of the byte bound, with a valid entry whose name fills it.
+        prefix = header + b'- test api::rules '
+        at_cap = prefix + b'x' * (2097152 - len(prefix) - 1) + b'\n'
+        self.assertEqual(len(at_cap), 2097152)
+        for content, expected in (
+                (None, None),
+                (b'temper-reds 1', '0 entries (temper/reds)'),
+                (header, '0 entries (temper/reds)'),
+                (header + entry.rstrip(b'\n'), '1 entries (temper/reds)'),
+                (header + entry, '1 entries (temper/reds)'),
+                (b'', 'none (temper/reds malformed at line 1)'),
+                (b'temper-reds 2\n' + entry, 'none (temper/reds malformed at line 1)'),
+                (b'temper-reds 1 \n' + entry, 'none (temper/reds malformed at line 1)'),
+                (header + entry + b'prose\n', 'none (temper/reds malformed at line 3)'),
+                (header + entry.rstrip(b'\n') + b' \n', 'none (temper/reds malformed at line 2)'),
+                (header + entry.rstrip(b'\n') + b'\t\n', 'none (temper/reds malformed at line 2)'),
+                (header + b'\n', 'none (temper/reds malformed at line 2)'),
+                (header + b' - test api::rules rule\n', 'none (temper/reds malformed at line 2)'),
+                (header + b'- test api::rules \xff\n', 'none (temper/reds malformed at line 2)'),
+                (at_cap, '1 entries (temper/reds)'),
+                (at_cap + b'x', 'none (temper/reds oversized: 2097153 bytes)')):
+            with self.subTest(expected=expected, size=None if content is None else len(content)):
+                path = self.goal_file('reds', content or b'')
+                if content is None:
+                    path.unlink()
+                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                error = PRE_PR.failure('test api::rules rule', 'test output', ('api::rules', 'rule'), 'api')
+                result, log, _, _ = self.deliver(one_process_answer=(100, [error], None))
+                accepted = content in (header + entry, header + entry.rstrip(b'\n'))
+                self.assertEqual(result, int(not accepted), log)
+                if expected is None:
+                    self.assertNotIn('pre-pr: reds:', log)
+                else:
+                    self.assertIn('pre-pr: reds: ' + expected, log)
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+
+    def test_goal_reds_wait_for_the_marker_only(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        for marker, expected, waits in (
+                (b'temper-reds-wait 1 100\n', 'none (temper/reds not written within 100 ms)', True),
+                (b'temper-reds-wait 1 0\n', 'ignored temper/reds-wait (malformed)', False),
+                (b'temper-reds-wait 1 600001\n', 'ignored temper/reds-wait (malformed)', False),
+                (b'temper-reds-wait 2 100\n', 'ignored temper/reds-wait (malformed)', False),
+                (b'temper-reds-wait 1 100 \n', 'ignored temper/reds-wait (malformed)', False),
+                (b'temper-reds-wait 1 100\n\n', 'ignored temper/reds-wait (malformed)', False),
+                (b'', 'ignored temper/reds-wait (malformed)', False)):
+            with self.subTest(marker=marker):
+                self.goal_file('reds-wait', marker)
+                with mock.patch.object(PRE_PR, 'time', wraps=time) as clock:
+                    start = time.monotonic()
+                    result, log, _, _ = self.deliver()
+                    elapsed = time.monotonic() - start
+                self.assertEqual(result, 0, log)
+                self.assertEqual(clock.sleep.called, waits)
+                if waits:
+                    self.assertGreaterEqual(elapsed, 0.1)
+                self.assertIn('pre-pr: reds: ' + expected, log)
+                (self.root / '.git/pre-pr-passed').unlink()
+
+        self.goal_file('reds-wait', b'temper-reds-wait 1 200\n')
+        path = self.goal_file('reds', b'')
+        path.unlink()
+        sleep = time.sleep
+        timers = []
+
+        def worker(seconds):
+            if not timers:
+                timer = threading.Timer(0.01, lambda: path.write_bytes(b'temper-reds 1\n- test api::rules rule\n'))
+                timers.append(timer)
+                timer.start()
+            sleep(seconds)
+
+        error = PRE_PR.failure('test api::rules rule', 'output', ('api::rules', 'rule'), 'api')
+        with mock.patch.object(PRE_PR, 'time', wraps=time) as clock:
+            clock.sleep.side_effect = worker
+            result, log, _, _ = self.deliver(one_process_answer=(100, [error], None))
+        for timer in timers:
+            timer.join()
+        self.assertTrue(timers, 'file must be written during the wait')
+        self.assertEqual(result, 0, log)
+        self.assertIn('pre-pr: reds: 1 entries (temper/reds)', log)
+        self.assertNotIn('not written within', log)
+
+    def test_goal_reds_bytes_key_the_cache(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        content = b'temper-reds 1\n- test api::rules rule\n'
+        path = self.goal_file('reds', content)
+        result, log, _, code = self.deliver()
+        self.assertEqual(result, 0, log)
+        self.assertTrue(all(code))
+        cache = self.root / '.git/pre-pr-passed'
+        tree, base, digest = cache.read_text().split()
+        self.assertEqual(digest, hashlib.sha256(content).hexdigest())
+        hit = f'pre-pr: passed before (tree {tree}, base {base}, reds {digest})'
+        result, log, _, code = self.deliver()
+        self.assertEqual(result, 0, log)
+        self.assertFalse(any(code))
+        self.assertIn(hit, log)
+        self.assertLess(log.index('pre-pr: reds:'), log.index(hit))
+        for changed in (b'temper-reds 1\n', b'bad header\n', b'bad header changed\n', None):
+            with self.subTest(changed=changed):
+                if changed is None:
+                    path.unlink()
+                else:
+                    path.write_bytes(changed)
+                result, log, _, code = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertTrue(all(code), log)
+                self.assertNotIn('passed before', log)
+                self.assertEqual(cache.read_text().split()[2],
+                                 '-' if changed is None else hashlib.sha256(changed).hexdigest())
+        cache.write_text(f'{tree} {base}\n')
+        result, log, _, code = self.deliver()
+        self.assertEqual(result, 0, log)
+        self.assertTrue(all(code), 'two-field records must not hit')
 
     def test_one_process_reads_the_run_directory(self):
         self.write('client/Cargo.toml', '[package]\nname = "client"\n')
