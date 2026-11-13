@@ -256,7 +256,7 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
     }
     part.needs = needs.into_boxed();
 }
-fn held_areas(areas: Option<&team::Areas>, holder: &team::Holder, words: &Words) -> Box<[u8]> {
+fn held_areas(areas: Option<&team::HeldAreas>, holder: &team::Holder, words: &Words) -> Box<[u8]> {
     let Some(areas) = areas else { return Box::default() };
     let mut held: Box<[u8]> = Box::default();
     for area in &areas.rows {

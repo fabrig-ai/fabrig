@@ -40,7 +40,7 @@ pub(crate) fn name(talk: &Talking, words: &Words) -> Box<[u8]> {
 pub(crate) fn minutes(opened: Wall, wall: Wall) -> u64 {
     wall.as_nanos().saturating_sub(opened.as_nanos()).checked_div(60_000_000_000).expect("minute is nonzero").max(1)
 }
-pub(crate) fn areas(areas: Option<&team::Areas>, task: u64) -> Box<[u8]> {
+pub(crate) fn areas(areas: Option<&team::HeldAreas>, task: u64) -> Box<[u8]> {
     let mut names = List::uncapped();
     if let Some(areas) = areas {
         for area in &areas.rows {

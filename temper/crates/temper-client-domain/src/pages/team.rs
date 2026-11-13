@@ -19,15 +19,14 @@ pub(crate) use standing::now;
 pub use standing::{Card, Now, Role, StartedBy};
 pub(crate) mod sessions;
 pub use sessions::Session;
-/// The standing roles watch’s window.
 /// A project's areas from its findings document (client/pages/talk.md, 3).
 #[derive(Debug, PartialEq, Eq)]
-pub struct Areas {
-    pub rows: Box<[Area]>,
+pub struct HeldAreas {
+    pub rows: Box<[HeldArea]>,
     pub triager: Option<Holder>,
 }
 #[derive(Debug, PartialEq, Eq)]
-pub struct Area {
+pub struct HeldArea {
     pub name: Box<[u8]>,
     pub holder: Option<Holder>,
 }
@@ -38,11 +37,11 @@ pub enum Holder {
     Role(u32),
 }
 #[must_use]
-pub fn areas(root: &crate::Domain, project: u32) -> Option<Areas> {
+pub fn areas(root: &crate::Domain, project: u32) -> Option<HeldAreas> {
     let document = root.pages.needs.findings.document(project)?;
     let mut rows = List::with_capacity(document.areas().len());
     for area in document.areas() {
-        rows.push(Area {
+        rows.push(HeldArea {
             name: area.name().into(),
             holder: match area.holder() {
                 Some(value) => Some(area_holder(value)),
@@ -51,7 +50,7 @@ pub fn areas(root: &crate::Domain, project: u32) -> Option<Areas> {
         })
         .expect("document's areas fit");
     }
-    Some(Areas {
+    Some(HeldAreas {
         rows: rows.into_boxed(),
         triager: if document.triager().is_some() { Some(area_holder(document.holder())) } else { None },
     })
@@ -64,6 +63,7 @@ fn area_holder(value: &w::Holder) -> Holder {
     }
 }
 
+/// The standing roles watch’s window.
 pub const ROLES: u32 = 16;
 
 /// The project's open period lasts seven days (client/pages/talk.md, 2).

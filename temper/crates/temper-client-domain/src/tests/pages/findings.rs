@@ -143,7 +143,7 @@ fn ids(root: &Domain) -> Box<[Id]> {
 }
 #[test]
 fn team_areas_read_the_findings_document_and_its_triager() {
-    use pages::team::{self, Area, Areas, Holder};
+    use pages::team::{self, HeldArea, HeldAreas, Holder};
     let (mut root, _, watches) = setup(1);
     assert_eq!(team::areas(&root, 1), None, "unread is not empty");
     let task = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 40 }).unwrap());
@@ -174,11 +174,11 @@ fn team_areas_read_the_findings_document_and_its_triager() {
     deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts.clone()).unwrap());
     assert_eq!(
         team::areas(&root, 1),
-        Some(Areas {
+        Some(HeldAreas {
             rows: Box::new([
-                Area { name: b"tests".as_slice().into(), holder: Some(Holder::Task(40)) },
-                Area { name: b"core".as_slice().into(), holder: Some(Holder::Party(2)) },
-                Area { name: b"docs".as_slice().into(), holder: None },
+                HeldArea { name: b"tests".as_slice().into(), holder: Some(Holder::Task(40)) },
+                HeldArea { name: b"core".as_slice().into(), holder: Some(Holder::Party(2)) },
+                HeldArea { name: b"docs".as_slice().into(), holder: None },
             ]),
             triager: Some(Holder::Task(41)),
         })
