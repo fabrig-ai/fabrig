@@ -131,7 +131,7 @@ impl Replay {
                 | Line::Kept { .. }
                 | Line::BoxLine(_)
                 | Line::BoxStage(_)
-            | Line::Lent { .. }
+                | Line::Lent { .. }
                 | Line::Found(_)
                 | Line::Opened { .. }
                 | Line::Send { .. }
@@ -146,8 +146,8 @@ impl Replay {
                 | Line::Browse(_)
                 | Line::StopBox
                 | Line::StopBoxAgain
-            | Line::Lend { .. }
-            | Line::Unlend
+                | Line::Lend { .. }
+                | Line::Unlend
                 | Line::Quit => {
                     let report = self.report()?;
                     self.at += 1;

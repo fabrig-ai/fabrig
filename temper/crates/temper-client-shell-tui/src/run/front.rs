@@ -125,6 +125,11 @@ impl Child {
         }
     }
     pub(super) fn login(&self, name: &[u8]) -> Option<Spawn> {
+        if !(1..=32).contains(&name.len())
+            || !name.iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'-')
+        {
+            return None;
+        }
         let program = self.found.clone()?;
         let mut args = vec![Box::from(b"program-login".as_slice())];
         args.extend(self.settings.directories.flags());

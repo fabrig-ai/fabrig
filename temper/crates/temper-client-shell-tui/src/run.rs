@@ -563,6 +563,7 @@ impl Run {
                 self.report(host::Report::Resize(size));
                 reported = true;
             }
+            reported |= self.lending_progress();
             while !self.closing && !self.lending.busy() {
                 let Some(key) = self.terminal.keys().pop() else { break };
                 if self.record_key(&key) {
@@ -691,7 +692,6 @@ impl Host for Run {
             self.close();
         }
         self.reports();
-        self.lending_progress();
         if let Some(recording) = &mut self.recording {
             if self.closing && self.shell.is_empty() && !recording.closing {
                 recording.save.pending = recording.recorder.as_ref().map(|recorder| recorder.save(&mut self.host));
@@ -729,9 +729,10 @@ impl Host for Run {
             return true;
         }
         self.lending.pending(self.terminal.lent())
-            || self.box_child
-            .as_ref()
-            .is_some_and(|front| front.pending() || (!front.reports.is_empty() && self.size.is_some()))
+            || self
+                .box_child
+                .as_ref()
+                .is_some_and(|front| front.pending() || (!front.reports.is_empty() && self.size.is_some()))
             || self.spawn_root.as_ref().is_some_and(|root| root.pending() || root.io.is_due(now))
             || self.local.pending()
             || self.local.io.is_due(now)
@@ -1177,8 +1178,10 @@ mod tests {
         settings.front = Some(Front {
             executable: b"/bin/temper".as_slice().into(),
             directories: temper_shell::directories::Directories {
-                config: b"/config".as_slice().into(), data: b"/data".as_slice().into(),
-                cache: b"/cache".as_slice().into(), origins: [skein_shell::Origin::Flag; 3],
+                config: b"/config".as_slice().into(),
+                data: b"/data".as_slice().into(),
+                cache: b"/cache".as_slice().into(),
+                origins: [skein_shell::Origin::Flag; 3],
             },
             arguments: Box::new([]),
             environment: Box::new([]),

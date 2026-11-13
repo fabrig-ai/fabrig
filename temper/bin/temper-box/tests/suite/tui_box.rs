@@ -1,4 +1,6 @@
 //! The client's TUI and its real box on a pseudo-terminal (client/tui/box.md, Its tests).
+#[path = "tui_box/lending.rs"]
+mod lending;
 use crate::{box_link, support};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Signal, Size, Submit};
 use skein_lib::{Queue, Time, Token, Wall};

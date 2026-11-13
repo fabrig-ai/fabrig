@@ -1,8 +1,14 @@
 //! The terminal's loan (temper/docs/design/client/tui/box.md, Lending its terminal).
 use super::{Run, host};
 use jig_client::contract::LoginExit;
-use skein_io::{self as io, kernel::{Complete, Done, Exit, Fd, Op, Signal, Submit, Target}};
+use skein_io::{
+    self as io,
+    kernel::{Complete, Done, Exit, Fd, Op, Signal, Submit, Target},
+};
 use skein_lib::{Queue, Token};
+
+#[cfg(test)]
+mod tests;
 
 pub(super) const LOGIN: Token = Token::new(u64::MAX - 3);
 pub(super) const LINE: Token = Token::new(6 << 60);
@@ -56,7 +62,8 @@ impl Lending {
         self.phase != Phase::Idle
     }
     pub(super) fn pending(&self, lent: bool) -> bool {
-        !self.writes.is_empty() || !self.requests.is_empty()
+        !self.writes.is_empty()
+            || !self.requests.is_empty()
             || (self.phase == Phase::Lending && lent)
             || self.phase == Phase::TakingBack
     }
@@ -65,7 +72,9 @@ impl Lending {
         if self.phase == Phase::Running {
             self.phase = Phase::Stopping;
             self.requests.push(io::Request::Signal {
-                child: self.child.expect("running loan"), signal: Signal::Terminate, to: Target::Group,
+                child: self.child.expect("running loan"),
+                signal: Signal::Terminate,
+                to: Target::Group,
             });
         }
     }
@@ -82,9 +91,18 @@ impl Lending {
                 }
             }
             Ok(Done::Count(_)) | Err(_) => self.phase = Phase::TakingBack,
-            Ok(Done::Accepted { .. } | Done::Fd(_) | Done::Nothing | Done::Spawned { .. }
-                | Done::Exit(_) | Done::Window(_) | Done::Signalled(_)
-                | Done::Stat(_) | Done::Bound(_) | Done::Usage(_)) => unreachable!("line write returns a count"),
+            Ok(
+                Done::Accepted { .. }
+                | Done::Fd(_)
+                | Done::Nothing
+                | Done::Spawned { .. }
+                | Done::Exit(_)
+                | Done::Window(_)
+                | Done::Signalled(_)
+                | Done::Stat(_)
+                | Done::Bound(_)
+                | Done::Usage(_),
+            ) => unreachable!("line write returns a count"),
         }
     }
     pub(super) fn event(&mut self, event: &io::Event) -> bool {
@@ -93,13 +111,17 @@ impl Lending {
                 assert!(pipes.is_empty(), "login inherits the terminal");
                 self.child = Some(*child);
                 self.phase = Phase::Running;
-                if self.stop { self.stop(); }
+                if self.stop {
+                    self.stop();
+                }
                 true
             }
             io::Event::Exited { owner, exit } if *owner == LOGIN => {
                 self.exit = match exit {
                     Exit::Code(code) => LoginExit::Exited { code: *code },
-                    Exit::Signal(signal) => LoginExit::Killed { signal: u8::try_from(*signal).expect("signal fits u8") },
+                    Exit::Signal(signal) => {
+                        LoginExit::Killed { signal: u8::try_from(*signal).expect("signal fits u8") }
+                    }
                 };
                 self.requests.push(io::Request::Abort { entity: self.child.expect("spawned login") });
                 true
@@ -110,11 +132,20 @@ impl Lending {
                 self.phase = Phase::TakingBack;
                 true
             }
-            io::Event::Shutdown { .. } | io::Event::Failed { .. } | io::Event::Spawned { .. }
-            | io::Event::Exited { .. } | io::Event::Closed { .. } | io::Event::Stream { .. }
-            | io::Event::Resized | io::Event::Output { .. } | io::Event::Listening { .. }
-            | io::Event::Accepted { .. } | io::Event::Connecting { .. } | io::Event::Connected { .. }
-            | io::Event::Usage { .. } | io::Event::Window { .. } => false,
+            io::Event::Shutdown { .. }
+            | io::Event::Failed { .. }
+            | io::Event::Spawned { .. }
+            | io::Event::Exited { .. }
+            | io::Event::Closed { .. }
+            | io::Event::Stream { .. }
+            | io::Event::Resized
+            | io::Event::Output { .. }
+            | io::Event::Listening { .. }
+            | io::Event::Accepted { .. }
+            | io::Event::Connecting { .. }
+            | io::Event::Connected { .. }
+            | io::Event::Usage { .. }
+            | io::Event::Window { .. } => false,
         }
     }
 }
@@ -135,7 +166,7 @@ impl Run {
         }
     }
 
-    pub(super) fn lending_progress(&mut self) {
+    pub(super) fn lending_progress(&mut self) -> bool {
         if self.lending.phase == Phase::Lending && self.terminal.lent() {
             if let Some(kept) = &self.kept {
                 kept.set_kept().expect("set kept terminal modes");
@@ -144,14 +175,13 @@ impl Run {
             line.push(b'\n');
             self.lending.phase = Phase::Writing;
             self.lending.writes.push(Submit {
-                op: LINE, kind: Op::PipeWrite { fd: self.lending.output, bytes: line.into(), from: 0 },
+                op: LINE,
+                kind: Op::PipeWrite { fd: self.lending.output, bytes: line.into(), from: 0 },
             });
         }
         if self.lending.phase == Phase::Starting {
             let name = &self.lending.lend.as_ref().expect("loan").name;
-            let valid = (1..=32).contains(&name.len())
-                && name.iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'-');
-            let spawn = valid.then(|| self.box_child.as_ref().and_then(|front| front.login(name))).flatten();
+            let spawn = self.box_child.as_ref().and_then(|front| front.login(name));
             if let Some(spawn) = spawn.filter(|_| !self.lending.stop) {
                 self.lending.phase = Phase::Spawning;
                 self.lending.requests.push(io::Request::Spawn { owner: LOGIN, spawn });
@@ -176,11 +206,12 @@ impl Run {
             self.lending.phase = Phase::Idle;
             let number = self.lending.lend.take().expect("loan").number;
             self.report(host::Report::Lent { number, exit: self.lending.exit });
-            self.terminal.draw(self.host.frame());
             if self.close_after_lending {
                 self.close_after_lending = false;
                 self.close();
             }
+            return true;
         }
+        false
     }
 }

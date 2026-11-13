@@ -131,20 +131,19 @@ pub struct Unreadable {
 
 impl Line {
     /// Append this record and its newline.
-    #[expect(clippy::too_many_lines, reason = "the recording's variants are written in one exhaustive match")]
+    #[expect(clippy::too_many_lines, reason = "one exhaustive match writes every journey record's fields")]
     pub fn write(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(self.kind().as_bytes());
         let mut w = Text { out };
         match self {
             Self::Lent { number, exit } => {
                 w.number(u64::from(*number));
-                match exit {
-                    LoginExit::Exited { code } => { w.word(b"exited"); w.number(u64::from(*code)); }
-                    LoginExit::Killed { signal } => { w.word(b"killed"); w.number(u64::from(*signal)); }
-                    LoginExit::NotStarted => w.word(b"not-started"),
-                }
+                w.login_exit(*exit);
             }
-            Self::Lend { number, name } => { w.number(u64::from(*number)); w.bytes(name); }
+            Self::Lend { number, name } => {
+                w.number(u64::from(*number));
+                w.bytes(name);
+            }
             Self::Journey { version } => w.number(u64::from(*version)),
             Self::Seed(seed) | Self::Unanswered(seed) => w.number(*seed),
             Self::Clocks { now, wall } | Self::Turn { now, wall } => {
@@ -343,6 +342,19 @@ impl Text<'_> {
             self.bytes(bytes);
         } else {
             self.word(b"none");
+        }
+    }
+    fn login_exit(&mut self, exit: LoginExit) {
+        match exit {
+            LoginExit::Exited { code } => {
+                self.word(b"exited");
+                self.number(u64::from(code));
+            }
+            LoginExit::Killed { signal } => {
+                self.word(b"killed");
+                self.number(u64::from(signal));
+            }
+            LoginExit::NotStarted => self.word(b"not-started"),
         }
     }
     fn note(&mut self, note: Note) {

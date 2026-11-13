@@ -72,7 +72,10 @@ pub enum Report {
     /// A line of the box's, read.
     Front(temper_client_tui::BoxLine),
     Stage(tui::BoxStage),
-    Lent { number: u32, exit: LoginExit },
+    Lent {
+        number: u32,
+        exit: LoginExit,
+    },
 }
 
 /// The box's first stop closes its life pipe; the second sends SIGTERM.
@@ -208,7 +211,7 @@ impl Host {
         if self.state.is_none() {
             assert!(matches!(report, Report::Start(_)), "a report before the TUI's start");
         }
-        if self.closed && !matches!(report, Report::Heard(_) | Report::Kept { .. }) {
+        if self.closed && !matches!(report, Report::Heard(_) | Report::Kept { .. } | Report::Lent { .. }) {
             return Duties::default();
         }
         let project = self.root.pages().project();
@@ -411,11 +414,8 @@ impl Host {
         } else if !login.cancelled && !self.state().login_taken(login.number) {
             let number = login.number;
             let name = login.name.clone();
-            duties.lend = Some(Lend {
-                number,
-                name: name.clone(),
-                line: self.view.words().say(tui::words::Word::LendLine, &[]),
-            });
+            duties.lend =
+                Some(Lend { number, name: name.clone(), line: self.view.words().say(tui::words::Word::LendLine, &[]) });
             self.tell(Told::Lending { number, name });
         }
     }

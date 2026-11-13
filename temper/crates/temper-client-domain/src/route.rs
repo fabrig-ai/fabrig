@@ -43,7 +43,9 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         }
         Event::Went { place } => went(root, env, place, out),
         Event::Act { action } => match action {
-            Action::LoginEnded { number, exit } => crate::pages::accounts::terminal_login::ended(root, env, number, exit, out),
+            Action::LoginEnded { number, exit } => {
+                crate::pages::accounts::terminal_login::ended(root, env, number, exit, out);
+            }
             Action::Approve(act) => crate::approve::act(root, act),
             Action::Copy { words } => root.copy.press(words, out),
             Action::Pages(crate::pages::Act::SignOut) => {
