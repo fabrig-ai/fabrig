@@ -11,7 +11,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     const KEPT: &str = "family w 1\nenum E { a, b }\nrecord R { id: u8 }\n";
-    const WIRES: &str = "# wire families\n\n  w  # channel bodies\n\n";
+    const WIRES: &str = "# wire families\n\n  w 1  # channel bodies\n\n";
     const EDITS: &[(&str, &str, &str)] = &[
         ("variant", "enum E { a, b, c }\nrecord R { id: u8 }\n", "add E.c\n"),
         ("added", "enum E { a, b }\nrecord R { id: u8 }\nrecord S { flag: bool }\n", "add S\n"),
@@ -100,16 +100,16 @@ mod tests {
     fn unlisted_layout_edits_still_refresh() {
         for (name, body, _) in EDITS {
             let now = format!("family w 1\n{body}");
-            for wires in [None, Some("# no wire families\n"), Some("other\n")] {
+            for wires in [None, Some("# no wire families\n"), Some("other 1\n")] {
                 let (scratch, base) = fixture(name, KEPT, &now, wires.unwrap_or_default());
                 let root = scratch.path();
                 if wires.is_none() {
                     fs::remove_file(root.join("schema/wires")).expect("absent wires");
-                } else if wires == Some("other\n") {
+                } else if wires == Some("other 1\n") {
                     put(root, "schema/other-v1.schema", "family other 1\nrecord Other {}\n");
                 }
                 let mut findings = Vec::new();
-                if wires == Some("other\n") {
+                if wires == Some("other 1\n") {
                     findings.push(Finding::Unkept { family: "other".into() });
                 }
                 findings.push(Finding::Lagging { family: "w".into(), version: 1 });
@@ -219,13 +219,13 @@ mod tests {
 
     #[test]
     fn wire_unknown_family_is_an_error_without_writes() {
-        let (scratch, base) = fixture("unknown", KEPT, KEPT, "w\nunknown\n");
+        let (scratch, base) = fixture("unknown", KEPT, KEPT, "w 1\nunknown 1\n");
         let root = scratch.path();
         let expected = Error::Wire { family: "unknown".into() };
         assert_eq!(expected.to_string(), "schema/wires: unknown: no family of the crate");
         assert_eq!(check(root, &base), Err(expected.clone()));
         assert_eq!(run(root, &base, &options()), Err(expected));
-        text(root, "schema/wires", "w\nunknown\n");
+        text(root, "schema/wires", "w 1\nunknown 1\n");
         text(root, "schema/kept/w-v1.schema", KEPT);
         text(root, "schema/w-v1.schema", KEPT);
         assert_eq!(Landed::read(root).expect("no command files written"), base);
@@ -246,5 +246,17 @@ mod tests {
         assert_eq!(report.findings, []);
         text(root, "schema/kept/w-v1.schema", KEPT);
         text(root, "schema/w-v1.schema", &commented);
+    }
+    #[test]
+    fn wire_lines_require_a_numeric_floor_or_build() {
+        for (index, line) in ["w", "w nope", "w 65536", "w -1", "w +1", "w 1 extra", "missing 1"].iter().enumerate() {
+            let (scratch, _) = fixture(&format!("invalid-floor-{index}"), KEPT, KEPT, line);
+            let error = skein_codegen::patch::module(scratch.path()).expect_err("invalid wire line");
+            assert_eq!(error, Error::Wire { family: if line.starts_with("missing") { "missing" } else { "w" }.into() });
+        }
+        for (index, line) in ["w 1", "w build", " # comment\n w 1 # floor\n"].iter().enumerate() {
+            let (scratch, _) = fixture(&format!("valid-floor-{index}"), KEPT, KEPT, line);
+            skein_codegen::patch::module(scratch.path()).expect("floor or build reads");
+        }
     }
 }

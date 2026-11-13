@@ -24,6 +24,8 @@ pub(crate) struct Crate {
     pub current: BTreeMap<String, Text>,
     /// The families named by `schema/wires`.
     pub wires: BTreeSet<String>,
+    /// Each wire's floor, or `None` for a per-build wire.
+    pub wire_floors: BTreeMap<String, Option<u16>>,
     /// Each family's kept texts, by version.
     pub kept: BTreeMap<String, BTreeMap<u16, Text>>,
     /// Each family's waiting renames file, `schema/kept/<family>.renames`.
@@ -70,6 +72,7 @@ impl Crate {
             root: root.to_path_buf(),
             current: BTreeMap::new(),
             wires: BTreeSet::new(),
+            wire_floors: BTreeMap::new(),
             kept: BTreeMap::new(),
             renames: BTreeMap::new(),
             patches: BTreeMap::new(),
@@ -114,22 +117,36 @@ impl Crate {
             }
         }
         let wires_path = Path::new("schema/wires");
-        let wires = if root.join(wires_path).try_exists().map_err(|error| Error::io(wires_path, &error))? {
+        let mut wire_floors = BTreeMap::new();
+        if root.join(wires_path).try_exists().map_err(|error| Error::io(wires_path, &error))? {
             let source = unconflicted(root, wires_path)?;
-            source
+            for line in source
                 .lines()
                 .map(|line| line.split('#').next().unwrap_or_default().trim())
                 .filter(|line| !line.is_empty())
-                .map(str::to_owned)
-                .collect::<BTreeSet<_>>()
-        } else {
-            BTreeSet::new()
-        };
-        for family in &wires {
-            if !current.contains_key(family) {
-                return Err(Error::Wire { family: family.clone() });
+            {
+                let words = line.split_whitespace().collect::<Vec<_>>();
+                let family = words.first().copied().unwrap_or_default();
+                let [_, floor] = words.as_slice() else {
+                    return Err(Error::Wire { family: family.into() });
+                };
+                let floor = if *floor == "build" {
+                    None
+                } else {
+                    Some(
+                        floor
+                            .parse::<u16>()
+                            .ok()
+                            .filter(|_| floor.bytes().all(|byte| byte.is_ascii_digit()))
+                            .ok_or_else(|| Error::Wire { family: family.into() })?,
+                    )
+                };
+                if !current.contains_key(family) || wire_floors.insert(family.to_owned(), floor).is_some() {
+                    return Err(Error::Wire { family: family.into() });
+                }
             }
         }
+        let wires = wire_floors.keys().cloned().collect();
         let mut kept: BTreeMap<String, BTreeMap<u16, Text>> = BTreeMap::new();
         let mut renames = BTreeMap::new();
         for path in listed(root, Path::new(KEPT))? {
@@ -159,7 +176,7 @@ impl Crate {
                 skeletons.insert(number);
             }
         }
-        Ok(Self { root: root.to_path_buf(), current, wires, kept, renames, patches, skeletons })
+        Ok(Self { root: root.to_path_buf(), current, wires, wire_floors, kept, renames, patches, skeletons })
     }
 }
 

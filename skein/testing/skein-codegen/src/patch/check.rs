@@ -179,6 +179,8 @@ fn spell(error: PatchError) -> String {
         PatchWrong::Stray => "Stray",
         PatchWrong::Pieces => "Pieces",
         PatchWrong::Room => "Room",
+        PatchWrong::Irreversible => "Irreversible",
+        PatchWrong::Breaking => "Breaking",
     };
     format!("line {} at {}..{}: {name}", error.line, error.at.start, error.at.end)
 }

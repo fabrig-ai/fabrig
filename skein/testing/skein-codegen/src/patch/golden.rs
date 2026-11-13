@@ -379,6 +379,8 @@ fn halt(error: Halt, patch: &PatchText, capacity: Capacity) -> String {
         | Halt::Misread(_)
         | Halt::Misbuilt(_)
         | Halt::Built(_)
+        | Halt::Unheld(_)
+        | Halt::Altered
         | Halt::Order => format!("{error:?}"),
     }
 }
