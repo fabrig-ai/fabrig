@@ -29,8 +29,6 @@ Inherited from main at the goal's start, 2026-11-13, from goals 1983, 1984,
 - test temper-box::suite startup::a_lent_record_not_back_keeps_its_store_and_the_storys_panic
 - test temper-box::suite support_tests::printed_links_count_and_fail_without_disclosing_secrets
 
-- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/patches/p0001.rs
-- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/patches/context.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
 - lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/src/../patches/p0001.rs
 - lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/src/../patches/context.rs
@@ -38,7 +36,6 @@ Inherited from main at the goal's start, 2026-11-13, from goals 1983, 1984,
 - lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/tests/catch_up.rs
 - lint jig-protocol-store clippy::disallowed_macros jig/crates/jig-protocol-store/src/tests/catch_up.rs
 - lint jig-protocol-store clippy::needless_borrow jig/crates/jig-protocol-store/src/tests/policy_patch.rs
-- lint temper-service clippy::assigning_clones temper/crates/temper-service/src/engine.rs
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
@@ -55,6 +52,7 @@ Inherited from main at the goal's start, 2026-11-13, from goals 1983, 1984,
 - lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/lib.rs
 - lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
 - lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/codecs.rs
+- lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/shared_test_code.rs
 - lint skein-http clippy::question_mark skein/crates/skein-http/src/server.rs
 - lint jig-protocol-store clippy::too_many_lines jig/crates/jig-protocol-store/src/tests/phase.rs
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/landing.rs
