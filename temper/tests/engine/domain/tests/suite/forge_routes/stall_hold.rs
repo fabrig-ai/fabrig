@@ -1,6 +1,6 @@
 //! A stalled row holds its task and reaches its deciding holder
 //! (temper/docs/design/domain/forge/change/repairs.md; jig/docs/design/domain/tasks/proposals.md).
-use super::early_start::{observe_push, stop};
+use super::early_start::{active_without_producer, goal_world, make, observe_push, stop};
 use super::questions::{next_producer, row};
 use super::*;
 use jig_domain_core::{documents, reads};
@@ -154,6 +154,167 @@ fn close(mut world: World, owner: &engine::Assignment) {
     world.signed_in = None;
     world.sign_in();
     stop(&mut world, owner);
+}
+
+fn ordinary_task(world: &mut World, goal: &engine::Assignment) -> engine::Assignment {
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Prerequisite report", Box::new([]));
+    delegate.authority = live_task(world, goal.task).authority.clone();
+    delegate.authority.delegation = tasks::Delegation { tasks: 0, depth: 0, kinds: Box::new([]) };
+    delegate.authority.budget.spend = 10;
+    let answer = world.scripted_call(goal, 190, engine::Tool::Delegate { batch: Box::new([delegate]) });
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("report admitted: {answer:?}") };
+    let task = made[0].task;
+    for _ in 0..STEPS {
+        if let Some(run) = world.assigned.iter().find(|run| run.task == task) { return run.clone(); }
+        world.tick();
+    }
+    panic!("report assigned")
+}
+
+fn finish_dependency(world: &mut World, run: &engine::Assignment, failed: bool) {
+    let result = if failed {
+        tasks::TaskResult::Failure { reason: b"prerequisite failed".as_slice().into() }
+    } else {
+        tasks::TaskResult::Report { words: b"prerequisite done".as_slice().into() }
+    };
+    let event = world.protocol.answer(CHANNEL, run.task, run.attempt, 5,
+        tasks::End::Finished { result, cancel_delegates: false }, engine::Parts::none());
+    world.send(event);
+    for _ in 0..STEPS {
+        world.tick();
+        if world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(run.task)))) {
+            return;
+        }
+    }
+    panic!("dependency ended")
+}
+
+fn not_held(world: &World, task: u64) {
+    assert!(!matches!(row(world, task).change.state, State::Held { .. }));
+    assert!(matches!(live_task(world, task).phase, tasks::Phase::Active(_)), "{:?}", live_task(world, task).phase);
+    assert!(matches!(live_task(world, task).escalation, tasks::Escalation::Unheld { .. }));
+}
+
+fn jump(world: &mut World, duration: Duration) {
+    world.env.now = world.env.now.saturating_add(duration);
+    world.tick();
+    world.until(Until::Ready);
+}
+
+#[test]
+fn a_change_after_a_live_agent_waits_without_a_stall_then_stalls_after_its_producer_ends() {
+    let (mut world, goal, _, _) = goal_world();
+    let dependency = ordinary_task(&mut world, &goal);
+    let task = make(&mut world, &goal, b"Wait for the report", &[dependency.task]);
+    let bound = world.env.limits.forge.change_policy.stall;
+    jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
+    not_held(&world, task);
+    active_without_producer(&world, task);
+    assert_eq!(live_task(&world, task).waiting_on.as_ref(), &[dependency.task]);
+    finish_dependency(&mut world, &dependency, false);
+    let producer = next_producer(&mut world, task);
+    waiting(&mut world, task, &producer, false);
+    jump(&mut world, Duration::from_secs(10));
+    not_held(&world, task);
+    stall(&mut world, task);
+    close(world, &goal);
+}
+
+#[test]
+fn a_producer_with_no_head_counts_its_stall_from_its_last_dependencys_end() {
+    let (mut world, goal, _, _) = goal_world();
+    let task = make(&mut world, &goal, b"Wait for the report", &[]);
+    let producer = next_producer(&mut world, task);
+    waiting(&mut world, task, &producer, false);
+    let dependency = ordinary_task(&mut world, &goal);
+    let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Wait for the report");
+    amendment.dependencies = Some(Box::new([dependency.task]));
+    let revision = live_task(&world, task).revisions.spec;
+    let answer = world.scripted_call(&goal, 191,
+        engine::Tool::Amend { target: task, revision, amendment, keep_parameters: false });
+    assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "{answer:?}");
+    let bound = world.env.limits.forge.change_policy.stall;
+    jump(&mut world, bound.saturating_add(bound));
+    not_held(&world, task);
+    assert_eq!(row(&world, task).change.state, State::Producing { requested: true });
+    finish_dependency(&mut world, &dependency, false);
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(ended)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(dependency.task))))
+    else { panic!("ended dependency") };
+    let ended = ended.ended_at.expect("end time");
+    // Met must not step producing with the clock from before this end.
+    world.until(Until::Ready);
+    not_held(&world, task);
+    let short = ended.as_nanos() + bound.as_nanos() - Duration::from_secs(1).as_nanos();
+    while world.env.wall.as_nanos() < short { world.tick(); }
+    not_held(&world, task);
+    let past = ended.as_nanos() + bound.as_nanos() + Duration::from_secs(1).as_nanos();
+    while world.env.wall.as_nanos() < past { world.tick(); }
+    for _ in 0..STEPS {
+        if matches!(live_task(&world, task).escalation, tasks::Escalation::Waiting { .. }) { break; }
+        world.tick();
+    }
+    assert_stalled(&world, task);
+    close(world, &goal);
+}
+
+fn held_after_live_task() -> (World, engine::Assignment, u64, engine::Assignment) {
+    let (mut world, goal, _, _) = goal_world();
+    let dependency = ordinary_task(&mut world, &goal);
+    let task = make(&mut world, &goal, b"Wait for the report", &[dependency.task]);
+    world.until(Until::Ready);
+    active_without_producer(&world, task);
+    let mut held = row(&world, task).clone();
+    held.change.state = State::Held { why: Hold::Stalled, was: Box::new(State::Producing { requested: false }) };
+    world.store.seed(Box::new([Record::Forge { row: Box::new(forge_top::Stored::Change(Box::new(held))) }]), Box::new([]));
+    world.restart_same();
+    for _ in 0..STEPS {
+        world.tick();
+        if world.root.ready() && matches!(live_task(&world, task).escalation, tasks::Escalation::Waiting { .. }) { break; }
+    }
+    assert_stalled(&world, task);
+    world.until(Until::Ready);
+    (world, goal, task, dependency)
+}
+
+fn deployment_released(world: &World, task: u64) -> bool {
+    world.store.rows.values().any(|record| matches!(record,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::History(history)))
+        if history.task == task && history.change == tasks::Change::Released
+            && history.by == tasks::Party::Deployment { project: 1 }))
+}
+
+#[test]
+fn a_done_dependency_releases_an_unrequested_producing_stall_and_starts_its_producer() {
+    let (mut world, goal, task, dependency) = held_after_live_task();
+    finish_dependency(&mut world, &dependency, false);
+    let producer = next_producer(&mut world, task);
+    world.until(Until::Ready);
+    not_held(&world, task);
+    assert!(deployment_released(&world, task), "deployment release in history");
+    assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(task));
+    close(world, &goal);
+}
+
+#[test]
+fn a_failed_dependency_does_not_release_a_producing_stall() {
+    let (mut world, goal, task, dependency) = held_after_live_task();
+    finish_dependency(&mut world, &dependency, true);
+    world.until(Until::Ready);
+    assert!(matches!(row(&world, task).change.state, State::Held { why: Hold::Stalled, .. }));
+    assert!(matches!(live_task(&world, task).phase, tasks::Phase::Held { why: tasks::Hold::Dependency(dep), .. } if dep == dependency.task));
+    assert!(!deployment_released(&world, task));
+    assert_eq!(row(&world, task).delegate, None);
+    close(world, &goal);
+}
+
+#[test]
+fn a_live_producer_is_not_held_past_the_stall() {
+    let (mut world, goal, task, _producer) = preparing(true);
+    let bound = world.env.limits.forge.change_policy.stall;
+    jump(&mut world, bound.saturating_add(Duration::from_secs(1)));
+    not_held(&world, task);
+    close(world, &goal);
 }
 
 #[test]

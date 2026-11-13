@@ -1,0 +1,144 @@
+    Checking temper-protocol-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-protocol-store)
+    Checking temper-engine-domain-forge v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-engine-domain-forge)
+    Checking temper-engine-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-engine-service)
+    Checking temper-fake v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-fake)
+    Checking temper-engine-domain-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/tests/engine/domain)
+error: binding's name is too similar to existing binding
+   --> temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/role.rs:156:9
+    |
+156 |     let word = questions::replies(&world, role, follow)
+    |         ^^^^
+    |
+note: existing binding defined here
+   --> temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/role.rs:112:14
+    |
+112 |     let (mut world, role) = owned(s::FollowStart::Code, 200, 1000);
+    |              ^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#similar_names
+    = note: `-D clippy::similar-names` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::similar_names)]`
+
+error: use of a disallowed method `core::iter::Iterator::any`
+    --> temper/crates/temper-engine-domain-forge/src/tests/change.rs:1539:36
+     |
+1539 |         assert_eq!(finished.iter().any(|request| matches!(request, Request::Save { record: Stored::Change(_), .. })), refresh);
+     |                                    ^^^
+     |
+     = note: no closures: a for loop
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#disallowed_methods
+     = note: requested on the command line with `-D clippy::disallowed-methods`
+
+error: could not compile `temper-engine-domain-forge` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: this argument (296 byte) is passed by value, but might be more efficient if passed by reference (limit: 256 byte)
+  --> temper/tests/engine/domain/tests/suite/forge_routes/catch_up.rs:23:13
+   |
+23 |     limits: StoryLimits,
+   |             ^^^^^^^^^^^ help: consider passing by reference instead: `&StoryLimits`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#large_types_passed_by_value
+   = note: `-D clippy::large-types-passed-by-value` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::large_types_passed_by_value)]`
+
+error: used `assert!` to check that a value is empty
+   --> temper/tests/engine/domain/tests/suite/forge_routes/squash_in.rs:197:5
+    |
+197 |     assert!(world.jobs.is_empty());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#assert_is_empty
+    = note: `-D clippy::assert-is-empty` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::assert_is_empty)]`
+help: use `assert_eq!` to show the value on failure
+    |
+197 -     assert!(world.jobs.is_empty());
+197 +     assert_eq!(world.jobs, [] as [jig_domain_host::JobAssignment; 0]);
+    |
+
+error: used `assert!` to check that a value is empty
+   --> temper/tests/engine/domain/tests/suite/forge_routes/red_findings/follows.rs:310:5
+    |
+310 |     assert!(super::news(&world, triager).is_empty());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#assert_is_empty
+help: use `assert_eq!` to show the value on failure
+    |
+310 -     assert!(super::news(&world, triager).is_empty());
+310 +     assert_eq!(super::news(&world, triager), [] as [&jig_domain_tasks::Word; 0]);
+    |
+
+error: used `assert!` to check that a value is empty
+   --> temper/tests/engine/domain/tests/suite/forge_routes/red_findings/follows.rs:331:5
+    |
+331 |     assert!(news(&world, triager).is_empty());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#assert_is_empty
+help: use `assert_eq!` to show the value on failure
+    |
+331 -     assert!(news(&world, triager).is_empty());
+331 +     assert_eq!(news(&world, triager), [] as [&jig_domain_tasks::Word; 0]);
+    |
+
+error: used `assert!` to check that a value is empty
+   --> temper/tests/engine/domain/tests/suite/forge_routes/red_findings/follows.rs:359:5
+    |
+359 |     assert!(news(&world, role.task).is_empty());
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#assert_is_empty
+help: use `assert_eq!` to show the value on failure
+    |
+359 -     assert!(news(&world, role.task).is_empty());
+359 +     assert_eq!(news(&world, role.task), [] as [&jig_domain_tasks::Word; 0]);
+    |
+
+error: used `unwrap()` on an `Option` value
+  --> temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/tool.rs:21:16
+   |
+21 |     assert_eq!(world.root.tasks().task(owner.task).unwrap().label, 3);
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: if this value is `None`, it will panic
+   = help: consider using `expect()` to provide a better panic message
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unwrap_used
+   = note: requested on the command line with `-D clippy::unwrap-used`
+
+error: used `unwrap()` on an `Option` value
+  --> temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/tool.rs:25:17
+   |
+25 |     let input = smith_domain_run::HostInput::attested(input.as_bytes().into()).unwrap();
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: if this value is `None`, it will panic
+   = help: consider using `expect()` to provide a better panic message
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+  --> temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/tool.rs:26:52
+   |
+26 |       let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
+   |  ____________________________________________________^
+27 | |         smith_domain_run::CallName { activation: run.attempt, completion: 1, position: 1 },
+28 | |         b"follow",
+29 | |         &input,
+30 | |     )
+31 | |     .unwrap() else {
+   | |_____________^
+   |
+   = note: if this value is an `Err`, it will panic
+   = help: consider using `expect()` to provide a better panic message
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unwrap_used
+
+error: used `unwrap()` on a `Result` value
+  --> temper/tests/engine/domain/tests/suite/forge_routes/follow_changes/tool.rs:44:5
+   |
+44 |     String::from_utf8(forge_top::commit_text(after).into_vec()).unwrap()
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: if this value is an `Err`, it will panic
+   = help: consider using `expect()` to provide a better panic message
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/main/index.html#unwrap_used
+
+error: could not compile `temper-engine-domain-world` (test "suite") due to 10 previous errors

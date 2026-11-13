@@ -1898,6 +1898,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DelegateResult { task, child, status, no_change, failed, cancelled, words } => {
             delegate_result(d, env, task, child, status, no_change, failed, cancelled, &words, out);
         }
+        Event::DependenciesMet { task } => dependencies_met(d, env, task, out),
         Event::RelayRefused { task, questions, words } => {
             if let Some(row) = d.changes.get_mut(&task) {
                 let before = crate::panel::ready(row);
@@ -3711,6 +3712,29 @@ fn delegate_result(
     }
 }
 
+/// The last done dependency refreshes producing before jig's Met steps it (change/repairs.md).
+fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let Some(row) = d.changes.get_mut(&task) else { return };
+    let owned = row.change.owns_turn;
+    let mut ended = false;
+    if let change::State::Held { was, why: change::Hold::Stalled } = &row.change.state
+        && **was == (change::State::Producing { requested: false })
+    {
+        row.change.state = (**was).clone();
+        row.change.owns_turn = false;
+        ended = true;
+    }
+    if let change::State::Producing { .. } = row.change.state {
+        row.change.since = env.wall;
+        let saved = row.clone();
+        wake_after_turn(d, &saved, owned);
+        save_change(d, out, saved);
+        if ended {
+            emit(out, Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None });
+        }
+    }
+}
+
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).
 fn cancelled_delegate_words(kind: change::Delegate, child: u64, words: &[u8]) -> Option<Box<[u8]>> {
     let name: &[u8] = match kind {
@@ -4811,7 +4835,15 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
     }
 }
 
-/// Missing bases and uncertain reads are forge waits, bounded by the unchanged step's stall.
+fn waits_for_dependencies(row: &ChangeRow, pending: &PendingStep) -> bool {
+    if let change::State::Producing { .. } = row.change.state {
+        !pending.pending.is_empty()
+    } else {
+        false
+    }
+}
+
+/// Missing bases and uncertain reads count a stall except while producing waits for dependencies.
 fn wait_for_forge(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -4827,13 +4859,16 @@ fn wait_for_forge(
         );
         return;
     }
-    if pending.heard.delegate_live {
+    let dependencies = waits_for_dependencies(&row, pending);
+    if pending.heard.delegate_live || dependencies {
         row.change.since = env.wall;
     }
     let until = skein_lib::Wall::from_nanos(
         row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
     );
-    let decision = if env.wall >= until {
+    let decision = if dependencies {
+        change::Decision::Wait { until: retry }
+    } else if env.wall >= until {
         row.change.owns_turn = false;
         row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
         change::Decision::Hold(change::Hold::Stalled)
@@ -4869,7 +4904,7 @@ fn titled_change(
         && (producing || row.delegate_status == change::Status::Passed)
         && row.change.state == (change::State::Producing { requested: true })
     {
-        if agent_asking(&row) {
+        if agent_asking(&row) || waits_for_dependencies(&row, pending) {
             row.change.since = env.wall;
             d.changes.insert(task, row.clone()).expect("replaces change");
             save_change(d, out, row);
