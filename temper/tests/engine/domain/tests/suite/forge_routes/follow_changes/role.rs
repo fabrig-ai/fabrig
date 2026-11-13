@@ -153,12 +153,12 @@ fn role_question_survives_restart_words_answer_nothing_and_answer_resumes_produc
     let words = "é".repeat(usize::try_from(world.env.limits.tasks.message_bytes / 2).expect("message bound"));
     world.producer_question(&producer, 178, words.as_bytes());
     let cut = relayed(&mut world, change);
-    let word = questions::replies(&world, role, follow)
+    let reply = questions::replies(&world, role, follow)
         .into_iter()
         .find(|word| word.number == cut.relayed.expect("own question"))
         .expect("role question");
-    assert!(word.words.len() <= usize::try_from(world.env.limits.tasks.message_bytes).expect("message bound"));
-    assert!(std::str::from_utf8(&word.words).expect("cut on UTF-8").ends_with('…'));
+    assert!(reply.words.len() <= usize::try_from(world.env.limits.tasks.message_bytes).expect("message bound"));
+    assert!(std::str::from_utf8(&reply.words).expect("cut on UTF-8").ends_with('…'));
     world.close();
 }
 

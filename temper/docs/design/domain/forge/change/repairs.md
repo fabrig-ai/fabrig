@@ -419,7 +419,16 @@
   it does (its tries, its executor's stall, its budget: jig's
   `domain/tasks/lifecycle.md`, 6). The stall counts from that delegate's end, as
   it does while a question of that agent's is open (`questions.md`, 1), from the step
-  that relays its last answer down. A gate's task is a wait on the forge
+  that relays its last answer down. Nor is a wait for its dependencies:
+  while the change is at producing and its task has a dependency that
+  has not ended (jig's `domain/tasks/lifecycle.md`, 8), the stall does
+  not count, whatever the change waits on there: a producer not yet
+  started (`questions.md`, 1, *Early starts*), an early producer that
+  ended giving nothing, a read of the forge. It counts from the last
+  dependency's end, as it counts from a delegate's end, and a step
+  taken while the wait lasts counts it afresh, as a live agent's does.
+  At any other step a dependency changes nothing: a change done while
+  kept is checked, gated and held there as any change is. A gate's task is a wait on the forge
   as this bullet names it, and stays bounded. A head behind its base is
   no wait: a range that lists a commit, or one too large to list, says
   the head lacks the base's tip (`../keeping-up.md`, 3), so the change takes its base, or
@@ -466,6 +475,18 @@
   request, a no-change ends the change. Under any other hold, the result
   stays on the change and a release takes it, as the hold's own words say;
   a no-change under one is said by the hold, since nothing else would.
+- **A dependency's end ends a stall at producing.** A change held on a
+  stall at producing with no producer asked for, whose task's last
+  pending dependency ends done, is released with no party's release, as
+  a result ends a stall at its delegate's wait (above): the change goes
+  on from producing, its stall counted from that end, the deployment
+  releases its task, and its producer starts as at any producing. This
+  clears a hold placed during a dependency's wait before the stall
+  stopped counting there (*Stalls*, above). A dependency that ends
+  failed or cancelled ends no hold: it holds the change as any failed
+  dependency does (jig's `domain/tasks/lifecycle.md`, 6), as before.
+  A hold of any other cause, or a stall at producing with its producer
+  asked for, stays for a party's release.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it (not from the deployment's, ending a hold at a green
   head, above), its stall is counted from it, and the change decides
@@ -568,6 +589,14 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   so a backoff shorter than `poll_ms` can start another run at a green head,
   left to finish as any run is. Whether jig tells a procedure of its delegate's
   retry, so that none starts. Default: as it stands.
+
+- **A dependency amended away** (`repairs.md`, *Stalls*): the stall
+  counts from a dependency's end, and an amendment that removes the
+  last pending one ends the wait with no end. The stall then counts
+  from the last step taken while the change waited, so a change at
+  producing whose producer gave nothing, with no step between, can be
+  held at the step the amendment brings. Default: so; its requester
+  amended it, and releases it.
 
 - **A hold at gating at a green head** (`repairs.md`): past the bound or short of
   authority there, a hold can be a gate's or CI's, and its state does not say

@@ -1702,7 +1702,40 @@ fn a_change_with_a_pending_change_without_a_head_waits_with_no_stall() {
     let started = step(&waiting.change, &f, &heard(), at(61), &LIMITS);
     assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
     assert_eq!(started.change.since, at(61));
-    assert_eq!(step(&started.change, &f, &heard(), at(62), &LIMITS).decision, Decision::Wait { until: Some(at(91)) });
+    assert_eq!(step(&started.change, &f, &heard(), at(62), &LIMITS).decision, Decision::Wait { until: None });
+}
+
+fn dependency_wait(c: &Change, mut f: Facts, h: &Heard) {
+    let waiting = step(c, &f, h, at(60), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    assert_eq!(waiting.change.since, at(60));
+    assert_eq!(waiting.change.state, c.state);
+    f.pending = Box::new([]);
+    assert_eq!(step(c, &f, h, at(60), &LIMITS).decision, Decision::Hold(Hold::Stalled));
+}
+
+#[test]
+fn a_passed_producer_without_a_head_waits_for_dependencies_without_a_stall() {
+    let c = change(State::Producing { requested: true });
+    let f = pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Other }]));
+    dependency_wait(&c, f, &Heard { delegate: Status::Passed, ..heard() });
+}
+
+#[test]
+fn a_writer_taken_at_producing_waits_for_dependencies_without_a_stall() {
+    let c = change(State::Producing { requested: true });
+    let mut f = pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Other }]));
+    f.writer_taken = true;
+    dependency_wait(&c, f, &heard());
+}
+
+#[test]
+fn a_catch_ups_unknown_containment_waits_for_dependencies_without_a_stall() {
+    let c = change(State::Producing { requested: false });
+    let mut f = pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Other }]));
+    f.catch_up = Some(BASE);
+    f.contains_catch_up = Status::Unknown;
+    dependency_wait(&c, f, &heard());
 }
 
 #[test]
@@ -1736,7 +1769,7 @@ fn a_change_whose_pending_changes_have_heads_starts_early_from_them() {
     );
     assert_eq!(started.change.since, at(60));
     let repeated = step(&started.change, &f, &heard(), at(61), &LIMITS);
-    assert_eq!(repeated.decision, Decision::Wait { until: Some(at(90)) });
+    assert_eq!(repeated.decision, Decision::Wait { until: None });
     let mut pushed = f;
     pushed.branch = Some(NEW);
     let opening = step(&repeated.change, &pushed, &heard(), at(62), &LIMITS);

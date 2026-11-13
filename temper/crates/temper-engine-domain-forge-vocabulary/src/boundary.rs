@@ -1955,6 +1955,10 @@ pub enum Event {
         cancelled: bool,
         words: Box<[u8]>,
     },
+    /// The last pending dependency ended done; refresh producing and end its unrequested stall hold.
+    DependenciesMet {
+        task: u64,
+    },
     /// Save the relay admitted with a change's procedure step.
     Relayed {
         task: u64,
