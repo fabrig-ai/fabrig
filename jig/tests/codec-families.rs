@@ -158,7 +158,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
         schemas: &["schema/worker-wire-v13.schema"],
-        generated: &["src/generated/v13.rs", "src/generated/v12.rs"],
+        generated: &["src/generated/v13.rs"],
         golden: "golden",
         fixtures: &[],
     },
