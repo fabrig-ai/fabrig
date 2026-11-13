@@ -25,9 +25,9 @@ mod update_lost;
 mod writer;
 
 mod fuzzy {
-    mod landing_batches;
     mod branch_patterns;
     mod gate_keys;
+    mod landing_batches;
     mod pull_cutoff;
     mod rules_by_path;
     mod simulation;

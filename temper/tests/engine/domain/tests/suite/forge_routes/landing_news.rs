@@ -233,7 +233,13 @@ fn joined_batch() -> (World, engine::Assignment, Vec<u64>) {
         StoryLimits { turn: true, landing_members: Some(0), batch: Some(3), ..StoryLimits::default() },
     );
     world.adopt();
-    world.send(protocol::hello_with(Token::new(7), 0, 2, jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() }, Box::new([])));
+    world.send(protocol::hello_with(
+        Token::new(7),
+        0,
+        2,
+        jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() },
+        Box::new([]),
+    ));
     let mut changes = Vec::new();
     let ask = walking::goal_from(
         world.chat(1, b"make three fixes"),
@@ -322,64 +328,133 @@ fn ready_goal_change(world: &mut World, goal: &engine::Assignment, call: u64) ->
 
 #[test]
 fn a_batch_request_grants_every_prefix_and_each_goal_hears_its_own_prefix() {
-    let (mut world, goal, changes) = joined_batch(); world.manual_prepare_jobs();
-    world.send(protocol::hello_with(Token::new(7), 0, 2, jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() }, Box::new([])));
-    for _ in 0..800 { world.tick(); if !world.jobs.is_empty() { break; } }
-    let job = world.jobs.first().expect("one stack prepare"); let task = job.workspace.expect("workspace").workstream;
+    let (mut world, goal, changes) = joined_batch();
+    world.manual_prepare_jobs();
+    world.send(protocol::hello_with(
+        Token::new(7),
+        0,
+        2,
+        jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() },
+        Box::new([]),
+    ));
+    for _ in 0..800 {
+        world.tick();
+        if !world.jobs.is_empty() {
+            break;
+        }
+    }
+    let job = world.jobs.first().expect("one stack prepare");
+    let task = job.workspace.expect("workspace").workstream;
     let row = landing_rows(&world).into_iter().find(|row| row.landing.task == task).expect("landing");
     let branches: Vec<_> = row.landing.members.iter().map(|m| m.branch.clone()).collect();
-    let spec = temper_protocol_worker_wire::v1::JobSpec::decode(&temper_protocol_worker_wire::v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("job spec");
+    let spec = temper_protocol_worker_wire::v1::JobSpec::decode(
+        &temper_protocol_worker_wire::v1::CEILINGS,
+        &mut skein_lib::Reader::new(&job.spec),
+    )
+    .expect("job spec");
     let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("worker request");
     assert_eq!(request["from"], hex(&row.landing.members[0].base.expect("base")));
-    let members = request["members"].as_array().expect("members"); assert_eq!(members.len(), 3);
-    for (index, member) in members.iter().enumerate() { assert_eq!(member["number"], index + 1); assert_eq!(member["prefix"], String::from_utf8_lossy(&branches[index]).as_ref()); }
-    assert_eq!(world.job_workspaces.get(&job.run.raw()).expect("typed items").repositories[0].prefixes.as_ref(), branches);
+    let members = request["members"].as_array().expect("members");
+    assert_eq!(members.len(), 3);
+    for (index, member) in members.iter().enumerate() {
+        assert_eq!(member["number"], index + 1);
+        assert_eq!(member["prefix"], String::from_utf8_lossy(&branches[index]).as_ref());
+    }
+    assert_eq!(
+        world.job_workspaces.get(&job.run.raw()).expect("typed items").repositories[0].prefixes.as_ref(),
+        branches
+    );
     for branch in &branches {
         assert!(world.store.rows.values().any(|record| matches!(record, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Writer(slot))) if matches!(slot.writer, tasks::Writer::Run { .. }) && slot.resource.path.last().is_some_and(|last| *last == *branch))));
     }
     world.automatic_prepare_jobs();
-    for _ in 0..2400 { world.tick(); if ended(&world, task) && changes.iter().all(|change| ended(&world, *change)) { break; } }
+    for _ in 0..2400 {
+        world.tick();
+        if ended(&world, task) && changes.iter().all(|change| ended(&world, *change)) {
+            break;
+        }
+    }
     assert!(ended(&world, task), "batch procedure ends");
     let row = landing_rows(&world).into_iter().find(|row| row.landing.task == task).expect("landed batch");
-    let top = row.landing.members[2].landed.expect("top landed"); let lines = news(&world, goal.task, task);
+    let top = row.landing.members[2].landed.expect("top landed");
+    let lines = news(&world, goal.task, task);
     for (index, member) in row.landing.members.iter().enumerate() {
         let prefix = member.landed.expect("member landed");
-        let proving = format!("landing {task}: change {} proving at {} on {}{}", member.change, hex(&prefix), hex(&member.base.expect("base")), if index == 2 { String::new() } else { format!(", under {}", hex(&top)) });
+        let proving = format!(
+            "landing {task}: change {} proving at {} on {}{}",
+            member.change,
+            hex(&prefix),
+            hex(&member.base.expect("base")),
+            if index == 2 { String::new() } else { format!(", under {}", hex(&top)) }
+        );
         assert_eq!(lines.iter().filter(|line| **line == proving).count(), 1, "{proving}: {lines:?}");
-        assert_eq!(lines.iter().filter(|line| **line == format!("landing {task}: change {} landed at {}", member.change, hex(&prefix))).count(), 1);
+        assert_eq!(
+            lines
+                .iter()
+                .filter(|line| **line == format!("landing {task}: change {} landed at {}", member.change, hex(&prefix)))
+                .count(),
+            1
+        );
         assert!(world.fake.branch(b"org/repo", &member.branch).is_none(), "prefix released");
     }
-    let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) = &task_row(&world, task).expect("ended").phase else { panic!("landing report") };
-    for member in &row.landing.members { assert!(String::from_utf8_lossy(words).contains(&hex(&member.landed.expect("prefix")))); }
+    let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) =
+        &task_row(&world, task).expect("ended").phase
+    else {
+        panic!("landing report")
+    };
+    for member in &row.landing.members {
+        assert!(String::from_utf8_lossy(words).contains(&hex(&member.landed.expect("prefix"))));
+    }
 }
 
 #[test]
 fn batch_goals_hear_member_leaves_and_each_members_landing_hold() {
     for held in [false, true] {
         let (mut world, goal, changes) = joined_batch();
-        if held { world.fake_env.limits.setup_faults = 1000; }
-        world.send(protocol::hello_with(Token::new(7), 0, 2, jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() }, Box::new([])));
+        if held {
+            world.fake_env.limits.setup_faults = 1000;
+        }
+        world.send(protocol::hello_with(
+            Token::new(7),
+            0,
+            2,
+            jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() },
+            Box::new([]),
+        ));
         let mut landing = None;
         for _ in 0..1200 {
             world.tick();
-            if let Some(row) = landing_rows(&world).into_iter().find(|row| row.landing.phase == forge_top::LandingPhase::Proving) { landing = Some(row.landing.task); break; }
+            if let Some(row) =
+                landing_rows(&world).into_iter().find(|row| row.landing.phase == forge_top::LandingPhase::Proving)
+            {
+                landing = Some(row.landing.task);
+                break;
+            }
         }
         let landing = landing.expect("proving batch");
         let mut moved = None;
         if !held {
             let branch = super::light_rules::change_row(&world, changes[1]).branch.clone();
-            let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"moved", b"new head", 1).expect("outside delivery");
+            let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"moved", b"new head", 1)
+                .expect("outside delivery");
             moved = Some(translate::commit(head));
         }
         for _ in 0..2000 {
             world.tick();
             if held {
-                if matches!(task_row(&world, landing).expect("task").phase, tasks::Phase::Held { .. }) && news(&world, goal.task, landing).iter().filter(|line| line.contains(": held:")).count() == 3 { break; }
-            } else if ended(&world, landing) { break; }
+                if matches!(task_row(&world, landing).expect("task").phase, tasks::Phase::Held { .. })
+                    && news(&world, goal.task, landing).iter().filter(|line| line.contains(": held:")).count() == 3
+                {
+                    break;
+                }
+            } else if ended(&world, landing) {
+                break;
+            }
         }
         let lines = news(&world, goal.task, landing);
         if held {
-            let expected = format!("landing {landing}: held: gate gate of org/repo failed on its runner past its retries");
+            let expected =
+                format!("landing {landing}: held: gate gate of org/repo failed on its runner past its retries");
             assert_eq!(lines.iter().filter(|line| **line == expected).count(), 3);
         } else {
             assert!(ended(&world, landing));
@@ -387,7 +462,11 @@ fn batch_goals_hear_member_leaves_and_each_members_landing_hold() {
             assert!(lines.contains(&format!("landing {landing}: change {} left: {why}", changes[1])), "{lines:?}");
             let row = landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("ended batch");
             assert!(row.landing.members[0].landed.is_some() && row.landing.members[2].landed.is_some());
-            let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) = &task_row(&world, landing).expect("ended").phase else { panic!("landing report") };
+            let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) =
+                &task_row(&world, landing).expect("ended").phase
+            else {
+                panic!("landing report")
+            };
             assert!(String::from_utf8_lossy(words).contains(&format!("change {} left: {why}", changes[1])));
         }
     }

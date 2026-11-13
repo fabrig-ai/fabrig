@@ -504,14 +504,23 @@ fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u
 }
 
 fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Preparation {
-    let members = match domain.forge.landing(context.task) { Some(row) => u32::try_from(row.landing.members.len()).expect("bounded members"), None => 0 };
+    let members = match domain.forge.landing(context.task) {
+        Some(row) => u32::try_from(row.landing.members.len()).expect("bounded members"),
+        None => 0,
+    };
     for word in &context.inbox {
         if let tasks::Party::Task(child) = word.from {
-            if super::close::failed(domain, child, &word.kind) || (word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) && forge::preparation::outcomes(&word.words, members).is_none()) {
+            if super::close::failed(domain, child, &word.kind)
+                || (word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
+                    && forge::preparation::outcomes(&word.words, members).is_none())
+            {
                 return landing::Preparation::Failed;
             }
             if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
-                && match domain.forge.landing(context.task) { Some(row) => row.landing.round.branch.is_empty(), None => false }
+                && match domain.forge.landing(context.task) {
+                    Some(row) => row.landing.round.branch.is_empty(),
+                    None => false,
+                }
                 && conflict_files(&word.words).is_some()
             {
                 return landing::Preparation::Conflict;
@@ -538,46 +547,65 @@ fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Prepara
 fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::prepare::PrepareRequest> {
     let row = domain.forge.landing(task)?;
     let first = row.landing.members.first()?;
-    let provider = skein_forge::api::Repository { forge: first.repository.forge, repository: first.repository.repository };
+    let provider =
+        skein_forge::api::Repository { forge: first.repository.forge, repository: first.repository.repository };
     let repository = domain.forge.repository(provider)?;
     let mut base = None;
-    for member in &row.landing.members { if member.left.is_none() && member.landed.is_none() { base = member.base; break; } }
+    for member in &row.landing.members {
+        if member.left.is_none() && member.landed.is_none() {
+            base = member.base;
+            break;
+        }
+    }
     let base = base?;
     let mut from = base;
     let mut members = List::with_capacity(env.limits.forge.landing_members);
     for (index, member) in row.landing.members.iter().enumerate() {
-        if member.left.is_some() || member.landed.is_some() { continue; }
-        if let Some(prefix) = member.candidate { from = prefix; continue; }
-    let change = domain.forge.change(member.change)?;
-    let head = member.head?;
-    let mut message = List::with_capacity(env.limits.tasks.spec_bytes);
-    append(&mut message, b"Merge pull request '");
-    append(&mut message, &change.title);
-    append(&mut message, b"' (#");
-    append(&mut message, skein_lib::Decimal::of(member.pull).as_bytes());
-    append(&mut message, b") from ");
-    append(&mut message, &change.branch);
-    append(&mut message, b" into ");
-    append(&mut message, &row.landing.branch);
-    append(&mut message, b"\n\nLanded by landing ");
-    append(&mut message, skein_lib::Decimal::of(task).as_bytes());
-    append(&mut message, b" for change ");
-    append(&mut message, skein_lib::Decimal::of(member.change).as_bytes());
-    append(&mut message, b".");
-    let mut squash = List::with_capacity(env.limits.tasks.spec_bytes);
-    append(&mut squash, &change.title);
-    append(&mut squash, b"\n\nTemper-Change: ");
-    append(&mut squash, skein_lib::Decimal::of(member.change).as_bytes());
-    append(&mut squash, b"\nTemper-Pull: ");
-    append(&mut squash, skein_lib::Decimal::of(member.pull).as_bytes());
-    append(&mut squash, b"\nTemper-Head: ");
-    append(&mut squash, &super::commit_text(&head));
-        members.push(super::prepare::PrepareMember {
-            number: u64::try_from(index).ok()?.checked_add(1)?, branch: change.branch.clone(), prefix: member.branch.clone(), head,
-            message: message.into_boxed(), squash: squash.into_boxed(),
-        }).ok()?;
+        if member.left.is_some() || member.landed.is_some() {
+            continue;
+        }
+        if let Some(prefix) = member.candidate {
+            from = prefix;
+            continue;
+        }
+        let change = domain.forge.change(member.change)?;
+        let head = member.head?;
+        let mut message = List::with_capacity(env.limits.tasks.spec_bytes);
+        append(&mut message, b"Merge pull request '");
+        append(&mut message, &change.title);
+        append(&mut message, b"' (#");
+        append(&mut message, skein_lib::Decimal::of(member.pull).as_bytes());
+        append(&mut message, b") from ");
+        append(&mut message, &change.branch);
+        append(&mut message, b" into ");
+        append(&mut message, &row.landing.branch);
+        append(&mut message, b"\n\nLanded by landing ");
+        append(&mut message, skein_lib::Decimal::of(task).as_bytes());
+        append(&mut message, b" for change ");
+        append(&mut message, skein_lib::Decimal::of(member.change).as_bytes());
+        append(&mut message, b".");
+        let mut squash = List::with_capacity(env.limits.tasks.spec_bytes);
+        append(&mut squash, &change.title);
+        append(&mut squash, b"\n\nTemper-Change: ");
+        append(&mut squash, skein_lib::Decimal::of(member.change).as_bytes());
+        append(&mut squash, b"\nTemper-Pull: ");
+        append(&mut squash, skein_lib::Decimal::of(member.pull).as_bytes());
+        append(&mut squash, b"\nTemper-Head: ");
+        append(&mut squash, &super::commit_text(&head));
+        members
+            .push(super::prepare::PrepareMember {
+                number: u64::try_from(index).ok()?.checked_add(1)?,
+                branch: change.branch.clone(),
+                prefix: member.branch.clone(),
+                head,
+                message: message.into_boxed(),
+                squash: squash.into_boxed(),
+            })
+            .ok()?;
     }
-    if members.is_empty() { return None; }
+    if members.is_empty() {
+        return None;
+    }
     let main = row.landing.branch == repository.settings.default_branch;
     let combine = match domain.config.landings.get(&row.landing.project) {
         Some(config) => {
@@ -597,7 +625,11 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
     };
     Some(super::prepare::PrepareRequest {
         repository: repository.name.clone(),
-        main: base, from, combine, train_upstream: row.landing.round.upstream, members: members.into_boxed(),
+        main: base,
+        from,
+        combine,
+        train_upstream: row.landing.round.upstream,
+        members: members.into_boxed(),
     })
 }
 fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::super::Delegate> {
@@ -649,23 +681,43 @@ pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -
     for member in &request.members {
         let what = super::branch_what(&member.prefix, env.limits.forge.name_bytes)?;
         let name = forge::Name { forge: provider.forge, repository: provider.repository, what };
-        writes.push(authority::Write { held: authority::Writer::Ancestor,
-            effect: authority::Effect { connector: domain.config.forge_connector, kind: 2,
-                name: resource_name(repository, &name.what, env.limits.authority.segments)?, state: [0; 32], price: None,
-                access: effect_access(repository, &name.what, 2), additional: Box::new([]), guards: Box::new([]), },
-        }).ok()?;
+        writes
+            .push(authority::Write {
+                held: authority::Writer::Ancestor,
+                effect: authority::Effect {
+                    connector: domain.config.forge_connector,
+                    kind: 2,
+                    name: resource_name(repository, &name.what, env.limits.authority.segments)?,
+                    state: [0; 32],
+                    price: None,
+                    access: effect_access(repository, &name.what, 2),
+                    additional: Box::new([]),
+                    guards: Box::new([]),
+                },
+            })
+            .ok()?;
         names.push(name).ok()?;
     }
-    Some(super::RunWorkspace { workspace, workstream: task, writes: writes.into_boxed(), names: names.into_boxed(), designs: Box::new([]), own_holds: Box::new([]) })
+    Some(super::RunWorkspace {
+        workspace,
+        workstream: task,
+        writes: writes.into_boxed(),
+        names: names.into_boxed(),
+        designs: Box::new([]),
+        own_holds: Box::new([]),
+    })
 }
 fn prepare_outcomes(context: &tasks::RunContext, members: u32) -> Box<[forge::preparation::Prepared]> {
-    for word in &context.inbox { if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) { return forge::preparation::outcomes(&word.words, members).unwrap_or(Box::new([])); } }
+    for word in &context.inbox {
+        if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) {
+            return forge::preparation::outcomes(&word.words, members).unwrap_or(Box::new([]));
+        }
+    }
     Box::new([])
 }
 fn prepare_failure(context: &tasks::RunContext) -> Box<[u8]> {
     for word in &context.inbox {
-        if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
-        {
+        if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) {
             return word.words.clone();
         }
         if let tasks::MessageKind::Escalation { .. } = word.kind {

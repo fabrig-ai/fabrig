@@ -348,8 +348,8 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: policy::Preparation::Idle,
@@ -453,8 +453,8 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
             task: 61,
             entry: 91,
             heard: LandingHeard {
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -576,8 +576,8 @@ fn landing_merge_evidence(single: bool) {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: policy::Preparation::Idle,
@@ -713,8 +713,8 @@ fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
             task: 61,
             entry: 91,
             heard: LandingHeard {
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -872,7 +872,15 @@ fn the_turn_judges_path_approvals_from_its_complete_candidate_comparison() {
         ];
         for (reviewers, expected) in reviewer_cases {
             assert_eq!(
-                d.judge_landing(5, 5, 0, 61, fixtures::HEAD, &evidence.first().expect("single member").facts, &reviewers),
+                d.judge_landing(
+                    5,
+                    5,
+                    0,
+                    61,
+                    fixtures::HEAD,
+                    &evidence.first().expect("single member").facts,
+                    &reviewers
+                ),
                 Some(expected),
                 "{path:?}, before {before:?}, after {after:?}, changed {changed}, refused {refused}"
             );
@@ -951,8 +959,8 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
             task: 61,
             entry: 91,
             heard: LandingHeard {
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -1401,8 +1409,8 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -1620,8 +1628,8 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: temper_engine_domain_forge_landing::Preparation::Idle,

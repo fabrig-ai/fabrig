@@ -101,8 +101,8 @@ pub use follows::{
 mod forming;
 pub use forming::{Selection, WaitingUnit, select_units};
 mod landing;
-pub mod preparation;
 mod landing_log;
+pub mod preparation;
 pub use landing_log::LOGGED_TITLE_BYTES;
 mod limits;
 mod link;

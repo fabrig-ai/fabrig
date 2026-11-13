@@ -72,13 +72,15 @@ fn repository_item(
             branches.push(branch.clone()).expect("measured branches");
         }
         v1::Access::Prefixes(v1::Prefixes::new(limits, v1::PrefixesParts { branches })?)
-    } else { match &repository.push {
-        Some(push) => v1::Access::Writable(v1::Writable::new(
-            limits,
-            v1::WritableParts { push: push.clone(), expected: None, landing: repository.landing.clone() },
-        )?),
-        None => v1::Access::ReadOnly,
-    }};
+    } else {
+        match &repository.push {
+            Some(push) => v1::Access::Writable(v1::Writable::new(
+                limits,
+                v1::WritableParts { push: push.clone(), expected: None, landing: repository.landing.clone() },
+            )?),
+            None => v1::Access::ReadOnly,
+        }
+    };
     v1::Repository::new(
         limits,
         v1::RepositoryParts {

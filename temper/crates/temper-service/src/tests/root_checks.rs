@@ -573,8 +573,11 @@ fn the_reference_room_starts_and_holds_its_relations() {
 
 #[test]
 fn landing_members_fits_the_prepare_prefixes_channel_envelope() {
-    let mut limits = root_limits(); limits.forge.landing_members = 5;
-    assert_eq!(&*root(&limits), b"", "five prefixes fit"); limits.forge.landing_members = 6;
-    let words = root(&limits); assert!(!words.is_empty(), "a sixth prefix exceeds the wire envelope");
+    let mut limits = root_limits();
+    limits.forge.landing_members = 5;
+    assert_eq!(&*root(&limits), b"", "five prefixes fit");
+    limits.forge.landing_members = 6;
+    let words = root(&limits);
+    assert!(!words.is_empty(), "a sixth prefix exceeds the wire envelope");
     assert!(String::from_utf8_lossy(&words).contains("forge.landing_members"));
 }

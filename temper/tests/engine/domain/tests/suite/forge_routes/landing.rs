@@ -921,8 +921,7 @@ fn the_prepare_jobs_conflict_result_ends_the_round_and_asks_for_resolution() {
     let job = world.jobs.remove(0);
     assert_eq!(job.kind, jig_domain_link::JobKind(1));
     let landing = job.workspace.as_ref().expect("job workspace").workstream;
-    let result =
-        format!("{{\"conflicts\":[{{\"member\":1,\"with\":\"branch\",\"files\":[\"file\"],\"cut\":false}}]}}");
+    let result = format!("{{\"conflicts\":[{{\"member\":1,\"with\":\"branch\",\"files\":[\"file\"],\"cut\":false}}]}}");
     let event = world.protocol.answer_job(
         Token::new(7),
         job.run.raw(),

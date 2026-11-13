@@ -768,7 +768,8 @@ fn refusal_notes_resume_after_the_operator_sink_drains() {
 #[test]
 fn a_jobs_forge_workspace_becomes_worker_items() {
     let mut repository = fixtures::repository(7, b"acme", b"shop");
-    repository.start = temper_engine_domain::ForgeStart::Merge { branch: b"temper/change".as_slice().into(), base: [4; 32] };
+    repository.start =
+        temper_engine_domain::ForgeStart::Merge { branch: b"temper/change".as_slice().into(), base: [4; 32] };
     repository.push = Some(b"temper/change".as_slice().into());
     let items = job_items(repository);
     assert_eq!(items.repositories().len(), 1);
@@ -805,11 +806,21 @@ fn job_items(repository: temper_engine_domain::ForgeRepository) -> temper_protoc
 }
 #[test]
 fn a_prepare_jobs_items_allow_only_its_ordered_prefix_branches() {
-    let mut repository = fixtures::repository(7, b"acme", b"shop"); repository.start = temper_engine_domain::ForgeStart::Commit([4; 32]);
-    repository.prefixes = Box::new([b"temper/61/l61".as_slice().into(), b"temper/61/l61-2".as_slice().into(), b"temper/61/l61-3".as_slice().into()]);
-    let expected = repository.prefixes.clone(); let items = job_items(repository); let item = items.repositories().get(0).expect("train repository");
-    let temper_protocol_worker_wire::v1::Access::Prefixes(prefixes) = item.access() else { panic!("only prefix creations are writable") };
-    assert_eq!(prefixes.branches().as_slice(), expected.as_ref()); assert!(item.save().is_none());
+    let mut repository = fixtures::repository(7, b"acme", b"shop");
+    repository.start = temper_engine_domain::ForgeStart::Commit([4; 32]);
+    repository.prefixes = Box::new([
+        b"temper/61/l61".as_slice().into(),
+        b"temper/61/l61-2".as_slice().into(),
+        b"temper/61/l61-3".as_slice().into(),
+    ]);
+    let expected = repository.prefixes.clone();
+    let items = job_items(repository);
+    let item = items.repositories().get(0).expect("train repository");
+    let temper_protocol_worker_wire::v1::Access::Prefixes(prefixes) = item.access() else {
+        panic!("only prefix creations are writable")
+    };
+    assert_eq!(prefixes.branches().as_slice(), expected.as_ref());
+    assert!(item.save().is_none());
 }
 
 /// temper/docs/design/domain/worker/jobs.md: a job without repositories has no items part.

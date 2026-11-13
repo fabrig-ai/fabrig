@@ -463,7 +463,8 @@ impl World {
                 limits.tasks.authority_bytes = 512;
                 limits.tasks.contract_choices = 3;
                 limits.tasks.inbox_messages = inbox_messages.unwrap_or(8);
-                limits.tasks.inbox_bytes = inbox_bytes.unwrap_or(limits.tasks.inbox_messages * limits.tasks.message_bytes);
+                limits.tasks.inbox_bytes =
+                    inbox_bytes.unwrap_or(limits.tasks.inbox_messages * limits.tasks.message_bytes);
                 limits.authority.executors = 5;
                 limits.authority.batch = authority_batch.unwrap_or(2);
                 limits.authority.grants = 11 + u32::from(workflow_dispatch);
@@ -1509,15 +1510,26 @@ impl World {
                 Record::Core(_) => None,
             })
             .expect("job's landing");
-        let spec = temper_protocol_worker_wire::v1::JobSpec::decode(&temper_protocol_worker_wire::v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("prepare spec");
+        let spec = temper_protocol_worker_wire::v1::JobSpec::decode(
+            &temper_protocol_worker_wire::v1::CEILINGS,
+            &mut skein_lib::Reader::new(&job.spec),
+        )
+        .expect("prepare spec");
         assert_eq!(spec.command(), b"");
         let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
         let engine::ForgeStart::Commit(from) = item.start else { panic!("immutable stack start") };
         assert_eq!(request["from"], String::from_utf8(engine::commit_text(&from).into_vec()).expect("from hex"));
         let mut base = fake::commit_count(&from).expect("fake base");
         let members = request["members"].as_array().expect("stack members");
-        assert_eq!(item.prefixes.as_ref(), members.iter().map(|member| Box::<[u8]>::from(member["prefix"].as_str().expect("prefix branch").as_bytes())).collect::<Vec<_>>());
-        assert!(item.push.is_none()); assert!(item.save.is_none());
+        assert_eq!(
+            item.prefixes.as_ref(),
+            members
+                .iter()
+                .map(|member| Box::<[u8]>::from(member["prefix"].as_str().expect("prefix branch").as_bytes()))
+                .collect::<Vec<_>>()
+        );
+        assert!(item.push.is_none());
+        assert!(item.save.is_none());
         let mut combined = Vec::new();
         for member in members {
             let position = usize::try_from(member["number"].as_u64().expect("member number")).expect("position") - 1;
@@ -1526,9 +1538,24 @@ impl World {
             let files = forge_world::landings::stack_files(&self.fake, base, head, self.fake_env.limits.limits.commits);
             let squash = request["combine"] == "squash";
             let message = member[if squash { "squash" } else { "message" }].as_str().expect("member message");
-            let candidate = fake::commit_tree(&mut self.fake, &self.fake_env.limits, base, if squash { None } else { Some(head) }, files, message.as_bytes()).expect("prepared commit");
+            let candidate = fake::commit_tree(
+                &mut self.fake,
+                &self.fake_env.limits,
+                base,
+                if squash { None } else { Some(head) },
+                files,
+                message.as_bytes(),
+            )
+            .expect("prepared commit");
             let repository = if item.provider.repository == 2 { b"org/repo".as_slice() } else { b"org/lib".as_slice() };
-            assert_eq!(self.external_at(repository, 1, raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })), raw::Answer::PushNew { existing: None });
+            assert_eq!(
+                self.external_at(
+                    repository,
+                    1,
+                    raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })
+                ),
+                raw::Answer::PushNew { existing: None }
+            );
             combined.push(serde_json::json!({"member": position + 1, "by": if squash { "squash" } else { "merge" }}));
             base = candidate;
         }
@@ -1537,10 +1564,7 @@ impl World {
             Token::new(7),
             job.run.raw(),
             job.attempt.raw(),
-            host::JobEnding::Finished {
-                result: result.into(),
-                work: host::Work { left: None, saved: None },
-            },
+            host::JobEnding::Finished { result: result.into(), work: host::Work { left: None, saved: None } },
         );
         self.send(event);
     }

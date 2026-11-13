@@ -66,20 +66,20 @@ fn encode(json: &mut Encoder, request: &PrepareRequest) {
     json.key(b"members");
     json.array_start();
     for member in &request.members {
-    json.object_start();
-    json.key(b"number");
-    json.unsigned(member.number);
-    json.key(b"branch");
-    json.string(&member.branch);
-    json.key(b"prefix");
-    json.string(&member.prefix);
-    json.key(b"head");
-    json.string(&super::commit_text(&member.head));
-    json.key(b"message");
-    json.string(&member.message);
-    json.key(b"squash");
-    json.string(&member.squash);
-    json.object_end();
+        json.object_start();
+        json.key(b"number");
+        json.unsigned(member.number);
+        json.key(b"branch");
+        json.string(&member.branch);
+        json.key(b"prefix");
+        json.string(&member.prefix);
+        json.key(b"head");
+        json.string(&super::commit_text(&member.head));
+        json.key(b"message");
+        json.string(&member.message);
+        json.key(b"squash");
+        json.string(&member.squash);
+        json.object_end();
     }
     json.array_end();
     json.key(b"upstreams");
@@ -105,7 +105,9 @@ pub(crate) fn items(
         return None;
     }
     let mut branches = List::with_capacity(u32::try_from(request.members.len()).ok()?);
-    for member in &request.members { branches.push(member.prefix.clone()).ok()?; }
+    for member in &request.members {
+        branches.push(member.prefix.clone()).ok()?;
+    }
     let item = domain.prepare_item(provider, branches.as_slice().first()?.clone(), request.from, task)?;
     let mut repository = workspace_repository(item, None, Box::new([]))?;
     repository.prefixes = branches.into_boxed();

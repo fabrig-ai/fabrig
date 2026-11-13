@@ -1752,7 +1752,11 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                             },
                             step: landing_views::step(value.step),
                             upstream: value.round.upstream,
-                            failure: value.round.failure,
+                            failure: forge::text::fit(
+                                &value.round.failure,
+                                skein_lib::usize_of(limits.landing_round_failure),
+                                b"...",
+                            ),
                         },
                     )
                     .ok()?,

@@ -5024,3 +5024,23 @@ fn a_single_landing_panel_has_no_train_or_round() {
     assert!(panel.train().is_none());
     assert_eq!(panel.members().len(), 1);
 }
+
+#[test]
+fn a_batch_panel_keeps_its_members_when_round_diagnostics_pass_the_wire_bound() {
+    for extra in [0, 1] {
+        let mut value = landing_view();
+        let member = value.members[0].clone();
+        value.members = Box::new([member.clone(), member]);
+        value.members[1].change = 52;
+        let bound = usize::try_from(w::CEILINGS.landing_round_failure).unwrap();
+        value.round.failure = vec![b'x'; bound + extra].into_boxed_slice();
+        let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS);
+        assert!(bytes.is_some(), "diagnostic extra {extra} does not erase the landing");
+        let bytes = bytes.unwrap();
+        let panel = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(panel.members().len(), 2);
+        let failure = panel.round().as_ref().unwrap().failure();
+        assert_eq!(failure.len(), bound);
+        assert_eq!(failure.ends_with(b"..."), extra == 1);
+    }
+}

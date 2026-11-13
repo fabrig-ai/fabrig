@@ -43,7 +43,8 @@ pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::
         forge::LandingLeave::Conflict | forge::LandingLeave::EarlierConflict => w::LandingLeave::Conflict,
         forge::LandingLeave::Unit { .. }
         | forge::LandingLeave::Dependency { .. }
-        | forge::LandingLeave::Fallback { .. } | forge::LandingLeave::Held => w::LandingLeave::Held,
+        | forge::LandingLeave::Fallback { .. }
+        | forge::LandingLeave::Held => w::LandingLeave::Held,
         forge::LandingLeave::HeadMoved { head } => {
             w::LandingLeave::HeadMoved(w::MovedHead::new(limits, w::MovedHeadParts { head }).ok()?)
         }

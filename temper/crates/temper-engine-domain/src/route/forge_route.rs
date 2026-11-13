@@ -1932,23 +1932,28 @@ pub(crate) fn claimed_writes(
     let mut holders = List::with_capacity(env.limits.forge.resources_per_task);
     for repository in &workspace.repositories {
         let mut branches = List::with_capacity(env.limits.forge.resources_per_task);
-        if let Some(push) = &repository.push { branches.push(push.clone()).ok()?; }
-        for prefix in &repository.prefixes { branches.push(prefix.clone()).ok()?; }
+        if let Some(push) = &repository.push {
+            branches.push(push.clone()).ok()?;
+        }
+        for prefix in &repository.prefixes {
+            branches.push(prefix.clone()).ok()?;
+        }
         for push in &branches {
-        let name = forge::Name {
-            forge: repository.provider.forge,
-            repository: repository.provider.repository,
-            what: branch_what(push, env.limits.forge.name_bytes)?,
-        };
-        let holder = domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &env.limits.tasks)?)?;
-        if holder != task {
-            holders.push(holder).ok()?;
-        }
-        if repository.landing.as_ref() == Some(push) {
-            designs.push(name).ok()?;
-        } else {
-            writes.push(name).ok()?;
-        }
+            let name = forge::Name {
+                forge: repository.provider.forge,
+                repository: repository.provider.repository,
+                what: branch_what(push, env.limits.forge.name_bytes)?,
+            };
+            let holder =
+                domain.core.tasks.holder(&hub_name(domain.config.forge_connector, &name, &env.limits.tasks)?)?;
+            if holder != task {
+                holders.push(holder).ok()?;
+            }
+            if repository.landing.as_ref() == Some(push) {
+                designs.push(name).ok()?;
+            } else {
+                writes.push(name).ok()?;
+            }
         }
     }
     Some((writes.into_boxed(), designs.into_boxed(), holders.into_boxed()))
@@ -5407,10 +5412,7 @@ pub(crate) fn outputs(
                                     description: Box::new(description),
                                     entry,
                                     task,
-                                    evidence: match evidence {
-                                        Some(evidence) => Some(evidence),
-                                        None => None,
-                                    },
+                                    evidence,
                                 },
                             )
                             .expect("bounded landing effect handoff");
@@ -5868,7 +5870,16 @@ pub(crate) fn effect_ask(
                     if description.effect.kind == 4
                         && let Some(evidence) = evidence
                     {
-                        for evidence in evidence { keep_sign_offs(domain, env, task, evidence.change, evidence.facts.head.expect("prefix evidence"), &evidence.facts); }
+                        for evidence in evidence {
+                            keep_sign_offs(
+                                domain,
+                                env,
+                                task,
+                                evidence.change,
+                                evidence.facts.head.expect("prefix evidence"),
+                                &evidence.facts,
+                            );
+                        }
                     }
                 }
                 Some(EffectFlight::Tier { entry: kept, .. }) => {
@@ -6036,7 +6047,9 @@ fn drop_landing(
     domain.work.push(Work::Forge(forge::Event::VetoLanding { task, entry }));
     if answer == authority::Answer::Wait {
         if let Some(evidence) = evidence {
-            for evidence in evidence { retain_review_wait(domain, env, evidence.change, &evidence.facts); }
+            for evidence in evidence {
+                retain_review_wait(domain, env, evidence.change, &evidence.facts);
+            }
         }
         domain.forge.wait_landing(&super::environment_forge(env), task, None);
     } else {
@@ -6127,13 +6140,30 @@ fn judge_effect(
         Some(EffectFlight::Landing { task, evidence: Some(evidence), description, .. }) => {
             let mut verdict = authority::Verdict::Met;
             let mut guarded = true;
-            if evidence.is_empty() { return (authority::Verdict::Refuse, false); }
+            if evidence.is_empty() {
+                return (authority::Verdict::Refuse, false);
+            }
             for evidence in evidence {
-                let Some(row) = domain.forge.change(evidence.change) else { return (authority::Verdict::Refuse, false) };
-                let Some(repository) = domain.forge.repository(row.repository) else { return (authority::Verdict::Refuse, false) };
-                let Some(reviewers) = landing_reviewers(domain, env, row, &evidence.facts) else { return (authority::Verdict::Refuse, false) };
-                guarded &= description.effect.kind == 4 && domain.forge.guards_landing(repository.project, judge.requirement, judge.parameters);
-                match domain.forge.judge_landing(repository.project, judge.requirement, judge.parameters, *task, evidence.facts.head.unwrap_or(state), &evidence.facts, &reviewers.reviewers) {
+                let Some(row) = domain.forge.change(evidence.change) else {
+                    return (authority::Verdict::Refuse, false);
+                };
+                let Some(repository) = domain.forge.repository(row.repository) else {
+                    return (authority::Verdict::Refuse, false);
+                };
+                let Some(reviewers) = landing_reviewers(domain, env, row, &evidence.facts) else {
+                    return (authority::Verdict::Refuse, false);
+                };
+                guarded &= description.effect.kind == 4
+                    && domain.forge.guards_landing(repository.project, judge.requirement, judge.parameters);
+                match domain.forge.judge_landing(
+                    repository.project,
+                    judge.requirement,
+                    judge.parameters,
+                    *task,
+                    evidence.facts.head.unwrap_or(state),
+                    &evidence.facts,
+                    &reviewers.reviewers,
+                ) {
                     Some(forge::JudgeVerdict::Met) => {}
                     Some(forge::JudgeVerdict::Refuse) => return (authority::Verdict::Refuse, guarded),
                     Some(forge::JudgeVerdict::Wait) | None => verdict = authority::Verdict::Wait,
