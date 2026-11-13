@@ -3879,16 +3879,20 @@ pub(crate) fn closing(
         d.landing.due.remove(&task);
         for member in &row.landing.members {
             if let Some(change) = d.changes.get_mut(&member.change) {
+                let prior = change.change.clone();
                 change.change.landing = None;
                 if let Some(merge) = member.landed {
                     change.change.state = change::State::Landed { merge, since: env.wall };
                 } else if let change::State::Judging { head, ready_since, .. } = change.change.state {
                     change.change.state = change::State::Ready { head, ready_since };
                 }
+                let mut changed = change.clone();
+                crate::change_history::advanced(d, env.wall, &mut changed, &prior, out);
+                d.changes.insert(member.change, changed.clone()).expect("retained member");
                 emit(
                     out,
                     Request::Save {
-                        record: Stored::Change(Box::new(change.clone())),
+                        record: Stored::Change(Box::new(changed)),
                         release: None,
                         read_afresh: None,
                     },
