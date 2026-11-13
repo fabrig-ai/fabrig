@@ -150,9 +150,9 @@ impl Disk {
         crate::down(store, &env(), request, &mut above, &mut below);
         for _ in 0_u32..10_000 {
             crate::fire(store, &env(), &mut above, &mut below);
-            if !self.drive_one(&mut below, |io, below| crate::up(store, &env(), io, &mut above, below))
-                && !crate::patching::phase::ready(store)
-            {
+            let drove = self.drive_one(&mut below, |io, below| crate::up(store, &env(), io, &mut above, below));
+            let cut = self.cut.is_some_and(|cut| self.operations >= cut);
+            if !drove && (cut || !crate::patching::phase::ready(store)) {
                 break;
             }
         }

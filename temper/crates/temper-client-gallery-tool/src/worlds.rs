@@ -927,7 +927,7 @@ fn world_in_layout(
                                 goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
                             }
                         }
-                        c::Subject::Chips { .. } => None,
+                        c::Subject::Terminal { .. } | c::Subject::Chips { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
@@ -4102,6 +4102,9 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
         program_hosts: hosts,
         accounts: rows,
         signing: List::with_capacity(0),
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: match then {
             Then::SignInReady | Then::Declined => Some(c::AccountLastEnd {
                 source: 43,
@@ -4533,7 +4536,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     }
     if then == Then::Working {
         let (phase, _) = owner(&mut t.chip);
-        *phase = c::ChipPhase::Active(c::RunStage::Due);
+        *phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
         t.waits_on = c::WaitsOn::Nothing;
     }
     if then == Then::DelegatedGoal && task == 2 {

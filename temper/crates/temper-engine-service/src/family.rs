@@ -948,7 +948,7 @@ fn encoded_role(role: forge::Role) -> w::Role {
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
-    jig: &jig_client_protocol_wire::v20::Limits,
+    jig: &jig_client_protocol_wire::v21::Limits,
 ) -> Option<Box<[u8]>> {
     let outcome = match outcome {
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {

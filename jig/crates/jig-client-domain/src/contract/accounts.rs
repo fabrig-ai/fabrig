@@ -31,6 +31,9 @@ pub struct Accounts {
     pub accounts: List<AccountLine>,
     pub signing: List<AccountSignIn>,
     pub last_end: Option<AccountLastEnd>,
+    pub lendable: bool,
+    pub lending: Option<TerminalLogin>,
+    pub lent_end: Option<AccountLentEnd>,
     pub usable: bool,
     pub settled: bool,
     pub cut: bool,
@@ -153,6 +156,37 @@ pub enum AccountEnd {
     Renewed { account: u32, declined: bool },
     Refused { refusal: AccountRefusal },
     Failed { failure: AccountFailure },
+}
+
+/// A lent terminal's login (domain/terminal-login.md, 5).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Terminal {
+    pub login: Option<TerminalLogin>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TerminalLogin {
+    pub number: u32,
+    pub provider: u32,
+    pub name: Box<[u8]>,
+    pub cancelled: bool,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct AccountLentEnd {
+    pub number: u32,
+    pub end: LoginEnd,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum LoginEnd {
+    SignedIn { source: u32 },
+    NotFinished { exit: Option<LoginExit> },
+    Cancelled,
+    Refused { refusal: AccountRefusal },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum LoginExit {
+    Exited { code: u8 },
+    Killed { signal: u8 },
+    NotStarted,
 }
 
 /// Registry numbers the client reads (domain/accounts.md, 3.7).

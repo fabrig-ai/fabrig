@@ -6,7 +6,7 @@ use skein_forge::api::{Commit, Repository, Write};
 use skein_forge::forgejo::id::{ObjectFormat, ObjectId};
 use skein_json::writer::{Encoder, Limits};
 use skein_lib::{List, Map, Set, Writer};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 use temper_protocol_store::records;
 
 /// The judge's capacity: repository slots and each slot's item, comment,

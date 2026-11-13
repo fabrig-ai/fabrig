@@ -19,7 +19,7 @@ pub(super) fn limits(
     notes: &crate::notes_v1::Limits,
 ) -> Option<wire::Limits> {
     let core = wire::Limits {
-        settings_refusal_value: u32::try_from(crate::people_v16::Refusal::encoded_bound(&crate::people_v16::CEILINGS)?)
+        settings_refusal_value: u32::try_from(crate::people_v17::Refusal::encoded_bound(&crate::people_v17::CEILINGS)?)
             .ok()?,
         phase_bytes_value: u32::try_from(crate::tasks_v12::PhaseRecord::encoded_bound(tasks)?).ok()?,
         change_bytes_value: u32::try_from(crate::tasks_v12::ChangeRecord::encoded_bound(tasks)?).ok()?,

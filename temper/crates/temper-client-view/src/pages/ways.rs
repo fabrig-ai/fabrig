@@ -134,9 +134,24 @@ pub(crate) fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut
 
 /// The shown way's act, "Use this" or "Keep it", where `ways.act(index)` gives one.
 pub(crate) fn act(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
-    if let Some(act) = ways.act(index) {
+    if ways.act(index).is_some() {
         b.open(Role::Slot);
         b.style(look::WAYS_ACTS);
+        act_button(b, ways, index, w, bindings, project);
+        b.close();
+    }
+}
+
+/// The way's button, within the calling page's acts row.
+pub(crate) fn act_button(
+    b: &mut Builder,
+    ways: &StockWays,
+    index: u32,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+) {
+    if let Some(act) = ways.act(index) {
         let (word, act) = match act {
             WayAct::Use => (Word::WaysUse, Act::UseWay { project, way: index }),
             WayAct::Keep => (Word::WaysKeep, Act::KeepWay { project }),
@@ -148,7 +163,6 @@ pub(crate) fn act(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bind
         if ways.sending() {
             b.state(State::Disabled);
         }
-        b.close();
         b.close();
     }
 }

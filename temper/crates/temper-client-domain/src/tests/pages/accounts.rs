@@ -137,6 +137,9 @@ pub(super) fn document(signing: bool) -> c::WatchEvent {
         readiness_cut: false,
         accounts: List::with_capacity(0),
         signing: rows,
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: None,
         usable: false,
         settled: !signing,
@@ -168,6 +171,72 @@ pub(super) fn sends(mut out: Queue<Request>) -> Queue<Sent> {
     }
     sent
 }
+#[test]
+fn a_terminal_offer_keeps_one_watch_and_reads_its_login() {
+    let (mut root, _, _) = opened(c::HeldRole::Member);
+    assert!(root.terminal_login().is_none());
+    let mut out = event(&mut root, Event::Lends { terminal: 91 });
+    let mut opened = None;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Terminal { terminal: 91 }) },
+                },
+        } = request
+        {
+            assert!(opened.replace(watch).is_none(), "one terminal watch");
+        }
+    }
+    let watch = opened.expect("terminal watch");
+    assert!(event(&mut root, Event::Lends { terminal: 92 }).is_empty());
+    for cancelled in [false, true] {
+        let login = c::TerminalLogin { number: 1, provider: PROVIDER, name: Box::from(b"work".as_slice()), cancelled };
+        deliver(
+            &mut root,
+            watch,
+            c::WatchEvent::Delivered(c::Delivery::Terminal(Box::new(c::Terminal { login: Some(login.clone()) }))),
+        );
+        assert_eq!(root.terminal_login(), Some(&login));
+        let mut out = event(&mut root, Event::Went { place: crate::Place::Address(Address::AllHome) });
+        while let Some(request) = out.pop() {
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch: closed } },
+            } = request
+            {
+                assert_ne!(closed, watch, "navigation keeps the terminal offered");
+            }
+        }
+        assert_eq!(root.terminal_login(), Some(&login));
+    }
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Terminal(Box::new(c::Terminal { login: None }))));
+    assert!(root.terminal_login().is_none());
+}
+
+#[test]
+fn a_login_end_is_an_own_account_change_for_each_exit() {
+    let (mut root, _, _) = opened(c::HeldRole::Member);
+    for exit in [
+        c::LoginExit::Exited { code: 0 },
+        c::LoginExit::Exited { code: 1 },
+        c::LoginExit::Killed { signal: 15 },
+        c::LoginExit::NotStarted,
+    ] {
+        let mut sent = sends(event(&mut root, Event::Act { action: Action::LoginEnded { number: 1, exit } }));
+        let (_, _, request, value) = sent.pop().expect("LoginEnded request");
+        assert_eq!(
+            request,
+            jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
+                holder: c::AskAccountHolder::Own,
+                change: c::AccountChange::LoginEnded { number: 1, exit },
+            }))
+        );
+        assert!(value.is_none());
+        assert!(sent.is_empty());
+    }
+}
+
 #[test]
 fn accounts_address_prints_the_canonical_accounts_page_path() {
     assert_eq!(crate::address::print(&Address::Accounts).as_ref(), b"/accounts");
@@ -745,6 +814,9 @@ fn typed_account_lists_outlive_the_task_window() {
         readiness_cut: false,
         accounts: rows,
         signing,
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: None,
         usable: true,
         settled: false,

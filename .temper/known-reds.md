@@ -1,12 +1,20 @@
 # Known reds
 
-Failures on goal 1705's branch that no live change owns; delivery checks
-count them as inherited (`tools/pre-pr/design.md`, section 5). Each is
-dropped once fixed.
+Failures on the goal branch that no live change of goal 2172 owns; delivery
+checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
-From main at 54bd5ff619, merged into the goal's branch on 2026-11-13:
+Inherited from main at goal 2172's start, 2026-11-13: the entries of goals
+1983, 1985, 1987, 1988 and 2105 that main carried, each once. Each is dropped
+once fixed.
 
+Inherited from main at goal 2176's start (4d06c93e26), 2026-11-13: the lists the goals
+merged into main brought, each key once. Each is dropped once fixed.
+
+- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/patches/p0001.rs
+- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/patches/context.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
+
+
 - test temper-real-loop-world::suite lost::a_lost_answer_reaches_its_name_from_another_directory
 - test temper-box::suite box_listeners::a_fresh_box_prints_its_block_and_nothing_else
 - test temper-real-loop-world::suite terminal::up_down_and_the_page_up_line_read_the_conversation
@@ -14,12 +22,22 @@ From main at 54bd5ff619, merged into the goal's branch on 2026-11-13:
 - test temper-playground-world::suite walk::story_a_kept_log_replays_natively
 - test temper-playground-world::suite walk::story_a_walks_from_the_welcome_to_the_csv_change_landed
 - test temper-real-loop-world::suite lock::two_acts_on_one_directory_take_its_lock_in_turn
+- test temper-box::suite box_front::front_refuses_without_a_first_link_before_starting_steps
 - test skein-conformance-real::suite deadline::an_idle_listener_wait_fails_with_its_figures
 - test temper-real-loop-world world::diagnostics::tests::forced_overdue_observes_real_tasks_operations_and_dispatch
 - test temper-box::suite box_listeners::a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up
 - test temper-box::suite box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document
 - test temper-box::suite support_tests::github_file_scan_excludes_only_jigs_generation_secrets_store
+- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/src/../patches/p0001.rs
+- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/src/../patches/context.rs
+- lint jig-protocol-store clippy::disallowed_types jig/crates/jig-protocol-store/src/tests/catch_up.rs
+- lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/tests/catch_up.rs
+- lint jig-protocol-store clippy::disallowed_macros jig/crates/jig-protocol-store/src/tests/catch_up.rs
+- lint jig-protocol-store clippy::needless_borrow jig/crates/jig-protocol-store/src/tests/policy_patch.rs
+
+
 - lint temper-service clippy::assigning_clones temper/crates/temper-service/src/engine.rs
+
 - test smith-bench::suite pipeline::grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
 - test smith-bench::suite runner::a_recorded_answer_is_observed_before_the_tree_settles
 - test smith-bench::suite runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree
@@ -29,23 +47,17 @@ From main at 54bd5ff619, merged into the goal's branch on 2026-11-13:
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - lint jig-protocol-config clippy::disallowed_methods jig/crates/jig-protocol-config/src/tests/seed_policy.rs
 - lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
+
+
 - lint jig-domain-fleet clippy::unneeded_wildcard_pattern jig/crates/jig-domain-fleet/src/attempt.rs
 - lint jig-domain-fleet clippy::needless_bool jig/crates/jig-domain-fleet/src/sources.rs
 - lint jig-domain-accounts clippy::needless_bool jig/crates/jig-domain-accounts/src/limits.rs
-
-Raised by the dated nightly in a file of main's that the goal does not touch, and so inherited:
-
-- lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/shared_test_code.rs
-
-From the goal's own list before that merge, and not on main's:
-
 - lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
 - lint temper-client-view clippy::disallowed_types temper/crates/temper-client-view/src/tests/task.rs
-Inherited from main (merge 725c605915), found by change 2116 of goal 2105 on 2026-11-12.
 - lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/lib.rs
 - lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
 - lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/codecs.rs
-Inherited from main (commit 0e504506c7, merged by hand in 6d3aa97b7d), found by change 2117 of goal 2105 on 2026-11-12.
+- lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/shared_test_code.rs
 
 - lint skein-http clippy::question_mark skein/crates/skein-http/src/server.rs
 - test temper-box::suite forge_land::setup_accepts_a_project_free_first_repository_row
@@ -57,19 +69,22 @@ Inherited from main (commit 0e504506c7, merged by hand in 6d3aa97b7d), found by 
 - test temper-box::suite startup::a_lent_record_not_back_keeps_its_store_and_the_storys_panic
 - test temper-box::suite support_tests::printed_links_count_and_fail_without_disclosing_secrets
 
-Inherited from main at its merge into g by the closer, 2026-11-12.
 
 - lint jig-protocol-store clippy::too_many_lines jig/crates/jig-protocol-store/src/tests/phase.rs
+- lint temper-worker-domain clippy::chunks_exact_to_as_chunks temper/crates/temper-worker-domain/src/jobs/prepare.rs
+
+- lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
+- lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
+- lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
+- lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
+- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
+
+Inherited from goal 1705 at this merge, 2026-11-13:
+
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge clippy::needless_borrow temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge clippy::needless_bool temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge clippy::disallowed_methods temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
-Inherited from main (commit fab52fee98, merged in 837703982a), found by change 2121 of goal 2105 on 2026-11-12.
-- lint temper-worker-domain clippy::chunks_exact_to_as_chunks temper/crates/temper-worker-domain/src/jobs/prepare.rs
-Failing on goal 1985's branch and owned by none of its live changes; delivery's checks pass them.
-
-- lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
-- lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs

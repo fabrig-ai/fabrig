@@ -1,0 +1,4 @@
+setup 1
+see "Welcome to temper"
+reload "/welcome"
+mark 4 "work/hello made"

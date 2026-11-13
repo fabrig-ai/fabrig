@@ -1,5 +1,5 @@
 //! Arbitrary and mutated family bytes (protocol/store/records.md, section 1, and protocol/store/README.md, section 9).
-use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v16};
+use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v17};
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 
@@ -128,12 +128,12 @@ fn mutated_tasks_goldens_never_panic() {
 }
 
 fn people(bytes: &[u8]) {
-    if let Ok(scope) = people_v16::NoteScope::decode(&people_v16::CEILINGS, &mut Reader::new(bytes)) {
+    if let Ok(scope) = people_v17::NoteScope::decode(&people_v17::CEILINGS, &mut Reader::new(bytes)) {
         let mut writer = Writer::new(skein_lib::length::usize_of(scope.measure()));
         scope.encode(&mut writer).expect("measured scope");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
-    if let Ok(row) = people_v16::Row::decode(&people_v16::CEILINGS, &mut Reader::new(bytes)) {
+    if let Ok(row) = people_v17::Row::decode(&people_v17::CEILINGS, &mut Reader::new(bytes)) {
         let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
@@ -172,7 +172,7 @@ fn frames(bytes: &[u8]) {
         settings: jig_protocol_store::settings_v3::CEILINGS,
         core: core_v6::CEILINGS,
         tasks: tasks_v12::CEILINGS,
-        people: people_v16::CEILINGS,
+        people: people_v17::CEILINGS,
         notes: notes_v1::CEILINGS,
     };
     if let Ok(turn) = frame::decode(bytes, &limits) {
@@ -190,7 +190,7 @@ fn mutated_and_short_frames_never_panic() {
         settings: jig_protocol_store::settings_v3::CEILINGS,
         core: core_v6::CEILINGS,
         tasks: tasks_v12::CEILINGS,
-        people: people_v16::CEILINGS,
+        people: people_v17::CEILINGS,
         notes: notes_v1::CEILINGS,
     };
     let turn = core_v6::TurnRecord::new(

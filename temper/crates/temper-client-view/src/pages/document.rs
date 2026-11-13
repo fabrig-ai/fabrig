@@ -22,8 +22,8 @@ use temper_client_domain::{
 
 pub(crate) fn mode(chat: Option<&Chat>) -> skein_ui::Style {
     let mode = match chat {
-        Some(chat) if chat.draft.is_some() || chat.writing => chat.mode,
-        Some(_) | None => Mode::Chat,
+        Some(chat) => chat.mode,
+        None => Mode::Chat,
     };
     style(mode)
 }
@@ -36,14 +36,18 @@ pub(crate) fn style(mode: Mode) -> skein_ui::Style {
     }
 }
 
-pub(crate) fn seg(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bindings) {
-    if chat.draft.is_none() && !chat.writing {
-        return;
-    }
-    modes(b, Word::DraftGroup, chat.mode, words, bindings);
+pub(crate) fn offers_group(root: &Domain, chat: &Chat, task: &c::Task) -> bool {
+    chat.draft.is_some()
+        || (task.result.is_none()
+            && !super::chats::ended(&task.chip)
+            && temper_client_domain::pages::chat_offers_draft(root, task))
 }
 
-pub(crate) fn modes(b: &mut Builder, name: Word, chosen: Mode, words: &Words, bindings: &mut Bindings) {
+pub(crate) fn seg(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bindings) {
+    modes(b, Word::DraftGroup, chat.mode, words, bindings, false);
+}
+
+pub(crate) fn modes(b: &mut Builder, name: Word, chosen: Mode, words: &Words, bindings: &mut Bindings, new: bool) {
     b.open(Role::Group);
     b.name(&words.say(name, &[]));
     b.style(look::SEG);
@@ -63,7 +67,12 @@ pub(crate) fn modes(b: &mut Builder, name: Word, chosen: Mode, words: &Words, bi
         if mode == chosen {
             b.state(State::Pressed);
         }
-        b.bind(bindings.insert(Act::Mode { mode }));
+        let act = if new {
+            Act::Go { address: temper_client_domain::Address::NewChat { draft: mode != Mode::Chat } }
+        } else {
+            Act::Mode { mode }
+        };
+        b.bind(bindings.insert(act));
         if mode == next {
             b.shortcut(Shortcut { key: b'\\', modifier: Modifier::Primary });
         }
@@ -72,11 +81,17 @@ pub(crate) fn modes(b: &mut Builder, name: Word, chosen: Mode, words: &Words, bi
     b.close();
 }
 
-pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, words: &Words, times: &mut Times) {
+pub(crate) fn pane(
+    b: &mut Builder,
+    root: &Domain,
+    chat: &Chat,
+    task: &c::Task,
+    words: &Words,
+    times: &mut Times,
+    bindings: &mut Bindings,
+) {
     let Some(draft) = &chat.draft else {
-        if chat.writing && chat.mode != Mode::Chat {
-            empty(b, words);
-        }
+        empty_chat(b, root, chat, task, words, bindings);
         return;
     };
     if chat.mode == Mode::Chat {
@@ -167,6 +182,28 @@ pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, 
     }
     b.close();
     b.close();
+}
+
+fn empty_chat(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+    if chat.mode != Mode::Chat {
+        let path = if super::chat::asking(root) {
+            words.say(Word::DraftNotYet, &[Hole::Number(chat.task)])
+        } else {
+            words.say(Word::DraftFile, &[Hole::Name(document::slug(b""))])
+        };
+        let can_write = !chat.writing
+            && task.result.is_none()
+            && !super::chats::ended(&task.chip)
+            && temper_client_domain::pages::chat_offers_draft(root, task);
+        empty(
+            b,
+            words,
+            &words.say(Word::DraftDraft, &[]),
+            &path,
+            chat.writing,
+            if can_write { Some(bindings) } else { None },
+        );
+    }
 }
 
 fn heading_hash(heading: &[u8]) -> u64 {
@@ -294,34 +331,46 @@ pub(crate) fn tool_line(b: &mut Builder, call: &c::Call, chat: Option<&Chat>, wo
     b.close();
 }
 
-/// The same empty document beside a new chat and a chat already started.
-pub(crate) fn empty(b: &mut Builder, words: &Words) {
-    let name = words.say(Word::DraftFile, &[Hole::Name(document::slug(b""))]);
+/// An empty pane keeps its path and offers the write-up only before it is asked.
+pub(crate) fn empty(
+    b: &mut Builder,
+    words: &Words,
+    name: &[u8],
+    path: &[u8],
+    writing: bool,
+    bindings: Option<&mut Bindings>,
+) {
     b.open(Role::Region);
-    b.name(&name);
+    b.name(name);
     b.style(look::DOC);
     b.open(Role::Slot);
     b.style(look::DOC_INNER);
     b.open(Role::Paragraph);
     b.style(look::DOC_PATH);
-    b.text(Run::Plain, &name);
-    if words.shell == Shell::Terminal {
-        b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+    b.text(Run::Plain, path);
+    if writing {
+        if words.shell == Shell::Terminal {
+            b.text(Run::Plain, &words.say(Word::ToolSeparator, &[]));
+        }
+        b.text(Run::Plain, &words.say(Word::DraftWriting, &[]));
+    } else {
+        b.text(Run::Plain, b"");
     }
-    b.text(Run::Plain, &words.say(Word::DraftWriting, &[]));
     b.close();
     b.open(Role::Paragraph);
     b.style(look::DOC_EMPTY);
     b.text(Run::Plain, &words.say(Word::DraftEmpty, &[]));
     b.close();
+    if let Some(bindings) = bindings {
+        b.open(Role::Slot);
+        b.style(look::DOC_ACTS);
+        b.open(Role::Button);
+        b.name(&words.say(Word::DraftWriteUp, &[]));
+        b.style(look::DOC_WRITE_UP);
+        b.bind(bindings.insert(Act::AddDraft));
+        b.close();
+        b.close();
+    }
     b.close();
-    b.close();
-}
-
-pub(crate) fn add(b: &mut Builder, words: &Words, bindings: &mut Bindings, act: Act) {
-    b.open(Role::Button);
-    b.name(&words.say(Word::PlusDraft, &[]));
-    b.style(look::ADD_DRAFT);
-    b.bind(bindings.insert(act));
     b.close();
 }

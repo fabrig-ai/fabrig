@@ -3,7 +3,7 @@ use crate::Limits;
 use crate::translate::{classify, text_problem};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Reader, Wall, bytes, length::len_u64};
 pub(crate) fn seen(value: &w::SeenThrough) -> c::SeenThrough {
     match value {
@@ -99,6 +99,7 @@ pub(crate) fn document_outcome(value: &w::DocumentOutcome, limits: &Limits) -> R
             c::DocumentOutcome::AccountSignInStarted { source: row.source(), address: bytes::copy_of(row.address()) }
         }
         w::DocumentOutcome::AccountKeyKept(row) => c::DocumentOutcome::AccountKeyKept { source: row.source() },
+        w::DocumentOutcome::AccountLoginAsked(row) => c::DocumentOutcome::AccountLoginAsked { number: row.number() },
         w::DocumentOutcome::AccountProgramDeclared(row) => {
             if !c::valid_program_name(row.name()) {
                 return Err(super::piece_problem(skein_codec::Reason::Malformed));
@@ -590,6 +591,9 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         },
         w::Refusal::NameTaken => c::Refusal::NameTaken,
         w::Refusal::NotOffered => c::Refusal::NotOffered,
+        w::Refusal::NoTerminal => c::Refusal::NoTerminal,
+        w::Refusal::LoginUnderWay => c::Refusal::LoginUnderWay,
+        w::Refusal::NotLending => c::Refusal::NotLending,
         w::Refusal::ProgramNameReserved => c::Refusal::ProgramNameReserved,
         w::Refusal::KeyConflict => c::Refusal::KeyConflict,
     })

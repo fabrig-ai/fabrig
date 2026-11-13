@@ -16,7 +16,7 @@ pub struct View {
     pub settings: crate::settings_v3::Limits,
     pub core: crate::core_v6::Limits,
     pub tasks: crate::tasks_v12::Limits,
-    pub people: crate::people_v16::Limits,
+    pub people: crate::people_v17::Limits,
     pub notes: crate::notes_v1::Limits,
 }
 

@@ -57,11 +57,17 @@ fn launch(program: &OsStr, arguments: &[Box<[u8]>], environment: &[EnvironmentEn
         &mut std::io::stderr(),
     )
     .map_err(|why| why.words())?;
-    let why = std::process::Command::new(path(&file))
+    let why = command(path(&file), arguments).exec();
+    Err(format!("{}: {why}", path(&file).display()))
+}
+
+fn command(file: &Path, arguments: &[Box<[u8]>]) -> std::process::Command {
+    let mut command = std::process::Command::new(file);
+    command
         .args(arguments.iter().map(|argument| OsStr::from_bytes(argument)))
         .env("DISABLE_AUTOUPDATER", "1")
-        .exec();
-    Err(format!("{}: {why}", path(&file).display()))
+        .env("DISABLE_UPDATES", "1");
+    command
 }
 
 /// Write the launcher's links in `directory`: `claude` to the agent's program, `cache` to the cache (protocol/setup/owned.md, 6).
@@ -197,6 +203,18 @@ fn substituted_document(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn launcher_disables_both_update_paths() {
+        let command = command(Path::new("/cached/claude"), &[]);
+        for name in ["DISABLE_AUTOUPDATER", "DISABLE_UPDATES"] {
+            assert_eq!(
+                command.get_envs().find(|(key, _)| *key == OsStr::new(name)),
+                Some((OsStr::new(name), Some(OsStr::new("1")))),
+                "{name} keeps the pinned build from updating itself"
+            );
+        }
+    }
 
     #[test]
     fn download_trust_uses_the_given_certificate_file() {

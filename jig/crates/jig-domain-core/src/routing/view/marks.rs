@@ -131,7 +131,8 @@ impl Core {
                     }
                     touched
                 }
-                Subject::Accounts { .. }
+                Subject::Terminal { .. }
+                | Subject::Accounts { .. }
                 | Subject::Frame { .. }
                 | Subject::Inbox { .. }
                 | Subject::Settings
@@ -188,7 +189,8 @@ pub(crate) fn touch_task(core: &mut Core, limits: &Limits, row: &tasks::TaskReco
             }
             Subject::Chips { tasks } => tasks.as_slice().contains(&row.number),
             Subject::Inbox { party } => core.people.role(*party, row.project).is_some(),
-            Subject::Accounts { .. }
+            Subject::Terminal { .. }
+            | Subject::Accounts { .. }
             | Subject::Frame { .. }
             | Subject::Settings
             | Subject::Deployment
@@ -532,7 +534,7 @@ fn visibility_end(core: &Core, watcher: Token, binding: &crate::WatchBinding) ->
                 Some(views::End::NotAllowed)
             }
         }
-        Subject::Frame { .. } | Subject::Inbox { .. } | Subject::Accounts { .. } => None,
+        Subject::Frame { .. } | Subject::Inbox { .. } | Subject::Terminal { .. } | Subject::Accounts { .. } => None,
         Subject::Proposal { .. }
         | Subject::Escalation { .. }
         | Subject::Question { .. }

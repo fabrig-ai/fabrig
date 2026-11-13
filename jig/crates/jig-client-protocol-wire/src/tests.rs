@@ -12,7 +12,7 @@ use skein_lib::Reader;
 #[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
 fn version_constants_match_their_schemas() {
     let client =
-        concat!(include_str!("../schema/client-v20.schema"), include_str!("../schema/client-v20-part1.schema"));
+        concat!(include_str!("../schema/client-v21.schema"), include_str!("../schema/client-v21-part1.schema"));
     let client = skein_codec::schema::parse(client.as_bytes()).expect("client schema");
     assert_eq!(VERSION, u32::from(client.version()), "jig-client-wire VERSION must equal its family version");
     let public =
@@ -529,5 +529,19 @@ fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
         let answer = AuthorizeAnswer::Refused(AuthorizeRefused::new(&limits, AuthorizeRefusedParts { why }).unwrap());
         let bytes = fixtures::encoded(&answer, AuthorizeAnswer::measure, AuthorizeAnswer::encode);
         assert_eq!(AuthorizeAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
+    }
+}
+
+#[test]
+fn lent_login_names_are_bounded_at_32_bytes() {
+    for length in [32, 33] {
+        let name = skein_lib::bytes::zeroed(length);
+        let terminal = TerminalLogin::new(
+            &CEILINGS,
+            TerminalLoginParts { number: 1, provider: 2, name: name.clone(), cancelled: false },
+        );
+        let change = AccountChangeLoginProgram::new(&CEILINGS, AccountChangeLoginProgramParts { provider: 2, name });
+        assert_eq!(terminal.is_ok(), length == 32);
+        assert_eq!(change.is_ok(), length == 32);
     }
 }

@@ -210,7 +210,7 @@ fn a_store_of_another_people_version_refuses_naming_people() {
         version_put(crate::format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT).tasks, 10, 6),
         fixtures::header_put(fixtures::DEPLOYMENT, 1),
     ]);
-    assert_refusal(&open(&mut store), OpenRefusal::Format { family: Family::People, found: 10, wanted: 16 });
+    assert_refusal(&open(&mut store), OpenRefusal::Format { family: Family::People, found: 10, wanted: 17 });
 }
 
 #[test]
@@ -473,7 +473,7 @@ fn seven_field_layouts_refuse_before_a_secret_read() {
 fn a_people_v13_store_is_refused_not_migrated() {
     let format = version_put(crate::format::current(fixtures::APPLICATION.version, fixtures::DEPLOYMENT).tasks, 13, 6);
     let mut store = planted(&[format.clone(), fixtures::header_put(fixtures::DEPLOYMENT, 1)]);
-    assert_refusal(&open(&mut store), OpenRefusal::Format { family: Family::People, found: 13, wanted: 16 });
+    assert_refusal(&open(&mut store), OpenRefusal::Format { family: Family::People, found: 13, wanted: 17 });
     assert_eq!(store.phase, Phase::Stopped);
     let skein_kv::Op::Put { key, value } = format else { panic!("format is a put") };
     assert_eq!(fixtures::get_kv(&mut store, &key), Some(value));

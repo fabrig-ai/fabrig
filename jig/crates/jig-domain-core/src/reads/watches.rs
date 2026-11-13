@@ -77,6 +77,7 @@ fn from_store(
         Subject::Frame { .. }
         | Subject::Chips { .. }
         | Subject::Inbox { .. }
+        | Subject::Terminal { .. }
         | Subject::Accounts { .. }
         | Subject::Query { .. }
         | Subject::Run { .. }

@@ -2,11 +2,11 @@
 #![expect(clippy::disallowed_methods, reason = "ordinary random tests build and inspect bounded fixture paths")]
 use crate::invariants::{bounds, rules_bounds};
 use skein_lib::Rng;
-use temper_engine_domain_forge::{
+use temper_engine_domain_forge_change::Way;
+use temper_engine_domain_forge_vocabulary::{
     Follows, GateLast, GatePattern, JudgeFreshness,
     settings::{Held, LandingRule, RuleApproval, RuleGate},
 };
-use temper_engine_domain_forge_change::Way;
 use temper_engine_domain_ways::{Actor, Inputs, Repository, Role, Start, Step, Tier, derive, rules_by_path};
 
 #[test]

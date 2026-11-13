@@ -501,16 +501,16 @@ fn a_chat_proposal_is_named_from_its_source_task() {
 }
 
 #[test]
-fn a_chats_header_says_its_status_and_spend() {
+fn a_chats_bar_draws_no_status() {
     let tree = chat_header();
-    assert!(fixtures::find(&tree, Role::Status, b"Parked").is_some());
+    assert!(fixtures::find(&tree, Role::Status, b"Parked").is_none());
 }
 #[test]
-fn a_held_chatbar_names_only_its_exceeded_bound() {
+fn a_held_status_line_names_only_its_exceeded_bound() {
     use temper_client_domain::{Address, Event};
     for (reason, expected) in super::chats::HELD_STATUSES {
         let (mut root, _, watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
-        let mut task = fixtures::task::document();
+        let mut task = asking_task();
         task.chip.task = TASK;
         let c::ChipPhaseFacts { phase, .. } = task.chip.details.as_mut();
         *phase = c::ChipPhase::Held { reason, revision: 1 };
@@ -534,7 +534,7 @@ fn a_held_chatbar_names_only_its_exceeded_bound() {
             }
         }
         let status = status.expect("held status");
-        assert_eq!(status.styles.as_slice(), [crate::look::STATUS_HELD]);
+        assert_eq!(status.styles.as_slice(), [crate::look::STATUS_LINE]);
         assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), expected).is_some());
     }
 }
@@ -1402,7 +1402,6 @@ fn the_chat_bar_contains_identity_spend_and_acts() {
     for (role, name) in [
         (Role::Heading { level: 1 }, heading.as_ref()),
         (Role::Paragraph, "7 spent · of 7".as_bytes()),
-        (Role::Status, b"Parked"),
         (Role::Button, b"Pause"),
         (Role::Button, b"Close"),
     ] {
@@ -1412,7 +1411,7 @@ fn the_chat_bar_contains_identity_spend_and_acts() {
     assert!(fixtures::find(view.tree(), Role::Button, b"Mark seen").is_none());
     assert!(fixtures::find(view.tree(), Role::Button, b"Terminal, full screen").is_none());
     let browser = fixtures::browser_page_view(&fresh);
-    assert!(fixtures::find(browser.tree(), Role::Button, b"Terminal, full screen").is_some());
+    assert!(fixtures::find(browser.tree(), Role::Button, b"Terminal, full screen").is_none());
 }
 #[test]
 fn the_chat_entry_has_the_shared_hint_after_message_and_send() {
@@ -1431,7 +1430,10 @@ fn the_chat_entry_has_the_shared_hint_after_message_and_send() {
     let row = styled(tree, crate::look::FOOT_ROW);
     assert_eq!(row, entry + usize::try_from(tree.nodes()[entry].size).unwrap());
     assert_eq!(hint, row + 1);
-    assert_eq!(tree.nodes()[hint].name.as_deref(), Some("Enter sends · Shift+Enter for a new line".as_bytes()));
+    assert_eq!(
+        tree.nodes()[hint].name.as_deref(),
+        Some("Enter sends · Shift+Enter for a new line · Ctrl+\\ switches the draft".as_bytes())
+    );
 }
 
 #[test]
@@ -1825,7 +1827,7 @@ fn a_refused_message_draws_its_refusal_after_send() {
 fn header_with_status(waits_on: c::WaitsOn, live: u32, wake: c::WakeRule, requester: c::Requester) -> crate::View {
     use temper_client_domain::{Address, Event};
     let (mut root, _, watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
-    let mut task = fixtures::task::document();
+    let mut task = asking_task();
     task.chip.task = TASK;
     task.waits_on = waits_on;
     task.requester = requester;
@@ -1847,20 +1849,17 @@ fn header_with_status(waits_on: c::WaitsOn, live: u32, wake: c::WakeRule, reques
 }
 
 #[test]
-fn the_chatbar_counts_the_delegates_it_waits_on() {
+fn the_status_line_counts_the_delegates_it_waits_on() {
     // One and two distinguish the shared goal phrase's plural forms.
     for (live, expected) in [(1, b"waiting on 1 delegate".as_slice()), (2, b"waiting on 2 delegates")] {
         let view = header_with_status(c::WaitsOn::Delegates, live, c::WakeRule::Never, c::Requester::Person(PARTY));
         let status = fixtures::find(view.tree(), Role::Status, expected).expect("delegate status");
-        assert_eq!(
-            view.tree().find(status).unwrap().styles.as_slice(),
-            [crate::look::STATUS_WAITING, crate::look::STATE_NEEDS]
-        );
+        assert_eq!(view.tree().find(status).unwrap().styles.as_slice(), [crate::look::STATUS_LINE]);
     }
 }
 
 #[test]
-fn the_chatbar_waits_on_the_requesting_persons_words() {
+fn the_status_line_waits_on_the_requesting_persons_words() {
     // Batching also wakes on words, after its configured count or age.
     const BATCH_COUNT: u32 = 2;
     let person = fixtures::root_in_project(None);
@@ -1870,15 +1869,12 @@ fn the_chatbar_waits_on_the_requesting_persons_words() {
     {
         let view = header_with_status(c::WaitsOn::News, 0, rule, c::Requester::Person(requester));
         let status = fixtures::find(view.tree(), Role::Status, b"waiting on your words").expect("words status");
-        assert_eq!(
-            view.tree().find(status).unwrap().styles.as_slice(),
-            [crate::look::STATUS_WAITING, crate::look::STATE_NEEDS]
-        );
+        assert_eq!(view.tree().find(status).unwrap().styles.as_slice(), [crate::look::STATUS_LINE]);
     }
 }
 
 #[test]
-fn the_chatbar_keeps_jigs_word_without_the_requesters_words_wake() {
+fn the_status_line_keeps_jigs_word_without_the_requesters_words_wake() {
     const OTHER_PERSON: u64 = 74;
     let person = fixtures::root_in_project(None);
     let requester = person.pages().me(person.client()).unwrap().party.number;
@@ -2381,7 +2377,7 @@ fn a_chats_end_and_its_phase_keep_the_supplied_clock() {
     ] {
         let view = result_view_at(c::TaskResult::Ending(Box::new(ending)), Some(fixtures::NOW));
         assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), expected.as_bytes()).is_some());
-        assert!(fixtures::find(view.tree(), Role::Status, b"Closed").is_some());
+        assert!(fixtures::find(view.tree(), Role::Status, b"Closed").is_none());
         assert_eq!(view.next_change(), Some(Wall::from_nanos(86_400_000_000_000)));
     }
 }
@@ -2900,6 +2896,16 @@ pub(super) fn asking_task() -> c::Task {
     }
     task
 }
+fn resting_task() -> c::Task {
+    let mut task = asking_task();
+    let source = messaging_root();
+    task.requester = c::Requester::Person(source.pages().me(source.client()).unwrap().party.number);
+    task.waits_on = c::WaitsOn::News;
+    task.wake.words = c::WakeRule::Immediate;
+    task.chip.details.details.live_delegates = 0;
+    task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
+    task
+}
 #[test]
 fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
     use crate::look;
@@ -2909,7 +2915,7 @@ fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         &mut root,
         d::Event::Act { action: d::Action::Pages(Act::MessageWords { words: b"My words".as_slice().into() }) },
     );
-    for (mut view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)] {
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
         let tree = view.tree();
         let main = styled(tree, look::SESSION);
         assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MODE_CHAT, look::SESSION]);
@@ -2921,7 +2927,6 @@ fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         for (role, name) in [
             (Role::Heading { level: 1 }, b"T9 \xc2\xb7 Hello".as_slice()),
             (Role::Link, b"Ask temper"),
-            (Role::Status, b"Parked"),
             (Role::Paragraph, b"7 spent \xc2\xb7 of 7"),
             (Role::Button, b"Pause"),
             (Role::Button, b"Close"),
@@ -2929,9 +2934,9 @@ fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
             assert!(named_position(top_nodes, role, Some(name)).is_some(), "{name:?}");
         }
         let controls = subtree(tree, bar);
-        assert_eq!(named_position(controls, Role::Button, Some(b"Terminal, full screen")).is_some(), browser);
+        assert!(named_position(controls, Role::Button, Some(b"Terminal, full screen")).is_none());
         let positions = [
-            named_position(controls, Role::Status, Some(b"Parked")).unwrap(),
+            named_position(controls, Role::Button, Some(b"Start over")).unwrap(),
             named_position(controls, Role::Button, Some(b"Pause")).unwrap(),
             named_position(controls, Role::Button, Some(b"Close")).unwrap(),
             named_position(controls, Role::Paragraph, Some(b"7 spent \xc2\xb7 of 7")).unwrap(),
@@ -2964,7 +2969,7 @@ fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         assert!(entry < hint && hint < foot + usize::try_from(tree.nodes()[foot].size).unwrap());
         assert_eq!(
             tree.nodes()[hint].name.as_deref(),
-            Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
+            Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line \xc2\xb7 Ctrl+\\ switches the draft".as_slice())
         );
         for style in [look::ACCOUNT_LINE, look::COMPOSER_AREA, look::STARTERS] {
             assert_eq!(style_position(tree.nodes(), style), None);
@@ -3054,8 +3059,10 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
                 assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
                 assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_none());
                 assert_eq!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some(), !ended && !result);
+                assert!(fixtures::find(view.tree(), Role::Button, b"+ Draft").is_none());
+                assert!(style_position(view.tree().nodes(), crate::look::STATUS_LINE).is_none());
                 if asking {
-                    assert_eq!(fixtures::find(view.tree(), Role::Button, b"+ Draft").is_some(), !ended && !result);
+                    assert_eq!(fixtures::find(view.tree(), Role::Group, b"The draft").is_some(), !ended && !result);
                 }
             }
         }
@@ -3191,12 +3198,12 @@ fn goals_navigation_keeps_an_existing_goal_when_kind_seven_hides_it() {
 }
 
 #[test]
-fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_path() {
+fn every_chat_bar_orders_its_byline_allowed_acts_group_and_spend_and_links_its_path() {
     use crate::look;
     use temper_client_domain::Address;
     for asking in [false, true] {
         for allowed in [false, true] {
-            let mut task = asking_task();
+            let mut task = resting_task();
             if !allowed {
                 task.acts.clear();
             }
@@ -3209,27 +3216,47 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                 let controls = subtree(tree, right);
                 let byline = style_position(controls, look::BYLINE);
                 assert_eq!(byline.is_some(), browser);
-                let status = named_position(controls, Role::Status, Some(b"Parked")).expect("status");
+                assert!(named_position(controls, Role::Status, None).is_none());
+                assert!(named_position(controls, Role::Button, Some(b"+ Draft")).is_none());
+                let group = named_position(controls, Role::Group, Some(b"The draft")).expect("group");
+                let chat = named_position(controls, Role::Button, Some(b"Chat")).unwrap();
+                assert!(controls[chat].states.as_slice().contains(&skein_ui::State::Pressed));
                 let spend =
                     named_position(controls, Role::Paragraph, Some("7 spent · of 7".as_bytes())).expect("spend");
                 if let Some(byline) = byline {
-                    assert!(byline < status);
+                    assert!(byline < group);
                 }
-                let terminal = named_position(controls, Role::Button, Some(b"Terminal, full screen"));
-                assert_eq!(terminal.is_some(), browser);
-                if let Some(terminal) = terminal {
-                    assert!(byline.unwrap() < terminal && terminal < status);
+                assert!(named_position(controls, Role::Button, Some(b"Terminal, full screen")).is_none());
+                assert!(group < spend);
+                let start_over = named_position(controls, Role::Button, Some(b"Start over"));
+                assert_eq!(start_over.is_some(), asking);
+                if let Some(start) = start_over {
+                    assert!(start < group);
+                    let tag = style_position(controls, look::CHATS_TAG).unwrap();
+                    assert!(tag < start);
                 }
-                assert!(status < spend);
                 for name in [b"Pause".as_slice(), b"Close"] {
                     assert_eq!(named_position(controls, Role::Button, Some(name)).is_some(), allowed);
                 }
                 if allowed {
                     let stop = named_position(controls, Role::Button, Some(b"Pause")).unwrap();
                     let close = named_position(controls, Role::Button, Some(b"Close")).unwrap();
-                    assert!(status < stop && stop < close && close < spend);
+                    assert!(stop < close && close < group);
+                    if let Some(start) = start_over {
+                        assert!(start < stop);
+                    }
                 }
                 let path = if asking { b"Ask temper".as_slice() } else { b"Chats" };
+                let trail = subtree(tree, styled(tree, look::TRAIL));
+                assert_eq!(trail.len(), 2, "a chat's trail is one link, naming no project");
+                assert_eq!(trail[0].role, Role::Link);
+                assert_eq!(trail[0].name.as_deref(), Some(path));
+                let crumbs = subtree(tree, styled(tree, look::CRUMBS));
+                assert_eq!(crumbs[0].styles.as_slice(), [look::BACK]);
+                let trail_at = usize::try_from(crumbs[0].size).unwrap();
+                assert_eq!(crumbs[trail_at].styles.as_slice(), [look::TRAIL]);
+                let heading_at = trail_at.checked_add(usize::try_from(crumbs[trail_at].size).unwrap()).unwrap();
+                assert_eq!(crumbs[heading_at].role, Role::Heading { level: 1 });
                 let mut links = List::with_capacity(2);
                 for node in subtree(tree, top) {
                     if node.role == Role::Link && node.name.as_deref() == Some(path) {
@@ -3254,21 +3281,29 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
 }
 
 #[test]
-fn the_chat_bar_marks_yours_and_waiting_states_as_needing_the_person() {
+fn the_status_line_is_the_composers_first_row_at_rest_and_working() {
     use crate::look;
-    for (line, token) in super::chats::status_rows() {
-        let mut task = asking_task();
-        task.chip = line.chip;
-        task.waits_on = line.waits_on;
-        let root = asking_task_root(task, true, 1);
+    for working in [false, true] {
+        let mut task = resting_task();
+        if working {
+            task.waits_on = c::WaitsOn::Nothing;
+            task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+        }
+        let root = asking_task_root(task, true, 37);
         for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
-            let controls = subtree(view.tree(), styled(view.tree(), look::SESSION_RIGHT));
-            let status = &controls[named_position(controls, Role::Status, None).expect("bar status")];
-            assert_eq!(
-                status.styles.as_slice().contains(&look::STATE_NEEDS),
-                token == look::STATUS_YOURS || token == look::STATUS_WAITING
-            );
-            assert!(status.styles.as_slice().contains(&token));
+            let tree = view.tree();
+            let foot = styled(tree, look::SESSION_FOOT);
+            let line = styled(tree, look::STATUS_LINE);
+            assert_eq!(line, foot + 1);
+            assert_eq!(tree.nodes()[line].role, Role::Status);
+            let expected = if working { b"Working".as_slice() } else { b"waiting on your words" };
+            assert_eq!(tree.nodes()[line].name.as_deref(), Some(expected));
+            assert_eq!(tree.nodes()[line].styles.as_slice().contains(&look::STATUS_WORKING), working);
+            assert!(!tree.nodes()[line].styles.as_slice().contains(&look::STATE_NEEDS));
+            let star = styled(tree, look::STATUS_STAR);
+            assert_eq!(star, line + 1);
+            assert_eq!(fixtures::node_text(tree, star).as_ref(), "✦".as_bytes());
+            assert!(line < styled(tree, look::SESSION_COMPOSER));
         }
     }
 }
@@ -3839,7 +3874,7 @@ fn a_closed_chat_ends_on_one_line() {
     let view = fixtures::page_view(&root);
     let tree = view.tree();
     assert!(fixtures::find(tree, Role::Paragraph, b"Closed at 21:05").is_some());
-    assert!(fixtures::find(tree, Role::Status, b"Closed").is_some());
+    assert!(fixtures::find(tree, Role::Status, b"Closed").is_none());
     let mut ends = 0_u32;
     for node in tree.nodes() {
         if node.styles.as_slice().contains(&crate::look::ENDED) {
@@ -4092,8 +4127,13 @@ fn a_paused_chat_says_resume_paused_and_its_hint() {
         assert!(fixtures::find(view.tree(), Role::Button, b"Pause").is_none());
         assert!(fixtures::find(view.tree(), Role::Button, b"Close").is_some());
         let status = named_position(view.tree().nodes(), Role::Status, Some(b"Paused")).expect("paused status");
-        assert_eq!(view.tree().nodes()[status].styles.as_slice(), [crate::look::STATUS_QUIET]);
-        let hint = fixtures::find(view.tree(), Role::Paragraph, b"Sending resumes this chat.").expect("resuming hint");
+        assert_eq!(view.tree().nodes()[status].styles.as_slice(), [crate::look::STATUS_LINE]);
+        let words = if fixtures::find(view.tree(), Role::Group, b"The draft").is_some() {
+            b"Sending resumes this chat. \xc2\xb7 Ctrl+\\ switches the draft".as_slice()
+        } else {
+            b"Sending resumes this chat."
+        };
+        let hint = fixtures::find(view.tree(), Role::Paragraph, words).expect("resuming hint");
         assert!(view.tree().find(hint).unwrap().styles.as_slice().contains(&crate::look::HINT));
     }
 }
@@ -4104,7 +4144,14 @@ fn a_chat_held_otherwise_says_held_and_has_no_resume() {
         assert!(fixtures::find(view.tree(), Role::Status, b"Held").is_some());
         assert!(fixtures::find(view.tree(), Role::Button, b"Resume").is_none());
         assert!(fixtures::find(view.tree(), Role::Button, b"Pause").is_some());
-        assert!(fixtures::find(view.tree(), Role::Paragraph, b"Sending resumes this chat.").is_none());
+        assert!(
+            fixtures::find(
+                view.tree(),
+                Role::Paragraph,
+                b"Sending resumes this chat. \xc2\xb7 Ctrl+\\ switches the draft"
+            )
+            .is_none()
+        );
     }
 }
 #[test]
@@ -4113,7 +4160,14 @@ fn a_pause_without_release_has_no_resume_or_resuming_hint() {
     for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
         assert!(fixtures::find(view.tree(), Role::Button, b"Resume").is_none());
         assert!(fixtures::find(view.tree(), Role::Button, b"Pause").is_none());
-        assert!(fixtures::find(view.tree(), Role::Paragraph, b"Sending resumes this chat.").is_none());
+        assert!(
+            fixtures::find(
+                view.tree(),
+                Role::Paragraph,
+                b"Sending resumes this chat. \xc2\xb7 Ctrl+\\ switches the draft"
+            )
+            .is_none()
+        );
     }
 }
 fn answered_pause(resume: bool, answer: c::Answer) -> temper_client_domain::Domain {

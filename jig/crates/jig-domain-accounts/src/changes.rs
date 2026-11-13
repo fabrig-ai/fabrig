@@ -76,6 +76,12 @@ pub(crate) fn change(
         return;
     }
     let result = match change {
+        Change::LoginProgram { provider, name } => {
+            crate::lending::ask(domain, env, request, holder, provider, name, out);
+            return;
+        }
+        Change::CancelLogin { number } => crate::lending::cancel(domain, holder, number),
+        Change::LoginEnded { number, exit } => crate::lending::reported(domain, env, holder, number, exit, out),
         Change::FinishSignIn { source, carried, by } => {
             crate::signing::finish(domain, request, source, carried, by, out);
             return;

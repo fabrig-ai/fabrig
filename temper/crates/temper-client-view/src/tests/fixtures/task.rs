@@ -4,7 +4,7 @@ const EXCHANGES: u32 = 8;
 const SPENT: u64 = 7;
 const BELOW: u64 = 2;
 pub fn document() -> c::Task {
-    use jig_client_protocol_wire::v20 as w;
+    use jig_client_protocol_wire::v21 as w;
     let mut record = jig_client_test_records::task_record().into_parts();
     record.chip = jig_client_test_records::owner_waiting_chip_record();
     let record = w::Task::new(&w::CEILINGS, record).expect("checked fixture");
@@ -280,6 +280,7 @@ fn agent_root_for(
                     | c::Subject::Run { .. }
                     | c::Subject::Deployment
                     | c::Subject::Settings
+                    | c::Subject::Terminal { .. }
                     | c::Subject::Accounts => None,
                 };
                 let Some(value) = value else { continue };

@@ -172,6 +172,7 @@ pub(super) fn needs_store(read: &Read, document: &Document) -> bool {
         | Document::Lines(_)
         | Document::Project(_)
         | Document::Note(_)
+        | Document::Terminal { .. }
         | Document::Accounts(_)
         | Document::Settings(_)
         | Document::Deployment(_) => false,
@@ -299,6 +300,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
         | Document::Result(_)
         | Document::Project(_)
         | Document::Note(_)
+        | Document::Terminal { .. }
         | Document::Accounts(_)
         | Document::Settings(_)
         | Document::Deployment(_)) => Answer::Document(Box::new(document)),

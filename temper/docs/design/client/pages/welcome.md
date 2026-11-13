@@ -19,20 +19,24 @@
     alike, moves on to the inbox, its address replacing the welcome's,
     and the store's state is not judged: the rest of this entry holds
     where the document shows it.
-  - *Its frame* is the top bar (`../view.md`, 1; the look request `outside-pages`):
-    temper's mark, a link to `/` (named "temper"), temper box's line and
-    the steps, then the top bar's right as on any other page outside a
-    project: the link region, and, signed in, the person's name and "Sign
-    out" (`../view.md`, 1). No project, navigation or switcher, and no accounts' banner
+  - *Its frame* is the top bar (`../view.md`, 1; the look requests `outside-pages`
+    and `welcome-top`): temper's mark, a link to `/` (named "temper"), and
+    the steps, then the top bar's right: the link region alone, which the
+    browser draws only while it says "Offline". No person's name and no
+    "Sign out", at every step: where a person signs out during the welcome
+    is not decided (`welcome-top`, 2026-11-12). No project, navigation or switcher, and no accounts' banner
     (`../view.md`, 1); the playground's line while the playground is leaving, as on
-    every page but `Chats` and `NewChat` (`../forge/family.md`, 7, `../view.md`, 1, `welcome.md`, 2). temper box's line says what this
+    every page but `Chats` and `NewChat` (`../forge/family.md`, 7, `../view.md`, 1, `welcome.md`, 2). Each
+    step's heading is the page's level-1 heading.
+  - *temper box's line* is the Welcome step's alone, in its main under the
+    cards' note (*The Welcome step*, below), not in the bar; Forge, Model and
+    Ready draw none. It says what this
     temper is for, in fixed words: "**temper box** · on this machine,
     to try it · more later, from Settings · Run temper on a server ↗",
     the last an external link to temper's help on running a server
     (`temper/docs/help/server.md`), the welcome being a quick way to
-    try temper, not a deployment's wizard (the user, 2026-11-04). Each
-    step's heading is the page's level-1 heading.
-  - *Its steps,* after temper box's line, before the top bar's right, are
+    try temper, not a deployment's wizard (the user, 2026-11-04).
+  - *Its steps,* after the mark, before the top bar's right, are
     a list named Steps of four links,
     each to its own step in every state: Welcome to `/welcome?at=welcome`,
     Forge, Model and Ready to their `?at=`, with no choice or way. They
@@ -102,7 +106,10 @@
     end it (`../forge/family.md`, 7).
   - *The Welcome step* draws "Set up temper"'s card, then, while the
     playground is offered, "Try the playground"'s and the note under them;
-    not offered, both are left out. With a real forge kept, the card's
+    not offered, both are left out. Then temper box's line (*temper box's
+    line*, above), a paragraph of its own under the note, or under the
+    cards where there is no note, in the welcome's look
+    (`../web/look.md`, *The welcome's look*). With a real forge kept, the card's
     button reads "Go on setting up" and goes to Ready when a model is
     usable, else to Model; with none, it reads "Set up temper" and goes to
     Forge.
@@ -222,14 +229,32 @@
     ways sit directly under the lead, with neither the standalone
     Choose container nor its holder controls, as two cards, one for each
     plan its card names (the user, 2026-11-03), the plan alone, no key
-    (the user, 2026-11-04: a key is added from the accounts page):
-    "ChatGPT", for the `openai` provider, "Your ChatGPT plan: sign in,
-    and temper’s agents use its included usage.", the muted "Sign in,
-    in a new tab · about a minute", and "Continue with ChatGPT", the
-    default, the step's one primary act; and "Claude", for `anthropic`,
-    "Your Claude subscription, through Claude Code on this machine, with
-    a config of its own, apart from your own Claude Code.", the muted
-    "One command in a terminal, on this machine", and the secondary link "Use your Claude subscription".
+    (the user, 2026-11-04: a key is added from the accounts page),
+    Claude's first and the default, outlined as the default, its act the
+    step's one primary, now that its sign-in asks for nothing to be typed
+    (the user, 2026-11-12; `../../draft/claude-sign-in.md`, 2):
+    "Claude", for `anthropic`, "Your Claude subscription, through a
+    Claude Code temper keeps apart from your own."; then, in its two
+    forms:
+    - *with a terminal to lend,* while the `accounts` document's
+      `lendable` is true (jig's `domain/terminal-login.md`, 2: a TUI in
+      front of this box, signed in as the person, offers its terminal,
+      `../tui/box.md`, *Lending its terminal*), the muted "Signs in from
+      the terminal where temper runs" and the button "Sign in to Claude
+      Code", which starts *Claude Code's sign-in* (below). Nothing beside
+      it offers the command by hand;
+    - *with none,* a box served with no TUI in front, or a TUI on another
+      machine, the muted "One command in a terminal, on this machine"
+      and the link "Use your Claude subscription", to the *Claude* way's
+      page and its printed command (below).
+
+    Then "ChatGPT", for the `openai` provider, "Your ChatGPT plan: sign
+    in, and temper’s agents use its included usage.", the muted "Sign
+    in, in a new tab", with no time, so that the two cards' muted lines
+    align and neither wraps (the user, 2026-11-12), and "Continue with
+    ChatGPT", secondary. The default is the first way not connected
+    (`accounts.md`, 1, *Choose*): ChatGPT's, its act the primary, where
+    the person holds a Claude account or no card is Claude's.
     A provider offering neither its sign-in nor its program has no
     card. No other provider's ways are on the welcome, the box's fake
     model among them; with neither provider's plan offered, the
@@ -299,6 +324,55 @@
     terminal reads "ChatGPT’s sign-in" too, with no spinner, and its link reads
     "Open the sign-in page", printed with the address (`../line.md`, 5). `ConnectModel`
     draws the same note, link and disclosure.
+
+    *Claude Code's sign-in* (`../../draft/claude-sign-in.md`, 2, pages 01
+    to 05 of `../web/claude-sign-in/`): "Sign in to Claude Code" sends
+    jig's `LoginProgram { provider, name }` for `anthropic`, the holder the
+    person, under NAME, the program's default name (`accounts.md`, 2), so
+    that the TUI in front lends its terminal to `temper-box program-login`
+    (jig's `domain/terminal-login.md`, 3; `../tui/box.md`, *Lending its
+    terminal*). Nothing of the sign-in passes through the page, which has
+    no field for it.
+    - *The note* stands in the cards' place, as *The sign-in under way*
+      does, with no lead: a spinner; "Claude Code is signing in, in the
+      terminal where temper runs"; the muted "Approve it on Anthropic’s
+      page, in the tab Claude Code opened. This page moves on by itself.";
+      and the outlined "Cancel". Under the note, small and muted, the
+      disclosure "No tab opened, or a code to paste?", holding "Claude
+      Code’s sign-in is in the terminal where temper runs. If no tab
+      opened, press c there to copy its link. If Anthropic’s page shows a
+      code, paste it there." It stands from the press while the request
+      is out, then while the `accounts` document's `lending` names the
+      login, a page opened again included, and after an end `SignedIn`
+      while the `accounts` document lists that source's check under way.
+      The terminal draws the same note, with no spinner, and the
+      disclosure's words under it.
+    - *Cancel* sends `CancelLogin { number }`, the login's number from
+      the press's answer or `lending`; the note stays until the end,
+      then the cards stand again, nothing under the lead.
+    - *Signed in:* an end `SignedIn` whose check says the source usable
+      is *A model usable* (below): ticked, "Claude subscription", the
+      muted "through Claude Code, signed in", and the primary "Continue",
+      to Ready; the pane's Model line has the same words (*Ready*), and
+      the try starts as for any usable account (*The try*). The page
+      moves on by itself to nothing else: the person presses Continue.
+    - *Not finished:* an end `NotFinished` or `Refused`, or a `SignedIn`
+      whose check says not signed in: the cards again, and under the
+      lead, muted, "Claude Code’s sign-in didn’t finish.", the TUI's
+      notice's words; a press starts a new one. A `Refused` end says its
+      refusal's words there instead, as a refused `DeclareProgram` does
+      (`accounts.md`, 2). The TUI gone, `lendable` false and the end
+      `NotFinished` with no exit, the cards stand in their form with no
+      terminal, with the same line.
+    - *Refused at the press:* `NoTerminal`, the TUI gone meanwhile, the
+      cards in their form with no terminal; `LoginUnderWay`, the note of
+      the login under way; any other, its words under the lead, as a
+      refused `DeclareProgram`'s.
+    - *The page closed:* the sign-in goes on in the terminal, and the
+      engine makes the source at its exit 0 whether or not a page is
+      open; a page opened again draws the step by the `accounts` document
+      as above.
+
     *Finishing a paste* is the same note, a spinner and "Finishing your sign-in…". A sign-in's
     other endings (declined, held, refused, the port taken) keep their
     words and acts, drawn as `ConnectModel`'s are (`accounts.md`, 2, A sign-in). After
@@ -432,10 +506,12 @@
     the `accounts` document but the playground's (`../forge/family.md`, 7), by the kind of
     its usable source and who it is: "PLAN plan · WHO" for a
     signed-in plan ("ChatGPT plan · owner@example.com"), "PLAN
-    subscription · WHO, signed in on this machine" for a program's, WHO
+    subscription · through Claude Code, signed in" for a program's, and
+    " · WHO" after it where its LLM provider gave an email
+    (page 04 of `../../draft/claude-sign-in.md`, 2), WHO
     the email its LLM provider gave (jig's `domain/accounts.md`, 3.7)
-    where it gave one, and otherwise the account's display, or for a
-    program's the source's name;
+    where it gave one, and otherwise the account's display, a program's
+    having none;
     "BRAND API key · billed to the key’s organization" for a
     key, an account of no named provider by its whole heading (`accounts.md`, 2,
     An account); no model or effort, which are chosen apart from the
@@ -631,10 +707,10 @@ repository, and the cues the playground's, copied in from its read:
   project with no repository says "No repository yet", with "Adopt a
   repository" (`README.md`).
   *Where it departs from its mockup, since 2026-11-04* (the user's
-  greenfield pass; the mockup is not edited): the frame holds temper
-  box's line and the steps, then the top bar's right as on every page
-  outside a project, signed in the person's name and "Sign out" (1, *Its
-  frame*; the look request `outside-pages`); the
+  greenfield pass; the mockup is not edited): the frame holds the
+  steps, then the link region alone, no person and no "Sign out", and
+  temper box's line stands under the Welcome step's cards (1, *Its
+  frame*; the look requests `outside-pages` and `welcome-top`); the
   Welcome step's "Set up temper" card comes first and is the default,
   its words "Your forge: a Forgejo temper runs for you, or GitHub. Your
   model: ChatGPT or Claude.", the playground's card after it, "A

@@ -7,7 +7,7 @@ mod thread;
 use crate::{engine::Engine, fixtures, net::Net};
 use jig_client::{self as client, Ask, Event, Handle, Key, Latest, Link, Outcome, Readable, Told, Watchable};
 use jig_client_kit::{ClientId, harness::Observed};
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_client_shell_native::{Conn, Connections};
 use skein_lib::Reader;
 use skein_lib::{Duration, List, Queue, Time, stream::Down};

@@ -194,6 +194,7 @@ pub(crate) fn tasks(
             | contract::Subject::Chips { .. }
             | contract::Subject::Inbox { .. }
             | contract::Subject::Run { .. }
+            | contract::Subject::Terminal { .. }
             | contract::Subject::Accounts
             | contract::Subject::Settings
             | contract::Subject::Deployment => {}

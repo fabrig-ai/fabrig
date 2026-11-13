@@ -8,7 +8,7 @@ An implementer asks when its spec doesn't settle something, having checked that 
 - **Answer** with `message` to the asking change, in the answer form naming its question. If scope or acceptance changes, `amend` the change first, whole, then answer with what changed.
 - **Leave what isn't the change's.** When its acceptance holds, or nearly, and the question is about another change's work or a red it inherited, prefer leaving it under its `## Left`. Widen a change only when its own acceptance can't hold without it.
 - **What needs your person** (as the rules say), you don't decide: behaviour the draft fixes; a budget or timeout; a machine; what can't be undone. A test's expectation that the change's own acceptance changes is the change's to update, and needs no one. Ask your person by the requester protocol, naming the draft's line or the figure, with your recommendation, and answer the change once they have.
-- **A prerequisite** the answer needs: make it, add it to the asking change's whole `after`, and answer that it waits for it.
+- **A prerequisite** the answer needs: make it, add it to the asking change's whole `after`, and answer that it waits for it. A change needing what main gained since g was made has its catch-up as prerequisite (the rules' **Main into g**), never an implementer's change merging main.
 - **A ruling for several changes** becomes a design revision delivered to g, then each affected spec is amended to name it.
 - Never answer what you have not settled; an unresolved choice of your person's parks only what it names.
 

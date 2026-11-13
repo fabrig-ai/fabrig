@@ -61,7 +61,7 @@ impl Engine {
         self.workers.host.opened()
     }
     #[must_use]
-    pub fn client_wire(&self) -> &jig_client_protocol_wire::v20::Limits {
+    pub fn client_wire(&self) -> &jig_client_protocol_wire::v21::Limits {
         &self.clients.env.limits.wire
     }
     pub fn client_event(&mut self, event: skein_io::Event) -> bool {

@@ -666,7 +666,7 @@ fn decode_holder(value: wire::ProposalHolder) -> tasks::ProposalHolder {
     }
 }
 
-fn people_problem(value: crate::people_v16::Problem) -> wire::Problem {
+fn people_problem(value: crate::people_v17::Problem) -> wire::Problem {
     problem(value.reason)
 }
 

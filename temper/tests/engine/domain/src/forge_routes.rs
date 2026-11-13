@@ -869,7 +869,9 @@ impl World {
                 let mut bound = protocol::merge_bound();
                 bound.spec = bound.spec.min(limits.tasks.spec_bytes);
                 bound.result = bound.result.min(limits.tasks.result_bytes);
-                config.core.jobs = Box::new([bound]);
+                let mut jobs = config.core.jobs.to_vec();
+                jobs.push(bound);
+                config.core.jobs = jobs.into_boxed_slice();
             }
             if merge_authority {
                 let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
@@ -1524,7 +1526,20 @@ impl World {
             tree.insert(path.clone(), content.clone());
         }
         let files = tree.into_iter().map(|(path, content)| raw::File { path, content }).collect();
-        let squash = request["combine"] == "squash";
+        let brings = row.landing.round.upstream.is_some_and(|upstream| {
+            let text = forge_top::commit_text(&upstream);
+            assert_eq!(request["train_upstream"], core::str::from_utf8(&text).expect("upstream text"));
+            let upstream = fake::commit_count(&upstream).expect("fake upstream");
+            let raw::Answer::Commits { commits } = self.external_at(
+                if item.provider.repository == 2 { b"org/repo" } else { b"org/lib" },
+                1,
+                raw::Op::Read(raw::Read::Commits { before: base, after: upstream }),
+            ) else {
+                panic!("upstream commits")
+            };
+            commits.iter().any(|commit| self.fake.is_ancestor(commit.id, head))
+        });
+        let squash = request["combine"] == "squash" && !brings;
         let message =
             request["members"][0][if squash { "squash" } else { "message" }].as_str().expect("member message");
         let candidate = fake::commit_tree(

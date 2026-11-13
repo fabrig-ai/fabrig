@@ -743,8 +743,12 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 name = "jig-accounts-world"
 version = "0.0.0"
 dependencies = [
+ "jig-core-kit",
  "jig-domain-accounts",
+ "jig-domain-core",
  "jig-domain-link",
+ "jig-domain-people",
+ "jig-test-domain",
  "skein-lib",
  "skein-world",
 ]
@@ -1513,6 +1517,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-test-records",
  "jig-core-kit",
+ "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -5911,10 +5916,10 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "temper-client-protocol-wire",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-records-forge",
@@ -6036,6 +6041,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
 ]
 
@@ -6077,6 +6083,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine-domain-forge-vocabulary"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core-vocabulary",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-lib",
+ "temper-client-protocol-wire",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-closer",
+ "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-domain-forge-tiers",
+ "temper-protocol-reaches",
+]
+
+[[package]]
 name = "temper-engine-domain-trials"
 version = "0.0.0"
 dependencies = [
@@ -6088,8 +6113,8 @@ name = "temper-engine-domain-ways"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
 ]
 
@@ -6407,9 +6432,9 @@ dependencies = [
  "skein-shell",
  "smith-agent-world",
  "smith-domain-run",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-vocabulary",
  "temper-engine-service",
  "temper-forge-setup",
  "temper-init",
@@ -6860,6 +6885,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-store-codec",
@@ -7289,7 +7315,7 @@ dependencies = [
  "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
- "temper-engine-domain-forge",
+ "temper-engine-domain-forge-vocabulary",
  "temper-worker-domain-checkout",
  "temper-worker-domain-tooling",
 ]

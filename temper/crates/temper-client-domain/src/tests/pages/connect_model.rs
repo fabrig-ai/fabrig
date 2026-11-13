@@ -15,6 +15,185 @@ use jig_client::contract as c;
 use skein_lib::{Queue, Token};
 const PROVIDER: u32 = 17;
 const NAME: [u8; 16] = [97; 16];
+const LOGIN: u32 = 91;
+
+fn terminal_fixture(welcome: bool) -> (crate::Domain, Token) {
+    let (mut root, me_watch, watch) = opened(c::HeldRole::Owner);
+    let mut me = pages::accounts::current_me(root.client()).unwrap().clone();
+    me.providers.get_mut(0).unwrap().name =
+        c::DocumentText::complete(c::Text::new(b"anthropic".as_slice().into(), 32).unwrap());
+    deliver(&mut root, me_watch, c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))));
+    let address = if welcome {
+        Address::Welcome { step: Step::Model { way: None } }
+    } else {
+        Address::ConnectModel { way: None }
+    };
+    event(&mut root, Event::Went { place: crate::Place::Address(address) });
+    let c::WatchEvent::Delivered(c::Delivery::Accounts(mut doc)) = document(false) else { unreachable!() };
+    doc.lendable = true;
+    deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+    (root, watch)
+}
+fn login_state(root: &crate::Domain) -> connect_model::LoginState {
+    root.pages().connect_model().unwrap().login_state(root.client())
+}
+fn login_document(root: &crate::Domain) -> Box<c::Accounts> {
+    Box::new(pages::accounts::document(root.client()).unwrap().clone())
+}
+fn lending() -> c::TerminalLogin {
+    c::TerminalLogin { number: LOGIN, provider: PROVIDER, name: b"claude-pat".as_slice().into(), cancelled: false }
+}
+#[test]
+fn a_terminal_login_asks_for_claudes_default_name_and_cancels_by_number() {
+    use connect_model::LoginState as S;
+    for cancel_before_answer in [false, true] {
+        let (mut root, watch) = terminal_fixture(true);
+        // The card always uses the default, not a name retained from a way's panel.
+        act(&mut root, Act::ProgramName { value: b"another-login".as_slice().into() });
+        let sent = sends(act(&mut root, Act::LoginProgram { name: NAME })).pop().unwrap();
+        assert_eq!(
+            sent.2,
+            jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
+                holder: c::AskAccountHolder::Own,
+                change: c::AccountChange::LoginProgram { provider: PROVIDER, name: b"claude-pat".as_slice().into() },
+            }))
+        );
+        assert_eq!(login_state(&root), S::Waiting { number: None, cancelled: false });
+        assert_eq!(pages::welcome::model_step(&root), Some(pages::welcome::ModelStep::TerminalLogin));
+        assert_no_moves(&act(&mut root, Act::LoginProgram { name: NAME }));
+        if cancel_before_answer {
+            assert!(sends(act(&mut root, Act::CancelLogin)).is_empty());
+        }
+        let out = answered(&mut root, sent.0, done(c::DocumentOutcome::AccountLoginAsked { number: LOGIN }));
+        assert_no_moves(&out);
+        let cancel =
+            if cancel_before_answer { sends(out) } else { sends(act(&mut root, Act::CancelLogin)) }.pop().unwrap();
+        assert_eq!(
+            cancel.2,
+            jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
+                holder: c::AskAccountHolder::Own,
+                change: c::AccountChange::CancelLogin { number: LOGIN },
+            }))
+        );
+        assert!(sends(act(&mut root, Act::CancelLogin)).is_empty());
+        answered(&mut root, cancel.0, done(c::DocumentOutcome::AccountChanged));
+        assert_eq!(login_state(&root), S::Waiting { number: Some(LOGIN), cancelled: true });
+        let mut doc = login_document(&root);
+        doc.lent_end = Some(c::AccountLentEnd { number: LOGIN, end: c::LoginEnd::Cancelled });
+        deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+        assert_eq!(login_state(&root), S::Idle);
+        assert_eq!(pages::welcome::model_step(&root), Some(pages::welcome::ModelStep::Choose));
+    }
+}
+#[test]
+fn a_reopened_terminal_login_waits_for_its_source_and_only_settings_moves_on() {
+    use connect_model::LoginState as S;
+    for welcome in [false, true] {
+        let (mut root, watch) = terminal_fixture(welcome);
+        let mut doc = login_document(&root);
+        doc.lending = Some(lending());
+        deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+        assert_eq!(login_state(&root), S::Waiting { number: Some(LOGIN), cancelled: false });
+        // No press or answer was observed by this page.
+        program_document(&mut root, watch, false, false);
+        let mut doc = login_document(&root);
+        doc.lent_end = Some(c::AccountLentEnd { number: LOGIN, end: c::LoginEnd::SignedIn { source: 43 } });
+        let out = deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc.clone())));
+        assert_no_moves(&out);
+        assert_eq!(login_state(&root), S::Waiting { number: Some(LOGIN), cancelled: false });
+        doc.settled = true;
+        doc.program_hosts = skein_lib::List::from_boxed(Box::new([c::ProgramHost {
+            name: b"worker".as_slice().into(),
+            channel: 1,
+            connected: true,
+            awaiting_logins: false,
+            cut: false,
+            programs: skein_lib::List::from_boxed(Box::new([c::ProgramLogin {
+                name: b"claude-pat".as_slice().into(),
+                state: None,
+                sign_out: None,
+                cleanup: false,
+                cut: false,
+            }])),
+        }]));
+        let out = deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc.clone())));
+        assert_no_moves(&out);
+        assert_eq!(login_state(&root), S::Waiting { number: Some(LOGIN), cancelled: false });
+        doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().usable = true;
+        deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc.clone())));
+        assert_eq!(login_state(&root), S::Waiting { number: Some(LOGIN), cancelled: false });
+        doc.program_hosts.clear();
+        doc.usable = true;
+        doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().usable = true;
+        let out = deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+        if welcome {
+            assert_no_moves(&out);
+            assert_eq!(login_state(&root), S::Usable { provider: PROVIDER });
+            assert_eq!(pages::welcome::model_step(&root), Some(pages::welcome::ModelStep::Usable));
+        } else {
+            assert_eq!(root.pages().address(), &Address::Accounts);
+            assert_eq!(
+                root.pages().accounts().unwrap().added,
+                Some(pages::accounts::Added { provider: PROVIDER, kind: crate::WayKind::Program })
+            );
+        }
+    }
+}
+#[test]
+fn terminal_login_endings_and_press_refusals_return_to_the_right_form() {
+    use connect_model::LoginState as S;
+    for (end, expected) in [
+        (c::LoginEnd::Cancelled, S::Idle),
+        (c::LoginEnd::NotFinished { exit: None }, S::NotFinished),
+        (c::LoginEnd::NotFinished { exit: Some(c::LoginExit::Exited { code: 1 }) }, S::NotFinished),
+        (
+            c::LoginEnd::Refused { refusal: c::AccountRefusal::ProgramNameReserved },
+            S::Refused { refusal: c::AccountRefusal::ProgramNameReserved },
+        ),
+        (c::LoginEnd::SignedIn { source: 43 }, S::NotFinished),
+    ] {
+        let (mut root, watch) = terminal_fixture(true);
+        program_document(&mut root, watch, true, false);
+        let mut doc = login_document(&root);
+        doc.lendable = false;
+        doc.lent_end = Some(c::AccountLentEnd { number: LOGIN, end });
+        deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+        assert_eq!(login_state(&root), expected);
+        assert_eq!(pages::welcome::model_step(&root), Some(pages::welcome::ModelStep::Choose));
+        // A new press must not read the preceding login's ending.
+        let mut doc = login_document(&root);
+        doc.lendable = true;
+        deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+        act(&mut root, Act::LoginProgram { name: NAME });
+        assert_eq!(login_state(&root), S::Waiting { number: None, cancelled: false });
+    }
+    for (refusal, waiting, lendable) in [
+        (c::Refusal::NoTerminal, false, false),
+        (c::Refusal::LoginUnderWay, true, true),
+        (c::Refusal::NotOffered, false, true),
+    ] {
+        let (mut root, watch) = terminal_fixture(true);
+        let sent = sends(act(&mut root, Act::LoginProgram { name: NAME })).pop().unwrap();
+        answered(&mut root, sent.0, c::Answer::Refused { refusal, at: None });
+        assert_eq!(
+            match login_state(&root) {
+                S::Waiting { .. } => true,
+                S::Idle | S::Usable { .. } | S::NotFinished | S::Refused { .. } => false,
+            },
+            waiting
+        );
+        assert_eq!(root.pages().connect_model().unwrap().lendable(root.client()), lendable);
+        if !lendable {
+            let mut doc = login_document(&root);
+            doc.lendable = false;
+            deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc.clone())));
+            doc.lendable = true;
+            deliver(&mut root, watch, c::WatchEvent::Delivered(c::Delivery::Accounts(doc)));
+            assert!(root.pages().connect_model().unwrap().lendable(root.client()));
+        }
+    }
+}
+
 fn go(root: &mut crate::Domain, way: Option<Way>) {
     let way = match way {
         Some(way) => Some(connect_model::model_way(way)),
