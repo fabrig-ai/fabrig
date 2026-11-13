@@ -324,9 +324,27 @@ to an older reader or writer. Each has one version at a time.
   turns and transcripts, the event stream, and what a host keeps in files
   each carry a version of their own. Any change a reader would notice is
   a new version. Nothing is translated, and no older version is read.
-  Before v0.1.0, the charter changes in place, its version unmoved,
+  Until its baseline, the charter changed in place, its version unmoved,
   since a writer and its agents are built together
-  (the owner, 2026-11-09: the `save` grant and ask, domain/run.md, 8.5).
+  (the owner, 2026-11-09: the `save` grant and ask, domain/run.md, 8.5);
+  from it, it moves with its layout, as the next bullet says.
+- **The channel, the charter and turns are wires,** whose versions move
+  with their layouts (`temper/docs/design/protocol/wires.md`, 3.1):
+  `smith-channel`, `smith-charter` and `smith-transcript` are patch
+  owners, each marked a wire in its crate's `schema/wires` (skein's
+  `data/codec/command.md`, 2). A landing that changes one's layout in
+  anything but names, comments, `boxed` and the text's layout moves its
+  version by one, keeps the old text and brings its forward patch;
+  `fabrig-boundary`'s `patches` test refuses one changed in place. Each
+  crate says what it speaks in a module `wire`: `FAMILY`, `VERSION` and
+  `layout()`, its current text's family fingerprint. Every writer and
+  reader that names a version names `wire::VERSION`:
+  `Charter::FORMAT_VERSION`, `Turn::FORMAT_VERSION`,
+  `smith_domain_session::record::VERSION` and the prefixes
+  `decode_charter` and `decode_transcript` check are it or derived from
+  it, so a version moves in its schema's header and its constant alone.
+  Kept texts and forward patches stay for good: stored turns keep the
+  versions they were written in.
 - **A reader refuses any other version,** each in its own terms:
   - **the channel** is versioned whole: its frames, its kinds and its
     records. Each side's opening says the version it speaks; with none
@@ -354,9 +372,9 @@ to an older reader or writer. Each has one version at a time.
     section 12), so a reader is still handed one version.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
-- **Where each is.** The channel speaks version 6 (channel.md, section
+- **Where each is.** The channel speaks version 7 (channel.md, section
   2); the charter and its result, version 4 (charter.md, section 5); turns
-  and transcripts, version 6 (transcript.md, section 6); the event
+  and transcripts, version 7 (transcript.md, section 6); the event
   stream, version 4 (events.md, section 6); and the local host's store,
   version 1 (host.md, section 5.3).
 - **A build says which it speaks.** `smith check` prints each format's
