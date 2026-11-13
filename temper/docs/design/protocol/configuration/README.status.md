@@ -1,6 +1,8 @@
 # configuration: status
 
-2026-11-12. Where temper's code lags or departs from [README.md](README.md).
+2026-11-13. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** *The engine-away bound*: `temper-box init` and the playground write 60,000, the stop bound is 186 seconds, the engine's grace 240 and the worker unit's `TimeoutStopSec` 240 [in flight: change 2304]
 
 
 `settings.md`, section 7 has no known gap in the engine and workers' shared output
