@@ -192,6 +192,7 @@ members = [
     "jig/tests/client-protocol",
     "jig/testing/jig-client-test-records",
     "jig/crates/jig-protocol-engine-clients",
+    "jig/crates/jig-protocol-engine-clients-codec",
     "jig/crates/jig-protocol-engine-clients-http",
     "jig/tests/engine-clients",
     "jig/crates/jig-client-protocol-link",
@@ -601,6 +602,7 @@ jig-client-test-protocol-wire = { path = "jig/testing/jig-client-test-protocol-w
 jig-client-test-protocol-wire-codec = { path = "jig/testing/jig-client-test-protocol-wire-codec" }
 jig-protocol-engine-clients-http = { path = "jig/crates/jig-protocol-engine-clients-http" }
 jig-protocol-engine-clients = { path = "jig/crates/jig-protocol-engine-clients" }
+jig-protocol-engine-clients-codec = { path = "jig/crates/jig-protocol-engine-clients-codec" }
 jig-test-worker = { path = "jig/testing/jig-test-worker" }
 jig-protocol-engine-workers = { path = "jig/crates/jig-protocol-engine-workers" }
 jig-protocol-accounts = { path = "jig/crates/jig-protocol-accounts" }
