@@ -1377,3 +1377,17 @@ fn a_third_project_keeps_setup_calls_usable() {
         preset.domain.document_bytes
     );
 }
+
+#[test]
+fn invalid_history_filters_and_cursors_open_no_directory_and_send_nothing() {
+    for words in [
+        &["landing", "history", "--project", "1", "--change", "51", "--landing", "61"][..],
+        &["landing", "history", "--project", "1", "--after", "0200000000000000280000000000000020"][..],
+    ] {
+        let mut frame = fixtures::Frame::read(words); frame.drain();
+        assert_eq!(frame.exit(), Some(Exit::Code(1))); assert!(frame.no_directory()); assert_eq!(frame.requests(), 0);
+    }
+    let mut frame = fixtures::Frame::read(&["--call", "-"]);
+    frame.input = br#"{"tool":"landing history","arguments":{"project":"1","change":51,"landing":61}}"#;
+    frame.drain(); assert_eq!(frame.exit(), Some(Exit::Code(1))); assert!(frame.no_directory()); assert_eq!(frame.requests(), 0);
+}
