@@ -737,33 +737,54 @@ fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, ow
 }
 
 fn history_begin(
-    domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision,
-    reply: skein_lib::ReplyTo, sign_in: u64, query: temper_engine_domain_forge::history::Query,
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    reply: skein_lib::ReplyTo,
+    sign_in: u64,
+    query: temper_engine_domain_forge::history::Query,
 ) {
     let Some(read) = domain.next_history_read.checked_add(1) else {
-        super::emit(decision, &env.limits, crate::Delivery::Read {
-            reply, answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
-        });
+        super::emit(
+            decision,
+            &env.limits,
+            crate::Delivery::Read {
+                reply,
+                answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
+            },
+        );
         return;
     };
     let token = reply.into_token();
     if domain.history_reads.insert(read, (skein_lib::ReplyTo::new(token), sign_in, query)).is_err() {
-        super::emit(decision, &env.limits, crate::Delivery::Read {
-            reply: skein_lib::ReplyTo::new(token),
-            answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
-        });
+        super::emit(
+            decision,
+            &env.limits,
+            crate::Delivery::Read {
+                reply: skein_lib::ReplyTo::new(token),
+                answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
+            },
+        );
         return;
     }
     domain.next_history_read = read;
     domain.work.push(Work::Forge(temper_engine_domain_forge::Event::ReadHistory { read, query }));
 }
 pub(super) fn history_answer(
-    domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision,
-    read: u64, answer: temper_engine_domain_forge::history::Reply,
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    read: u64,
+    answer: temper_engine_domain_forge::history::Reply,
 ) {
     let Some((reply, sign_in, query)) = domain.history_reads.remove(&read) else { return };
-    let why = read_refusal(domain, env, sign_in,
-        jig_domain_people::ApplicationScope::Project(query.project), &crate::ForgeRead::History(query));
+    let why = read_refusal(
+        domain,
+        env,
+        sign_in,
+        jig_domain_people::ApplicationScope::Project(query.project),
+        &crate::ForgeRead::History(query),
+    );
     let delivery = match why {
         Some(why) => crate::Delivery::Read { reply, answer: jig_domain_core::reads::Answer::None(why) },
         None => crate::Delivery::ForgeRead { reply, answer: crate::ForgeReadAnswer::History(answer) },

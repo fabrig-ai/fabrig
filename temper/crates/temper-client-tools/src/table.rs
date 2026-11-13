@@ -150,7 +150,9 @@ pub const TOOLS: &[&Tool] = &[
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;
-    if let Parsed::Call { call, .. } = &parsed { check_application(call)?; }
+    if let Parsed::Call { call, .. } = &parsed {
+        check_application(call)?;
+    }
     Ok(parsed)
 }
 
@@ -294,6 +296,8 @@ pub const USAGE: &[u8] = b"usage: temper ctl DIR GROUP VERB [ARGUMENT...]; tempe
 /// Returns the selected tool's usage error before a call is sent.
 pub fn check_application(call: &Call) -> Result<(), Usage> {
     let tool = TOOLS.get(usize::from(call.tool)).ok_or(Usage::Tool)?;
-    if tool.name == crate::landing::history::HISTORY.name { crate::landing::history::check(call)?; }
+    if tool.name == crate::landing::history::HISTORY.name {
+        crate::landing::history::check(call)?;
+    }
     Ok(())
 }

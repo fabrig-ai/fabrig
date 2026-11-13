@@ -78,7 +78,8 @@ pub(crate) fn owns(call: &jig::call::Call) -> bool {
 }
 pub(crate) fn call(state: &mut Landings, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     if crate::table::TOOLS.get(usize::from(called.call.tool)).expect("parsed tool").name == history::HISTORY.name {
-        history::call(&mut state.history, client, env, called, out); return;
+        history::call(&mut state.history, client, env, called, out);
+        return;
     }
     if called.value.is_some() || jig::argv::check(crate::table::TOOLS, &called.call, &env.limits.tools).is_err() {
         out.push(Out::Printed {
@@ -779,6 +780,10 @@ pub(crate) fn print_list(panel: &w::LandingsPanel, json: bool, limits: &Limits) 
 }
 
 impl Landings {
-    pub(crate) fn next_deadline(&self) -> Option<skein_lib::Time> { self.history.next_deadline() }
+    pub(crate) fn next_deadline(&self) -> Option<skein_lib::Time> {
+        self.history.next_deadline()
+    }
 }
-pub(crate) fn fire(state: &mut Landings, env: &Env<Limits>, out: &mut Queue<Out>) { history::fire(&mut state.history, env, out); }
+pub(crate) fn fire(state: &mut Landings, env: &Env<Limits>, out: &mut Queue<Out>) {
+    history::fire(&mut state.history, env, out);
+}

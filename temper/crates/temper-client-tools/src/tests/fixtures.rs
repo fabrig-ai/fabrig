@@ -724,7 +724,9 @@ impl Harness {
         if json {
             self.json_calls.insert(self.next);
         }
-        let count = if crate::table::TOOLS[usize::from(call.tool)].name == b"change show" || crate::table::TOOLS[usize::from(call.tool)].name == b"landing history" {
+        let count = if crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
+            || crate::table::TOOLS[usize::from(call.tool)].name == b"landing history"
+        {
             SINGLE_READ
         } else if crate::jig::call::waiting(crate::table::TOOLS[usize::from(call.tool)], &call) {
             0

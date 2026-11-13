@@ -153,7 +153,11 @@ fn encode_event(value: &d::Event) -> w::HistoryEvent {
                 None => None,
             },
             change: value.change,
-            repository: w::HistoryRepository::new(&w::CEILINGS, w::HistoryRepositoryParts { forge: value.repository.forge, repository: value.repository.repository }).expect(FITS),
+            repository: w::HistoryRepository::new(
+                &w::CEILINGS,
+                w::HistoryRepositoryParts { forge: value.repository.forge, repository: value.repository.repository },
+            )
+            .expect(FITS),
             landing: match value.landing {
                 Some(value) => Some(encode_in_landing(&value)),
                 None => None,
@@ -207,7 +211,9 @@ fn encode_by(value: d::By) -> w::HistoryBy {
         d::By::Party(number) => {
             w::HistoryBy::Party(w::HistoryNumber::new(&w::CEILINGS, w::HistoryNumberParts { number }).expect(FITS))
         }
-        d::By::Task(number) => w::HistoryBy::Task(w::HistoryNumber::new(&w::CEILINGS, w::HistoryNumberParts { number }).expect(FITS)),
+        d::By::Task(number) => {
+            w::HistoryBy::Task(w::HistoryNumber::new(&w::CEILINGS, w::HistoryNumberParts { number }).expect(FITS))
+        }
     }
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation of history kinds")]
@@ -385,9 +391,9 @@ fn encode_leave(why: temper_engine_domain_forge::LandingLeave) -> w::HistoryLeav
         temper_engine_domain_forge::LandingLeave::Blamed { gate, run, red, green } => w::HistoryLeave::Blamed(
             w::HistoryBlamed::new(&w::CEILINGS, w::HistoryBlamedParts { gate, run, red, green }).expect(FITS),
         ),
-        temper_engine_domain_forge::LandingLeave::HeadMoved { head } => {
-            w::HistoryLeave::HeadMoved(w::HistoryCommit::new(&w::CEILINGS, w::HistoryCommitParts { commit: head }).expect(FITS))
-        }
+        temper_engine_domain_forge::LandingLeave::HeadMoved { head } => w::HistoryLeave::HeadMoved(
+            w::HistoryCommit::new(&w::CEILINGS, w::HistoryCommitParts { commit: head }).expect(FITS),
+        ),
         temper_engine_domain_forge::LandingLeave::Cancelled => w::HistoryLeave::Cancelled,
         temper_engine_domain_forge::LandingLeave::Held => w::HistoryLeave::Held,
         temper_engine_domain_forge::LandingLeave::Refused { gate } => w::HistoryLeave::Refused(
@@ -401,26 +407,57 @@ fn encode_leave(why: temper_engine_domain_forge::LandingLeave) -> w::HistoryLeav
 
 pub(super) fn query(value: w::HistoryRead) -> Option<d::Query> {
     let w::HistoryReadParts { project, of, since, until, after } = value.into_parts();
-    Some(d::Query { project, of: match of {
-        w::HistoryOf::Project => d::Of::Project,
-        w::HistoryOf::Change(task) => d::Of::Change(task.task()),
-        w::HistoryOf::Landing(task) => d::Of::Landing(task.task()),
-    }, since: match since { Some(n) => Some(Wall::from_nanos(n)), None => None }, until: match until { Some(n) => Some(Wall::from_nanos(n)), None => None },
-        after: match after { Some(bytes) => Some(d::Cursor::decode(&bytes)?), None => None },
+    Some(d::Query {
+        project,
+        of: match of {
+            w::HistoryOf::Project => d::Of::Project,
+            w::HistoryOf::Change(task) => d::Of::Change(task.task()),
+            w::HistoryOf::Landing(task) => d::Of::Landing(task.task()),
+        },
+        since: match since {
+            Some(n) => Some(Wall::from_nanos(n)),
+            None => None,
+        },
+        until: match until {
+            Some(n) => Some(Wall::from_nanos(n)),
+            None => None,
+        },
+        after: match after {
+            Some(bytes) => Some(d::Cursor::decode(&bytes)?),
+            None => None,
+        },
     })
 }
 pub(super) fn answer(value: d::Reply, limits: &w::Limits) -> Option<Box<[u8]>> {
     let result = match value {
         d::Reply::Busy => w::HistoryReply::Busy,
-        d::Reply::Gone { from, first } => w::HistoryReply::Gone(
-            w::HistoryGone::new(limits, w::HistoryGoneParts { from, first }).ok()?),
+        d::Reply::Gone { from, first } => {
+            w::HistoryReply::Gone(w::HistoryGone::new(limits, w::HistoryGoneParts { from, first }).ok()?)
+        }
         d::Reply::Page { events, after, upper, whole_since } => {
             let mut rows = List::with_capacity(limits.history_page_events);
-            for event in &events { rows.push(encode_event(event)).ok()?; }
-            let after = match after { Some(cursor) => Some(cursor.encode().as_ref().try_into().expect("17-byte cursor")), None => None };
-            w::HistoryReply::Page(w::HistoryPage::new(limits, w::HistoryPageParts {
-                events: rows, after, upper, whole_since: match whole_since { Some(at) => Some(at.as_nanos()), None => None },
-            }).ok()?)
+            for event in &events {
+                rows.push(encode_event(event)).ok()?;
+            }
+            let after = match after {
+                Some(cursor) => Some(cursor.encode().as_ref().try_into().expect("17-byte cursor")),
+                None => None,
+            };
+            w::HistoryReply::Page(
+                w::HistoryPage::new(
+                    limits,
+                    w::HistoryPageParts {
+                        events: rows,
+                        after,
+                        upper,
+                        whole_since: match whole_since {
+                            Some(at) => Some(at.as_nanos()),
+                            None => None,
+                        },
+                    },
+                )
+                .ok()?,
+            )
         }
     };
     Some(wire::history_answer(&w::HistoryAnswer::new(limits, w::HistoryAnswerParts { result }).ok()?))

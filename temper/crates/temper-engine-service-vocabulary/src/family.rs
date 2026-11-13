@@ -510,7 +510,9 @@ pub fn to_root(
                     w::Read::History(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
                             forge_settings_query(w::Read::History(read))
-                        } else { None }
+                        } else {
+                            None
+                        }
                     }
                     w::Read::Finding(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
