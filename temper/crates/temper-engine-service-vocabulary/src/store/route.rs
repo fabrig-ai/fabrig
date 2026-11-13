@@ -510,7 +510,7 @@ fn continue_filtered(
 /// Filtered startup walks can advance past families not selected by this load.
 fn startup_cursor(flight: &Flight, cursor: &store::Cursor, bounds: &families::Bounds) -> Option<engine::Key> {
     let key = match &flight.range {
-        engine::Range::Forge => {
+        engine::Range::Forge | engine::Range::History(_) => {
             let relative = store::keys::of_application(&cursor.after)?;
             engine::Key::Forge(families::keys::decode(relative, bounds.forge())?)
         }

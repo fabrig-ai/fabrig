@@ -15,6 +15,7 @@ use skein_lib::{Id, List, Queue, ReplyTo, Token};
 /// What a live load waiter reads, if it still reads anything.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Waiting {
+    History,
     Escalation,
     Proposal,
     TaskProposal,
@@ -29,6 +30,7 @@ pub(crate) enum Waiting {
 
 pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
     match domain.archive_reads.get(Id::from_token(waiter))? {
+        Some(Read::History { .. }) => Some(Waiting::History),
         Some(Read::Escalation(_)) => Some(Waiting::Escalation),
         Some(Read::Proposal(_)) => Some(Waiting::Proposal),
         Some(Read::TaskProposal { .. }) => Some(Waiting::TaskProposal),
@@ -124,7 +126,8 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
     match take_read(domain, waiter) {
         Some(Read::Notes { owner }) => Some(owner),
         Some(
-            Read::Document(_)
+            Read::History { .. }
+            | Read::Document(_)
             | Read::Remember(_)
             | Read::SettingsNote { .. }
             | Read::Ended(_)
@@ -475,6 +478,48 @@ pub(crate) fn goal_loaded(domain: &mut Domain, waiter: Token, rows: Box<[Record]
         let range = Range::Core(crate::CoreRange::RequesterWord { task: read.key.task, position: read.position });
         request_load(domain, waiter, range, None, out);
     }
+}
+
+pub(crate) fn history_failed(domain: &mut Domain, waiter: Token) {
+    let Some(Read::History { load, .. }) = take_read(domain, waiter) else { return };
+    domain.archive_reads.retire(Id::from_token(waiter));
+    domain.work.push(Work::Forge(temper_engine_domain_forge::Event::HistoryUnloaded { load }));
+}
+
+pub(crate) fn history_loaded(
+    domain: &mut Domain,
+    waiter: Token,
+    rows: Box<[Record]>,
+    next: Option<Key>,
+    cut: Option<loads::Cut>,
+) {
+    if cut.is_some() {
+        history_failed(domain, waiter);
+        return;
+    }
+    let mut stored = List::with_capacity(u32::try_from(rows.len()).expect("bounded history page"));
+    for row in rows {
+        let Record::Forge { row: record } = row else {
+            history_failed(domain, waiter);
+            return;
+        };
+        stored.push(*record).expect("one stored row per page row");
+    }
+    let next = match next {
+        Some(Key::Forge(key)) => Some(key),
+        Some(Key::Core(_) | Key::Wires | Key::Opening(_)) => {
+            history_failed(domain, waiter);
+            return;
+        }
+        None => None,
+    };
+    let Some(Read::History { load, .. }) = take_read(domain, waiter) else { return };
+    domain.archive_reads.retire(Id::from_token(waiter));
+    domain.work.push(Work::Forge(temper_engine_domain_forge::Event::HistoryLoaded {
+        load,
+        rows: stored.into_boxed(),
+        next,
+    }));
 }
 
 #[cfg(test)]
