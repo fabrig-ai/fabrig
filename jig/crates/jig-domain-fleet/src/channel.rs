@@ -62,6 +62,8 @@ pub(crate) struct Channel {
     pub(crate) shutting_down: bool,
     /// A version refusal keeps placement off until this channel is lost.
     pub(crate) mismatched: bool,
+    /// Tasks refused here for their values, until this channel is lost.
+    pub(crate) untranslated: skein_lib::List<Token>,
     /// The attempts it hosts or holds the answers of, each taking a slot.
     pub(crate) hosts: Set<Id<Attempt>>,
     /// The workstreams it holds workspaces for, by when each was last used,
@@ -249,6 +251,7 @@ pub(crate) fn hello(
         draining: false,
         shutting_down: false,
         mismatched: false,
+        untranslated: skein_lib::List::uncapped(),
         hosts: Set::with_capacity(limits.slots),
         workstreams: Map::with_capacity(limits.workstreams),
         uses: 0,
@@ -381,7 +384,13 @@ pub(crate) fn drain(domain: &mut Domain, channel: Id<Channel>) {
 
 /// A host declaring every model of `charter`: one with a free slot that holds
 /// the workstream's workspace, or else the one with the most free slots.
-pub(crate) fn choose(domain: &Domain, workstream: u64, kinds: Kinds, version: crate::Version) -> Option<Id<Channel>> {
+pub(crate) fn choose(
+    domain: &Domain,
+    run: Token,
+    workstream: u64,
+    kinds: Kinds,
+    version: crate::Version,
+) -> Option<Id<Channel>> {
     let mut best: Option<(Id<Channel>, u32)> = None;
     for (_, &id) in &domain.tokens {
         let channel = domain.channels.get(id).expect("a named channel is in contact");
@@ -391,6 +400,7 @@ pub(crate) fn choose(domain: &Domain, workstream: u64, kinds: Kinds, version: cr
             || channel.shutting_down
             || channel.mismatched
             || free == 0
+            || channel.untranslated.as_slice().contains(&run)
             || !kinds.allows(channel.kind)
             || !crate::needs::fits(&domain.needs, version, &channel.evidence, channel.kind)
             || !crate::needs::allows(&domain.needs, &channel.eligible, version)
@@ -418,6 +428,7 @@ pub(crate) fn probe(
     models: &[crate::ModelNeed],
     excluded: &[Token],
 ) -> Option<crate::PlacementConstraint> {
+    let run = Token::new(workstream);
     let mut best: Option<(&Channel, u32)> = None;
     for (_, &id) in &domain.tokens {
         let channel = domain.channels.get(id).expect("connected host");
@@ -427,6 +438,7 @@ pub(crate) fn probe(
             || channel.draining
             || channel.shutting_down
             || channel.mismatched
+            || channel.untranslated.as_slice().contains(&run)
             || !kinds.allows(channel.kind)
             || !crate::needs::fits(&domain.needs, version, &channel.evidence, channel.kind)
             || excluded.contains(&channel.token)
@@ -463,12 +475,22 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
 }
 
 /// Jobs use declared bounds and room alone (jig/docs/design/domain/engine/executors.md, 5).
-pub(crate) fn choose_job(domain: &Domain, workstream: u64, job: jig_domain_link::JobBound) -> Option<Id<Channel>> {
+pub(crate) fn choose_job(
+    domain: &Domain,
+    run: Token,
+    workstream: u64,
+    job: jig_domain_link::JobBound,
+) -> Option<Id<Channel>> {
     let mut best = None;
     for (_, &id) in &domain.tokens {
         let channel = domain.channels.get(id).expect("connected channel");
         let free = channel.slots.saturating_sub(channel.hosts.len());
-        if free == 0 || channel.draining || channel.shutting_down || channel.mismatched {
+        if free == 0
+            || channel.draining
+            || channel.shutting_down
+            || channel.mismatched
+            || channel.untranslated.as_slice().contains(&run)
+        {
             continue;
         }
         let mut covers = false;

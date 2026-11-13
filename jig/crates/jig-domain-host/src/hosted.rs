@@ -30,6 +30,8 @@ pub(crate) struct Hosted {
     /// The engine's names for the run and for the attempt hosted.
     pub(crate) run: Token,
     pub(crate) attempt: Token,
+    /// Handed back by start decoding; kept across link loss and adoption.
+    contract: Option<u16>,
     grants: Box<[Grant]>,
     refreshed: bool,
     /// A live run asked to stop at its turn's end (domain/hosts/hub.md, 7).
@@ -223,6 +225,7 @@ fn assign_runtime(
     let held = Queue::with_capacity(env.limits.held);
     let entry = Hosted {
         job: None,
+        contract: None,
         run,
         attempt,
         grants,
@@ -534,6 +537,11 @@ pub(crate) fn unprepared(
     };
     drain_stopping(domain, env, id, out);
     conclude(domain, id, out);
+}
+
+pub(crate) fn decoded(domain: &mut Hub, owner: Token, contract: u16) {
+    let entry = domain.hosted.get_mut(Id::<Hosted>::from_token(owner)).expect("a start is hosted until settled");
+    assert!(entry.contract.replace(contract).is_none(), "a start is decoded once");
 }
 
 pub(crate) fn started(domain: &mut Hub, env: &Env<Limits>, owner: Token, agent: Token, out: &mut Queue<Request>) {
@@ -1163,6 +1171,7 @@ fn serve(
             out.push(Request::Up(LinkUp::Call {
                 run: entry.run,
                 attempt: entry.attempt,
+                contract: entry.contract.expect("routing decodes a start before calls"),
                 call,
                 tool,
                 writes,
@@ -1432,6 +1441,7 @@ impl Hosted {
     pub(crate) fn job(run: Token, attempt: Token, job: crate::jobs::Job) -> Self {
         Self {
             job: Some(Box::new(job)),
+            contract: None,
             run,
             attempt,
             answer: None,

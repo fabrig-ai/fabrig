@@ -624,7 +624,7 @@ impl World {
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }),
             ) => self.receive_report(record),
-            Request::Up(LinkUp::Call { run, attempt, call, tool, writes, input, deadline }) => {
+            Request::Up(LinkUp::Call { run, attempt, call, tool, writes, input, deadline, .. }) => {
                 assert_eq!((run, attempt), (RUN, ATTEMPT));
                 self.answer_relay(RelayedCall { name: call, tool, writes, input, deadline });
             }
@@ -746,6 +746,7 @@ impl World {
         self.agent_live = true;
         self.reading = true;
         self.started_state = Some(StartedState { live, identity, messages, activation, turns, answered });
+        self.events.push_back(Event::Agent(FromAgent::Decoded { owner, contract: 1 }));
         self.events.push_back(Event::Agent(FromAgent::Started { owner, agent: AGENT }));
     }
 

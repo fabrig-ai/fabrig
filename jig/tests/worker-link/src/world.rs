@@ -50,8 +50,12 @@ pub struct World {
 impl World {
     #[must_use]
     pub fn new(limits: &Limits, seed: u64) -> Self {
+        Self::with_wires(limits, seed, jig_protocol_worker_wire::spoken())
+    }
+    #[must_use]
+    pub fn with_wires(limits: &Limits, seed: u64, wires: skein_lib::List<jig_protocol_worker_wire::Spoken>) -> Self {
         Self {
-            component: Component::new(limits, fixtures::credential(), seed).expect("world limits"),
+            component: Component::new(limits, wires, fixtures::credential(), seed).expect("world limits"),
             limits: *limits,
             now: Time::ZERO,
             out: Queue::uncapped(),
@@ -170,6 +174,7 @@ impl World {
     }
     fn route(&mut self, request: Request) {
         match request {
+            request @ (Request::CannotSendWhole { .. } | Request::Untranslated { .. }) => self.root.push(request),
             Request::Dial => {
                 self.dial = DialState::Pending;
                 self.dials.push(self.now);

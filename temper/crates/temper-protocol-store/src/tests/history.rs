@@ -1,6 +1,6 @@
 //! History records and the v20 patch (landing-history.md, 2, 4 and 7).
 use super::{
-    catch_up::{kept_golden, patched},
+    catch_up::{kept_golden, kept_schema, kept_value, patched},
     fixtures,
 };
 use crate::{keys, records, v21};
@@ -186,6 +186,7 @@ fn history_records_round_trip_every_kind_and_interval() {
 
 #[test]
 fn the_v20_change_patch_adds_no_backdated_history() {
+    use crate::patches::kept::temper_store::v20 as kept;
     let before = kept_golden(20, "record_change_row_full.bin");
     let bytes = patched(20, 9, b"ChangeRow", before.clone());
     let (job, rest) = bytes.as_ref().split_first().unwrap();
@@ -194,9 +195,14 @@ fn the_v20_change_patch_adds_no_backdated_history() {
     let after = v21::ChangeRow::decode(&v21::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.history().is_none());
     assert!(after.job().is_none());
-    let old = crate::v20::ChangeRow::decode(&crate::v20::CEILINGS, &mut Reader::new(&before)).unwrap();
-    assert_eq!(after.task(), old.task());
-    assert_eq!(after.repository().forge(), old.repository().forge());
+    let schema = kept_schema(20);
+    let (value, old) = kept_value(&schema, b"ChangeRow", before);
+    assert_eq!(after.task(), value.uint(value.field(old, kept::change_row::TASK).unwrap()).unwrap());
+    let repository = value.field(old, kept::change_row::REPOSITORY).unwrap();
+    assert_eq!(
+        u64::from(after.repository().forge()),
+        value.uint(value.field(repository, kept::repository::FORGE).unwrap()).unwrap()
+    );
     assert_eq!(crate::STORE_VERSION, 21);
     assert_eq!(crate::patches::PATCHES.len(), 10);
 }

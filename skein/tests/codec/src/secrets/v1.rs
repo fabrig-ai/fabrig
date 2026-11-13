@@ -15,6 +15,22 @@ pub const CEILINGS: Limits = Limits {
     credential_value: 64,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 2] = [
+    "credential_name",
+    "credential_value",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 2] {
+        [
+            self.credential_name, self.credential_value,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {
@@ -173,81 +189,4 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     let mut biggest = 0_u64;
     biggest = biggest.max(Credential::decoded_bound_within(limits)?);
     Some(biggest)
-}
-
-#[cfg(test)]
-mod golden_tests {
-    use super::{CEILINGS, Credential, CredentialParts, Path};
-    use super::Limits;
-
-    use alloc::boxed::Box;
-
-    type Case = (&'static str, fn() -> bool);
-
-    pub(super) fn table<const N: usize>(cases: &[Case; N]) {
-        let mut failures = [None; N];
-        let mut passed = true;
-        for ((name, case), failure) in cases.iter().zip(&mut failures) {
-            if !case() {
-                *failure = Some(name);
-                passed = false;
-            }
-        }
-        assert!(passed, "{failures:?}");
-    }
-
-    pub(super) fn golden<T: PartialEq, E, D>(
-        value: T,
-        bytes: &[u8],
-        encoded: Result<Box<[u8]>, E>,
-        decoded: Result<T, D>,
-    ) -> bool {
-        let encoded = match encoded {
-            Ok(encoded) => encoded.as_ref() == bytes,
-            Err(_) => false,
-        };
-        let decoded = match decoded {
-            Ok(decoded) => decoded == value,
-            Err(_) => false,
-        };
-        encoded && decoded
-    }
-
-    type BoundDecode<T, L, P, R> = fn(&L, &[u8]) -> Result<T, (P, R)>;
-
-    pub(super) fn bound<T, L, P: PartialEq, R: PartialEq>(
-        label: (P, R),
-        limits: &L,
-        at: &[u8],
-        past: &[u8],
-        decode: BoundDecode<T, L, P, R>,
-    ) -> bool {
-        let (path, reason) = label;
-        let at = decode(limits, at).is_ok();
-        let past = match decode(limits, past) {
-            Err((found_path, found_reason)) => found_path == path && found_reason == reason,
-            Ok(_) => false,
-        };
-        at && past
-    }
-    static GOLDEN_0: [Case; 2] = [
-        ("record_credential_smallest", || { let value = Credential::new(&CEILINGS, CredentialParts { name: Box::from([].as_slice()), value: skein_lib::Secret::new(Box::from([].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Credential::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_credential_full", || { let value = Credential::new(&CEILINGS, CredentialParts { name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), value: skein_lib::Secret::new(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 97, 98, 99, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Credential::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-    ];
-
-    #[test]
-    fn golden_0() {
-        table(&GOLDEN_0);
-    }
-
-    static BOUNDS_0: [Case; 2] = [
-        ("bound_credential_name", || bound((Path::CredentialName, skein_codec::Reason::Bound), &Limits { credential_name: 3, ..CEILINGS }, &[0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0], &[0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0], |limits, bytes| match Credential::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-        ("bound_credential_value", || bound((Path::CredentialValue, skein_codec::Reason::Bound), &Limits { credential_value: 3, ..CEILINGS }, &[0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0], &[0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0], |limits, bytes| match Credential::decode(limits, &mut skein_lib::Reader::new(bytes)) { Ok(value) => Ok(value), Err(problem) => Err((problem.path, problem.reason)) })),
-    ];
-
-    #[test]
-    fn bounds_0() {
-        table(&BOUNDS_0);
-    }
-
 }

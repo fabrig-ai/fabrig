@@ -24,7 +24,7 @@ const ADMITTED_FRAMES: usize = 1;
 const WITH_TURN: usize = ADMITTED_FRAMES + 1;
 const PROCESS_RECORDS: u32 = 3; // The two messages and cancellation.
 // One value per grant, then the assignment, in one link invocation.
-const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v12::CEILINGS.assignment_grants;
+const ASSIGNMENT_GRANTS: u32 = jig_protocol_worker_wire::v13::CEILINGS.assignment_grants;
 
 fn chat() -> (Token, Token) {
     let link::Request::Down { down: hub::LinkDown::Assign { assignment }, .. } = fixtures::chat_assignment() else {

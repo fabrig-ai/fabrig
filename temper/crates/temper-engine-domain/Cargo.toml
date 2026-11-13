@@ -39,6 +39,7 @@ temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-forge-issues.workspace = true
 
 [dev-dependencies]
+jig-protocol-worker-wire.workspace = true
 temper-client-view.workspace = true
 skein-ui.workspace = true
 temper-client-domain.workspace = true

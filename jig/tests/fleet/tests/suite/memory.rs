@@ -188,6 +188,7 @@ fn fill(limits: Limits) -> (Measured, Vec<(Token, Token, Token)>, Vec<ReplyTo>) 
             run,
             attempt,
             call: jig_domain_fleet::Call {
+                contract: 1,
                 name: vec![7; usize::try_from(limits.call_name_bytes).expect("fits")].into_boxed_slice(),
                 tool: Box::new([]),
                 writes: false,
@@ -230,6 +231,7 @@ fn a_full_fleet_refuses_new_work_and_drains() {
         run: placed[5].1,
         attempt: placed[5].2,
         call: jig_domain_fleet::Call {
+            contract: 1,
             name: Box::from(Token::new(9).raw().to_be_bytes()),
             tool: Box::new([]),
             writes: false,
@@ -299,6 +301,7 @@ fn every_entry_point_preserves_its_lifecycle() {
         run: r3,
         attempt: a3,
         call: jig_domain_fleet::Call {
+            contract: 1,
             name: Box::from(Token::new(1).raw().to_be_bytes()),
             tool: Box::new([]),
             writes: false,

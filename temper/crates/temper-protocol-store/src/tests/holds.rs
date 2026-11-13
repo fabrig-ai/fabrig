@@ -184,7 +184,7 @@ fn name_piece_words_read_their_full_fixtures() {
 #[test]
 fn held_refusal_word_reads_the_full_application_fixture() {
     use jig_domain_people as p;
-    use jig_protocol_store::people_v16 as people;
+    use jig_protocol_store::people_v17 as people;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     // The full list fills the held declaration's largest payload at temper's limits.
     let mut tasks = List::with_capacity(people::CEILINGS.refusal_circle_tasks);

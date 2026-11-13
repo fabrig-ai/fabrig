@@ -131,6 +131,9 @@ pub struct Section {
 /// What the LLM may do besides talking. Data, never derived from a role.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Grants {
+    /// The host tools' contract version, carried without interpretation (protocol/charter.md, 2).
+    pub contract: u16,
+
     /// Main-only waiting authority. When absent the main session cannot call
     /// `wait`; children never inherit it.
     pub wait: bool,

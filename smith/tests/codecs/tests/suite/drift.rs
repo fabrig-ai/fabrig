@@ -2,11 +2,14 @@
 
 use std::{fs, path::Path};
 
-use skein_codegen::{generate, parse};
+use skein_codegen::{Output, generate, parse, tests_main};
+
+const REGENERATE: &str =
+    "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p smith-codecs-world --test suite -E 'test(/^drift::/)'";
 
 #[test]
 fn charter_schema_matches_generated_code_and_all_goldens() {
-    assert_family("charter", 4);
+    assert_family("charter", 5);
 }
 
 #[test]
@@ -23,9 +26,9 @@ fn assert_family(family: &str, version: u16) {
     let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
     let source = fs::read_to_string(root.join(format!("schema/{family}-v{version}.schema"))).expect("schema source");
     let output = generate(&parse(&source).expect("schema valid"));
-    let code = root.join(format!("src/generated/v{version}.rs"));
+    let module = format!("v{version}");
+    check_generated(&root, &module, &format!("smith_{family}::{module}"), &[&module], &output);
     let goldens = root.join(format!("golden/v{version}"));
-    check_artifact(&code, output.rust.as_bytes());
     for golden in output.goldens {
         check_artifact(&goldens.join(&golden.name), &golden.bytes);
     }
@@ -75,9 +78,14 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens()
     let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
     let schema = parse(&source).expect("local store schema valid");
     let output = generate(&schema);
-    let generated = root.join("src/generated/local_store_v1.rs");
+    check_generated(
+        &crates.join("smith-local-protocol-codec"),
+        "local_store_v1",
+        "smith_local_protocol_codec::local_store_v1",
+        &["local_store_v1"],
+        &output,
+    );
     let goldens = root.join("golden/v1");
-    check_artifact(&generated, output.rust.as_bytes());
     for golden in output.goldens {
         check_artifact(&goldens.join(&golden.name), &golden.bytes);
     }
@@ -99,10 +107,16 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens()
     check_artifact(&path, layouts.as_bytes());
 }
 
+fn check_generated(root: &Path, file: &str, records: &str, modules: &[&str], output: &Output) {
+    check_artifact(&root.join(format!("src/generated/{file}.rs")), output.records.as_bytes());
+    check_artifact(&root.join(format!("tests/generated/{file}.rs")), output.tests.text(records).as_bytes());
+    check_artifact(&root.join("tests/generated/main.rs"), tests_main(modules).as_bytes());
+}
+
 fn check_artifact(path: &Path, expected: &[u8]) {
     if std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1")) {
         fs::create_dir_all(path.parent().expect("artifact directory")).expect("artifact directory");
         fs::write(path, expected).expect("write generated artifact");
     }
-    assert_eq!(fs::read(path).expect("generated artifact"), expected, "{} drifted", path.display());
+    assert!(fs::read(path).ok().as_deref() == Some(expected), "{} drifted; {REGENERATE}", path.display());
 }

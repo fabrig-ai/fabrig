@@ -16,7 +16,10 @@ pub const WIRES: [protocol::Wire; 6] = [
         name: jig_protocol_worker_wire::wire::FAMILY,
         version: wire_version(jig_protocol_worker_wire::wire::VERSION),
     },
-    protocol::Wire { name: smith_channel::wire::FAMILY, version: wire_version(smith_channel::wire::VERSION) },
+    protocol::Wire {
+        name: smith_channel::pieces::wire::FAMILY,
+        version: wire_version(smith_channel::pieces::wire::VERSION),
+    },
     protocol::Wire { name: smith_charter::wire::FAMILY, version: wire_version(smith_charter::wire::VERSION) },
     protocol::Wire { name: smith_transcript::wire::FAMILY, version: wire_version(smith_transcript::wire::VERSION) },
     protocol::Wire {
@@ -29,7 +32,7 @@ pub const WIRES: [protocol::Wire; 6] = [
     },
 ];
 
-/// The engine's wires in statement order (protocol/wires.md, 9).
+/// The engine's wires from their floors, in statement order (protocol/wires.md, 10).
 #[must_use]
 pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
     use jig_protocol_worker_wire::Spoken;
@@ -37,20 +40,18 @@ pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
     for wire in jig_protocol_worker_wire::spoken().into_boxed() {
         wires.push(wire).expect("six wire slots");
     }
-    for wire in [
-        Spoken::current(
-            temper_protocol_worker_wire::wire::FAMILY,
-            temper_protocol_worker_wire::wire::VERSION,
-            temper_protocol_worker_wire::wire::layout(),
-        ),
-        Spoken::current(
-            temper_engine_smith::wire::FAMILY,
-            temper_engine_smith::wire::VERSION,
-            temper_engine_smith::wire::layout(),
-        ),
-    ] {
-        wires.push(wire).expect("six wire slots");
+    wires.push(temper_protocol_worker_wire::spoken()).expect("six wire slots");
+    let mut layouts = List::with_capacity(u32::from(temper_engine_smith::wire::VERSION));
+    for (index, text) in temper_engine_smith::wire::TEXTS.iter().enumerate() {
+        let version =
+            u16::try_from(index).expect("kept contract index fits u16").checked_add(1).expect("contract version");
+        if version >= temper_engine_smith::wire::FLOOR {
+            layouts.push(skein_lib::sha256::digest(text.as_bytes())).expect("one layout per kept contract");
+        }
     }
+    wires
+        .push(Spoken { name: temper_engine_smith::wire::FAMILY, lowest: temper_engine_smith::wire::FLOOR, layouts })
+        .expect("six wire slots");
     wires
 }
 /// Owners kept by every engine shape, upstream first (protocol/baseline.md, 4).

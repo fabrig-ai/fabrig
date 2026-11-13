@@ -12,12 +12,7 @@ mod binding;
 pub mod boundary;
 mod generated {
     //! Stored reference UI records (jig/docs/design/client/domain/view-state.md, 8).
-    #[rustfmt::skip]
-    #[expect(
-        dead_code, clippy::unnecessary_wraps, clippy::ref_option, clippy::unused_self,
-        reason = "the generated record schema supplies uniform constructors, accessors, measurements and bounds beyond the view codec's calls"
-    )]
-    pub(crate) mod records_v1;
+    pub(crate) use jig_client_view_codec::records_v1;
 }
 
 mod owner;

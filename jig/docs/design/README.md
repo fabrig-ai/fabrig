@@ -820,10 +820,12 @@ open (`domain/README.md`, section 5), and the client's on its own
 | `jig-client-protocol-link` | jig's messages encoded and decoded, the stream's events, the small store's records; no HTTP | `protocol/client/README.md`, section 2 |
 | `jig-client-protocol-http` | the default HTTP mapping's client end: a message as a method, a path, headers and a body; the stream's server-sent events cut into events; for the host and wasm32 | `protocol/client/default-http.md`, 4 |
 | `jig-client-view` | the reference UI: pages, places, navigation, the confirmation, drafts, notices, cards and the view, on `jig-client` and skein's `skein-ui` | `client/domain/pages.md`; `client/domain/view.md` |
+| `jig-client-view-codec` | the generated record code of the reference UI's records, below `jig-client-view`, which keeps their schema and golden bytes and translates them | `tools/crates/design.md`, 3.2 |
 | `jig-client-shell-native` | the native shell, over skein's HTTP client, with `jig-client-protocol-http` | `protocol/client/README.md`, section 9 |
 | `jig-client-shell-web` | jig's browser parts, over skein's `skein-ui-web`, each usable alone: the client's adapter over skein's fetch, the printed link's sign-in, jig's look | `protocol/browser/README.md`, section 2 and 5.1 |
 | `jig-client-test-shell-web` | jig's test application's browser shell, written to be copied | `protocol/browser/README.md`, 3.1 |
 | `jig-client-test-domain`, `jig-client-test-view`, `jig-client-test-kit`, `jig-client-test-records`, `jig-client-test-protocol-wire` | the client's test kits | `client/domain/testing.md` |
+| `jig-client-test-protocol-wire-codec` | the generated record code of the test application's client records, below `jig-client-test-protocol-wire`, which keeps their schema and golden bytes and translates them | `tools/crates/design.md`, 3.2 |
 | `jig-client-kit`, `jig-client-protocol-kit` | what the client's worlds share: the harness, fronts and stories; the protocol client | `domain/testing.md`, section 7 |
 | `jig-client-scripted-engine` | the engine as the client's worlds play it | `client/domain/testing.md`, section 4 |
 | `jig-client-fake-person-browser` | jig's stories for a browser shell and its attack stories, on skein's face and harness | `protocol/browser/testing.md` |
