@@ -40,3 +40,4 @@ mod fuzzy {
 mod kept_change;
 
 mod history;
+mod history_sweep;

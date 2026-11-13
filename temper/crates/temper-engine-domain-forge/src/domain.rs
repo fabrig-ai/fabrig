@@ -207,6 +207,7 @@ pub struct Domain {
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
     pub(crate) history_reads: crate::history::read::State,
+    pub(crate) history_sweep: crate::history::sweep::State,
     pub(crate) history_projects: Map<u32, crate::history::Project>,
     pub(crate) devices: Option<Box<crate::devices::State>>,
     pub(crate) drafts: Option<Box<crate::drafts::State>>,
@@ -837,7 +838,8 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
-            history_reads: crate::history::read::State::new(),
+            history_reads: crate::history::read::State::new(l.judge_projects),
+            history_sweep: crate::history::sweep::State::new(l.history_events),
             history_projects: Map::with_capacity(l.judge_projects),
             devices: match config.push {
                 Some(push) => Some(Box::new(crate::devices::State::new(Some(push), l.devices()))),
@@ -1018,7 +1020,7 @@ impl Domain {
         if self.stopping || self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        let mut next: Option<skein_lib::Wall> = None;
+        let mut next = crate::history::sweep::deadline(self);
         for deadlines in [&self.projection_due, &self.change_due, &self.landing.due, &self.tier_ops.due] {
             for (_, deadline) in deadlines {
                 next = Some(match next {
@@ -1459,7 +1461,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
     }
     match event {
         Event::ReadHistory { read, query } => crate::history::read::begin(d, read, query, out),
-        Event::HistoryLoaded { load, rows, next } => crate::history::read::loaded(d, load, rows, next, out),
+        Event::HistoryLoaded { load, rows, next } => crate::history::read::loaded(d, env, load, rows, next, out),
         Event::HistoryUnloaded { load } => crate::history::read::unloaded(d, load, out),
         Event::Signed { task, signed } => {
             if let Some(row) = d.changes.get_mut(&task) {
@@ -2113,6 +2115,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    crate::history::sweep::fire(d, env.wall, out);
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     crate::follows::fire(d, env.now);
