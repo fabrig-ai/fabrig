@@ -38,48 +38,48 @@ fn needs_parts_wait_for_known_and_keep_decided_independent() {
     for (case, facts, expected) in [
         (
             "unknown empty",
-            NeedsFacts { known: false, open: 0, showing: 0, only: 0 },
-            NeedsParts { list: false, done: false, decided: false, only: false },
+            NeedsFacts { known: false, open: 0, showing: 0, only: 0, ..NeedsFacts::default() },
+            NeedsParts { list: false, done: false, decided: false, only: false, ..NeedsParts::default() },
         ),
         (
             "unknown cards",
-            NeedsFacts { known: false, open: 1, showing: 0, only: 0 },
-            NeedsParts { list: false, done: false, decided: false, only: false },
+            NeedsFacts { known: false, open: 1, showing: 0, only: 0, ..NeedsFacts::default() },
+            NeedsParts { list: false, done: false, decided: false, only: false, ..NeedsParts::default() },
         ),
         (
             "known empty",
-            NeedsFacts { known: true, open: 0, showing: 0, only: 0 },
-            NeedsParts { list: false, done: true, decided: false, only: false },
+            NeedsFacts { known: true, open: 0, showing: 0, only: 0, ..NeedsFacts::default() },
+            NeedsParts { list: false, done: true, decided: false, only: false, ..NeedsParts::default() },
         ),
         (
             "known cards",
-            NeedsFacts { known: true, open: 1, showing: 0, only: 0 },
-            NeedsParts { list: true, done: false, decided: false, only: false },
+            NeedsFacts { known: true, open: 1, showing: 0, only: 0, ..NeedsFacts::default() },
+            NeedsParts { list: true, done: false, decided: false, only: false, ..NeedsParts::default() },
         ),
         (
             "only unknown",
-            NeedsFacts { known: false, open: 0, showing: 0, only: 1 },
-            NeedsParts { list: false, done: false, decided: false, only: false },
+            NeedsFacts { known: false, open: 0, showing: 0, only: 1, ..NeedsFacts::default() },
+            NeedsParts { list: false, done: false, decided: false, only: false, ..NeedsParts::default() },
         ),
         (
             "only done",
-            NeedsFacts { known: true, open: 0, showing: 0, only: 1 },
-            NeedsParts { list: false, done: true, decided: false, only: true },
+            NeedsFacts { known: true, open: 0, showing: 0, only: 1, ..NeedsFacts::default() },
+            NeedsParts { list: false, done: true, decided: false, only: true, ..NeedsParts::default() },
         ),
         (
             "only with cards",
-            NeedsFacts { known: true, open: 1, showing: 0, only: 1 },
-            NeedsParts { list: true, done: false, decided: false, only: true },
+            NeedsFacts { known: true, open: 1, showing: 0, only: 1, ..NeedsFacts::default() },
+            NeedsParts { list: true, done: false, decided: false, only: true, ..NeedsParts::default() },
         ),
         (
             "decided unknown",
-            NeedsFacts { known: false, open: 0, showing: 1, only: 0 },
-            NeedsParts { list: false, done: false, decided: true, only: false },
+            NeedsFacts { known: false, open: 0, showing: 1, only: 0, ..NeedsFacts::default() },
+            NeedsParts { list: false, done: false, decided: true, only: false, ..NeedsParts::default() },
         ),
         (
             "decided with cards",
-            NeedsFacts { known: true, open: 1, showing: 1, only: 0 },
-            NeedsParts { list: true, done: false, decided: true, only: false },
+            NeedsFacts { known: true, open: 1, showing: 1, only: 0, ..NeedsFacts::default() },
+            NeedsParts { list: true, done: false, decided: true, only: false, ..NeedsParts::default() },
         ),
     ] {
         assert_eq!(parts::needs(&facts), expected, "{case}");
@@ -182,5 +182,13 @@ fn needs_counts_all_decisions_with_its_project_filter() {
             assert!(closed.contains(watch), "{case}: leave");
         }
         assert_eq!(parts::needs_facts(&fixture.root, Wall::EPOCH).showing, 0, "{case}: closed");
+    }
+}
+
+#[test]
+fn tell_part_needs_a_project_and_its_findings_read() {
+    for (project, findings, expected) in [(false, false, false), (true, false, false), (false, true, false), (true, true, true)] {
+        let facts = NeedsFacts { project, findings, ..NeedsFacts::default() };
+        assert_eq!(parts::needs(&facts).tell, expected, "{facts:?}");
     }
 }

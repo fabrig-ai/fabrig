@@ -332,8 +332,8 @@ pub(super) fn wanted(root: &Domain) -> List<u32> {
             }
             wanted.push(project).expect("one Home project");
         }
-        Address::Talk { project, .. } => {
-            wanted.push(project).expect("one Talk project");
+        Address::Talk { project, .. } | Address::Tell { project } => {
+            wanted.push(project).expect("one Talk or Tell project");
         }
         Address::AllHome | Address::Inbox { .. } => {
             let project = if let Address::Inbox { filter } = pages.address { filter.project } else { None };
@@ -463,7 +463,7 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
         | Address::Remembered
         | Address::Members
         | Address::Limits
-        | Address::Adopt { .. } => false,
+        | Address::Tell { .. } | Address::Adopt { .. } => false,
     };
     let pages = &mut root.pages;
     if let Some(inbox) = &pages.inbox {

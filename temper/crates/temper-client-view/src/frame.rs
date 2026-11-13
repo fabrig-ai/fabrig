@@ -177,6 +177,7 @@ impl Bindings {
                     ) => PageAct::Choice(temper_client_domain::pages::choice::Act::Find { words: value }),
                     (PageAct::AskLine { .. }, skein_ui::Act::Input { value }) => PageAct::AskLine { words: value },
                     (PageAct::AskLine { words }, skein_ui::Act::Submit) => PageAct::AskWith { words: words.clone() },
+                    (PageAct::TellWords { .. }, skein_ui::Act::Input { value }) => PageAct::TellWords { words: value },
                     (PageAct::ChatWords { .. }, skein_ui::Act::Input { value }) => PageAct::ChatWords { words: value },
                     (PageAct::MessageWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::MessageWords { words: value }
@@ -438,7 +439,7 @@ fn all_projects(
         | Address::Chat { .. }
         | Address::Talk { .. }
         | Address::Task { .. }
-        | Address::Ask { .. }
+        | Address::Ask { .. } | Address::Tell { .. }
         | Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
@@ -897,7 +898,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Adopt { .. } => (false, false, false, true),
-        Address::Ask { .. }
+        Address::Ask { .. } | Address::Tell { .. }
         | Address::Team { .. }
         | Address::Accounts
         | Address::Forges
@@ -1010,7 +1011,7 @@ fn needs_link(
     b.close();
 }
 fn ask_current(root: &Domain, project: u32) -> bool {
-    root.pages().address() == &(Address::Ask { project }) || crate::pages::chat::asking(root)
+    root.pages().address() == &(Address::Ask { project }) || root.pages().address() == &(Address::Tell { project }) || crate::pages::chat::asking(root)
 }
 fn ask_link(
     b: &mut Builder,
@@ -1103,7 +1104,7 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Chat { .. }
         | Address::Talk { .. }
         | Address::Task { .. }
-        | Address::Ask { .. }
+        | Address::Ask { .. } | Address::Tell { .. }
         | Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
@@ -1233,6 +1234,7 @@ pub(crate) fn toast(
         Toasted::AreasGivenBack { revision } => {
             (w.say(Word::GiveToast, &[skein_ui::phrases::Hole::Number(u64::from(*revision))]), None)
         }
+        Toasted::TellFiled { project, goes } => (crate::pages::tell::filed(root, w, *project, goes.as_ref()), None),
         Toasted::AreasProposed => (w.say(Word::HandProposed, &[]), None),
         Toasted::StopApplied => (w.say(Word::StopAskingApplied, &[]), None),
         Toasted::StopProposed => (w.say(Word::StopAskingProposed, &[]), None),
@@ -1309,7 +1311,7 @@ pub(crate) fn toast(
                 );
             }
         }
-        Toasted::AreaHanded { .. }
+        Toasted::TellFiled { .. } | Toasted::AreaHanded { .. }
         | Toasted::AreasGivenBack { .. }
         | Toasted::AreasProposed
         | Toasted::StopApplied

@@ -1488,6 +1488,16 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-areas",
         b"temper-team-routing",
         b"temper-team-talk",
+        b"temper-tell",
+        b"temper-tell-page",
+        b"temper-tell-top",
+        b"temper-tell-head",
+        b"temper-tell-card",
+        b"temper-tell-field",
+        b"temper-tell-meta",
+        b"temper-tell-acts",
+        b"temper-tell-link",
+        b"temper-tell-context",
     ],
     regions: &[b"temper-link"],
 };
@@ -2008,6 +2018,18 @@ pub const TEAM_AREAS: Style = Style { owner: owner(), token: 763 };
 pub const TEAM_ROUTING: Style = Style { owner: owner(), token: 764 };
 pub const TEAM_TALK: Style = Style { owner: owner(), token: 765 };
 
+/// Tell temper (client/pages/needs-you.md, 1).
+pub const TELL: Style = Style { owner: owner(), token: 766 };
+pub const TELL_PAGE: Style = Style { owner: owner(), token: 767 };
+pub const TELL_TOP: Style = Style { owner: owner(), token: 768 };
+pub const TELL_HEAD: Style = Style { owner: owner(), token: 769 };
+pub const TELL_CARD: Style = Style { owner: owner(), token: 770 };
+pub const TELL_FIELD: Style = Style { owner: owner(), token: 771 };
+pub const TELL_META: Style = Style { owner: owner(), token: 772 };
+pub const TELL_ACTS: Style = Style { owner: owner(), token: 773 };
+pub const TELL_LINK: Style = Style { owner: owner(), token: 774 };
+pub const TELL_CONTEXT: Style = Style { owner: owner(), token: 775 };
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -2017,3 +2039,4 @@ mod tests {
         assert_eq!(NAMES.style(HOME_BYLINE), Some(b"temper-home-byline".as_slice()));
     }
 }
+

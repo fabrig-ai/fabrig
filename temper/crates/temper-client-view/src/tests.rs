@@ -42,6 +42,7 @@ mod team_follows;
 mod team_sessions;
 mod toast;
 mod told;
+mod tell;
 mod work;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;

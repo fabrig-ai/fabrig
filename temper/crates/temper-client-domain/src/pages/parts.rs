@@ -1,4 +1,4 @@
-//! A page's parts (temper/docs/design/client/pages/README.md, A page's parts).
+//! A page's parts (temper/docs/design/client/pages/home.md, 1, A page's parts).
 use crate::Domain;
 use skein_lib::Wall;
 
@@ -29,6 +29,8 @@ pub struct NeedsFacts {
     pub showing: u32,
     /// Only you's items, separate from open cards.
     pub only: u32,
+    pub project: bool,
+    pub findings: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[expect(clippy::struct_excessive_bools, reason = "each page part follows its independent rule")]
@@ -38,6 +40,7 @@ pub struct NeedsParts {
     pub decided: bool,
     /// The inbox has answered and Only you has an item.
     pub only: bool,
+    pub tell: bool,
 }
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for HomeFacts {
@@ -54,13 +57,13 @@ impl Default for HomeParts {
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for NeedsFacts {
     fn default() -> Self {
-        Self { known: false, open: 0, showing: 0, only: 0 }
+        Self { known: false, open: 0, showing: 0, only: 0, project: false, findings: false }
     }
 }
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for NeedsParts {
     fn default() -> Self {
-        Self { list: false, done: false, decided: false, only: false }
+        Self { list: false, done: false, decided: false, only: false, tell: false }
     }
 }
 #[must_use]
@@ -81,6 +84,7 @@ pub const fn needs(facts: &NeedsFacts) -> NeedsParts {
         done: facts.known && facts.open == 0,
         decided: facts.showing > 0,
         only: facts.known && facts.only > 0,
+        tell: facts.project && facts.findings,
     }
 }
 #[must_use]
@@ -92,7 +96,11 @@ pub fn needs_facts(root: &Domain, wall: Wall) -> NeedsFacts {
         ),
         None => (false, 0),
     };
+    let project = if let crate::Address::Inbox { filter } = root.pages().address() { filter.project } else { None };
+    let findings = if let Some(project) = project { root.pages().needs().findings().document(project).is_some() } else { false };
     NeedsFacts {
+        project: project.is_some(),
+        findings,
         known,
         open,
         showing: super::all_home::showing(root, wall),

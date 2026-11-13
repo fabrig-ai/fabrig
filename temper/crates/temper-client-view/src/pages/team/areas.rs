@@ -46,20 +46,30 @@ fn role(facts: &team::Facts, task: u64) -> Option<&team::Role> {
     None
 }
 pub(super) fn holder_name(words: &Words, facts: &team::Facts, holder: &w::Holder) -> Box<[u8]> {
+    let holder = match holder {
+        w::Holder::Task(task) => team::Holder::Task(task.number()),
+        w::Holder::Party(party) => team::Holder::Party(party.number()),
+        w::Holder::Role(role) => team::Holder::Role(role.number()),
+    };
+    named_holder(words, Some(facts), &holder)
+}
+pub(crate) fn named_holder(words: &Words, facts: Option<&team::Facts>, holder: &team::Holder) -> Box<[u8]> {
     match holder {
-        w::Holder::Task(task) => match role(facts, task.number()) {
-            Some(role) => role.name.clone(),
-            None => words.say(Word::TeamTaskName, &[Hole::Number(task.number())]),
-        },
-        w::Holder::Party(party) => {
-            for person in &facts.people {
-                if person.party == party.number() {
-                    return if person.you { words.say(Word::TeamYou, &[]) } else { person.name.clone() };
+        team::Holder::Task(task) => {
+            if let Some(facts) = facts && let Some(role) = role(facts, *task) { return role.name.clone(); }
+            words.say(Word::TeamTaskName, &[Hole::Number(*task)])
+        }
+        team::Holder::Party(party) => {
+            if let Some(facts) = facts {
+                for person in &facts.people {
+                    if person.party == *party {
+                        return if person.you { words.say(Word::TeamYou, &[]) } else { person.name.clone() };
+                    }
                 }
             }
-            words.say(Word::MemberUnnamed, &[Hole::Number(party.number())])
+            words.say(Word::MemberUnnamed, &[Hole::Number(*party)])
         }
-        w::Holder::Role(role) => role_name(words, role.number()),
+        team::Holder::Role(role) => role_name(words, *role),
     }
 }
 fn role_name(words: &Words, number: u32) -> Box<[u8]> {

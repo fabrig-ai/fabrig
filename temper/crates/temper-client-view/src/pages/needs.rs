@@ -79,6 +79,9 @@ pub(crate) fn main(
     if parts.decided {
         decided(b, root, w, bindings, times);
     }
+    if parts.tell && let Some(project) = match inbox { Some(inbox) => inbox.filter.project, None => None } {
+        super::tell::region(b, root, w, bindings, project);
+    }
     crate::confirm::main(b, root, w, bindings, rows);
     b.close();
 }

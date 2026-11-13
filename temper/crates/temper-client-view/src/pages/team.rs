@@ -1,6 +1,7 @@
 //! Team's page (temper/docs/design/client/pages/team.md, 1;
 //! temper/docs/design/client/web/look.md, Team's look).
 mod areas;
+pub(crate) use areas::named_holder;
 pub(crate) use hand::sheet as hand_sheet;
 mod hand;
 mod sessions;

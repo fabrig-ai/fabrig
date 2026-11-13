@@ -97,6 +97,12 @@ pub(crate) fn main(
         None => false,
     };
     composer(b, root, w, bindings, pending);
+    if !terminal {
+        crate::link(b, &w.say(Word::TellTitle, &[]), bindings.insert(Act::Go { address: temper_client_domain::Address::Tell { project } }));
+        b.style(look::TELL_LINK);
+        b.text(Run::Plain, &w.say(Word::TellTitle, &[]));
+        b.close();
+    }
     b.close();
     b.close();
 }

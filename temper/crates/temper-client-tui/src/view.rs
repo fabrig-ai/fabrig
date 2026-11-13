@@ -329,7 +329,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
                 | Address::Inbox { .. }
                 | Address::Chats { .. }
                 | Address::NewChat { .. }
-                | Address::Ask { .. }
+                | Address::Ask { .. } | Address::Tell { .. }
                 | Address::Told
                 | Address::Remembered
                 | Address::Members

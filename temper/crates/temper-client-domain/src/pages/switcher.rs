@@ -108,7 +108,7 @@ impl Switcher {
             | Address::Chat { .. }
             | Address::Talk { .. }
             | Address::Task { .. }
-            | Address::Adopt { .. } => {}
+            | Address::Tell { .. } | Address::Adopt { .. } => {}
         }
     }
     pub(super) fn close(&mut self) {

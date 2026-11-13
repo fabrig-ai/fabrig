@@ -1,4 +1,6 @@
 //! Tell temper's single filing (temper/docs/design/client/pages/needs-you.md, 1).
+mod context;
+pub(super) use context::{remember, outcome, showing};
 use super::{Pages, Request, team};
 use crate::{Address, Limits, address, forge, owner::Owner};
 use alloc::boxed::Box;
@@ -57,7 +59,7 @@ fn about_task(about: &About) -> Option<u64> {
         | Address::AllHome | Address::Goals { .. } | Address::Changes { .. }
         | Address::Settings { .. } | Address::Repositories { .. } | Address::Models { .. }
         | Address::Builders { .. } | Address::Role { .. } | Address::Rule { .. }
-        | Address::Team { role: None, .. } | Address::Ask { .. } | Address::Adopt { .. }
+        | Address::Team { role: None, .. } | Address::Ask { .. } | Address::Tell { .. } | Address::Adopt { .. }
         | Address::Work { .. } | Address::Members | Address::Remembered | Address::Told
         | Address::Limits => None,
     }

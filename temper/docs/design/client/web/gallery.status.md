@@ -4,7 +4,6 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
-- **Not yet:** 2: `tell-area` and `tell-page` [in flight: change 2192].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:

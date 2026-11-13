@@ -3,6 +3,8 @@
 use temper_fixtures::client_documents as documents;
 mod chat_work;
 mod team;
+mod tell;
+pub(super) fn tell_world(page: bool) -> Domain { tell::world(page) }
 pub(super) fn team_world(name: &str) -> Domain {
     team::world(name)
 }
