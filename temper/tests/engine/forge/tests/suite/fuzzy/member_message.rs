@@ -1,6 +1,9 @@
 //! Seeded arbitrary producer bytes preserve the tooling message contract.
 use skein_lib::Rng;
-use temper_engine_domain_forge::{commit_text, member_message::{Member, commit_message, names_head}};
+use temper_engine_domain_forge::{
+    commit_text,
+    member_message::{Member, commit_message, names_head},
+};
 
 #[test]
 fn arbitrary_member_words_preserve_message_bounds_and_trailers() {
@@ -26,7 +29,13 @@ fn arbitrary_member_words_preserve_message_bounds_and_trailers() {
         }
         let mut title = Vec::new();
         for _ in 0..rng.below(257) {
-            title.push(rng.next_u64().to_le_bytes()[0]);
+            title.push(if seed % 2 == 0 {
+                rng.next_u64().to_le_bytes()[0]
+            } else {
+                // Valid UTF-8 titles as well as arbitrary bytes: controls and
+                // long runs must not split the subject into paragraphs.
+                u8::try_from(rng.below(128)).expect("ASCII byte")
+            });
         }
         let mut head = [0; 32];
         for byte in &mut head {
@@ -46,9 +55,14 @@ fn arbitrary_member_words_preserve_message_bounds_and_trailers() {
         let message = std::str::from_utf8(&bytes).expect("message UTF-8");
         let paragraphs: Vec<_> = message.split("\n\n").collect();
         assert!((2..=3).contains(&paragraphs.len()), "seed {seed}: paragraphs");
-        let goal_line = if with_goal { goal.map_or_else(String::new, |goal| format!("\nGoal: {goal}")) } else { String::new() };
-        let trailers = format!("Change: {}\nPull-request: {}\nHead: {}{goal_line}", member.change, member.pull,
-            std::str::from_utf8(&commit_text(&head)).expect("hex"));
+        let goal_line =
+            if with_goal { goal.map_or_else(String::new, |goal| format!("\nGoal: {goal}")) } else { String::new() };
+        let trailers = format!(
+            "Change: {}\nPull-request: {}\nHead: {}{goal_line}",
+            member.change,
+            member.pull,
+            std::str::from_utf8(&commit_text(&head)).expect("hex")
+        );
         assert_eq!(paragraphs.last().copied(), Some(trailers.as_str()), "seed {seed}: last paragraph");
         if paragraphs.len() == 3 {
             let description = paragraphs[1];

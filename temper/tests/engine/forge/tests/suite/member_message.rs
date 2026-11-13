@@ -14,22 +14,49 @@ fn head() -> skein_forge::api::Commit {
 fn member_messages_have_the_exact_title_paragraph_and_trailers() {
     // Inputs, the description bytes they give, and the train's destination.
     let cases = [
-        ("goal branch", b"Squashes each change.\n\nMore text.".to_vec(), Some(3), false, "Squashes each change.".to_owned()),
+        (
+            "goal branch",
+            b"Squashes each change.\n\nMore text.".to_vec(),
+            Some(3),
+            false,
+            "Squashes each change.".to_owned(),
+        ),
         ("main", b"Squashes each change.\n\nMore text.".to_vec(), Some(3), true, "Squashes each change.".to_owned()),
         ("no goal", b"Squashes each change.".to_vec(), None, true, "Squashes each change.".to_owned()),
         ("no words", Vec::new(), Some(3), false, String::new()),
         ("headings", b"\n## Summary\n\nFirst.".to_vec(), Some(3), false, "First.".to_owned()),
         ("empty paragraph", b"\n # Summary\n\t\n".to_vec(), None, false, String::new()),
-        ("wrap at spaces", "word ".repeat(18).into_bytes(), None, false,
-            format!("{}\n{}", "word ".repeat(13) + "word", "word ".repeat(3) + "word")),
-        ("long word", format!("before {} after", "a".repeat(73)).into_bytes(), None, false,
-            format!("before\n{}\nafter", "a".repeat(73))),
-        ("character columns", format!("{} éé", "é".repeat(70)).into_bytes(), None, false,
-            format!("{}\néé", "é".repeat(70))),
+        (
+            "wrap at spaces",
+            "word ".repeat(18).into_bytes(),
+            None,
+            false,
+            format!("{}\n{}", "word ".repeat(13) + "word", "word ".repeat(3) + "word"),
+        ),
+        (
+            "long word",
+            format!("before {} after", "a".repeat(73)).into_bytes(),
+            None,
+            false,
+            format!("before\n{}\nafter", "a".repeat(73)),
+        ),
+        (
+            "character columns",
+            format!("{} éé", "é".repeat(70)).into_bytes(),
+            None,
+            false,
+            format!("{}\néé", "é".repeat(70)),
+        ),
         ("byte boundary", "é".repeat(600).into_bytes(), None, false, "é".repeat(510) + "…"),
         ("exact byte bound", "a".repeat(1024).into_bytes(), None, false, "a".repeat(1024)),
         ("past byte bound", "a".repeat(1025).into_bytes(), None, false, "a".repeat(1021) + "…"),
-        ("controls", b"First\0\x01\t word.\r\n  Joined.\n\nIgnored.".to_vec(), None, false, "First word. Joined.".to_owned()),
+        (
+            "controls",
+            b"First\0\x01\t word.\r\n  Joined.\n\nIgnored.".to_vec(),
+            None,
+            false,
+            "First word. Joined.".to_owned(),
+        ),
         ("invalid UTF-8", b"Valid.\xff Ignored.".to_vec(), None, false, "Valid.".to_owned()),
     ];
     for (name, words, goal, main, description) in cases {
@@ -63,7 +90,10 @@ fn only_the_exact_head_line_in_the_last_paragraph_names_a_head() {
     let sha256 = [0x22; 32];
     let member = Member { title: TITLE, words: b"", change: 12, pull: 7, head: sha256, goal: None };
     let message = commit_message(&member, true);
-    assert_eq!(message.as_ref(), format!("Add the squash trailers\n\nChange: 12\nPull-request: 7\nHead: {}", "22".repeat(32)).as_bytes());
+    assert_eq!(
+        message.as_ref(),
+        format!("Add the squash trailers\n\nChange: 12\nPull-request: 7\nHead: {}", "22".repeat(32)).as_bytes()
+    );
     assert!(names_head(&message, sha256));
     assert!(!names_head(format!("Title\n\nHead: {}", "22".repeat(20)).as_bytes(), sha256));
 }

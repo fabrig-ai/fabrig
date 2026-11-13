@@ -142,7 +142,10 @@ pub fn run(seed: u64, case: Case) -> Report {
             assert_ne!(candidate, base, "even an empty squash commits");
             assert_eq!(world.forge.parent(candidate), Some(base));
             assert_eq!(world.forge.merge_parent(candidate), if by_squash { None } else { Some(head) });
-            assert_eq!(world.forge.message(candidate), if by_squash { squash_message.as_slice() } else { merge_message.as_slice() });
+            assert_eq!(
+                world.forge.message(candidate),
+                if by_squash { squash_message.as_slice() } else { merge_message.as_slice() }
+            );
             let mut expected = world.forge.tree(base);
             if !matches!(case, Case::EmptySquash | Case::ContainedMerge) {
                 expected.insert(b"feature".to_vec(), b"head\n".to_vec());

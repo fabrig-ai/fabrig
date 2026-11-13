@@ -27,6 +27,7 @@ merged into main brought, each key once. Each is dropped once fixed.
 - lint skein-http clippy::question_mark skein/crates/skein-http/src/server.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
 - lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
+- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
 - lint temper-client-view clippy::disallowed_types temper/crates/temper-client-view/src/tests/task.rs
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
