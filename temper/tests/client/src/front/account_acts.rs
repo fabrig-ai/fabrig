@@ -72,6 +72,7 @@ enum Tools {
     Trial,
     TrialSelection,
     TwoSignIns,
+    Lending,
 }
 #[must_use]
 pub fn small_rows_fixture(seed: u64) -> (Joint, Root) {
@@ -95,6 +96,16 @@ pub fn tui_first_run_fixture(seed: u64) -> (Joint, Root) {
     event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
     without_deployment_account((front, root))
 }
+/// A first-run box offering Claude Code, with a handed link for a TUI beside the browser.
+#[must_use]
+pub fn tui_lending_front(seed: u64) -> Joint {
+    let (mut front, mut root) = fixture_root(seed, Tools::Lending, 2, None, false, WelcomeForge::FirstRun, true);
+    event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
+    let (mut front, _) = without_deployment_account((front, root));
+    front.detach(CLIENT);
+    front
+}
+
 /// An empty first run offers a real provider but holds no account yet.
 #[must_use]
 pub fn empty_welcome_fixture(seed: u64) -> (Joint, Root) {
@@ -374,9 +385,10 @@ fn fixture_root(
 ) -> (Joint, Root) {
     let spend = match tools {
         Tools::Spend(spend) => Some(spend),
-        Tools::Off | Tools::On | Tools::Trial | Tools::TrialSelection | Tools::TwoSignIns => None,
+        Tools::Off | Tools::On | Tools::Trial | Tools::TrialSelection | Tools::TwoSignIns | Tools::Lending => None,
     };
     let two_sign_ins = tools == Tools::TwoSignIns;
+    let lending_story = tools == Tools::Lending;
     let selection_story = tools == Tools::TrialSelection;
     let trial_story = matches!(tools, Tools::Trial | Tools::TrialSelection);
     let tools = matches!(tools, Tools::On | Tools::Spend(_));
@@ -411,7 +423,7 @@ fn fixture_root(
             providers: Box::new([a::Provider {
                 list: None,
                 number: PROVIDER,
-                name: Box::from(if trial_story {
+                name: Box::from(if trial_story || lending_story {
                     b"anthropic".as_slice()
                 } else if plan {
                     b"openai".as_slice()
@@ -564,10 +576,14 @@ fn fixture_root(
         }
         (config, engine_limits)
     });
+    let printed_config = lending_story.then(|| temper_engine_domain_world::oracle::config::copy(&config));
     let restart_config = trial_story.then(|| temper_engine_domain_world::oracle::config::copy(&config));
     let mut front =
         Joint::with_engine(seed, &limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 1);
     front.trial_config = restart_config;
+    if let Some(config) = printed_config {
+        front.offer_printed_link_with(limits, &config);
+    }
     // A running trial keeps its deadline armed while the story plays the worker.
     front.settles_with_a_deadline_armed = true;
     if forge_setup && !matches!(forge, WelcomeForge::Playground { .. }) {

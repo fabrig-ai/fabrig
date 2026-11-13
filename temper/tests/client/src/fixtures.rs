@@ -274,6 +274,12 @@ pub fn tui_first_run_world(seed: u64) -> World<Temper, Joint> {
     front.offer_printed_link(domain_limits());
     world_with(seed, front)
 }
+/// Claude Code's sign-in joins a browser and an in-front TUI on the same first-run box.
+#[must_use]
+pub fn tui_lending_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, crate::front::account_acts::tui_lending_front(seed))
+}
+
 /// The launchpad asks Ask temper through the shipped TUI host.
 #[must_use]
 pub fn tui_asking_world(seed: u64) -> World<Temper, Joint> {
