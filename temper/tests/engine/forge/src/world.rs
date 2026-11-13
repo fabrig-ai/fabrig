@@ -480,6 +480,29 @@ impl World {
         )
     }
 
+    /// Room for the bounded queue fuzz story's pushes and CI heads; client limits stay tiny.
+    #[must_use]
+    pub fn queue_steps(seed: u64) -> World {
+        let mut config = fake_config();
+        config.limits.files = 8;
+        config.limits.commits = 128;
+        config.limits.statuses = 64;
+        Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            6,
+            false,
+            None,
+            config,
+            None,
+            LIMITS.landing_members,
+        )
+    }
+
     /// Give the fake room for a goal while independently bounding client admission.
     #[must_use]
     pub fn with_goal_room(seed: u64, rows: u32, answer_bytes: u32) -> World {
