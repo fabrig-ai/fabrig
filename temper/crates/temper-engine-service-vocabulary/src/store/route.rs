@@ -106,6 +106,28 @@ impl Routes {
     }
 }
 
+fn opening_to_store(opening: engine::WorkerOpening) -> store::WorkerOpening {
+    let mut wires = List::with_capacity(u32::try_from(opening.statement.wires.len()).expect("opening wires fit u32"));
+    for wire in opening.statement.wires {
+        wires
+            .push(store::OpenedWire { name: wire.name, lowest: wire.lowest, layouts: wire.layouts })
+            .expect("one stored wire per opening wire");
+    }
+    let mut terms = List::with_capacity(u32::try_from(opening.statement.terms.len()).expect("opening terms fit u32"));
+    for term in opening.statement.terms {
+        terms
+            .push(store::OpenedTerm { kind: term.kind, largest: term.largest })
+            .expect("one stored term per opening term");
+    }
+    store::WorkerOpening {
+        worker: opening.worker,
+        wires: wires.into_boxed(),
+        output: opening.statement.output,
+        terms: terms.into_boxed(),
+        at: opening.at,
+    }
+}
+
 /// A root terminal or the next component page of a filtered load.
 #[derive(Debug)]
 pub enum Up {
@@ -126,7 +148,8 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
                 let translated = match write {
                     engine::Write::DropTranscript { task } => store::Write::DropTranscript { task },
                     engine::Write::Wires => store::Write::Wires,
-                    engine::Write::Erase(engine::Key::Wires) => return None,
+                    engine::Write::Erase(engine::Key::Wires | engine::Key::Opening(_)) => return None,
+                    engine::Write::Opening(opening) => store::Write::Opening(opening_to_store(opening)),
                     engine::Write::CopySettingsRevision(number) => {
                         let (from, to) = core::settings::history_copy(number);
                         store::Write::Copy { from, to }

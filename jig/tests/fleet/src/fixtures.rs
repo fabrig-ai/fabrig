@@ -130,7 +130,7 @@ fn settle_fleet(domain: &mut jig_domain_fleet::Domain, limits: &jig_domain_fleet
             return;
         }
         let mut out = skein_lib::Queue::uncapped();
-        jig_domain_fleet::resume(domain, &env, &mut out);
+        jig_domain_fleet::resume(domain, &env, true, &mut out);
         assert!(out.is_empty(), "fixture fleet pass must be empty: {out:?}");
     }
     assert!(!domain.is_ready(), "fixture fleet readiness settles within four passes");

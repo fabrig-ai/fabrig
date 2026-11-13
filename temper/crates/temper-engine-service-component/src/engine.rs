@@ -291,7 +291,7 @@ impl Engine {
             self.notes.push(note);
         }
     }
-    fn drain_notes(&mut self) {
+    pub(crate) fn drain_notes(&mut self) {
         self.drain_worker_notes();
         for _ in 0..self.notes.room() {
             let note = if let Some(diagnostic) = self.domain.pop_run_diagnostic() {
@@ -648,6 +648,7 @@ pub(crate) fn release(engine: &mut Engine) {
             trace.released(&engine.requests, before, engine.store.host.above.len());
         }
         if engine.requests.is_empty() {
+            stop::advance(engine);
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
             engine.drain_notes();
             #[cfg(test)]

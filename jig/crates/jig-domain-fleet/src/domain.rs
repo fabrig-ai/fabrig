@@ -492,7 +492,13 @@ impl Domain {
     /// start of the domain's stage, before its input events.
     #[must_use]
     pub fn is_ready(&self) -> bool {
-        self.placing || self.turning || crate::programs::ready(self) || crate::reads::ready(self)
+        self.ready_to_resume(true)
+    }
+
+    /// Whether resumption can progress with the supplied placement permission.
+    #[must_use]
+    pub fn ready_to_resume(&self, place: bool) -> bool {
+        (place && self.placing) || self.turning || crate::programs::ready(self) || crate::reads::ready(self)
     }
 
     /// The oldest fact not yet drained. The parent drains them at its own
@@ -637,15 +643,16 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 /// Releases one held turn or places a queued read or waiting attempt; with none, waits
-/// until something changes.
-pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+/// until something changes. With `place` false, only held work is released;
+/// waiting attempts and their placement readiness remain for the next start.
+pub fn resume(domain: &mut Domain, env: &Env<Limits>, place: bool, out: &mut Queue<Request>) {
     if crate::programs::ready(domain) {
         crate::programs::resume(domain, out);
     } else if crate::reads::ready(domain) {
         crate::reads::resume(domain, env.now, out);
     } else if domain.turning {
         turn::resume(domain, out);
-    } else if domain.placing {
+    } else if place && domain.placing {
         attempt::resume(domain, env, out);
     }
 }

@@ -1309,3 +1309,66 @@ fn a_failed_log_read_reads_unknown() {
     }
     world.close();
 }
+
+#[test]
+fn a_closers_inflight_check_steps_nothing_until_the_next_start() {
+    let (mut world, goal, branch) = goal_world(false, true);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    world.hold_ancestry_answers = true;
+    let task = make_closer(&mut world, &goal, 94);
+    for _ in 0..80 {
+        world.tick();
+        if !world.held_ancestry_answers.is_empty() {
+            break;
+        }
+    }
+    assert!(!world.held_ancestry_answers.is_empty(), "the closer is reading fresh containment");
+    let saved = closer_row(&world, task).expect("closer before check").clone();
+    let step = live_task(&world, task).attempt;
+    let completion = live_task(&world, goal.task).turn + 1;
+    world.hold_write_answers = Some(HoldWrite::All);
+    let event = world.protocol.call(
+        CHANNEL,
+        goal.task,
+        goal.attempt,
+        996,
+        engine::Call {
+            completion,
+            position: 1,
+            tool: engine::Tool::EffectForge {
+                repository: forge_world::REPO,
+                resource: forge_top::What::Repository,
+                write: Box::new(skein_forge::api::Write::CreateIssue {
+                    key: Box::new([]),
+                    title: b"Hold settlement".as_slice().into(),
+                    body: b"An in-flight write".as_slice().into(),
+                }),
+            },
+        },
+    );
+    world.send(event);
+    for _ in 0..80 {
+        world.tick();
+        if !world.held_write_answers.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(world.held_write_answers.len(), 1, "a sent write holds the root in settling");
+    world.send(engine::Event::Stop);
+    world.hold_ancestry_answers = false;
+    world.events.extend(world.held_ancestry_answers.drain(..));
+    for _ in 0..80 {
+        world.tick();
+    }
+    assert!(world.drained.is_none());
+    assert!(world.events.is_empty(), "the final check's answer has routed while the write stays held");
+    assert_eq!(closer_row(&world, task), Some(&saved), "CloserChecked steps nothing while settling");
+    assert_eq!(live_task(&world, task).attempt, step);
+    assert_eq!(live_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Due));
+    world.release_write_answers();
+    drain_stop(&mut world);
+    world.restart_same();
+    wait_ended(&mut world, task);
+    assert!(closer_row(&world, task).expect("closer stepped on restart").done);
+    world.close();
+}

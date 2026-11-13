@@ -527,7 +527,7 @@ impl Store {
                                 }
                             });
                         }
-                        Write::Wires => {}
+                        Write::Opening(_) | Write::Wires => {}
                         Write::CopySettingsRevision(number) => {
                             let held = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(
                                 jig_domain_core::settings::Key::Held(*number),
@@ -773,7 +773,7 @@ fn walk_position(range: &Range, key: &Key) -> Result<(u32, Key), &'static str> {
                 jig_domain_core::restore_cursor(range.restore_ranges(), key).ok_or("cursor outside walk")?;
             Ok((interval, Key::Core(key)))
         }
-        (_, Key::Wires) => Err("wires are not a load cursor"),
+        (_, Key::Wires | Key::Opening(_)) => Err("wires are not a load cursor"),
         _ => Ok((0, key.clone())),
     }
 }

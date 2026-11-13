@@ -735,6 +735,8 @@ pub enum Fact {
     )
 )]
 pub enum WorkerInput {
+    /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 9.1).
+    Opened { worker: Box<str>, statement: crate::WorkerStatement },
     /// A worker channel's hello, record or loss.
     Link { channel: Token, link: Link },
     /// The protocol decoded a relayed call into the engine's tool vocabulary.

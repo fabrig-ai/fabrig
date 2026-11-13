@@ -97,6 +97,7 @@ impl Referee {
         for write in writes {
             let key = match write {
                 Write::DropTranscript { .. } => write.key(),
+                Write::Opening(opening) => Key::Opening(opening.worker.clone()),
                 Write::Wires => Key::Wires,
                 Write::Save(record) => record.key(),
                 Write::Erase(key) => key.clone(),
@@ -148,6 +149,7 @@ impl Referee {
                     | Record::Forge { .. },
                 )
                 | Write::Erase(_)
+                | Write::Opening(_)
                 | Write::Wires
                 | Write::DropTranscript { .. }
                 | Write::CopySettingsRevision(_) => None,
@@ -201,6 +203,7 @@ impl Referee {
                     | Record::Forge { .. },
                 )
                 | Write::Erase(_)
+                | Write::Opening(_)
                 | Write::Wires
                 | Write::DropTranscript { .. }
                 | Write::CopySettingsRevision(_) => None,
@@ -276,6 +279,7 @@ impl Referee {
                         | Record::Forge { .. },
                     )
                     | Write::Erase(_)
+                    | Write::Opening(_)
                     | Write::Wires
                     | Write::DropTranscript { .. }
                     | Write::CopySettingsRevision(_) => None,
@@ -319,7 +323,10 @@ impl Referee {
         }
         for write in writes {
             match write {
-                Write::DropTranscript { .. } | Write::Wires | Write::Erase(Key::Wires) => {
+                Write::DropTranscript { .. }
+                | Write::Opening(_)
+                | Write::Wires
+                | Write::Erase(Key::Wires | Key::Opening(_)) => {
                     return Err("role administration changed wires");
                 }
                 Write::CopySettingsRevision(_) => return Err("role administration changed settings"),
@@ -378,7 +385,7 @@ impl Referee {
         }
         for write in writes {
             match write {
-                Write::DropTranscript { .. } | Write::Wires | Write::CopySettingsRevision(_) => {
+                Write::DropTranscript { .. } | Write::Opening(_) | Write::Wires | Write::CopySettingsRevision(_) => {
                     unreachable!("role administration settings write refused above")
                 }
                 Write::Save(record) => {

@@ -20,6 +20,7 @@ pub struct Workers {
     pub(crate) forges: crate::forges::Forges,
     pub(crate) bad_parts: u64,
     pub(crate) notes: Queue<crate::Note>,
+    opening_limits: kit::Limits,
     worker_names: List<Box<[u8]>>,
     opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
 }
@@ -59,6 +60,7 @@ impl Workers {
             forges: table,
             bad_parts: 0,
             notes: Queue::uncapped(),
+            opening_limits: *limits,
             worker_names,
             opening_ends: Map::with_capacity(opening_names),
         })
@@ -141,6 +143,13 @@ impl Workers {
         self.host.close(now);
         self.pull(events);
     }
+    pub(crate) fn judgement(&self) -> crate::upgrade::Workers {
+        crate::upgrade::Workers {
+            names: self.worker_names.clone().into_boxed(),
+            room: self.opening_limits.room,
+            schema: kit::limits::schema(&self.opening_limits).expect("validated worker limits"),
+        }
+    }
     fn pull(&mut self, events: &mut Queue<root::Event>) {
         for _ in 0..self.host.pending() {
             if let Some(output) = self.host.output() {
@@ -150,7 +159,14 @@ impl Workers {
     }
     pub(crate) fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
         match output {
-            kit::host::Output::Opened { worker, wires } => self.notes.push(crate::Note::WorkerOpened { worker, wires }),
+            kit::host::Output::Opened { worker, wires, statement } => {
+                let name = worker_name(&worker);
+                self.notes.push(crate::Note::WorkerOpened { worker, wires });
+                events.push(root::Event::Worker(root::WorkerInput::Opened {
+                    worker: name,
+                    statement: statement_to_root(statement),
+                }));
+            }
             kit::host::Output::Refused { worker, reason, text } => {
                 self.notes.push(crate::Note::WorkerOpeningRefused { worker, reason, text });
             }
@@ -182,6 +198,25 @@ impl Workers {
             }
         }
     }
+}
+
+#[expect(clippy::disallowed_methods, reason = "configuration validates worker names as UTF-8")]
+fn worker_name(name: &[u8]) -> Box<str> {
+    core::str::from_utf8(name).expect("configured worker name is UTF-8").into()
+}
+
+fn statement_to_root(statement: kit::Statement) -> root::WorkerStatement {
+    let mut wires = List::with_capacity(statement.wires.len());
+    for wire in statement.wires.into_boxed() {
+        wires
+            .push(root::OpenedWire { name: wire.name, lowest: wire.lowest, layouts: wire.layouts.into_boxed() })
+            .expect("one root wire per stated wire");
+    }
+    let mut terms = List::with_capacity(statement.terms.len());
+    for term in statement.terms.into_boxed() {
+        terms.push(root::OpenedTerm { kind: term.kind, largest: term.largest }).expect("one root term per stated term");
+    }
+    root::WorkerStatement { wires: wires.into_boxed(), output: statement.output, terms: terms.into_boxed() }
 }
 
 fn delivery(now: Time, channel: Token, down: host::LinkDown, values: &Values) -> kit::Event {

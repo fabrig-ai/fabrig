@@ -222,7 +222,7 @@
       "graces": {
         "agent_stop_ms": 5000,
         "delivery_ms": 1000,
-        "grace_ms": 60000,
+        "grace_ms": 300000,
         "save_ms": 1000
       },
       "limits": {

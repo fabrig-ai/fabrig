@@ -565,7 +565,7 @@ fn run_progress_uses_the_current_chip_observation_and_ends_with_the_run() {
         },
         &mut out,
     );
-    fleet::resume(&mut core.fleet, &env.with(env.limits.fleet), &mut out);
+    fleet::resume(&mut core.fleet, &env.with(env.limits.fleet), true, &mut out);
     for (activity, work, past) in [
         (fleet::Activity::Preparing, ChipWork::Preparing, false),
         (fleet::Activity::Starting, ChipWork::Starting, false),

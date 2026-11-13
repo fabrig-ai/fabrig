@@ -452,6 +452,7 @@ fn a_new_binding_answers_only_after_its_commit_is_durable() {
                 crate::Write::Save(crate::Record::Forge { row }) => row.as_ref() == &binding,
                 crate::Write::DropTranscript { .. }
                 | crate::Write::Wires
+                | crate::Write::Opening(_)
                 | crate::Write::CopySettingsRevision(_)
                 | crate::Write::Save(_)
                 | crate::Write::Erase(_) => false,

@@ -102,6 +102,8 @@ pub struct Store {
     installation: [u8; 16],
     patch_sets: PatchSets,
     wires: &'static [Wire],
+    /// Accepted opening keys, including commits not yet durable.
+    opening_keys: skein_lib::Map<Box<[u8]>, ()>,
     /// This start's first Wires commit, and its durability (protocol/store/records.md 3).
     mark: Mark,
     start_open_failure: Option<restore::OpenFailure>,
@@ -203,6 +205,7 @@ impl Store {
             codec_limits,
             layouts: format::layouts(),
             names: codec::names(models),
+            opening_keys: skein_lib::Map::uncapped(),
             stores,
             phase: Phase::Closed,
             directory: directory::Directory::new(),
@@ -324,7 +327,10 @@ fn valid_with_codec(limits: &Limits, codec: &codec::View) -> bool {
         && decoded_records_bound(limits, codec).is_some()
         && frame_bound(codec).is_some()
         && transcripts::reservation_count(limits).is_some()
-        && commits::most_ops(limits.commits.writes, limits.orphan_erases).is_some()
+        && match commits::most_ops(limits.commits.writes, limits.orphan_erases) {
+            Some(base) => base.checked_add(limits.store.ops).is_some(),
+            None => false,
+        }
         && limits.commits.writes.checked_add(1).is_some()
         && limits.core.tasks.tasks.checked_mul(limits.core.tasks.inbox_messages).is_some()
         && match limits.core.load_slots.checked_add(limits.core.tasks.tasks) {
@@ -454,10 +460,11 @@ pub use jig_protocol_store_families::notes_v1;
 pub use jig_protocol_store_people::{people_v16, people_v17};
 pub use jig_protocol_store_tasks::tasks_v12;
 pub mod keys;
+mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
-    KeptWire, Load, Older, OpenRefusal, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets,
-    TranscriptRead, Undecoded, Write,
+    KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root, Row, SecretOwner, SecretRow,
+    SecretValue, Secrets, TranscriptRead, Undecoded, WorkerOpening, Write,
 };
 
 #[cfg(test)]
@@ -470,3 +477,5 @@ pub use jig_protocol_store_settings::settings_v3;
 mod layouts;
 
 pub use jig_protocol_store_families::secrets_v1;
+
+pub use jig_protocol_store_families::openings_v1;

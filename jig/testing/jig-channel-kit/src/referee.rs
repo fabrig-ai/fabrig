@@ -713,7 +713,14 @@ impl Referee {
 
 impl Referee {
     fn horizon(&self) -> Time {
-        let base = 300_000_000_000_u64;
+        // A cut assignment leaves an unhosted claim adrift until the fleet's grace.
+        // Allow one redial plus 30 s for startup, retry placement and the chat's turn.
+        let grace = crate::fixtures::store_limits().root.core.fleet.grace.as_nanos();
+        let after_grace = grace
+            .checked_add(self.redial_ceiling.as_nanos())
+            .and_then(|nanos| nanos.checked_add(30_000_000_000))
+            .expect("grace and recovery fit the clock");
+        let base = 300_000_000_000_u64.max(after_grace);
         let extra = match self.story {
             crate::stories::Story::Cuts { times } => {
                 self.redial_ceiling.as_nanos().checked_mul(u64::from(times)).expect("story cuts fit the clock")

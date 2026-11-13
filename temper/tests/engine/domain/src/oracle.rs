@@ -30,7 +30,7 @@ pub fn rebuilt(key: &Key) -> Option<&'static str> {
         Some("keep::answered_repository rebuilds RepositoryRecord.clock and mark during startup's fresh scan")
     } else if matches!(key, Key::Forge(temper_engine_domain_forge::Key::Client(skein_forge_client::Key::Live(_)))) {
         Some(
-            "keep::listed advances LiveRecord.listed from the startup listing; delivery positions and cached contents remain durable",
+            "keep::listed advances LiveRecord.listed from the startup listing; an entirely empty Repository Live row is derived startup bookkeeping and compares as absent; delivery positions and cached contents remain durable",
         )
     } else {
         None
@@ -129,9 +129,35 @@ fn retained<'a>(key: &Key, row: &'a Record, wall: skein_lib::Wall) -> Option<Cow
         }
         if let temper_engine_domain_forge::Stored::Client(skein_forge_client::Stored::Live(record)) = row.as_mut() {
             record.listed = skein_lib::Time::ZERO;
+            if let Key::Forge(temper_engine_domain_forge::Key::Client(skein_forge_client::Key::Live(resource))) = key
+                && resource == &record.watch.resource
+                && empty_repository_live(record)
+            {
+                return None;
+            }
         }
     }
     Some(Cow::Owned(row))
+}
+
+fn empty_repository_live(record: &skein_forge_client::LiveRecord) -> bool {
+    record.watch.resource.what == skein_forge_client::What::Repository
+        && !record.watch.participating
+        && record.position
+            == (skein_forge_client::Position { at: skein_lib::Time::ZERO, comment: 0, review: 0, review_page: 1 })
+        && record.listed == skein_lib::Time::ZERO
+        && record.comment_after == 0
+        && record.comment_page == 1
+        && record.comment_scanning
+        && record.comment_repair
+        && record.review_page == 1
+        && record.comments.is_empty()
+        && record.reviews.is_empty()
+        && record.cached.item.is_none()
+        && record.cached.pull.is_none()
+        && record.cached.tip.is_none()
+        && record.pushed.is_none()
+        && record.echoes.is_empty()
 }
 
 impl Driver {
@@ -442,5 +468,134 @@ mod tests {
         assert_eq!(driver.store.rows, rows);
         assert_eq!(driver.store.applied, commits, "one cold restart per story");
         assert!(matches!(driver.broken, Fixture::Closed));
+    }
+
+    use skein_forge_client as client;
+    use skein_lib::Time;
+    use temper_engine_domain_forge as forge;
+
+    fn empty_live() -> client::LiveRecord {
+        client::LiveRecord {
+            watch: client::Watch {
+                resource: client::Resource {
+                    repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+                    what: client::What::Repository,
+                },
+                participating: false,
+            },
+            position: client::Position { at: Time::ZERO, comment: 0, review: 0, review_page: 1 },
+            listed: Time::from_nanos(100),
+            comment_after: 0,
+            comment_page: 1,
+            comment_scanning: true,
+            comment_repair: true,
+            review_page: 1,
+            comments: Box::new([]),
+            reviews: Box::new([]),
+            cached: Box::new(client::Cached { item: None, pull: None, tip: None }),
+            pushed: None,
+            echoes: Box::new([]),
+        }
+    }
+
+    fn live_row(record: client::LiveRecord) -> (Key, Record) {
+        let key = Key::Forge(forge::Key::Client(client::Key::Live(record.watch.resource.clone())));
+        (key, Record::Forge { row: Box::new(forge::Stored::Client(client::Stored::Live(record))) })
+    }
+
+    #[test]
+    fn an_empty_repository_live_row_is_only_startup_bookkeeping() {
+        let (key, row) = live_row(empty_live());
+        assert!(retained(&key, &row, skein_lib::Wall::EPOCH).is_none());
+        let rows = BTreeMap::from([(key, row)]);
+        Snapshot::new(&BTreeMap::new(), skein_lib::Wall::EPOCH).compare_rows(&rows);
+        Snapshot::new(&rows, skein_lib::Wall::EPOCH).compare_rows(&BTreeMap::new());
+    }
+
+    #[test]
+    fn live_delivery_positions_and_cached_content_are_retained() {
+        type Change = fn(&mut client::LiveRecord);
+        let cases: &[(&str, Change)] = &[
+            ("position.at", |row| row.position.at = Time::from_nanos(1)),
+            ("position.comment", |row| row.position.comment = 1),
+            ("position.review", |row| row.position.review = 1),
+            ("position.review_page", |row| row.position.review_page = 2),
+            ("comment_after", |row| row.comment_after = 1),
+            ("comment_page", |row| row.comment_page = 2),
+            ("comment_scanning", |row| row.comment_scanning = false),
+            ("comment_repair", |row| row.comment_repair = false),
+            ("review_page", |row| row.review_page = 2),
+            ("comments", |row| row.comments = Box::new([client::Delivery { id: 1, revision: 1 }])),
+            ("reviews", |row| row.reviews = Box::new([client::Delivery { id: 1, revision: 1 }])),
+            ("cached.item", |row| {
+                row.cached.item = Some(skein_forge::api::Summary {
+                    labels: Box::new([]),
+                    number: 1,
+                    kind: skein_forge::api::Kind::Issue,
+                    state: skein_forge::api::State::Open,
+                    author: 7,
+                    key: None,
+                    title: b"cached".as_slice().into(),
+                    body: Box::new([]),
+                    updated: Time::ZERO,
+                });
+            }),
+            ("cached.pull", |row| {
+                row.cached.pull = Some(skein_forge::api::Pull {
+                    reviewers: Box::new([]),
+                    number: 1,
+                    state: skein_forge::api::State::Open,
+                    head: b"topic".as_slice().into(),
+                    base: b"main".as_slice().into(),
+                    commit: [1; 32],
+                    base_commit: None,
+                    merged: None,
+                    mergeable: true,
+                    ci: skein_forge::api::Ci::None,
+                    queued: None,
+                    dequeued: None,
+                    size: None,
+                });
+            }),
+            ("cached.tip", |row| row.cached.tip = Some([1; 32])),
+            ("pushed", |row| row.pushed = Some([1; 32])),
+            ("echoes", |row| row.echoes = Box::new([client::Echo::Comment(1)])),
+            ("participating", |row| row.watch.participating = true),
+            ("another resource", |row| row.watch.resource.what = client::What::Branch(b"main".as_slice().into())),
+        ];
+        for (name, change) in cases {
+            let mut row = empty_live();
+            change(&mut row);
+            let mut projected = row.clone();
+            projected.listed = Time::ZERO;
+            let (key, record) = live_row(row);
+            let (_, expected) = live_row(projected);
+            assert_eq!(retained(&key, &record, skein_lib::Wall::EPOCH).as_deref(), Some(&expected), "{name}");
+        }
+        let (mut key, record) = live_row(empty_live());
+        if let Key::Forge(forge::Key::Client(client::Key::Live(resource))) = &mut key {
+            resource.repository.repository = 3;
+        }
+        assert!(retained(&key, &record, skein_lib::Wall::EPOCH).is_some(), "a mismatched key is not bookkeeping");
+    }
+
+    #[test]
+    #[should_panic(expected = "restart oracle row")]
+    fn dropping_a_live_delivery_position_is_still_a_writer_fault() {
+        let mut row = empty_live();
+        row.position.comment = 1;
+        let (key, record) = live_row(row);
+        let rows = BTreeMap::from([(key, record)]);
+        Snapshot::new(&rows, skein_lib::Wall::EPOCH).compare_rows(&BTreeMap::new());
+    }
+
+    #[test]
+    #[should_panic(expected = "restart oracle row")]
+    fn inventing_live_cached_content_is_still_a_writer_fault() {
+        let mut row = empty_live();
+        row.cached.tip = Some([1; 32]);
+        let (key, record) = live_row(row);
+        let rows = BTreeMap::from([(key, record)]);
+        Snapshot::new(&BTreeMap::new(), skein_lib::Wall::EPOCH).compare_rows(&rows);
     }
 }

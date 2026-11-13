@@ -786,6 +786,7 @@ impl Clients {
                 }
                 root::Write::DropTranscript { .. }
                 | root::Write::Wires
+                | root::Write::Opening(_)
                 | root::Write::CopySettingsRevision(_)
                 | root::Write::Save(_) => {}
             }
@@ -817,7 +818,7 @@ impl Clients {
 fn ended(key: &root::Key) -> Option<u64> {
     match key {
         root::Key::Core(key) => kit::host::ending(key),
-        root::Key::Wires | root::Key::Forge(_) => None,
+        root::Key::Wires | root::Key::Opening(_) | root::Key::Forge(_) => None,
     }
 }
 

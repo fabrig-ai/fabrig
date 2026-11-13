@@ -75,5 +75,5 @@ pub(crate) fn fire_brief(core: &mut Core, env: &Env<Limits>, out: &mut Queue<bri
 }
 
 pub(crate) fn resume_fleet(core: &mut Core, env: &Env<Limits>, out: &mut Queue<fleet::Request>) {
-    fleet::resume(&mut core.fleet, &env.with(env.limits.fleet), out);
+    fleet::resume(&mut core.fleet, &env.with(env.limits.fleet), !core.settling, out);
 }
