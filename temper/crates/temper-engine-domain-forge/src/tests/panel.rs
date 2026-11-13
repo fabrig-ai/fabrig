@@ -88,13 +88,16 @@ fn every_record_save_marks_its_change_after_the_save() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let row = fixtures::opening_row();
-    assert_eq!(
-        outputs(&mut d, Event::Change { row: row.clone() }).as_ref(),
-        &[
-            Request::Save { record: Stored::Change(Box::new(row.clone())), release: None, read_afresh: None },
-            Request::Marked { tasks: Box::new([row.task]) },
-        ]
-    );
+    let requests = outputs(&mut d, Event::Change { row: row.clone() });
+    let mut saves = 0_usize;
+    for (index, request) in requests.iter().enumerate() {
+        if let Request::Save { record: Stored::Change(saved), .. } = request {
+            saves += 1;
+            assert_eq!(saved.task, row.task);
+            assert_eq!(requests.get(index + 1), Some(&Request::Marked { tasks: Box::new([row.task]) }));
+        }
+    }
+    assert!(saves > 0);
 }
 
 fn queued(task: u64, priority: i32, seconds: u64) -> ChangeRow {
@@ -414,10 +417,9 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
     use skein_forge::api::{Answer, State};
     use skein_forge_client::RecoveryClock;
 
-    // Repository, initial change, branch and base heads, contexts, project facts, landed change, and settlement.
-    const RESTART_RECORDS: u32 = 8;
+    // Keep every save in this finite script, including history's event and index rows.
     let repository = Stored::Repository(adopted());
-    let mut records = skein_lib::List::with_capacity(RESTART_RECORDS);
+    let mut records = skein_lib::List::uncapped();
     records.push(repository.clone()).expect("repository fits");
     let mut d = fixtures::connected_domain();
     outputs(&mut d, Event::Restore { record: repository });

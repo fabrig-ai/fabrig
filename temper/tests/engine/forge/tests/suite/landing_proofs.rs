@@ -86,7 +86,7 @@ fn green_one_records_the_run_proof_and_turn_in_order() {
     let mut world = start(60);
     landings::drive_landing(&mut world, LANDING);
     let events = events(&world, CHANGE);
-    assert_eq!(events.len(), 4, "{events:?}");
+    assert_eq!(events.len(), 5, "{events:?}");
     let run = &runs(&world)[0];
     let member = &world.landing(LANDING).landing.members[0];
     let What::Gate { gate, key } = events[0].what else { panic!("gate start") };
@@ -94,6 +94,8 @@ fn green_one_records_the_run_proof_and_turn_in_order() {
     assert_eq!(events[1].what, What::GateEnded { gate, key, verdict: GateVerdict::Passed });
     assert_eq!(events[2].what, What::Proved { proofs: Box::new([history::Proof { gate, run: Some(run.id) }]) });
     assert_eq!(events[3].what, What::Turn { members: 1 });
+    assert_eq!(events[4].what, What::Recorded { state: history::RecordedState::Merged });
+    assert_eq!((events[4].operation, events[4].attempt), (member.pull, 0));
     assert_eq!(events[0].source_at.map(skein_lib::Wall::as_nanos), Some(run.created.as_nanos()));
     for event in &events[..2] {
         assert_eq!((event.operation, event.attempt), (run.id, 1));
@@ -115,7 +117,11 @@ fn receipts_prove_each_gate_without_a_run() {
     assert_eq!(events, world.landing_history(62).into_iter().filter(ours).collect::<Vec<_>>());
     assert_eq!(
         events.iter().map(|e| &e.what).collect::<Vec<_>>(),
-        vec![&What::Proved { proofs: Box::new([history::Proof { gate: 0, run: None }]) }, &What::Turn { members: 1 },]
+        vec![
+            &What::Proved { proofs: Box::new([history::Proof { gate: 0, run: None }]) },
+            &What::Turn { members: 1 },
+            &What::Recorded { state: history::RecordedState::Merged },
+        ]
     );
 }
 #[test]
@@ -232,7 +238,8 @@ fn a_completed_run_first_relearned_has_only_its_end() {
     let events = events(&world, CHANGE);
     assert!(matches!(events[0].what, What::GateEnded { verdict: GateVerdict::Passed, .. }), "{events:?}");
     assert!(!events.iter().any(|e| matches!(e.what, What::Gate { .. })));
-    assert_eq!(events.len(), 3);
+    assert_eq!(events.len(), 4);
+    assert_eq!(events[3].what, What::Recorded { state: history::RecordedState::Merged });
 }
 fn batch(count: u64, red: bool) -> World {
     let mut workflow = workflow(180);
@@ -265,15 +272,16 @@ fn a_batch_gets_one_proof_interval_and_turn_per_member() {
     let candidate = world.landing(LANDING).landing.members[2].candidate;
     for task in 51..=53 {
         let events = events(&world, task);
-        assert_eq!(events.len(), 4, "{events:?}");
+        assert_eq!(events.len(), 5, "{events:?}");
         assert!(matches!(events[0].what, What::Gate { .. }));
         assert!(matches!(events[1].what, What::GateEnded { verdict: GateVerdict::Passed, .. }));
         assert!(matches!(events[2].what, What::Proved { .. }));
         assert_eq!(events[3].what, What::Turn { members: 3 });
-        assert!(
-            events.iter().all(|e| e.head == candidate
-                && e.landing.expect("fixture").unit == u16::try_from(task - 51).expect("fixture"))
-        );
+        assert_eq!(events[4].what, What::Recorded { state: history::RecordedState::Merged });
+        let member = world.landing(LANDING).landing.members.iter().find(|m| m.change == task).expect("member");
+        assert_eq!((events[4].operation, events[4].attempt), (member.pull, 0));
+        assert!(events[..4].iter().all(|e| e.head == candidate));
+        assert!(events.iter().all(|e| e.landing.expect("fixture").unit == u16::try_from(task - 51).expect("fixture")));
     }
     assert_eq!(runs(&world).len(), 1);
 }
