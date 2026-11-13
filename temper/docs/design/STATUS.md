@@ -393,6 +393,7 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
+- [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
