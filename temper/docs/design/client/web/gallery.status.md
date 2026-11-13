@@ -4,8 +4,6 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
-- **Not yet:** 2: `team-role` and `night-team-role` hold no follow
-  [in flight: change 2007].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
