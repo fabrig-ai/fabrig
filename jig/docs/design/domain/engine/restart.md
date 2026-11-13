@@ -242,6 +242,31 @@ It ends every watch saying the engine is stopping
 waits for a commit, so the service can close its components. A restart
 then starts from the store as `restart.md` says.
 
+**Settling before the stop.** A root that settles its effects before
+it stops (temper's `domain/root.md`, 8.2; temper's `draft/redeploys.md`,
+5.2) first tells the core so, `Event::Settling`, at once on hearing the
+stop, and its stop, `Event::Stopping`, once settled. From `Settling` on,
+the core makes no new work and takes every commit:
+
+- **no run and no job is placed:** the fleet's resume places no
+  waiting attempt, whatever slot frees or hello is heard, while it
+  releases held turns, reads and completions as ever; an attempt it
+  had placed in a decision before `Settling` is still assigned once
+  that decision is released, since its claim is durable and the next
+  start adopts it;
+- **no task is activated and no procedure stepped:** a due task, or one
+  whose backoff or wake passes meanwhile, stays due, for the next start
+  to decide afresh (`restart.md`, step 6); a connector's event commits
+  its facts and steps nothing;
+- **every commit is taken:** workers' turns and answers are committed
+  and acknowledged, connectors' outcomes commit, and a run's call is
+  the root's to answer (temper's answers busy).
+
+`Core::settling()` says whether it holds. `Settling` twice is once;
+`Stopping` after it goes on as above, and `Stopping` alone, for a root
+that does not settle, is as before. A crash while settling leaves the
+store as any crash does.
+
 Finishing continues while stopping. After routing previously accepted work,
 a Resume at which the core owes finishing closes without taking a new input,
 placing a run, stepping a procedure or resuming a connector. Follow-up watch
