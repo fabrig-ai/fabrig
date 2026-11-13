@@ -2,9 +2,8 @@
 use crate::{engine::Engine, settings};
 use skein_forge_connection::Account;
 use skein_lib::{Duration, List, Secret, Wall};
-mod table;
-pub use table::{Entry, Forge, Tokens, account};
 use temper_engine_domain as root;
+pub use temper_engine_service_vocabulary::forge::tokens::*;
 use temper_protocol_worker_wire::v1;
 
 pub(crate) fn identity(engine: &mut Engine, forge: u16, token: Secret) {

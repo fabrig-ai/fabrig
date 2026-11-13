@@ -37,7 +37,7 @@ fn the_stock_passes_jigs_one_check() {
         let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
         assert_eq!(
             defaults.charters[0].policy.instructions.as_ref(),
-            include_bytes!("../../../temper-engine-service/src/stock/chat.txt")
+            include_bytes!("../../../temper-engine-service-stock/src/stock/chat.txt")
         );
         assert_eq!(
             defaults.charters[1].policy.instructions.as_ref(),

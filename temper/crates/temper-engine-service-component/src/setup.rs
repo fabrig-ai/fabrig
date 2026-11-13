@@ -1,6 +1,6 @@
 //! Durable setup needs and held manifest pages (protocol/forge/engine.md, 6).
 pub(crate) mod diagnostics;
-pub(crate) mod lifecycle;
+pub mod lifecycle;
 pub(crate) mod making;
 pub(crate) mod public;
 mod routes;

@@ -1,15 +1,14 @@
 //! The forge component's boundary to the engine (protocol/README.md, 4).
-mod configuration;
 pub(crate) mod gone;
 pub(crate) mod origins;
 pub(crate) mod records;
 pub mod tokens;
 use crate::{limits, settings};
 use alloc::boxed::Box;
-pub use configuration::{ForgeRuntime, USER_AGENT, config, indexed, prepare, problems, settings, shared_limits, small};
 use skein_lib::{Env, List, Map, Queue, Time, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
+pub use temper_engine_service_vocabulary::forge::*;
 
 /// The address of a forge whose host name doesn't resolve (protocol/setup/init.md, 3). skein's
 /// forge connection and setup host refuse an in-process address, so a held forge keeps its

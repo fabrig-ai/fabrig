@@ -10,13 +10,13 @@ pub mod diagnostics;
 pub mod forge;
 pub mod forges;
 pub use forge::ForgeRuntime;
-pub mod limits;
-pub use temper_service_core::long_pass;
-pub mod settings;
-pub mod startup;
-pub mod stock;
-pub use startup::{Named, StoreLimits, named, store_limits};
+#[cfg(test)]
+pub use temper_engine_service_startup::startup;
+#[cfg(test)]
+pub use temper_engine_service_stock::stock;
+pub use temper_engine_service_vocabulary::*;
 pub use temper_protocol_records_forge::NotConnected;
+pub use temper_service_core::long_pass;
 pub mod system;
 pub use system::{STAGES, Service, Stage, iterate, iterate_stage};
 pub mod store;
@@ -25,13 +25,8 @@ mod tests;
 pub use temper_service_core::tokens;
 
 pub mod accounts;
-pub mod assignment;
 pub mod clients;
-pub mod family;
 pub use jig_protocol_engine_clients_http::server;
-
-pub mod translate;
-pub mod values;
 
 pub mod workers;
 pub use accounts::AccountsRuntime;
@@ -43,13 +38,13 @@ pub use engine::Engine;
 mod opened;
 mod route;
 mod runtime;
-mod setup;
+#[doc(hidden)]
+pub mod setup;
 mod start_refusal;
 mod stop;
 pub mod upgrade;
 pub use start_refusal::{refused_row_start, refused_start};
 pub use store::UnreadableRow;
-pub mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, render_for_task_page, settings_note};
 /// How the service ended (protocol/README.md, 4).

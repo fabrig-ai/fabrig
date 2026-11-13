@@ -1,10 +1,8 @@
 //! The deployment store’s routes over jig’s file-driver host (protocol/store.md, 3–5;
 //! jig's protocol/store/README.md, 8).
-mod component;
 mod ranges;
 pub mod route;
 mod unreadable;
-pub use component::Store;
 use jig_protocol_store as protocol;
 use protocol::host::{check_read_page, max_whole};
 use skein_lib::Token;

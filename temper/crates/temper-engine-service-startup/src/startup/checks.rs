@@ -1,5 +1,4 @@
 //! The engine's startup envelopes and declarations (protocol/services.md, 4).
-pub use super::shared::membership;
 use super::{Problems, What};
 use crate::{limits, settings};
 use alloc::boxed::Box;
@@ -8,6 +7,7 @@ use jig_protocol_config::{self as config, Path};
 use skein_io::Addr;
 use skein_lib::{Decimal, Duration, List, Map, Writer};
 use temper_engine_domain as domain;
+pub use temper_engine_service_vocabulary::startup::checks::*;
 use temper_protocol_worker_wire as payload;
 
 use temper_service_core::agent::Declaration;

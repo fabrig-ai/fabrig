@@ -2,20 +2,16 @@
 //! A box's sign-in is exclusive (temper/docs/design/protocol/openid-provider.md, 9).
 mod demo;
 mod landing;
-mod public;
 pub mod push;
 mod read;
-mod shared;
 pub mod sign_in;
 use super::{Problems, What};
 use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
-pub use public::Origin;
-pub use public::Scheme;
-pub use shared::{Clients, forge_origin};
 use skein_json::{Document, document::Kind};
 use skein_lib::{List, bytes};
+pub use temper_engine_service_vocabulary::startup::application::*;
 
 #[derive(Debug)]
 pub struct Members {

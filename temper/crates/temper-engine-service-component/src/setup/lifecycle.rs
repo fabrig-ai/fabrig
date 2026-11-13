@@ -308,7 +308,8 @@ pub(super) fn has_app(engine: &crate::engine::Engine, forge: u16) -> bool {
         None => false,
     }
 }
-pub(crate) fn state(engine: &mut crate::engine::Engine, forge: u16, state: domain::Connection) {
+/// Publish a checked start's initial connection state (protocol/services.md, 4.2).
+pub fn state(engine: &mut crate::engine::Engine, forge: u16, state: domain::Connection) {
     if configured(engine, forge).is_none() || engine.domain.forge_ended(forge) {
         return;
     }

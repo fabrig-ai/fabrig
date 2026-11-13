@@ -9,10 +9,7 @@ mod checkout;
 
 pub mod checks;
 mod problems;
-mod shared;
-mod start;
-pub use shared::{AGENT_WORDS, admission, admission_words};
-pub use start::{restoring_prepared, restoring_with, with_setup_given};
+pub use temper_engine_service_vocabulary::startup::*;
 
 use crate::{AccountsRuntime, settings};
 use alloc::boxed::Box;

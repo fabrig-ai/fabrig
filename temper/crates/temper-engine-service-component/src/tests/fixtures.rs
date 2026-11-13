@@ -196,11 +196,6 @@ pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
 }
 
 pub const OWNER: Token = Token::new(91);
-pub fn routes() -> crate::store::route::Routes {
-    let (root, _, _) = store_limits();
-    let bounds = temper_protocol_store::bounds(&root.forge, root.tasks.spec_bytes).expect("family bounds");
-    crate::store::route::Routes::new(2, &root, bounds)
-}
 
 #[expect(clippy::too_many_lines, reason = "the fixture supplies every retained task field")]
 pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
@@ -1108,28 +1103,6 @@ pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
 mod forge;
 pub use forge::{ForgeFace, hook};
 
-pub fn withdrawn_history(task: u64, proposal: u64) -> jig_domain_core::Record {
-    use jig_domain_tasks as tasks;
-    jig_domain_core::Record::Tasks(tasks::Stored::History(tasks::History {
-        task,
-        revision: 3,
-        by: tasks::Party::Task(task),
-        change: tasks::Change::ProposalWithdrawn,
-        reason: Box::new([]),
-        at: skein_lib::Wall::EPOCH,
-        amendment: None,
-        proposal: Some(Box::new(tasks::Proposal {
-            number: proposal,
-            proposer: task,
-            project: 1,
-            action: tasks::ProposalAction::Release { task },
-            reason: Box::new([]),
-            as_holder: false,
-            state: tasks::ProposalState::Withdrawn,
-        })),
-    }))
-}
-
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
@@ -1731,26 +1704,6 @@ pub fn forge_connecting(
     };
     let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
     assert_eq!(answer, w::Outcome::Connecting);
-}
-
-/// Parse the shipped agent with inert destinations and selected payload/output quantities.
-#[expect(
-    clippy::disallowed_macros,
-    clippy::disallowed_types,
-    reason = "ordinary fixture code embeds the shipped profile and returns the shell's text diagnostic"
-)]
-pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shell::config::Configuration, String> {
-    let bytes = include_str!("../../../temper-init/template/agent.json")
-        .replace("\"tool_payload\": 10662", &format!("\"tool_payload\": {payload}"))
-        .replace("\"output\": 8192", &format!("\"output\": {output}"))
-        .replace("$llm", "127.0.0.1:8370")
-        .replace("\"$programs\"", r#"{"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}}"#)
-        .replace("api.anthropic.com:443", "127.0.0.1:8373")
-        .replace("\"server_name\": \"api.anthropic.com\",", "")
-        .replace("api.openai.com:443", "127.0.0.1:8372")
-        .replace("\"transport\": \"tls\"", "\"transport\": \"plaintext\"")
-        .replace("\"server_name\": \"api.openai.com\",", "");
-    smith_agent_shell::config::parse(bytes.as_bytes())
 }
 
 mod kernel;

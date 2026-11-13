@@ -29,7 +29,6 @@ const EXCEPTIONS: &[Exception] = &[
         what: "jig-domain-core",
         until: "Core's state grouped into owned parts (jig/docs/development/debt/D003-core-one-object.md), then a split along them",
     },
-    Exception { what: "temper-engine-service", until: "G4" },
     Exception {
         what: "temper-client-domain",
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",

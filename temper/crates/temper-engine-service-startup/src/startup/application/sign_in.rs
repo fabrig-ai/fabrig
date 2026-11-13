@@ -1,6 +1,5 @@
 //! Members and issuer configuration (protocol/sign-in.md, 3.1).
 mod forges;
-mod shared;
 use super::{Transport, read, resolved_transport};
 use crate::{
     limits::SignIn as Limits,
@@ -10,9 +9,9 @@ use crate::{
 use alloc::boxed::Box;
 pub(super) use forges::check as check_forges;
 use jig_protocol_config::{self as config, Path};
-pub use shared::{ForgeSignIn, Member, loopback, url, visible};
 use skein_json::{Document, document::Kind};
 use skein_lib::{List, bytes};
+pub use temper_engine_service_vocabulary::startup::application::sign_in::*;
 
 #[derive(Debug)]
 pub struct SignIn {

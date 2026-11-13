@@ -402,7 +402,10 @@ fn asks_first_request_fits_both_shapes() {
 #[test]
 fn a_design_session_runs_the_drafter_with_no_change_or_goal() {
     let assignment = first_assignment(DRAFTER_CHARTER, DRAFTING_TEMPLATE);
-    assert_eq!(assignment.run.policy.instructions.as_ref(), include_bytes!("../stock/drafter.txt"));
+    assert_eq!(
+        assignment.run.policy.instructions.as_ref(),
+        include_bytes!("../../../temper-engine-service-stock/src/stock/drafter.txt")
+    );
     assert!(assignment.workspace.repositories.is_empty());
     let charter = temper_engine_smith::charter(&assignment);
     for (name, offered) in [

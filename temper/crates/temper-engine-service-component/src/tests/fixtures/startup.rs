@@ -41,12 +41,12 @@ pub fn demo_service() -> crate::Service {
     let document = with(&document, b"workers", b"[]");
     let document = with(&document, b"application.workers", b"[]");
     let document = with(&document, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#);
-    crate::startup::with_setup_given(
+    let start = crate::startup::checked_start_with(
         &document,
         &jig_protocol_config::Directories::working(),
         &files(),
-        &super::seeds(),
         None,
+        &super::seeds(),
         super::forge_runtime(),
         None,
         &crate::stock::Given::Own {
@@ -54,9 +54,9 @@ pub fn demo_service() -> crate::Service {
             forge: Box::default(),
             ways: crate::stock::ways(),
         },
-        Box::new([]),
     )
-    .unwrap()
+    .unwrap();
+    crate::Service::prepared(start.engine, &super::seeds(), None, start.forges, start.io, None, None).unwrap()
 }
 pub fn document() -> Box<[u8]> {
     let mut document = Vec::from(b"{\"engine\":".as_slice());

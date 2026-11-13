@@ -34,7 +34,9 @@ pub enum Given {
     },
 }
 impl Given {
-    pub(crate) fn defaults(&self, llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
+    /// Defaults passed by the binary or constructed from stock for startup.
+    #[must_use]
+    pub fn defaults(&self, llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
         match self {
             Self::Stock => checked(llm, result_bytes),
             Self::Own { jig: own, .. } => {
@@ -175,7 +177,9 @@ const MODELS: &[StockModel] = &[
     },
 ];
 
-pub(crate) fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
+/// The stock catalogue selected from configured providers, read by startup.
+#[must_use]
+pub fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
     let mut models = List::with_capacity(u32::try_from(MODELS.len()).expect("stock model count"));
     for row in MODELS {
         for provider in &llm.providers {

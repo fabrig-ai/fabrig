@@ -2,8 +2,7 @@
 use crate::settings::Forge;
 use alloc::boxed::Box;
 use skein_lib::List;
-mod table;
-pub use table::Forges;
+pub use temper_engine_service_vocabulary::forges::*;
 
 /// Record-driven runtime membership (temper/docs/design/protocol/forge/engine.md, 2).
 pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_domain_forge::ForgeRecord) {

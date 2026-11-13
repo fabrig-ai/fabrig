@@ -1,20 +1,24 @@
 //! An engine alone on one process (temper/docs/design/protocol/services.md, 4).
 use crate::{AccountsRuntime, End, accounts, clients, engine, settings, store};
 use alloc::boxed::Box;
-mod configuration;
-pub use configuration::{GITHUB_REMOTE, address_host, machine_config, playground_config};
 use jig_protocol_config::{Path, Problems, What};
 use skein_io::{
     self as io,
     kernel::{Complete, Fd, Submit},
 };
 use skein_lib::{List, Queue, Time, Token, Wall};
+pub use temper_engine_service_vocabulary::system::*;
 pub(crate) const ACCOUNT_APPLICATION: &[u8] = b"temper";
 
 /// The engine root, its protocol children and the kernel queues.
 #[expect(missing_debug_implementations, reason = "the service owns account token records")]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "the start reaches the component; the process stays owned by the service"
+)]
 pub struct Service {
-    pub(crate) engine: Option<engine::Engine>,
+    /// The component accessed by the engine start (protocol/services.md, 4.2).
+    pub engine: Option<engine::Engine>,
     pub(crate) process: temper_service_core::process::Process,
     // Keep the generational handles even after claim: a failed restore must
     // close any listener whose component never reached its Listen.
@@ -85,7 +89,8 @@ impl Service {
         let forges = crate::forge::prepare(&settings, forges)?;
         Self::prepared(settings, seeds, accounts, forges, io_limits, None, None)
     }
-    pub(crate) fn prepared(
+    /// Construct the component from checked startup facts (protocol/services.md, 4.2).
+    pub fn prepared(
         settings: settings::Engine,
         seeds: &settings::Seeds,
         accounts: Option<AccountsRuntime>,
