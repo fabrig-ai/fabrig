@@ -96,6 +96,10 @@ pub enum Access {
         landing: Option<Box<[u8]>>,
     },
     ReadOnly,
+    /// Ordered branches that a prepare may create, and no others.
+    Prefixes {
+        branches: Box<[Box<[u8]>]>,
+    },
 }
 
 /// What a run is told of a push.

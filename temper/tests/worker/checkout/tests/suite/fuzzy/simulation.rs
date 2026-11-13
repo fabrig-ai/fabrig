@@ -76,7 +76,7 @@ fn random_worlds_settle_with_every_client_heard() {
                         | Landing::DesignMoving
                         | Landing::DesignUnchecked
                         | Landing::Conflicted { .. } => panic!("this fixture prepares one checkout branch"),
-                        Landing::Landed { .. } => "landed",
+                        Landing::Landed { .. } | Landing::Prefixes { .. } => "landed",
                         Landing::Moved => "moved",
                         Landing::Refused | Landing::Explained { fault: Fault::Refused, .. } => "refused",
                         Landing::Failed | Landing::Explained { .. } => "failed",

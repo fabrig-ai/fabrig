@@ -303,6 +303,7 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
         let spec = checkout::Spec {
             key: b"delivery".as_slice().into(),
             repositories: Box::new([checkout::Repository {
+                prefixes: Box::new([]),
                 name: b"specimen".as_slice().into(),
                 remote: remote.clone(),
                 git: None,

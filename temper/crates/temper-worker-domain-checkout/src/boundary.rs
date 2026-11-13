@@ -122,6 +122,8 @@ pub struct Repository {
     pub account: Option<u64>,
     /// The branch a change is pushed to, if the repository may be written.
     pub push: Option<Box<[u8]>>,
+    /// Prepare-only branches, in member order, each created and never moved.
+    pub prefixes: Box<[Box<[u8]>]>,
     /// Exact old head required for the push branch; None requests
     /// ordinary fast-forward. Successful pushes advance this condition.
     pub expected: Option<Commit>,
@@ -146,21 +148,29 @@ pub enum Start {
     /// Fetch the branch and base, check out the branch and leave their merge
     /// in progress. The next commit records both parents even if unchanged.
     Merge { branch: Box<[u8]>, base: Commit },
-    /// A one-member landing, combined during preparation (temper/docs/design/domain/worker/jobs.md).
+    /// A landing's ordered members, combined during preparation (temper/docs/design/domain/worker/jobs.md).
     Prepare { request: Box<CandidateSpec> },
     /// The tip of a base branch with each head merged into it in order, each
     /// merge committed (domain/worker/checkouts.md).
     Merged { branch: Box<[u8]>, heads: Box<[Commit]> },
 }
 
-/// A one-member merge train's frozen inputs (temper/docs/design/domain/worker/jobs.md). Boxed only
+/// A round's merge train inputs (temper/docs/design/domain/worker/jobs.md). Boxed only
 /// for prepares, so other checkout starts do not carry its messages.
 #[derive(PartialEq, Eq, Debug)]
 pub struct CandidateSpec {
     pub base: Commit,
-    pub head: Commit,
+    pub from: Commit,
     pub upstream: Option<Commit>,
     pub squash: bool,
+    pub members: Box<[CandidateMember]>,
+}
+
+/// One member's head and messages, in the round's order.
+#[derive(PartialEq, Eq, Debug)]
+pub struct CandidateMember {
+    pub number: u64,
+    pub head: Commit,
     pub message: Message,
     pub squash_message: Message,
 }
@@ -178,7 +188,7 @@ pub enum Prepared {
     /// The workspace is ready, in the directory io names `workspace`: each
     /// repository at its starting point.
     Ready { workspace: Token, conflicts: Box<[Conflicts]> },
-    /// The one-member candidate, or its conflict, prepared without a process.
+    /// The members' prefixes and conflicts, prepared without a process.
     Candidate { workspace: Token, outcome: Candidate },
     /// Refused at the entrance: nothing is held.
     Refused { refusal: Refusal },
@@ -259,6 +269,8 @@ pub enum Landing {
     Explained { fault: crate::git::Fault, diagnostic: crate::git::PushDiagnostic },
     /// `commit` is on the branch now.
     Landed { commit: Commit },
+    /// Every combined prefix was created; this is the last, with its branch.
+    Prefixes { commit: Commit, branch: Box<[u8]> },
     /// The branch is somewhere the commit does not descend from, so the push
     /// was rejected. For a push: the branch moved since the workspace started
     /// from it, or since the last push landed there. For a save: the
@@ -295,9 +307,15 @@ impl Start {
     }
 }
 
-/// How temper's one-member merge train combined its member (temper/docs/design/domain/worker/jobs.md).
+/// The ordered outcomes of a round (temper/docs/design/domain/worker/jobs.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Candidate {
-    Combined { squash: bool },
-    Conflict { files: Box<[Box<[u8]>]>, cut: bool },
+pub struct Candidate {
+    pub members: Box<[Combination]>,
+}
+
+/// Each member is combined onto the prefix below or skipped, with its conflict told apart.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Combination {
+    Combined { member: u64, commit: Commit, squash: bool },
+    Conflict { member: u64, branch: bool, files: Box<[Box<[u8]>]>, cut: bool },
 }
