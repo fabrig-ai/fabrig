@@ -201,6 +201,7 @@ members = [
     "jig/crates/jig-client",
     "jig/crates/jig-protocol-transcript",
     "jig/crates/jig-client-view",
+    "jig/crates/jig-client-view-codec",
     "jig/crates/jig-domain-core",
     "jig/crates/jig-domain-core-vocabulary",
     "jig/crates/jig-domain-accounts",
@@ -613,6 +614,7 @@ jig-protocol-store-families = { path = "jig/crates/jig-protocol-store-families" 
 jig-protocol-tools = { path = "jig/crates/jig-protocol-tools" }
 jig-protocol-transcript = { path = "jig/crates/jig-protocol-transcript" }
 jig-client-view = { path = "jig/crates/jig-client-view" }
+jig-client-view-codec = { path = "jig/crates/jig-client-view-codec" }
 jig-client-scripted-engine = { path = "jig/testing/jig-client-scripted-engine" }
 sha2 = { version = "=0.10.9", default-features = false }
 jig-domain-accounts = { path = "jig/crates/jig-domain-accounts" }
