@@ -137,3 +137,4 @@ LINKED`, as for every link jig's start cannot make
   `decision.rs`, `host_within`, relies on that bound for settings output
   held before its commit. The application settings' contribution is omitted;
   no reason is recorded.
+- **Not yet:** 8.2: the root does not tell the core it settles, so while the forge settles the fleet still places a waiting attempt or job where a slot frees, and timers and the forge's routes still activate tasks and step procedures [in flight: change 2291]
