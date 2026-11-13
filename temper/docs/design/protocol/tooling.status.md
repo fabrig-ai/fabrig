@@ -22,3 +22,5 @@
   (`temper/crates/temper-worker-domain/src/jobs.rs`), because the
   checkout lays a workspace's repositories out by name
   (`../domain/worker/checkouts.md`) and no kind built needs `repos/`.
+- **Not yet:** 4: the worker reads no `from` and no member's `prefix`, and writes a single `conflict` with exit 3, never `conflicts` beside `combined` [in flight: change 2203].
+- **Not yet:** 4: the engine writes neither `from` nor a member's `prefix` in a prepare's request (`temper-engine-domain/src/route/forge_route/prepare.rs`) [in flight: change 2210].

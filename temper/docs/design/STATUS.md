@@ -66,6 +66,16 @@ holds, with no credential named. Its passes follow landing
 (`testing/qa/README.md`; `testing/qa/setups.md`;
 `draft/landed-qa.status.md`).
 
+The merge queue's milestones M1 and M2, goals 683 and 2175, make
+landing by `turn` a merge queue (`domain/landing.md`): a train per
+repository and branch, one landing at a time on each, a batch of
+waiting units up to the project's `batch`, stacked by the worker's
+merge train with a branch per member, proved once at the top, and
+landed by one fast-forward of the landing's own pull request; a red
+round of several units falls back to one unit at a time until M3's
+search by prefixes. Its process story and staging walks follow landing
+(`draft/merge-queue.status.md`).
+
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
 repository its project adopts as context, each project's context
