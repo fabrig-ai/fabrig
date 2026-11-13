@@ -1,5 +1,7 @@
 //! A seeded byte-word reader independent of the quoter (redeploy.md, 2.2, 8).
 use temper_redeploy_tool::hosts::quote_bytes;
+#[path = "referee_fuzzy.rs"]
+mod referee;
 
 mod openings;
 mod redeploy;

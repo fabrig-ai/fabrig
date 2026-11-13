@@ -7,6 +7,7 @@ mod hosts;
 mod openings;
 mod record;
 mod redeploy;
+mod referee;
 mod reference;
 mod stage;
 

@@ -63,14 +63,18 @@ pub fn words(words: &[&str]) -> String {
     words.iter().map(|word| quote(word)).collect::<Vec<_>>().join(" ")
 }
 
-/// The engine's JSON ctl call, with each word quoted and stdin closed (redeploy.md, 7).
+/// The engine's ctl template, with JSON requested once and stdin closed (redeploy.md, 7).
 pub fn ctl(description: &Description, arguments: &[&str], hosts: &mut dyn Hosts) -> Result<String, String> {
-    let line = format!("{} {} {} </dev/null", description.engine.ctl, words(arguments), quote("--json"));
+    let mut line = description.engine.ctl.clone();
+    for word in arguments.iter().copied().filter(|word| *word != "--json") {
+        write!(line, " {}", quote(word)).expect("writing a String");
+    }
+    line.push_str(" '--json' </dev/null");
     let answer = hosts.run(Part::Engine, &line);
     if answer.code == Some(0) {
         Ok(answer.stdout)
     } else {
-        Err(format!("ctl {}: exit {:?}: {}", arguments.join(" "), answer.code, answer.stderr.trim()))
+        Err(format!("{}: exit {:?}: {}", arguments.join(" "), answer.code, answer.stderr.trim()))
     }
 }
 
