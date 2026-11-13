@@ -35,6 +35,7 @@ skein-json.workspace = true
 skein-forge.workspace = true
 jig-protocol-config.workspace = true
 temper-protocol-store.workspace = true
+temper-protocol-worker-wire.workspace = true
 
 [dev-dependencies]
 jig-domain-tasks.workspace = true

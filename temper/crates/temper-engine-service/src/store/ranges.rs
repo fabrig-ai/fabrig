@@ -80,12 +80,12 @@ pub(super) fn keeps(range: &Range, key: &Key) -> bool {
 
 pub(super) fn cursor(range: &Range, key: &Key) -> Option<store::Cursor> {
     let after = match key {
-        Key::Wires => return None,
+        Key::Wires | Key::Opening(_) => return None,
         Key::Core(key) => store::keys::encode(key, u32::MAX)?,
         Key::Forge(key) => store::keys::application(&temper_protocol_store::keys::encode(key, u32::MAX)?, u32::MAX)?,
     };
     let interval = match (range, key) {
-        (_, Key::Wires) => return None,
+        (_, Key::Wires | Key::Opening(_)) => return None,
         (Range::Census(census), Key::Core(key)) => census.interval(key)?,
         (Range::Core(range), Key::Core(_)) if !range.restore_ranges().is_empty() => {
             return store::intervals::cursor(range.restore_ranges(), &after);

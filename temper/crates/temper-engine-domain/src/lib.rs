@@ -40,8 +40,9 @@ pub use decision::{
 };
 pub use store::{
     CallAnswer, CallKey, CallRecord, Changed, CoreRange, Deployment, DocumentOutcome, DocumentRefusal, Documented,
-    EscalationDecisionRecord, Family, Key, NoteFamily, PartsAnswer, ProposalDecisionRecord, Range, Record, RememberDid,
-    RememberRefusal, Remembered, RunProof, TerminalRecord, TurnProof, TurnRecord, Write, record_bytes,
+    EscalationDecisionRecord, Family, Key, NoteFamily, OpenedTerm, OpenedWire, PartsAnswer, ProposalDecisionRecord,
+    Range, Record, RememberDid, RememberRefusal, Remembered, RunProof, TerminalRecord, TurnProof, TurnRecord,
+    WorkerOpening, WorkerStatement, Write, record_bytes,
 };
 
 pub use admission::{completes, try_step};

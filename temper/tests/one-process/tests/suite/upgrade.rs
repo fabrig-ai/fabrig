@@ -1,5 +1,9 @@
 //! Baseline owner admission, coverage and the application's mark-only fixture.
 #[test]
+fn an_opened_worker_may_stay_after_its_deployment_stops() {
+    temper_one_process_world::upgrade::check::opened_worker_rehearsal();
+}
+#[test]
 fn prebaseline_rehearsals_without_wires_report_the_older_layout() {
     temper_one_process_world::upgrade::check::prebaseline_rehearsals();
 }

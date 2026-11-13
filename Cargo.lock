@@ -6359,6 +6359,7 @@ dependencies = [
  "temper-forge-setup-shell",
  "temper-playground",
  "temper-protocol-store",
+ "temper-protocol-worker-wire",
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",

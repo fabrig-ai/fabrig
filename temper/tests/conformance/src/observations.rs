@@ -236,7 +236,8 @@ pub fn submitted(store: &Store, projection: &mut jig_conformance::core::Projecti
                 root::Write::Erase(root::Key::Core(key)) => Write::Erase(key.clone()),
                 root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => Write::Refresh,
                 root::Write::Save(root::Record::Forge { .. })
-                | root::Write::Erase(root::Key::Forge(_) | root::Key::Wires)
+                | root::Write::Erase(root::Key::Forge(_) | root::Key::Opening(_) | root::Key::Wires)
+                | root::Write::Opening(_)
                 | root::Write::Wires => Write::Other,
             })
             .collect();

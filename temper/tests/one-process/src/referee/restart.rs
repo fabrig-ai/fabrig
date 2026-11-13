@@ -51,7 +51,7 @@ pub(crate) fn apply(rows: &mut BTreeMap<root::Key, root::Record>, write: &root::
                 }
             });
         }
-        root::Write::Wires => {}
+        root::Write::Opening(_) | root::Write::Wires => {}
         root::Write::Save(row) => {
             rows.insert(row.key(), row.clone());
         }

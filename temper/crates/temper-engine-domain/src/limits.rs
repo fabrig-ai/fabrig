@@ -241,13 +241,15 @@ pub const fn default_watermark(journal: &JournalLimits) -> u32 {
 }
 
 /// What the root holds of admitted work, in entries (the draft's 4.1):
-/// the journal's backlog, the work queue and the queued store answers.
+/// the journal's backlog, the work queue, openings and queued store answers.
 pub(crate) fn backlog(domain: &Domain) -> u64 {
     domain
         .journal
         .backlog()
         .checked_add(u64::from(domain.work.len()))
         .expect("four u32 queue counts fit in u64")
+        .checked_add(u64::from(domain.openings.len()))
+        .expect("queued openings fit u64")
         .checked_add(u64::from(domain.store_answers.len()))
         .expect("five u32 queue counts fit in u64")
 }

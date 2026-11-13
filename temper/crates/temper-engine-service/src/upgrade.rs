@@ -1,12 +1,22 @@
 //! A start ending before its switch, and going back (protocol/binaries.md; domain/root.md, 8.1).
 use crate::{End, engine::Engine};
+use alloc::boxed::Box;
 use jig_protocol_store::{Event, Request};
 use skein_lib::{Duration, Queue, Time, Token};
+
+/// What the configured engine would require at an opening (protocol/wires.md, 9.2).
+#[derive(Debug)]
+pub struct Workers {
+    pub names: Box<[Box<[u8]>]>,
+    pub room: u32,
+    pub schema: skein_channel::Schema,
+}
 
 /// The store's ordered progress and the same refusal a serving start would meet.
 #[derive(Debug)]
 pub struct Report {
     pub events: Queue<Event>,
+    pub workers: Workers,
     pub elapsed: Duration,
     pub end: Option<End>,
     pub restored: bool,
@@ -28,10 +38,11 @@ pub(crate) struct State {
     pub(crate) undecodable: bool,
 }
 impl State {
-    pub(crate) fn new(rehearsal: bool) -> Self {
+    pub(crate) fn new(rehearsal: bool, workers: Workers) -> Self {
         Self {
             report: Report {
                 events: Queue::uncapped(),
+                workers,
                 elapsed: Duration::ZERO,
                 end: None,
                 restored: false,
@@ -66,7 +77,7 @@ pub(crate) fn prepare(engine: &mut Engine, rehearsal: bool) {
     engine.setup.close();
     engine.forge.down(skein_forge_connection::Request::Close);
     crate::engine::forge_pass(engine);
-    engine.upgrade = Some(State::new(rehearsal));
+    engine.upgrade = Some(State::new(rehearsal, engine.workers.judgement()));
 }
 
 /// Keep the store alive until Close has emptied its scratch, even after a refusal.
