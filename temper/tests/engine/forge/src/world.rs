@@ -117,7 +117,8 @@ struct Pending {
 }
 
 mod follows;
-mod history;
+#[path = "world/history.rs"]
+mod history_reads;
 
 struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,

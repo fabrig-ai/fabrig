@@ -9,6 +9,7 @@ mod green;
 mod history_world;
 mod hooks;
 mod landing;
+mod landing_history;
 mod landing_batches;
 mod landing_judgement;
 mod landing_leaving;
