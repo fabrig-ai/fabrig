@@ -81,10 +81,10 @@ fn a_delegates_closer_must_be_named_by_its_own_delegation() {
     let findings = Box::new([jig_domain_authority::Finding::Executor { source: jig_domain_authority::Source::Task }]);
     assert_eq!(
         world.domain.core_mut().delegate_preflight(&limits, key, &[member.clone()], skein_lib::Wall::EPOCH),
-        Err(jig_domain_core::CallPart::DelegationDenied {
+        Err(Box::new(jig_domain_core::CallPart::DelegationDenied {
             answer: jig_domain_authority::Answer::Refuse,
             findings: findings.clone(),
-        }),
+        })),
     );
     assert_eq!(
         world.domain.core_mut().procedure_batch_admit(&limits, key.task, &[member], skein_lib::Wall::EPOCH),
