@@ -264,6 +264,9 @@ pub(crate) fn adopted(domain: &mut Domain, token: Token, outcome: Option<forge::
             | forge::Answered::SetDraft(_)
             | forge::Answered::SetAway(_)
             | forge::Answered::Overturn(_)
+            | forge::Answered::FileFinding(_)
+            | forge::Answered::HandFinding(_)
+            | forge::Answered::TriageFinding(_)
             | forge::Answered::Looked(_)
             | forge::Answered::Dismiss(_)
             | forge::Answered::RemoveForge(_)
@@ -390,6 +393,7 @@ pub(crate) fn acted(
         | people::Outcome::AccountKeyKept { .. }
         | people::Outcome::AccountProgramDeclared { .. }
         | people::Outcome::AccountReading { .. }
+        | people::Outcome::AccountLoginAsked { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::Lifted { .. }

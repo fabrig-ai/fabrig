@@ -187,7 +187,7 @@ fn accepted_exec(ran: &support::Ran) {
     const STREAM_BYTES: u32 = 65_536;
     assert_eq!(ran.code, 0, "fake-backed exec succeeds");
     let limits = {
-        let mut limits = smith_events::fixture::SMALL;
+        let mut limits = smith_events_fixtures::SMALL;
         limits.string = STREAM_BYTES;
         limits.content = STREAM_BYTES;
         limits.items = STREAM_BYTES;

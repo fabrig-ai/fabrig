@@ -1,12 +1,12 @@
 # documents: status
 
-2026-11-11. Where the tree's code lags or departs from [documents.md](documents.md).
+2026-11-12. Where the tree's code lags or departs from [documents.md](documents.md).
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
 
 `README.md`, sections 4 and 5.3 have a party's scope and withheld turns by plan
 `ui-ask-m4` but for the gaps below: `NoteScope::Party { party }` on the
-contract, the client wire's v19 and the clients' cursor; a party's scope
+contract, the client wire's v21 and the clients' cursor; a party's scope
 read, corrected and deleted, naming project 0, by that party alone, any
 other party's read unknown and their edit or deletion refused as
 unknown, an owner's included, but for one naming their own scope and

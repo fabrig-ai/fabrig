@@ -23,6 +23,7 @@ pub(super) fn encode_failure_class(value: domain::FailureClass) -> wire::Failure
         domain::FailureClass::Agent => wire::FailureClass::Agent,
         domain::FailureClass::Lost => wire::FailureClass::Lost,
         domain::FailureClass::Invalid => wire::FailureClass::Invalid,
+        domain::FailureClass::Infrastructure => wire::FailureClass::Infrastructure,
     }
 }
 pub(super) fn decode_failure_class(value: wire::FailureClass) -> domain::FailureClass {
@@ -33,6 +34,7 @@ pub(super) fn decode_failure_class(value: wire::FailureClass) -> domain::Failure
         wire::FailureClass::Agent => domain::FailureClass::Agent,
         wire::FailureClass::Lost => domain::FailureClass::Lost,
         wire::FailureClass::Invalid => domain::FailureClass::Invalid,
+        wire::FailureClass::Infrastructure => domain::FailureClass::Infrastructure,
     }
 }
 pub(super) fn encode_hold_reason(
@@ -607,6 +609,9 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
             limits,
             wire::RefusalAccountMoveParts { why: encode_account_move_why(*why) },
         )?),
+        domain::Refusal::NoTerminal => wire::Refusal::NoTerminal,
+        domain::Refusal::LoginUnderWay => wire::Refusal::LoginUnderWay,
+        domain::Refusal::NotLending => wire::Refusal::NotLending,
         domain::Refusal::NameTaken => wire::Refusal::NameTaken,
         domain::Refusal::Unknown => wire::Refusal::Unknown,
         domain::Refusal::Provider => wire::Refusal::Provider,
@@ -722,6 +727,9 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
         wire::Refusal::AccountMove(value) => {
             domain::Refusal::AccountMove { why: decode_account_move_why(value.into_parts().why) }
         }
+        wire::Refusal::NoTerminal => domain::Refusal::NoTerminal,
+        wire::Refusal::LoginUnderWay => domain::Refusal::LoginUnderWay,
+        wire::Refusal::NotLending => domain::Refusal::NotLending,
         wire::Refusal::NameTaken => domain::Refusal::NameTaken,
         wire::Refusal::Unknown => domain::Refusal::Unknown,
         wire::Refusal::Provider => domain::Refusal::Provider,

@@ -6,7 +6,7 @@ use skein_lib::List;
 
 use crate::{Problem, json::Node};
 
-pub(crate) fn new(value: Node<'_>) -> Result<jig_domain_core::NamedAction, Problem> {
+pub(crate) fn new(value: Node<'_>) -> Result<jig_domain_core_vocabulary::NamedAction, Problem> {
     let first = value.field(b"first")?;
     let remove = value.field(b"remove")?;
     if first.is_some() != remove.is_some() {
@@ -58,12 +58,12 @@ pub(crate) fn new(value: Node<'_>) -> Result<jig_domain_core::NamedAction, Probl
         author: notes::Author::Task { task: 0, attempt: 0 },
     };
     Ok(match range {
-        Some(range) => jig_domain_core::NamedAction::NoteLines {
+        Some(range) => jig_domain_core_vocabulary::NamedAction::NoteLines {
             entry,
             recalled: recalled.expect("range names its revision"),
             range,
         },
-        None => jig_domain_core::NamedAction::Note { entry, recalled },
+        None => jig_domain_core_vocabulary::NamedAction::Note { entry, recalled },
     })
 }
 

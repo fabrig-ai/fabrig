@@ -121,6 +121,32 @@ Measuring that figure needs a skein mechanism for a service world's observer
 to keep its storage outside the process's span first
 (`skein/docs/design/testing/README.md`, 5).
 
+Measured 2026-11-12 (`date -u +%F`), on a builder, on branch
+`temper6684/c748`. R2's stock charters' prompts/settings and the expanded
+inventory account for the growth. The focused playground test replaces
+only the exceeded service rows and fake disk's start row with these figures
+plus a quarter; every other bound keeps the 2026-11-08 baseline. Start
+now takes 150 world steps.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 187,703 | 295,333 | 306,622 | 391,748 |
+| 1: fake LLM | 27,449 | 27,449 | 28,185 | 28,185 |
+| 2: fake forge HTTP | 30,130 | 30,130 | 30,871 | 30,915 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,450 | 5,990 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,393 | 178,778 |
+| Shared forge before start | 7,061 | not separately measured at start |
+
+The one-process memory binary was run once by name with `--run-ignored only`.
+It completed the three requests at 45.8 simulated seconds, then failed the
+same exact-release check: process 0 freed 1,287,344 bytes against 1,863,104
+metered bytes. It returned no high-water row, so that row remains unmeasured
+and the test remains ignored; no one-process bound changed.
+
 ## Halving the knobs
 
 Each row below is a separate local, uncommitted edit at the 2026-11-03 commit,
@@ -204,3 +230,11 @@ store budget likewise does not reserve its full amount at startup. As
 `skein/docs/foundation/programming-model.md`, section 6.3 specifies, these
 measurements neither sum capacities into a process-wide worst case nor compare
 such a sum against a declaration at startup.
+
+The standing-roles R2 merge with upgrades U1 measured the service at 232,223
+held and 381,487 peak bytes on its first step, and 438,969 held and 565,289
+peak bytes after the same 150-step start. R2 adds findings and routing state
+and combines it with the newer stock instructions. The start held and peak
+bounds use these measurements plus a quarter; the first-step measurements
+remain within the existing bounds. The focused memory test passes with these
+bounds.

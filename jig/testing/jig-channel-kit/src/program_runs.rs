@@ -196,12 +196,11 @@ pub(crate) fn relay(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
 }
 pub(crate) fn claude(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     assert!(spawn.env.iter().any(|entry| entry.as_ref() == b"CLAUDE_CONFIG_DIR=/private/programs/alice"));
-    assert!(
-        !spawn
-            .env
-            .iter()
-            .any(|entry| entry.starts_with(b"ANTHROPIC_") || entry.starts_with(b"CLAUDE_CODE_OAUTH_TOKEN="))
+    assert_eq!(
+        spawn.env.iter().filter(|entry| entry.starts_with(b"ANTHROPIC_")).map(AsRef::as_ref).collect::<Vec<_>>(),
+        [b"ANTHROPIC_CONFIG_DIR=/private/programs/alice/anthropic".as_slice()]
     );
+    assert!(!spawn.env.iter().any(|entry| entry.starts_with(b"CLAUDE_CODE_OAUTH_TOKEN=")));
     let launch = claude_launch(spawn);
     Proc::Auth(Box::new((smith_fake_claude::hosted(b"/private/programs/claude").make)(&launch, inherited)))
 }

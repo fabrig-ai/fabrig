@@ -2,7 +2,7 @@
 //! and tasks still check these values against current durable facts.
 
 use alloc::boxed::Box;
-use jig_domain_core as engine;
+use jig_domain_core_vocabulary as engine;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, Wall};
 

@@ -150,7 +150,7 @@ fn an_observed_command_crosses_the_channel_and_outlasts_no_progress_until_its_te
             renewable: true,
             valid: Duration::from_secs(7200),
         }]),
-        ..smith_domain::fixture::start(Token::new(1), charter)
+        ..smith_domain_fixtures::start(Token::new(1), charter)
     }));
     let owner = world.completion.take().expect("observed provider request");
     world.step(AgentEvent::Below(smith_domain::Below::Completed {

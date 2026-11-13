@@ -18,7 +18,7 @@ pub fn valid_manage_usage(value: &[u8]) -> bool {
         return false;
     }
     for byte in value {
-        if *byte <= b' ' || *byte >= 127 || [b'@', b'?', b'#', b'\\', b'"', b'\'', b'<', b'>'].contains(byte) {
+        if *byte <= b' ' || *byte >= 127 || b"@?#\\\"'<>".contains(byte) {
             return false;
         }
     }

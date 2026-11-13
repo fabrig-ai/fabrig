@@ -344,7 +344,8 @@ The GitHub routes of README.md 3.2's Actions, tree, ref and label calls.
 3. Every other refusal is section 7's.
 
 - **A row with no merge method** makes `Merge` answer `Refused` before
-  anything is sent.
+  anything is sent, and so does a `Merge` with `how` `Recorded`: GitHub
+  records no pull request merged by hand (`README.md`, 3.2).
 - **A lost enqueue is never resent.** When nothing is heard from `GQ
   enqueue` the call is a `Timeout`, and the client reads the pull: an
   observed `queued` entry is adopted as the call's `Queued`.

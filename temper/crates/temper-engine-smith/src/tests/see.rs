@@ -34,6 +34,8 @@ fn tokens_round_trip_and_malformed_tokens_stay_unknown() {
         ("a+b@c%d", 1, "a%2Bb%40c%25d@1"),
         ("settings charter-words 4", 12, "settings+charter-words+4@12"),
         ("settings project-words", 12, "settings+project-words@12"),
+        ("settings project-areas", 12, "settings+project-areas@12"),
+        ("settings project-triager", 12, "settings+project-triager@12"),
     ] {
         assert_eq!(crate::see::token(line.as_bytes(), from).as_ref(), token.as_bytes());
         let input = format!(r#"{{"address":"more {token}"}}"#);
@@ -238,6 +240,7 @@ fn errors_and_pages_use_the_address_form() {
         (Setting::Application { kind: 11, scope: 0, number: 4 }, "settings template N · ways · help settings-fields"),
     ] {
         let answer = jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
+            overlay: None,
             setting,
             revision: 1,
             value: None,
@@ -341,6 +344,7 @@ fn landing_and_gates_read_the_configured_values() {
             workflow: b"tests.yml".as_slice().into(),
             ignored: Box::new([b"docs".as_slice().into(), b"notes".as_slice().into()]),
             blocking: false,
+            base: true,
         }]),
         tiers: [Follows::Landing, Follows::Branch(b"stable".as_slice().into()), Follows::Goals]
             .map(|follows| Tier {
@@ -359,7 +363,7 @@ fn landing_and_gates_read_the_configured_values() {
         (none, "gates of org/empty:\n  none\ntiers of org/empty:\n  none\n"),
         (
             SeeRepository { name: b"org/repo".as_slice().into(), checks },
-            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, checks the slow suites, ignoring docs\n",
+            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, base, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, checks the slow suites, ignoring docs\n",
         ),
     ] {
         assert_eq!(
@@ -418,6 +422,7 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
                     path: branch_path(),
                     items: Box::new([]),
                     delegation: false,
+                    roles: Box::default(),
                 })
                 .into(),
             current,
@@ -441,7 +446,7 @@ fn the_address_table_keeps_the_instructions_forms_and_short_lines() {
     forms(&mut out).expect("forms fit ADDRESSES");
     let text = out.finish();
     assert_eq!(text.as_ref(), ADDRESSES.as_bytes());
-    let instructions = include_str!("../../../temper-service/src/stock/ask.txt");
+    let instructions = include_str!("../../../temper-engine-service/src/stock/ask.txt");
     let line = instructions.split_once("see reads by address, in your project:\n").unwrap().1.lines().next().unwrap();
     assert_eq!(ADDRESSES, line);
     let mut seen = alloc::collections::BTreeSet::new();

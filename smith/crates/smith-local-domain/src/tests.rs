@@ -633,7 +633,7 @@ pub(super) fn host_limits() -> smith_host_domain::Limits {
         wall_time: Duration::from_secs(3600),
         kill_after: Duration::from_secs(1),
         facts: 64,
-        ..smith_host_domain::fixture::small()
+        ..smith_host_domain_fixtures::small()
     }
 }
 

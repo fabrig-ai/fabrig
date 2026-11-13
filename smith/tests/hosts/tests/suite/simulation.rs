@@ -28,7 +28,7 @@ mod tests {
         world.settle();
         let seen = world.seen();
         assert!(seen.answered.is_some());
-        assert!(seen.signals.is_empty());
+        assert_eq!(seen.signals.len(), 0);
         assert_eq!(
             seen.gone,
             Some(End::Exited { exit: Some(smith_host_domain::Exit::Code(0)), forced: smith_host_domain::Forced::No }),

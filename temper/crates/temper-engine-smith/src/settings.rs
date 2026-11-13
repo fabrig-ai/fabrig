@@ -67,9 +67,15 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             }
         }
         let mut by_project = None;
-        for name in
-            [b"project-policy".as_slice(), b"project-ways", b"project-questions", b"project-classes", b"project-words"]
-        {
+        for name in [
+            b"project-policy".as_slice(),
+            b"project-ways",
+            b"project-questions",
+            b"project-classes",
+            b"project-words",
+            b"project-areas",
+            b"project-triager",
+        ] {
             if kind.as_ref() == name {
                 by_project = Some(name);
             }
@@ -102,15 +108,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         }
         let setting = settings_form::file::read_setting(bytes, &settings_form::Limits::standard())
             .or(Err(Problem::Range(b"kind")))?;
-        let setting = match setting {
-            c::Setting::Charter(value) => s::Setting::Charter(value.number),
-            c::Setting::Template(value) => s::Setting::Template(value.number),
-            c::Setting::Policy(value) => s::Setting::Policy(value.number),
-            c::Setting::Model(value) => s::Setting::Model(value.number),
-            c::Setting::Rules => s::Setting::Rules,
-            c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
-            c::Setting::ProjectPolicy { project } => s::Setting::ProjectPolicy { project },
-        };
+        let setting = core_setting(setting);
         SettingsRead::Setting { setting, revision: revision.unwrap_or(0) }
     } else if let Some(number) = revision {
         SettingsRead::Revision { number }
@@ -118,6 +116,18 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
         SettingsRead::Inventory
     };
     Ok(engine::Tool::Settings { read, from })
+}
+
+fn core_setting(setting: c::Setting) -> s::Setting {
+    match setting {
+        c::Setting::Charter(value) => s::Setting::Charter(value.number),
+        c::Setting::Template(value) => s::Setting::Template(value.number),
+        c::Setting::Policy(value) => s::Setting::Policy(value.number),
+        c::Setting::Model(value) => s::Setting::Model(value.number),
+        c::Setting::Rules => s::Setting::Rules,
+        c::Setting::Application { kind, scope, number } => s::Setting::Application { kind, scope, number },
+        c::Setting::ProjectPolicy { project } => s::Setting::ProjectPolicy { project },
+    }
 }
 
 fn models(values: &[s::CatalogueModel]) -> Box<[protocol::Model]> {
@@ -208,7 +218,7 @@ fn proposal_items(
     let items = match wire::items(wire.into_parts().items, &models(configured), &limits.settings) {
         Ok(items) => items,
         Err(why) => {
-            if why.field == jig_client_protocol_wire::v19::Path::TemplateLlm {
+            if why.field == jig_client_protocol_wire::v21::Path::TemplateLlm {
                 return Err(Problem::Range(b"items.template.llm"));
             }
             return Err(Problem::Range(b"items"));
@@ -561,6 +571,9 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         Refusal::SignInRedirect { .. }
         | Refusal::Stale { .. }
         | Refusal::Full { .. }
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }
         | Refusal::LiveTasks { .. }

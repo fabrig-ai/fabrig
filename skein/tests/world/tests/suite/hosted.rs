@@ -320,6 +320,7 @@ fn admit_without_factory(world: &mut World<CuttingScript, CuttingJudge, CuttingM
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_power_loss_needs_every_roots_factory() {
     for (label, before_planning, message) in [
         ("planning", true, "power loss needs every process's restart factory"),

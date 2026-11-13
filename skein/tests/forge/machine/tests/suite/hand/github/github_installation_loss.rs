@@ -1,5 +1,6 @@
 //! Ready-time eligibility and private jobs on the reserved connection.
 use skein_forge::github::request::Scope;
+use skein_forge_connection::seam::Access;
 use skein_forge_connection::{
     Change, Event, Request, StartRead, Stopped,
     seam::{Read, Tokens},

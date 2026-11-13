@@ -90,7 +90,7 @@ pub fn recorded_closure() -> Box<[Package]> {
         let field =
             |name: &str| stanza.lines().find_map(|line| line.strip_prefix(name)).expect("recorded package field");
         let mut sha256 = [0; 32];
-        for (byte, pair) in sha256.iter_mut().zip(field("SHA256: ").as_bytes().chunks_exact(2)) {
+        for (byte, pair) in sha256.iter_mut().zip(field("SHA256: ").as_bytes().as_chunks::<2>().0) {
             *byte = u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("digest byte");
         }
         packages.push(Package {
@@ -117,7 +117,7 @@ pub fn failed_test_min(label: &str) -> (Repository, Rendered) {
 pub fn mirror_indices() -> [(&'static [u8], [u8; 32]); 2] {
     let mirror = mirror();
     let mut release = [0; 32];
-    for (byte, pair) in release.iter_mut().zip(mirror.pin().digest.as_bytes().chunks_exact(2)) {
+    for (byte, pair) in release.iter_mut().zip(mirror.pin().digest.as_bytes().as_chunks::<2>().0) {
         *byte = u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16).expect("digest");
     }
     [

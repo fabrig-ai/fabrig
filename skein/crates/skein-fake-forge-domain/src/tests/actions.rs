@@ -818,6 +818,7 @@ fn a_seed_replays_workflow_latency_runner_faults_and_reruns() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_context_opening_begins_its_jobs_whole_log() {
     let mut configured = setup();
     configured.checks.passes = 0;

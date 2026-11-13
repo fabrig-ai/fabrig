@@ -60,7 +60,7 @@ pub(super) fn call(json: &mut Encoder, call: &Call) -> Result<(), writer::Refusa
                 api::Want::Default => {}
             }
         }
-        Call::Create { repository, branch, commit } => {
+        Call::Create { repository, branch, commit } | Call::PushNew { repository, branch, commit } => {
             text(json, b"repository", repository);
             text(json, b"branch", branch);
             number(json, b"commit", *commit);
@@ -174,6 +174,7 @@ pub(super) fn answer(json: &mut Encoder, answer: &Answer) -> Result<(), writer::
             }
             json.array_end();
         }
+        Answer::PushNew { existing } => optional(json, b"existing", *existing),
         Answer::Ancestor(value) => {
             json.key(b"ancestor");
             json.boolean(*value);

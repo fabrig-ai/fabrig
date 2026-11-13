@@ -3,7 +3,7 @@ use crate::{INTERNAL_WORKSPACE_REUSE, PROGRAM_LOGIN};
 use skein_io::kernel::Exit;
 use skein_shell::{Argument, Command, Reach, Reached, Set, Table};
 use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
-use temper_service::startup::{Shape, nearest};
+use temper_service_core::startup::{Shape, nearest};
 use temper_shell::{
     directories::{self, Directories, EnvironmentEntry},
     environment, table,
@@ -62,7 +62,6 @@ fn capture() -> Capture {
     }
 }
 
-#[must_use]
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
     match run(&captured, version, commit) {

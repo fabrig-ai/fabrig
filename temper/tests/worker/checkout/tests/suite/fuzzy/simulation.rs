@@ -59,6 +59,7 @@ fn random_worlds_settle_with_every_client_heard() {
         }
         for (_, client) in world.clients() {
             let kind = match client.prepared.as_ref().expect("every prepare ends") {
+                Prepared::Candidate { .. } => unreachable!("branch-only clients"),
                 Prepared::Ready { .. } => "ready".to_string(),
                 Prepared::Refused { refusal } => format!("{refusal:?}"),
                 Prepared::Failed { failure: Failure::Missing { missing, .. }, .. } => format!("missing {missing:?}"),

@@ -54,6 +54,10 @@ pub enum Event {
     /// end, which its deadline bounds, so that a push that lands is reported
     /// landed. With nothing under way, nothing happens.
     Abort { hold: Token },
+    /// The attempt's stop bound passed: cancel even a push or save in flight,
+    /// never verify it or start another operation on this hold. Its terminal
+    /// still comes; a push known to have landed is reported landed.
+    Cut { hold: Token },
     /// Give the workspace of `hold` back to the cache, aborting what is under
     /// way first, as `Abort` does. Answered by exactly one `Released`, once
     /// nothing touches the workspace.
@@ -142,9 +146,23 @@ pub enum Start {
     /// Fetch the branch and base, check out the branch and leave their merge
     /// in progress. The next commit records both parents even if unchanged.
     Merge { branch: Box<[u8]>, base: Commit },
+    /// A one-member landing, combined during preparation (temper/docs/design/domain/worker/jobs.md).
+    Prepare { request: Box<CandidateSpec> },
     /// The tip of a base branch with each head merged into it in order, each
     /// merge committed (domain/worker/checkouts.md).
     Merged { branch: Box<[u8]>, heads: Box<[Commit]> },
+}
+
+/// A one-member merge train's frozen inputs (temper/docs/design/domain/worker/jobs.md). Boxed only
+/// for prepares, so other checkout starts do not carry its messages.
+#[derive(PartialEq, Eq, Debug)]
+pub struct CandidateSpec {
+    pub base: Commit,
+    pub head: Commit,
+    pub upstream: Option<Commit>,
+    pub squash: bool,
+    pub message: Message,
+    pub squash_message: Message,
 }
 
 /// A commit's message.
@@ -160,6 +178,8 @@ pub enum Prepared {
     /// The workspace is ready, in the directory io names `workspace`: each
     /// repository at its starting point.
     Ready { workspace: Token, conflicts: Box<[Conflicts]> },
+    /// The one-member candidate, or its conflict, prepared without a process.
+    Candidate { workspace: Token, outcome: Candidate },
     /// Refused at the entrance: nothing is held.
     Refused { refusal: Refusal },
     /// It failed: the hold stays, for the client to release.
@@ -269,7 +289,15 @@ impl Start {
             | Self::Branch { .. }
             | Self::Commit { .. }
             | Self::Merge { .. }
+            | Self::Prepare { .. }
             | Self::Merged { .. } => false,
         }
     }
+}
+
+/// How temper's one-member merge train combined its member (temper/docs/design/domain/worker/jobs.md).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Candidate {
+    Combined { squash: bool },
+    Conflict { files: Box<[Box<[u8]>]>, cut: bool },
 }

@@ -39,6 +39,9 @@ pub enum Event {
         attempt: Token,
         call: Box<[u8]>,
     },
+    /// The root asks the hub to drain (domain/hosts/hub.md, 7): admit no more
+    /// work and ask live runs to stop at their turn's end. Jobs run on.
+    Drain,
     /// From the top level: cancel every run hosted now, for `reason` (lost
     /// contact with the engine past its grace, or shutdown). The runs are
     /// cancelled one at a time, from the ready list. A root shutting down
@@ -180,6 +183,11 @@ pub enum ToAgent {
     Grant {
         agent: Token,
         grant: Grant,
+    },
+    /// Ask the run to stop at the end of its current turn, then answer and
+    /// report `Gone` as for a cancel (domain/hosts/hub.md, 7).
+    Drain {
+        agent: Token,
     },
     /// Cancel the run and end what remains past its grace. The start reports
     /// `Gone` once the agent and everything it started have ended.
@@ -592,6 +600,7 @@ impl Event {
             | Event::SourceAnswered { .. }
             | Event::SourceLost
             | Event::RelayCancelled { .. }
+            | Event::Drain
             | Event::CancelAll { .. }
             | Event::Prepared { .. }
             | Event::Unprepared { .. }

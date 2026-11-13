@@ -55,7 +55,7 @@ pub(crate) fn tools() -> tools::Limits {
         tool_deadline: Duration::from_secs(120),
         shell_tail: 64,
         search_bytes: 128,
-        ..smith_domain_tools::fixture::SMALL
+        ..smith_domain_tools_fixtures::SMALL
     }
 }
 

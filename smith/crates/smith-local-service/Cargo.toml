@@ -7,9 +7,6 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[features]
-fixture = []
-
 [dependencies]
 smith-agent-profile.workspace = true
 skein-oauth.workspace = true
@@ -35,12 +32,10 @@ smith-transcript.workspace = true
 smith-channel.workspace = true
 
 [dev-dependencies]
-smith-host-protocol = { workspace = true, features = ["fixture"] }
-smith-local-protocol = { workspace = true, features = ["fixture"] }
+smith-host-protocol-fixtures.workspace = true
+smith-local-protocol-fixtures.workspace = true
 
-# The crate's tests turn on its own fixture feature.
-smith-local-service = { path = ".", features = ["fixture"] }
-smith-local-domain = { workspace = true, features = ["fixture"] }
+smith-local-domain-fixtures.workspace = true
 skein-fake-oauth.workspace = true
 smith-local-process-world.workspace = true
 skein-fake-peers.workspace = true

@@ -5,7 +5,7 @@ use temper_engine_domain_forge::settings;
 use temper_engine_domain_world::kinds;
 
 const ASK_CHARTER: u32 = 11;
-const SETTINGS_CHARTER: u32 = 14;
+const SETTINGS_CHARTER: u32 = 17;
 
 fn box_owner() -> people::IdentityKey {
     people::IdentityKey { provider: 3, subject: b"owner-a".as_slice().into() }
@@ -36,7 +36,7 @@ fn defaults() -> s::Defaults {
 
         providers: Box::new([]),
     };
-    let mut defaults = temper_service::stock::with_models(llm.models.clone(), 4096);
+    let mut defaults = temper_engine_service::stock::with_models(llm.models.clone(), 4096);
     temper_engine_domain_world::forge_routes::add_settings_charter(&mut defaults);
     defaults
 }
@@ -386,6 +386,8 @@ fn drop_approvals(world: &mut World) {
                         | settings::Value::CharterWords(_)
                         | settings::Value::Goal(_)
                         | settings::Value::Classes(_)
+                        | settings::Value::ProjectAreas(_)
+                        | settings::Value::ProjectTriager(_)
                         | settings::Value::ProjectWords(_)
                         | settings::Value::Dependency(_)
                         | settings::Value::Follow(_) => None,

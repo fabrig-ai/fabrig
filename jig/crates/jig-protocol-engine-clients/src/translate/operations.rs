@@ -1,7 +1,7 @@
 //! General operation targets and template overrides, translated into people records.
 use super::{Untranslatable, asks};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_people as p;
 use skein_lib::List;
 
@@ -186,19 +186,6 @@ fn operation_project(value: &w::Operation) -> u32 {
 /// Party-created jobs and project mismatches are typed refusals before the core sees them.
 /// Job admission: jig/docs/design/client/domain/contract/documents.md, 7.
 pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::KeyedAnswer>, w::Problem> {
-    if let w::Ask::AccountChange(value) = record
-        && let Some(refusal) = super::accounts::login_refusal(value.change())
-    {
-        let answer = w::Final::Refused(w::Refused::new(limits, w::RefusedParts { refusal, at: None })?);
-        let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-        answer.encode(&mut out).expect("measured login refusal");
-        return Ok(Some(super::answers::owned(
-            w::Owner::Jig,
-            jig_client_protocol_wire::VERSION,
-            out.finish(),
-            limits,
-        )?));
-    }
     if let w::Ask::Create(value) = record {
         let mut reader = skein_lib::Reader::new(value.tasks());
         while let Some(bytes) = wire_piece(&mut reader)? {

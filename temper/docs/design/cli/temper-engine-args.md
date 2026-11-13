@@ -7,10 +7,10 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 ### `temper-engine serve`
 
 - **Set:** public
-- **Forms:** `[DIRECTORIES]`
+- **Forms:** `[DIRECTORIES] [--record]`
 - Run an engine alone's document until stopped; temper-worker serve runs a worker alone, and temper-box serve runs an engine and its worker in one process.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`
+- **Flags:** `--config CONFIG`, `--data DATA`, `--cache CACHE`, `--record`
 - **Notes:** Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure. Refuses a worker alone's document, naming temper-worker serve, or an engine and its worker in one process, naming temper-box serve.
 
 ### `temper-engine versions`
@@ -68,6 +68,11 @@ Generated from temper-engine's table (`skein/docs/design/runtime/shell.md`, 14.3
 - **Default:** $XDG_CACHE_HOME/temper
 - **Twin:** `TEMPER_CACHE`
 - Binaries that can be fetched again.
+
+### `--record`
+
+- **Set:** public
+- Have every page served record a journey in its browser, saved by Alt+Shift+S.
 
 ## Internal
 

@@ -1,5 +1,5 @@
 //! Project visibility records (jig/docs/design/domain/people/public-reading.md, 2 and 8).
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Reader, Writer};
 
 #[test]

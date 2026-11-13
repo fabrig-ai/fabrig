@@ -3,7 +3,7 @@ use super::{assert_empty, assert_too_linked, fixtures, linked_numbers, load, pag
 use crate::Store;
 use alloc::boxed::Box;
 use fixtures::{ALICE, CHILD, GOAL, GRANDCHILD, PROJECT};
-use jig_domain_core::{self as core, documents, reads};
+use jig_domain_core_vocabulary::{self as core, documents, reads};
 use jig_domain_tasks as tasks;
 
 fn owner_at(task: u64, at: u64, project: u32) -> core::Record {

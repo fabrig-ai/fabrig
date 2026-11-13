@@ -29,9 +29,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page, session, trial and standing-role watches across two project openings.
-                handles: 16,
-                watches: 18, // Includes How work runs’ follows and standing-role watches.
+                // The page handles, project-needs, session Away and Home decisions watches, trials and a running trial task.
+                handles: 21, // Four findings subjects and one live-goals menu.
+                watches: 23, // Four findings subjects and one live-goals menu.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -759,6 +759,7 @@ pub(super) fn root_at_with_classes(
                     }
                 }
                 w::Read::RevisionSetting(_)
+                | w::Read::Finding(_)
                 | w::Read::ProposalItems(_)
                 | w::Read::ProgramEnvironment
                 | w::Read::View(_) => {}

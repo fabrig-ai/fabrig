@@ -24,6 +24,7 @@ const POLL: Duration = Duration::from_millis(50);
 pub struct Paths {
     pub temper: PathBuf,
     pub bundle: PathBuf,
+    pub cache: Option<PathBuf>,
     pub chromium: PathBuf,
     pub scratch: PathBuf,
 }
@@ -61,7 +62,12 @@ pub fn again(
     ];
     for (flag, directory) in [("--config", "config"), ("--data", "data"), ("--cache", "cache")] {
         args.push(flag.into());
-        args.push(paths.scratch.join(directory).into_os_string());
+        let path = if directory == "cache" {
+            paths.cache.clone().unwrap_or_else(|| paths.scratch.join(directory))
+        } else {
+            paths.scratch.join(directory)
+        };
+        args.push(path.into_os_string());
     }
     let mut harness = Harness::new(Setup {
         server: launcher,
@@ -89,7 +95,16 @@ pub fn again(
     if let Some(step) = journey::differs(&walker.steps, &new) {
         return Err(Refusal::WalkDiffers { name: name.to_owned(), step });
     }
-    crate::add(journeys, name, &recording, &[]).map(|_| ())
+    crate::add(journeys, name, &recording, &private_paths(paths)).map(|_| ())
+}
+
+/// Local capture paths are given originals for the shared redactor (client/web/journeys.md, 3.6).
+pub(crate) fn private_paths(paths: &Paths) -> Vec<Box<[u8]>> {
+    [&paths.temper, &paths.bundle, &paths.scratch]
+        .into_iter()
+        .chain(paths.cache.iter())
+        .map(|path| path.as_os_str().as_bytes().into())
+        .collect()
 }
 
 /// Check the old walk before building or starting anything.

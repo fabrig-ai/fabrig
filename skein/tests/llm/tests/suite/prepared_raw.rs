@@ -54,15 +54,15 @@ fn completion_evidence(completion: &Completion, usage: [Option<u64>; 4], replay:
 fn observe(mut world: World, owner: Token, path: &[u8], usage: [Option<u64>; 4], replay: bool) {
     assert_eq!(world.machine.owner(), owner);
     assert_eq!(world.machine.waiting(), client::Waiting::Start);
-    assert!(world.seen.is_empty());
-    assert!(world.sent.is_empty());
+    assert_eq!(world.seen.len(), 0);
+    assert_eq!(world.sent.len(), 0);
     assert_eq!(world.source_at, 0);
     assert_eq!(world.demand, None);
     assert_eq!(world.grants, 0);
     world.fragmentation(1, 2);
     world.request(client::Request::Next);
     assert!(world.seen.is_empty(), "Next before Start spends no terminal right");
-    assert!(world.sent.is_empty());
+    assert_eq!(world.sent.len(), 0);
     world.request(client::Request::Start);
     world.run();
     world.assert_once();

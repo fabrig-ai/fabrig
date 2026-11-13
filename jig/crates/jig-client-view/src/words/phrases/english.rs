@@ -447,6 +447,7 @@ pub fn language() -> Language {
             JigPhrase::FailureRun => Box::new([Segment::Text(copy_of(b"Executor reported failure"))]),
             JigPhrase::FailureAgent => Box::new([Segment::Text(copy_of(b"Agent failed"))]),
             JigPhrase::FailureInvalid => Box::new([Segment::Text(copy_of(b"Result broke its contract"))]),
+            JigPhrase::FailureInfrastructure => Box::new([Segment::Text(copy_of(b"Infrastructure failure"))]),
             JigPhrase::RecurringSkip => {
                 Box::new([Segment::Text(copy_of(b"If the preceding batch is still live, skip this period"))])
             }

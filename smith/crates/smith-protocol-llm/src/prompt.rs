@@ -12,7 +12,7 @@ use crate::{Error, Limits, valid};
 
 /// Prepare the translated prompt and retained context for the connection
 /// component, which prepares the sole skein Client when it admits Start.
-pub(crate) fn prepare_component(
+pub fn prepare_component(
     owner: skein_lib::Token,
     prompt: llm::Prompt,
     outcome: run::outcome::OutcomeSpec,
@@ -31,8 +31,7 @@ pub(crate) fn prepare_component(
     Ok((translated, Context { owner, asker, grants, served, receiving, limits: *limits, outcome, deliver }))
 }
 
-/// Translate an isolated codec fixture's prompt and schemas under the component's bounds.
-#[cfg(any(test, feature = "fixture"))]
+/// Translate a prompt and supplied schemas under the component's bounds.
 pub fn prompt(input: llm::Prompt, schemas: &[ToolSchema], limits: &Limits) -> Result<skein_llm::Prompt, Error> {
     let (translated, _served) = translate(input, schemas, limits)?;
     Ok(translated)

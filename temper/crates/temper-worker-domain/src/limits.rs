@@ -32,6 +32,10 @@ pub struct Limits {
     /// its configuration derives and the hello states. The engine's grace is
     /// strictly longer.
     pub stop_bound: Duration,
+    /// Time allowed to finish current turns before shutdown cancels them.
+    pub drain: Duration,
+    /// Stop bound left after the link's ping, silence and contact grace.
+    pub after_grace: Duration,
     /// The backlog, in entries, at which the worker's service stops taking
     /// new work from the engine (skein's `programming-model.md`, 7.1;
     /// `domain/worker/README.md`, 3.1): a limit on pacing, not on memory.

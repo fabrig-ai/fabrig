@@ -7,10 +7,10 @@ pub(crate) fn start(
     party: Party,
     above: &mut Queue<Event>,
     below: &mut Below,
-) -> Result<Option<jig_domain_core::reads::Loaded>, reads::Failure> {
+) -> Result<Option<jig_domain_core_vocabulary::reads::Loaded>, reads::Failure> {
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
     if store.transcripts.reads.len() == store.limits.reads {
-        return Ok(Some(jig_domain_core::reads::Loaded::Busy));
+        return Ok(Some(jig_domain_core_vocabulary::reads::Loaded::Busy));
     }
     let task = match request {
         TranscriptRead::Window { task, .. } | TranscriptRead::Turn { task, .. } | TranscriptRead::Page { task, .. } => {

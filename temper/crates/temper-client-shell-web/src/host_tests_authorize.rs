@@ -1,6 +1,6 @@
 //! The shipped host carries Authorize exactly once and replaces only a successful departure.
 use super::*;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::Reader;
 const QUERY: &[u8] = b"client_id=forgejo&state=a+b%20c";
 fn sent(host: &mut Host) -> u32 {

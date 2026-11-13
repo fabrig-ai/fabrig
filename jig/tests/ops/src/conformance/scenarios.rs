@@ -112,7 +112,7 @@ impl State {
                 }
                 Vec::new()
             }
-            host::ToAgent::Cancel { agent } => {
+            host::ToAgent::Drain { agent } | host::ToAgent::Cancel { agent } => {
                 if let Some(worker) = self.workers.remove(&agent) {
                     self.spent += worker.actual_spent;
                     self.acknowledged += worker.turn_acks;

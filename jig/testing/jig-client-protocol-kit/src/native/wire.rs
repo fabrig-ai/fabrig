@@ -2,7 +2,7 @@
 use super::Received;
 use jig_client::{Event, Message, Request, Streamed};
 use jig_client_protocol_link::translate;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{Reader, Secret, Token};
 use std::collections::BTreeMap;
 
@@ -136,6 +136,7 @@ impl Wire {
                             attempt: *exchange,
                             final_answer: true,
                             unconfigured_model: false,
+                            closed_project: false,
                             words: None,
                         }]
                     }
@@ -146,6 +147,7 @@ impl Wire {
                             attempt: *exchange,
                             final_answer: false,
                             unconfigured_model: false,
+                            closed_project: false,
                             words: None,
                         }]
                     }

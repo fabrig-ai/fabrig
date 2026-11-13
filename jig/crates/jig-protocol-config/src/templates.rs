@@ -1,7 +1,7 @@
 //! Configured defaults for client shapes of work (jig/docs/design/protocol/configuration.md, 3.1 and 3.3).
 use crate::{Limits, Path, Problems, What, check, read};
 use alloc::boxed::Box;
-use jig_domain_core::{Charter, Model, Template};
+use jig_domain_core_vocabulary::{Charter, Model, Template};
 use jig_domain_people::{Symbol, TemplateBudget, TemplateDeadline, TemplateExecutor};
 use jig_domain_tasks as tasks;
 use skein_json::{Document, document::Kind};
@@ -66,7 +66,7 @@ pub(crate) fn check_overrides(
             if template.number == entry.template {
                 known = true;
                 let executor = entry.executor.unwrap_or(template.executor);
-                if !jig_domain_core::settings::templates::valid_executor(
+                if !jig_domain_core_vocabulary::settings::templates::valid_executor(
                     template,
                     executor,
                     &engine.charters,
@@ -451,7 +451,7 @@ fn model_effort(
     let name = check::text(&mut object, document, b"model", path, problems);
     let effort = match object.required(document, b"effort", path, problems) {
         Some(at) if null(document, at) => Some(None),
-        Some(at) => match read::text(document, at, jig_domain_core::EFFORT_BYTES) {
+        Some(at) => match read::text(document, at, jig_domain_core_vocabulary::EFFORT_BYTES) {
             Ok(effort) => Some(Some(effort)),
             Err(what) => {
                 problems.push(path.member(b"effort"), what);

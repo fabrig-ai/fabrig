@@ -26,8 +26,8 @@ extern crate alloc;
 
 mod answer;
 mod component;
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+#[cfg(test)]
+mod fixture;
 
 mod limits;
 mod list;

@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-11. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-12. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 2.1: only the local-process world sweeps the simulator's faults

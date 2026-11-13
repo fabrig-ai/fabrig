@@ -967,7 +967,7 @@ fn world_in_layout(
                                 views::answer(&mut root, read, view.address(), &mut out);
                             }
                         }
-                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Finding(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -1080,6 +1080,7 @@ fn world_in_layout(
                         | w::Watch::Ways(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals
+                        | w::Watch::Findings(_)
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {
                             continue;
@@ -2276,7 +2277,15 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
                 revision: 1,
                 before: c::PriorPhase::Active(c::RunStage::Idle),
                 escalation: None,
-                tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+                tries: c::FailureTries {
+                    transient: 0,
+                    permanent: 0,
+                    run: 0,
+                    agent: 0,
+                    lost: 0,
+                    invalid: 0,
+                    infrastructure: 0,
+                },
                 hold_wait_since: None,
             });
             line.chip.phase = c::Phase::Held;
@@ -2301,7 +2310,7 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
     }
     line
 }
-fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks {
+pub(super) fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks {
     let mut rows = List::with_capacity(window);
     let mut more = false;
     for f in goal_facts(w) {
@@ -4415,7 +4424,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 7,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 0,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
@@ -4455,7 +4472,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 7,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 2,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
@@ -4497,7 +4522,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 1,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 0,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
@@ -4747,7 +4780,7 @@ fn sample_answer(root: &mut Domain, attempt: Token, answer: jig_client::Answered
         out,
     );
 }
-fn sample_forge_answer(
+pub(super) fn sample_forge_answer(
     root: &mut Domain,
     attempt: Token,
     outcome: temper_client_protocol_wire::v1::Outcome,
@@ -4987,6 +5020,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesQueue::new(
                     &v::CEILINGS,
                     v::ChangesQueueParts {
+                        way: v::Way::Queue,
+                        in_flight: None,
                         repository: b"jeremy/fabrig".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: false,

@@ -14,6 +14,9 @@ pub(super) fn refusal(value: people::Refusal) -> application::Refusal {
             ..
         }
         | people::Refusal::ProgramNameReserved
+        | people::Refusal::NoTerminal
+        | people::Refusal::LoginUnderWay
+        | people::Refusal::NotLending
         | people::Refusal::NameTaken
         | people::Refusal::LiveTasks { .. }
         | people::Refusal::Circle { .. }
@@ -202,6 +205,7 @@ pub(super) fn failure_class(value: people::FailureClass) -> application::Failure
         people::FailureClass::Agent => application::FailureClass::Agent,
         people::FailureClass::Lost => application::FailureClass::Lost,
         people::FailureClass::Invalid => application::FailureClass::Invalid,
+        people::FailureClass::Infrastructure => application::FailureClass::Infrastructure,
     }
 }
 

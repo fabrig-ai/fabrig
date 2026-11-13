@@ -1029,6 +1029,8 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Application { kind: 8, scope, .. } => (b"project-classes".as_slice(), Some(scope)),
         c::Setting::Application { kind: 9, number, .. } => (b"charter-words".as_slice(), Some(number)),
         c::Setting::Application { kind: 10, scope, .. } => (b"project-words".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 14, scope, .. } => (b"project-areas".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 15, scope, .. } => (b"project-triager".as_slice(), Some(scope)),
         c::Setting::Application { kind, scope, number } => {
             return joined(&[
                 b"application kind ",

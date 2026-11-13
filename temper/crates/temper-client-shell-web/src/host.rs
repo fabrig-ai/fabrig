@@ -46,6 +46,7 @@ pub struct Duties {
     pub writes: u32,
     pub navigate: Option<Box<[u8]>>,
     pub replace: Option<Box<[u8]>>,
+    pub reload: bool,
     pub show: Option<(Box<[u8]>, bool)>,
 }
 
@@ -53,7 +54,7 @@ impl Duties {
     /// Whether carrying these duties leaves this page (client/web/journeys.md, 3.1).
     #[must_use]
     pub fn departs(&self) -> bool {
-        self.navigate.is_some() || self.replace.is_some()
+        self.navigate.is_some() || self.replace.is_some() || self.reload
     }
 }
 
@@ -71,6 +72,7 @@ pub struct Host {
     next: u32,
     navigate: Option<Box<[u8]>>,
     replace: Option<Box<[u8]>>,
+    reload: bool,
     show: Option<(Box<[u8]>, bool)>,
     copy: Option<(u32, Box<[u8]>)>,
     keep_look: Option<[u8; 4]>,
@@ -110,6 +112,7 @@ impl Host {
             push: Vec::new(),
             navigate: None,
             replace: None,
+            reload: false,
         }
     }
     /// The kept look's night on every page (client/pages/README.md).
@@ -214,6 +217,7 @@ impl Host {
             copy: self.copy.take(),
             navigate: self.navigate.take(),
             replace: self.replace.take(),
+            reload: std::mem::take(&mut self.reload),
             show: self.show.take(),
         }
     }
@@ -244,7 +248,11 @@ impl Host {
         view::event(&self.view, node, act)
     }
     fn act(&mut self, node: NodeId, act: Act) {
-        if let Some(event) = view::act_event(&mut self.view, node, act) {
+        if let Some(event) = view::shell_event(&self.view, node, &act) {
+            match event {
+                view::ShellEvent::Reload => self.reload = true,
+            }
+        } else if let Some(event) = view::act_event(&mut self.view, node, act) {
             self.event(event);
         }
     }
@@ -479,7 +487,7 @@ mod tab_tests {
     fn a_tab_refusal_has_no_duty_yet() {
         let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         let duties = host.report(Report::TabRefused);
-        assert!(duties.tab.is_empty());
+        assert_eq!(duties.tab.len(), 0);
         assert!(duties.asked.is_empty());
         assert_eq!(duties.writes, 0);
         assert!(duties.navigate.is_none());

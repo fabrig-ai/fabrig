@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 69] = [
+pub static PAGES: [Page; 72] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -311,7 +311,7 @@ pub static PAGES: [Page; 69] = [
         name: "server",
         kind: Kind::Walk,
         title: "Run temper on a server",
-        summary: "Run a long-lived deployment on a server: the engine behind a TLS proxy with Google sign-in, an owned Forgejo beside it, the workers on a second host, and a redeploy that keeps the model's accounts.",
+        summary: "Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Forgejo, workers on a second host; redeploy keeping model accounts.",
         text: include_str!("../../../docs/help/server.md"),
     },
     Page {
@@ -347,7 +347,7 @@ pub static PAGES: [Page; 69] = [
         name: "ctl-sign-in",
         kind: Kind::Reference,
         title: "temper ctl sign-in",
-        summary: "Sign in with the link the deployment printed.",
+        summary: "Sign in with a printed link or a service file.",
         text: include_str!("../../../docs/help/reference/ctl-sign-in.md"),
     },
     Page {
@@ -435,6 +435,20 @@ pub static PAGES: [Page; 69] = [
         text: include_str!("../../../docs/help/reference/ctl-change.md"),
     },
     Page {
+        name: "ctl-finding",
+        kind: Kind::Reference,
+        title: "temper ctl finding",
+        summary: "Findings: file, read, hand on and triage them.",
+        text: include_str!("../../../docs/help/reference/ctl-finding.md"),
+    },
+    Page {
+        name: "ctl-need",
+        kind: Kind::Reference,
+        title: "temper ctl need",
+        summary: "Needs: ask a person with choices and why.",
+        text: include_str!("../../../docs/help/reference/ctl-need.md"),
+    },
+    Page {
         name: "ctl-follow",
         kind: Kind::Reference,
         title: "temper ctl follow",
@@ -496,6 +510,13 @@ pub static PAGES: [Page; 69] = [
         title: "temper ctl revision",
         summary: "Settings revisions: read one or the history, move running work to the newest.",
         text: include_str!("../../../docs/help/reference/ctl-revision.md"),
+    },
+    Page {
+        name: "ctl-party",
+        kind: Kind::Reference,
+        title: "temper ctl party",
+        summary: "Parties: make a service with a project's role.",
+        text: include_str!("../../../docs/help/reference/ctl-party.md"),
     },
     Page {
         name: "ctl-project",

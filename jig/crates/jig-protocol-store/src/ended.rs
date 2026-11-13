@@ -1,6 +1,6 @@
 //! The core's archived reads translated by the kit (protocol/store/README.md, 3).
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, CoreKey, CoreRecord, Key, Now, Record};
+use jig_domain_core_vocabulary::{self as core, CoreKey, CoreRecord, Key, Now, Record};
 use jig_domain_tasks as tasks;
 
 #[must_use]

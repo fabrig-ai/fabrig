@@ -165,7 +165,7 @@ fn a_restart_finds_the_second_remote_first_by_its_own_token() {
     let tip = world.forge().branch(world.repository(1), b"main").expect("main");
     let next = prepare(&mut world, 0);
     let transfers = world.transfers(next, b"r1");
-    assert!(!transfers.is_empty());
+    assert_ne!(transfers, []);
     let brought: BTreeSet<_> = transfers.iter().flat_map(|transfer| transfer.commits.iter().copied()).collect();
     assert_eq!(brought, BTreeSet::from([tip]), "reordering finds r1's history, not r0's store");
     assert!(

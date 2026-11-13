@@ -2,6 +2,7 @@ use jig_client_views_world::World;
 use jig_domain_views::{Event, Follow, Request, TurnName};
 use skein_lib::Token;
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_second_delivery_in_flight_fails_the_referee() {
     assert!(
         std::panic::catch_unwind(|| {
@@ -13,6 +14,7 @@ fn a_second_delivery_in_flight_fails_the_referee() {
     );
 }
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn ending_before_the_delivery_terminal_fails_the_referee() {
     assert!(
         std::panic::catch_unwind(|| {
@@ -24,6 +26,7 @@ fn ending_before_the_delivery_terminal_fails_the_referee() {
     );
 }
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_document_without_an_owner_construction_fails_the_referee() {
     assert!(
         std::panic::catch_unwind(|| {
@@ -36,6 +39,7 @@ fn a_document_without_an_owner_construction_fails_the_referee() {
     );
 }
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_missed_final_change_fails_the_referee() {
     assert!(
         std::panic::catch_unwind(|| {
@@ -48,6 +52,7 @@ fn a_missed_final_change_fails_the_referee() {
     );
 }
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn corrupted_provisional_bytes_fail_the_referee() {
     assert!(
         std::panic::catch_unwind(|| {

@@ -12,7 +12,7 @@ fn the_framing_page_frames_the_application_s_page() {
     let page = crate::pages::framing(&target);
     assert_eq!(page.path.as_ref(), b"/framing");
     assert_eq!(page.kind.as_ref(), b"text/html");
-    assert!(page.headers.is_empty());
+    assert_eq!(page.headers.len(), 0);
     assert_eq!(
         page.body.as_ref(),
         br#"<!doctype html><title>Elsewhere</title><iframe src="http://{address}/inbox"></iframe>"#
@@ -25,7 +25,7 @@ fn the_forging_page_posts_to_the_mapping_s_request_route() {
     let page = crate::pages::forging(&target);
     assert_eq!(page.path.as_ref(), b"/forging");
     assert_eq!(page.kind.as_ref(), b"text/html");
-    assert!(page.headers.is_empty());
+    assert_eq!(page.headers.len(), 0);
     assert_eq!(page.body.as_ref(), br#"<!doctype html><title>Elsewhere</title><h1>Forging requests</h1><script>
 const body = Uint8Array.from(atob("Zm9yZ2Vk"), c => c.charCodeAt(0));
 Promise.allSettled([

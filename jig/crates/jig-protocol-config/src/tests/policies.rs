@@ -75,7 +75,16 @@ fn a_policy_past_the_rules_ceiling_refuses_startup() {
     let problems = fixtures::engine(&document).expect_err("policy ceilings exceed the rules");
     assert_eq!(
         problems.problems.as_slice(),
-        &[Problem { path: path(0), what: What::Bound }, Problem { path: path(1), what: What::Bound },]
+        &[
+            Problem {
+                path: path(0).member(b"policy"),
+                what: What::Because(b"policy authority or period spend exceeds deployment rules")
+            },
+            Problem {
+                path: path(1).member(b"policy"),
+                what: What::Because(b"policy authority or period spend exceeds deployment rules")
+            },
+        ]
     );
 }
 #[test]

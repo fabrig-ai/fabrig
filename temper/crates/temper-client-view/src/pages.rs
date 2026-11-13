@@ -18,6 +18,7 @@ mod claude_login;
 pub(crate) mod connect_model;
 mod decided;
 pub(crate) mod document;
+pub(crate) mod findings;
 pub(crate) mod goal;
 pub mod goals;
 pub mod home;

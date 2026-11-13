@@ -12,7 +12,7 @@ type Envelope = (Box<[u8]>, Box<[u8]>);
 pub struct Stand {
     limits: tools::Limits,
     calls: BTreeMap<core::CallKey, Envelope>,
-    settings_limits: jig_protocol_store::settings_v2::Limits,
+    settings_limits: jig_protocol_store::settings_v3::Limits,
     models: Box<[core::settings::ModelName]>,
 }
 

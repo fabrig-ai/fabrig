@@ -141,6 +141,10 @@ impl World {
                         assert_eq!(title, &self.title);
                         assert!(body.is_empty());
                     }
+                    git::Op::Create { at, .. } | git::Op::Push { at, .. } if self.kind.bound.kind == JobKind(1) => {
+                        assert_eq!(at.repository, self.repository);
+                        self.report.pushes += 1;
+                    }
                     git::Op::Push { at, .. } => {
                         assert_eq!(at.repository, self.repository);
                         self.report.pushes += 1;
@@ -155,6 +159,7 @@ impl World {
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
                     | git::Op::DiffPaths { .. }
+                    | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. } => {}
                 }
@@ -163,6 +168,7 @@ impl World {
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
             Request::Link(host::LinkUp::Draining) => {}
+            Request::Abandon => panic!("unexpected stop bound"),
             Request::Stop => self.stops += 1,
             Request::ReadList { .. }
             | Request::CancelRead { .. }
@@ -349,7 +355,7 @@ pub fn run(seed: u64, case: Case) -> Report {
     }
     let commit = world.forge.branch(REMOTE, b"topic").expect("delivery branch");
     world.report.tree = world.forge.tree(commit);
-    world.event(Event::Shutdown);
+    world.event(Event::Shutdown { drain: true });
     assert_eq!(world.stops, 1);
     assert_eq!(world.domain.kept_answers(), 0);
     world.report

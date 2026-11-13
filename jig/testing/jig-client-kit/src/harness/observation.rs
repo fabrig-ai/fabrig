@@ -39,6 +39,8 @@ pub enum Seen {
 /// Metadata of a keyed request at the shell's wire boundary.
 #[derive(Clone, Debug)]
 pub struct Sent {
+    /// The wire request belongs to an application family.
+    pub application: bool,
     pub attempt: Token,
     pub key: [u8; 16],
     pub card: Option<CardKey>,
@@ -60,6 +62,8 @@ pub enum Receipt {
         final_answer: bool,
         /// An unknown model name refused by the clients component before core admission.
         unconfigured_model: bool,
+        /// A closed-project application refusal without a stored answer (domain/people/acts.md, 2).
+        closed_project: bool,
         words: Option<(u64, u64)>,
     },
     /// The frame confirms the party; a read has no watch identity.

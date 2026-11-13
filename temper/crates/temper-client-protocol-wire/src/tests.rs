@@ -1,10 +1,31 @@
 //! Version, bounds and total outcome round trips (client/forge/records.md).
 mod drafts;
+mod findings;
 mod fixtures;
 mod source;
 use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
+
+/// A version is its schema's family line (jig/docs/design/protocol/client/README.md, section 6).
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
+fn version_constants_match_their_schemas() {
+    let client =
+        skein_codec::schema::parse(include_str!("../schema/client-wire-v1.schema").as_bytes()).expect("client schema");
+    assert_eq!(
+        crate::CLIENT_VERSION,
+        u32::from(client.version()),
+        "temper-client-wire CLIENT_VERSION must equal its family version"
+    );
+    let public =
+        skein_codec::schema::parse(include_str!("../schema/public-v1.schema").as_bytes()).expect("public schema");
+    assert_eq!(
+        crate::PUBLIC_VERSION,
+        public.version(),
+        "temper-public-wire PUBLIC_VERSION must equal its family version"
+    );
+}
 
 #[test]
 fn an_adopt_of_another_version_is_refused() {
@@ -1103,6 +1124,39 @@ fn ways_panel_round_trips() {
         assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
         assert_eq!(crate::decode_ways_panel(&fixtures::trailing(&bytes), &limits), None);
     }
+    let panel = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_full.bin"), &limits).unwrap();
+    let mut parts = panel.into_parts();
+    let mut way = parts.ways.get(0).unwrap().clone().into_parts();
+    let item = way.items.get(0).unwrap().clone();
+    way.items = List::with_capacity(10);
+    for _ in 0_u32..10 {
+        way.items.push(item.clone()).unwrap();
+    }
+    way.roles = List::with_capacity(4);
+    for running in [false, true, false, true] {
+        way.roles
+            .push(
+                v1::WayRole::new(
+                    &limits,
+                    v1::WayRoleParts { charter: 14, words: Box::new([b'w'; 480]), budget: 25_000, running },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    *parts.ways.get_mut(0).unwrap() = v1::StockWay::new(&limits, way).expect("ten items and four roles fit");
+    let panel = v1::WaysPanel::new(&limits, parts).unwrap();
+    let bytes = crate::ways_panel(&panel);
+    assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel.clone()));
+    let mut receiving = limits;
+    receiving.stock_way_items = 9;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
+    receiving = limits;
+    receiving.stock_way_roles = 3;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
+    receiving = limits;
+    receiving.way_role_words = 479;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
     for bytes in [
         include_bytes!("../golden/record_ways_panel_smallest.bin").as_slice(),
         include_bytes!("../golden/record_ways_panel_full.bin").as_slice(),
@@ -1990,6 +2044,7 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
         v1::TrialClass::Lost,
         v1::TrialClass::Invalid,
         v1::TrialClass::Refused,
+        v1::TrialClass::Infrastructure,
     ] {
         states
             .push(v1::TrialState::Failed(

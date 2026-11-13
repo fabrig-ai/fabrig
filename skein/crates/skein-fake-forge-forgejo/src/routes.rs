@@ -384,10 +384,10 @@ fn write(config: &Config, request: &Request) -> Result<Op, a::Error> {
             let how = match style {
                 d::MergeStyle::Squash => a::MergeHow::Style,
                 d::MergeStyle::FastForwardOnly => a::MergeHow::FastForwardOnly,
-                d::MergeStyle::Merge
-                | d::MergeStyle::Rebase
-                | d::MergeStyle::RebaseMerge
-                | d::MergeStyle::ManuallyMerged => return Err(a::Error::Refused),
+                d::MergeStyle::ManuallyMerged => a::MergeHow::Recorded { commit: commit(head).ok_or(missing)? },
+                d::MergeStyle::Merge | d::MergeStyle::Rebase | d::MergeStyle::RebaseMerge => {
+                    return Err(a::Error::Refused);
+                }
             };
             Ok(Op::Write(Write::Merge { number: *number, head: commit(head).ok_or(missing)?, how }))
         }

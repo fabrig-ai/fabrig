@@ -6,6 +6,19 @@ mod task_refusal;
 use crate::*;
 use skein_lib::Reader;
 
+/// A version is its schema's family line (protocol/client/README.md, section 6).
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
+fn version_constants_match_their_schemas() {
+    let client =
+        concat!(include_str!("../schema/client-v21.schema"), include_str!("../schema/client-v21-part1.schema"));
+    let client = skein_codec::schema::parse(client.as_bytes()).expect("client schema");
+    assert_eq!(VERSION, u32::from(client.version()), "jig-client-wire VERSION must equal its family version");
+    let public =
+        skein_codec::schema::parse(include_str!("../schema/public-v1.schema").as_bytes()).expect("public schema");
+    assert_eq!(PUBLIC_VERSION, public.version(), "jig-public-wire PUBLIC_VERSION must equal its family version");
+}
+
 fn a_keyed_request_past_its_bound_is_refused_naming_it() {
     let limits = fixtures::limits();
     let request = fixtures::bytes(limits.keyed_request.checked_add(1).expect("small bound"));

@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::translate::watches;
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core::{Event, documents as d};
+use jig_client_protocol_wire::v21 as w;
+use jig_domain_core_vocabulary::{Event, documents as d};
 use jig_domain_tasks as t;
 use skein_lib::Token;
 const QUERY_PROJECT: u32 = 3;

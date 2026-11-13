@@ -94,7 +94,7 @@ fn the_binary_runs_every_mode_as_temper_does() {
             .collect::<Vec<_>>(),
         [skein_shell::Reach::Words(&["help"])]
     );
-    assert!(AGENT.settings.is_empty());
+    assert_eq!((AGENT.settings).len(), 0);
     assert_eq!(
         sections.iter().find(|section| section.starts_with("flags:")),
         Some(

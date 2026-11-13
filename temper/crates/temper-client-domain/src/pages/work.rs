@@ -546,6 +546,17 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
     }
     if let Some(panel) = panel {
         for queue in panel.queues() {
+            if let Some(flight) = queue.in_flight() {
+                facts
+                    .changes
+                    .push(Change {
+                        signed: None,
+                        task: flight.member(),
+                        at: Where::Queued { place: 1, since: Wall::from_nanos(flight.ready_since()) },
+                        belongs: belongs(root, flight.member()),
+                    })
+                    .expect("one fact per train member");
+            }
             for (index, row) in queue.changes().iter().enumerate() {
                 facts
                     .changes
@@ -556,6 +567,8 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
                             place: u32::try_from(index)
                                 .expect("wire queue fits")
                                 .checked_add(1)
+                                .expect("wire queue fits")
+                                .checked_add(u32::from(queue.in_flight().is_some()))
                                 .expect("wire queue fits"),
                             since: Wall::from_nanos(row.ready_since()),
                         },

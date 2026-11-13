@@ -547,6 +547,7 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
         | a::Answer::Revision(_)
         | a::Answer::Done
         | a::Answer::Pushed(_)
+        | a::Answer::PushNew { .. }
         | a::Answer::Branch(_) => Err(a::Error::Refused),
     }
 }

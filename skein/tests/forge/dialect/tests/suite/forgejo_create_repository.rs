@@ -38,7 +38,7 @@ fn repository_creation_answers_decode_in_one_seven_and_whole_byte_chunks() {
                 decoded.document,
                 Ok(Document::CreatedRepository(common::cases::setup::created_repository(private)))
             );
-            assert!(decoded.rows.is_empty());
+            assert_eq!(decoded.rows.len(), 0);
         }
     }
 }

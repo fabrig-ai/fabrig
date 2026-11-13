@@ -2,7 +2,7 @@
 //! (temper/docs/design/protocol/configuration/settings.md, 2;
 //! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/README.md, 9).
 use alloc::boxed::Box;
-use jig_domain_core::settings::application::{Restored, RestoredEdit};
+use jig_domain_core_vocabulary::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};
 
 use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, TemplateGoal, Value};
@@ -352,7 +352,9 @@ impl Domain {
                 || key.kind == 8
                 || key.kind == 10
                 || key.kind == 12
-                || key.kind == 13)
+                || key.kind == 13
+                || key.kind == 14
+                || key.kind == 15)
                 && key.scope == project
             {
                 erases.push(*key).expect("bounded project setting rows");
@@ -382,6 +384,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -405,6 +409,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::Goal(_)
                     | Value::CharterWords(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -428,6 +434,8 @@ impl Domain {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -450,7 +458,9 @@ impl Domain {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
-                    | Value::Classes(_),
+                    | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_),
                 ..
             })
             | None => None,
@@ -473,6 +483,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -702,6 +714,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -757,6 +771,8 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
                 | Value::Ways(_)
                 | Value::CharterWords(_)
                 | Value::Classes(_)
+                | Value::ProjectAreas(_)
+                | Value::ProjectTriager(_)
                 | Value::ProjectWords(_),
             size,
         }) => (*size, None),

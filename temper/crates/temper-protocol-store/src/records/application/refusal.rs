@@ -1,6 +1,6 @@
 //! Forge application refusals at the family's embedded people-store version.
 use jig_domain_people as p;
-use jig_protocol_store::people_v15 as w;
+use jig_protocol_store::people_v16 as w;
 use skein_lib::Wall;
 pub(super) fn encode_failure_class(value: p::FailureClass, _l: &w::Limits) -> w::FailureClass {
     match value {
@@ -10,6 +10,7 @@ pub(super) fn encode_failure_class(value: p::FailureClass, _l: &w::Limits) -> w:
         p::FailureClass::Agent => w::FailureClass::Agent,
         p::FailureClass::Lost => w::FailureClass::Lost,
         p::FailureClass::Invalid => w::FailureClass::Invalid,
+        p::FailureClass::Infrastructure => w::FailureClass::Infrastructure,
     }
 }
 pub(super) fn decode_failure_class(value: w::FailureClass) -> p::FailureClass {
@@ -20,6 +21,7 @@ pub(super) fn decode_failure_class(value: w::FailureClass) -> p::FailureClass {
         w::FailureClass::Agent => p::FailureClass::Agent,
         w::FailureClass::Lost => p::FailureClass::Lost,
         w::FailureClass::Invalid => p::FailureClass::Invalid,
+        w::FailureClass::Infrastructure => p::FailureClass::Infrastructure,
     }
 }
 pub(super) fn encode_hold_reason(value: &p::HoldReason, l: &w::Limits) -> Result<w::HoldReason, w::Problem> {
@@ -376,6 +378,7 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
         | p::Refusal::SignInRedirect { .. } => {
             return Err(w::Problem { path: w::Path::RefusalTag, reason: skein_codec::Reason::Bound });
         }
+        p::Refusal::NoTerminal | p::Refusal::LoginUnderWay | p::Refusal::NotLending => unreachable!("terminal login decisions are stored by jig people, never application answers"),
         p::Refusal::NameTaken => w::Refusal::NameTaken,
         p::Refusal::Account { account, why } => w::Refusal::Account(w::RefusalAccount::new(
             l,

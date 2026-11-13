@@ -11,7 +11,16 @@ world lays the story's disk and handovers through the playground world's
 simulated seconds, its person waiting up to 60 s for each line it
 looks for.
 
-Section 9's replay clear of its byte bounds runs in the gate:
+**Departure, 2026-11-12 (the user):** story A's kept log is no longer
+checked at every landing, since every change to the engine's or the
+client's wire made each landing record it again. The walk keeps its own
+checks and writes the log only when asked to record; the three replays
+of the kept log (`walk.rs`'s `story_a_kept_log_replays_natively`,
+`replay.rs`'s `story_a_kept_log_replays_under_the_referee` and
+`temper-playground`'s `story_a_start_makes_its_project_and_adopts_widget`)
+are ignored, to be run by hand after the log is recorded again.
+
+Section 9's replay clear of its byte bounds, when run by hand:
 `walk.rs`'s `story_a_kept_log_replays_natively` replays the kept log
 over story A's deployment as kept and with each `*_bytes` override of
 its engine, its worker and its application doubled, and both reach the

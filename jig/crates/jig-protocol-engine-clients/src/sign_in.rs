@@ -1,7 +1,7 @@
 //! Independent printed and local links, fresh bearer tokens, and durable digest admission (protocol/client/sign-in.md).
 use crate::{Kept, SecretOwner, routes::Route};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{CryptoRng, Map, Secret, Time, Token, Writer, length::len_u64};
 /// How many past links a component keeps the digests of (protocol/client/sign-in.md).
 pub(crate) const PAST_LINKS: u32 = 8;
@@ -43,7 +43,7 @@ pub(crate) enum Waiting {
     Get { owner: crate::component::services::GetOwner, digest: Secret, body: Box<[u8]>, route: Route },
     Made { sign_in: u64, party: u64 },
     Moving { sign_in: u64, account: u32, number: u32 },
-    Read { sign_in: u64, what: Box<jig_domain_core::reads::Read> },
+    Read { sign_in: u64, what: Box<jig_domain_core_vocabulary::reads::Read> },
     ApplicationRead { sign_in: u64, family: u16, version: u32 },
     Ask { sign_in: u64, family: Option<u16>, version: u32 },
     // A request whose carried value the store is keeping: the core sees

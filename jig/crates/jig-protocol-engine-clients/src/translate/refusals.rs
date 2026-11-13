@@ -1,5 +1,5 @@
 //! Sparse entrance facts without invented names, words or bounds (client/domain/contract/README.md, 3).
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_people as p;
 use skein_lib::Writer;
 #[expect(clippy::too_many_lines, reason = "one total match preserves every people refusal")]
@@ -8,6 +8,9 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         p::Refusal::Forgotten { oldest } => {
             w::Refusal::Forgotten(w::RefusalForgotten::new(limits, w::RefusalForgottenParts { oldest })?)
         }
+        p::Refusal::NoTerminal => w::Refusal::NoTerminal,
+        p::Refusal::LoginUnderWay => w::Refusal::LoginUnderWay,
+        p::Refusal::NotLending => w::Refusal::NotLending,
         p::Refusal::NameTaken => w::Refusal::NameTaken,
         p::Refusal::Role { held } => {
             let held = match held {
@@ -356,6 +359,7 @@ fn hold(value: p::HoldReason, limits: &w::Limits) -> Result<w::HoldCategory, w::
                 p::FailureClass::Agent => w::HoldFailure::Agent,
                 p::FailureClass::Lost => w::HoldFailure::Lost,
                 p::FailureClass::Invalid => w::HoldFailure::Invalid,
+                p::FailureClass::Infrastructure => w::HoldFailure::Infrastructure,
             };
             w::HoldCategory::Failures(w::HoldCategoryFailures::new(limits, w::HoldCategoryFailuresParts { class })?)
         }

@@ -128,7 +128,7 @@ fn reconstruct(anthropic: bool) {
     }
     assert_eq!(requests, 3);
     assert_eq!(text_blocks, 1, "the child supplies text while main calls tools");
-    assert!(queries.is_empty());
+    assert_eq!(queries.len(), 0);
     assert!(deltas.is_empty());
     let trace = std::str::from_utf8(world.trace_bytes()).expect("UTF-8 JSON lines");
     assert!(!trace.contains("native-private-bearer-02.6"), "granted bearer bytes never reach the stream");

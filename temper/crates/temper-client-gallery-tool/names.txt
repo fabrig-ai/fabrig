@@ -270,6 +270,11 @@ needs-approval-path
 needs-decided
 needs-decided-project
 needs-done
+needs-finding
+needs-finding-drop
+needs-finding-hand
+needs-finding-refused
+needs-finding-route
 needs-funds
 needs-held
 needs-last
@@ -383,6 +388,11 @@ welcome-go-on
 welcome-model-away
 welcome-model-choose
 welcome-model-claude
+welcome-model-claude-no-terminal
+welcome-model-claude-not-finished
+welcome-model-claude-signed-in
+welcome-model-claude-signing-in
+welcome-model-claude-terminal
 welcome-model-connected
 welcome-model-declined
 welcome-model-forge-done

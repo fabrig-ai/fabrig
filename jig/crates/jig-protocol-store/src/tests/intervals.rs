@@ -4,8 +4,8 @@ const TASK: u64 = 2;
 use super::fixtures;
 use crate::{intervals, keys};
 use alloc::boxed::Box;
-use jig_domain_core::settings::{Key as SettingKey, Setting};
-use jig_domain_core::{CoreKey, Key, RestoreRange};
+use jig_domain_core_vocabulary::settings::{Key as SettingKey, Setting};
+use jig_domain_core_vocabulary::{CoreKey, Key, RestoreRange};
 use jig_domain_notes as notes;
 use skein_lib::Rng;
 
@@ -89,7 +89,7 @@ fn each_restart_range_holds_the_keys_it_admits_and_no_others() {
                 }
             }
             assert_eq!(intervals::cursor(&ranges, &bytes), expected, "{ranges:?} and {key:?}");
-            let domain = match jig_domain_core::restore_cursor(&ranges, &key) {
+            let domain = match jig_domain_core_vocabulary::restore_cursor(&ranges, &key) {
                 Some((interval, _)) => Some(interval),
                 None => None,
             };
@@ -110,7 +110,7 @@ fn domain_and_encoded_cursors_order_the_same_restart_walk() {
         let mut domain = skein_lib::List::with_capacity(count);
         let mut encoded = skein_lib::List::with_capacity(count);
         for key in &keys {
-            if let Some(cursor) = jig_domain_core::restore_cursor(&ranges, key) {
+            if let Some(cursor) = jig_domain_core_vocabulary::restore_cursor(&ranges, key) {
                 domain.push(cursor).expect("one cursor per key");
             }
             if let Some(cursor) = intervals::cursor(&ranges, &key_bytes(key)) {
@@ -185,7 +185,7 @@ fn no_restart_interval_holds_a_turn_terminal_or_note() {
 
 #[test]
 fn each_fixed_scope_holds_the_keys_it_admits_and_no_others() {
-    use jig_domain_core::reads;
+    use jig_domain_core_vocabulary::reads;
     let mut rng = Rng::new(0x5701_e006);
     let mut mappings = skein_lib::List::with_capacity(30);
     for scope in fixed_scopes() {
@@ -207,8 +207,8 @@ fn each_fixed_scope_holds_the_keys_it_admits_and_no_others() {
     }
 }
 
-fn fixed_scopes() -> [jig_domain_core::reads::Scope; 15] {
-    use jig_domain_core::reads::Scope;
+fn fixed_scopes() -> [jig_domain_core_vocabulary::reads::Scope; 15] {
+    use jig_domain_core_vocabulary::reads::Scope;
     [
         Scope::Proposal { proposer: jig_domain_people::Proposer::Party(1), proposal: 1 },
         Scope::Proposal { proposer: jig_domain_people::Proposer::Party(2), proposal: 1 },
@@ -228,27 +228,27 @@ fn fixed_scopes() -> [jig_domain_core::reads::Scope; 15] {
     ]
 }
 
-fn inbox_scope(group: jig_domain_core::reads::Group) -> jig_domain_core::reads::Scope {
-    use jig_domain_core::reads::{Filter, Scope};
+fn inbox_scope(group: jig_domain_core_vocabulary::reads::Group) -> jig_domain_core_vocabulary::reads::Scope {
+    use jig_domain_core_vocabulary::reads::{Filter, Scope};
     Scope::Inbox { group, filter: Filter { project: Some(1), goal: Some(1) } }
 }
 
-fn indexed_scopes() -> [jig_domain_core::reads::Scope; 3] {
-    use jig_domain_core::reads::Group;
+fn indexed_scopes() -> [jig_domain_core_vocabulary::reads::Scope; 3] {
+    use jig_domain_core_vocabulary::reads::Group;
     [inbox_scope(Group::Updates), inbox_scope(Group::Results), inbox_scope(Group::Replies)]
 }
 
 fn indexed_mapping(
     party: u64,
-    scope: jig_domain_core::reads::Scope,
-) -> (u64, jig_domain_core::reads::Scope, Box<[skein_kv::Range]>) {
+    scope: jig_domain_core_vocabulary::reads::Scope,
+) -> (u64, jig_domain_core_vocabulary::reads::Scope, Box<[skein_kv::Range]>) {
     let intervals = intervals::scope(party, &scope).expect("landed index family");
     (party, scope, intervals)
 }
 
 #[test]
 fn each_indexed_scope_holds_the_keys_it_admits_and_no_others() {
-    use jig_domain_core::reads;
+    use jig_domain_core_vocabulary::reads;
     let mut rng = Rng::new(0x5701_e007);
     let mut mappings = skein_lib::List::with_capacity(22);
     for scope in indexed_scopes() {
@@ -276,7 +276,7 @@ fn each_indexed_scope_holds_the_keys_it_admits_and_no_others() {
 
 #[test]
 fn a_partys_updates_interval_holds_no_other_partys_rows() {
-    use jig_domain_core::reads::Group;
+    use jig_domain_core_vocabulary::reads::Group;
     use jig_domain_tasks::{Key as TaskKey, Newest, UpdateObject};
     let ranges = intervals::scope(1, &inbox_scope(Group::Updates)).expect("updates index");
     for party in [0, 1, 2, u64::MAX] {
@@ -287,8 +287,8 @@ fn a_partys_updates_interval_holds_no_other_partys_rows() {
     }
 }
 
-fn census() -> jig_domain_core::Census {
-    use jig_domain_core::{Census, ReadResults};
+fn census() -> jig_domain_core_vocabulary::Census {
+    use jig_domain_core_vocabulary::{Census, ReadResults};
     Census {
         questions: Box::new([]),
         results: Box::new([
@@ -301,7 +301,7 @@ fn census() -> jig_domain_core::Census {
 
 #[test]
 fn the_census_holds_the_keys_it_admits_and_no_others() {
-    use jig_domain_core::Census;
+    use jig_domain_core_vocabulary::Census;
     let mut rng = Rng::new(0x5701_e008);
     let empty = RestoreRange::Census(Census { questions: Box::new([]), results: Box::new([]) });
     let listed = RestoreRange::Census(census());
@@ -408,7 +408,7 @@ fn the_people_restore_ranges_include_marks_and_skip_ended_read_positions() {
 
 #[test]
 fn the_census_reads_only_the_named_question_activity_positions() {
-    use jig_domain_core::Census;
+    use jig_domain_core_vocabulary::Census;
     let census = Census { questions: Box::new([(2, 3), (u64::MAX, u64::MAX)]), results: Box::new([]) };
     let ranges = intervals::restore(&RestoreRange::Census(census.clone()));
     for task in [0, 1, 2, u64::MAX] {

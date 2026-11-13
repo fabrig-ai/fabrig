@@ -301,6 +301,9 @@ pub enum Answered {
     SetAway(crate::SetAwayAnswer),
     Overturn(crate::OverturnAnswer),
     Device(crate::DeviceAnswer),
+    FileFinding(crate::FileFindingAnswer),
+    HandFinding(crate::HandFindingAnswer),
+    TriageFinding(crate::TriageFindingAnswer),
     SetDraft(crate::SetDraftAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
@@ -843,13 +846,28 @@ pub enum Writer {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Topic {
     /// A branch's tip moved.
-    Landings { repository: skein_forge::api::Repository, branch: Box<[u8]> },
+    Landings {
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+    },
     /// CI changed on one commit.
-    Ci { repository: skein_forge::api::Repository, head: skein_forge::api::Commit },
+    Ci {
+        repository: skein_forge::api::Repository,
+        head: skein_forge::api::Commit,
+    },
     /// A pull's state changed.
-    Pull { repository: skein_forge::api::Repository, number: u64 },
+    Pull {
+        repository: skein_forge::api::Repository,
+        number: u64,
+    },
     /// A participant wrote on an object.
-    Participation { repository: skein_forge::api::Repository, number: u64 },
+    Participation {
+        repository: skein_forge::api::Repository,
+        number: u64,
+    },
+    Findings {
+        project: u32,
+    },
 }
 /// A subscriber's classification of observed news.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1030,6 +1048,15 @@ pub struct ChangeRow {
     pub merge_result: Option<Box<[u8]>>,
 }
 impl ChangeRow {
+    /// The pull a judgement delegate reads; every other state keeps the change's pull.
+    #[must_use]
+    pub fn review_target(&self) -> Option<(u64, &[u8], &[u8], skein_forge::api::Commit)> {
+        if let change::State::Judging { target, .. } = &self.change.state {
+            return Some((target.pull, &target.branch, &target.base, target.prefix));
+        }
+        Some((self.pull?, &self.branch, &self.base, self.change.last_head?))
+    }
+
     /// A landed or ended change gathers no more brief or change facts.
     #[must_use]
     pub fn terminal(&self) -> bool {
@@ -1045,6 +1072,7 @@ impl ChangeRow {
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
             | change::State::Checking { .. }
+            | change::State::Judging { .. }
             | change::State::Gating { .. }
             | change::State::CancellingGates { .. }
             | change::State::Ready { .. }
@@ -1101,6 +1129,7 @@ pub struct AfterLanding {
 /// Why a landing cannot be made (domain/landing.md, 12).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LandingRefusal {
+    Train,
     Landings,
     Members,
     Repository,
@@ -1127,9 +1156,16 @@ pub enum Operation {
     Pending,
     Verdict,
     Merge,
+    Open,
+    Close,
+    Delete,
+    Record,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
+    pub held: Box<[u64]>,
+    pub failure: Box<[u8]>,
+    pub preparation: landing::Preparation,
     /// Live landings waiting prepared on a member of another live landing.
     pub kept: Box<[u64]>,
     pub released: bool,
@@ -1138,6 +1174,8 @@ pub struct LandingHeard {
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
+    /// Failed workflow jobs, captured before this receipt is published (domain/landing.md, 7.3).
+    pub logs: Box<[u8]>,
     pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
     pub passed: bool,
     pub run: ReceiptRun,
@@ -1203,6 +1241,7 @@ pub struct NamedCall {
 /// The connector's part of a named answer; core decisions remain outside it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPayload {
+    Finding(Box<crate::FindingReply>),
     Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> },
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
@@ -1307,6 +1346,7 @@ pub enum Stored {
     Away(crate::Away),
     Decided(crate::Decided),
     Device(crate::Device),
+    Finding(crate::Finding),
     LandedDraft(crate::LandedDraft),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
@@ -1349,6 +1389,7 @@ pub enum Key {
     Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
     Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
     LandingLog { repository: skein_forge::api::Repository },
+    Finding { project: u32, number: u32 },
     Dismissed { party: u64, what: crate::PersonFact },
     Making(crate::MakingKey),
     ProjectFacts { project: u32 },
@@ -1703,7 +1744,7 @@ pub enum Event {
         retention: skein_lib::Duration,
         ask: Ask,
         role: Option<jig_domain_people::Role>,
-        carried: Option<jig_domain_core::Carried>,
+        carried: Option<jig_domain_core_vocabulary::Carried>,
     },
     Looked {
         request: Token,
@@ -2159,6 +2200,11 @@ pub enum Request {
         number: u64,
         tip: skein_forge::api::Commit,
     },
+    /// File a red of no goal's in the decision keeping its verdict.
+    FileRedFinding {
+        task: u64,
+        finding: crate::FileFinding,
+    },
     TierDecision {
         task: u64,
         decision: TierDecision,
@@ -2185,6 +2231,10 @@ pub enum Request {
     /// Remove the box group (temper/docs/design/protocol/setup/box.md, 1).
     BoxRemove {
         forge: u16,
+    },
+    LandingNews {
+        task: u64,
+        step: LandingNews,
     },
     LandingDecision {
         task: u64,
@@ -2221,7 +2271,7 @@ pub enum Request {
         forge: u16,
         request: Token,
         how: How,
-        carried: jig_domain_core::Carried,
+        carried: jig_domain_core_vocabulary::Carried,
     },
     Manifest {
         forge: u16,
@@ -2360,6 +2410,13 @@ pub enum Request {
         resource: Option<Name>,
         cause: crate::RefusalCause,
     },
+    /// A new head did not fit (temper/docs/design/domain/forge/keeping-up.md, 1).
+    HeadRefused {
+        task: Option<u64>,
+        resource: Name,
+        configured: u64,
+        needed: u64,
+    },
     /// A goal's own branch could not be made (domain/forge/branches.md, 1).
     MakeFailed {
         task: u64,
@@ -2482,7 +2539,7 @@ pub enum Request {
     Replace {
         forge: u16,
         request: Token,
-        carried: jig_domain_core::Carried,
+        carried: jig_domain_core_vocabulary::Carried,
     },
     /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     LinkNoted {
@@ -2517,6 +2574,8 @@ pub enum TierDecision {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierHeard {
     pub released: bool,
+    /// The root's `tasks.message_bytes`, for the red finding's news body.
+    pub message_bytes: u32,
 }
 /// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -2639,6 +2698,15 @@ pub struct LoggedChange {
     pub title: Box<[u8]>,
 }
 
+/// The five landing transitions reported to its member's goal (domain/landing.md, 4.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LandingNews {
+    Joined,
+    Proving,
+    Landed,
+    Left,
+    Held,
+}
 /// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct SignOff {

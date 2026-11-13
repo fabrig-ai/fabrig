@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{Component, Event, LINK_SECRET_BYTES, MintRefusal, Settings, Unusable};
 use skein_lib::{Duration, Env, Queue, Secret, Time, Wall};

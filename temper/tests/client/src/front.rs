@@ -312,6 +312,8 @@ impl Joint {
         engine_limits.journal.writes = 4096;
         engine_limits.journal.deliveries = 64;
         engine_limits.journal.held = 192;
+        // The delegated batch and dependency-bearing task row fit whole.
+        engine_limits.journal.transcript_bytes = 9_504;
         engine_limits.fleet.slots = tasks;
         engine_limits.fleet.attempts = tasks * 2;
         let mut front =
@@ -642,6 +644,85 @@ impl Joint {
         joint
     }
 
+    /// The owner and the service's member role both have configured authority.
+    #[must_use]
+    pub fn with_service_party(seed: u64, limits: client::Limits) -> Self {
+        let mut engine_limits = engine_limits();
+        engine_limits.authority.roles = 2;
+        let configs = std::array::from_fn(|_| {
+            let mut config = walking::config(seed);
+            let owner = config.core.seed_projects[0].policy.policy.roles[0].clone();
+            let mut member = owner.clone();
+            member.number = 2;
+            config.core.seed_projects[0].policy.policy.roles = Box::new([owner, member]);
+            config
+        });
+        let mut joint =
+            Self::with_engine(seed, &limits, Store::with_limits(&engine_limits), configs, &engine_limits, 1);
+        joint.offer_printed_link(limits);
+        joint
+    }
+
+    /// Findings and person tasks with policy 1's request bits and own-role destinations.
+    /// The other stock authority fields use the world's small grants and budgets.
+    #[must_use]
+    pub fn with_finding_services(seed: u64, limits: client::Limits) -> Self {
+        use jig_domain_authority as a;
+        let mut engine_limits = engine_limits();
+        engine_limits.people.requests = 16;
+        engine_limits.people.people = 6;
+        engine_limits.people.holdings = 6;
+        engine_limits.people.sign_ins = 8;
+        engine_limits.authority.roles = 4;
+        engine_limits.authority.executors = 4;
+        engine_limits.documents.executors = 4;
+        engine_limits.tasks.parameters = 6;
+        engine_limits.tasks.contract_choices = 6;
+        let configs = std::array::from_fn(|index| {
+            let mut config = walking::config(seed);
+            config.core.connectors = Box::new([fixtures::FORGE]);
+            config.core.kinds = temper_engine_service::stock::kinds(&engine_limits, config.core.connectors[0])
+                .into_vec()
+                .into_iter()
+                .filter(|kind| kind.number == 14 || kind.number == 15)
+                .collect();
+            config.kinds_stock = Box::default();
+            let kinds: Box<[a::Executor]> =
+                Box::new([a::Executor::Charter(1), a::Executor::Role(0), a::Executor::Role(1), a::Executor::Role(2)]);
+            config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
+            let policy = &mut config.core.seed_projects[0].policy.policy;
+            policy.ceiling.delegation.kinds = kinds;
+            let owner = &mut policy.roles[0];
+            owner.authority.delegation.kinds = Box::new([a::Executor::Charter(1), a::Executor::Role(0)]);
+            let owner = owner.clone();
+            let mut maintainer = owner.clone();
+            maintainer.number = 1;
+            maintainer.requests = a::Requests(255);
+            maintainer.authority.delegation.kinds = Box::new([a::Executor::Charter(1), a::Executor::Role(1)]);
+            let mut member = owner.clone();
+            member.number = 2;
+            member.requests = a::Requests(185);
+            member.decides = a::Proposals(0);
+            member.authority.delegation.kinds = Box::new([a::Executor::Charter(1), a::Executor::Role(2)]);
+            let mut observer = member.clone();
+            observer.number = 3;
+            observer.requests = a::Requests(128);
+            observer.authority.delegation = a::Delegation { kinds: Box::default(), tasks: 0, depth: 0 };
+            policy.roles = Box::new([owner, maintainer, member, observer]);
+            if index == 0 {
+                // First-start rows use the ordinary bootstrap; application kinds
+                // are registered on the cold client's root below it.
+                config.core.kinds = Box::default();
+                config.kinds_stock = engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4);
+            }
+            config
+        });
+        let mut joint =
+            Self::with_engine(seed, &limits, Store::with_limits(&engine_limits), configs, &engine_limits, 1);
+        joint.offer_printed_link(limits);
+        joint
+    }
+
     /// Four retained Ask temper chats sharing the fixture's allowance, with two-row
     /// activity pages and the TUI's pasted-link sign-in (client/testing.md).
     #[must_use]
@@ -955,7 +1036,7 @@ impl Joint {
     /// The small profile carries a whole turn while an activity page can size it.
     #[must_use]
     pub fn with_large_turns(seed: u64, limits: &client::Limits) -> Self {
-        let profile = temper_service::limits::profile(temper_service::limits::Profile::Small).root;
+        let profile = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).root;
         Self::with_turn_bytes(seed, limits, profile.journal.transcript_bytes, profile.loads.read_bytes, None)
     }
     /// A committed turn past jig small's cap, with a configured whole-read allowance.
@@ -1340,7 +1421,7 @@ impl Joint {
             limits.brief.budgets.pull = 384;
             limits.brief.budgets.ci = 384;
             if settings {
-                config.core.kinds = temper_service::stock::kinds(&limits, connector);
+                config.core.kinds = temper_engine_service::stock::kinds(&limits, connector);
                 let owner = config.core.owners[0].clone();
                 config.core.owners =
                     Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);

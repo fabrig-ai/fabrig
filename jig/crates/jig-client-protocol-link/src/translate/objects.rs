@@ -3,7 +3,7 @@ use super::pages::{ended_fields, escalation_fields, person_task_fields, proposal
 use super::{Undecodable, classify};
 use crate::Limits;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 pub fn proposal(record: w::Proposal, limits: &Limits) -> Result<c::Proposal, Undecodable> {
     if u64::from(record.measure()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);

@@ -1,5 +1,6 @@
 //! A finite search belongs to its original call, credential selection and deadline.
 use skein_forge::api::{Answer, Bound, Error, Excess, Op, Read};
+use skein_forge_connection::seam::Access;
 use skein_forge_connection::{Request, seam::Tokens};
 use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, Secret, Time};

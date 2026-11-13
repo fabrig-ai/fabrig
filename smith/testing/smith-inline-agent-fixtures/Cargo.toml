@@ -1,0 +1,16 @@
+[package]
+license.workspace = true
+name = "smith-inline-agent-fixtures"
+description = "Shared test fixtures for smith-inline-agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+smith-inline-agent.workspace = true
+smith-domain.workspace = true
+
+[lints]
+workspace = true

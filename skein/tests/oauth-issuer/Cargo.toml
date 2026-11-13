@@ -15,8 +15,10 @@ doctest = false
 skein-lib.workspace = true
 skein-json.workspace = true
 skein-tls.workspace = true
-skein-oauth.workspace = true
+
+[dev-dependencies]
 skein-oauth-issuer.workspace = true
+skein-oauth.workspace = true
 skein-heap.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

@@ -2,7 +2,7 @@
 use super::super::{Untranslatable, asks, operations, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;
-use jig_domain_core::{self as c, settings as s};
+use jig_domain_core_vocabulary::{self as c, settings as s};
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{List, Reader};
@@ -73,6 +73,7 @@ fn setting_value(
     Ok(match value {
         w::SettingValue::Model(value) => s::Value::Model(Box::new(catalogue(*value))),
         w::SettingValue::Application(value) => s::Value::Application(value.into_parts().bytes),
+        w::SettingValue::Overlay(value) => s::Value::Overlay(Box::new(overlay(*value))),
         w::SettingValue::Charter(value) => s::Value::Charter(Box::new(charter(*value))),
         w::SettingValue::Template(value) => s::Value::Template(Box::new(template(*value, models, limits)?)),
         w::SettingValue::Policy(value) => s::Value::Policy(Box::new(policy(*value, models, limits)?)),
@@ -466,5 +467,75 @@ fn task_later(value: p::LlmLater) -> t::LlmLater {
     t::LlmLater {
         main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
         subagents: subagents.into_boxed(),
+    }
+}
+
+fn overlay(value: w::Overlay) -> s::Overlay {
+    let v = value.into_parts();
+    let alternatives = match v.alternatives {
+        Some(items) => {
+            let mut alternatives = List::with_capacity(items.len());
+            for value in items.into_boxed() {
+                alternatives.push(model(value)).expect("same count");
+            }
+            Some(alternatives.into_boxed())
+        }
+        None => None,
+    };
+    let documents = match v.documents {
+        Some(items) => {
+            let mut documents = List::with_capacity(items.len());
+            for document in items.into_boxed() {
+                let document = document.into_parts();
+                documents
+                    .push(c::Document {
+                        connector: document.connector,
+                        name: a::Name { segments: document.name.into_boxed() },
+                        path: document.path,
+                        heading: document.heading,
+                    })
+                    .expect("same count");
+            }
+            Some(documents.into_boxed())
+        }
+        None => None,
+    };
+    let mut parts = List::with_capacity(v.parts.len());
+    for item in v.parts.into_boxed() {
+        let item = item.into_parts();
+        parts.push(c::CharterPart { on: t::Reasons(item.on), instructions: item.instructions }).expect("same count");
+    }
+    s::Overlay {
+        rest: v.rest,
+        inspect: v.inspect,
+        modify: v.modify,
+        shell: v.shell,
+        agents: v.agents,
+        waiting: v.waiting,
+        resume: v.resume,
+        turns: v.turns,
+        time: v.time,
+        reserve_turns: v.reserve_turns,
+        reserve_time: v.reserve_time,
+        call_timeout: v.call_timeout,
+        spend: v.spend,
+        model: match v.model {
+            Some(item) => Some(model(item)),
+            None => None,
+        },
+        alternatives,
+        documents,
+        parts: parts.into_boxed(),
+        instructions: v.instructions,
+        tools: match v.tools {
+            Some(item) => Some(t::Tools(item)),
+            None => None,
+        },
+        hosts: match v.hosts {
+            Some(w::SettingHosts::Workers) => Some(jig_domain_fleet::Kinds::Workers),
+            Some(w::SettingHosts::Engine) => Some(jig_domain_fleet::Kinds::Engine),
+            Some(w::SettingHosts::Both) => Some(jig_domain_fleet::Kinds::Both),
+            None => None,
+        },
     }
 }

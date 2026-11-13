@@ -22,6 +22,7 @@ pub(super) fn make(domain: &Domain, project: u32, gathered: &Gathered) -> SeeNam
             | documents::Document::Result(_)
             | documents::Document::Note(_)
             | documents::Document::Inbox(_)
+            | documents::Document::Terminal { .. }
             | documents::Document::Accounts(_)
             | documents::Document::Deployment(_)
             | documents::Document::Settings(_) => None,

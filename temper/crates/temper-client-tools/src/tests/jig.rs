@@ -38,6 +38,7 @@ mod replays;
 mod specification;
 
 mod goal_template;
+mod party;
 mod restore;
 mod role;
 
@@ -50,3 +51,5 @@ fn malformed_setting(
 ) -> jig_client::contract::Malformed {
     jig_client::contract::Malformed::Settings(jig_client::contract::MalformedSettings { setting, fault, detail: None })
 }
+
+mod need;

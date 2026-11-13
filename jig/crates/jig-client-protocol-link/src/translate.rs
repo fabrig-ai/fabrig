@@ -11,7 +11,7 @@ pub(crate) mod programs;
 mod task_wait;
 use crate::Limits;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::Reader;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Undecodable {

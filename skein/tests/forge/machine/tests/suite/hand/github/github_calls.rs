@@ -1,5 +1,6 @@
 //! Ordinary calls use only their owner's accepted installation.
 use skein_forge::api::{self, Answer, Error, Op, Read, Write};
+use skein_forge_connection::seam::Access;
 use skein_forge_connection::{
     Request,
     seam::{Clock, Tokens},

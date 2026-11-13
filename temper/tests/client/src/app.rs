@@ -363,7 +363,14 @@ impl App for Temper {
                 {
                     return None;
                 }
-                Sent { attempt: *attempt, key: *key, card: Some(adoption_card()), revision: None, words: None }
+                Sent {
+                    application: true,
+                    attempt: *attempt,
+                    key: *key,
+                    card: Some(adoption_card()),
+                    revision: None,
+                    words: None,
+                }
             }
             jig_client::Ask::Jig(ask) => {
                 let mut sent = observe::jig_sent(*attempt, *key, ask);

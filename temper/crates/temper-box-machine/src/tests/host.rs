@@ -1157,7 +1157,7 @@ fn records_are_probed_before_start_and_written_private_or_reported() {
             let root = harness.machine.reopen_root(0);
             let file = harness.machine.open(root, b"box/started/3", How::Read).unwrap();
             assert_eq!(harness.machine.stat(file).mode & 0o777, 0o600, "{name}: private record");
-            assert!(harness.machine.read(file, 0, 1).unwrap().is_empty());
+            assert_eq!(harness.machine.read(file, 0, 1).unwrap().len(), 0);
             harness.machine.close(file);
             harness.machine.close(root);
         }

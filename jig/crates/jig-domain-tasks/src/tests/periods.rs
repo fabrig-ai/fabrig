@@ -23,15 +23,15 @@ fn supplied_period_boundaries_preserve_the_opening_wall_across_duplicates_and_re
         }
     }
     assert!(saved);
-    assert!(test.send(Event::PeriodNext { project: 1, period: 1, next }).is_empty());
+    assert_eq!(test.send(Event::PeriodNext { project: 1, period: 1, next }).len(), 0);
     test.restart();
     assert_eq!(test.domain.funding(source).unwrap().period, Some(PeriodTimes { began: first.began, next }));
     test.send(Event::PeriodNext { project: 1, period: 1, next: None });
     assert_eq!(test.domain.funding(source).unwrap().period, Some(first));
     test.env.wall = Wall::from_nanos(800);
     test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 2, budget: 100 });
-    assert!(test.send(Event::PeriodNext { project: 1, period: 1, next }).is_empty());
-    assert!(test.send(Event::PeriodNext { project: 9, period: 2, next }).is_empty());
+    assert_eq!(test.send(Event::PeriodNext { project: 1, period: 1, next }).len(), 0);
+    assert_eq!(test.send(Event::PeriodNext { project: 9, period: 2, next }).len(), 0);
     test.restart();
     assert_eq!(
         test.domain.funding(Funder::Period { project: 1, period: 2 }).unwrap().period,

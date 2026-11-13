@@ -19,7 +19,7 @@ use std::{
 )]
 use std::process::Command;
 
-use smith_protocol_program::{Error, Programs, SIGN_IN, configuration_directory, keeps};
+use smith_protocol_program::{ANTHROPIC_DIRECTORY, Error, Programs, SIGN_IN, configuration_directory, keeps};
 
 /// Why a source's directories were refused before its program ran.
 #[derive(Debug)]
@@ -149,6 +149,7 @@ pub fn sign_in(program: &Path, configuration: &Path, base: impl IntoIterator<Ite
     }
     command
         .env("CLAUDE_CONFIG_DIR", configuration)
+        .env("ANTHROPIC_CONFIG_DIR", configuration.join(ANTHROPIC_DIRECTORY))
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());

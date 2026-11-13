@@ -20,7 +20,7 @@ fn a_person_at_the_terminal_reads_a_run_of_calls() {
         || {
             [sign_in(D1), terminal::open()]
                 .into_iter()
-                .chain(super::support::start_change(true))
+                .chain(terminal::start_change(true))
                 .chain([
                     terminal::see(b"What do you want done?"),
                     terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
@@ -61,7 +61,7 @@ fn a_person_at_the_terminal_reads_a_chats_committed_reply() {
         || {
             [sign_in(D1), terminal::open()]
                 .into_iter()
-                .chain(super::support::start_change(true))
+                .chain(terminal::start_change(true))
                 .chain([
                     terminal::see(b"What do you want done?"),
                     terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
@@ -141,7 +141,7 @@ fn up_down_and_the_page_up_line_read_the_conversation() {
         || {
             [sign_in(D1), terminal::open_reading()]
                 .into_iter()
-                .chain(super::support::start_change(true))
+                .chain(terminal::start_change(true))
                 .chain([
                     terminal::type_on(b"What do you want done?", b"Read our earlier words"),
                     terminal::see_without(FIRST, PROVISIONAL),

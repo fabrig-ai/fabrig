@@ -43,8 +43,8 @@ mv temper.next.json temper.json
 ```
 
 `root.journal.run_bytes` bounds a run's stored policy, a charter's whole
-policy among it. The box's bound and the reference room's override are both
-65,536 bytes, admitting the reference's charter of 31 KB. A charter's `turns`, its `time` and the run's
+policy and parts among it. The box's bound and the reference room's override
+are both 65,536 bytes, admitting the charters its overlays make over the stock. A charter's `turns`, its `time` and the run's
 spend must fit the bounds a worker advertises, or no host takes its tasks
 (`../../../../jig/crates/jig-domain-fleet/src/needs.rs`, `charter_shortfall`
 and `shortfall`).
@@ -55,7 +55,8 @@ allowance cannot host them. No charter's spend, period or time changes.
 
 ## Authority for the reference charters
 
-Installing charters alone grants no task authority. Widen the rules ceiling,
+Installing charters alone grants no task authority. The reference overlays the
+stock's charters 5 and 2 with its fields and no text; its runs read the stock's words. Widen the rules ceiling,
 policy 1's ceiling and the creator-role authority before starting a reference goal.
 
 Required: delegate 1, message 2, control 4 (`amend`, `cancel`, `release`, `decided`),
@@ -72,7 +73,7 @@ temper ctl DIR settings show rules --json > reference-rules.json
 temper ctl DIR settings show policy 1 --json > reference-policy.json
 cat > reference-authority.json <<'JSON'
 {"tools": [8, 16, 32, 128, 256], "notes": [1, 2],
- "kinds": [{"charter": 5}, {"charter": 7}, {"charter": 8},
+ "kinds": [{"charter": 5},
            {"procedure": 2}, {"procedure": 6}, {"job": 3}, {"job": 4}, {"role": 0}]}
 JSON
 cat > reference-authority.jq <<'JQ'
@@ -82,11 +83,11 @@ def grant($bits):
 def widen:
   .tools |= grant($required[0].tools)
   | .notes |= grant($required[0].notes)
-  | .delegation.kinds |= (. + $required[0].kinds | unique | map(select(. != {"charter": 12} and . != {"charter": 6})));
+  | .delegation.kinds |= (. + $required[0].kinds | unique | map(select(. != {"charter": 12} and . != {"charter": 13} and . != {"charter": 6})));
 .items |= map(
   .set.ceiling |= widen
   | if .setting.kind == "rules" then .
-    else (.set.roles[] | .authority.delegation.kinds) |= map(select(. != {"charter": 12} and . != {"charter": 6}))
+    else (.set.roles[] | .authority.delegation.kinds) |= map(select(. != {"charter": 12} and . != {"charter": 13} and . != {"charter": 6}))
       | (.set.roles[] | select(.number == $role) | .authority) |= widen
     end)
 JQ
@@ -96,11 +97,12 @@ jq --slurpfile required reference-authority.json --argjson role ROLE -f referenc
 
 Expect: widened rules and policy 1 in `FILE`. The stock's
 delegation already holds coordinator charter 5, change procedure 2,
-goal closer procedure 6, merge job 3, close job 4 and person role 0; the widening adds designer charter 7 and takes out
-the drafter's charter 12, which the reference's work never starts, and retired charter 6, keeping each
-kind once. With triage charter 8, the reference holds seventeen executor places,
+goal closer procedure 6, merge job 3, close job 4 and person role 0. The widening takes out
+the drafter's charter 12 and the standing role's charter 13, which the reference's
+work never starts, and retired charter 6, keeping each kind once.
+The reference holds fifteen executor places,
 within jig standard's `authority.executors` and `tasks.executor_kinds` of 18.
-No executor override is needed in `limits.json`. Install charters first, offering these families.
+No executor override is needed in `limits.json`. Apply the overlays first, offering these families.
 Size tasks, depth and spend (temper help budget).
 
 Policy 1 affects future projects. Existing projects need project-policy.

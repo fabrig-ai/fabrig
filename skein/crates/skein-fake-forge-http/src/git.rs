@@ -29,9 +29,14 @@ pub fn status(error: api::Error, name: Name) -> u16 {
         api::Error::Forbidden | api::Error::Protected | api::Error::Refused => 403,
         api::Error::Full => match name {
             Name::Commit | Name::Merge | Name::CommitTree => 507,
-            Name::Clone | Name::Fetch | Name::Create | Name::Push | Name::Branch | Name::Objects | Name::Ancestor => {
-                413
-            }
+            Name::Clone
+            | Name::Fetch
+            | Name::Create
+            | Name::Push
+            | Name::Branch
+            | Name::Objects
+            | Name::Ancestor
+            | Name::PushNew => 413,
         },
         api::Error::TooLarge => 413,
         api::Error::Unreachable => 502,
@@ -56,6 +61,7 @@ pub enum Name {
     Merge,
     CommitTree,
     Ancestor,
+    PushNew,
 }
 impl Name {
     #[must_use]
@@ -71,19 +77,20 @@ impl Name {
             Self::Merge => b"merge",
             Self::CommitTree => b"commit-tree",
             Self::Ancestor => b"ancestor",
+            Self::PushNew => b"push-new",
         }
     }
     #[must_use]
     pub const fn repository(self) -> bool {
         match self {
-            Self::Clone | Self::Fetch | Self::Create | Self::Push | Self::Branch => true,
+            Self::Clone | Self::Fetch | Self::Create | Self::Push | Self::Branch | Self::PushNew => true,
             Self::Objects | Self::Commit | Self::Merge | Self::CommitTree | Self::Ancestor => false,
         }
     }
     #[must_use]
     pub const fn writes(self) -> bool {
         match self {
-            Self::Create | Self::Push => true,
+            Self::Create | Self::Push | Self::PushNew => true,
             Self::Clone
             | Self::Fetch
             | Self::Branch
@@ -109,6 +116,7 @@ pub fn name(target: &[u8]) -> Option<Result<Name, Unrouted>> {
         b"merge" => Ok(Name::Merge),
         b"commit-tree" => Ok(Name::CommitTree),
         b"ancestor" => Ok(Name::Ancestor),
+        b"push-new" => Ok(Name::PushNew),
         _ => Err(Unrouted::NotFound),
     })
 }
@@ -124,6 +132,7 @@ pub enum Call {
     Merge { parent: u64, merge_parent: u64, tree: Box<[api::File]>, message: Box<[u8]> },
     CommitTree { parent: u64, merging: Option<u64>, tree: Box<[api::File]>, message: Box<[u8]> },
     Ancestor { ancestor: u64, commit: u64 },
+    PushNew { repository: Box<[u8]>, branch: Box<[u8]>, commit: u64 },
 }
 impl Call {
     #[must_use]
@@ -139,6 +148,7 @@ impl Call {
             Self::Merge { .. } => Name::Merge,
             Self::CommitTree { .. } => Name::CommitTree,
             Self::Ancestor { .. } => Name::Ancestor,
+            Self::PushNew { .. } => Name::PushNew,
         }
     }
 }
@@ -165,6 +175,7 @@ pub enum Answer {
     Stored(Option<u64>),
     Objects { objects: Box<[Object]>, graph: Box<[Parents]> },
     Ancestor(bool),
+    PushNew { existing: Option<u64> },
 }
 
 /// Both decoders retain compact token records and decoded text through Done.

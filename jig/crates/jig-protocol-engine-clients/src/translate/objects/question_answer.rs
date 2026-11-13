@@ -1,5 +1,6 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::super::{owner, w};
+use alloc::boxed::Box;
 use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
 pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::MessageKind, w::Problem> {
@@ -101,9 +102,7 @@ pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::Mes
 }
 pub fn word_result(value: &t::ResultKind, limits: &w::Limits) -> Result<w::WordResult, w::Problem> {
     Ok(match value {
-        t::ResultKind::Job => {
-            return Err(w::Problem { path: w::Path::WordResultTag, reason: skein_codec::Reason::Malformed });
-        }
+        t::ResultKind::Job => w::WordResult::Job,
         t::ResultKind::NoChange | t::ResultKind::Report => w::WordResult::Report,
         t::ResultKind::Failed => w::WordResult::Failed,
         t::ResultKind::Cancelled => w::WordResult::Cancelled,
@@ -132,6 +131,9 @@ pub fn word_result(value: &t::ResultKind, limits: &w::Limits) -> Result<w::WordR
         }
     })
 }
+fn crossing_words(kind: &t::MessageKind, words: &[u8]) -> Box<[u8]> {
+    if let t::MessageKind::Result(t::ResultKind::Job) = kind { Box::new([]) } else { bytes::copy_of(words) }
+}
 pub fn word(value: &t::Word, limits: &w::Limits) -> Result<w::Word, w::Problem> {
     w::Word::new(
         limits,
@@ -139,7 +141,7 @@ pub fn word(value: &t::Word, limits: &w::Limits) -> Result<w::Word, w::Problem> 
             number: value.number,
             from: owner::requester(value.from, limits)?,
             kind: message_kind(&value.kind, limits)?,
-            words: bytes::copy_of(&value.words),
+            words: crossing_words(&value.kind, &value.words),
             at: value.at.as_nanos(),
             hits: value.hits,
             eligible: value.eligible,
@@ -154,7 +156,7 @@ pub fn answer(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::Activity
                 message: *message,
                 by: owner::requester(*by, limits)?,
                 kind: message_kind(kind, limits)?,
-                words: bytes::copy_of(words),
+                words: crossing_words(kind, words),
             },
         )?),
         t::Line::Heard(value) => {

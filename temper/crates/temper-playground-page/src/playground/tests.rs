@@ -81,7 +81,7 @@ fn each_frame_control_has_its_report() {
 #[test]
 fn story_a_has_its_own_description() {
     let (_, description) = STORIES.iter().find(|(name, _)| *name == "a").expect("story a");
-    assert!(!description.trim().is_empty());
+    assert_ne!(description.trim(), "");
     assert!(description.contains("three suggested requests"));
 }
 

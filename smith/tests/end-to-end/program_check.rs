@@ -6,7 +6,7 @@ use std::os::unix::fs::DirBuilderExt;
 
 pub(super) fn setup(method: Option<&str>, status: Status) -> (Scratch, std::path::PathBuf) {
     let scratch = Scratch::new();
-    let executable = skein_scratch::paths::binary("fake-claude");
+    let executable = support::fake_claude();
     let settings = format!(
         "model='anthropic/claude-haiku-5-5'\nsub_agents=false\n[programs]\nclaude_code='{}'\n[accounts.work]\nprovider='anthropic'\nsource='program'\n[endpoints.anthropic]\npreset='anthropic'\naccount='work'\nprogram='claude_code'\n",
         executable.display()

@@ -211,7 +211,9 @@ impl Golden {
         let hex = text.lines().find_map(|line| line.strip_prefix("spec "))?.trim();
         let bytes: Result<Vec<_>, _> = hex
             .as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).expect("hex"), 16))
             .collect();
         bytes.ok()?.try_into().ok()

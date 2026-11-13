@@ -2,6 +2,7 @@
 
 2026-11-12. Where temper's code lags or departs from [git.md](git.md).
 
+
 Section 4.7's delivery snapshot has no known implementation gap: it reads
 HEAD and MERGE_HEAD, checks a second parent against freshly fetched remote
 branches and tags, preserves a local commit whose tree is delivered, and

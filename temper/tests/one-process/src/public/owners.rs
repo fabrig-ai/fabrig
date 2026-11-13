@@ -416,7 +416,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) {
             forge_references(row, application.record());
         }
         6 | 7 => {
-            use jig_client_protocol_wire::v19 as w;
+            use jig_client_protocol_wire::v21 as w;
             let versions = w::NotServed::decode(&w::CEILINGS, &mut reader).expect("not-served record");
             assert_eq!(versions.served().len(), 1);
             let version = versions.served().iter().next().expect("served version");
@@ -435,12 +435,20 @@ fn forge_references(row: usize, record: &[u8]) {
         3 => assert_eq!(fields.u16(), Some(0), "a change names its envelope place, never its internal task number"),
         4 => {
             assert_eq!(fields.u8(), Some(0), "the ended landing holds no turn");
-            assert_eq!(fields.u32(), Some(1), "one public landing");
-            assert_eq!(fields.u32(), Some(1), "one public member");
-            assert_eq!(fields.u16(), Some(0), "member is the envelope's task");
-            assert_eq!(fields.u8(), Some(5), "landed phase");
-            assert_eq!(fields.u32(), Some(1), "one landed commit");
-            fields.bytes(32).expect("public merge commit");
+            assert_eq!(fields.u32(), Some(2), "the conflicted landing and the later landed one");
+            let mut landed = 0;
+            for _ in 0..2 {
+                assert_eq!(fields.u32(), Some(1), "one public member");
+                assert_eq!(fields.u16(), Some(0), "member is the envelope's task");
+                assert_eq!(fields.u8(), Some(5), "ended phase");
+                let commits = fields.u32().expect("landed commits");
+                assert!(commits <= 1);
+                landed += commits;
+                if commits == 1 {
+                    fields.bytes(32).expect("public merge commit");
+                }
+            }
+            assert_eq!(landed, 1, "only the later landing brought the member");
             assert_eq!(fields.u32(), Some(0), "ended changes occupy no queue");
             assert!(fields.is_empty());
         }

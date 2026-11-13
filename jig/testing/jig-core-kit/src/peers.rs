@@ -593,6 +593,9 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
         people::Refusal::NotWaiting => parties::Refusal::NotWaiting,
         people::Refusal::NoFurther => parties::Refusal::NoFurther,
         people::Refusal::LiveTasks { .. }
+        | people::Refusal::NoTerminal
+        | people::Refusal::LoginUnderWay
+        | people::Refusal::NotLending
         | people::Refusal::SignInRedirect { .. }
         | people::Refusal::AccountMove { .. }
         | people::Refusal::ProgramNameReserved => {
@@ -761,6 +764,7 @@ fn party_failure(value: people::FailureClass) -> parties::FailureClass {
         people::FailureClass::Agent => parties::FailureClass::Agent,
         people::FailureClass::Lost => parties::FailureClass::Lost,
         people::FailureClass::Invalid => parties::FailureClass::Invalid,
+        people::FailureClass::Infrastructure => parties::FailureClass::Infrastructure,
     }
 }
 

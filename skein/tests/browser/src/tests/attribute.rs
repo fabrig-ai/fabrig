@@ -142,7 +142,7 @@ fn an_attribute_read_waits_for_navigation_to_finish() {
     let mut world = world();
     notify(&mut world, NAVIGATING);
     ask(&mut world, b"input", b"value");
-    assert!(world.sent.is_empty());
+    assert_eq!(world.sent.len(), 0);
     notify(&mut world, LOADED);
     assert_eq!(value(&mut world), Read::Value(b"first".as_slice().into()));
 }

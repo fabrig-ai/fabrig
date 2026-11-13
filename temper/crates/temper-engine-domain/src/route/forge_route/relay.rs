@@ -425,6 +425,7 @@ pub(super) fn questions_held(state: &change::State) -> bool {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }

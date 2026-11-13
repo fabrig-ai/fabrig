@@ -796,7 +796,7 @@ fn budget_held_owner_tasks_and_inbox_rows_share_the_recovery_words() {
         revision: fixtures::HOLD,
         before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: None,
     }));
     let (mut page, mut watched) = fixtures::owner_first_window(1, false);
@@ -906,7 +906,15 @@ fn check_placed_hold(
             revision: 7,
             before: c::PriorPhase::Waiting,
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 0,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         }));
 
@@ -1022,7 +1030,15 @@ fn connector_hold_words_reach_ctl_text_and_json_with_an_explicit_uncertainty_dec
                 revision: fixtures::HOLD,
                 before: c::PriorPhase::Active(c::RunStage::Idle),
                 escalation: None,
-                tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+                tries: c::FailureTries {
+                    transient: 0,
+                    permanent: 0,
+                    run: 0,
+                    agent: 0,
+                    lost: 0,
+                    invalid: 0,
+                    infrastructure: 0,
+                },
                 hold_wait_since: None,
             }));
             let argv = fixtures::extended(fixtures::TASK_CALL, if json { &["--json"] } else { &[] });

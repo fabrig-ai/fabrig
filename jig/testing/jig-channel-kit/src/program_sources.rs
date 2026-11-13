@@ -388,7 +388,8 @@ impl Host for Login {
                 smith_protocol_program::Launch {
                     program: b"claude".as_slice().into(),
                     arguments: smith_protocol_program::SIGN_IN.iter().map(|arg| Box::from(*arg)).collect(),
-                    environment: Box::new([Box::from(b"CLAUDE_CONFIG_DIR=/private/programs/alice".as_slice())]),
+                    environment: smith_protocol_program::environment(&[], b"/private/programs/alice")
+                        .expect("login environment"),
                     root: self.root,
                     directory: b".".as_slice().into(),
                 },

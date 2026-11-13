@@ -98,7 +98,7 @@ fn a_restored_batch_past_its_bytes_is_the_batch_bound() {
         };
         let out = h.send(Event::Restore { record: Stored::PersonProposal(Box::new(row)) });
         if accepted {
-            assert!(out.is_empty());
+            assert_eq!(out.len(), 0);
             assert_eq!(h.domain.restore_failure(), None);
         } else {
             assert_eq!(

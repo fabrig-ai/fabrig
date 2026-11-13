@@ -170,6 +170,7 @@ fn owner_milestone_all_sixteen_hold_categories_and_six_failures_preserve_prior_w
         HoldFailure::Agent,
         HoldFailure::Lost,
         HoldFailure::Invalid,
+        HoldFailure::Infrastructure,
     ] {
         let value = line(MilestonePhase::Held {
             before: PriorPhase::Active(RunStage::Running { attempt: u64::MAX }),

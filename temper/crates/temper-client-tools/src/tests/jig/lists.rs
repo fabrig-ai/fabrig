@@ -358,7 +358,7 @@ fn inbox_questions_print_words_and_calls_within_and_past_the_text_bound() {
                 } else {
                     let shown = printed.lines().nth(1).expect("question words").strip_suffix(" (cut)").expect("cut");
                     assert!(words.starts_with(shown.as_bytes()));
-                    assert!(!shown.is_empty());
+                    assert_ne!(shown, "");
                     assert!(shown.len() < words.len());
                 }
             }

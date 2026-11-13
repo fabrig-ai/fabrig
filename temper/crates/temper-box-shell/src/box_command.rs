@@ -49,11 +49,12 @@ pub fn run(
     directories: &super::Directories,
     echo: Echo,
     fronted: bool,
+    record: bool,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
     let (bytes, held, first_run) = configuration(directories, environment)?;
     let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
-    run_configuration(directories, &bytes, held, Box::new([]), echo, fronted, opening, environment)
+    run_configuration(directories, &bytes, held, Box::new([]), echo, fronted, record, opening, environment)
 }
 
 /// Lines opening the box log and following its sign-in block (protocol/setup/box.md, 2).
@@ -74,6 +75,7 @@ pub(crate) fn run_configuration(
     first: Box<[temper_forge_setup::Step]>,
     echo: Echo,
     fronted: bool,
+    record: bool,
     opening: Opening,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
@@ -93,7 +95,7 @@ pub(crate) fn run_configuration(
                 entry.into_boxed_slice()
             })
             .collect();
-        let (steps, limits) = configuration_steps(directories, bytes, first)?;
+        let (steps, limits) = configuration_steps_recording(directories, bytes, first, record)?;
         let named = super::setup::check(bytes, &jig_directories(directories))?.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let mut first_link = first_link(&named, &steps)?;
@@ -359,6 +361,14 @@ pub fn configuration_steps(
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
+    configuration_steps_recording(directories, bytes, first, false)
+}
+pub(crate) fn configuration_steps_recording(
+    directories: &super::Directories,
+    bytes: &[u8],
+    first: Box<[temper_forge_setup::Step]>,
+    record: bool,
+) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
     let super::setup::Deployment { named, demo, limits, .. } =
         super::setup::check(bytes, &jig_directories(directories))?;
     let mut serve = vec![super::address(&named.clients)?];
@@ -373,6 +383,7 @@ pub fn configuration_steps(
             &directories.flags(),
             serve.into_boxed_slice(),
             cfg!(target_os = "linux"),
+            record,
         );
         if let Some(fake) = &machine.fake {
             let demo = demo.as_ref().ok_or("application.machine.fake requires application.demo.llm")?;

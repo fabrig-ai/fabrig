@@ -130,11 +130,11 @@ fn fetch_box_passes_progress_then_found_and_prefixes_a_refusal() {
         found(Err("no temper-box of this build\nFetch it by hand: example".into()), &mut stdout),
         Err((1, "temper: no temper-box of this build\nFetch it by hand: example\n".into()))
     );
-    assert!(stdout.is_empty());
+    assert_eq!(stdout.len(), 0);
     let (code, line) = found(Err("é".repeat(8192)), &mut stdout).expect_err("bounded refusal");
     assert_eq!(code, 1);
     assert!(line.len() <= 8192 && line.starts_with("temper: ") && line.ends_with('\n'));
-    assert!(stdout.is_empty());
+    assert_eq!(stdout.len(), 0);
     // With an explicit cache the internal command needs neither HOME nor the other two directories.
     let captured = captured(environment(&[("TEMPER_INTERNAL_SITE", "http://127.0.0.1:8443")]));
     let (code, line) = fetch(&words(&["--cache", "/cache"]), &captured).expect_err("site refusal before find");

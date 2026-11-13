@@ -1,75 +1,14 @@
 //! The party's accounts (`client/domain/contract/documents.md`, 1; `domain/accounts.md`, sections 3 and 5).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
+
 use crate::{
     Core, Limits,
-    documents::{
-        DocumentLimits, Missing, Text, Window,
-        deployment::{AccountState, account_state},
-        inbox_deployment::line_bound,
-    },
+    documents::{Missing, Text, Window, deployment::account_state, inbox_deployment::line_bound},
 };
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
-use skein_lib::{List, Wall};
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct SourceLine {
-    pub name: Option<Box<[u8]>>,
-    pub place: u32,
-    pub number: u32,
-    pub kind: accounts::Kind,
-    pub state: AccountState,
-    pub usable: bool,
-    pub expiring: bool,
-    pub attention: bool,
-    pub spent_until: Option<Wall>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct AccountLine {
-    pub list: Option<AccountList>,
-    pub number: u32,
-    pub place: u32,
-    pub uses: Option<List<accounts::Use>>,
-    pub plan: bool,
-    pub provider: Option<u32>,
-    pub provider_name: Option<Text>,
-    pub manage_usage: Option<Box<[u8]>>,
-    pub display: Text,
-    pub holder: accounts::Holder,
-    pub sources: List<SourceLine>,
-    pub facts: List<accounts::AccountFact>,
-    pub cut: bool,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct SignInLine {
-    pub source: u32,
-    pub provider: u32,
-    pub holder: accounts::Holder,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct LastEnd {
-    pub source: u32,
-    pub end: accounts::End,
-}
-/// Secret-free facts of the party's accounts, including configured provider terms.
-/// Per-host program facts are joined from the current fleet inventory. Uses name explicit payers,
-/// or leave the default; `usable` follows those uses for this party;
-/// `settled` currently counts only sign-ins the party asked for.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
-pub struct Accounts {
-    pub program_hosts: List<super::ProgramHost>,
-    pub accounts: List<AccountLine>,
-    pub signing: List<SignInLine>,
-    pub last_end: Option<LastEnd>,
-    pub usable: bool,
-    pub settled: bool,
-    pub cut: bool,
-    /// Current observation from the engine selection and host checks.
-    pub readiness: List<super::PayerReadiness>,
-    /// Whether additional provider/payer rows were omitted.
-    pub readiness_cut: bool,
-}
+pub use jig_domain_core_vocabulary::documents::accounts::*;
+use skein_lib::List;
 
 /// An account's facts as this reader may see them (client/domain/contract/documents.md, 1).
 pub(super) fn fact_lines(core: &Core, account: u32, holder_reads: bool) -> List<accounts::AccountFact> {
@@ -80,14 +19,6 @@ pub(super) fn fact_lines(core: &Core, account: u32, holder_reads: bool) -> List<
         }
     }
     facts
-}
-
-/// Whole fact labels and text beside their fixed-size values (domain/accounts.md, 3.7).
-pub(super) fn facts_bound() -> Option<u64> {
-    List::<accounts::AccountFact>::price(accounts::FACTS)?.checked_add(
-        u64::from(accounts::FACTS)
-            .checked_mul(u64::from(accounts::FACT_LABEL).checked_add(u64::from(accounts::FACT_TEXT))?)?,
-    )
 }
 
 pub(super) fn source_lines(core: &Core, limits: &Limits, account: &accounts::Account) -> List<SourceLine> {
@@ -158,7 +89,7 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
             .expect("bounded account lines");
     }
     let mut signing = List::with_capacity(limits.documents.lines);
-    let mut settled = true;
+    let mut settled = core.accounts.lending(party).is_none();
     for pending in &core.accounts.pending() {
         if pending.by != party {
             continue;
@@ -183,6 +114,9 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
         accounts,
         signing,
         last_end,
+        lendable: core.accounts.terminal_count(party) != 0,
+        lending: core.accounts.lending(party).cloned(),
+        lent_end: core.accounts.lent_end(party),
         usable: serves_work(core, party),
         settled,
         cut: cut || hosts_cut,
@@ -248,22 +182,6 @@ pub(super) fn account_usable(core: &Core, account: &accounts::Account) -> bool {
     false
 }
 
-pub(super) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
-    let account_heap = List::<SourceLine>::price(limits.lines)?
-        .checked_add(u64::from(limits.lines).checked_mul(u64::from(accounts::NAME))?)?
-        .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
-        .checked_add(u64::from(accounts::MANAGE_USAGE))?
-        .checked_add(List::<accounts::Use>::price(accounts::USES)?)?
-        .checked_add(facts_bound()?)?;
-    u64::try_from(size_of::<Accounts>())
-        .ok()?
-        .checked_add(super::programs::hosts_bound(limits)?)?
-        .checked_add(List::<AccountLine>::price(limits.lines)?)?
-        .checked_add(u64::from(limits.lines).checked_mul(account_heap)?)?
-        .checked_add(List::<SignInLine>::price(limits.lines)?)?
-        .checked_add(super::catalogue::rows_bound(limits)?)
-}
-
 /// Copy an account's explicit uses without changing the default/empty distinction.
 pub(super) fn uses(core: &Core, account: &accounts::Account) -> Option<List<accounts::Use>> {
     let uses = account.uses()?;
@@ -321,14 +239,6 @@ pub(super) fn manage_usage(core: &Core, account: &accounts::Account) -> Option<B
 }
 
 /// Public list history (jig/docs/design/client/domain/contract/documents.md, 1).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct AccountList {
-    pub read: Option<Wall>,
-    pub tried: Option<Wall>,
-    pub failure: Option<accounts::ReadFailure>,
-    pub left_out: u32,
-}
-
 /// Capability is separate from a first attempt's history (domain/accounts.md, 3.7).
 pub(super) fn list(core: &Core, account: u32) -> Option<AccountList> {
     if !core.accounts.has_list(account) {

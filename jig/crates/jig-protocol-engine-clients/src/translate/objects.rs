@@ -1,7 +1,7 @@
 //! Whole single-read documents, exhaustive over the core vocabulary (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{deployment, owner, task, w};
 use alloc::boxed::Box;
-use jig_domain_core::{documents as d, reads};
+use jig_domain_core_vocabulary::{documents as d, reads};
 mod current;
 pub(super) mod ended;
 pub(super) mod goal;
@@ -125,6 +125,7 @@ pub fn document(
             | d::Document::Run(_)
             | d::Document::Tree(_)
             | d::Document::Lines(_)
+            | d::Document::Terminal { .. }
             | d::Document::Accounts(_)
             | d::Document::Note(_)
             | d::Document::Inbox(_) => {

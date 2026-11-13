@@ -768,6 +768,13 @@ impl World {
                             Ask::AccountChange { change, .. } => {
                                 assert_eq!(role, None, "account admission needs no role");
                                 let outcome = match change {
+                                    people::AccountChange::LoginProgram { .. } => {
+                                        Outcome::Refused(people::Refusal::NoTerminal)
+                                    }
+                                    people::AccountChange::CancelLogin { .. }
+                                    | people::AccountChange::LoginEnded { .. } => {
+                                        Outcome::Refused(people::Refusal::NotLending)
+                                    }
                                     people::AccountChange::ReadLists { .. } => Outcome::AccountReading { count: 0 },
                                     people::AccountChange::AddKey { .. } | people::AccountChange::ReplaceKey { .. } => {
                                         Outcome::AccountKeyKept { source: 1 }

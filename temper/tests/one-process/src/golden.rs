@@ -57,7 +57,7 @@ impl Observe for Observer {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, wall: skein_lib::Wall) -> bool {
         while let Some(note) = service.notes().pop() {
-            if let temper_service::Note::Patched { of, patch, counts } = note {
+            if let temper_service::Note::Engine(temper_engine_service::Note::Patched { of, patch, counts }) = note {
                 let owner = match of {
                     jig_protocol_store::Owner::Skein => "skein",
                     jig_protocol_store::Owner::Smith => "smith",

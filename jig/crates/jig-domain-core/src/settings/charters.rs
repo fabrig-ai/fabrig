@@ -1,147 +1,30 @@
 //! Configured charters and readiness (domain/engine/executors.md, 1 and domain/engine/fleet.md).
 
+pub use jig_domain_core_vocabulary::settings::charters::*;
+
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue};
 
-use super::{CatalogueModel, Current, Edit, Item, Setting, Value};
-use crate::{Core, Limits, RunPolicy, Settings};
-
-/// A charter's document (domain/engine/settings.md, 9).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Document {
-    pub connector: u16,
-    /// The resource name, within the authority's pattern bounds.
-    pub name: jig_domain_authority::Name,
-    /// 1 to `crate::DOCUMENT_PATH_BYTES` bytes.
-    pub path: Box<[u8]>,
-    /// 1 to `crate::DOCUMENT_HEADING_BYTES` bytes when present.
-    pub heading: Option<Box<[u8]>>,
-}
-
-/// A charter's part: instructions for runs whose reasons meet `on`
-/// (jig/docs/design/domain/tasks/messages.md, 6).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct CharterPart {
-    /// Nonempty, known bits (`tasks::Reasons::is_known`).
-    pub on: tasks::Reasons,
-    pub instructions: Box<[u8]>,
-}
-
-/// One numbered charter offered by the deployment, with its documents
-/// (protocol/configuration.md, 3; domain/engine/settings.md, 9).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Charter {
-    pub rest: bool,
-    pub number: u32,
-    pub policy: RunPolicy,
-    pub hosts: fleet::Kinds,
-    pub spend: u64,
-    /// Its default wake policy, which a task made under it takes when its batch entry names none (domain/tasks/messages.md, 3).
-    pub wake: tasks::WakePolicy,
-    pub documents: Box<[Document]>,
-    pub parts: Box<[CharterPart]>,
-}
-
-/// Resolve names against the current catalogue (domain/engine/settings.md, 11).
-#[must_use]
-pub fn resolved(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> Option<Charter> {
-    resolution(charter, models, limits).0
-}
+use super::{CatalogueModel, Current, Edit, Item, Setting};
+use crate::{Core, Limits, Settings};
 
 pub(crate) fn left_out(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> u32 {
     resolution(charter, models, limits).1
-}
-
-fn resolution(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> (Option<Charter>, u32) {
-    let mut candidates = List::with_capacity(tasks::MODELS);
-    for named in core::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
-        for model in models {
-            if model.model.name == named.name
-                && !model.withdrawn
-                && !model.model.is_hole()
-                && !candidates.as_slice().contains(&model.number)
-            {
-                candidates.push(model.number).expect("unique catalogue candidates");
-            }
-        }
-    }
-    let named = candidates.len();
-    if charter.rest {
-        for number in 1..=tasks::MODELS {
-            for model in models {
-                if model.number == number
-                    && !model.withdrawn
-                    && !model.model.is_hole()
-                    && !candidates.as_slice().contains(&number)
-                {
-                    candidates.push(number).expect("unique catalogue candidates");
-                }
-            }
-        }
-    }
-    let mut value = charter.clone();
-    let mut chosen = List::with_capacity(tasks::MODELS);
-    let mut main = false;
-    let mut omitted = 0_u32;
-    for (at, number) in candidates.as_slice().iter().enumerate() {
-        let rest = at >= skein_lib::length::usize_of(named);
-        let mut record = None;
-        for model in models {
-            if model.number == *number {
-                record = Some(&model.model);
-                break;
-            }
-        }
-        let mut model = record.expect("candidate catalogue row").clone();
-        if !rest {
-            for named in core::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
-                if named.name == model.name {
-                    if let Some(effort) = &named.effort
-                        && model.efforts.contains(effort)
-                    {
-                        model.effort = Some(effort.clone());
-                    }
-                    break;
-                }
-            }
-        }
-        if rest && main && chosen.len() >= limits.settings.alternatives {
-            omitted = omitted.checked_add(1).expect("bounded candidates");
-            continue;
-        }
-        let mut trial = value.policy.clone();
-        if main {
-            let mut alternatives = chosen.clone();
-            alternatives.push(model.clone()).expect("alternative room checked");
-            trial.alternatives = alternatives.into_boxed();
-        } else {
-            trial.model = model.clone();
-            trial.alternatives = Box::new([]);
-        }
-        let fits = match crate::limits::policy_owned_bytes(&trial) {
-            Some(bytes) => bytes <= u64::from(limits.run_bytes),
-            None => false,
-        };
-        if rest && !fits {
-            omitted = omitted.checked_add(1).expect("bounded candidates");
-            continue;
-        }
-        if main {
-            chosen.push(model.clone()).expect("alternative room checked");
-        }
-        value.policy = trial;
-        main = true;
-    }
-    (if main { Some(value) } else { None }, omitted)
 }
 
 pub(crate) fn rebuild(current: &mut Current, limits: &Limits) {
     let models = super::catalogue::entries(current);
     current.resolved = skein_lib::Map::with_capacity(limits.tasks.charters);
     for number in current.offered_charters() {
-        if let Some(charter) = resolved(current.charter(number).expect("offered charter"), &models, limits) {
+        if let Some(charter) = resolved(
+            &current
+                .made_charter(Setting::Charter(number), current.value(Setting::Charter(number)).expect("offered value"))
+                .expect("offered charter"),
+            &models,
+            limits,
+        ) {
             current.resolved.insert(number, charter).expect("checked charter count");
         }
     }
@@ -164,12 +47,11 @@ pub(crate) fn version_items(current: &Current, items: &[Item], limits: &Limits) 
         if super::check::edit(items, setting).is_some() {
             continue;
         }
-        let charter = current.charter(number).expect("offered charter");
-        let after = resolved(charter, &models, limits);
+        let value = current.value(setting).expect("offered value");
+        let charter = current.made_charter(setting, value).expect("offered charter");
+        let after = resolved(&charter, &models, limits);
         if after.as_ref() != Some(current.resolved_charter(number).expect("offered resolution")) {
-            result
-                .push(Item { setting, edit: Edit::Set(Value::Charter(Box::new(charter.clone()))) })
-                .expect("implicit charter items");
+            result.push(Item { setting, edit: Edit::Set(value.clone()) }).expect("implicit charter items");
         }
     }
     result.into_boxed()

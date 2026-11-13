@@ -299,6 +299,18 @@ pub(crate) fn merge(
     let Some(pull) = &item.pull else {
         return Err(Error::Missing(What::Pull));
     };
+    if let crate::api::MergeHow::Recorded { commit } = how {
+        if item.state == State::Closed {
+            return if pull.merged == Some(commit) { Ok(Answer::Merged(commit)) } else { Err(Error::Closed) };
+        }
+        let onto = repository.branches.get(&*pull.base).ok_or(Error::Missing(What::Branch))?;
+        if !repository.manual_merges.allow_manual_merge || !git::is_ancestor(domain, commit, *onto) {
+            return Err(Error::Refused);
+        }
+        // Forgejo's manual record names only the merge commit, not an expected head.
+        mark_merged(domain, env, id, number, commit, user);
+        return Ok(Answer::Merged(commit));
+    }
     if item.state == State::Closed {
         return Err(Error::Closed);
     }
@@ -322,6 +334,7 @@ pub(crate) fn merge(
             }
             head
         }
+        crate::api::MergeHow::Recorded { .. } => unreachable!("records move no branch"),
         crate::api::MergeHow::Style => {
             if git::is_ancestor(domain, head, onto) {
                 return Err(Error::NothingToMerge);
@@ -343,21 +356,35 @@ pub(crate) fn merge(
     let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
     repository.has.insert(commit).expect("a repository has room for every commit");
     repository.branches.insert(copy_of(&base), commit).expect("the base branch is there");
+    mark_merged(domain, env, id, number, commit, user);
+    git::moved(domain, env, id, &base, Some(onto), commit, user);
+    Ok(Answer::Merged(commit))
+}
+
+/// Retains and publishes the merge fact without moving either branch.
+pub(crate) fn mark_merged(
+    domain: &mut Domain,
+    env: &Env<Config>,
+    id: Id<Repository>,
+    number: u64,
+    commit: u64,
+    user: u64,
+) {
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
     let item = repository.items.get_mut(&number).expect("the pull request merged");
+    let pull = item.pull.as_mut().expect("a pull request");
     item.state = State::Closed;
-    item.pull.as_mut().expect("a pull request").merged = Some(commit);
-    repository.touch(number, domain::clock(env).max(domain.floor));
+    pull.merged = Some(commit);
     let observation = Observation::Merged {
         repository: copy_of(&repository.name),
         number,
-        base: copy_of(&base),
-        head,
+        base: copy_of(&pull.base),
+        head: pull.commit,
         commit,
         by: user,
     };
+    repository.touch(number, domain::clock(env).max(domain.floor));
     domain::changed(domain, env, id, observation, Hook::item(Change::Pull, number, user));
-    git::moved(domain, env, id, &base, Some(onto), commit, user);
-    Ok(Answer::Merged(commit))
 }
 
 /// The pull request `number` as a read shows it.

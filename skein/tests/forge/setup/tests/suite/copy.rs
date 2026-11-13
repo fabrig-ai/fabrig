@@ -216,7 +216,7 @@ fn a_slow_copy_past_its_deadline_stops_timed_out_and_the_next_run_finds_it() {
     world.run_plan(1, plan());
     world.settle();
     world.advance_to(Time::from_nanos(DEADLINE.as_nanos() - 1));
-    assert!(world.heard().is_empty());
+    assert_eq!((world.heard()).len(), 0);
     world.advance_to(Time::ZERO.saturating_add(DEADLINE));
     assert_eq!(world.heard(), &[stopped(1, Why::TimedOut, DEADLINE)]);
     assert_eq!(world.aborts(), 1);

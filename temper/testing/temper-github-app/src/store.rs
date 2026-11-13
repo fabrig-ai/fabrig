@@ -29,9 +29,9 @@ pub(super) fn run_with(
     writes: Vec<protocol::Write>,
 ) -> Result<Rows, String> {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
-    let own = temper_service::limits::profile(temper_service::limits::Profile::Small);
-    let root = temper_service::limits::engine(&jig, &own).ok_or("fixture engine limits")?;
-    let limits = temper_service::store::limits(&root, &root.forge, &jig.store).ok_or("fixture store limits")?;
+    let own = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
+    let root = temper_engine_service::limits::engine(&jig, &own).ok_or("fixture engine limits")?;
+    let limits = temper_engine_service::store::limits(&root, &root.forge, &jig.store).ok_or("fixture store limits")?;
     if records.iter().any(|(_, value)| value.len() > usize::try_from(limits.secrets.value).expect("store value bound"))
     {
         return Err("fixture record exceeds the secrets store value bound".into());
@@ -63,8 +63,8 @@ pub(super) fn run_with(
     let [store, secrets, transcripts] = &mut drivers;
     let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], 0);
     let mut component = protocol::Store::on_directory(&limits, application, &[], seeded);
-    assert!(component.wires(&temper_service::store::WIRES));
-    component.patch_sets(temper_service::store::PATCH_SETS);
+    assert!(component.wires(&temper_engine_service::store::WIRES));
+    component.patch_sets(temper_engine_service::store::PATCH_SETS);
     let mut host = StoreHost {
         store: component,
         limits,

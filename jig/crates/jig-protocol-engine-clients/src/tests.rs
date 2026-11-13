@@ -82,7 +82,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "signed_in_token_some",
             crate::Limits {
-                wire: jig_client_protocol_wire::v19::Limits { signed_in_token_some: 39, ..limits.wire },
+                wire: jig_client_protocol_wire::v21::Limits { signed_in_token_some: 39, ..limits.wire },
                 ..limits
             },
             false,
@@ -90,7 +90,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "made_service_credential",
             crate::Limits {
-                wire: jig_client_protocol_wire::v19::Limits { made_service_credential: 39, ..limits.wire },
+                wire: jig_client_protocol_wire::v21::Limits { made_service_credential: 39, ..limits.wire },
                 ..limits
             },
             false,
@@ -98,7 +98,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "link_sign_in_secret",
             crate::Limits {
-                wire: jig_client_protocol_wire::v19::Limits { link_sign_in_secret: 31, ..limits.wire },
+                wire: jig_client_protocol_wire::v21::Limits { link_sign_in_secret: 31, ..limits.wire },
                 ..limits
             },
             false,
@@ -106,7 +106,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "approval_asked_secret",
             crate::Limits {
-                wire: jig_client_protocol_wire::v19::Limits { approval_asked_secret: 31, ..limits.wire },
+                wire: jig_client_protocol_wire::v21::Limits { approval_asked_secret: 31, ..limits.wire },
                 ..limits
             },
             false,
@@ -114,7 +114,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "approval_sign_in_secret",
             crate::Limits {
-                wire: jig_client_protocol_wire::v19::Limits { approval_sign_in_secret: 31, ..limits.wire },
+                wire: jig_client_protocol_wire::v21::Limits { approval_sign_in_secret: 31, ..limits.wire },
                 ..limits
             },
             false,
@@ -122,7 +122,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "keyed_value_some",
             crate::Limits {
-                wire: jig_client_protocol_wire::v19::Limits { keyed_value_some: u32::MAX, ..limits.wire },
+                wire: jig_client_protocol_wire::v21::Limits { keyed_value_some: u32::MAX, ..limits.wire },
                 ..limits
             },
             false,

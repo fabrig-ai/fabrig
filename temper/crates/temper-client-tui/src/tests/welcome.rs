@@ -298,7 +298,7 @@ fn the_welcome_says_each_state() {
             // Check the drawing at the Forge boundary too: the domain's connected row decides Model.
             let mut part = crate::view::welcome::read(root, &tui, &f::words(), f::NOW);
             let forge = part.steps.get_mut(1).unwrap();
-            assert!(forge.detail.as_deref() == Some("making its first repository…".as_bytes()));
+            assert_eq!(forge.detail.as_deref(), Some("making its first repository…".as_bytes()));
             for (step, style) in part.steps.iter_mut().zip(FORGE) {
                 step.style = style;
             }
@@ -665,6 +665,7 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
                         None => None,
                     },
                     w::Read::Setting(_)
+                    | w::Read::Finding(_)
                     | w::Read::ProposalItems(_)
                     | w::Read::RevisionSetting(_)
                     | w::Read::ProgramEnvironment

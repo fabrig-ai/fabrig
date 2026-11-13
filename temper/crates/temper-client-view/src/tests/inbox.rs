@@ -551,10 +551,11 @@ fn section_counts_use_listed_cards_and_the_sources_cut_fact() {
     }
 }
 #[test]
-fn the_kind_disclosure_names_the_choice_and_keeps_the_five_buttons_folded() {
+fn the_kind_disclosure_names_the_choice_and_keeps_the_six_buttons_folded() {
     for (kind, name, pressed) in [
         (None, b"Kind".as_slice(), b"All kinds".as_slice()),
         (Some(Kind::Question), "Kind · Question".as_bytes(), b"Question"),
+        (Some(Kind::Finding), "Kind · Finding".as_bytes(), b"Finding"),
     ] {
         let view = fixtures::page_view(&fixtures::inbox_root_filtered(Filter { kind, ..Filter::ALL }));
         let tree = view.tree();
@@ -580,7 +581,7 @@ fn the_kind_disclosure_names_the_choice_and_keeps_the_five_buttons_folded() {
                 }
             }
         }
-        assert_eq!((buttons, selected), (5, 1));
+        assert_eq!((buttons, selected), (6, 1));
     }
 }
 #[test]

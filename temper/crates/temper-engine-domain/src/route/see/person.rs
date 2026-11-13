@@ -246,6 +246,7 @@ fn tracked(part: &Part) -> bool {
             | documents::Document::Project(_)
             | documents::Document::Note(_)
             | documents::Document::Inbox(_)
+            | documents::Document::Terminal { .. }
             | documents::Document::Accounts(_)
             | documents::Document::Deployment(_)
             | documents::Document::Settings(_) => false,
@@ -364,6 +365,7 @@ pub(crate) fn is_reading(domain: &Domain, right: Token) -> bool {
             SeeReading::Settings | SeeReading::Head | SeeReading::File | SeeReading::Proposal => false,
         },
         FlightRender::Plain
+        | FlightRender::FindingRead
         | FlightRender::TaskRead
         | FlightRender::ForgeRead
         | FlightRender::Settings { see: None, .. }
@@ -391,6 +393,7 @@ fn flight_context(render: &mut FlightRender) -> (&mut SeeFlight, u32) {
     match render {
         FlightRender::Settings { see: Some(see), from, .. } => (see, *from),
         FlightRender::Plain
+        | FlightRender::FindingRead
         | FlightRender::TaskRead
         | FlightRender::ForgeRead
         | FlightRender::Settings { see: None, .. }

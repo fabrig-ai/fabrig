@@ -5,7 +5,7 @@ use temper_client_domain::Event;
 #[must_use]
 pub fn party(event: jig_domain_core::Event) -> temper_engine_domain::Event {
     temper_engine_domain::Event::Party(
-        temper_service::clients::translation::to_root(event).expect("client component party input"),
+        temper_engine_service::clients::translation::to_root(event).expect("client component party input"),
     )
 }
 

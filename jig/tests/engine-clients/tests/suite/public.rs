@@ -1,5 +1,5 @@
 //! Public component stories (jig/docs/design/protocol/client/public-reads.md).
-use jig_client_protocol_wire::{self as wire, public_v1 as w, v19};
+use jig_client_protocol_wire::{self as wire, public_v1 as w, v21};
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{PublicKind, PublicLimits, PublicRead, PublicReply, Settings, public::Names};
@@ -55,12 +55,12 @@ fn admitted(peer: &mut Peer) -> (ReplyTo, core::PublicRead) {
     (reply, read)
 }
 fn signed_in_read() -> Box<[u8]> {
-    let record = v19::Read::Me;
+    let record = v21::Read::Me;
     let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut out).expect("measured record");
-    let record = v19::Owned::new(
+    let record = v21::Owned::new(
         &fixtures::limits().wire,
-        v19::OwnedParts { owner: v19::Owner::Jig, version: 19, record: out.finish() },
+        v21::OwnedParts { owner: v21::Owner::Jig, version: 21, record: out.finish() },
     )
     .expect("read envelope");
     let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));

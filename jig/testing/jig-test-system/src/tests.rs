@@ -211,7 +211,7 @@ fn keyed_timeout_found_after_restart_is_made_once() {
         Some(Request::Outcome { entry: 1, outcome: Outcome::Made { state: 7, found: true } })
     ));
     assert_eq!(system.observed().len(), 1);
-    assert!(fire(&mut cold, 20).is_empty());
+    assert_eq!(fire(&mut cold, 20).len(), 0);
     let _ = reply;
 }
 
@@ -225,8 +225,8 @@ fn a_late_keyed_copy_and_retry_change_the_target_once() {
     let seeking = run(&mut domain, 0, Event::System(uncertain));
     assert!(matches!(seeking.last(), Some(Request::System(SystemRequest::Look { .. }))));
     let not_found = system.answer(system_call(&seeking), Fault::None);
-    assert!(run(&mut domain, 0, Event::System(not_found)).is_empty());
-    assert!(fire(&mut domain, 5).is_empty());
+    assert_eq!(run(&mut domain, 0, Event::System(not_found)).len(), 0);
+    assert_eq!(fire(&mut domain, 5).len(), 0);
     let again = fire(&mut domain, Duration::from_secs(6).as_nanos());
     assert!(matches!(again.as_slice(), [Request::System(SystemRequest::Look { .. })]));
     let not_found = system.answer(system_call(&again), Fault::None);
@@ -282,7 +282,7 @@ fn an_idempotent_set_can_repeat_and_unrecoverable_uncertainty_holds() {
     let uncertain = another.answer(system_call(&first), Fault::AfterApply);
     let held_result = run(&mut held, 0, Event::System(uncertain));
     assert!(matches!(held_result.last(), Some(Request::Outcome { outcome: Outcome::Held, .. })));
-    assert!(fire(&mut held, Duration::from_secs(100).as_nanos()).is_empty());
+    assert_eq!(fire(&mut held, Duration::from_secs(100).as_nanos()).len(), 0);
     assert_eq!(another.observed().len(), 1);
 }
 
@@ -292,7 +292,7 @@ fn an_entry_on_the_same_resource_waits_for_the_first_one_to_settle() {
     let mut system = System::new();
     keep(&mut domain, 3, 1, 10, 7);
     keep(&mut domain, 3, 2, 11, 8);
-    assert!(run(&mut domain, 0, Event::Make { entry: 2 }).is_empty());
+    assert_eq!(run(&mut domain, 0, Event::Make { entry: 2 }).len(), 0);
     let first = run(&mut domain, 0, Event::Make { entry: 1 });
     let reply = system.answer(system_call(&first), Fault::None);
     run(&mut domain, 0, Event::System(reply));

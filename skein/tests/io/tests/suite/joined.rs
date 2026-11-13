@@ -14,21 +14,21 @@ fn a_connect_to_an_unbound_name_is_refused() {
 #[test]
 fn a_second_listener_on_a_taken_name_fails_with_other() {
     for seed in SEEDS {
-        assert!(taken(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(taken(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 
 #[test]
 fn named_listens_past_the_names_limit_are_refused_busy() {
     for seed in SEEDS {
-        assert!(names_full(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(names_full(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 
 #[test]
 fn a_closing_listener_refuses_its_waiting_connectors() {
     for seed in SEEDS {
-        assert!(closing(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(closing(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 
@@ -36,7 +36,7 @@ fn a_closing_listener_refuses_its_waiting_connectors() {
 fn a_named_listener_accepts_binds_and_rejects() {
     for seed in SEEDS {
         let outcome = skein_io_world::joined::accept(seed, Config::chaos()).run();
-        assert!(outcome.trace.is_empty());
+        assert_eq!(outcome.trace.len(), 0);
         assert!(
             outcome.logs[0].iter().any(|line| line.contains("Failed(Reset)")),
             "the rejected connector hears Reset"
@@ -46,32 +46,32 @@ fn a_named_listener_accepts_binds_and_rejects() {
 #[test]
 fn two_named_listeners_share_one_accept_batch() {
     for seed in SEEDS {
-        assert!(skein_io_world::joined::batch(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(skein_io_world::joined::batch(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 #[test]
 fn connectors_wait_without_room_or_slot_and_one_aborts() {
     for seed in SEEDS {
-        assert!(skein_io_world::joined::waiting(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(skein_io_world::joined::waiting(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 #[test]
 fn bytes_go_both_ways_over_a_joined_pair_under_small_intakes() {
     for seed in SEEDS {
-        assert!(skein_io_world::joined::exchange(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(skein_io_world::joined::exchange(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 #[test]
 fn a_joined_reader_that_does_not_demand_stops_its_peer() {
     for seed in SEEDS {
-        assert!(skein_io_world::joined::backpressure(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(skein_io_world::joined::backpressure(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 #[test]
 fn an_abort_is_heard_as_reset_by_the_joined_peer() {
     for seed in SEEDS {
         let outcome = skein_io_world::joined::abort(seed, Config::chaos()).run();
-        assert!(outcome.trace.is_empty());
+        assert_eq!(outcome.trace.len(), 0);
         assert!(outcome.logs[0].iter().any(|line| line.contains("Failed(Reset)")), "the aborted peer hears Reset");
     }
 }
@@ -79,19 +79,19 @@ fn an_abort_is_heard_as_reset_by_the_joined_peer() {
 #[test]
 fn a_response_in_the_middle_of_an_upload_reaches_the_joined_peer() {
     for seed in SEEDS {
-        assert!(skein_io_world::joined::refusal_mid_upload(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(skein_io_world::joined::refusal_mid_upload(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 #[test]
 fn a_joined_close_the_peer_never_ends_meets_its_deadline() {
     for seed in SEEDS {
-        assert!(skein_io_world::joined::close_deadline(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(skein_io_world::joined::close_deadline(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 #[test]
 fn joined_closes_and_aborts_at_random_moments_settle() {
     for seed in SEEDS {
-        assert!(skein_io_world::joined::random(seed, Config::chaos()).run().trace.is_empty());
+        assert_eq!(skein_io_world::joined::random(seed, Config::chaos()).run().trace.len(), 0);
     }
 }
 

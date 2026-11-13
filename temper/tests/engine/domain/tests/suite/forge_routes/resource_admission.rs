@@ -470,7 +470,7 @@ fn stock_overlap_world() -> World {
             ..StoryLimits::default()
         },
     );
-    let stock = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let stock = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
     configured.env.limits.forge.resources_per_task = stock.forge.resources_per_task;
     configured.env.limits.forge.tasks = stock.forge.tasks;
     let client = skein_forge_client::Limits {

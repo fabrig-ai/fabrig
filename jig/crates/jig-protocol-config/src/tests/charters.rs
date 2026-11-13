@@ -57,7 +57,7 @@ fn a_charters_documents_are_read_whole_in_order() {
     assert_eq!(
         engine.charters[0].documents.as_ref(),
         &[
-            jig_domain_core::Document {
+            jig_domain_core_vocabulary::Document {
                 connector: 1,
                 name: jig_domain_authority::Name {
                     segments: Box::new([Box::from(b"project".as_slice()), Box::from(b"resource".as_slice())])
@@ -65,7 +65,7 @@ fn a_charters_documents_are_read_whole_in_order() {
                 path: Box::from(b"docs/rules.md".as_slice()),
                 heading: None,
             },
-            jig_domain_core::Document {
+            jig_domain_core_vocabulary::Document {
                 connector: 1,
                 name: jig_domain_authority::Name { segments: Box::new([Box::from(b"other".as_slice())]) },
                 path: Box::from(b"notes.md".as_slice()),
@@ -179,7 +179,7 @@ fn a_resuming_charter_admits_parts() {
 fn a_charter_refuses_policy_and_parts_past_run_bytes() {
     let document = with_parts(br#"[{"on":["first"],"instructions":"a.md"}]"#);
     let engine = fixtures::engine(fixtures::ENGINE_SMALL).unwrap();
-    let max = jig_domain_core::policy_owned_bytes(&engine.charters[0].policy).unwrap();
+    let max = jig_domain_core_vocabulary::policy_owned_bytes(&engine.charters[0].policy).unwrap();
     let max = skein_lib::Decimal::of(max);
     let limits =
         skein_lib::bytes::concat(&[br#""profile": "small", "overrides": {"core.run_bytes":"#, max.as_bytes(), b"}"]);
@@ -204,11 +204,11 @@ fn a_charter_reads_two_parts_and_their_files_in_order() {
     assert_eq!(
         charter.parts.as_ref(),
         &[
-            jig_domain_core::CharterPart {
+            jig_domain_core_vocabulary::CharterPart {
                 on: jig_domain_tasks::Reasons::FIRST.union(jig_domain_tasks::Reasons::QUESTION),
                 instructions: b"a.md".as_slice().into()
             },
-            jig_domain_core::CharterPart {
+            jig_domain_core_vocabulary::CharterPart {
                 on: jig_domain_tasks::Reasons::NEWS.union(jig_domain_tasks::Reasons::WORDS),
                 instructions: b"b.md".as_slice().into()
             },
@@ -219,9 +219,9 @@ fn a_charter_reads_two_parts_and_their_files_in_order() {
         files.len(),
         crate::files(&fixtures::engine(fixtures::ENGINE_SMALL).unwrap()).len().checked_add(2).unwrap()
     );
-    let owned = jig_domain_core::policy_owned_bytes(&charter.policy)
+    let owned = jig_domain_core_vocabulary::policy_owned_bytes(&charter.policy)
         .unwrap()
-        .checked_add(jig_domain_core::parts_owned_bytes(&charter.parts).unwrap())
+        .checked_add(jig_domain_core_vocabulary::parts_owned_bytes(&charter.parts).unwrap())
         .unwrap();
     for (file, (path, at)) in files.iter().zip([
         (

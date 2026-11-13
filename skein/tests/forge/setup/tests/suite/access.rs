@@ -37,7 +37,7 @@ fn a_second_run_writes_nothing_to_a_repository_the_bot_can_write() {
     let since = world.requests().len();
     let files = fixtures::file_writes(&world);
     assert_eq!(world.reconcile(), Ended::Done);
-    assert!(fixtures::write_routes(&world, since).is_empty());
+    assert_eq!(fixtures::write_routes(&world, since).len(), 0);
     assert_eq!(fixtures::file_writes(&world), files);
 }
 #[test]
@@ -79,7 +79,7 @@ fn a_collaborator_on_the_second_page_of_many_is_not_added_again() {
         world.store_mut().grant(1, login, Grant::Write).expect("grant");
     }
     assert_eq!(world.reconcile(), Ended::Done);
-    assert!(fixtures::write_routes(&world, 0).is_empty());
+    assert_eq!(fixtures::write_routes(&world, 0).len(), 0);
     assert!(world.requests().ends_with(&access_requests()[..2]));
     assert!(!world.requests().iter().any(|r| matches!(r, Request::Collaborators { .. })));
 }
@@ -89,7 +89,7 @@ fn a_repository_the_bot_owns_is_left_as_it_is() {
     fixtures::bot_tokens(&mut world);
     world.adopted(&[1]);
     assert_eq!(world.reconcile(), Ended::Done);
-    assert!(fixtures::write_routes(&world, 0).is_empty());
+    assert_eq!(fixtures::write_routes(&world, 0).len(), 0);
     assert_eq!(world.store().collaborator(1, b"kit"), None);
 }
 #[test]
@@ -128,7 +128,7 @@ fn adopt_gives_the_bot_write_and_the_reconcile_after_it_writes_nothing() {
     world.adopted(&[1]);
     let since = world.requests().len();
     assert_eq!(world.reconcile(), Ended::Done);
-    assert!(fixtures::write_routes(&world, since).is_empty());
+    assert_eq!(fixtures::write_routes(&world, since).len(), 0);
 }
 #[test]
 fn adopt_of_a_repository_the_forge_does_not_have_is_missing() {
@@ -158,7 +158,7 @@ fn an_admin_token_without_write_repository_stops_adopt_refused() {
     world.put(Item::AdminToken, fixtures::secret(b"admin-without-repository-scope"));
     assert_eq!(world.adopt(1), stopped(Stage::Repository, b"1", Why::Refused(403)));
     assert_eq!(world.requests(), &[Request::User, Request::RepositoryById { id: 1 }]);
-    assert!(fixtures::write_routes(&world, 0).is_empty());
+    assert_eq!(fixtures::write_routes(&world, 0).len(), 0);
 }
 #[test]
 fn no_secret_is_in_an_adopts_failure_debug_or_trace() {

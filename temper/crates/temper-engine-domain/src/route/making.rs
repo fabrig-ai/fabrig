@@ -155,6 +155,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
         | people::Outcome::AccountKeyKept { .. }
         | people::Outcome::AccountProgramDeclared { .. }
         | people::Outcome::AccountReading { .. }
+        | people::Outcome::AccountLoginAsked { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::AccountMovedIn { .. }
@@ -191,6 +192,9 @@ fn refusal_words(why: people::Refusal) -> Box<[u8]> {
         people::Refusal::NoEscalationHolder => b"adopt has no escalation holder",
         people::Refusal::Llm { .. } => b"adopt model is not allowed",
         people::Refusal::Account { .. }
+        | people::Refusal::NoTerminal
+        | people::Refusal::LoginUnderWay
+        | people::Refusal::NotLending
         | people::Refusal::AccountMove { .. }
         | people::Refusal::ProgramNameReserved => b"adopt account is not allowed",
         people::Refusal::SignInRedirect { .. } => b"adopt sign-in redirect was refused",

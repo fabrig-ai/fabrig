@@ -57,6 +57,7 @@ Overview:
     Agent tries: 0
     Lost tries: 0
     Invalid tries: 0
+    Infrastructure tries: 0
     Hold wait began: 01:00
     Budget: 100:
       Budget: 100

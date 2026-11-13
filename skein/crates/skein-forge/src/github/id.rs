@@ -13,8 +13,8 @@ pub fn commit(hex: &[u8]) -> Option<api::Commit> {
         }
     }
     let mut out = [0; 32];
-    for (pair, byte) in hex.chunks_exact(2).zip(out.iter_mut()) {
-        *byte = bytes::hex_value(*pair.first()?)?.checked_mul(16)?.checked_add(bytes::hex_value(*pair.get(1)?)?)?;
+    for (&[high, low], byte) in hex.as_chunks::<2>().0.iter().zip(out.iter_mut()) {
+        *byte = bytes::hex_value(high)?.checked_mul(16)?.checked_add(bytes::hex_value(low)?)?;
     }
     Some(out)
 }
@@ -27,9 +27,9 @@ pub fn write_commit(commit: &api::Commit) -> Option<[u8; 40]> {
         }
     }
     let mut out = [0; 40];
-    for (byte, pair) in commit.iter().take(20).zip(out.chunks_exact_mut(2)) {
-        *pair.first_mut()? = bytes::hex_digit(byte / 16);
-        *pair.get_mut(1)? = bytes::hex_digit(byte % 16);
+    for (byte, [high, low]) in commit.iter().take(20).zip(out.as_chunks_mut::<2>().0) {
+        *high = bytes::hex_digit(byte / 16);
+        *low = bytes::hex_digit(byte % 16);
     }
     Some(out)
 }

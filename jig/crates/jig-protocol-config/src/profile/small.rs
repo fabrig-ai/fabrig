@@ -4,7 +4,7 @@ use super::{Limits, Link};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_notes as notes;
@@ -13,8 +13,15 @@ use jig_domain_tasks as tasks;
 use jig_domain_views as views;
 use skein_lib::Duration;
 const RETRY: tasks::Retry = tasks::Retry { retries: 3, base: Duration::from_secs(1), max: Duration::from_secs(30) };
-const RETRIES: tasks::Retries =
-    tasks::Retries { transient: RETRY, permanent: RETRY, run: RETRY, agent: RETRY, lost: RETRY, invalid: RETRY };
+const RETRIES: tasks::Retries = tasks::Retries {
+    transient: RETRY,
+    permanent: RETRY,
+    run: RETRY,
+    agent: RETRY,
+    lost: RETRY,
+    invalid: RETRY,
+    infrastructure: tasks::Retry { retries: 12, base: Duration::from_secs(10), max: Duration::from_secs(300) },
+};
 pub(super) const TASKS: tasks::Limits = tasks::Limits {
     placed_holds: 4,
     project_placed_holds: 4,
@@ -114,7 +121,9 @@ pub(super) const FLEET: fleet::Limits = fleet::Limits {
     call_name_bytes: 64,
     progress_bytes: 1_024,
     turns: 32,
-    grace: Duration::from_secs(120),
+    // Derived above the default stop bound: max(5 + 15 + 60, 180) + max(5, 1) + 1 = 186 s
+    // (jig/docs/design/domain/engine/fleet.md). Keep a margin for the engine's grace.
+    grace: Duration::from_secs(240),
     facts: 32,
     history: 8,
 };
@@ -327,7 +336,7 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     exchanges_per_client: 2,
     // One full moved file and its keyed account-change envelope.
     message_bytes: 131_328,
-    wire: jig_client_protocol_wire::v19::CEILINGS,
+    wire: jig_client_protocol_wire::v21::CEILINGS,
     link_span: Duration::from_secs(7200),
 };
 
@@ -415,8 +424,9 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
 // Started-from dependencies cost a four-byte count plus 8 eight-byte numbers = 68 bytes.
 pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     key: 2079,
-    // Settings history reserves 1,252,352 bytes for model values and their revision carriers.
-    value: 3_419_252,
+    // Settings history with 16 charters, 21 executor kinds and 32,768-byte run policies,
+    // including replacement values and composed application settings, fits 4,580,852 bytes.
+    value: 4_580_852,
     // Two operations per journal write, three creation rows and an orphan erase: 2 * 20,801 + 4.
     ops: 41_606,
     // 256 MiB values + 41,606 operations * (2,079 key + 9 framing) + 26 frame bytes.
@@ -427,9 +437,9 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: 268_435_456,
     segment: 710_617_620,
     snapshot_after: 355_308_810,
-    chunk: 3_421_351,
+    chunk: 4_582_951,
     // The revision envelope, including what its items replaced, fits with its key.
-    page: skein_kv::Page { rows: 2, bytes: 3_421_331 },
+    page: skein_kv::Page { rows: 2, bytes: 4_582_931 },
     deadline: Duration::from_secs(30),
 };
 pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

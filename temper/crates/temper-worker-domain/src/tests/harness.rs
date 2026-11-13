@@ -135,6 +135,7 @@ impl Harness {
             | Request::JobAnswer { .. }
             | Request::CancelRelay { .. }
             | Request::Stop
+            | Request::Abandon
             | Request::Job { .. }
             | Request::CancelIo { .. } => return,
         };

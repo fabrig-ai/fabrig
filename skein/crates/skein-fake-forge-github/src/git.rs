@@ -120,6 +120,9 @@ impl Service {
             return refused(400);
         };
         let (repository, op) = match call {
+            Call::PushNew { repository, branch, commit } => {
+                (repository, api::Op::Git(api::Git::PushNew { branch, commit }))
+            }
             Call::Clone { repository } => (repository, api::Op::Git(api::Git::Clone)),
             Call::Fetch { repository, want } => (repository, api::Op::Git(api::Git::Fetch { want })),
             Call::Create { repository, branch, commit } => {
@@ -186,6 +189,7 @@ pub(crate) fn render(name: Name, result: Result<api::Answer, api::Error>, bounds
     let limits = limits(bounds);
     let answer = match result {
         Ok(api::Answer::Cloned { default, branches }) => git::Answer::Cloned { default, branches },
+        Ok(api::Answer::PushNew { existing }) => git::Answer::PushNew { existing },
         Ok(api::Answer::Commit(commit)) => git::Answer::Commit(commit),
         Ok(api::Answer::Branch(created)) => git::Answer::Created(created),
         Ok(api::Answer::Pushed(pushed)) => git::Answer::Pushed(pushed),

@@ -2,7 +2,7 @@
 
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings as values;
 use skein_lib::{List, Writer};
@@ -16,7 +16,7 @@ macro_rules! encoded {
 }
 fn answer(value: &w::Final, limits: &Limits) -> c::Answer {
     let record = encoded!(value);
-    let owned = w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record })
+    let owned = w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 21, record })
         .expect("owned answer");
     translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), limits).expect("public answer")
 }
@@ -109,6 +109,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
     );
     let mut value = values::settings_values().into_boxed().into_vec();
     let document = c::SettingDocument {
+        overlay: None,
         setting: c::Setting::Rules,
         revision: 6,
         value: Some(value.pop().expect("rules")),
@@ -178,6 +179,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     config.core.defaults.rules.ceiling.models = jig_domain_authority::Models::ALL;
     let spend = config.core.defaults.rules.period_spend;
     let source = reads::SettingDocument {
+        overlay: None,
         setting: s::Setting::Rules,
         revision: 6,
         value: Some(s::Value::Rules(Box::new(config.core.defaults.rules))),

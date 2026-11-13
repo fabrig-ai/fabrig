@@ -1,6 +1,6 @@
 # channel: status
 
-2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+2026-11-12. Where jig's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 10: the application's parts' ceilings: a run's saved work is at most 65,536 bytes (`worker-wire-v9.schema`, `Work`), not 16 MiB.
 
