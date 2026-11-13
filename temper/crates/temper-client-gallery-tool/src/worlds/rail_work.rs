@@ -434,6 +434,7 @@ fn changes(work: Work) -> w::ChangesPanel {
                             task: *task,
                             title: title.as_bytes().into(),
                             ready_since: at(-90).as_nanos(),
+                            alone: false,
                             checks_since: (*task == 100).then(|| at(-4).as_nanos()),
                         },
                     )

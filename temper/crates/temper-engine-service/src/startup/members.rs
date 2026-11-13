@@ -563,6 +563,15 @@ pub(super) static MEMBERS: [Member; 123] = [
     },
     Member {
         shape: "landing-project",
+        name: "batch",
+        kind: "integer",
+        bound: "1 to forge.landing_members; 1 when absent",
+        required: false,
+        line: "The most changes a landing into main forms with.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
         name: "combine",
         kind: "landing-combine",
         bound: "stock merge for main, squash for other",

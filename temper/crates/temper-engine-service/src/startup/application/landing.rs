@@ -480,6 +480,7 @@ fn project_landing(
     limits: &temper_engine_domain_forge::Limits,
     problems: &mut Problems,
 ) -> Option<engine::ProjectLanding> {
+    let batch = batch(object, document, path, limits.landing_members, problems);
     let combining = combine(object, document, path, problems);
     let check_timeout = optional_check_timeout(object, document, path, problems);
     let gate_retries = optional_integer(object, document, b"gate_retries", 2, u64::from(u8::MAX), path, problems);
@@ -519,6 +520,7 @@ fn project_landing(
     }
     let (combine_main, combine_other) = combining?;
     Some(engine::ProjectLanding {
+        batch: batch?,
         check_timeout,
         combine_main,
         combine_other,
@@ -568,4 +570,23 @@ fn combine_value(
             None
         }
     }
+}
+
+fn batch(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    path: &Path,
+    landing_members: u32,
+    problems: &mut Problems,
+) -> Option<u16> {
+    let value = optional_integer(object, document, b"batch", 1, u64::from(u16::MAX), path, problems)?;
+    if value > u64::from(landing_members) {
+        problems.push(path.member(b"batch"), What::Jig(config::What::Because(b"batch passes forge.landing_members")));
+        return None;
+    }
+    if value == 0 {
+        problems.push(path.member(b"batch"), What::Jig(config::What::Bound));
+        return None;
+    }
+    Some(u16::try_from(value).expect("bounded batch"))
 }

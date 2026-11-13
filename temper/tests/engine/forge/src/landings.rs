@@ -184,19 +184,43 @@ impl Trains {
         for (repository, branch) in world.top.waiting_trains() {
             loop {
                 let held: Vec<_> = self.held.iter().map(|(task, _)| *task).collect();
-                let Some(task) = world.top.first_waiting(repository, &branch, &held, world.wall()) else { break };
-                let unit = world.top.joined_changes(PROJECT, task, &self.dependencies);
-                if unit.len() > 1 {
-                    self.held.push((task, world.top.unit_words(&unit)));
+                let units = world.top.waiting_units(repository, &branch, &held, &self.dependencies, world.wall());
+                let selection = world.top.select_waiting(repository, &branch, &units);
+                if let Some(index) = selection.hold.first() {
+                    let unit = &units[*index as usize];
+                    self.held.push((unit.changes[0], world.top.unit_words(&unit.changes)));
                     continue;
                 }
+                if selection.take.is_empty() { break; }
                 self.next = self.next.max(LANDING);
+                let task = units[selection.take[0] as usize].changes[0];
                 let mut row = landing_row(world.change(task));
                 row.landing.task = self.next;
-                row.landing.round =
-                    landing::Round::new(format!("temper/1/l{}", self.next).into_bytes().into_boxed_slice());
-                self.next += 1;
+                row.landing.round = landing::Round::new(format!("temper/{0}/l{0}", self.next).into_bytes().into_boxed_slice());
+                let mut members = Vec::new();
+                for (number, index) in selection.take.iter().enumerate() {
+                    for change in &units[*index as usize].changes {
+                        let mut member = landing_row(world.change(*change)).landing.members[0].clone();
+                        member.unit = u16::try_from(number).expect("unit count");
+                        member.branch = if members.is_empty() {
+                            row.landing.round.branch.clone()
+                        } else {
+                            format!("temper/{0}/l{0}-{1}", self.next, members.len() + 1).into_bytes().into_boxed_slice()
+                        };
+                        members.push(member);
+                    }
+                }
+                row.asks = vec![None; members.len()].into_boxed_slice();
+                row.landing.members = members.into_boxed_slice();
+                let branches: Vec<_> = row.landing.members.iter().map(|member| member.branch.clone()).collect();
                 world.event(top::Event::Landing { row });
+                for branch in branches {
+                    world.event(top::Event::Hold { entry: 0, task: self.next, resource: top::Name {
+                        forge: repository.forge, repository: repository.repository,
+                        what: top::What::Branch(branch.split(|byte| *byte == b'/').map(Into::into).collect()),
+                    }, from: None });
+                }
+                self.next += 1;
             }
         }
     }

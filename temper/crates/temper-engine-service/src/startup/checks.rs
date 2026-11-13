@@ -222,6 +222,12 @@ pub fn webhook_parts(
 }
 /// Every git rule is checked independently, so one start reports them all.
 pub fn limits(limits: &limits::Limits, _: &limits::GitComponent, problems: &mut Problems) {
+    if limits.forge.resources_per_task <= limits.forge.landing_members {
+        against(problems, b"forge.resources_per_task", b"forge.landing_members + 1");
+    }
+    if limits.forge.holds < limits.forge.landings.saturating_mul(limits.forge.landing_members) {
+        against(problems, b"forge.holds", b"forge.landings * forge.landing_members");
+    }
     let sign_in = limits.sign_in;
     for (name, value) in [
         (b"sign_in.members".as_slice(), sign_in.members),

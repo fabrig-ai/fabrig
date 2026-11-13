@@ -53,7 +53,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         temper_engine_domain_forge_landing::Project::DEFAULT,
         other
     ));
-    let (way, kept, _, _, _, _) = d.landing.projects.get(&5).expect("configured project");
+    let (way, kept, _, _, _, _, _) = d.landing.projects.get(&5).expect("configured project");
     assert_eq!(*way, Way::Turn);
     assert_eq!(kept.as_ref(), repositories.as_ref());
     assert_eq!(d.landing.gates(5, REPO), repositories[0].gates.as_ref());

@@ -29,6 +29,7 @@ fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQ
                             b"Another change".as_slice().into()
                         },
                         ready_since: SIX_MIN_AGO,
+                        alone: false,
                         checks_since: if index == 0 { Some(SIX_MIN_AGO) } else { None },
                     },
                 )
