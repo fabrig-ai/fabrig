@@ -88,7 +88,7 @@ pub(crate) fn cursor(call: &Call, index: usize) -> Option<jig_client::contract::
 /// Whether this read was asked to wait.
 #[must_use]
 pub fn waiting(row: &super::table::Tool, call: &Call) -> bool {
-    argument(row, call, b"since").is_some() || argument(row, call, b"until").is_some()
+    row.name != b"landing history" && (argument(row, call, b"since").is_some() || argument(row, call, b"until").is_some())
 }
 pub(crate) fn argument<'a>(row: &super::table::Tool, call: &'a Call, name: &[u8]) -> Option<&'a Value> {
     let args = row.forms.get(usize::from(call.form))?;

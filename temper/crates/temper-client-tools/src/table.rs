@@ -146,6 +146,7 @@ pub const TOOLS: &[&Tool] = &[
     &rows::FINDING_BACKLOG,
     &rows::FINDING_DROP,
     &rows::NEED_ASK,
+    &crate::landing::history::HISTORY,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())
