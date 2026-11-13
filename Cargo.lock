@@ -7146,6 +7146,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-redeploy"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-fail-stop",
+ "skein-scratch",
+ "skein-shell",
+ "temper-redeploy-tool",
+ "temper-version",
+]
+
+[[package]]
+name = "temper-redeploy-tool"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "skein-scratch",
+ "skein-shell",
+ "temper-test-env",
+]
+
+[[package]]
 name = "temper-service"
 version = "0.0.0"
 dependencies = [
