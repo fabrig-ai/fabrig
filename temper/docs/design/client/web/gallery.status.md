@@ -1,9 +1,10 @@
 # gallery: status
 
-2026-11-12. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-13. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
+- **Not yet:** 2: `tell-area` and `tell-page` [in flight: change 2192].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:

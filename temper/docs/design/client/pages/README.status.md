@@ -130,12 +130,6 @@ chat starts. `settings.md`, section 2 offers no configuring chat, and How work r
 reaches Ask temper by "Ask temper to change this" alone. The
 post-landing walk and M3b's views remain `../README.md`, section 5's work.
 
-- **Not yet:** *Tell temper*, whole: no `Tell` address, no region at
-  Needs you's foot, no link under Ask temper's composer. The engine files
-  no person's word as a finding and no project's settings name a triager
-  (`../../domain/findings.status.md`; `../../domain/landing.md`, 13.1),
-  so it waits for both, with nothing in its place.
-
 The document, **Only you** and its row of *A page's parts*, and `accounts.md`, 2,
 *Each state*'s expiring rows, have no known gap in the web client, by
 plan `ui-n3a-only`, the whole story's milestone N3a. `pages::only_you`
