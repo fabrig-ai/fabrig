@@ -2,8 +2,6 @@
 
 2026-11-13. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
-- **Not yet:** the whole document: the story of a red narrowed is not
-  written (`../domain/landing-search.md`). [in flight: change 2344]
 
 - **Not yet:** the whole document: the hangup/rebind and Linux killed-box stories in
   `bin/temper-box/tests/suite/box_lifetime.rs` are registered in the

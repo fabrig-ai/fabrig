@@ -25,13 +25,6 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   settings. 13.2: adoption's checks under `turn` of each gate's workflow
   and its triggers, and of the forge's autodetect and allowance of a
   manual merge. 14: `repository receipts`.
-- **Not yet:** 2, 3, 4.2, 4.3, 5.1, 7.1, 7.2, 7.3, 8, 9, 10, 12, 15, 16:
-  a red round of several units falls back, its changes marked to land
-  alone and its units formed one at a time, rather than narrowed by
-  prefixes (`landing-search.md`): no probe, no blamed leaving, no turn
-  at a green prefix, no next round after a turn. [in flight: change 2340]
-- **Not yet:** 14: `landing show` shows no search, and the changes view
-  no probing step. [in flight: change 2343]
 - **Departs:** 8, 13.1: `turn` is refused for every repository on GitHub
   (`temper-engine-domain-forge/src/landing.rs`, `project_landing`), not only
   where temper cannot fast-forward main, because GitHub's turn is not built.
