@@ -57,6 +57,7 @@ members = [
     "skein/crates/skein-ui-screen-terminal",
     "skein/crates/skein-ui-web",
     "skein/examples/ui/view",
+    "skein/examples/ui/view-codec",
     "skein/examples/ui/shell-web",
     "skein/examples/ui/server",
     "skein/tests/ui-web",
@@ -455,6 +456,7 @@ js-sys = { version = "=0.3.103" }
 web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions", "DedicatedWorkerGlobalScope", "WorkerGlobalScope", "MessageEvent", "Performance", "CssStyleDeclaration", "NodeList", "Text", "HtmlCollection", "HtmlInputElement", "HtmlOptionElement", "HtmlOptionsCollection", "HtmlTextAreaElement", "HtmlDialogElement", "MouseEvent", "WheelEvent", "InputEvent", "ResizeObserver", "ResizeObserverEntry", "DomRect", "DomRectReadOnly", "Request", "RequestInit", "RequestCredentials", "RequestCache", "RequestMode", "Response", "AbortController", "AbortSignal", "Headers", "Navigator", "Crypto", "ReadableStream", "ReadableStreamDefaultReader", "Storage", "PopStateEvent", "BeforeUnloadEvent", "ScrollRestoration", "ScrollIntoViewOptions", "ScrollLogicalPosition", "Worker", "WorkerOptions", "WorkerType", "ErrorEvent", "HtmlScriptElement", "HtmlLinkElement", "StyleSheetList", "StyleSheet", "CssStyleSheet", "HtmlHeadElement", "ServiceWorkerContainer", "ServiceWorkerRegistration", "PushManager", "PushSubscription", "PushSubscriptionOptionsInit", "PushEncryptionKeyName", "Notification", "NotificationPermission"] }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
+skein-ui-example-view-codec = { path = "skein/examples/ui/view-codec" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }
 skein-ui-screen = { path = "skein/crates/skein-ui-screen" }
 skein-ui-screen-terminal = { path = "skein/crates/skein-ui-screen-terminal" }
