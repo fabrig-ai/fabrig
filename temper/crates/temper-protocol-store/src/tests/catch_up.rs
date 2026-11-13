@@ -43,7 +43,7 @@ fn patched_with(
 }
 
 fn current(root: &[u8], mut bytes: Box<[u8]>) -> Box<[u8]> {
-    for (version, patch) in [(11, 0), (12, 1), (13, 2), (14, 3), (15, 4), (16, 5), (17, 6), (18, 7)] {
+    for (version, patch) in [(11, 0), (12, 1), (13, 2), (14, 3), (15, 4), (16, 5), (17, 6), (18, 7), (19, 8)] {
         bytes = patched(version, patch, root, bytes);
     }
     bytes
@@ -69,8 +69,8 @@ fn a_baseline_adopted_row_has_no_contexts() {
     let adopted = kept_golden(11, "record_adopted_full.bin");
     let before = bytes::concat(&[&[0, 11, 2], &adopted]); // Row version, repository variant.
     let bytes = current(b"Row", before);
-    let row = crate::v19::Row::decode(&crate::v19::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
-    let crate::v19::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
+    let row = crate::v20::Row::decode(&crate::v20::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
+    let crate::v20::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
     assert!(record.contexts().is_empty());
     assert_eq!(record.project(), u32::MAX);
     assert!(record.home());
@@ -81,8 +81,8 @@ fn a_foreman_with_a_task_becomes_retired() {
     let before = kept_golden(11, "enum_stands_foreman_full.bin");
     let bytes = current(b"Stands", before);
     let value =
-        crate::v19::Stands::decode(&crate::v19::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
-    assert_eq!(value, crate::v19::Stands::Retired);
+        crate::v20::Stands::decode(&crate::v20::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
+    assert_eq!(value, crate::v20::Stands::Retired);
 }
 
 #[test]
@@ -104,8 +104,8 @@ fn a_v16_person_owned_follow_keeps_its_bytes_and_owner() {
     let before = kept_golden(16, "record_follow_full.bin");
     let bytes = patched(16, 5, b"Follow", before.clone());
     assert_eq!(bytes, before, "adding task owners leaves person owners unchanged");
-    let follow = crate::v19::Follow::decode(&crate::v19::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-    let crate::v19::FollowOwner::Person(owner) = follow.owner() else { panic!("old person owner") };
+    let follow = crate::v20::Follow::decode(&crate::v20::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    let crate::v20::FollowOwner::Person(owner) = follow.owner() else { panic!("old person owner") };
     assert_eq!(owner.person(), u64::MAX);
 }
 

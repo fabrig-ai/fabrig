@@ -1915,6 +1915,47 @@ fn a_small_landed_result_cuts_only_evidence_and_keeps_both_identity_lines() {
     assert!(cut.len() <= usize::try_from(bound).unwrap());
 }
 
+#[test]
+fn a_blamed_landing_repairs_words_keep_the_boundary_before_the_bounded_list() {
+    use super::forge_change::{Below, Landed, Repair};
+    use skein_lib::bytes::concat;
+    let mut row = change_row(Some(42));
+    // The displayed head is pinned independently of either landing prefix.
+    let head = [
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0,
+    ];
+    row.change.last_head = Some(head);
+    let red = [0xaa; 32];
+    let green = [0xbb; 32];
+    let changes = [Some(Landed { change: 2341, pull: 7 }), Some(Landed { change: 2342, pull: 8 }), None, None];
+    let why = Repair::LandingAt { gate: 1, candidate: red, below: Some(Below { green, changes }) };
+    let opening = b"Repair landing gate 1 at 0123456789ab: failed at prefix aaaaaaaaaaaa above bbbbbbbbbbbb\n";
+    let reason = b"Repair the failed landing gate. The landing's gates passed at bbbbbbbbbbbb and failed at aaaaaaaaaaaa, with this change's unit on top of it; a change below may still share the cause.";
+    let list = b" Changes landing below it: 2341 (#7), 2342 (#8).";
+    let ci = b" The CI section gives its run, base and failed jobs.";
+    let expected = concat(&[opening.as_slice(), reason, list, ci, super::REPAIR_PRESERVATION]);
+    assert_eq!(super::repair_words(&row, why, &[], 1024).unwrap(), expected);
+    let bound = u32::try_from(expected.len() - 6).unwrap();
+    let cut = super::repair_words(&row, why, &[], bound).unwrap();
+    assert!(cut.starts_with(opening));
+    assert!(cut.starts_with(&concat(&[opening.as_slice(), reason, b" Changes landing below it: 2341 (#7)"])));
+    let mut last_kept = false;
+    for part in cut.windows(b"2342 (#8)".len()) {
+        last_kept |= part == b"2342 (#8)";
+    }
+    assert!(!last_kept);
+    assert!(cut.ends_with(&concat(&[ci.as_slice(), super::REPAIR_PRESERVATION])));
+    assert!(cut.len() <= usize::try_from(bound).unwrap());
+    let base = Repair::LandingAt { gate: 1, candidate: red, below: Some(Below { green, changes: [None; 4] }) };
+    assert_eq!(
+        super::repair_words(&row, base, &[], 1024).unwrap(),
+        concat(&[opening.as_slice(), reason, ci, super::REPAIR_PRESERVATION])
+    );
+    let candidate = Repair::LandingAt { gate: 1, candidate: red, below: None };
+    assert_eq!(super::repair_words(&row, candidate, &[], 1024).unwrap(), concat(&[b"Repair landing gate 1 at 0123456789ab: failed at landing candidate\nRepair the failed landing gate at its candidate. The CI section gives its run, base and failed jobs.".as_slice(), super::REPAIR_PRESERVATION]));
+}
+
 fn assert_repair_instruction(words: &[u8], opening: &[u8]) {
     assert!(words.starts_with(opening));
     assert!(words.ends_with(super::REPAIR_PRESERVATION));

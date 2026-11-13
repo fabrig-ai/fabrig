@@ -129,10 +129,37 @@ fn decode_effect_result(value: w::EffectResult) -> d::EffectResult {
         w::EffectResult::Failed => d::EffectResult::Failed,
     }
 }
+pub(super) fn encode_below(below: Option<d::Below>) -> Option<w::LandingBelow> {
+    let below = below?;
+    let mut changes = List::with_capacity(4);
+    for landed in below.changes.into_iter().flatten() {
+        changes
+            .push(
+                w::LandedBelow::new(&w::CEILINGS, w::LandedBelowParts { change: landed.change, pull: landed.pull })
+                    .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    Some(w::LandingBelow::new(&w::CEILINGS, w::LandingBelowParts { green: below.green, changes }).expect(FITS))
+}
+
+pub(super) fn decode_below(below: Option<w::LandingBelow>) -> Option<d::Below> {
+    let w::LandingBelowParts { green, changes } = below?.into_parts();
+    let mut below = d::Below { green, changes: [None; 4] };
+    for (slot, landed) in below.changes.iter_mut().zip(&changes) {
+        *slot = Some(d::Landed { change: landed.change(), pull: landed.pull() });
+    }
+    Some(below)
+}
+
 fn encode_repair(value: d::Repair) -> w::Repair {
     match value {
-        d::Repair::LandingAt { gate, candidate } => w::Repair::LandingAt(
-            w::LandingRepairAt::new(&w::CEILINGS, w::LandingRepairAtParts { gate, candidate }).expect(FITS),
+        d::Repair::LandingAt { gate, candidate, below } => w::Repair::LandingAt(
+            w::LandingRepairAt::new(
+                &w::CEILINGS,
+                w::LandingRepairAtParts { gate, candidate, below: encode_below(below) },
+            )
+            .expect(FITS),
         ),
         d::Repair::Ci => w::Repair::Ci,
         d::Repair::Review { head } => {
@@ -149,7 +176,10 @@ fn encode_repair(value: d::Repair) -> w::Repair {
 }
 fn decode_repair(value: w::Repair) -> d::Repair {
     match value {
-        w::Repair::LandingAt(value) => d::Repair::LandingAt { gate: value.gate(), candidate: *value.candidate() },
+        w::Repair::LandingAt(value) => {
+            let w::LandingRepairAtParts { gate, candidate, below } = value.into_parts();
+            d::Repair::LandingAt { gate, candidate, below: decode_below(below) }
+        }
         w::Repair::Ci => d::Repair::Ci,
         w::Repair::Review(value) => d::Repair::Review { head: *value.commit() },
         w::Repair::Gate(value) => d::Repair::Gate(value.number()),

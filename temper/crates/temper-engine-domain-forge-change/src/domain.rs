@@ -1696,8 +1696,8 @@ fn ready(
             }
             prepare_due(change, head, main, ready_since, now, limits)
         }
-        Some(Ask::Repair { gate, candidate }) => {
-            repair_due(change, Repair::LandingAt { gate, candidate }, facts, now, limits)
+        Some(Ask::Repair { gate, candidate, below }) => {
+            repair_due(change, Repair::LandingAt { gate, candidate, below }, facts, now, limits)
         }
         Some(Ask::Resolve { base }) => conflict_due(change, base, Some(head), facts, standing, now, limits),
         Some(Ask::Landed { .. }) => unreachable!("landed ask returned before the phase"),
@@ -1822,11 +1822,11 @@ fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Ste
         }
         return hold(change, Hold::BranchMoved);
     }
-    if let Some(Ask::Repair { gate, candidate }) = facts.ask {
+    if let Some(Ask::Repair { gate, candidate, below }) = facts.ask {
         if facts.live_gate.is_some() {
             return Stepped { change, decision: Decision::CancelGates { head: target.prefix } };
         }
-        return repair_due(change, Repair::LandingAt { gate, candidate }, facts, now, limits);
+        return repair_due(change, Repair::LandingAt { gate, candidate, below }, facts, now, limits);
     }
     if change.landing != Some(target.landing) {
         change.state = State::Ready { head, ready_since };
