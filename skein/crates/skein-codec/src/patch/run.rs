@@ -39,6 +39,10 @@ pub enum Halt {
     Misbuilt(Path),
     /// A value fails the new schema's checks.
     Built(Problem),
+    /// The older text cannot hold the value at this source path.
+    Unheld(Path),
+    /// A record taken down did not come back up with identical bytes.
+    Altered,
     /// The bytes, nodes or nesting exceed the capacity.
     Room,
     /// A call is out of turn.

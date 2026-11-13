@@ -23,6 +23,26 @@ pub const CEILINGS: Limits = Limits {
     moved_record: 274_497,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 6] = [
+    "moved_application",
+    "moved_issuer",
+    "moved_client_id",
+    "moved_subject",
+    "moved_display",
+    "moved_record",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 6] {
+        [
+            self.moved_application, self.moved_issuer, self.moved_client_id, self.moved_subject, self.moved_display, self.moved_record,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

@@ -34,6 +34,32 @@ pub const CEILINGS: Limits = Limits {
     delivery_landed: 64,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 11] = [
+    "turn_body",
+    "push_target_remote",
+    "push_target_branch",
+    "intent_directory_head_some",
+    "delivery_intent_directories",
+    "receipt_text",
+    "delivered_receipts",
+    "marker_path",
+    "delivery_refusal_explanation",
+    "delivery_failure_output",
+    "delivery_landed",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 11] {
+        [
+            self.turn_body, self.push_target_remote, self.push_target_branch, self.intent_directory_head_some, self.delivery_intent_directories, self.receipt_text, self.delivered_receipts, self.marker_path,
+            self.delivery_refusal_explanation, self.delivery_failure_output, self.delivery_landed,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

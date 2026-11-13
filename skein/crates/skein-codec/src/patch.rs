@@ -165,6 +165,10 @@ pub enum PatchWrong {
     Stray,
     /// A pieces item needs conversion.
     Pieces,
+    /// A forward change has no derived or authored reverse.
+    Irreversible,
+    /// The block explicitly has no reverse.
+    Breaking,
     /// The plans table is full.
     Room,
 }
@@ -346,6 +350,57 @@ impl Patcher {
         Ok(None)
     }
 
+    /// Plans this family's block down, deriving from its checked forward changes.
+    pub fn reverse(&mut self, patch: &[u8]) -> Result<Option<PlanIx>, PatchError> {
+        if patch.len() > usize_of(self.build.tables.capacity.text) {
+            return Err(error(1, Span { start: 0, end: 0 }, PatchWrong::Long));
+        }
+        let parsed = text::parse(patch)?;
+        let Some(first) = self.build.tables.schemas.get(0) else {
+            return Ok(None);
+        };
+        for block in &parsed.blocks {
+            if spelled(patch, block.family) == first.spelled(first.family()) {
+                if self.reverse_from(block.to).is_some() {
+                    return Err(block.error(PatchWrong::Twice));
+                }
+                if self.build.tables.plans.room() == 0 {
+                    return Err(block.error(PatchWrong::Room));
+                }
+                let planned = plan::reverse(&self.build.tables, patch, &parsed, *block)?;
+                let index = PlanIx(self.build.tables.plans.len());
+                self.build.tables.plans.push(planned).expect("plan room checked");
+                return Ok(Some(index));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Finds the reverse from a kept version to its predecessor.
+    #[must_use]
+    pub fn reverse_from(&self, version: u16) -> Option<PlanIx> {
+        for (at, plan) in self.build.tables.plans.iter().enumerate() {
+            if plan.from == version && plan.from > plan.to {
+                return Some(PlanIx(u32::try_from(at).expect("bounded plans table")));
+            }
+        }
+        None
+    }
+
+    /// Whether this root's reach can always convert by the reverse's rules.
+    #[must_use]
+    pub fn total(&self, plan: PlanIx, root: DeclIx) -> bool {
+        self.build
+            .tables
+            .plans
+            .get(plan.0)
+            .expect("plan belongs to this patcher")
+            .declarations
+            .get(root.index())
+            .expect("root belongs to plan")
+            .total
+    }
+
     /// Plans a kept version to itself, stopping only at held records.
     pub fn identity(&mut self, version: u16) -> Result<PlanIx, PatchWrong> {
         let schema = self.build.tables.schema_index(version).ok_or(PatchWrong::Unkept)?;
@@ -367,7 +422,7 @@ impl Patcher {
     #[must_use]
     pub fn plan_from(&self, version: u16) -> Option<PlanIx> {
         for (at, plan) in self.build.tables.plans.iter().enumerate() {
-            if plan.from == version && plan.from != plan.to {
+            if plan.from == version && plan.from < plan.to {
                 return Some(PlanIx(u32::try_from(at).expect("bounded plans table")));
             }
         }

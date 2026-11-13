@@ -673,7 +673,8 @@ impl World {
                 | LinkDown::TurnKept { .. },
             )
             | Event::Agent(
-                FromAgent::Piece { .. }
+                FromAgent::Decoded { .. }
+                | FromAgent::Piece { .. }
                 | FromAgent::Activity { .. }
                 | FromAgent::Unauthorized { .. }
                 | FromAgent::Limited { .. }

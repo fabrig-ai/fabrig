@@ -22,6 +22,25 @@ pub const CEILINGS: Limits = Limits {
     scoped_notes_description_some: 1_024,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 5] = [
+    "blob_value",
+    "owner_key_value",
+    "pattern_segments",
+    "pattern_segments_item",
+    "scoped_notes_description_some",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 5] {
+        [
+            self.blob_value, self.owner_key_value, self.pattern_segments, self.pattern_segments_item, self.scoped_notes_description_some,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

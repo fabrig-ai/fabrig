@@ -19,6 +19,7 @@ pub use generated::v8;
 mod frame;
 pub mod kind;
 mod kinds;
+pub mod pieces;
 pub mod reason;
 
 pub use frame::{Body, frame};
@@ -67,8 +68,11 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 8;
 
+    /// The lowest version this build speaks.
+    pub const FLOOR: u16 = crate::patches::kept::smith_channel::FLOOR;
+
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/channel-v8.schema");
+    pub(crate) const TEXT: &str = include_str!("../schema/channel-v8.schema");
 
     /// The current schema's family fingerprint.
     #[must_use]
@@ -82,13 +86,15 @@ pub mod wire {
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, TEXT, VERSION, layout};
+        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
 
         #[test]
         fn identity_tracks_schema() {
             let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
+            assert_eq!(FLOOR, crate::patches::kept::smith_channel::FLOOR);
+            assert_eq!(FLOOR, VERSION);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("completion: u32", "completion: u64", 1);

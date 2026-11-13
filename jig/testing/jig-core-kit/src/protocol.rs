@@ -187,6 +187,7 @@ impl crate::world::World {
             run: Token::new(assignment.task),
             attempt: Token::new(assignment.attempt),
             call: fleet::Call {
+                contract: 1,
                 name: name.into(),
                 tool: tool.into(),
                 writes,

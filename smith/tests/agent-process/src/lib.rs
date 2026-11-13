@@ -412,7 +412,7 @@ fn scenario_credential(anthropic: bool, private_grant: bool) -> skein_llm::Crede
 /// A concrete charter within the process limits, with one report contract.
 #[must_use]
 pub fn charter() -> Box<[u8]> {
-    let smallest = include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
+    let smallest = include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin");
     crate::wire::edit_charter(smallest, |parts| {
         parts.budget = smith_charter::Budget::new(
             &smith_charter::CEILINGS,

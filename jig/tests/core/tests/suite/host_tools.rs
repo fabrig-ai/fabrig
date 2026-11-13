@@ -15,6 +15,7 @@ fn relay(world: &mut World, name: &[u8], tool: &[u8], input: &[u8]) {
         run: Token::new(assignment.task),
         attempt: Token::new(assignment.attempt),
         call: fleet::Call {
+            contract: 1,
             name: name.into(),
             tool: tool.into(),
             input: input.into(),
