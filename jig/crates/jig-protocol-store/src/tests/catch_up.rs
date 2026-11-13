@@ -57,7 +57,7 @@ fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     let expected = bytes::concat(&[&[0, 10, *tag, 0, 0], fields, &[0, 0, 0, 0]]);
     assert_eq!(bytes.as_ref(), expected.as_ref());
     let bytes = patched(10, 2, b"Row", bytes);
-    let bytes = patched(11, 3, b"Row", bytes);
+    let bytes = patched(11, 4, b"Row", bytes);
     let row = crate::tasks_v12::Row::decode(&crate::tasks_v12::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("current row");
     let crate::tasks_v12::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };

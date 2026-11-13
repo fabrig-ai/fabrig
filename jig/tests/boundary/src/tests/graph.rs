@@ -456,8 +456,13 @@ fn smith_breaches(manifests: &[CrateManifest]) -> Vec<String> {
                     ["smith-domain-run", "smith-charter", "smith-channel"].contains(&dependency.as_str())
                 }
                 "jig-protocol-transcript" | "jig-protocol-store" => dependency == "smith-transcript",
+                "jig-protocol-worker-wire" => {
+                    ["smith-channel", "smith-charter", "smith-transcript"].contains(&dependency.as_str())
+                }
                 "jig-protocol-worker-agents" => [
                     "smith-channel",
+                    "smith-charter",
+                    "smith-transcript",
                     "smith-domain-run",
                     "smith-host-domain",
                     "smith-host-protocol",
@@ -531,7 +536,7 @@ fn protocol_crates_link_no_application_crate_even_when_empty() {
 }
 
 #[test]
-fn worker_wire_links_only_skeins_codec_and_channel_vocabulary() {
+fn worker_wire_links_only_the_codec_channel_and_version_vocabulary() {
     let roots: Vec<_> = manifests()
         .into_iter()
         .filter(|manifest| manifest.name.as_deref() == Some("jig-protocol-worker-wire"))
@@ -539,7 +544,10 @@ fn worker_wire_links_only_skeins_codec_and_channel_vocabulary() {
     assert_eq!(roots.len(), 1, "one worker wire codec crate");
     let mut dependencies = roots[0].dependencies.clone();
     dependencies.sort();
-    assert_eq!(dependencies, ["skein-channel", "skein-codec", "skein-lib"]);
+    assert_eq!(
+        dependencies,
+        ["skein-channel", "skein-codec", "skein-lib", "smith-channel", "smith-charter", "smith-transcript"]
+    );
 }
 
 #[test]
@@ -552,7 +560,7 @@ fn a_protocol_crate_naming_an_ops_crate_is_reported() {
 }
 
 #[test]
-fn only_the_charter_the_transcript_the_store_and_the_worker_agents_link_smith_even_when_empty() {
+fn only_the_charter_transcript_store_and_worker_protocols_link_smith_even_when_empty() {
     let failures = smith_breaches(&manifests());
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

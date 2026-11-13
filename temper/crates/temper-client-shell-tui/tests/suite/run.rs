@@ -1458,7 +1458,7 @@ fn the_box_ending_while_lent_leaves_the_login_to_its_end() {
     world.settle();
     assert!(!world.login.as_ref().expect("login").finished);
     assert_eq!(world.bytes.len(), lent);
-    assert!(world.loan_signals.is_empty());
+    assert_eq!(world.loan_signals, [] as [(io::kernel::Signal, io::kernel::Target); 0]);
     world.finish_login(Exit::Code(0));
     assert!(world.bytes.get(lent..).expect("back").starts_with(ENTER));
     assert!(world.loan_record().contains(&Line::Lent { number: 1, exit: LoginExit::Exited { code: 0 } }));
