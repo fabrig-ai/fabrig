@@ -20,6 +20,17 @@ variant PublicStep red tag=17 payload=-
 variant PublicStep cleared tag=18 payload=-
 record PublicGateNumber versioned=false
 field PublicGateNumber gate type=u64 tag=- default=-
+record PublicBlamed versioned=false
+field PublicBlamed gate type=u64 tag=- default=-
+field PublicBlamed red type=fixed 32 tag=- default=-
+field PublicBlamed green type=fixed 32 tag=- default=-
+record PublicSearchBound versioned=false
+field PublicSearchBound member type=u16 tag=- default=-
+field PublicSearchBound prefix type=fixed 32 tag=- default=-
+record PublicSearch versioned=false
+field PublicSearch green type=PublicSearchBound tag=- default=-
+field PublicSearch red type=PublicSearchBound tag=- default=-
+field PublicSearch probe type=option fixed 32 tag=- default=-
 variant PublicRepair ci tag=0 payload=-
 variant PublicRepair gate tag=1 payload=PublicGateNumber
 variant PublicRepair semantic tag=2 payload=-
@@ -114,12 +125,14 @@ variant PublicLandingStep judging tag=8 payload=-
 variant PublicLandingStep leaving tag=9 payload=-
 variant PublicLandingStep recording tag=10 payload=-
 variant PublicLandingStep telling tag=11 payload=-
+variant PublicLandingStep probing tag=12 payload=-
 variant PublicLeave conflict tag=0 payload=-
 variant PublicLeave head_moved tag=1 payload=-
 variant PublicLeave cancelled tag=2 payload=-
 variant PublicLeave held tag=3 payload=-
 variant PublicLeave refused tag=4 payload=PublicGateNumber
 variant PublicLeave failed tag=5 payload=PublicGateNumber
+variant PublicLeave blamed tag=6 payload=PublicBlamed
 record PublicJudgement versioned=false
 field PublicJudgement prefix type=fixed 32 tag=- default=-
 field PublicJudgement verdict type=PublicCi tag=- default=-
@@ -154,3 +167,4 @@ field PublicLanding stale_proofs type=u32 tag=- default=-
 field PublicLanding holds_turn type=bool tag=- default=-
 field PublicLanding combined type=option PublicCombined tag=- default=-
 field PublicLanding step type=option PublicLandingStep tag=- default=-
+field PublicLanding search type=option PublicSearch tag=- default=-

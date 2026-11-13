@@ -423,6 +423,27 @@ fn red_batch_workflow(breaking: u64, workflow: raw::Workflow) -> World {
 }
 
 #[test]
+fn the_changes_document_shows_a_running_probe_and_its_prefix() {
+    let mut world = red_batch(52);
+    for entry in 1000..1100 {
+        if !matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Dispatch { member: 0, .. })
+        {
+            continue;
+        }
+        let prefix = world.landing(LANDING).landing.members[0].candidate.unwrap();
+        let Some(top::Document::Changes(view)) =
+            world.document(landings::PROJECT, top::changes_subject(landings::PROJECT))
+        else {
+            panic!("changes document");
+        };
+        let flight = view.queues[0].in_flight.as_ref().expect("train's landing");
+        assert_eq!((flight.task, flight.step, flight.probe), (LANDING, top::LandingStep::Probing, Some(prefix)));
+        return;
+    }
+    panic!("middle red member never led to a probe");
+}
+
+#[test]
 fn a_red_middle_unit_is_blamed_the_green_prefix_lands_and_the_suffix_stacks_again() {
     let mut world = red_batch(52);
     landings::drive_landing(&mut world, LANDING);

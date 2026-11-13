@@ -426,6 +426,33 @@ fn a_changes_task_bar_opens_with_its_projects_changes_breadcrumb() {
 }
 
 #[test]
+fn a_searching_train_shows_probing_at_its_prefix() {
+    let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
+    busy.way = w::Way::Turn;
+    busy.in_flight = Some(
+        w::TrainLanding::new(
+            &w::CEILINGS,
+            w::TrainLandingParts {
+                task: 61,
+                member: 51,
+                round: 2,
+                step: w::LandingStep::Probing,
+                probe: Some([0x33; 32]),
+                title: b"In flight".as_slice().into(),
+                ready_since: SIX_MIN_AGO,
+            },
+        )
+        .unwrap(),
+    );
+    let value = panel(&[w::ChangesQueue::new(&w::CEILINGS, busy).unwrap()], 0, false, b"main");
+    let (mut root, watch) = opened();
+    show(&mut root, watch, &value);
+    let text = main_words(&root);
+    assert!(contains(&text, "Landing 61 · member 51 · round 2"));
+    assert!(contains(&text, "probing at 3333333"));
+}
+
+#[test]
 fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
     let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
     busy.way = w::Way::Turn;
@@ -433,6 +460,7 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
         w::TrainLanding::new(
             &w::CEILINGS,
             w::TrainLandingParts {
+                probe: None,
                 task: 61,
                 member: 51,
                 round: 2,
