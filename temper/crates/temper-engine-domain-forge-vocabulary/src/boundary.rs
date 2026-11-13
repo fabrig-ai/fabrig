@@ -1046,6 +1046,8 @@ pub struct ChangeRow {
     pub close: Option<Box<[u8]>>,
     /// The last merge job's result, at most 512 bytes (temper/docs/design/domain/forge/change/repairs.md).
     pub merge_result: Option<Box<[u8]>>,
+    /// Open intervals and the last event (landing-history.md, 3.2).
+    pub history: Option<crate::history::ChangeHistory>,
 }
 impl ChangeRow {
     /// The pull a judgement delegate reads; every other state keeps the change's pull.
@@ -1355,6 +1357,11 @@ pub enum Stored {
     Device(crate::Device),
     Finding(crate::Finding),
     LandedDraft(crate::LandedDraft),
+    HistoryProject(crate::history::Project),
+    HistoryEvent(crate::history::Event),
+    HistoryChange(crate::history::ChangeIndex),
+    HistoryLanding(crate::history::LandingIndex),
+    HistoryLast(crate::history::Last),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1407,6 +1414,11 @@ pub enum Key {
     Device { party: u64, number: u32 },
     LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
     Follow { project: u32, follow: u32 },
+    HistoryProject { project: u32 },
+    HistoryEvent { project: u32, number: u64 },
+    HistoryChange { project: u32, change: u64, number: u64 },
+    HistoryLanding { project: u32, landing: u64, number: u64 },
+    HistoryLast { project: u32, number: u64, change: u64 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

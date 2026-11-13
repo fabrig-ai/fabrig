@@ -23,6 +23,7 @@ pub use temper_engine_domain_forge_vocabulary::*;
 mod adoption;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod approvals;
+pub mod history;
 pub use approvals::{ApprovalWait, ShortApproval};
 pub use temper_engine_domain_forge_vocabulary::boundary;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
