@@ -39,7 +39,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "view records",
         root: "crates/jig-client-view",
-        codec_root: "crates/jig-client-view",
+        codec_root: "crates/jig-client-view-codec",
         schemas: &["schema/records-v1.schema"],
         generated: &["src/generated/records_v1.rs"],
         golden: "golden",
@@ -57,7 +57,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "test client",
         root: "testing/jig-client-test-protocol-wire",
-        codec_root: "testing/jig-client-test-protocol-wire",
+        codec_root: "testing/jig-client-test-protocol-wire-codec",
         schemas: &["schema/test-client-v2.schema"],
         generated: &["src/generated/v2.rs"],
         golden: "golden",
@@ -258,5 +258,10 @@ pub fn check() {
 }
 
 fn entries(path: &Path) -> BTreeSet<PathBuf> {
-    fs::read_dir(path).expect("directory readable").map(|entry| entry.expect("entry readable").path()).collect()
+    let entries = match fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return BTreeSet::new(),
+        Err(why) => panic!("{}: directory readable: {why}", path.display()),
+    };
+    entries.map(|entry| entry.expect("entry readable").path()).collect()
 }
