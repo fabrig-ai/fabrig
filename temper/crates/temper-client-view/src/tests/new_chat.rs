@@ -6,29 +6,39 @@
     reason = "ordinary tests inspect semantic subtrees and terminal text"
 )]
 use super::fixtures as f;
+
 use crate::look;
+
 use jig_client::contract as c;
+
 use skein_lib::{Env, List, Queue, Time};
+
 use skein_ui::{Act, Node, Role, State, Style, Tree};
+
 use temper_client_domain::{self as d, Address, pages};
 
 const ENTRY: &[u8] = b"What do you want done?";
+
 const DRAFT: &[u8] = b"Make the change";
 
 fn root() -> d::Domain {
     f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true)
 }
+
 fn input(root: &mut d::Domain, act: pages::Act) {
     f::root_event(root, d::Event::Act { action: d::Action::Pages(act) });
 }
+
 fn named<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a Node {
     tree.nodes().iter().find(|n| n.role == role && n.name.as_deref() == Some(name)).expect("named node")
 }
+
 fn styled(tree: &Tree, style: Style) -> &[Node] {
     let at = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&style)).expect("styled node");
     let end = at.checked_add(usize::try_from(tree.nodes()[at].size).unwrap()).unwrap();
     &tree.nodes()[at..end]
 }
+
 fn children(nodes: &[Node]) -> Vec<&Node> {
     let mut out = Vec::new();
     let mut at = 1_usize;
@@ -38,9 +48,11 @@ fn children(nodes: &[Node]) -> Vec<&Node> {
     }
     out
 }
+
 fn parts(tree: &Tree, style: Style) -> Vec<(Role, Vec<Style>)> {
     children(styled(tree, style)).into_iter().map(|n| (n.role, n.styles.as_slice().to_vec())).collect()
 }
+
 fn disabled(node: &Node) -> bool {
     node.states.as_slice().contains(&State::Disabled)
 }
@@ -292,6 +304,7 @@ fn start(root: &mut d::Domain) -> skein_lib::Token {
     }
     panic!("start sent");
 }
+
 fn answer(root: &mut d::Domain, attempt: skein_lib::Token, answer: c::Answer) -> Queue<d::Request> {
     let mut out = Queue::uncapped();
     d::step(
@@ -323,41 +336,6 @@ fn refused_start_keeps_the_words_and_feedback_under_the_composer() {
         assert!(!disabled(named(view.tree(), Role::Button, b"Send")));
         assert_eq!(children(styled(view.tree(), look::SESSION_FOOT)).last().unwrap().role, Role::Status);
         assert!(String::from_utf8_lossy(&f::main_text(view.tree())).contains("not offered"));
-    }
-}
-
-#[test]
-fn made_chat_replaces_only_the_new_chat_address() {
-    for from in [
-        Address::NewChat { draft: false },
-        Address::NewChat { draft: true },
-        Address::Ask { project: f::PROJECT },
-        Address::Chats { filter: d::ChatsFilter::All },
-    ] {
-        for document in [false, true] {
-            let mut root = f::playground_root(from.clone(), f::PROJECT, true);
-            let attempt = start(&mut root);
-            let value = if document {
-                c::Outcome::Document(c::DocumentOutcome::Created { first: 42, last: 42, given: None })
-            } else {
-                let mut tasks = List::with_capacity(1);
-                tasks.push(42).unwrap();
-                c::Outcome::Made { what: c::Made::Tasks { tasks } }
-            };
-            let out = answer(&mut root, attempt, c::Answer::Done(value));
-            let shows: Vec<_> = out
-                .iter()
-                .filter_map(|request| {
-                    if let d::Request::Show { address, replace } = request {
-                        Some((address.clone(), *replace))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            let replaces = from == (Address::NewChat { draft: false }) || from == (Address::NewChat { draft: true });
-            assert_eq!(shows, [(Address::Chat { task: 42 }, replaces)]);
-        }
     }
 }
 

@@ -1,12 +1,18 @@
 //! Tests staged for the parts (temper/docs/design/client/view-crates.md, 4.3).
 mod accounts;
 pub(crate) mod cards;
+mod chat;
+mod chat_line;
+mod chats;
 pub(crate) mod choice;
 pub(crate) mod confirm;
 pub(crate) mod fixtures;
 mod flow;
 mod forge_page;
 mod frame;
+mod goals;
+mod new_chat;
+mod playground;
 mod public;
 mod repository_link;
 pub(crate) mod shared;

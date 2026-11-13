@@ -1,29 +1,11 @@
-//! Chat render adapters, which depend on the page and confirmation parts.
+//! Chat render adapters used by whole-view tests.
 use super as fixtures;
 pub use crate::view_kit::chat::*;
 use jig_client::{contract as c, thread::Thread};
 use skein_lib::List;
 use skein_ui::Builder;
-
-pub fn chat_header() -> skein_ui::Tree {
-    let mut b = Builder::new(&fixtures::tree_limits());
-    let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
-    crate::pages::chat::main(
-        &mut b,
-        &chat_root(),
-        &fixtures::words(),
-        &mut bindings,
-        LINES,
-        TEXT,
-        &mut crate::words::Times::new(fixtures::NOW),
-    );
-    b.finish()
-}
 pub fn projected_tree(thread: &Thread) -> skein_ui::Tree {
     drawn_tree(thread, crate::pages::chat::Drawn::Chat { request: None, delegations: None })
-}
-pub fn requested_tree(thread: &Thread, request: &c::SpecificationDocument) -> skein_ui::Tree {
-    drawn_tree(thread, crate::pages::chat::Drawn::Chat { request: Some(request), delegations: None })
 }
 pub fn tree(thread: &Thread) -> skein_ui::Tree {
     drawn_tree(thread, crate::pages::chat::Drawn::Lines)

@@ -248,6 +248,12 @@ each stage a `#[cfg(test)]` module of the crate's root:
 
 - **A staged file names its fixtures and its siblings through `super::`,** never by its stage's
   path from the crate's root, so that it compiles unedited under `tests`.
+- **No stage names another stage's tests or fixtures, and neither does `src/tests/`:** they become
+  another crate's `cfg(test)` code at the move, out of reach. A helper that draws with a piece's
+  code and that two stages' tests share is copied into each, trimmed to what that stage's tests use
+  (as the words' stage keeps its copy, 4.2). Within one stage, a file names a sibling's helper
+  through `super::<sibling>::`, or keeps its own copy when the sibling is staged by a change running
+  beside it.
 - **Each stage has its `fixtures` module:** the words' stage its trimmed copy; the others the kit's
   items, re-exported, and the fixtures that draw with their piece.
 - **The kit's stage names only the words' modules** (`crate::words`, `crate::look`,

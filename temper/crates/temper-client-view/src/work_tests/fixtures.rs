@@ -1,3 +1,3 @@
-pub(crate) use crate::view_kit::{
-    FORGE, PROJECT, domain_limits, find, first_run, limits_helpers, root_with_ways, task, tree_limits, words,
-};
+pub use crate::view_kit::*;
+pub use temper_fixtures::client_documents as documents;
+pub mod chat;
