@@ -199,6 +199,7 @@ fn a_real_failure_snapshots_each_failed_job_and_only_changed_keys_run_after_repa
     let mut next = landings::landing_row(world.change(CHANGE));
     next.landing.task = 62;
     next.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
+    next.landing.members[0].branch = next.landing.round.branch.clone();
     next.landing.members[0].gates =
         vec![landing::GateProof { proof: landing::Proof::Unkeyed, posted: landing::Posted::Nothing, faults: 0 }; 2]
             .into_boxed_slice();
@@ -350,6 +351,7 @@ fn cancelling_the_landing_returns_its_member_ready_and_frees_the_train() {
     let mut row = landings::landing_row(world.change(CHANGE));
     row.landing.task = 62;
     row.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
+    row.landing.members[0].branch = row.landing.round.branch.clone();
     world.event(top::Event::Landing { row });
     assert_eq!(world.change(CHANGE).change.landing, Some(62));
 }

@@ -188,45 +188,7 @@ fn a_real_candidate_failure_delegates_an_own_head_repair_with_its_run_and_jobs()
 
 #[test]
 fn every_batched_members_goal_hears_joined_with_its_ordered_peers() {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        false,
-        1000,
-        Gate::default(),
-        None,
-        StoryLimits { turn: true, landing_members: Some(0), batch: Some(3), ..StoryLimits::default() },
-    );
-    world.adopt();
-    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
-    let mut changes = Vec::new();
-    let ask = walking::goal_from(
-        world.chat(1, b"make three fixes"),
-        people::TaskExecutor::Agent { charter: 1 },
-        jig_test_profile::fixtures::Goal { budget: 200, priority: 3, deadline: None },
-    );
-    let goal = assigned_chat(&mut world, 92, ask);
-    for call in [94, 95, 96] {
-        changes.push(ready_goal_change(&mut world, &goal, call));
-    }
-    for _ in 0..600 {
-        world.tick();
-    }
-    assert!(landing_rows(&world).is_empty(), "full room leaves all three waiting");
-    for change in &changes {
-        assert!(matches!(
-            super::light_rules::change_row(&world, *change).change.state,
-            temper_engine_domain_forge_change::State::Ready { .. }
-        ));
-    }
-    world.restart_with_batch(3);
-    for _ in 0..600 {
-        world.tick();
-        if !landing_rows(&world).is_empty() {
-            break;
-        }
-    }
-    assert!(!landing_rows(&world).is_empty(), "restart forms the waiting batch");
+    let (mut world, goal, changes) = joined_batch();
     let row = landing_rows(&world)[0];
     let landing = row.landing.task;
     assert_eq!(row.landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), changes);
@@ -258,6 +220,49 @@ fn every_batched_members_goal_hears_joined_with_its_ordered_peers() {
         world.tick();
     }
     assert_eq!(news(&world, goal.task, landing), expected);
+}
+
+fn joined_batch() -> (World, engine::Assignment, Vec<u64>) {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { turn: true, landing_members: Some(0), batch: Some(3), ..StoryLimits::default() },
+    );
+    world.adopt();
+    world.send(protocol::hello_with(Token::new(7), 0, 2, jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() }, Box::new([])));
+    let mut changes = Vec::new();
+    let ask = walking::goal_from(
+        world.chat(1, b"make three fixes"),
+        people::TaskExecutor::Agent { charter: 1 },
+        jig_test_profile::fixtures::Goal { budget: 200, priority: 3, deadline: None },
+    );
+    let goal = assigned_chat(&mut world, 92, ask);
+    for call in [94, 95, 96] {
+        changes.push(ready_goal_change(&mut world, &goal, call));
+    }
+    for _ in 0..600 {
+        world.tick();
+    }
+    assert!(landing_rows(&world).is_empty(), "full room leaves all three waiting");
+    for change in &changes {
+        assert!(matches!(
+            super::light_rules::change_row(&world, *change).change.state,
+            temper_engine_domain_forge_change::State::Ready { .. }
+        ));
+    }
+    world.restart_with_batch(3);
+    for _ in 0..600 {
+        world.tick();
+        if !landing_rows(&world).is_empty() {
+            break;
+        }
+    }
+    assert!(!landing_rows(&world).is_empty(), "restart forms the waiting batch");
+    (world, goal, changes)
 }
 
 fn ready_goal_change(world: &mut World, goal: &engine::Assignment, call: u64) -> u64 {

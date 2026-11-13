@@ -10,7 +10,10 @@ pub const CHANGE: u64 = 51;
 pub const LANDING: u64 = 61;
 #[must_use]
 pub fn turn_world() -> World {
-    let mut world = World::turn();
+    turn_in(World::turn())
+}
+#[must_use]
+pub fn turn_in(mut world: World) -> World {
     world.adopt();
     assert!(world.project_landing(
         PROJECT,
@@ -84,46 +87,42 @@ pub fn step_landing(world: &mut World, task: u64, entry: u64) -> landing::Decisi
     decision
 }
 pub fn step_landing_raw(world: &mut World, task: u64, entry: u64) -> landing::Decision {
-    world.take_seen();
-    world.event(top::Event::StepLanding {
-        task,
-        entry,
-        heard: top::LandingHeard {
-            outcomes: Box::new([]),
-            dependencies: Box::new([]),
-            held: Box::new([]),
-            failure: Box::new([]),
-            preparation: temper_engine_domain_forge_landing::Preparation::Idle,
-            released: false,
-            cancelled: false,
-            kept: Box::new([]),
-        },
-    });
-    world.run_for(1);
-    let mut decision = None;
-    let mut committed = None;
-    for request in world.take_seen() {
-        if let top::Request::LandingDecision { task: decided, decision: choice, entry, .. } = request
-            && decided == task
-        {
-            decision = Some(choice);
-            committed = entry;
-        }
-    }
-    if let Some(entry) = committed {
-        world.event(top::Event::Committed { entry });
-        world.run_for(1);
-    }
-    decision.expect("landing step made a decision")
+    step_landing_heard(world, task, entry, top::LandingHeard { outcomes: Box::new([]), dependencies: Box::new([]), held: Box::new([]), failure: Box::new([]), preparation: landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) })
 }
+pub fn step_landing_heard(world: &mut World, task: u64, entry: u64, heard: top::LandingHeard) -> landing::Decision {
+    let result = read_landing_step(world, task, entry, heard);
+    if let Some(entry) = result.entry { world.event(top::Event::Committed { entry }); world.run_for(1); }
+    result.decision
+}
+pub struct LandingStep { pub decision: landing::Decision, pub entry: Option<u64>, pub evidence: Option<Box<[top::LandingEvidence]>> }
+pub fn read_landing_step(world: &mut World, task: u64, entry: u64, heard: top::LandingHeard) -> LandingStep {
+    world.take_seen(); world.event(top::Event::StepLanding { task, entry, heard });
+    let mut decision = None; let mut committed = None; let mut evidence = None;
+    for _ in 0..20 {
+        world.run_for(1);
+        for request in world.take_seen() {
+            if let top::Request::LandingDecision { task: decided, decision: choice, entry, evidence: facts } = request && decided == task {
+                decision = Some(choice); committed = entry; evidence = facts;
+            }
+        }
+        if decision.is_some() { break; }
+    }
+    LandingStep { decision: decision.expect("landing step made a decision"), entry: committed, evidence }
+}
+
 pub fn drive_landing(world: &mut World, task: u64) {
     // Each bounded step gets two fresh root entries: landing then its member.
-    const STEPS: u64 = 80;
+    const STEPS: u64 = 120;
     for position in 0..STEPS {
-        let entry = task * 100 + position * 2;
+        let entry = task * 1000 + position * 10;
         let decision = step_landing(world, task, entry);
-        let member = world.landing(task).landing.members[0].change;
-        changes::change_step_task(world, member, entry + 1, change::Status::Passed, Box::new([]), false, false);
+        let members: Vec<_> = world.landing(task).landing.members.iter().enumerate().filter_map(|(index, m)| {
+            if m.left.is_some() && world.landing(task).asks[index].is_none() && matches!(world.change(m.change).change.state, change::State::Repairing { .. } | change::State::Resolving { .. } | change::State::WaitingProducer { .. }) { None } else { Some(m.change) }
+        }).collect();
+        for (index, member) in members.into_iter().enumerate() {
+            world.run_for(10);
+            changes::change_step_task(world, member, entry + 1 + u64::try_from(index).expect("member"), change::Status::Passed, Box::new([]), false, false);
+        }
         if decision == landing::Decision::Finish {
             return;
         }
@@ -169,6 +168,7 @@ pub fn documentation_landing(world: &mut World, change: u64, landing: u64, branc
     let mut row = landing_row(world.change(change));
     row.landing.task = landing;
     row.landing.round = landing::Round::new(format!("temper/1/l{landing}").into_bytes().into_boxed_slice());
+    row.landing.members[0].branch = row.landing.round.branch.clone();
     world.event(top::Event::Landing { row });
     drive_landing(world, landing);
 }
@@ -274,4 +274,31 @@ pub fn ready_marked(world: &mut World, task: u64, branch: &[u8], base: &[u8], al
     row.change.last_head = Some(head);
     row.pull = Some(pull);
     world.event(top::Event::Change { row });
+}
+
+/// The scripted worker applies only the member's diff onto the prefix below.
+pub fn stack_files(forge: &skein_fake_forge_domain::Domain, below: u64, head: u64, bound: u32) -> Box<[skein_fake_forge_domain::api::File]> {
+    let mut common = head;
+    for _ in 0..bound { if forge.is_ancestor(common, below) { break; } common = forge.object(common).expect("fetched head ancestry").parent.expect("common ancestor"); }
+    assert!(forge.is_ancestor(common, below));
+    let before = &forge.object(common).expect("merge base").tree;
+    let after = &forge.object(head).expect("member head").tree;
+    let mut tree: std::collections::BTreeMap<_, _> = forge.object(below).expect("prefix below").tree.iter().map(|(path, bytes)| (path.clone(), bytes.clone())).collect();
+    let paths: std::collections::BTreeSet<_> = before.iter().chain(after.iter()).map(|(path, _)| path.clone()).collect();
+    for path in paths {
+        if before.get(&path) == after.get(&path) { continue; }
+        assert!(tree.get(&path) == before.get(&path) || tree.get(&path) == after.get(&path), "selected member must merge cleanly");
+        match after.get(&path) { Some(bytes) => { tree.insert(path, bytes.clone()); }, None => { tree.remove(&path); } }
+    }
+    tree.into_iter().map(|(path, content)| skein_fake_forge_domain::api::File { path, content }).collect()
+}
+pub fn close_landing(world: &mut World, task: u64) {
+    world.event(top::Event::SettleEffects { task, root: task, ending: top::ReleaseEnding::Done });
+    world.event(top::Event::Release { task, root: task, ending: top::ReleaseEnding::Done, reason: None, entry: 90_000 });
+    world.event(top::Event::Committed { entry: 90_000 }); world.run_for(5);
+    for entry in 90_001..90_010 {
+        world.event(top::Event::ContinueRelease { task, entry }); world.event(top::Event::Committed { entry }); world.run_for(5);
+        if world.take_seen().iter().any(|request| matches!(request, top::Request::Released { task: ended } if *ended == task)) { return; }
+    }
+    panic!("landing did not release");
 }

@@ -344,6 +344,7 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
     let mut row = landings::landing_row(world.change(CHANGE));
     row.landing.task = 62;
     row.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
+    row.landing.members[0].branch = row.landing.round.branch.clone();
     world.event(top::Event::Landing { row });
     landings::drive_landing(&mut world, 62);
     assert!(world.landing(62).landing.members[0].landed.is_some());

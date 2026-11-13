@@ -1772,7 +1772,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         row.landing.round.upstream = p.upstream;
     }
     if !p.heard.outcomes.is_empty() || p.heard.preparation == policy::Preparation::Failed || p.heard.preparation == policy::Preparation::Conflict {
-        row.landing.round.failure.clone_from(&p.heard.failure);
+        row.landing.round.failure = crate::preparation::remember(&row.landing.round.failure, &p.heard.failure, env.limits.landing_members);
     }
     if continue_retry(d, &mut row, p.entry, out) {
         return;
@@ -2721,7 +2721,7 @@ pub(crate) fn outcome(
         {
             row.landing.round.failure = match outcome {
                 skein_forge_client::Outcome::Failed(error) | skein_forge_client::Outcome::Raced { why: error, .. } => {
-                    crate::effect_words::error_words(error)
+                    crate::preparation::remember(&row.landing.round.failure, &crate::effect_words::error_words(error), d.landing.limits.landing_members)
                 }
                 skein_forge_client::Outcome::Made { .. }
                 | skein_forge_client::Outcome::Queued
@@ -3220,16 +3220,17 @@ impl Domain {
     #[must_use]
     pub fn landing_hold_words(&self, task: u64) -> Option<Box<[u8]>> {
         let row = self.landing.rows.get(&task)?;
+        let failure = crate::preparation::failure(&row.landing.round.failure);
         let policy::Phase::Held { why, .. } = row.landing.phase else { return None };
         match why {
-            policy::Hold::Prepare => Some(concat(&[b"prepare job: ", &row.landing.round.failure])),
+            policy::Hold::Prepare => Some(concat(&[b"prepare job: ", &failure])),
             policy::Hold::Record { member } => Some(concat(&[
                 b"turn: record of #",
                 skein_lib::Decimal::of(row.landing.members.get(usize::from(member))?.pull).as_bytes(),
                 b": ",
-                &row.landing.round.failure,
+                &failure,
             ])),
-            policy::Hold::Turn => Some(concat(&[b"turn: ", &row.landing.round.failure])),
+            policy::Hold::Turn => Some(concat(&[b"turn: ", &failure])),
             policy::Hold::Faults { member, gate } | policy::Hold::Timeout { member, gate, .. } => {
                 let m = row.landing.members.get(usize::from(member))?;
                 let repo = self.repository(repository(m))?;
@@ -3329,7 +3330,7 @@ impl Domain {
         for (_, row) in &self.landing.rows {
             for member in &row.landing.members {
                 if member.change == change && matches_failed(member.left, gate) {
-                    words = Some(row.landing.round.failure.clone());
+                    words = Some(crate::preparation::failure(&row.landing.round.failure));
                 }
             }
         }
@@ -3700,8 +3701,8 @@ fn failed_jobs(
         ask(d, env, owner, p, key.repository, read, out);
         return;
     }
-    row.landing.round.failure = log.into_boxed();
-    let row_logs = row.landing.round.failure.clone();
+    let row_logs = log.into_boxed();
+    row.landing.round.failure = crate::preparation::remember(&row.landing.round.failure, &row_logs, env.limits.landing_members);
     save(d, row, out);
     let receipt = Receipt {
         logs: row_logs,
