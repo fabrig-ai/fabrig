@@ -1,5 +1,5 @@
 //! The test's shell: linked sign-in played as platform reports, through bytes.
-use jig_client_protocol_wire::{VERSION, v20 as w};
+use jig_client_protocol_wire::{VERSION, v21 as w};
 use jig_client_shell_web::adapter::{Asked, Heard};
 use skein_lib::{
     Duration, List, Overflow, Reader, Time, Wall, Writer,
@@ -323,7 +323,9 @@ fn accounts(ended: bool) -> w::DeliveryValue {
         w::Accounts::new(
             &w::CEILINGS,
             w::AccountsParts {
-                skein_bools: [false; 4],
+                skein_bools: [false; 5],
+                lending: None,
+                lent_end: None,
                 program_hosts: Box::default(),
                 accounts: Box::default(),
                 signing,

@@ -490,6 +490,7 @@ party reads is therefore never lost by a crash.
 | `deployment` | hosts, accounts, capacity | a party with a deployment role |
 | `settings` | the settings (`documents.md`, 1) | a party with a deployment role; a project's items, a party with a role there |
 | `accounts` | the party's accounts (`documents.md`, 1): their own LLM accounts, their sources and states, their sign-ins and checks under way, and whether an account serving their work is *usable* and everything they asked is *settled* | the party, always |
+| `terminal{n}` | a terminal the client lends for a program's login, `n` its own number for it: the login asked of it, while one is under way; the watch is the offer (`../../../domain/terminal-login.md`, 2) | the party, always |
 | an application's subject, naming its owner, its scope and its window | the application's document | a party the scope admits (5.5); what of it they may see, as its owner, the application's connector, says |
 
 The objects a client shows apart from these (a proposal, an escalation,

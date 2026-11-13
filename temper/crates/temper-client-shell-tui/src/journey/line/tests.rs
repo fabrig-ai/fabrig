@@ -18,6 +18,36 @@ fn send(message: &Message) -> Line {
 }
 
 #[test]
+fn login_records_keep_the_number_exit_and_name_but_no_line() {
+    use jig_client::contract::LoginExit;
+    let rows: Vec<(Line, &[u8])> = vec![
+        (Line::Lent { number: 1, exit: LoginExit::Exited { code: 0 } }, b"lent 1 exited 0\n"),
+        (Line::Lent { number: u32::MAX, exit: LoginExit::Exited { code: 255 } }, b"lent 4294967295 exited 255\n"),
+        (Line::Lent { number: 2, exit: LoginExit::Killed { signal: 15 } }, b"lent 2 killed 15\n"),
+        (Line::Lent { number: 3, exit: LoginExit::NotStarted }, b"lent 3 not-started\n"),
+        (Line::Lend { number: 1, name: bytes(b"work") }, b"lend 1 \"work\"\n"),
+        (Line::Unlend, b"unlend\n"),
+    ];
+    for (record, text) in rows {
+        let mut encoded = Vec::new();
+        record.write(&mut encoded);
+        assert_eq!(encoded, text);
+        assert!(lines(text).unwrap() == vec![record]);
+    }
+    for text in [
+        b"lent 1 exited 256\n".as_slice(),
+        b"lent 1 killed 256\n",
+        b"lent 4294967296 not-started\n",
+        b"lent 1 unknown\n",
+        b"lent 1 not-started 0\n",
+        b"lend 1 \"work\" \"line\"\n",
+        b"unlend 1\n",
+    ] {
+        assert!(lines(text).is_err(), "{text:?}");
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one table holds the exact text of every record, key and message kind")]
 fn records_have_their_exact_text_and_round_trip() {
     let rows: Vec<(Line, &[u8])> = vec![

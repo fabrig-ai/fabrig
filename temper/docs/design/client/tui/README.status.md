@@ -2,6 +2,7 @@
 
 2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
 
+
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
 its opener fallback, and selection clearing on ordinary words, Esc and

@@ -187,6 +187,9 @@ fn room(refusal: &Refusal) -> Option<CapacityCause> {
         | Refusal::Ended { .. }
         | Refusal::NotWaiting
         | Refusal::NoFurther
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NameTaken
         | Refusal::Unknown
         | Refusal::Provider

@@ -103,6 +103,15 @@
     in the way's card's place, the same as the welcome's and drawn by
     the same function (`welcome.md`, 1, its Model step, *The sign-in
     under way*).
+  - *Claude Code's sign-in* is the welcome's, its card in its two forms,
+    its note, Cancel and endings, drawn by the same functions (`welcome.md`,
+    1, its Model step, *Claude Code's sign-in*), through the TUI in front
+    whichever page it shows (`../../draft/claude-sign-in.md`, 7,
+    *Settings' "Add a Claude account"*). Signed in, the page lands on
+    `Accounts` with its confirmation, as a sign-in's end does. A Claude
+    card already connected keeps "Add another plan", to the way's page and
+    its command with its name's field: a second Claude login takes a name
+    of its own.
   - *From another computer,* for a browser not on the engine's
     machine, whose provider sends it to a loopback address where
     nothing answers. No entry says so: that person takes the same page,

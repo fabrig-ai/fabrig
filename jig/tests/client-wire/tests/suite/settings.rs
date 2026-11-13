@@ -1,5 +1,5 @@
 //! Every new settings record and enum arm survives its committed bytes.
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{Reader, Writer};
 #[expect(clippy::too_many_lines, reason = "the record table checks every new wire type and enum arm")]
 #[test]

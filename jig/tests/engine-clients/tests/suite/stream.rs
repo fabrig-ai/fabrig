@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Duration, List, Reader, Writer};
@@ -228,7 +228,7 @@ fn hello(stream: [u8; 16]) -> w::StreamEvent {
     let mut served = List::with_capacity(1);
     served
         .push(
-            w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 20, last: 20 }).expect("literal range"),
+            w::Served::new(&lim, w::ServedParts { owner: w::Owner::Jig, first: 21, last: 21 }).expect("literal range"),
         )
         .expect("one range");
     w::StreamEvent::Hello(
@@ -243,7 +243,7 @@ fn frame(watch: u64, needs: u32) -> w::StreamEvent {
     let value = w::DeliveryValue::Me(w::Me::new(&lim, frame).expect("literal frame"));
     let mut record = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut record).expect("literal frame bytes");
-    let document = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 20, record: record.finish() })
+    let document = w::Owned::new(&lim, w::OwnedParts { owner: w::Owner::Jig, version: 21, record: record.finish() })
         .expect("literal owner");
     w::StreamEvent::Delivery(w::Delivery::new(&lim, w::DeliveryParts { watch, document }).expect("literal delivery"))
 }
@@ -255,4 +255,90 @@ fn text(watch: u64) -> w::StreamEvent {
         )
         .expect("literal text"),
     )
+}
+
+#[test]
+fn a_gone_terminal_stream_withdraws_its_offer_and_ends_its_login() {
+    use jig_domain_accounts as accounts;
+    use jig_domain_people as people;
+    use skein_lib::{ReplyTo, Token};
+    let (mut core, env, sign_in) = fixtures::signed_small_core();
+    let party = core.people.person(sign_in, env.now, env.wall).expect("signed party");
+    core.accounts = accounts::Domain::new(
+        &env.limits.accounts,
+        accounts::Providers {
+            providers: Box::new([accounts::Provider {
+                number: 1,
+                name: b"Anthropic".as_slice().into(),
+                signed_in_plan: false,
+                manage_usage: None,
+                list: None,
+                offers: accounts::Offers {
+                    sign_in: false,
+                    key: false,
+                    programs: Box::new([b"claude_code".as_slice().into()]),
+                },
+            }]),
+        },
+    );
+    drop(core::step(&mut core, &env, core::Event::Account(accounts::Event::Want)));
+    let mut peer = Peer::signed_in(&fixtures::settings(), sign_in);
+    let stream = peer.open_stream();
+    let subject = w::Subject::Terminal(
+        w::SubjectTerminal::new(&fixtures::limits().wire, w::SubjectTerminalParts { terminal: 7 })
+            .expect("terminal subject"),
+    );
+    let (_, event) = peer.request_watch_event(stream, &subject);
+    let core::Event::Watch { watcher, .. } = &event else { panic!("terminal watch") };
+    let watcher = *watcher;
+    let mut out = core::step(&mut core, &env, event);
+    while let Some(request) = out.pop() {
+        if let core::Request::Held(held) = request
+            && let core::Held::Delivery { document, .. } = *held
+        {
+            peer.event(jig_protocol_engine_clients::Event::Admitted { watcher });
+            peer.event(jig_protocol_engine_clients::Event::Delivery { watcher, document });
+        }
+    }
+    assert_eq!(core.accounts.terminal_count(party), 1);
+    while let Some(event) = peer.take_core() {
+        drop(core::step(&mut core, &env, event));
+    }
+    let ask = |key, change| {
+        core::Event::People(people::Event::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(77)),
+            sign_in,
+            key: [key; 16],
+            ask: people::Ask::AccountChange { holder: people::AccountHolder::Own, change },
+        })
+    };
+    let mut out = core::step(
+        &mut core,
+        &env,
+        ask(41, people::AccountChange::LoginProgram { provider: 1, name: b"work".as_slice().into() }),
+    );
+    assert!(out.iter().any(|request| matches!(request, core::Request::Held(held) if matches!(held.as_ref(), core::Held::PeopleReply { reply: people::Reply::Outcome(people::Outcome::AccountLoginAsked { number: 1 }), .. }))));
+    assert!(core.accounts.lending(party).is_some());
+    peer.cut_stream(stream);
+    let mut unwatch = false;
+    while let Some(event) = peer.take_core() {
+        if matches!(&event, core::Event::Unwatch { watcher: found } if *found == watcher) {
+            unwatch = true;
+        }
+        drop(core::step(&mut core, &env, event));
+    }
+    assert!(unwatch, "stream loss reaches the core even with a delivery outstanding");
+    assert_eq!(core.accounts.terminal_count(party), 0);
+    assert_eq!(core.accounts.lending(party), None);
+    assert_eq!(
+        core.accounts.lent_end(party),
+        Some(accounts::LentEnd { number: 1, end: accounts::LoginEnd::NotFinished { exit: None } })
+    );
+    out = core::step(
+        &mut core,
+        &env,
+        ask(42, people::AccountChange::LoginEnded { number: 1, exit: people::LoginExit::Exited { code: 0 } }),
+    );
+    assert!(out.iter().any(|request| matches!(request, core::Request::Held(held) if matches!(held.as_ref(), core::Held::PeopleReply { reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotLending)), .. }))));
 }

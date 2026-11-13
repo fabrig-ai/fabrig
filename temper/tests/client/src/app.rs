@@ -287,8 +287,9 @@ impl App for Temper {
                 domain::Event::Push(_)
                 | domain::Event::Copied { .. }
                 | domain::Event::Launchpad
+                | domain::Event::Lends { .. }
                 | domain::Event::AskApproval
-                | domain::Event::Act { action: Action::Approve(_) | Action::Copy { .. } }
+                | domain::Event::Act { action: Action::Approve(_) | Action::Copy { .. } | Action::LoginEnded { .. } }
                 | domain::Event::Start { .. }
                 | domain::Event::Client { .. }
                 | domain::Event::Forge(_)
@@ -461,6 +462,7 @@ impl App for Temper {
             | domain::Event::LookKept { .. }
             | domain::Event::SignInKept { .. }
             | domain::Event::Launchpad
+            | domain::Event::Lends { .. }
             | domain::Event::AskApproval
             | domain::Event::TabRefused
             | domain::Event::Client { .. } => vec![],

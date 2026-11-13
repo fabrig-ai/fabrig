@@ -226,6 +226,7 @@ pub(super) fn encode_owner_outcome(
     budget: &mut super::Cut,
 ) {
     match value {
+        jig_client::contract::DocumentOutcome::AccountLoginAsked { .. } => out.null(),
         jig_client::contract::DocumentOutcome::Lifted { hold, released } => encode_lifted(*hold, *released, out),
         jig_client::contract::DocumentOutcome::AccountMovedIn { account, renewed } => {
             encode_moved_in(*account, *renewed, out);

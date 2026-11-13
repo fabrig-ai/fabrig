@@ -435,6 +435,23 @@ sources in its holder's order. temper configures the LLM providers
     `domain/providers.md`, 3.3). The
     forge's commands clear the environment before they exec (setup/owned.md,
     4); a sign-in cannot.
+  - **Its terminal's foreground,** taken first, before anything it
+    writes: where its standard input is a terminal, it makes its own
+    process group that terminal's foreground group (skein's
+    `runtime/shell.md`, 6.3, *The terminal's foreground*), so that
+    started by a program that holds the terminal, as the TUI in front of
+    a box starts it (`../client/tui/box.md`, *Lending its terminal*), the
+    program's sign-in reads the terminal as it does started by hand,
+    where its group is already the foreground and the step changes
+    nothing. A terminal that refuses the foreground is a failure before
+    the exec (below), "cannot take the terminal: WHY"; standard input
+    not a terminal is left as it is.
+  - **Two ways it starts:** typed by the person, as printed, in a
+    terminal on the worker's host; or started by the TUI in front of a
+    box, in the terminal the person started `temper box` in, with the
+    box's own `temper-box` and directories and the NAME of the person's
+    press (`../client/tui/box.md`, *Lending its terminal*). It is the same
+    command either way, and reads nothing of who started it.
   - Its exit status is the program's. A failure before the exec exits
     1, its reason on stderr: temper writes one line beginning
     `temper-box program-login:`. Smith's configuration reader may precede it with

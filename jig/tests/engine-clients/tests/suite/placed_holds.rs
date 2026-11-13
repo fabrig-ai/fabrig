@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_core::{self as core, documents as d};
 use jig_domain_people as p;
 use jig_domain_tasks as t;
@@ -14,7 +14,7 @@ fn request() -> Box<[u8]> {
     ask.encode(&mut bytes).expect("ask");
     let keyed = w::Keyed::new(
         &limits,
-        w::KeyedParts { key: [9; 16], owner: w::Owner::Jig, version: 20, request: bytes.finish(), value: None },
+        w::KeyedParts { key: [9; 16], owner: w::Owner::Jig, version: 21, request: bytes.finish(), value: None },
     )
     .expect("keyed");
     let mut bytes = Writer::new(keyed.measure() as usize);

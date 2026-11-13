@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::{Event, FromApplication, Request, ToApplication, translate::watches};
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_core_vocabulary as core;
 use skein_lib::{Reader, Token};
 const ENDED_WATCH: u64 = 17;
@@ -384,6 +384,9 @@ fn an_accounts_document_is_watched_but_never_read() {
     use jig_domain_core_vocabulary::{documents as d, reads};
     use skein_lib::List;
     let document = d::Document::Accounts(Box::new(d::Accounts {
+        lendable: false,
+        lending: None,
+        lent_end: None,
         readiness: List::with_capacity(0),
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
@@ -401,10 +404,12 @@ fn an_accounts_document_is_watched_but_never_read() {
             w::Accounts::new(
                 &limits,
                 w::AccountsParts {
-                    skein_bools: [false, true, false, false],
+                    skein_bools: [false, false, true, false, false],
                     readiness: Box::new([]),
                     accounts: Box::from([]),
                     signing: Box::from([]),
+                    lending: None,
+                    lent_end: None,
                     last_end: None,
                     program_hosts: Box::new([]),
                 }

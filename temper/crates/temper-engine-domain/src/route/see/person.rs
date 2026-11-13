@@ -246,6 +246,7 @@ fn tracked(part: &Part) -> bool {
             | documents::Document::Project(_)
             | documents::Document::Note(_)
             | documents::Document::Inbox(_)
+            | documents::Document::Terminal { .. }
             | documents::Document::Accounts(_)
             | documents::Document::Deployment(_)
             | documents::Document::Settings(_) => false,

@@ -3,6 +3,24 @@ use std::os::unix::fs::PermissionsExt;
 use std::{ffi::OsString, os::unix::ffi::OsStringExt};
 
 #[test]
+fn only_terminal_input_takes_the_foreground_and_a_refusal_fails() {
+    for (terminal, result, expected) in [
+        (false, Err(Error::Permission), Ok(())),
+        (true, Ok(()), Ok(())),
+        (true, Err(Error::Permission), Err("cannot take the terminal: Permission".to_owned())),
+    ] {
+        let mut called = false;
+        let outcome = take_terminal(terminal, |descriptor| {
+            assert_eq!(descriptor, Fd::new(0));
+            called = true;
+            result
+        });
+        assert_eq!(outcome, expected);
+        assert_eq!(called, terminal);
+    }
+}
+
+#[test]
 fn source_names_accept_smiths_alphabet_within_the_length_bound() {
     let max = smith_host_domain::SourceName::BYTES;
     for (bytes, valid) in [(b"a".to_vec(), true), (vec![b'a'; max], true), (b"az09-".to_vec(), true)] {

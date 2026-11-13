@@ -6,7 +6,7 @@ use skein_lib::{Duration, Secret};
 use skein_ui_screen::Size;
 use skein_ui_screen_terminal::Key;
 use temper_client_shell_tui::{
-    host::{Duties, Host, Report, Settings, Start},
+    host::{Duties, Host, Lend, Report, Settings, Start},
     limits,
 };
 use temper_client_tui::{BoxLine, BoxStage, Note, Scheme};
@@ -33,6 +33,8 @@ pub struct Tui {
     pub notes: Vec<Note>,
     pub frames: Vec<String>,
     pub sign_in_sends: usize,
+    pub lends: Vec<Lend>,
+    pub unlends: usize,
     file: File,
     waiting: bool,
 }
@@ -96,6 +98,12 @@ impl Tui {
         self.report(world, Report::Stage(stage));
     }
 
+    /// Plays the run's report when the child gives the terminal back.
+    pub fn lent(&mut self, world: &mut World<Temper, Joint>, number: u32, exit: jig_client::contract::LoginExit) {
+        self.clocks(world);
+        self.report(world, Report::Lent { number, exit });
+    }
+
     /// Starts with the supplied file and the address's retained sign-in note.
     pub fn with_file(
         world: &mut World<Temper, Joint>,
@@ -134,6 +142,8 @@ impl Tui {
             notes: Vec::new(),
             frames: Vec::new(),
             sign_in_sends: 0,
+            lends: Vec::new(),
+            unlends: 0,
             file,
             waiting: front,
         };
@@ -255,6 +265,12 @@ impl Tui {
         if let Some(address) = duties.open {
             self.opens.push(address);
             self.report(world, Report::Opened { opened: true });
+        }
+        if let Some(lend) = duties.lend {
+            self.lends.push(lend);
+        }
+        if duties.unlend {
+            self.unlends += 1;
         }
         self.closed |= duties.close;
     }

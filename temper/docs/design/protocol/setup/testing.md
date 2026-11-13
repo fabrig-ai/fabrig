@@ -84,7 +84,7 @@ relies on.
   a fresh box's Model step reads ChatGPT's and Claude's cards, its
   program's path `"fetched"`; `temper-box program-login` and the launcher's
   own link reach a build placed in the cache, its arguments unchanged,
-  `DISABLE_AUTOUPDATER=1` in its environment and stdout the build's
+  `DISABLE_AUTOUPDATER=1` and `DISABLE_UPDATES=1` in its environment and stdout the build's
   alone; `temper-box serve`, a worker alone and `temper-box program-login` write
   both links for a fetched program, and neither for a found `claude`.
   `temper-agent`'s own link reaches the build the same way, in its

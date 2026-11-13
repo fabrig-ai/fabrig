@@ -177,6 +177,7 @@ fn first_run_words(
                     | c::Subject::Inbox { .. }
                     | c::Subject::Tasks { .. }
                     | c::Subject::Run { .. }
+                    | c::Subject::Terminal { .. }
                     | c::Subject::Accounts => None,
                 };
                 let Some(delivery) = delivery else { continue };
@@ -465,6 +466,9 @@ fn demo_accounts() -> contract::Accounts {
         readiness_cut: false,
         accounts,
         signing: skein_lib::List::with_capacity(0),
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: None,
         usable: true,
         settled: true,

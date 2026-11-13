@@ -30,6 +30,7 @@ pub enum Input {
 pub struct Kept {
     pub(crate) fd: Fd,
     pub(crate) modes: libc::termios,
+    pub(crate) keys: Keys,
 }
 /// The modes visible from a terminal's other end.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -59,6 +60,16 @@ pub fn open_signals(watch: Watch) -> Result<Fd, i32> {
     crate::system::process::open_signals(watch)
 }
 impl Kept {
+    /// Sets the saved modes back without giving up the saved descriptor or modes.
+    pub fn set_kept(&self) -> Result<(), Error> {
+        crate::system::terminal::set(self.fd, &self.modes)
+    }
+
+    /// Sets raw modes again with the interrupt-key policy requested at startup.
+    pub fn set_raw(&self) -> Result<(), Error> {
+        crate::system::terminal::set_raw(self.fd, &self.modes, self.keys)
+    }
+
     /// Writes `leave` to `output` with blocking writes, then restores the kept modes.
     /// Errors are ignored: this runs inside a panic (runtime/shell.md, 6.3).
     /// Take the function back from the hook before calling [`Self::restore`].
@@ -80,4 +91,36 @@ pub fn resize_terminal(master: Fd, size: Size) -> Result<(), Error> {
 /// Reads modes from the other end of a terminal, for a scripted person.
 pub fn terminal_modes(fd: Fd) -> Result<Modes, Error> {
     crate::system::terminal::modes(fd)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Input, Kept, Keys, raw_input};
+    use skein_io::kernel::{Error, Fd};
+    use std::os::fd::AsRawFd;
+
+    #[test]
+    fn kept_mode_changes_refuse_a_pipe() {
+        let (reader, _writer) = std::io::pipe().expect("a pipe is not a terminal");
+        let fd = Fd::new(reader.as_raw_fd());
+        assert!(matches!(raw_input(fd, Keys::Pass), Ok(Input::NotATerminal)));
+        // tcsetattr must refuse the descriptor, whatever modes were kept.
+        let kept = Kept {
+            fd,
+            modes: libc::termios {
+                c_iflag: 0,
+                c_oflag: 0,
+                c_cflag: 0,
+                c_lflag: 0,
+                #[cfg(target_os = "linux")]
+                c_line: 0,
+                c_cc: [0; libc::NCCS],
+                c_ispeed: 0,
+                c_ospeed: 0,
+            },
+            keys: Keys::Pass,
+        };
+        assert_eq!(kept.set_kept(), Err(Error::Other(libc::ENOTTY)));
+        assert_eq!(kept.set_raw(), Err(Error::Other(libc::ENOTTY)));
+    }
 }

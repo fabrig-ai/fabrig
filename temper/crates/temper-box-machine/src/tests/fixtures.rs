@@ -422,7 +422,10 @@ impl Harness {
                 for pipe in &spawn.pipes {
                     match pipe.way {
                         skein_io::kernel::Way::Given(_) => n = n.checked_add(1).unwrap(),
-                        skein_io::kernel::Way::In | skein_io::kernel::Way::Out | skein_io::kernel::Way::Null => {}
+                        skein_io::kernel::Way::In
+                        | skein_io::kernel::Way::Out
+                        | skein_io::kernel::Way::Null
+                        | skein_io::kernel::Way::Inherit => {}
                     }
                 }
                 let control = n.checked_add(3).unwrap();

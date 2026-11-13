@@ -13,7 +13,7 @@ use std::path::Path;
 use std::process::Command;
 
 use skein_conformance::{Backend as ConformanceBackend, Item, Made};
-use skein_io::kernel::{Complete, Done, Error, Fd, Op, Signal, Submit, Target};
+use skein_io::kernel::{Complete, Done, Error, Fd, Op, Signal, Submit, Target, Way};
 use skein_lib::{Duration, Queue, Time, Token};
 use skein_scratch::Scratch;
 use skein_shell::{Backend, Clock, Config, Kernel, Wait, open_root};
@@ -323,6 +323,9 @@ impl OwnedKernel {
                     self.descriptors.insert(*pidfd);
                     self.children.insert(*pidfd);
                     for pipe in &spawn.pipes {
+                        if pipe.way == Way::Inherit {
+                            continue;
+                        }
                         self.descriptors.insert(pipe.parent.expect("a spawned pipe has its parent end"));
                     }
                 }

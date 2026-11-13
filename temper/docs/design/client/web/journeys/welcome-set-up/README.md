@@ -5,6 +5,7 @@ opened, the welcome drawn under its top bar, "Set up temper" pressed, then Forge
 "Run on this machine" on the Forge step, and its sheet's own "Run on
 this machine", an empty repository chosen.
 
+<!-- Setup mark 4 counts key marks, not printed page numbers. -->
 Every welcome page's bar holds temper's mark, Steps and the link region
 alone, no person or Sign out. On `01.html` and `02.html`, temper box's
 paragraph follows the cards' note in main; Forge and Model draw none

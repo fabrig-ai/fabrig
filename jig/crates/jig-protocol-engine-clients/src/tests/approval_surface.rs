@@ -1,7 +1,7 @@
 //! Approval's disabled surface and stopping answers (protocol/client/sign-in.md).
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Settings};
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{Secret, Writer, length::usize_of};
 
 type ApprovalCase = (&'static str, fn(Box<[u8]>) -> Message, Box<[u8]>, Box<[u8]>);

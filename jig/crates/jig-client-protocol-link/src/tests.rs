@@ -2,7 +2,7 @@ use crate::*;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Watchable};
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{Queue, Reader, RequestEnvelope, Time, Token};
 mod attempts;
 mod carried;
@@ -18,8 +18,8 @@ mod stream;
 
 #[test]
 fn the_link_serves_the_wire_s_version_alone() {
-    assert!(serves(c::VersionRange { first: 20, last: 20 }));
-    assert!(!serves(c::VersionRange { first: 19, last: 19 }));
+    assert!(serves(c::VersionRange { first: 21, last: 21 }));
+    assert!(!serves(c::VersionRange { first: 20, last: 20 }));
 }
 
 const TOO_MANY_OWNERS: [jig_client_domain::Spoken; 16] = {
@@ -58,6 +58,7 @@ mod compound;
 mod create;
 
 mod accounts;
+mod terminal_login;
 
 mod authority_models;
 

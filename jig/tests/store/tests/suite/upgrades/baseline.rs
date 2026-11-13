@@ -83,7 +83,9 @@ fn baseline_fixture_sets() -> PatchSets {
     // planner reads each patch's owner against its set's name.
     let (_, blocks) = jig_protocol_store::patches::PATCHES[2].split_once("\n\n").expect("real retry blocks");
     let third: &'static str = Box::leak(format!("patch 1\nowner {} 3\n\n{blocks}", jig.name).into_boxed_str());
-    let texts = Box::leak(vec![first, second, third].into_boxed_slice());
+    let (_, blocks) = jig_protocol_store::patches::PATCHES[3].split_once("\n\n").expect("real terminal login blocks");
+    let fourth: &'static str = Box::leak(format!("patch 1\nowner {} 4\n\n{blocks}", jig.name).into_boxed_str());
+    let texts = Box::leak(vec![first, second, third, fourth].into_boxed_slice());
     PatchSets {
         sets: Box::leak(Box::new([
             jig_protocol_store::SKEIN_PATCH_SET,
@@ -111,14 +113,15 @@ fn real_jig_set_versions_match_each_level() {
     };
     let binary = jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT);
     for (level, mut expected, steps) in [
-        (0, baseline, &[(Owner::Jig, 1), (Owner::Jig, 2), (Owner::Jig, 3)][..]),
+        (0, baseline, &[(Owner::Jig, 1), (Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4)][..]),
         (
             1,
             codec::component::Format { tasks: 10, people: 15, settings: 2, ..binary },
-            &[(Owner::Jig, 2), (Owner::Jig, 3)][..],
+            &[(Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4)][..],
         ),
-        (2, codec::component::Format { tasks: 10, people: 15, ..binary }, &[(Owner::Jig, 3)][..]),
-        (3, binary, &[][..]),
+        (2, codec::component::Format { tasks: 10, people: 15, ..binary }, &[(Owner::Jig, 3), (Owner::Jig, 4)][..]),
+        (3, codec::component::Format { people: 16, ..binary }, &[(Owner::Jig, 4)][..]),
+        (4, binary, &[][..]),
     ] {
         expected.levels =
             codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(level), application: None };
@@ -206,7 +209,14 @@ fn baseline_store_is_patched_from_zero_and_opens() {
     assert_eq!(world.active(), b"2\n");
     assert_eq!(
         world.patched().iter().map(|(owner, patch, _)| (*owner, *patch)).collect::<Vec<_>>(),
-        [(Owner::Application, 1), (Owner::Jig, 1), (Owner::Application, 2), (Owner::Jig, 2), (Owner::Jig, 3)]
+        [
+            (Owner::Application, 1),
+            (Owner::Jig, 1),
+            (Owner::Application, 2),
+            (Owner::Jig, 2),
+            (Owner::Jig, 3),
+            (Owner::Jig, 4)
+        ]
     );
     records.check(&mut world, 2, &"baseline patched from zero");
     let manifest = world.contents().remove(b"generations/2/manifest".as_slice()).flatten().expect("patched manifest");

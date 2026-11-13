@@ -35,7 +35,8 @@ pub(crate) struct Welcome {
 pub(crate) struct StepLine {
     pub words: Box<[u8]>,
     pub style: Style,
-    pub forge: Option<Box<[u8]>>,
+    pub detail: Option<Box<[u8]>>,
+    pub detail_style: Style,
 }
 
 pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
@@ -131,6 +132,14 @@ fn forge_underway(root: &Domain, words: &Words) -> Option<Box<[u8]>> {
     }
     None
 }
+fn model_detail(root: &Domain, words: &Words) -> Option<Box<[u8]>> {
+    let (account, program) = temper_client_view::shared::model_account(root, words.view())?;
+    Some(if program {
+        skein_lib::bytes::concat(&[&account, &words.say(Word::ThroughClaudeCode, &[])])
+    } else {
+        account
+    })
+}
 #[expect(clippy::manual_map, reason = "step code reads the optional printed link without a closure")]
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Welcome {
     let at = match welcome::decision(root) {
@@ -163,7 +172,14 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Welc
                 } else {
                     look::STEP_AHEAD
                 },
-                forge: if number == 2 { forge_underway(root, words) } else { None },
+                detail_style: if number == 3 { look::STEP_DONE } else { look::STEP_NOW },
+                detail: if number == 2 {
+                    forge_underway(root, words)
+                } else if number == 3 && mark.ticked {
+                    model_detail(root, words)
+                } else {
+                    None
+                },
             })
             .expect("four steps");
     }
@@ -275,8 +291,8 @@ fn after(b: &mut Builder, part: &Welcome, words: &Words) {
         b.open(Role::Item);
         b.style(step.style);
         b.text(Run::Plain, &step.words);
-        if step.style == look::STEP_NOW
-            && let Some(forge) = &step.forge
+        if step.style == step.detail_style
+            && let Some(detail) = &step.detail
         {
             b.open(Role::Text);
             b.style(look::HINT);
@@ -284,7 +300,7 @@ fn after(b: &mut Builder, part: &Welcome, words: &Words) {
             b.close();
             b.open(Role::Text);
             b.style(look::HINT);
-            b.run(Run::Plain, forge);
+            b.run(Run::Plain, detail);
             b.close();
         }
         b.close();

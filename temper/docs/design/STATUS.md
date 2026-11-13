@@ -187,6 +187,12 @@ child, which it finds beside it, in its cache or downloads once
 (`client/box-binary.md`), and the box runs no TUI of its own
 (`cli/README.status.md`; `draft/cli.status.md`).
 
+Claude Code's sign-in through the terminal temper holds is being built:
+the TUI in front of a box lends its terminal to `temper-box
+program-login` on the welcome's "Sign in to Claude Code", and the page
+follows the login to its end (`client/tui/box.status.md`,
+`client/pages/welcome.status.md`; `draft/claude-sign-in.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -337,6 +343,7 @@ Drafts:
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
+- [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
