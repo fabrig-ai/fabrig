@@ -81,10 +81,11 @@ pub enum Bound {
     Channel(skein_channel::Unsent),
 }
 pub enum Request {
-    /// Opening accepted, with the agreed wire versions in statement order.
+    /// Opening accepted, with the worker's statement and agreed versions in its order.
     Opened {
         worker: u32,
         wires: List<jig_protocol_worker_wire::Agreed>,
+        statement: crate::Statement,
     },
     /// A refusal sent at the opening, before a hello reaches the domain.
     Refused {
@@ -182,7 +183,9 @@ impl core::fmt::Debug for Request {
                 .field("channel", channel)
                 .field("unsent", unsent)
                 .finish(),
-            Self::Opened { worker, wires } => f.debug_tuple("Opened").field(worker).field(wires).finish(),
+            Self::Opened { worker, wires, statement } => {
+                f.debug_tuple("Opened").field(worker).field(wires).field(statement).finish()
+            }
             Self::Refused { worker, reason, text } => {
                 f.debug_tuple("Refused").field(worker).field(reason).field(text).finish()
             }

@@ -1,5 +1,5 @@
 //! One accepted stream and its opening (protocol/channel/README.md, 9.3).
-use crate::{Limits, Loss};
+use crate::{Limits, Loss, Statement};
 use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, WriteWait};
 use skein_lib::{List, Queue, Time, Token};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -24,6 +24,7 @@ pub(crate) struct Connection {
     pub worker: Option<u32>,
     pub channel: Token,
     pub wires: List<jig_protocol_worker_wire::Agreed>,
+    pub statement: Option<Statement>,
     pub refusal: bool,
     pub deadline: Option<Time>,
     pub above: Queue<Event>,
@@ -48,6 +49,7 @@ impl Connection {
             worker: None,
             channel: Token::new(0),
             wires: List::with_capacity(0),
+            statement: None,
             refusal: false,
             deadline: Some(now.saturating_add(limits.handshake)),
             above: Queue::uncapped(),

@@ -34,7 +34,9 @@ pub(crate) fn channel(limits: &Limits) -> Option<skein_channel::Limits> {
         kinds: u32::try_from(wire::KINDS.len()).ok()?,
     })
 }
-pub(crate) fn schema(limits: &Limits) -> Option<Schema> {
+/// The opening's kinds and bounds, derived from the engine's limits.
+#[must_use]
+pub fn schema(limits: &Limits) -> Option<Schema> {
     wire::schema(&sizes::limits(&limits.sizes)?).ok()
 }
 /// Whether these limits are representable: every edge bound they size
