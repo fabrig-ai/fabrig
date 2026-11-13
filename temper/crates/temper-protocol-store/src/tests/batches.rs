@@ -1,5 +1,8 @@
 //! Batch storage and the v17 single-member patch (domain/landing.md, 12).
-use super::{catch_up::{kept_golden, patched}, fixtures};
+use super::{
+    catch_up::{kept_golden, patched},
+    fixtures,
+};
 use crate::{records, v17, v18};
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as forge;
@@ -28,7 +31,8 @@ fn stored(row: v18::LandingRow) -> forge::Stored {
     let row = v18::Row::new(&v18::CEILINGS, v18::RowParts { value: v18::Value::Landing(row) }).unwrap();
     let mut writer = Writer::new(usize::try_from(row.measure()).unwrap());
     row.encode(&mut writer).unwrap();
-    records::decode(&writer.finish(), &crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap()).unwrap()
+    records::decode(&writer.finish(), &crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap())
+        .unwrap()
 }
 
 #[test]
@@ -66,8 +70,13 @@ fn a_v17_member_keeps_its_round_values_through_the_batch_patch() {
 #[test]
 fn batch_members_and_leave_causes_round_trip() {
     let forge::Stored::Landing(row) = stored(upgraded(&v17_landing())) else { panic!("landing") };
-    for why in [None, Some(landing::Leave::EarlierConflict), Some(landing::Leave::Unit { change: 13 }),
-        Some(landing::Leave::Dependency { change: 14 }), Some(landing::Leave::Fallback { units: 3, top: [5; 32] })] {
+    for why in [
+        None,
+        Some(landing::Leave::EarlierConflict),
+        Some(landing::Leave::Unit { change: 13 }),
+        Some(landing::Leave::Dependency { change: 14 }),
+        Some(landing::Leave::Fallback { units: 3, top: [5; 32] }),
+    ] {
         let mut row = row.clone();
         row.landing.phase = landing::Phase::Preparing;
         let mut members = skein_lib::List::with_capacity(3);

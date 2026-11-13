@@ -300,28 +300,74 @@ pub enum Posting {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
     None,
-    Wait { until: Option<Wall> },
+    Wait {
+        until: Option<Wall>,
+    },
     /// Stack from `main`, the round's base or the last kept prefix, starting at `member`.
-    Prepare { member: u16, head: Commit, main: Commit },
-    Key { member: u16, gate: u16, candidate: Commit },
-    Dispatch { member: u16, gate: u16, key: Key, try_: u16 },
-    Retry { member: u16, gate: u16, key: Key, try_: u16 },
-    Post { member: u16, gate: u16, posting: Posting },
-    Repair { member: u16, gate: u16 },
+    Prepare {
+        member: u16,
+        head: Commit,
+        main: Commit,
+    },
+    Key {
+        member: u16,
+        gate: u16,
+        candidate: Commit,
+    },
+    Dispatch {
+        member: u16,
+        gate: u16,
+        key: Key,
+        try_: u16,
+    },
+    Retry {
+        member: u16,
+        gate: u16,
+        key: Key,
+        try_: u16,
+    },
+    Post {
+        member: u16,
+        gate: u16,
+        posting: Posting,
+    },
+    Repair {
+        member: u16,
+        gate: u16,
+    },
     Proved,
-    Merge { member: u16, candidate: Commit },
+    Merge {
+        member: u16,
+        candidate: Commit,
+    },
     Stale,
     Finish,
     Cancel,
     Hold(Hold),
     Open,
-    Record { member: u16, prefix: Commit },
-    Landed { member: u16, prefix: Commit },
+    Record {
+        member: u16,
+        prefix: Commit,
+    },
+    Landed {
+        member: u16,
+        prefix: Commit,
+    },
     Close,
-    Delete { member: u16 },
-    Resolve { member: u16, base: Commit },
-    Leave { member: u16, why: Leave },
-    Judge { member: u16 },
+    Delete {
+        member: u16,
+    },
+    Resolve {
+        member: u16,
+        base: Commit,
+    },
+    Leave {
+        member: u16,
+        why: Leave,
+    },
+    Judge {
+        member: u16,
+    },
 }
 
 /// State to commit atomically with the decision.

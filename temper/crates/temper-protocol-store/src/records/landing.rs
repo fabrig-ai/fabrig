@@ -152,16 +152,35 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
     .expect(FITS)
 }
 fn decode_member(member: w::LandingMember) -> d::Member {
-    let w::LandingMemberParts { change, repository, pull, head, base, candidate, gates, asked, landed, left,
-        unit, branch, combined, skein_bools: [recorded, told, judging, leave_told] } =
-        member.into_parts();
+    let w::LandingMemberParts {
+        change,
+        repository,
+        pull,
+        head,
+        base,
+        candidate,
+        gates,
+        asked,
+        landed,
+        left,
+        unit,
+        branch,
+        combined,
+        skein_bools: [recorded, told, judging, leave_told],
+    } = member.into_parts();
     let repository = names::decode_repository(repository);
     let mut proofs = List::with_capacity(gates.len());
     for gate in gates.into_boxed() {
         proofs.push(decode_proof(gate)).expect(FITS);
     }
     d::Member {
-        unit, branch, combined: decode_combine(combined), recorded, told, judging, leave_told,
+        unit,
+        branch,
+        combined: decode_combine(combined),
+        recorded,
+        told,
+        judging,
+        leave_told,
         change,
         repository: d::Repository { forge: repository.forge, repository: repository.repository },
         pull,
@@ -491,9 +510,15 @@ fn encode_leave(why: d::Leave) -> w::LandingLeave {
     match why {
         d::Leave::Conflict => w::LandingLeave::Conflict,
         d::Leave::EarlierConflict => w::LandingLeave::EarlierConflict,
-        d::Leave::Unit { change } => w::LandingLeave::Unit(w::LandingLeftChange::new(&w::CEILINGS, w::LandingLeftChangeParts { change }).expect(FITS)),
-        d::Leave::Dependency { change } => w::LandingLeave::Dependency(w::LandingLeftChange::new(&w::CEILINGS, w::LandingLeftChangeParts { change }).expect(FITS)),
-        d::Leave::Fallback { units, top } => w::LandingLeave::Fallback(w::LandingFallback::new(&w::CEILINGS, w::LandingFallbackParts { units, top }).expect(FITS)),
+        d::Leave::Unit { change } => w::LandingLeave::Unit(
+            w::LandingLeftChange::new(&w::CEILINGS, w::LandingLeftChangeParts { change }).expect(FITS),
+        ),
+        d::Leave::Dependency { change } => w::LandingLeave::Dependency(
+            w::LandingLeftChange::new(&w::CEILINGS, w::LandingLeftChangeParts { change }).expect(FITS),
+        ),
+        d::Leave::Fallback { units, top } => w::LandingLeave::Fallback(
+            w::LandingFallback::new(&w::CEILINGS, w::LandingFallbackParts { units, top }).expect(FITS),
+        ),
         d::Leave::HeadMoved { head } => {
             w::LandingLeave::HeadMoved(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: head }).expect(FITS))
         }
