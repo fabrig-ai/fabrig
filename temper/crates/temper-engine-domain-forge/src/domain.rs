@@ -1506,7 +1506,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
-        Event::VetoLanding { task, entry } => crate::landing::veto(d, task, entry, out),
+        Event::VetoLanding { task, entry } => crate::landing::veto(d, env, task, entry, out),
         Event::StepLanding { task, entry, heard } => crate::landing::step(d, env, task, entry, heard, out),
         Event::Settle => {
             d.stopping = true;
@@ -2226,7 +2226,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 settled_facts(d, env, entry, task, outcome, out);
                 crate::follow_check::outcome(d, entry, outcome, out);
                 crate::tiers::outcome(d, entry, outcome, out);
-                let retain = crate::landing::outcome(d, entry, outcome, out);
+                let retain = crate::landing::outcome(d, env, entry, outcome, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
                     skein_forge_client::Outcome::Held => {
