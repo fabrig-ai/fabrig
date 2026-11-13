@@ -135,6 +135,7 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
         | crate::Address::Role { .. }
         | crate::Address::Rule { .. }
         | crate::Address::Ask { .. }
+        | crate::Address::Tell { .. }
         | crate::Address::Adopt { .. } => return,
     }
     let mut accounts = List::with_capacity(document.accounts.len());

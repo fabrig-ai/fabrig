@@ -418,6 +418,7 @@ impl Task {
             | c::ChipExecutor::Role { .. } => None,
         }
     }
+    #[expect(clippy::too_many_lines, reason = "composer acts include the exhaustive page act list")]
     pub(crate) fn act(
         &mut self,
         env: &Env<Limits>,
@@ -486,6 +487,7 @@ impl Task {
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
+            | Act::TellWords { .. }
             | Act::Tell { .. }
             | Act::Choice(_)
             | Act::SignOut
@@ -633,6 +635,7 @@ impl Task {
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
+            | Act::TellWords { .. }
             | Act::Tell { .. }
             | Act::Choice(_)
             | Act::SignOut

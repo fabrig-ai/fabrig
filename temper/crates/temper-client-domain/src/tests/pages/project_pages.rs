@@ -573,6 +573,7 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Ask { .. }
+            | Address::Tell { .. }
             | Address::Adopt { .. } => unreachable!("role or rule row"),
         };
         let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: view.clone() }).unwrap();

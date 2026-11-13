@@ -375,6 +375,8 @@ team
 team-alone
 team-hand
 team-role
+tell-area
+tell-page
 told-cannot
 told-not-set-up
 told-off

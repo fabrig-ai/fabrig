@@ -37,6 +37,7 @@ mod sign_in_wait;
 pub(crate) mod start_goal;
 pub(crate) mod task;
 pub(crate) mod team;
+pub(crate) mod tell;
 pub(crate) mod terminal;
 pub(crate) mod told;
 pub(crate) mod ways;

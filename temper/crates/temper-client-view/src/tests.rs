@@ -40,6 +40,7 @@ mod start_goal;
 mod team;
 mod team_follows;
 mod team_sessions;
+mod tell;
 mod toast;
 mod told;
 mod work;

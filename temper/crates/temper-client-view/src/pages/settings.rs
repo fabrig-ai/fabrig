@@ -163,6 +163,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. } => false,
     };
     if !detail {

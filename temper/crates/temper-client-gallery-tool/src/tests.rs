@@ -274,6 +274,33 @@ const HOW_RULES_NOTE: Part = Part::Named {
 };
 static HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "tell-area",
+        heading: "Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Tell temper" },
+            Part::Named { role: Role::TextArea, name: "Something off?" },
+            Part::Named { role: Role::Paragraph, name: "About shop · the page you were on, Prover" },
+            Part::Named { role: Role::Paragraph, name: "Goes to Prover, tests's owner" },
+            Part::Named { role: Role::Button, name: "File it" },
+            Part::Named { role: Role::Button, name: "Ask temper instead" },
+        ],
+    },
+    Holds {
+        name: "tell-page",
+        heading: "Something off?",
+        parts: &[
+            Part::Destination { name: "‹ Back", href: "/projects/1/ask" },
+            Part::Named { role: Role::TextArea, name: "What you saw" },
+            Part::Named { role: Role::Paragraph, name: "About shop · the page you were on, Team" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Goes to Prover, shop's triager, who hands it to its area's owner",
+            },
+            Part::Named { role: Role::Button, name: "File it" },
+            Part::Named { role: Role::Button, name: "It's a question: ask temper instead" },
+        ],
+    },
+    Holds {
         name: "told-not-set-up",
         heading: "Telling you",
         parts: &[

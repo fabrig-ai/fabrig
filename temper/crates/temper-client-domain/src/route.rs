@@ -244,6 +244,7 @@ pub(crate) fn route_forge(
                     | Address::Work { .. }
                     | Address::Goals { .. }
                     | Address::Ask { .. }
+                    | Address::Tell { .. }
                     | Address::Adopt { .. } => continue,
                 };
                 out.push(Request::Show { address, replace: true });
@@ -573,6 +574,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::ConnectModel { .. }
         | Address::Forges
         | Address::ConnectForge { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. }
         | Address::Repositories { .. }
         | Address::Models { .. }

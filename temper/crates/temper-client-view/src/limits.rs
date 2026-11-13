@@ -165,6 +165,8 @@ impl Limits {
             .checked_add(receiving.rows.checked_mul(2)?)?
             .checked_add(64)?;
         let structural = cards
+            // Tell temper: head, field, About, Goes to, refusal, bound and acts (client/pages/needs-you.md, 1).
+            .checked_add(28)?
             .checked_add(findings)?
             .checked_add(follows_nodes)?
             .checked_add(turns)?

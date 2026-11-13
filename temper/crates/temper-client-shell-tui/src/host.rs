@@ -996,6 +996,7 @@ impl Host {
             | Address::Role { project, .. }
             | Address::Rule { project, .. }
             | Address::Ask { project }
+            | Address::Tell { project }
             | Address::Adopt { project } => Some(*project),
             Address::Inbox { filter } => filter.project,
             Address::Chats { .. }

@@ -4,7 +4,6 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
-- **Not yet:** 2: `tell-area` and `tell-page` [in flight: change 2192].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
@@ -34,7 +33,8 @@
   record, and Team's role's card's two, `team-role` and
   `night-team-role`, which goal 713 added, with none on record, and
   `team-hand` and `role-talk`, which goal 1983 adds, with none on
-  record.
+  record; `tell-area` and `tell-page` add to it too, with no CPU figure
+  on record.
 
 Section 2 holds what reaches a person, by plan `ui-reaches`: those five
 states and

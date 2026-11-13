@@ -590,3 +590,10 @@ fn work_filter_is_its_query() {
         assert_eq!(print(&address).as_ref(), canonical);
     }
 }
+
+#[test]
+fn tell_address_round_trips() {
+    let address = Address::Tell { project: 3 };
+    assert_eq!(parse(b"/projects/3/tell"), Place::Address(address.clone()));
+    assert_eq!(print(&address).as_ref(), b"/projects/3/tell");
+}

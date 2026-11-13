@@ -3533,3 +3533,37 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
 }
 
 /* Public records keep their identity, title and facts in a wrapping reading column. */
+
+/* Tell temper (client/pages/needs-you.md, 1): a finding, not a question. */
+.temper-tell { display: flex; flex-direction: column; gap: 14px; }
+.temper-tell-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.temper-tell-head h2 { margin: 0; font: 600 15px/1.6 var(--gf-sans); }
+.temper-tell-meta { margin: 0; color: var(--gf-muted); font: 400 13.5px/1.6 var(--gf-sans); }
+.temper-tell-card { display: flex; flex-direction: column; gap: 12px; padding: 20px; border: 1px solid var(--gf-line); border-radius: 12px; background: var(--gf-surface); }
+.temper-tell-card > label { font: 500 14px/1.6 var(--gf-sans); }
+.temper-tell-field { width: 100%; box-sizing: border-box; min-height: 72px; padding: 10px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; resize: vertical; background: var(--gf-paper); color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
+.temper-tell-context { display: flex; flex-direction: column; gap: 6px; }
+.temper-tell-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+:is(.temper-tell, .temper-tell-page) .temper-tell-acts > button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 14.5px/1.6 var(--gf-sans); cursor: pointer; }
+:is(.temper-tell, .temper-tell-page) .temper-tell-acts > .temper-recommended { background: var(--gf-primary); border-color: var(--gf-primary); color: var(--gf-primary-ink); font-weight: 500; }
+:is(.temper-tell, .temper-tell-page) .temper-tell-acts > .temper-recommended:hover { background: var(--gf-primary-hover); }
+:is(.temper-tell, .temper-tell-page) .temper-tell-acts > .temper-ask-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+:is(.temper-tell, .temper-tell-page) .temper-tell-acts > button:disabled { opacity: .5; cursor: default; }
+#app > .temper-tell-page { box-sizing: border-box; width: 100%; max-width: 816px; margin: 0 auto; padding: 32px 48px 96px; display: flex; flex-direction: column; gap: 16px; color: var(--gf-ink); font: 400 15px/1.6 var(--gf-sans); }
+.temper-tell-page > h1 { margin: 16px 0 0; font-size: 28px; font-weight: 500; line-height: 1.25; letter-spacing: -.02em; }
+.temper-tell-top { display: flex; align-items: center; gap: 16px; min-height: 44px; }
+.temper-tell-top > a { color: var(--gf-ink-2); text-decoration: none; }
+.temper-tell-link { align-self: flex-start; margin: 8px 24px 16px; color: var(--gf-muted); font: 400 13.5px/1.6 var(--gf-sans); text-underline-offset: 3px; }
+@media (max-width: 760px) {
+  #app > .temper-needs > .temper-tell { display: none; }
+  #app > .temper-tell-page { padding: 0 20px 112px; }
+  .temper-tell-page .temper-tell-card { padding: 0; border: 0; background: none; gap: 16px; }
+  .temper-tell-page .temper-tell-field { min-height: 120px; }
+  .temper-tell-page .temper-tell-acts { flex-direction: column; align-items: stretch; }
+  .temper-tell-page .temper-tell-acts > button { min-height: 44px; }
+  .temper-tell-top > a, .temper-tell-link { display: inline-flex; align-items: center; min-height: 44px; }
+  .temper-tell-page .temper-tell-context { padding: 14px; border: 1px solid var(--gf-line); border-radius: 12px; background: var(--gf-surface); }
+  #app:has(> .temper-tell-page) > .temper-rail { display: contents; }
+  #app:has(> .temper-tell-page) > .temper-rail > :not(.temper-night-switch) { display: none; }
+  .temper-tell-page .temper-tell-top { padding: 10px 40px 0 0; }
+}

@@ -1,7 +1,9 @@
 //! Tell temper's single filing (temper/docs/design/client/pages/needs-you.md, 1).
+mod context;
 use super::{Pages, Request, team};
 use crate::{Address, Limits, address, forge, owner::Owner};
 use alloc::boxed::Box;
+pub(super) use context::{outcome, remember, showing};
 use jig_client::{Client, Key, Told};
 use skein_lib::{Env, Queue};
 use temper_client_protocol_wire::v1 as w;
@@ -76,6 +78,7 @@ fn about_task(about: &About) -> Option<u64> {
         | Address::Rule { .. }
         | Address::Team { role: None, .. }
         | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. }
         | Address::Work { .. }
         | Address::Members

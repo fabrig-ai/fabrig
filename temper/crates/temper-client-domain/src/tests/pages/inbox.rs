@@ -739,14 +739,20 @@ fn a_card_gone_from_the_rows_leaves_at_the_swap() {
     assert!(objects(&root).contains(&fixtures::acts::QUESTION));
     section(&mut root, 1, None);
     assert!(!objects(&root).contains(&fixtures::acts::QUESTION));
-    let out = fixtures::acts::act(
+    let mut out = Queue::uncapped();
+    crate::pages::step(
         &mut root.pages,
-        Act::Needs(crate::pages::needs::Act::Choose {
-            object: fixtures::acts::QUESTION,
-            words: Box::from(b"stale".as_slice()),
-        }),
+        &fixtures::env(&fixtures::limits()),
+        &root.client,
+        crate::pages::Event::Act {
+            act: Act::Needs(crate::pages::needs::Act::Choose {
+                object: fixtures::acts::QUESTION,
+                words: Box::from(b"stale".as_slice()),
+            }),
+        },
+        &mut out,
     );
-    assert!(out.is_empty());
+    assert!(out.is_empty(), "{out:?}");
     assert!(!root.pages().needs().held(fixtures::acts::QUESTION));
 }
 #[test]

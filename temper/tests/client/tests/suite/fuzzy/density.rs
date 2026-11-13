@@ -147,6 +147,24 @@ impl World {
         }
     }
 
+    fn findings(&mut self, project: u32) {
+        let document = w::Findings::new(
+            &w::CEILINGS,
+            w::FindingsParts {
+                project,
+                rows: List::with_capacity(0),
+                areas: List::with_capacity(0),
+                triager: None,
+                holder: w::Holder::Role(
+                    w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).expect("owners"),
+                ),
+                cut: false,
+            },
+        )
+        .expect("density findings");
+        self.family(forge::findings::watch(project, &self.env.limits.forge), wire::findings(&document));
+    }
+
     fn drain(&mut self) {
         while !self.pending.is_empty() {
             let at =
@@ -616,6 +634,16 @@ impl World {
         let Some(inbox) = self.root.pages().inbox() else { return };
         let open = self.open();
         let needs_facts = parts::needs_facts(&self.root, self.env.wall);
+        let tell_project =
+            if let Address::Inbox { filter } = self.root.pages().address() { filter.project } else { None };
+        let tell_ready = tell_project.is_some_and(|project| pages::tell::goes(&self.root, project, None).is_some());
+        self.observed.insert(if tell_ready { "Tell shown" } else { "Tell absent" });
+        assert_eq!(
+            parts::needs(&needs_facts).tell,
+            tell_ready,
+            "Tell temper needs a filtered project and its findings read, step {}",
+            self.step
+        );
         let only = self.only();
         assert_eq!(needs_facts.only, only, "Only you counts the person's deciding logins, step {}", self.step);
         if self.accounts.is_some() {
@@ -725,6 +753,7 @@ fn check_rules(home: Option<&parts::HomeFacts>, needs: &parts::NeedsFacts) {
             done: needs.known && needs.open == 0,
             decided: needs.showing != 0,
             only: needs.known && needs.only != 0,
+            tell: needs.project && needs.findings,
         },
         "Needs you's independent part rules: {needs:?}"
     );
@@ -948,7 +977,7 @@ fn sweep(seed: u64, words: &temper_client_view::words::Words) -> BTreeSet<&'stat
     for step in 0..STEPS {
         world.step = step;
         let project = u32::try_from(world.rng.between(1, u64::from(world.projects))).expect("bounded density fixture");
-        match world.rng.below(16) {
+        match world.rng.below(17) {
             0 => {
                 world.observed.insert("All projects Home");
                 world.go(Address::AllHome);
@@ -1015,7 +1044,8 @@ fn sweep(seed: u64, words: &temper_client_view::words::Words) -> BTreeSet<&'stat
             13 => world.go(Address::Inbox { filter: Filter { kind: Some(Kind::Question), ..Filter::ALL } }),
             14 => world.accounts(),
             15 => world.relations(project),
-            _ => unreachable!("sixteen generator moves"),
+            16 => world.findings(project),
+            _ => unreachable!("seventeen generator moves"),
         }
         world.drain();
         check_approval_sizes(&mut world, &mut view);
@@ -1044,6 +1074,8 @@ fn random_facts_and_settings_keep_each_part_and_card() {
             "project Home",
             "unfiltered Needs you",
             "filtered Needs you",
+            "Tell shown",
+            "Tell absent",
             "To begin",
             "everyday Home",
             "N more",

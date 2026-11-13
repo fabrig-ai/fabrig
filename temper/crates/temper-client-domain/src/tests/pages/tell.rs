@@ -12,9 +12,12 @@ use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn setup() -> Domain {
+    setup_with_me(f::chats::me())
+}
+fn setup_with_me(me: c::Me) -> Domain {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    let me = f::start(&mut root, List::uncapped());
-    super::welcome::deliver(&mut root, me, c::Delivery::Me(Box::new(f::chats::me())));
+    let watch = f::start(&mut root, List::uncapped());
+    super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(me)));
     root
 }
 fn tell(root: &mut Domain, words: &[u8]) -> Queue<Request> {
@@ -332,4 +335,198 @@ fn tell_body_names_the_page_only_when_the_whole_line_fits() {
         sent(&tell_about(&mut root, b"The flake is back\nAgain", Some(about(Address::Talk { project: 1, task: 52 }))));
     assert_eq!(file.body(), b"The flake is back\nAgain\n\nPage: /projects/1/talk/52 (Prover)");
     assert_eq!(file.title(), b"The flake is back");
+}
+
+fn go(root: &mut Domain, address: Address) -> Queue<Request> {
+    super::welcome::event(root, Event::Went { place: Place::Address(address) })
+}
+fn watched_task(root: &mut Domain, out: &Queue<Request>, task: c::Task) {
+    let mut watch = None;
+    for request in out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        Down::Open { watch: token, subject: jig_client::Watchable::Jig(c::Subject::Task { task: number }) },
+                },
+        } = request
+            && *number == task.chip.task
+        {
+            watch = Some(*token);
+        }
+    }
+    super::welcome::deliver(root, watch.expect("task watched"), c::Delivery::Task(Box::new(task)));
+}
+fn prover() -> c::Task {
+    let mut task = f::chat::task();
+    task.chip.task = 52;
+    task.project = 1;
+    task.chip.title = c::DocumentText::complete(c::Text::new(b"Prover".as_slice().into(), 32).unwrap());
+    task.label = 3;
+    task
+}
+#[test]
+fn tell_keeps_the_page_left_with_its_title_but_not_its_entry_pages() {
+    let mut root = setup();
+    assert_eq!(root.pages().was_on(), None);
+    let team = Address::Team { project: 1, role: Some(52) };
+    let out = go(&mut root, team.clone());
+    let mut watch = None;
+    for request in &out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        Down::Open { watch: token, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) },
+                },
+        } = request
+            && query.label == Some(3)
+        {
+            watch = Some(*token);
+        }
+    }
+    let mut line = super::chats::chat_line();
+    line.chip = prover().chip;
+    line.project = 1;
+    line.label = 3;
+    super::welcome::deliver(
+        &mut root,
+        watch.unwrap(),
+        c::Delivery::Tasks(Box::new(c::Tasks { rows: List::from_boxed(Box::new([line])), more: false })),
+    );
+    let expected = About { address: team, title: Some(b"Prover".as_slice().into()) };
+    for address in [
+        Address::Inbox { filter: crate::address::Filter { project: Some(1), ..crate::address::Filter::ALL } },
+        Address::Ask { project: 1 },
+        Address::Tell { project: 1 },
+    ] {
+        go(&mut root, address);
+        assert_eq!(root.pages().was_on(), Some(&expected));
+    }
+    let work = Address::Work { project: 1, filter: crate::WorkFilter::All };
+    go(&mut root, work.clone());
+    go(&mut root, Address::Tell { project: 1 });
+    assert_eq!(root.pages().was_on(), Some(&About { address: work, title: None }));
+    let mut root = setup();
+    let mut task = prover();
+    task.chip.task = 53;
+    let out = go(&mut root, Address::Task { task: 53 });
+    watched_task(&mut root, &out, task);
+    go(&mut root, Address::Tell { project: 1 });
+    assert_eq!(root.pages().was_on(), Some(&About { address: Address::Task { task: 53 }, title: expected.title }));
+    assert_eq!(root.pages().tell_about(2), None, "another project's Tell has no page");
+    super::welcome::event(&mut root, Event::Client { event: jig_client::Event::Up { up: Up::SignedOut } });
+    assert_eq!(root.pages().was_on(), None, "sign-out clears session pages");
+}
+#[test]
+fn tell_skips_an_ask_temper_chat_but_keeps_other_chats_and_talks() {
+    for (asking, address) in [
+        (true, Address::Chat { task: 52 }),
+        (false, Address::Chat { task: 52 }),
+        (true, Address::Talk { project: 1, task: 52 }),
+    ] {
+        let mut me = f::chats::me();
+        let mut template = me.projects.get_mut(0).unwrap().templates.get(0).unwrap().clone();
+        template.number = pages::chats::ASKING_TEMPLATE;
+        template.executor = c::TemplateExecutor::Charter(14);
+        me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template]));
+        let mut root = setup_with_me(me);
+        let work = Address::Work { project: 1, filter: crate::WorkFilter::All };
+        go(&mut root, work.clone());
+        let out = go(&mut root, address.clone());
+        let mut task = prover();
+        task.chip.executor = c::ChipExecutor::Agent { charter: if asking { 14 } else { 15 } };
+        watched_task(&mut root, &out, task);
+        go(&mut root, Address::Tell { project: 1 });
+        let expected = if asking && address == (Address::Chat { task: 52 }) { work } else { address };
+        assert_eq!(&root.pages().was_on().unwrap().address, &expected);
+    }
+}
+#[test]
+fn tell_watches_its_findings_and_releases_them_when_left() {
+    let mut root = setup();
+    let out = go(&mut root, Address::Tell { project: 1 });
+    let mut watch = None;
+    for request in &out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Open { watch: token, subject: jig_client::Watchable::Family { record, .. } },
+                },
+        } = request
+            && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
+            && let w::Watch::Findings(subject) = watching.watch()
+            && subject.project() == 1
+        {
+            watch = Some(*token);
+        }
+    }
+    let watch = watch.expect("Tell watches its findings");
+    super::welcome::event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::findings(&w::Findings::new(&w::CEILINGS, document()).unwrap()),
+                    },
+                },
+            },
+        },
+    );
+    assert!(pages::tell::goes(&root, 1, None).is_some());
+    let out = go(&mut root, Address::Work { project: 1, filter: crate::WorkFilter::All });
+    let mut closed = false;
+    for request in &out {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch: token } } } =
+            request
+        {
+            closed |= *token == watch;
+        }
+    }
+    assert!(closed, "leaving Tell releases findings");
+    assert_eq!(pages::tell::goes(&root, 1, None), None);
+}
+#[test]
+fn a_filed_tell_clears_the_field_and_says_its_destination_once() {
+    let mut root = setup();
+    read_findings(&mut root, document());
+    write(&mut root, b"Keep all these words");
+    let (attempt, _) = sent(&tell_about(&mut root, b"Keep all these words", Some(about(Address::Task { task: 52 }))));
+    let outcome = w::Outcome::Filed(w::Filed::new(&w::CEILINGS, w::FiledParts { number: 12 }).unwrap());
+    answer(&mut root, attempt, Some(outcome.clone()));
+    assert_eq!(root.pages().tell_words(), b"");
+    assert_eq!(
+        root.pages().needs().toast(),
+        Some(&pages::needs::Toasted::TellFiled {
+            project: 1,
+            goes: Some(Goes::Area { name: b"tests".as_slice().into(), holder: pages::team::Holder::Task(52) }),
+        })
+    );
+    write(&mut root, b"Next words");
+    super::welcome::event(
+        &mut root,
+        Event::Act { action: Action::Pages(pages::Act::Needs(pages::needs::Act::Dismiss)) },
+    );
+    answer(&mut root, attempt, Some(outcome));
+    assert_eq!(root.pages().tell_words(), b"Next words");
+    assert_eq!(root.pages().needs().toast(), None, "a repeated outcome never says it again");
+    let (attempt, _) = sent(&tell(&mut root, b"Next words"));
+    let reason =
+        w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).unwrap());
+    answer(
+        &mut root,
+        attempt,
+        Some(w::Outcome::FindingRefused(
+            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason }).unwrap(),
+        )),
+    );
+    assert_eq!(root.pages().tell_words(), b"Next words", "a refusal keeps the words");
+}
+
+fn write(root: &mut Domain, words: &[u8]) {
+    super::welcome::event(root, Event::Act { action: Action::Pages(pages::Act::TellWords { words: words.into() }) });
 }
