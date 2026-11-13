@@ -118,6 +118,12 @@ From the crate's history, `crate-graph.md`, 5.2's first rule, and its module gra
   `opening_tab`, `shell_event` and `ShellEvent`. Its `pages` module re-exports work's and setup's
   page modules, `chats`, `goals` and `home` public as today.
 - **An item another piece names is `pub`** in its piece; nothing else widens.
+- **The card methods on `Words` are a trait of the parts.** `cards.rs`'s `impl Words` (`say_card`,
+  `card_text`, `status`, `refusal`, `outcome`, `ending`) can't stay an inherent impl once `Words` is
+  the words' type (E0116), and its drawing belongs to the parts, not the words. It becomes
+  `pub trait CardWords` in `cards`, implemented for `Words` with the same names, signatures and
+  bodies; each file that calls one adds `use crate::cards::CardWords as _;` (a forced edit), and
+  no call site changes. No reader outside the view's crates calls them.
 
 ## 3. The preparation
 
