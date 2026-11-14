@@ -16,6 +16,8 @@ or the round or milestone that removes it (temper's, the milestones C2 to C6 of
   repository doesn't hold: whether that step has it awaits the user (8). `.config/gate/README.md`, 8
   also names `tools/lints/test_lints.py`, which no test here runs, so a break of the check itself
   shows only where someone runs it.
+  7: the count of catches: `tools/lints/panics.py`, its list `tools/lints/panics.txt` at main's
+  figures, its tests, and its runs in the gate and in `fabrig-boundary`. [in flight: change 2674]
 - **Departs:**
   - 1, 2.4: four profiles, where the request and its debt items name three, because `binary` held
     two regimes and one block for both would loosen the ring's shell or raise twelve crates. The
