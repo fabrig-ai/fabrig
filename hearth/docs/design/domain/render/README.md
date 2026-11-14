@@ -94,7 +94,7 @@ revision ──git──▶ 1 decode ──▶ 2 compose ──▶ 3 validate �
 
 Step 1 and discovery run once per revision; the rest once per target, and step 4 reads other targets of the same environment. A target's settings are composed when it renders, another target's task or placement when step 4 reads it, and none is kept past its use (5.4).
 
-**Four results,** each made from the one before: the revision's inputs, decoded (3.1); a target's settings, composed, validated and given what it reads of its environment (3.2 to 3.4); its admitted entries, concrete, checked and free of collisions, with the files they make (3.5 to 3.7); and its spec (3.8). A diff compares two revisions' specs (section 4). The records between them are the code's: a stage that adds no rule of its own adds no record.
+**Four results,** each made from the one before: the revision's inputs, decoded (3.1); a target's settings, composed, validated and given what it reads of its environment (3.2 to 3.4); its admitted entries, the concrete declarations once checked and free of collisions, with the files they make (3.5 to 3.7); and its spec (3.8). A diff compares two revisions' specs (section 4). The records between them are the code's: a stage that adds no rule of its own adds no record.
 
 ### 3.1 Decode
 
@@ -157,7 +157,7 @@ Render compares the concrete declarations of all the target's tasks:
 
 ### 3.8 Assemble
 
-- **Each part's record** (`spec.md`, section 1) is built from the concrete declarations and the produced files, sorted as hearth/docs/design/protocol/format/README.md, 4.3 says, encoded canonically and digested.
+- **Each part's record** (`spec.md`, section 1) is built from the admitted entries and the produced files, sorted as hearth/docs/design/protocol/format/README.md, 4.3 says, encoded canonically and digested.
 - **Render gives the resolution key** (`spec.md`, 2.1), and the layer keys when the store holds that key's resolution (`spec.md`, 1.5); otherwise the key is needed, and the layer keys unknown until it is resolved (`spec.md`, 2.7).
 - **The live part maps each covered path to its consumers** (hearth/docs/design/protocol/format/tasks.md, 14). Render decides nothing about a change: the builder pairs two specs' live parts with two outputs' tree files when it plans a trial (hearth/docs/design/domain/slots/trial.md, 7; hearth/docs/design/domain/steward.md, 3.3).
 - **The output is the spec.** Every file it names is in the store's cache by digest. Specs are never stored: a builder renders again when it needs one (hearth/docs/design/domain/steward.md, 3.3).
