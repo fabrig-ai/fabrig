@@ -63,4 +63,3 @@ parks without spending a try.
    widening, moves, successors and surviving questions remain `changes.status.md` (Not yet, the whole document).  markers remain `messages.status.md`, 3.
    conversation questions remain `messages.status.md`, 5.
   7: the stories of these.
-- **Not yet:** 3: a task's attempts and holds are not kept beside it; its milestones are (`lifecycle.md`, 12). [in flight: change 3370]
