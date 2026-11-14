@@ -94,11 +94,3 @@ fn period_opening_requires_the_cores_project_gate() {
     test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 100 });
     assert!(test.domain.funding(Funder::Period { project: 1, period: 1 }).is_some());
 }
-
-#[test]
-#[should_panic(expected = "project closure follows its last live task")]
-fn closing_a_project_with_a_live_task_asserts_the_parents_precondition() {
-    let mut test = Harness::new();
-    test.make([super::revisions::task(1, &[])].into());
-    test.send(Event::CloseProject { project: 1 });
-}

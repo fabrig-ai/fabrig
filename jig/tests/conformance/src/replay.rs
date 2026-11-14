@@ -138,7 +138,7 @@ fn cuts_traced(
             return;
         }
         let continuation = hook_position.borrow().clone();
-        let result = World::from_snapshot(world.cold_snapshot()).and_then(|mut replay| {
+        let result = world.cold_snapshot().and_then(World::from_snapshot).and_then(|mut replay| {
             finish(&mut replay, scenario, seed, continuation, &RefCell::new(Position::default()))?;
             visit(cut, replay);
             Ok(())

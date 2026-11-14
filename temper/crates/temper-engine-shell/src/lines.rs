@@ -303,6 +303,11 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
             format!("application setting {kind}/{scope}/{number}: {why:?}")
         }
         Failure::HeldPastLimit { which, held, limit } => format!("{which:?}, held {held}, limit {limit}"),
+        Failure::NeedsPastLimit { held, limit } => {
+            format!(
+                "stored settings' agent needs hold {held} bytes, past the {limit} byte bound; raise fleet.needs_bytes"
+            )
+        }
         Failure::AccountsPastLimit { failure } => {
             format!("accounts {:?}, key {:?}, limit {}", failure.set, failure.key, failure.limit)
         }

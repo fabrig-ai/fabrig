@@ -11,11 +11,11 @@ impl jig_conformance::Durable for Store {
     fn release_held(&mut self) -> Option<u64> {
         Self::release_held(self)
     }
-    fn crash(&mut self, seed: u64) {
-        Self::crash(self, seed);
+    fn crash(&mut self, seed: u64) -> Result<(), String> {
+        Self::crash(self, seed).map_err(|finding| format!("{finding:?}"))
     }
-    fn fork(&self) -> Self {
-        Self::fork(self)
+    fn fork(&self) -> Result<Self, String> {
+        Self::fork(self).map_err(|finding| format!("{finding:?}"))
     }
     fn applied(&self) -> u64 {
         self.applied

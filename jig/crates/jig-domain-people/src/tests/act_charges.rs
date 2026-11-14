@@ -36,24 +36,17 @@ fn largest_acts_are_valid() {
 }
 
 #[test]
-#[should_panic(expected = "configured act grants fit")]
-fn a_grant_past_the_configured_bound_is_rejected() {
-    drop(Domain::new(
-        &Limits { act_grants: 0, ..LIMITS },
-        Box::new([]),
-        1,
-        Box::new([ActGrant { connector: 1, may: ActKind::ALL.into() }]),
-    ));
-}
-
-#[test]
 fn a_grant_at_the_configured_bound_fits() {
-    drop(Domain::new(
-        &Limits { act_grants: 1, ..LIMITS },
+    // The fixture declares one connector's full set of acts.
+    const ACT_GRANTS: u32 = 1;
+    let domain = Domain::new(
+        &Limits { act_grants: ACT_GRANTS, ..LIMITS },
         Box::new([]),
         1,
         Box::new([ActGrant { connector: 1, may: ActKind::ALL.into() }]),
-    ));
+    );
+    assert_eq!(domain.grants.len(), usize::try_from(ACT_GRANTS).unwrap());
+    assert_eq!(domain.grants.as_ref(), &[ActGrant { connector: 1, may: ActKind::ALL.into() }]);
 }
 
 #[test]

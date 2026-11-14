@@ -84,16 +84,19 @@ impl World {
 
     /// Drive one caller event through store loads and one committed answer.
     pub fn call(&mut self, event: Event) -> Answer {
-        self.drive(event, None).expect("a call has one answer")
+        self.drive(event, None).unwrap_or_else(|finding| self.fail_finding(&finding)).expect("a call has one answer")
     }
 
     /// Commit a prefix of a call's decisions, then discard volatile work and restart.
     pub fn cut_after(&mut self, event: Event, decisions: u32) {
-        assert!(self.drive(event, Some(decisions)).is_none(), "cut precedes the terminal answer");
+        assert!(
+            self.drive(event, Some(decisions)).unwrap_or_else(|finding| self.fail_finding(&finding)).is_none(),
+            "cut precedes the terminal answer"
+        );
         self.restart();
     }
 
-    fn drive(&mut self, event: Event, cut_after: Option<u32>) -> Option<Answer> {
+    fn drive(&mut self, event: Event, cut_after: Option<u32>) -> Result<Option<Answer>, String> {
         let intent = Intent::from_event(&event);
         let caller = intent.owner();
         let mut incoming = VecDeque::from([event]);
@@ -146,7 +149,7 @@ impl World {
                     let erases = self.limits.load_rows.checked_mul(2).expect("one line and entry per loaded row");
                     assert!(writes.len() <= skein_lib::length::usize_of(erases));
                 }
-                self.referee.before_commit(&self.store, &writes, &intent);
+                self.referee.before_commit(&self.store, &writes, &intent)?;
                 for write in writes {
                     match write {
                         Write::Save(record) => {
@@ -158,7 +161,7 @@ impl World {
                     }
                 }
                 self.commits = self.commits.checked_add(1).expect("world commit count fits");
-                self.referee.after_commit(&self.store, &self.limits);
+                self.referee.after_commit(&self.store, &self.limits)?;
             }
             for (owner, range) in loads {
                 let returned = self.loads.end(owner);
@@ -169,13 +172,17 @@ impl World {
         }
         assert!(incoming.is_empty(), "a bounded notes call settles");
         self.loads.assert_settled();
-        answer
+        Ok(answer)
     }
 
     /// Restart the child with an empty cache; durable records stay in the store.
     pub fn restart(&mut self) {
         self.domain = notes::Domain::new(&self.limits);
-        self.referee.after_commit(&self.store, &self.limits);
+        self.referee.after_commit(&self.store, &self.limits).unwrap_or_else(|finding| self.fail_finding(&finding));
+    }
+
+    fn fail_finding(&self, finding: &str) -> ! {
+        panic!("notes: {finding}\n{}", self.trace.lines().join("\n"));
     }
 
     /// One stored entry, as a caller would read it through the store.

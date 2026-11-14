@@ -74,13 +74,14 @@ impl Durable for Store {
         self.inner.release_held()
     }
 
-    fn crash(&mut self, _: u64) {
+    fn crash(&mut self, _: u64) -> Result<(), String> {
         self.inner.crash();
         self.drops.clear();
+        Ok(())
     }
 
-    fn fork(&self) -> Self {
-        self.clone()
+    fn fork(&self) -> Result<Self, String> {
+        Ok(self.clone())
     }
 
     fn applied(&self) -> u64 {
@@ -151,7 +152,7 @@ mod tests {
         Durable::submit(&mut store, 1, Box::new([root::Write::DropTranscript { task: 7 }]), 0);
         assert_eq!(Durable::tick(&mut store, false), Err(1));
         assert_eq!(store.inner.rows, rows);
-        Durable::crash(&mut store, 0);
+        Durable::crash(&mut store, 0).expect("crash readback");
         Durable::submit(&mut store, 1, Box::new([]), 0);
         assert_eq!(Durable::tick(&mut store, false), Ok(Some(1)));
         assert_eq!(store.inner.rows, rows);
@@ -162,7 +163,7 @@ mod tests {
         let mut store = Store::default();
         Durable::submit(&mut store, 1, Box::new([root::Write::Save(turn(7, 1))]), 0);
         Durable::submit(&mut store, 2, Box::new([root::Write::DropTranscript { task: 7 }]), 0);
-        let mut fork = Durable::fork(&store);
+        let mut fork = Durable::fork(&store).expect("fork readback");
         for current in [&mut store, &mut fork] {
             assert_eq!(Durable::tick(current, false), Ok(Some(1)));
             assert_eq!(current.inner.rows.values().cloned().collect::<Vec<_>>(), [turn(7, 1)]);

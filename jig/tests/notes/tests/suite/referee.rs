@@ -14,33 +14,36 @@ fn line(entry: &jig_domain_notes::Entry) -> Line {
 }
 
 #[test]
-#[should_panic(expected = "entry and its line together")]
 fn the_referee_rejects_a_commit_missing_its_index_line() {
     let entry = saved_entry(20, Scope::Project { project: 7 }, 1);
-    Referee.before_commit(
-        &BTreeMap::new(),
-        &[Write::Save(Record::Entry(entry))],
-        &Intent::Write { owner: Token::new(1), name: 20, recalled: None },
-    );
+    let finding = Referee
+        .before_commit(
+            &BTreeMap::new(),
+            &[Write::Save(Record::Entry(entry))],
+            &Intent::Write { owner: Token::new(1), name: 20, recalled: None },
+        )
+        .expect_err("an entry without its index line is refused");
+    assert!(finding.contains("entry and its line together"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "revision names the one the writer saw")]
 fn the_referee_rejects_a_revision_over_one_the_writer_did_not_see() {
     let old = saved_entry(20, Scope::Project { project: 7 }, 1);
     let mut store = BTreeMap::new();
     store.insert(key_of(&Record::Entry(old.clone())), Record::Entry(old.clone()));
     store.insert(key_of(&Record::Line(line(&old))), Record::Line(line(&old)));
     let newer = saved_entry(20, Scope::Project { project: 7 }, 2);
-    Referee.before_commit(
-        &store,
-        &[Write::Save(Record::Entry(newer.clone())), Write::Save(Record::Line(line(&newer)))],
-        &Intent::Write { owner: Token::new(1), name: 20, recalled: Some(0) },
-    );
+    let finding = Referee
+        .before_commit(
+            &store,
+            &[Write::Save(Record::Entry(newer.clone())), Write::Save(Record::Line(line(&newer)))],
+            &Intent::Write { owner: Token::new(1), name: 20, recalled: Some(0) },
+        )
+        .expect_err("an unseen revision is refused");
+    assert!(finding.contains("revision names the one the writer saw"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "nothing held beyond entries per scope")]
 fn the_referee_rejects_more_entries_than_a_scope_allows() {
     let mut store = BTreeMap::<Key, Record>::new();
     for name in 20..24 {
@@ -49,5 +52,6 @@ fn the_referee_rejects_more_entries_than_a_scope_allows() {
         store.insert(key_of(&Record::Entry(entry.clone())), Record::Entry(entry));
         store.insert(key_of(&Record::Line(index.clone())), Record::Line(index));
     }
-    Referee.after_commit(&store, &LIMITS);
+    let finding = Referee.after_commit(&store, &LIMITS).expect_err("a scope over its bound is refused");
+    assert!(finding.contains("nothing held beyond entries per scope"), "{finding}");
 }
