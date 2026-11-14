@@ -7,14 +7,14 @@ import re
 import subprocess
 
 PATTERNS = ("catch_unwind", "resume_unwind", "should_panic")
-REFUSED = ("catch_unwind", "resume_unwind")
+REFUSED = ("catch_unwind", "resume_unwind", "should_panic")
 WORDS = tuple(re.compile(r"\b" + name + r"\b") for name in PATTERNS[:2])
 ATTRIBUTE = re.compile(r"#\[\s*should_panic\b")
 LIST = Path("tools/lints/panics.txt")
 RULE = "skein/docs/foundation/programming-model.md, 10.4"
 HEADER = ("# tools/lints/design.md, 7: the count of catches.\n"
           "# --write lowers this list; nothing raises it.\n"
-          "# Refused, so no line names them: catch_unwind, resume_unwind.\n")
+          "# Refused, so no line names them: catch_unwind, resume_unwind, should_panic.\n")
 
 
 def order(key):

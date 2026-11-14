@@ -29,9 +29,3 @@
     `tests/host/src/inline.rs` runs `smith-machine-world` with
     `smith-protocol-machine`'s types. No reason is recorded, and no debt
     item names them (section 9).
-  - 2.3: the live push story catches its run's panic to remove its
-    branch, and removes no branch an earlier run left.
-    [in flight: change 2864]
-  - 5: smith's world referees implement `observe`, not `watch`, and the
-    event checks, the program referee's among them, panic on a
-    difference. [in flight: change 2864]

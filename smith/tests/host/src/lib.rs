@@ -94,6 +94,7 @@ pub struct World {
     pub lower: Ledger<Lower, Token>,
     pub seen: Seen,
     pub trace: Trace,
+    finding: Option<String>,
 }
 
 /// Small valid capacities; every sealed delivery fits the reply cap.
@@ -146,6 +147,7 @@ impl World {
             lower: Ledger::new("host lower operation"),
             seen: Seen::default(),
             trace,
+            finding: None,
         }
     }
 
@@ -168,7 +170,11 @@ impl World {
         while let Some(event) = self.stage.next_event() {
             host::step(&mut self.domain, &self.stage.env, event, &mut self.stage.out);
             self.outputs();
+            if self.finding.is_some() {
+                break;
+            }
         }
+        self.watch().unwrap_or_else(|why| panic!("{why}"));
         self.domain.reclaim();
     }
 
@@ -183,7 +189,11 @@ impl World {
         while self.domain.is_due(now) {
             host::fire(&mut self.domain, &self.stage.env, &mut self.stage.out);
             self.outputs();
+            if self.finding.is_some() {
+                break;
+            }
         }
+        self.watch().unwrap_or_else(|why| panic!("{why}"));
         self.domain.reclaim();
     }
 
@@ -260,8 +270,20 @@ impl World {
         }
     }
 
+    /// Return the first parent referee finding with this world's trace.
+    ///
+    /// # Errors
+    /// Returns the first refused observation, naming the seed and ordered trace.
+    pub fn watch(&self) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(format!("{why}\n{}", self.trace.lines().join("\n")));
+        }
+        Ok(())
+    }
+
     /// Final independent quiescence checks (testing-strategy.md, section 6).
     pub fn settled(&self) {
+        self.watch().unwrap_or_else(|why| panic!("{why}"));
         self.lower.assert_settled();
         assert!(self.seen.calls.is_empty(), "every parent call right returned");
         assert!(self.seen.turns.is_empty(), "every parent-owned turn committed");
@@ -347,6 +369,12 @@ impl World {
     }
 
     fn outputs(&mut self) {
+        if self.finding.is_none() {
+            self.finding = self.outputs_checked().err();
+        }
+    }
+
+    fn outputs_checked(&mut self) -> Result<(), String> {
         while let Some(request) = self.stage.out.pop() {
             self.trace.log(self.stage.env.now, format!("down {request:?}"));
             match request {
@@ -358,7 +386,7 @@ impl World {
                     request,
                     self.seen.exited && self.seen.empty && self.seen.eof,
                     self.lower.is_empty(),
-                ),
+                )?,
                 Output::Process(process::Request::Send { owner, message, .. }) => {
                     self.lower.open(Lower::Send, owner);
                     match &message {
@@ -389,6 +417,7 @@ impl World {
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -518,82 +547,155 @@ pub fn declared_value(bytes: u64) -> host::Declared {
 }
 
 impl Seen {
-    fn fence(&mut self, read: Option<Token>) {
+    fn fence(&mut self, read: Option<Token>) -> Result<(), String> {
         if read == self.read {
-            return;
+            return Ok(());
         }
-        let name = read.expect("fences never go backwards");
-        let at = self.messages.iter().position(|old| *old == name).expect("fence owns an accepted message");
+        let name = read.ok_or("fences never go backwards")?;
+        let at = self.messages.iter().position(|old| *old == name).ok_or("fence owns an accepted message")?;
+        if self.messages.iter().take(at + 1).any(|name| !self.sent_messages.contains(name)) {
+            return Err("a covering fence follows message issuance".into());
+        }
         for name in self.messages.drain(..=at) {
-            assert!(self.sent_messages.remove(&name), "a covering fence follows message issuance");
+            self.sent_messages.remove(&name);
             self.read_messages.push(name);
         }
         self.read = read;
+        Ok(())
+    }
+
+    /// Observe the parent's answer to one relayed inline call.
+    ///
+    /// # Errors
+    /// Returns a finding without consuming a right when the call is not pending.
+    pub fn observe_answer(&mut self, call: Token) -> Result<(), String> {
+        if !self.calls.contains(&call) {
+            return Err("one parent terminal".into());
+        }
+        self.calls.remove(&call);
+        Ok(())
     }
 
     /// Common parent referee; the kind supplies lower containment proof.
-    pub fn observe_parent(&mut self, request: parent::Request, contained: bool, lower_settled: bool) {
+    ///
+    /// # Errors
+    /// Returns the first broken contract without recording the refused observation.
+    #[expect(clippy::too_many_lines, reason = "the common parent referee checks each observation before recording it")]
+    pub fn observe_parent(
+        &mut self,
+        request: parent::Request,
+        contained: bool,
+        lower_settled: bool,
+    ) -> Result<(), String> {
         match request {
             parent::Request::Started { agent, .. } => {
-                assert!(self.agent.replace(agent).is_none());
+                if self.agent.is_some() {
+                    return Err("one parent handle".into());
+                }
+                self.agent = Some(agent);
             }
             parent::Request::Admitted { .. } => {
-                assert!(!self.admitted);
+                if self.admitted {
+                    return Err("one admission".into());
+                }
                 self.admitted = true;
             }
             parent::Request::Called { call, .. } => {
-                assert!(self.calls.insert(call));
+                if self.calls.contains(&call) {
+                    return Err("one parent call".into());
+                }
+                self.calls.insert(call);
             }
             parent::Request::Withdrawn { call, .. } => {
-                assert!(self.calls.contains(&call));
-                assert!(self.withdrawals.insert(call));
+                if !self.calls.contains(&call) {
+                    return Err("withdrawal retains its parent call".into());
+                }
+                if self.withdrawals.contains(&call) {
+                    return Err("one parent withdrawal".into());
+                }
+                self.withdrawals.insert(call);
             }
             parent::Request::Turn { turn, .. } => {
-                self.fence(turn.read);
+                if self.turns.contains_key(&turn.number) {
+                    return Err("one parent turn".into());
+                }
+                self.fence(turn.read)?;
                 self.turn_metadata.push((turn.number, turn.spent));
-                assert!(self.turns.insert(turn.number, turn.body).is_none());
+                self.turns.insert(turn.number, turn.body);
             }
             parent::Request::Answered { answer, .. } => {
-                assert!(self.fault.is_none());
-                self.fence(answer.read);
-                assert!(self.answer.replace(answer).is_none(), "one run answer");
+                if self.fault.is_some() {
+                    return Err("answer has no failure".into());
+                }
+                if self.answer.is_some() {
+                    return Err("one run answer".into());
+                }
+                self.fence(answer.read)?;
+                self.answer = Some(answer);
             }
             parent::Request::Faulted { fault, .. } => {
-                assert!(self.answer.is_none());
-                assert!(self.unread.is_some(), "unread is reported before a failure");
-                assert!(self.fault.replace(fault).is_none());
+                if self.answer.is_some() {
+                    return Err("failure has no answer".into());
+                }
+                if self.unread.is_none() {
+                    return Err("unread is reported before a failure".into());
+                }
+                if self.fault.is_some() {
+                    return Err("one failure".into());
+                }
+                self.fault = Some(fault);
             }
             parent::Request::Gone { end, detail, .. } => {
                 if matches!(end, End::Exited { .. } | End::Settled) {
-                    assert!(contained, "Gone needs the kind's containment proof");
-                    assert!(lower_settled, "Gone retains every lower terminal");
-                    assert!(self.calls.is_empty(), "Gone retains every parent call");
-                    assert!(self.turns.is_empty(), "Gone retains every told turn");
+                    if !contained {
+                        return Err("Gone needs the kind's containment proof".into());
+                    }
+                    if !lower_settled {
+                        return Err("Gone retains every lower terminal".into());
+                    }
+                    if !self.calls.is_empty() {
+                        return Err("Gone retains every parent call".into());
+                    }
+                    if !self.turns.is_empty() {
+                        return Err("Gone retains every told turn".into());
+                    }
                 }
                 if self.agent.is_some() || self.owner.is_some() {
-                    assert!(self.unread.is_some(), "the unread report precedes Gone");
-                    assert!(self.messages.is_empty(), "every accepted message ended before Gone");
+                    if self.unread.is_none() {
+                        return Err("the unread report precedes Gone".into());
+                    }
+                    if !self.messages.is_empty() {
+                        return Err("every accepted message ended before Gone".into());
+                    }
+                }
+                if self.gone.is_some() || self.gone_detail.is_some() {
+                    return Err("one Gone terminal".into());
                 }
                 if self.agent.is_none() && !matches!(end, End::Exited { .. } | End::Settled) {
                     self.messages.clear(); // Start refusal refuses its carried messages with it.
                 }
-                assert!(self.gone.replace(end).is_none());
-                assert!(self.gone_detail.replace(detail).is_none());
+                self.gone = Some(end);
+                self.gone_detail = Some(detail);
             }
             parent::Request::Unread { names, .. } => {
-                assert!(self.fault.is_none() && self.gone.is_none(), "unread precedes an unanswered terminal");
-                assert!(self.unread.is_none(), "one unread report");
-                assert_eq!(
-                    names.as_ref(),
-                    self.messages.as_slice(),
-                    "unread names every remaining accepted message in order"
-                );
+                if self.fault.is_some() || self.gone.is_some() {
+                    return Err("unread precedes an unanswered terminal".into());
+                }
+                if self.unread.is_some() {
+                    return Err("one unread report".into());
+                }
+                if names.as_ref() != self.messages.as_slice() {
+                    return Err(format!(
+                        "unread names every remaining accepted message in order\nleft: {:?}\nright: {:?}",
+                        names, self.messages
+                    ));
+                }
                 self.messages.clear();
                 self.sent_messages.clear();
                 self.unread = Some(names.into_vec());
             }
             parent::Request::MessageRefused { name, reason, .. } => {
-                let at = self.messages.iter().rposition(|old| *old == name).expect("one message terminal");
+                let at = self.messages.iter().rposition(|old| *old == name).ok_or("one message terminal")?;
                 self.messages.remove(at);
                 if !self.messages.contains(&name) {
                     self.sent_messages.remove(&name);
@@ -604,7 +706,7 @@ impl Seen {
                 self.account_notices.push(host::Up::Unauthorized { account, generation });
             }
             parent::Request::Told { .. } => self.told += 1,
-            parent::Request::Waiting { read, .. } => self.fence(read),
+            parent::Request::Waiting { read, .. } => self.fence(read)?,
             parent::Request::Limited { account, reset, .. } => {
                 self.account_notices.push(host::Up::Limited { account, reset });
             }
@@ -613,5 +715,6 @@ impl Seen {
             }
             parent::Request::Long { .. } | parent::Request::LongDone { .. } => {}
         }
+        Ok(())
     }
 }

@@ -671,6 +671,13 @@ impl skein_world::Referee<crate::process::Proc> for Run {
         }
         use crate::process::Proc;
         use skein_world::Host;
+        for proc in procs {
+            if let Proc::Terminal(terminal) = proc
+                && let Some(why) = terminal.finding()
+            {
+                return Err(why.into());
+            }
+        }
         let mut stimuli = Vec::new();
         if let Some(local) = procs.iter().find_map(|p| if let Proc::Local(p) = p { Some(p.as_ref()) } else { None }) {
             for fact in local.facts().get(self.facts..).ok_or("local facts append")? {

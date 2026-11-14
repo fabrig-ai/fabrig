@@ -33,7 +33,10 @@ impl Mmdebstrap {
         assert_eq!(machine.tool(child), Some(Tool::Mmdebstrap));
         let invocation = machine.linux().invocation(child);
         assert_eq!(invocation.program.as_ref(), b"/usr/bin/mmdebstrap");
-        let simulate = face::check(&invocation.args, &invocation.env);
+        let simulate = match face::check(&invocation.args, &invocation.env) {
+            Ok(simulate) => simulate,
+            Err(finding) => panic!("{finding}"),
+        };
         let target = [simulate.scratch.as_ref(), b"/root"].concat();
         assert_eq!(
             open(machine, child, &target, How::Directory),

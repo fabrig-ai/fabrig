@@ -1,6 +1,7 @@
 //! Runtime world. The real root, hub, checkout and agent child domains meet
 //! a scripted engine and process, the protocol layer's hand-outs answered
-//! with smith's codecs, and deterministic git terminals.
+//! with smith's codecs, and deterministic git terminals. The turn referee's
+//! first finding returns to the run (temper/docs/design/testing/README.md, 4.2).
 
 use std::collections::VecDeque;
 use std::fmt::{self, Write};
@@ -219,23 +220,27 @@ impl World {
         self.trace.push(digest(record));
     }
 
-    fn send(&mut self, event: Event) {
+    fn send(&mut self, event: Event) -> Result<(), String> {
         self.remember(&event);
         self.meter.start();
         step(&mut self.domain, &self.env, event, &mut self.out);
-        self.drain();
-        self.settle();
+        self.drain()?;
+        self.settle()
     }
 
-    fn drain(&mut self) {
+    fn drain(&mut self) -> Result<(), String> {
         let measured = self.meter.end();
+        let mut finding = Ok(());
         while let Some(request) = self.out.pop() {
             // The runs' activity is best effort, as facts are.
             if let Request::Link(host::LinkUp::Activity { .. }) = &request {
                 self.remember_fact(&request);
             } else {
                 self.remember(&request);
-                self.take(request);
+                finding = self.take(request);
+                if finding.is_err() {
+                    break;
+                }
             }
         }
         for _ in 0..1024 {
@@ -246,27 +251,28 @@ impl World {
         self.stats.peak_heap = self.stats.peak_heap.max(peak);
         self.stats.peak_retained = self.stats.peak_retained.max(self.domain.retained_turns());
         self.domain.reclaim();
+        finding
     }
 
-    fn settle(&mut self) {
+    fn settle(&mut self) -> Result<(), String> {
         for _ in 0..128 {
             if self.domain.is_ready() {
                 self.remember(&"resume");
                 self.meter.start();
                 resume(&mut self.domain, &self.env, &mut self.out);
-                self.drain();
+                self.drain()?;
                 continue;
             }
-            let Some(event) = self.owed.pop_front() else { return };
+            let Some(event) = self.owed.pop_front() else { return Ok(()) };
             self.remember(&event);
             self.meter.start();
             step(&mut self.domain, &self.env, event, &mut self.out);
-            self.drain();
+            self.drain()?;
         }
         panic!("the world owes at most 128 immediate terminals");
     }
 
-    fn take(&mut self, request: Request) {
+    fn take(&mut self, request: Request) -> Result<(), String> {
         match request {
             Request::ReadList { .. }
             | Request::CancelRead { .. }
@@ -281,7 +287,7 @@ impl World {
                 assert_eq!(hello.stop_bound, crate::STOP_BOUND);
                 assert!(hello.hosting.len() <= 1);
             }
-            Request::Link(host::LinkUp::Turn { run, attempt, turn }) => self.turned(run, attempt, &turn),
+            Request::Link(host::LinkUp::Turn { run, attempt, turn }) => self.turned(run, attempt, &turn)?,
             Request::Link(host::LinkUp::Draining) => {}
             Request::Link(up) => panic!("unscripted link record: {up:?}"),
             Request::Answer { run, attempt, answer, work, preparation } => {
@@ -311,22 +317,29 @@ impl World {
             | Request::CancelRelay { .. }
             | Request::CancelIo { .. } => panic!("unscripted output"),
         }
+        Ok(())
     }
 
     /// The referee of turns: a copy is the turn it copies, whole, and none
     /// comes before the turns before it.
-    fn turned(&mut self, run: Token, attempt: Token, turn: &host::Turn) {
+    fn turned(&mut self, run: Token, attempt: Token, turn: &host::Turn) -> Result<(), String> {
         assert_eq!((run, attempt), (RUN, ATTEMPT));
         let received =
             Observed { number: turn.turn, spent: turn.spent, length: turn.body.len(), digest: digest(&turn.body) };
         if let Some(previous) = self.observed.iter().find(|old| old.number == turn.turn) {
-            assert_eq!(previous, &received, "replay preserves the full body and spend");
+            if previous != &received {
+                return Err(format!("replay preserves the full body and spend: {previous:?} != {received:?}"));
+            }
         } else {
-            assert_eq!(turn.turn, u32::try_from(self.observed.len()).expect("bounded") + 1, "no turn gap");
+            let next = u32::try_from(self.observed.len()).expect("bounded") + 1;
+            if turn.turn != next {
+                return Err(format!("no turn gap: {} != {next}", turn.turn));
+            }
             self.observed.push(received);
             self.stats.turns += 1;
         }
         self.stats.copies += 1;
+        Ok(())
     }
 
     fn answered(&mut self, answer: &host::RunAnswer, work: &wire::Work) {
@@ -455,37 +468,38 @@ impl World {
         }
     }
 
-    fn deliver(&mut self, completion: u32) {
+    fn deliver(&mut self, completion: u32) -> Result<(), String> {
         self.say(agent::Up::Call {
             call: CALL,
             name: agent::CallName { activation: ATTEMPT.raw(), completion, position: 0 },
             deadline: self.env.now.saturating_add(Duration::from_secs(60)),
             ask: protocol::delivery(b"short title", b"a separate, longer body"),
-        });
+        })
     }
 
-    fn say(&mut self, message: agent::Up) {
+    fn say(&mut self, message: agent::Up) -> Result<(), String> {
         assert!(self.reading, "the agent may speak only after a granted read");
         self.reading = false;
         let owner = self.agent.expect("agent starts first");
-        self.send(Event::Process(Box::new(agent::process::Event::Received { owner, message })));
+        self.send(Event::Process(Box::new(agent::process::Event::Received { owner, message })))
     }
 
-    fn link(&mut self, down: host::LinkDown) {
-        self.send(Event::Link(down));
+    fn link(&mut self, down: host::LinkDown) -> Result<(), String> {
+        self.send(Event::Link(down))
     }
 
-    fn ack(&mut self, turn: u32) {
-        self.link(host::LinkDown::TurnKept { run: RUN, attempt: ATTEMPT, turn });
+    fn ack(&mut self, turn: u32) -> Result<(), String> {
+        self.link(host::LinkDown::TurnKept { run: RUN, attempt: ATTEMPT, turn })
     }
 
-    fn reconnect(&mut self) {
-        self.send(Event::Lost);
-        self.send(Event::Ready);
+    fn reconnect(&mut self) -> Result<(), String> {
+        self.send(Event::Lost)?;
+        self.send(Event::Ready)?;
         self.stats.reconnects += 1;
+        Ok(())
     }
 
-    fn assign(&mut self) {
+    fn assign(&mut self) -> Result<(), String> {
         let repository = wire::Repository {
             save: Some(Box::from(&b"saved"[..])),
             git: None,
@@ -517,41 +531,41 @@ impl World {
             },
         };
         let items = wire::Workspace { repositories: Box::new([repository]) };
-        self.send(Event::Assign { assignment, items: Ok(items) });
+        self.send(Event::Assign { assignment, items: Ok(items) })
     }
 
     /// One turn of the run, numbered `number`: the engine answers it busy
     /// and has it again, a wrong attempt's acknowledgement frees nothing,
     /// the channel drops and comes back, and the engine commits what it must
     /// for the agent to read on. Returns the turns committed.
-    fn turn(&mut self, number: u32, mut committed: u32) -> u32 {
+    fn turn(&mut self, number: u32, mut committed: u32) -> Result<u32, String> {
         let text = if self.bodies == Bodies::Full {
             crate::TURN_TEXT
         } else {
             usize::try_from(self.rng.between(1, crate::TURN_TEXT as u64)).expect("a few bytes")
         };
-        self.say(agent::Up::Turn { turn: protocol::turn(number, u64::from(number) * 17, text) });
+        self.say(agent::Up::Turn { turn: protocol::turn(number, u64::from(number) * 17, text) })?;
         let retained = self.domain.retained_turns();
-        self.link(host::LinkDown::TurnKept { run: RUN, attempt: Token::new(999), turn: number });
+        self.link(host::LinkDown::TurnKept { run: RUN, attempt: Token::new(999), turn: number })?;
         assert_eq!(self.domain.retained_turns(), retained, "wrong attempt cannot release credit");
-        self.send(Event::Resend { run: RUN, attempt: ATTEMPT, turn: number });
+        self.send(Event::Resend { run: RUN, attempt: ATTEMPT, turn: number })?;
         self.stats.busy += 1;
-        self.reconnect();
+        self.reconnect()?;
         assert!(retained <= self.settings.turns);
         if retained == self.settings.turns {
             committed += 1;
-            self.ack(committed);
+            self.ack(committed)?;
         }
         for _ in 0..self.settings.turns {
             if self.reading {
                 break;
             }
             committed += 1;
-            self.ack(committed);
-            self.ack(committed);
+            self.ack(committed)?;
+            self.ack(committed)?;
         }
         assert!(self.reading, "committing enough bytes restores maximum-turn credit");
-        committed
+        Ok(committed)
     }
 
     /// Runs a complete scenario with bounded turns and deterministic losses,
@@ -559,95 +573,103 @@ impl World {
     /// answer acknowledgement; then shuts the worker down as the settings
     /// say.
     pub fn run(&mut self) {
-        self.send(Event::Ready);
-        self.assign();
-        self.say(agent::Up::Admitted);
-        self.deliver(1);
+        self.try_run().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn try_run(&mut self) -> Result<(), String> {
+        self.send(Event::Ready)?;
+        self.assign()?;
+        self.say(agent::Up::Admitted)?;
+        self.deliver(1)?;
         if self.settings.merging {
             self.unresolved = false;
-            self.deliver(2);
+            self.deliver(2)?;
         }
         let count = u32::try_from(self.rng.between(3, 7)).expect("bounded turns");
         let mut committed = 0;
         for number in 1..=count {
-            committed = self.turn(number, committed);
+            committed = self.turn(number, committed)?;
         }
         match self.settings.close {
-            Close::Reopened => self.reopened(count, committed),
-            Close::Committed | Close::Abandoned | Close::Unacknowledged => self.closed(count, committed),
+            Close::Reopened => self.reopened(count, committed)?,
+            Close::Committed | Close::Abandoned | Close::Unacknowledged => self.closed(count, committed)?,
         }
         assert_eq!(self.stops, 1, "the worker stops once");
         assert_eq!(self.stats.turns, count);
         assert!(self.stats.copies >= count * 2);
+        Ok(())
     }
 
     /// The run parks after `count` turns, and its agent goes.
-    fn park(&mut self, count: u32) {
+    fn park(&mut self, count: u32) -> Result<(), String> {
         let spent = u64::from(count) * 17 + 9;
         let answer = agent::Answer { read: None, turns: count, spent, result: agent::RunResult::Parked };
-        self.say(agent::Up::Answer { answer });
-        self.gone();
+        self.say(agent::Up::Answer { answer })?;
+        self.gone()?;
         assert!(self.answer.is_some());
         assert_eq!(self.domain.agent().agents(), 0);
         assert_eq!(self.domain.workspaces(), 0);
+        Ok(())
     }
 
-    fn gone(&mut self) {
+    fn gone(&mut self) -> Result<(), String> {
         let agent = self.agent.expect("live agent");
         let exited = agent::process::Event::Exited { owner: agent, exit: Some(agent::Exit::Code(0)) };
-        self.send(Event::Process(Box::new(exited)));
+        self.send(Event::Process(Box::new(exited)))?;
         assert!(self.reading);
         self.reading = false;
-        self.send(Event::Process(Box::new(agent::process::Event::Hangup { owner: agent })));
-        self.send(Event::Process(Box::new(agent::process::Event::Reaped { owner: agent, detail: Box::new([]) })));
+        self.send(Event::Process(Box::new(agent::process::Event::Hangup { owner: agent })))?;
+        self.send(Event::Process(Box::new(agent::process::Event::Reaped { owner: agent, detail: Box::new([]) })))
     }
 
     /// The run parks; then the worker shuts down once the engine has every
     /// turn and the answer, or, out of reach past the grace, gives up the
     /// turns it lacks (all but the `committed` first of `count`) and the
     /// answer if it lacks that too.
-    fn closed(&mut self, count: u32, committed: u32) {
-        self.park(count);
-        self.reconnect();
+    fn closed(&mut self, count: u32, committed: u32) -> Result<(), String> {
+        self.park(count)?;
+        self.reconnect()?;
         if self.settings.close != Close::Unacknowledged {
-            self.link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT });
+            self.link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT })?;
             assert_eq!(self.domain.kept_answers(), 0, "the answer's acknowledgement frees its slot");
         }
         if self.settings.close == Close::Committed {
             for number in committed + 1..=count {
-                self.ack(number);
+                self.ack(number)?;
             }
-            self.send(Event::Shutdown { drain: true });
+            self.send(Event::Shutdown { drain: true })?;
             assert_eq!(self.domain.abandoned(), 0);
-            return;
+            return Ok(());
         }
         let lacking = count - committed + u32::from(self.settings.close == Close::Unacknowledged);
-        self.send(Event::Shutdown { drain: true });
+        self.send(Event::Shutdown { drain: true })?;
         assert_eq!(self.stops, u32::from(lacking == 0), "a worker keeps what the engine lacks while it may come back");
         if lacking > 0 {
-            self.send(Event::Lost);
-            self.send(Event::GracePassed);
+            self.send(Event::Lost)?;
+            self.send(Event::GracePassed)?;
         }
         self.stats.abandoned = self.domain.abandoned();
         assert_eq!(self.stats.abandoned, u64::from(lacking));
+        Ok(())
     }
 
     /// The worker shuts down as the run lives; the channel stays down past
     /// the grace, then opens before the run ends: the hello replays every
     /// turn the engine lacks, and nothing is given up.
-    fn reopened(&mut self, count: u32, committed: u32) {
-        self.send(Event::Shutdown { drain: true });
-        self.send(Event::Lost);
-        self.send(Event::GracePassed);
+    fn reopened(&mut self, count: u32, committed: u32) -> Result<(), String> {
+        self.send(Event::Shutdown { drain: true })?;
+        self.send(Event::Lost)?;
+        self.send(Event::GracePassed)?;
         let copies = self.stats.copies;
-        self.send(Event::Ready);
+        self.send(Event::Ready)?;
         assert_eq!(self.stats.copies - copies, count - committed, "the hello replays every turn the engine lacks");
-        self.park(count);
+        self.park(count)?;
         for number in committed + 1..=count {
-            self.ack(number);
+            self.ack(number)?;
         }
-        self.link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT });
+        self.link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT })?;
         assert_eq!(self.domain.abandoned(), 0);
+        Ok(())
     }
 }
 
@@ -674,21 +696,25 @@ mod referee_tests {
     }
 
     #[test]
-    #[should_panic(expected = "replay preserves the full body and spend")]
     fn referee_rejects_a_duplicate_turn_with_changed_opaque_bytes() {
         let settings = Settings { seed: 0, turns: 1, byte_slots: 1, merging: false, close: Close::Committed };
         let mut world = World::new(settings, REFEREE_HEAP_CEILING);
-        world.take(turn(b"original"));
-        world.take(turn(b"different"));
+        world.out.push(turn(b"original"));
+        world.out.push(turn(b"different"));
+        world.meter.start();
+        let finding = world.drain().expect_err("changed duplicate rejected");
+        assert!(finding.contains("replay preserves the full body and spend"), "{finding}");
     }
 
     #[test]
-    #[should_panic(expected = "no turn gap")]
     fn referee_rejects_an_unseen_prefix() {
         let settings = Settings { seed: 0, turns: 1, byte_slots: 1, merging: false, close: Close::Committed };
         let mut world = World::new(settings, REFEREE_HEAP_CEILING);
         let Request::Link(host::LinkUp::Turn { run, attempt, mut turn }) = turn(b"") else { unreachable!() };
         turn.turn = 2;
-        world.take(Request::Link(host::LinkUp::Turn { run, attempt, turn }));
+        world.out.push(Request::Link(host::LinkUp::Turn { run, attempt, turn }));
+        world.meter.start();
+        let finding = world.drain().expect_err("unseen prefix rejected");
+        assert!(finding.contains("no turn gap"), "{finding}");
     }
 }

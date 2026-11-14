@@ -539,6 +539,7 @@ pub struct World {
     pub store: Store,
     /// Independent expectations derived from person and worker inputs.
     pub referee: WalkingReferee,
+    finding: Option<String>,
     /// Deterministic outside observations, excluding optional diagnostic facts.
     pub trace: Vec<String>,
     /// Exact number of injected process restarts.
@@ -574,6 +575,7 @@ impl World {
             events: VecDeque::new(),
             store,
             referee: WalkingReferee::default(),
+            finding: None,
             trace: Vec::new(),
             restarts: 0,
             pages: 0,
@@ -642,11 +644,17 @@ impl World {
     /// Drive one up/ready/timer/reclaim iteration and independent fake effects.
     #[expect(clippy::too_many_lines, reason = "one scripted iteration includes each journal release pass")]
     pub fn iterate(&mut self) {
+        if self.finding.is_some() {
+            return;
+        }
         self.iteration += 1;
         self.environment.now = Time::from_nanos(u64::from(self.iteration) * 1_000_000 + self.recovery_clock_offset);
         self.environment.wall = Wall::from_nanos(u64::from(self.iteration) * 1_000_000 + self.recovery_clock_offset);
         crate::poll(&mut self.domain, &self.environment, &mut self.out);
         self.observe();
+        if self.finding.is_some() {
+            return;
+        }
         if self.events.front().is_some_and(|(due, _)| *due <= self.iteration) {
             let (_, event) = self.events.pop_front().expect("due input");
             if !crate::waits_for_start(&self.domain, &event) {
@@ -659,10 +667,16 @@ impl World {
             }
             engine::release(&mut self.domain, &self.environment, &mut self.out);
             self.observe();
+            if self.finding.is_some() {
+                return;
+            }
         }
         engine::fire(&mut self.domain, &self.environment);
         engine::release(&mut self.domain, &self.environment, &mut self.out);
         self.observe();
+        if self.finding.is_some() {
+            return;
+        }
         if self.settings.facts {
             self.domain.drain_facts();
         }
@@ -865,6 +879,9 @@ impl World {
                 | engine::Request::Drained
                 | engine::Request::Forge { .. }) => panic!("unexpected walking output {other:?}"),
             }
+            if self.finding.is_some() {
+                return;
+            }
         }
     }
 
@@ -965,10 +982,11 @@ impl World {
             }
             Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::TurnBusy { turn, .. } => self.turn(turn),
-            Delivery::Result { person, task, words } => self
-                .referee
-                .result(&self.store.rows, person, task, &words)
-                .expect("committed result reaches person once"),
+            Delivery::Result { person, task, words } => {
+                if let Err(why) = self.referee.result(&self.store.rows, person, task, &words) {
+                    self.finding.get_or_insert_with(|| format!("committed result reaches person once: {why:?}"));
+                }
+            }
             Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::AssignedJob { .. }
@@ -1021,22 +1039,38 @@ impl World {
             &mut self.store,
             &mut self.protocol,
             config(self.settings.seed),
-        );
+        )
+        .unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Settle every obligation within a deterministic iteration bound.
     pub fn run(&mut self) {
+        self.try_run().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Return the run's first result-delivery finding or failure to settle.
+    pub fn try_run(&mut self) -> Result<(), String> {
         for _ in 0..600 {
+            self.check_finding()?;
             if self.settled() {
-                return;
+                return Ok(());
             }
             self.iterate();
         }
-        panic!("walking story did not settle: {:?}", self.trace);
+        self.check_finding()?;
+        Err(format!("walking story did not settle: {:?}", self.trace))
+    }
+
+    fn check_finding(&self) -> Result<(), String> {
+        if let Some(finding) = &self.finding {
+            return Err(finding.clone());
+        }
+        Ok(())
     }
 
     fn settled(&self) -> bool {
-        (if self.settings.terminal_restart { self.referee.done_after_cut() } else { self.referee.done() })
+        self.finding.is_none()
+            && (if self.settings.terminal_restart { self.referee.done_after_cut() } else { self.referee.done() })
             && (!self.settings.terminal_restart
                 || (self.terminal_recovery == TerminalRecovery::Complete && self.referee.terminal_replay_done()))
             && !self.pending_answer
@@ -1063,7 +1097,9 @@ pub fn run_replayed(settings: Settings) -> World {
             return first;
         }
         first.iterate();
+        first.check_finding().unwrap_or_else(|finding| panic!("{finding}"));
         replay.iterate();
+        replay.check_finding().unwrap_or_else(|finding| panic!("{finding}"));
         // Compare the accumulated trace directly: formatting its strings anew
         // at every iteration only repeats an exact comparison of the same data.
         let first_trace = std::mem::take(&mut first.trace);
@@ -1084,7 +1120,6 @@ mod tests {
     use temper_engine_domain::{Delivery, PartyRequest, Request};
 
     #[test]
-    #[should_panic(expected = "committed result reaches person once: \"person received result twice\"")]
     fn a_queued_late_result_prevents_settlement_and_reaches_the_referee() {
         let mut world = World::new(Settings::calm(66));
         world.run();
@@ -1093,7 +1128,10 @@ mod tests {
         world.out = Queue::uncapped();
         world.out.push(Request::Party(PartyRequest::Deliver(Delivery::Result { person, task, words: REPORT.into() })));
         assert!(!world.settled(), "queued outward work cannot be hidden by completed story counters");
-        world.run();
+        let finding = world.try_run().expect_err("late duplicate result reaches the referee");
+        assert_eq!(finding, "committed result reaches person once: \"person received result twice\"");
+        assert!(!world.settled(), "a refused result cannot settle the world");
+        assert_eq!(world.try_run(), Err(finding), "the world keeps its first finding");
     }
 }
 

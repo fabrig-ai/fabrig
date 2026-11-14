@@ -13,7 +13,6 @@ fn a_declared_rebuilt_start_mark_compares_equal() {
 }
 
 #[test]
-#[should_panic(expected = "restart oracle row Forge(Binding([42]))")]
 fn an_erased_forge_row_names_its_key() {
     let limits = temper_engine_domain_world::fixtures::forge_limits();
     let mut store =
@@ -35,7 +34,13 @@ fn an_erased_forge_row_names_its_key() {
     driver.settle();
     let key = Key::Forge(temper_engine_domain_forge::Key::Binding(Box::new([42])));
     assert!(driver.store.rows.contains_key(&key));
-    driver.close_erasing(Some(key));
+    let finding = driver.close_erasing(Some(key)).expect_err("erased writer row");
+    assert!(finding.contains("restart oracle row Forge(Binding([42]))"), "{finding}");
+    let rows = driver.store.rows.clone();
+    let commits = driver.store.applied;
+    driver.close();
+    assert_eq!(driver.store.applied, commits, "a finding ends the oracle attempt");
+    assert_eq!(driver.store.rows, rows);
 }
 
 #[test]
@@ -127,15 +132,4 @@ fn live_ci_is_rebuilt_but_terminal_ci_and_task_identity_are_durable() {
     let mut changed = ended.clone();
     changed.ci = Status::Unknown;
     assert_ne!(durable::forge(Some(Document::Change(ended))), durable::forge(Some(Document::Change(changed))));
-}
-
-#[test]
-#[should_panic(expected = "story failure before startup")]
-fn dropping_during_a_story_panic_preserves_that_failure() {
-    let _driver = Driver::cold(
-        Store::new(),
-        temper_engine_domain_world::walking::config(71),
-        &temper_engine_domain_world::walking::limits(),
-    );
-    panic!("story failure before startup");
 }

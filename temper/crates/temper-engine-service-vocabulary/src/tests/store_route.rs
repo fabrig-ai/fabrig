@@ -997,29 +997,6 @@ fn startup_census_cuts_and_cursor_decode_errors_fail_the_original_load_once() {
 }
 
 #[test]
-#[should_panic(expected = "startup continuation advances in walk order")]
-fn an_empty_filtered_startup_walk_asserts_when_the_store_repeats_its_cursor() {
-    let mut routes = fixtures::routes();
-    let key = call_row().key();
-    let Some(store::Request::Restore { owner, .. }) = route::down(
-        &mut routes,
-        load(engine::Range::Core(engine::CoreRange::RunProofs), Some(engine::Key::Core(key.clone())), 4, 8192),
-    ) else {
-        panic!("proofs")
-    };
-    let mut out = Queue::with_capacity(2);
-    route::up(
-        &mut routes,
-        store::Event::Page {
-            owner,
-            items: items(Box::new([store::Row::Jig(call_row())])),
-            next: Some(store::Cursor { interval: 0, after: store::keys::encode(&key, u32::MAX).unwrap() }),
-        },
-        &mut out,
-    );
-}
-
-#[test]
 fn startup_deep_byte_cut_fails_before_any_fitting_prefix_is_handed_off() {
     let (mut limits, _, _) = fixtures::store_limits();
     // A smaller per-record entrance exercises the cut without raising any budget.
@@ -1079,29 +1056,6 @@ fn archive_turn_pages_keep_the_longest_prefix_and_its_exact_resume_key() {
         assert_eq!(next, if count == 1 { Some(rows[0].key()) } else { None });
         assert!(out.is_empty());
     }
-}
-
-#[test]
-#[should_panic(expected = "usable translated startup cursor")]
-fn startup_asserts_a_decoded_census_cursor_that_cannot_name_its_walk() {
-    let mut routes = fixtures::routes();
-    let range = engine::Range::Census(core::Census {
-        results: Box::new([core::ReadResults { party: 8, after: 0 }]),
-        questions: Box::new([]),
-    });
-    let Some(store::Request::Restore { owner, .. }) = route::down(&mut routes, load(range, None, 4, 8192)) else {
-        panic!("census")
-    };
-    let mut out = Queue::with_capacity(2);
-    route::up(
-        &mut routes,
-        store::Event::Page {
-            owner,
-            items: items(Box::new([])),
-            next: Some(store::Cursor { interval: 0, after: store::keys::encode(&call_row().key(), u32::MAX).unwrap() }),
-        },
-        &mut out,
-    );
 }
 
 #[test]

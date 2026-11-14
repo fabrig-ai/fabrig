@@ -124,13 +124,6 @@ fn essential_is_true_for_yes_alone() {
     }
 }
 #[test]
-#[should_panic(expected = "one package a name")]
-fn a_universe_made_with_one_name_twice_asserts() {
-    let universe = Universe::read(fixtures::MAWK_KEPT).expect("fixture reads");
-    let package = universe.packages()[0].clone();
-    drop(Universe::new(Box::new([package.clone(), package])));
-}
-#[test]
 fn a_real_stanza_reads_its_conflicts() {
     let universe = Universe::read(fixtures::TINY_INITRAMFS).expect("the real stanza reads");
     let package = universe.package(b"tiny-initramfs").expect("the named package");
