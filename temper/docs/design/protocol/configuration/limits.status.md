@@ -8,7 +8,6 @@
 
 - **Not yet:** "Limits checked against each other at start", the checkout's capacity, whole: the start checks git's stdout rule, the agent's conflicts and the channel's parts each in its own phase, returning at the first that refuses, and jig's `saved` ceiling, 65,536, refuses `checkout.conflicts` past about 120 at 255 path bytes, named `engine.limits.work_saved_some` with no checkout setting (`temper-service/src/startup.rs`, `checked_start_with`; `startup/checks.rs`, `channel`).
 
-- **Not yet:** "The forge client's lifetime and the forge call's deadline": both profiles' lifetime is the engine forge world fixture's 10,000 and the deadline is the lifetime, uncapped; an override of the lifetime leaves the deadline where it stands (`temper-engine-service-vocabulary`, `limits.rs` and `forge/configuration.rs`, `small`) [in flight: change 2705].
 
 - **Not yet:** `forge.changes` bounds every change ever made, not the changes kept at once: the forge's change table never drops one (`../../domain/forge/change/README.md`, 7).
 
