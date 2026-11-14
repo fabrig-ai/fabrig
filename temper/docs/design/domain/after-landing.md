@@ -628,7 +628,9 @@ blamed landing's full commit (2026-11-04).
   person's hold, its party, its time and its reason, at most 1024
   bytes (section 3); a probe's part keeps the group it probes, its
   `low` and `high` landings by their index in the range and its tests,
-  and the groups waiting, each with its own (5.2); a judged run's
+  and the groups waiting, each with its own, named by their places in
+  the run's failures, so their bound is the failures' and not a
+  name's per landing (5.2); a judged run's
   posting while its task posts (section 9): the run, its tip, its
   link, the status's check and words, the verdict's blame of each
   landing of the range, and each comment's pull request with the
