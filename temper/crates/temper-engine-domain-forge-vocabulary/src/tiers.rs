@@ -74,10 +74,9 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
                     skein_lib::len_u64(waiting.len()).checked_mul(u64::try_from(size_of::<p::Group>()).ok()?)?,
                 )?;
                 for group in waiting {
-                    match &group.tests {
-                        p::Selection::All => {}
-                        p::Selection::Tests(tests) => held = held.checked_add(tests_bytes(tests)?)?,
-                    }
+                    held = held.checked_add(
+                        skein_lib::len_u64(group.tests.len()).checked_mul(u64::try_from(size_of::<u16>()).ok()?)?,
+                    )?;
                 }
                 match tests {
                     p::Selection::All => {}
