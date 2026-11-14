@@ -17,6 +17,7 @@ impl Sha256 {
     }
 
     /// Hashes the next piece; asserts the standard's bound, 2^64 - 1 bits.
+    #[expect(clippy::disallowed_methods, reason = "bulk copies only the incomplete block's bounded pieces")]
     pub fn update(&mut self, mut piece: &[u8]) {
         let used = usize::try_from(self.hashed % 64).expect("block position fits usize");
         self.hashed =
@@ -26,9 +27,9 @@ impl Sha256 {
             let missing = 64_usize.saturating_sub(used);
             let count = missing.min(piece.len());
             let (front, rest) = piece.split_at_checked(count).expect("carried bytes fit piece");
-            for (slot, byte) in self.block.get_mut(used..).expect("block position fits").iter_mut().zip(front) {
-                *slot = *byte;
-            }
+            let tail = self.block.get_mut(used..).expect("block position fits");
+            let (target, _) = tail.split_at_mut_checked(count).expect("carried bytes fit block");
+            target.copy_from_slice(front);
             if count < missing {
                 return;
             }
@@ -39,27 +40,22 @@ impl Sha256 {
         for block in blocks {
             compress(&mut self.state, block);
         }
-        for (slot, byte) in self.block.iter_mut().zip(rest) {
-            *slot = *byte;
-        }
+        self.block.get_mut(..rest.len()).expect("partial block fits").copy_from_slice(rest);
     }
 
     /// Pads and ends the digest: its 32 bytes in the standard's order.
+    #[expect(clippy::disallowed_methods, reason = "bulk copies the fixed eight-byte bit count into its block")]
     #[must_use]
     pub fn finish(mut self) -> [u8; 32] {
         let used = usize::try_from(self.hashed % 64).expect("block position fits usize");
-        for slot in self.block.get_mut(used..).expect("block position fits") {
-            *slot = 0;
-        }
+        self.block.get_mut(used..).expect("block position fits").fill(0);
         *self.block.get_mut(used).expect("block position below 64") = 0x80;
         if used >= 56 {
             compress(&mut self.state, &self.block);
             self.block = [0; 64];
         }
         let bits = self.hashed.checked_mul(8).expect("SHA-256 bit count fits u64").to_be_bytes();
-        for (slot, byte) in self.block.get_mut(56..).expect("length occupies last eight bytes").iter_mut().zip(bits) {
-            *slot = byte;
-        }
+        self.block.get_mut(56..).expect("length occupies last eight bytes").copy_from_slice(&bits);
         compress(&mut self.state, &self.block);
         let mut digest = [0; 32];
         for (bytes, word) in digest.as_chunks_mut::<4>().0.iter_mut().zip(self.state) {

@@ -403,9 +403,11 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     if text.len() > usize_of(MAX_TEXT) {
         return Err(SchemaError { line: 1, at: Span { start: 0, end: 0 }, wrong: Wrong::Long });
     }
-    let (count, final_line) = tokens::scan(text, None)?;
-    let mut tokens = List::with_capacity(count);
-    tokens::scan(text, Some(&mut tokens))?;
+    // A token occupies at least one text byte. Allocate once at that bound,
+    // already included by schema_bound, and check characters in the same pass
+    // that retains their spans.
+    let mut tokens = List::with_capacity(u32::try_from(text.len()).expect("text passed its ceiling"));
+    let final_line = tokens::scan(text, &mut tokens)?;
     let parser = grammar::Parser::new(bytes::copy_of(text), tokens, final_line);
     let mut parsed = parser.parse()?;
     layout::check(&mut parsed)?;

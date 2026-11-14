@@ -62,10 +62,22 @@ fn bound(name: &[u8], ceiling: u32, limits: &Map<Box<[u8]>, u32>) -> u64 {
 fn field_size(
     schema: &Schema,
     field: Field,
-    mut name: Box<[u8]>,
+    record: &[u8],
     limits: &Map<Box<[u8]>, u32>,
     sizes: &List<u64>,
 ) -> Option<u64> {
+    // Fixed-width fields and declaration references read no named limit.
+    // Avoid allocating and spelling a limit name that their branch discards.
+    match schema.ty(field.ty) {
+        Type::U8 | Type::Bool => return Some(1),
+        Type::U16 => return Some(2),
+        Type::U32 => return Some(4),
+        Type::U64 | Type::Duration => return Some(8),
+        Type::Fixed(length) => return Some(u64::from(length)),
+        Type::Named(at) => return Some(*sizes.get(at.index()).expect("earlier declaration has its bound")),
+        Type::Option(_) | Type::List { .. } | Type::Bytes { .. } | Type::Secret { .. } | Type::Text(_) => {}
+    }
+    let mut name = limit_name(record, schema.spelled(field.name));
     let mut at = field.ty;
     let mut size = 0_u64;
     let mut copies = 1_u64;
@@ -142,8 +154,7 @@ fn fill(schema: &Schema, count: u32, names: &[&str], values: &[u32], sizes: &mut
                 let mut size = if versioned { 2_u64 } else { 0_u64 };
                 for index in first.index()..add(first.index(), count) {
                     let field = schema.field(FieldIx::new(index));
-                    let name = limit_name(schema.spelled(declaration.name), schema.spelled(field.name));
-                    size = size.checked_add(field_size(schema, field, name, &limits, sizes)?)?;
+                    size = size.checked_add(field_size(schema, field, schema.spelled(declaration.name), &limits, sizes)?)?;
                 }
                 size
             }

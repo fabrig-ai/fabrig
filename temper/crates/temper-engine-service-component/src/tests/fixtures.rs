@@ -364,6 +364,10 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
     (domain, env, store)
 }
 fn completed_maps() -> jig_protocol_store::Stores {
+    completed_store().host.component.into_stores()
+}
+/// The real completed first start, without constructing transport components.
+pub fn completed_store() -> crate::store::Store {
     use temper_engine_domain as root;
     let (mut domain, env, mut store) = completed_root();
     let mut first_inputs = skein_lib::Queue::uncapped();
@@ -427,7 +431,7 @@ fn completed_maps() -> jig_protocol_store::Stores {
             if let Some(event) = first_inputs.pop() {
                 root::step(&mut domain, &env, event);
             } else {
-                return store.host.component.into_stores();
+                return store;
             }
         } else {
             root::step(&mut domain, &env, root::Event::Resume);
