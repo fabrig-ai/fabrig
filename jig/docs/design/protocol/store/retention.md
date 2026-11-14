@@ -104,8 +104,9 @@ tasks family's `Stored::Summary(Box<TaskSummary>)` at
 
 ## 4. The retention family
 
-`Retention { stage, since, number }`, stored as the tasks family's
-`Stored::Retention(Retention)` at
+`RetentionRow { stage, since, number }` (the name `Retention` is the
+retention class's), its stage a `RetentionStage`, stored as the tasks
+family's `Stored::Retention(RetentionRow)` at
 `Key::Retention { stage, since, number }`: tag 31 under the tasks
 child, census name `tasks.retention`, keyed by the stage, then `since`
 (a wall time, in nanoseconds), then the number. The value holds the key's
