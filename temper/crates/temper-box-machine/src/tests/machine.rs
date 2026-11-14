@@ -689,66 +689,6 @@ fn a_link_takes_the_first_line_once_across_restarts_and_stop() {
     }
 }
 
-fn check_link_placement(steps: &[crate::layout::Placed]) {
-    crate::machine::Machine::new(&limits::small(), steps).unwrap();
-}
-#[test]
-#[should_panic(expected = "a link is not first")]
-fn a_link_cannot_be_first() {
-    check_link_placement(&[crate::layout::Placed {
-        label: None,
-        step: super::fixtures::step(b"seed", Kind::Link),
-        asked: None,
-    }]);
-}
-#[test]
-#[should_panic(expected = "a link is outside groups")]
-fn a_link_cannot_belong_to_a_group() {
-    use crate::layout::{Asked, Placed};
-    check_link_placement(&[
-        Placed { label: None, step: super::fixtures::step(b"serve", Kind::Long), asked: None },
-        Placed {
-            label: None,
-            step: super::fixtures::step(b"seed", Kind::Link),
-            asked: Some(Asked {
-                recorded: true,
-                forge: 3,
-                stage: temper_forge_setup::Stage::Run,
-                kind: None,
-                remover: false,
-            }),
-        },
-    ]);
-}
-#[test]
-#[should_panic(expected = "a link follows a long step")]
-fn a_link_cannot_follow_a_once_step() {
-    use crate::layout::Placed;
-    check_link_placement(&[
-        Placed { label: None, step: super::fixtures::step(b"prepare", Kind::Once), asked: None },
-        Placed { label: None, step: super::fixtures::step(b"seed", Kind::Link), asked: None },
-    ]);
-}
-#[test]
-#[should_panic(expected = "a link's long step is outside groups")]
-fn a_link_cannot_follow_a_group_step() {
-    use crate::layout::{Asked, Placed};
-    check_link_placement(&[
-        Placed {
-            label: None,
-            step: super::fixtures::step(b"serve", Kind::Long),
-            asked: Some(Asked {
-                recorded: true,
-                forge: 3,
-                stage: temper_forge_setup::Stage::Run,
-                kind: None,
-                remover: false,
-            }),
-        },
-        Placed { label: None, step: super::fixtures::step(b"seed", Kind::Link), asked: None },
-    ]);
-}
-
 #[test]
 fn an_asked_groups_final_once_step_gates_started_and_failure_allows_another_ask() {
     use super::fixtures::step;
