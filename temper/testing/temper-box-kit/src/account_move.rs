@@ -266,6 +266,7 @@ impl Referee<Process> for Move {
         }
     }
     fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        super::ctl::check(procs)?;
         if let Some(why) = self.failed.take() {
             return Err(why);
         }

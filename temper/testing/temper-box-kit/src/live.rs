@@ -285,6 +285,7 @@ impl Referee<Process> for Judge<'_> {
         }
     }
     fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        super::ctl::check(procs)?;
         if let Some(why) = &self.finding {
             return Err(why.clone());
         }

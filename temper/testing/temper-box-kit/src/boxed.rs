@@ -853,6 +853,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         }
     }
     fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        super::ctl::check(procs)?;
         if let Some(why) = self.failed.take() {
             return Err(why);
         }
