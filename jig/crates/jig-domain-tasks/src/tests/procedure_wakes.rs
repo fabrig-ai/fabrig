@@ -11,7 +11,7 @@ fn procedure() -> Harness {
     h
 }
 
-fn wait(h: &mut Harness) {
+fn wait(h: &mut Harness) -> Vec<crate::Request> {
     let (_, _, step) = h.domain.procedure_due(1).expect("due procedure");
     let read = h.domain.procedure_offered(1);
     h.send(Event::Procedure {
@@ -20,7 +20,7 @@ fn wait(h: &mut Harness) {
         step,
         read,
         decision: ProcedureDecision::new(ProcedureEnd::Wait),
-    });
+    })
 }
 
 #[test]
@@ -43,4 +43,17 @@ fn restart_reoffers_the_due_steps_changed_facts() {
     assert_eq!(h.domain.task(1).expect("restored procedure").phase, Phase::Active(Active::Due));
     wait(&mut h);
     assert_eq!(h.domain.task(1).expect("procedure").phase, Phase::Active(Active::Idle));
+}
+
+#[test]
+fn a_pending_wake_follows_the_owners_step_acknowledgment() {
+    let mut h = procedure();
+    h.send(Event::WakeProcedure { task: 1 });
+    let out = wait(&mut h);
+    let done = out.iter().position(|request| matches!(request, crate::Request::Done { .. })).expect("step done");
+    let wake = out
+        .iter()
+        .position(|request| matches!(request, crate::Request::Activate { context } if context.task == 1))
+        .expect("next step");
+    assert!(done < wake, "the owner records its decision before another activation: {out:?}");
 }

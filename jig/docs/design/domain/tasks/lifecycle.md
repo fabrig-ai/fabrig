@@ -160,8 +160,9 @@ It steps when it is first active, when a message its policy lets through
 arrives, and whenever what it reads changes, which its owner knows
 (level-triggered). A changed fact while a step is pending is coalesced
 into one further step after a wait; the pending step cannot consume that
-wake. This marker is transient: a restart reoffers a due step against
-fresh facts. Kept, it steps as ever and reads which of its
+wake. The owner receives the step's acknowledgment before that further
+activation, so it records the decision and its made tasks first. This
+marker is transient: a restart reoffers a due step against fresh facts. Kept, it steps as ever and reads which of its
 dependencies are pending; a step that asks an effect waiting for them,
 or ends the task done, is refused whole (8).
 

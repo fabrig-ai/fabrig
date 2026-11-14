@@ -125,11 +125,8 @@ pub(crate) fn apply(
     }
     let mut routed = crate::routing::task::tag_task_outputs(core, env, kept);
     let mut out = Queue::uncapped();
-    for _ in 0..routed.len() {
-        let request = routed.pop().expect("routed step count");
-        out.push(request);
-    }
     if let Some(why) = refusal {
+        out = routed;
         drop(core.land(token));
         let mut refused = refused(core, task, step, why);
         for _ in 0..refused.len() {
@@ -151,6 +148,12 @@ pub(crate) fn apply(
             connector,
             ask: Ask::StepMade { task, step, first, revisions: revisions.into_boxed() },
         });
+    }
+    // The connector records the admitted batch before a retained wake can
+    // activate its next step against that connector's state.
+    for _ in 0..routed.len() {
+        let request = routed.pop().expect("routed step count");
+        out.push(request);
     }
     out
 }

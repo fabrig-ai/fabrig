@@ -59,6 +59,11 @@ pub(crate) fn stepped(
         crate::compound::apply(domain, env, Party::Task(number), plan, out);
     }
     end_step(domain, env, number, decision.end, out);
+    // The owner records this step before a retained wake offers another one.
+    match numbers {
+        Some(tasks) => out.push(Request::Made { reply_to: to, tasks }),
+        None => out.push(Request::Done { reply_to: to }),
+    }
     crate::wake::after_step(domain, env, number, out);
     let idle = match record(domain, number) {
         Some(row) => row.phase == Phase::Active(Active::Idle),
@@ -66,10 +71,6 @@ pub(crate) fn stepped(
     };
     if woken && idle {
         crate::domain::wake_procedure(domain, env, number, out);
-    }
-    match numbers {
-        Some(tasks) => out.push(Request::Made { reply_to: to, tasks }),
-        None => out.push(Request::Done { reply_to: to }),
     }
 }
 
