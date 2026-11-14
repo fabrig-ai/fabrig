@@ -121,7 +121,7 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
-            current: include_str!("../../jig-protocol-store/schema/tasks-v12.schema"),
+            current: include_str!("../../jig-protocol-store/schema/tasks-v13.schema"),
             types: &[
                 ValueType {
                     number: 0,
