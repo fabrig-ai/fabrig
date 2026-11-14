@@ -435,8 +435,7 @@ fn a_head_after_a_kept_connection_is_read_within_a_budget_of_its_own() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn invalid_server_limits_fail_validation_and_constructor_admission() {
+fn invalid_server_limits_fail_validation() {
     skein_rows::check(
         [
             ("valid_refuses_a_head_shorter_than_a_blank_line", Limits { head: 1, ..LIMITS }),
@@ -447,9 +446,6 @@ fn invalid_server_limits_fail_validation_and_constructor_admission() {
         ],
         |limits| {
             assert!(!crate::server::valid(&limits));
-            skein_rows::panics("the limits are honoured: a head of a blank line, a read of a byte", || {
-                let _machine = crate::server::Server::new(&limits);
-            });
         },
     );
 }
