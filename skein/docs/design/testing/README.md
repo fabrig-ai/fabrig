@@ -267,11 +267,15 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   - `World::try_run`, `World::try_run_with_faults` and
     `World::try_run_with_inputs`, each `-> Result<Outcome<P, M>, String>`,
     run as `run`, `run_with_faults` and `run_with_inputs` do, and return
-    the run's own verdicts as a finding: a referee's finding, an overdue
-    expectation, a world idle and unsettled with nothing due, one past
-    its steps, and the teardown policy check, each with the seed and the
-    trace's tail as `run` prints them now. `run*` call them and panic on
-    the `Err`.
+    the run's verdicts as a finding: a referee's, as it wrote it, naming
+    the seed; and the world's own, an overdue expectation, a world idle
+    and unsettled with nothing due, one past its steps, and the teardown
+    policy check, each with the seed and the trace's tail as `run`
+    prints them now. `run*` call them and panic on the `Err`. A
+    restartable startup that can't open its roots or appends closes
+    what it opened and returns why,
+    `World::try_spawn_restartable_startup(roots, appends, make) -> Result<usize, String>`,
+    which `spawn_restartable_startup` panics on.
   - The real loop fails with a finding only after its forced cleanup,
     as above. A binary keeps an expected end's finding, a process group
     or tree process still running at its exit (../examples.md, 6), as a
