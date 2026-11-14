@@ -12,7 +12,8 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Stack};
 /// Validate an evaluated value without interpreting or filling it (hearth/docs/design/protocol/format/README.md, 6.1).
-pub fn conform(
+#[cfg(test)]
+pub(crate) fn conform(
     value: &Value,
     against: &Against<'_>,
     check: &Check<'_>,
@@ -161,11 +162,8 @@ fn scalar(
         Value::Map(entries) => entries.len(),
         Value::Bool(_) | Value::Int(_) => 0,
     };
-    if let Some(spec) = spec
-        && let Some(max) = &spec.max_length
-        && u64::try_from(length).expect("bounded value") > max.value.unsigned_abs()
-    {
-        return Err(Schema::Length { max_length: max.value });
+    if let Some(schema) = crate::schema::length_fault(length, spec) {
+        return Err(schema);
     }
     let composed = Composed {
         kind,

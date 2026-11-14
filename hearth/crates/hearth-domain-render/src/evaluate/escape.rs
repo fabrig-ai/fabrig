@@ -137,19 +137,8 @@ fn valid_path(text: &[u8], absolute: bool) -> bool {
     if text.is_empty() || text.last() == Some(&b'/') || (absolute && text.first() != Some(&b'/')) {
         return false;
     }
-    let mut from = usize::from(text.first() == Some(&b'/'));
-    let start = from;
-    for end in start..=text.len() {
-        if end != text.len() && text.get(end) != Some(&b'/') {
-            continue;
-        }
-        let part = text.get(from..end).expect("segment bounds");
-        if part.is_empty() || part == b"." || part == b".." {
-            return false;
-        }
-        from = end.saturating_add(1);
-    }
-    true
+    let start = usize::from(text.first() == Some(&b'/'));
+    crate::schema::forms::segments(text.get(start..).expect("path prefix"))
 }
 pub(super) fn text<'c>(filter: Filter, input: &[u8], budget: &mut Budget) -> Result<Operand<'c>, FaultKind> {
     let input = match filter {

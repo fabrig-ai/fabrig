@@ -25,7 +25,7 @@ pub fn meta() -> Meta {
     }
 }
 
-pub use crate::evaluate::context::Roots;
+pub(crate) use crate::evaluate::context::Roots;
 use crate::evaluate::{
     self, Bindings, Budget, Entry, Evaluator, Expression, Fault, Missing, Op, Operand, Operation, Value,
 };

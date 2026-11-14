@@ -3,7 +3,6 @@ use super::{
     FaultKind, Missing,
     value::{Entry, Operand, Value},
 };
-use core::cmp::Ordering;
 pub(super) fn absent<'c>(missing: Missing, kind: FaultKind) -> Result<Operand<'c>, FaultKind> {
     match missing {
         Missing::Undefined => Ok(Operand::Undefined),
@@ -35,21 +34,10 @@ pub(super) fn key<'c>(value: Operand<'c>, name: &[u8], missing: Missing) -> Resu
         | Operand::List { .. } => Err(FaultKind::Type),
     }
 }
+#[expect(clippy::disallowed_methods, reason = "library bisection compares sorted value keys")]
 pub(super) fn find<'v>(entries: &'v [Entry], name: &[u8]) -> Option<&'v Entry> {
-    let (mut lo, mut hi) = (0_usize, entries.len());
-    for _ in 0..=usize::BITS {
-        if lo == hi {
-            return None;
-        }
-        let mid = lo.checked_add(hi.checked_sub(lo)?.checked_div(2)?)?;
-        let entry = entries.get(mid)?;
-        match entry.key.as_ref().cmp(name) {
-            Ordering::Equal => return Some(entry),
-            Ordering::Less => lo = mid.checked_add(1)?,
-            Ordering::Greater => hi = mid,
-        }
-    }
-    None
+    let index = entries.binary_search_by(|entry| entry.key.as_ref().cmp(name)).ok()?;
+    entries.get(index)
 }
 pub(super) fn item<'c>(value: Operand<'c>, index: Operand<'c>, missing: Missing) -> Result<Operand<'c>, FaultKind> {
     if value.undefined() {

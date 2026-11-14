@@ -11,6 +11,7 @@ pub mod diff;
 pub mod entries;
 pub mod errors;
 pub mod evaluate;
+mod held;
 pub mod ids;
 pub mod keys;
 pub mod kinds;
