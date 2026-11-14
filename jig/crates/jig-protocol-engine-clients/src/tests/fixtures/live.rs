@@ -162,6 +162,7 @@ pub fn deployment_document() -> d::Deployment {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         store: d::StoreFill { bytes: 31, mark: 37 },
+        census: None,
         hosts: List::from_boxed(Box::new([d::Host {
             name: None,
             awaiting_logins: false,

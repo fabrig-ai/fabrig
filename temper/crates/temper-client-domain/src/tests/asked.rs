@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{Domain, Event, Request, asked::State};
 use jig_client::{Approval, ApprovalAct, ApprovalCode, Message, NotAsked};
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{List, Queue, Reader, Secret, Token, Wall, Writer};
 fn code() -> ApprovalCode {
     ApprovalCode::parse(b"WDJBMJHT").unwrap()

@@ -254,7 +254,7 @@ pub(super) fn limits() -> Limits {
         &limits.clients.wire,
     )
     .expect("standard's first deliveries fit a u32 byte bound");
-    let record = jig_client_protocol_wire::v21::StreamEvent::encoded_bound(&limits.clients.wire)
+    let record = jig_client_protocol_wire::v22::StreamEvent::encoded_bound(&limits.clients.wire)
         .expect("standard stream record");
     let record = u32::try_from(record).expect("standard stream record fits u32");
     // Base64 data has one `data: ` prefix and two line feeds.

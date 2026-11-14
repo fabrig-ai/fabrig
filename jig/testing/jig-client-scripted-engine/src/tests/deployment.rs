@@ -9,6 +9,7 @@ pub(super) fn empty() -> Deployment {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         store: StoreFill { bytes: 0, mark: 0 },
+        census: None,
         hosts: List::with_capacity(2),
         attempts: List::with_capacity(2),
         accounts: List::with_capacity(2),
@@ -63,6 +64,28 @@ fn round_trip(value: Deployment) {
     assert!(events.contains(&expected));
     assert_eq!((engine.commits()).len(), 0);
 }
+#[test]
+fn deployment_census_survives_contract_wire_read_and_watch_with_absence() {
+    round_trip(empty());
+    let mut value = empty();
+    value.census = Some(Box::new(StoreCensus {
+        commit: 12,
+        since: 1,
+        keyspaces: list(vec![CensusKeyspace {
+            prefix: Box::new([1, 1, 10]),
+            name: "tasks.milestones".into(),
+            rows: 5,
+            keys: 15,
+            values: 25,
+            heads: list(vec![CensusHead { head: Some(3), rows: 5 }, CensusHead { head: None, rows: 0 }]),
+            puts: 7,
+            erases: 2,
+            written: 35,
+        }]),
+    }));
+    round_trip(value);
+}
+
 #[test]
 fn deployment_whole_twenty_one_fields_independent_capacities_loss_and_source_order_reach_read_and_watch() {
     let mut value = empty();
