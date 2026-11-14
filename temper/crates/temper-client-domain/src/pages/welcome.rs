@@ -197,6 +197,22 @@ pub fn forge_connected(row: &forges::Row) -> bool {
     };
     row.mode != forges::Mode::Fake && connected && (row.kind != forges::Kind::GitHub || forges::accepted(row))
 }
+/// Ready's Create needs a connected real forge and a usable model, not the
+/// first-run routing decision (temper/docs/design/client/pages/welcome.md, 1).
+#[must_use]
+pub fn ready(root: &Domain) -> bool {
+    if model_counts(root) != Some(true) {
+        return false;
+    }
+    if let Forges::Rows(rows) = root.forges() {
+        for row in rows {
+            if forge_connected(row) {
+                return true;
+            }
+        }
+    }
+    false
+}
 /// What Ready adopts (temper/docs/design/client/pages/README.md): a first repository made and adopted nowhere.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct First {

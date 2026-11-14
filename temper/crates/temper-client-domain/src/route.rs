@@ -512,7 +512,7 @@ fn playground_facts(root: &mut Domain) {
         None => None,
     };
     root.pages.welcome_copies = forge::making::copies(root.forges(), playground);
-    root.pages.welcome_decision = crate::pages::welcome::decision(root);
+    root.pages.welcome_ready = crate::pages::welcome::ready(root);
     root.pages.playground_provider = root.forge.playground_provider();
     crate::pages::project_changed(&mut root.pages, &root.client);
     let project = match root.forge.playground() {
