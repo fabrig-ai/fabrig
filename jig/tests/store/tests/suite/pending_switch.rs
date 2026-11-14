@@ -108,7 +108,13 @@ fn a_transcript_write_while_pending_is_refused() {
         let mut world = pending();
         let before = world.contents();
         let events = world.request(Request::Commit { number: RESTORED_LAST, writes: transcript_writes(drop) });
-        assert!(matches!(events.as_slice(), [Event::Failed { number: RESTORED_LAST }]));
+        assert!(matches!(
+            events.as_slice(),
+            [Event::Failed {
+                number: RESTORED_LAST,
+                why: jig_protocol_store::CommitFailure::Check(jig_protocol_store::CommitCheck::Switching)
+            }]
+        ));
         assert_eq!(world.contents(), before, "refused before any data IO");
     }
 }

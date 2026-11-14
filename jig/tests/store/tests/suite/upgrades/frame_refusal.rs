@@ -228,8 +228,10 @@ fn a_pending_commit_fails_once_when_a_later_frame_is_refused() {
     assert!(pending.is_empty(), "commit must be pending: {pending:?}");
     let number = REFUSED + 1;
     let events = world.request(Request::Commit { number, writes: root::turn_commit(number, TASK + 1, 1, &payload) });
-    let [Event::FrameTooLarge { number: actual, task, bytes: size, limit }, Event::Failed { number: pending }] =
-        events.as_slice()
+    let [
+        Event::FrameTooLarge { number: actual, task, bytes: size, limit },
+        Event::Failed { number: pending, why: jig_protocol_store::CommitFailure::Stopped },
+    ] = events.as_slice()
     else {
         panic!("refusal first, then exactly one failed terminal for the pending commit: {events:?}");
     };

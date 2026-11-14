@@ -1,5 +1,5 @@
 //! Openings are read only for rehearsal and erased by Wires (protocol/store/records.md 3).
-use crate::{Store, WorkerOpening, codec, keys, pages};
+use crate::{CommitCheck, Store, WorkerOpening, codec, keys, pages};
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -7,26 +7,26 @@ fn range(start: Box<[u8]>) -> skein_kv::Range {
     skein_kv::Range { start, end: Some(Box::new([keys::COMPONENT, 6])) }
 }
 
-pub(crate) fn clear(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Option<()> {
+pub(crate) fn clear(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Result<(), CommitCheck> {
     let mut start: Box<[u8]> = Box::new([keys::COMPONENT, 5]);
     for _ in 0..=store.stores.store.len() {
-        let page = pages::load(store, range(start)).ok()?;
+        let page = pages::load(store, range(start)).or(Err(CommitCheck::Reads))?;
         for row in page.rows {
-            erase(ops, row.key)?;
+            erase(ops, row.key).ok_or(CommitCheck::Capacity)?;
         }
         match page.next {
             Some(next) => start = next,
             None => {
                 // Include accepted openings whose commit is not durable yet.
                 for (key, ()) in &store.opening_keys {
-                    erase(ops, key.clone())?;
+                    erase(ops, key.clone()).ok_or(CommitCheck::Capacity)?;
                 }
                 store.opening_keys = skein_lib::Map::uncapped();
-                return Some(());
+                return Ok(());
             }
         }
     }
-    None
+    Err(CommitCheck::Reads)
 }
 
 fn erase(ops: &mut List<skein_kv::Op>, key: Box<[u8]>) -> Option<()> {
