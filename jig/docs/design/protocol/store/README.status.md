@@ -94,4 +94,5 @@ keeps its name while its window reads expect the cut).
   cheaply: a snapshot waits for the log past its bound (skein's
   `data/kv.md`, 5), and a group for commits queued below the component.
 - **Departs:** 9: `jig/tests/store/src/model.rs` reads a copy as a settings revision's and panics on any other row, because the core copies only that one, so no story reaches it; `jig/crates/jig-protocol-store/src/tests/commits.rs` holds a copy of another row and section 5's two rules of a copy.
+- **Not yet:** 6.1: a deleted project's erasure erases no summary and finds no task already shrunk to one [in flight: change 3386].
 - **Not yet:** 6.1: a page of history, spend or notes cut before its first row. 9: the rehearsal and back gap remains `opening.status.md`, 5. 9: the reference binary killed around each phase of a turn's commit (`jig/testing/jig-test/tests/process.rs` kills and restarts it once); `jig/tests/ops` and `jig/testing/jig-conformance` run `jig-fake-store`, where no world fakes the store.
