@@ -31,6 +31,8 @@ pub fn configure_standard(root: &Path, repository: u64, batch: u16) {
         value["application"]["limits"]["overrides"]["forge.landing_members"] = batch.into();
         value["application"]["limits"]["overrides"]["forge.resources_per_task"] = (u32::from(batch) + 1).into();
     }
+    // Delivery fallback is pacing: keep a fake-model walk within the process deadline.
+    value["application"]["limits"]["overrides"]["forge.client.fallback_ms"] = 5000.into();
     value["workers"][0]["limits"] = shipped["workers"][0]["limits"].clone();
     value["workers"][0]["slots"] = shipped["workers"][0]["slots"].clone();
     let agent_path = root.join("agent.json");
@@ -131,6 +133,20 @@ impl Judge<'_> {
     fn goal_starting(&mut self, procs: &mut [Process]) -> Result<bool, String> {
         if let Phase::StartGoal = self.phase {
             self.amends = super::calls(procs)?.ends().len();
+            let now = skein_shell::Clock::new().now().wall;
+            let due = skein_lib::Wall::from_nanos(
+                now.as_nanos().saturating_add(skein_lib::Duration::from_secs(3600).as_nanos()),
+            );
+            let date = due.civil();
+            let minute = due.as_secs() / 60;
+            let deadline = format!(
+                "{:04}-{:02}-{:02}T{:02}:{:02}Z",
+                date.year,
+                date.month,
+                date.day,
+                (minute / 60) % 24,
+                minute % 60
+            );
             super::calls(procs)?.push(ctl::Step::Run(
                 ctl::Call::new(&[
                     "goal",
@@ -142,6 +158,8 @@ impl Judge<'_> {
                     "@moving-goal Write the design",
                     "--budget",
                     "1000000",
+                    "--deadline",
+                    &deadline,
                     "--key",
                     "moving-goal",
                 ])
@@ -161,28 +179,29 @@ impl Judge<'_> {
                 Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(true),
                 Err(why) => return Err(why),
             };
-            if change["step"] == "gating" {
-                release(procs, b"batch-reviews")?;
+            release(procs, b"batch-reviews")?;
+            if change["gates"][0]["verdict"] == "approved" {
                 self.phase = Phase::Batch;
             }
-            return Ok(true);
-        }
-        if let Phase::GoalEnding = self.phase {
-            release(procs, b"goal-finish")?;
-            if self.read(&["task", "show", "3"])?["chip"]["phase"] == "ended" {
-                self.phase = Phase::Ending;
+            let goal = self.read(&["task", "show", "3"])?;
+            if !goal["hold"].is_null() {
+                return Err(format!("moving goal held: {}", goal["hold"]));
             }
             return Ok(true);
         }
         Ok(false)
     }
     pub(super) fn deployment_step(&mut self, procs: &mut [Process]) -> Result<(), String> {
-        if self.goal_starting(procs)? { return Ok(()); }
+        if self.goal_starting(procs)? {
+            return Ok(());
+        }
         let first = self.first.as_ref().ok_or("first proof")?;
         let task = first.panel["task"].as_u64().ok_or("landing task")?;
         let panel = self.landing(task)?;
         let owner = self.read(&["task", "show", &task.to_string()])?;
-        if !owner["hold"].is_null() { return Err(format!("landing {task} held: {}", owner["hold"])); }
+        if !owner["hold"].is_null() {
+            return Err(format!("landing {task} held: {}", owner["hold"]));
+        }
         let change_task = if matches!(self.story, Story::Conflict | Story::MidProof) { 4 } else { 3 };
         let change = self.change(change_task)?;
         self.observe(0, json!({"landing":panel,"change":change}));
@@ -194,16 +213,19 @@ impl Judge<'_> {
         }
         if let Phase::Moved = self.phase {
             release(procs, b"goal-midproof")?;
-            if change["head"] == members(&first.panel)?[0]["head"] {
+            if change["head"] == super::sha(&members(&first.panel)?[0]["head"])? {
                 return Ok(());
             }
             self.barrier.release(first.run);
-            if panel["phase"] != "ended" {
+            if owner["chip"]["phase"] != "ended" {
                 return Ok(());
             }
             let left = &members(&panel)?[0]["left"];
-            if left.is_null() || !members(&panel)?[0]["landed"].is_null() {
-                return Err("superseded member left".into());
+            if left["head_moved"].is_null() || !members(&panel)?[0]["landed"].is_null() {
+                return Err("the superseded member left because its head moved".into());
+            }
+            if super::sha(&left["head_moved"])? != change["head"].as_str().ok_or("new head")? {
+                return Err("the leave records the delivered head".into());
             }
             if super::main(self.forge)? != self.base {
                 return Err("superseded prefix never lands".into());
@@ -222,9 +244,13 @@ impl Judge<'_> {
             self.phase = Phase::Resolved;
         }
         if let Phase::Repair = self.phase {
-            if change["step"] != "repairing" { return Ok(()); }
+            if members(&panel)?[0]["left"].is_null() {
+                return Ok(());
+            }
             release(procs, b"deployment-repair")?;
-            if panel["phase"] != "ended" { return Ok(()); }
+            if owner["chip"]["phase"] != "ended" {
+                return Ok(());
+            }
             if members(&panel)?[0]["left"].is_null() || !members(&panel)?[0]["landed"].is_null() {
                 return Err("the failed member left without landing".into());
             }
@@ -252,7 +278,12 @@ impl Judge<'_> {
                 if super::main(self.forge)? != candidate(&self.second.as_ref().ok_or("repaired proof")?.panel)? {
                     return Err("repaired prefix reached main".into());
                 }
-                self.phase = if let Story::MidProof = self.story { Phase::GoalEnding } else { Phase::Ending };
+                if matches!(self.story, Story::MidProof)
+                    && super::get(self.forge, &format!("actions/runs/{}", first.run))["status"] != "success"
+                {
+                    return Ok(());
+                }
+                self.phase = Phase::Ending;
             }
         }
         Ok(())
@@ -298,7 +329,10 @@ pub(super) fn goal_scripts(forge: &Throwaway) -> Box<[Script]> {
     use skein_fake_llm_domain::api::{Finish, Turn};
     let mut scripts = crate::landing_scripts(crate::ANSWER, forge).into_vec();
     let owner = scripts.iter_mut().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
-    owner.turns = Box::new([call(b"finish", &json!({"form":"report","text":"Ready for the goal.","fields":{}}))]);
+    owner.turns = Box::new([call(
+        b"finish",
+        &json!({"form":"report","text":temper_real_loop_world::landing::REQUESTED,"fields":{}}),
+    )]);
     let review = scripts
         .iter_mut()
         .find(|script| script.cue.as_ref() == b"Review this change at the named head")

@@ -1713,14 +1713,19 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
     }
 }
 
-#[test]
-fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
+fn connected_member_landing() -> Domain {
     let mut d = landing_fixture();
     fixtures::connect(&mut d);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
     member_landing(&mut d);
+    d
+}
+
+#[test]
+fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
+    let mut d = connected_member_landing();
     let row = d.landing.rows.get_mut(&61).expect("round");
     row.landing.phase = policy::Phase::Preparing;
     row.landing.round.pull = None;
@@ -1753,12 +1758,7 @@ fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
 
 #[test]
 fn a_busy_landing_read_retries_before_the_hearing_fallback() {
-    let mut d = landing_fixture();
-    fixtures::connect(&mut d);
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
-    member_landing(&mut d);
+    let mut d = connected_member_landing();
     let mut clock = env();
     clock.limits.client.fallback = Duration::from_secs(300);
     fixtures::repository_heard(&mut d, &clock, REPO);
@@ -1785,7 +1785,8 @@ fn a_busy_landing_read_retries_before_the_hearing_fallback() {
     );
     let owner = *d.landing.pending.iter().next().expect("landing read").0;
     landing::answered(&mut d, &clock, owner, Err(skein_forge::api::Error::Busy), &mut out);
-    let expected = Wall::from_nanos(clock.wall.as_nanos().saturating_add(clock.limits.client.poll.as_nanos()));
+    // env() starts at wall second 100; its ordinary poll is five seconds.
+    let expected = Wall::from_nanos(105_000_000_000);
     let mut until = None;
     while let Some(request) = out.pop() {
         if let Request::LandingDecision { decision: policy::Decision::Wait { until: found }, .. } = request {

@@ -16,7 +16,8 @@ pub(super) enum Cut {
 pub fn configure(root: &Path, repository: u64) {
     super::configure(root, repository);
     let directory = root.to_str().expect("scratch path").replace('\'', "'\\''");
-    let script = format!(r#"#!/bin/sh
+    let script = format!(
+        r#"#!/bin/sh
 case " $* " in
   *" push "*refs/heads/temper/*/l*)
     barrier='{directory}'
@@ -28,12 +29,15 @@ case " $* " in
     ;;
 esac
 exec /usr/bin/git "$@"
-"#, std::process::id());
+"#,
+        std::process::id()
+    );
     let path = root.join("prepare-git");
     write_private(&path, script.as_bytes());
     fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).expect("executable git barrier");
     let path = root.join("temper.json");
-    let mut value = serde_json::from_slice::<serde_json::Value>(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value =
+        serde_json::from_slice::<serde_json::Value>(&fs::read(&path).expect("configuration")).expect("JSON");
     value["application"]["workers"][0]["git"] = json!(root.join("prepare-git"));
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }

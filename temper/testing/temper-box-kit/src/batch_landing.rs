@@ -160,7 +160,8 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
         .find(|script| script.cue.as_ref() == b"Review this change at the named head")
         .expect("shared review");
     if !matches!(story, Story::NarrowedFour) {
-        review.turns[0].lines = [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
+        review.turns[0].lines =
+            [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
     }
     // The shared coder is replaced by disjoint files, so every head merges cleanly.
     shared.retain(|script| !script.cue.starts_with(b"## Task\n\n@coding"));
@@ -342,7 +343,6 @@ enum Phase {
     StartGoal,
     GoalGates,
     Moved,
-    GoalEnding,
 }
 // One sample reads each panel through the world's Calls actor. A missing panel
 // yields the sample until its response arrives, keeping the fake peer runnable.
@@ -476,7 +476,10 @@ impl Judge<'_> {
                     Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(false),
                     Err(why) => return Err(why),
                 };
-                Ok::<_, String>(matches!(self.story, Story::NarrowedFour) || (change["step"] == "gating" && change["gates"][0]["verdict"] == "pending"))
+                Ok::<_, String>(
+                    matches!(self.story, Story::NarrowedFour)
+                        || (change["step"] == "gating" && change["gates"][0]["verdict"] == "pending"),
+                )
             })?
         })
     }
@@ -513,6 +516,13 @@ impl Judge<'_> {
     }
     fn proof(&self, previous: Option<u64>, expected: &[u64]) -> Result<Option<Proof>, String> {
         Ok({
+            let count = if previous.is_none() {
+                1
+            } else if matches!(self.story, Story::Conflict) {
+                3
+            } else {
+                2
+            };
             let formed = self.landings()?;
             for row in formed["landings"].as_array().ok_or("landing list")? {
                 let task = row["task"].as_u64().ok_or("landing task")?;
@@ -523,7 +533,7 @@ impl Judge<'_> {
             }
             if let Some(rows) = formed["landings"].as_array()
                 && let Some(row) = rows.iter().find(|row| row["phase"] == "proving")
-                && rows.len() == if previous.is_some() { 2 } else { 1 }
+                && rows.len() == count
                 && row["changes"] != json!(expected)
             {
                 return Err(format!("sealed in queue order: {}", row["changes"]));
@@ -533,7 +543,7 @@ impl Judge<'_> {
             };
             let list = self.landings()?;
             let rows = list["landings"].as_array().ok_or(String::from("landing list"))?;
-            if rows.len() != if previous.is_some() { 2 } else { 1 } {
+            if rows.len() != count {
                 return Err(String::from("one landing per batch"));
             }
             if let Some(row) = rows.iter().find(|row| row["phase"] == "held") {
@@ -676,10 +686,7 @@ impl Judge<'_> {
 impl Judge<'_> {
     fn stop(&mut self, procs: &mut [Process]) -> Result<(), String> {
         let mut checked = Vec::new();
-        for proof in [
-            self.first.as_ref().ok_or(String::from("first landing"))?,
-            self.second.as_ref().ok_or(String::from("last landing"))?,
-        ] {
+        for proof in [self.first.as_ref(), self.second.as_ref()].into_iter().flatten() {
             let task = proof.panel["task"].as_u64().ok_or(String::from("landing task"))?;
             if !checked.contains(&task) {
                 super::landing_by_turn::check_history(self.root, 1, &self.landing(task)?, Some("private"))?;
@@ -1019,8 +1026,7 @@ impl Judge<'_> {
             | Phase::Resolved
             | Phase::StartGoal
             | Phase::GoalGates
-            | Phase::Moved
-            | Phase::GoalEnding => self.deployment_step(procs)?,
+            | Phase::Moved => self.deployment_step(procs)?,
             Phase::Ending => {
                 let owner = self.read(&["task", "show", "2"])?;
                 let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
@@ -1062,7 +1068,9 @@ impl Referee<Process> for Judge<'_> {
                             })
                         });
                         if closed {
-                            peer.release(b"batch-repair").map_err(|error| format!("retire repair call: {error:?}"))?;
+                            for name in [b"batch-repair".as_slice(), b"goal-finish".as_slice()] {
+                                peer.release(name).map_err(|error| format!("retire scripted call: {error:?}"))?;
+                            }
                         }
                     }
                 }
@@ -1148,7 +1156,7 @@ fn peer(root: &Path, forge: &Throwaway, story: Story) -> super::llm::Listening {
             .cued
             .iter()
             .map(|script| -> Box<[Rule]> {
-                if script.cue.as_ref() == b"@forge_chat" {
+                if script.cue.as_ref() == b"@forge_chat" && script.turns.len() > 3 {
                     Box::new([
                         Rule { cue: b"Messages arrived. Read them before continuing.".as_slice().into(), turn: 3 },
                         Rule { cue: b"Nothing more will come:".as_slice().into(), turn: 2 },
@@ -1238,7 +1246,6 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
     let Process::Binary(binary) = &outcome.procs[0] else { panic!("serve") };
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "{}", String::from_utf8_lossy(binary.stderr()));
 }
-
 
 /// A four-member search with the shipped worker slots and current stock policy.
 pub fn run_narrowed_four(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
