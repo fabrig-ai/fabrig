@@ -70,6 +70,7 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
         let words = format!("@batch-code-{number} Add batch-{number}.txt");
         let mut change = delegate["batch"][0].clone();
         change["spec"]["words"] = words.clone().into();
+        change["tracked"] = json!({"priority":number});
         change["authority"]["budget"]["spend"] = (4 * run).into();
         batch.push(change);
         let path = format!("batch-{number}.txt");
@@ -152,6 +153,7 @@ pub fn configure(root: &Path, repository: u64) {
     for name in ["tasks.tasks", "tasks.project_tasks", "tasks.tree_tasks", "tasks.exemptions"] {
         value["engine"]["limits"]["overrides"][name] = 64.into();
     }
+    value["engine"]["limits"]["overrides"]["tasks.project_goals"] = Story::Green.changes().into();
     for name in ["tasks.batch", "authority.batch", "tasks.delegates", "people.pending"] {
         value["engine"]["limits"]["overrides"][name] = 8.into();
     }

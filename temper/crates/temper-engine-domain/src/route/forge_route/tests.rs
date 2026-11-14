@@ -4907,6 +4907,7 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
     assert_eq!(description.recovery, super::Recovery::Unrecoverable);
 }
 
+#[expect(clippy::too_many_lines, reason = "one restored train fixture couples task readiness and joined repositories")]
 fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{forge, forge_change as c, tasks};
     use skein_lib::Queue;

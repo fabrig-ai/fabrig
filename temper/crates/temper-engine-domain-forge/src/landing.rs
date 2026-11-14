@@ -42,6 +42,8 @@ pub(crate) struct Pending {
     task: u64,
     repository: api::Repository,
     resource: Option<GatherRead>,
+    read: api::Read,
+    retry: bool,
     cached: bool,
     pub(crate) entry: u64,
     heard: LandingHeard,
@@ -846,6 +848,7 @@ pub(crate) fn job_woken(d: &mut Domain, task: u64) {
         d.landing.pending.get_mut(&token).expect("pending landing gather").woken = true;
     }
 }
+#[expect(clippy::too_many_lines, reason = "one coherent gather snapshots its members and admission retry read")]
 pub(crate) fn step(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -934,6 +937,8 @@ pub(crate) fn step(
                 task,
                 repository: repo,
                 resource: gather_resource(&read),
+                read: read.clone(),
+                retry: false,
                 cached: false,
                 entry,
                 heard,
@@ -965,6 +970,8 @@ fn ask(
 ) {
     pending.repository = repository;
     pending.resource = gather_resource(&read);
+    pending.read = read.clone();
+    pending.retry = false;
     pending.cached = match pending.resource.clone() {
         Some(resource) => pending.reads.contains_key(&(repository, resource)),
         None => false,
@@ -975,6 +982,43 @@ fn ask(
         child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
     }
 }
+pub(crate) fn read_waiting(d: &Domain) -> bool {
+    for (_, pending) in &d.landing.pending {
+        if pending.retry {
+            return true;
+        }
+    }
+    false
+}
+
+pub(crate) fn retry(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    if out.room() == 0 {
+        return;
+    }
+    let mut next = None;
+    for (owner, pending) in &d.landing.pending {
+        if pending.retry {
+            next = Some((*owner, pending.repository, pending.read.clone()));
+            break;
+        }
+    }
+    let Some((owner, repository, read)) = next else { return };
+    d.landing.pending.get_mut(&owner).expect("waiting gather").retry = false;
+    child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+}
+
+pub(crate) fn settle(d: &mut Domain) {
+    let mut waiting = List::with_capacity(d.landing.pending.len());
+    for (owner, pending) in &d.landing.pending {
+        if pending.retry {
+            waiting.push(*owner).expect("one retry per landing");
+        }
+    }
+    for owner in &waiting {
+        d.landing.pending.remove(owner);
+    }
+}
+
 fn poll_at(d: &Domain, env: &Env<Limits>, task: u64) -> Wall {
     let mut at = None;
     if let Some(row) = d.landing.rows.get(&task) {
@@ -1042,7 +1086,10 @@ fn advance(
         return;
     }
     if answer == Err(api::Error::Busy) {
-        wait(d, p.task, env, p.repository, out);
+        // Admission made no API call. Keep the coherent prefix and retry only
+        // this read after the client's background work gets its turn.
+        p.retry = true;
+        d.landing.pending.insert(owner, p).expect("keeps the gather's slot");
         return;
     }
     let Some(row) = d.landing.rows.get(&p.task).cloned() else {

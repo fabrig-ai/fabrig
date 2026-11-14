@@ -1062,7 +1062,7 @@ impl Domain {
             || !self.procedure_wakes.is_empty()
             || goal_branch::room_waiting(self)
             || self.client.is_ready()
-            || ((self.lost_waiting() || brief::waiting(self) || goal_branch::read_waiting(self))
+            || ((self.lost_waiting() || brief::waiting(self) || goal_branch::read_waiting(self) || crate::landing::read_waiting(self))
                 && self.client.has_room())
     }
 
@@ -1546,6 +1546,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Settle => {
             d.stopping = true;
             d.watch_due = None;
+            crate::landing::settle(d);
             child(d, env, skein_forge_client::Event::Settle, out);
         }
         Event::Bind { request, address, subject } => bind(d, request, address, subject, out),
@@ -2153,6 +2154,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         brief::retry(d, out);
         ask_lost_again(d, env, out);
         goal_branch::retry(d, env, out);
+        crate::landing::retry(d, env, out);
     }
     if out.room() > 0
         && let Some((task, wake)) = d.procedure_wakes.iter().next()

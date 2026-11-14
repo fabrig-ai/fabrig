@@ -5,6 +5,7 @@ use skein_lib::{Env, List, Queue};
 
 const LATCH: u64 = 7;
 
+#[expect(clippy::too_many_lines, reason = "one root fixture couples the shared dependency, gated changes and due task steps")]
 fn kept_changes(changes: &[u64]) -> (Domain, Env<Limits>) {
     let mut limits = crate::tests::resume_fixture::limits();
     limits.tasks.tasks = 4;

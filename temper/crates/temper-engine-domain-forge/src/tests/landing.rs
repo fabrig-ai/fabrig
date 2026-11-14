@@ -262,7 +262,9 @@ fn tier_limits_are_nonzero_and_failure_lists_fit_the_store_row() {
 }
 
 fn landing_fixture() -> Domain {
-    let mut d = domain();
+    landing_fixture_with(domain())
+}
+fn landing_fixture_with(mut d: Domain) -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.repository = REPO;
@@ -535,6 +537,129 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
         }
     );
     assert_eq!(pulls, if same && !other_repository { 1 } else { 2 });
+}
+
+fn busy_landing_gather() -> (Domain, Env<Limits>) {
+    let mut limits = LIMITS;
+    limits.client.calls = 1;
+    limits.client.rate = 2;
+    limits.client.reserve = 1;
+    let mut d = landing_fixture_with(domain_with_limits(&limits));
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    member_landing(&mut d);
+    outputs(&mut d, Event::StepLanding {
+        task: 61,
+        entry: 91,
+        heard: LandingHeard {
+            job: None,
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
+            held: Box::new([]),
+            failure: Box::new([]),
+            preparation: policy::Preparation::Idle,
+            released: false,
+            cancelled: false,
+            kept: Box::new([]),
+        },
+    });
+    let environment = Env { limits, ..env() };
+    let mut sent = Queue::uncapped();
+    resume(&mut d, &environment, &mut sent);
+    let mut first = None;
+    while let Some(request) = sent.pop() {
+        if let Request::Call { call, op, .. } = request {
+            assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch: b"temper/51".as_slice().into() }));
+            first = Some(call);
+        }
+    }
+    // A watched base is due after the foreground call spends its share. The
+    // next fresh read must yield admission to that background work.
+    step(&mut d, &environment, Event::Names { task: 61, resources: Box::new([Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
+    }]) }, &mut Queue::uncapped());
+    let mut answered = Queue::uncapped();
+    step(&mut d, &environment, Event::Client(skein_forge_client::Event::Answered {
+        free: 0,
+        rate: None,
+        call: first.expect("source branch read"),
+        cost: 1,
+        result: Ok(skein_forge::api::Answer::Commit(fixtures::HEAD)),
+    }), &mut answered);
+    d.reclaim();
+    while let Some(request) = answered.pop() {
+        if let Request::LandingDecision { .. } = request {
+            panic!("busy admission is not the end of the gather");
+        }
+    }
+    (d, environment)
+}
+
+#[test]
+fn a_busy_landing_gather_keeps_its_prefix_until_the_read_can_be_admitted() {
+    use skein_forge::api::{Answer, Op, Read};
+    let (mut d, mut environment) = busy_landing_gather();
+    assert!(landing::read_waiting(&d), "the main read yields to the background share");
+    assert!(d.is_ready(), "the rejected read resumes without a timer or another procedure step");
+    let mut ended = false;
+    for _ in 0..32_u32 {
+        let mut requests = Queue::uncapped();
+        resume(&mut d, &environment, &mut requests);
+        while let Some(request) = requests.pop() {
+            if let Request::Call { call, op, .. } = request {
+                let answer = match op {
+                    Op::Read(Read::Branch { branch }) => {
+                        assert_eq!(branch.as_ref(), b"main", "the completed source branch is not read again");
+                        Answer::Commit(fixtures::BASE)
+                    }
+                    Op::Read(Read::Pull { number, .. }) => {
+                        let mut pull = fixtures::open_pull();
+                        pull.number = number;
+                        Answer::Pull(pull)
+                    }
+                    Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+                    Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+                    Op::Read(Read::File { head, path, .. }) => Answer::Directory { head, path, entries: Box::new([]), truncated: false },
+                    Op::Read(Read::Checks { .. }) => Answer::Checks(Box::new([])),
+                    Op::Read(_) | Op::Write(_) => panic!("unexpected landing read {op:?}"),
+                };
+                let mut answered = Queue::uncapped();
+                step(&mut d, &environment, Event::Client(skein_forge_client::Event::Answered {
+                    free: 0, rate: None, call, cost: 1, result: Ok(answer),
+                }), &mut answered);
+                d.reclaim();
+                while let Some(request) = answered.pop() {
+                    if let Request::LandingDecision { task: 61, .. } = request {
+                        ended = true;
+                    }
+                }
+            }
+        }
+        if ended {
+            break;
+        }
+        if !d.is_ready() && let Some(at) = d.next_deadline() {
+            environment.now = at;
+            environment.wall = Wall::from_nanos(at.as_nanos());
+            fire(&mut d, &environment, &mut Queue::uncapped());
+        }
+    }
+    assert!(ended, "the gather finishes through a one-call client");
+    assert!(d.landing.pending.is_empty());
+}
+
+#[test]
+fn settling_a_busy_landing_gather_discards_its_unadmitted_retry() {
+    let (mut d, _) = busy_landing_gather();
+    assert!(landing::read_waiting(&d));
+    outputs(&mut d, Event::Settle);
+    assert!(d.landing.pending.is_empty(), "no API call owns the refused retry at stop");
+    assert!(!landing::read_waiting(&d));
 }
 
 #[test]
