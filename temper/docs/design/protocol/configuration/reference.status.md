@@ -1,6 +1,6 @@
 # reference: status
 
-2026-11-12. Where the tree's code lags or departs from [reference.md](reference.md).
+2026-11-14. Where the tree's code lags or departs from [reference.md](reference.md).
 
 
 - **Not yet:** the whole document: stage one's golden (`../../testing/README.md`, the
@@ -8,6 +8,8 @@
   the case's project's rule 1, so a box Ask temper configures from the
   reference's description keeps the stock's rule 1 over its goals'
   branches until its owner sets the project's.
+
+- **Not yet:** the whole document: the repository's check still counts a lint or test failure its tree's list of known reds names as inherited, beside the goal's reds [in flight: change 3057].
 
 - **Departs:** the whole document: template 4's report reaches its run as at most
   1,024 bytes, jig's bound on a contract's text (jig's `domain/hosts/charters.md`

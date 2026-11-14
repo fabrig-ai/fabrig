@@ -1,15 +1,8 @@
 # design: status
 
-2026-11-12. Where `.temper/pre-pr`'s code lags or departs from [design.md](design.md).
+2026-11-14. Where `.temper/pre-pr`'s code lags or departs from [design.md](design.md).
 
-- **Not yet:** 1, 4, *The hold*, 9: the check takes no hold: a deployment's cargo that lends the build directory only while a cargo command runs held it for one-process's listing alone, and on 2026-11-12 a check failed with a built test executable gone before one-process started it (`FileNotFoundError` from `tools/tiers/one_process.py`'s Popen); the boundary world has no fake hold [in flight: change 1023].
-
-- **Not yet:** 2, *An unchecked save is stepped past*: the base is the merge base as git gives it, an unchecked save included, so a repair resumed after its save selects only its new edits.
-- **Not yet:** 1, 4, 5, 6: the focused tests run under a `cargo nextest run` of
-  the check's own, with a JUnit overlay, not through `tools/tiers/one-process
-  default`; no starved line, alone label or `check one-process`. 9: the tests
-  fake nextest, not one-process.
-- **Not yet:** 1, 4, *A failing test's process again*, 5, *A flake*, 6, the flake lines and *The results file*, 7, 9: no failing test's process runs again, `temper/rerun` is not read, no flake is told from a failure, and no `temper/check-results` is written [in flight: change 2816].
+- **Not yet:** 1, 4, 5, 6 and 9: the check still reads the tree's list of known reds beside `temper/reds`, with its cap and the `known-reds` failure, prints `(known red, …)` for an entry of the list, and its tests pin the list [in flight: change 3057].
 
 No other gaps in sections 1–9. Section 10's later work remains outside the delivery
 check.
