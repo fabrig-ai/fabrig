@@ -4311,7 +4311,7 @@ mod golden_tests {
     #[test]
     fn golden_4() {
         let failures = table(&GOLDEN_4);
-        assert!(failures == [None; 112], "{failures:?}");
+        assert!(failures == [None; 118], "{failures:?}");
     }
 
     static BOUNDS_0: [Case; 64] = [
@@ -4703,7 +4703,7 @@ mod golden_tests {
     #[test]
     fn bounds_5() {
         let failures = table(&BOUNDS_5);
-        assert!(failures == [None; 14], "{failures:?}");
+        assert!(failures == [None; 18], "{failures:?}");
     }
 
 }
