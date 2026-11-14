@@ -26,6 +26,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         reasons: jig_domain_tasks::Reasons::FIRST,
         started_from: Box::new([]),
         asked_requester: false,
+        question_woken: 0,
         placed: None,
         settings: task::SettingsRevision { task: 3, run: Some(2) },
         added: Box::new([]),

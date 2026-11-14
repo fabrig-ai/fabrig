@@ -8,8 +8,8 @@ use crate::{
 use skein_lib::List;
 impl Target {
     pub(super) fn reserved(&self, side: &mut Side) -> bool {
-        let mut installed = List::with_capacity(super::files::capacity(&self.plans));
-        for plan in &self.plans {
+        let mut installed = List::with_capacity(super::files::capacity(&self.prepared.installation.plans));
+        for plan in &self.prepared.installation.plans {
             for install in &plan.installs {
                 let Some(file) = self.tree.get(&install.path) else { continue };
                 let shape = match &file.node {

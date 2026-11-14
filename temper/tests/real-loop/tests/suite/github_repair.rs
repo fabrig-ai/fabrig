@@ -325,9 +325,9 @@ fn refused_repair_scripts(at: std::net::SocketAddr) -> Scripts {
     script.turns = Box::new([Turn {
         lines: Box::new([Line::Call {
             name: b"finish".as_slice().into(),
-            arguments: serde_json::to_vec(&json!({"form":"verdict","label":"no_change",
-                "text":"Declining this repair for the release regression.","fields":{},"items":[]}))
-            .expect("no-change verdict JSON")
+            arguments: serde_json::to_vec(&json!({"form":"failure",
+                "reason":"Declining this repair for the release regression."}))
+            .expect("repair failure JSON")
             .into(),
         }]),
         finish: Finish::ToolCalls,
@@ -342,7 +342,7 @@ fn replacement_acts() -> Vec<Step> {
     acts.extend([
         call(D1, argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"]),
         call(D1, argv!["task", "release", number(CHANGE_TASK), "--hold", "1"]),
-        // The replacement's no_change verdict creates hold 2; the panel can still show hold 1 after release.
+        // The replacement's failure creates hold 2; the panel can still show hold 1 after release.
         until(
             D1,
             argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"],

@@ -102,6 +102,7 @@ fn observe_pull(d: &mut Domain) {
         paths: Box::new([]),
         paths_whole: false,
         woken: false,
+        retry_at: None,
     };
     decide_step(d, &env(), pending, &mut Queue::uncapped());
 }

@@ -139,7 +139,7 @@ pub fn agreeing(expansion: &Expansion) -> Result<collisions::Survivors, Box<[Err
 pub fn account_names(accounts: &crate::kinds::users::Accounts) -> Box<[&[u8]]> {
     let mut names = List::with_capacity(u32::try_from(accounts.users.len()).expect("fixture count"));
     for user in &accounts.users {
-        names.push(user.name.as_ref()).expect("fixture count");
+        names.push(user.value.name.as_ref()).expect("fixture count");
     }
     names.into_boxed()
 }
@@ -166,13 +166,12 @@ pub fn id_collisions(accounts: &crate::kinds::users::Accounts) -> Box<[Error]> {
 }
 pub fn named_user(name: &[u8], task: &[u8], uid: Option<u32>) -> crate::kinds::users::User {
     let mut user = super::sysusers(name, uid);
-    user.task = skein_lib::bytes::copy_of(task);
+    user.source.task = skein_lib::bytes::copy_of(task);
     user
 }
 pub fn ranged(name: &[u8], task: &[u8], base: i64, count: i64) -> crate::kinds::users::User {
     let mut user = named_user(name, task, None);
-    let crate::kinds::users::UserKind::Sysusers { subordinate, .. } = &mut user.kind else { panic!("sysusers") };
-    *subordinate = Some((u32::try_from(base).expect("fixture base"), u32::try_from(count).expect("fixture count")));
+    user.subordinate = Some((u32::try_from(base).expect("fixture base"), u32::try_from(count).expect("fixture count")));
     user
 }
 // An account id inside hearth/docs/design/protocol/format/tasks.md 6's bounds; its neighbour is the second account's id.

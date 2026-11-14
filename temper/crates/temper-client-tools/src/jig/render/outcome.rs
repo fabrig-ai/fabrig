@@ -4,6 +4,7 @@ use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Outcome, contract as c};
 use skein_json::writer::Encoder;
+mod start_model;
 #[derive(Debug)]
 pub(crate) struct Operation {
     pub project: Option<u32>,
@@ -29,6 +30,7 @@ pub(crate) struct Operation {
     pub proposal_decision: bool,
     /// Distinct submitted settings scopes, ordered with the deployment before projects.
     pub settings_scopes: Option<skein_lib::Set<u32>>,
+    pub start_model: Option<start_model::Start>,
 }
 /// What a person task's contract asks of an answer past it (client/ctl/areas.md).
 #[derive(Debug)]
@@ -63,6 +65,11 @@ impl Operation {
         let mut operation = Self::of(ask);
         operation.tool = Some(tool);
         operation
+    }
+    pub(crate) fn model_flags(&mut self, call: &crate::jig::call::Call) {
+        if let Some(start) = &mut self.start_model {
+            start.flags(call);
+        }
     }
     fn tool_name(&self) -> &'static [u8] {
         match self.tool {
@@ -195,6 +202,7 @@ impl Operation {
             proposal_project: proposal_project(ask),
             proposal_decision,
             settings_scopes: settings_scopes(ask),
+            start_model: start_model::Start::of(ask, word),
         }
     }
 }
@@ -639,6 +647,9 @@ fn encode(
     out.object_end();
 }
 fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) {
+    if let Some(start) = &operation.start_model {
+        start.json(refusal, out);
+    }
     let mut measure = Text::measure();
     if account_next(operation, refusal, &mut measure) {
         let mut write = Text::writing_exact(measure);
@@ -1040,7 +1051,7 @@ fn refused_text(
         spent_pool(operation, project, *needed, *left, me, out);
         return;
     }
-    if account_refusal(operation, refusal, out) {
+    if start_model::refusal(operation, refusal, out) || account_refusal(operation, refusal, out) {
         return;
     }
     out.put(operation.tool_name());

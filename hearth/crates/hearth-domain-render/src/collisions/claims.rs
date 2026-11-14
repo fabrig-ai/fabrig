@@ -54,7 +54,7 @@ pub(super) fn gather(
             let claim = match kind {
                 KindMap::Data => {
                     let Ok(entry) = kinds::data::entry(row) else { continue };
-                    located(row, Subject::DataPath, entry.path, Some(Subject::DataName), false)
+                    located(row, Subject::DataPath, entry.value.value.path, Some(Subject::DataName), false)
                 }
                 KindMap::Secrets => {
                     let Ok(entry) = kinds::secrets::file(row) else { continue };

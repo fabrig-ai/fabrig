@@ -4,7 +4,7 @@ mod declarations;
 mod ids;
 use crate::{
     entries::Expansion,
-    errors::{Class, Collector, Collision, Error, Kind, Subject},
+    errors::{Class, Collector, Collision, Error, Kind, Place, Subject},
     kinds::{files, users::Accounts},
     limits::Limits,
 };
@@ -15,7 +15,7 @@ pub use ids::ids;
 use skein_lib::{Map, bytes::copy_of};
 /// Everything the target's tasks declared.
 #[derive(Debug)]
-pub struct Declared<'a> {
+pub(crate) struct Declared<'a> {
     pub target: &'a [u8],
     pub expansion: &'a Expansion,
     pub plans: &'a [files::Plan],
@@ -126,13 +126,16 @@ fn pair(target: &[u8], first: &Claim, second: &Claim, errors: &mut Collector, va
     *valid = false;
 }
 fn report(target: &[u8], kind: Collision, at: &Claim, also: &Claim, errors: &mut Collector) {
-    errors.push(Error {
+    errors.push(error(target, kind, at.at.clone(), also.at.clone()));
+}
+fn error(target: &[u8], kind: Collision, at: Place, also: Place) -> Error {
+    Error {
         side: None,
         kind: Kind::Collision(kind),
         class: Class::Configuration,
-        at: Some(at.at.clone()),
-        also: Some(also.at.clone()),
+        at: Some(at),
+        also: Some(also),
         target: Some(copy_of(target)),
         task: None,
-    });
+    }
 }

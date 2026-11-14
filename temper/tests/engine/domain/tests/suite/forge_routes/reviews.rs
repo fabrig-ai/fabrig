@@ -1387,6 +1387,7 @@ fn a_released_moved_change_is_not_held_again_while_its_fresh_read_is_slow() {
     }
     assert!(observed_move(&world, task, head), "the branch's drift is observed before release");
     world.slow_branch = Some(branch);
+    world.slow_branch_latency = Duration::from_secs(5);
     release(&mut world, task);
     for _ in 0..SLOW_READ_TICKS {
         world.tick();

@@ -210,6 +210,9 @@ fn story(root: &Path, fail_source: bool, delayed_engine: bool) -> io::Result<()>
         } else {
             assert!(!log.contains("no sign-in through temper"), "{log}");
         }
+        // The next start uses its printed link in this same client directory.
+        // End this sign-in first (client/ctl/README.md, 6.1).
+        success(&ctl_command(root, &["sign-out"]));
         running.stop();
     }
     eprintln!("box sign-in proof: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);

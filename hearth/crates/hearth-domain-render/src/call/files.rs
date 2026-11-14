@@ -4,7 +4,7 @@ use super::Side;
 use crate::{
     entries::{self, Expansion},
     errors::{Error, Kind, Place, Repository},
-    kinds::files::{self, Plan, Source, TreeFile},
+    kinds::files::{self, Install, Make, Plan},
     parts::meta::Meta,
     revision::{self, Mode, declaration::Map},
     schema::Validated,
@@ -36,7 +36,8 @@ impl Side {
                 if name != task.name.as_ref() {
                     continue;
                 }
-                let source = if entry.mode == Mode::Link {
+                let mode = if entry.mode == Mode::Executable { 0o755 } else { 0o644 };
+                let make = if entry.mode == Mode::Link {
                     let target = self.links.get(&entry.oid)?;
                     if !files::link(target) {
                         errors
@@ -53,21 +54,23 @@ impl Side {
                         valid = false;
                         continue;
                     }
-                    Source::Link { target: target.clone() }
+                    Make::Link { target: target.clone() }
                 } else if path.ends_with(b".j2") {
                     self.templates.get(&entry.oid)?;
-                    Source::Template { oid: entry.oid.clone(), path: entry.path.clone() }
+                    Make::Rendered { template: entry.path.clone(), via: None, mode }
                 } else {
-                    Source::Static { sha256: *self.cached.get(&entry.oid)? }
+                    Make::Static { sha256: *self.cached.get(&entry.oid)?, mode }
                 };
                 let path = path.strip_suffix(b".j2").unwrap_or(path);
                 let mut absolute = Writer::new(path.len().saturating_add(1));
                 absolute.put(b"/").expect("prefix room");
                 absolute.put(path).expect("path room");
-                tree.push(TreeFile {
+                tree.push(Install {
                     path: absolute.finish(),
-                    source,
-                    mode: if entry.mode == Mode::Executable { 0o755 } else { 0o644 },
+                    at: None,
+                    make,
+                    owner: copy_of(b"root"),
+                    group: copy_of(b"root"),
                 })
                 .expect("listing bound");
             }
