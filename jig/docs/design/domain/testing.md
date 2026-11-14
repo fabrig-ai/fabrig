@@ -385,7 +385,11 @@ tests catches a panic:
   to a returned finding. A table of cases, the step crates' and the
   core's bundle (`tests/core/tests/support/bundle.rs`) alike, names each
   case, and the bundle its seed, before running it, and stops at the
-  first that fails. The runner prints a failed test's output.
+  first that fails. The runner prints a failed test's output. What a
+  harness writes before a case names the case, never its input: a
+  seeded sweep writes the seed, the case (its kind, number or mutation)
+  and the input's length, and the assertion that fails names the input
+  in its message.
 
 **A world's library is its own.** No package depends on a world; its own suite
 reads its kit through its library, which re-exports it.
