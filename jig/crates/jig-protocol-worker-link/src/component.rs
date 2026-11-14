@@ -59,11 +59,12 @@ pub struct Component {
 }
 impl Component {
     pub fn new(limits: &Limits, jig: List<wire::Spoken>, credential: Credential, seed: u64) -> Result<Self, Unusable> {
-        if !limits::valid(limits) {
+        let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
+        let full_schema = wire::schema(&bodies).or(Err(Unusable::Limits))?;
+        if !limits::valid_with_schema(limits, &full_schema) {
             return Err(Unusable::Limits);
         }
-        let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
-        let schema = wire::schema_for(&bodies, &jig).ok_or(Unusable::Limits)?;
+        let schema = wire::schema_for_prepared(&full_schema, &jig).ok_or(Unusable::Limits)?;
         let mut spoken_wires = List::uncapped();
         for spoken in &jig {
             spoken_wires.push(spoken.clone()).expect("uncapped wires");
