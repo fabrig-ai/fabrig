@@ -292,12 +292,8 @@ pub fn task(world: &World, number: u64) -> &tasks::TaskRecord {
 }
 
 #[must_use]
-pub fn change(world: &World, number: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(number))) else {
-        panic!("change {number}")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+pub fn change(world: &World, number: u64) -> forge_top::ChangeRow {
+    world.store.change(number).expect("durable change")
 }
 
 #[must_use]
@@ -334,7 +330,7 @@ pub fn until(world: &mut World, ticks: u32, description: &str, met: impl Fn(&Wor
             .values()
             .filter_map(|row| match row {
                 Record::Forge { row } => match row.as_ref() {
-                    forge_top::Stored::Change(row) => Some((row.task, &row.change.state)),
+                    forge_top::Stored::ChangeHot(row) => Some((row.task, &row.change.state)),
                     _ => None,
                 },
                 Record::Core(_) => None,

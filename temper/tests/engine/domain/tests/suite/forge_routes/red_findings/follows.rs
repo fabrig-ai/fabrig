@@ -352,7 +352,10 @@ fn a_forgotten_follow_change_leaves_its_red_with_the_triager() {
     until(&mut world, "uncleared change ended", |world| matches!(task(world, change).phase, tasks::Phase::Ended(_)));
     world.drain_cut();
     assert!(follow(&world).queue.is_empty(), "follow already counted its landing");
-    world.store.seed(Box::new([]), Box::new([Key::Forge(forge_top::Key::Change(change))]));
+    world.store.seed(
+        Box::new([]),
+        Box::new([Key::Forge(forge_top::Key::ChangeHot(change)), Key::Forge(forge_top::Key::ChangeCold(change))]),
+    );
     world.restart_same();
     until(&mut world, "root restored while the tier runs", |world| world.root.ready());
     judged(&mut world, commit, None, Holder::Task(triager));

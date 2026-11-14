@@ -113,9 +113,9 @@ fn assert_reply(world: &World, target: u64, change: u64, chat: u64, kind: &tasks
 fn words_to_a_change_are_answered_naming_its_requester() {
     let (mut world, chat, producer, _) = change_world(true, PASSES, None);
     let change = change_task(&world, producer.task);
-    let forge_key = Key::Forge(forge_top::Key::Change(change));
+    let forge_key = Key::Forge(forge_top::Key::ChangeHot(change));
     let Some(Record::Forge { row }) = world.store.rows.get(&forge_key) else { panic!("change record") };
-    let forge_top::Stored::Change(mut before) = *row.clone() else { panic!("change row") };
+    let forge_top::Stored::ChangeHot(mut before) = *row.clone() else { panic!("change row") };
     let assigned = world.assigned.len();
     send_words(&mut world, &chat, change);
     for _ in 0..MAX_TICKS {
@@ -128,7 +128,7 @@ fn words_to_a_change_are_answered_naming_its_requester() {
     assert_eq!(world.assigned.len(), assigned, "no duplicate delegate");
     assert_eq!(world.merges, 0, "no effect from the extra step");
     let Some(Record::Forge { row }) = world.store.rows.get(&forge_key) else { panic!("change record") };
-    let forge_top::Stored::Change(after) = row.as_ref() else { panic!("change row") };
+    let forge_top::Stored::ChangeHot(after) = row.as_ref() else { panic!("change row") };
     // A live producer refreshes the stall clock when the change steps.
     assert!(after.change.since >= before.change.since);
     before.change.since = after.change.since;

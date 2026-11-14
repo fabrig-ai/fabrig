@@ -187,13 +187,8 @@ pub fn goal_change(world: &mut crate::forge_routes::World, goal: &engine::Assign
 }
 
 #[must_use]
-pub fn change_row(world: &crate::forge_routes::World, task: u64) -> &temper_engine_domain_forge::ChangeRow {
-    use temper_engine_domain_forge as forge;
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge::Key::Change(task))) else {
-        panic!("durable change")
-    };
-    let forge::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+pub fn change_row(world: &crate::forge_routes::World, task: u64) -> temper_engine_domain_forge::ChangeRow {
+    world.store.change(task).expect("durable change")
 }
 
 /// Push and finish the producer without giving its head any CI verdict.

@@ -215,7 +215,7 @@ fn pace(hearing: bool) {
     assert!(
         named,
         "opened pull; state={:?}; all={:?}",
-        world.stored().get(&top::Key::Change(51)),
+        world.stored().get(&top::Key::ChangeHot(51)),
         request_routes(&world, pushed, deadline)
     );
     assert_eq!(world.tally().routes.get(&Route::Merge), Some(&1), "lands within poll_max of verdict");

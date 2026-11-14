@@ -164,11 +164,14 @@ fn a_change_show_reads_forge_history_after_its_change_row_is_evicted() {
     call(&mut world, agent, &cancel);
     call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"ended"]);
     let front = world.front();
-    assert!(front.engine.store.rows.contains_key(&engine::Key::Forge(forge::Key::Change(task))));
+    assert!(front.engine.store.rows.contains_key(&engine::Key::Forge(forge::Key::ChangeHot(task))));
     // The real eviction admission requires a full table and an ended change.
     front.engine.send(engine::Event::Forge(Box::new(forge::Event::DropChange { task })));
     front.engine.settle();
-    assert!(!front.engine.store.rows.contains_key(&engine::Key::Forge(forge::Key::Change(task))), "evicted Change row");
+    assert!(
+        !front.engine.store.rows.contains_key(&engine::Key::Forge(forge::Key::ChangeHot(task))),
+        "evicted Change row"
+    );
     assert!(front.engine.store.rows.values().any(|row| matches!(row,
         engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::HistoryEvent(event) if event.change == task)
     )), "eviction keeps forge-written events");

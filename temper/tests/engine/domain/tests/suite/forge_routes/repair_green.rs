@@ -5,8 +5,8 @@ use temper_engine_domain_forge_change::{Repair, State};
 const STEPS: u32 = 300; // The world's 100 ms ticks give each durable conversation 30 seconds.
 const MADE: u32 = 3; // The change, its producer and its one repair.
 
-fn row(world: &World, change: u64) -> &forge_top::ChangeRow {
-    super::questions::row(world, change)
+fn row(world: &World, change: u64) -> forge_top::ChangeRow {
+    world.store.change(change).expect("durable change")
 }
 
 fn status(world: &mut World, head: u64, state: raw::Check) {
@@ -462,10 +462,10 @@ fn a_hold_past_the_repair_bound_goes_on_when_ci_passes() {
     let mut record = record.clone();
     // A restored own hold may still carry an earlier release as its due reason.
     record.due_reason = tasks::Why::Released;
-    let key = Key::Forge(forge_top::Key::Change(change));
+    let key = Key::Forge(forge_top::Key::ChangeHot(change));
     let Some(Record::Forge { row: stored }) = world.store.rows.get(&key) else { panic!("held change") };
     let mut stored = stored.clone();
-    let forge_top::Stored::Change(held) = stored.as_mut() else { panic!("change") };
+    let forge_top::Stored::ChangeHot(held) = stored.as_mut() else { panic!("change") };
     held.change.resolutions = 1;
     held.change.updates = 2;
     world.store.seed(

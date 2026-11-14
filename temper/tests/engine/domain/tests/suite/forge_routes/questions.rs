@@ -142,12 +142,8 @@ pub(super) fn next_producer(world: &mut World, change: u64) -> engine::Assignmen
     );
 }
 
-pub(super) fn row(world: &World, change: u64) -> &forge_top::ChangeRow {
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-        panic!("change row")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    row
+pub(super) fn row(world: &World, change: u64) -> forge_top::ChangeRow {
+    world.store.change(change).expect("durable change")
 }
 
 pub(super) fn replies(world: &World, target: u64, from: u64) -> Vec<&tasks::Word> {
@@ -610,7 +606,7 @@ pub(super) fn wait_answer(world: &mut World, producer: u64, change: u64) {
             .values()
             .filter_map(|record| match record {
                 Record::Forge { row } => match row.as_ref() {
-                    forge_top::Stored::Change(row) => Some((row.task, &row.change.state)),
+                    forge_top::Stored::ChangeHot(row) => Some((row.task, &row.change.state)),
                     _ => None,
                 },
                 Record::Core(_) => None,

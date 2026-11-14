@@ -53,6 +53,8 @@ impl UnreadableRow {
             keys::DECIDED => "Decided",
             keys::CLOSER => "Closer",
             keys::LANDED_DRAFT => "LandedDraft",
+            keys::CHANGE_COLD => "ChangeCold",
+            keys::CHANGE_HOT => "ChangeHot",
             _ => return None,
         };
         Some((number, name))

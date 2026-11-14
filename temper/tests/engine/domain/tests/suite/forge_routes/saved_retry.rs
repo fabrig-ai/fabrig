@@ -338,7 +338,7 @@ fn a_landed_change_cancels_its_live_repair_retry() {
         .values()
         .find_map(|record| match record {
             Record::Forge { row } => match row.as_ref() {
-                forge_top::Stored::Change(row) if row.task == change => row.pull,
+                forge_top::Stored::ChangeHot(row) if row.task == change => row.pull,
                 _ => None,
             },
             Record::Core(_) => None,
@@ -359,7 +359,7 @@ fn a_landed_change_cancels_its_live_repair_retry() {
     for _ in 0..TICKS {
         world.tick();
         landed = world.store.rows.values().any(|stored| matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
+            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
                 if row.task == change && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))));
         if landed && live_task(&world, change).phase == tasks::Phase::Active(tasks::Active::Idle) {
             break;

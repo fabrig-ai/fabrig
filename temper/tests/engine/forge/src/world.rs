@@ -1921,6 +1921,8 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Closer(row) => top::Key::Closer(row.task),
         top::Stored::Change(row) => top::Key::Change(row.task),
+        top::Stored::ChangeCold(row) => top::Key::ChangeCold(row.task),
+        top::Stored::ChangeHot(row) => top::Key::ChangeHot(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
         top::Stored::RefusedSetting(key) => top::Key::Setting(*key),
         top::Stored::Setting(row) => top::Key::Setting(row.key),

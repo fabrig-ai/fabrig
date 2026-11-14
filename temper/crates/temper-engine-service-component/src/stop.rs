@@ -133,6 +133,11 @@ pub(crate) fn root(engine: &mut Engine) {
             Some(row) => Stop::StoreRow { row: row.clone() },
             None => Stop::RestorePage { range: failure.range, failure: engine.store.routes.page_failure().cloned() },
         },
+        Some(root::StartStop::ForgeRow(key)) => Stop::StoreRow {
+            row: crate::UnreadableRow {
+                key: temper_protocol_store::keys::encode(&key, u32::MAX).expect("change part key"),
+            },
+        },
         Some(root::StartStop::ForgeFit { phase, failure }) => Stop::ForgeFit { phase, failure },
         Some(root::StartStop::ForgeLink { phase, link }) => Stop::ForgeLink { phase, link },
         Some(root::StartStop::Binding) => Stop::Binding,
