@@ -148,6 +148,9 @@ impl Caller {
             &[b"settings", b"apply", b"/setup/settings.json", b"--against", b"1", b"--key", b"world-settings"]
         };
         let mut caller = Self::scripted(root);
+        if crate::stories::held_change() && !crate::stories::first_start() {
+            caller.commands.push_back(Command::new(&[b"sign-out"]));
+        }
         let mut sign_in = Command::new(&[b"sign-in", b"-"]);
         sign_in.input = link.into();
         caller.commands.push_back(sign_in);

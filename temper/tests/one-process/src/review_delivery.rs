@@ -171,6 +171,9 @@ impl Judge {
         let Some(link) = service.service.links().pop() else {
             return;
         };
+        if self.warm {
+            Self::command(caller, &["sign-out"]);
+        }
         let mut sign_in = Command::new(&[b"sign-in", b"-"]);
         sign_in.input = link;
         caller.commands.push_back(sign_in);
@@ -294,7 +297,7 @@ impl Judge {
         }
         match self.stage {
             Stage::Setup => {
-                let expected = if self.warm { 1 } else { 5 };
+                let expected = if self.warm { 2 } else { 5 };
                 if self.answered != expected {
                     return;
                 }

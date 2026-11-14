@@ -273,14 +273,21 @@ temper ctl help [GROUP [VERB]]
 - **`address`** is `temper-client-shell-cli`'s: one line,
   `http://HOST:PORT`, `0o600`, written by `sign-in` and read by every
   other call.
+- **`party`** is `temper-client-shell-cli`'s too: one line, the decimal
+  number of the party DIRECTORY is signed in as, `0o600`, written by
+  each `sign-in`, the link's and `--service`'s (section 7), once its
+  token is kept, and read by the link's `sign-in` alone, only beside a
+  non-empty `token` (*signed in*, below). A DIRECTORY signed in before
+  `party` was written has none, and one absent, unreadable or not one
+  decimal line is read as no party: never an error.
 - **A DIRECTORY the call cannot use** ends it, exit 1, with one line
   naming what failed: `DIRECTORY does not exist`; `DIRECTORY is not
   private` (or its `address` or `token`); `DIRECTORY is not signed in`,
   with no `address`, no `token` or a zero-byte one; `DIRECTORY is busy
   with another call` (6.3); otherwise the step and the error,
   `DIRECTORY could not be read: STEP: ERROR`, STEP `open`, `lock`,
-  `address` or `token`, or `DIRECTORY could not be written: address:
-  ERROR` when `sign-in` writes it. ERROR is the file layer's error by
+  `address` or `token`, or `DIRECTORY could not be written: STEP:
+  ERROR`, STEP `address` or `party`, when `sign-in` writes it. ERROR is the file layer's error by
   its name (`NotFound`, `Permission`, ...), `too large` past the file's
   bound, or `unexpected answer`.
 - **A FILE the call reads** that cannot be read ends it the same way,
@@ -302,16 +309,32 @@ temper ctl help [GROUP [VERB]]
 - **`sign-in FILE|-`** signs in by the link `temper-box serve` printed, read
   from FILE or stdin and never an argument (section 7), on loopback, and
   writes the token and the address the link names, as `temper-box open` does
-  (`../README.md`, section 4). It offers the token DIRECTORY holds, if any,
-  beside the link: a sign-in kept leaves `token` as it was. Its
-  answers, each exit 1 with one line, and none writing `token` or
-  `address`:
+  (`../README.md`, section 4), and `party`. A DIRECTORY that holds a
+  token, a non-empty `token`, is refused before anything is sent
+  (*signed in*, below): a link is never sent beside a held token, so
+  the link stays unspent, and `sign-out` is the way out. Its answers,
+  each exit 1 with one line, and none writing `token`, `address` or
+  `party`:
   - *empty* (no link after stripping one trailing newline): `temper ctl:
     sign-in: stdin held no link; give the box's sign-in link on stdin:
     temper ctl DIR sign-in -`; stdin's end is kept even when it arrives
     before DIRECTORY is ready, so empty stdin is refused without waiting
     or sending a sign-in;
-  - *refused* (the link spent, expired or unknown): `temper ctl: the
+  - *signed in* (a non-empty `token`, found when DIRECTORY's store
+    loads, before any sign-in or other request is sent): `temper ctl:
+    DIRECTORY is signed in as party N; this link is not spent: sign out
+    first, temper ctl DIRECTORY sign-out, or sign in to another
+    directory`, N `party`'s number; with no party read (`party`,
+    above), the same line without ` as party N`;
+  - *spent*, *expired* and *unknown*, the engine's three refusals of a
+    link (jig's `protocol/client/sign-in.md`, *Why a link can't sign
+    in*), each its own line: `temper ctl: the sign-in link was refused:
+    it was already used; temper-box serve prints a fresh one`; `temper
+    ctl: the sign-in link was refused: it has expired; temper-box serve
+    prints a fresh one`; `temper ctl: the sign-in link was refused:
+    temper does not know it, as another deployment's link or one it no
+    longer remembers; temper-box serve prints a fresh one`;
+  - *refused* (any other refusal of the link): `temper ctl: the
     sign-in link was refused`; `temper-box serve` prints a fresh link;
   - *full* (jig's `domain/people/README.md`, section 3): `temper ctl: all N
     sign-ins are in use; the earliest ends at T; this link stays usable
@@ -331,7 +354,14 @@ temper ctl help [GROUP [VERB]]
 
   `sign-out`
   ends the sign-in, and jig's native shell, keeping none, leaves `token`
-  a zero-byte file, which a call reads as no token. Every other tool
+  a zero-byte file, which a call reads as no token. A sign-out whose
+  token the engine answers and refuses, its sign-in already ended or
+  never this engine's, ends the same way, `token` left a zero-byte
+  file, exit 0 and nothing printed: the sign-in is over either way,
+  so *signed in*'s way out always works once the engine answers. A
+  sign-out the engine never answers keeps `token` and says so, exit 1:
+  `nothing listens at ADDRESS; is temper running?`, or `the engine at
+  ADDRESS did not answer within 30 s`. Every other tool
   signs in with the token DIRECTORY holds (`SignIn { with: Held }`).
 - **Loopback only,** as `temper-box open`, until the clients' listener
   serves TLS: a call checks that `address` is on loopback, `127.0.0.0/8`

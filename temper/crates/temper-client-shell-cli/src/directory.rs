@@ -34,6 +34,8 @@ enum Stage {
     KeyRead,
     KeyClose,
     Store,
+    PartyRead,
+    PartyStore,
     Ready,
     Closing,
 }
@@ -74,6 +76,9 @@ pub(crate) struct Directory {
     user: u32,
     pub(crate) link: Option<Box<[u8]>>,
     pub(crate) stored: bool,
+    pub(crate) party: Option<u64>,
+    pub(crate) party_loaded: Option<()>,
+    pub(crate) party_stored: Option<()>,
     pub(crate) engine: Option<Addr>,
     pub(crate) address: Option<Box<[u8]>>,
     pub(crate) token: Option<Box<[u8]>>,
@@ -137,6 +142,9 @@ impl Directory {
             user,
             link: None,
             stored: false,
+            party: None,
+            party_loaded: None,
+            party_stored: None,
             engine: None,
             address: None,
             token: None,
@@ -232,10 +240,23 @@ impl Directory {
             self.answer_record(event);
             return;
         }
+        if self.stage == Stage::PartyRead {
+            self.party = if let file::Event::Loaded { bytes, .. } = event { party(&bytes) } else { None };
+            self.party_loaded = Some(());
+            self.stage = Stage::Ready;
+            return;
+        }
+        if let file::Event::Refused { .. } = event
+            && self.stage == Stage::PartyStore
+        {
+            self.fail(b"DIRECTORY could not be written: party: unexpected answer");
+            return;
+        }
         if let file::Event::Refused { found, .. } = event {
             let part = match self.stage {
                 Stage::Overlay => "overlay",
                 Stage::Address | Stage::Store => "address",
+                Stage::PartyRead | Stage::PartyStore => "party",
                 Stage::Token => "token",
                 Stage::KeyOpen | Stage::KeyStat | Stage::KeyRead | Stage::KeyClose => "key file",
                 Stage::Link => "link",
@@ -267,6 +288,10 @@ impl Directory {
             }
             (Stage::Link, file::Event::TooLarge { .. }) if self.settings_input.is_some() => {
                 self.fail(format!("settings file: file bytes: bound {}", self.link_max).as_bytes());
+            }
+            (Stage::PartyStore, file::Event::Stored { .. }) => {
+                self.party_stored = Some(());
+                self.stage = Stage::Ready;
             }
             (Stage::Store, file::Event::Stored { .. }) => {
                 self.stored = true;
@@ -318,6 +343,8 @@ impl Directory {
                         format!("{part} could not be read: {words}")
                     }
                     Stage::Overlay => unreachable!("overlay event handled"),
+                    Stage::PartyRead => unreachable!("party read handled"),
+                    Stage::PartyStore => format!("DIRECTORY could not be written: party: {words}"),
                     Stage::Store => format!("DIRECTORY could not be written: address: {words}"),
                     Stage::Lock => format!("DIRECTORY could not be read: lock: {words}"),
                     Stage::Address => format!("DIRECTORY could not be read: address: {words}"),
@@ -489,6 +516,13 @@ impl Directory {
                 max: self.link_max,
                 no_follow: true,
             },
+            Stage::PartyRead => file::Request::Load {
+                owner: OWNER,
+                root: self.private.expect("private directory"),
+                path: b"party".as_slice().into(),
+                max: 21,
+                no_follow: true,
+            },
             Stage::Address | Stage::Token => {
                 let (path, max) = if self.stage == Stage::Address {
                     (b"address".as_slice(), limits::ADDRESS)
@@ -503,7 +537,9 @@ impl Directory {
                     no_follow: true,
                 }
             }
-            Stage::RecordRemove | Stage::Start | Stage::Ready | Stage::Store | Stage::Closing => return,
+            Stage::RecordRemove | Stage::Start | Stage::Ready | Stage::Store | Stage::PartyStore | Stage::Closing => {
+                return;
+            }
         };
         self.request(now, request);
     }
@@ -669,6 +705,23 @@ impl Directory {
         self.link_path = Some(path[start..].into());
         self.stage = Stage::Link;
     }
+    pub(crate) fn load_party(&mut self) {
+        self.stage = Stage::PartyRead;
+    }
+    pub(crate) fn store_party(&mut self, now: Time, party: u64) {
+        self.stage = Stage::PartyStore;
+        self.request(
+            now,
+            file::Request::Store {
+                owner: OWNER,
+                root: self.private.expect("locked directory"),
+                path: b"party".as_slice().into(),
+                bytes: format!("{party}\n").into_bytes().into_boxed_slice(),
+                expected: file::Expect::Any,
+                no_follow: true,
+            },
+        );
+    }
     pub(crate) fn store_address(&mut self, now: Time, bytes: Box<[u8]>) {
         self.stage = Stage::Store;
         self.request(
@@ -687,6 +740,13 @@ impl Directory {
         let env = Env { now, wall: Wall::EPOCH, limits: self.limits };
         step::down(&mut self.io, &env, request, &mut self.events, &mut self.submissions);
     }
+}
+fn party(bytes: &[u8]) -> Option<u64> {
+    let line = bytes.strip_suffix(b"\n")?;
+    if line.is_empty() || !line.iter().all(u8::is_ascii_digit) {
+        return None;
+    }
+    std::str::from_utf8(line).ok()?.parse().ok()
 }
 /// What a failed or unexpected answer says (client/ctl/README.md, 6.1): the file layer's error
 /// by name, `too large`, or `unexpected answer`; never an event's bytes.

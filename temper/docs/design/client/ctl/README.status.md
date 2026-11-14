@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-11. Remaining gaps between temper's code and [README.md](README.md).
+2026-11-14. Remaining gaps between temper's code and [README.md](README.md).
 
 `tools.md`, sections 2 and 3 have no known gap in a project's classes, by plan
 `ui-reaches`: `temper ctl settings show project-classes` and a settings
@@ -44,6 +44,7 @@ The browser boundary check remains later work (section 11).
 - **Departs:** 7, the replaced-proposal answer remains `jig/docs/design/client/domain/contract/requests.status.md`, 2.
 
 - **Not yet:** 6.2: the resume-refusal walk proof remains `testing.status.md`, 2.
+
 
 - **Not yet:**  the absent command groups remain `tools.status.md`, 1.
    the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.

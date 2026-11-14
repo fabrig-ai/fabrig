@@ -175,8 +175,8 @@ fn record_again(name: &str, prepared: Option<&Path>, environment: &[EnvironmentE
     let chromium = fs::canonicalize(chromium)
         .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let base = prepared.unwrap_or_else(|| Path::new("/tmp"));
-    let scratch = scratch(base).map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
+    let base = scratch_base(prepared);
+    let scratch = scratch(&base).map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
     let paths = match prepared {
         Some(directory) => prepared_paths(directory, &scratch, chromium, is_tui),
         None => build(&root, &scratch, chromium, is_tui, environment),
@@ -194,6 +194,10 @@ fn record_again(name: &str, prepared: Option<&Path>, environment: &[EnvironmentE
             .map_err(|error| format!("{name}: cannot remove scratch directory {}: {error}", scratch.display())),
         Err(why) => Err(format!("{name}: {why}\nscratch directory kept at {}", scratch.display())),
     }
+}
+
+fn scratch_base(prepared: Option<&Path>) -> PathBuf {
+    prepared.map_or_else(std::env::temp_dir, Path::to_path_buf)
 }
 
 fn scratch(base: &Path) -> io::Result<PathBuf> {
@@ -430,4 +434,15 @@ fn stale_message(name: &str, stale: &journey::Stale) -> String {
 fn fail(why: &str) -> ! {
     eprintln!("temper-client-journeys: {why}");
     std::process::exit(1);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scratch_base_uses_the_prepared_or_platform_temporary_directory() {
+        assert_eq!(scratch_base(None), std::env::temp_dir());
+        assert_eq!(scratch_base(Some(Path::new("prepared"))), Path::new("prepared"));
+    }
 }
