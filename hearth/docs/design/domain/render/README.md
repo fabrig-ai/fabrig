@@ -230,6 +230,14 @@ and step 4 reads other targets of the same environment. A target's
 settings are composed when it renders, and another target's task or
 placement when step 4 reads it, and none is kept past its use (5.4).
 
+**Four results,** each made from the one before: the revision's inputs,
+decoded (3.1); a target's settings, composed, validated and given what
+it reads of its environment (3.2 to 3.4); its admitted entries,
+concrete, checked and free of collisions, with the files they make (3.5
+to 3.7); and its spec (3.8). A diff compares two revisions' specs
+(section 4). The records between them are the code's: a stage that adds
+no rule of its own adds no record.
+
 ### 3.1 Decode
 
 - **The listing classifies every path** (hearth/docs/design/protocol/format/README.md, section 2): a
@@ -601,10 +609,12 @@ hearth-protocol-builder          the builder's protocol layer: routes its machin
 └── hearth-protocol-mmdebstrap   simulate's argument vector; Inst lines; Packages stanzas; tails  M1
 ```
 
-- **`hearth-domain-render`** holds, as modules: the revision's decoded
-  documents; composition and RFC 7386; validation; evaluation; exports;
-  collisions; parts and digests; resolution's keys, records and closures;
-  the diff. It depends on lib and nothing else.
+- **`hearth-domain-render`** holds the pipeline, resolution's decisions
+  and the diff, and depends on lib alone. Outside it are read what
+  crosses (5.2), the spec's records (`spec.md`, section 1), the diff's
+  (4.1), the errors (`errors.md`), the limits (2.3), and what the
+  world's laws and oracle drive (6.3, 6.5): evaluation, merging,
+  validation and expansion. The rest is its own.
 - **The machines depend on lib only** (`skein/docs/foundation/programming-model.md`, 4), but
   for `hearth-protocol-config`, which composes skein's JSON tokenizer and
   depends on `skein-json` too, as skein's `skein-llm` does (
