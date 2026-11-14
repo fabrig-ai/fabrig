@@ -44,6 +44,12 @@ pub(crate) fn take_finding() -> Option<String> {
 // A teardown outside the loop reports only after releasing its owned resources.
 // Inside the loop it must leave forced cleanup free to drain pending records.
 pub(crate) fn teardown_finding(result: Result<(), String>) {
+    if let Err(why) = defer_teardown_finding(result) {
+        crate::fail(&why);
+    }
+}
+
+fn defer_teardown_finding(result: Result<(), String>) -> Result<(), String> {
     if let Err(why) = result {
         if std::thread::panicking() {
             use std::io::Write;
@@ -51,9 +57,10 @@ pub(crate) fn teardown_finding(result: Result<(), String>) {
         } else if IN_LOOP.get() > 0 {
             keep_finding(why);
         } else {
-            crate::fail(&why);
+            return Err(why);
         }
     }
+    Ok(())
 }
 
 pub(crate) struct FindingScope {
@@ -815,9 +822,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "outside every run")]
-    fn a_teardown_outside_every_run_fails_at_once() {
-        super::teardown_finding(Err("outside every run".into()));
+    fn a_teardown_outside_every_run_returns_its_finding_at_once() {
+        assert_eq!(super::defer_teardown_finding(Ok(())), Ok(()));
+        assert_eq!(super::defer_teardown_finding(Err("outside every run".into())), Err("outside every run".into()));
+        assert_eq!(take_finding(), None, "no run can receive the teardown finding");
     }
 
     #[test]
