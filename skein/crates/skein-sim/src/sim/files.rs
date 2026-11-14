@@ -5,6 +5,7 @@
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 use alloc::format;
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use skein_io::kernel::{Done, Entry, Error, Fd, Op, OpenHow};
@@ -317,16 +318,81 @@ impl Sim {
         }
     }
 
+    /// Checks a machine answer's ticket, shape, room and any newly issued handle.
+    pub fn check_answer(&self, answer: &Answer) -> Result<(), String> {
+        let ticket = answer.ticket;
+        if self.spawn_asked.contains_key(&ticket) {
+            return match &answer.result {
+                Ok(Reply::Program(_)) | Err(_) => Ok(()),
+                Ok(reply) => Err(self.report(&format!("the machine broke the seam: {reply:?} to a Spawn"))),
+            };
+        }
+        let Some(Asked { pid, token, len, .. }) = self.asked.get(&ticket) else {
+            return Err(
+                self.report(&format!("the machine broke the seam: an answer to {ticket:?}, which is no call waiting"))
+            );
+        };
+        let op = self
+            .process(*pid)
+            .flights
+            .get(token)
+            .and_then(|flight| flight.held.as_ref())
+            .expect("a machine call holds its operation");
+        let Ok(reply) = &answer.result else {
+            return Ok(());
+        };
+        let broken = match (op, reply) {
+            (Op::Open { .. }, Reply::Opened(handle)) => return self.check_issued(*pid, *handle),
+            (Op::Read { buf, .. }, Reply::Read(bytes)) => {
+                if bytes.len() > buf.len() || bytes.len() > usize_of(*len) {
+                    Some(format!("{} bytes read, of {len} asked", bytes.len()))
+                } else {
+                    None
+                }
+            }
+            (Op::List { entries, names, .. }, Reply::Listed(listed)) => {
+                let used = listed.iter().try_fold(0_usize, |used, (_, name)| used.checked_add(name.len()));
+                if listed.len() > entries.len()
+                    || used.is_none_or(|used| used > names.len() || u32::try_from(used).is_err())
+                {
+                    Some(format!("{} entries listed, past the room asked: {listed:?}", listed.len()))
+                } else {
+                    None
+                }
+            }
+            (Op::Stat { .. }, Reply::Stat(_))
+            | (
+                Op::Write { .. }
+                | Op::Append { .. }
+                | Op::Lock { .. }
+                | Op::Truncate { .. }
+                | Op::Sync { .. }
+                | Op::Rename { .. }
+                | Op::HardLink { .. }
+                | Op::Remove { .. }
+                | Op::MakeDirectory { .. }
+                | Op::Close { .. },
+                Reply::Done,
+            ) => None,
+            (op, reply) => Some(format!("{reply:?}, to {:?}", crate::trace::Summary::of(op))),
+        };
+        if let Some(what) = broken {
+            return Err(self.report(&format!("the machine broke the seam: {what}")));
+        }
+        Ok(())
+    }
+
     /// The machine's answer, made into its operation's completion.
     fn answered(&mut self, answer: Answer) {
+        if let Err(finding) = self.check_answer(&answer) {
+            Self::die(&finding);
+        }
         let Answer { ticket, result } = answer;
         if self.spawn_asked.contains_key(&ticket) {
             self.answered_spawn(ticket, result);
             return;
         }
-        let Some(Asked { pid, token, len, closing: _ }) = self.asked.remove(&ticket) else {
-            self.machine(&format!("an answer to {ticket:?}, which is no call waiting"));
-        };
+        let Asked { pid, token, len, closing: _ } = self.asked.remove(&ticket).expect("answer checked a call waiting");
         let mut op = self.unpark(pid, token);
         if let Op::Open { .. } = op {
             let process = self.process_mut(pid);
@@ -346,9 +412,7 @@ impl Sim {
                 Done::Fd(self.open_file(pid, File { handle, access: Access::Record(how), position: 0 }))
             }
             (Op::Read { buf, .. }, Reply::Read(bytes)) => {
-                let (Some(slots), true) = (buf.get_mut(..bytes.len()), bytes.len() <= usize_of(len)) else {
-                    self.machine(&format!("{} bytes read, of {len} asked", bytes.len()));
-                };
+                let slots = buf.get_mut(..bytes.len()).expect("answer checked the bytes read fit");
                 // Short of what is there, not only of what was asked.
                 let (n, cut_short) = cut(&mut self.rng, self.config.faults.short_read, bytes.len());
                 if cut_short {
@@ -368,10 +432,7 @@ impl Sim {
             }
             (Op::Stat { .. }, Reply::Stat(stat)) => Done::Stat(stat),
             (Op::List { entries, names, .. }, Reply::Listed(listed)) => {
-                let n = fill(entries, names, &listed);
-                let Some(n) = n else {
-                    self.machine(&format!("{} entries listed, past the room asked: {listed:?}", listed.len()));
-                };
+                let n = fill(entries, names, &listed).expect("answer checked the listed entries fit");
                 Done::Count(n)
             }
             (
@@ -386,8 +447,7 @@ impl Sim {
                 Reply::Done,
             ) => Done::Nothing,
             (op, reply) => {
-                let what = format!("{reply:?}, to {:?}", crate::trace::Summary::of(op));
-                self.machine(&what);
+                self.bug(&format!("checked answer {reply:?}, to {:?}", crate::trace::Summary::of(op)));
             }
         };
         self.complete(pid, token, op, Ok(done));
@@ -400,13 +460,21 @@ impl Sim {
 
     /// Fails the world unless `handle` is new: no process holds it.
     fn issued(&self, pid: Pid, handle: Handle) {
+        if let Err(finding) = self.check_issued(pid, handle) {
+            Self::die(&finding);
+        }
+    }
+
+    /// Checks that no process already holds a handle the machine issues.
+    pub fn check_issued(&self, pid: Pid, handle: Handle) -> Result<(), String> {
         for process in &self.processes {
             for file in process.files.values() {
                 if file.handle == handle {
-                    self.fail(pid, &format!("the machine issued {handle:?}, which is held already"));
+                    return Err(self.finding(pid, &format!("the machine issued {handle:?}, which is held already")));
                 }
             }
         }
+        Ok(())
     }
 
     fn open_file(&mut self, pid: Pid, file: File) -> Fd {
@@ -437,11 +505,6 @@ impl Sim {
         }
         self.calls.retain(|call| !tickets.contains(&call.ticket));
         handles.into_boxed_slice()
-    }
-
-    /// Fails the world on an answer the machine should not have given.
-    pub(super) fn machine(&self, what: &str) -> ! {
-        self.die(&format!("the machine broke the seam: {what}"));
     }
 }
 

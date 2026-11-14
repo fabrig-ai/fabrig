@@ -1,6 +1,7 @@
 //! Groups, retained exits, reaped resources and the kernel's process invariants.
 use skein_io::kernel::{
-    Done, Error, Exit, Fd, Op, Pipe, Resources, ServiceSignal, Signal, Signalled, Size, Spawn, Target, Usage, Way,
+    Done, Error, Exit, Fd, Op, Pipe, Resources, ServiceSignal, Signal, Signalled, Size, Spawn, Submit, Target, Usage,
+    Way,
 };
 use skein_lib::{Duration, Queue};
 use skein_sim::{Answer, Pid, Program, Reply};
@@ -81,7 +82,6 @@ fn settle_output_child(child: &mut OutputChild, exit: Exit) {
     child.world.close(child.parent, child.root);
     child.world.settled(child.parent);
     child.world.settled(child.service);
-    child.world.sim.assert_hosted_settled(child.parent);
 }
 
 #[test]
@@ -101,16 +101,18 @@ fn a_killed_childs_unread_output_is_settled() {
     );
     child.world.close(child.service, child.writer);
     settle_output_child(&mut child, Exit::Signal(9));
+    child.world.sim.assert_hosted_settled(child.parent);
 }
 
 #[test]
-#[should_panic(expected = "every hosted child's output pipe was read to its end once settled")]
 fn a_childs_own_exit_with_unread_output_is_caught() {
     let mut child = hosted_output();
     child.world.close(child.service, child.writer);
     child.world.sim.finish_service(child.service, Exit::Code(0));
     child.world.close(child.parent, child.output);
     settle_output_child(&mut child, Exit::Code(0));
+    let finding = child.world.sim.check_hosted_settled(child.parent).unwrap_err();
+    assert!(finding.contains("every hosted child's output pipe was read to its end once settled"), "{finding}");
 }
 
 #[test]
@@ -288,52 +290,58 @@ fn hosted_signal(signal: Signal, expected: ServiceSignal) {
 }
 
 #[test]
-#[should_panic(expected = "a second Wait")]
 fn a_second_wait_on_the_pidfd_fails_the_world() {
     let (mut world, parent, _, pidfd) = rooted(Program::Never);
     world.submit(parent, Op::Wait { pidfd, reap: false });
-    world.submit(parent, Op::Wait { pidfd, reap: false });
+    let submit = Submit { op: world.token(), kind: Op::Wait { pidfd, reap: false } };
+    let finding = world.sim.check_submission(parent, &submit).unwrap_err();
+    assert!(finding.contains("a second Wait"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a reap before an observed exit")]
 fn a_reap_before_an_observed_exit_fails_the_world() {
     let (mut world, parent, _, pidfd) = rooted(Program::Exit(0));
-    world.submit(parent, Op::Wait { pidfd, reap: true });
+    let submit = Submit { op: world.token(), kind: Op::Wait { pidfd, reap: true } };
+    let finding = world.sim.check_submission(parent, &submit).unwrap_err();
+    assert!(finding.contains("a reap before an observed exit"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a second Wait")]
 fn a_reap_before_the_observing_completion_is_reported_fails_the_world() {
     let (mut world, parent, _, pidfd) = rooted(Program::Exit(0));
     world.submit(parent, Op::Wait { pidfd, reap: false });
-    world.submit(parent, Op::Wait { pidfd, reap: true });
+    let submit = Submit { op: world.token(), kind: Op::Wait { pidfd, reap: true } };
+    let finding = world.sim.check_submission(parent, &submit).unwrap_err();
+    assert!(finding.contains("a second Wait"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "an operation after the reap")]
 fn a_signal_after_the_reap_fails_the_world() {
     let (mut world, parent, _, pidfd) = rooted(Program::Exit(0));
     world.call(parent, Op::Wait { pidfd, reap: false });
     world.call(parent, Op::Wait { pidfd, reap: true });
-    world.submit(parent, Op::Signal { pidfd, signal: Signal::Kill, to: Target::Group });
+    let submit = Submit { op: world.token(), kind: Op::Signal { pidfd, signal: Signal::Kill, to: Target::Group } };
+    let finding = world.sim.check_submission(parent, &submit).unwrap_err();
+    assert!(finding.contains("an operation after the reap"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "which io never cancels")]
 fn a_cancel_of_usage_fails_the_world() {
     let mut world = World::calm();
     let parent = world.spawn();
     let target = world.submit(parent, Op::Usage);
-    world.submit(parent, Op::Cancel { target });
+    let submit = Submit { op: world.token(), kind: Op::Cancel { target } };
+    let finding = world.sim.check_submission(parent, &submit).unwrap_err();
+    assert!(finding.contains("which io never cancels"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "which is not open in this process")]
 fn a_lock_on_a_pipe_fails_the_world() {
     let mut world = World::calm();
     let parent = world.spawn();
     let root = world.root(parent, &[]);
     let (_, output) = child(&mut world, parent, root, Program::Never, true);
-    world.submit(parent, Op::Lock { fd: output.expect("an output pipe") });
+    let submit = Submit { op: world.token(), kind: Op::Lock { fd: output.expect("an output pipe") } };
+    let finding = world.sim.check_submission(parent, &submit).unwrap_err();
+    assert!(finding.contains("which is not open in this process"), "{finding}");
 }
