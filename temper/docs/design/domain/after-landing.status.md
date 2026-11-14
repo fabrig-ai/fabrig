@@ -37,6 +37,7 @@ in section 14. The log's other gaps and the retained change rows remain below.
   because the answer of 2026-11-05 kept it for a closed change's panel. The log
   holds its titles without it: `a_landed_change_keeps_its_title_after_its_close`
   reads them after a restoration of the log and its repository alone.
+- **Not yet:** 3, *A person's hold*: no person holds a tier; nothing gates a tier's start but its run in flight [in flight: change 2957].
 - **Not yet:** 5.2, step 4: probes visit changed-key landings linearly,
   oldest first, rather than halving groups; the tier's record keeps no
   groups (section 10) [in flight: change 2943].
