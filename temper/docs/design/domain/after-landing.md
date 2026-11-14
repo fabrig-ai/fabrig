@@ -543,7 +543,10 @@ blamed landing's full commit (2026-11-04).
   `forge/client.md`), then `and K more`.
 - **Keys:** each write a keyed effect of the run's task (section 10):
   purpose tag 8, operation 6 for the status, its part 0 for the
-  verdict's and 1 for a pending one; operation 7 for a comment, its
+  verdict's and, for a pending one, the count of the run's holds on
+  faults so far, 1 for the first (a release resets the faults, not
+  this count, which the run's posting keeps until its verdict, so
+  each hold posts its own); operation 7 for a comment, its
   part the comment's index in the order above, from 0, so that a
   restart posts each at most once (`forge/README.md`, section 4).
 - **What is posted is kept** on the tier's record from the verdict to
