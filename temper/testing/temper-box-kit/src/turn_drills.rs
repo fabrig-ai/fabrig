@@ -168,7 +168,7 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
     }
     if drill.is_batch() {
         batch::scripts(&mut scripts);
-        if matches!(drill, Drill::Breaking | Drill::Conflict | Drill::Moving) {
+        if matches!(drill, Drill::Breaking | Drill::Conflict) {
             departures::scripts(&mut scripts, drill);
         }
     }
@@ -666,7 +666,7 @@ impl Judge<'_> {
                     return Err(format!("one dispatch per landing: {runs}"));
                 }
                 if self.drill == Drill::Delivery {
-                    self.saved_result()?;
+                    self.file_result("walk/line-2", b"Saved work\nDelivered work\n")?;
                 }
                 self.stop(procs);
             }
@@ -704,7 +704,6 @@ impl Referee<Process> for Judge<'_> {
                         b"drill-saved",
                         b"drill-second",
                         b"drill-go-live",
-                        b"drill-moving",
                     ] {
                         let _released = peer.release(name);
                     }

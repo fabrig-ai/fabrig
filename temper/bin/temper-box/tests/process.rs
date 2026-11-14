@@ -194,6 +194,11 @@ fn conflicting_goals_depart_and_resolve_in_batch_four() {
 }
 
 
+/// temper/docs/design/domain/landing.md, 4.3: a moved head leaves a sealed batch of three.
+#[test]
+fn a_member_head_moves_during_a_three_goal_batch_proof() {
+    support::turn_drills::run(support::turn_drills::Drill::Moving);
+}
 
 /// temper/docs/design/testing/process-tier.md: a queue that lands green.
 #[test]

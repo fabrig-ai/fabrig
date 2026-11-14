@@ -83,14 +83,14 @@ impl Judge<'_> {
         self.stage = Stage::Restart;
         Ok(())
     }
-    pub(super) fn saved_result(&self) -> Result<(), String> {
-        let file = self.forge.repository_observation("acme", "widget", "contents/walk/line-2?ref=main");
+    pub(super) fn file_result(&self, path: &str, expected: &[u8]) -> Result<(), String> {
+        let file = self.forge.repository_observation("acme", "widget", &format!("contents/{path}?ref=main"));
         let encoded: Vec<_> =
             file["content"].as_str().ok_or("saved file")?.bytes().filter(|byte| !byte.is_ascii_whitespace()).collect();
         let bytes = skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, &encoded, 1024)
             .map_err(|why| format!("saved file: {why:?}"))?;
-        if bytes.as_ref() != b"Saved work\nDelivered work\n" {
-            return Err(format!("saved work retained: {}", String::from_utf8_lossy(&bytes)));
+        if bytes.as_ref() != expected {
+            return Err(format!("{path} at main: {}", String::from_utf8_lossy(&bytes)));
         }
         Ok(())
     }

@@ -1,28 +1,7 @@
 //! Narrowing and conflict departures rejoin after their first turn (domain/landing.md, 4.3 and 9).
-use super::{Drill, Judge, Line, Process, Script, Value, call, json};
+use super::{Drill, Judge, Process, Script, Value, call, json};
 
 pub(super) fn scripts(scripts: &mut Vec<Script>, drill: Drill) {
-    if drill == Drill::Moving {
-        let producer = scripts
-            .iter_mut()
-            .find(|script| script.cue.starts_with(b"## Task\n\n@drill-code-2"))
-            .expect("moving producer");
-        let mut held = call(b"read", &json!({"path":"walk/line-2"}));
-        held.lines = [vec![super::super::batch_landing::hold(b"drill-moving")], held.lines.to_vec()].concat().into();
-        let finish = producer.turns[2].clone();
-        let Line::Call { arguments, .. } = &finish.lines[0] else { panic!("finish") };
-        let fields: Value = serde_json::from_slice(arguments).expect("change fields");
-        producer.turns = vec![
-            producer.turns[0].clone(),
-            producer.turns[1].clone(),
-            call(b"deliver", &json!({"fields":fields["fields"]})),
-            held,
-            call(b"write", &json!({"path":"walk/line-2","content":"Changed 2\nMoved during proof\n"})),
-            finish,
-        ]
-        .into();
-        return;
-    }
     let (cue, path) = if drill == Drill::Breaking {
         (b"## Task\n\nRepair the failed landing gate".as_slice(), "walk/red")
     } else {
@@ -61,7 +40,8 @@ impl Judge<'_> {
             let expected = if self.drill == Drill::Breaking {
                 member["left"]["blamed"].is_object()
             } else if self.drill == Drill::Moving {
-                member["left"]["head_moved"]["head"].is_string()
+                let moved = self.batch.moved.as_deref().ok_or("moved head witness")?;
+                member["left"]["head_moved"].as_str().is_some_and(|head| head.starts_with(moved))
             } else {
                 member["left"] == "earlier_conflict" || member["left"] == "conflict"
             };
