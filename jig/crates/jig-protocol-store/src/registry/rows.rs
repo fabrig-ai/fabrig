@@ -88,16 +88,15 @@ pub(super) fn seed(store: &Store, layouts: &mut Layouts, binary: &mut texts::Bin
     for set in store.patch_sets.sets {
         for family in set.families {
             for ty in family.types {
-                let value =
-                    made(layouts, binary, family, ty, false).ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?;
-                let id = layouts
-                    .texts
-                    .get(value.text())
-                    .ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?
-                    .schema
-                    .as_ref()
-                    .ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?
-                    .version();
+                let refusal = OpenRefusal::Set { owner: set.owner, patch: 0 };
+                let text = binary.text(family.name, false).ok_or(refusal.clone())?;
+                texts::parse(layouts, text).ok_or(refusal.clone())?;
+                let schema = layouts.texts.get(&text).ok_or(refusal.clone())?.schema.as_ref().ok_or(refusal.clone())?;
+                if schema.root(ty.root.as_bytes(), super::variant(ty.variant)).is_none() {
+                    continue;
+                }
+                let id = schema.version();
+                let value = made(layouts, binary, family, ty, false).ok_or(refusal)?;
                 layouts
                     .rows
                     .insert((Box::from(family.name), ty.number, id), Row { value, stored: false, retire: false })
