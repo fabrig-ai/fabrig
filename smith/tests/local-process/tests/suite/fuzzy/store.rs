@@ -198,17 +198,21 @@ struct Judge {
     refused: bool,
 }
 impl Referee<Owner> for Judge {
-    fn observe(&mut self, _: Time, owners: &[Owner]) {
-        self.refused |= owners[0].refusal.is_some();
-        if let Some(activation) = owners[0].reserved {
+    fn watch(&mut self, _: Time, owners: &[Owner]) -> Result<(), String> {
+        let owner = owners.first().ok_or("store owner")?;
+        self.refused |= owner.refusal.is_some();
+        if let Some(activation) = owner.reserved {
             if !self.reserved {
-                assert!(self.activations.last().is_none_or(|prior| *prior < activation));
+                if !self.activations.last().is_none_or(|prior| *prior < activation) {
+                    return Err(String::from("self.activations.last().is_none_or(|prior| *prior < activation)"));
+                }
                 self.activations.push(activation);
                 self.reserved = true;
             }
         } else {
             self.reserved = false;
         }
+        Ok(())
     }
     fn passed(&self) -> bool {
         !self.activations.is_empty() || self.refused

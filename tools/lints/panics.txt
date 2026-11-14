@@ -164,10 +164,7 @@ skein/tests/world/tests/system_alloc/main.rs should_panic 1
 smith/crates/smith-domain-run/src/tests/agents.rs should_panic 1
 smith/crates/smith-local-protocol/src/tests/store.rs should_panic 3
 smith/crates/smith-protocol-machine/src/tests/routing.rs should_panic 1
-smith/tests/agent-process/tests/suite/program_events.rs catch_unwind 3
 smith/tests/end-to-end/fake_lookup.rs should_panic 2
-smith/tests/end-to-end/live.rs catch_unwind 1
-smith/tests/end-to-end/live.rs resume_unwind 1
 smith/tests/host/tests/suite/referee.rs should_panic 10
 smith/tests/local-process/tests/suite/terminal.rs should_panic 1
 smith/tests/protocol-llm/tests/suite/referee.rs should_panic 7

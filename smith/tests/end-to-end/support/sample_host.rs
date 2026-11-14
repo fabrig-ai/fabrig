@@ -24,7 +24,9 @@ impl Referee<Process> for Judge {
         }
     }
 
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        Ok(())
+    }
     fn passed(&self) -> bool {
         true
     }

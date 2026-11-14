@@ -441,6 +441,7 @@ enum Ladder {
 
 #[derive(Debug)]
 struct Policy {
+    finding: Option<String>,
     deadline: Option<Time>,
     teardown: Duration,
     grace: Duration,
@@ -461,12 +462,20 @@ impl Policy {
             && let Some(answered) = answered
         {
             self.answer_seen = true;
-            self.deadline = Some(answered.checked_add(self.teardown).expect("validated teardown deadline"));
+            let Some(deadline) = answered.checked_add(self.teardown) else {
+                self.finding = Some("validated teardown deadline".into());
+                return None;
+            };
+            self.deadline = Some(deadline);
         }
         let due = self.deadline.is_some_and(|deadline| deadline <= now) || fault;
         if due && self.ladder == Ladder::Watching {
             self.ladder = Ladder::Terminated;
-            self.deadline = Some(now.checked_add(self.grace).expect("validated grace deadline"));
+            let Some(deadline) = now.checked_add(self.grace) else {
+                self.finding = Some("validated grace deadline".into());
+                return None;
+            };
+            self.deadline = Some(deadline);
             Some(Signal::Terminate)
         } else if self.ladder == Ladder::Terminated && self.deadline.is_some_and(|deadline| deadline <= now) {
             self.ladder = Ladder::Killed;
@@ -480,9 +489,21 @@ impl Policy {
 
 impl Referee<Process> for Policy {
     fn act(&mut self, now: Time, processes: &mut [Process]) {
-        let (binaries, outputs) = processes.split_at_mut(1);
-        let Process::Binary(binary) = &mut binaries[0] else { unreachable!("first host is Binary") };
-        let Process::Output(output) = &mut outputs[0] else { unreachable!("second host is output") };
+        if self.finding.is_some() {
+            return;
+        }
+        let Some((first, outputs)) = processes.split_first_mut() else {
+            self.finding = Some("first host is Binary".into());
+            return;
+        };
+        let Process::Binary(binary) = first else {
+            self.finding = Some("first host is Binary".into());
+            return;
+        };
+        let Some(Process::Output(output)) = outputs.first_mut() else {
+            self.finding = Some("second host is output".into());
+            return;
+        };
         output.stderr_overflow(binary.stderr_overflowed());
         let settled = binary.counts().is_some();
         if settled {
@@ -494,18 +515,24 @@ impl Referee<Process> for Policy {
         }
     }
 
-    fn observe(&mut self, _now: Time, processes: &[Process]) {
-        let Process::Binary(binary) = &processes[0] else { unreachable!("first host is Binary") };
+    fn watch(&mut self, _now: Time, processes: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let Some(Process::Binary(binary)) = processes.first() else {
+            return Err("first host is Binary".into());
+        };
         if binary.counts().is_some() {
             self.settled = true;
             self.deadline = None;
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.deadline
     }
     fn passed(&self) -> bool {
-        self.settled
+        self.finding.is_none() && self.settled
     }
 }
 
@@ -576,6 +603,7 @@ pub fn execute_script(
     };
     let trace = trace_file.map(|file| Fd::new(file.into_raw_fd()));
     let policy = Policy {
+        finding: None,
         deadline: Some(deadline),
         teardown: bounds.teardown,
         grace: bounds.grace,
