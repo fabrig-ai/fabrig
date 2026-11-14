@@ -201,6 +201,10 @@ impl<A: App, F: Front<A>> World<A, F> {
     }
     /// Starts a device with an empty small store.
     pub fn client(&mut self, party: u64, address: A::Address) -> ClientId {
+        self.try_client(party, address).unwrap_or_else(|why| panic!("{why}"))
+    }
+    /// Starts a device, returning the referee's first finding.
+    pub fn try_client(&mut self, party: u64, address: A::Address) -> Result<ClientId, String> {
         self.make_client(party, address, Vec::new(), A::limits(), A::new)
     }
     /// Starts a device with supplied receiving bounds and a root/view fixture.
@@ -212,6 +216,16 @@ impl<A: App, F: Front<A>> World<A, F> {
         limits: A::Limits,
         constructor: ClientConstructor<A>,
     ) -> ClientId {
+        self.try_client_with(party, address, limits, constructor).unwrap_or_else(|why| panic!("{why}"))
+    }
+    /// Starts a supplied fixture, returning the referee's first finding.
+    pub fn try_client_with(
+        &mut self,
+        party: u64,
+        address: A::Address,
+        limits: A::Limits,
+        constructor: ClientConstructor<A>,
+    ) -> Result<ClientId, String> {
         self.make_client(party, address, Vec::new(), limits, constructor)
     }
     /// Play this client's subsequent person acts through the printed numbers.
@@ -228,7 +242,8 @@ impl<A: App, F: Front<A>> World<A, F> {
         kept: Vec<A::Record>,
         limits: A::Limits,
         constructor: ClientConstructor<A>,
-    ) -> ClientId {
+    ) -> Result<ClientId, String> {
+        self.check_holding()?;
         if let Some(meter) = &self.meter {
             meter.start();
         }
@@ -258,19 +273,20 @@ impl<A: App, F: Front<A>> World<A, F> {
             decisions: std::collections::BTreeSet::new(),
             text_shell: None,
         });
-        self.observe(Observation::Client { client: id });
+        self.observe(Observation::Client { client: id })?;
         self.front.bind(id, party);
         for event in self.front.starting(id) {
-            self.callback(id, Some(event));
+            self.callback(id, Some(event))?;
         }
-        self.callback(id, Some(A::start(address, kept, 0)));
-        self.check_heap();
-        id
+        self.callback(id, Some(A::start(address, kept, 0)))?;
+        self.check_heap()?;
+        Ok(id)
     }
     /// Starts another tab with this tab’s address and kept records.
     pub fn tab(&mut self, of: ClientId) -> ClientId {
         let c = &self.clients[of.0];
         self.make_client(c.party, c.history[c.at].clone(), c.kept.clone(), c.limits.clone(), c.constructor)
+            .unwrap_or_else(|why| panic!("{why}"))
     }
     /// Adds a person whose script acts only through the visible tree.
     pub fn person(&mut self, client: ClientId, steps: Vec<Step<A::Address>>) -> PersonId {
@@ -308,7 +324,11 @@ impl<A: App, F: Front<A>> World<A, F> {
     }
     /// Restarts this tab from its kept records and advances its delivery epoch.
     pub fn reload(&mut self, id: ClientId) {
-        self.observe(Observation::Reloaded { client: id });
+        self.try_reload(id).unwrap_or_else(|why| panic!("{why}"));
+    }
+    fn try_reload(&mut self, id: ClientId) -> Result<(), String> {
+        self.check_holding()?;
+        self.observe(Observation::Reloaded { client: id })?;
         self.clients[id.0].acted_card = None;
         self.front.reload(id, self.now);
         let c = &mut self.clients[id.0];
@@ -322,42 +342,62 @@ impl<A: App, F: Front<A>> World<A, F> {
         c.kept = self.front.restored(id, c.kept.clone());
         let event = A::start(c.history[c.at].clone(), c.kept.clone(), 0);
         for initial in self.front.starting(id) {
-            self.callback(id, Some(initial));
+            self.callback(id, Some(initial))?;
         }
-        self.callback(id, Some(event));
+        self.callback(id, Some(event))?;
+        Ok(())
     }
     /// Navigates and records an address in the shell history.
     pub fn go(&mut self, id: ClientId, address: A::Address) {
-        self.observe(Observation::LeftPage { client: id });
+        self.try_go(id, address).unwrap_or_else(|why| panic!("{why}"));
+    }
+    fn try_go(&mut self, id: ClientId, address: A::Address) -> Result<(), String> {
+        self.check_holding()?;
+        self.observe(Observation::LeftPage { client: id })?;
         self.clients[id.0].acted_card = None;
         self.advance_navigation(id);
         self.history(id, address.clone(), false);
-        self.callback(id, Some(A::went(address)));
+        self.callback(id, Some(A::went(address)))?;
+        Ok(())
     }
     /// Moves to the previous history entry when present.
     pub fn back(&mut self, id: ClientId) {
+        self.try_back(id).unwrap_or_else(|why| panic!("{why}"));
+    }
+    fn try_back(&mut self, id: ClientId) -> Result<(), String> {
+        self.check_holding()?;
         if self.clients[id.0].at > 0 {
-            self.observe(Observation::LeftPage { client: id });
+            self.observe(Observation::LeftPage { client: id })?;
             self.clients[id.0].acted_card = None;
             self.advance_navigation(id);
             self.clients[id.0].at -= 1;
             let address = self.clients[id.0].history[self.clients[id.0].at].clone();
-            self.callback(id, Some(A::went(address)));
+            self.callback(id, Some(A::went(address)))?;
         }
+        Ok(())
     }
     /// Moves to the next history entry when present.
     pub fn forward(&mut self, id: ClientId) {
+        self.try_forward(id).unwrap_or_else(|why| panic!("{why}"));
+    }
+    fn try_forward(&mut self, id: ClientId) -> Result<(), String> {
+        self.check_holding()?;
         if self.clients[id.0].at + 1 < self.clients[id.0].history.len() {
-            self.observe(Observation::LeftPage { client: id });
+            self.observe(Observation::LeftPage { client: id })?;
             self.clients[id.0].acted_card = None;
             self.advance_navigation(id);
             self.clients[id.0].at += 1;
             let address = self.clients[id.0].history[self.clients[id.0].at].clone();
-            self.callback(id, Some(A::went(address)));
+            self.callback(id, Some(A::went(address)))?;
         }
+        Ok(())
     }
     /// Reports a platform act and mirrors a local field edit before diffing.
     pub fn act(&mut self, id: ClientId, node: NodeId, act: Act) {
+        self.try_act(id, node, act).unwrap_or_else(|why| panic!("{why}"));
+    }
+    fn try_act(&mut self, id: ClientId, node: NodeId, act: Act) -> Result<(), String> {
+        self.check_holding()?;
         self.clients[id.0].acted_scene =
             Some(jig_client_test_kit::check::scene(A::tree(&self.clients[id.0].view), node));
         if let Some(card) = A::card(A::tree(&self.clients[id.0].view), node) {
@@ -367,12 +407,19 @@ impl<A: App, F: Front<A>> World<A, F> {
             self.clients[id.0].model.input(node, value);
         }
         if let Some(event) = A::act(&mut self.clients[id.0].view, node, act) {
-            self.callback(id, Some(event));
+            self.callback(id, Some(event))?;
         }
+        Ok(())
     }
     /// Delivers a shell event through the same callback path.
     pub fn event(&mut self, id: ClientId, event: A::Event) {
-        self.callback(id, Some(event));
+        self.try_event(id, event).unwrap_or_else(|why| panic!("{why}"));
+    }
+    /// Delivers a shell event, returning the referee's first finding.
+    pub fn try_event(&mut self, id: ClientId, event: A::Event) -> Result<(), String> {
+        self.check_holding()?;
+        self.callback(id, Some(event))?;
+        Ok(())
     }
     /// Makes the next callback’s store writes fail before dispatch.
     pub fn fail_store(&mut self) {
@@ -380,23 +427,28 @@ impl<A: App, F: Front<A>> World<A, F> {
     }
     /// Injects a transport fault into the front.
     pub fn fault(&mut self, fault: impl Into<Fault>) {
+        self.try_fault(fault).unwrap_or_else(|why| panic!("{why}"));
+    }
+    fn try_fault(&mut self, fault: impl Into<Fault>) -> Result<(), String> {
+        self.check_holding()?;
         let fault = fault.into();
         self.faults_drawn += 1;
         self.trace.log(self.now, format!("fault {fault:?}"));
         match fault {
             Fault::Front(fault) => self.front.fault(self.now, fault),
             Fault::DoublePress { client, node } => {
-                self.act(client, node, Act::Press);
-                self.act(client, node, Act::Press);
+                self.try_act(client, node, Act::Press)?;
+                self.try_act(client, node, Act::Press)?;
             }
-            Fault::Reload { client } => self.reload(client),
-            Fault::StalePress { client, node } => self.act(client, node, Act::Press),
-            Fault::OtherParty { client, party } => self.sign_as(client, party),
+            Fault::Reload { client } => self.try_reload(client)?,
+            Fault::StalePress { client, node } => self.try_act(client, node, Act::Press)?,
+            Fault::OtherParty { client, party } => self.try_sign_as(client, party)?,
             Fault::TwoTabs { first, first_node, second, second_node } => {
-                self.act(first, first_node, Act::Press);
-                self.act(second, second_node, Act::Press);
+                self.try_act(first, first_node, Act::Press)?;
+                self.try_act(second, second_node, Act::Press)?;
             }
         }
+        Ok(())
     }
     /// Schedules a fault alongside deliveries and the owners' deadlines.
     pub fn fault_at(&mut self, at: Time, fault: impl Into<Fault>) {
@@ -404,18 +456,23 @@ impl<A: App, F: Front<A>> World<A, F> {
     }
     /// A different shell sign-in restarts the client with its existing records.
     pub fn sign_as(&mut self, client: ClientId, party: u64) {
+        self.try_sign_as(client, party).unwrap_or_else(|why| panic!("{why}"));
+    }
+    fn try_sign_as(&mut self, client: ClientId, party: u64) -> Result<(), String> {
+        self.check_holding()?;
         self.clients[client.0].party = party;
         self.front.bind(client, party);
         self.front.sign_in(client, self.now, Wall::from_nanos(1_000_000_000_000 + self.now.as_nanos()));
-        self.reload(client);
+        self.try_reload(client)?;
+        Ok(())
     }
-    fn draw_fault(&mut self) {
+    fn draw_fault(&mut self) -> Result<(), String> {
         if self.clients.is_empty()
             || self.faults_drawn >= u64::from(self.settings.fault_limit)
             || !self.people.iter().any(|p| !p.done)
             || !self.rng.chance(self.settings.faults_per_mille)
         {
-            return;
+            return Ok(());
         }
         let client = ClientId(usize::try_from(self.rng.below(len_u64(self.clients.len()))).expect("client index"));
         let fault = match self.rng.below(14) {
@@ -432,7 +489,7 @@ impl<A: App, F: Front<A>> World<A, F> {
                         && n.binding.is_some()
                         && !n.states.iter().any(|s| *s == skein_ui::State::Disabled)
                 }) else {
-                    return;
+                    return Ok(());
                 };
                 Fault::DoublePress { client, node: node.id }
             }
@@ -441,13 +498,13 @@ impl<A: App, F: Front<A>> World<A, F> {
             10 => Fault::Front(FrontFault::Versions),
             11 => {
                 let Some(other) = self.clients.iter().find(|other| other.party != self.clients[client.0].party) else {
-                    return;
+                    return Ok(());
                 };
                 Fault::OtherParty { client, party: other.party }
             }
             12 => {
                 let Some((client, node)) = self.last_removed else {
-                    return;
+                    return Ok(());
                 };
                 Fault::StalePress { client, node }
             }
@@ -472,13 +529,14 @@ impl<A: App, F: Front<A>> World<A, F> {
                             })
                     })
                 else {
-                    return;
+                    return Ok(());
                 };
                 Fault::TwoTabs { first: client, first_node, second: other, second_node }
             }
             _ => unreachable!("fourteen choices"),
         };
-        self.fault(fault);
+        self.try_fault(fault)?;
+        Ok(())
     }
     /// Exposes the truth boundary for fixture changes.
     pub fn front(&mut self) -> &mut F {
@@ -519,8 +577,8 @@ impl<A: App, F: Front<A>> World<A, F> {
         c.navigation = c.navigation.checked_add(1).expect("world navigation generation fits");
         c.navigation
     }
-    fn platform_show(&mut self, id: ClientId, address: A::Address, replace: bool) {
-        self.observe(Observation::LeftPage { client: id });
+    fn platform_show(&mut self, id: ClientId, address: A::Address, replace: bool) -> Result<(), String> {
+        self.observe(Observation::LeftPage { client: id })?;
         self.clients[id.0].acted_card = None;
         let changed = self.clients[id.0].history[self.clients[id.0].at] != address;
         self.history(id, address.clone(), replace);
@@ -540,18 +598,23 @@ impl<A: App, F: Front<A>> World<A, F> {
                 },
             );
         }
+        Ok(())
     }
-    fn observe(&mut self, observation: Observation) {
+    fn check_holding(&self) -> Result<(), String> {
+        self.referee.check_holding(self.settings.seed).map_err(|why| format!("{why}; trace {:?}", self.trace.lines()))
+    }
+    fn observe(&mut self, observation: Observation) -> Result<(), String> {
+        self.check_holding()?;
         self.referee.observe(self.now, observation, &mut Vec::new());
-        self.referee.assert_holding(self.settings.seed);
+        self.check_holding()
     }
-    fn callback(&mut self, id: ClientId, event: Option<A::Event>) {
+    fn callback(&mut self, id: ClientId, event: Option<A::Event>) -> Result<(), String> {
         if let Some(event) = &event {
             if A::window_changed(event) {
-                self.observe(Observation::WindowChanged { client: id });
+                self.observe(Observation::WindowChanged { client: id })?;
             }
             for receipt in A::received(event).into_iter().chain(self.front.receipts(id, event)) {
-                self.observe(Observation::Delivered { client: id, receipt });
+                self.observe(Observation::Delivered { client: id, receipt })?;
             }
         }
         let c = &mut self.clients[id.0];
@@ -612,29 +675,30 @@ impl<A: App, F: Front<A>> World<A, F> {
                     );
                 }
             } else {
-                self.decision(id, &request, true);
+                self.decision(id, &request, true)?;
                 if let Some(mut sent) = A::sent(&request).or_else(|| self.front.sent(&request)) {
                     if self.clients[id.0].acted_card.is_some() {
                         sent.card.clone_from(&self.clients[id.0].acted_card);
                     }
-                    self.observe(Observation::Request { client: id, party: self.clients[id.0].party, sent });
+                    self.observe(Observation::Request { client: id, party: self.clients[id.0].party, sent })?;
                 }
                 self.front.wire(id, self.now, env.wall, request);
             }
         }
         for (address, replace) in shows {
-            self.platform_show(id, address, replace);
+            self.platform_show(id, address, replace)?;
         }
         for _ in 0..sign_outs {
-            self.observe(Observation::SignOutAsked { client: id });
+            self.observe(Observation::SignOutAsked { client: id })?;
             self.front.sign_out(id, self.now, env.wall);
         }
         for _ in 0..signs {
             self.front.sign_in(id, self.now, env.wall);
         }
-        self.build(id);
+        self.build(id)?;
+        Ok(())
     }
-    fn build(&mut self, id: ClientId) {
+    fn build(&mut self, id: ClientId) -> Result<(), String> {
         let c = &mut self.clients[id.0];
         A::build(&mut c.view, &c.root, &mut c.patches);
         let changed = !c.patches.is_empty();
@@ -663,28 +727,30 @@ impl<A: App, F: Front<A>> World<A, F> {
         self.callbacks += 1;
         self.trace.log(self.now, format!("client {} epoch {} tree {}", id.0, c.epoch, A::tree(&c.view).len()));
         if let Some(seen) = seen {
-            self.observe(Observation::Shown { client: id, seen });
+            self.observe(Observation::Shown { client: id, seen })?;
         }
+        Ok(())
     }
 
-    fn check_heap(&mut self) {
+    fn check_heap(&mut self) -> Result<(), String> {
         if let Some(meter) = &self.meter {
             let measured = meter.end();
             let bound = self.heap_bound();
             // Measure owned bytes here; the observation-based referee owns the
             // bounded rule and its failure, including its negative proofs.
             self.heap_peak = self.heap_peak.max(meter.check(measured, u64::MAX, &"client world iteration"));
-            self.observe(Observation::Bounded { heap: self.heap_peak, bound });
+            self.observe(Observation::Bounded { heap: self.heap_peak, bound })?;
         }
+        Ok(())
     }
     fn heap_bound(&self) -> u64 {
         self.settings.heap_ceiling.unwrap_or(u64::MAX)
     }
-    fn text_act(&mut self, id: ClientId, node: NodeId, act: Act, step: u32) {
+    fn text_act(&mut self, id: ClientId, node: NodeId, act: Act, step: u32) -> Result<(), String> {
         let client = &mut self.clients[id.0];
         let Some(TextShell { print, held }) = &mut client.text_shell else {
-            self.act(id, node, act);
-            return;
+            self.try_act(id, node, act)?;
+            return Ok(());
         };
         let tree = A::tree(&client.view);
         let pending = held.take();
@@ -702,7 +768,7 @@ impl<A: App, F: Front<A>> World<A, F> {
                 && let Act::Input { value } = act
             {
                 *held = Some((node, value));
-                return;
+                return Ok(());
             }
             act
         };
@@ -722,9 +788,9 @@ impl<A: App, F: Front<A>> World<A, F> {
         assert_eq!(&read, &skein_ui_text::Command::Act { node, first, submit: paired }, "step {step}: text shell act");
         match read {
             skein_ui_text::Command::Act { node, first, submit } => {
-                self.act(id, node, first);
+                self.try_act(id, node, first)?;
                 if submit {
-                    self.act(id, node, Act::Submit);
+                    self.try_act(id, node, Act::Submit)?;
                 }
             }
             skein_ui_text::Command::Print
@@ -732,8 +798,9 @@ impl<A: App, F: Front<A>> World<A, F> {
             | skein_ui_text::Command::Nothing
             | skein_ui_text::Command::Refused { .. } => unreachable!("the reader gave the asserted act"),
         }
+        Ok(())
     }
-    fn walk_people(&mut self) -> bool {
+    fn walk_people(&mut self) -> Result<bool, String> {
         let mut progress = false;
         for index in 0..self.people.len() {
             if self.people[index].done
@@ -768,7 +835,7 @@ impl<A: App, F: Front<A>> World<A, F> {
                             Some(RandomDoing::Act { node, act }) => Next::Do(Doing::Act { node, act }),
                             Some(RandomDoing::Reload) => Next::Do(Doing::Reload),
                             Some(RandomDoing::Back) => {
-                                self.back(id);
+                                self.try_back(id)?;
                                 Next::Wait { until: None }
                             }
                             None => Next::Wait { until: None },
@@ -782,10 +849,10 @@ impl<A: App, F: Front<A>> World<A, F> {
                         PersonKind::Script(p) => p.at(),
                         PersonKind::Random { .. } => 0,
                     };
-                    self.text_act(id, node, act, step);
+                    self.text_act(id, node, act, step)?;
                 }
-                Next::Do(Doing::Go { address }) => self.go(id, address),
-                Next::Do(Doing::Reload) => self.reload(id),
+                Next::Do(Doing::Go { address }) => self.try_go(id, address)?,
+                Next::Do(Doing::Reload) => self.try_reload(id)?,
                 Next::Wait { until } => self.people[index].wake = until,
                 Next::Done => {
                     assert!(
@@ -817,7 +884,7 @@ impl<A: App, F: Front<A>> World<A, F> {
                 self.people[index].wake = Some(self.now.saturating_add(self.settings.latency.draw(&mut self.rng)));
             }
         }
-        progress
+        Ok(progress)
     }
     /// Runs callbacks, people and deadlines until the requested boundary.
     fn next_time(&self) -> Option<Time> {
@@ -833,23 +900,29 @@ impl<A: App, F: Front<A>> World<A, F> {
         .flatten()
         .min()
     }
-    fn deliver(&mut self, due: Due<A>) {
+    fn deliver(&mut self, due: Due<A>) -> Result<(), String> {
         let c = &self.clients[due.client.0];
         if due.epoch == c.epoch
             && due.navigation.is_none_or(|generation| generation == c.navigation)
             && self.front.delivers(due.client, &due.event)
         {
             if due.navigation.is_some() {
-                self.observe(Observation::LeftPage { client: due.client });
+                self.observe(Observation::LeftPage { client: due.client })?;
                 self.clients[due.client.0].acted_card = None;
             }
             self.front.received(due.client, &due.event);
-            self.callback(due.client, Some(due.event));
+            self.callback(due.client, Some(due.event))?;
         } else {
             self.dropped += 1;
         }
+        Ok(())
     }
     pub fn run(&mut self, until: Until) -> Outcome {
+        self.try_run(until).unwrap_or_else(|why| panic!("{why}"))
+    }
+    /// Runs to the requested boundary, returning the referee's first finding.
+    pub fn try_run(&mut self, until: Until) -> Result<Outcome, String> {
+        self.check_holding()?;
         let mut iterations = 0;
         for _ in 0..self.settings.iterations {
             if let Until::Steps(count) = until
@@ -862,9 +935,9 @@ impl<A: App, F: Front<A>> World<A, F> {
             }
             iterations += 1;
             while let Some(fault) = self.faults.next(self.now) {
-                self.fault(fault);
+                self.try_fault(fault)?;
             }
-            self.draw_fault();
+            self.draw_fault()?;
             let wall = Wall::from_nanos(1_000_000_000_000 + self.now.as_nanos());
             for (client, event) in self.front.poll(self.now, wall) {
                 let at = self
@@ -875,19 +948,19 @@ impl<A: App, F: Front<A>> World<A, F> {
                 self.schedule.send(at, Due { client, epoch: self.clients[client.0].epoch, event, navigation: None });
             }
             for observed in self.front.observed() {
-                self.observe(Observation::Truth(observed));
+                self.observe(Observation::Truth(observed))?;
             }
             self.referee.fire(self.now, &mut Vec::new());
-            self.referee.assert_holding(self.settings.seed);
+            self.check_holding()?;
             while let Some(due) = self.schedule.next(self.now) {
-                self.deliver(due);
+                self.deliver(due)?;
             }
             for index in 0..self.clients.len() {
                 if A::next_deadline(&self.clients[index].root).is_some_and(|at| at <= self.now) {
-                    self.callback(ClientId(index), None);
+                    self.callback(ClientId(index), None)?;
                 }
             }
-            let progress = self.walk_people();
+            let progress = self.walk_people()?;
             let done = self.people.iter().all(|person| person.done);
             let stop = match until {
                 Until::Done => {
@@ -899,7 +972,7 @@ impl<A: App, F: Front<A>> World<A, F> {
                 Until::Time(at) => self.now >= at,
                 Until::Steps(_) => false,
             };
-            self.check_heap();
+            self.check_heap()?;
             if stop {
                 break;
             }
@@ -936,7 +1009,7 @@ impl<A: App, F: Front<A>> World<A, F> {
         for client in &self.clients {
             client.model.check(A::tree(&client.view));
         }
-        Outcome {
+        Ok(Outcome {
             verdict: self.referee.verdict(),
             judged: self.referee.judged(),
             now: self.now,
@@ -947,7 +1020,7 @@ impl<A: App, F: Front<A>> World<A, F> {
             trace: self.trace.lines().to_vec(),
             heap_peak: self.heap_peak,
             heap_bound: self.heap_bound(),
-        }
+        })
     }
 }
 

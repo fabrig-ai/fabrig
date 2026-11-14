@@ -2,8 +2,11 @@
 use crate::{
     entries::Expansion,
     errors::{Error, Ids, Kind, Owns, Place, Why},
-    kinds::users::{Accounts, User, UserKind},
-    parts::packages::{SeedGroup, SeedUser, Seeds},
+    kinds::users::Accounts,
+    parts::{
+        config::{GroupKind, UserKind},
+        packages::{SeedGroup, SeedUser, Seeds},
+    },
     revision::{
         Position,
         declaration::{Map, Name},
@@ -86,31 +89,33 @@ pub fn check(accounts: &Accounts, owned: &[Owned<'_>]) -> Result<Seeds, Box<[Err
     let mut groups = Names::with_capacity(capacity);
     let mut faults = List::with_capacity(capacity);
     for user in &accounts.users {
-        if let UserKind::Package { uid, gid } = user.kind
-            && uid.is_some() != gid.is_some()
-        {
+        if user.value.kind == UserKind::Package && user.package_ids.0.is_some() != user.package_ids.1.is_some() {
             let item = Owned {
-                task: &user.task,
+                task: &user.source.task,
                 of: Owns::User,
-                entry: &user.name,
-                owner: &user.name,
-                owner_at: user.at,
+                entry: &user.value.name,
+                owner: &user.value.name,
+                owner_at: user.source.at,
                 group: b"root",
-                group_at: user.at,
+                group_at: user.source.at,
             };
-            faults.push(fault(&item, &user.name, user.at, Why::OneId, None)).expect("account count");
+            faults.push(fault(&item, &user.value.name, user.source.at, Why::OneId, None)).expect("account count");
         }
-        if let UserKind::Package { uid: Some(uid), gid: Some(gid) } = user.kind {
+        if user.value.kind == UserKind::Package
+            && let (Some(uid), Some(gid)) = user.package_ids
+        {
             users
-                .insert(user.name.clone(), SeedUser { name: user.name.clone(), uid, gid: Some(gid) })
+                .insert(user.value.name.clone(), SeedUser { name: user.value.name.clone(), uid, gid: Some(gid) })
                 .expect("user count");
         }
     }
     for group in &accounts.groups {
-        if group.package
-            && let Some(gid) = group.gid
+        if group.value.kind == GroupKind::Package
+            && let Some(gid) = group.gid()
         {
-            groups.insert(group.name.clone(), SeedGroup { name: group.name.clone(), gid }).expect("group count");
+            groups
+                .insert(group.value.name.clone(), SeedGroup { name: group.value.name.clone(), gid })
+                .expect("group count");
         }
     }
     for item in owned {
@@ -155,7 +160,7 @@ pub fn check(accounts: &Accounts, owned: &[Owned<'_>]) -> Result<Seeds, Box<[Err
 fn user(accounts: &Accounts, name: &[u8], package: bool) -> Result<SeedUser, (Why, Option<Place>)> {
     let mut declared = None;
     for user in &accounts.users {
-        if user.name.as_ref() == name {
+        if user.value.name.as_ref() == name {
             declared = Some(user);
             break;
         }
@@ -163,15 +168,16 @@ fn user(accounts: &Accounts, name: &[u8], package: bool) -> Result<SeedUser, (Wh
     let Some(user) = declared else {
         return Err((Why::NoUser, None));
     };
-    let also = Some(place(&user.task, user.at));
-    let (uid, gid) = match &user.kind {
-        UserKind::Package { uid, gid } => {
+    let also = Some(user.source.place());
+    let (uid, gid) = match &user.value.kind {
+        UserKind::Package => {
+            let (uid, gid) = user.package_ids;
             if uid.is_some() != gid.is_some() {
                 return Err((Why::OneId, also));
             }
-            (*uid, *gid)
+            (uid, gid)
         }
-        UserKind::Sysusers { uid, group: name, gecos: _, home: _, shell: _, subordinate: _, member_of: _ } => {
+        UserKind::Sysusers { uid, group: name, gecos: _, home: _, shell: _ } => {
             if package {
                 return Err((Why::NotPackageUser, also));
             }
@@ -187,30 +193,30 @@ fn user(accounts: &Accounts, name: &[u8], package: bool) -> Result<SeedUser, (Wh
         }
     };
     match uid {
-        Some(uid) => Ok(SeedUser { name: user.name.clone(), uid, gid }),
+        Some(uid) => Ok(SeedUser { name: user.value.name.clone(), uid, gid }),
         None => Err((Why::NoUid, also)),
     }
 }
 fn group(accounts: &Accounts, name: &[u8], package: bool) -> Result<(u32, Place), (Why, Option<Place>)> {
     for group in &accounts.groups {
-        if group.name.as_ref() != name {
+        if group.value.name.as_ref() != name {
             continue;
         }
-        let at = place(&group.task, group.at);
-        if package && !group.package {
+        let at = group.source.place();
+        if package && group.value.kind != GroupKind::Package {
             return Err((Why::NotPackageGroup, Some(at)));
         }
-        return match group.gid {
+        return match group.gid() {
             Some(gid) => Ok((gid, at)),
             None => Err((Why::NoGid, Some(at))),
         };
     }
-    for User { name: user_name, task, at, kind } in &accounts.users {
-        if let UserKind::Sysusers { uid, group, gecos: _, home: _, shell: _, subordinate: _, member_of: _ } = kind
-            && user_name.as_ref() == name
+    for user in &accounts.users {
+        if let UserKind::Sysusers { uid, group, gecos: _, home: _, shell: _ } = &user.value.kind
+            && user.value.name.as_ref() == name
             && group.as_ref() == name
         {
-            let at = place(task, *at);
+            let at = user.source.place();
             if package {
                 return Err((Why::NotPackageGroup, Some(at)));
             }

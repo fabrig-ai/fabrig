@@ -13,10 +13,7 @@ mod forgery;
 
 #[must_use]
 pub fn jig_test() -> PathBuf {
-    let exe = std::env::current_exe().expect("test executable");
-    let binary = exe.parent().and_then(Path::parent).expect("target directory").join("jig-test");
-    assert!(binary.is_file(), "build the browser server with cargo build -p jig-test: {}", binary.display());
-    binary
+    skein_scratch::paths::built("jig-test", "jig-test")
 }
 #[must_use]
 #[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_TEST_CHROMIUM and PATH to locate Chromium")]

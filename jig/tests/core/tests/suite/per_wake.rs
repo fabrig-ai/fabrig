@@ -337,6 +337,13 @@ fn read_question(seed: u64, wakes: bool) -> (World, (u64, u64), tasks::Word) {
     story::turn(&mut world, run, Some(read));
     story::park(&mut world, run, Some(read));
     assert!(live_row(&world, run.0).inbox.is_empty());
+    if wakes {
+        let reminder = world.assigned.as_ref().expect("one wake for the read question");
+        let reminder = (reminder.task, reminder.attempt);
+        assert!(reminder.1 > run.1);
+        story::park(&mut world, reminder, None);
+        assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Idle));
+    }
     fixtures::ask(
         &mut world,
         85,
@@ -362,7 +369,11 @@ fn an_open_question_survives_its_read_in_the_next_brief() {
 fn an_open_question_selects_its_part_when_person_words_wake_the_run() {
     for wakes in [true, false] {
         let (mut world, run, _) = read_question(867, wakes);
-        assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::WORDS.union(tasks::Reasons::QUESTION));
+        assert_eq!(
+            live_row(&world, run.0).reasons,
+            tasks::Reasons::WORDS.union(tasks::Reasons::QUESTION),
+            "questions wake: {wakes}"
+        );
         assert_eq!(world.assigned.as_ref().expect("words run").run.policy.instructions.as_ref(), b"S\n\nQ");
         assert!(live_row(&world, run.0).offered.contains(tasks::Reasons::QUESTION));
         world.close();
@@ -508,7 +519,17 @@ fn arriving_after_preparation(seed: u64, kind: Arriving) {
     assert!(live_row(&world, run.0).inbox.is_empty());
     let assignments = world.assignments.len();
     story::park(&mut world, second, Some(arriving.number));
-    assert_eq!(world.assignments.len(), assignments, "the arriving kind needs no later run");
+    assert_eq!(world.assignments.len(), assignments, "the workspace completion still gates a later claim");
+    if matches!(kind, Arriving::Question) {
+        assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Preparing));
+        let reminder = world.domain.take_workspace().expect("the read question wakes once despite the timer");
+        world.send(jig_test_domain::Event::Core(reminder));
+        let next = world.assigned.as_ref().expect("question reminder run");
+        let next = (next.task, next.attempt);
+        assert!(next.1 > second.1);
+        assert_eq!(live_row(&world, run.0).question_woken, arriving.number);
+        story::park(&mut world, next, None);
+    }
     assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Idle));
     assert!(world.domain.take_workspace().is_none());
     world.close();

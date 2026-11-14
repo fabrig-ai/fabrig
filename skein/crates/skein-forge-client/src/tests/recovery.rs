@@ -561,7 +561,7 @@ fn rate_refused_writes_save_a_new_attempt() {
     );
 }
 #[test]
-fn attempted_or_unknown_withdrawals_are_noops() {
+fn withdrawing_an_attempt_keeps_its_find_and_an_unknown_withdrawal_is_a_noop() {
     let mut h = fixture::uncertain_comment();
     let find = h.one();
     while h.domain.pop_fact().is_some() {}

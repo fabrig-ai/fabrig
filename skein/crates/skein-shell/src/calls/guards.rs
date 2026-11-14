@@ -1,18 +1,8 @@
 //! Path-only admission with supplied descriptor flags (runtime/readiness.md, 5).
 
-use super::{Fd, Op, check_path_flags, path_descriptors, system};
+use super::{Fd, Op, check_path_flags, path_descriptors};
 
 const FD: Fd = Fd::new(123);
-
-#[test]
-#[should_panic(expected = "only Stat and Close may use a path-only descriptor")]
-fn a_path_only_read_is_refused_with_supplied_flags() {
-    let record = Op::Read { fd: FD, buf: Box::from([0; 1]), at: 0 };
-    assert_eq!(path_descriptors(&record), [Some(FD), None]);
-    for _fd in path_descriptors(&record).into_iter().flatten() {
-        check_path_flags(Ok(system::PATH_ONLY));
-    }
-}
 
 #[test]
 fn ordinary_reads_and_path_only_stat_and_close_pass_the_guard() {

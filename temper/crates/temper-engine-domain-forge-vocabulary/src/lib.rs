@@ -51,6 +51,7 @@ pub mod status;
 mod tests;
 pub mod text;
 pub mod tiers;
+pub use tiers::{TierAct, TierActRequest, TierRefusal};
 pub mod verification;
 pub mod views;
 pub mod workflows;

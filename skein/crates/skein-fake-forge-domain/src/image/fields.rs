@@ -122,6 +122,7 @@ pub(super) fn get_conclusion(input: &mut Reader<'_>, _limits: &Limits) -> Result
 }
 pub(super) fn put_step_status(out: &mut Sink, v: actions::StepStatus) {
     out.u8(match v {
+        actions::StepStatus::Running => 3,
         actions::StepStatus::Success => 0,
         actions::StepStatus::Failure => 1,
         actions::StepStatus::Cancelled => 2,
@@ -129,6 +130,7 @@ pub(super) fn put_step_status(out: &mut Sink, v: actions::StepStatus) {
 }
 pub(super) fn get_step_status(input: &mut Reader<'_>, _limits: &Limits) -> Result<actions::StepStatus, Refusal> {
     match codec::u8(input)? {
+        3 => Ok(actions::StepStatus::Running),
         0 => Ok(actions::StepStatus::Success),
         1 => Ok(actions::StepStatus::Failure),
         2 => Ok(actions::StepStatus::Cancelled),
@@ -384,6 +386,7 @@ pub(super) fn get_workflow(input: &mut Reader<'_>, limits: &Limits) -> Result<ap
         select: get_optional_name(input, limits)?,
         file: bytes(input, limits.name_bytes, "name")?,
         jobs: get_contexts(input, limits)?,
+        requirements: Box::new([]),
         latency_min: duration(input)?,
         latency_max: duration(input)?,
         silent: u32(input)?,
@@ -463,6 +466,9 @@ pub(super) fn get_job(input: &mut Reader<'_>, limits: &Limits) -> Result<actions
         state: get_run_state(input, limits)?,
         conclusion: get_optional_conclusion(input, limits)?,
         steps: get_steps(input, limits)?,
+        labels: Box::new([]),
+        needs: Box::new([]),
+        wait: None,
     })
 }
 pub(super) fn put_step(out: &mut Sink, v: &actions::Step) {

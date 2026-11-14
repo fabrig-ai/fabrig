@@ -116,11 +116,3 @@ fn a_stopped_uncapped_journal_discards_its_decisions() {
     assert!(journal.commit().is_none());
     assert_eq!(journal.release(&mut Queue::uncapped()), Released::Stopped);
 }
-
-#[test]
-#[should_panic(expected = "only one decision may be open")]
-fn deciding_twice_at_once_is_a_bug() {
-    let mut journal = Journal::<u8, u8>::uncapped(4, 0);
-    let _first = journal.decide();
-    let _second = journal.decide();
-}

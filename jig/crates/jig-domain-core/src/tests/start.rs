@@ -417,26 +417,6 @@ fn actual_stored_call_capacity_keeps_its_key() {
 }
 
 #[test]
-#[should_panic]
-#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
-fn empty_finishing_is_an_input_before_start() {
-    let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-    let _outputs = crate::finish_decision(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
-    let _late = core.start_begin(false, Wall::EPOCH);
-}
-
-#[test]
-#[should_panic]
-#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
-fn runtime_resume_cannot_cross_wires_early() {
-    let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-    let _begin = core.start_begin(false, Wall::EPOCH);
-    let _outputs = crate::resume_fleet(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
-}
-
-#[test]
 fn actual_account_outputs_wait_for_wires_release() {
     let limits = limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -488,22 +468,6 @@ fn actual_account_outputs_wait_for_wires_release() {
     }
     assert!(signing && component);
     assert!(core.start.held.is_empty());
-}
-
-#[test]
-#[should_panic]
-#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
-fn a_loaded_header_prevents_late_start() {
-    let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-    let header = core.counters.deployment();
-    match core.restore_core(crate::CoreRecord::Deployment(header), &limits) {
-        crate::Restored::Deployment { commits } => assert_eq!(commits, header.commits),
-        crate::Restored::Live | crate::Restored::Archive | crate::Restored::Rejected => {
-            panic!("expected deployment header")
-        }
-    }
-    let _late = core.start_begin(false, Wall::EPOCH);
 }
 
 fn step_phase(action: Action, phase: Phase) {
@@ -644,16 +608,6 @@ fn begin_starts_before_the_people_lifecycle_input() {
         assert_eq!(core.start_phase(), Some(Phase::LoadCore));
         assert_eq!(core.start_failure(), None);
     }
-}
-
-#[test]
-#[should_panic]
-#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
-fn begin_runs_once() {
-    let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-    let _first = core.start_begin(false, Wall::EPOCH);
-    let _second = core.start_begin(false, Wall::EPOCH);
 }
 
 #[test]

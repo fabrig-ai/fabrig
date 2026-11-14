@@ -383,7 +383,10 @@ client's evidence: unsent, possibly sent, or a response received.
     calling before the head, streaming, draining, idle, closing), crossed
     with a call's terminal racing it: one terminal per call, `closed` once
     and last, and no spin, so that when only io's settlement is left the
-    component has no work and no deadline past due;
+    component has no work and no deadline past due. The world's judge of
+    these returns each breach as its finding, and the world panics on it
+    at its top; the judge's own tests read the finding
+    (../testing/README.md, 5);
   - an abort after a close, and a close after an abort.
 - **A simulated world** (../../foundation/testing-strategy.md, 2.7), with io over the
   simulator and the fake peer as a simulated server. The peer stays live

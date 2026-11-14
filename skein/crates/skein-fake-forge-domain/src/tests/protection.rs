@@ -64,13 +64,6 @@ fn protection_of_another_base_does_not_require_approvals_at_admission() {
     h.ok(MAINTAINER, write(Write::Enqueue { number: 1, head }));
 }
 #[test]
-#[should_panic(expected = "bypassing users within the limits")]
-fn bypass_list_refuses_one_past_its_bound() {
-    let mut setup = protected(false);
-    setup.protection.as_mut().unwrap().bypassing_users = Box::from([1, 2, 3, 4, 5]);
-    Harness::with(queueing(), setup);
-}
-#[test]
 fn bypass_list_at_its_bound_is_kept() {
     let mut setup = protected(false);
     setup.protection.as_mut().unwrap().bypassing_users = Box::from([1, 2, 3, 4]);

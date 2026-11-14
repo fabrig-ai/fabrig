@@ -23,6 +23,7 @@ mod settings;
 pub mod table;
 #[cfg(test)]
 mod tests;
+mod tier;
 
 pub mod help;
 

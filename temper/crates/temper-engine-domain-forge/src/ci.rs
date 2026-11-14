@@ -1,4 +1,5 @@
-//! CI on a commit, folded over the adoption's contexts (domain/forge/keeping-up.md, 3).
+//! CI on a commit, folded over the adoption's contexts (domain/forge/keeping-up.md, 3;
+//! temper/docs/design/domain/after-landing.md, 9, Not CI).
 use alloc::boxed::Box;
 use skein_forge::api::{Check, Ci, Status};
 
@@ -15,6 +16,9 @@ pub(crate) fn fold(checks: &[Status], required: &[Box<[u8]>]) -> Ci {
     let mut reported = false;
     let mut pending = false;
     for row in checks {
+        if required.is_empty() && row.context.starts_with(b"temper/verdict/") {
+            continue;
+        }
         if !required.is_empty() && !required.contains(&row.context) {
             continue;
         }
@@ -59,6 +63,17 @@ mod tests {
             want: Ci,
         }
         let cases = [
+            Case {
+                rows: &[(b"temper/verdict/slow", Check::Failed), (b"ci", Check::Passed)],
+                required: &[],
+                want: Ci::Passed,
+            },
+            Case { rows: &[(b"temper/verdict/slow", Check::Failed)], required: &[], want: Ci::None },
+            Case {
+                rows: &[(b"temper/verdict/slow", Check::Failed)],
+                required: &[b"temper/verdict/slow"],
+                want: Ci::Failed,
+            },
             Case { rows: &[], required: &[], want: Ci::None },
             Case { rows: &[(b"ci", Check::Passed)], required: &[], want: Ci::Passed },
             Case { rows: &[(b"ci", Check::Passed), (b"lint", Check::Pending)], required: &[], want: Ci::Pending },

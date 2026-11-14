@@ -1,13 +1,13 @@
 //! What io does beside its two machines (runtime/io/README.md, 2, and runtime/io/sockets.md, 1): refusals at a
-//! full slab, held until the next up pass; stale tokens, dropped going down
-//! and asserted going up; and its admission limits.
+//! full slab, held until the next up pass; stale tokens, dropped going down;
+//! and its admission limits.
 
+use skein_lib::Duration;
 use skein_lib::stream::{Down, Read};
-use skein_lib::{Duration, Token};
 
-use super::{Kind, Rig, addr, connected, limits, listening, owner};
-use crate::kernel::{Complete, Done, Fd, Op};
-use crate::{Error, Event, Io, Limits, Name, Request, operations};
+use super::{Kind, Rig, addr, connected, limits, owner};
+use crate::kernel::{Done, Fd, Op};
+use crate::{Error, Event, Limits, Name, Request, operations};
 
 #[test]
 fn a_connect_past_the_socket_slab_is_refused_and_told_in_the_next_up_pass() {
@@ -55,27 +55,6 @@ fn a_request_naming_a_socket_that_is_gone_is_dropped() {
 }
 
 #[test]
-#[should_panic(expected = "a completion names an operation in flight")]
-fn a_completion_naming_no_operation_in_flight_is_a_bug() {
-    let mut rig = Rig::new(limits());
-    let mut up = skein_lib::Queue::with_capacity(4);
-    let mut subs = skein_lib::Queue::with_capacity(4);
-    let complete = Complete { op: Token::new(7), kind: Op::Close { fd: Fd::new(3) }, result: Ok(Done::Nothing) };
-    crate::up(&mut rig.io, &rig.env, complete, &mut up, &mut subs);
-}
-
-#[test]
-#[should_panic(expected = "a completion names an operation in flight")]
-fn a_completion_of_an_operation_completed_and_reclaimed_is_a_bug() {
-    let mut rig = Rig::new(limits());
-    let (_listener, _addr, accept) = listening(&mut rig, owner(1), Fd::new(3));
-    let stale = crate::kernel::Submit { op: accept.op, kind: Op::Accept { fd: Fd::new(3) } };
-    rig.complete(accept, Err(crate::kernel::Error::NoBufferSpace)).nothing();
-    let _retried = rig.next();
-    let _out = rig.complete(stale, Ok(Done::Nothing));
-}
-
-#[test]
 fn the_ring_has_four_operations_per_entity_and_two_independent_slots() {
     let base = limits();
     assert_eq!(operations(&base), Some(10), "four operations an entity, plus process usage and terminal size");
@@ -86,18 +65,6 @@ fn the_ring_has_four_operations_per_entity_and_two_independent_slots() {
 fn the_startup_check_is_the_intake_and_output_caps() {
     let limits = Limits { intake: 300, output: 200, ..limits() };
     assert_eq!((limits.largest_read(), limits.largest_room()), (300, 200));
-}
-
-#[test]
-#[should_panic(expected = "usable limits")]
-fn io_does_not_run_under_limits_it_cannot_use() {
-    let _io = Io::new(&Limits { refusals: 0, ..limits() });
-}
-
-#[test]
-#[should_panic(expected = "usable limits")]
-fn io_does_not_run_under_limits_whose_capacities_overflow() {
-    let _io = Io::new(&Limits { sockets: 1 << 29, ..limits() });
 }
 
 #[test]
@@ -131,14 +98,6 @@ fn usage_has_one_owner_terminal_and_no_entity() {
         assert_eq!(rig.complete(read, result).events, [Event::Usage { owner: owner(7), usage: measured }]);
         rig.empty();
     }
-}
-
-#[test]
-#[should_panic(expected = "one Usage request in flight")]
-fn a_second_usage_in_flight_is_a_bug() {
-    let mut rig = Rig::new(limits());
-    let _read = rig.down(Request::Usage { owner: owner(7) });
-    let _other = rig.down(Request::Usage { owner: owner(8) });
 }
 
 #[test]

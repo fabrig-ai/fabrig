@@ -80,6 +80,7 @@ fn pending(task: u64) -> PendingStep {
         pull_ci: true,
         ci: change::Status::Passed,
         failed: crate::change_ci::Failed::new(Box::new([])),
+        stall: None,
         base_ci: change::Status::Passed,
         contains_base: change::Status::Passed,
         contains_head: change::Status::Failed,
@@ -89,10 +90,32 @@ fn pending(task: u64) -> PendingStep {
         paths: Box::new([]),
         paths_whole: false,
         woken: false,
+        retry_at: None,
     }
 }
 fn follower_facts(d: &Domain) -> change::Facts {
     change_facts(d, &env(), d.changes.get(&SECOND).unwrap(), &pending(SECOND), BASE)
+}
+
+#[test]
+fn a_drift_hold_carries_the_branch_read_that_decided_it() {
+    let mut d = changes_setup(change::State::Opening { requested: true }, SINCE);
+    let mut read = pending(OWNER);
+    let observed = [5; 32];
+    read.branch = Some(observed);
+    let mut out = Queue::uncapped();
+    decide_step(&mut d, &env(), read, &mut out);
+    let mut carried = None;
+    while let Some(request) = out.pop() {
+        if let Request::ChangeDecision {
+            decision: change::Decision::Hold(change::Hold::BranchMoved), evidence, ..
+        } = request
+        {
+            carried = evidence;
+        }
+    }
+    assert_eq!(carried.expect("the held step carries its deciding read").head, Some(observed));
+    assert_eq!(d.change(OWNER).expect("held change").change.last_head, Some(HEAD));
 }
 
 #[test]
@@ -172,6 +195,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                 Event::DelegateRefused { task: OWNER, child: REVIEWER }
             } else {
                 Event::DelegateResult {
+                    ended_at: None,
                     task: OWNER,
                     child: REVIEWER,
                     status: change::Status::Failed,

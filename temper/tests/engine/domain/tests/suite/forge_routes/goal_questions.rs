@@ -26,17 +26,25 @@ const RESULT_BYTES: u32 = 256;
 // Three change results, two topic notices, core news, a question and a hold escalation.
 const INBOX_BYTES: u32 = 8 * RESULT_BYTES;
 
-struct Story {
-    world: World,
-    goal: engine::Assignment,
-    a: u64,
-    b: u64,
-    branch: Box<[u8]>,
-    main: u64,
-    producer: engine::Assignment,
+pub(super) struct Story {
+    pub(super) world: World,
+    pub(super) goal: engine::Assignment,
+    pub(super) a: u64,
+    pub(super) b: u64,
+    pub(super) branch: Box<[u8]>,
+    pub(super) main: u64,
+    pub(super) producer: engine::Assignment,
 }
 
 fn start(bound: Option<u32>) -> Story {
+    start_with(bound, false)
+}
+
+pub(super) fn independent() -> Story {
+    start_with(None, true)
+}
+
+fn start_with(bound: Option<u32>, independent: bool) -> Story {
     let mut world = World::configured_limits(
         true,
         true,
@@ -104,9 +112,12 @@ fn start(bound: Option<u32>) -> Story {
     assert_eq!(forge_hold(&world, &branch).expect("goal holds g").task, goal.task);
     let main = branch_tip(&mut world, b"main");
     assert_eq!(branch_tip(&mut world, &branch), main);
-    let input = smith_domain_run::HostInput::attested(
-        br#"{"changes":[{"name":"a","words":"Add A","landing":"goal","questions":"up"},{"name":"b","words":"Add B","landing":"goal","after":["a"],"questions":"up"}]}"#.as_slice().into(),
-    ).expect("bounded change input");
+    let changes: &[u8] = if independent {
+        br#"{"changes":[{"name":"a","words":"Add A","landing":"goal","questions":"up"},{"name":"b","words":"Add B","landing":"goal","questions":"up"}]}"#
+    } else {
+        br#"{"changes":[{"name":"a","words":"Add A","landing":"goal","questions":"up"},{"name":"b","words":"Add B","landing":"goal","after":["a"],"questions":"up"}]}"#
+    };
+    let input = smith_domain_run::HostInput::attested(changes.into()).expect("bounded change input");
     let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
         smith_domain_run::CallName { activation: goal.attempt, completion: 1, position: 1 },
         b"change",
@@ -120,17 +131,20 @@ fn start(bound: Option<u32>) -> Story {
     };
     assert_eq!(made.len(), TWO_CHANGES);
     let (a, b) = (made[0].task, made[1].task);
-    assert_eq!(live_task(&world, b).dependencies.as_ref(), &[a]);
+    let dependencies = [a];
+    assert_eq!(live_task(&world, b).dependencies.as_ref(), if independent { &[][..] } else { &dependencies[..] });
     let producer = next_producer(&mut world, a);
     world.until(Until::Ready);
-    assert_eq!(world.assigned.len(), GOAL_AND_A, "B waits although a worker slot is free");
+    if !independent {
+        assert_eq!(world.assigned.len(), GOAL_AND_A, "B waits although a worker slot is free");
+    }
     assert_eq!(row(&world, a).base, branch);
     assert_eq!(row(&world, a).questions.route, Route::Up);
     assert!(live_task(&world, b).spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 2 }));
     Story { world, goal, a, b, branch, main, producer }
 }
 
-fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
+pub(super) fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..STEPS {
         world.tick();
         if let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change)))
@@ -149,7 +163,7 @@ fn park(world: &mut World, producer: &engine::Assignment) {
     park_after_turn(world, producer, None, turns);
 }
 
-fn ask_up(world: &mut World, producer: &engine::Assignment, change: u64) -> (u64, u64) {
+pub(super) fn ask_up(world: &mut World, producer: &engine::Assignment, change: u64) -> (u64, u64) {
     let question = world.producer_question(producer, 100 + producer.attempt, QUESTION);
     assert!(live_task(world, producer.task).questions.iter().any(|q| q.number == question));
     park(world, producer);
@@ -191,7 +205,7 @@ fn assert_panel(world: &mut World, change: u64, asker: u64, number: u64, words: 
     world.until(Until::Ready);
 }
 
-fn resumed(
+pub(super) fn resumed(
     world: &mut World,
     producer: &engine::Assignment,
     change: u64,
@@ -222,7 +236,7 @@ fn ended(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
     }
 }
 
-fn land(
+pub(super) fn land(
     world: &mut World,
     goal: u64,
     change: u64,
@@ -358,7 +372,7 @@ fn passed_up(world: &mut World, goal: u64, change: u64, words: &[u8]) -> u64 {
     );
 }
 
-fn finish_story(story: &mut Story) {
+pub(super) fn finish_story(story: &mut Story) {
     if ended(&story.world, story.b).is_none() {
         let producer = next_producer(&mut story.world, story.b);
         let base = branch_tip(&mut story.world, &story.branch);

@@ -47,6 +47,7 @@ fn a_merge_outcome_ends_passed_reds_but_not_a_later_generation_or_another_destin
 fn merged_pull() -> PendingStep {
     PendingStep {
         task: CHANGE,
+        retry_at: None,
         entry: OPEN,
         follow_tree: List::with_capacity(LIMITS.key_entries),
         stage: StepStage::Branch,
@@ -77,6 +78,7 @@ fn merged_pull() -> PendingStep {
         pull_ci: false,
         ci: change::Status::Passed,
         failed: change_ci::Failed::new(Box::new([])),
+        stall: None,
         base_ci: change::Status::Passed,
         contains_base: change::Status::Passed,
         contains_head: change::Status::Unknown,

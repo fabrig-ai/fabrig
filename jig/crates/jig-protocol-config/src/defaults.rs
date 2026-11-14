@@ -31,6 +31,9 @@ pub fn pass(engine: &mut Engine, defaults: jig_domain_core_vocabulary::settings:
     if problems.is_empty() {
         domain::seeds(engine, &mut problems);
     }
+    if problems.is_empty() {
+        domain::check_needs(engine, &mut problems);
+    }
     if problems.is_empty() { Ok(()) } else { Err(problems) }
 }
 
@@ -41,6 +44,9 @@ pub(crate) fn document(engine: &mut Engine, problems: &mut Problems) {
             domain::seeds(engine, problems);
         }
         domain::document_defaults(engine, problems);
+        if problems.is_empty() {
+            domain::check_needs(engine, problems);
+        }
     }
 }
 

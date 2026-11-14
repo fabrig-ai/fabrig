@@ -1,11 +1,13 @@
 use super::{composition::at, only};
 use crate::{
+    entries::Claimant,
     errors::{Error, Owns},
     ids::{self, Owned},
     kinds::{
         groups::Group,
-        users::{Accounts, User, UserKind},
+        users::{Accounts, User},
     },
+    parts::config::{self, GroupKind, UserKind},
     revision::Position,
 };
 use skein_lib::bytes::copy_of;
@@ -14,27 +16,37 @@ pub fn id_accounts(users: &[User], groups: &[Group]) -> Accounts {
 }
 pub fn sysusers(name: &[u8], uid: Option<u32>) -> User {
     User {
-        name: copy_of(name),
-        task: copy_of(b"motd"),
-        at: at(1, 30),
-        kind: UserKind::Sysusers {
-            uid,
-            group: copy_of(name),
-            gecos: copy_of(b""),
-            home: copy_of(b"/"),
-            shell: copy_of(b"/usr/sbin/nologin"),
-            subordinate: None,
-            member_of: Box::new([]),
+        value: config::User {
+            name: copy_of(name),
+            kind: UserKind::Sysusers {
+                uid,
+                group: copy_of(name),
+                gecos: copy_of(b""),
+                home: copy_of(b"/"),
+                shell: copy_of(b"/usr/sbin/nologin"),
+            },
         },
+        source: Claimant::new(b"motd", at(1, 30)),
+        subordinate: None,
+        member_of: Box::new([]),
+        package_ids: (None, None),
     }
 }
 pub fn package_user(name: &[u8], uid: Option<u32>, gid: Option<u32>) -> User {
     let mut user = sysusers(name, uid);
-    user.kind = UserKind::Package { uid, gid };
+    user.value.kind = UserKind::Package;
+    user.package_ids = (uid, gid);
     user
 }
 pub fn id_group(name: &[u8], gid: Option<u32>, package: bool) -> Group {
-    Group { name: copy_of(name), task: copy_of(b"motd"), at: at(1, 40), gid, package }
+    Group {
+        value: config::Group {
+            name: copy_of(name),
+            kind: if package { GroupKind::Package } else { GroupKind::Sysusers { gid } },
+        },
+        source: Claimant::new(b"motd", at(1, 40)),
+        package_gid: if package { gid } else { None },
+    }
 }
 pub const OWNER_AT: Position = Position { line: 1, column: 71 };
 pub fn owned_by<'a>(of: Owns, entry: &'a [u8], owner: &'a [u8], group: &'a [u8], at: Position) -> Owned<'a> {

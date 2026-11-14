@@ -346,6 +346,7 @@ impl Referee<Process> for Judge {
     }
     fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let client = processes[1].client().expect("client process");
+        client.check_contracts()?;
         let address_ready = processes[0].issuer().is_some_and(|peer| peer.address().is_some());
         self.wake = ((!self.delivered && address_ready) || (client.is_empty() && !self.shutdown)).then_some(now);
         self.passed = self.shutdown && processes.iter().all(Host::is_empty);

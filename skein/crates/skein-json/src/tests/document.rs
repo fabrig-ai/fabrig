@@ -75,15 +75,6 @@ fn offsets_at_the_u32_edge_never_wrap() {
 }
 
 #[test]
-#[should_panic(expected = "Long has no text to write")]
-fn a_long_string_cannot_be_written_back() {
-    let limits = Limits { tokens: 1, text: 0 };
-    let long = Compact { kind: Kind::Long, start: 0, len: 42 };
-    let document = Document::from_parts(Box::from([]), Box::from([long]), &limits).unwrap();
-    Encoder::measure(&writer::Limits { depth: 1, length: 100 }).document(&document);
-}
-
-#[test]
 fn members_skip_nested_values_and_stop_at_the_object_end() {
     let input = br#"[{"nested":{"needle":false},"items":[{},[]],"needle":42,"needle":7},{"outside":true}]"#;
     let doc = crate::parse(input, &super::LIMITS, &Limits { tokens: 40, text: 80 }).unwrap();

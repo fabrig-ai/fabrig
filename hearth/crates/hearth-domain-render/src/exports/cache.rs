@@ -3,7 +3,7 @@ use super::{Exported, evaluation};
 use crate::{
     compose::{self, Target},
     errors::{self, Cause, Error, Kind, Place},
-    evaluate::{Entry, FaultKind, Value, context},
+    evaluate::{Entry, Value, context},
     limits::Limits,
     revision::{self, declaration::Declaration},
     schema::{self, Against, Check},
@@ -311,17 +311,5 @@ fn placed(target: &Target, task: &[u8], kind: Kind, path: &[u8], at: revision::P
     }
 }
 fn limit(target: &Target, task: Option<&[u8]>) -> Error {
-    let mut scope = None;
-    if let Some(task) = task {
-        scope = Some(bytes::copy_of(task));
-    }
-    Error {
-        side: None,
-        kind: Kind::Evaluation(FaultKind::Limit),
-        class: errors::Class::Configuration,
-        at: None,
-        also: None,
-        target: Some(target.name.clone()),
-        task: scope,
-    }
+    errors::target_limit(&target.name, task)
 }

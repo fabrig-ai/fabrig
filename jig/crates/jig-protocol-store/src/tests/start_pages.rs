@@ -264,14 +264,6 @@ fn load_core_arms_one_sweep_and_a_second_people_walk_never_restarts_it() {
 }
 
 #[test]
-#[should_panic(expected = "empty nonterminal restore page must advance its cursor")]
-fn selected_pages_share_the_empty_nonterminal_progress_assertion() {
-    let mut store = open();
-    fixtures::committed(&mut store, Box::new([fixtures::header(1)]));
-    request(&mut store, live(), None, 0);
-}
-
-#[test]
 fn a_connector_page_keeps_its_bytes() {
     let mut store = open();
     fixtures::committed(

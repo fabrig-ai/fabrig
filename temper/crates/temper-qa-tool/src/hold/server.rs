@@ -47,6 +47,7 @@ pub struct Holder {
 impl Holder {
     /// Production uses five seconds; focused tests can shorten the ledger watch.
     pub fn start(drive: Drive, environment: Environment, watch_period: Duration) -> Result<Self, Refusal> {
+        drive.place.ensure()?;
         let lock = drive.lock()?;
         lock.try_lock().map_err(|_| drive.busy())?;
         let scripts = drive.scripts()?;

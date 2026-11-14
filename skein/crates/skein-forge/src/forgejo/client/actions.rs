@@ -18,6 +18,7 @@ pub(crate) enum ActionKind {
     Jobs,
     Step,
     Steps,
+    Labels,
 }
 const fn field(key: &'static [u8], read: Read) -> Field {
     Field { key, read, required: true }
@@ -68,6 +69,7 @@ pub(crate) fn fields(kind: ActionKind) -> &'static [Field] {
                     field(b"attempt", Read::Number),
                     Field { key: b"name", read: Read::Text, required: false },
                     Field { key: b"status", read: Read::Text, required: false },
+                    Field { key: b"runs_on", read: Read::Array(Kind::Action(ActionKind::Labels)), required: false },
                     Field { key: b"steps", read: Read::Array(Kind::Action(ActionKind::Steps)), required: false },
                 ]
             }
@@ -84,11 +86,12 @@ pub(crate) fn fields(kind: ActionKind) -> &'static [Field] {
             const { &[field(b"number", Read::Number), field(b"name", Read::Body), field(b"status", Read::Text)] }
         }
         ActionKind::Actor => const { &[field(b"id", Read::Number)] },
-        ActionKind::Artifacts | ActionKind::Runs | ActionKind::Jobs | ActionKind::Steps => &[],
+        ActionKind::Labels | ActionKind::Artifacts | ActionKind::Runs | ActionKind::Jobs | ActionKind::Steps => &[],
     }
 }
 pub(crate) fn element(kind: ActionKind) -> Option<Kind> {
     match kind {
+        ActionKind::Labels => Some(Kind::Action(ActionKind::Labels)),
         ActionKind::Artifacts => Some(Kind::Action(ActionKind::Artifact)),
         ActionKind::Runs => Some(Kind::Action(ActionKind::Run)),
         ActionKind::Jobs => Some(Kind::Action(ActionKind::Job)),
@@ -137,7 +140,7 @@ impl Actions {
                     skein_json::tokenizer::Request::Next,
                 );
             }
-            Move::End(Kind::Action(ActionKind::Artifacts)) => Ok(()),
+            Move::End(Kind::Action(ActionKind::Labels | ActionKind::Artifacts)) => Ok(()),
             Move::End(Kind::Action(ActionKind::Run)) => {
                 if self.root == ActionKind::Listing {
                     self.actor_seen = false;
@@ -205,6 +208,7 @@ impl Actions {
                     ActionKind::Artifact
                     | ActionKind::Actor
                     | ActionKind::Step
+                    | ActionKind::Labels
                     | ActionKind::Steps
                     | ActionKind::Runs => {
                         unreachable!("action root selection")
@@ -275,7 +279,11 @@ impl Actions {
                     }
                 }
                 b"status" => {
-                    let status = document::step_status(&text).ok_or(Malformed::Value { field: key })?;
+                    let status = if kind == Kind::Action(ActionKind::Job) {
+                        document::step_status(&text).unwrap_or(StepStatus::Unknown)
+                    } else {
+                        document::step_status(&text).ok_or(Malformed::Value { field: key })?
+                    };
                     if kind == Kind::Action(ActionKind::Run) {
                         self.run.status = status;
                     } else if kind == Kind::Action(ActionKind::Job) {
@@ -285,6 +293,10 @@ impl Actions {
                     }
                 }
                 _ => unreachable!("action text table"),
+            },
+            Value::Body(body) if kind == Kind::Action(ActionKind::Labels) => match body {
+                Body::Kept(label) => crate::job_state::keep(&mut self.job.labels, &mut self.job.cut, label),
+                Body::Long(_) => self.job.cut = true,
             },
             Value::Body(body) => {
                 self.step.name = match body {

@@ -82,6 +82,11 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
         "gates":[{"forge":1,"repository":repository,
             "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true}]}]
     }]);
+    // Each member and the train need watched branches
+    // (temper/docs/design/protocol/configuration/limits.md, forge.landing_members).
+    let members = u32::from(batch);
+    config["application"]["limits"]["overrides"]["forge.landing_members"] = members.into();
+    config["application"]["limits"]["overrides"]["forge.resources_per_task"] = (members + 1).into();
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
     let path = root.join("native-landing-settings.json");
     let mut settings: Value =

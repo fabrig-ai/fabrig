@@ -89,6 +89,34 @@ pub fn to_root(
                         })),
                     }));
                 }
+                w::Request::TierAct(value) => {
+                    let value = value.into_parts();
+                    let repository = match value.repository {
+                        Some(named) => {
+                            let named = named.into_parts();
+                            Some(forge::DraftRepository { owner: named.owner, name: named.name })
+                        }
+                        None => None,
+                    };
+                    let act = match value.act {
+                        w::TierAct::Hold(value) => forge::TierAct::Hold { reason: value.into_parts().reason },
+                        w::TierAct::Release => forge::TierAct::Release,
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Tier(forge::TierActRequest {
+                            project: value.project,
+                            repository,
+                            tier: value.tier,
+                            act,
+                        }),
+                    }));
+                }
                 w::Request::FollowAct(value) => {
                     let value = value.into_parts();
                     let act = match value.act {
@@ -211,6 +239,7 @@ pub fn to_root(
                         | w::Request::MakeRepository(_)
                         | w::Request::Reachable(_)
                         | w::Request::FollowAct(_)
+                        | w::Request::TierAct(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::FileFinding(_)
@@ -1002,6 +1031,21 @@ pub fn answer(
         Some(root::ApplicationAnswer::Adopt(
             forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
         )) => return None,
+        Some(root::ApplicationAnswer::Tier(value)) => {
+            let refusal = match value {
+                Ok(()) => None,
+                Err(why) => Some(match why {
+                    forge::TierRefusal::NoRepository => w::TierRefusal::NoRepository,
+                    forge::TierRefusal::NoTier => w::TierRefusal::NoTier,
+                    forge::TierRefusal::Held { party, reason } => {
+                        w::TierRefusal::Held(w::TierHeldBy::new(limits, w::TierHeldByParts { party, reason }).ok()?)
+                    }
+                    forge::TierRefusal::NotHeld => w::TierRefusal::NotHeld,
+                    forge::TierRefusal::Words => w::TierRefusal::Words,
+                }),
+            };
+            w::Outcome::Tier(w::TierOutcome::new(limits, w::TierOutcomeParts { refusal }).ok()?)
+        }
         Some(root::ApplicationAnswer::FileFinding(value)) => findings::file_answer(value, limits)?,
         Some(root::ApplicationAnswer::HandFinding(value)) => findings::hand_answer(value, limits)?,
         Some(root::ApplicationAnswer::TriageFinding(value)) => findings::triage_answer(value, limits)?,

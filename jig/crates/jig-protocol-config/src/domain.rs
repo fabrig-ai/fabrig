@@ -343,6 +343,25 @@ pub(crate) fn document_defaults(engine: &crate::Engine, problems: &mut Problems)
     }
 }
 
+/// Both document and passed defaults are checked after the final limits are known.
+pub(crate) fn check_needs(engine: &crate::Engine, problems: &mut Problems) {
+    let limits = &engine.limits.core;
+    // The core judges malformed passed defaults; constructing its Config requires these counts to fit.
+    if engine.charters.len() > skein_lib::length::usize_of(limits.tasks.charters)
+        || engine.policies.len() > skein_lib::length::usize_of(limits.authority.projects)
+    {
+        return;
+    }
+    let config = crate::core(engine, [0; 16], 0);
+    let needs = jig_domain_core_vocabulary::settings::fleet_needs::configured(&config, limits);
+    if let Err(past) = jig_domain_fleet::needs_fit(&limits.fleet, limits.settings.versions, &needs) {
+        problems.push(
+            Path::root().member(b"limits").member(b"fleet").member(b"needs_bytes"),
+            What::NeedsBytes { bytes: past.held, limit: past.limit },
+        );
+    }
+}
+
 pub(crate) fn check_message(limits: &jig_domain_core_vocabulary::Limits) -> Result<(), What> {
     if limits.people.words > limits.tasks.message_bytes
         || limits.tasks.result_bytes > limits.tasks.message_bytes
@@ -562,14 +581,14 @@ pub fn check_effective_limits(limits: &jig_domain_core_vocabulary::Limits) -> Re
 }
 
 fn batch_ceiling(limits: &jig_domain_core_vocabulary::Limits) -> Option<Problem> {
-    if limits.tasks.batch > jig_protocol_store::tasks_v12::CEILINGS.task_interests_result_followups {
+    if limits.tasks.batch > jig_protocol_store::tasks_v13::CEILINGS.task_interests_result_followups {
         return Some(Problem {
             path: codec_path(b"tasks.batch"),
             what: What::CodecCeiling {
                 bound: CodecBound {
                     field: b"tasks-v9.TaskInterests.result_followups",
                     needed: limits.tasks.batch,
-                    ceiling: jig_protocol_store::tasks_v12::CEILINGS.task_interests_result_followups,
+                    ceiling: jig_protocol_store::tasks_v13::CEILINGS.task_interests_result_followups,
                 },
             },
         });

@@ -316,7 +316,8 @@ no type with the echo. Each connection follows a plan:
 
 It holds no copy of what it sent: a line's bytes are drawn from the
 seed, and drawn again, from the same seed, to check its answer. It checks
-its peer as it goes, failing the world on the first breach: each answer
+its peer as it goes, failing the world on the first breach, which its
+check returns as its finding and its caller panics on (testing/README.md, 5): each answer
 is the oldest line unanswered, byte for byte; `busy\n` comes only first;
 `too long\n` only to the line past the limit; nothing comes after either
 but the end. What it saw (answers, refusals, the server's end, failures,

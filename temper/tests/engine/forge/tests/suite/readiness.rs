@@ -378,7 +378,7 @@ fn a_turn_hold_closes_ready_and_its_release_pairs_with_the_hold() {
     assert_eq!(events[1].operation, events[0].number);
     own(&events[2]);
     world.restart();
-    world.event(top::Event::ReleaseChange { task: CHANGE });
+    world.event(top::Event::ReleaseChange { task: CHANGE, release: None });
     let events = history(&world, CHANGE);
     assert_eq!(
         events.last().expect("release").what,
@@ -438,6 +438,7 @@ fn a_no_change_producer_result_records_the_ending_once() {
     row.delegate = Some((91, c::Delegate::Produce));
     world.event(top::Event::Change { row });
     let result = || top::Event::DelegateResult {
+        ended_at: None,
         task: CHANGE,
         child: 91,
         status: c::Status::Passed,
@@ -483,7 +484,7 @@ fn restoring_each_turn_interval_and_polling_writes_nothing_twice() {
             hold(&mut world);
         }
         if phase == 2 {
-            world.event(top::Event::ReleaseChange { task: CHANGE });
+            world.event(top::Event::ReleaseChange { task: CHANGE, release: None });
             step(&mut world, CHANGE, 102);
         }
         let events = history(&world, CHANGE);

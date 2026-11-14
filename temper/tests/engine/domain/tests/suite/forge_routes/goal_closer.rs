@@ -40,8 +40,9 @@ fn goal_world_with_ci(
 
 #[expect(
     clippy::too_many_arguments,
+    clippy::too_many_lines,
     clippy::fn_params_excessive_bools,
-    reason = "the update stories reuse the closer fixture with an independent main containment rule"
+    reason = "the update stories reuse the closer fixture with independent containment and read timing"
 )]
 fn goal_world_with_updates(
     close: bool,
@@ -123,6 +124,9 @@ fn goal_world_with_updates(
             approvals: Box::new([]),
         },
     ]));
+    if stall.is_some() {
+        world.tick_interval = Duration::from_millis(10);
+    }
     if commits.is_some() {
         let client = skein_forge_client::Limits { rows: 8, ..world.env.limits.forge.client };
         world = world.with_forge_client(client);
@@ -1201,6 +1205,7 @@ fn a_red_after_the_closers_landing_is_news_for_the_goal() {
         .collect::<Vec<_>>();
     assert!(!landings.contains(&b"main".as_slice()), "no main landings while the closer verifies: {landings:?}");
     assert!(landings.contains(&branch.as_ref()), "the goal keeps its branch's topic");
+    tier_runs::posted(&mut world);
     world.close();
 }
 

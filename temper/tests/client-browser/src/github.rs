@@ -219,6 +219,7 @@ fn seed_named(domain: &mut domain::Domain, config: &domain::Config, id: u32, nam
 // Adoption reads metadata and protection, without changing repository contents.
 fn domain_config() -> domain::Config {
     domain::Config {
+        runner_labels: None,
         setup_faults: 0,
         lost: 0,
         limits: domain::Limits {
@@ -263,6 +264,8 @@ fn domain_config() -> domain::Config {
         rate_window: Duration::ZERO,
         ci: 12,
         made_checks: domain::Config::test().made_checks,
+        made_workflows: domain::Config::test().made_workflows,
+        made_manual_merges: domain::Config::test().made_manual_merges,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,

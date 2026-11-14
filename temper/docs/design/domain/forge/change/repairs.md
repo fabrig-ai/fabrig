@@ -110,6 +110,42 @@
   - **Counted as asked:** the repair stays in the change's repairs, on its
     panel and in its result, whose reason for it goes on `then CI passed at H`
     (`README.md`, 2, step 7).
+- **A CI repair that changes nothing checks its head again.** A CI repair
+  (above: its reason CI failed at the head) changes nothing when it ends
+  finding nothing to do (its result `no_change`), or ends delivering with
+  the change's branch, read after its end, still at the head it was asked
+  to repair: a flake its agent saw pass, or a red that names no failing
+  test. Neither is a failure: neither holds the change, and the hold
+  "failed for good" stays a repair's that failed or was cancelled. At a
+  green head the rule above ends it. At a head whose CI still fails, the
+  change checks that head again, by the first of these that applies:
+  - **Run again at the head,** where the forge runs a job again (Forgejo
+    does; skein's GitHub adapter refuses the write) and a failed check at
+    the head names a job read at this head: the change runs that job again,
+    one write as a runner's re-run is (`README.md`, 2, step 3), choosing a
+    job the runner failed before another, its account's reason `a repair
+    changed nothing`. It is checking at the same head: the gates' verdicts
+    there stay valid, under a queue it keeps its turn, CI read at the head
+    is pending again until the new attempt ends, and its stall counts
+    afresh. One job runs again for each such repair; a failed check still
+    red after it is a red as any other.
+  - **Updated onto its base,** where no job can run again and the head
+    lacks its base's tip: an update (`../README.md`, section 6), counted
+    against its updates and holding past their bound as any update does,
+    and its new head is checked again (`README.md`, 2, step 3).
+  - **Otherwise its red stands:** checking at the same head, the next
+    repair is asked as for any red.
+
+  The repair that changed nothing stays counted as asked; the run again
+  and the update count no repair. A red that comes back asks the next
+  repair, counted, so a red that keeps coming back ends at the repair
+  bound: the change holds, its hold's account `its repairs are spent: N of
+  LIMIT taken`, N its repairs and LIMIT `forge.change_policy.repairs`, for
+  every change as for a follow change. Other reasons are not touched: a
+  gate's, a review's or a check's repair, a person's request for changes,
+  a landing's, a resolution and a queue's ejection that change nothing
+  hold the change as before (1, *A repair of another reason that changes
+  nothing*).
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
@@ -434,6 +470,24 @@
   the head lacks the base's tip (`../keeping-up.md`, 3), so the change takes its base, or
   in conflict goes to its merge job and then a resolution, however many
   commits behind it is.
+  **What a step reads is waited on too** (2026-11-13): the reads a
+  change makes to take its step (its branch, its base, its pull
+  request, its CI, the ancestry of its head and its base's tip) are a
+  wait on the forge as any is. A read with no answer, or one the forge
+  client keeps refusing for its own capacity, counts the stall from
+  its first read, and past it the change is held at that step, its
+  words that step's (*A stall's hold says where*, below). That count
+  is the reads' own (2026-11-14): kept while the reads start over on
+  news or are retried for capacity, counted afresh from a release or
+  from an exemption's end, and gone once the reads decide. It moves
+  nothing the step's own wait counts from, so the step's waits keep
+  their rules: a conflict's settling, an approval's wait, CI's alarm.
+  An exemption stands only while its cause does: its agent a
+  live task, that agent's question open, a dependency not ended, its
+  forge not connected or its repository out of reach. Once the cause
+  ends, the stall counts from that end, and no record left of a cause
+  that has ended (a question whose asker ended, a writer slot whose
+  writer ended) keeps it from counting.
 - **A stall's hold says where.** Its words name the step the change was
   held at and what it waits on, commits at the forge's short length, in
   one shape: `no progress at STEP for N minutes: waiting for WHAT`, N
@@ -448,7 +502,35 @@
   | updating | `its update of 0123456789ab with main at 89abcdef0123` |
   | landing | `its merge of 0123456789ab` |
 
-  A step not listed says its own wait in the same shape.
+  A step not listed says its own wait in the same shape. A change held
+  on its step's own reads (*What a step reads is waited on too*, above)
+  says that step's WHAT where the table gives one, and otherwise `the
+  forge to answer its reads` (2026-11-14): `no progress at producing for
+  30 minutes: waiting for the forge to answer its reads`.
+- **A stall on CI says why** (`../../../draft/ci-on-forgejo-17.md`,
+  section 3): before a change is held because CI at its head never
+  reported, it reads that head's checks afresh (skein's `Read::Checks`)
+  and the state of each pending check's job (skein's
+  `forge/job-state.md`), one read per job, only then: nothing on the
+  periodic path. The hold's words follow the stall's, one clause per
+  pending check, in the checks' order, after `; `:
+  `CONTEXT: waiting for a runner labelled L1, L2` (no runner with its
+  labels took it, `labelled` and its list left out when the job names
+  none), `CONTEXT: blocked by the jobs it needs`, `CONTEXT: running at
+  step N, NAME` (`running` alone when no step says so), `CONTEXT:
+  pending, no job linked` (a check whose status names no job: CI another
+  system reports, or a forge whose pending checks name none), `CONTEXT:
+  pending, its job unread` (the job's read failed or answered
+  `MissingJob`), and `CONTEXT: completed` (a job ended since the stall's
+  last read). At most 8 clauses, then `; and K more pending`; clauses
+  kept whole within the hold's bytes, those that do not fit counted in
+  K. For instance, `no progress at checking for 31 minutes: waiting for
+  CI at 0123456789ab; ci / test: waiting for a runner labelled docker;
+  ci / lint: blocked by the jobs it needs`. A checks read that fails
+  holds with the stall's words alone. The clauses live in the hold's
+  words alone, never in the store: a change held again after its
+  restoration (*Every hold reaches its task*, below) holds with the
+  stall's words alone.
 - **A stall holds as any hold does.** The change and its task are held
   together, never one without the other: its escalation waits for its
   holder, which it wakes (jig's `domain/tasks/lifecycle.md`, 6 and `jig/docs/design/domain/tasks/proposals.md`): the
@@ -490,7 +572,15 @@
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it (not from the deployment's, ending a hold at a green
   head, above), its stall is counted from it, and the change decides
-  afresh. A producer that fails for good holds the change at
+  afresh. **Deciding afresh reads afresh** (2026-11-13): the change
+  reads its branch, its base and its pull request again, a read still
+  outstanding from before abandoned, its answer changing nothing when
+  it comes; and it reads its delegate's end and result as its task's
+  record keeps them, its pull request's title among them. So a change
+  whose producer's result had already arrived moves on at the release.
+  A party's release of the change's task (a party's stop is a placed
+  hold: jig's `domain/tasks/lifecycle.md`, 10) does the same, though
+  the change itself was not held. A producer that fails for good holds the change at
   producing, whatever it delivered first: its pushed work stays on its
   branch, no pull request opens, and the hold carries its words whole
   within the hold's bytes,
@@ -647,3 +737,17 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   words; a lone reviews section past the deadline still fails its brief.
   Default: the pull section alone has a cutoff, the one a deployment met
   (2026-11-12).
+
+- **A repair of another reason that changes nothing** (`repairs.md`, *A CI
+  repair that changes nothing checks its head again*): a gate's or a
+  review's verdict at the head stays valid there, so checking the same
+  head again would only ask the next repair, and a landing's, a
+  resolution's and an ejection's red is not CI's at the change's head.
+  Default: such a repair finding nothing to do holds the change, as a
+  failed one does, until a person decides (2026-11-14).
+
+- **Every failed job at once** (`repairs.md`, *A CI repair that changes
+  nothing checks its head again*): one job runs again for each repair that
+  changed nothing, as one write is one job's; a head with several failed
+  jobs spends a repair on each left red. Default: one job, since a
+  deployment's CI fails in one gate job (2026-11-14).

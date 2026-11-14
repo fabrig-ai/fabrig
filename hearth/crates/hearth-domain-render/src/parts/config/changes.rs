@@ -1,75 +1,49 @@
 use super::{Config, GroupKeyed, MemberChange, UserKeyed};
 use alloc::boxed::Box;
-use skein_lib::{List, Map};
-pub(super) fn groups(before: Option<&Config>, after: Option<&Config>) -> Box<[GroupKeyed]> {
-    let before = match before {
-        Some(config) => config.groups.as_ref(),
-        None => &[],
-    };
-    let after = match after {
-        Some(config) => config.groups.as_ref(),
-        None => &[],
-    };
-    let capacity = u32::try_from(before.len().saturating_add(after.len())).expect("entry count");
-    let mut entries = Map::with_capacity(capacity);
-    for row in before {
-        entries.insert(row.name.clone(), (Some(&row.kind), None)).expect("entry count");
+use skein_lib::{Joined, List, Map, bytes};
+pub(super) fn groups(before: &Config, after: &Config) -> Box<[GroupKeyed]> {
+    let mut old = Map::uncapped();
+    for row in &before.groups {
+        old.insert(row.name.as_ref(), row).expect("an uncapped map");
     }
-    for row in after {
-        if let Some((_, value)) = entries.get_mut(&row.name) {
-            *value = Some(&row.kind);
-        } else {
-            entries.insert(row.name.clone(), (None, Some(&row.kind))).expect("entry count");
-        }
+    let mut new = Map::uncapped();
+    for row in &after.groups {
+        new.insert(row.name.as_ref(), row).expect("an uncapped map");
     }
-    let mut changes = List::with_capacity(capacity);
-    for (key, (old, new)) in &entries {
-        let change = match (old, new) {
-            (None, Some(value)) => GroupKeyed::Added { key: key.clone(), value: (*value).clone() },
-            (Some(value), None) => GroupKeyed::Removed { key: key.clone(), value: (*value).clone() },
-            (Some(before), Some(after)) if before != after => {
-                GroupKeyed::Changed { key: key.clone(), before: (*before).clone(), after: (*after).clone() }
+    let mut changes = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => GroupKeyed::Removed { key: bytes::copy_of(key), value: row.kind.clone() },
+            Joined::Second(row) => GroupKeyed::Added { key: bytes::copy_of(key), value: row.kind.clone() },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => {
+                GroupKeyed::Changed { key: bytes::copy_of(key), before: was.kind.clone(), after: now.kind.clone() }
             }
-            (Some(_), Some(_)) => continue,
-            (None, None) => unreachable!("union entry"),
         };
-        changes.push(change).expect("entry count");
+        changes.push(change).expect("an uncapped list");
     }
     changes.into_boxed()
 }
-pub(super) fn users(before: Option<&Config>, after: Option<&Config>) -> Box<[UserKeyed]> {
-    let before = match before {
-        Some(config) => config.users.as_ref(),
-        None => &[],
-    };
-    let after = match after {
-        Some(config) => config.users.as_ref(),
-        None => &[],
-    };
-    let capacity = u32::try_from(before.len().saturating_add(after.len())).expect("entry count");
-    let mut entries = Map::with_capacity(capacity);
-    for row in before {
-        entries.insert(row.name.clone(), (Some(&row.kind), None)).expect("entry count");
+pub(super) fn users(before: &Config, after: &Config) -> Box<[UserKeyed]> {
+    let mut old = Map::uncapped();
+    for row in &before.users {
+        old.insert(row.name.as_ref(), row).expect("an uncapped map");
     }
-    for row in after {
-        if let Some((_, value)) = entries.get_mut(&row.name) {
-            *value = Some(&row.kind);
-        } else {
-            entries.insert(row.name.clone(), (None, Some(&row.kind))).expect("entry count");
-        }
+    let mut new = Map::uncapped();
+    for row in &after.users {
+        new.insert(row.name.as_ref(), row).expect("an uncapped map");
     }
-    let mut changes = List::with_capacity(capacity);
-    for (key, (old, new)) in &entries {
-        let change = match (old, new) {
-            (None, Some(value)) => UserKeyed::Added { key: key.clone(), value: (*value).clone() },
-            (Some(value), None) => UserKeyed::Removed { key: key.clone(), value: (*value).clone() },
-            (Some(before), Some(after)) if before != after => {
-                UserKeyed::Changed { key: key.clone(), before: (*before).clone(), after: (*after).clone() }
+    let mut changes = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => UserKeyed::Removed { key: bytes::copy_of(key), value: row.kind.clone() },
+            Joined::Second(row) => UserKeyed::Added { key: bytes::copy_of(key), value: row.kind.clone() },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => {
+                UserKeyed::Changed { key: bytes::copy_of(key), before: was.kind.clone(), after: now.kind.clone() }
             }
-            (Some(_), Some(_)) => continue,
-            (None, None) => unreachable!("union entry"),
         };
-        changes.push(change).expect("entry count");
+        changes.push(change).expect("an uncapped list");
     }
     changes.into_boxed()
 }

@@ -23,6 +23,12 @@ pub enum Conclusion {
     Failure,
 }
 
+/// Why a pending job has not started (forge/job-state.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum JobWait {
+    Runner,
+    Needs,
+}
 /// A run's identity and current outcome (forge/forgejo.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Run {
@@ -48,6 +54,9 @@ pub struct Job {
     pub state: RunState,
     pub conclusion: Option<Conclusion>,
     pub steps: Box<[Step]>,
+    pub labels: Box<[Box<[u8]>]>,
+    pub needs: Box<[Box<[u8]>]>,
+    pub wait: Option<JobWait>,
 }
 #[derive(Debug)]
 pub(crate) struct Kept {
@@ -93,6 +102,9 @@ pub(crate) fn start(
             state: RunState::Running,
             conclusion: None,
             steps: Box::new([]),
+            labels: Box::new([]),
+            needs: Box::new([]),
+            wait: None,
         })
         .expect("one job per context");
     }
@@ -334,6 +346,7 @@ pub struct Step {
 /// A step's outcome, in the fake's vocabulary.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum StepStatus {
+    Running,
     Success,
     Failure,
     Cancelled,

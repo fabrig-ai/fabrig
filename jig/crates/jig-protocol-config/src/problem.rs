@@ -58,6 +58,11 @@ pub enum What {
         bytes: u64,
         limit: u64,
     },
+    /// Configured agent needs exceed the fleet's owned byte bound.
+    NeedsBytes {
+        bytes: u64,
+        limit: u64,
+    },
     /// An authority's delegation lists more executors than its configured bound.
     PolicyExecutors {
         executors: u64,
@@ -184,6 +189,20 @@ impl Problem {
                         b"policy snapshot needs ",
                         bytes.as_bytes(),
                         b" bytes; core.policy_bytes limit is ",
+                        limit.as_bytes(),
+                        b" bytes.",
+                    ],
+                )
+            }
+            What::NeedsBytes { bytes, limit } => {
+                let bytes = Decimal::of(bytes);
+                let limit = Decimal::of(limit);
+                codec_parts_message(
+                    &self.path,
+                    &[
+                        b"agent needs hold ",
+                        bytes.as_bytes(),
+                        b" bytes; fleet.needs_bytes bound is ",
                         limit.as_bytes(),
                         b" bytes.",
                     ],

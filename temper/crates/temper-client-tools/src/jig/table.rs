@@ -188,6 +188,7 @@ pub const PLACEHOLDERS: &[&[u8]] = &[
     b"AREA",
     b"PARTY",
     b"FOLLOW",
+    b"TIER",
     b"TASK",
     b"PROJECT",
     b"FORGE",

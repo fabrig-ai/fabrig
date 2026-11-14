@@ -57,6 +57,7 @@ pub(crate) struct Pending {
     upstream: Option<api::Commit>,
     paths: Box<[Paths]>,
     reads: Map<(api::Repository, GatherRead), Result<api::Answer, api::Error>>,
+    stall: Option<crate::stall::Report>,
 }
 #[derive(Hash, Debug)]
 struct Paths {
@@ -86,6 +87,8 @@ enum Stage {
     Reviews(u16, u32),
     Paths(u16),
     Collect,
+    StallRun,
+    StallJobs,
     Round {
         member: u16,
         stage: RoundRead,
@@ -966,6 +969,7 @@ pub(crate) fn step(
                 paths: paths.into_boxed(),
                 opened: None,
                 upstream: None,
+                stall: None,
                 reads: Map::with_capacity(env.limits.landing_members.checked_mul(5).expect("u16 members fit")),
             },
         )
@@ -1059,7 +1063,7 @@ fn advance(
     if d.stopping {
         return;
     }
-    if answer == Err(api::Error::Busy) {
+    if answer == Err(api::Error::Busy) && !matches_stall(&p.stage) {
         wait(d, p.task, env, p.repository, out);
         return;
     }
@@ -1080,6 +1084,23 @@ fn advance(
         p.reads.insert((p.repository, resource), answer.clone()).expect("five resources per member");
     }
     match p.stage.clone() {
+        Stage::StallRun | Stage::StallJobs => {
+            if let Stage::StallRun = p.stage {
+                p.stall = Some(match answer {
+                    Ok(api::Answer::Run(run)) => crate::stall::Report::run(&run),
+                    Ok(_) | Err(_) => crate::stall::Report::checks(&[]),
+                });
+            } else {
+                p.stall.as_mut().expect("report").answered(answer);
+            }
+            if let Some(read) = p.stall.as_mut().expect("report").next() {
+                p.stage = Stage::StallJobs;
+                let repository = p.repository;
+                ask(d, env, owner, p, repository, read, out);
+            } else {
+                decide(d, env, owner, p, out);
+            }
+        }
         Stage::Branch(index) | Stage::Main(index) | Stage::Ancestry(index) | Stage::Pull(index) => {
             let member = row.landing.members.get(usize::from(index)).expect("member");
             let Some(change) = d.changes.get(&member.change) else {
@@ -1191,6 +1212,8 @@ fn advance(
                 | Stage::Paths(_)
                 | Stage::Collect
                 | Stage::Round { .. }
+                | Stage::StallRun
+                | Stage::StallJobs
                 | Stage::Run { .. }
                 | Stage::FailedJobs { .. }
                 | Stage::Tree { .. } => {
@@ -2158,6 +2181,18 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         },
         env.wall,
     );
+    if p.stall.is_none()
+        && let policy::Decision::Hold(policy::Hold::Timeout { member, run, .. }) = stepped.decision
+    {
+        let repository = repository(row.landing.members.get(usize::from(member)).expect("gate member"));
+        p.stage = Stage::StallRun;
+        d.stall_words.remove(&p.task);
+        ask(d, env, owner, p, repository, api::Read::Run { run }, out);
+        return;
+    }
+    if let Some(report) = p.stall.take() {
+        d.stall_words.insert(p.task, report).expect("bounded tasks");
+    }
     crate::job_history::prepared(d, env.wall, &mut row, &p.facts, out);
     let prior = row.clone();
     row.landing = stepped.landing;
@@ -3628,6 +3663,7 @@ fn retire_finished(d: &mut Domain, out: &mut Queue<Request>) -> bool {
     let Some(task) = finished else {
         return false;
     };
+    d.stall_words.remove(&task);
     let retired = d.landing.rows.remove(&task).expect("selected finished landing");
     emit(
         out,
@@ -3700,6 +3736,11 @@ impl Domain {
                         append_words(&mut words, b": run ");
                         append_words(&mut words, skein_lib::Decimal::of(run).as_bytes());
                         append_words(&mut words, b" running past its bound");
+                        return Some(self.ci_stall_words(
+                            row.landing.task,
+                            words.as_slice(),
+                            jig_domain_tasks::HOLD_ACCOUNT_BYTES,
+                        ));
                     }
                     policy::Hold::Prepare | policy::Hold::Record { .. } | policy::Hold::Turn => {
                         unreachable!("gate hold")
@@ -4258,4 +4299,11 @@ fn failed_candidate(d: &Domain, row: &LandingRow, member: u16, gate: u16) -> api
         }
     }
     m.candidate.expect("candidate")
+}
+
+fn matches_stall(stage: &Stage) -> bool {
+    if let Stage::StallRun | Stage::StallJobs = stage {
+        return true;
+    }
+    false
 }

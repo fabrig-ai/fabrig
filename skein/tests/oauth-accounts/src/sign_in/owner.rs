@@ -173,22 +173,28 @@ fn set_return(client: &mut Client, env: &Env<accounts::Limits>) {
 fn return_to(client: &mut Client, env: &Env<accounts::Limits>, location: Box<[u8]>) {
     client.ask(env, accounts::Request::Return { account: 0, location });
 }
-pub(crate) fn restart(client: &mut Client, env: &Env<accounts::Limits>) {
+pub(crate) fn restart(client: &mut Client, env: &Env<accounts::Limits>) -> Result<(), String> {
     if super::owner(client).callback == super::paste::Callback::Finished
         && let Some((account, generation)) = super::owner_mut(client).pending_keep.take()
     {
-        kept(client, env, account, generation, true);
+        kept(client, env, account, generation, true)?;
     }
     if super::owner(client).again_at.is_some_and(|at| env.now >= at) {
         super::owner_mut(client).again_at = None;
         super::owner_mut(client).contracts[0] = super::Contracts::new();
         client.ask(env, accounts::Request::SignIn { account: 0, subject: Some(bytes::copy_of(super::SUBJECT)) });
     }
+    Ok(())
 }
-fn keep(client: &mut Client, env: &Env<accounts::Limits>, account: u32, record: skein_oauth::SavedToken) {
+fn keep(
+    client: &mut Client,
+    env: &Env<accounts::Limits>,
+    account: u32,
+    record: skein_oauth::SavedToken,
+) -> Result<(), String> {
     let story = super::owner(client).story;
     let generation = record.generation;
-    super::owner_mut(client).contracts[usize::try_from(account).expect("account index")].keep(generation);
+    super::owner_mut(client).contracts[usize::try_from(account).expect("account index")].keep(generation)?;
     super::owner_mut(client).facts.push(Fact::Keep(generation));
     let yes = story != Story::NotKept;
     let size = if super::owner(client).large { 256 } else { 16 };
@@ -200,11 +206,18 @@ fn keep(client: &mut Client, env: &Env<accounts::Limits>, account: u32, record: 
     if story == Story::PasteThenListener && super::owner(client).callback != super::paste::Callback::Finished {
         super::owner_mut(client).pending_keep = Some((account, generation));
     } else {
-        kept(client, env, account, generation, yes);
+        kept(client, env, account, generation, yes)?;
     }
+    Ok(())
 }
-fn kept(client: &mut Client, env: &Env<accounts::Limits>, account: u32, generation: u64, yes: bool) {
-    super::owner_mut(client).contracts[usize::try_from(account).expect("account index")].kept(generation, yes);
+fn kept(
+    client: &mut Client,
+    env: &Env<accounts::Limits>,
+    account: u32,
+    generation: u64,
+    yes: bool,
+) -> Result<(), String> {
+    super::owner_mut(client).contracts[usize::try_from(account).expect("account index")].kept(generation, yes)?;
     client.ask(
         env,
         accounts::Request::Kept {
@@ -213,10 +226,17 @@ fn kept(client: &mut Client, env: &Env<accounts::Limits>, account: u32, generati
             keeping: if yes { accounts::Keeping::Kept } else { accounts::Keeping::NotKept },
         },
     );
+    Ok(())
 }
-fn signed_in(client: &mut Client, env: &Env<accounts::Limits>, account: u32, generation: u64, missing: Box<[u8]>) {
+fn signed_in(
+    client: &mut Client,
+    env: &Env<accounts::Limits>,
+    account: u32,
+    generation: u64,
+    missing: Box<[u8]>,
+) -> Result<(), String> {
     let story = super::owner(client).story;
-    super::owner_mut(client).contracts[usize::try_from(account).expect("account index")].signed_in(generation);
+    super::owner_mut(client).contracts[usize::try_from(account).expect("account index")].signed_in(generation)?;
     super::owner_mut(client).facts.push(Fact::SignedIn(generation));
     assert_eq!(
         generation,
@@ -240,11 +260,14 @@ fn signed_in(client: &mut Client, env: &Env<accounts::Limits>, account: u32, gen
             },
         );
     }
+    Ok(())
 }
-pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
+pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) -> Result<(), String> {
     let story = super::owner(client).story;
     if let Some(event) = client.above.pop() {
-        assert!(!client.closed, "Closed once and last");
+        if client.closed {
+            return Err(String::from("Closed once and last"));
+        }
         match event {
             accounts::Event::Visit { url, .. } => {
                 super::owner_mut(client).visits.push(url.into_exposed());
@@ -253,13 +276,13 @@ pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
             }
             accounts::Event::Taken { .. } => super::owner_mut(client).facts.push(Fact::Taken),
             accounts::Event::Keep { account, record } => {
-                keep(client, env, account, record);
+                keep(client, env, account, record)?;
             }
             accounts::Event::SignedIn { account, generation, missing, subject, profile } => {
                 if matches!(story, Story::OpenIdAgain | Story::IssuedClientId) {
                     assert_eq!(subject.as_deref(), Some(super::SUBJECT));
                 }
-                signed_in(client, env, account, generation, missing);
+                signed_in(client, env, account, generation, missing)?;
                 let expected = if matches!(story, Story::Profile(_)) {
                     super::owner_mut(client).facts.push(Fact::Profile);
                     super::issuer::profile_claims(false)
@@ -270,14 +293,14 @@ pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
             }
             accounts::Event::Refreshed { account, generation, profile } => {
                 let state = super::owner_mut(client);
-                state.contracts[usize::try_from(account).expect("account index")].granted(generation);
+                state.contracts[usize::try_from(account).expect("account index")].granted(generation)?;
                 assert!(!state.facts.contains(&Fact::Granted(generation)), "profile before grant");
                 assert_eq!(profile, super::issuer::profile_claims(true));
                 state.facts.push(Fact::Refreshed(generation));
             }
             accounts::Event::Granted { account, generation, .. } => {
                 super::owner_mut(client).contracts[usize::try_from(account).expect("account index")]
-                    .granted(generation);
+                    .granted(generation)?;
                 super::owner_mut(client).facts.push(Fact::Granted(generation));
                 if generation == 1 && super::again(story) {
                     client.ask(env, accounts::Request::Release { account });
@@ -297,7 +320,7 @@ pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
                     if story == Story::RequiredScopes { accounts::Ends::Grant } else { accounts::Ends::SignIn };
                 assert_eq!(ends, expected);
                 if ends == accounts::Ends::SignIn {
-                    super::owner_mut(client).contracts[usize::try_from(account).expect("account index")].failed();
+                    super::owner_mut(client).contracts[usize::try_from(account).expect("account index")].failed()?;
                 }
                 super::owner_mut(client).facts.push(Fact::Failed(failure));
                 if story == Story::Restart {
@@ -319,7 +342,7 @@ pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
             }
             accounts::Event::Closed => {
                 for contracts in &mut super::owner_mut(client).contracts {
-                    contracts.closed();
+                    contracts.closed()?;
                 }
                 super::owner_mut(client).facts.push(Fact::Closed);
                 client.closed = true;
@@ -337,6 +360,7 @@ pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
             }
         }
     }
+    Ok(())
 }
 
 fn close(client: &mut Client, env: &Env<accounts::Limits>) {

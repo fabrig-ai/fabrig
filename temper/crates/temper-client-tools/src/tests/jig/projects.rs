@@ -14,7 +14,7 @@ fn list<T>(values: Vec<T>) -> List<T> {
     }
     out
 }
-pub(super) fn project() -> c::Project {
+pub(in crate::tests) fn project() -> c::Project {
     let authority = c::AuthorityDocument::complete(c::Authority {
         models: None,
         tools: 0,

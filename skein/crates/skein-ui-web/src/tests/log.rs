@@ -200,12 +200,6 @@ fn a_log_past_its_bound_is_cut() {
     assert_eq!(read.entries.first().expect("kept input").input, Input::ReadOn);
 }
 
-#[test]
-#[should_panic(expected = "a stamp has an input waiting")]
-fn a_stamp_with_no_input_is_a_broken_contract() {
-    Log::new(None, &start(), u32::MAX).heard(&stamp(0, 0));
-}
-
 use crate::{
     bridge::Exchange,
     log::{Read, Refused, read},

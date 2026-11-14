@@ -195,6 +195,7 @@ pub fn message_room(root: &Path, value: &mut Value) {
     limits["hub.accounts"] = 4.into();
     limits["hub.slots"] = slots;
     limits["hub.event_bytes"] = 8190.into();
+    limits["hub.outcome_bytes"] = 8192.into();
     value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 8192.into();
     value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 4096.into();
     // Turn read-back observes Forgejo's asynchronous manual-merge mark.

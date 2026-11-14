@@ -196,7 +196,7 @@ pub(crate) fn checks(repository: &Repository, limits: &Limits, commit: u64, ci_u
     for status in pulls::statuses(repository, limits, commit) {
         let description = copy_of(&status.description);
         let link = copy_of(&status.link);
-        let job = if status.state == Check::Failed && status.author == ci_user {
+        let job = if (status.state == Check::Failed || status.state == Check::Pending) && status.author == ci_user {
             crate::actions::reference(repository, commit, &status.context)
         } else {
             None

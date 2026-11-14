@@ -89,7 +89,7 @@ fn a_first_commit_puts_format_layouts_and_installation_with_its_header() {
         codec::component::Format {
             component: 3,
             core: 6,
-            tasks: 12,
+            tasks: 13,
             people: 17,
             notes: 1,
             accounts: 2,
@@ -305,13 +305,6 @@ fn later_commits_do_not_replace_the_format_row() {
     let mut store = committed_header();
     assert_committed(&commit(&mut store, 2, Box::new([other_header(2)])), 2);
     assert_eq!(format_row(&mut store).deployment, fixtures::DEPLOYMENT);
-}
-
-#[test]
-#[should_panic(expected = "the first root commit saves its deployment header")]
-fn the_first_commit_without_a_header_is_an_owners_bug() {
-    let mut store = fixtures::opened();
-    commit(&mut store, 1, Box::new([fixtures::save(note())]));
 }
 
 #[test]

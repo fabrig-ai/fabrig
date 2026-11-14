@@ -371,6 +371,7 @@ fn every_exact_judgement_uses_its_members_prefix_branch_and_survives_restart() {
     for member in 0..3 {
         let task = 51 + member;
         world.event(top::Event::DelegateResult {
+            ended_at: None,
             task,
             child: 71 + member,
             status: change::Status::Passed,
@@ -386,6 +387,7 @@ fn every_exact_judgement_uses_its_members_prefix_branch_and_survives_restart() {
 }
 pub(crate) fn workflow(red: bool) -> raw::Workflow {
     raw::Workflow {
+        requirements: Box::new([]),
         file: b"gate.yml".as_slice().into(),
         jobs: Box::new([b"test".as_slice().into()]),
         fails: Box::new([]),

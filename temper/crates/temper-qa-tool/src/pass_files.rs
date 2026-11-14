@@ -1,12 +1,15 @@
 //! Pass preparation and changed recipes (qa/places.md, 2–3; qa/passes.md, 2 and 6).
-use crate::{Home, Refusal, faces::GitFace, refused};
+use crate::{Home, Refusal, faces::GitFace, place::PlacePaths, private, refused};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     ffi::OsString,
     fs::{self, File, OpenOptions, TryLockError},
     io::{Read, Write},
-    os::unix::{ffi::OsStringExt, fs::OpenOptionsExt},
+    os::unix::{
+        ffi::OsStringExt,
+        fs::{OpenOptionsExt, PermissionsExt},
+    },
     path::{Path, PathBuf},
 };
 
@@ -27,10 +30,12 @@ pub(crate) fn prepare_files(home: &Home, pass: u64) -> Result<(), Refusal> {
 
 /// Keep the free-place test's lock through preparation and recording.
 pub(crate) fn free_lock(place: &Path) -> Result<Option<File>, Refusal> {
-    io(place, fs::create_dir_all(place))?;
+    let paths = PlacePaths::new(place);
+    for path in [&paths.directory, &paths.scratch, &paths.copies] {
+        private::directory(path)?;
+    }
     let path = place.join("drive.lock");
-    let file =
-        io(&path, OpenOptions::new().read(true).write(true).create(true).truncate(false).mode(0o600).open(&path))?;
+    let file = private::file(&path, OpenOptions::new().read(true).write(true).create(true).truncate(false))?;
     match file.try_lock() {
         Ok(()) => Ok(Some(file)),
         Err(TryLockError::WouldBlock) => Ok(None),
@@ -39,6 +44,7 @@ pub(crate) fn free_lock(place: &Path) -> Result<Option<File>, Refusal> {
 }
 
 pub(crate) fn install(build: &Path, commit: &str, place: &Path) -> Result<(), Refusal> {
+    PlacePaths::new(place).ensure()?;
     let manifest_path = build.join("manifest");
     let bytes = io(&manifest_path, fs::read(&manifest_path))?;
     let manifest = manifest(&bytes, commit).map_err(|why| refused(format!("{}: {why}", manifest_path.display())))?;
@@ -71,7 +77,7 @@ fn copy(
     let destination = place.join(path);
     let metadata = io(&source, fs::symlink_metadata(&source))?;
     if metadata.is_dir() {
-        io(&destination, fs::create_dir_all(&destination))?;
+        private::directory(&destination)?;
         for child in children(&source)? {
             copy(build, place, &path.join(child), manifest, copied)?;
         }
@@ -107,7 +113,10 @@ fn temporary(destination: &Path) -> Result<(PathBuf, File), Refusal> {
         name.push(format!(".qa-tmp-{number}"));
         let path = PathBuf::from(name);
         match OpenOptions::new().read(true).write(true).create_new(true).mode(0o600).open(&path) {
-            Ok(file) => return Ok((path, file)),
+            Ok(file) => {
+                io(&path, file.set_permissions(fs::Permissions::from_mode(0o600)))?;
+                return Ok((path, file));
+            }
             Err(why) if why.kind() == std::io::ErrorKind::AlreadyExists => number = number.saturating_add(1),
             Err(why) => return Err(refused(format!("{}: {why}", path.display()))),
         }
