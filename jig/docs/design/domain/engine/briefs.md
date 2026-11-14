@@ -60,6 +60,33 @@ whom; its delegates, their states, and the
 A section is loaded or read as it is cut, asking for no more than it
 keeps. The host's protocol layer renders the whole as text, in order.
 
+**Within the deadline.** The brief's one deadline covers its gathering
+and its cuts, and every section that can be cut is cut in time, never
+late:
+
+- **Its owner learns the time it has.** The root, which makes the plan,
+  gives each connector the brief's deadline with each gather it asks
+  for. A connector section that reads in several reads (pages, one log
+  after another) ends ahead of that deadline, at a cutoff of its owner's
+  choosing that leaves the brief time to cut: it completes with what it
+  has gathered, its read still unanswered left and its late answer
+  dropped, and its marker says what it left and how to read it. That
+  marker says the section was cut at the brief's deadline, apart from
+  any cut for room (`cut at the brief's deadline: N of M files`, in the
+  section's own terms).
+- **Late only with nothing usable.** A section ends late only when it has
+  gathered nothing usable by its cutoff, such as the pull request it is
+  about read at all; it then waits on to the deadline, and a required
+  one still gathering there fails the brief (1.1).
+- **The settle point.** The brief child stops waiting for optional
+  sections seven eighths of the way from its plan to its deadline. One
+  still gathering then is dropped and marked late, as one past the
+  deadline is, so that the sections it has get the last eighth for
+  their cuts, and a required section ready in time is never failed by an
+  optional one that is not. A required section still gathering at the
+  settle point is waited for to the deadline. An owner's cutoff comes
+  before the settle point.
+
 A brief has no inbox section. The messages waiting in the task's inbox
 that the run is offered go with the assignment as its start's messages,
 and the run reads them as messages, whole (`executors.md`, 1; ../tasks/messages.md, 2 and 6).
@@ -100,7 +127,8 @@ Which is which, by what `executors.md`, 1 prepares:
 | a connector says it has no room, or that its system admits nothing yet | capacity | the connector's |
 | the core's result reads, its notes or its proofs have no room | capacity | `results: no read flight is free`, `notes: no room for the index`, `run: no room for its proof` |
 | a claim refused (a host's or a writer's room; ../tasks/lifecycle.md, 6) | capacity | `claim: refused` |
-| a required section past the brief's deadline | infrastructure | `SECTION: not gathered by its deadline` |
+| a required section with nothing gathered by the brief's deadline | infrastructure | `SECTION: not gathered by its deadline` |
+| a required section whose cut is unanswered at the brief's deadline | infrastructure | `SECTION: not cut by its deadline` |
 | a connector says its system failed for now | infrastructure | the connector's |
 | a connector says its section is to be gathered again, what it reads having moved meanwhile | transient | the connector's |
 | a dependency's result the store no longer answers with | transient | `results: a dependency's result could not be read` |
