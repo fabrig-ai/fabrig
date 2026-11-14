@@ -448,7 +448,7 @@ fn a_standard_document_seeds_project_one_from_stock_policy_one() {
     let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates).unwrap();
     let bytes = jig_domain_people::policy_bytes(&snapshot).unwrap();
     assert_eq!(bytes, 6455);
-    assert_eq!(policy.policy.ceiling.delegation.kinds.len(), 20);
+    assert_eq!(policy.policy.ceiling.delegation.kinds.len(), 21);
     assert!(bytes <= engine.limits.core.policy_bytes, "snapshot {bytes}, limit {}", engine.limits.core.policy_bytes);
     assert_eq!(
         jig_domain_authority::policy_refusal(&defaults.rules, &engine.limits.core.authority, &policy.policy),
