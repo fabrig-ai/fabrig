@@ -81,7 +81,14 @@ fn v24_rows_start_with_no_posting() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for run in [false, true] {
         let mut row = fixtures::tier_row();
-        if !run {
+        if run {
+            // v24's linear probe has no previously bisected groups.
+            let p::Part::Probe { landing, low, waiting, .. } = &mut row.record.run.as_mut().unwrap().part else {
+                panic!("probe fixture")
+            };
+            *low = *landing;
+            *waiting = Box::new([]);
+        } else {
             row.record.run = None;
             row.probe = None;
         }
