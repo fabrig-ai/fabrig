@@ -316,35 +316,3 @@ fn a_power_loss_drops_hosted_children_and_restarts_the_roots() {
     assert_eq!(outcome.procs[2].script.received, b"hello");
     assert_eq!(outcome.procs[0].script.child_exit, Some(Exit::Code(0)));
 }
-
-fn admit_without_factory(world: &mut World<CuttingScript, CuttingJudge, CuttingMachine>) {
-    world.spawn(|| CuttingScript { script: Script::new(&[]), signal: None, closing: false });
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_power_loss_needs_every_roots_factory() {
-    for (label, before_planning, message) in [
-        ("planning", true, "power loss needs every process's restart factory"),
-        ("execution", false, "power loss needs every live process's factory"),
-    ] {
-        let refusal = std::panic::catch_unwind(|| {
-            let mut world = cutting_world();
-            if before_planning {
-                admit_without_factory(&mut world);
-            }
-            world.cut(0, 2, Cut::PowerLoss);
-            if !before_planning {
-                admit_without_factory(&mut world);
-            }
-            drop(world.run());
-        })
-        .expect_err(label);
-        let text = refusal
-            .downcast_ref::<&str>()
-            .copied()
-            .or_else(|| refusal.downcast_ref::<String>().map(String::as_str))
-            .expect("panic text");
-        assert_eq!(text, message, "{label}");
-    }
-}

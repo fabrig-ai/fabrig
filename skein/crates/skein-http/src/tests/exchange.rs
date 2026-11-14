@@ -349,6 +349,8 @@ fn invalid_client_limits_fail_validation() {
             ("valid_refuses_a_zero_read", Limits { read: 0, ..LIMITS }),
             ("valid_refuses_a_zero_send", Limits { send: 0, ..LIMITS }),
         ],
-        |limits| assert!(!client::valid(&limits)),
+        |limits| {
+            assert!(!client::valid(&limits));
+        },
     );
 }

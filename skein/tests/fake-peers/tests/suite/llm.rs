@@ -729,10 +729,10 @@ fn without_records_serves_past_a_zero_cap() {
         );
         peer.shutdown();
         for _ in 0..1000 {
+            request::pass(&mut sim, server, &mut peer);
             if peer.is_empty() {
                 break;
             }
-            request::pass(&mut sim, server, &mut peer);
         }
         assert!(peer.is_empty());
         sim.assert_quiescent(server);

@@ -444,6 +444,8 @@ fn invalid_server_limits_fail_validation() {
             ("valid_refuses_an_answer_below_its_bound", Limits { response: 122, ..LIMITS }),
             ("valid_refuses_chunk_room_past_u32", Limits { send: u32::MAX, ..LIMITS }),
         ],
-        |limits| assert!(!crate::server::valid(&limits)),
+        |limits| {
+            assert!(!crate::server::valid(&limits));
+        },
     );
 }

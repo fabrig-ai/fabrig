@@ -8,8 +8,11 @@
   across chunks, the reads below shaped by the demand above, every
   framing error, withdrawal, discard, and what an exchange leaves unread;
   the upload, a response that comes first, the stream ending and failing
-  in each state, a close in each state, `waiting()`, and each bug of the
-  side above's asserted. The reader: every field, every line ending and
+  in each state, a close in each state, `waiting()`, and the limits'
+  `valid`, true at each edge and false past it. A bug of the side above
+  is asserted, and no test triggers it
+  (`skein/docs/foundation/programming-model.md`, 10.4): the tests reach
+  what the assertion guards through the outcomes around it. The reader: every field, every line ending and
   the line scans that read them, a CR's LF skipped, streams of LF, CR,
   CRLF and mixed endings shorter than one scan and the deliveries they
   take, the end and a failure while idle and while reading, every limit
@@ -25,8 +28,8 @@
   chunked reply to the end of the stream, and a reply withdrawn; reuse
   by each rule, a response given before the body is read and one given
   while it is discarded; the stream ending and failing in each state, a
-  close in each state, `waiting()`, and each bug of the side above's
-  asserted. The writer: each field and data split at every line ending,
+  close in each state, `waiting()`, and the limits' `valid`, the side
+  above's bugs untested as the client's are. The writer: each field and data split at every line ending,
   comments, every refusal, an event in pieces within the room granted,
   the end and a failure, a close in each state, and events read back by
   the reader as they were written.

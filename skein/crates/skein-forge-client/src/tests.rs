@@ -990,7 +990,9 @@ fn invalid_forge_limits_fail_validation() {
             ("valid_refuses_alarm_capacity_past_u32", Limits { pending: u32::MAX, ..LIMITS }),
             ("valid_refuses_keep_capacity_past_u32", Limits { resources: u32::MAX / 2, ..LIMITS }),
         ],
-        |limits| assert!(!crate::valid(&limits)),
+        |limits| {
+            assert!(!crate::valid(&limits));
+        },
     );
 }
 

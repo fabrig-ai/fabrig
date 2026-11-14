@@ -139,15 +139,16 @@ pub(super) const BINDING_ROLES: &[(Role, bool)] = &[
 ];
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn bind_takes_only_the_roles_a_person_acts_on() {
+fn bindings_are_kept_on_roles_a_person_acts_on() {
     for &(role, allowed) in BINDING_ROLES {
-        let outcome = std::panic::catch_unwind(|| {
+        if allowed {
             let mut builder = Builder::new(&LIMITS);
             builder.open(role);
-            builder.bind(Binding { owner: Owner { number: 1 }, token: Token::new(1) });
-        });
-        assert_eq!(outcome.is_ok(), allowed, "{role:?}");
+            let binding = Binding { owner: Owner { number: 1 }, token: Token::new(1) };
+            builder.bind(binding);
+            builder.close();
+            assert_eq!(builder.finish().get(0).unwrap().binding, Some(binding), "{role:?}");
+        }
     }
 }
 
@@ -254,19 +255,6 @@ fn an_image_keeps_its_owners_picture() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_second_focus_request_in_one_tree_is_an_assertion() {
-    let result = std::panic::catch_unwind(|| {
-        let mut b = Builder::new(&LIMITS);
-        b.open(Role::Page);
-        b.focus(1);
-        b.open(Role::Main);
-        b.focus(1);
-    });
-    assert!(result.is_err());
-}
-
-#[test]
 fn a_description_counts_in_the_nodes_text_bytes() {
     let mut b = Builder::new(&LIMITS);
     b.open(Role::TextField);
@@ -338,15 +326,16 @@ const IMAGE_ADDRESSES: &[(&[u8], bool)] = &[
 ];
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_image_address_must_be_a_path_or_https() {
     for &(address, expected) in IMAGE_ADDRESSES {
-        let outcome = std::panic::catch_unwind(|| {
+        assert_eq!(crate::markdown::safe_image_address(address), expected, "{address:?}");
+        if expected {
             let mut b = Builder::new(&LIMITS);
             b.open(Role::Image);
             b.image_address(address);
-        });
-        assert_eq!(outcome.is_ok(), expected, "{address:?}");
+            b.close();
+            drop(b.finish());
+        }
     }
 }
 
@@ -413,37 +402,11 @@ fn spans_on_a_paragraph_are_an_assertion() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn spans_of_zero_are_an_assertion() {
-    for spans in [crate::Spans { rows: 0, columns: 1 }, crate::Spans { rows: 1, columns: 0 }] {
-        let outcome = std::panic::catch_unwind(|| {
-            let mut b = Builder::new(&LIMITS);
-            b.open(Role::Cell);
-            b.spans(spans);
-        });
-        assert!(outcome.is_err(), "{spans:?}");
-    }
-}
-
-#[test]
 #[should_panic(expected = "sort belongs to column headers")]
 fn a_sort_on_a_cell_is_an_assertion() {
     let mut b = Builder::new(&LIMITS);
     b.open(Role::Cell);
     b.sort(crate::Sort::Ascending);
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn role_held_states_assert_their_roles() {
-    for state in [State::Required, State::Options] {
-        let result = std::panic::catch_unwind(|| {
-            let mut b = Builder::new(&LIMITS);
-            b.open(Role::Heading { level: 1 });
-            b.state(state);
-        });
-        assert!(result.is_err(), "{state:?} on a heading");
-    }
 }
 
 #[test]

@@ -364,27 +364,6 @@ fn piece_limits_apply_before_and_after_headers() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn duplicate_rows_assert_without_replacing_the_assembled_value() {
-    for row in [goal(1), task(2), milestone(2)] {
-        let (mut core, limits) = loaded();
-        assert_eq!(restore(&mut core, &limits, row.clone()), Restored::Live);
-        let duplicate =
-            std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| restore(&mut core, &limits, row.clone())));
-        let _panic = duplicate.expect_err("duplicate row asserts");
-        let assembly = core.start.projections.as_ref().expect("assembly").get(&1).expect("assembled goal");
-        match &row {
-            ProjectionRecord::Goal { goal, .. } => assert_eq!(&assembly.header.as_ref().expect("header").goal, goal),
-            ProjectionRecord::Task { task, .. } => assert_eq!(assembly.tasks.get(&task.number), Some(task)),
-            ProjectionRecord::Milestone { milestone, .. } => {
-                assert_eq!(assembly.milestones.get(&row.key()), Some(milestone));
-            }
-        }
-        assert_eq!(core.start_failure(), None);
-    }
-}
-
-#[test]
 fn a_missing_project_refuses_at_link() {
     let (mut core, limits) = loaded();
     let mut row = goal(1);

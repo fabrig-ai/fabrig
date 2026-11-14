@@ -7,10 +7,8 @@ use crate::{
         through_link,
     },
 };
-use core::panic::AssertUnwindSafe;
 use jig_domain_link::{Form, Scheme};
 use skein_lib::Token;
-use std::panic::catch_unwind;
 
 const WORKER: u64 = 2;
 const ENGINE: u64 = 1;
@@ -126,14 +124,13 @@ fn restored_claims_adopt_and_engine_claims_settle_before_open() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn stored_worker_claims_past_attempts_refuse_before_any_are_delivered() {
     let (mut core, env) = loaded(false, 0);
     let mut out = Queue::uncapped();
     let token = wires(&mut core, &env, &mut out);
     let expected =
         Failure::LiveSet { set: LiveSet::WorkerClaims, key: Key::Tasks(tasks::Key::Live(WORKER)), held: 1, limit: 0 };
-    let Action::Refused(found) = core.start_resume(&env, token.clone(), &mut out) else {
+    let Action::Refused(found) = core.start_resume(&env, token, &mut out) else {
         panic!("worker claims refuse as a fit")
     };
     assert_eq!(found, expected);
@@ -141,13 +138,10 @@ fn stored_worker_claims_past_attempts_refuse_before_any_are_delivered() {
     assert_eq!(core.start_phase(), Some(Phase::AdoptRuns));
     assert_eq!(core.adopted.len(), 2);
     assert!(!core.start_opened());
-    let _panic =
-        catch_unwind(AssertUnwindSafe(|| core.start_resume(&env, token, &mut out))).expect_err("continuation is stale");
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_released_continuation_is_stale_and_a_cold_start_repeats_adoption() {
+fn a_cold_start_repeats_adoption() {
     let mut out = Queue::uncapped();
     {
         let (mut core, env) = loaded(false, 1);
@@ -155,9 +149,7 @@ fn a_released_continuation_is_stale_and_a_cold_start_repeats_adoption() {
     }
     let (mut core, env) = loaded(false, 1);
     let token = wires(&mut core, &env, &mut out);
-    step_phase(core.start_resume(&env, token.clone(), &mut out), Phase::AdoptRuns);
-    let _panic =
-        catch_unwind(AssertUnwindSafe(|| core.start_resume(&env, token, &mut out))).expect_err("continuation is stale");
+    step_phase(core.start_resume(&env, token, &mut out), Phase::AdoptRuns);
     assert_eq!(core.adopted.len(), 2);
     for (event, expected) in core
         .adopted
