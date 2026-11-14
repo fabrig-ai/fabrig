@@ -97,8 +97,19 @@ pub(crate) fn record(
     if !d.heads.contains_key(&head.name) && d.heads.len() == d.heads.capacity() {
         free(d, env, out);
     }
-    match d.heads.insert(head.name.clone(), head) {
-        Ok(_) => true,
+    let name = head.name.clone();
+    let commit = head.commit;
+    match d.heads.insert(name.clone(), head) {
+        Ok(prior) => {
+            let changed = match prior {
+                Some(prior) => prior.commit != commit,
+                None => true,
+            };
+            if changed {
+                crate::change_history::pushed(d, env.wall, &name, commit, out);
+            }
+            true
+        }
         Err((name, _)) => {
             super::emit(
                 out,

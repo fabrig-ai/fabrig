@@ -1,4 +1,4 @@
-//! Parent-death exec against a real process tree, with an ordinary exec control.
+//! Parent-death exec and spawn against a real process tree, with an ordinary exec control.
 #![cfg(target_os = "linux")]
 
 use std::fs;
@@ -208,6 +208,27 @@ fn a_killed_parent_is_retained_until_its_group_is_settled() {
 #[test]
 fn a_parent_killed_after_exec_takes_its_child_with_it() {
     let mut tree = Tree::start("protected");
+    let clock = Clock::new();
+    let start = clock.now().now;
+    let mut deadline = Patience::new("the parent-death child exiting after SIGKILL", PATIENCE);
+    deadline.watch_process(
+        skein_shell::keeper::child_id(tree.child.expect("child identity")).expect("the owned child's PID"),
+    );
+    tree.kill_parent();
+    let result = until(&deadline, || tree.child_exited());
+    tree.check_wait(result, "parent-death signal must end sleep within 5 s");
+    let elapsed = clock.now().now.saturating_since(start);
+    eprintln!("parent SIGKILL to sleep exit: {} ns", elapsed.as_nanos());
+    assert_eq!(
+        skein_shell::keeper::poll_child(tree.child.expect("child identity"), false),
+        Ok(Some(Exit::Signal(9))),
+        "sleep died from the installed signal"
+    );
+}
+
+#[test]
+fn a_parent_killed_after_spawn_takes_its_child_with_it() {
+    let mut tree = Tree::start("spawn");
     let clock = Clock::new();
     let start = clock.now().now;
     let mut deadline = Patience::new("the parent-death child exiting after SIGKILL", PATIENCE);

@@ -33,7 +33,9 @@ fn the_roots_name_the_declarations_temper_encodes() {
     let limits = fixtures::limits();
     let items = v1::Items::new(&limits, fixtures::items(1)).unwrap();
     let mut landed = List::with_capacity(1);
-    landed.push(v1::Landed::new(&limits, v1::LandedParts { tag: 17, commit: [3; 32] }).unwrap()).unwrap();
+    landed
+        .push(v1::Landed::new(&limits, v1::LandedParts { tag: 17, commit: [3; 32], checked: true }).unwrap())
+        .unwrap();
     let left = v1::Left::new(&limits, v1::LeftParts { landed }).unwrap();
     let mut repositories = List::with_capacity(1);
     repositories
@@ -56,6 +58,14 @@ fn the_roots_name_the_declarations_temper_encodes() {
         (Carried::Saved, "Saved", crate::saved(&saved)),
         (Carried::Preparation, "Preparation", crate::preparation(&preparation)),
         (Carried::Grant, "Identity", identity.expose().into()),
+        (Carried::Ask, "Ask", crate::ask(&v1::Ask::Reds)),
+        (
+            Carried::Answer,
+            "Answer",
+            crate::answer(&v1::Answer::Reds(
+                v1::Reds::new(&limits, v1::RedsParts { reds: List::with_capacity(0) }).unwrap(),
+            )),
+        ),
     ] {
         let mut found = None;
         for root in &application.roots {
@@ -69,10 +79,35 @@ fn the_roots_name_the_declarations_temper_encodes() {
         let mut value = skein_codec::value::Value::with_room(256);
         value.decode(&schema, schema.find(root.declaration.as_bytes()).unwrap(), bytes).expect("encoder's declaration");
     }
-    assert_eq!(application.roots.len(), 6);
+    assert_eq!(application.roots.len(), 8);
     for root in &application.roots {
         assert_ne!(root.carried, Carried::JobResult, "tooling's result is opaque");
     }
+}
+
+#[test]
+fn left_carries_checked_deliveries_across_six_and_seven() {
+    let limits = fixtures::limits();
+    let mut application = crate::application(&limits).unwrap();
+    let bridge = application.bridges.get_mut(0).unwrap();
+    let mut old = skein_lib::Writer::new(44);
+    old.put(&1_u32.to_be_bytes()).unwrap();
+    old.put(&17_u64.to_be_bytes()).unwrap();
+    old.put(&[3; 32]).unwrap();
+    let old = old.finish();
+    let up = bridge.translate(6, 7, b"Left", old.clone()).unwrap();
+    let left = v1::Left::decode(&limits, &mut skein_lib::Reader::new(&up)).unwrap();
+    let head = left.landed().get(0).unwrap();
+    assert_eq!((head.tag(), head.commit(), head.checked()), (17, &[3; 32], true));
+    assert_eq!(bridge.translate(7, 6, b"Left", up).unwrap().as_ref(), old.as_ref());
+    let mut landed = List::with_capacity(1);
+    landed
+        .push(v1::Landed::new(&limits, v1::LandedParts { tag: 17, commit: [3; 32], checked: false }).unwrap())
+        .unwrap();
+    let unchecked = v1::Left::new(&limits, v1::LeftParts { landed }).unwrap();
+    let Err(skein_codec::patch::Halt::Unheld(_)) = bridge.translate(7, 6, b"Left", crate::left(&unchecked)) else {
+        panic!("unchecked delivery cannot be read as checked")
+    };
 }
 
 #[test]

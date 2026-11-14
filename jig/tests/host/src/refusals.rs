@@ -55,6 +55,8 @@ impl Referee {
             | Event::Delivered { .. }
             | Event::ListRead { .. }
             | Event::SourceAnswered { .. }
+            | Event::Ask { .. }
+            | Event::LinkLost
             | Event::SourceLost
             | Event::Saved { .. } => {}
         }
@@ -76,7 +78,8 @@ impl Referee {
             Request::Up(LinkUp::Answer { run, attempt, answer, .. }) => {
                 self.fence((*run, *attempt), answer.read, &answer.refused);
             }
-            Request::Job(_)
+            Request::Asked { .. }
+            | Request::Job(_)
             | Request::DeliverJob { .. }
             | Request::Up(_)
             | Request::Hello { .. }

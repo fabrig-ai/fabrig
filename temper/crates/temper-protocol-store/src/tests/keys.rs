@@ -72,8 +72,9 @@ fn every_forge_key_lies_in_the_interval_and_no_core_key_does() {
         let key = fixtures::key(&mut random);
         let relative = keys::encode(&key, u32::MAX).expect("a drawn key fits");
         let tagged = jig_protocol_store::keys::application(&relative, u32::MAX).expect("tagged");
-        assert!(fixtures::within(&interval, &tagged), "{key:?}");
-        assert!(temper_engine_domain::Range::Forge.contains(&temper_engine_domain::Key::Forge(key)));
+        let restored = relative.first().copied().expect("family byte") < 128;
+        assert_eq!(fixtures::within(&interval, &tagged), restored, "{key:?}");
+        assert_eq!(temper_engine_domain::Range::Forge.contains(&temper_engine_domain::Key::Forge(key)), restored);
     }
     for key in fixtures::core_keys() {
         let tagged = jig_protocol_store::keys::encode(&key, u32::MAX).expect("a core key fits");
@@ -467,4 +468,74 @@ fn findings_keys_and_topic_use_the_reserved_bytes_and_order() {
         writer.tag(31).u64(project).u64(number);
         assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
     }
+}
+
+#[test]
+fn history_keys_have_their_assigned_families_and_jig_fields() {
+    for (key, family, numbers) in [
+        (Key::HistoryProject { project: 3 }, 127, &[3][..]),
+        (Key::HistoryEvent { project: 3, number: 7 }, 128, &[3, 7][..]),
+        (Key::HistoryChange { project: 3, change: 5, number: 7 }, 129, &[3, 5, 7][..]),
+        (Key::HistoryLanding { project: 3, landing: 11, number: 7 }, 130, &[3, 11, 7][..]),
+        (Key::HistoryLast { project: 3, number: 7, change: 5 }, 131, &[3, 7, 5][..]),
+    ] {
+        let mut expected = skein_kv::KeyWriter::new(25);
+        expected.tag(family);
+        for number in numbers {
+            expected.u64(*number);
+        }
+        let expected = expected.finish().unwrap();
+        assert_eq!(keys::encode(&key, 25), Some(expected.clone()));
+        assert_eq!(keys::decode(&expected, &fixtures::LIMITS), Some(key.clone()));
+        assert_eq!(keys::encode(&key, u32::try_from(expected.len()).unwrap() - 1), None);
+        let tagged = jig_protocol_store::keys::application(&expected, u32::MAX).unwrap();
+        assert_eq!(fixtures::within(&crate::interval(), &tagged), family < 128);
+        assert_eq!(temper_engine_domain::Range::Forge.contains(&temper_engine_domain::Key::Forge(key)), family < 128);
+    }
+}
+
+#[test]
+fn every_written_family_has_one_unique_temper_census_name() {
+    for (index, &(tag, name)) in crate::KEYSPACES.families.iter().enumerate() {
+        assert!(name.starts_with("temper.") && name.len() <= 48, "{name}");
+        if tag == 12 {
+            assert_eq!(name, "temper.changes");
+        }
+        if tag == keys::HISTORY_EVENT {
+            assert_eq!(name, "temper.landing-history");
+        }
+        for byte in name.bytes() {
+            assert!(byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'.' || byte == b'-');
+        }
+        for &(other, other_name) in crate::KEYSPACES.families.get(..index).expect("earlier names") {
+            assert_ne!(tag, other);
+            assert_ne!(name, other_name);
+        }
+    }
+    let mut random = Rng::new(0x6301);
+    for _ in 0_u32..10_000 {
+        let key = fixtures::key(&mut random);
+        assert_census_name(&key);
+    }
+    // The shared ordering generator does not draw these families.
+    for key in [
+        Key::Device { party: 1, number: 1 },
+        Key::LandedDraft {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            path: Box::from(b"draft".as_slice()),
+        },
+    ] {
+        assert_census_name(&key);
+    }
+}
+
+fn assert_census_name(key: &Key) {
+    let bytes = keys::encode(key, u32::MAX).unwrap();
+    let mut names = 0_u32;
+    for &(tag, _) in crate::KEYSPACES.families {
+        if Some(&tag) == bytes.first() {
+            names = names.checked_add(1).expect("bounded names");
+        }
+    }
+    assert_eq!(names, 1, "one name for the writer's family {key:?}");
 }

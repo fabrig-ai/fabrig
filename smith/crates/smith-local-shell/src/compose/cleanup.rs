@@ -115,6 +115,7 @@ impl Host for EphemeralCleanup {
                 | file::Event::Read { .. }
                 | file::Event::Cut { .. }
                 | file::Event::Synced { .. }
+                | file::Event::Linked { .. }
                 | file::Event::Renamed { .. }
                 | file::Event::Listed { .. } => {
                     unreachable!("ephemeral cleanup requests have removal and close terminals")

@@ -143,6 +143,16 @@ runs as contained processes and whose output it parses.
   so nothing else of it changes: it is never taken for a goal's design
   delivery (`../agent/README.md`, section 5), and its start, push and expected
   head are as before.
+- **A goal's reds for each check** (`../forge/reds.md`, 5.2 and 5.3), in
+  each writable repository with a pin, under its git directory: prepare
+  removes `temper/reds` and writes `temper/reds-wait`; a check's start
+  removes `temper/reds`, and, once the engine answers, the checkout finds
+  the check's base and each red's ancestry with git
+  (`git merge-base`, `git merge-base --is-ancestor`) and writes
+  `temper/reds` through `temper/reds.tmp` and a rename; a check's end
+  removes it. These are the checkout's typed operations, run as its
+  others are, one at a time; a failed one writes no file and fails
+  nothing else of the run.
 - **An existing producer branch** compares with the pinned tip: it is the
   frozen comparison for existing work below, only for an inherited
   producer that starts on its push branch.

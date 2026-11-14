@@ -21,6 +21,7 @@ answer, and a **notice** is not answered.
 | signed out | a program source's name; whether the program's sign-out ran, or failed, with bounded detail | answer to a sign out |
 | list read | a read's number; at most 256 rows, each a name of at most 128 bytes, a shown name of at most 64, a window, an output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../../domain/hosts/README.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
 | draining | none: the worker has started to shut down, and the fleet places nothing more on this channel (`../../domain/engine/fleet.md`) | notice: once as its shutdown begins, before anything its cancelled runs send, and again after each hello while it shuts down (`../../domain/hosts/hub.md`, 7) |
+| ask | task, attempt; the ask's number, the hub's for that attempt; the application's bytes, within the application's largest ask (`../../domain/hosts/hub.md`, 10) | call, answered by `asked` |
 
 - **Every login notice is whole:** the current `sources` list, each name
   once, including an empty list. An explicit check publishes it even when
@@ -89,6 +90,7 @@ tags stay fixed (`../README.md`, 7).
 | sign out | a program source's name: run the program's own sign-out in the source's configuration directory (smith's `protocol/host.md`, section 2) | call, answered by `signed out` |
 | read list | a read's number; an endpoint; a grant, as `grant`'s form and value, a credential alone (`README.md`, section 7): read this account's list once (`../../domain/hosts/README.md`, 5.1) | call, answered by `list read` |
 | wires | each wire the worker stated and the engine speaks, by name, with its agreed version (`bridges.md`, 3) | notice: once, the engine's first record, on a channel whose version has it |
+| asked | task, attempt; the ask's number; the application's answer, its bytes within the application's largest answer, or refused: the attempt is not its task's live one, or the application answers none (`../../domain/hosts/hub.md`, 10) | answer to an ask, best effort: a number the hub no longer holds is dropped |
 
 - **The fleet's refusals travel as the records above:** a turn answered
   busy, a relayed call answered busy or as an error, and an answer

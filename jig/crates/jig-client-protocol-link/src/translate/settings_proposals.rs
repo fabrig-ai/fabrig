@@ -6,7 +6,7 @@ use super::settings::{
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{List, Reader, Writer};
 pub fn restore_origin_revision(value: &w::OriginRevision) -> Result<c::OriginRevision, w::Problem> {
     Ok(c::OriginRevision { revision: value.revision() })

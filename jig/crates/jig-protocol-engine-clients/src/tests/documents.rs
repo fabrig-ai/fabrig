@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::translate;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
@@ -9,6 +9,69 @@ fn me_preserves_two_projects_in_its_wire_record() {
         Ok(fixtures::frame_two_projects_record())
     );
 }
+#[test]
+fn deployment_census_reaches_the_client_at_all_its_bounds_and_when_absent() {
+    use jig_domain_core_vocabulary::documents::deployment::{
+        CENSUS_HEADS, CENSUS_NAME, CENSUS_PREFIX, CENSUS_ROWS, CensusHead, CensusKeyspace, StoreCensus,
+    };
+    let mut keyspaces = List::with_capacity(u32::try_from(CENSUS_ROWS).unwrap());
+    for n in 0..CENSUS_ROWS {
+        let mut heads = List::with_capacity(u32::try_from(CENSUS_HEADS).unwrap());
+        for h in 0..CENSUS_HEADS {
+            heads
+                .push(CensusHead {
+                    head: if h == 0 { None } else { Some(u16::try_from(h).unwrap()) },
+                    rows: u64::try_from(h).unwrap() + 10,
+                })
+                .unwrap();
+        }
+        keyspaces
+            .push(CensusKeyspace {
+                prefix: Box::new([u8::try_from(n).unwrap(); CENSUS_PREFIX]),
+                name: "n".repeat(CENSUS_NAME).into_boxed_str(),
+                rows: u64::try_from(n).unwrap(),
+                keys: 11,
+                values: 13,
+                heads,
+                puts: 17,
+                erases: 19,
+                written: u64::MAX,
+            })
+            .unwrap();
+    }
+    let census = Box::new(StoreCensus { commit: u64::MAX, since: 679_000, keyspaces });
+    for census in [None, Some(census)] {
+        let mut source = fixtures::deployment_document();
+        source.census = census.clone();
+        let wire = translate::deployment::document(&source, &w::CEILINGS).unwrap();
+        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+        wire.encode(&mut bytes).unwrap();
+        let bytes = bytes.finish();
+        let limits = fixtures::client_limits();
+        assert!(u64::try_from(bytes.len()).unwrap() <= limits.client().document_bytes);
+        let wire = w::Deployment::decode(limits.receiving(), &mut skein_lib::Reader::new(&bytes)).unwrap();
+        let client = jig_client_protocol_link::translate::documents::deployment(wire, &limits).unwrap();
+        match (census, client.census) {
+            (None, None) => (),
+            (Some(expected), Some(actual)) => {
+                assert_eq!((actual.commit, actual.since), (expected.commit, expected.since));
+                assert_eq!(actual.keyspaces.len(), expected.keyspaces.len());
+                for (a, e) in actual.keyspaces.iter().zip(expected.keyspaces.iter()) {
+                    assert_eq!(
+                        (&a.prefix, &a.name, a.rows, a.keys, a.values, a.puts, a.erases, a.written),
+                        (&e.prefix, &e.name, e.rows, e.keys, e.values, e.puts, e.erases, e.written)
+                    );
+                    assert_eq!(a.heads.len(), e.heads.len());
+                    for (a, e) in a.heads.iter().zip(e.heads.iter()) {
+                        assert_eq!((a.head, a.rows), (e.head, e.rows));
+                    }
+                }
+            }
+            _ => panic!("census presence preserved"),
+        }
+    }
+}
+
 const PROJECT_ROOM: [u32; 2] = [2, 32];
 #[test]
 fn me_encoding_preserves_rows_despite_spare_list_capacity() {

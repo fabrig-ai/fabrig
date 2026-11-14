@@ -32,8 +32,8 @@ pub use accounts::{AccountLine, AccountList, Accounts, LastEnd, SignInLine, Sour
 pub use catalogue::{Offered, PayerReadiness, ProviderOffer, Readiness};
 pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
 pub use deployment::{
-    Account, AccountState, Capacity, Deployment, HelloRefusalLine, Host, HostRun, ProjectCapacity, RunLocation,
-    StoreFill,
+    Account, AccountState, CENSUS_HEADS, CENSUS_NAME, CENSUS_PREFIX, CENSUS_ROWS, Capacity, CensusHead, CensusKeyspace,
+    Deployment, HelloRefusalLine, Host, HostRun, ProjectCapacity, RunLocation, StoreCensus, StoreFill,
 };
 pub use inbox_deployment::{Inbox, InboxEntry, InboxObject};
 pub use inbox_selection::{InboxSelection, inbox_selection_bound};

@@ -61,6 +61,12 @@ impl JigBindings {
     pub fn new(capacity: u32, text_limit: u32) -> Self {
         Self { entries: skein_lib::List::with_capacity(capacity), next: 0, text_limit, task: None }
     }
+    /// The meanings carried by the last built tree, slot meanings included.
+    #[must_use]
+    #[expect(clippy::len_without_is_empty, reason = "the read-only count prices the binding table")]
+    pub fn len(&self) -> u32 {
+        self.entries.len()
+    }
     /// The client's bound on one literal segment's bytes.
     #[must_use]
     pub const fn text_limit(&self) -> u32 {

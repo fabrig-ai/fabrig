@@ -30,6 +30,13 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
         }
         stand.below.script.invocations.push_back(invocation);
     }
+    // The scripted clone leaves a git directory for the check-file operations.
+    stand.below.tree.insert(b"workspaces/0/app/.git".to_vec(), temper_worker_protocol_git_world::io::Node::Directory);
+    for stdout in [b"0000000000000000000000000000000000000001\n".as_slice(), b".git/temper\n"] {
+        let mut query = Invocation::captured("object-format");
+        query.transcript.stdout = stdout.into();
+        stand.below.script.invocations.push_back(query);
+    }
     stand.worker.link(fixtures::NOW, fixtures::repository_assignment());
     let root::Event::Assign { assignment, items: Ok(mut items) } = stand.worker.engine.pop().unwrap() else {
         panic!("decoded repository")

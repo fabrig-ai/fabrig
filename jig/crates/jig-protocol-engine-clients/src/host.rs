@@ -49,6 +49,8 @@ impl Bridge {
     pub fn answer(&mut self, answer: store::Event) -> kit::SecretsAnswer {
         use store::Event;
         match answer {
+            // The census goes to the root, never a secret asker (protocol/store/README.md, 6.3).
+            Event::Census { .. } => unreachable!("census is not a secret terminal"),
             Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Kept { owner } => kit::SecretsAnswer::Kept { owner: self.owner(owner) },
             Event::Erased { owner } => kit::SecretsAnswer::Erased { owner: self.owner(owner) },

@@ -217,6 +217,7 @@ fn abandonment_drops_every_document_row_and_its_titles() {
 fn repair() -> forge::ChangeRow {
     forge::ChangeRow {
         task_release: None,
+        job: None,
         signed: Box::new([]),
         task: 7,
         repository: skein_forge::api::Repository { forge: 1, repository: 1 },
@@ -275,6 +276,7 @@ fn repair() -> forge::ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }

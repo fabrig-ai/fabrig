@@ -85,7 +85,7 @@ pub use listeners::{
 #[cfg(unix)]
 pub use posix::descriptor_writes;
 #[cfg(unix)]
-pub use process::{close_startup_fd, exec_dying_with_parent, open_termination_signals};
+pub use process::{close_startup_fd, exec_dying_with_parent, open_termination_signals, spawn_dying_with_parent};
 #[cfg(unix)]
 pub use seed::{crypto_seed, seed};
 pub use settings::{Base, Fallback, Origin, Reason, Refusal, Resolved, Setting, Settings, Value, help, resolve};

@@ -73,7 +73,8 @@ fn a_worker_reports_its_unchanged_push_head_after_an_engine_restart() {
         parts.pushed,
         Box::new([forge::Pushed {
             tag: forge::tag(temper_engine_forge_world::REPO.forge, temper_engine_forge_world::REPO.repository),
-            commit: HEAD
+            commit: HEAD,
+            checked: true
         }]) as Box<[forge::Pushed]>
     );
 }

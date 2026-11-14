@@ -386,6 +386,7 @@ mod tests {
                     | Op::Sync { .. }
                     | Op::Lock { .. }
                     | Op::Stat { .. }
+                    | Op::HardLink { .. }
                     | Op::Rename { .. }
                     | Op::Remove { .. }
                     | Op::MakeDirectory { .. }

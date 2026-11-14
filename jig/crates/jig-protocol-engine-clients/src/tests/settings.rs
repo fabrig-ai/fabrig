@@ -1,6 +1,6 @@
 use super::fixtures as f;
 use crate::translate::settings as translate;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 

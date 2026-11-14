@@ -397,6 +397,14 @@ impl Judge<'_> {
 
 impl Judge<'_> {
     fn stop(&mut self, procs: &mut [Process]) {
+        let mut checked = Vec::new();
+        for proof in [self.first.as_ref().expect("first landing"), self.second.as_ref().expect("last landing")] {
+            let task = proof.panel["task"].as_u64().expect("landing task");
+            if !checked.contains(&task) {
+                super::landing_by_turn::assert_history(self.root, 1, &landing(self.root, task), Some("private"));
+                checked.push(task);
+            }
+        }
         calls(procs).release();
         let Process::Binary(binary) = &mut procs[0] else { panic!("serve") };
         binary.signal(Signal::Terminate);

@@ -27,6 +27,7 @@ pub const SETTINGS: [&[u8]; 13] = [
 /// One invocation in an operation's fixed sequence.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Command {
+    Reds(crate::reds::CheckCommand),
     Format,
     SnapshotHead,
     SnapshotMerge { head: git::Commit, second: Option<git::Commit> },
@@ -62,6 +63,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         git::Op::Make { .. } => None,
         git::Op::Store { git, .. } => git.as_deref(),
         git::Op::Clone { at, .. }
+        | git::Op::Reds { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::Fetch { at, .. }
         | git::Op::Create { at, .. }
@@ -93,6 +95,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             git::Op::Store { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
+            | git::Op::Reds { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -100,7 +103,8 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             | git::Op::Merge { .. }
             | git::Op::Commit { .. } => unreachable!("ancestry is part of a push"),
         },
-        Command::SnapshotHead
+        Command::Reds(_)
+        | Command::SnapshotHead
         | Command::SnapshotMerge { .. }
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
@@ -172,7 +176,8 @@ fn words(out: &mut List<Box<[u8]>>, bytes: &[&[u8]]) {
 pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
     let extra = match command {
         Command::BringsList { bases, .. } => u32::try_from(bases.len()).expect("bounded merge-base stdout"),
-        Command::Format
+        Command::Reds(_)
+        | Command::Format
         | Command::SnapshotHead
         | Command::SnapshotMerge { .. }
         | Command::SnapshotFetch { .. }
@@ -204,6 +209,11 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
         words(&mut out, &[b"-c", setting]);
     }
     match command {
+        Command::Reds(check) => {
+            for argument in crate::reds::arguments(check) {
+                out.push(argument).expect("check argv");
+            }
+        }
         Command::SnapshotHead => words(&mut out, &[b"log", b"-1", b"--format=%H %P", b"HEAD", b"--"]),
         Command::SnapshotMerge { .. } => words(&mut out, &[b"rev-parse", b"--verify", b"--quiet", b"MERGE_HEAD"]),
         Command::SnapshotFetch { remote, .. } => words(
@@ -371,7 +381,8 @@ pub(crate) fn environment_for(
         ) => identity,
         None
         | Some(
-            git::Kind::Point
+            git::Kind::Reds
+            | git::Kind::Point
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths
@@ -430,7 +441,8 @@ pub(crate) fn environment_for(
         }
         None
         | Some(
-            git::Kind::Point
+            git::Kind::Reds
+            | git::Kind::Point
             | git::Kind::Clone
             | git::Kind::Look
             | git::Kind::DiffPaths

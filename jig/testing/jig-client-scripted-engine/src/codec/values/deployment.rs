@@ -111,6 +111,7 @@ pub(in crate::codec) fn wire_deployment(
         w::DeploymentParts {
             skein_bools: [value.cut, value.connectors_cut, value.providers_cut, value.readiness_cut],
             store: wire_store_fill(&value.store, limits)?,
+            census: value.census.as_deref().map(|value| wire_store_census(value, limits)).transpose()?,
             hosts: pieces(value.hosts.iter().map(|item| wire_host(item, limits)), w::Host::measure, w::Host::encode)?,
             attempts: pieces(
                 value.attempts.iter().map(|item| wire_host_run(item, limits)),
@@ -155,6 +156,31 @@ pub(in crate::codec) fn wire_deployment(
             )?,
         },
     )
+}
+
+fn wire_store_census(value: &c::StoreCensus, limits: &w::Limits) -> Result<w::StoreCensus, w::Problem> {
+    let keyspaces = list(value.keyspaces.iter().map(|row| {
+        let heads = list(
+            row.heads
+                .iter()
+                .map(|head| w::CensusHead::new(limits, w::CensusHeadParts { head: head.head, rows: head.rows })),
+        )?;
+        w::CensusKeyspace::new(
+            limits,
+            w::CensusKeyspaceParts {
+                prefix: row.prefix.clone(),
+                name: row.name.as_bytes().into(),
+                rows: row.rows,
+                keys: row.keys,
+                values: row.values,
+                heads,
+                puts: row.puts,
+                erases: row.erases,
+                written: row.written,
+            },
+        )
+    }))?;
+    w::StoreCensus::new(limits, w::StoreCensusParts { commit: value.commit, since: value.since, keyspaces })
 }
 
 pub(in crate::codec) fn wire_store_fill(value: &c::StoreFill, limits: &w::Limits) -> Result<w::StoreFill, w::Problem> {

@@ -237,21 +237,24 @@ mod opening {
         .expect("old worker");
         let connection = world.connect(peer);
         world.run();
-        assert_eq!(world.refusal(connection), Some((1, b"speaks 12..13, offered 9..9".as_slice().into())));
+        assert_eq!(world.refusal(connection), Some((1, b"speaks 12..14, offered 9..9".as_slice().into())));
         let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
             panic!("precredential refusal")
         };
-        assert_eq!(text.as_ref(), b"speaks 12..13, offered 9..9");
+        assert_eq!(text.as_ref(), b"speaks 12..14, offered 9..9");
         assert!(world.root().is_empty());
     }
     #[test]
     fn terms_below_the_largest_assignment_are_refused_as_limits() {
         let mut schema = fixtures::schema();
-        let kinds = &mut schema.versions.get_mut(1).expect("current version").kinds;
-        for index in 0..kinds.len() {
-            let kind = kinds.get_mut(index).expect("kind slot");
-            if kind.kind == 0x0180 {
-                kind.largest = 1;
+        for version in schema.versions.iter_mut() {
+            if version.version != jig_protocol_worker_wire::VERSION {
+                continue;
+            }
+            for kind in version.kinds.iter_mut() {
+                if kind.kind == 0x0180 {
+                    kind.largest = 1;
+                }
             }
         }
         let mut world = world();

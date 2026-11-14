@@ -1,7 +1,7 @@
 //! Model offers across engine, wire and client link (jig/docs/design/client/domain/contract/documents.md, 1).
 use super::fixtures;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{List, Reader};
 
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
@@ -167,7 +167,7 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
         let digest: [u8; 32] = crate::sign_in::digest(&encoded).expose().try_into().unwrap();
         let keyed = w::Keyed::new(
             limits.wire(),
-            w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 21, request: encoded.clone(), value: None },
+            w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 22, request: encoded.clone(), value: None },
         )
         .unwrap();
         let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());

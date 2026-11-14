@@ -187,7 +187,7 @@ fn task_rows_include_their_accepted_party_proposal_decision_and_update() {
         fixtures::person_proposal(proposal, true),
         fixtures::update(fixtures::ALICE, 19, owner, object),
     ]);
-    for record in &expected {
+    for record in expected.as_slice() {
         save(&mut store, record.clone());
     }
     save(&mut store, fixtures::update(fixtures::ALICE, 20, 24, object));

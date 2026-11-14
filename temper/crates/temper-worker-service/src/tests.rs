@@ -2,6 +2,7 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 pub(crate) mod fixtures;
 mod limits;
+mod reds;
 mod worker;
 mod worker_admission;
 mod worker_alone;

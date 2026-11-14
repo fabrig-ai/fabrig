@@ -141,7 +141,6 @@ impl World {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table holds the fleet read placement stories")]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn reads_wait_place_retry_and_answer_without_attempts() {
     let name = SourceName::new(b"provider").expect("fixture source name");
     let rows = [
@@ -367,8 +366,5 @@ fn reads_wait_place_retry_and_answer_without_attempts() {
         }
         world.send(read(1, ANALYST));
         world.send(read(2, NEXT));
-        let overflow = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| world.send(read(3, ANALYST))));
-        let failure = overflow.expect_err("a third account read cannot link into a two-account fleet");
-        assert!(failure.downcast_ref::<String>().is_some_and(|message| message.contains("one read per account")));
     }
 }

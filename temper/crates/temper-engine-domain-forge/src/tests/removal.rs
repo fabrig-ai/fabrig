@@ -409,7 +409,8 @@ fn remove_cancels_each_change_on_the_forge_and_its_task_ends_cancelled() {
     repository.provider.forge = 2;
     outputs(&mut d, Event::Restore { record: Stored::Forge(record(2, Mode::Fake)) });
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
-    outputs(&mut d, Event::Change { row: other.clone() });
+    outputs(&mut d, Event::Change { row: other });
+    let other = d.change(53).unwrap().clone();
     let sent = remove(&mut d, 1, Some(PartyRole::Owner));
     for task in [51, 52] {
         assert_eq!(d.change(task).unwrap().change.state, change::State::Ended);
@@ -706,7 +707,7 @@ fn removed_history_restores_without_a_repository_but_live_names_still_require_it
     row.pending = None;
     row.change.state = temper_engine_domain_forge_change::State::Ended;
     outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
-    d.reconcile(&reconcile::empty_tasks());
+    assert_eq!(d.missing_link(&reconcile::empty_tasks()), None);
     assert!(!crate::reconcile::references_resolve(
         &d,
         &LIMITS,

@@ -43,6 +43,7 @@ impl Walker {
             failed: limits.depth == 0 || limits.page == 0,
         }
     }
+    #[expect(clippy::too_many_lines, reason = "the walk event dispatch stays together")]
     pub fn up(&mut self, event: file::Event, limits: Walk, below: &mut Queue<Asked>) -> Option<Event> {
         match event {
             file::Event::Opened { file, .. } => {
@@ -103,6 +104,7 @@ impl Walker {
             | file::Event::Read { .. }
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. } => unreachable!("walk terminal"),
         }
         if self.failed {

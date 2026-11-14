@@ -148,6 +148,7 @@ impl Host for Storing {
                 | file::Event::Read { .. }
                 | file::Event::Cut { .. }
                 | file::Event::Synced { .. }
+                | file::Event::Linked { .. }
                 | file::Event::Renamed { .. }
                 | file::Event::Removed { .. }
                 | file::Event::Listed { .. } => unreachable!("startup store vocabulary"),

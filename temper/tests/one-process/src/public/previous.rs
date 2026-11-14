@@ -83,6 +83,9 @@ impl Walk {
             let Some(link) = service.links().pop() else {
                 return false;
             };
+            if self.name == RESTORED {
+                caller.commands.push_back(Command::new(&[b"sign-out"]));
+            }
             let mut sign_in = Command::new(&[b"sign-in", b"-"]);
             sign_in.input = String::from_utf8(link.into_vec())
                 .expect("printed URL")
@@ -92,15 +95,18 @@ impl Walk {
             caller.commands.push_back(sign_in);
             self.handed = true;
         }
-        if caller.answers.is_empty() || !proxy.ready() || self.calls.iter().any(|id| !visitor.answers.contains_key(id))
+        let signing = usize::from(self.name == RESTORED);
+        if caller.answers.len() <= signing
+            || !proxy.ready()
+            || self.calls.iter().any(|id| !visitor.answers.contains_key(id))
         {
             return false;
         }
         assert_eq!(
-            caller.answers[0].exit,
+            caller.answers[signing].exit,
             skein_io::kernel::Exit::Code(0),
             "sign-in: {}",
-            String::from_utf8_lossy(&caller.answers[0].error)
+            String::from_utf8_lossy(&caller.answers[signing].error)
         );
         if self.name == RESTORED {
             return self.restored(visitor);

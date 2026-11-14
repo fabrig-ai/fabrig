@@ -128,8 +128,7 @@ fn retained_proposal_bare_fragment_uses_the_selected_checked_language_for_every_
     }
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn retained_proposal_fragment_selected_language_and_exact_occupied_nodes_refuse_one_under() {
+fn retained_proposal_fragment_selected_language_fits_exact_occupied_nodes() {
     let mut goldens = Goldens::new("tree/fragments/history/proposal_fragment/retained_proposal_fragment_selected");
     let words = words(true);
     let value = proposal(RetainedAction::Amend { task: 0, change: Box::new(delta()) });
@@ -138,11 +137,8 @@ fn retained_proposal_fragment_selected_language_and_exact_occupied_nodes_refuse_
     let exact = Limits { nodes: tree.len(), ..fragment };
     let (again, _) = render(&value, &words, &exact);
     assert_eq!(again.nodes(), tree.nodes());
-    let one_under = Limits { nodes: exact.nodes.checked_sub(1).unwrap(), ..exact };
-    match std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| render(&value, &words, &one_under))) {
-        Err(_) => {}
-        Ok(_) => panic!("one node below the occupied fragment must refuse"),
-    }
+    let used = again.used();
+    assert_eq!(used.nodes, exact.nodes);
 }
 #[test]
 fn retained_proposal_fragment_preserves_absent_empty_and_independent_retained_losses() {

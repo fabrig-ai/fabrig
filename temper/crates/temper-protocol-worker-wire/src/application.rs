@@ -16,7 +16,7 @@ pub fn application(limits: &v1::Limits) -> Result<Application, BridgeError> {
     spoken_wires.push(spoken()).expect("one application wire");
     let mut bridges = List::with_capacity(1);
     bridges.push(patches::kept::temper_worker_wire::bridge(capacity(limits)?)?).expect("one application bridge");
-    let mut roots = List::with_capacity(6);
+    let mut roots = List::with_capacity(8);
     for (carried, declaration) in [
         (Carried::Items, "Items"),
         (Carried::Left, "Left"),
@@ -24,8 +24,10 @@ pub fn application(limits: &v1::Limits) -> Result<Application, BridgeError> {
         (Carried::Preparation, "Preparation"),
         (Carried::JobSpec, "JobSpec"),
         (Carried::Grant, "Identity"),
+        (Carried::Ask, "Ask"),
+        (Carried::Answer, "Answer"),
     ] {
-        roots.push(Root { carried, wire: wire::FAMILY, declaration }).expect("six translated parts");
+        roots.push(Root { carried, wire: wire::FAMILY, declaration }).expect("eight translated parts");
     }
     Ok(Application { spoken: spoken_wires, bridges, roots })
 }

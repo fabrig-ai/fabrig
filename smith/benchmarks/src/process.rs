@@ -332,6 +332,7 @@ impl Host for Output {
                 | Op::Truncate { .. }
                 | Op::Sync { .. }
                 | Op::Stat { .. }
+                | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }
                 | Op::MakeDirectory { .. }

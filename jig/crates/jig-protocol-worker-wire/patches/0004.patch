@@ -1,0 +1,10 @@
+patch 1
+owner jig 4
+
+family jig-worker-wire 13 to 14
+add Ask
+add AskBytes
+add AskAnswer
+add Asked
+add FromWorker.ask
+add FromEngine.asked

@@ -1,7 +1,7 @@
 //! The tools available to this host (client/ctl/tools.md).
 use crate::jig::{
     argv::{self, Usage},
-    call::Parsed,
+    call::{Call, Parsed},
     rows,
     table::Tool,
 };
@@ -47,6 +47,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"project", line: b"Projects: make or delete one, read periods and pools, set spend and visibility" },
     Group { name: b"push", line: b"Push devices: list, add or remove your subscriptions" },
     Group { name: b"playground", line: b"The playground: start it, or end it and set up temper" },
+    Group { name: b"deployment", line: b"Read the store's census in the deployment's document" },
 ];
 pub const TOOLS: &[&Tool] = &[
     &rows::ME,
@@ -146,9 +147,15 @@ pub const TOOLS: &[&Tool] = &[
     &rows::FINDING_BACKLOG,
     &rows::FINDING_DROP,
     &rows::NEED_ASK,
+    &crate::landing::history::HISTORY,
+    &rows::DEPLOYMENT_CENSUS,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
-    argv::parse(TOOLS, words, &crate::limits::tools())
+    let parsed = argv::parse(TOOLS, words, &crate::limits::tools())?;
+    if let Parsed::Call { call, .. } = &parsed {
+        check_application(call)?;
+    }
+    Ok(parsed)
 }
 
 /// The caller supplies argv to render the offending group and verb.
@@ -285,3 +292,14 @@ fn argument_words(
     out.put(row.name)
 }
 pub const USAGE: &[u8] = b"usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool";
+
+/// Check application argument rules after the generic argv or JSON parser.
+/// # Errors
+/// Returns the selected tool's usage error before a call is sent.
+pub fn check_application(call: &Call) -> Result<(), Usage> {
+    let tool = TOOLS.get(usize::from(call.tool)).ok_or(Usage::Tool)?;
+    if tool.name == crate::landing::history::HISTORY.name {
+        crate::landing::history::check(call)?;
+    }
+    Ok(())
+}

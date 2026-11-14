@@ -27,6 +27,7 @@ mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
+mod red_tool;
 pub(crate) mod remember;
 pub(crate) mod see;
 pub(crate) mod ways;
@@ -244,6 +245,14 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Party(crate::PartyInput::StreamDelivered { watcher }) => {
             domain.work.push(Work::Core(core::Event::StreamDelivered { watcher }));
         }
+        Event::Store(crate::StoreInput::Census(census)) => {
+            if domain.start_runtime() {
+                domain.work.push(Work::Core(core::Event::Census(census)));
+            } else {
+                domain.startup_census = Some(census);
+                return;
+            }
+        }
         Event::Store(crate::StoreInput::Committed { number, fill }) => {
             crate::committed(&mut domain.journal, number);
             if domain.journal.stopped() {
@@ -315,6 +324,12 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
             return;
+        }
+        Event::Worker(crate::WorkerInput::CheckResults { run, attempt, results }) => {
+            domain.work.push(Work::CheckResults { task: run.raw(), attempt: attempt.raw(), results });
+        }
+        Event::Worker(crate::WorkerInput::Asked { channel, run, attempt, number, answer }) => {
+            crate::wire::asked(domain, channel, run, attempt, number, answer);
         }
         Event::Worker(crate::WorkerInput::Opened { worker, statement }) => {
             domain.openings.push(crate::WorkerOpening { worker, statement, at: env.wall });
@@ -392,6 +407,7 @@ pub(crate) fn route_core_requests(
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
                 forge_route::close_saved(domain, &record);
+                forge_route::job_history::saved(domain, &record);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
                     if let core::CallPart::Effect { .. } = row.part {
@@ -436,6 +452,7 @@ pub(crate) fn route_core_requests(
     crate::assemble::retire_document_titles(domain);
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive internal work dispatch, including startup refusals")]
 pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     loop {
         if domain.start_stop().is_some() {
@@ -474,6 +491,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 domain.work.push(Work::Start(action));
             }
             Work::Start(action) => start_action(domain, env, decision, action),
+            Work::CheckResults { task, attempt, results } => {
+                forge_route::reds::check_results(domain, env, decision, task, attempt, results);
+            }
             Work::Decoded { to, body } => host_route::decoded(domain, env, decision, to, body),
             Work::ForgeRead { reply, sign_in, scope, query } => {
                 kinds::read(domain, env, decision, reply, sign_in, scope, query);
@@ -513,7 +533,10 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     refuse_forge_fit(domain);
                     return;
                 }
-                domain.forge.reconcile(&domain.core.tasks);
+                if let Some(link) = domain.forge.missing_link(&domain.core.tasks) {
+                    domain.stop_start(crate::StartStop::ForgeLink { phase: domain.start_phase(), link });
+                    return;
+                }
                 let party = domain.core.people.sole_owner();
                 forge_event(domain, env, decision, forge::Event::Owner { party });
                 forge_event(
@@ -724,6 +747,7 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
         | Event::Store(
             crate::StoreInput::MissingLink { .. }
             | crate::StoreInput::Switched
+            | crate::StoreInput::Census(..)
             | crate::StoreInput::Committed { .. }
             | crate::StoreInput::Uncommitted { .. }
             | crate::StoreInput::ReadLoaded { .. },

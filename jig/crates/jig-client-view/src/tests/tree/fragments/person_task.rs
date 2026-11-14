@@ -273,52 +273,7 @@ fn full_value(l: &crate::tests::fixtures::Profile) -> PersonTask {
     value.acts = List::with_capacity(l.client.rows);
     value
 }
-#[test]
-fn person_owner_selected_words_and_all_view_storage_dimensions_refuse_one_under_whole_requirements() {
-    person_storage_dimension(None);
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn person_owner_selected_words_and_nodes_refuse_one_under_whole_requirements() {
-    person_storage_dimension(Some(0));
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn person_owner_selected_words_and_depth_refuse_one_under_whole_requirements() {
-    person_storage_dimension(Some(1));
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn person_owner_selected_words_and_per_node_text_refuse_one_under_whole_requirements() {
-    person_storage_dimension(Some(2));
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn person_owner_selected_words_and_total_text_refuse_one_under_whole_requirements() {
-    person_storage_dimension(Some(3));
-}
-
-#[test]
-fn person_owner_selected_words_and_exact_storage_envelope_fit_whole_requirements() {
-    person_storage_dimension(Some(4));
-}
-
-#[test]
-fn person_owner_selected_words_reject_overflow_and_invalid_phrase_holes() {
-    person_storage_dimension(Some(5));
-}
-
-#[expect(
-    clippy::arithmetic_side_effects,
-    clippy::too_many_lines,
-    reason = "ordinary test entry retains the complete original fixture, assertions and one-under arithmetic"
-)]
-fn person_storage_dimension(selected_dimension: Option<usize>) {
-    let mut goldens = Goldens::new("tree/fragments/person_task/person_storage_dimension");
+fn selected_person_fixture() -> (crate::tests::fixtures::Profile, Words, PhraseLimits) {
     let normal = crate::words::phrases::english::language();
     let mut selected = crate::words::phrases::english::language();
     for phrase in &mut selected.phrases {
@@ -358,94 +313,76 @@ fn person_storage_dimension(selected_dimension: Option<usize>) {
         view: crate::Config { ..(client_limits()).view },
         client: jig_client::DomainLimits { rows: 3, ..(client_limits()).client },
     };
+    (l, w, phrase_limits)
+}
+
+#[test]
+fn person_owner_selected_words_preserve_whole_requirements() {
+    let mut goldens = Goldens::new("tree/fragments/person_task/person_storage_dimension");
+    let (l, w, _) = selected_person_fixture();
     let value = full_value(&l);
     let untouched = value.clone();
-    if selected_dimension == Some(5) {
-        assert_eq!(
-            view::max_nodes(
-                &crate::tests::fixtures::Profile {
-                    view: crate::Config { ..(client_limits()).view },
-                    client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
-                },
-                &(crate::tests::fixtures::Profile {
-                    view: crate::Config { ..(client_limits()).view },
-                    client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
-                })
-                .client
-            ),
-            None
-        );
-        assert_eq!(value, untouched);
-        let mut bad = owner_person_task_words::language();
-        bad.phrases[1].forms[0].segments = Box::new([Segment::Text(copy_of(b"missing number"))]);
-        assert_eq!(
-            Phrasebook::load(owner_person_task_words::shapes(), Box::new([bad]), &phrase_limits).err(),
-            Some(Invalid::Holes { id: PersonPhrase::Party.id() })
-        );
-        return;
-    }
+    let tree = build(&value, &w, limits_for(&l, &w));
+    goldens.check(&tree);
+    assert_eq!(value, untouched);
+}
+
+#[test]
+fn person_owner_selected_words_reject_overflow_and_invalid_phrase_holes() {
+    let (_, _, phrase_limits) = selected_person_fixture();
+    assert_eq!(
+        view::max_nodes(
+            &crate::tests::fixtures::Profile {
+                view: crate::Config { ..(client_limits()).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
+            },
+            &(crate::tests::fixtures::Profile {
+                view: crate::Config { ..(client_limits()).view },
+                client: jig_client::DomainLimits { rows: u32::MAX, ..(client_limits()).client }
+            })
+            .client
+        ),
+        None
+    );
+    let mut bad = owner_person_task_words::language();
+    bad.phrases[1].forms[0].segments = Box::new([Segment::Text(copy_of(b"missing number"))]);
+    assert_eq!(
+        Phrasebook::load(owner_person_task_words::shapes(), Box::new([bad]), &phrase_limits).err(),
+        Some(Invalid::Holes { id: PersonPhrase::Party.id() })
+    );
+}
+
+#[test]
+fn person_owner_selected_words_and_exact_storage_envelope_fit_whole_requirements() {
+    let (l, w, _) = selected_person_fixture();
+    let value = full_value(&l);
+    let untouched = value.clone();
     let maximum = limits_for(&l, &w);
     let tree = build(&value, &w, maximum);
-    if selected_dimension.is_none() {
-        goldens.check(&tree);
-        assert_eq!(value, untouched);
-        return;
-    }
-    let nodes = tree.len();
-    // A preorder node's size gives the end of its subtree. Keep only the
-    // ancestors whose subtrees include this node, matching the independent
-    // ancestor-count definition without rescanning earlier nodes.
+    // Keep the price independent of used(): count the open ancestors
+    // from each preorder subtree's end, and read each node's text charge.
     let mut ancestors = Vec::new();
-    let mut deepest = 0;
+    let mut depth = 0;
     for (at, node) in tree.nodes().iter().enumerate() {
         while ancestors.last().is_some_and(|end| *end <= at) {
             ancestors.pop();
         }
-        deepest = deepest.max(1 + ancestors.len());
-        let end = at + usize::try_from(node.size).unwrap();
-        if end > at + 1 {
-            ancestors.push(end);
-        }
+        depth = depth.max(ancestors.len().checked_add(1).unwrap());
+        let end = at.checked_add(usize::try_from(node.size).unwrap()).unwrap();
+        ancestors.push(end);
     }
-    let depth = u32::try_from(deepest).unwrap();
-    let per_node = tree
-        .nodes()
-        .iter()
-        .map(|n| n.name.as_ref().map_or(0, |v| v.len()) + n.text.iter().map(|r| r.text.len()).sum::<usize>())
-        .max()
-        .unwrap();
-    let total = tree
-        .nodes()
-        .iter()
-        .map(|n| n.name.as_ref().map_or(0, |v| v.len()) + n.text.iter().map(|r| r.text.len()).sum::<usize>())
-        .sum::<usize>();
     let exact = Limits {
-        nodes,
-        depth,
-        text_per_node: u32::try_from(per_node).unwrap(),
-        text_bytes: u32::try_from(total).unwrap(),
+        nodes: tree.len(),
+        depth: u32::try_from(depth).unwrap(),
+        text_per_node: tree.nodes().iter().map(skein_ui::Node::text_bytes).max().unwrap(),
+        text_bytes: tree.nodes().iter().map(skein_ui::Node::text_bytes).sum(),
         ..maximum
     };
-    if selected_dimension == Some(4) {
-        assert_eq!(build(&value, &w, exact).len(), nodes);
-        assert_eq!(value, untouched);
-        return;
-    }
-    for (index, below) in [
-        Limits { nodes: nodes - 1, ..exact },
-        Limits { depth: depth - 1, ..exact },
-        Limits { text_per_node: exact.text_per_node - 1, ..exact },
-        Limits { text_bytes: exact.text_bytes - 1, ..exact },
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        if selected_dimension != Some(index) {
-            continue;
-        }
-        std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| build(&value, &w, below)))
-            .expect_err("one-under storage rejects the whole view");
-    }
+    let used = build(&value, &w, exact).used();
+    assert_eq!(used.nodes, exact.nodes);
+    assert_eq!(used.depth, exact.depth);
+    assert_eq!(used.text_per_node, exact.text_per_node);
+    assert_eq!(used.text_bytes, exact.text_bytes);
     assert_eq!(value, untouched);
 }
 

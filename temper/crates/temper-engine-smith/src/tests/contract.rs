@@ -67,7 +67,7 @@ fn kept_contract_floor_and_adapters_match_the_files() {
     let floor = std::fs::read_to_string(directory.join("floor")).unwrap();
     assert_eq!(floor, std::format!("{}\n", wire::FLOOR));
     let number: u16 = floor.trim().parse().unwrap();
-    assert!(number >= 1 && number <= wire::VERSION);
+    assert!((1..=wire::VERSION).contains(&number));
     assert_eq!(KEPT.len(), usize::from(wire::VERSION));
     for version in 1..=wire::VERSION {
         let text = std::fs::read_to_string(directory.join(std::format!("host-tools-v{version}.txt"))).unwrap();

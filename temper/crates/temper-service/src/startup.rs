@@ -646,11 +646,15 @@ pub(crate) fn checked_start_with(
         entries: own.forges.installations,
         entry_token_bytes: own.forge_component.token_bytes,
         text_bytes: temper_protocol_worker_wire::v1::CEILINGS.identity_name,
+        reds: own.forge.branch_reds,
+        red_key_bytes: own.forge.red_key_bytes,
     };
     let worker_bounds = temper_protocol_worker_wire::Bounds {
         repositories: own.checkout.repositories,
         name_bytes: own.checkout.name_bytes,
         remote_bytes: own.checkout.name_bytes,
+        reds: temper_protocol_worker_wire::v1::CEILINGS.reds_reds,
+        red_key_bytes: temper_protocol_worker_wire::v1::CEILINGS.red_key,
         ..engine_bounds
     };
     checks::channel(

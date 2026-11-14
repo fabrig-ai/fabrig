@@ -395,23 +395,58 @@ pub enum WatchRefusal {
 /// The core's outputs that are the link's (domain/root.md, 5).
 #[derive(Hash, Debug)]
 pub enum LinkNow {
+    Asked {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        answer: jig_domain_link::AskAnswer,
+    },
     /// The host receives a read answer without waiting for a commit (domain/engine/README.md, 4.4).
-    Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
+    Relayed {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        call: Box<[u8]>,
+        answer: Token,
+    },
     /// Forget a root-owned host payload that the fleet no longer needs.
-    DropPayload { payload: Token },
+    DropPayload {
+        payload: Token,
+    },
     /// Read the root-owned turn payload before routing the charged turn.
-    TurnPayload { run: Token, attempt: Token, turn: u32, body: Token },
+    TurnPayload {
+        run: Token,
+        attempt: Token,
+        turn: u32,
+        body: Token,
+    },
     /// Read and translate the root-owned answer payload before the task terminal.
-    AnswerPayload { run: Token, attempt: Token, payload: Token },
+    AnswerPayload {
+        run: Token,
+        attempt: Token,
+        payload: Token,
+    },
     /// Read the root-owned transcript after the task accepts its charge.
-    AcceptedTurn { payload: Token, task: u64, attempt: u64, turn: u32, accepted: tasks::Accepted },
+    AcceptedTurn {
+        payload: Token,
+        task: u64,
+        attempt: u64,
+        turn: u32,
+        accepted: tasks::Accepted,
+    },
     /// Inspect a root-owned host payload after the task child refuses it.
-    RefusedPayload { request: Token, problem: tasks::Problem },
+    RefusedPayload {
+        request: Token,
+        problem: tasks::Problem,
+    },
 }
 
 /// Core output that follows no mutation.
 #[derive(Hash, Debug)]
 pub enum Now {
+    /// An admitted application read, answered through `fleet::Event::Asked` without a commit.
+    Ask { channel: Token, run: Token, attempt: Token, number: u64, bytes: Box<[u8]> },
     /// The core's outputs for the link (domain/root.md, 5).
     Link(LinkNow),
     /// A bounded task read has no durable call record (domain/engine/executors.md, 3).
@@ -638,6 +673,8 @@ pub enum Event {
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<people::Act>, carried: Option<Carried> },
     /// Store map bytes from each commit answer; needs no commit (protocol/store/README.md, 6.2).
     Fill { bytes: u64 },
+    /// Last store report; refresh the deployment document (protocol/store/README.md, 6.3).
+    Census(Box<crate::documents::deployment::StoreCensus>),
     /// Refuse new decisions while the service drains (domain/engine/restart.md, 1).
     Stopping,
     /// Place nothing while taking every commit (domain/engine/restart.md, 1).
@@ -1124,6 +1161,7 @@ impl Event {
             | Self::NamedAction { .. } => true,
             Self::SettingsCommit { .. }
             | Self::Fill { .. }
+            | Self::Census(..)
             | Self::Settling
             | Self::Stopping
             | Self::Marked { .. }
@@ -1274,6 +1312,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Sources { .. }
         | fleet::Event::Check { .. }
         | fleet::Event::SignOut { .. }
+        | fleet::Event::Ask { .. }
         | fleet::Event::Relay { .. } => true,
         fleet::Event::ListRead { .. }
         | fleet::Event::Mismatch { .. }
@@ -1287,6 +1326,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
         | fleet::Event::Interrupt { .. }
+        | fleet::Event::Asked { .. }
         | fleet::Event::Relayed { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Loaded
@@ -1473,6 +1513,14 @@ mod admission_tests {
         for (event, new) in [
             (Event::Stopping, false),
             (Event::Fill { bytes: 0 }, false),
+            (
+                Event::Census(Box::new(crate::documents::StoreCensus {
+                    commit: 0,
+                    since: 0,
+                    keyspaces: skein_lib::List::with_capacity(0),
+                })),
+                false,
+            ),
             (Event::Unwatch { watcher: Token::new(1) }, false),
             (Event::Fleet(fleet::Event::Lost { channel: Token::new(1) }), false),
             (

@@ -62,6 +62,7 @@ pub fn owner_deployment_record() -> w::Deployment {
             key_bytes: 256,
             readiness: Box::new([]),
             store: w::StoreFill::new(&lim, w::StoreFillParts { bytes: 7, mark: 7 }).expect("literal fixture fits"),
+            census: None,
             hosts: Box::from([]),
             attempts: Box::from([]),
             accounts: Box::from([]),

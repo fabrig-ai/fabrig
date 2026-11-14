@@ -129,6 +129,7 @@ impl GroupFiles {
             | Op::Sync { .. }
             | Op::Lock { .. }
             | Op::Stat { .. }
+            | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
@@ -247,6 +248,7 @@ impl GroupFiles {
                 | Op::Sync { .. }
                 | Op::Lock { .. }
                 | Op::Stat { .. }
+                | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }
                 | Op::MakeDirectory { .. }
@@ -348,6 +350,7 @@ impl GroupFiles {
             | Event::Read { .. }
             | Event::Cut { .. }
             | Event::Synced { .. }
+            | Event::Linked { .. }
             | Event::Renamed { .. } => unreachable!("only group file requests"),
         }
     }

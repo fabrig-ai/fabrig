@@ -155,6 +155,7 @@ impl World {
                     }
                     git::Op::Store { .. }
                     | git::Op::Clone { .. }
+                    | git::Op::Reds { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
@@ -175,6 +176,9 @@ impl World {
             Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
+            | Request::ResultsIgnored { .. }
+            | Request::RedsAsk { .. }
+            | Request::RedsAnswer { .. }
             | Request::SourceFault
             | Request::Link(_)
             | Request::Answer { .. }

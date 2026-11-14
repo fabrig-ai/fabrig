@@ -31,8 +31,10 @@ fn random_worlds_settle_with_every_client_heard() {
             // Sweep preparation and saves without faults or earlier pushes
             // consuming the interruption window. Store and checkout setup
             // precede a save; a release during its commit stops it before it
-            // pushes, with the remaining repositories aborted too.
-            let interrupt = Some((Duration::from_millis((seed - 999) * 100), Interrupt::Release));
+            // pushes, with the remaining repositories aborted too. The 50 ms
+            // grid samples inside the 100 ms local operations, including saves
+            // after reds-file preparation.
+            let interrupt = Some((Duration::from_millis((seed - 999) * 50), Interrupt::Release));
             world.submit(Time::ZERO, Plan { pushes: 0, save: true, interrupt, ..Plan::simple(0) });
         }
         world.run(ITERATIONS);

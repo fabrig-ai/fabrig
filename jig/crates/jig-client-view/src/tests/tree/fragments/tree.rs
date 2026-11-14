@@ -156,7 +156,6 @@ fn owner_tree_view_preserves_all_link_metadata_without_fabricated_stored_chip_or
     }
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_envelopes() {
     let mut goldens = Goldens::new("tree/fragments/tree/owner_tree_view_uses");
     let mut value = source();
@@ -212,18 +211,11 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
     assert!(tree.len() <= f.nodes);
 
     let exact = tree.len();
-    assert_eq!(build(&value, &d, &w, Some(exact)).len(), exact);
-    let fail = std::panic::catch_unwind(|| build(&value, &d, &w, Some(exact.checked_sub(1).unwrap())));
-    let _panic = fail.unwrap_err();
-    let mut bytes = 0_u32;
+    let used = build(&value, &d, &w, Some(exact)).used();
+    assert_eq!(used.nodes, exact);
+    let bytes = tree.nodes().iter().map(skein_ui::Node::text_bytes).sum();
     for node in tree.nodes() {
         assert!(node.value.is_none() && node.external.is_none() && node.drawing.is_none());
-        if let Some(name) = &node.name {
-            bytes += u32::try_from(name.len()).unwrap();
-        }
-        for run in &node.text {
-            bytes += u32::try_from(run.text.len()).unwrap();
-        }
     }
     let mut cap = crate::tests::render_limits(&CLIENT, &w).unwrap();
     cap.nodes = exact;
@@ -236,9 +228,9 @@ fn owner_tree_view_uses_checked_selected_language_and_finite_node_text_scratch_e
         view::render(&mut b, &value, &d.task_page().plan, &d.view(), &w, &mut bindings);
         b.finish()
     };
-    assert_eq!(render(cap).len(), exact);
-    cap.text_bytes = bytes.checked_sub(1).unwrap();
-    let _panic = std::panic::catch_unwind(|| render(cap)).unwrap_err();
+    let used = render(cap).used();
+    assert_eq!(used.nodes, cap.nodes);
+    assert_eq!(used.text_bytes, cap.text_bytes);
     let mut invalid = value.clone();
     invalid.rows = List::with_capacity(CLIENT.client.rows + 1);
 }

@@ -55,7 +55,7 @@ fn upward(seed: u64) -> Vec<(host::LinkUp, Box<[wire::Part]>)> {
     ]);
     records
 }
-fn exercise(world: &mut Joined, seed: u64) {
+fn exercise(world: &mut Joined, seed: u64, version: u16) {
     for (record, parts) in upward(seed) {
         world.worker_up(record, parts);
         world.run();
@@ -109,6 +109,22 @@ fn exercise(world: &mut Joined, seed: u64) {
         world.engine_down(down, Box::new([]), Box::new([Some(crate::joined_world::credential(engine_scheme()))]));
         world.run();
     }
+    // Ask and Asked have no representation before channel version 14.
+    if version >= 14 {
+        world.worker_up(
+            host::LinkUp::Ask { run: RUN, attempt: ATTEMPT, number: seed, bytes: seed.to_be_bytes().into() },
+            Box::new([]),
+        );
+        world.run();
+        for answer in [host::AskAnswer::Bytes(seed.to_le_bytes().into()), host::AskAnswer::Refused] {
+            world.engine_down(
+                host::LinkDown::Asked { run: RUN, attempt: ATTEMPT, number: seed, answer },
+                Box::new([]),
+                Box::new([]),
+            );
+            world.run();
+        }
+    }
     world.engine_busy();
     world.run();
 }
@@ -124,10 +140,10 @@ fn fuzzy_every_kind_at_drawn_agreed_versions_arrives_unchanged_or_is_refused() {
         let version = u16::try_from(rng.between(u64::from(wire::wire::FLOOR), u64::from(wire::VERSION)))
             .expect("bounded translation fixture");
         let charter = u16::try_from(rng.between(4, 5)).expect("bounded translation fixture");
-        let mut current = translation::world(12, 5, seed);
+        let mut current = translation::world(wire::VERSION, 5, seed);
         let mut capped = translation::world(version, charter, seed);
-        exercise(&mut current, seed);
-        exercise(&mut capped, seed);
+        exercise(&mut current, seed, version);
+        exercise(&mut capped, seed, version);
         assert_eq!(format!("{:?}", capped.engine_root), format!("{:?}", current.engine_root), "seed {seed}");
         assert_eq!(format!("{:?}", capped.worker_root), format!("{:?}", current.worker_root), "seed {seed}");
         kinds.extend(capped.engine_records());

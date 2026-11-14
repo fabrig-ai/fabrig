@@ -43,6 +43,7 @@ pub enum Ending {
 #[must_use]
 pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
+        host::LinkUp::Ask { run, attempt, number, bytes } => fleet::Event::Ask { channel, run, attempt, number, bytes },
         host::LinkUp::Draining => fleet::Event::Draining { channel },
         host::LinkUp::JobAnswer { run, attempt, answer } => {
             let kind = match &answer {

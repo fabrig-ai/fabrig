@@ -303,6 +303,7 @@ impl Instance {
         self.end_child()
     }
     /// Starts the owned process on its existing scratch and port, waiting for its API.
+    /// On Linux the process dies when this calling thread ends.
     /// # Errors
     /// Refuses an attached or running instance, or returns a startup failure.
     pub fn restart(&self) -> Result<(), Failure> {
@@ -314,12 +315,10 @@ impl Instance {
                 return Err(Failure::Io("instance is already running; kill it before restarting".into()));
             }
             let log = File::options().create(true).append(true).open(self.scratch.join("server.log"))?;
+            let mut command = work.command();
+            command.arg("web").stdout(log.try_clone()?).stderr(log);
             *child = Some(
-                work.command()
-                    .arg("web")
-                    .stdout(log.try_clone()?)
-                    .stderr(log)
-                    .spawn()
+                skein_shell::spawn_dying_with_parent(&mut command, skein_io::kernel::Signal::Kill)
                     .map_err(|e| Failure::Spawn { step: "web", error: e.to_string() })?,
             );
         }
@@ -435,4 +434,63 @@ pub(crate) fn ini(scratch: &Path, port: u16, settings: &Settings, user: &str, se
         settings.git.display(),
         settings.actions
     )
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::{Deadline, Duration, Expired, Forgejo, Path, Settings, fs};
+
+    #[test]
+    #[ignore = "needs SKEIN_FORGEJO"]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "skein's round: reads SKEIN_FORGEJO to locate the pinned test binary"
+    )]
+    fn a_server_dies_when_its_starting_thread_ends_without_stopping_it() {
+        use std::os::unix::process::ExitStatusExt;
+
+        let forgejo = Forgejo::from_path(Path::new(
+            &std::env::var_os("SKEIN_FORGEJO").expect("SKEIN_FORGEJO must name the pinned Forgejo"),
+        ))
+        .expect("pinned Forgejo");
+        let root = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "throwaway-thread");
+        let scratch = root.path().join("forge");
+        let (mut child, pid) = std::thread::scope(|scope| {
+            scope
+                .spawn(|| {
+                    let instance = forgejo.start(&scratch, &Settings::small()).expect("started");
+                    // Retain only the handle for reaping: no destructor or stop sends a signal.
+                    let mut child = instance.child.lock().expect("child lock").take().expect("web started");
+                    assert!(child.try_wait().expect("running").is_none());
+                    let pid = child.id();
+                    std::mem::forget(instance);
+                    (child, pid)
+                })
+                .join()
+                .expect("starting thread")
+        });
+        let mut deadline = Deadline::arm("the leaked Forgejo's parent-death signal", Duration::from_secs(2));
+        deadline.watch_process(pid);
+        loop {
+            if let Some(status) = child.try_wait().expect("server status") {
+                assert_eq!(status.signal(), Some(9), "parent-death Kill");
+                break;
+            }
+            if deadline.passed() {
+                let expired = deadline.expired();
+                child.kill().expect("cleanup leaked server");
+                child.wait().expect("reap leaked server");
+                match expired {
+                    Expired::Starved(starved) => {
+                        fs::remove_dir_all(&scratch).expect("remove scratch");
+                        starved.pass();
+                    }
+                    Expired::Failed(figures) => panic!("server outlived its starting thread: {figures}"),
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(!Path::new(&format!("/proc/{pid}")).exists(), "server reaped after its thread ended");
+        fs::remove_dir_all(&scratch).expect("remove scratch");
+    }
 }

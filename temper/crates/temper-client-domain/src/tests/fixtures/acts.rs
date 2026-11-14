@@ -154,7 +154,7 @@ pub fn sent(out: &mut Queue<pages::Request>) -> Box<[Ask]> {
 const HEARTBEAT: Duration = Duration::from_millis(100);
 const RETENTION: Duration = Duration::from_secs(60);
 pub fn live_client() -> jig_client::Client {
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     use skein_lib::{Reader, Secret, Writer};
     let mut client = jig_client::Client::new(&limits().client, SEED).expect("client");
     let mut out = Queue::uncapped();

@@ -58,7 +58,7 @@ fn opening() -> (Driver, Cast) {
         report_delegate(b"P/i1: first part of Themes", Box::new([])),
         report_delegate(b"P/i2: second part of Themes", Box::new([])),
     ]);
-    for implementer in &mut batch {
+    for implementer in batch.as_mut_slice() {
         implementer.executor = tasks::Executor::Agent { charter: 2 };
     }
     let children = call_batch(&mut driver, &p, 931, batch);

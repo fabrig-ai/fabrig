@@ -1,5 +1,5 @@
 //! The engine's statement, or the worker's single versions (protocol/channel/bridges.md, 3).
-use jig_protocol_worker_wire::{Agreed, Spoken, v13};
+use jig_protocol_worker_wire::{Agreed, Spoken, v14};
 use skein_lib::List;
 
 pub(crate) fn singletons(wires: &List<Spoken>) -> Option<List<Agreed>> {
@@ -13,7 +13,7 @@ pub(crate) fn singletons(wires: &List<Spoken>) -> Option<List<Agreed>> {
     Some(agreed)
 }
 
-pub(crate) fn statement(wires: &List<Spoken>, statement: &v13::Agreed) -> Option<List<Agreed>> {
+pub(crate) fn statement(wires: &List<Spoken>, statement: &v14::Agreed) -> Option<List<Agreed>> {
     let mut agreed: List<Agreed> = List::with_capacity(statement.wires().len());
     for stated in statement.wires() {
         let mut found = None;

@@ -225,6 +225,7 @@ fn arrival(arrived: Arrived) -> Option<Arrival> {
         | file::Event::Stated { .. }
         | file::Event::Read { .. }
         | file::Event::Cut { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Removed { .. }
         | file::Event::Listed { .. }

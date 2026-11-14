@@ -362,7 +362,11 @@ pub fn tests_main(modules: &[&str]) -> String;
 - **Table tests:** each generated test checks a group of cases, up to
   1,024 golden values or 64 bounds, and names every case that fails. A
   test process costs more to start than one case costs to check
-  (../../../foundation/testing-strategy.md, section 8).
+  (../../../foundation/testing-strategy.md, section 8). The table's
+  helper, which the generated tests carry, returns the names of the
+  cases that failed as a value, and the generated test fails on them, so
+  the helper's own test reads them without a panic
+  (../../../foundation/programming-model.md, 10.4).
 - **The tests are a module of their own,** apart from the records'
   (temper's `draft/gate-compile.md`, 3.2). The records' module holds no
   test module, so a crate's own tests never compile its generated code
@@ -703,7 +707,11 @@ As the generated decoder's, with each bound at its ceiling:
   with a byte changed, cut or grown, are refused by both with the same
   path and reason, or decode by both alike. The trees are compared
   without changing the generated code: the generic one is printed in the
-  form the generated types' `Debug` takes, and compared with it.
+  form the generated types' `Debug` takes, and compared with it. The test
+  names each case's family, root and seed on stderr before both decoders
+  run it, and a disagreement is a finding the comparison returns, with
+  the bytes, which the test fails on; nothing catches a decoder's panic
+  (../../../foundation/programming-model.md, 10.4).
 - **Goldens:** every golden of every skein schema decodes generically
   to its own bytes.
 - **Memory:** the decoder entry tables stay within `decoder_bound`,

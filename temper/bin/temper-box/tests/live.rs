@@ -43,6 +43,23 @@ fn rung_b0_a_person_agrees_a_plan_before_the_change_lands() {
     support::forge_land::rung::green_light();
 }
 
+/// testing/live-tier.md: the launcher supplies the story's own store after its process ends.
+#[test]
+#[ignore = "live: the held record's return on a box of its own, run by scripts/proof-live.sh once a held-login story's process has ended"]
+fn the_held_record_returns_on_a_box_of_its_own() {
+    let store = std::path::PathBuf::from(temper_test_env::value(&temper_test_env::LIVE_STORE).expect("story's store"));
+    let account =
+        std::path::PathBuf::from(temper_test_env::value(&temper_test_env::LIVE_ACCOUNT).expect("held record's path"));
+    let paths = ["config", "data", "cache"].map(|name| store.join(name));
+    support::forge_land::rung::return_on_a_box_of_its_own(
+        &skein_scratch::paths::binary("temper-box"),
+        &store,
+        &paths,
+        &account,
+    )
+    .unwrap_or_else(|message| panic!("{}", support::held_login::not_back(&message, &store)));
+}
+
 /// testing/live-tier.md and protocol/credentials.md, 3: a held login used in place.
 #[test]
 #[ignore = "live: a held Claude Code login, TEMPER_TEST_LIVE_CLAUDE; the after-landing tier, or scripts/proof-live.sh forge-land-claude"]
@@ -93,11 +110,6 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     let line = format!("Hello from temper, {tag}.");
     let words = format!("Please add the line \"{line}\" to the end of README.md in work/hello and land it.");
     support::live::notice(&format!("TAG {tag}"));
-    let _lent = if let forge_land::LiveModel::ChatGpt { account: Some(account) } = model {
-        Some(support::held_login::Lent::new(&skein_scratch::paths::binary("temper-box"), &paths, account))
-    } else {
-        None
-    };
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let mut bot = None;
         let mut previous: Option<forge_land::LiveEvidence> = None;

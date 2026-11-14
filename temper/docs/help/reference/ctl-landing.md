@@ -34,3 +34,24 @@ Without --ended, the live landings alone. `landing show TASK` reads one.
 These are turn landings. Queue merges create no landing task and do not
 appear here, including with --ended. Read a queue change with `change show TASK`.
 ```
+
+## landing history
+
+```
+landing history --project PROJECT [--change TASK] [--landing TASK] [--since TIME] [--until TIME] [--after CURSOR]
+  --project PROJECT: a project's name or number; required. The project
+  --change TASK: a number from 1 to 18446744073709551615; optional. Only this change; not with --landing
+  --landing TASK: a number from 1 to 18446744073709551615; optional. Only this landing; not with --change
+  --since TIME: text, at most 1048576 bytes; optional. At or after this UTC minute, YYYY-MM-DDTHH:MMZ
+  --until TIME: text, at most 1048576 bytes; optional. Before this UTC minute, YYYY-MM-DDTHH:MMZ
+  --after CURSOR: a cursor, as a read prints it; optional. Continue with the 17-byte cursor, in lowercase hexadecimal
+Read a page of a project's landing history, in event order
+Prints: The project's upper bound and whole-since time, an event per line, then the next command or end
+--json: the record history.
+Key: none.
+Reads at most 32 events, including events whose change record has gone.
+--since and --until filter time, not a wait; the range is half-open.
+A cursor fixes the first page's upper bound. A swept cursor is refused
+(exit 2), naming the first event that remains and the read again.
+--json prints every event field, full commits and the next cursor.
+```

@@ -161,7 +161,7 @@ fn an_answer_goes_up_with_its_left_and_saved_parts() {
         answer,
         preparation: None,
         work: wire::Work {
-            landed: Box::new([wire::Landed { tag: 3, commit: [7; 32] }]),
+            landed: Box::new([wire::Landed { tag: 3, commit: [7; 32], checked: true }]),
             saved: Some(Box::new([wire::SavedRepository { tag: 3, from_saved: true, landing: wire::Landing::Moved }])),
         },
     });
@@ -776,7 +776,7 @@ fn key_values_reach_smith_at_their_bound_and_fit_the_workers_memory() {
     use smith_host_domain as smith;
     let mut settings = fixtures::worker_settings();
     settings.jig.limits.token = 1;
-    let key_bytes = settings.jig.limits.token.min(jig_client_protocol_wire::v21::CEILINGS.keyed_value_some);
+    let key_bytes = settings.jig.limits.token.min(jig_client_protocol_wire::v22::CEILINGS.keyed_value_some);
     let agent = fixtures::worker_agent();
     let limits = fixtures::worker_limits();
     let files = fixtures::worker_files();

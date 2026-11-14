@@ -5,7 +5,7 @@
 mod admission;
 mod entrance;
 pub(crate) mod fixtures;
-mod harness;
+pub(crate) mod harness;
 mod jobs;
 mod lifecycle;
 mod limits;
@@ -15,3 +15,5 @@ mod orders;
 mod stopping;
 
 mod translate;
+
+pub(crate) mod reds;

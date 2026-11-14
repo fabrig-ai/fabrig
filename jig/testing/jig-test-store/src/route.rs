@@ -182,6 +182,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::SettingsAnswer { .. }
         | core::Now::PersonAnswer { .. }
         | core::Now::SettledCallRefused { .. }
+        | core::Now::Ask { .. }
         | core::Now::Call { .. }
         | core::Now::DropCall { .. }
         | core::Now::Undelivered { .. }
@@ -274,7 +275,9 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         Event::OpenRefused { .. } => stop(routes, into),
         Event::Switched { owner } => switched(routes, owner, into),
         // The shell driving open owns progress; this root route prints no lines.
-        Event::Decoded { .. }
+        // This reference route does not consume the census (protocol/store/README.md, 6.3).
+        Event::Census { .. }
+        | Event::Decoded { .. }
         | Event::Undecodable { .. }
         | Event::Rehearsing { .. }
         | Event::Back { .. }

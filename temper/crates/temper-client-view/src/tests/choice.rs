@@ -84,7 +84,7 @@ fn the_picker_closed_line_names_no_account() {
     }
 }
 
-const EFFORT_BYTES: u32 = jig_client_protocol_wire::v21::CEILINGS.me_model_efforts_item;
+const EFFORT_BYTES: u32 = jig_client_protocol_wire::v22::CEILINGS.me_model_efforts_item;
 const CUT_MARK: &[u8] = "…".as_bytes();
 
 fn catalogue(name: &[u8], efforts: &[&[u8]]) -> d::Domain {

@@ -117,6 +117,7 @@ fn query(read: Read) -> Query {
         | Read::Remember(_)
         | Read::SettingsNote { .. }
         | Read::ChangeDelegate { .. }
+        | Read::History { .. }
         | Read::Notes { .. } => unreachable!("only decision history loads here"),
     }
 }

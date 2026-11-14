@@ -155,6 +155,7 @@ impl Files {
             | file::Event::Read { .. }
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. }
             | file::Event::Listed { .. }
             | file::Event::Cancelled { .. } => false,

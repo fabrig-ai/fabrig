@@ -138,8 +138,11 @@ impl World {
 
     /// Every command has received a reply or reached its answer deadline or
     /// the peer's failure. A delayed reply after the deadline stays harmless.
-    pub fn assert_commands_settled(&self) {
-        assert!(self.outstanding.is_empty(), "unanswered CDP commands: {:?}", self.outstanding);
+    pub fn check_commands_settled(&self) -> Result<(), String> {
+        if !self.outstanding.is_empty() {
+            return Err(format!("unanswered CDP commands: {:?}", self.outstanding));
+        }
+        Ok(())
     }
 
     fn mark_answered(&mut self, reply: &[u8]) {

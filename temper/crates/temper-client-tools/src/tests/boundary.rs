@@ -8,6 +8,12 @@ fn no_file_under_jig_names_temper_or_an_item_outside_jig() {
             names
                 .replace("see temper help settings for held revisions", "")
                 .replace("temper/docs/design/client/ctl/results.md, 1", "")
+        } else if path == &std::path::PathBuf::from("src/jig/rows.rs") {
+            // Sign-in help names the local recovery commands (client/ctl/README.md, 6.1).
+            names
+                .replace("temper ctl dir sign-out", "")
+                .replace("temper does not know it", "")
+                .replace("temper-box serve prints\\na fresh one", "")
         } else {
             names
         };

@@ -971,7 +971,7 @@ order's test before the check goes.
 | A stale handle is detected | the generation | runtime |
 | A state and what it holds are one value | enums with data | compiler |
 | Statuses are not ignored | `#[must_use]`, `unused_must_use`, `let_underscore_must_use` | compiler, clippy; review for an ignored `Option` |
-| Fail-stop | `panic = "abort"` in release; in dev, `skein_fail_stop::install()` first in every `main` | build profile; each repository's gate |
+| Fail-stop | `panic = "abort"` in release; in dev, `skein_fail_stop::install()` first in every `main`; nothing catches a panic | build profile; each repository's gate; clippy's `disallowed_methods`; the gate's count of catches (`tools/lints/design.md`, 7) |
 | No leaks; ownership is a tree | | simulator |
 
 What step code may not use, and what checks that, is 10.3. Each
@@ -1077,7 +1077,12 @@ profile traps whatever the lint does not see, in lib and the shell.
   the one exception: the handler's effects come before the assignment of
   its result.
 - **Assertions are fail-stop** and are for the service's own bugs, never
-  for inputs a peer controls. `expect` names the invariant it relies on.
+  for anything from outside the process: a peer, configuration or the
+  store's contents. `expect` names the invariant it relies on. Nothing
+  catches a panic, tests included, and no test triggers an assertion: a
+  test sees what an assertion guards through the outcomes around it. A
+  check whose job is to fail, such as a referee or a judge, returns its
+  finding, and only its caller panics.
 - **Runtime checks stay on in production:** bounds checks, overflow
   checks, assertions. Safe Rust has no undefined behaviour left to trap;
   the ring adapter, the one place that could have some, is tested against

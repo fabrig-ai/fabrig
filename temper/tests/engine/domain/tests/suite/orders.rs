@@ -699,6 +699,7 @@ fn assert_releases_durable(driver: &Driver, assignment: &engine::Assignment) {
             | host::LinkDown::Relayed { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::AssignJob { .. }
+            | host::LinkDown::Asked { .. }
             | host::LinkDown::Grant { .. }) => panic!("worker_notices returned an unrelated notice: {other:?}"),
         };
         assert!(

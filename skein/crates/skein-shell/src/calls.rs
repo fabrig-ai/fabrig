@@ -35,6 +35,7 @@ pub(crate) fn error(kind: &Op, errno: i32, cancelled: bool) -> Error {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::List { .. } => match errno {
@@ -128,6 +129,7 @@ fn operation_error(kind: &Op, errno: i32) -> Error {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::List { .. }
@@ -144,6 +146,7 @@ fn operation_error(kind: &Op, errno: i32) -> Error {
 
 /// The errors of an operation on files: each names those the contract
 /// tables for it (`skein_io::kernel`), and anything else is `Other`.
+#[expect(clippy::too_many_lines, reason = "the per-operation errno table stays together")]
 pub(crate) fn file_error(kind: &Op, errno: i32) -> Error {
     let named = match kind {
         Op::Open { .. } => match errno {
@@ -194,6 +197,16 @@ pub(crate) fn file_error(kind: &Op, errno: i32) -> Error {
             libc::EISDIR => Some(Error::IsADirectory),
             libc::EEXIST if *no_replace => Some(Error::Exists),
             libc::ENOTEMPTY | libc::EEXIST => Some(Error::NotEmpty),
+            libc::EACCES | libc::EPERM => Some(Error::Permission),
+            libc::ENOSPC | libc::EDQUOT => Some(Error::NoSpace),
+            libc::EROFS => Some(Error::ReadOnly),
+            libc::EMLINK => Some(Error::TooManyLinks),
+            libc::ENAMETOOLONG => Some(Error::NameTooLong),
+            _ => None,
+        },
+        Op::HardLink { .. } => match errno {
+            libc::ENOENT => Some(Error::NotFound),
+            libc::EEXIST => Some(Error::Exists),
             libc::EACCES | libc::EPERM => Some(Error::Permission),
             libc::ENOSPC | libc::EDQUOT => Some(Error::NoSpace),
             libc::EROFS => Some(Error::ReadOnly),
@@ -286,7 +299,7 @@ fn path_descriptors(operation: &Op) -> [Option<Fd>; 2] {
         | Op::PipeRead { fd, .. }
         | Op::PipeWrite { fd, .. } => [Some(*fd), None],
         Op::Open { root, .. } => [Some(*root), None],
-        Op::Rename { from_dir, to_dir, .. } => [Some(*from_dir), Some(*to_dir)],
+        Op::Rename { from_dir, to_dir, .. } | Op::HardLink { from_dir, to_dir, .. } => [Some(*from_dir), Some(*to_dir)],
         Op::Remove { dir, .. } | Op::MakeDirectory { dir, .. } => [Some(*dir), None],
         Op::Spawn { spawn } => [Some(spawn.root), None],
         Op::Wait { pidfd, .. } | Op::Signal { pidfd, .. } => [Some(*pidfd), None],
@@ -323,6 +336,31 @@ pub(crate) fn release_at_floor(release: &[u8], floor: (u32, u32)) -> Result<bool
 #[cfg(test)]
 mod tests {
     use super::release_at_floor;
+
+    #[test]
+    fn a_hard_link_decodes_its_errors_including_emlink_and_cross_device() {
+        use skein_io::kernel::{Error, Fd, Op};
+        let kind = Op::HardLink {
+            from_dir: Fd::new(3),
+            from: Box::from(b"a".as_slice()),
+            to_dir: Fd::new(4),
+            to: Box::from(b"b".as_slice()),
+        };
+        for (errno, expected) in [
+            (libc::ENOENT, Error::NotFound),
+            (libc::EEXIST, Error::Exists),
+            (libc::EACCES, Error::Permission),
+            (libc::EPERM, Error::Permission),
+            (libc::EROFS, Error::ReadOnly),
+            (libc::ENOSPC, Error::NoSpace),
+            (libc::EDQUOT, Error::NoSpace),
+            (libc::ENAMETOOLONG, Error::NameTooLong),
+            (libc::EMLINK, Error::TooManyLinks),
+            (libc::EXDEV, Error::Other(libc::EXDEV)),
+        ] {
+            assert_eq!(super::error(&kind, errno, false), expected, "errno {errno}");
+        }
+    }
 
     #[test]
     fn darwin_releases() {

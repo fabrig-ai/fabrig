@@ -80,6 +80,10 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
 - `forge.landings_kept`: count, 16. Bounds retained landings per repository.
 - `forge.landings`: count, 2. Bounds live landing procedure rows.
+- `forge.branch_reds`: count, 64. Bounds the reds held by a goal.
+- `forge.red_key_bytes`: bytes, 256. Bounds a goal red's key.
+- `forge.history_days`: count, 14. Days a change's history stays after its last event, from 1 to 3,650.
+- `forge.history_events`: count, 131,072. Events retained per project, at least 1; oldest last-event changes swept whole past it.
 - `forge.findings_per_project`: count, 256. Bounds retained findings per project.
 - `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
@@ -116,7 +120,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.client.backoff_max_ms`: milliseconds, 4,000. Bounds the delay before a forge read is tried again.
 - `forge.client.entries`: count, 8. Bounds durable outbox entries in the forge client.
 - `forge.client.write_attempts`: count, 3. Bounds attempts of one forge write.
-- `forge.client.lifetime_ms`: milliseconds, 10,000. Bounds how long a sent forge write may arrive.
+- `forge.client.lifetime_ms`: milliseconds, 300,000. Bounds how long a sent forge write may arrive; moves a still-derived call deadline with it.
 - `forge.client.clock_margin_ms`: milliseconds, 1,000. Sets the allowance for clock movement when a forge write's lifetime is checked.
 - `forge.client.resources`: count, 16. Bounds resources retained for forge polling.
 - `forge.client.repositories`: count, 2. Bounds repositories retained by the forge client and read by a setup plan.
@@ -154,6 +158,8 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `checkout.path_bytes`: bytes, 255. Bounds one full relative conflicted path.
 - `checkout.remote_timeout_ms`: milliseconds, 60,000. Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing.
 - `checkout.local_timeout_ms`: milliseconds, 10,000. Bounds an operation on the worker's disk, including checking out, merging and committing.
+- `checkout.reds_read_ms`: milliseconds, 5,000. Waits for the goal’s reds at each check; 100 to 60,000 milliseconds.
+- `checkout.rerun_processes`: count, 4. Bounds failing test processes run again by a check; 0 to 16.
 - `checkout.facts`: count, 256. Bounds facts kept until the parent drains them; later facts are dropped and counted.
 
 ## git_component
@@ -211,7 +217,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge_component.hook_body_bytes`: bytes, 1,048,576. Bounds a streamed webhook body; a delivery past it gets 413 and hints nothing.
 - `forge_component.hook_secret_bytes`: bytes, 128. Bounds a Forgejo forge's webhook secret, at least 32 bytes.
 - `forge_component.hook_deadline_ms`: milliseconds, 10,000. Bounds a webhook delivery's read and answer from accept or the previous answer.
-- `forge_component.deadline_ms`: milliseconds, 10,000. Bounds a forge call and each startup read, at most the forge client's lifetime.
+- `forge_component.deadline_ms`: milliseconds, 270,000. Bounds calls and startup reads; lesser of lifetime and 270 s by default, follows lifetime overrides unless changed.
 - `forge_component.idle_ms`: milliseconds, 4,000. Bounds how long an idle forge connection is kept.
 - `forge_component.start_backoff_ms`: milliseconds, 1,000. Sets the first delay before a forge's start is tried again.
 - `forge_component.start_backoff_max_ms`: milliseconds, 60,000. Bounds the doubling delay before a forge's start is tried again.

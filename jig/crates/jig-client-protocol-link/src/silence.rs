@@ -1,6 +1,6 @@
 //! A stream's name and silence deadline (protocol/client/README.md, 5).
 use crate::Undecodable;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{Duration, Time};
 #[derive(Debug)]
 pub(super) struct Silence {

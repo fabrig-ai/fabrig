@@ -129,6 +129,30 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.changes_landed" => limits.forge.changes_landed = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.landings_kept" => limits.forge.landings_kept = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.landings" => limits.forge.landings = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.branch_reds" => {
+            if value == 0 || value > 256 {
+                return Err(Refused::Range);
+            }
+            limits.forge.branch_reds = u32::try_from(value).or(Err(Refused::Range))?;
+        }
+        b"forge.red_key_bytes" => {
+            if value == 0 || value > 512 {
+                return Err(Refused::Range);
+            }
+            limits.forge.red_key_bytes = u32::try_from(value).or(Err(Refused::Range))?;
+        }
+        b"forge.history_days" => {
+            if value == 0 || value > 3650 {
+                return Err(Refused::Range);
+            }
+            limits.forge.history_days = u32::try_from(value).or(Err(Refused::Range))?;
+        }
+        b"forge.history_events" => {
+            if value == 0 {
+                return Err(Refused::Range);
+            }
+            limits.forge.history_events = value;
+        }
         b"forge.findings_per_project" => {
             limits.forge.findings_per_project = u32::try_from(value).or(Err(Refused::Range))?;
         }
@@ -337,7 +361,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 185] = [
+pub static NAMES: [Name; 191] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -711,6 +735,30 @@ pub static NAMES: [Name; 185] = [
         value: |limits| u64::from(limits.forge.landings),
     },
     Name {
+        name: "forge.branch_reds",
+        unit: Unit::Count,
+        line: "Bounds the reds held by a goal.",
+        value: |limits| u64::from(limits.forge.branch_reds),
+    },
+    Name {
+        name: "forge.red_key_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a goal red's key.",
+        value: |limits| u64::from(limits.forge.red_key_bytes),
+    },
+    Name {
+        name: "forge.history_days",
+        unit: Unit::Count,
+        line: "Days a change's history stays after its last event, from 1 to 3,650.",
+        value: |limits| u64::from(limits.forge.history_days),
+    },
+    Name {
+        name: "forge.history_events",
+        unit: Unit::Count,
+        line: "Events retained per project, at least 1; oldest last-event changes swept whole past it.",
+        value: |limits| limits.forge.history_events,
+    },
+    Name {
         name: "forge.findings_per_project",
         unit: Unit::Count,
         line: "Bounds retained findings per project.",
@@ -929,7 +977,7 @@ pub static NAMES: [Name; 185] = [
     Name {
         name: "forge.client.lifetime_ms",
         unit: Unit::Milliseconds,
-        line: "Bounds how long a sent forge write may arrive.",
+        line: "Bounds how long a sent forge write may arrive; moves a still-derived call deadline with it.",
         value: |limits| limits.forge.client.lifetime.as_millis(),
     },
     Name {
@@ -1135,6 +1183,18 @@ pub static NAMES: [Name; 185] = [
         unit: Unit::Milliseconds,
         line: "Bounds an operation on the worker's disk, including checking out, merging and committing.",
         value: |limits| limits.checkout.local_timeout.as_millis(),
+    },
+    Name {
+        name: "checkout.reds_read_ms",
+        unit: Unit::Milliseconds,
+        line: "Waits for the goal’s reds at each check; 100 to 60,000 milliseconds.",
+        value: |limits| u64::from(limits.checkout.reds_read_ms),
+    },
+    Name {
+        name: "checkout.rerun_processes",
+        unit: Unit::Count,
+        line: "Bounds failing test processes run again by a check; 0 to 16.",
+        value: |limits| u64::from(limits.checkout.rerun_processes),
     },
     Name {
         name: "checkout.facts",
@@ -1391,7 +1451,7 @@ pub static NAMES: [Name; 185] = [
     Name {
         name: "forge_component.deadline_ms",
         unit: Unit::Milliseconds,
-        line: "Bounds a forge call and each startup read, at most the forge client's lifetime.",
+        line: "Bounds calls and startup reads; lesser of lifetime and 270 s by default, follows lifetime overrides unless changed.",
         value: |limits| limits.forge_component.deadline.as_millis(),
     },
     Name {

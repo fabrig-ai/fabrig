@@ -125,11 +125,14 @@ impl Peer {
             schema.versions.get_mut(0).expect("one version").version = chosen;
         }
         if matches!(case, Some(Opening::Terms)) {
-            let kinds = &mut schema.versions.get_mut(1).expect("current version").kinds;
-            for index in 0..kinds.len() {
-                let kind = kinds.get_mut(index).expect("kind slot");
-                if kind.kind == 0x0180 {
-                    kind.largest = 1;
+            for version in schema.versions.iter_mut() {
+                if version.version != wire::VERSION {
+                    continue;
+                }
+                for kind in version.kinds.iter_mut() {
+                    if kind.kind == 0x0180 {
+                        kind.largest = 1;
+                    }
                 }
             }
         }

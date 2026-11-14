@@ -49,9 +49,17 @@ pub trait Referee<P> {
     /// default it injects nothing.
     fn act(&mut self, _now: Time, _procs: &mut [P]) {}
 
-    /// Watches every process, after one of them iterated: a broken safety
-    /// expectation panics, naming the seed.
-    fn observe(&mut self, now: Time, procs: &[P]);
+    /// Watches every process after one iterated, returning a broken safety
+    /// expectation's finding, naming the seed. The loop stops at its `Err`.
+    /// Implement this or `observe`; the default calls `observe`.
+    fn watch(&mut self, now: Time, procs: &[P]) -> Result<(), String> {
+        self.observe(now, procs);
+        Ok(())
+    }
+
+    /// Watches every process and panics on a broken expectation. Kept for
+    /// referees not yet implementing `watch`; by default does nothing.
+    fn observe(&mut self, _now: Time, _procs: &[P]) {}
 
     /// The world is idle: nothing runs before the clock moves. A referee may change here what it will answer.
     fn idle(&mut self, _now: Time, _procs: &[P], _settled: bool) {}
@@ -111,6 +119,12 @@ impl<P, X: Expectation<P>> Expectations<P, X> {
     /// Checks every pending expectation: a broken one panics, naming the
     /// seed; a met one is set aside.
     pub fn observe(&mut self, now: Time, procs: &[P]) {
+        self.check(now, procs).unwrap_or_else(|why| crate::fail(&why));
+    }
+
+    /// Checks pending expectations, setting met ones aside and returning
+    /// the first broken one's finding with its seed and time.
+    pub fn check(&mut self, now: Time, procs: &[P]) -> Result<(), String> {
         let mut at = 0;
         while let Some(expectation) = self.pending.get(at) {
             match expectation.check(now, procs) {
@@ -119,9 +133,10 @@ impl<P, X: Expectation<P>> Expectations<P, X> {
                     self.met.push(met);
                 }
                 Ok(false) => at = at.checked_add(1).expect("fewer expectations than memory"),
-                Err(why) => crate::fail(&broke(self.seed, now, expectation, &why)),
+                Err(why) => return Err(broke(self.seed, now, expectation, &why)),
             }
         }
+        Ok(())
     }
 
     /// When the earliest pending expectation falls due.
@@ -194,5 +209,65 @@ impl Controls {
     /// Root ids come from `spawn`; hosted ids follow them in admission order.
     pub fn signal(&self, host: usize, signal: ServiceSignal) {
         self.signals.borrow_mut().push((host, signal));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Expectation, Expectations};
+    use alloc::rc::Rc;
+    use core::cell::Cell;
+    use core::fmt;
+    use skein_lib::Time;
+
+    struct Answer {
+        calls: Rc<Cell<u32>>,
+        verdict: Result<bool, String>,
+    }
+
+    impl fmt::Debug for Answer {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("answer")
+        }
+    }
+
+    impl Expectation<()> for Answer {
+        fn check(&self, _now: Time, _procs: &[()]) -> Result<bool, String> {
+            self.calls.set(self.calls.get().checked_add(1).expect("bounded test checks"));
+            self.verdict.clone()
+        }
+        fn deadline(&self) -> Time {
+            Time::from_nanos(20)
+        }
+    }
+
+    #[test]
+    fn a_broken_expectation_returns_its_seed_time_name_and_reason() {
+        let calls = Rc::new(Cell::new(0));
+        let later = Rc::new(Cell::new(0));
+        let mut expectations = Expectations::new(
+            17,
+            vec![
+                Answer { calls: calls.clone(), verdict: Err(String::from("no answer")) },
+                Answer { calls: later.clone(), verdict: Ok(true) },
+            ],
+        );
+        assert_eq!(
+            expectations.check(Time::from_nanos(12), &[]),
+            Err(String::from("seed 17: at 12 ns, answer broke: no answer"))
+        );
+        assert_eq!(calls.get(), 1);
+        assert_eq!(later.get(), 0);
+    }
+
+    #[test]
+    fn a_met_expectation_is_never_checked_again() {
+        let calls = Rc::new(Cell::new(0));
+        let mut expectations = Expectations::new(17, vec![Answer { calls: calls.clone(), verdict: Ok(true) }]);
+        assert_eq!(expectations.check(Time::from_nanos(12), &[]), Ok(()));
+        assert!(expectations.passed());
+        assert_eq!(expectations.next_deadline(), None);
+        assert_eq!(expectations.check(Time::from_nanos(30), &[]), Ok(()));
+        assert_eq!(calls.get(), 1);
     }
 }

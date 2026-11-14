@@ -470,7 +470,8 @@ impl Below {
                 self.moving(*from_dir, from, *to_dir, to, *no_replace)
             }
             Op::List { fd, entries, names } => Ok(self.listing(*fd, entries, names)),
-            other @ (Op::Lock { .. }
+            other @ (Op::HardLink { .. }
+            | Op::Lock { .. }
             | Op::Socket { .. }
             | Op::Bind { .. }
             | Op::Listen { .. }

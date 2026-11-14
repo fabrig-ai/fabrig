@@ -213,6 +213,8 @@ pub fn worker_settings() -> temper_worker_service::settings::Worker {
     let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     limits.core.call_answer_bytes = 2048;
     limits.hub = jig_domain_host::Limits {
+        application_ask_bytes: 0,
+        application_answer_bytes: 0,
         program_sources: 12,
         source_interval: skein_lib::Duration::from_secs(60),
         source_timeout: skein_lib::Duration::from_secs(10),

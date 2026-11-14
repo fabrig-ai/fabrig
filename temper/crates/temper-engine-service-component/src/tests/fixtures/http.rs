@@ -1,5 +1,5 @@
 use crate::engine::Engine;
-use jig_client_protocol_wire::v21 as wire;
+use jig_client_protocol_wire::v22 as wire;
 use skein_io as io;
 use skein_lib::{Decimal, Reader, Time, Token, Wall, Writer};
 const REQUEST_AT: Time = Time::from_nanos(1);

@@ -1,3 +1,4 @@
+mod census;
 mod lists;
 mod notes;
 mod reads;

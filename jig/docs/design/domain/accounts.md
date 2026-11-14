@@ -421,7 +421,8 @@ refuses the start, naming the record's key, the set and the limit
 (`engine/restart.md`); the refusal stays until the next cold start,
 whatever rows follow it. An account a source names that is not held, or
 a name reserved by two sources, is not a limit but a link the start
-cannot make, and panics.
+cannot make, and refuses the start as `Failure::Link`, naming the
+source's key and what it links to (`engine/restart.md`).
 
 `valid(&Limits)` checks that `accounts * sources` is representable,
 alongside the individual bounds. This sizes the retained source table;

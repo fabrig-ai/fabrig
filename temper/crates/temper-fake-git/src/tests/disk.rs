@@ -94,6 +94,7 @@ impl Disk {
                 | Op::Sync { .. }
                 | Op::Lock { .. }
                 | Op::Stat { .. }
+                | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }
                 | Op::MakeDirectory { .. }
@@ -183,6 +184,7 @@ impl Disk {
             | Op::Append { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
+            | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Spawn { .. }
             | Op::Wait { .. }

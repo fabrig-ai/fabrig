@@ -952,6 +952,9 @@ impl World {
                 assert!(sources.is_empty(), "worker fixture has no program sources");
                 self.stage.push(Event::Logins { channel, logins: Box::new([]) });
             }
+            Request::Ask { .. } | Request::Asked { .. } => {
+                unreachable!("the script does not make application asks")
+            }
             Request::ReadList { .. }
             | Request::ListRead { .. }
             | Request::ProgramEmail { .. }
@@ -1392,6 +1395,8 @@ fn describe(event: &Event) -> String {
         | Event::Relayed { .. }
         | Event::Lost { .. }
         | Event::Answer { .. }
+        | Event::Ask { .. }
+        | Event::Asked { .. }
         | Event::Relay { .. }
         | Event::Observe { .. }
         | Event::Acknowledge { .. }

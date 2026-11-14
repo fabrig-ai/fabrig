@@ -11,6 +11,7 @@ use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
         task_release: None,
+        job: None,
         signed: Box::new([]),
         task: 51,
         repository: REPO,
@@ -69,6 +70,7 @@ fn change_row() -> top::ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }
@@ -613,6 +615,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::MakingAct { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
+                | top::Request::LoadHistory { .. }
+                | top::Request::HistoryPage { .. }
                 | top::Request::Call { .. } => {}
             }
         }
@@ -697,7 +701,7 @@ fn held_branch(world: &mut Protocol) -> (top::Name, skein_forge::api::Commit) {
     });
     world.produce(b"temper/51");
     let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
-    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed)]) });
+    world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed, true)]) });
     world.run_for(1);
     world.take_seen();
 

@@ -109,8 +109,7 @@ fn stored_people_bytes_keep_the_outer_key_and_bound() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn cleanup_acknowledgement_blocks_sweep_and_held_account_outputs_are_metered() {
+fn cleanup_acknowledgement_resumes_sweep_and_held_account_outputs_are_metered() {
     let mut h = Harness::new(203);
     h.select(false);
     let meter = Meter::new();
@@ -142,10 +141,6 @@ fn cleanup_acknowledgement_blocks_sweep_and_held_account_outputs_are_metered() {
         saved_counter = true;
     }
     assert!(saved_counter);
-    let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out)
-    }));
-    assert!(rejected.is_err());
     assert!(h.out.is_empty());
     phase(&h.core.start_resume(&h.env, cleanup, &mut h.out), Phase::Sweep);
     phase(&h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);

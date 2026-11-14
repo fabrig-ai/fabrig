@@ -284,7 +284,7 @@ fn private_turn() -> jig_domain_core::TurnRecord {
 }
 
 fn private_turn_over_wire(record: jig_domain_core::TurnRecord, person: u64, withheld: bool) -> c::ArchivedTurn {
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     use jig_domain_core::{self as core, reads};
     use jig_engine_clients_kit::fixtures as engine;
     use skein_lib::{List, Reader, Writer};

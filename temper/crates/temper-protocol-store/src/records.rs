@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v21 as w};
+use crate::{Bounds, Undecodable, v24 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge_vocabulary as d;
@@ -13,10 +13,12 @@ mod closer;
 mod drafts;
 mod findings;
 mod follows;
+mod reds;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
 mod forges;
+mod history;
 mod issues;
 mod landing;
 mod landing_log;
@@ -33,12 +35,23 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::HistoryProject(row) => w::Value::HistoryProject(history::encode_project(row)),
+        d::Stored::HistoryEvent(row) => w::Value::HistoryEvent(history::encode_event(row)),
+        d::Stored::HistoryChange(row) => w::Value::HistoryChange(history::encode_change_index(row)),
+        d::Stored::HistoryLanding(row) => w::Value::HistoryLanding(history::encode_landing_index(row)),
+        d::Stored::HistoryLast(row) => w::Value::HistoryLast(history::encode_last(row)),
+
         d::Stored::Follow(row) => w::Value::Follow(Box::new(follows::encode(row))),
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
         d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
         d::Stored::LandedDraft(row) => w::Value::LandedDraft(drafts::encode(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
+        d::Stored::RedPass(row) => w::Value::RedPass(reds::encode_pass(row)),
+        d::Stored::Red(row) => w::Value::Red(reds::encode(row)),
+        d::Stored::RedNumber { last } => {
+            w::Value::RedNumber(w::RedNumber::new(&w::CEILINGS, w::RedNumberParts { last: *last }).expect(FITS))
+        }
         d::Stored::Finding(row) => w::Value::Finding(findings::encode(row)),
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
@@ -117,6 +130,15 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?;
     Ok(match row.into_parts().value {
+        w::Value::RedPass(row) => d::Stored::RedPass(reds::decode_pass(row, bounds)?),
+        w::Value::Red(row) => d::Stored::Red(reds::decode(row, bounds)?),
+        w::Value::RedNumber(row) => d::Stored::RedNumber { last: row.last() },
+        w::Value::HistoryProject(row) => d::Stored::HistoryProject(history::decode_project(row)),
+        w::Value::HistoryEvent(row) => d::Stored::HistoryEvent(history::decode_event(row)),
+        w::Value::HistoryChange(row) => d::Stored::HistoryChange(history::decode_change_index(row)),
+        w::Value::HistoryLanding(row) => d::Stored::HistoryLanding(history::decode_landing_index(row)),
+        w::Value::HistoryLast(row) => d::Stored::HistoryLast(history::decode_last(row)),
+
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
@@ -350,6 +372,8 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_verification_tier: 32,
         failed_tests_tests: forge.tiers.failing_tests,
         failing_test_test_id: forge.tiers.test_id_bytes,
+        history_formed_members: forge.landing_members,
+        history_proved_proofs: forge.gates,
         ..w::CEILINGS
     })
 }

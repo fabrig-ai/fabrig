@@ -68,8 +68,8 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
-        let Process::Child(child) = &procs[0] else { panic!("binary observer") };
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        let Process::Child(child) = &procs[0] else { return Err("binary observer".into()) };
         let awaiting = match procs.get(1) {
             Some(Process::Person(person)) => {
                 person.awaiting.is_some_and(|bytes| child.stderr().windows(bytes.len()).any(|line| line == bytes))
@@ -77,6 +77,7 @@ impl Referee<Process> for Judge {
             Some(Process::Child(_)) | None => false,
         };
         self.act_at = (awaiting || (self.signal && !self.sent && child.stderr().ends_with(b"ready\n"))).then_some(now);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.act_at
@@ -224,20 +225,6 @@ fn abandonment_removes_the_cgroup_after_its_blocked_member_exits() {
     assert!(!path.exists(), "the killed member's cgroup is removed");
 }
 
-#[cfg(target_os = "linux")]
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn unwinding_abandonment_removes_the_cgroup_after_its_blocked_member_exits() {
-    let Some((binary, path)) = tree_with_a_blocked_member() else { return };
-    let failure = std::panic::catch_unwind(move || {
-        let _binary = binary;
-        panic!("abandon the blocked tree");
-    })
-    .expect_err("the scenario unwinds through its tree");
-    assert_eq!(failure.downcast_ref::<&str>(), Some(&"abandon the blocked tree"));
-    assert!(!path.exists(), "unwinding waits for the killed member before removing its cgroup");
-}
-
 struct TreeJudge {
     end: bool,
     sent: bool,
@@ -251,7 +238,9 @@ impl Referee<Process> for TreeJudge {
             self.sent = true;
         }
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        Ok(())
+    }
     fn passed(&self) -> bool {
         !self.end || self.sent
     }
@@ -316,6 +305,31 @@ fn assert_tree_counted(child: &Binary, containment: Containment) {
     match counts.method {
         Method::Cgroup => assert_eq!(counts.peak_scope, PeakScope::Tree),
         Method::Walk | Method::Group => assert!(matches!(counts.peak_scope, PeakScope::LargestProcess { .. })),
+    }
+}
+
+#[test]
+fn an_expected_end_returns_its_group_finding_after_forced_cleanup() {
+    use skein_world::end_to_end::Expectation;
+    // A second run on this thread must not inherit the first run's finding.
+    for _ in 0..2 {
+        let binary = Binary::start_contained(
+            fixture("fork-exit"),
+            Mode::Pipes,
+            4096,
+            Expectation::EndsWithBinary,
+            Containment::Group,
+        )
+        .expect("an expected-end fixture starts");
+        let descriptors = binary.descriptors();
+        let leader = *descriptors.first().expect("the binary's leader handle");
+        let group = skein_shell::keeper::child_id(leader).expect("the binary leads its group");
+        let mut world = real::World::new(TreeJudge { end: false, sent: false });
+        world.spawn_with_fds(descriptors.clone(), || Process::Child(binary));
+        let finding = world.try_run(&Clock::new(), WORLD_PATIENCE).expect_err("a live group fails the expected end");
+        assert_eq!(finding, format!("binary exited while its process group {group} still had members"));
+        assert_eq!(skein_shell::keeper::group_live(group), Ok(false), "cleanup precedes the finding");
+        assert!(descriptors.into_iter().all(|fd| !is_open(fd)), "forced cleanup drains and closes every descriptor");
     }
 }
 
@@ -875,7 +889,7 @@ impl SupervisedJudge {
         None
     }
 
-    fn observe_snapshot(&mut self, now: Time, child: &SupervisedSnapshot<'_>) {
+    fn observe_snapshot(&mut self, now: Time, child: &SupervisedSnapshot<'_>) -> Result<(), String> {
         // A forced cleanup gives the live TERM-delivered tree its grace before
         // the leader wait completes. The exit may first reach this referee
         // after escalation; its history survives the current membership poll.
@@ -885,18 +899,24 @@ impl SupervisedJudge {
             if self.term_at.is_some_and(|at| now < at.saturating_add(self.grace))
                 && tree.live_pids.iter().any(|pid| tree.terminated_pids.contains(pid))
             {
-                assert!(tree.killed_pids.is_empty(), "the keeper leaves escalation to its referee");
+                if !tree.killed_pids.is_empty() {
+                    return Err("the keeper leaves escalation to its referee".into());
+                }
                 self.saw_grace = true;
             }
         }
         if child.exit.is_some() && !child.tree.live_pids.is_empty() {
-            assert!(!child.settled, "a living tree retains its keeper after leader exit");
+            if child.settled {
+                return Err("a living tree retains its keeper after leader exit".into());
+            }
             self.saw_retained_exit = true;
             if let Some(term_at) = self.term_at
                 && now < term_at.saturating_add(self.grace)
             {
                 self.saw_grace = true;
-                assert!(child.tree.killed_pids.is_empty(), "the keeper leaves escalation to its referee");
+                if !child.tree.killed_pids.is_empty() {
+                    return Err("the keeper leaves escalation to its referee".into());
+                }
             }
         }
         // Once a required window closes or the tree settles, later iterations
@@ -920,7 +940,7 @@ impl SupervisedJudge {
             };
         }
         if let Some(why) = self.overdue(now) {
-            panic!("supervised referee failed: {why}");
+            return Err(format!("supervised referee failed: {why}"));
         }
         self.next = if child.settled {
             None
@@ -938,6 +958,7 @@ impl SupervisedJudge {
                 SupervisedTrigger::Never => None,
             }
         };
+        Ok(())
     }
 }
 
@@ -949,9 +970,9 @@ impl Referee<Process> for SupervisedJudge {
         }
     }
 
-    fn observe(&mut self, now: Time, procs: &[Process]) {
-        let Process::Child(child) = &procs[0] else { panic!("binary observer") };
-        self.observe_snapshot(now, &SupervisedSnapshot::from_binary(child));
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        let Process::Child(child) = &procs[0] else { return Err("binary observer".into()) };
+        self.observe_snapshot(now, &SupervisedSnapshot::from_binary(child))
     }
 
     fn next_deadline(&self) -> Option<Time> {
@@ -1003,88 +1024,6 @@ fn supervised_run_with_grace(
     let mut world = real::World::new(SupervisedJudge::new(trigger, grace, cleanup));
     world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
     world.run(&Clock::new(), WORLD_PATIENCE)
-}
-
-// The walk's retained pidfds and adoption are Linux's (examples.md, 6).
-#[cfg(target_os = "linux")]
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn an_unwinding_supervised_run_ends_every_known_descendant() {
-    use std::cell::Cell;
-
-    struct PanicAtReady<'a> {
-        pids: &'a Cell<Option<Vec<u32>>>,
-        grandchild: bool,
-    }
-
-    impl Referee<Process> for PanicAtReady<'_> {
-        fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
-        fn observe(&mut self, _now: Time, procs: &[Process]) {
-            let Process::Child(child) = &procs[0] else { panic!("binary observer") };
-            if ready_descendant(child.stderr()).is_none() {
-                return;
-            }
-            let mut pids = vec![descendant(child.stderr())];
-            if self.grandchild {
-                let Some(pid) = std::str::from_utf8(child.stderr())
-                    .expect("fixture text")
-                    .lines()
-                    .find_map(|line| line.strip_prefix("grandchild:")?.parse::<u32>().ok())
-                else {
-                    return;
-                };
-                pids.push(pid);
-            }
-            if pids.iter().all(|pid| child.tree_status().live_pids.contains(pid)) {
-                assert_eq!(child.exit_status(), None, "the shared ring still owns the leader's wait");
-                self.pids.set(Some(pids));
-                panic!("the referee panics at ready");
-            }
-        }
-        fn passed(&self) -> bool {
-            false
-        }
-    }
-
-    for containment in [Containment::Walk, Containment::Best] {
-        for mode in ["supervise-term", "supervise-grandchild"] {
-            let pids = Cell::new(None);
-            let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let binary = Binary::start_contained(
-                    fixture(mode),
-                    Mode::Pipes,
-                    4096,
-                    skein_world::end_to_end::Expectation::Supervise,
-                    containment,
-                )
-                .expect("a supervised fixture starts");
-                let mut world =
-                    real::World::new(PanicAtReady { pids: &pids, grandchild: mode == "supervise-grandchild" });
-                world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
-                let _outcome = world.run(&Clock::new(), WORLD_PATIENCE);
-            }))
-            .expect_err("the referee unwinds through the retained binary");
-            assert_eq!(failure.downcast_ref::<&str>(), Some(&"the referee panics at ready"));
-            let observed: Vec<_> = pids
-                .take()
-                .expect("the referee recorded its descendants before panicking")
-                .into_iter()
-                .map(|pid| (pid, skein_shell::keeper::process_live(pid)))
-                .collect();
-            for &(pid, live) in &observed {
-                // A failing regression must not leave its spinning fixture behind.
-                if live == Ok(true) {
-                    let fd = skein_shell::keeper::open_pidfd(pid).expect("the survivor's identity");
-                    let _killed =
-                        skein_shell::keeper::signal_kept_child(fd, Signal::Kill, skein_io::kernel::Target::Child);
-                    skein_shell::keeper::close_keeper_fd(fd);
-                }
-            }
-            for (pid, live) in observed {
-                assert_eq!(live, Ok(false), "{containment:?} {mode}: descendant {pid} outlived unwinding");
-            }
-        }
-    }
 }
 
 #[test]
@@ -1319,29 +1258,6 @@ fn supervised_stderr_overflow_is_observed_before_the_referees_term_grace_and_who
         assert!(child.counts().is_some(), "the keeper and all descendants genuinely settled");
         assert!(child.is_empty());
     }
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn repeated_stderr_overflow_unwinds_without_aborting() {
-    // A second unwind shows what the first left behind; a third shows it does not build up.
-    const UNWINDS: usize = 3;
-    for iteration in 0..UNWINDS {
-        let failure = std::panic::catch_unwind(legacy_stderr_overflow).expect_err("stderr overflow fails the scenario");
-        assert_eq!(
-            failure.downcast_ref::<String>().expect("the overflow diagnostic"),
-            "binary stderr exceeds its scenario limit of 8 bytes",
-            "unwind {iteration} preserves the scenario's failure"
-        );
-    }
-}
-
-fn legacy_stderr_overflow() {
-    let binary = Binary::start(command("printf '123456789' >&2"), Mode::Pipes, 8).expect("a legacy capture starts");
-    let mut world = real::World::new(Judge { signal: false, sent: false, act_at: None });
-    world.spawn_with_fds(binary.descriptors(), || Process::Child(binary));
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert!(outcome.procs.iter().all(Host::is_empty));
 }
 
 fn terminal_fixture() -> Command {

@@ -120,19 +120,6 @@ fn a_lent_peer_returns_empty_with_its_handle_usable() {
 }
 
 #[test]
-fn a_lent_peers_assertion_names_it_in_the_failure() {
-    use skein_world::Host;
-    let mut peer = skein_ui_web_tests::harness_peer::Peer::new();
-    peer.assert_request = true;
-    let mut person = ready_person();
-    let outcome = skein_ui_web_tests::lending_harness(&["{neighbor}"], vec![])
-        .run_lending(&mut [&mut person], &mut [harness::Lent { name: b"neighbor", peer: &mut peer }]);
-    let Outcome::Failed { report, .. } = outcome else { panic!("asserting peer fails the run") };
-    assert!(report.contains("lent peer neighbor: fixture request assertion"), "{report}");
-    assert!(peer.is_empty());
-}
-
-#[test]
 fn colliding_peer_tokens_reach_their_own_hosts() {
     use skein_world::Host;
     let mut first = skein_ui_web_tests::harness_peer::Peer::new();
@@ -145,17 +132,6 @@ fn colliding_peer_tokens_reach_their_own_hosts() {
     assert_eq!(outcome, Outcome::Done);
     assert_eq!((first.observations.len(), second.observations.len()), (1, 1));
     assert!(first.is_empty() && second.is_empty());
-}
-
-#[test]
-fn a_peer_shutdown_assertion_preserves_a_failed_outcome() {
-    let mut peer = skein_ui_web_tests::harness_peer::Peer::new();
-    peer.assert_shutdown = true;
-    let mut person = ready_person();
-    let outcome = skein_ui_web_tests::lending_harness(&[], vec![])
-        .run_lending(&mut [&mut person], &mut [harness::Lent { name: b"neighbor", peer: &mut peer }]);
-    let Outcome::Failed { report, .. } = outcome else { panic!("shutdown assertion fails the run") };
-    assert!(report.contains("lent peer neighbor: fixture shutdown assertion"), "{report}");
 }
 
 #[test]

@@ -110,7 +110,7 @@ fn scene(bytes: &[u8], sets: PatchSets) -> (Disk, Store) {
         &mut store,
         Request::Open { owner: Token::new(1), root: disk.root(), installation: fixtures::INSTALLATION },
     );
-    let [Event::Opened { .. }] = &*opened else { panic!("opened: {opened:?}") };
+    let [Event::Opened { .. }, Event::Census { .. }] = &*opened else { panic!("opened: {opened:?}") };
     fixtures::plant(
         &mut store.stores,
         &[
@@ -167,6 +167,8 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
     let mut result = Vec::new();
     for event in events {
         match event {
+            // Transcript reads do not use the map census (protocol/store/README.md, 6.3).
+            Event::Census { .. } => {}
             Event::Page { .. } | Event::PageRefused { .. } => unreachable!("a start's pages need a start-mode store"),
             Event::Site { owner, of, key, site, at, mut patcher } => {
                 assert_eq!(owner, OWNER);
@@ -694,12 +696,14 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
             crate::up(&mut store, &env, io, &mut above, below);
         });
         events.extend(fixtures::events(&mut above));
-        if let Some(Event::Opened { .. }) = events.last() {
+        if let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_slice() {
             break;
         }
     }
     assert!(patch_steps > 0, "the open patched a copy");
-    let Some(Event::Opened { last: 2, .. }) = events.last() else { panic!("switched open: {events:?}") };
+    let [.., Event::Opened { last: 2, .. }, Event::Census { .. }] = events.as_slice() else {
+        panic!("switched open: {events:?}")
+    };
     assert_eq!(store.transcripts.machines.body.as_ref().expect("serving body").last, 6);
     assert_eq!(store.transcripts.machines.turn.as_ref().expect("serving turn").last, 2);
 }

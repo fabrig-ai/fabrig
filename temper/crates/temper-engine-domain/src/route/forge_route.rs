@@ -35,12 +35,15 @@ mod tier_route;
 pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
+pub(super) mod job_history;
 mod landing_route;
 pub(crate) use landing_route::form_landings;
 #[cfg(test)]
 use landing_route::start_landing;
 pub(crate) use landing_route::start_landing_step;
 use landing_route::{describe_landing_effect, landing_decision};
+pub(super) mod reds;
+pub use reds::{RunRed, reds_for_run};
 mod reads;
 use reads::read_answer;
 pub(crate) use reads::read_call;
@@ -1413,6 +1416,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ForgeRestored
             | Work::StartDone(_)
             | Work::Start(_)
+            | Work::CheckResults { .. }
             | Work::Decoded { .. }
             | Work::Core(_)
             | Work::Tasks(_)
@@ -2539,6 +2543,7 @@ pub(super) fn start_recovered_change(
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
                 task_release: None,
+                job: None,
                 signed: Box::new([]),
                 task,
                 repository: provider,
@@ -2610,6 +2615,7 @@ pub(super) fn start_recovered_change(
                 catch_up,
                 close,
                 merge_result: None,
+                history: None,
                 follow_check: None,
             },
         };
@@ -4911,6 +4917,26 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::LoadHistory { load, range, after, most } => {
+                match domain.archive_reads.insert(Some(crate::boundary::Read::History { load, most })) {
+                    Ok(id) => emit(
+                        decision,
+                        &env.limits,
+                        Delivery::Load {
+                            waiter: id.token(),
+                            range: crate::Range::History(range),
+                            after: match after {
+                                Some(key) => Some(Key::Forge(key)),
+                                None => None,
+                            },
+                        },
+                    ),
+                    Err(_) => domain.work.push(Work::Forge(forge::Event::HistoryUnloaded { load })),
+                }
+            }
+            forge::Request::HistoryPage { read, answer } => {
+                super::kinds::history_answer(domain, env, decision, read, answer);
+            }
             forge::Request::LinkNoted { forge, note } => {
                 super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
             }

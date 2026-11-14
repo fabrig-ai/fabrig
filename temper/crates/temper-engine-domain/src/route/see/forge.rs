@@ -233,6 +233,7 @@ fn read_head(answer: &CallAnswer) -> Option<api::Commit> {
         },
         CallAnswer::Follow(_)
         | CallAnswer::Finding(_)
+        | CallAnswer::Red(_)
         | CallAnswer::Decided { .. }
         | CallAnswer::TaskRead(_)
         | CallAnswer::SettingsRefused(_)

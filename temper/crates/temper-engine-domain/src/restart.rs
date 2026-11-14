@@ -33,6 +33,10 @@ pub(crate) fn accept_load(domain: &mut Domain, env: &Env<Limits>, decision: Opti
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one dispatcher admits root and child loads and routes refusal to their owners"
+)]
 pub(crate) fn request_load(
     domain: &mut Domain,
     waiter: Token,
@@ -42,6 +46,14 @@ pub(crate) fn request_load(
 ) {
     let mut load_out = Queue::with_capacity(1);
     let most = match &range {
+        Range::History(_) => {
+            let Some(Some(crate::boundary::Read::History { most, .. })) =
+                domain.archive_reads.get(skein_lib::Id::from_token(waiter))
+            else {
+                return;
+            };
+            (*most).min(domain.limits.loads.rows)
+        }
         Range::Core(
             crate::CoreRange::Deployment
             | crate::CoreRange::RequesterWord { .. }
@@ -71,6 +83,10 @@ pub(crate) fn request_load(
     };
     if loads::begin(&mut domain.loads, waiter, range.clone(), after, most, &mut load_out).is_none() {
         match range {
+            Range::History(_) => {
+                crate::archive::history_failed(domain, waiter);
+                return;
+            }
             Range::Core(crate::CoreRange::RequesterWord { .. }) => {
                 goal_failed(domain, waiter);
                 return;
@@ -130,6 +146,7 @@ pub(crate) fn request_load(
             | Range::Forge => {
                 unreachable!("startup/result load room reserved")
             }
+            Range::History(_) => unreachable!("history load failure handled above"),
             Range::Core(crate::CoreRange::Notes(_)) => unreachable!("notes load failure handled above"),
         }
     }
@@ -169,6 +186,7 @@ pub(crate) fn load_outputs(
                         waiter,
                         if cut.is_none() && next.is_none() { Some(rows) } else { None },
                     ),
+                    Some(Waiting::History) => crate::archive::history_loaded(domain, waiter, rows, next, cut),
                     Some(Waiting::Document) => crate::route::document::loaded(domain, waiter, rows, next, cut, out),
                     Some(Waiting::Remember) => crate::route::remember::loaded(domain, waiter, rows, next, cut, out),
                     Some(Waiting::Notes) => note_loaded(domain, waiter, rows, next, cut),
@@ -212,6 +230,7 @@ pub(crate) fn load_outputs(
                         waiter,
                         None,
                     ),
+                    Some(Waiting::History) => crate::archive::history_failed(domain, waiter),
                     Some(Waiting::Document) => crate::route::document::failed(domain, waiter),
                     Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),
                     Some(Waiting::Notes) => note_failed(domain, waiter),
@@ -288,6 +307,7 @@ pub(crate) fn startup_page(
         Range::Core(crate::CoreRange::Tasks) => Some(Range::Core(crate::CoreRange::RunProofs)),
         Range::Core(crate::CoreRange::RunProofs) => Some(Range::Core(crate::CoreRange::Calls)),
         Range::Forge | Range::Census(_) | Range::Core(crate::CoreRange::Calls) => None,
+        Range::History(_) => unreachable!("history is never restored"),
         Range::Core(crate::CoreRange::Sweep) => unreachable!("sweep page handled above"),
         Range::Core(
             crate::CoreRange::EscalationDecision { .. }
@@ -356,6 +376,9 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                     domain.work.push(Work::StartDone(phase));
                 }
                 Phase::AdoptRuns => {
+                    if let Some(census) = domain.startup_census.take() {
+                        domain.work.push(Work::Core(jig_domain_core::Event::Census(census)));
+                    }
                     if let Some(bytes) = domain.startup_fill.take() {
                         domain.work.push(Work::Core(jig_domain_core::Event::Fill { bytes }));
                     }

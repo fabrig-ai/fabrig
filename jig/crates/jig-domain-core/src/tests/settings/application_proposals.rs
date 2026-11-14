@@ -572,6 +572,11 @@ fn remember(rows: &mut Map<s::Key, s::Record>, output: &[Request]) {
     }
 }
 fn restart(core: &Core, limits: &Limits, rows: &Map<s::Key, s::Record>) -> Core {
+    let mut restarted = load_settings(core, limits, rows);
+    assert!(restarted.finish_restored_settings(&Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }));
+    restarted
+}
+fn load_settings(core: &Core, limits: &Limits, rows: &Map<s::Key, s::Record>) -> Core {
     let mut configured = config(41);
     configured.kinds = core.kinds.clone();
     configured.connectors = Box::new([2, 3]);
@@ -599,7 +604,6 @@ fn restart(core: &Core, limits: &Limits, rows: &Map<s::Key, s::Record>) -> Core 
             _ => {}
         }
     }
-    assert!(restarted.finish_restored_settings(&Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }));
     restarted
 }
 #[test]
@@ -680,13 +684,10 @@ fn proposal_key_overflow_is_refused_before_retaining_the_set() {
     assert!(keeps(&output).is_empty());
 }
 #[test]
-#[expect(
-    clippy::disallowed_types,
-    reason = "the panic payload is a String whose text must name the broken proposal link"
-)]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn restart_refuses_a_proposal_key_at_or_past_the_counter() {
-    for key in [2, 3] {
+    use crate::start::{Action, Failure, Linked, Phase, SweepInput};
+
+    for key in [1, 2, 3] {
         let (mut core, limits) = application_core();
         let output = propose(&mut core, &limits, Box::new([set(1, 1)]));
         let mut rows = Map::with_capacity(SNAPSHOT_ROWS);
@@ -694,9 +695,54 @@ fn restart_refuses_a_proposal_key_at_or_past_the_counter() {
         let row = rows.get_mut(&s::Key::Proposal { proposer: Proposer::Party(1), proposal: 2 }).unwrap();
         let s::Record::Proposal { value, .. } = row else { panic!("proposal row") };
         value.key = Some(key);
-        let panic = std::panic::catch_unwind(|| restart(&core, &limits, &rows)).unwrap_err();
-        let message = panic.downcast_ref::<String>().unwrap();
-        assert!(message.contains("Proposal { proposer: Party(1), proposal: 2 }"), "{message}");
+        let mut restarted = load_settings(&core, &limits, &rows);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        assert_eq!(restarted.current.keys, 2);
+        assert_eq!(restarted.finish_restored_settings(&env), key < 2);
+        if key >= 2 {
+            let expected = Failure::Link {
+                record: Key::Core(CoreKey::Settings(s::Key::Proposal { proposer: Proposer::Party(1), proposal: 2 })),
+                linked: Linked::SettingsProposal { proposer: Proposer::Party(1), proposal: 2 },
+            };
+            assert_eq!(restarted.start_failure(), Some(expected.clone()));
+            assert!(!restarted.start_opened());
+            assert!(!restarted.finish_restored_settings(&env));
+            assert_eq!(restarted.start_failure(), Some(expected));
+            continue;
+        }
+        // Supply the proposal's owner and tasks row before linking the valid set.
+        let person = people::Stored::Person { number: 1, identity: core.people.identity(1).unwrap().clone() };
+        assert_ne!(restarted.restore(&env, Record::People(person)), Restore::Refused);
+        for request in &output {
+            if let Request::Write(Write::Save(Record::Tasks(row))) = request {
+                assert_ne!(restarted.restore(&env, Record::Tasks(row.clone())), Restore::Refused);
+            }
+        }
+        let mut out = Queue::uncapped();
+        let mut action = restarted.start_done(&env, Phase::LoadCore, &mut out);
+        for _ in 0_u32..64 {
+            action = match action {
+                Action::Step(Phase::RestoreConnector { connector }) => {
+                    let _out = step(
+                        &mut restarted,
+                        &env,
+                        Event::EffectConnector(connector::Event::SettingsDefaults {
+                            connector,
+                            defaults: Box::default(),
+                            dropped: Box::default(),
+                        }),
+                    );
+                    restarted.start_done(&env, Phase::RestoreConnector { connector }, &mut out)
+                }
+                Action::Step(Phase::Sweep) => restarted.start_sweep(&env, SweepInput::Finished, &mut out),
+                Action::Step(phase) => restarted.start_done(&env, phase, &mut out),
+                Action::Commit(token) => restarted.start_resume(&env, token, &mut out),
+                Action::Idle => break,
+                Action::Refused(failure) => panic!("key below the counter restores: {failure:?}"),
+            };
+        }
+        assert_eq!(restarted.start_failure(), None);
+        assert!(restarted.start_opened());
     }
 }
 

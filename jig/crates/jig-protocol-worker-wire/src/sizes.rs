@@ -1,5 +1,5 @@
 //! Channel bounds from the owners' numbers (protocol/channel/README.md, 8 and 10).
-use crate::{Kind, v13};
+use crate::{Kind, v14};
 
 /// Bounds supplied by the domains and the application's protocol layer.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -27,6 +27,8 @@ pub struct Sizes {
     pub left: u32,
     pub saved: u32,
     pub evidence: u32,
+    pub application_ask: u32,
+    pub application_answer: u32,
     pub resource: u32,
     pub slots: u32,
     pub calls: u32,
@@ -55,20 +57,22 @@ pub struct WorkerCap {
 
 /// Map field and count bounds without inspecting any payload or sum.
 #[must_use]
-pub fn limits(sizes: &Sizes) -> Option<v13::Limits> {
-    let limits = v13::Limits {
-        agreed_wire_name: v13::CEILINGS.agreed_wire_name,
-        agreed_wires: v13::CEILINGS.agreed_wires,
-        model_failure_endpoint: v13::CEILINGS.model_failure_endpoint,
-        model_failure_model: v13::CEILINGS.model_failure_model,
-        mismatch_wire: v13::CEILINGS.mismatch_wire,
-        list_row_name: v13::CEILINGS.list_row_name,
-        list_row_shown_some: v13::CEILINGS.list_row_shown_some,
-        list_row_efforts: v13::CEILINGS.list_row_efforts,
-        list_row_efforts_item: v13::CEILINGS.list_row_efforts_item,
-        listed_rows_rows: v13::CEILINGS.listed_rows_rows,
-        input_call_id: v13::CEILINGS.input_call_id,
-        input_call_tool: v13::CEILINGS.input_call_tool,
+pub fn limits(sizes: &Sizes) -> Option<v14::Limits> {
+    let limits = v14::Limits {
+        ask_bytes: sizes.application_ask,
+        ask_bytes_bytes: sizes.application_answer,
+        agreed_wire_name: v14::CEILINGS.agreed_wire_name,
+        agreed_wires: v14::CEILINGS.agreed_wires,
+        model_failure_endpoint: v14::CEILINGS.model_failure_endpoint,
+        model_failure_model: v14::CEILINGS.model_failure_model,
+        mismatch_wire: v14::CEILINGS.mismatch_wire,
+        list_row_name: v14::CEILINGS.list_row_name,
+        list_row_shown_some: v14::CEILINGS.list_row_shown_some,
+        list_row_efforts: v14::CEILINGS.list_row_efforts,
+        list_row_efforts_item: v14::CEILINGS.list_row_efforts_item,
+        listed_rows_rows: v14::CEILINGS.listed_rows_rows,
+        input_call_id: v14::CEILINGS.input_call_id,
+        input_call_tool: v14::CEILINGS.input_call_tool,
         piece_bytes: sizes.piece,
         program_source_name: 32,
         sources_sources: sizes.program_sources,
@@ -80,12 +84,12 @@ pub fn limits(sizes: &Sizes) -> Option<v13::Limits> {
         login_email_some: 255,
         logins_logins: sizes.program_sources,
         signed_out_name: 32,
-        wire_name: v13::CEILINGS.wire_name,
-        wire_layouts: v13::CEILINGS.wire_layouts,
-        credential_wires: v13::CEILINGS.credential_wires,
+        wire_name: v14::CEILINGS.wire_name,
+        wire_layouts: v14::CEILINGS.wire_layouts,
+        credential_wires: v14::CEILINGS.credential_wires,
         credential_name: sizes.name,
         credential_secret: sizes.secret,
-        bounds_program_endpoints: v13::CEILINGS.bounds_program_endpoints,
+        bounds_program_endpoints: v14::CEILINGS.bounds_program_endpoints,
         bounds_endpoints: sizes.models,
         hello_jobs: sizes.models,
         job_spec: sizes.charter,
@@ -107,8 +111,8 @@ pub fn limits(sizes: &Sizes) -> Option<v13::Limits> {
         failed_detail: sizes.detail,
         invalid_start_why: sizes.detail,
         // A provider's code and reason are smith's text, within the detail's bound.
-        account_refused_code: sizes.detail.min(v13::CEILINGS.account_refused_code),
-        account_refused_reason: sizes.detail.min(v13::CEILINGS.account_refused_reason),
+        account_refused_code: sizes.detail.min(v14::CEILINGS.account_refused_code),
+        account_refused_reason: sizes.detail.min(v14::CEILINGS.account_refused_reason),
         answer_refused: sizes.inbox,
         message_sender: sizes.sender,
         message_words: sizes.message,
@@ -119,7 +123,7 @@ pub fn limits(sizes: &Sizes) -> Option<v13::Limits> {
         answered_call_tool: sizes.tool_name,
         credential_value_bytes: sizes.grant,
         application_value_secret: sizes.grant,
-        program_value_name: v13::CEILINGS.program_source_name,
+        program_value_name: v14::CEILINGS.program_source_name,
         assignment_charter: sizes.charter,
         assignment_transcript: sizes.transcript,
         assignment_answered: sizes.answered,
@@ -130,7 +134,7 @@ pub fn limits(sizes: &Sizes) -> Option<v13::Limits> {
         relay_text_text: sizes.answer,
         relayed_name: sizes.call_name,
     };
-    v13::check_limits(&limits).ok()?;
+    v14::check_limits(&limits).ok()?;
     Some(limits)
 }
 
@@ -150,40 +154,42 @@ pub fn smallest_resumed(calls: u32, name: u32, tool: u32, answer: u32) -> Option
     u32::try_from(bytes).ok()
 }
 
-pub(crate) fn body(limits: &v13::Limits, kind: Kind) -> Option<u32> {
+pub(crate) fn body(limits: &v14::Limits, kind: Kind) -> Option<u32> {
     let bytes = match kind {
-        Kind::Wires => v13::Agreed::encoded_bound(limits),
-        Kind::Draining => v13::Draining::encoded_bound(limits),
-        Kind::Hello => v13::Hello::encoded_bound(limits),
-        Kind::Turn => v13::Turn::encoded_bound(limits),
-        Kind::Call => v13::Call::encoded_bound(limits),
-        Kind::Answer => v13::Answer::encoded_bound(limits),
-        Kind::Fact => v13::Fact::encoded_bound(limits),
-        Kind::Unauthorized => v13::Unauthorized::encoded_bound(limits),
-        Kind::Limited => v13::Limited::encoded_bound(limits),
-        Kind::AccountRefused => v13::AccountRefused::encoded_bound(limits),
-        Kind::Assignment => v13::Assignment::encoded_bound(limits),
-        Kind::Message => v13::Inbound::encoded_bound(limits),
-        Kind::Relayed => v13::Relayed::encoded_bound(limits),
-        Kind::TurnKept => v13::TurnKept::encoded_bound(limits),
-        Kind::TurnBusy => v13::TurnBusy::encoded_bound(limits),
-        Kind::Acknowledge => v13::Acknowledge::encoded_bound(limits),
-        Kind::Cancel => v13::Cancel::encoded_bound(limits),
-        Kind::Sources => v13::Sources::encoded_bound(limits),
-        Kind::ReadList => v13::ReadList::encoded_bound(limits),
-        Kind::ListRead => v13::ListRead::encoded_bound(limits),
-        Kind::Check => v13::Check::encoded_bound(limits),
-        Kind::SignOut => v13::SignOut::encoded_bound(limits),
-        Kind::Logins => v13::Logins::encoded_bound(limits),
-        Kind::SignedOut => v13::SignedOut::encoded_bound(limits),
-        Kind::Job => v13::Job::encoded_bound(limits),
-        Kind::JobAnswer => v13::JobAnswer::encoded_bound(limits),
-        Kind::Grant => v13::Granted::encoded_bound(limits),
+        Kind::Ask => v14::Ask::encoded_bound(limits),
+        Kind::Asked => v14::Asked::encoded_bound(limits),
+        Kind::Wires => v14::Agreed::encoded_bound(limits),
+        Kind::Draining => v14::Draining::encoded_bound(limits),
+        Kind::Hello => v14::Hello::encoded_bound(limits),
+        Kind::Turn => v14::Turn::encoded_bound(limits),
+        Kind::Call => v14::Call::encoded_bound(limits),
+        Kind::Answer => v14::Answer::encoded_bound(limits),
+        Kind::Fact => v14::Fact::encoded_bound(limits),
+        Kind::Unauthorized => v14::Unauthorized::encoded_bound(limits),
+        Kind::Limited => v14::Limited::encoded_bound(limits),
+        Kind::AccountRefused => v14::AccountRefused::encoded_bound(limits),
+        Kind::Assignment => v14::Assignment::encoded_bound(limits),
+        Kind::Message => v14::Inbound::encoded_bound(limits),
+        Kind::Relayed => v14::Relayed::encoded_bound(limits),
+        Kind::TurnKept => v14::TurnKept::encoded_bound(limits),
+        Kind::TurnBusy => v14::TurnBusy::encoded_bound(limits),
+        Kind::Acknowledge => v14::Acknowledge::encoded_bound(limits),
+        Kind::Cancel => v14::Cancel::encoded_bound(limits),
+        Kind::Sources => v14::Sources::encoded_bound(limits),
+        Kind::ReadList => v14::ReadList::encoded_bound(limits),
+        Kind::ListRead => v14::ListRead::encoded_bound(limits),
+        Kind::Check => v14::Check::encoded_bound(limits),
+        Kind::SignOut => v14::SignOut::encoded_bound(limits),
+        Kind::Logins => v14::Logins::encoded_bound(limits),
+        Kind::SignedOut => v14::SignedOut::encoded_bound(limits),
+        Kind::Job => v14::Job::encoded_bound(limits),
+        Kind::JobAnswer => v14::JobAnswer::encoded_bound(limits),
+        Kind::Grant => v14::Granted::encoded_bound(limits),
     }?;
     u32::try_from(bytes).ok()
 }
 
-fn frame(limits: &v13::Limits, kind: Kind) -> Option<u32> {
+fn frame(limits: &v14::Limits, kind: Kind) -> Option<u32> {
     body(limits, kind)?.checked_add(8)
 }
 
@@ -194,11 +200,12 @@ pub fn engine_cap(sizes: &Sizes) -> Option<Cap> {
     let mut bytes = frame(&limits, Kind::Assignment)?;
     bytes = bytes.checked_add(sizes.inbox.checked_mul(frame(&limits, Kind::Message)?)?)?;
     bytes = bytes.checked_add(sizes.calls.checked_mul(frame(&limits, Kind::Relayed)?)?)?;
+    bytes = bytes.checked_add(2_u32.checked_mul(frame(&limits, Kind::Asked)?)?)?;
     bytes = bytes.checked_add(sizes.turns.checked_mul(frame(&limits, Kind::TurnKept)?)?)?;
     bytes = bytes.checked_add(frame(&limits, Kind::Acknowledge)?)?;
     bytes = bytes.checked_add(frame(&limits, Kind::Cancel)?)?;
     bytes = bytes.checked_add(grants.checked_mul(frame(&limits, Kind::Grant)?)?)?;
-    let frames = 3_u32.checked_add(sizes.inbox)?.checked_add(sizes.calls)?.checked_add(sizes.turns)?;
+    let frames = 5_u32.checked_add(sizes.inbox)?.checked_add(sizes.calls)?.checked_add(sizes.turns)?;
     let frames = frames.checked_add(grants)?.checked_mul(sizes.slots)?;
     let sources = frame(&limits, Kind::Sources)?;
     // One host-wide list request fits alongside run traffic and source commands.
@@ -221,6 +228,7 @@ pub fn worker_cap(sizes: &Sizes) -> Option<WorkerCap> {
     let mut run = sizes.turns.checked_mul(frame(&limits, Kind::Turn)?)?;
     run = run.checked_add(frame(&limits, Kind::Answer)?)?;
     run = run.checked_add(sizes.calls.checked_mul(frame(&limits, Kind::Call)?)?)?;
+    run = run.checked_add(2_u32.checked_mul(frame(&limits, Kind::Ask)?)?)?;
     let notices = frame(&limits, Kind::Unauthorized)?
         .checked_add(frame(&limits, Kind::Limited)?)?
         .checked_add(frame(&limits, Kind::AccountRefused)?)?;
@@ -229,7 +237,7 @@ pub fn worker_cap(sizes: &Sizes) -> Option<WorkerCap> {
     bytes = bytes.checked_add(frame(&limits, Kind::Draining)?)?;
     // LongDone is the shortest fact: task + attempt + value tag + header.
     let fact_frames = sizes.facts / 25;
-    let run_frames = sizes.turns.checked_add(1)?.checked_add(sizes.calls)?;
+    let run_frames = sizes.turns.checked_add(3)?.checked_add(sizes.calls)?;
     let mut frames = 2_u32.checked_add(sizes.slots.checked_mul(run_frames)?)?;
     frames = frames.checked_add(sizes.accounts.checked_mul(3)?)?.checked_add(fact_frames)?;
     bytes = bytes

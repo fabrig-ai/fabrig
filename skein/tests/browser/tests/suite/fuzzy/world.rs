@@ -18,7 +18,7 @@ fn observe(world: &mut World, referee: &mut Referee) -> Vec<Event> {
     }
     let mut events = Vec::new();
     while let Some(event) = world.above.pop() {
-        referee.event(&event, u32::from(world.ax_visible));
+        referee.event(&event, u32::from(world.ax_visible)).expect("browser contract");
         events.push(event);
     }
     events
@@ -38,7 +38,7 @@ fn varied_pages_and_faults_hold_the_contract() {
             0 => {
                 world.ax_visible = next(&mut seed) & 1 == 0;
                 let expect = if world.ax_visible { Expect::Present } else { Expect::Absent };
-                referee.await_op(op, expect);
+                referee.await_op(op, expect).expect("browser contract");
                 world.ask(Request::Await {
                     page: Token::new(3),
                     op,
@@ -57,20 +57,20 @@ fn varied_pages_and_faults_hold_the_contract() {
                     matches!(events.as_slice(), [Event::Met { op: got, .. }] if *got == op),
                     "seed {case}: {events:?}"
                 );
-                world.assert_commands_settled();
+                world.check_commands_settled().expect("commands settled");
             }
             1 => {
                 world.disabled = next(&mut seed) & 1 != 0;
                 world.hidden = !world.disabled && next(&mut seed) & 1 != 0;
                 world.covered = !world.disabled && !world.hidden && next(&mut seed) & 1 != 0;
-                referee.press(op);
+                referee.press(op).expect("browser contract");
                 world.ask(Request::Press { page: Token::new(3), op, node: 7, at: None });
                 let events = observe(&mut world, &mut referee);
                 assert!(
                     matches!(events.as_slice(), [Event::Done { .. } | Event::Refused { .. }]),
                     "seed {case}: {events:?}"
                 );
-                world.assert_commands_settled();
+                world.check_commands_settled().expect("commands settled");
             }
             2 => {
                 world.ask(Request::Viewport {
@@ -81,7 +81,7 @@ fn varied_pages_and_faults_hold_the_contract() {
                 });
                 let events = observe(&mut world, &mut referee);
                 assert!(matches!(events.as_slice(), [Event::Done { op: got }] if *got == op));
-                world.assert_commands_settled();
+                world.check_commands_settled().expect("commands settled");
             }
             _ => {
                 let which = usize::try_from(next(&mut seed) % 7).expect("index");
@@ -117,7 +117,7 @@ fn varied_pages_and_faults_hold_the_contract() {
                 if fault == Fault::Error {
                     assert!(events.iter().any(|event| matches!(event, Event::Refused { why: Refusal::Gone, .. })));
                 }
-                world.assert_commands_settled();
+                world.check_commands_settled().expect("commands settled");
             }
         }
     }

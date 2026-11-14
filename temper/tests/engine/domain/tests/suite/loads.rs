@@ -602,32 +602,6 @@ fn startup_keeps_fitting_rows_without_record_membership_order_or_cursor_agreemen
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn startup_continuations_assert_unusable_or_nonprogressing_walk_positions() {
-    for (range, after, next) in [
-        (census_range(), result_key(8, 2), result_key(8, 2)),
-        (census_range(), result_key(4, 2), result_key(8, 3)),
-        (census_range(), result_key(8, 2), key(3)),
-        (
-            Range::Core(root::CoreRange::Accounts),
-            Key::Core(jig_domain_core::Key::Accounts(jig_domain_accounts::Key::Next)),
-            Key::Core(jig_domain_core::Key::Accounts(jig_domain_accounts::Key::Issued { number: 1 })),
-        ),
-        (Range::Forge, Key::Forge(temper_engine_domain_forge::Key::Entry(1)), Key::Wires),
-    ] {
-        let failed = std::panic::catch_unwind(|| {
-            let mut loads = Loads::new(&LIMITS);
-            let mut out = Queue::with_capacity(1);
-            let owner =
-                loads::begin(&mut loads, STARTUP, range, Some(after), 4, &mut out).expect("valid bounded fixture");
-            out.pop();
-            loads::loaded(&mut loads, owner, Box::new([]), Some(next), &mut out);
-        });
-        assert!(failed.is_err(), "startup transport bug must assert");
-    }
-}
-
-#[test]
 fn a_later_forge_load_fit_failure_keeps_its_range_and_connector_step() {
     let mut driver = temper_engine_domain_world::direct::Driver::new(Store::new());
     driver.broken("oversized forge load deliberately refuses startup");

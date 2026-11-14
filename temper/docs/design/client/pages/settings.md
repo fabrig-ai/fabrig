@@ -193,7 +193,20 @@
     a section "By project", a line per `projects` row, "PROJECT" and "USED
     of LIMIT tasks", the name from `me`, "Project N" for one `me` doesn't
     list. Under them, `.facts`: "The deployment’s owner sets these in its
-    configuration; temper reads them at start.". With no role, one line,
+    configuration; temper reads them at start.". Then, once the document
+    carries the store's census (jig's `client/domain/contract/documents.md`,
+    1), a section "What the store holds", its lede "As of commit N; writes
+    since commit S, the store's last snapshot.", and a line per keyspace,
+    as Capacities' are, most rows first, then by prefix: its name, or with
+    none its prefix's bytes in hex, two digits each, space-separated
+    ("02 0c"), and at its `.when` "ROWS rows · SIZE · WRITES writes",
+    ROWS and WRITES (its puts and erases together) in digits grouped by
+    thousands ("993,441"), SIZE its keys' and values' bytes together in
+    megabytes as the fill's are, "under 0.1 MB" below that; then
+    " · layout H" for its one head, or " · layouts H, H" for several, in
+    ascending order, "none" in place of H for the head of values with no
+    `u16` (" · layouts none, 3"), and nothing for a keyspace with no head.
+    With no census, no such section. With no role, one line,
     "Limits are seen by the deployment’s owners.", and no section; until the
     document is read, the title "Limits" alone. Read-only for everyone; the
     configuration's own limits and an owner's change of them are `../README.md`, section 5

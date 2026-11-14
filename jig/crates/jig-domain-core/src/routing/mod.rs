@@ -497,6 +497,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             core.fill = bytes;
             stopping::empty()
         }
+        Event::Census(value) => {
+            core.census = Some(value);
+            core.touch_deployment();
+            stopping::empty()
+        }
         Event::Settling => {
             core.settling = true;
             stopping::empty()

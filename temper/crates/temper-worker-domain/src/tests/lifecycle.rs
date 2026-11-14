@@ -271,6 +271,7 @@ fn no_notices(rows: &[Request]) {
             | host::LinkUp::Piece { .. }
             | host::LinkUp::Activity { .. }
             | host::LinkUp::JobAnswer { .. }
+            | host::LinkUp::Ask { .. }
             | host::LinkUp::Answer { .. } => {}
         }
     }

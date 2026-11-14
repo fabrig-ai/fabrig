@@ -27,8 +27,8 @@ fn agent() -> crate::settings::Agent {
 
 fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Problems> {
     let mut agent = agent();
-    // Exercise the brief floor within the fixture's small charter carriers.
-    agent.run_limits.host_part = 65_536;
+    // This fixture host bound leaves the other stock charters at least 2,048 bytes.
+    agent.run_limits.host_part = 65_714;
     // The long instructions need the charter carriers, independently of the host-part bound.
     let document = super::stock::limited(&fixtures::document(), b"core.run_bytes", 65_536);
     let mut document: serde_json::Value = serde_json::from_slice(&document).expect("room fixture");
@@ -77,7 +77,7 @@ fn defaults_leaving_2047_bytes_refuse_the_start() {
     let Err(found) = start(SHORT, None) else { panic!("a short charter refuses the start") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 65,536; it needs at least 2,048\n",
+        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 65,714; it needs at least 2,048\n",
     );
 }
 
@@ -91,7 +91,7 @@ fn default_parts_are_counted_before_start() {
     let Err(found) = start(4_000, Some(3_000)) else { panic!("the default's part takes its brief room") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 65,536; it needs at least 2,048\n"
+        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 65,714; it needs at least 2,048\n"
     );
     start(4_000, None).expect("without the part the default fits");
 }

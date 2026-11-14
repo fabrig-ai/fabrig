@@ -142,7 +142,9 @@ pub(crate) fn a_switch_cut_leaves_one_generation_whole(cut: u32) -> bool {
     let mut world = pending();
     let original = patches::source(&mut world);
     world.cut_at(cut);
-    assert_eq!(world.switch(), None, "cut {cut}");
+    // A cut after the final sync may also have delivered the switch's terminal.
+    world.switch();
+    assert!(world.reached_cut(), "switch cut reached");
     assert_eq!(world.operation_count(), cut, "switch cut reached");
     world.crash(u64::from(cut));
     let old_active = world.active() == b"1\n";
@@ -172,15 +174,18 @@ fn a_cut_at_the_switch_s_first_mutation_and_around_its_rename_leaves_one_generat
         .find(|(operation, change)| *operation > rename && *change == Change::Sync)
         .expect("switch sync")
         .0;
-    let mut old = false;
-    let mut new = false;
-    for (why, cut) in [("switch first mutation", first_mutation), ("switch rename", rename), ("switch sync", sync)] {
+    for (why, cut, expected_old) in [
+        ("switch first mutation", first_mutation, Some(true)),
+        ("switch rename", rename, Some(true)),
+        ("switch sync", sync, None),
+        ("switch synced", sync + 1, Some(false)),
+    ] {
         eprintln!("{why}: {cut}");
         let old_active = a_switch_cut_leaves_one_generation_whole(cut);
-        old |= old_active;
-        new |= !old_active;
+        if let Some(expected) = expected_old {
+            assert_eq!(old_active, expected, "{why}: rename is durable after its directory sync");
+        }
     }
-    assert!(old && new, "cuts reached both old and new generations");
 }
 
 const WIRES: &[Wire] = &[Wire { name: "channel", version: 3 }, Wire { name: "payload", version: 7 }];

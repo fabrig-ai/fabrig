@@ -65,6 +65,45 @@ pub(crate) fn exec_dying_with_parent(
     command.exec()
 }
 
+#[expect(clippy::disallowed_types, reason = "a test kit needs a Command and Child without its own exec binary")]
+pub(crate) fn spawn_dying_with_parent(
+    command: &mut std::process::Command,
+    signal: Signal,
+) -> std::io::Result<std::process::Child> {
+    use std::os::unix::process::CommandExt;
+
+    let parent = std::process::id();
+    let number = signal_number(signal);
+    let before_exec = move || {
+        // SAFETY: PR_SET_PDEATHSIG takes only integers and borrows no
+        // memory; this async-signal-safe syscall may run between fork and exec.
+        if unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, number, 0, 0, 0) } != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        // SAFETY: getppid borrows no memory and is async-signal-safe,
+        // so it may run between fork and exec.
+        let current_parent = unsafe { libc::getppid() };
+        if u32::try_from(current_parent).ok() != Some(parent) {
+            // Spawn carries only errno across its child error pipe.
+            // ESRCH marks the missing parent without allocating here;
+            // the spawning process supplies the diagnostic below.
+            return Err(std::io::Error::from_raw_os_error(libc::ESRCH));
+        }
+        Ok(())
+    };
+    // SAFETY: the hook calls only async-signal-safe prctl and getppid,
+    // which borrow no memory, and returns allocation-free errno errors.
+    unsafe { command.pre_exec(before_exec) };
+
+    command.spawn().map_err(|error| {
+        if error.raw_os_error() == Some(libc::ESRCH) {
+            std::io::Error::new(std::io::ErrorKind::NotFound, "parent changed before exec")
+        } else {
+            error
+        }
+    })
+}
+
 pub(crate) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
     // SAFETY: sigemptyset initializes this plain C signal set.
     let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };

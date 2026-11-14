@@ -54,6 +54,9 @@ pub fn step(machine: &mut Machine, call: Call, answers: &mut Queue<Answer>) {
         Ask::Rename { from_dir, from, to_dir, to, no_replace } => {
             done(machine.rename(opened(from_dir), &from, opened(to_dir), &to, no_replace))
         }
+        Ask::HardLink { from_dir, from, to_dir, to } => {
+            done(machine.hard_link(opened(from_dir), &from, opened(to_dir), &to))
+        }
         Ask::Remove { dir, name, directory } => done(machine.remove(opened(dir), &name, directory)),
         Ask::MakeDirectory { dir, name, mode } => done(machine.make_directory(opened(dir), &name, mode)),
         Ask::List { dir, most, room } => match machine.list(opened(dir), most, room) {

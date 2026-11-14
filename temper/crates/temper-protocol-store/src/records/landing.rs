@@ -127,6 +127,7 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
     w::LandingMember::new(
         &w::CEILINGS,
         w::LandingMemberParts {
+            round: member.round,
             unit: member.unit,
             branch: member.branch.clone(),
             combined: encode_combine(member.combined),
@@ -153,6 +154,7 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
 }
 fn decode_member(member: w::LandingMember) -> d::Member {
     let w::LandingMemberParts {
+        round,
         change,
         repository,
         pull,
@@ -174,6 +176,7 @@ fn decode_member(member: w::LandingMember) -> d::Member {
         proofs.push(decode_proof(gate)).expect(FITS);
     }
     d::Member {
+        round,
         unit,
         branch,
         combined: decode_combine(combined),
@@ -348,6 +351,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             members,
             preparation: row.landing.preparation,
             stale_proofs: row.landing.stale_proofs,
+            last_left: row.landing.last_left,
             branch: row.landing.branch.clone(),
             round: if row.landing.round.branch.is_empty() { None } else { Some(encode_round(&row.landing.round)) },
             own_hold: match row.landing.phase {
@@ -396,6 +400,10 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
                     w::LandingEntryParts {
                         preparation: entry.preparation,
                         base: entry.base,
+                        run: match entry.run {
+                            Some(run) => Some(encode_run(run)),
+                            None => None,
+                        },
                         entry: entry.entry,
                         member: entry.member,
                         gate: entry.gate,
@@ -406,12 +414,34 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             )
             .expect(FITS);
     }
-    w::LandingRow::new(&w::CEILINGS, w::LandingRowParts { landing, asks, entries }).expect(FITS)
+    w::LandingRow::new(
+        &w::CEILINGS,
+        w::LandingRowParts { landing, asks, entries, job: super::history::encode_job_record(row.job.as_ref()) },
+    )
+    .expect(FITS)
+}
+fn encode_run(run: top::LandingRun) -> w::LandingRun {
+    w::LandingRun::new(&w::CEILINGS, w::LandingRunParts { id: run.id, attempt: run.attempt, ended: run.ended })
+        .expect(FITS)
+}
+fn decode_run(run: w::LandingRun) -> top::LandingRun {
+    let w::LandingRunParts { id, attempt, ended } = run.into_parts();
+    top::LandingRun { id, attempt, ended }
 }
 pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
-    let w::LandingRowParts { landing, asks, entries } = row.into_parts();
-    let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs, branch, round, own_hold } =
-        landing.into_parts();
+    let w::LandingRowParts { landing, asks, entries, job } = row.into_parts();
+    let w::LandingStateParts {
+        task,
+        project,
+        phase,
+        members,
+        preparation,
+        stale_proofs,
+        branch,
+        round,
+        own_hold,
+        last_left,
+    } = landing.into_parts();
     let mut decoded_members = List::with_capacity(members.len());
     for member in members.into_boxed() {
         decoded_members.push(decode_member(member)).expect(FITS);
@@ -427,13 +457,26 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
     }
     let mut decoded_entries = List::with_capacity(entries.len());
     for entry in entries.into_boxed() {
-        let w::LandingEntryParts { entry, member, gate, operation, preparation, base } = entry.into_parts();
+        let w::LandingEntryParts { entry, member, gate, operation, preparation, base, run } = entry.into_parts();
         decoded_entries
-            .push(top::LandingEntry { entry, member, gate, operation: decode_operation(operation), preparation, base })
+            .push(top::LandingEntry {
+                entry,
+                member,
+                gate,
+                operation: decode_operation(operation),
+                preparation,
+                base,
+                run: match run {
+                    Some(run) => Some(decode_run(run)),
+                    None => None,
+                },
+            })
             .expect(FITS);
     }
     top::LandingRow {
+        job: super::history::decode_job_record(job),
         landing: d::Landing {
+            last_left,
             task,
             project,
             phase: match own_hold {
@@ -536,7 +579,7 @@ pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, 
     })
 }
 
-fn encode_leave(why: d::Leave) -> w::LandingLeave {
+pub(super) fn encode_leave(why: d::Leave) -> w::LandingLeave {
     match why {
         d::Leave::Conflict => w::LandingLeave::Conflict,
         d::Leave::EarlierConflict => w::LandingLeave::EarlierConflict,
@@ -562,7 +605,7 @@ fn encode_leave(why: d::Leave) -> w::LandingLeave {
         ),
     }
 }
-fn decode_leave(why: w::LandingLeave) -> d::Leave {
+pub(super) fn decode_leave(why: w::LandingLeave) -> d::Leave {
     match why {
         w::LandingLeave::Conflict => d::Leave::Conflict,
         w::LandingLeave::EarlierConflict => d::Leave::EarlierConflict,

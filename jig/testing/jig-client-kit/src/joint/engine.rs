@@ -244,6 +244,7 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::SettingsAnswer { .. }
         | core::Now::PersonAnswer { .. }
         | core::Now::SettledCallRefused { .. }
+        | core::Now::Ask { .. }
         | core::Now::Call { .. }
         | core::Now::DropCall { .. }
         | core::Now::Undelivered { .. }

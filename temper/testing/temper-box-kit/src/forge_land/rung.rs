@@ -1,9 +1,10 @@
 //! The ladder's real-model walks and their process proof (testing/live-tier.md).
 //!
 //! Like `forge_land`'s oracle, this driver uses bounded child commands. Its box
-//! outlives the test on interruption so proof-live's final return hook can still
-//! export the held account before terminating the box. Credentials go to ctl
-//! and curl by path alone. No bot credential or store is read by the driver.
+//! outlives the live test in its own session so proof-live can return the held
+//! account once the test ends. Offline, with no launcher, it dies with the test.
+//! Credentials go to ctl and curl by path alone. No bot credential or store is read
+//! by the driver.
 use super::super::configuration::turn_bounds;
 use super::super::patience::Patience;
 use serde_json::{Value, json};
@@ -504,15 +505,6 @@ impl Driver {
     }
 }
 
-/// The guard's return through the installed give-back, which a box still up answers
-/// (temper/docs/design/testing/live-tier.md).
-pub fn return_through_hook(binary: &Path, store: &Path) -> Result<(), String> {
-    let client = store.join("client");
-    let mut driver = Driver::owned(store, &client);
-    driver.binary = binary.into();
-    give_back(&mut driver)
-}
-
 fn give_back(driver: &mut Driver) -> Result<(), String> {
     driver.arm("the held record's return", Duration::from_secs(60));
     let output = driver.execute(Command::new(driver.store.join("give-back")), None, true)?;
@@ -520,34 +512,40 @@ fn give_back(driver: &mut Driver) -> Result<(), String> {
     Ok(())
 }
 
-/// The guard's return with no box up: a box over the store for this alone, a new client signed
-/// in by the box's link, then give-back. The box stops on any ending; the store stays.
-pub fn return_on_a_new_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], account: &Path) -> Result<(), String> {
+/// The launcher's return with no box up: a box over the store for this alone, a new client signed
+/// in by the box's link, then give-back. The box dies with this process and stops on
+/// every ordinary return; the store stays.
+pub fn return_on_a_box_of_its_own(
+    binary: &Path,
+    store: &Path,
+    paths: &[PathBuf; 3],
+    account: &Path,
+) -> Result<(), String> {
     let client = store.join("return-client");
     fs::create_dir_all(&client).map_err(|error| format!("return client: {error}"))?;
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700))
         .map_err(|error| format!("private return client: {error}"))?;
-    super::super::held_login::recovery_hook(binary, store, &client, account);
     let mut driver = Driver::owned(store, &client);
     driver.binary = binary.into();
     let started = now();
     driver.arm("the held record's new box", Duration::from_secs(240));
-    let mut guard = super::super::parent::Guard::new(start_box(binary, store, paths));
+    let mut guard = super::super::parent::Guard::new(start_box(binary, store, paths, true));
     let boxed = guard.child.as_mut().expect("return box");
     if let Some(deadline) = driver.deadline() {
         deadline.watch_process(boxed.id());
     }
-    let returned = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    let returned = (|| {
         let link = return_link(&mut driver, boxed)?;
         super::super::live::notice(&format!(
             "RETURN box answered in {}ms",
             now().saturating_since(started).as_nanos() / 1_000_000
         ));
         driver.ctl(&["sign-in", "-"], Some(&link))?;
+        super::super::held_login::recovery_hook(binary, store, &client, account)?;
         give_back(&mut driver)
-    }));
+    })();
     stop_return_box(boxed);
-    returned.unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    returned
 }
 
 fn return_link(driver: &mut Driver, boxed: &mut Child) -> Result<String, String> {
@@ -599,17 +597,33 @@ pub fn green_light() {
     let paths = ["config", "data", "cache"].map(|name| store.join(name));
     deployment(&paths);
     super::super::live::notice(&format!("TAG rung-b0-{}", super::live_tag()));
-    run_walk(&store, &paths, &account, false);
+    run_walk(&store, &paths, &account, false).unwrap_or_else(|message| panic!("{message}"));
 }
 
-fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3]) -> Child {
-    Command::new("setsid")
-        .arg(binary)
-        .args(super::deployment_flags(paths))
-        .args(["--echo", "steps"])
+fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], offline: bool) -> Child {
+    let command = skein_world::end_to_end::Command {
+        program: binary.into(),
+        arguments: super::deployment_flags(paths)
+            .into_iter()
+            .chain(["--echo".into(), "steps".into()])
+            .map(Into::into)
+            .collect(),
+        directory: store.into(),
+        environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+    };
+    let command = if offline { super::super::boxed::dying_with_test(command) } else { command };
+    let mut spawn = if offline {
+        Command::new(&command.program)
+    } else {
+        let mut spawn = Command::new("setsid");
+        spawn.arg(&command.program);
+        spawn
+    };
+    spawn
+        .args(command.arguments)
         .env_clear()
-        .env("PATH", "/usr/bin:/bin")
-        .current_dir(store)
+        .envs(command.environment)
+        .current_dir(command.directory)
         .stdin(Stdio::null())
         .stdout(fs::File::create(store.join("box.out")).expect("box output"))
         .stderr(fs::File::create(store.join("box.err")).expect("box errors"))
@@ -618,17 +632,16 @@ fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3]) -> Child {
 }
 
 /// Both faces import, walk, return the account, then stop through these acts.
-fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) {
+fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) -> Result<(), String> {
     let _ = super::cache_forgejo_binaries(&paths[2]);
     let client = store.join("client");
     fs::create_dir(&client).expect("fresh client");
     fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
     let mut driver = Driver::owned(store, &client);
-    super::super::held_login::return_hook(&driver.binary, store, &driver.client, account);
-    let mut boxed = start_box(&driver.binary, store, paths);
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| walk(&mut driver, paths, account, offline)));
-    // No ordinary failure or panic bypasses the return. The launcher's copy of
-    // this act covers a signal to the test process itself.
+    super::super::held_login::return_hook(&driver.binary, store, &driver.client, account)?;
+    let mut boxed = start_box(&driver.binary, store, paths, offline);
+    let result = walk(&mut driver, paths, account, offline);
+    // Ordinary endings return before stopping. The launcher covers a test that ends first.
     let starved = driver.starved.take();
     driver.arm("the rung's held login return", Duration::from_secs(60));
     let returned = driver.execute(Command::new(store.join("give-back")), None, true);
@@ -638,16 +651,12 @@ fn run_walk(store: &Path, paths: &[PathBuf; 3], account: &Path, offline: bool) {
     }
     super::super::live::notice("MUST login at its original path; stat regular, nonempty, 0600");
     let stopped = stop_box(&mut boxed);
-    let result = result.unwrap_or_else(|panic| std::panic::resume_unwind(panic));
     stopped.expect("box stopped after login return");
     if let Some(starved) = starved {
         super::super::parent::end_child(&mut boxed);
         starved.pass();
     }
-    result.unwrap_or_else(|message| {
-        super::super::live::notice(&format!("FAILURE {message}"));
-        panic!("{message}")
-    });
+    result
 }
 
 fn twin_peer() -> super::super::llm::Listening {
@@ -832,9 +841,10 @@ pub fn offline_walk(root: &Path) {
             );
         });
         listening.recv().expect("twin peers constructed");
-        run_walk(root, &paths, &account, true);
+        let walked = run_walk(root, &paths, &account, true);
         drop(stop);
         peers.join().expect("independent twin world");
+        walked.unwrap_or_else(|message| panic!("{message}"));
     });
 }
 

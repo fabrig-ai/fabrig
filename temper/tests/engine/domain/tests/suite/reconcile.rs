@@ -1,4 +1,4 @@
-//! Required forge links assert before the restore terminal and switch.
+//! Missing required forge links refuse the start before the restore terminal and switch.
 use temper_engine_domain::{self as engine, Record, Write};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
@@ -19,18 +19,19 @@ fn restart_with_rows(rows: Box<[forge::Stored]>) -> Driver {
     store.crash(9761);
     Driver::cold(store, walking::config(91), &walking::limits())
 }
-fn asserts_before_switch(row: forge::Stored, expected: forge::MissingLink) {
+fn refuses_before_switch(row: forge::Stored, expected: forge::MissingLink) {
     let key = engine::Key::Forge(forge::stored_key(&row));
     let mut driver = restart_with(row.clone());
-    driver.broken("fixture removes a required forge link and catches the startup assertion");
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        for _ in 0..STEPS {
-            driver.advance(true);
-        }
-    }))
-    .expect_err("missing required link is a writer bug");
-    assert_eq!(driver.root.forge_missing_link(), Some(expected));
-    assert_eq!(driver.root.start_stop(), None, "no start refusal recorded");
+    driver.broken("fixture removes a required forge link and refuses the start");
+    for _ in 0..STEPS {
+        driver.advance(true);
+    }
+    assert!(driver.stopped, "start refused");
+    assert_eq!(driver.root.forge_missing_link(), Some(expected.clone()));
+    assert_eq!(
+        driver.root.start_stop(),
+        Some(engine::StartStop::ForgeLink { phase: Some(jig_domain_core::start::Phase::Link), link: expected })
+    );
     assert!(driver.switches.is_empty(), "no switch asked");
     assert!(!driver.transactions.iter().flatten().any(|write| matches!(write, Write::Wires)), "no mark");
     assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption stage");
@@ -49,9 +50,8 @@ fn asserts_before_switch(row: forge::Stored, expected: forge::MissingLink) {
     assert_eq!(driver.store.rows.get(&key), Some(&Record::Forge { row: Box::new(row) }), "row retained");
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_missing_task_asserts_before_the_switch() {
-    asserts_before_switch(
+fn a_missing_task_refuses_the_start_before_the_switch() {
+    refuses_before_switch(
         forge::Stored::Call {
             key: forge::NamedCall { task: ABSENT_TASK, attempt: 1, completion: 1, position: 1 },
             answer: forge::CallPayload::Refused(skein_forge::api::Error::Refused),
@@ -64,9 +64,8 @@ fn a_missing_task_asserts_before_the_switch() {
     );
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_missing_repository_asserts_before_the_switch() {
-    asserts_before_switch(
+fn a_missing_repository_refuses_the_start_before_the_switch() {
+    refuses_before_switch(
         forge::Stored::Ci(forge::CiState {
             repository: ABSENT_REPOSITORY,
             head: [3; 32],
@@ -80,9 +79,8 @@ fn a_missing_repository_asserts_before_the_switch() {
     );
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_missing_flight_entry_asserts_before_the_switch() {
-    asserts_before_switch(
+fn a_missing_flight_entry_refuses_the_start_before_the_switch() {
+    refuses_before_switch(
         forge::Stored::Flight { task: ABSENT_TASK, entry: ABSENT_ENTRY },
         forge::MissingLink {
             kind: forge::RecordKind::Flight,
@@ -92,9 +90,8 @@ fn a_missing_flight_entry_asserts_before_the_switch() {
     );
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_missing_configured_forge_asserts_before_the_switch() {
-    asserts_before_switch(
+fn a_missing_configured_forge_refuses_the_start_before_the_switch() {
+    refuses_before_switch(
         forge::Stored::Writer(skein_forge_client::Writer { forge: 99, author: 7 }),
         forge::MissingLink {
             kind: forge::RecordKind::Writer,

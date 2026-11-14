@@ -22,6 +22,56 @@ use crate::Host;
 use crate::tree::{self, Tree};
 pub use crate::tree::{Cleanup, Containment, Counts, Expectation, Method, PeakScope, TreeStatus};
 
+// The real loop and its binary hosts share one thread (testing/README.md, 5).
+// Keep the first finding until the loop can drain its kernel before returning it.
+std::thread_local! {
+    static FINDING: core::cell::RefCell<Option<String>> = const { core::cell::RefCell::new(None) };
+    static IN_LOOP: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
+}
+
+fn keep_finding(why: String) {
+    FINDING.with(|finding| {
+        finding.borrow_mut().get_or_insert(why);
+    });
+}
+
+pub(crate) fn take_finding() -> Option<String> {
+    FINDING.with(|finding| finding.borrow_mut().take())
+}
+
+// A teardown outside the loop reports only after releasing its owned resources.
+// Inside the loop it must leave forced cleanup free to drain pending records.
+pub(crate) fn teardown_finding(result: Result<(), String>) {
+    if let Err(why) = result {
+        if std::thread::panicking() {
+            use std::io::Write;
+            let _reported = writeln!(std::io::stderr().lock(), "skein-world: {why}");
+        } else if IN_LOOP.get() {
+            keep_finding(why);
+        } else {
+            crate::fail(&why);
+        }
+    }
+}
+
+pub(crate) struct FindingScope;
+
+impl FindingScope {
+    pub(crate) fn enter() -> Self {
+        assert!(!IN_LOOP.replace(true), "one real loop per thread");
+        Self
+    }
+}
+
+impl Drop for FindingScope {
+    fn drop(&mut self) {
+        IN_LOOP.set(false);
+        // A run already returning its first verdict does not leak a cleanup's
+        // later finding into the next run on this thread.
+        let _later = take_finding();
+    }
+}
+
 /// A scenario's binary command, with an exact environment and working directory.
 #[derive(Debug)]
 pub struct Command {
@@ -113,7 +163,7 @@ fn close_startup(
 ) {
     if let Err(failure) = tree::call(kernel, Op::Close { fd: root }, deadline) {
         if let Some((pidfd, master)) = child {
-            tree.force_settle(pidfd, false);
+            let _cleanup = tree.force_settle(pidfd, false);
             let mut descriptors = Vec::new();
             for pipe in pipes {
                 descriptors.extend(pipe.parent);
@@ -404,7 +454,19 @@ impl Binary {
     // Tree settlement is supplied by the keeper; records and descriptor ownership
     // remain the observer's (skein/docs/design/examples.md, 6).
     fn finished(&mut self, counts: Result<Option<Counts>, String>) {
-        self.counts = counts.unwrap_or_else(|why| crate::fail(&why));
+        self.counts = match counts {
+            Ok(counts) => counts,
+            Err(why) => {
+                keep_finding(why);
+                if let Some(tree) = &mut self.tree
+                    && let Some(pidfd) = self.pidfd
+                    && let Err(why) = tree.force_settle(pidfd, false)
+                {
+                    keep_finding(why);
+                }
+                None
+            }
+        };
         self.tree = None;
         let pidfd = self.pidfd.take().expect("a settled binary owns its leader descriptor");
         self.poll_at = None;
@@ -419,11 +481,13 @@ impl Binary {
         if self.observation_pending() {
             return;
         }
-        if let Some(tree) = &mut self.tree
+        let finding = if let Some(tree) = &mut self.tree
             && let Some(pidfd) = self.pidfd
         {
-            tree.abandon(pidfd, false);
-        }
+            tree.abandon(pidfd, false)
+        } else {
+            Ok(())
+        };
         self.tree = None;
         if let Some(pidfd) = self.pidfd.take() {
             self.close(pidfd);
@@ -436,6 +500,7 @@ impl Binary {
                 self.close(fd);
             }
         }
+        teardown_finding(finding);
     }
 
     fn completed(&mut self, complete: Complete) {
@@ -496,11 +561,13 @@ impl Binary {
 impl Drop for Binary {
     fn drop(&mut self) {
         let retain_leader = self.waiting.is_some() || self.signalling;
-        if let Some(tree) = &mut self.tree
+        let finding = if let Some(tree) = &mut self.tree
             && let Some(pidfd) = self.pidfd
         {
-            tree.abandon(pidfd, retain_leader);
-        }
+            tree.abandon(pidfd, retain_leader)
+        } else {
+            Ok(())
+        };
         // Drop cannot drain the driver's kernel. Leave descriptors with an
         // outstanding record open; explicit abandonment settles them first.
         let descriptors = self
@@ -514,6 +581,8 @@ impl Drop for Binary {
         if !descriptors.is_empty() {
             skein_shell::keeper::abandon_binary(leader, &descriptors);
         }
+        drop(self.tree.take());
+        teardown_finding(finding);
     }
 }
 
@@ -658,7 +727,7 @@ impl Host for Binary {
 
 #[cfg(test)]
 mod tests {
-    use super::{Binary, Capture, Counts, Expectation, Method, PeakScope, TreeStatus};
+    use super::{Binary, Capture, Counts, Expectation, Method, PeakScope, TreeStatus, take_finding};
     use crate::Host;
     use skein_io::kernel::{Complete, Done, Exit, Fd, Op};
     use skein_lib::{Duration, Queue, Time, Wall};
@@ -706,6 +775,18 @@ mod tests {
             assert!(matches!(record.kind, Op::Close { .. }), "only descriptor closures remain");
             binary.completed(Complete { op: record.op, kind: record.kind, result: Ok(Done::Nothing) });
         }
+    }
+
+    #[test]
+    fn a_run_keeps_its_first_finding_and_discards_later_cleanup_findings() {
+        let scope = super::FindingScope::enter();
+        super::teardown_finding(Err("first".into()));
+        super::teardown_finding(Err("second".into()));
+        assert_eq!(take_finding().as_deref(), Some("first"));
+        assert_eq!(take_finding(), None, "the loop reads its finding once");
+        super::teardown_finding(Err("cleanup".into()));
+        drop(scope);
+        assert_eq!(take_finding(), None, "cleanup cannot fail a later run");
     }
 
     #[test]
@@ -760,7 +841,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn an_expected_end_fails_naming_a_process_group_still_running() {
         for live in [false, true] {
             let mut binary = observer(Expectation::EndsWithBinary);
@@ -770,19 +850,12 @@ mod tests {
             binary.completed(Complete { op: wait.op, kind: wait.kind, result: Ok(Done::Exit(Exit::Code(0))) });
             let result =
                 crate::tree::expected_group_end(binary.expectation, 42, live).map(|()| Some(terminal_counts()));
-            if live {
-                let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| binary.finished(result)))
-                    .expect_err("an expected end refuses a living group");
-                assert_eq!(
-                    failure.downcast_ref::<String>().expect("group diagnostic"),
-                    "binary exited while its process group 42 still had members"
-                );
-                assert_eq!(binary.counts(), None);
-                // Return the supplied descriptor without invoking emergency cleanup.
-                binary.finished(Ok(None));
-            } else {
-                binary.finished(result);
-            }
+            binary.finished(result);
+            assert_eq!(
+                take_finding(),
+                live.then(|| "binary exited while its process group 42 still had members".into())
+            );
+            assert_eq!(take_finding(), None, "the finding is taken once");
             close_completions(&mut binary);
             assert_eq!(binary.counts(), if live { None } else { Some(terminal_counts()) });
             assert!(binary.is_empty());
@@ -793,7 +866,6 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn an_expected_end_fails_naming_each_tree_process_still_running() {
         for live in [vec![], vec![43], vec![44, 43, 44]] {
             let mut binary = observer(Expectation::EndsWithBinary);
@@ -804,20 +876,14 @@ mod tests {
             let mut pids = live.clone();
             let result =
                 crate::tree::expected_tree_end(binary.expectation, &mut pids).map(|()| Some(terminal_counts()));
-            if live.is_empty() {
-                binary.finished(result);
-            } else {
-                let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| binary.finished(result)))
-                    .expect_err("an expected end refuses living descendants");
-                let expected = if live.len() == 1 {
-                    "binary exited while tree processes still ran: [43]"
-                } else {
-                    "binary exited while tree processes still ran: [43, 44]"
-                };
-                assert_eq!(failure.downcast_ref::<String>().expect("tree diagnostic"), expected);
-                assert_eq!(binary.counts(), None);
-                binary.finished(Ok(None));
-            }
+            binary.finished(result);
+            let expected = match live.len() {
+                0 => None,
+                1 => Some("binary exited while tree processes still ran: [43]".into()),
+                _ => Some("binary exited while tree processes still ran: [43, 44]".into()),
+            };
+            assert_eq!(take_finding(), expected);
+            assert_eq!(take_finding(), None, "the finding is taken once");
             close_completions(&mut binary);
             assert_eq!(binary.counts(), if live.is_empty() { Some(terminal_counts()) } else { None });
             assert!(binary.is_empty());

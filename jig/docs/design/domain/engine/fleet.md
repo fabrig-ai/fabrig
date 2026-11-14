@@ -77,7 +77,10 @@ The fleet child domain knows the hosts and the runs they host:
 - **Relaying:** messages and cancels down, tool calls up and their
   answers back, each call answered once; a call the fleet cannot pass up
   is answered at once, unserved, or busy while the engine stops
-  (`restart.md`, 1), never left without an answer.
+  (`restart.md`, 1), never left without an answer. An application's
+  asks go up and their answers back the same way, fenced as calls, an
+  ask from an attempt that is not live answered refused, and nothing
+  committed for either (`../hosts/hub.md`, 10).
 - **The graces are ordered.** The engine's grace is longer than the
   longest a worker may take to stop a run it lost contact for, which the
   worker says at its hello (../hosts/hub.md, 6); a worker whose bound is equal

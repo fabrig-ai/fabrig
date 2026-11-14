@@ -92,6 +92,9 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
 #[must_use]
 pub fn now(value: core::LinkNow) -> Event {
     match value {
+        core::LinkNow::Asked { channel, run, attempt, number, answer } => {
+            Event::Asked { channel, run, attempt, number, answer }
+        }
         core::LinkNow::Relayed { channel, run, attempt, call, answer } => {
             Event::Relayed { channel, run, attempt, call, answer }
         }

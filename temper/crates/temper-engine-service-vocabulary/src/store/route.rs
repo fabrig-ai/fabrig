@@ -201,6 +201,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                 root(into, engine::StoreInput::Unloaded { owner: flight.root });
             }
         }
+        store::Event::Census { census } => root(into, engine::StoreInput::Census(census)),
         store::Event::Committed { number, fill } => root(into, engine::StoreInput::Committed { number, fill }),
         store::Event::Failed { number } => root(into, engine::StoreInput::Uncommitted { number }),
         store::Event::FrameTooLarge { number, task, bytes, limit } => {
@@ -510,7 +511,7 @@ fn continue_filtered(
 /// Filtered startup walks can advance past families not selected by this load.
 fn startup_cursor(flight: &Flight, cursor: &store::Cursor, bounds: &families::Bounds) -> Option<engine::Key> {
     let key = match &flight.range {
-        engine::Range::Forge => {
+        engine::Range::Forge | engine::Range::History(_) => {
             let relative = store::keys::of_application(&cursor.after)?;
             engine::Key::Forge(families::keys::decode(relative, bounds.forge())?)
         }

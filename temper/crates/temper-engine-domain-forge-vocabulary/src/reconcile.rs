@@ -42,6 +42,10 @@ pub enum RecordKind {
     Device,
     Finding,
     LandedDraft,
+    Red,
+    RedNumber,
+    RedPass,
+    HistoryProject,
 }
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum Need {
@@ -51,7 +55,7 @@ pub enum Need {
     EntryOwner { task: u64, entry: u64 },
     Entry { task: u64, entry: u64 },
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct MissingLink {
     pub kind: RecordKind,
     pub key: Key,
@@ -59,7 +63,10 @@ pub struct MissingLink {
 }
 // Retain the opaque client's references too: families can arrive in any order.
 pub fn capacity(l: &Limits) -> Option<u32> {
-    l.named_calls // Call: task.
+    l.branch_reds
+        .checked_mul(l.holds)? // Red: goal.
+        .checked_add(l.branch_reds.checked_mul(l.changes)?)? // RedPass: change task.
+        .checked_add(l.named_calls)? // Call: task.
         .checked_add(l.tasks.checked_mul(2)?)? // ProposedEffect: repository and task.
         .checked_add(l.repositories)? // Repository: forge.
         .checked_add(l.holds.checked_mul(3)?)? // Hold: name, task, writer task.

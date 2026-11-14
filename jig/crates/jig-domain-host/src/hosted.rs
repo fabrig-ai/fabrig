@@ -26,6 +26,7 @@ use crate::limits::Limits;
 
 #[derive(Debug)]
 pub(crate) struct Hosted {
+    pub(crate) asks: crate::asks::Pending,
     pub(crate) job: Option<Box<crate::jobs::Job>>,
     /// The engine's names for the run and for the attempt hosted.
     pub(crate) run: Token,
@@ -224,6 +225,7 @@ fn assign_runtime(
     let RunAssignment { run, attempt, workspace, save, live, charter, grants, identity: _ } = assignment;
     let held = Queue::with_capacity(env.limits.held);
     let entry = Hosted {
+        asks: crate::asks::Pending::new(),
         job: None,
         contract: None,
         run,
@@ -982,6 +984,7 @@ fn conclude(domain: &mut Hub, id: Id<Hosted>, out: &mut Queue<Request>) {
     };
     if closed {
         let run = entry.run;
+        entry.asks.clear();
         names.remove(&run);
         ready.remove(&id);
         if entry.answer.is_some() {
@@ -1440,6 +1443,7 @@ fn agent_grant(form: crate::Form) -> bool {
 impl Hosted {
     pub(crate) fn job(run: Token, attempt: Token, job: crate::jobs::Job) -> Self {
         Self {
+            asks: crate::asks::Pending::new(),
             job: Some(Box::new(job)),
             contract: None,
             run,

@@ -19,7 +19,9 @@ const DESCRIPTORS: &str = "/dev/fd";
 struct Quiet;
 
 impl<P> Referee<P> for Quiet {
-    fn observe(&mut self, _now: Time, _procs: &[P]) {}
+    fn watch(&mut self, _now: Time, _procs: &[P]) -> Result<(), String> {
+        Ok(())
+    }
     fn passed(&self) -> bool {
         true
     }

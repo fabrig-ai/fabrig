@@ -222,7 +222,7 @@ fn what_an_earlier_worker_left_does_not_fail_a_prepare() {
 fn a_push_io_reports_run_out_of_time_is_verified_and_reported_as_it_went() {
     let mut verified = 0;
     for seed in 0..40 {
-        let mut world = World::new(Settings { ambiguous: 200, ..Settings::calm(seed) });
+        let mut world = World::new(Settings { ambiguous_pushes: 200, ..Settings::calm(seed) });
         world.submit(Time::ZERO, Plan { pushes: 3, ..Plan::simple(0) });
         world.run(ITERATIONS);
         verified += world.stats().verified;

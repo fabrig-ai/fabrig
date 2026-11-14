@@ -6,7 +6,9 @@ use crate::schema::{DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, Va
 use alloc::boxed::Box;
 use skein_lib::{List, bytes, usize_of};
 
+mod keeps;
 mod reverse;
+pub(super) use keeps::rehead;
 #[cfg(test)]
 mod tests;
 pub(super) use reverse::reverse;
@@ -40,6 +42,7 @@ pub(crate) struct Plan {
     /// Whether carry may derive each old field and variant.
     pub(crate) fields: List<bool>,
     pub(crate) variant_derived: List<bool>,
+    pub(crate) variant_keeps: List<bool>,
     /// Added values, encoded once in canonical codec bytes.
     pub(crate) pool: List<u8>,
     pub(crate) sites: List<SitePlan>,
@@ -56,6 +59,10 @@ pub(crate) struct Conversion {
     pub(crate) site: Option<u32>,
     /// The conversion can copy the encoded range at once.
     pub(crate) copies: bool,
+    /// Byte validity, with and without this record's own head, and after its leading kind.
+    pub(crate) keeps: bool,
+    pub(crate) root_keeps: bool,
+    pub(crate) tail_keeps: bool,
     /// A site or held field is reachable by this conversion.
     pub(crate) stops: bool,
     /// Carry may derive this declaration without its own written function.
@@ -1336,13 +1343,24 @@ fn empty_plan(old: &Schema, new: &Schema, old_index: u32, new_index: u32, room: 
         variants: List::with_capacity(old_variants),
         fields: List::with_capacity(old_fields),
         variant_derived: List::with_capacity(old_variants),
+        variant_keeps: List::with_capacity(old_variants),
         pool: List::with_capacity(pool),
         sites: List::with_capacity(room),
         refusals: List::with_capacity(room),
     };
     for _ in 0..old.declarations() {
         plan.declarations
-            .push(Conversion { new: None, site: None, copies: false, stops: false, derived: false, total: true })
+            .push(Conversion {
+                new: None,
+                site: None,
+                copies: false,
+                keeps: false,
+                root_keeps: false,
+                tail_keeps: false,
+                stops: false,
+                derived: false,
+                total: true,
+            })
             .expect("old declarations room");
     }
     for _ in 0..new.declarations() {
@@ -1358,6 +1376,7 @@ fn empty_plan(old: &Schema, new: &Schema, old_index: u32, new_index: u32, room: 
     for _ in 0..old_variants {
         plan.variants.push(None).expect("old variants room");
         plan.variant_derived.push(false).expect("old variants room");
+        plan.variant_keeps.push(false).expect("old variants room");
     }
     plan
 }
@@ -1843,6 +1862,7 @@ fn fill(plan: &mut Plan, old: &Schema, new: &Schema, matching: &Matching, identi
             }
         }
         *plan.declarations.get_mut(at).expect("old declaration slot") = converted;
+        keeps::fill(plan, old, new, old_at, identity);
     }
     Ok(())
 }
@@ -1875,7 +1895,7 @@ pub(super) fn plan_bound(text: u32) -> Option<u64> {
         List::<Source>::price(text)?.checked_mul(2)?,
         List::<Option<Span>>::price(text)?.checked_mul(2)?,
         List::<Option<VariantIx>>::price(text)?.checked_mul(2)?,
-        List::<bool>::price(text)?.checked_mul(2)?,
+        List::<bool>::price(text)?.checked_mul(3)?,
         List::<u8>::price(tokens.checked_mul(8)?.checked_add(text)?)?,
         List::<SitePlan>::price(tokens)?,
         List::<RefusalPlan>::price(tokens)?,

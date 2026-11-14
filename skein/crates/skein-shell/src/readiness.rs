@@ -383,6 +383,7 @@ fn retry_interrupted(kind: &Op) -> bool {
         | Op::Sync { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::List { .. }
@@ -417,6 +418,7 @@ fn side(kind: &Op) -> Option<(Fd, Side)> {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::List { .. }
@@ -466,6 +468,7 @@ fn perform(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut system
         | Op::Sync { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::List { .. }
@@ -523,6 +526,9 @@ fn perform_call(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut s
         Op::Stat { fd } => system::files::stat(*fd).map(Done::Stat),
         Op::Rename { from_dir, from, to_dir, to, no_replace } => {
             system::files::rename(*from_dir, from, *to_dir, to, *no_replace).map(|()| Done::Nothing)
+        }
+        Op::HardLink { from_dir, from, to_dir, to } => {
+            system::files::hard_link(*from_dir, from, *to_dir, to).map(|()| Done::Nothing)
         }
         Op::Remove { dir, name, directory } => system::files::remove(*dir, name, *directory).map(|()| Done::Nothing),
         Op::MakeDirectory { dir, name, mode } => system::files::mkdir(*dir, name, *mode).map(|()| Done::Nothing),

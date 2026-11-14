@@ -1,7 +1,7 @@
 //! A new standalone preparation reads the work the drained service kept.
 use temper_real_loop_world::{
     Exit, argv,
-    calls::{D1, call, number, occurrences, sign_in, task, until},
+    calls::{D1, D2, call, number, occurrences, sign_in, task, until},
     fixtures, llm, run_on, scripts,
 };
 // One chat is created after sign-in; its last read follows the restarted sign-in.
@@ -36,10 +36,10 @@ fn a_restarted_service_keeps_the_chat_with_its_reply() {
         || llm::scripted(scripts::chat_scripts(CHATS)),
         move || {
             vec![
-                sign_in(D1),
-                call(D1, argv!["chat", "show", number(chat)]),
-                call(D1, argv!["settings", "show", "--json"]),
-                call(D1, argv!["settings", "show", "charter", "1", "--json"]),
+                sign_in(D2),
+                call(D2, argv!["chat", "show", number(chat)]),
+                call(D2, argv!["settings", "show", "--json"]),
+                call(D2, argv!["settings", "show", "charter", "1", "--json"]),
             ]
         },
     );

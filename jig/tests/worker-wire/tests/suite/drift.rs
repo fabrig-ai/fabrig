@@ -8,7 +8,7 @@ use std::fs;
 )]
 fn worker_wire_schema_matches_generated_code_and_goldens() {
     let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
-    let source = fs::read_to_string(root.join("schema/worker-wire-v13.schema")).expect("schema");
+    let source = fs::read_to_string(root.join("schema/worker-wire-v14.schema")).expect("schema");
     let schema = parse(&source).expect("schema valid");
     let output = generate(&schema);
     let codec = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
@@ -16,9 +16,9 @@ fn worker_wire_schema_matches_generated_code_and_goldens() {
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let again = "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-worker-wire-world --test suite -E 'test(drift::)'";
     for (file, text) in [
-        ("src/generated/v13.rs", output.records),
-        ("tests/generated/v13.rs", output.tests.text("jig_protocol_worker_wire::v13")),
-        ("tests/generated/main.rs", tests_main(&["v13"])),
+        ("src/generated/v14.rs", output.records),
+        ("tests/generated/v14.rs", output.tests.text("jig_protocol_worker_wire::v14")),
+        ("tests/generated/main.rs", tests_main(&["v14"])),
     ] {
         let path = codec.join(file);
         if write {

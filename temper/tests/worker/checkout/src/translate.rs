@@ -46,6 +46,7 @@ pub fn workspace(op: &Op) -> Option<Token> {
         Op::Store { .. } => None,
         Op::Make { workspace, .. } => Some(*workspace),
         Op::Clone { at, .. }
+        | Op::Reds { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
@@ -71,7 +72,8 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
-        Op::Point { .. }
+        Op::Reds { .. }
+        | Op::Point { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
         | Op::Look { .. }
@@ -89,7 +91,8 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
             Some(remote)
         }
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
-        Op::Point { .. }
+        Op::Reds { .. }
+        | Op::Point { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
@@ -106,6 +109,43 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
 #[expect(clippy::too_many_lines, reason = "the world translates every checkout operation in one table")]
 pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
     match op {
+        Op::Reds { at, action } => {
+            if !matches!(action, temper_worker_domain_checkout::git::Reds::Clear)
+                && disk.content(&[path(&at).as_slice(), b"/.git/refs/temper/landing"].concat()).is_none()
+            {
+                return Done::Succeeded;
+            }
+            let directory = [path(&at).as_slice(), b"/.git/temper"].concat();
+            let file = [directory.as_slice(), b"/reds"].concat();
+            let results = [directory.as_slice(), b"/check-results"].concat();
+            match action {
+                temper_worker_domain_checkout::git::Reds::Prepare { wait_ms, rerun_processes } => {
+                    disk.remove(&results);
+                    disk.remove(&file);
+                    disk.mkdir(&directory);
+                    disk.write(
+                        &[directory.as_slice(), b"/reds-wait"].concat(),
+                        format!("temper-reds-wait 1 {wait_ms}\n").as_bytes(),
+                    );
+                    disk.write(
+                        &[directory.as_slice(), b"/rerun"].concat(),
+                        format!("temper-rerun 1 {rerun_processes}\n").as_bytes(),
+                    );
+                }
+                temper_worker_domain_checkout::git::Reds::Clear => {
+                    disk.remove(&file);
+                    disk.remove(&results);
+                }
+                temper_worker_domain_checkout::git::Reds::Read { .. } => {
+                    disk.remove(&file);
+                    let bytes = disk.content(&results).map(|bytes| Box::from(&bytes[..bytes.len().min(262_145)]));
+                    disk.remove(&results);
+                    return Done::Results { bytes };
+                }
+                temper_worker_domain_checkout::git::Reds::Write { .. } => return Done::Failed { fault: Fault::Broken },
+            }
+            Done::Succeeded
+        }
         Op::Make { workspace, stores } => {
             // Empty: whatever is there goes first.
             let dir = dir(workspace);

@@ -23,6 +23,7 @@ impl World {
                 assert!(matches!(answer, host::JobEnding::Refused(_)));
             }
             other @ (Request::Agent(_)
+            | Request::Asked { .. }
             | Request::Job(host::ToJob::Stop { .. })
             | Request::DeliverJob { .. }
             | Request::ReadList { .. }

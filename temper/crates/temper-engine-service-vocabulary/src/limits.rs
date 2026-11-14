@@ -112,8 +112,9 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     entries: 8,
     // Attempts of a write, from the engine forge world fixture.
     write_attempts: 3,
-    // Longest time a sent write may arrive, from the engine forge world fixture.
-    lifetime: Duration::from_secs(10),
+    // Room for a real forge's merge, under Forgejo's 360 s git timeout
+    // (temper/docs/design/protocol/configuration/limits.md, "The forge client's lifetime and the forge call's deadline").
+    lifetime: Duration::from_secs(300),
     // Allowance for clock movement, from the engine forge world fixture.
     clock_margin: Duration::from_secs(1),
     // Three chat branches, six change names, two followed tier branches and
@@ -145,6 +146,8 @@ const FORGE: forge::Limits = forge::Limits {
     tasks: 8,
     // Held task resources, from the engine forge world fixture.
     holds: 8,
+    branch_reds: 64,
+    red_key_bytes: 256,
     // Subscriptions to forge topics, from the engine forge world fixture.
     subscriptions: 8,
     // Durable outbox entries, from the engine forge world fixture.
@@ -193,6 +196,8 @@ const FORGE: forge::Limits = forge::Limits {
     judge_projects: 2,
     decided_per_project: 1024,
     findings_per_project: 256,
+    history_days: 14,
+    history_events: 131_072,
     // Criteria in each judge table, from the engine forge world fixture.
     judge_criteria: 8,
     landing_rules: 4,
@@ -381,9 +386,9 @@ const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
         reviews: 131_584,
         ..ROOT.brief.budgets
     },
-    // tests/stock_brief.rs derives charter 5's room (337,624) less 1,472
-    // bytes for 64 titles and framing and 400 margin; below 395,520.
-    brief_bytes: 335_752,
+    // tests/stock_brief.rs derives charter 5's room (337,286) less 1,472
+    // bytes for 64 titles and framing and 195 margin; below 395,520.
+    brief_bytes: 335_619,
     ..ROOT.brief
 };
 const STANDARD_ROOT: Root = Root {
@@ -454,7 +459,11 @@ pub fn profile(profile: Profile) -> Limits {
 }
 /// Set one dotted field name byte for byte.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
+    let lifetime = limits.forge.client.lifetime;
     names::apply(limits, name, value)?;
+    if name == b"forge.client.lifetime_ms" && limits.forge_component.deadline == crate::forge::deadline(lifetime) {
+        limits.forge_component.deadline = crate::forge::deadline(limits.forge.client.lifetime);
+    }
     if name == b"forge.client.calls" || name == b"forge.client.answer_bytes" {
         limits.forge_component.kept_bytes = u64::from(limits.forge.client.calls)
             .checked_mul(u64::from(limits.forge.client.answer_bytes))
@@ -601,6 +610,54 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 #[cfg(test)]
 mod making_tests {
     #[test]
+    fn small_forge_calls_have_room_for_a_merge() {
+        let limits = profile(Profile::Small);
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(300));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
+    }
+
+    #[test]
+    fn standard_forge_calls_have_room_for_a_merge() {
+        let limits = profile(Profile::Standard);
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(300));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
+    }
+
+    #[test]
+    fn a_shorter_forge_lifetime_moves_the_derived_deadline() {
+        let mut limits = profile(Profile::Small);
+        assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 100_000), Ok(()));
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(100));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(100));
+    }
+
+    #[test]
+    fn a_longer_forge_lifetime_keeps_the_github_deadline_cap() {
+        let mut limits = profile(Profile::Small);
+        assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 600_000), Ok(()));
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(600));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
+    }
+
+    #[test]
+    fn a_forge_deadline_override_before_the_lifetime_stays() {
+        let mut limits = profile(Profile::Small);
+        assert_eq!(apply(&mut limits, b"forge_component.deadline_ms", 60_000), Ok(()));
+        assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 120_000), Ok(()));
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(120));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn a_forge_deadline_override_after_the_lifetime_stays() {
+        let mut limits = profile(Profile::Small);
+        assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 120_000), Ok(()));
+        assert_eq!(apply(&mut limits, b"forge_component.deadline_ms", 60_000), Ok(()));
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(120));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(60));
+    }
+
+    #[test]
     fn forge_fallback_defaults_and_dotted_overrides() {
         for selected in [Profile::Small, Profile::Standard] {
             let mut limits = profile(selected);
@@ -639,6 +696,38 @@ mod making_tests {
             let mut limits = limits.forge;
             limits.makings = count;
             assert!(!forge::valid(&limits));
+        }
+    }
+}
+
+#[cfg(test)]
+mod red_tests {
+    use super::*;
+    #[test]
+    fn goal_red_limits_have_stock_values_and_bounded_dotted_overrides() {
+        for selected in [Profile::Small, Profile::Standard] {
+            let limits = profile(selected);
+            assert_eq!((limits.forge.branch_reds, limits.forge.red_key_bytes), (64, 256));
+            for (name, most) in [(b"forge.branch_reds".as_slice(), 256), (b"forge.red_key_bytes".as_slice(), 512)] {
+                for value in [1, most] {
+                    let mut changed = limits;
+                    apply(&mut changed, name, value).unwrap();
+                    assert_eq!((find(name).unwrap().value)(&changed), value);
+                    assert!(forge::valid(&changed.forge));
+                }
+                for value in [0, most + 1, u64::MAX] {
+                    let mut changed = limits;
+                    assert_eq!(apply(&mut changed, name, value), Err(Refused::Range));
+                    assert_eq!((find(name).unwrap().value)(&changed), (find(name).unwrap().value)(&limits));
+                }
+            }
+            for value in [0, 257] {
+                assert!(!forge::valid(&forge::Limits { branch_reds: value, ..limits.forge }));
+            }
+            for value in [0, 513] {
+                assert!(!forge::valid(&forge::Limits { red_key_bytes: value, ..limits.forge }));
+            }
+            assert!(!forge::valid(&forge::Limits { holds: u32::MAX, ..limits.forge }));
         }
     }
 }

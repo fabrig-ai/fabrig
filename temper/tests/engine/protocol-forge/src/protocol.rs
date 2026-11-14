@@ -661,6 +661,8 @@ impl Protocol {
                     self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
                 }
                 other @ (top::Request::Settled { .. }
+                | top::Request::LoadHistory { .. }
+                | top::Request::HistoryPage { .. }
                 | top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
@@ -841,6 +843,17 @@ impl Protocol {
 }
 fn key(row: &top::Stored) -> top::Key {
     match row {
+        top::Stored::HistoryProject(row) => top::Key::HistoryProject { project: row.project },
+        top::Stored::HistoryEvent(row) => top::Key::HistoryEvent { project: row.project, number: row.number },
+        top::Stored::HistoryChange(row) => {
+            top::Key::HistoryChange { project: row.project, change: row.change, number: row.number }
+        }
+        top::Stored::HistoryLanding(row) => {
+            top::Key::HistoryLanding { project: row.project, landing: row.landing, number: row.number }
+        }
+        top::Stored::HistoryLast(row) => {
+            top::Key::HistoryLast { project: row.project, number: row.number, change: row.change }
+        }
         top::Stored::Landing(row) => top::Key::Landing(row.landing.task),
         top::Stored::Receipt { key, .. } => top::Key::Receipt(key.clone()),
         top::Stored::Call { key, .. } => top::Key::Call(*key),
@@ -875,6 +888,9 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Writer(row) => top::Key::Writer(row.forge),
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
+        top::Stored::Red(row) => top::Key::Red { goal: row.goal, key: row.key.clone() },
+        top::Stored::RedNumber { .. } => top::Key::RedNumber,
+        top::Stored::RedPass(row) => top::Key::RedPass { change: row.change, key: row.key.clone() },
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },

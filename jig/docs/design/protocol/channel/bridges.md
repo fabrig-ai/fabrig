@@ -194,6 +194,14 @@ them is its own (temper's `protocol/wires.md`).
   | `JobSpec` | `Job.spec` |
   | `JobResult` | `JobFinished.result` |
   | `Grant` | `ApplicationValue.secret`, a grant's value, at an assignment, a job and each renewal |
+  | `Ask` | `Ask.bytes`, an application's ask (`../../domain/hosts/hub.md`, 10) |
+  | `Answer` | `Asked.answer`'s bytes |
+
+- **`asked` goes down only to a worker that asked,** whose agreed
+  version has `ask`, so it is not among what must go down whole to an
+  older worker (6.2); a worker of a version with `ask` meeting an engine
+  of one without closes at the statement, as 6.3 has it, since `ask`
+  cannot go down.
 
 - **A grant's value is translated at each send,** for its channel's
   agreed version, keeping the grant's number, generation and validity,
@@ -249,7 +257,7 @@ them is its own (temper's `protocol/wires.md`).
   everything the worker sends on it: each `FromWorker` kind's record, with its variant present there;
   smith's `RunResult` and `Turn`; and the application's parts it sends
   (`Left`, `Saved`, `Preparation`, `JobResult`, `Items` of a job's
-  answer where it has one).
+  answer where it has one, and `Ask`).
 - **One that is not** closes the channel at once, logging `the engine
   speaks WIRE N, below what this worker sends whole: restart the engine
   first`, naming each such wire, and redials after its pause. So the
@@ -276,7 +284,7 @@ them is its own (temper's `protocol/wires.md`).
 
 ```rust
 // jig_protocol_worker_wire
-pub enum Carried { Items, Left, Saved, Preparation, JobSpec, JobResult, Grant }
+pub enum Carried { Items, Left, Saved, Preparation, JobSpec, JobResult, Grant, Ask, Answer }
 pub struct Root { pub carried: Carried, pub wire: &'static str, pub declaration: &'static str }
 pub struct Application {
     pub spoken: List<Spoken>,  // its wires, stated at the opening, as before

@@ -31,7 +31,7 @@ fn worker_checkout_capacity_names_stdout_and_its_room_without_an_engine() {
     assert_eq!(found.problems.len(), 1);
     assert_eq!(
         String::from_utf8_lossy(&lines(&found)),
-        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401236 bytes\n"
+        "checkout.conflicts 1024, checkout.path_bytes 4096, checkout.repositories 2: raise these with them\ngit_component.stdout_bytes: 262144 bytes, short of checkout.conflicts * (checkout.path_bytes + 1), 4195328 bytes\nworkers[0].limits.io.output: 1048576 bytes, short of the largest answer a run's saved work makes, 8401238 bytes\n"
     );
 }
 

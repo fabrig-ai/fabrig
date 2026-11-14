@@ -269,6 +269,9 @@ impl Parent {
     /// Takes the host's request `request`, which is for the parent.
     pub fn take(&mut self, request: Request) -> Vec<Out> {
         match request {
+            Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
+                unreachable!("the script does not make application asks")
+            }
             Request::Job(jig_domain_host::ToJob::Run { owner, workspace, .. }) => self.run_job(owner, workspace),
             Request::Job(jig_domain_host::ToJob::Stop { owner }) => {
                 assert!(self.jobs.contains_key(&owner), "only a running job is stopped");

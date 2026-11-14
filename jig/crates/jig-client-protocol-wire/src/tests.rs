@@ -12,7 +12,7 @@ use skein_lib::Reader;
 #[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
 fn version_constants_match_their_schemas() {
     let client =
-        concat!(include_str!("../schema/client-v21.schema"), include_str!("../schema/client-v21-part1.schema"));
+        concat!(include_str!("../schema/client-v22.schema"), include_str!("../schema/client-v22-part1.schema"));
     let client = skein_codec::schema::parse(client.as_bytes()).expect("client schema");
     assert_eq!(VERSION, u32::from(client.version()), "jig-client-wire VERSION must equal its family version");
     let public =

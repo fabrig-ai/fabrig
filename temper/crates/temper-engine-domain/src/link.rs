@@ -33,8 +33,8 @@ impl Domain {
     }
 }
 
-pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]) -> Option<u64> {
-    let [(name, _)] = heads else { return None };
+pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit, bool)]) -> Option<u64> {
+    let [(name, _, _)] = heads else { return None };
     Some(u64::from(name.repository))
 }
 
@@ -82,7 +82,9 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                 },
             ..
         } => true,
-        WorkerInput::Opened { .. }
+        WorkerInput::CheckResults { .. }
+        | WorkerInput::Asked { .. }
+        | WorkerInput::Opened { .. }
         | WorkerInput::ResultRead { .. }
         | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost | Link::Mismatch, .. }
         | WorkerInput::Link {
@@ -98,6 +100,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                         | host::LinkUp::Unauthorized { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. },
                     ..
                 },
@@ -840,6 +843,7 @@ mod tests {
         use temper_engine_domain_forge_change as change;
         forge::ChangeRow {
             task_release: None,
+            job: None,
             signed: Box::new([]),
             task: 7,
             repository: skein_forge::api::Repository { forge: 3, repository: 1 },
@@ -903,6 +907,7 @@ mod tests {
             catch_up: None,
             close: None,
             merge_result: None,
+            history: None,
             follow_check: None,
         }
     }

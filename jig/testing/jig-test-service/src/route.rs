@@ -274,12 +274,14 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         | core::Now::NotesRecalled { .. }
         | core::Now::NotesRefused { .. } => stop::unavailable(engine, b"accounts"),
         core::Now::Link(
-            core::LinkNow::DropPayload { .. }
+            core::LinkNow::Asked { .. }
+            | core::LinkNow::DropPayload { .. }
             | core::LinkNow::TurnPayload { .. }
             | core::LinkNow::AnswerPayload { .. }
             | core::LinkNow::AcceptedTurn { .. }
             | core::LinkNow::RefusedPayload { .. },
         )
+        | core::Now::Ask { .. }
         | core::Now::DropAssignment { .. }
         | core::Now::Activate { .. }
         | core::Now::CompleteBrief { .. }

@@ -3,7 +3,10 @@ use skein_io::kernel::Spawn;
 use skein_lib::{Secret, base64};
 use std::collections::BTreeMap;
 use temper_worker_domain_checkout::git;
-use temper_worker_protocol_git::invocation::{self, Command, Source};
+use temper_worker_protocol_git::{
+    invocation::{self, Command, Source},
+    reds::CheckCommand,
+};
 /// The name and email the commit's environment carries.
 pub type Author = (Box<[u8]>, Box<[u8]>);
 /// A login and token, kept solely on the fake's transport side.
@@ -88,7 +91,8 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. } => {}
-            Command::Origin { .. }
+            Command::Reds(_)
+            | Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
             | Command::Remote { .. }
@@ -209,7 +213,8 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Fetch { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote),
-        Command::SnapshotHead
+        Command::Reds(_)
+        | Command::SnapshotHead
         | Command::SnapshotMerge { .. }
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
@@ -235,6 +240,14 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
 }
 fn parse(args: &[&[u8]]) -> Option<Command> {
     Some(match args {
+        [b"rev-parse", b"--verify", b"--quiet", b"refs/temper/landing^{commit}"] => Command::Reds(CheckCommand::Pin),
+        [b"rev-parse", b"--path-format=relative", b"--git-path", b"temper"] => {
+            Command::Reds(CheckCommand::Path { kept: Box::new([]) })
+        }
+        [b"merge-base", b"refs/temper/landing", b"HEAD"] => Command::Reds(CheckCommand::Base { merging: false }),
+        [b"merge-base", b"refs/temper/landing", b"HEAD", b"MERGE_HEAD"] => {
+            Command::Reds(CheckCommand::Base { merging: true })
+        }
         [b"log", b"-1", b"--format=%H %P", b"HEAD", b"--"] => Command::SnapshotHead,
         [b"rev-parse", b"--verify", b"--quiet", b"MERGE_HEAD"] => {
             Command::SnapshotMerge { head: dummy(), second: None }

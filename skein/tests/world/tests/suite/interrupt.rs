@@ -10,6 +10,7 @@ struct Judge {
     sent: bool,
     handled_at: Option<Time>,
     checked: bool,
+    ready_to_kill: bool,
     next: Option<Time>,
 }
 
@@ -23,21 +24,48 @@ impl Referee<Binary> for Judge {
         if self.sent && self.handled_at.is_none() && child.stderr().ends_with(b"interrupted\n") {
             self.handled_at = Some(now);
         }
-        if !self.checked && self.handled_at.is_some_and(|at| now >= at.saturating_add(Duration::from_millis(25))) {
-            assert_eq!(child.stderr(), b"ready\ninterrupted\n", "an interrupt never starts a repeated sweep");
-            assert_eq!(child.exit_status(), None, "the handler lets the program continue");
-            assert!(child.counts().is_none(), "a live tree retains its keeper");
-            assert_eq!(child.tree_status().interrupted_pids.len(), 1);
-            assert_eq!(child.tree_status().cleanup(), Cleanup::None);
-            assert_eq!(child.tree_status().terminated_pids.len(), 0);
-            assert_eq!(child.tree_status().killed_pids.len(), 0);
+        if !self.checked && self.ready_to_kill {
             child.signal_tree(Signal::Kill);
             self.checked = true;
         }
     }
 
-    fn observe(&mut self, now: Time, procs: &[Binary]) {
+    fn watch(&mut self, now: Time, procs: &[Binary]) -> Result<(), String> {
         let child = &procs[0];
+        if !self.checked && self.handled_at.is_some_and(|at| now >= at.saturating_add(Duration::from_millis(25))) {
+            if child.stderr() != b"ready\ninterrupted\n" {
+                return Err("an interrupt never starts a repeated sweep".into());
+            }
+            if child.exit_status().is_some() {
+                return Err("the handler lets the program continue".into());
+            }
+            if child.counts().is_some() {
+                return Err("a live tree retains its keeper".into());
+            }
+            let status = child.tree_status();
+            if status.interrupted_pids.len() != 1 {
+                return Err(format!(
+                    "assertion `left == right` failed: interrupted pids: {} != 1",
+                    status.interrupted_pids.len()
+                ));
+            }
+            if status.cleanup() != Cleanup::None {
+                return Err(format!("assertion `left == right` failed: cleanup: {:?} != None", status.cleanup()));
+            }
+            if !status.terminated_pids.is_empty() {
+                return Err(format!(
+                    "assertion `left == right` failed: terminated pids: {} != 0",
+                    status.terminated_pids.len()
+                ));
+            }
+            if !status.killed_pids.is_empty() {
+                return Err(format!(
+                    "assertion `left == right` failed: killed pids: {} != 0",
+                    status.killed_pids.len()
+                ));
+            }
+            self.ready_to_kill = true;
+        }
         self.next = if self.checked {
             None
         } else if let Some(at) = self.handled_at {
@@ -45,6 +73,7 @@ impl Referee<Binary> for Judge {
         } else {
             (child.stderr() == b"ready\n" || child.stderr().ends_with(b"interrupted\n")).then_some(now)
         };
+        Ok(())
     }
 
     fn next_deadline(&self) -> Option<Time> {
@@ -74,7 +103,8 @@ fn a_tree_interrupt_is_handled_without_starting_cleanup() {
         };
         let binary = Binary::start_with_tree(command, Mode::Pipes, 1024, Expectation::Supervise, force_walk)
             .expect("the supervised program starts");
-        let mut world = real::World::new(Judge { sent: false, handled_at: None, checked: false, next: None });
+        let mut world =
+            real::World::new(Judge { sent: false, handled_at: None, checked: false, ready_to_kill: false, next: None });
         world.spawn_with_fds(binary.descriptors(), || binary);
         let outcome = world.run(&Clock::new(), Duration::from_secs(2));
         let child = &outcome.procs[0];

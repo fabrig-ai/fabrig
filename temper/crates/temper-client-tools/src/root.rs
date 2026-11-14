@@ -528,6 +528,7 @@ pub fn fire(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
     jig::wait::fire(&mut root.runner, &root.client, &tools_env(env), &mut child);
     crate::making::fire(&mut root.maker, &root.client, env, &mut child);
     crate::change::fire(&mut root.changes, env, &mut child);
+    crate::landing::fire(&mut root.landings, env, &mut child);
     crate::drafts::fire(&mut root.drafts, &root.client, env, &mut child);
     crate::forges::fire(&mut root.forges, &root.client, env, &mut child);
     drain(root, env, &mut client, &mut child, out);
@@ -547,6 +548,7 @@ fn deadline(root: &Root) -> Option<Time> {
         .chain(root.forges.next_deadline())
         .chain(root.maker.next_deadline())
         .chain(root.changes.next_deadline())
+        .chain(root.landings.next_deadline())
         .min()
 }
 

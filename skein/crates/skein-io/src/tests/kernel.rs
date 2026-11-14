@@ -104,6 +104,7 @@ fn documented(op: &Op) -> Done {
         | Op::Truncate { .. }
         | Op::Sync { .. }
         | Op::Lock { .. }
+        | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -312,6 +313,15 @@ fn a_descriptor_is_its_raw_number() {
 /// out again.
 fn named(op: &Op) -> &'static [Error] {
     match op {
+        Op::HardLink { .. } => &[
+            Error::NotFound,
+            Error::Exists,
+            Error::Permission,
+            Error::NoSpace,
+            Error::ReadOnly,
+            Error::TooManyLinks,
+            Error::NameTooLong,
+        ],
         Op::Lock { .. } => &[Error::Busy],
         Op::Open { .. } => &[
             Error::NotFound,
@@ -413,6 +423,7 @@ fn cancellable(op: &Op) -> bool {
         Op::Truncate { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -844,4 +855,46 @@ fn a_full_shared_queue_leaves_the_source_record_waiting() {
     let (routes, mut source, target) = routes(0);
     assert_eq!(source.pop(), Some(Submit { op: ROUTE_OWNER, kind: Op::Accept { fd: FD } }));
     assert!(target.is_empty() && routes.is_empty(), "nothing leaves without shared room");
+}
+
+#[test]
+fn a_hard_link_requires_two_single_names_within_the_record_bound() {
+    let link =
+        |from: &[u8], to: &[u8]| Op::HardLink { from_dir: FD, from: Box::from(from), to_dir: FD, to: Box::from(to) };
+    assert!(link(&[b'a'; 255], &[b'b'; 255]).is_valid());
+    for bad in [b"".as_slice(), b"a/b", b"nul\0", b".", b"..", &[b'x'; 256]] {
+        assert!(!link(bad, b"b").is_valid(), "invalid source: {bad:?}");
+        assert!(!link(b"a", bad).is_valid(), "invalid target: {bad:?}");
+    }
+}
+
+#[test]
+fn a_hard_link_admits_only_its_named_errors_and_the_common_errors() {
+    let op = || Op::HardLink { from_dir: FD, from: name(b"a"), to_dir: FD, to: name(b"b") };
+    for error in [
+        Error::NotFound,
+        Error::Exists,
+        Error::Permission,
+        Error::ReadOnly,
+        Error::NoSpace,
+        Error::NameTooLong,
+        Error::TooManyLinks,
+        Error::Other(18),
+        Error::NoBufferSpace,
+        Error::InvalidArgument,
+    ] {
+        assert!(Complete { op: Token::new(1), kind: op(), result: Err(error) }.is_valid(), "{error:?}");
+    }
+    for error in [
+        Error::NotADirectory,
+        Error::IsADirectory,
+        Error::NotEmpty,
+        Error::Escape,
+        Error::Busy,
+        Error::Cancelled,
+        Error::TooManyOpenFiles,
+        Error::NotAFile,
+    ] {
+        assert!(!Complete { op: Token::new(1), kind: op(), result: Err(error) }.is_valid(), "{error:?}");
+    }
 }

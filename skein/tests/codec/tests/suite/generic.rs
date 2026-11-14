@@ -11,6 +11,24 @@ mod tests {
     use skein_codec::value::Value;
 
     #[test]
+    fn oracle_disagreement_returns_the_case_context() {
+        let family = generated::Family { name: "planted", text: "family planted 1\nrecord Byte { n: u8 }", roots: &[] };
+        let root = generated::Root {
+            name: "Byte",
+            decode: |_| generated::Decoded::Problem { path: "ByteN".into(), reason: skein_codec::Reason::Short },
+        };
+        let schema = skein_codec::schema::parse(family.text.as_bytes()).expect("schema");
+        let decl = schema.find(root.name.as_bytes()).expect("root");
+        let mut value = Value::with_room(generic::ROOM);
+        let mut oracle = generic::Oracle { schema: &schema, decl, family: &family, root: &root, value: &mut value };
+
+        let finding = oracle.compare(0x1234, &[7], false).expect_err("generic accepts, generated refuses");
+
+        assert!(finding.starts_with("planted.Byte, seed 0x0000000000001234, bytes [7]: generic Ok("), "{finding}");
+        assert!(finding.ends_with(", generated Problem { path: \"ByteN\", reason: Short }"), "{finding}");
+    }
+
+    #[test]
     #[expect(clippy::panic, reason = "a refused golden reports the generated path and reason")]
     fn every_golden_decodes_generically_to_its_own_bytes_and_tree() {
         let mut paths = std::fs::read_dir("schema")

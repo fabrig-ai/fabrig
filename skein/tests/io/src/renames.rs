@@ -125,6 +125,7 @@ impl Owner {
                 | Event::Read { .. }
                 | Event::Cut { .. }
                 | Event::Synced { .. }
+                | Event::Linked { .. }
                 | Event::Renamed { .. }
                 | Event::Removed { .. }
                 | Event::Failed { .. }
@@ -261,7 +262,9 @@ impl Referee<Owner> for Judge {
             self.started = true;
         }
     }
-    fn observe(&mut self, _now: Time, _procs: &[Owner]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Owner]) -> Result<(), String> {
+        Ok(())
+    }
     fn passed(&self) -> bool {
         true
     }

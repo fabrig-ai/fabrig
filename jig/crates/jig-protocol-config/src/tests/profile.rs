@@ -171,6 +171,16 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(Some(store.chunk), skein_kv::chunk_bytes(store.key, store.value));
 }
 
+// The core refuses new party work at its fill mark; a map whose budget is under
+// the mark refuses every commit that grows it first, and the engine stops.
+#[test]
+fn each_profiles_store_map_holds_its_fill_mark() {
+    for selected in [Profile::Small, Profile::Standard] {
+        let limits = profile(selected);
+        assert!(limits.store.store.budget >= limits.core.fill_mark, "{selected:?} map budget");
+    }
+}
+
 #[test]
 fn standard_page_holds_smiths_largest_turn() {
     let limits = profile(Profile::Standard);
@@ -248,7 +258,7 @@ fn profiles_give_infrastructure_its_own_allowance_and_backoff() {
 // jig/docs/design/protocol/limits.md: first deliveries and the HTTP frame carrying each.
 #[test]
 fn standard_stream_edges_hold_every_first_delivery() {
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     let limits = profile(Profile::Standard);
     let clients = limits.clients;
     let delivery = w::Delivery::encoded_bound(&clients.wire).expect("delivery bound") + 1;
@@ -276,7 +286,7 @@ fn standard_sse_edge_accepts_the_largest_stream_frame() {
     use skein_lib::{Env, Queue, Time, Wall};
     let limits = profile(Profile::Standard);
     let record =
-        jig_client_protocol_wire::v21::StreamEvent::encoded_bound(&limits.clients.wire).expect("stream record");
+        jig_client_protocol_wire::v22::StreamEvent::encoded_bound(&limits.clients.wire).expect("stream record");
     let data_bytes = skein_lib::base64::encoded_len(
         skein_lib::base64::Alphabet::Standard,
         u32::try_from(record).expect("u32 stream record"),

@@ -77,7 +77,9 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                 writeln!(text, "{binary} upgrade: scratch cleanup failed; check the cache directory")
                     .expect("string write");
             }
-            Event::Closed { removed: true, .. }
+            // Upgrade progress does not consume the census (jig protocol/store/README.md, 6.3).
+            Event::Census { .. }
+            | Event::Closed { removed: true, .. }
             | Event::Opened { .. }
             | Event::OpenRefused { .. }
             | Event::Switched { .. }

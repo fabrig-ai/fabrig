@@ -26,7 +26,7 @@ fn both_jig_profiles_have_usable_store_edges() {
     // Model cache lifetimes occupy eight aligned bytes in every model carrier.
     for (label, name, value, commit, ops) in [
         ("small", jig_protocol_config::Profile::Small, 2_411_492, 355_308_810, 41_606),
-        ("standard", jig_protocol_config::Profile::Standard, 100_881_496, 901_830_282, 303_350),
+        ("standard", jig_protocol_config::Profile::Standard, 100_881_496, 1_707_136_650, 303_350),
     ] {
         let limits = crate::limits::profile_limits(name);
         let sizes = jig_protocol_store::sizes::check_commits(

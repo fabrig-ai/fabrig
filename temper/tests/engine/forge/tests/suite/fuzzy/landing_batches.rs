@@ -20,8 +20,15 @@ fn contains(world: &World, tip: u64, commit: api::Commit) -> bool {
     };
     commits.is_empty()
 }
+#[derive(Debug, PartialEq)]
+struct Replay {
+    landing: landing::Landing,
+    main: u64,
+    calls: Vec<api::Op>,
+    histories: Vec<Vec<top::history::Event>>,
+}
 #[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
-fn run(seed: u64) -> (landing::Landing, u64, Vec<api::Op>) {
+fn run(seed: u64) -> Replay {
     let mut rng = Rng::new(seed);
     let count = 2 + rng.below(3);
     let squash = rng.below(2) == 0;
@@ -53,7 +60,14 @@ fn run(seed: u64) -> (landing::Landing, u64, Vec<api::Op>) {
     let mut probed = Vec::new();
     let mut search_round = 0;
     let mut max_probes = 0;
+    let restart = rng.below(4);
     for step in 0..160 {
+        if step == restart {
+            let before: Vec<_> = (51..51 + count).map(|change| world.history(change)).collect();
+            world.restart();
+            let after: Vec<_> = (51..51 + count).map(|change| world.history(change)).collect();
+            assert_eq!(before, after, "seed {seed}: restart writes no event twice");
+        }
         let prior = world.landing(LANDING).landing.clone();
         let before = world.branch(b"main");
         let decision = landings::step_landing_heard(
@@ -157,7 +171,14 @@ fn run(seed: u64) -> (landing::Landing, u64, Vec<api::Op>) {
     for member in &row.members {
         assert!(!world.has_branch(&member.branch), "seed {seed}: prefix released");
     }
-    (row, main, world.take_calls())
+    let mut histories = Vec::new();
+    for change in 51..51 + count {
+        let events = world.history(change);
+        assert!(!events.is_empty(), "seed {seed}: history is exercised");
+        super::history::check(seed, change, &events);
+        histories.push(events);
+    }
+    Replay { landing: row, main, calls: world.take_calls(), histories }
 }
 #[test]
 fn seeded_batches_keep_the_fast_forward_prefix_and_cleanup_invariants() {

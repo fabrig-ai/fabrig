@@ -19,6 +19,7 @@ extern crate alloc;
 
 mod activity;
 mod answers;
+mod asks;
 mod assignment;
 mod boundary;
 mod call;
@@ -49,6 +50,7 @@ pub use domain::{Hub, fire_sources, resume, resume_runs, sources_due, step};
 pub use facts::Fact;
 pub use limits::{Limits, valid_hub};
 
+pub use jig_domain_link::AskAnswer;
 pub use link::{LinkDown, LinkUp, Relayed};
 
 use jig_domain_link::{

@@ -110,7 +110,8 @@ impl Live {
         model: &str,
     ) -> (Child, mpsc::Receiver<serde_json::Value>) {
         let configuration = guarded_configuration(configuration);
-        let mut child = Command::new("claude")
+        let mut command = Command::new("claude");
+        command
             .env_clear()
             .env("PATH", std::env::var_os("PATH").expect("PATH for claude"))
             .env("HOME", home)
@@ -133,8 +134,8 @@ impl Live {
             .args(arguments)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
+            .stderr(Stdio::null());
+        let mut child = skein_shell::spawn_dying_with_parent(&mut command, skein_io::kernel::Signal::Kill)
             .expect("claude executable");
         writeln!(
             child.stdin.as_mut().expect("stdin"),

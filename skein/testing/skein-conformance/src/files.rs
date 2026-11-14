@@ -1477,3 +1477,77 @@ impl Check for PathMetadata {
         assert_eq!(self.parent_link, Err(Error::TooManyLinks), "parent links are never followed");
     }
 }
+
+/// A second name shares bytes and link counts, and names a symbolic link itself.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct HardLinks {
+    pub linked: Result<Done, Error>,
+    pub stated: [Stat; 2],
+    pub initial_bytes: [Result<Vec<u8>, Error>; 2],
+    pub shared_write: Result<Vec<u8>, Error>,
+    pub after_remove: Stat,
+    pub retained_bytes: Result<Vec<u8>, Error>,
+    pub taken: Result<Done, Error>,
+    pub missing: Result<Done, Error>,
+    pub symlinks: [Stat; 2],
+}
+
+/// Gives the file `a` a second name `b` in this scenario's own root (kernel.md, 6.4).
+pub fn hard_link<B: Backend>(backend: &mut B) -> HardLinks {
+    let mut run = Run::new(backend);
+    let process = run.process();
+    let root = run.root(process, &[Item::file(b"a", b"x"), Item::link(b"symbolic", b"a")]);
+    let link = |from: &[u8], to: &[u8]| Op::HardLink {
+        from_dir: root,
+        from: Box::from(from),
+        to_dir: root,
+        to: Box::from(to),
+    };
+    let linked = run.call(process, link(b"a", b"b")).result;
+    let a = run.open(process, root, b"a", OpenHow::Write).expect("source");
+    let b = run.open(process, root, b"b", OpenHow::Read).expect("second name");
+    let read_a = run.open(process, root, b"a", OpenHow::Read).expect("source readable");
+    let stated = [a, b].map(|fd| run.stat(process, fd).expect("stat through each name"));
+    let initial_bytes = [read_a, b].map(|fd| run.read_all(process, fd).0);
+    run.write_all(process, a, 0, b"y").expect("write through source");
+    let shared_write = run.read_all(process, b).0;
+    let taken = run.call(process, link(b"a", b"b")).result;
+    let missing = run.call(process, link(b"absent", b"unused")).result;
+    assert_eq!(
+        run.call(process, link(b"symbolic", b"symbolic-alias")).result,
+        NOTHING,
+        "a symbolic link gains a second name"
+    );
+    let symlinks = [b"symbolic".as_slice(), b"symbolic-alias".as_slice()].map(|name| {
+        let fd = run.open(process, root, name, OpenHow::PathNoFollow).expect("link itself");
+        let stat = run.stat(process, fd).expect("stat of link");
+        run.close(process, fd);
+        stat
+    });
+    assert_eq!(run.remove(process, root, b"a", false), NOTHING, "remove the original name");
+    let after_remove = run.stat(process, b).expect("one name survives");
+    let retained_bytes = run.read_all(process, b).0;
+    for fd in [a, b, read_a, root] {
+        run.close(process, fd);
+    }
+    run.finish();
+    HardLinks { linked, stated, initial_bytes, shared_write, after_remove, retained_bytes, taken, missing, symlinks }
+}
+
+impl Check for HardLinks {
+    fn check(&self) {
+        assert_eq!(self.linked, NOTHING, "HardLink gives a file a second name");
+        for stat in &self.stated {
+            assert_eq!((stat.kind, stat.size, stat.links), (Kind::File, 1, 2), "each name counts both links");
+        }
+        assert_eq!(self.initial_bytes, [file(b"x"), file(b"x")], "both names read the original bytes");
+        assert_eq!(self.shared_write, file(b"y"), "writes through one name appear through the other");
+        assert_eq!(self.after_remove.links, 1, "removing one name leaves one link");
+        assert_eq!(self.retained_bytes, file(b"y"), "removal keeps the other name's bytes");
+        assert_eq!(self.taken, Err(Error::Exists), "a name taken refuses the link");
+        assert_eq!(self.missing, Err(Error::NotFound), "a missing source refuses the link");
+        for stat in &self.symlinks {
+            assert_eq!((stat.kind, stat.size, stat.links), (Kind::Symlink, 1, 2), "links the link, never its target");
+        }
+    }
+}

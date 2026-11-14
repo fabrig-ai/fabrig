@@ -838,6 +838,7 @@ fn arrival(event: file::Event) -> Option<Arrival> {
         | file::Event::Written { .. }
         | file::Event::Cut { .. }
         | file::Event::Synced { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Removed { .. }
         | file::Event::Listed { .. }

@@ -244,6 +244,63 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   the world settles, naming the process and the deadline. In the
   replaying tiers that is a jump of the clock to it; in the real loop, a
   wake for it. No service writes the check, and none opts out.
+- **Its checks return their findings** (../../foundation/programming-model.md, 10.4).
+  A referee's, a judge's or the harness's own check that fails gives its
+  finding as a value, the text it fails with now: the seed, the time,
+  what broke and, in the simulated world, the trace's tail. Only the
+  loop or the test that drives it panics on it, once, at its top, so a
+  check's own tests read its finding and catch nothing.
+  - `Referee::watch(&mut self, now: Time, procs: &[P]) -> Result<(), String>`
+    watches every process after one iterated, and returns a broken safety
+    expectation's finding. The simulated world's turns and the real loop
+    call it where they called `observe`, and fail with its `Err` at once,
+    observing nothing after it. `Referee::observe(&mut self, now, procs)`,
+    which panics on what it finds, stays for the referees outside skein
+    that aren't converted yet: it has an empty default, and `watch`'s
+    default calls it and returns `Ok(())`. A referee implements one of
+    the two, and none of skein's implements `observe`. Once no referee
+    does, `observe` goes and `watch` loses its default.
+  - `Expectations::check(&mut self, now: Time, procs: &[P]) -> Result<(), String>`
+    sets each met expectation aside and returns the first broken one's
+    finding, `seed <seed>: at <ns> ns, <expectation> broke: <why>`.
+    `Expectations::observe` panics on it.
+  - `World::try_run`, `World::try_run_with_faults` and
+    `World::try_run_with_inputs`, each `-> Result<Outcome<P, M>, String>`,
+    run as `run`, `run_with_faults` and `run_with_inputs` do, and return
+    the run's verdicts as a finding: a referee's, as it wrote it, naming
+    the seed; and the world's own, an overdue expectation, a world idle
+    and unsettled with nothing due, one past its steps, and the teardown
+    policy check, each with the seed and the trace's tail as `run`
+    prints them now. `run*` call them and panic on the `Err`. A
+    restartable startup that can't open its roots or appends closes
+    what it opened and returns why,
+    `World::try_spawn_restartable_startup(roots, appends, make) -> Result<usize, String>`,
+    which `spawn_restartable_startup` panics on.
+  - The real loop fails with a finding only after its forced cleanup,
+    as above. `real::World::try_run(self, clock: &Clock, patience: Duration)
+    -> Result<Outcome<P>, String>` and `real::try_run(procs, referee,
+    clock, patience)`, its unhosted form, return that finding: a
+    referee's `watch`, an overdue expectation, the patience verdict with
+    its figures, the teardown policy check and a binary's kept finding,
+    each in the text `run` fails with now. `real::run` and the real
+    `World::run` call them and panic on the `Err`. A starved run is no
+    finding: it passes as `Starved::pass` does, below. A binary keeps an expected end's finding, a process group
+    or tree process still running at its exit (../examples.md, 6), as a
+    value the loop reads, and the tree keeper's report of what it left
+    running and its cgroup's removal error are values too, which the
+    kit's teardown fails with once, on an ordinary return. Conformance's
+    real backend gives a wait that passes unanswered, its listener's
+    among them, as a finding with its figures.
+  - The domain world's referee, `skein_world::domain::Referee`, holds its
+    verdict as a value (`verdict()`). `check_holding(seed)` and
+    `check_passed(seed)`, each `-> Result<(), String>`, give the text
+    `assert_holding` and `assert_passed` panic with. `Ledger::check_settled()
+    -> Result<(), String>` and `domain::check_replays(seed, other, run)
+    -> Result<R, String>` are the returning forms of `Ledger::assert_settled`
+    and `domain::assert_replays`, which panic on them.
+  - A harness that adds context to a failure writes it before it runs
+    what may fail: conformance's simulated driver names each seed and
+    configuration on stderr before running it, and catches nothing.
 - **It tells a starved run from a slow one** in the real loop
   by `Deadline`, the same real-clock deadline every harness uses
   (../../foundation/testing-strategy.md, 2.10). `skein_world::{Deadline, Expired, Starved,
@@ -274,10 +331,12 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   `skein-world: starved:` line to stderr, naming the wait with `, by <what>`,
   and ends the test as a starved pass: in a one-process run
   (`TIERS_ONE_PROCESS` set, by `tools/tiers/design.md`'s one-process
-  mode) it unwinds with
-  `std::panic::resume_unwind` and the payload `StarvedPass`, so that only
-  its test ends, nothing follows the line, and the process goes on to its
-  next test; under nextest it exits 0; elsewhere it fails with the figures.
+  mode) and under nextest it ends its process with exit 0 after the line,
+  so that nothing follows it and nothing unwinds, and the one-process
+  runner starts a new process for the names its process had left
+  (`tools/tiers/design.md`, 11.5 and 11.6); elsewhere it fails with the
+  figures. Nothing catches a panic to end a test
+  (`../../foundation/programming-model.md`, 10.4).
   `Starved::exit()` ends a helper process, one a test starts and whose
   stderr it reads, with the line and exit 0 wherever a starved wait passes.
   `starved_passes()` says whether it passes here (`TIERS_ONE_PROCESS` or
@@ -301,8 +360,10 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   dies with the thread that started it (a parent-death signal,
   `exec_dying_with_parent`, ../runtime/shell.md, 3), each descendant
   it starts that leaves its group or session ends its own loop once
-  that owner process is gone, and a test that unwinds has the kit end
-  the rest and report what it could not (../examples.md, 6). skein's
+  that owner process is gone. None of that waits on unwinding: a test
+  that unwinds may have the kit end the rest sooner (../examples.md, 6),
+  never alone, and no test exercises that path, which a test of the
+  process ending covers. skein's
   process fixture (`tests/conformance/real`, built for the worlds as
   `world_process_fixture`) ties its `never`, `fork-live` and
   `supervise-*` modes so; a descendant that only sleeps its bounded
@@ -362,7 +423,7 @@ testing/skein-conformance       the conformance suite: the backend interface, th
 testing/skein-heap              the counting allocator, the meter that checks a step under its scenario's ceiling, and the span a world meters its processes with
 testing/skein-scratch           a scratch directory beneath the system's temporary one, removed when dropped, for tests of files on the real kernel
 testing/skein-fork              a run forked at a chosen moment of a test and waited for, so that a sweep of cuts holds its prefix once
-testing/skein-rows              one table test's rows: every row runs, and a failure names each (../../foundation/testing-strategy.md, 8)
+testing/skein-rows              one table test's rows: each named as it runs, and the first failure ends the table (../../foundation/testing-strategy.md, 8)
 testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
 testing/skein-echo-client       the fake echo client, a step machine
 testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fakes/forge.md, 6)
@@ -478,18 +539,21 @@ the consuming harness takes the crash and checks every cut.
 
 **A table test's rows** are `skein-rows`, on the `harness` lint profile.
 `skein_rows::check(rows, body)` takes rows of `(&'static str, R)` and a
-`body: Fn(R)`, and runs the body on every row, each under `catch_unwind`,
-so that a panic, an `assert_eq!`'s as any other, ends that row alone.
-Afterwards it panics at its caller's line, naming each row that failed
-with its message. Rows carry data (../../foundation/testing-strategy.md, 10): the kit
+`body: Fn(R)`, and runs the body on each row in order, naming the row
+before it runs: a line `skein-rows: row <name>` on stderr, through the
+test harness's capture, which the runner prints for a failed test.
+Nothing catches a panic (../../foundation/programming-model.md, 10.4),
+so the first failing row, an `assert_eq!`'s panic as any other, ends the
+table and its test, its name the last line before its message, and the
+rows after it don't run. Rows carry data (../../foundation/testing-strategy.md, 10): the kit
 hands a body the row's data and never its name. Fewer than two rows, or
-two rows of one name, is that same panic before any row runs. A test
+two rows of one name, panics before any row runs: the caller's bug, an
+assertion no test triggers. A test
 that reads what an earlier row of its process would disturb, such as a
 heap ceiling, stays a test of its own. The kit shares nothing between
-rows; a fixture a body builds is built per row.
-`skein_rows::panics(expected, call)` holds for a row what
-`#[should_panic(expected = "...")]` holds for a test: `call` must panic,
-with a message holding `expected`.
+rows; a fixture a body builds is built per row. The kit has no helper
+that expects a panic, as no kit has: a row that would panic tests an
+assertion, which goes, or a refusal, which its body reads as a value.
 
 A fake that runs as a step machine, as `skein-echo-client` does,
 is held to the subset instead (../../foundation/testing-strategy.md, 4): it has no
@@ -603,8 +667,9 @@ What of this document is not built is in [`README.status.md`](README.status.md).
   process-local heap measurements stay separate, with fixtures built
   per row wherever sharing could change what is shown. Signing-heavy
   App JWT routes stay separate when their combined table exceeds the
-  unit-test guide. Converting an existing table to collect every row's
-  failure is diagnostic work, with no process floor saved. Default: no
+  unit-test guide. A table reports its first failing row and stops
+  there (6): collecting every row's failure would catch a panic
+  (../../foundation/programming-model.md, 10.4). Default: no
   fold weakens these rules to reach a suite-margin target; further cost
   changes need a profile of their cause first.
 - **The counting allocator's remaining cost** (5). One thread-local

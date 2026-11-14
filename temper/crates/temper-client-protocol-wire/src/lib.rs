@@ -84,7 +84,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/forge/records.md).
-pub const CLIENT_VERSION: u32 = 20;
+pub const CLIENT_VERSION: u32 = 21;
 
 /// The deployment's maximum number of forges (client/forge/records.md).
 pub const FORGES: u32 = 16;
@@ -713,5 +713,20 @@ pub fn finding_answer(record: &v1::FindingAnswer) -> Box<[u8]> {
 pub fn decode_finding_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::FindingAnswer> {
     let mut reader = Reader::new(bytes);
     let record = v1::FindingAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a history page or refusal (temper/docs/design/domain/landing-history.md, 5.1).
+#[must_use]
+pub fn history_answer(record: &v1::HistoryAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete history answer.
+#[must_use]
+pub fn decode_history_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::HistoryAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::HistoryAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }

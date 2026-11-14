@@ -168,7 +168,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     key in the story's deployment, as any key added through `ctl`, in the
     store under `TEMPER_TEST_LIVE_STORE`: a second sitting, and a rerun
     on a kept store, add none and run on the key the store keeps. Nothing
-    is lent, so the story has no guard.
+    is lent, so the story has no return.
   - **Its configuration:** init's owned example as init writes it, both
     Anthropic endpoints and Claude Code's program included, but the
     `anthropic` provider without `keep` and `drop`, so that its accounts
@@ -324,9 +324,10 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     (`../protocol/setup/owned.md`, 7); the model a held ChatGPT record,
     `TEMPER_TEST_LIVE_ACCOUNT`, moved in by `temper ctl account import` and
     moved back by `account export` over the same path before the box
-    stops, on a pass, a failure or a signal: the script's last act,
-    which it checks by `stat` alone. Whoever runs it holds the login for
-    the run.
+    stops; on any ending that comes first, a pass, a failure or a
+    signal, the launcher returns it once the test process has ended
+    (the held record's return, below), and checks it by `stat` alone.
+    Whoever runs it holds the login for the run.
   - **Its acts are the story's,** the person's words included, through
     `temper ctl`; the forge's by the box's person, its read and write
     header files (`../protocol/setup/box.md`, 3), as the story's person
@@ -373,30 +374,50 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     (../client/ctl/README.md, 6.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
-- **The held record's guard,** for the landing story, whose box can stop
-  with the record still in the store: a panic through a sitting kills the
-  box before its return, and a return that fails stops it all the same.
-  The runner's return and the story's own each need a box up, so neither
-  answers then. `Lent` (`testing/temper-box-kit/src/held_login.rs`) stands from before
-  the first sitting to the test's end. On every ending, a panic anywhere,
-  a failed assertion or an early return, its `Drop` settles what is owed,
-  by `stat` alone, the record never read:
+- **The held record's return,** for each story that moves a held record
+  in, the ChatGPT landing story and B0's rung: the launcher's, once the
+  test process has ended, however it ended (`../draft/panics.md`, 5).
+  Each box of a story still returns the record before it stops, as its
+  own act (above); this return is for whatever ends a sitting first, a
+  panic, an abort, a failed return or a signal. Nothing in the test
+  process catches a panic for it, and a panic in a sitting ends the
+  test. `scripts/proof-live.sh`'s exit trap, on every ending, a build's
+  failure among them, in this order, by `stat` alone, the record never
+  read:
+  - **The test process ends first.** On a signal, the launcher stops the
+    runner with TERM and reaps it, and the runner ends the test process
+    before it exits. On any other ending the runner has already
+    returned.
   - **The record at its lent path,** a private regular file with bytes
-    in it: nothing. The import has not run, or the story's return has;
-    that is what disarms the guard, so it exports once. The same path
-    holding anything else is reported, never overwritten.
-  - **Moved in, a box up:** `give-back`, within its 60 seconds.
-  - **Moved in, no box up:** a box started over the store for this alone,
-    a new client signed in by the box's link, then `give-back`, installed
-    for that client with later imports still excluded; the box stops on
-    any ending.
-  - **Still not back:** the notice `LOGIN NOT BACK`, naming the store,
-    which stays for recovery. The guard never panics while the test
-    unwinds; a test that would otherwise pass, it fails.
+    in it: nothing is owed. The import has not run, or a box's own
+    return has.
+  - **Owed, the story's box still up:** the installed `give-back`, within
+    its 60 seconds. The rung's box outlives its test process, started in
+    a session of its own, so the launcher finds it up; the landing
+    story's box outlives a test process that ended without unwinding.
+  - **Still owed, a box of its own:** the launcher runs
+    `bin/temper-box/tests/live.rs`'s
+    `the_held_record_returns_on_a_box_of_its_own` in a process of its
+    own, with `TEMPER_TEST_LIVE_STORE` naming the story's own store: a
+    box started over the store for this alone, dying with that process;
+    a new client, `return-client`, signed in by the box's link within
+    240 seconds; the recovery hook installed for that client, later
+    imports still excluded; then `give-back`, and the box stopped within
+    30 seconds. The test is ignored, its reason naming the launcher, and
+    no profile's default filter selects it.
+  - **Then every process the sitting started stops,** the story's box and
+    the return's among them: those whose working directory is in the
+    run's scratch or the store and that were not there before the run.
+  - **Still not back:** the notice `LOGIN NOT BACK`, naming the store
+    alone, which stays for recovery, and the launcher exits 1. The same
+    path holding anything else is reported, never overwritten.
 
-  The rung's one sitting keeps its box up past a panic, which `run_walk`
-  catches before its return, and a held Claude Code login is used in
-  place, so neither has a guard.
+  A hook's installation is refused, as an error, once a terminal
+  `give-back` has run: a later sitting can't reopen the import. The
+  rung's box dies with its test in the offline face, which has no
+  launcher (`bin/temper-box/tests/proof_live.rs`). A held Claude Code login is used in place
+  and has no return: the launcher checks it by `stat` once every process
+  has stopped.
 - **What needs a person,** seven tests, each ignored, its reason naming what
   only a person gives, and each run by its script. None runs on a scripted
   person alone: each needs a person's account, key or sign-in, or

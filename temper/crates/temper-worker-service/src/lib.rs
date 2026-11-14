@@ -20,7 +20,7 @@ mod worker_vocabulary;
 pub use jig_protocol_worker_wire::{Loss as WorkerLoss, Reason as WorkerRefusalReason};
 pub use skein_channel::Closed as WorkerClosed;
 pub use temper_service_core::{Refusal, STAGES, Stage, long_pass, tokens};
-pub use worker::{Worker, WorkerRuntime};
+pub use worker::{Worker, WorkerRuntime, translate};
 pub use worker_job_ending::JobEnding as WorkerJobEnding;
 #[cfg(test)]
 mod tests;

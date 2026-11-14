@@ -623,6 +623,37 @@ impl Tree {
     pub fn nodes(&self) -> &[Node] {
         self.nodes.as_slice()
     }
+    /// The finished tree's builder-charged storage over `Limits::EMPTY`
+    /// (ui/README.md, section 13). Slots count references still in the tree.
+    #[must_use]
+    pub fn used(&self) -> crate::Limits {
+        let mut used = crate::Limits { nodes: self.len(), ..crate::Limits::EMPTY };
+        let mut ends = skein_lib::Stack::with_capacity(self.len());
+        let mut index = 0_u32;
+        for node in self.nodes() {
+            while let Some(end) = ends.top() {
+                if index < *end {
+                    break;
+                }
+                ends.pop();
+            }
+            let end = index.checked_add(node.size).expect("subtree end fits u32");
+            ends.push(end).expect("ancestor stack fits node count");
+            used.depth = used.depth.max(ends.len());
+            let bytes = node.text_bytes();
+            used.text_per_node = used.text_per_node.max(bytes);
+            used.text_bytes = used.text_bytes.checked_add(bytes).expect("tree bytes fit u32");
+            if node.binding.is_some() || node.link.is_some() {
+                used.bindings = used.bindings.checked_add(1).expect("binding count fits u32");
+            }
+            if node.slot.is_some() {
+                used.slots = used.slots.checked_add(1).expect("slot count fits u32");
+            }
+            index = index.checked_add(1).expect("node count fits u32");
+        }
+        used
+    }
+
     /// A node by its preorder index.
     #[must_use]
     pub fn get(&self, index: u32) -> Option<&Node> {

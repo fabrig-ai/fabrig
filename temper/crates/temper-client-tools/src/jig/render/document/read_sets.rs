@@ -32,6 +32,9 @@ pub(super) fn text(
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) => {
                 super::projects::text(project, call, me, limits, vocabulary, out);
             }
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment))) => {
+                super::census::text(deployment.census.as_deref(), out);
+            }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)
                 | c::ReadValue::Setting(_)
@@ -120,6 +123,7 @@ fn ended_text(
     vocabulary.task_next(task, out);
     super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
 }
+#[expect(clippy::too_many_lines, reason = "read-set dispatch keeps each selected document's encoding together")]
 pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out: &mut Encoder, budget: &mut Cut) {
     let call = &reading.called.call;
     if call.tool == 1 && super::subjects::inbox_eligible(call) {
@@ -147,6 +151,9 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) => {
                 super::projects::encode(project, call, me, limits, out, budget);
+            }
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::Deployment(deployment))) => {
+                super::census::encode(deployment.census.as_deref(), out);
             }
             Readout::Jig(c::ReadResult::Value(
                 value @ (c::ReadValue::Settings(_)

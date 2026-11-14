@@ -7,7 +7,7 @@ fn a_goal_lands_across_wire_versions() {
 }
 
 #[test]
-fn a_renewed_identity_reaches_the_worker_at_the_wire_floors() {
+fn a_renewed_identity_reaches_the_worker_at_compatible_wire_versions() {
     across_versions::renewal();
 }
 
@@ -62,7 +62,7 @@ fn the_worker_s_opening_states_chosen_versions() {
                 assert_eq!((lowest, highest), (12, 12));
                 opening = Some(
                     jig_protocol_worker_wire::Credential::decode(
-                        &jig_protocol_worker_wire::v13::CEILINGS,
+                        &jig_protocol_worker_wire::v14::CEILINGS,
                         &mut Reader::new(&credential),
                     )
                     .expect("worker credential"),

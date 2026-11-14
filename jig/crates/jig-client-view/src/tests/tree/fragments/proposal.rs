@@ -325,8 +325,7 @@ fn owner_proposal_all_funders_independent_optional_amounts_and_holder_variants_p
     }
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn owner_proposal_exact_checked_envelopes_keep_selected_language_whole_loss_and_one_under_refusals() {
+fn owner_proposal_exact_checked_envelopes_keep_selected_language_and_whole_loss() {
     let mut goldens = Goldens::new("tree/fragments/proposal/owner_proposal_exact");
     let w = words(true);
     let v = source(ProposalAction::Batch(batch()));
@@ -354,14 +353,12 @@ fn owner_proposal_exact_checked_envelopes_keep_selected_language_whole_loss_and_
     let id = crate::words::proposal_words::ProposalPhrase::Attempt.id();
     assert_eq!(w.book().say(1, id, &[Hole::Wall(Wall::EPOCH)]).unwrap_err(), skein_ui::phrases::Invalid::Values { id });
     assert_eq!(w.book().say(1, id, &[Hole::Number(u64::MAX)]).unwrap().text.as_ref(), b"second 18446744073709551615");
-    let short = skein_ui::Limits { nodes: tree.len() - 1, ..f };
-    let _refusal = std::panic::catch_unwind(|| {
-        let mut b = Builder::new(&short);
-        let mut bindings = JigBindings::new(f.bindings, 256);
-        view::render(&mut b, &Fixture::new(&limits()).view(), &v, &w, &mut bindings);
-        b.finish()
-    })
-    .unwrap_err();
+    let exact = skein_ui::Limits { nodes: tree.len(), ..f };
+    let mut b = Builder::new(&exact);
+    let mut bindings = JigBindings::new(exact.bindings, 256);
+    view::render(&mut b, &Fixture::new(&limits()).view(), &v, &w, &mut bindings);
+    let used = b.finish().used();
+    assert_eq!(used.nodes, exact.nodes);
 }
 #[test]
 fn owner_proposal_link_presence_and_same_keyed_card_across_contexts_keep_current_facts_and_checked_confirmation() {

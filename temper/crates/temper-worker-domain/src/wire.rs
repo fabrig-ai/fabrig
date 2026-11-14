@@ -10,6 +10,50 @@ use alloc::boxed::Box;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Undecodable;
 
+/// A run's application read or report (temper/docs/design/domain/forge/reds.md, 5.4 and 5.6).
+/// A check's report (temper/docs/design/domain/forge/reds.md, 5.6).
+#[derive(Hash, PartialEq, Eq, Debug)]
+pub struct CheckResults {
+    pub tag: u64,
+    pub check: u64,
+    pub tree: Box<[u8]>,
+    pub base: Option<Box<[u8]>>,
+    pub verdict: Verdict,
+    pub passed: Box<[Box<[u8]>]>,
+    pub failed: Box<[Box<[u8]>]>,
+    pub flakes: Box<[Flake]>,
+}
+
+#[derive(Hash, PartialEq, Eq, Debug)]
+pub struct Flake {
+    pub key: Box<[u8]>,
+    pub log: Box<[u8]>,
+}
+
+#[derive(Hash, PartialEq, Eq, Debug)]
+pub enum Verdict {
+    Passed,
+    Refused,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum Ask {
+    Reds,
+    Results(CheckResults),
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum Answer {
+    Kept,
+    Reds { reds: Box<[Red]> },
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Red {
+    pub key: Box<[u8]>,
+    pub head: Box<[u8]>,
+}
+
 /// An assignment's items do not decode (temper/docs/design/protocol/wires.md, 5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ItemsRefusal {
@@ -175,11 +219,12 @@ pub struct SavedRepository {
 }
 
 /// A repository a run's pushes landed in: its deployment tag, and
-/// the last commit landed there.
+/// the last commit landed there, checked unless it came by an unchecked save.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Landed {
     pub tag: u64,
     pub commit: [u8; 32],
+    pub checked: bool,
 }
 
 /// Why a workspace could not be prepared, in temper's detail: what jig's

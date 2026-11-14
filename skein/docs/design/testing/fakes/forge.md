@@ -860,6 +860,14 @@ need a real one. It never meets an existing Forgejo.
   is `exchange` with the caller's own time for the answer, for a
   migration's one long request. The conformance starts the runner
   (section 7), not the throwaway.
+- **Its server dies with its test,** however the test ends: `web` starts
+  dying with the thread that starts it (`spawn_dying_with_parent`,
+  ../../runtime/shell.md, 3, with Kill), so an abort or a runner's kill
+  leaves no Forgejo on the scratch's socket and database. Its temporary
+  files are the scratch's `tmp` (`TMPDIR`), so nothing it writes lies
+  outside the scratch. The commands it waits on, `migrate`, the admin's
+  creation and `cli`, stay plain spawns. A service that starts its own
+  Forgejo and attaches it starts it dying with its test the same way.
 
 ## 7. The conformance
 
@@ -914,6 +922,11 @@ relies on (../../forge/forgejo.md, section 2). It makes its own admin user and t
   run two inline host-shell jobs, one succeeding and one failing, with
   nothing downloaded. The runner groups are `unchecked` without the
   runner.
+- **The runner's daemon dies with the tool,** however the tool ends:
+  it starts dying with its parent (../../runtime/shell.md, 3, with
+  Terminate, so it ends its host-shell jobs within its one-second
+  shutdown), its home, configuration, jobs and log in the scratch's
+  `runner`, and its `TMPDIR` there too.
 - **`--component`** runs the kit's component (../../forge/connection.md) through
   real io sockets on the shell's ring against a fresh fixture, under the
   scopes `read:user`, `write:issue` and `write:repository`. It replaces only

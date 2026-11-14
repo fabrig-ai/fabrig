@@ -416,7 +416,7 @@ fn declared(row: usize, answer: &Answer, project: u64, task: u64) {
             forge_references(row, application.record());
         }
         6 | 7 => {
-            use jig_client_protocol_wire::v21 as w;
+            use jig_client_protocol_wire::v22 as w;
             let versions = w::NotServed::decode(&w::CEILINGS, &mut reader).expect("not-served record");
             assert_eq!(versions.served().len(), 1);
             let version = versions.served().iter().next().expect("served version");

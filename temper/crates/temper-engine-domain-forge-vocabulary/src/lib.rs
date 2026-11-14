@@ -26,6 +26,7 @@ pub mod follows;
 pub mod forge_user;
 pub mod gates;
 pub mod held;
+pub mod history;
 pub mod items;
 pub mod judge;
 pub mod landing;
@@ -39,6 +40,7 @@ pub mod public;
 pub mod purpose;
 pub mod reconcile;
 pub mod red;
+pub mod reds;
 pub mod refusal;
 pub mod resources;
 pub mod restore;
@@ -71,9 +73,9 @@ pub use drafts::{
     draft_path, drafts_subject,
 };
 pub use findings::{
-    AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
-    FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
-    Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
+    AreaRow, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind,
+    FindingRefusal, FindingReply, FindingRow, FindingSignature, FindingState, FindingWrite, Findings, HandFinding,
+    HandFindingAnswer, Holder, Severity, Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
 };
 pub use follows::{
     FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,
@@ -107,6 +109,7 @@ pub use panel::{
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};
+pub use reds::{RecordRed, Recorder, Red, RedOutcome, RedPass, RedRecorded, RedRefusal, RedReply};
 pub use refusal::{RefusalCause, bound_words};
 pub use restore::{RestoreFit, RestoreSet};
 pub use result::{ChangeResult, ResultText};
@@ -300,8 +303,20 @@ pub fn effect_access(repository: &Repository, what: &What, kind: u16) -> Access 
 #[must_use]
 pub fn stored_key(row: &Stored) -> Key {
     match row {
+        Stored::HistoryProject(row) => Key::HistoryProject { project: row.project },
+        Stored::HistoryEvent(row) => Key::HistoryEvent { project: row.project, number: row.number },
+        Stored::HistoryChange(row) => {
+            Key::HistoryChange { project: row.project, change: row.change, number: row.number }
+        }
+        Stored::HistoryLanding(row) => {
+            Key::HistoryLanding { project: row.project, landing: row.landing, number: row.number }
+        }
+        Stored::HistoryLast(row) => Key::HistoryLast { project: row.project, number: row.number, change: row.change },
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
+        Stored::Red(row) => Key::Red { goal: row.goal, key: row.key.clone() },
+        Stored::RedNumber { .. } => Key::RedNumber,
+        Stored::RedPass(row) => Key::RedPass { change: row.change, key: row.key.clone() },
         Stored::Playground(_) => Key::Playground,
         Stored::Follow(row) => Key::Follow { project: row.project, follow: row.follow },
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
@@ -385,6 +400,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
     }
     match record {
+        Stored::HistoryProject(row) => {
+            skein_lib::len_u64(row.marks.len()).checked_mul(u64::try_from(size_of::<history::Mark>()).ok()?)
+        }
+        Stored::HistoryEvent(row) => history::event_bytes(row),
         Stored::Making(row) => {
             let mut held = bytes(&row.key.org).checked_add(bytes(&row.key.name))?;
             match &row.from {
@@ -531,8 +550,24 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::RedPass(row) => Some(skein_lib::len_u64(row.key.len())),
+        Stored::Red(row) => skein_lib::len_u64(row.key.len())
+            .checked_add(skein_lib::len_u64(row.head.len()))?
+            .checked_add(skein_lib::len_u64(row.why.len())),
         Stored::Finding(row) => {
             let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
+            if let Some(signature) = &row.signature {
+                bytes = bytes
+                    .checked_add(skein_lib::len_u64(signature.source.len()))?
+                    .checked_add(skein_lib::len_u64(signature.first.len()))?
+                    .checked_add(
+                        skein_lib::len_u64(signature.ids.len())
+                            .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                    )?;
+                for id in &signature.ids {
+                    bytes = bytes.checked_add(skein_lib::len_u64(id.len()))?;
+                }
+            }
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
                 bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;
             }
@@ -558,6 +593,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => skein_lib::len_u64(words.len()),
                 None => 0,
             }),
+            CallPayload::Red(reply) => {
+                u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(reds::reply_bytes(reply)?)
+            }
             CallPayload::Finding(reply) => {
                 u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(findings::reply_bytes(reply)?)
             }
@@ -664,7 +702,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
         Stored::LandedDraft(row) => bytes(&row.path).checked_add(bytes(&row.branch))?.checked_add(bytes(&row.title)),
-        Stored::RefusedSetting(_)
+        Stored::HistoryChange(_)
+        | Stored::HistoryLanding(_)
+        | Stored::HistoryLast(_)
+        | Stored::RedNumber { .. }
+        | Stored::RefusedSetting(_)
         | Stored::Away(_)
         | Stored::Looked(_)
         | Stored::Dismissed { .. }
@@ -725,6 +767,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(Ending::Failed { line }) => bytes(line),
                 Some(Ending::Landed | Ending::NoChange | Ending::Cancelled) | None => 0,
             })?
+            .checked_add(history::job_bytes(row.job.as_ref())?)?
             .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?
@@ -915,3 +958,5 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         | change::State::Uncleared { .. } => Some(0),
     }
 }
+
+pub use history::HistoryRange;

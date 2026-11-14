@@ -159,6 +159,8 @@ fn later_start() -> Service {
     let mut service = started();
     let engine = f::engine(&mut service);
     let opened = engine.store.host.above.pop().expect("store opened before its fixture commit");
+    // This period fixture does not consume the census (protocol/store/README.md, 6.3).
+    let Some(store::Event::Census { .. }) = engine.store.host.above.pop() else { panic!("opened census") };
     let header = core::Deployment {
         id: [7; 16],
         tasks: 0,

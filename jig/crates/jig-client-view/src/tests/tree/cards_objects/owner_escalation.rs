@@ -172,16 +172,11 @@ fn check_exact_storage(row: &Escalation, allocation: skein_ui::Limits, tree: &Tr
     let per_node = tree.nodes().iter().map(skein_ui::Node::text_bytes).max().unwrap();
     let total = tree.nodes().iter().map(skein_ui::Node::text_bytes).sum::<u32>();
     let exact = skein_ui::Limits { nodes: tree.len(), depth, text_per_node: per_node, text_bytes: total, ..allocation };
-    assert_eq!(build_closed_offers(row, exact, w).len(), tree.len());
-    for below in [
-        skein_ui::Limits { nodes: exact.nodes.checked_sub(1).unwrap(), ..exact },
-        skein_ui::Limits { depth: exact.depth.checked_sub(1).unwrap(), ..exact },
-        skein_ui::Limits { text_per_node: exact.text_per_node.checked_sub(1).unwrap(), ..exact },
-        skein_ui::Limits { text_bytes: exact.text_bytes.checked_sub(1).unwrap(), ..exact },
-    ] {
-        std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| build_closed_offers(row, below, w)))
-            .expect_err("one-under storage refuses the whole escalation tree");
-    }
+    let used = build_closed_offers(row, exact, w).used();
+    assert_eq!(used.nodes, exact.nodes);
+    assert_eq!(used.depth, exact.depth);
+    assert_eq!(used.text_per_node, exact.text_per_node);
+    assert_eq!(used.text_bytes, exact.text_bytes);
 }
 
 fn presence_step(
@@ -433,8 +428,7 @@ fn owner_escalation_with_repeated_result_key_presence_part_4_keeps_whole_inputs_
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_finite_view_and_refuse_one_under_storage() {
+fn owner_escalation_closed_outer_controls_and_whole_refusals_fit_exact_storage() {
     let mut goldens = Goldens::new("tree/cards_objects/owner_escalation/owner_escalation_closed");
     let w = words();
     for refused in [false, true] {

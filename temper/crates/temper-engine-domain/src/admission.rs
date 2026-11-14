@@ -53,7 +53,10 @@ pub fn completes(event: &Event) -> bool {
         Event::Worker(worker) => worker_completes(worker),
         Event::Forge(event) => match event.as_ref() {
             forge::Event::Bind { .. } | forge::Event::Installation { .. } | forge::Event::Hint { .. } => false,
-            forge::Event::Signed { .. }
+            forge::Event::ReadHistory { .. }
+            | forge::Event::HistoryLoaded { .. }
+            | forge::Event::HistoryUnloaded { .. }
+            | forge::Event::Signed { .. }
             | forge::Event::MakingStarted { .. }
             | forge::Event::MakingCopying { .. }
             | forge::Event::MakingMade { .. }
@@ -177,6 +180,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Follow { .. }
             | forge::Event::FollowChangeAmended { .. }
             | forge::Event::FollowAct { .. }
+            | forge::Event::JobHistory { .. }
             | forge::Event::SettleOutbox => true,
         },
     }
@@ -199,7 +203,8 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
             Ok(())
         }
         event @ (Event::Store(
-            StoreInput::MissingLink { .. }
+            StoreInput::Census(..)
+            | StoreInput::MissingLink { .. }
             | StoreInput::Committed { .. }
             | StoreInput::Uncommitted { .. }
             | StoreInput::Loaded { .. }
@@ -257,7 +262,9 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
 
 fn worker_completes(worker: &WorkerInput) -> bool {
     match worker {
-        WorkerInput::Opened { .. }
+        WorkerInput::CheckResults { .. }
+        | WorkerInput::Asked { .. }
+        | WorkerInput::Opened { .. }
         | WorkerInput::DecodedHostCall { .. }
         | WorkerInput::RenderedHostCall { .. }
         | WorkerInput::ResultRead { .. }

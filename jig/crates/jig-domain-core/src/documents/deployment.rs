@@ -349,6 +349,7 @@ pub(super) fn deployment(
         readiness_cut,
         key_bytes: core.settings.key_bytes,
         store: StoreFill { bytes: core.fill, mark: limits.fill_mark },
+        census: core.census.clone(),
         hosts,
         attempts,
         accounts,

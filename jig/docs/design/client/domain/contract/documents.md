@@ -178,7 +178,18 @@
     (`../../../domain/authority.md`, section 7);
   - *the deployment:* hosts, each with its program sources' logins;
     the deployment's LLM accounts, as the party's own are (below), with
-    the runs using each and the tasks waiting on each; capacity;
+    the runs using each and the tasks waiting on each; capacity; the
+    store's fill against its mark, and its census (`census`), the last
+    the store reported (`../../../protocol/store/README.md`, 6.3), or none
+    before its first: the commit it counts to (`commit`) and the one its
+    writes count from (`since`), and a row per keyspace in prefix order,
+    each its prefix (`prefix`, at most 8 bytes, empty for the keyspaces
+    past the census's bound), its name (`name`, at most 48 bytes, empty
+    where none names it), its rows (`rows`), its keys' and values' bytes
+    (`keys`, `values`), its heads (`heads`, at most 8, ascending, each
+    its `head`, a `u16` or none, and its `rows`), and its puts, erases
+    and bytes written since `since` (`puts`, `erases`, `written`); at
+    most 129 rows;
   - *the party's accounts:* the party's own LLM accounts, each with its
     LLM provider, display name and holder; what its provider says of it,
     its facts (below); its sources in order, each

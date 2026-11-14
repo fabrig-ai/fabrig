@@ -64,14 +64,26 @@ impl OneShot {
             self.fail(b"the sign-in files could not be read");
             return;
         }
+        if signing.service.is_none() && signing.held.is_some() {
+            if self.directory.party_loaded.is_some() {
+                let party = self.directory.party.map_or_else(String::new, |n| format!(" as party {n}"));
+                self.fail(format!("DIRECTORY is signed in{party}; this link is not spent: sign out first, temper ctl DIRECTORY sign-out, or sign in to another directory").as_bytes());
+            }
+            return;
+        }
         if signing.with.is_some()
             && let Some((held, records)) = signing.shell.as_mut().and_then(Shell::loaded)
         {
+            if signing.service.is_none() && held.is_some() {
+                signing.held = held;
+                self.directory.load_party();
+                return;
+            }
             let secret = signing.with.take().expect("sign-in secret");
             let with = if signing.service.is_some() {
                 jig_client::With::Service(secret)
             } else {
-                jig_client::With::Link { secret, held: held.clone() }
+                jig_client::With::Link { secret, held: None }
             };
             signing.held.clone_from(&held);
             let mut kept = skein_lib::List::with_capacity(u32::try_from(records.len()).expect("bounded records"));
@@ -90,7 +102,7 @@ impl OneShot {
             let with = if signing.service.is_some() {
                 jig_client::With::Service(secret)
             } else {
-                jig_client::With::Link { secret, held: signing.held.clone() }
+                jig_client::With::Link { secret, held: None }
             };
             self.root_event(jig_client::Event::SignIn { with });
         }
@@ -124,6 +136,14 @@ impl OneShot {
         }
         if signing.credential == Credential::Kept
             && self.directory.stored
+            && self.directory.ready()
+            && self.directory.party_stored.is_none()
+            && let Some(party) = self.root.client().link().party
+        {
+            self.directory.store_party(self.env.now, party);
+        }
+        if signing.credential == Credential::Kept
+            && self.directory.party_stored.is_some()
             && let Some(text) = signing.printed.take()
         {
             self.output.push(false, text);

@@ -1,5 +1,6 @@
 //! Stateless application parts between the root and its channel (protocol/channel.md, 7).
 use crate::settings;
+use alloc::boxed::Box;
 use skein_lib::{List, Secret, Writer};
 use temper_engine_domain as engine;
 use temper_protocol_worker_wire::{self as wire, v1};
@@ -17,7 +18,72 @@ pub fn limits(own: &crate::limits::Limits) -> Option<v1::Limits> {
         entries: own.forges.installations,
         entry_token_bytes: own.forge_component.token_bytes,
         text_bytes: own.checkout.name_bytes.min(v1::CEILINGS.identity_name),
+        reds: own.forge.branch_reds,
+        red_key_bytes: own.forge.red_key_bytes,
     })
+}
+
+/// Decode the whole application ask before the root reads it.
+#[must_use]
+pub fn ask(bytes: &[u8], limits: &v1::Limits) -> Option<engine::wire::Ask> {
+    let mut reader = skein_lib::Reader::new(bytes);
+    let ask = v1::Ask::decode(limits, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    Some(match ask {
+        v1::Ask::Reds => engine::wire::Ask::Reds,
+        v1::Ask::Results(value) => engine::wire::Ask::Results(results(value)?),
+    })
+}
+
+fn results(value: v1::CheckResults) -> Option<engine::wire::CheckResults> {
+    let parts = value.into_parts();
+    if !wire::red_head(&parts.tree) {
+        return None;
+    }
+    if let Some(base) = &parts.base
+        && !wire::red_head(base)
+    {
+        return None;
+    }
+    let mut flakes = List::with_capacity(parts.flakes.len());
+    for flake in parts.flakes.into_boxed() {
+        let flake = flake.into_parts();
+        flakes.push(engine::wire::Flake { key: flake.key, log: flake.log }).expect("one row per decoded flake");
+    }
+    Some(engine::wire::CheckResults {
+        tag: parts.tag,
+        check: parts.check_number,
+        tree: parts.tree,
+        base: parts.base,
+        verdict: match parts.verdict {
+            v1::Verdict::Passed => engine::wire::Verdict::Passed,
+            v1::Verdict::Refused => engine::wire::Verdict::Refused,
+        },
+        passed: parts.passed.into_boxed(),
+        failed: parts.failed.into_boxed(),
+        flakes: flakes.into_boxed(),
+    })
+}
+
+/// Encode the root's goal-local snapshot within the engine's bounds.
+pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[u8]>, v1::Problem> {
+    let value = match answer {
+        engine::wire::Answer::Kept => v1::Answer::Kept,
+        engine::wire::Answer::Reds { reds } => {
+            let mut rows = List::with_capacity(limits.reds_reds);
+            for red in reds {
+                if !wire::red_head(&red.head) {
+                    return Err(problem(v1::Path::RedHead));
+                }
+                let row = v1::Red::new(limits, v1::RedParts { key: red.key, head: red.head })?;
+                rows.push(row).or(Err(problem(v1::Path::RedsReds)))?;
+            }
+            v1::Answer::Reds(v1::Reds::new(limits, v1::RedsParts { reds: rows })?)
+        }
+    };
+    Ok(wire::answer(&value))
 }
 
 /// A workspace's remotes and programs, made from each configured forge.
@@ -140,7 +206,7 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
         for head in left.into_parts().landed.into_boxed() {
             let head = head.into_parts();
             pushed
-                .push(temper_engine_domain_forge::Pushed { tag: head.tag, commit: head.commit })
+                .push(temper_engine_domain_forge::Pushed { tag: head.tag, commit: head.commit, checked: head.checked })
                 .expect("bounded heads");
         }
     }
@@ -247,4 +313,26 @@ pub fn github_identity(
         },
     )?;
     Ok(wire::identity(&value))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pushed_heads_keep_the_workers_check_status() {
+        for checked in [false, true] {
+            let mut landed = List::with_capacity(1);
+            landed
+                .push(
+                    v1::Landed::new(&v1::CEILINGS, v1::LandedParts { tag: 7, commit: [3; 32], checked }).expect("head"),
+                )
+                .expect("room");
+            let left = v1::Left::new(&v1::CEILINGS, v1::LeftParts { landed }).expect("left");
+            assert_eq!(
+                parts(Some(left), None, None).pushed.as_ref(),
+                &[temper_engine_domain_forge::Pushed { tag: 7, commit: [3; 32], checked }]
+            );
+        }
+    }
 }

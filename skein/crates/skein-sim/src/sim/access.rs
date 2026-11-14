@@ -73,6 +73,7 @@ impl Sim {
             | Summary::Lock { .. }
             | Summary::Stat { .. }
             | Summary::Rename { .. }
+            | Summary::HardLink { .. }
             | Summary::Remove { .. }
             | Summary::MakeDirectory { .. }
             | Summary::List { .. } => None,

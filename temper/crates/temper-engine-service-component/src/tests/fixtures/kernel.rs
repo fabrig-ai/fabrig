@@ -155,7 +155,8 @@ impl Kernel {
                     }
                     Ok(Done::Nothing)
                 }
-                other @ (Op::Lock { .. }
+                other @ (Op::HardLink { .. }
+                | Op::Lock { .. }
                 | Op::Recv { .. }
                 | Op::Send { .. }
                 | Op::Shutdown { .. }

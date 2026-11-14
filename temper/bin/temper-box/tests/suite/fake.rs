@@ -1314,7 +1314,8 @@ fn git_run() {
                 | GitCommand::Push { remote: url, .. } => {
                     *url = remote.as_bytes().into();
                 }
-                GitCommand::SnapshotHead
+                GitCommand::Reds(_)
+                | GitCommand::SnapshotHead
                 | GitCommand::SnapshotMerge { .. }
                 | GitCommand::SnapshotReachable { .. }
                 | GitCommand::SnapshotReset { .. }

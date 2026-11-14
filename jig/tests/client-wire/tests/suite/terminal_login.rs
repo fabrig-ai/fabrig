@@ -1,5 +1,5 @@
 //! Lent-terminal forms keep their wire tags and optional fields (domain/terminal-login.md, 5).
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{Reader, Writer};
 fn goldens<T>(
     rows: &[&[u8]],

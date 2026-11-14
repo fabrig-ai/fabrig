@@ -1,7 +1,8 @@
 # Lint profiles
 
 How every package of skein, jig, temper and hearth gets its lints and its `clippy.toml`, and what
-holds them there. The rules themselves are `skein/docs/foundation/programming-model.md`, 10 and
+holds them there, and the count that holds what a lint can't: catching a panic. The rules
+themselves are `skein/docs/foundation/programming-model.md`, 10 and
 `skein/docs/foundation/testing-strategy.md`, 4; this says how they reach a crate.
 
 ## 1. In one page
@@ -16,6 +17,8 @@ holds them there. The rules themselves are `skein/docs/foundation/programming-mo
 - **A change of policy is one edit:** change the definition and run `lints.py --write` (section 5).
 - **A crate's real exception** is a scoped `#[expect(..., reason = "...")]` in its code, never a
   manifest of its own (section 6). No profile allows a `disallowed_*` lint.
+- **Catches only fall:** a count per file of `catch_unwind`, `resume_unwind` and `#[should_panic]`
+  in every Rust file git tracks, against a list that only falls, refuses any new one (section 7).
 
 ## 2. The profiles
 
@@ -127,7 +130,81 @@ or at the crate's root when the whole crate has one reason, as a step crate's
 does: step code takes no closures (`skein/docs/foundation/programming-model.md`, 10.3). Where a crate's
 only sites are in its test modules, the root says `#![cfg_attr(test, expect(...))]`.
 
-## 7. Later
+## 7. The count of catches
+
+Nothing catches a panic, tests included (`skein/docs/foundation/programming-model.md`, 10.4). Tests
+on main still do, and a count holds them where they stand until each is converted: it lets no new
+one in and lets none come back. It holds `#[should_panic]`, which no lint can ban, and its file
+holds `tools/`' fixtures, which clippy never compiles.
+
+```sh
+python3 -I -B tools/lints/panics.py           # the gate: 0 findings
+python3 -I -B tools/lints/panics.py --write   # lower the list to what the files hold
+python3 -I -B tools/lints/test_panics.py
+```
+
+From the repository root, on the working tree, with Python's standard library alone.
+
+### 7.1 What it counts
+
+Per file, in every file git tracks whose name ends `.rs`, whatever its tree or directory:
+
+| Pattern | What counts once |
+|---|---|
+| `catch_unwind` | a line naming `catch_unwind` as a whole word: a call, a `use` line, a comment |
+| `resume_unwind` | a line naming `resume_unwind` as a whole word, the same way |
+| `should_panic` | an attribute: each `#[should_panic`, bare or with its arguments, on a line that isn't a comment line |
+
+A comment line is one whose first text after blanks is `//`, so a doc comment that quotes
+`#[should_panic(...)]` doesn't count, and `clippy::should_panic_without_expect` in an `#[expect]`
+names no pattern. On main at
+`62b2474b27` the three come to 210 `catch_unwind` lines, 11 `resume_unwind` lines and 463
+`#[should_panic]` attributes, the figures of `temper/docs/design/draft/panics.md`, 2, tree by
+tree.
+
+### 7.2 The list
+
+`tools/lints/panics.txt`. A line starting `#` is a comment; every other line is
+
+```
+PATH PATTERN COUNT
+```
+
+a tracked path from the repository root, one of the three pattern names and a count of at least 1,
+separated by single spaces. Lines are sorted by path, then by pattern in the table's order, with
+at most one line for a path and a pattern. A path with no line for a pattern is listed at 0.
+
+### 7.3 Findings
+
+One line each, `PATH: what is wrong`, then their count and the rule they break
+(`skein/docs/foundation/programming-model.md`, 10.4). Exit 1 on any finding, 0 on none.
+
+- **A count above its line:** a file's count of a pattern above the list's, a new file's or a
+  pattern the file had none of among them, since those are listed at 0.
+- **A malformed list:** a line not of 7.2's form, out of order or repeated, or no list at all.
+
+A count below its line, or a line whose file is gone, is no finding: the check prints it with
+`--write` as the way to lower it, and exits 0 if nothing else is wrong. A change that lowers a count
+lowers its line in the same change; another branch that only removes catches never fails the count.
+
+### 7.4 Only falling
+
+- **`--write`** rewrites each line to the count now, drops each line that reaches 0, and keeps the
+  comment lines where they stand. It never raises a line and never adds one, but writes every
+  file's counts when there is no list. With a finding standing it writes nothing and exits 1.
+- **Once a pattern counts none,** it has no line left, and any count of it anywhere is above its
+  line: the check refuses any, and keeps refusing.
+- **A file that moves** takes its lines with it, in the same change: its old path's lines go and
+  its new path's come, at the same counts. That is the one line added by hand; any other raise
+  breaks the rule this count holds.
+- **The gate runs it** beside `lints.py` (`.config/gate/README.md`, 8), and `fabrig-boundary` runs
+  it and `test_panics.py` in its focused tests, so that both run on every change
+  (`.config/gate/always.txt`).
+- **What follows:** once `catch_unwind` and `resume_unwind` count none, `disallowed-methods` lists
+  them in every `clippy.toml` the gate's clippy reads (section 4), and the count keeps
+  `#[should_panic]` alone (`temper/docs/design/draft/panics.md`, 7).
+
+## 8. Later
 
 - smith's packages and the root's `tests/boundary` take a profile when this debt is taken up for
   them: they are outside the four trees, and no item of `smith/docs/development/debt/` holds it yet.

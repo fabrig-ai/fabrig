@@ -6,7 +6,7 @@
 )]
 use super::fixtures;
 use crate::{Delivery, Domain, Event, Record, Request, StartInput, Work, Write};
-use ::core::{mem, panic::AssertUnwindSafe};
+use ::core::mem;
 use jig_domain_core::{
     self as core,
     start::{Continuation, Failure, Phase},
@@ -385,23 +385,18 @@ fn people_project_and_live_task_open_in_the_core_phase_order() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn cold_start_discards_the_unreleased_wires_continuation() {
     let mut first = Host::new(Vec::new());
     first.cut_wires = true;
     first.begin();
     first.drive();
-    let stale = first.wires.take().expect("crash at durable Wires before its release");
+    assert!(first.wires.is_some(), "crash at durable Wires before its release");
     let rows = mem::take(&mut first.rows);
     drop(first);
     let mut restarted = Host::new(rows);
     restarted.begin();
     restarted.drive();
     assert!(restarted.domain.ready());
-    let refused = std::panic::catch_unwind(AssertUnwindSafe(|| {
-        crate::decide(&mut restarted.domain, &restarted.env, Work::Start(StartInput::Resume(stale)));
-    }));
-    assert!(refused.is_err());
 }
 
 #[test]

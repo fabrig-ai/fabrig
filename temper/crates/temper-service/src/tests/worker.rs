@@ -11,7 +11,7 @@ fn the_workers_credential_uses_the_engines_table_entry() {
     let engine = temper_engine_service::workers::application(&payload).unwrap();
     assert_eq!(credential.application.spoken, engine.spoken);
     assert_eq!(credential.application.roots.len(), engine.roots.len());
-    assert_eq!(engine.roots.len(), 6);
+    assert_eq!(engine.roots.len(), 8);
     for (worker, engine) in credential.application.roots.iter().zip(&engine.roots) {
         assert_eq!(worker.carried, engine.carried);
         assert_eq!(worker.wire, engine.wire);

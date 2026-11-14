@@ -321,3 +321,18 @@ fn application_parts_and_grant_renewals_cross_components_and_unheld_jobs_send_no
     assert!(world.worker_root.iter().any(|r| matches!(r, Request::Untranslated { kind: 0x010c, .. })));
     world.finish();
 }
+
+#[test]
+fn a_worker_with_ask_closes_at_an_engines_previous_version_statement() {
+    let previous = wire::VERSION.checked_sub(1).expect("previous version");
+    let mut world = Joined::with_wires(&limits(), 3, capped(previous, 5), wire::spoken());
+    world.run();
+    assert!(world.worker_root.iter().any(
+        |event| matches!(event, Request::CannotSendWhole { wire: "jig-worker-wire", version } if *version == previous)
+    ));
+    assert!(!world.worker_root.iter().any(|event| matches!(event, Request::Ready)));
+    assert!(world.engine_root.is_empty());
+    world.advance(skein_lib::Duration::from_millis(1600));
+    assert!(world.dials.len() >= 2);
+    world.finish();
+}

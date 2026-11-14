@@ -571,8 +571,9 @@ tokenizer::feed_bound(limits: &tokenizer::Limits) -> Option<u64>
   escape and bad escape, UTF-8 against the standard library's check over
   every two-byte sequence and the edges of longer ones, a number's
   grammar against a plain reading of it over every short text of its
-  bytes, the writer's escapes, refusals and assertions, and its output
-  read back. The tokenizer's `Skip` over every kind of value at every
+  bytes, the writer's escapes and refusals, and its output read back;
+  the writer's assertions are untested
+  (`skein/docs/foundation/programming-model.md`, 10.4). The tokenizer's `Skip` over every kind of value at every
   place one may come, its count, and where it may not be asked; `Text`
   at, below and one past its cap, and the `Long` it answers. Positions
   (3.6), each written out by hand: a token at the start, after spaces,

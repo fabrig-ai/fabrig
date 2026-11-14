@@ -5,15 +5,14 @@
 //!
 //! What the test binaries share: [`Simulated`], the simulator as the suite's
 //! backend, with the minimal fake machine behind its seam for files; the
-//! worlds the suite runs it in; and [`each_seed`], which names a failing seed
-//! with the end of its trace. The focused tests
+//! worlds the suite runs it in; and [`each_seed`], which names each seed and
+//! configuration before running it. The focused tests
 //! (`tests/conformance.rs`) run each scenario over the calm seeds and a few
 //! of chaos; the fuzzy ones (`tests/fuzzy_conformance.rs`) over many seeds of
 //! chaos, and count the outcomes each race shows over them
 //! (testing-strategy.md, 8).
 
 use std::collections::BTreeMap;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use skein_conformance::{
     Backend, Cancelling, Check, Item, Made, Race, cancel_accept_racing_a_connect, cancel_recv_racing_bytes,
@@ -29,9 +28,6 @@ use skein_sim::{Config, Faults, Handle, Pid, Sim};
 pub const CALM: u64 = 4;
 pub const SMOKE: u64 = 4;
 pub const CHAOS: u64 = 200;
-
-/// How many trace entries a failure prints.
-const TAIL: usize = 60;
 
 /// The simulator as the suite's backend: a world, the minimal fake machine
 /// it passes files to, and the processes the suite opened in it.
@@ -210,13 +206,9 @@ pub fn cancel_chaos() -> Config {
 /// Runs `scenario` and checks what it saw, for each seed below `seeds`.
 pub fn each_seed<S: Check>(config: Config, seeds: u64, scenario: fn(&mut Simulated) -> S) {
     for seed in 0..seeds {
+        eprintln!("running conformance scenario at seed {seed} of {config:?}");
         let mut world = Simulated::new(seed, config);
-        let outcome = catch_unwind(AssertUnwindSafe(|| scenario(&mut world).check()));
-        if outcome.is_err() {
-            let trace = world.sim().trace();
-            let tail = skein_sim::render(seed, &trace[trace.len().saturating_sub(TAIL)..]);
-            panic!("the scenario failed at seed {seed} of {config:?}\n{tail}");
-        }
+        scenario(&mut world).check();
     }
 }
 

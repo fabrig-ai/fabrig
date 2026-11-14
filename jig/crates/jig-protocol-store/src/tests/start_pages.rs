@@ -15,7 +15,7 @@ fn open() -> Store {
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
     );
-    let [Event::Opened { .. }] = events.as_ref() else { panic!("store opens") };
+    let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else { panic!("store opens") };
     store
 }
 
@@ -147,7 +147,9 @@ fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
     );
-    let [Event::Opened { .. }] = events.as_ref() else { panic!("store opens before reading people") };
+    let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
+        panic!("store opens before reading people")
+    };
     let Event::PageRefused { owner, failure } = request(&mut store, live(), None, ROWS) else {
         panic!("typed refusal")
     };
@@ -298,7 +300,7 @@ fn the_sweep_waits_for_the_wires_commits_disk_terminal() {
     disk.crash(2);
     let mut store = disk.store_with_chunk(4096);
     let events = disk.open(&mut store);
-    let [Event::Opened { .. }] = events.as_ref() else { panic!("selected reopen") };
+    let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else { panic!("selected reopen") };
     let (_, next) = page(request(&mut store, live(), None, ROWS));
     assert_eq!(next, None);
     let before = raw_secret(&mut store, SecretOwner::SignIn, 4).expect("orphan survives open and load");

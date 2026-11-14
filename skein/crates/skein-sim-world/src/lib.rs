@@ -37,6 +37,12 @@ pub trait Turns<P> {
     }
     /// After each process's turn, and after a killed child is dropped.
     fn turned(&mut self, _now: skein_lib::Time, _processes: &[P]) {}
+
+    /// Returning form of `turned`: an `Err` stops the step before another turn.
+    fn try_turned(&mut self, now: skein_lib::Time, processes: &[P]) -> Result<(), String> {
+        self.turned(now, processes);
+        Ok(())
+    }
 }
 
 impl<P> Turns<P> for () {}

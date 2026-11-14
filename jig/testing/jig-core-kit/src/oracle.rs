@@ -80,8 +80,14 @@ impl World {
     /// answered and the store's retained rows, restart cold, read back, and compare
     /// through `durable`. Panics naming the first difference (document, field, key).
     pub fn close(&mut self) {
+        if let Err(message) = self.close_oracle() {
+            panic!("{message}");
+        }
+    }
+
+    fn close_oracle(&mut self) -> Result<(), String> {
         if self.broken || self.oracle_closed {
-            return;
+            return Ok(());
         }
         self.oracle_closed = true;
         self.manual = false;
@@ -89,7 +95,7 @@ impl World {
         // Oracle transport does not advance the scenario's clocks or age its deadlines.
         let (now, wall) = self.clocks();
         self.set_clock(now, wall);
-        self.settle_oracle();
+        self.settle_oracle()?;
         let inventory = self.store.retained();
         let records = self.store.readback_of(&inventory);
         let mut parties: BTreeSet<_> = records
@@ -137,7 +143,7 @@ impl World {
         }
         let before = self.oracle_documents(&parties, &tasks);
         self.restart_configured(configuration(&self.restart_config.0));
-        self.settle_oracle();
+        self.settle_oracle()?;
         assert!(self.domain.ready(), "restart oracle: decisions did not open");
         let after = self.oracle_documents(&parties, &tasks);
         for (key, expected) in &before {
@@ -177,6 +183,7 @@ impl World {
                 assert_eq!(Some(row), recovered.get(key), "restart oracle transcript key {key:?}");
             }
         }
+        Ok(())
     }
 
     fn expired(&self, records: &BTreeMap<root::Key, root::Record>, key: &core::Key) -> bool {
@@ -195,18 +202,23 @@ impl World {
         expires <= self.clocks().1
     }
 
-    fn settle_oracle(&mut self) {
+    fn settle_oracle(&mut self) -> Result<(), String> {
         for _ in 0..300 {
             self.drain();
             self.release_commits();
-            assert!(!self.stopped, "restart oracle: stopped fixture must declare broken()");
+            if self.stopped {
+                return Err(match self.domain.start_failure() {
+                    Some((phase, failure)) => format!("restart oracle: start refused at {phase:?}: {failure:?}"),
+                    None => "restart oracle: stopped fixture must declare broken()".into(),
+                });
+            }
             if self.domain.quiescent()
                 && self.store.pending.is_empty()
                 && self.store.held.is_empty()
                 && !self.store.loading()
             {
                 // retained() also checks the component's private in-flight and reply queues.
-                return;
+                return Ok(());
             }
         }
         panic!("restart oracle: held delivery at store readback boundary");
@@ -425,7 +437,36 @@ fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, foun
 
 #[cfg(test)]
 mod tests {
-    use super::{accounts, core, refreshed_move, root};
+    use super::{World, accounts, core, refreshed_move, root};
+    use crate::world::Setup;
+
+    #[test]
+    fn closing_restart_names_the_refused_phase_record_and_link() {
+        let mut world = World::new(Setup { seed: 2901, ..Setup::default() });
+        let mut row = world
+            .store
+            .rows
+            .values()
+            .find_map(|record| {
+                if let root::Record::Core(core::Record::Tasks(super::tasks::Stored::Live(row))) = record {
+                    Some(row.clone())
+                } else {
+                    None
+                }
+            })
+            .expect("caller's live task");
+        row.project = 99;
+        // The oracle, not the transaction observer, diagnoses this broken writer link.
+        world.observer.record();
+        world.seed(Box::new([root::Record::Core(core::Record::Tasks(super::tasks::Stored::Live(row)))]));
+        assert!(world.domain.ready());
+        let message = world.close_oracle().expect_err("the closing restart refuses the missing project");
+        assert_eq!(
+            message,
+            "restart oracle: start refused at Some(Link): Link { record: Tasks(Live(1)), linked: Project(99) }"
+        );
+        assert!(!world.domain.ready());
+    }
 
     fn source(kind: accounts::Kind, held: Option<accounts::Held>, place: u32) -> root::Record {
         root::Record::Core(core::Record::Accounts(accounts::Stored::Source {

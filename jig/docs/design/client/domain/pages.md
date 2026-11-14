@@ -459,6 +459,12 @@ For a party with a role on the deployment:
 - **Capacity:** live tasks against their limits, for the deployment and
   each project; pending proposals; what was refused for want of room,
   recently.
+- **The store:** its fill against its mark; its census, once the store
+  has reported one (contract/documents.md, 1): the commit it counts to
+  and the one its writes count from, then a row per keyspace, by its name
+  or, with none, its prefix's bytes in hex: its rows, its keys' and
+  values' bytes, its heads with their rows, and its puts, erases and
+  bytes written.
 
 The LLM accounts section also renders the public offers and the viewer's
 provider/payer readiness through reusable fragments. These fragments may be

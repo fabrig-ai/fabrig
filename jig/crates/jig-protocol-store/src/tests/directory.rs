@@ -65,6 +65,7 @@ fn scripted(store: &mut Store, below: &mut Below) -> Box<[Event]> {
         | file::Request::ReadAt { .. }
         | file::Request::Cut { .. }
         | file::Request::Sync { .. }
+        | file::Request::HardLink { .. }
         | file::Request::Rename { .. }
         | file::Request::Remove { .. } => panic!("unexpected startup request for {owner:?}"),
     };
@@ -101,7 +102,9 @@ fn disk() -> Store {
     for _ in 0_u32..100 {
         let events = scripted(&mut store, &mut below);
         if !events.is_empty() {
-            let [Event::Opened { last: 0, .. }] = &*events else { panic!("empty store opened: {events:?}") };
+            let [Event::Opened { last: 0, .. }, Event::Census { .. }] = &*events else {
+                panic!("empty store opened: {events:?}")
+            };
             return store;
         }
     }
@@ -239,7 +242,7 @@ fn a_disk_secret_waits_for_its_own_sync() {
 }
 
 fn assert_opened(events: &[Event]) {
-    let [Event::Opened { .. }] = events else { panic!("opened: {events:?}") };
+    let [Event::Opened { .. }, Event::Census { .. }] = events else { panic!("opened: {events:?}") };
 }
 fn assert_refused(events: &[Event], expected: OpenRefusal) {
     let [Event::OpenRefused { why, .. }] = events else { panic!("refused: {events:?}") };

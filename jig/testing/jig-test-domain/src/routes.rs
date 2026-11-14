@@ -415,6 +415,15 @@ fn route_now(
     work: &mut Queue<Work>,
 ) {
     match now {
+        core::Now::Ask { channel, run, attempt, number, bytes } => {
+            work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::Asked {
+                channel,
+                run,
+                attempt,
+                number,
+                answer: jig_domain_link::AskAnswer::Bytes(bytes),
+            })));
+        }
         core::Now::Link(core::LinkNow::AnswerPayload { run, attempt, payload }) => {
             crate::link::answer(domain, run, attempt, payload, work);
         }

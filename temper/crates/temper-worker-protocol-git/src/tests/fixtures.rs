@@ -19,6 +19,8 @@ pub fn checkout() -> checkout::Limits {
         conflicts: 4,
         path_bytes: 64,
         remote_timeout: Duration::from_secs(30),
+        reds_read_ms: 5_000,
+        rerun_processes: 4,
         local_timeout: Duration::from_secs(5),
         facts: 8,
     }
@@ -266,7 +268,8 @@ impl Started {
             | skein_io::kernel::Op::MakeDirectory { .. }
             | skein_io::kernel::Op::Remove { .. }
             | skein_io::kernel::Op::Close { .. } => skein_io::kernel::Done::Nothing,
-            skein_io::kernel::Op::Lock { .. }
+            skein_io::kernel::Op::HardLink { .. }
+            | skein_io::kernel::Op::Lock { .. }
             | skein_io::kernel::Op::Socket { .. }
             | skein_io::kernel::Op::Bind { .. }
             | skein_io::kernel::Op::Listen { .. }
@@ -318,6 +321,7 @@ impl Started {
             | Op::Truncate { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
+            | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
@@ -368,6 +372,7 @@ impl Started {
             | Op::Truncate { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
+            | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
@@ -480,7 +485,8 @@ fn clone_file_kind(kind: &skein_io::kernel::Op) -> skein_io::kernel::Op {
         Op::MakeDirectory { dir, name, mode } => Op::MakeDirectory { dir: *dir, name: name.clone(), mode: *mode },
         Op::List { fd, entries, names } => Op::List { fd: *fd, entries: entries.clone(), names: names.clone() },
         Op::Close { fd } => Op::Close { fd: *fd },
-        Op::Lock { .. }
+        Op::HardLink { .. }
+        | Op::Lock { .. }
         | Op::Socket { .. }
         | Op::Bind { .. }
         | Op::Listen { .. }

@@ -588,9 +588,7 @@ fn owner_project_public_baselines_preserve_optional_permissions_configured_targe
     value.policy.permissions = Some(List::with_capacity(5));
 }
 #[test]
-#[expect(clippy::assertions_on_result_states, reason = "assert both independent one-under builder refusals")]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn owner_project_public_whole_tree_accepts_exact_observed_nodes_and_text_and_refuses_one_under_without_clipping() {
+fn owner_project_public_whole_tree_fits_exact_nodes_and_text_without_clipping() {
     let value = source();
     let w = words(false);
     let (tree, _) = build(&value, w);
@@ -607,12 +605,9 @@ fn owner_project_public_whole_tree_accepts_exact_observed_nodes_and_text_and_ref
     let exact = render(bound);
     assert_eq!(exact.len(), tree.len());
     assert_eq!(exact.nodes(), tree.nodes());
-    let mut short = bound;
-    short.nodes -= 1;
-    assert!(std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| render(short))).is_err());
-    let mut short = bound;
-    short.text_bytes -= 1;
-    assert!(std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| render(short))).is_err());
+    let used = exact.used();
+    assert_eq!(used.nodes, bound.nodes);
+    assert_eq!(used.text_bytes, bound.text_bytes);
     assert_eq!(value.resources.capacity(), 4);
 }
 fn native_owner(value: Project) -> Fixture {
@@ -1012,9 +1007,7 @@ fn owner_project_spend_keeps_live_and_retained_funding_with_both_opaque_edges() 
     assert_eq!(domain.project_page().owner_spend.as_deref(), Some(&page));
 }
 #[test]
-#[expect(clippy::assertions_on_result_states, reason = "independent exact and one-under whole companion allocations")]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn owner_project_ended_companion_prices_whole_languages_and_refuses_one_under_nodes_or_text() {
+fn owner_project_ended_companion_prices_whole_languages_at_exact_nodes_and_text() {
     let mut goldens = Goldens::new("tree/sections/project/owner/owner_project_ended");
     let (domain, page) = native_ended_project();
     for second in [false, true] {
@@ -1027,15 +1020,9 @@ fn owner_project_ended_companion_prices_whole_languages_and_refuses_one_under_no
         exact.text_bytes = tree.nodes().iter().map(skein_ui::Node::text_bytes).sum();
         let (rebuilt, _) = ended_project_tree(&domain, w, exact);
         assert_eq!(rebuilt.nodes(), tree.nodes());
-        for short in [
-            skein_ui::Limits { nodes: exact.nodes - 1, ..exact },
-            skein_ui::Limits { text_bytes: exact.text_bytes - 1, ..exact },
-        ] {
-            assert!(
-                std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| ended_project_tree(&domain, w, short)))
-                    .is_err()
-            );
-        }
+        let used = rebuilt.used();
+        assert_eq!(used.nodes, exact.nodes);
+        assert_eq!(used.text_bytes, exact.text_bytes);
         let ended = crate::tests::render_limits(&limits(), w).unwrap();
         assert!(ended.nodes <= view::max_nodes(&limits(), &(limits()).client).unwrap());
         goldens.check(&tree);

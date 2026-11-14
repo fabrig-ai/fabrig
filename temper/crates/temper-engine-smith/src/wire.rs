@@ -10,7 +10,7 @@ use crate::calls::{SPECS, Spec};
 /// The engine's host-tool family.
 pub const FAMILY: &str = "temper-host-tools";
 /// The current host-tool contract's version.
-pub const VERSION: u16 = 1;
+pub const VERSION: u16 = 2;
 /// The oldest host-tool contract this engine answers.
 pub const FLOOR: u16 = 1;
 /// Kept contracts in version order, starting at version 1.

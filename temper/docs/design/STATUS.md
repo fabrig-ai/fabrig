@@ -107,6 +107,22 @@ repaired, the green prefix landed and the units above it carried to the
 next round (`domain/landing-search.md`). Its process stories and
 staging walks follow landing (`draft/merge-queue.status.md`).
 
+The landing history's milestone H1, goal 2474, keeps each change's and
+each landing's steps as events after their rows go
+(`domain/landing-history.md`): each written by the step that decides or
+observes it, under `queue` and `turn`, one change per event; kept in
+demand-loaded families the restart leaves out and the forge loads
+through the root; swept by change past `forge.history_days` or
+`forge.history_events`, idle projects and deleted ones included; and
+read by `temper ctl landing history`, and by `change show` of a change
+whose row went. Its milestone H2, goal 2649, reads them alone for where
+the time went (`domain/landing-times.md`): each change's span from ready
+to landed or ended split by a fold into states that don't overlap, held
+first and waiting last, partial where its history began after it was
+ready; each landing's rounds, probes and proof time; paged by change
+with the running totals in the cursor, and read by `temper ctl landing
+times` (`draft/landing-history.status.md`).
+
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
 repository its project adopts as context, each project's context
@@ -131,7 +147,22 @@ and printed by `temper ctl follow list`, "dependency 1: fabrig depends
 on vsr-rs"; nothing acts on it, and Home on All projects' What follows
 what draws it beside the follows, from the first four projects'
 `follows` documents (`client/pages/home.md`, 1), within a shipped
-client's 26 watches (`protocol/configuration/limits.md`).
+client's 26 watches (`protocol/configuration/limits.md`). A goal's reds
+are temper's records, milestones B1 and B2 of `draft/branch-reds.md`
+(`domain/forge/reds.md`). A goal's coordinator records and ends them with
+the `red` tool, at most `forge.branch_reds` a goal. At each check's start
+the worker asks the engine for them through an application's ask on
+jig's channel (jig's `domain/hosts/hub.md`, 10), and writes those whose
+commit the check's base contains to `temper/reds`, which fabrig's
+delivery check reads beside `.temper/known-reds.md`, its cache keyed on
+the file. The check runs a failing test's process again, through
+one-process's `--again`, and a test that passes then is a flake, refusing
+nothing; at its end it writes `temper/check-results`, which the worker
+reports to the engine, passed or refused. A change keeps the reds its
+passed checks passed, and they end when it lands into the goal's branch;
+each flake is filed or counted as a `flake` finding (`domain/findings.md`,
+4). Reds end too by the tool and with their goal; the list's removal is
+B3 (`draft/branch-reds.status.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need
@@ -316,8 +347,11 @@ Design documents:
 - [`domain/forge/issues.md`](domain/forge/issues.status.md)
 - [`domain/forge/keeping-up.md`](domain/forge/keeping-up.status.md)
 - [`domain/forge/queues.md`](domain/forge/queues.status.md)
+- [`domain/forge/reds.md`](domain/forge/reds.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
+- [`domain/landing-history.md`](domain/landing-history.status.md)
+- [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
@@ -383,6 +417,7 @@ Drafts:
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
+- [`draft/branch-reds.md`](draft/branch-reds.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
@@ -397,6 +432,7 @@ Drafts:
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
+- [`draft/design-economy.md`](draft/design-economy.status.md)
 - [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
@@ -411,6 +447,7 @@ Drafts:
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
+- [`draft/landing-history.md`](draft/landing-history.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
@@ -418,6 +455,7 @@ Drafts:
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
@@ -429,9 +467,11 @@ Drafts:
 - [`draft/run-provider-outage.md`](draft/run-provider-outage.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
+- [`draft/small-fixes-1113.md`](draft/small-fixes-1113.status.md)
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
+- [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: identity walks rewrite a record's head alone where its patch leaves its bytes valid; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)

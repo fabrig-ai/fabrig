@@ -1,6 +1,7 @@
 use super::{commit_text, landing_words, news_words};
 use alloc::boxed::Box;
 
+mod reds;
 mod room;
 
 const SHA1: [u8; 32] = [
@@ -1083,12 +1084,19 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
             &mut out,
         );
     }
-    for number in [1, 3] {
-        super::left(&mut domain, &env, 8, 1, Box::new([forge::Pushed { tag: forge::tag(number, 1), commit: [2; 32] }]));
+    for (number, expected_checked) in [(1, false), (3, true)] {
+        super::left(
+            &mut domain,
+            &env,
+            8,
+            1,
+            Box::new([forge::Pushed { tag: forge::tag(number, 1), commit: [2; 32], checked: expected_checked }]),
+        );
         let Some(Work::Forge(forge::Event::Answered { pushed, .. })) = domain.work.pop() else {
             panic!("reported heads")
         };
-        let [(name, commit)] = pushed.as_ref() else { panic!("one matching hold") };
+        let [(name, commit, checked)] = pushed.as_ref() else { panic!("one matching hold") };
+        assert_eq!(*checked, expected_checked);
         assert_eq!((name.forge, name.repository, *commit), (number, 1, [2; 32]));
         let Some(Work::Forge(forge::Event::Lost { task: 8, attempt: 1 })) = domain.work.pop() else {
             panic!("writer release follows reported heads")
@@ -1208,6 +1216,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
         task_release: None,
+        job: None,
         signed: Box::new([]),
         task: 7,
         repository: skein_forge::api::Repository { forge: 3, repository: 1 },
@@ -1266,6 +1275,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }

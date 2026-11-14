@@ -202,6 +202,7 @@ fn owner_of(request: &Request) -> Token {
         | Request::Sync { owner, .. }
         | Request::Close { owner, .. }
         | Request::SyncDirectory { owner, .. }
+        | Request::HardLink { owner, .. }
         | Request::Rename { owner, .. }
         | Request::Remove { owner, .. }
         | Request::ListPage { owner, .. }

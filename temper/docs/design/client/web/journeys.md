@@ -694,7 +694,12 @@ reprint carries, since its acts are events, not controls.
 `temper-client` for TUI, and `bundle/index.html` in DIR. It builds nothing
 and creates its fresh private scratch directory beneath DIR. An optional
 `cache` subdirectory supplies pinned downloads. Without this
-option, the recorder builds its inputs in a system scratch directory.
+option, the recorder builds its inputs in a fresh private scratch
+directory of its own, `temper-journey-PID-N`, under the platform's
+temporary directory: Rust's `std::env::temp_dir()`, which is `TMPDIR`
+where that is set. Nothing in the recorder names `/tmp`, so a host
+whose `/tmp` is held in memory points `TMPDIR` elsewhere; its tests
+take the same temporary directory, each under a directory of its own.
 
 `cargo run -p temper-client-journeys -- again NAME`, in
 `crates/temper-client-journeys-tool`. Its walk's logic is the journey module's,
@@ -718,7 +723,7 @@ over skein's harness.
 - **A fresh fake box** (3.5): `temper box --fake-backends`, built from
   the checkout with the bundle (`scripts/bundle.sh`), its printed link
   opened with the page's recording settings (3.1), running a copy of the built binary and its fake-claude,
-  every directory fresh in a scratch directory under `/tmp`;
+  every directory fresh in that scratch directory;
   its printed sign-in link opened.
 - **Headless Chromium, as the browser tier drives it** (`testing.md`
   ): skein's browser kit through the fake person's browser face and

@@ -123,23 +123,42 @@ impl Process {
         }
     }
 
-    pub fn check(&self, simulated: bool) {
-        assert_eq!(self.reads.len(), 2);
-        let before = self.reads[0];
-        let after = self.reads[1];
+    pub fn check(&self, simulated: bool) -> Result<(), String> {
+        let [before, after] = self.reads.as_slice() else {
+            return Err(format!("two usage reads: {} reads", self.reads.len()));
+        };
         if simulated {
-            assert_eq!(before, Usage { own: OWN, children: Resources::ZERO });
-            assert_eq!(after, Usage { own: OWN, children: CHILD });
+            let expected_before = Usage { own: OWN, children: Resources::ZERO };
+            if *before != expected_before {
+                return Err(format!("usage before child close: {before:?}, expected {expected_before:?}"));
+            }
+            let expected_after = Usage { own: OWN, children: CHILD };
+            if *after != expected_after {
+                return Err(format!("usage after child close: {after:?}, expected {expected_after:?}"));
+            }
         } else {
-            assert!(
-                after.children.user.as_nanos() + after.children.system.as_nanos()
-                    > before.children.user.as_nanos() + before.children.system.as_nanos()
-            );
-            assert!(after.children.peak_rss_bytes > 0);
-            assert!(after.children.peak_rss_bytes >= before.children.peak_rss_bytes);
-            assert!(after.own.peak_rss_bytes > 0);
+            let before_cpu = before.children.user.as_nanos() + before.children.system.as_nanos();
+            let after_cpu = after.children.user.as_nanos() + after.children.system.as_nanos();
+            if after_cpu <= before_cpu {
+                return Err(format!("child CPU grows at close: before {before_cpu} ns, after {after_cpu} ns"));
+            }
+            if after.children.peak_rss_bytes == 0 {
+                return Err("child peak RSS after close is positive: 0 bytes".into());
+            }
+            if after.children.peak_rss_bytes < before.children.peak_rss_bytes {
+                return Err(format!(
+                    "child peak RSS never falls: before {} bytes, after {} bytes",
+                    before.children.peak_rss_bytes, after.children.peak_rss_bytes
+                ));
+            }
+            if after.own.peak_rss_bytes == 0 {
+                return Err("own peak RSS is positive: 0 bytes".into());
+            }
         }
-        assert!(self.is_empty());
+        if !self.is_empty() {
+            return Err("the usage owner and io hold nothing".into());
+        }
+        Ok(())
     }
 }
 
@@ -217,10 +236,11 @@ pub struct Judge {
     pub simulated: bool,
 }
 impl Referee<Process> for Judge {
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
         if procs[0].is_empty() {
-            procs[0].check(self.simulated);
+            procs[0].check(self.simulated)?;
         }
+        Ok(())
     }
     fn passed(&self) -> bool {
         true

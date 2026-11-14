@@ -431,3 +431,36 @@ fn a_failed_merge_jobs_retry_keeps_the_changes_workspace() {
     landed(&mut world, task, merged);
     world.close();
 }
+
+#[test]
+fn merge_job_history_pairs_the_claim_with_its_read_back_head() {
+    use forge_top::history as h;
+    let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    let job = next_job(&mut world, task, true);
+    let merged = push_merge(&mut world, task, head, base);
+    finish_job(&mut world, &job, RESULT);
+    landed(&mut world, task, merged);
+    let events: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::HistoryEvent(event)
+                    if event.change == task && matches!(event.what, h::What::Job { .. } | h::What::JobEnded { .. }) =>
+                {
+                    Some(event)
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .collect();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].what, h::What::Job { job: h::Job::Merge, task: job.run.raw() });
+    assert_eq!((events[0].head, events[0].base), (Some(translate::commit(head)), Some(translate::commit(base))));
+    assert_eq!(events[1].what, h::What::JobEnded { job: h::Job::Merge, outcome: h::JobOutcome::Done });
+    assert_eq!(events[1].head, Some(translate::commit(merged)));
+    assert_eq!((events[1].operation, events[1].attempt), (job.run.raw(), u32::try_from(job.attempt.raw()).unwrap()));
+    world.close();
+}

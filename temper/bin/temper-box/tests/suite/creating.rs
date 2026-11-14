@@ -67,7 +67,7 @@ fn offered(frame: &Frame) -> &[u32] {
 }
 
 fn browser_frame(frame: &Frame, models: &[jig_protocol_engine_clients::Model]) -> jig_client::contract::Me {
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     let wire =
         jig_protocol_engine_clients::translate::owner::frame(frame, models, &w::CEILINGS).expect("stock wire offer");
     let mut writer = Writer::new(usize::try_from(wire.measure()).expect("me bytes"));

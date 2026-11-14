@@ -118,6 +118,7 @@ impl<'b, B: Backend> Run<'b, B> {
             | Op::Sync { .. }
             | Op::Lock { .. }
             | Op::Stat { .. }
+            | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
@@ -777,6 +778,7 @@ enum Summary {
     Sync { fd: Fd },
     Stat { fd: Fd },
     Lock { fd: Fd },
+    HardLink { from_dir: Fd, from: usize, to_dir: Fd, to: usize },
     Rename { from_dir: Fd, from: usize, to_dir: Fd, to: usize, no_replace: bool },
     Remove { dir: Fd, name: usize, directory: bool },
     MakeDirectory { dir: Fd, name: usize },
@@ -819,6 +821,9 @@ impl Summary {
                 to: to.len(),
                 no_replace: *no_replace,
             },
+            Op::HardLink { from_dir, from, to_dir, to } => {
+                Summary::HardLink { from_dir: *from_dir, from: from.len(), to_dir: *to_dir, to: to.len() }
+            }
             Op::Remove { dir, name, directory } => {
                 Summary::Remove { dir: *dir, name: name.len(), directory: *directory }
             }
@@ -869,7 +874,7 @@ fn boxes_of(op: &Op) -> Vec<&[u8]> {
             boxes
         }
         Op::Open { path, .. } => vec![path],
-        Op::Rename { from, to, .. } => vec![from, to],
+        Op::Rename { from, to, .. } | Op::HardLink { from, to, .. } => vec![from, to],
         Op::Remove { name, .. } | Op::MakeDirectory { name, .. } => vec![name],
         Op::List { names, .. } => vec![names],
         Op::Socket { .. }
@@ -913,6 +918,7 @@ fn entries_of(op: &Op) -> Option<&[Entry]> {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }

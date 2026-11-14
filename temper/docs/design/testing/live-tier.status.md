@@ -1,6 +1,6 @@
 # live-tier: status
 
-2026-11-12. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
+2026-11-14. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
 
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
@@ -31,15 +31,12 @@
   `--model claude-haiku-5-5 --effort low` or live landing. That evidence
   remains after-landing work (11): the plan compiles the live story
   without running it, and no worker holds its login.
-  the whole document: the held record's guard is shown on the fake issuer and on stubs
-  alone (`bin/temper-box/tests/process.rs`,
-  `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,
-  and `bin/temper-box/tests/suite/startup.rs`). Its return with no box up
-  holds through red-26's repair (660556eab1,
-  `a_failed_terminal_return_allows_recovery_without_reopening_import`),
-  and that red closed recovered. Nothing offline runs its lines in
-  `bin/temper-box/tests/live.rs`, and whether a live store's box, with its
-  owned Forgejo, answers the guard within its 240 s is unknown.
+  the whole document: the held record's return is shown on stubs alone
+  (the launcher's tests in `bin/temper-box/tests/suite/forge_land.rs`),
+  and its return on a box of its own on the real binary in the process
+  tier alone (`bin/temper-box/tests/process.rs`). Nothing has run the
+  launcher's return on a live store, and whether a live store's box,
+  with its owned Forgejo, answers it within its 240 s is unknown.
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
 - **Departs:**  the extra template-work golden row remains `checks.status.md`, 5.1.
   the whole document: `scripts/proof-live.sh`'s `TEMPER_TEST_LIVE_STORE` and
@@ -70,16 +67,19 @@
   `configure_engine` clears none, and `github_land.rs`'s, a separate
   function, removes the charters, templates, policies and rules for
   stock policy 1. No reason is recorded.
-  the whole document: the held record's guard takes the goal of the live-login-guard
-  draft of 11-04, every exit path exports the record, and departs from
-  its mechanism, by the designer's decision: it stands before the import,
-  where the draft has it right after, because the import is inside the
-  first sitting's referee and one whose reply was lost still owes the
-  record; it starts a box of its own where none is up, where the draft
-  has its `Drop` run with the box still up, because a panic through a
-  sitting kills the box; and a `stat` of the record's path disarms it,
-  where the draft has an explicit export, because a record back at its
-  path owes nothing whichever return brought it.
+  the whole document: the held record's return takes the goal of the
+  live-login-guard draft of 11-04, every exit path exports the record,
+  and departs from its mechanism, by the designers' decisions: its hook
+  stands before the import, where the draft has it right after, because
+  the import is inside the first sitting's referee and one whose reply
+  was lost still owes the record; the launcher returns it once the test
+  process has ended, starting a box of its own where none is up, where
+  the draft has a guard's `Drop` run with the box still up, because
+  nothing catches a panic (`../draft/panics.md`, 5) and a panic through
+  a sitting can end its box; and a `stat` of the record's path settles
+  it, where the draft has an explicit export, because a record back at
+  its path owes nothing whichever return brought it.
+
 
 - **Not yet:** the whole document: the managed sitting's driver lags its test.
   `scripts/proof-live-github-managed.py`'s `configure` still renders

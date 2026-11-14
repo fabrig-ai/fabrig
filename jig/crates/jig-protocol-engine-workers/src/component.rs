@@ -39,7 +39,7 @@ pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v13::Limits,
+    pub(crate) codec: wire::v14::Limits,
     pub(crate) connections: Map<Token, Connection>,
     schema: skein_channel::Schema,
     next_channel: u64,
@@ -178,6 +178,7 @@ impl Component {
                     | jig_domain_host::LinkDown::Check { .. }
                     | jig_domain_host::LinkDown::SignOut { .. }
                     | jig_domain_host::LinkDown::Message { .. }
+                    | jig_domain_host::LinkDown::Asked { .. }
                     | jig_domain_host::LinkDown::Relayed { .. }
                     | jig_domain_host::LinkDown::TurnKept { .. }
                     | jig_domain_host::LinkDown::Acknowledge { .. }
@@ -304,7 +305,8 @@ impl Component {
                 };
                 (crate::translate::Down::Assign(record), past)
             }
-            crate::translate::Down::ReadList(_)
+            crate::translate::Down::Asked(_)
+            | crate::translate::Down::ReadList(_)
             | crate::translate::Down::Sources(_)
             | crate::translate::Down::Check(_)
             | crate::translate::Down::SignOut(_)
@@ -496,7 +498,7 @@ impl Component {
                             .expect("agreed wire fits credential limits");
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v13::Agreed::new(&self.codec, wire::v13::AgreedParts { wires })
+                        let record = wire::v14::Agreed::new(&self.codec, wire::v14::AgreedParts { wires })
                             .expect("agreed wires fit credential limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
                         record.encode(&mut body).expect("measured statement");

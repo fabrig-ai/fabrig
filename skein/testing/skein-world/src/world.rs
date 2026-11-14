@@ -117,7 +117,17 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
         appends: Vec<StartupAppend>,
         make: fn(&Inherited) -> P,
     ) -> usize {
-        self.inner.spawn_restartable_startup(roots, appends, make)
+        self.try_spawn_restartable_startup(roots, appends, make).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Adds a restartable process, closing opened startup handles on refusal.
+    pub fn try_spawn_restartable_startup(
+        &mut self,
+        roots: Vec<StartupRoot>,
+        appends: Vec<StartupAppend>,
+        make: fn(&Inherited) -> P,
+    ) -> Result<usize, String> {
+        self.inner.try_spawn_restartable_startup(roots, appends, make)
     }
 
     /// Sets the digest option before running the world.
@@ -130,7 +140,12 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
     /// nothing in flight and no descriptor open.
     #[must_use]
     pub fn run(self) -> Outcome<P, M> {
-        self.run_with_faults(|_, _, _| None)
+        self.try_run().unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Runs until settled, returning the first world or referee finding.
+    pub fn try_run(self) -> Result<Outcome<P, M>, String> {
+        self.try_run_with_faults(|_, _, _| None)
     }
 
     /// Runs with a scenario's fault schedule at each kernel submission batch.
@@ -139,6 +154,14 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
     /// keeps its current configuration. Records and their order are untouched.
     #[must_use]
     pub fn run_with_faults<F>(self, faults: F) -> Outcome<P, M>
+    where
+        F: FnMut(usize, Time, &Queue<Submit>) -> Option<Faults>,
+    {
+        self.try_run_with_faults(faults).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Runs with a fault schedule, returning the first finding.
+    pub fn try_run_with_faults<F>(self, faults: F) -> Result<Outcome<P, M>, String>
     where
         F: FnMut(usize, Time, &Queue<Submit>) -> Option<Faults>,
     {
@@ -152,10 +175,18 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
     where
         F: FnMut(&mut Sim, &[Pid], &[P]),
     {
+        self.try_run_with_inputs(inputs).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Runs with scenario inputs, returning the first finding.
+    pub fn try_run_with_inputs<F>(self, inputs: F) -> Result<Outcome<P, M>, String>
+    where
+        F: FnMut(&mut Sim, &[Pid], &[P]),
+    {
         self.run_inner(|_, _, _| None, inputs)
     }
 
-    fn run_inner<F, I>(mut self, mut faults: F, mut inputs: I) -> Outcome<P, M>
+    fn run_inner<F, I>(mut self, mut faults: F, mut inputs: I) -> Result<Outcome<P, M>, String>
     where
         F: FnMut(usize, Time, &Queue<Submit>) -> Option<Faults>,
         I: FnMut(&mut Sim, &[Pid], &[P]),
@@ -163,7 +194,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
         let mut last_word = None;
         loop {
             if self.inner.steps().checked_add(1).expect("within STEPS") >= STEPS {
-                crate::fail(&format!(
+                return Err(format!(
                     "seed {}: the world settles within {STEPS} iterations\n{}",
                     self.inner.seed(),
                     self.inner.tail()
@@ -179,9 +210,9 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
                 self.inner.signal(host, signal);
             }
             let mut turns = Observing { referee: &mut self.referee, faults: &mut faults };
-            let step = self.inner.step_with(&mut turns);
+            let step = self.inner.try_step_with(&mut turns)?;
             if !step.ran {
-                self.referee.observe(now, self.inner.processes());
+                self.referee.watch(now, self.inner.processes())?;
             }
             if last_word.is_none() && self.referee.passed() {
                 last_word = Some(self.referee.last_word().at(now));
@@ -195,7 +226,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
                 break;
             }
             if let Some(why) = self.referee.overdue(now) {
-                crate::fail(&format!(
+                return Err(format!(
                     "seed {}: at {} ns, the referee failed the world:\n{why}\n{}",
                     self.inner.seed(),
                     now.as_nanos(),
@@ -210,21 +241,23 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
             match next {
                 Some(at) => {
                     let until = at.max(now);
-                    self.check_teardown(last_word, until);
+                    self.check_teardown(last_word, until)?;
                     self.inner.advance(until);
                 }
-                None => crate::fail(&format!(
-                    "seed {}: at {} ns, the world is idle, unsettled, with nothing due\n{}",
-                    self.inner.seed(),
-                    now.as_nanos(),
-                    self.inner.tail()
-                )),
+                None => {
+                    return Err(format!(
+                        "seed {}: at {} ns, the world is idle, unsettled, with nothing due\n{}",
+                        self.inner.seed(),
+                        now.as_nanos(),
+                        self.inner.tail()
+                    ));
+                }
             }
         }
         let peaks = self.inner.meter().0.as_ref().map(Heap::report);
         let held = self.inner.meter().0.as_ref().map(Heap::held);
         let finished = self.inner.finish();
-        Outcome {
+        Ok(Outcome {
             machine: finished.machine,
             killed: finished.killed,
             seed: finished.seed,
@@ -235,18 +268,18 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
             peaks,
             held,
             submissions: finished.submissions,
-        }
+        })
     }
 
-    fn check_teardown(&self, last_word: Option<Time>, until: Time) {
-        let Some(last_word) = last_word else { return };
+    fn check_teardown(&self, last_word: Option<Time>, until: Time) -> Result<(), String> {
+        let Some(last_word) = last_word else { return Ok(()) };
         for (process, host) in self.inner.processes().iter().enumerate() {
             if !host.is_empty()
                 && let Some(deadline) = host.next_policy_deadline()
                 && deadline > last_word
                 && deadline <= until
             {
-                crate::fail(&format!(
+                return Err(format!(
                     "seed {}: process {process} requires policy deadline {} ns after the last word\n{}",
                     self.inner.seed(),
                     deadline.as_nanos(),
@@ -254,6 +287,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
                 ));
             }
         }
+        Ok(())
     }
 }
 
@@ -269,7 +303,7 @@ where
     fn faults(&mut self, at: usize, now: Time, batch: &Queue<Submit>) -> Option<Faults> {
         (self.faults)(at, now, batch)
     }
-    fn turned(&mut self, now: Time, processes: &[P]) {
-        self.referee.observe(now, processes);
+    fn try_turned(&mut self, now: Time, processes: &[P]) -> Result<(), String> {
+        self.referee.watch(now, processes)
     }
 }

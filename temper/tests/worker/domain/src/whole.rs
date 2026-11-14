@@ -173,7 +173,13 @@ impl World {
 
     fn take(&mut self, request: Request) {
         match request {
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::ResultsIgnored { .. }
+            | Request::RedsAsk { .. }
+            | Request::RedsAnswer { .. }
+            | Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
             Request::Hello(hello) => {
@@ -242,6 +248,7 @@ impl World {
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
             | host::LinkUp::JobAnswer { .. }
+            | host::LinkUp::Ask { .. }
             | host::LinkUp::Answer { .. } => panic!("unscripted link record: {up:?}"),
         }
     }
@@ -523,7 +530,10 @@ impl World {
             };
             assert_eq!(*saved, translate::commit(commit).raw());
         } else {
-            assert_eq!(work.landed.as_ref(), [wire::Landed { tag: 1, commit: translate::commit(commit).raw() }]);
+            assert_eq!(
+                work.landed.as_ref(),
+                [wire::Landed { tag: 1, commit: translate::commit(commit).raw(), checked: true }]
+            );
         }
         self.report.tree = self.forge.tree(commit);
         assert_eq!(self.report.tree, [(PATH.to_vec(), b"edited\n".to_vec())].into(), "the entire edited tree landed");

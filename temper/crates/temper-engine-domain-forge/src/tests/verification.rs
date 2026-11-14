@@ -49,6 +49,8 @@ const LIMITS: Limits = Limits {
     repositories: 2,
     tasks: 8,
     holds: 8,
+    branch_reds: 64,
+    red_key_bytes: 256,
     subscriptions: 8,
     entries: 8,
     named_calls: 16,
@@ -80,6 +82,8 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    history_days: 14,
+    history_events: 131_072,
     findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
@@ -206,6 +210,7 @@ fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
         task_release: None,
+        job: None,
         signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
@@ -264,6 +269,7 @@ fn opening_row() -> ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }
@@ -1128,3 +1134,6 @@ mod landing_log_tests;
 
 #[path = "status.rs"]
 mod status_tests;
+
+#[path = "red_passes.rs"]
+mod red_pass_tests;

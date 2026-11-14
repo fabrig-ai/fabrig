@@ -151,6 +151,40 @@ fn stimuli_come_out_at_their_moments_in_the_order_they_were_injected() {
 }
 
 #[test]
+fn holding_returns_the_first_failure_and_allows_unfinished_expectations() {
+    let mut referee = Referee::new(Toy::default());
+    assert_eq!(referee.check_holding(7), Ok(()));
+    see(&mut referee, 0, Seen::Sent(9));
+    assert_eq!(referee.check_holding(7), Ok(()), "open is still holding");
+    see(&mut referee, 1, Seen::Landed { green: false });
+    see(&mut referee, 2, Seen::Replied(8));
+    let why = "seed 7: at 1.000000000s, nothing lands without green checks; still pending: Reply(9) by 5.000000000s";
+    assert_eq!(referee.check_holding(7), Err(why.to_owned()));
+    assert_eq!(referee.check_holding(7), Err(why.to_owned()), "checking keeps the finding");
+}
+
+#[test]
+fn passing_returns_pending_or_failed_but_accepts_passed_and_stopped() {
+    let mut referee = Referee::new(Toy::default());
+    assert_eq!(referee.check_passed(7), Ok(()));
+    see(&mut referee, 1, Seen::Sent(9));
+    assert_eq!(referee.check_passed(7), Err("seed 7: the referee still expects Reply(9) by 6.000000000s".to_owned()));
+    see(&mut referee, 2, Seen::Goal);
+    assert_eq!(referee.check_passed(7), Ok(()), "stopped allows pending expectations");
+    assert_eq!(referee.check_holding(7), Ok(()));
+    see(&mut referee, 3, Seen::Landed { green: false });
+    assert_eq!(
+        referee.check_passed(7),
+        Err("seed 7: at 3.000000000s, nothing lands without green checks; still pending: Reply(9) by 6.000000000s"
+            .to_owned())
+    );
+
+    let mut stimuli_only = Referee::new(Toy::default());
+    stimuli_only.inject(at(4), Stimulus::Drop(1));
+    assert_eq!(stimuli_only.check_passed(7), Err("seed 7: the referee still expects ".to_owned()));
+}
+
+#[test]
 #[should_panic(expected = "seed 42: at 6.000000000s, Reply(7) was not met by 6.000000000s")]
 fn a_failed_test_ends_with_its_seed() {
     let mut referee = Referee::new(Toy::default());

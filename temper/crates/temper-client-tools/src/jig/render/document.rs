@@ -3,6 +3,7 @@
 mod account_lines;
 mod account_programs;
 mod account_text;
+mod census;
 mod projects;
 mod projects_json;
 mod proposal;
@@ -51,6 +52,7 @@ pub(crate) fn print(
                 || reading.called.call.tool == crate::jig::rows::PROPOSAL_AT
                 || reading.called.call.tool == crate::jig::rows::PROJECT_SHOW_AT
                 || reading.called.call.tool == crate::jig::rows::PROJECT_FUND_AT
+                || reading.called.call.tool == crate::jig::rows::DEPLOYMENT_CENSUS_AT
         }
         Document::Me(_)
         | Document::Accounts(_)

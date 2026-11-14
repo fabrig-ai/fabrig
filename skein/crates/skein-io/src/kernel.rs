@@ -225,6 +225,7 @@
 //! | `Sync` | `NoSpace` |
 //! | `Stat` | none |
 //! | `Lock` | `Busy` |
+//! | `HardLink` | `NotFound`, `Exists`, `Permission`, `ReadOnly`, `NoSpace`, `NameTooLong`, `TooManyLinks`, `Other(EXDEV)` |
 //! | `Rename` | `Exists` (only with `no_replace`), `NotFound`, `NotADirectory`, `IsADirectory`, `NotEmpty`, `Permission`, `NoSpace`, `ReadOnly`, `TooManyLinks`, `NameTooLong` |
 //! | `Remove` | `NotFound`, `NotADirectory`, `IsADirectory`, `NotEmpty`, `Permission`, `ReadOnly`, `NameTooLong` |
 //! | `MakeDirectory` | `NotFound`, `Exists`, `NotADirectory`, `Permission`, `NoSpace`, `ReadOnly`, `TooManyLinks`, `NameTooLong` |
@@ -238,7 +239,7 @@
 //!
 //! - a record that is not [`Op::is_valid`];
 //! - a token already in flight;
-//! - a `Cancel` whose target is a `Cancel`, a `Truncate`, a `Stat`, a `Rename`, a
+//! - a `Cancel` whose target is a `Cancel`, a `Truncate`, a `Stat`, a `Rename`, a `HardLink`, a
 //!   `Remove`, a `MakeDirectory`, a `List`, a `Lock`, a `Spawn`, a `Signal`, a `Usage` or a `Window`;
 //! - a `Wait` beside another on its pidfd, or a reap before a reported exit;
 //! - any operation on a pidfd after its reap, except its `Close`;
@@ -262,7 +263,7 @@
 //! - a `Shutdown` while a `Send` on its descriptor is in flight;
 //! - a `Close` while any other operation on its descriptor is in flight, or
 //!   any operation on a descriptor after its `Close`. An operation is on
-//!   every descriptor it names: an `Open` on its root, a `Rename` on both
+//!   every descriptor it names: an `Open` on its root, a `Rename` or `HardLink` on both
 //!   its directories.
 //!
 //! Dropping a backend with operations in flight is a shutdown path, not
@@ -363,7 +364,7 @@ pub struct Complete {
 /// | `Open` | `Done::Fd`, the file or directory opened |
 /// | `Read` | `Done::Count`, bytes read into `buf[..n]`, 0 at the end of the file |
 /// | `Write`, `Append` | `Done::Count`, bytes written from `from`, at least 1 |
-/// | `Sync`, `Rename`, `Remove`, `MakeDirectory` | `Done::Nothing` |
+/// | `Sync`, `Rename`, `HardLink`, `Remove`, `MakeDirectory` | `Done::Nothing` |
 /// | `Stat` | `Done::Stat`, the kind and size of what is open |
 /// | `List` | `Done::Count`, entries listed into `entries[..n]`, 0 at the end |
 /// | `Spawn` | `Done::Spawned`, pidfd and sender identity; parent ends written into the returned `Spawn` pipe slots |
@@ -474,6 +475,14 @@ pub enum Op {
         to_dir: Fd,
         to: Box<[u8]>,
         no_replace: bool,
+    },
+    /// Gives an existing entry a second name, without following symbolic links (runtime/kernel.md, 6.4).
+    /// Both names pass [`is_name`] and hold at most [`LONGEST_NAME`] bytes.
+    HardLink {
+        from_dir: Fd,
+        from: Box<[u8]>,
+        to_dir: Fd,
+        to: Box<[u8]>,
     },
     /// Removes the entry `name` of the directory open on `dir`: with
     /// `directory`, an empty directory; without, anything else.
@@ -995,6 +1004,7 @@ enum Files {
     Lock,
     Rename,
     RenameNoReplace,
+    HardLink,
     Remove,
     MakeDirectory,
     List,
@@ -1051,9 +1061,10 @@ impl Op {
     /// `Read`, `Write` or `Append` that [`Op::recv`], [`Op::send`], [`Op::read`],
     /// [`Op::write`] and [`Op::append`] would build; an `Open` whose path has no NUL byte, and
     /// whose mode, to create, holds only [`PERMISSIONS`]; a
-    /// `Rename`, `Remove` or `MakeDirectory` of names that are each an
+    /// `Rename`, `HardLink`, `Remove` or `MakeDirectory` of names that are each an
     /// [`is_name`]; a `List` with room for an entry, `names` of at least
     /// [`LONGEST_NAME`] bytes, and both no longer than a count can say.
+    /// A `HardLink` also bounds both names to [`LONGEST_NAME`] bytes.
     /// A `Truncate` length fits `i64::MAX`; every other operation is valid as it stands.
     #[must_use]
     pub fn is_valid(&self) -> bool {
@@ -1083,6 +1094,9 @@ impl Op {
             Op::Read { buf, at, .. } => reads(buf, *at),
             Op::Write { bytes, from, at, .. } => writes(bytes, *from, *at),
             Op::Rename { from, to, .. } => is_name(from) && is_name(to),
+            Op::HardLink { from, to, .. } => {
+                is_name(from) && is_name(to) && from.len() <= LONGEST_NAME && to.len() <= LONGEST_NAME
+            }
             Op::Remove { name, .. } => is_name(name),
             Op::MakeDirectory { name, mode, .. } => is_name(name) && *mode & !PERMISSIONS == 0,
             Op::List { entries, names, .. } => {
@@ -1147,6 +1161,7 @@ impl Op {
             | Op::Sync { .. }
             | Op::Lock { .. }
             | Op::Rename { .. }
+            | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
             | Op::Signal { .. }
@@ -1166,6 +1181,7 @@ impl Op {
             Op::Stat { .. } => Some(Files::Stat),
             Op::Rename { no_replace: false, .. } => Some(Files::Rename),
             Op::Rename { no_replace: true, .. } => Some(Files::RenameNoReplace),
+            Op::HardLink { .. } => Some(Files::HardLink),
             Op::Remove { .. } => Some(Files::Remove),
             Op::MakeDirectory { .. } => Some(Files::MakeDirectory),
             Op::List { .. } => Some(Files::List),
@@ -1388,18 +1404,38 @@ fn fails_on_files(op: Files, error: Error) -> bool {
         Error::NoBufferSpace | Error::InvalidArgument | Error::Other(_) => true,
         Error::Busy => op == Files::Lock,
         Error::TooManyOpenFiles | Error::Escape | Error::NotAFile => op == Files::Open,
-        Error::NotFound | Error::NotADirectory | Error::NameTooLong => among(
+        Error::NotFound | Error::NameTooLong => among(
+            op,
+            &[
+                Files::Open,
+                Files::Rename,
+                Files::RenameNoReplace,
+                Files::HardLink,
+                Files::Remove,
+                Files::MakeDirectory,
+                Files::List,
+            ],
+        ),
+        Error::NotADirectory => among(
             op,
             &[Files::Open, Files::Rename, Files::RenameNoReplace, Files::Remove, Files::MakeDirectory, Files::List],
         ),
-        Error::Exists => among(op, &[Files::Open, Files::MakeDirectory, Files::RenameNoReplace]),
+        Error::Exists => among(op, &[Files::Open, Files::MakeDirectory, Files::RenameNoReplace, Files::HardLink]),
         Error::IsADirectory => {
             among(op, &[Files::Open, Files::Read, Files::Rename, Files::RenameNoReplace, Files::Remove])
         }
         Error::NotEmpty => among(op, &[Files::Rename, Files::RenameNoReplace, Files::Remove]),
         Error::Permission => among(
             op,
-            &[Files::Truncate, Files::Open, Files::Rename, Files::RenameNoReplace, Files::Remove, Files::MakeDirectory],
+            &[
+                Files::Truncate,
+                Files::Open,
+                Files::Rename,
+                Files::RenameNoReplace,
+                Files::HardLink,
+                Files::Remove,
+                Files::MakeDirectory,
+            ],
         ),
         Error::NoSpace => among(
             op,
@@ -1410,6 +1446,7 @@ fn fails_on_files(op: Files, error: Error) -> bool {
                 Files::Sync,
                 Files::Rename,
                 Files::RenameNoReplace,
+                Files::HardLink,
                 Files::MakeDirectory,
             ],
         ),
@@ -1421,11 +1458,14 @@ fn fails_on_files(op: Files, error: Error) -> bool {
                 Files::Write,
                 Files::Rename,
                 Files::RenameNoReplace,
+                Files::HardLink,
                 Files::Remove,
                 Files::MakeDirectory,
             ],
         ),
-        Error::TooManyLinks => among(op, &[Files::Open, Files::Rename, Files::RenameNoReplace, Files::MakeDirectory]),
+        Error::TooManyLinks => {
+            among(op, &[Files::Open, Files::Rename, Files::RenameNoReplace, Files::HardLink, Files::MakeDirectory])
+        }
         Error::Refused
         | Error::Reset
         | Error::BrokenPipe
@@ -1506,6 +1546,7 @@ fn fits(op: &Op, done: &Done) -> bool {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::Rename { .. }
+            | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
             | Op::List { .. }
@@ -1556,6 +1597,7 @@ fn binds(op: &Op, bound: &Addr) -> bool {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::List { .. }
@@ -1600,6 +1642,7 @@ fn counts(op: &Op, n: usize) -> bool {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::Spawn { .. }

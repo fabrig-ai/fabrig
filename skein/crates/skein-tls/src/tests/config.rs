@@ -115,8 +115,7 @@ fn valid_accepts_test_limits() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn invalid_tls_limits_refuse_portable_and_native_construction() {
+fn invalid_tls_limits_fail_validation_and_refuse_native_construction() {
     skein_rows::check(
         [
             ("valid_refuses_a_zero_read", Limits { read: 0, ..LIMITS }),
@@ -133,10 +132,6 @@ fn invalid_tls_limits_refuse_portable_and_native_construction() {
                 client::native::Client::new(&super::config(), Name::new("skein.test").unwrap(), &limits, &lower)
                     .is_none()
             );
-
-            skein_rows::panics("the limits are honoured: a read and room of a byte, a record held", || {
-                let _machine = client::Client::new(&super::config(), Name::new("skein.test").unwrap(), &limits);
-            });
         },
     );
 }

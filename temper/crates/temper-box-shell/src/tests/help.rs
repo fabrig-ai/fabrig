@@ -71,7 +71,7 @@ fn server_walk_gives_the_agents_environment_as_entries() {
     let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
-    for required in ["`agent.json`'s `environment` is a list of entries", "not a map", "temper help box"] {
+    for required in ["`agent.json`'s `environment` is a list, not a map", "temper help box"] {
         assert!(text.contains(required), "step 5 must explain {required}");
     }
     let (_, recipe) = step.split_once("`environment`").expect("agent environment");
@@ -127,8 +127,8 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             "`KillMode=control-group`".to_owned(),
             format!("`TimeoutStopSec={}s`", seconds(timeout)),
             format!("{}-second stop bound", seconds(bound)),
-            format!("{}-second margin", seconds(timeout) - seconds(bound)),
-            "Raising the worker's bound raises this timeout too".to_owned(),
+            format!("stop bound plus {} seconds", seconds(timeout) - seconds(bound)),
+            "Raise this timeout with the worker's bound".to_owned(),
         ] {
             assert!(text.contains(&required), "step 5 must explain {required}");
         }
@@ -156,9 +156,8 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let (step, _) = steps.split_once("\n## 7. ").expect("step 7");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "The page's `temper-forge-sign-in` meta appears only once `forge connect` has kept the forge.",
-        "If a newly fetched page still lacks it, restart once:",
-        "the engine makes it from the kept record.",
+        "The page's `temper-forge-sign-in` meta needs a kept `forge connect` record.",
+        "If a fresh page lacks it, restart once to make it from that record.",
     ] {
         assert!(text.contains(required), "step 6 must explain {required}");
     }

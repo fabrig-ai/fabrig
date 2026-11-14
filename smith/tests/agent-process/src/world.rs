@@ -187,6 +187,7 @@ impl Parent {
         self.peer.observed().iter().any(|frame| frame.kind == 0x0106)
     }
 
+    #[expect(clippy::too_many_lines, reason = "the complete kernel dispatch stays together")]
     fn completed(&mut self, complete: kernel::Complete) {
         match complete.kind {
             Op::Spawn { spawn } => {
@@ -280,6 +281,7 @@ impl Parent {
             | Op::Truncate { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
+            | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }

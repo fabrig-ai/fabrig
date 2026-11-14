@@ -89,6 +89,7 @@ pub fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
         task_release: None,
+        job: None,
         signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
@@ -147,6 +148,7 @@ pub fn opening_row() -> ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }

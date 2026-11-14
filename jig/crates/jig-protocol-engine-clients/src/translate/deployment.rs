@@ -548,6 +548,10 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
             key_bytes: value.key_bytes,
             readiness: super::catalogue::readiness(&value.readiness, limits.deployment_readiness, limits)?,
             store: w::StoreFill::new(limits, w::StoreFillParts { bytes: value.store.bytes, mark: value.store.mark })?,
+            census: match &value.census {
+                Some(value) => Some(store_census(value, limits)?),
+                None => None,
+            },
             hosts,
             attempts,
             accounts,
@@ -569,6 +573,34 @@ pub fn document(value: &d::Deployment, limits: &w::Limits) -> Result<w::Deployme
             connectors,
         },
     )
+}
+fn store_census(value: &d::StoreCensus, limits: &w::Limits) -> Result<w::StoreCensus, w::Problem> {
+    let mut keyspaces = List::with_capacity(value.keyspaces.len());
+    for row in &value.keyspaces {
+        let mut heads = List::with_capacity(row.heads.len());
+        for head in &row.heads {
+            heads
+                .push(w::CensusHead::new(limits, w::CensusHeadParts { head: head.head, rows: head.rows })?)
+                .expect("supplied heads fit");
+        }
+        keyspaces
+            .push(w::CensusKeyspace::new(
+                limits,
+                w::CensusKeyspaceParts {
+                    prefix: row.prefix.clone(),
+                    name: row.name.as_bytes().into(),
+                    rows: row.rows,
+                    keys: row.keys,
+                    values: row.values,
+                    heads,
+                    puts: row.puts,
+                    erases: row.erases,
+                    written: row.written,
+                },
+            )?)
+            .expect("supplied keyspaces fit");
+    }
+    w::StoreCensus::new(limits, w::StoreCensusParts { commit: value.commit, since: value.since, keyspaces })
 }
 fn chip_pieces(rows: &List<w::Chip>, bound: u32, path: w::Path) -> Result<Box<[u8]>, w::Problem> {
     let mut encoded = List::with_capacity(rows.len());

@@ -11,18 +11,19 @@ pub use patch_set::PATCH_SET;
 
 use alloc::boxed::Box;
 pub mod keys;
+pub use keys::KEYSPACES;
 pub mod records;
-pub use temper_protocol_store_codec::v21;
+pub use temper_protocol_store_codec::v24;
 #[cfg(test)]
 mod tests;
 
 /// One version for every durable family (protocol/store.md, section 4).
-pub const STORE_VERSION: u32 = 21;
+pub const STORE_VERSION: u32 = 24;
 
 /// The least ceiling on pending, run and blamed landings (protocol/store.md, section 4).
 #[must_use]
 pub fn tier_landings_ceiling() -> u32 {
-    v21::CEILINGS.tier_row_pending.min(v21::CEILINGS.tier_run_landings).min(v21::CEILINGS.tier_finding_blamed)
+    v24::CEILINGS.tier_row_pending.min(v24::CEILINGS.tier_run_landings).min(v24::CEILINGS.tier_finding_blamed)
 }
 
 /// The most `forge.changes` the tier rows hold at two landings per change plus one.
@@ -41,7 +42,7 @@ pub fn application(
     Some(jig_protocol_store::sizes::Application {
         version: STORE_VERSION,
         key: keys::largest(limits)?,
-        value: u32::try_from(v21::Row::encoded_bound(bounds.limits())?).ok()?,
+        value: u32::try_from(v24::Row::encoded_bound(bounds.limits())?).ok()?,
     })
 }
 
@@ -57,13 +58,13 @@ pub enum Undecodable {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Bounds {
     // Keep schema limits out of the store's by-value construction frames.
-    limits: Box<v21::Limits>,
+    limits: Box<v24::Limits>,
     forge: temper_engine_domain_forge_vocabulary::Limits,
 }
 impl Bounds {
     /// The generated decoder's limits.
     #[must_use]
-    pub const fn limits(&self) -> &v21::Limits {
+    pub const fn limits(&self) -> &v24::Limits {
         &self.limits
     }
     /// The domain limits for names and key decoding.
@@ -76,7 +77,7 @@ impl Bounds {
 /// Make schema bounds from the forge and task spec bytes, refusing any ceiling overflow.
 #[must_use]
 pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_words: u32) -> Option<Bounds> {
-    let limits = v21::Limits {
+    let limits = v24::Limits {
         closer_selections: forge.tasks,
         closing_question_words: forge.client.op_bytes.max(change_words),
         closing_asked_answer_some: forge.client.op_bytes.max(change_words),
@@ -138,18 +139,21 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
         retargeted_after: forge.name_bytes,
         names_resources: forge.resources_per_task,
         hold_design_writers: forge.holds,
+        red_key: forge.red_key_bytes,
+        red_head: 32,
+        red_why: 256,
         landings_topic_branch: forge.name_bytes,
         subscriber_goal_tasks_some: forge.issue_policy.plan_items,
         subscriber_paths: forge.paths_per_subscription,
         subscriber_paths_item: forge.name_bytes,
         ..records::limits(forge)?
     };
-    v21::check_limits(&limits).ok()?;
+    v24::check_limits(&limits).ok()?;
     Some(Bounds { limits: Box::new(limits), forge: *forge })
 }
 
-/// Every application key, relative to jig's application tag.
+/// Restart families below byte 128, relative to jig's application tag.
 #[must_use]
 pub fn interval() -> skein_kv::Range {
-    skein_kv::Range { start: Box::new([]), end: None }
+    skein_kv::Range { start: Box::new([]), end: Some(Box::new([128])) }
 }

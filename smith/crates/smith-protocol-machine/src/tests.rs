@@ -727,6 +727,7 @@ fn every_operation_translates_the_directory_itself_and_nested_paths_once() {
                     | file::Request::Sync { .. }
                     | file::Request::Close { .. }
                     | file::Request::SyncDirectory { .. }
+                    | file::Request::HardLink { .. }
                     | file::Request::Rename { .. }
                     | file::Request::Remove { .. }
                     | file::Request::List { .. }

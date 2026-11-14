@@ -91,7 +91,7 @@ fn open(stores: crate::Stores) -> Store {
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
     );
-    let [Event::Opened { .. }] = &*events else { panic!("open: {events:?}") };
+    let [Event::Opened { .. }, Event::Census { .. }] = &*events else { panic!("open: {events:?}") };
     store
 }
 

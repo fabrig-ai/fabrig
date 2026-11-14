@@ -86,6 +86,7 @@ pub(crate) fn worker_event(peers: &mut Peers, up: workers::Up) -> engine::Event 
                 pushed = Box::new([forge::Pushed {
                     tag: forge::tag(temper_engine_forge_world::REPO.forge, temper_engine_forge_world::REPO.repository),
                     commit: *commit,
+                    checked: true,
                 }]);
             }
             if matches!(end, tasks::End::Finished { .. })
@@ -107,6 +108,7 @@ pub(crate) fn worker_event(peers: &mut Peers, up: workers::Up) -> engine::Event 
                 pushed = Box::new([forge::Pushed {
                     tag: forge::tag(temper_engine_forge_world::REPO.forge, temper_engine_forge_world::REPO.repository),
                     commit: *commit,
+                    checked: true,
                 }]);
             }
             let parts = engine::Parts { saved: None, pushed, preparation: None };
@@ -175,8 +177,8 @@ pub(crate) fn down(peers: &mut Peers, now: Time, down: host::LinkDown) -> Vec<r:
             vec![receipt]
         }
         host::LinkDown::Relayed { call, answer, .. } => relayed(peers, now, &call, answer),
-        // The scripted worker carries neither jobs nor grant values.
-        host::LinkDown::AssignJob { .. } | host::LinkDown::Grant { .. } => Vec::new(),
+        // The scripted worker carries no jobs, grant values or application asks.
+        host::LinkDown::Asked { .. } | host::LinkDown::AssignJob { .. } | host::LinkDown::Grant { .. } => Vec::new(),
         host::LinkDown::ReadList { .. } => panic!("this fixture requests no account lists"),
         host::LinkDown::Assign { .. } => panic!("temper's root hands assignments as typed deliveries"),
     }

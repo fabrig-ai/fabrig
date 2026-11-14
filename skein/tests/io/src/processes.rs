@@ -197,15 +197,31 @@ impl Process {
     }
 
     /// The referee checks exact exit, EOF and close counts, independent of internal phases.
-    pub fn check(&self) {
-        assert!(self.acted && self.lifecycle == Lifecycle::Closed);
-        assert_eq!(self.ended, u32::try_from(self.pipes.len()).expect("two pipes"));
-        assert_eq!(self.pipe_closed, self.ended);
-        assert!(self.is_empty(), "the owner and io hold nothing");
-        if self.story == Story::Megabyte {
-            assert_eq!(self.output_bytes, 1_048_576);
-            assert!(self.output_deliveries <= 4_096, "one delivery per 256 bytes or more");
+    pub fn check(&self) -> Result<(), String> {
+        if !self.acted || self.lifecycle != Lifecycle::Closed {
+            return Err(format!("the child acted and closed: acted {}, lifecycle {:?}", self.acted, self.lifecycle));
         }
+        if self.ended != u32::try_from(self.pipes.len()).expect("two pipes") {
+            return Err(format!("every pipe has EOF: {} pipes, {} EOFs", self.pipes.len(), self.ended));
+        }
+        if self.pipe_closed != self.ended {
+            return Err(format!("every ended pipe closed: {} EOFs, {} pipe closes", self.ended, self.pipe_closed));
+        }
+        if !self.is_empty() {
+            return Err("the owner and io hold nothing".into());
+        }
+        if self.story == Story::Megabyte {
+            if self.output_bytes != 1_048_576 {
+                return Err(format!("a megabyte of output: {} bytes, expected 1048576", self.output_bytes));
+            }
+            if self.output_deliveries > 4_096 {
+                return Err(format!(
+                    "one delivery per 256 bytes or more: {} deliveries, at most 4096",
+                    self.output_deliveries
+                ));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -288,11 +304,12 @@ pub struct Judge {
     passed: bool,
 }
 impl Referee<Process> for Judge {
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
         if procs[0].is_empty() {
-            procs[0].check();
+            procs[0].check()?;
             self.passed = true;
         }
+        Ok(())
     }
     fn passed(&self) -> bool {
         self.passed
@@ -316,7 +333,7 @@ pub fn run(seed: u64, config: Config, story: Story, memory: Memory) -> skein_wor
     let mut world = World::new(seed, config, Judge::default(), memory).with_machine(Machine(machine));
     world.spawn_root(Handle::new(root.raw()), |root| Process::new(root, b"process_fixture", story, false));
     let outcome = world.run();
-    outcome.procs[0].check();
+    outcome.procs[0].check().expect("the process story settled");
     outcome
 }
 
@@ -349,24 +366,24 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn the_referee_rejects_a_child_terminal_without_the_pipes_eof() {
-        let result = std::panic::catch_unwind(|| Judge::default().observe(Time::ZERO, &[terminal(0, 1)]));
-        assert!(result.is_err());
+        let finding = Judge::default().watch(Time::ZERO, &[terminal(0, 1)]).expect_err("missing pipe EOF");
+        assert!(finding.contains("every pipe has EOF"), "{finding}");
+        assert!(finding.contains("1 pipes, 0 EOFs"), "{finding}");
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn the_referee_rejects_a_child_terminal_before_its_pipe_closed() {
-        let result = std::panic::catch_unwind(|| Judge::default().observe(Time::ZERO, &[terminal(1, 0)]));
-        assert!(result.is_err());
+        let finding = Judge::default().watch(Time::ZERO, &[terminal(1, 0)]).expect_err("missing pipe close");
+        assert!(finding.contains("every ended pipe closed"), "{finding}");
+        assert!(finding.contains("1 EOFs, 0 pipe closes"), "{finding}");
     }
 
     #[test]
     fn the_referee_passes_only_after_the_whole_group_lifetime_settles() {
         let mut judge = Judge::default();
         assert!(!judge.passed());
-        judge.observe(Time::ZERO, &[terminal(1, 1)]);
+        judge.watch(Time::ZERO, &[terminal(1, 1)]).expect("every pipe ended and closed");
         assert!(judge.passed());
     }
 }

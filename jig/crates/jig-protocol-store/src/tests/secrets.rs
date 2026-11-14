@@ -82,7 +82,9 @@ fn the_public_names_secret_is_kept_read_and_erased() {
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
     );
-    let [Event::Opened { last: 1, pending: false, .. }] = &*events else { panic!("public names reopen") };
+    let [Event::Opened { last: 1, pending: false, .. }, Event::Census { .. }] = &*events else {
+        panic!("public names reopen")
+    };
     fixtures::committed(&mut store, Box::new([fixtures::header(2), crate::Write::Wires]));
     restore_people(&mut store);
     assert_eq!(get(&mut store, SecretOwner::PublicNames, 0), Some(value.clone()));

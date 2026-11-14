@@ -31,8 +31,11 @@ pub fn valid(l: &Limits) -> bool {
     slots(l).is_some() && result_slots(l).is_some() && receipt_slots(l).is_some()
 }
 pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
-    let mut bytes = skein_lib::len_u64(row.landing.members.len())
-        .checked_mul(u64::try_from(size_of::<policy::Member>()).ok()?)?
+    let mut bytes = crate::history::job_bytes(row.job.as_ref())?
+        .checked_add(
+            skein_lib::len_u64(row.landing.members.len())
+                .checked_mul(u64::try_from(size_of::<policy::Member>()).ok()?)?,
+        )?
         .checked_add(
             skein_lib::len_u64(row.asks.len()).checked_mul(u64::try_from(size_of::<Option<change::Ask>>()).ok()?)?,
         )?

@@ -71,6 +71,42 @@ fn the_change_tasks_override_sets_its_field_and_refuses_values_outside_its_bound
 }
 
 #[test]
+fn history_limits_have_defaults_dotted_bounds_and_named_startup_refusals() {
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        let mut own = limits::profile(profile);
+        assert_eq!((own.forge.history_days, own.forge.history_events), (14, 131_072));
+        for days in [1, 3650] {
+            assert_eq!(limits::apply(&mut own, b"forge.history_days", days), Ok(()));
+            assert_eq!(u64::from(own.forge.history_days), days);
+        }
+        for events in [1, u64::MAX] {
+            assert_eq!(limits::apply(&mut own, b"forge.history_events", events), Ok(()));
+            assert_eq!(own.forge.history_events, events);
+        }
+        assert!(temper_engine_domain_forge::valid(&own.forge));
+        own.forge.history_days = 0;
+        assert!(!temper_engine_domain_forge::valid(&own.forge));
+        own.forge.history_days = 3651;
+        assert!(!temper_engine_domain_forge::valid(&own.forge));
+        own.forge.history_days = 14;
+        own.forge.history_events = 0;
+        assert!(!temper_engine_domain_forge::valid(&own.forge));
+    }
+    for overrides in
+        [br#"{"forge.history_days":0}"#.as_slice(), br#"{"forge.history_days":3651}"#, br#"{"forge.history_events":0}"#]
+    {
+        let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides);
+        let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+        let expected = if overrides == br#"{"forge.history_events":0}"# {
+            b"application.limits.overrides.forge.history_events: outside its type\n".as_slice()
+        } else {
+            b"application.limits.overrides.forge.history_days: outside its type\n".as_slice()
+        };
+        assert_eq!(crate::startup::lines(&problems).as_ref(), expected);
+    }
+}
+
+#[test]
 fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
     for profile in [limits::Profile::Small, limits::Profile::Standard] {
         let mut own = limits::profile(profile);
@@ -91,6 +127,26 @@ fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
         crate::startup::lines(&problems).as_ref(),
         b"application.limits.overrides.checkout.preparations: 0; requires at least 1\n"
     );
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test builds dotted red-limit overrides and their named refusals")]
+fn red_limit_overrides_past_their_ranges_refuse_start_by_name() {
+    for (name, value) in [("forge.branch_reds", 257_u64), ("forge.red_key_bytes", 513)] {
+        let input = format!(r#"{{"{name}":{value}}}"#);
+        let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", input.as_bytes());
+        let directories = jig_protocol_config::Directories::working();
+        for problems in [
+            crate::startup::named(&document, &directories).unwrap_err(),
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+                .unwrap_err(),
+        ] {
+            assert_eq!(
+                crate::startup::lines(&problems).as_ref(),
+                format!("application.limits.overrides.{name}: outside its type\n").as_bytes()
+            );
+        }
+    }
 }
 
 #[test]
@@ -138,7 +194,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43649454 bytes, past its bound of 4580852 bytes\n",
+            b"engine.limits.store: the store's map value, 43649725 bytes, past its bound of 4580852 bytes\n",
         );
     }
 }
@@ -248,7 +304,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
         root: limits::Root {
             brief: temper_engine_domain::BriefLimits {
                 read_bytes: 131_584,
-                brief_bytes: 335_752,
+                brief_bytes: 335_619,
                 budgets: temper_engine_domain::BriefBudgets {
                     task: 131_584,
                     pull: 131_584,
@@ -260,7 +316,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             journal: temper_engine_domain::JournalLimits {
                 // The deep task row's 22,467,664 bytes plus 21 eight-byte executors.
                 transcript_bytes: 22_467_832,
-                result_bytes: 335_752,
+                result_bytes: 335_619,
                 ..small.root.journal
             },
             loads: temper_engine_domain::loads::Limits {
@@ -651,14 +707,19 @@ fn github_component_checks_key_deadline_and_renewal() {
         let mut config = fixtures::configured_engine();
         config.forges[0].kind = crate::settings::Kind::GitHub;
         limits::apply(&mut config.limits, name, value).unwrap();
-        if name == b"forge_component.deadline_ms" {
-            config.limits.forge.client.lifetime = Duration::from_secs(300);
-        }
         let Err(found) = fixtures::checked_endpoints(&config, fixtures::forge_runtime()) else { panic!("{expected}") };
         let found = crate::startup::Problems::jig(found, &jig_protocol_config::Path::root());
         let lines = crate::startup::lines(&found);
         assert!(core::str::from_utf8(&lines).unwrap().contains(expected), "{expected}: {lines:?}");
     }
+}
+
+#[test]
+fn github_component_starts_with_the_profile_deadline_and_renewal() {
+    let mut config = fixtures::configured_engine();
+    config.forges[0].kind = crate::settings::Kind::GitHub;
+    assert_eq!(config.limits.forge_component.renew_before, Duration::from_secs(600));
+    fixtures::checked_endpoints(&config, fixtures::forge_runtime()).expect("GitHub accepts the profile limits");
 }
 
 #[test]

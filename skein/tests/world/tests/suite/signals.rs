@@ -24,11 +24,12 @@ impl Referee<Script> for Judge {
             self.sent = true;
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Script]) {
+    fn watch(&mut self, _now: Time, procs: &[Script]) -> Result<(), String> {
         self.ready = procs.len() > self.target;
         if let Some(script) = procs.get(self.target) {
             self.passed = script.signals == [ServiceSignal::Terminate, ServiceSignal::Interrupt];
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (self.ready && !self.sent).then_some(Time::ZERO)

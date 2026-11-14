@@ -694,6 +694,7 @@ impl Local {
             | kernel::Op::Truncate { .. }
             | kernel::Op::Sync { .. }
             | kernel::Op::Stat { .. }
+            | kernel::Op::HardLink { .. }
             | kernel::Op::Rename { .. }
             | kernel::Op::Remove { .. }
             | kernel::Op::MakeDirectory { .. }

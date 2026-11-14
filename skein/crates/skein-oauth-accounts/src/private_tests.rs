@@ -176,6 +176,7 @@ pub(super) fn owner_of(request: &file::Request) -> Token {
         | file::Request::Sync { owner, .. }
         | file::Request::Close { owner, .. }
         | file::Request::SyncDirectory { owner, .. }
+        | file::Request::HardLink { owner, .. }
         | file::Request::Rename { owner, .. }
         | file::Request::Remove { owner, .. }
         | file::Request::ListPage { owner, .. }
@@ -441,6 +442,7 @@ fn check_file(request: &file::Request, shape: u32) {
         | file::Request::ReadAt { .. }
         | file::Request::Sync { .. }
         | file::Request::SyncDirectory { .. }
+        | file::Request::HardLink { .. }
         | file::Request::Rename { .. }
         | file::Request::Remove { .. }
         | file::Request::ListPage { .. }

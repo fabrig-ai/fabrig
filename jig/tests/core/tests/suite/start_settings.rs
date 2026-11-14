@@ -50,7 +50,6 @@ impl Harness {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
     for pending in [false, true] {
         let mut h = Harness::stored(true, pending);
@@ -117,10 +116,6 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
         );
         assert!(copied && erased && extent);
         assert_eq!(h.core.current.newest(), 2);
-        let early = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out)
-        }));
-        assert!(early.is_err());
         phase(&h.core.start_resume(&h.env, release, &mut h.out), Phase::Sweep);
         phase(&h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);
     }

@@ -37,8 +37,10 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 7. **The outward check:** `tools/tiers/one-process default -p fabrig-boundary`,
    part of item 4's focused suite. Rule: `tests/boundary/tests/outward.rs`'s module doc and `AGENTS.md`, 1.
    The rule is absolute: any match fails, and the check has no inventory.
-8. **Lint profiles:** `python3 -I -B tools/lints/lints.py`, at 0 findings, and
-   `python3 -I -B tools/lints/test_lints.py`. Rule: `tools/lints/design.md`, 5.
+8. **Lint profiles and the count of catches:** `python3 -I -B tools/lints/lints.py` and
+   `python3 -I -B tools/lints/panics.py`, each at 0 findings, and their tests,
+   `python3 -I -B tools/lints/test_lints.py` and `python3 -I -B tools/lints/test_panics.py`.
+   Rules: `tools/lints/design.md`, 5 and 7.
 9. **The fail-stop check:** `tools/tiers/one-process default -p fabrig-boundary`,
    part of item 4's focused suite. Rule: `skein/docs/foundation/programming-model.md`, 2, and
    `tests/boundary/tests/fail_stop.rs`'s module doc: every binary's `main` installs

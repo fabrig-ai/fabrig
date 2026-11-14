@@ -16,7 +16,7 @@ fn singles(version: u16) -> List<Spoken> {
 }
 
 #[test]
-fn the_engine_states_thirteen_first_and_the_worker_uses_it() {
+fn the_engine_states_the_current_version_first_and_the_worker_uses_it() {
     let mut world = Joined::new(&fixtures::joined_limits(), 3);
     world.run();
     assert_eq!(world.engine_records().first(), Some(&0x018d));
@@ -26,7 +26,7 @@ fn the_engine_states_thirteen_first_and_the_worker_uses_it() {
     assert_eq!(
         wires.iter().map(|wire| (wire.name, wire.version)).collect::<Vec<_>>(),
         [
-            ("jig-worker-wire", 13),
+            ("jig-worker-wire", wire::VERSION),
             ("smith-pieces", 1),
             ("smith-charter", 5),
             ("smith-transcript", 7),
@@ -87,7 +87,14 @@ fn repeated_unknown_and_out_of_range_statements_fault_the_link_and_redial() {
                 .push(
                     wire::AgreedWire::new(
                         &fixtures::codec(),
-                        wire::AgreedWireParts { name: name.into(), version: if fault == "unknown" { 3 } else { 14 } },
+                        wire::AgreedWireParts {
+                            name: name.into(),
+                            version: if fault == "unknown" {
+                                3
+                            } else {
+                                wire::VERSION.checked_add(1).expect("above current")
+                            },
+                        },
                     )
                     .expect("wire"),
                 )

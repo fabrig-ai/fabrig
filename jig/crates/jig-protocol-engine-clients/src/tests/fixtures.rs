@@ -31,7 +31,7 @@ pub fn wire() -> w::Limits {
 }
 pub fn settings() -> Settings {
     let mut served = List::with_capacity(2);
-    served.push(crate::Served { family: None, first: 21, last: 21 }).expect("one jig range");
+    served.push(crate::Served { family: None, first: 22, last: 22 }).expect("one jig range");
     served.push(crate::Served { family: Some(9), first: 2, last: 2 }).expect("one family range");
     Settings {
         private: crate::Private::none(),
@@ -695,7 +695,7 @@ mod answers;
 pub use answers::*;
 impl Exchange {
     pub fn ask(&mut self) -> (Token, ReplyTo) {
-        self.ask_version(21)
+        self.ask_version(22)
     }
     pub fn ask_version(&mut self, version: u32) -> (Token, ReplyTo) {
         let body = keyed(w::Owner::Jig, version, encode_ask(&start(&self.env.limits.wire)));
@@ -774,7 +774,7 @@ pub fn final_record(record: w::KeyedAnswer, limits: &w::Limits) -> w::Final {
     match record {
         w::KeyedAnswer::FinalAnswer(value) => {
             assert_eq!(value.owner(), &w::Owner::Jig);
-            assert_eq!(value.version(), 21);
+            assert_eq!(value.version(), 22);
             w::Final::decode(limits, &mut skein_lib::Reader::new(value.record())).expect("jig answer")
         }
         other @ (w::KeyedAnswer::NotServed(_)

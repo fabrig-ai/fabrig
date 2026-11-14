@@ -59,6 +59,8 @@ impl World {
             conflicts: 4,
             path_bytes: 128,
             remote_timeout: Duration::from_secs(10),
+            reds_read_ms: 5_000,
+            rerun_processes: 4,
             local_timeout: Duration::from_secs(5),
             facts,
         };
@@ -165,7 +167,9 @@ impl World {
                     | Request::Released { .. }) => {
                         assert!(terminal.replace(answer).is_none(), "one terminal per caller operation");
                     }
-                    Request::Cancel { .. } => panic!("these scenarios have no outstanding cancellation"),
+                    Request::Results { .. } | Request::ResultsEnd { .. } | Request::Cancel { .. } => {
+                        panic!("these scenarios have no outstanding cancellation")
+                    }
                 }
             }
             assert_eq!(held, preparing, "only a prepare emits a new hold");
@@ -236,7 +240,9 @@ impl World {
         match self.finish(event, ambiguous) {
             Request::Pushed { outcome: Outcome::Pushed { landings }, .. } if !saved => landings,
             Request::Saved { outcome: Outcome::Pushed { landings }, .. } if saved => landings,
-            other @ (Request::Held { .. }
+            other @ (Request::Results { .. }
+            | Request::ResultsEnd { .. }
+            | Request::Held { .. }
             | Request::Prepared { .. }
             | Request::Pushed { .. }
             | Request::Saved { .. }
@@ -559,8 +565,9 @@ fn resumed_merge(world: &mut World, at: &[u8]) -> u64 {
     };
     assert_eq!((*ours, *base, *identity), (translate::commit(world.ours), translate::commit(world.base), 0));
     assert_eq!(title, expected_merge_message(world.base).as_bytes());
+    let trace: Vec<_> = world.trace.iter().filter(|line| !line.contains("op: Reds {")).collect();
     assert!(
-        world.trace.windows(3).any(|steps| {
+        trace.windows(3).any(|steps| {
             steps[0].contains("op: Commit {") && steps[1].contains("op: CheckOut {") && steps[2].contains("Ready {")
         }),
         "the trace commits and checks out before ready"

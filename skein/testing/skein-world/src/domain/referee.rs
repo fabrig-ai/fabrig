@@ -132,11 +132,19 @@ impl<X: Expectations> Referee<X> {
         }
     }
 
+    /// Returns the first broken expectation with `seed`, which replays it.
+    pub fn check_holding(&self, seed: u64) -> Result<(), String> {
+        if let Some(failure) = &self.judge.failure {
+            return Err(format!("seed {seed}: {failure}"));
+        }
+        Ok(())
+    }
+
     /// Ends the test early if an expectation was broken: panics with why, and
     /// with `seed`, which replays it.
     pub fn assert_holding(&self, seed: u64) {
-        if let Some(failure) = &self.judge.failure {
-            crate::fail(&format!("seed {seed}: {failure}"));
+        if let Err(why) = self.check_holding(seed) {
+            crate::fail(&why);
         }
     }
 
@@ -147,15 +155,20 @@ impl<X: Expectations> Referee<X> {
         self.judge.stopped && self.judge.failure.is_none()
     }
 
+    /// Returns why the test has not passed, unless the scenario stopped it.
+    pub fn check_passed(&self, seed: u64) -> Result<(), String> {
+        match self.verdict() {
+            Verdict::Passed | Verdict::Stopped { .. } => Ok(()),
+            Verdict::Open { pending } => Err(format!("seed {seed}: the referee still expects {}", List(&pending))),
+            Verdict::Failed(failure) => Err(format!("seed {seed}: {failure}")),
+        }
+    }
+
     /// Ends the test: panics unless every expectation was met and nothing is
     /// left to inject, or the scenario stopped it.
     pub fn assert_passed(&self, seed: u64) {
-        match self.verdict() {
-            Verdict::Passed | Verdict::Stopped { .. } => {}
-            Verdict::Open { pending } => {
-                crate::fail(&format!("seed {seed}: the referee still expects {}", List(&pending)))
-            }
-            Verdict::Failed(failure) => crate::fail(&format!("seed {seed}: {failure}")),
+        if let Err(why) = self.check_passed(seed) {
+            crate::fail(&why);
         }
     }
 

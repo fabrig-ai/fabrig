@@ -76,6 +76,30 @@
   256 in both profiles, room for weeks of reds, words and outside
   parties' filings between triages. The forge's family holds it times
   `forge.judge_projects`.
+- **A goal's reds:** `forge.branch_reds`, the reds a goal holds at
+  once, 64 in both profiles, at most 256; `forge.red_key_bytes`, a
+  red's key, 256 in both, at most 512 (`../../domain/forge/reds.md`,
+  2 and 3), so that the engine's answer to a worker's ask, at most
+  `forge.branch_reds` keys of `forge.red_key_bytes` with their heads,
+  stays far within the channel's frame (`../../domain/forge/reds.md`,
+  5.4). The forge's families hold `forge.branch_reds` times
+  `forge.holds` reds and `forge.branch_reds` times `forge.changes` passes
+  (`../../domain/forge/reds.md`, 6). `checkout.reds_read_ms`, how long
+  the worker waits for the engine's answer at a check's start, 5,000 in
+  both, from 100 to 60,000 (`../../domain/forge/reds.md`, 5.3): the
+  worker's, since the worker waits, though the draft names it among the
+  forge's. `checkout.rerun_processes`, the most failing tests' processes
+  a check runs again after its run, which the worker writes to
+  `temper/rerun`, 4 in both, from 0 to 16, 16 a report's most flakes
+  (`../../domain/forge/reds.md`, 5.2 and 5.6): the worker's too, for the
+  same reason.
+- **A project's landing history:** `forge.history_days`, 14 in both
+  profiles, from 1 to 3,650, the days a change's events stay after its
+  last; and `forge.history_events`, 131,072 in both, at least 1, the
+  events a project keeps, its changes whose last event is oldest swept
+  first past it (`../../domain/landing-history.md`, 4.5 and 6). Each
+  applies to every project; the events are demand-loaded and take no
+  forge memory.
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -148,6 +172,34 @@
   most; a merge finding them full erases one, those of no kept change
   first, and never waits on it to move its branch's head
   (`../../domain/forge/change/README.md`, 7).
+- **The forge client's lifetime and the forge call's deadline:**
+  `forge.client.lifetime_ms` is how long a sent forge write may still
+  arrive, its answer awaited before the client looks for it (skein's
+  `forge/client.md`, 7.5), and `forge_component.deadline_ms` how long
+  one forge call, or one of a forge's startup reads, may take before it
+  fails (skein's `forge/connection.md`, 4.1). The slowest call a forge
+  answers is a merge: Forgejo merges a pull request inside the call,
+  bounded by its own git timeout, 360 s by default, and the merge of a
+  pull request of about 7,000 files took longer than 10 s. So both
+  profiles take a lifetime of 300,000 (5 minutes), under Forgejo's
+  360 s, and a deadline of the lesser of the lifetime and 270,000, the
+  most a GitHub forge takes, half a JWT's life (skein's
+  `forge/connection.md`, 7.4): a GitHub forge starts at the defaults,
+  and a Forgejo merge has 270 s. The deadline follows the lifetime: an
+  override of `forge.client.lifetime_ms` moves a deadline that stands
+  at the lesser of the lifetime it replaces and 270,000 to the lesser
+  of the new lifetime and 270,000, and leaves a deadline overridden to
+  any other value as it was set, whichever override the document gives
+  first. The longer lifetime costs a lost write alone: a set waits out
+  its first attempt's lifetime before it is written again, a write not
+  found is looked for until its lifetime ends (skein's
+  `forge/client.md`, 7.5), and a stop's settling waits at most twice
+  the lifetime and `forge.client.clock_margin_ms`
+  (`../../domain/root.md`, 8.2), cut under the box by its long step's
+  grace (`../setup/box.md`, 2). The engine forge world's fixture keeps
+  its 10 s lifetime in its own limits; a test that needs a profile with
+  the fixture's lifetime or deadline overrides them in its own
+  configuration.
 - **A limit's refusal names it:** every refusal a configured limit
   causes, at the start or in a step, names the limit by its dotted name,
   its value and what was needed. A step's refusal holds its task with
@@ -216,7 +268,8 @@
     calls in flight; its `kept_bytes` is the forge client's `calls`
     times its `answer_bytes`, set by temper, not configured (skein's
     `forge/connection.md`, 4.6); its deadline is at most the forge client's
-    lifetime; its body bound holds the forge client's largest write and
+    lifetime and, with a GitHub forge, at most 270,000, as the bullet on
+    the forge client's lifetime says; its body bound holds the forge client's largest write and
     a key's marker; every listing's page size is at least 1 (../forge/README.md,
     section 6);
   - the checkout's capacity, whole: `checkout.conflicts`,

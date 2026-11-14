@@ -26,6 +26,7 @@ fn document() -> Deployment {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         store: StoreFill { bytes: 0, mark: 0 },
+        census: None,
         hosts: List::with_capacity(2),
         attempts: List::with_capacity(2),
         accounts: List::with_capacity(2),

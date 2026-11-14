@@ -151,8 +151,57 @@ fn refused_batch_and_vetoed_effect_cards_and_ctl_name_the_reason_and_offer_worki
     }
 }
 
+// domain/landing-history.md, 5.2: eviction removes the Change row, not its events.
+#[test]
+fn a_change_show_reads_forge_history_after_its_change_row_is_evicted() {
+    use temper_engine_domain as engine;
+    use temper_engine_domain_forge as forge;
+
+    let (mut world, agent, task) =
+        tasks_hold_on(Joint::with_change_eviction(fixtures::SEED, &fixtures::domain_limits()));
+    let commands = offered(&mut world, agent, task);
+    let cancel: Vec<&[u8]> = commands[1].iter().map(String::as_bytes).collect();
+    call(&mut world, agent, &cancel);
+    call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"ended"]);
+    let front = world.front();
+    assert!(front.engine.store.rows.contains_key(&engine::Key::Forge(forge::Key::Change(task))));
+    // The real eviction admission requires a full table and an ended change.
+    front.engine.send(engine::Event::Forge(Box::new(forge::Event::DropChange { task })));
+    front.engine.settle();
+    assert!(!front.engine.store.rows.contains_key(&engine::Key::Forge(forge::Key::Change(task))), "evicted Change row");
+    assert!(front.engine.store.rows.values().any(|row| matches!(row,
+        engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::HistoryEvent(event) if event.change == task)
+    )), "eviction keeps forge-written events");
+
+    let number = task.to_string();
+    let all = call(&mut world, agent, &[b"landing", b"history", b"--project", b"1", b"--change", number.as_bytes()]);
+    let all_text = std::str::from_utf8(&all.stdout).expect("history text");
+    let events: Vec<_> = all_text.lines().skip(1).take_while(|line| *line != "end").collect();
+    assert!(!events.is_empty(), "forge wrote history");
+    assert!(events.len() <= 8, "the fixture's history fits the last-events read");
+    let shown = call(&mut world, agent, &[b"change", b"show", number.as_bytes()]);
+    let text = std::str::from_utf8(&shown.stdout).expect("change text");
+    let mut lines = text.lines();
+    assert_eq!(lines.next(), Some(format!("change {task}: its record has gone; its last events:").as_str()));
+    for event in events {
+        assert_eq!(lines.next(), Some(event));
+    }
+    assert_eq!(
+        lines.next(),
+        Some(format!("all of them: temper ctl landing history --project 1 --change {task}").as_str())
+    );
+    assert_eq!(lines.next(), None);
+    let shown = call(&mut world, agent, &[b"change", b"show", number.as_bytes(), b"--json"]);
+    let json = std::str::from_utf8(&shown.stdout).expect("change JSON");
+    assert!(json.contains("\"record\":\"gone\""));
+    assert!(json.contains("\"events\":[{"));
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+}
+
 fn tasks_hold() -> (ClientWorld, ClientId, u64) {
-    let mut front = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
+    tasks_hold_on(Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits()))
+}
+fn tasks_hold_on(mut front: Joint) -> (ClientWorld, ClientId, u64) {
     front.engine.forge =
         Some(temper_engine_domain_world::forge_stand::ForgeStand::with_checks(fixtures::REPOSITORIES, &[b"build"]));
     fixtures::adopt_change_repository(&mut front);

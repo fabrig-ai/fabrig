@@ -67,6 +67,15 @@ pub struct Frame {
     pub linked_leaf: Option<Error>,
     pub carried_keys: Vec<skein_lib::Secret>,
     pub refuse_link: Option<()>,
+    pub link_refusal: Option<w::SignInAnswer>,
+    pub party: Option<&'static [u8]>,
+    pub party_error: Option<Error>,
+    pub party_reads: u32,
+    pub fail_party: bool,
+    pub stored_modes: BTreeMap<Box<[u8]>, u32>,
+    file_modes: BTreeMap<Fd, u32>,
+    pub refuse_token: bool,
+    pub sign_out_answer: w::SignOutAnswer,
     pub keep_link: Option<()>,
     pub link_bearers: Vec<Option<Box<[u8]>>>,
     pub again_links: u32,
@@ -186,6 +195,15 @@ impl Frame {
             linked_leaf: None,
             carried_keys: Vec::new(),
             refuse_link: None,
+            link_refusal: None,
+            party: None,
+            party_error: None,
+            party_reads: 0,
+            fail_party: false,
+            stored_modes: BTreeMap::new(),
+            file_modes: BTreeMap::new(),
+            refuse_token: false,
+            sign_out_answer: w::SignOutAnswer::SignedOut,
             keep_link: None,
             link_bearers: Vec::new(),
             again_links: 0,
@@ -401,6 +419,8 @@ impl Frame {
             self.address
         } else if fd == TOKEN {
             self.token
+        } else if fd == Fd::new(25) {
+            self.party.expect("party file")
         } else if fd == LINK_FILE {
             self.link
         } else if fd == Fd::new(24) {
@@ -443,6 +463,17 @@ impl Frame {
             self.next_socket += 1;
             self.files.insert(fd, Vec::new());
             self.names.insert(path.into(), fd);
+            let mode = match how {
+                OpenHow::Create { mode } | OpenHow::CreateNoFollow { mode } => mode.expect("private file mode"),
+                OpenHow::PathNoFollow
+                | OpenHow::Read
+                | OpenHow::ReadNoFollow
+                | OpenHow::Directory
+                | OpenHow::DirectoryNoFollow
+                | OpenHow::Write
+                | OpenHow::WriteNoFollow => unreachable!("create"),
+            };
+            self.file_modes.insert(fd, mode);
             return Ok(Done::Fd(fd));
         }
         if path == b"call.json" || path == b"link-file" || path == b"link" || path == b"record" {
@@ -467,6 +498,8 @@ impl Frame {
             Ok(Done::Fd(DIRECTORY))
         } else if path == b"address" {
             self.address_error.map_or(Ok(Done::Fd(ADDRESS)), Err)
+        } else if path == b"party" {
+            self.party_error.map_or_else(|| self.party.map_or(Err(Error::NotFound), |_| Ok(Done::Fd(Fd::new(25)))), Err)
         } else if path == b"token" {
             self.token_reads += 1;
             self.token_error.map_or(Ok(Done::Fd(TOKEN)), Err)
@@ -474,6 +507,19 @@ impl Frame {
             assert_eq!(path, b".");
             Ok(Done::Fd(Fd::new(19)))
         }
+    }
+    fn rename_file(&mut self, from: &[u8], to: &[u8]) -> Result<Done, Error> {
+        if self.fail_party && to == b"party" {
+            return Err(Error::Permission);
+        }
+        let fd = self.names.remove(from).expect("temporary name");
+        self.stored_modes.insert(to.into(), *self.file_modes.get(&fd).expect("created mode"));
+        self.stored.insert(to.into(), self.files.get(&fd).expect("temporary contents").clone());
+        self.store_history.push(self.files.get(&fd).expect("stored contents").clone());
+        if to == b"store" {
+            self.store_writes += 1;
+        }
+        Ok(Done::Nothing)
     }
     fn lock_directory(&mut self, fd: Fd) -> Result<Done, Error> {
         assert_eq!(fd, DIRECTORY);
@@ -506,17 +552,12 @@ impl Frame {
                 file[at..].copy_from_slice(bytes);
                 Ok(Done::Count(u32::try_from(bytes.len()).expect("written size")))
             }
-            Op::Rename { from, to, .. } => {
-                let fd = self.names.remove(from).expect("temporary name");
-                self.stored.insert(to.clone(), self.files.get(&fd).expect("temporary contents").clone());
-                self.store_history.push(self.files.get(&fd).expect("stored contents").clone());
-                if to.as_ref() == b"store" {
-                    self.store_writes += 1;
-                }
-                Ok(Done::Nothing)
-            }
+            Op::Rename { from, to, .. } => self.rename_file(from, to),
             Op::Stat { fd } => Ok(self.stat(*fd)),
             Op::Read { fd, buf, at } => {
+                if *fd == Fd::new(25) {
+                    self.party_reads += 1;
+                }
                 if *fd == LINK_FILE {
                     self.input_reads += 1;
                 }
@@ -576,7 +617,8 @@ impl Frame {
                 self.input = &self.input[count..];
                 Ok(Done::Count(u32::try_from(count).expect("input count")))
             }
-            Op::Bind { .. }
+            Op::HardLink { .. }
+            | Op::Bind { .. }
             | Op::Listen { .. }
             | Op::Accept { .. }
             | Op::Append { .. }
@@ -672,6 +714,8 @@ impl Frame {
                         )
                         .expect("full answer"),
                     )
+                } else if let Some(answer) = self.link_refusal.take() {
+                    answer
                 } else if self.refuse_link.is_some() {
                     w::SignInAnswer::Refused
                 } else {
@@ -680,7 +724,7 @@ impl Frame {
                             &w::CEILINGS,
                             w::SignedInParts {
                                 token: self.keep_link.is_none().then(|| skein_lib::Secret::new(TOKEN_BYTES.into())),
-                                party: 1,
+                                party: 7,
                                 expires: u64::MAX,
                             },
                         )
@@ -774,7 +818,7 @@ impl Frame {
             b"/jig/v1/read" => self.read_setup_or_task(fd),
             b"/jig/v1/sign-out" => {
                 self.hold_stores = Some(());
-                self.reply(fd, &encode!(w::SignOutAnswer::SignedOut));
+                self.reply(fd, &encode!(self.sign_out_answer));
             }
             b"/jig/v1/stream-gone" => self.reply(fd, &[]),
             b"/jig/v1/unwatch" => self.reply(fd, &encode!(w::CloseAnswer::Closed)),

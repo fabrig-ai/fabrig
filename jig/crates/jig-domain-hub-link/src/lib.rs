@@ -297,6 +297,7 @@ impl Link {
 /// Inputs from the fleet, hub and protocol hand-outs.
 #[derive(Debug)]
 pub enum Event {
+    Asked { channel: Token, run: Token, attempt: Token, number: u64, answer: host::AskAnswer },
     Prepared { assignment: Assignment, writes: Box<[tasks::Name]> },
     StartJob { job: JobStart },
     Start { task: u64, attempt: u64, kinds: fleet::Kinds, version: fleet::Version },
@@ -471,6 +472,11 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
         Event::Busy { to } => {
             let answer = link.retain(Payload::Busy);
             out.push(Request::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
+        }
+        Event::Asked { channel, run, attempt, number, answer } => {
+            if link.connected(channel) {
+                out.push(Request::Down { channel, value: host::LinkDown::Asked { run, attempt, number, answer } });
+            }
         }
         Event::Relayed { channel, run, attempt, call, answer } => {
             link.host_calls.remove(&call);

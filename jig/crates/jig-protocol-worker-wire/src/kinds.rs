@@ -1,5 +1,5 @@
 //! Project record sizes into skein's schema (protocol/channel/README.md, 4.1).
-use crate::{MAGIC, VERSION, v13};
+use crate::{MAGIC, VERSION, v14};
 use skein_channel::{Direction, Kind as ChannelKind, Role, Schema, Term, Version};
 use skein_lib::List;
 
@@ -32,6 +32,8 @@ pub enum Kind {
     Job,
     JobAnswer,
     Wires,
+    Ask,
+    Asked,
 }
 
 impl Kind {
@@ -70,6 +72,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x010a, direction: Direction::FromInitiator, body: Kind::ListRead },
     KindRule { kind: 0x010b, direction: Direction::FromInitiator, body: Kind::Draining },
     KindRule { kind: 0x010c, direction: Direction::FromInitiator, body: Kind::JobAnswer },
+    KindRule { kind: 0x010d, direction: Direction::FromInitiator, body: Kind::Ask },
     KindRule { kind: 0x0180, direction: Direction::FromResponder, body: Kind::Assignment },
     KindRule { kind: 0x0181, direction: Direction::FromResponder, body: Kind::Message },
     KindRule { kind: 0x0182, direction: Direction::FromResponder, body: Kind::Relayed },
@@ -84,6 +87,7 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x018b, direction: Direction::FromResponder, body: Kind::Job },
     KindRule { kind: 0x018c, direction: Direction::FromResponder, body: Kind::ReadList },
     KindRule { kind: 0x018d, direction: Direction::FromResponder, body: Kind::Wires },
+    KindRule { kind: 0x018e, direction: Direction::FromResponder, body: Kind::Asked },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -92,7 +96,7 @@ pub enum Overflow {
     Frame,
 }
 
-pub fn schema(limits: &v13::Limits) -> Result<Schema, Overflow> {
+pub fn schema(limits: &v14::Limits) -> Result<Schema, Overflow> {
     use skein_codec::schema::{Shape, VariantIx};
     let mut versions = List::uncapped();
     for text in crate::patches::kept::jig_worker_wire::TEXTS {
@@ -119,7 +123,7 @@ pub fn schema(limits: &v13::Limits) -> Result<Schema, Overflow> {
                 } else {
                     let record = variant.record.expect("each kind holds a record");
                     let bound =
-                        kept.most_bytes_within(record, &v13::LIMIT_NAMES, &limits.values()).ok_or(Overflow::Body)?;
+                        kept.most_bytes_within(record, &v14::LIMIT_NAMES, &limits.values()).ok_or(Overflow::Body)?;
                     let Ok(bound) = u32::try_from(bound) else { return Err(Overflow::Frame) };
                     Some(bound)
                 }
@@ -134,7 +138,7 @@ pub fn schema(limits: &v13::Limits) -> Result<Schema, Overflow> {
 
 /// The channel offers the range stated for jig's own wire.
 #[must_use]
-pub fn schema_for(limits: &v13::Limits, wires: &List<crate::Spoken>) -> Option<Schema> {
+pub fn schema_for(limits: &v14::Limits, wires: &List<crate::Spoken>) -> Option<Schema> {
     let mut stated = None;
     for wire in wires {
         if wire.name == crate::wire::FAMILY {

@@ -16,6 +16,7 @@ pub fn before_provider_query(settings: world::Settings) -> u32 {
 #[derive(Clone, Copy, Debug)]
 pub enum Story {
     Chat,
+    Ask,
     Providers,
     ApplicationGeneration,
     // A real key request supplies the grant; `replaced` changes it while the attempt runs.
@@ -85,6 +86,7 @@ fn script(story: Story) -> crate::world::Script {
         Story::Restart { .. }
             | Story::FailedStarts { .. }
             | Story::Providers
+            | Story::Ask
             | Story::ApplicationGeneration
             | Story::Key { replaced: true }
     ) {

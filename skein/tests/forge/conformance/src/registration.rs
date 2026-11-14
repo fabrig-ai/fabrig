@@ -75,6 +75,7 @@ fn held(out: &Output, code: i32, stderr: &str) -> bool {
 pub(crate) fn facts(f: &Fixture, binary: &Path, secrets: &mut Secrets) -> Result<Vec<Fact>> {
     let scratch = f.instance.scratch().join("runner-facts");
     fs::create_dir_all(scratch.join("home"))?;
+    fs::create_dir_all(scratch.join("tmp"))?;
     runner::version(binary, &scratch)?;
     secrets.add(SecretKind::RunnerSecret, FACT_SECRET);
     let path = scratch.join("secret");

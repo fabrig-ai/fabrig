@@ -112,7 +112,7 @@ fn empty_settings() -> crate::settings::Engine {
     settings
 }
 pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
-    use jig_client_protocol_wire::v21 as j;
+    use jig_client_protocol_wire::v22 as j;
     use jig_domain_people as people;
     let mut bootstrap = fixtures::ready();
     let mut header = bootstrap.engine.as_ref().unwrap().domain.deployment();

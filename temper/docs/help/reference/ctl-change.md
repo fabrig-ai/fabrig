@@ -17,18 +17,17 @@ Read a change's way to landing: its pull request, CI and step
 Prints: `change N`, its repository, branch and landing branch, its pull request, step and CI at its head; its questions: the route, those taken of its bound, and each open question with where it stands; and a digest
 --json: the record change.
 Key: none.
-While landing-rule approval is outstanding, it prints each requirement,
-counted people and review heads, the remaining count and any unmapped
-reviews, then points to the pull request for review. Unread and incomplete
-evidence are named separately from zero qualifying approvals.
-Otherwise, until it lands, it prints `next: temper ctl DIR change show TASK
---until landed`, or, while a task is held, `next: temper ctl DIR
-task show N`; while verifying or red, `next: temper ctl DIR change show TASK
---until cleared`; landed, its merge commit. Successful no-change completion
-prints `result: completed, no change` and `next: temper ctl DIR task show N`
-for its report. An unmet wait ends with `not met: ended`,
-`not met: ended: cancelled` or `not met: ended: failed` (exit 3).
-A wait for landing ends at a hold, `not met: held` (exit 3).
-A task without a panel prints `no change panel for task N` (exit 2).
-The forge holds its diff, reviews and logs: read them there.
+Outstanding landing-rule approval lists each requirement, counted people,
+review heads, remaining count and unmapped reviews, then the pull for review.
+Unread/incomplete evidence differs from zero qualifying approvals.
+Next: `temper ctl DIR change show TASK --until landed`; held, `temper ctl DIR
+task show N`; verifying/red, `temper ctl DIR change show TASK --until cleared`;
+landed, its merge. No-change completion prints `result: completed, no change`
+and that task-show command for its report.
+Unmet waits: `not met: ended`, `not met: ended: cancelled` or
+`not met: ended: failed` (exit 3); landing waits at a hold: `not met: held` (3).
+Gone record: last 8 history events and the all-events read (0), up to 16 pages,
+naming more. Empty history: record and history gone (2). JSON: events/read
+or history: gone. A wait without a panel: `no change panel for task N` (2).
+Read the forge for its diff, reviews and logs.
 ```

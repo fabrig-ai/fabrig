@@ -11,6 +11,7 @@ pub fn deployment() -> c::Deployment {
         readiness: List::with_capacity(0),
         readiness_cut: false,
         store: c::StoreFill { bytes: 7, mark: 7 },
+        census: None,
         hosts: List::with_capacity(0),
         attempts: List::with_capacity(0),
         accounts: List::with_capacity(0),

@@ -124,7 +124,9 @@ with the worker's (`../protocol/README.md`, section 6).
 - **In, `Event`:**
   - the store's answers (`StoreInput`): a commit durable, with the
     store's fill; a commit failed; a page loaded, or not; a core read's
-    page;
+    page; the store's census, at most once a minute, which the root
+    hands the core as its `Event::Census`, keeping the last while it
+    starts as it keeps the fill (jig's `protocol/store/README.md`, 6.3);
   - a worker's channel (`WorkerInput::Link`): a hello, a record up with
     temper's `Parts` beside an answer, a loss; and the protocol layer's
     hand-backs: a host call decoded into the root's `Tool`, a decided

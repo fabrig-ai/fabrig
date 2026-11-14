@@ -886,7 +886,13 @@ conditions. smith keeps each as a rule of its own:
   `system/status` are met as 5.5 says; and two children of one run
   (5.10), each a program of its own on main's configuration directory,
   answering side by side. The fake sends what a real run was recorded
-  sending, those messages included.
+  sending, those messages included. Each probe's program dies with its
+  test, however the test ends: it starts dying with the test's thread,
+  through `spawn_dying_with_parent` (skein's `runtime/shell.md`, section
+  3) with Kill, as 5.1's program child does, its home and working directory in the
+  probe's scratch. Its configuration directory is the one signed in
+  once, used in place, and keeps the sessions Claude Code writes there:
+  a login is never copied (`docs/design/testing.md`, 2.3).
 
 The fake's simultaneous calls may each check their reply. Each queued call
 keeps its own expected text and checks its own tool result when answered;

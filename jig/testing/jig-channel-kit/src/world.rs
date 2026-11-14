@@ -44,6 +44,7 @@ pub struct Outcome {
     pub turns_committed: u32,
     pub answers_acknowledged: u32,
     pub calls_answered: u32,
+    pub application_answer: Option<(skein_lib::Token, skein_lib::Token, u64, jig_domain_host::AskAnswer)>,
     pub calls_busy: u32,
     pub named_call_error_observed: bool,
     pub services_empty: bool,
@@ -222,6 +223,7 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         verdict: Verdict::Passed,
         turns_committed: u32::try_from(turns.len()).expect("bounded turns"),
         answers_acknowledged: worker.map_or(0, |wire| u32::try_from(wire.acknowledgements.len()).expect("bounded answers")),
+        application_answer: views.application_answer.clone(),
         calls_answered: worker.map_or(0, |wire| wire.calls_answered),
         calls_busy: worker.map_or(0, |wire| u32::try_from(wire.frames.iter().filter(|(_, kind, bytes)| {
             *kind == 0x0182 && jig_protocol_worker_wire::Relayed::decode(&jig_protocol_worker_wire::CEILINGS,
@@ -487,6 +489,7 @@ pub(crate) fn worker_wire(procs: &[Proc]) -> &processes::Wire {
 
 #[derive(Default)]
 pub(crate) struct Views {
+    pub(crate) application_answer: Option<(skein_lib::Token, skein_lib::Token, u64, jig_domain_host::AskAnswer)>,
     pub(crate) activity_seen: bool,
     pub(crate) text_bytes: usize,
     pub(crate) reply: crate::live_text::Reply,
@@ -547,6 +550,7 @@ fn make_referee(
             | crate::stories::Story::ApplicationGeneration
             | crate::stories::Story::Key { .. }
             | crate::stories::Story::Providers
+            | crate::stories::Story::Ask
             | crate::stories::Story::Chat
             | crate::stories::Story::Stalled
             | crate::stories::Story::Quiet

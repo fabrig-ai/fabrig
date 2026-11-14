@@ -2,7 +2,7 @@
 use crate::native::Received;
 use jig_client::{Message, Request as ClientRequest, contract as c};
 use jig_client_kit::harness::{Receipt, Sent};
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use jig_client_test_domain::{Event, Request};
 use skein_lib::{Reader, RequestEnvelope, Token};
 

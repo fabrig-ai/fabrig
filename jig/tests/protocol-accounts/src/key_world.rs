@@ -75,6 +75,8 @@ impl World {
         let root = store::Root { token: Token::new(1), fd: skein_io::kernel::Fd::new(3) };
         world.down(store::Request::Open { owner: Token::new(1), root, installation: [5; 16] });
         let Some(store::Event::Opened { pending, owner, .. }) = world.above.pop() else { panic!("store opens") };
+        // This accounts fixture does not consume the map census (protocol/store/README.md, 6.3).
+        let Some(store::Event::Census { .. }) = world.above.pop() else { panic!("opened census") };
         if pending {
             // This store-only driver has no engine root to ask for the switch.
             world.down(store::Request::Switch { owner });

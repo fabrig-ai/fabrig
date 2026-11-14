@@ -93,6 +93,7 @@ impl Domain {
 /// Handles one event, emitting git operations and client lifecycle answers.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Reds { hold, action } => hold::reds(domain, env, hold, action, out),
         Event::Prepare { client, spec } => hold::prepare(domain, env, client, spec, out),
         Event::PushUnchecked { hold } => hold::unchecked(domain, env, hold, out),
         Event::Push { hold, message } => hold::push(domain, env, hold, message, out),

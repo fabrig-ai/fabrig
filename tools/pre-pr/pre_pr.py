@@ -4,6 +4,7 @@ The private snapshot leaves the caller's index alone; only exceeded counts need 
 base worktree. Every tool streams before the bounded, final verdict.
 """
 import fnmatch
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -377,7 +378,7 @@ def build_test_binaries(binaries, root, env):
     return 0, []
 
 
-def one_process(packages, root, env):
+def one_process(packages, root, env, entries=(), reds=(), rerun=0, outcomes=None):
     """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         directory = Path(directory) / 'tests'
@@ -398,7 +399,7 @@ def one_process(packages, root, env):
             results = json.loads((directory / source).read_text())
             if not isinstance(results['tests'], list) or not isinstance(results['unobserved'], list):
                 raise ValueError('tests and unobserved must be lists')
-            entries = {}
+            observed = {}
             count = 0
             for test in results['tests']:
                 binary, name, outcome = test['binary_id'], test['test_name'], test['outcome']
@@ -409,13 +410,15 @@ def one_process(packages, root, env):
                 before = test.get('before', [])
                 if not isinstance(before, list) or not all(isinstance(name, str) for name in before):
                     raise ValueError('before must be a list of names')
-                entries[binary, name] = test
+                observed[binary, name] = test
                 count += outcome in ('starved', 'cancelled')
             if state['starved'] or count:
                 starved = (f'pre-pr: tests starved: {count} starved or cancelled, '
                            f'{len(results["unobserved"])} unobserved, a warning '
                            '(skein/docs/foundation/testing-strategy.md, 8.1)')
                 print(starved, flush=True)
+            if outcomes is not None:
+                outcomes.update(observed)
             if code == 0:
                 return code, [], starved
             source = 'junit.xml'
@@ -428,7 +431,7 @@ def one_process(packages, root, env):
                     if not faults:
                         continue
                     name = case.get('name', '')
-                    test = entries.get((binary, name), {})
+                    test = observed.get((binary, name), {})
                     if test.get('outcome') == 'cancelled':
                         continue
                     output = '\n'.join(''.join(node.itertext()) for node in faults +
@@ -442,7 +445,62 @@ def one_process(packages, root, env):
             return code or 1, [failure('check one-process', f'{source}: {error}\n' + log)], starved
         if not errors:
             errors.append(failure('check one-process', 'exit 100 without JUnit failures\n' + log))
+        inherited(entries, reds, errors)
+        tests_again(errors, observed, rerun, directory, root, env)
         return code, errors, starved
+
+
+def tests_again(errors, observed, bound, directory, root, env):
+    """Replay unlisted failures serially while the first run still exists (section 4)."""
+    candidates = sorted((error for error in errors if error['name'].startswith('test ')
+                         and not error['inherited']
+                         and observed.get(error['key'], {}).get('outcome') in ('failed', 'crashed')),
+                        key=lambda error: error['key'])
+    if len(candidates) > bound:
+        print(f'pre-pr: tests again: none ({len(candidates)} failures, at most {bound} run again)', flush=True)
+        return
+    for number, error in enumerate(candidates, 1):
+        binary, name = error['key']
+        test = observed[binary, name]
+        names = test.get('before', []) + [name]
+        if 'before' not in test:
+            print(f'pre-pr: tests again: {binary} {name}: no before recorded; running the test alone', flush=True)
+        print(f'pre-pr: tests again: {binary} {name} ({len(names)} tests) …', flush=True)
+        start = time.monotonic()
+        again = directory.parent / f'again-{number}'
+        code, _ = run(['python3', '-I', '-B', 'tools/tiers/one-process', '--again', str(directory),
+                       '--out', str(again), binary] + names, root, env, stdout=True)
+        passed = False
+        if code in (0, 100):
+            try:
+                results = json.loads((again / 'results.json').read_text())
+                passed = any(test['binary_id'] == binary and test['test_name'] == name
+                             and test['outcome'] == 'passed' for test in results['tests'])
+            except (OSError, ValueError, KeyError, TypeError):
+                pass
+        seconds = time.monotonic() - start
+        if passed:
+            error['flake'] = (len(names), seconds)
+        print(f'pre-pr: tests again: {binary} {name}: {"passed" if passed else "failed"}, '
+              f'{seconds:.3f} s', flush=True)
+
+
+def rerun_bound(root, env):
+    """Read temper's one-line process bound once before the cache (section 4)."""
+    path = root / os.fsdecode(git(['rev-parse', '--git-path', 'temper/rerun'], root, env).stdout).strip()
+    try:
+        content = path.read_bytes()
+    except FileNotFoundError:
+        return 0
+    match = re.fullmatch(rb'temper-rerun 1 ([0-9]+)\n?', content)
+    if match:
+        digits = match[1].lstrip(b'0')
+        if len(digits) <= 2:
+            value = int(digits or b'0')
+            if value <= 16:
+                return value
+    print('pre-pr: rerun: ignored temper/rerun (malformed)', flush=True)
+    return 0
 
 
 def known_reds(tree_id, root, env):
@@ -472,7 +530,69 @@ def known_reds(tree_id, root, env):
     return set(entries), []
 
 
-def inherited(entries, errors):
+def goal_reds(root, env):
+    """Wait for and read the goal's whole reds, before the cache (sections 5, 7)."""
+    paths = [root / os.fsdecode(git(['rev-parse', '--git-path', 'temper/' + name], root, env).stdout).strip()
+             for name in ('reds', 'reds-wait')]
+    path, marker = paths
+    milliseconds = None
+    try:
+        match = re.fullmatch(rb'temper-reds-wait 1 ([0-9]+)\n?', marker.read_bytes())
+        if match:
+            digits = match[1].lstrip(b'0')
+            if len(digits) <= 6:
+                value = int(digits or b'0')
+                if 1 <= value <= 600000:
+                    milliseconds = value
+        if milliseconds is None:
+            print('pre-pr: reds: ignored temper/reds-wait (malformed)', flush=True)
+    except FileNotFoundError:
+        pass
+    if milliseconds is not None:
+        deadline = time.monotonic() + milliseconds / 1000
+        while not path.exists():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(0.05, remaining))
+    try:
+        with path.open('rb') as source:
+            size = os.fstat(source.fileno()).st_size
+            if size > 2097152:
+                print(f'pre-pr: reds: none (temper/reds oversized: {size} bytes)', flush=True)
+                return set(), None, milliseconds is not None
+            content = source.read()
+    except FileNotFoundError:
+        if milliseconds is not None:
+            print(f'pre-pr: reds: none (temper/reds not written within {milliseconds} ms)', flush=True)
+        return set(), None, milliseconds is not None
+    digest = hashlib.sha256(content).hexdigest()
+    lines = content.split(b'\n')
+    if lines[-1] == b'':
+        lines.pop()
+    entries = set()
+    malformed = 1 if not lines or lines[0] != b'temper-reds 1' else None
+    if malformed is None:
+        for number, raw in enumerate(lines[1:], 2):
+            try:
+                line = raw.decode('utf-8')
+            except UnicodeDecodeError:
+                malformed = number
+                break
+            test = re.fullmatch(r'- test (\S+) (.+)', line)
+            lint = re.fullmatch(r'- lint (\S+) (\S+) (.+)', line)
+            if not (test or lint) or line[-1].isspace():
+                malformed = number
+                break
+            entries.add(('test', *test.groups()) if test else ('lint', *lint.groups()))
+    if malformed is not None:
+        print(f'pre-pr: reds: none (temper/reds malformed at line {malformed})', flush=True)
+        return set(), digest, milliseconds is not None
+    print(f'pre-pr: reds: {len(entries)} entries (temper/reds)', flush=True)
+    return entries, digest, milliseconds is not None
+
+
+def inherited(entries, reds, errors):
     """Only listed tests and coded lints inherit, without their messages (section 5)."""
     for error in errors:
         key = error['key']
@@ -484,9 +604,9 @@ def inherited(entries, errors):
             entry = ('lint', *key[:3])
         else:
             continue
-        if entry in entries:
+        if entry in entries or entry in reds:
             error['inherited'] = True
-            error['known_red'] = True
+            error['red_source'] = 'reds' if entry in reds else 'list'
 
 
 def judge_base(base_id, git_dir, count_errors, root, env):
@@ -524,6 +644,41 @@ def judge_base(base_id, git_dir, count_errors, root, env):
     return '\n'.join(reasons)
 
 
+def check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, env):
+    """Report observed goal reds and flakes atomically (section 6; forge/reds.md, 5.5)."""
+    lines = ['temper-check 1', f'check {tree_id} {base_id or "-"} {"refused" if verdict else "passed"}']
+    failed_tests = {e['key'] for e in errors if e['name'].startswith('test ') and 'flake' not in e}
+    lint_errors = [e for e in errors if e['name'].startswith('clippy ')]
+    clippy_valid = not any(e['name'] == 'check clippy' for e in errors)
+    for entry in sorted(reds):
+        status = None
+        if entry[0] == 'test':
+            key = entry[1:]
+            outcome = outcomes.get(key, {}).get('outcome')
+            if outcome == 'passed':
+                status = 'passed'
+            elif outcome in ('failed', 'crashed') and key in failed_tests:
+                status = 'failed'
+        elif entry[1] in lints and clippy_valid:
+            if any(e['key'][:3] == entry[1:] for e in lint_errors):
+                status = 'failed'
+            elif not any(e['package'] == entry[1] and not e['key'][1] for e in lint_errors):
+                status = 'passed'
+        if status:
+            lines.append(status + ' ' + ' '.join(entry))
+    for error in sorted((e for e in errors if 'flake' in e), key=lambda e: e['key']):
+        lines.append('flake test ' + ' '.join(error['key']))
+        lines.extend('| ' + line if line else '|' for line in error['log'].splitlines())
+    path = root / os.fsdecode(git(['rev-parse', '--git-path', 'temper/check-results'], root, env).stdout).strip()
+    temporary = path.with_name('check-results.tmp')
+    temporary.write_text('\n'.join(lines) + '\n')
+    temporary.replace(path)
+
+
+def settled(error):
+    return error['inherited'] or 'flake' in error
+
+
 def timed(name, action, pending=None):
     print(f'pre-pr: {name} …', flush=True)
     start = time.monotonic()
@@ -538,7 +693,7 @@ def timed(name, action, pending=None):
     else:
         status = 'failed' if failed else 'passed'
         if isinstance(result, tuple) and result[1] and isinstance(result[1], list):
-            if all(error['inherited'] for error in result[1]):
+            if all(settled(error) for error in result[1]):
                 status = 'inherited'
         print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
     return result
@@ -546,7 +701,7 @@ def timed(name, action, pending=None):
 
 def summary(base_id, lints, tests, errors, reason, starved=None):
     """Keep the first failure whole and count what the host's tail cannot hold."""
-    refused = any(not e['inherited'] for e in errors)
+    refused = any(not settled(e) for e in errors)
     base_text = f'base {base_id}, merge base of refs/temper/landing and HEAD' if base_id else 'no base'
     header = f'pre-pr: {"refused" if refused else "passed"} ({base_text})\n'
     header += f'lints: {" ".join(lints)}\ntests: {" ".join(tests)}\n'
@@ -554,8 +709,12 @@ def summary(base_id, lints, tests, errors, reason, starved=None):
         header += starved + '\n'
     if reason:
         header += tail(reason)
-    entries = [e['name'] + '\n' + e['log'] for e in errors if not e['inherited']]
-    entries += ['inherited: ' + e['name'] + (' (known red, .temper/known-reds.md)' if e.get('known_red') else '') + '\n'
+    entries = [e['name'] + '\n' + e['log'] for e in errors if not settled(e)]
+    entries += [f'flake: {e["name"]} (failed under load; passed when its process ran again: '
+                f'{e["flake"][0]} tests, {e["flake"][1]:.3f} s)\n' + e['log']
+                for e in sorted((e for e in errors if 'flake' in e), key=lambda e: e['key'])]
+    sources = {'list': ' (known red, .temper/known-reds.md)', 'reds': ' (red, temper/reds)'}
+    entries += ['inherited: ' + e['name'] + sources.get(e.get('red_source'), '') + '\n'
                 for e in errors if e['inherited']]
     # Even large package sets must leave room for the first failure and the count.
     header = header.encode()[:4096].decode('utf-8', errors='ignore') + '\n'
@@ -577,16 +736,26 @@ def main():
     prefix = env.pop('TIERS_HOLD', '').split()
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     git_dir = Path(git(['rev-parse', '--absolute-git-dir'], root, env).stdout.decode().strip())
+    reds, digest, marker = goal_reds(root, env)
+    rerun = rerun_bound(root, env)
     base_id, why = base(root, env)
     errors = []
     lints, tests = [], []
     starved = None
+    outcomes = {}
+
+    def conclude():
+        verdict = summary(base_id, lints, tests, errors, why if base_id else None, starved)
+        if marker:
+            check_results(tree_id, base_id, verdict, reds, lints, outcomes, errors, root, env)
+        return verdict
+
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         tree_id, private = tree(root, git_dir, Path(directory) / 'index', env)
         cache = git_dir / 'pre-pr-passed'
-        record = f'{tree_id} {base_id or "-"}'
+        record = f'{tree_id} {base_id or "-"} {digest or "-"}'
         if cache.exists() and cache.read_text().strip() == record:
-            print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"})', flush=True)
+            print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"}, reds {digest or "-"})', flush=True)
             return 0
         runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
         with runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout):
@@ -642,7 +811,7 @@ def main():
                     inventory = test_binaries(data, root)
                 except (OSError, ValueError, RuntimeError) as error:
                     errors.append(failure('check selection', str(error)))
-                    return summary(base_id, lints, tests, errors, why if base_id else None)
+                    return conclude()
 
             pending = {}
             if code_checks:
@@ -665,12 +834,12 @@ def main():
                         build_code, found = timed('test binaries', lambda: build_test_binaries(binaries, root, env), pending)
                         errors += found
                     if tests and not build_code:
-                        _, found, starved = timed('tests', lambda: one_process(tests, root, env), pending)
+                        _, found, starved = timed('tests', lambda: one_process(tests, root, env, entries, reds, rerun, outcomes), pending)
                         errors += found
             if docs:
                 _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
                 errors += found
-            inherited(entries, errors)
+            inherited(entries, reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
             if base_id and count_errors:
                 why = judge_base(base_id, git_dir, count_errors, root, env)
@@ -684,9 +853,9 @@ def main():
                 else:
                     prefixes = (name,)
                 found = [e for e in errors if e['name'].startswith(prefixes)]
-                status = 'inherited' if found and all(e['inherited'] for e in found) else 'failed'
+                status = 'inherited' if found and all(settled(e) for e in found) else 'failed'
                 print(f'pre-pr: {name}: {status}, {seconds:.3f} s', flush=True)
-            verdict = summary(base_id, lints, tests, errors, why if base_id else None, starved)
+            verdict = conclude()
             if not verdict:
                 temporary = git_dir / 'pre-pr-passed.tmp'
                 temporary.write_text(record + '\n')

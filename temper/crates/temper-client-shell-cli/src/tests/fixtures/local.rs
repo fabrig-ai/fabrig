@@ -37,6 +37,14 @@ pub fn kept_close() -> Box<[u8]> {
 }
 impl Frame {
     pub(super) fn hello(&mut self, fd: Fd) {
+        if self.refuse_token {
+            self.sockets
+                .get_mut(&fd)
+                .expect("stream socket")
+                .reply
+                .extend(b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n");
+            return;
+        }
         if let Some((bound, size)) = &self.streams_full {
             let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound: bound.clone(), size: *size })
                 .expect("full record");

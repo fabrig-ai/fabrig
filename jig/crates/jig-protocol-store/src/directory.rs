@@ -176,6 +176,7 @@ fn made(event: file::Event) -> bool {
         | file::Event::Cut { .. }
         | file::Event::Synced { .. }
         | file::Event::Closed { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Removed { .. }
         | file::Event::Listed { .. }
@@ -954,6 +955,7 @@ pub(crate) fn events_up(
                     crate::transcripts::committed(store, number);
                     store.mark.committed(number);
                     above.push(Event::Committed { number, fill: store.stores.store.used() });
+                    crate::census::due(store, above);
                 } else {
                     stopped(store);
                     above.push(Event::Failed { number });

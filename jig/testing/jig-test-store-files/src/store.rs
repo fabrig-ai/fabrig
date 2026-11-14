@@ -569,6 +569,8 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
+            // This world does not consume the census (protocol/store/README.md, 6.3).
+            Event::Census { .. } => {}
             Event::Opened { last, pending, .. } => {
                 self.applied = last;
                 self.generation_pending = pending;

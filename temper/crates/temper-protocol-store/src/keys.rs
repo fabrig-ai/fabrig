@@ -4,6 +4,60 @@ use skein_kv::{KeyReader, KeyWriter};
 use skein_lib::List;
 use temper_engine_domain_forge_vocabulary as forge;
 
+/// Application names for jig's census (protocol/store.md, 3).
+pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspaces {
+    owner: "temper",
+    families: &[
+        (0, "temper.calls"),
+        (1, "temper.proposed-effects"),
+        (2, "temper.repositories"),
+        (3, "temper.holds"),
+        (4, "temper.names"),
+        (5, "temper.subscriptions"),
+        (6, "temper.branch-heads"),
+        (7, "temper.pull-states"),
+        (8, "temper.ci"),
+        (9, "temper.landed"),
+        (10, "temper.entries"),
+        (11, "temper.clients"),
+        (12, "temper.changes"),
+        (13, "temper.issues"),
+        (14, "temper.releases"),
+        (15, "temper.applications"),
+        (16, "temper.writers"),
+        (18, "temper.bindings"),
+        (20, "temper.settings"),
+        (21, "temper.flights"),
+        (22, "temper.deliveries"),
+        (23, "temper.landings"),
+        (24, "temper.receipts"),
+        (25, "temper.forges"),
+        (26, "temper.forge-number"),
+        (27, "temper.playground"),
+        (28, "temper.tiers"),
+        (29, "temper.verifications"),
+        (30, "temper.landing-log"),
+        (31, "temper.findings"),
+        (32, "temper.marks"),
+        (33, "temper.qa-passes"),
+        (34, "temper.dismissed"),
+        (35, "temper.making"),
+        (36, "temper.project-facts"),
+        (37, "temper.looked"),
+        (38, "temper.away"),
+        (39, "temper.decided"),
+        (40, "temper.closers"),
+        (41, "temper.landed-drafts"),
+        (42, "temper.follows"),
+        (43, "temper.devices"),
+        (127, "temper.history-project"),
+        (128, "temper.landing-history"),
+        (129, "temper.history-change"),
+        (130, "temper.history-landing"),
+        (131, "temper.history-last"),
+    ],
+};
+
 /// The `Binding` family's byte, taken at landing as a version is (protocol/store.md, 2).
 pub const BINDING: u8 = 18;
 /// The forge's settings of kinds 1 to 3 (temper/docs/design/protocol/store.md, 2).
@@ -45,6 +99,20 @@ pub const LANDED_DRAFT: u8 = 41;
 pub const FOLLOW: u8 = 42;
 /// A person's devices (temper/docs/design/protocol/store.md, 2).
 pub const DEVICE: u8 = 43;
+/// A goal's reds (temper/docs/design/domain/forge/reds.md, 6).
+pub const RED: u8 = 44;
+pub const RED_NUMBER: u8 = 45;
+pub const RED_PASS: u8 = 46;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_PROJECT: u8 = 127;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_EVENT: u8 = 128;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_CHANGE: u8 = 129;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_LANDING: u8 = 130;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_LAST: u8 = 131;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -109,7 +177,10 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
     // Writer is one family byte and an eight-byte forge number: 9 bytes.
     // Binding: family byte, two bytes per NUL, and byte-string terminator.
     let making = limits.name_bytes.min(1024).checked_mul(4)?.checked_add(13)?;
-    Some(name.max(topic).max(making).max(159).max(1 + 2 * 254 + 2))
+    let red = limits.red_key_bytes.checked_mul(2)?.checked_add(11)?;
+    // History index keys hold at most three eight-byte numbers plus the family.
+    let history = 25;
+    Some(name.max(topic).max(making).max(red).max(history).max(159).max(1 + 2 * 254 + 2))
 }
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
@@ -118,6 +189,21 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {
+        forge::Key::HistoryProject { project } => {
+            writer.tag(HISTORY_PROJECT).u64(u64::from(*project));
+        }
+        forge::Key::HistoryEvent { project, number } => {
+            writer.tag(HISTORY_EVENT).u64(u64::from(*project)).u64(*number);
+        }
+        forge::Key::HistoryChange { project, change, number } => {
+            writer.tag(HISTORY_CHANGE).u64(u64::from(*project)).u64(*change).u64(*number);
+        }
+        forge::Key::HistoryLanding { project, landing, number } => {
+            writer.tag(HISTORY_LANDING).u64(u64::from(*project)).u64(*landing).u64(*number);
+        }
+        forge::Key::HistoryLast { project, number, change } => {
+            writer.tag(HISTORY_LAST).u64(u64::from(*project)).u64(*number).u64(*change);
+        }
         forge::Key::Setting(key) => {
             writer.tag(SETTING).u64(u64::from(key.kind)).u64(u64::from(key.scope)).u64(u64::from(key.number));
             match key.slot {
@@ -154,6 +240,15 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         }
         forge::Key::Forge(number) => {
             writer.tag(FORGE).u64(u64::from(*number));
+        }
+        forge::Key::Red { goal, key } => {
+            writer.tag(RED).u64(*goal).bytes(key);
+        }
+        forge::Key::RedPass { change, key } => {
+            writer.tag(RED_PASS).u64(*change).bytes(key);
+        }
+        forge::Key::RedNumber => {
+            writer.tag(RED_NUMBER);
         }
         forge::Key::ForgeNumber => {
             writer.tag(FORGE_NUMBER);
@@ -384,6 +479,25 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             name: read_branch(&mut reader, limits)?,
         }),
         PROJECT_FACTS => forge::Key::ProjectFacts { project: u32::try_from(reader.u64()?).ok()? },
+        HISTORY_PROJECT => forge::Key::HistoryProject { project: u32::try_from(reader.u64()?).ok()? },
+        HISTORY_EVENT => {
+            forge::Key::HistoryEvent { project: u32::try_from(reader.u64()?).ok()?, number: reader.u64()? }
+        }
+        HISTORY_CHANGE => forge::Key::HistoryChange {
+            project: u32::try_from(reader.u64()?).ok()?,
+            change: reader.u64()?,
+            number: reader.u64()?,
+        },
+        HISTORY_LANDING => forge::Key::HistoryLanding {
+            project: u32::try_from(reader.u64()?).ok()?,
+            landing: reader.u64()?,
+            number: reader.u64()?,
+        },
+        HISTORY_LAST => forge::Key::HistoryLast {
+            project: u32::try_from(reader.u64()?).ok()?,
+            number: reader.u64()?,
+            change: reader.u64()?,
+        },
         DEVICE => forge::Key::Device { party: reader.u64()?, number: u32::try_from(reader.u64()?).ok()? },
         LANDED_DRAFT => {
             let repository = read_repository(&mut reader)?;
@@ -393,6 +507,23 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             }
             forge::Key::LandedDraft { repository, path }
         }
+        RED => {
+            let goal = reader.u64()?;
+            let key = reader.bytes()?;
+            if !forge::reds::key_fits(&key, limits.red_key_bytes) {
+                return None;
+            }
+            forge::Key::Red { goal, key }
+        }
+        RED_PASS => {
+            let change = reader.u64()?;
+            let key = reader.bytes()?;
+            if !forge::reds::key_fits(&key, limits.red_key_bytes) {
+                return None;
+            }
+            forge::Key::RedPass { change, key }
+        }
+        RED_NUMBER => forge::Key::RedNumber,
         AWAY => forge::Key::Away { party: reader.u64()?, project: u32::try_from(reader.u64()?).ok()? },
         FINDING => forge::Key::Finding {
             project: u32::try_from(reader.u64()?).ok()?,

@@ -185,6 +185,7 @@ pub enum Tool {
     Decided(forge::DecidedCall),
     /// File, triage or read findings in the caller's project (domain/agent/tools.md).
     Finding(FindingCall),
+    Red(RedCall),
     Follow(FollowCall),
     /// Read related task specifications or proven descendant reports.
     ReadTask {
@@ -373,6 +374,20 @@ pub enum FollowToolAnswer {
     Write { follow: u32, refusal: Option<Box<[u8]>> },
     List(forge::FollowsView),
     Show { follow: u32, view: Option<Box<forge::FollowView>> },
+}
+
+/// A goal's red acts; the caller's task is always the goal (forge/reds.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RedCall {
+    Record { key: Box<[u8]>, at: Box<[u8]>, why: Box<[u8]> },
+    End { key: Box<[u8]>, why: Box<[u8]> },
+    List,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RedToolAnswer {
+    Write(forge::RedReply),
+    List { goal: u64, bound: u32, reds: Box<[forge::Red]> },
+    NoGoal { task: u64 },
 }
 
 /// Finding acts never take a project or actor from the agent (domain/areas.md, 7).
@@ -591,6 +606,8 @@ pub type TranscriptTexts = Box<[TurnText]>;
 
 #[derive(Hash, Debug)]
 pub enum StoreInput {
+    /// The named map census (jig's protocol/store/README.md, 6.3).
+    Census(Box<core::documents::StoreCensus>),
     /// A startup page's missing owner, handed in before that page's Loaded.
     MissingLink {
         owner: Token,
@@ -729,6 +746,10 @@ pub enum Fact {
 
 #[derive(Hash, Debug)]
 pub enum WorkerInput {
+    /// A decoded check report from a fenced worker ask (domain/forge/reds.md, 5.6).
+    CheckResults { run: Token, attempt: Token, results: crate::wire::CheckResults },
+    /// The protocol encoded the root's application answer, sent through the fleet's fence.
+    Asked { channel: Token, run: Token, attempt: Token, number: u64, answer: jig_domain_link::AskAnswer },
     /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 10.1).
     Opened { worker: Box<str>, statement: crate::WorkerStatement },
     /// A worker channel's hello, record or loss.
@@ -796,6 +817,7 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    History(forge::history::Query),
     Finding {
         project: u32,
         number: u32,
@@ -826,6 +848,7 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    History(forge::history::Reply),
     Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
@@ -1171,6 +1194,7 @@ pub enum PartyRequest {
 #[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "events stay inline in the bounded route queue priced at startup")]
 pub(crate) enum Work {
+    CheckResults { task: u64, attempt: u64, results: crate::wire::CheckResults },
     StartDone(jig_domain_core::start::Phase),
     Start(jig_domain_core::start::Action),
     Decoded { to: ReplyTo, body: Call },
@@ -1269,6 +1293,7 @@ pub(crate) enum EndedRead {
 #[derive(Hash, Debug)]
 pub(crate) enum Read {
     ChangeDelegate { task: u64, child: u64, step: u64, revision: u64 },
+    History { load: u64, most: u32 },
     Escalation(escalation::Query),
     Proposal(proposals::Query),
     TaskProposal { to: ReplyTo, key: CallKey, proposal: u64 },

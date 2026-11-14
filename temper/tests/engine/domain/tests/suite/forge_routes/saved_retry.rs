@@ -222,7 +222,7 @@ impl Workspace {
         } else {
             engine::Parts {
                 saved: None,
-                pushed: Box::new([forge_top::Pushed { tag: repository.tag, commit: commit.raw() }]),
+                pushed: Box::new([forge_top::Pushed { tag: repository.tag, commit: commit.raw(), checked: true }]),
                 preparation: None,
             }
         };

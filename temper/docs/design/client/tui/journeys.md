@@ -467,7 +467,9 @@ ordinary Rust over skein's harness:
 - **Built from the checkout:** the client `temper`, run with
   `TEMPER_INTERNAL_RECORD=1` (2), and
   `fake-claude`, and the browser's bundle (`scripts/bundle.sh`), each
-  copied into a fresh scratch directory under `/tmp`, the browser's
+  copied into a fresh scratch directory under the platform's temporary
+  directory, as the browser's `again` makes it (`../web/journeys.md`,
+  8.1), the browser's
   page opened with `internal-loopback-navigation=1` (`../web/README.md`, 2.1).
 - **A fresh fake box** (`../web/journeys.md`, 3.5), `temper box
   --fake-backends` from that copy serving that bundle, every directory
@@ -618,7 +620,8 @@ As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
   with each `again`, as the browser's (`../web/journeys.md`, section 10).
 - **Redaction in `again`:** a recording keeps the recorder's OS account
   name, the label the fake box gives Me, and a program's reply may name
-  the scratch directory `/tmp/temper-journey-PID-N` (8.2); neither is
+  the scratch directory `temper-journey-PID-N` under the temporary
+  directory (8.2); neither is
   drawn, and `add --redact` refuses an admitted recording. The
   `launchpad-chat`, `launchpad-drawn`, `sign-in-approved` and
   `design-session` recordings are committed so (the user, 2026-11-11).

@@ -257,6 +257,11 @@ impl Hub {
 #[expect(clippy::too_many_lines, reason = "the hub routes the complete event vocabulary in one step")]
 pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Ask { run, attempt, bytes } => crate::asks::ask(domain, env, run, attempt, bytes, out),
+        Event::LinkLost => {
+            crate::asks::lost(domain, out);
+            crate::sources::lost(&mut domain.sources, out);
+        }
         Event::ListRead { read, outcome } => crate::sources::list_read(&mut domain.sources, env, read, outcome, out),
         Event::SourceAnswered { owner, answer } => {
             crate::sources::answered(&mut domain.sources, env, owner, answer, out);
@@ -340,6 +345,9 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         }
         Event::Saved { owner, at } => hosted::saved(domain, owner, at, out),
         Event::Down(down) => match down {
+            LinkDown::Asked { run, attempt, number, answer } => {
+                crate::asks::asked(domain, env, run, attempt, number, answer, out);
+            }
             LinkDown::ReadList { read, endpoint, grant } => {
                 crate::sources::read(&mut domain.sources, env, read, endpoint, grant, out);
             }

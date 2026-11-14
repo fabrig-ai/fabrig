@@ -8,6 +8,7 @@ use temper_engine_domain_forge_change as change;
 pub fn change_row() -> top::ChangeRow {
     top::ChangeRow {
         task_release: None,
+        job: None,
         signed: Box::new([]),
         task: 51,
         repository: REPO,
@@ -66,6 +67,7 @@ pub fn change_row() -> top::ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }

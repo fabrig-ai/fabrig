@@ -22,6 +22,7 @@ pub fn identity() -> Identity {
 #[must_use]
 pub fn spawn_of(command: &Command) -> Spawn {
     let kind = match command {
+        Command::Reds(_) => Some(git::Kind::Reds),
         Command::MergeBases { .. } | Command::BringsList { .. } => Some(git::Kind::Brings),
         Command::Format | Command::Clone { .. } | Command::Remote { .. } | Command::UpdateRef { .. } => {
             Some(git::Kind::Clone)

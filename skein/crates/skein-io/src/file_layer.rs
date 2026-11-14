@@ -75,6 +75,7 @@ enum Pending {
     Sync(Token),
     Close(Token),
     Rename(Token),
+    HardLink(Token),
     Remove(Token),
     ListOpening(Token),
     List {
@@ -182,6 +183,7 @@ impl Pending {
             | Pending::Sync(owner)
             | Pending::Close(owner)
             | Pending::Rename(owner)
+            | Pending::HardLink(owner)
             | Pending::Remove(owner)
             | Pending::ListOpening(owner)
             | Pending::List { owner, .. }
@@ -220,6 +222,7 @@ impl Pending {
             | Pending::Cleanup { .. }
             | Pending::Close(_)
             | Pending::Rename(_)
+            | Pending::HardLink(_)
             | Pending::Remove(_)
             | Pending::List { .. }
             | Pending::Page { .. }
@@ -542,6 +545,17 @@ fn down_inner(
                 subs,
             )
         }
+        Request::HardLink { owner, from_root, from, to_root, to } => {
+            if !crate::kernel::is_name(&from)
+                || !crate::kernel::is_name(&to)
+                || from.len() > crate::kernel::LONGEST_NAME
+                || to.len() > crate::kernel::LONGEST_NAME
+            {
+                events.push(Event::failed(owner, Error::InvalidArgument));
+                return Work::Idle;
+            }
+            issue(io, Pending::HardLink(owner), Op::HardLink { from_dir: from_root, from, to_dir: to_root, to }, subs)
+        }
         Request::Remove { owner, root, name, directory } => {
             if !crate::kernel::is_name(&name) {
                 events.push(Event::failed(owner, Error::InvalidArgument));
@@ -623,6 +637,7 @@ pub fn cancel(io: &mut FileIo, owner: Token, subs: &mut Queue<Submit>) {
                 | Pending::Sync(_)
                 | Pending::Close(_)
                 | Pending::Rename(_)
+                | Pending::HardLink(_)
                 | Pending::Remove(_)
                 | Pending::ListOpening(_)
                 | Pending::List { .. }
@@ -687,6 +702,7 @@ fn follow_work(io: &mut FileIo, deadline: Option<Time>) {
                 | Pending::Sync(_)
                 | Pending::Close(_)
                 | Pending::Rename(_)
+                | Pending::HardLink(_)
                 | Pending::Remove(_)
                 | Pending::ListOpening(_)
                 | Pending::List { .. }
@@ -740,6 +756,7 @@ fn cancelled(
         | Pending::Sync(_)
         | Pending::Close(_)
         | Pending::Rename(_)
+        | Pending::HardLink(_)
         | Pending::Remove(_)
         | Pending::ListClosing { .. }
         | Pending::LoadClosing { .. }
@@ -762,6 +779,7 @@ fn cancelled(
             | Pending::Sync(_)
             | Pending::Close(_)
             | Pending::Rename(_)
+            | Pending::HardLink(_)
             | Pending::Remove(_)
             | Pending::ListOpening(_)
             | Pending::List { .. }
@@ -811,6 +829,7 @@ fn write_finished(complete: &Complete) -> bool {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::List { .. }
@@ -856,7 +875,7 @@ fn stopped(
         Pending::Lock(owner) => {
             return directory::locked(owner, complete, events);
         }
-        direct @ (Pending::Stating(_) | Pending::Rename(_) | Pending::Remove(_)) => {
+        direct @ (Pending::Stating(_) | Pending::Rename(_) | Pending::HardLink(_) | Pending::Remove(_)) => {
             return up_inner(io, env, direct, complete, events, subs);
         }
         page @ Pending::Page { .. } => {
@@ -1002,6 +1021,7 @@ fn up_inner(
             | Pending::Sync(owner)
             | Pending::Close(owner)
             | Pending::Rename(owner)
+            | Pending::HardLink(owner)
             | Pending::Remove(owner)
             | Pending::ListOpening(owner)
             | Pending::ListClosing { owner, .. }
@@ -1219,6 +1239,10 @@ fn up_inner(
             store::done_nothing(done);
             events.push(Event::Closed { owner });
         }
+        Pending::HardLink(owner) => {
+            store::done_nothing(done);
+            events.push(Event::Linked { owner });
+        }
         Pending::Rename(owner) => {
             store::done_nothing(done);
             events.push(Event::Renamed { owner });
@@ -1281,6 +1305,7 @@ fn list_parts(kind: Op) -> (Box<[crate::kernel::Entry]>, Box<[u8]>) {
         | Op::Lock { .. }
         | Op::Stat { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::Read { .. }

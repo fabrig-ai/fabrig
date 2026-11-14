@@ -274,6 +274,7 @@ impl Driver {
             | file::Event::Synced { .. }
             | file::Event::Closed { .. }
             | file::Event::Removed { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. }
             | file::Event::Made { .. }
             | file::Event::Failed { .. }

@@ -14,7 +14,8 @@ const RELEASE_CYCLES: u32 = 22;
 )]
 #[expect(missing_debug_implementations, reason = "the engine owns account token records")]
 pub struct Engine {
-    pub(crate) domain: root::Domain,
+    // Keep the root's state out of service construction and movement frames.
+    pub(crate) domain: Box<root::Domain>,
     pub(crate) upgrade: Option<crate::upgrade::State>,
     pub(crate) env: Env<root::Limits>,
     pub(crate) store: crate::store::Store,
@@ -137,7 +138,7 @@ impl Engine {
         let credentials = values.identities.numbers();
         store.routes.patch_context().executors.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
         let mut domain = match root::Domain::new(config, limits) {
-            Ok(domain) => domain,
+            Ok(domain) => Box::new(domain),
             Err(problem) => {
                 let (path, what) = crate::startup::checks::membership(problem);
                 let mut problems = jig_protocol_config::Problems::empty();
@@ -673,6 +674,7 @@ pub(crate) fn release(engine: &mut Engine) {
         }
         if empty == 2 {
             engine.ready = false;
+            retry_blocked(engine);
             break;
         }
     }
@@ -684,6 +686,24 @@ pub(crate) fn release(engine: &mut Engine) {
         engine.settled_revision = Some(engine.domain.revision());
     }
     stop::advance(engine);
+}
+
+// Owner continuations can clear an input's ordering barrier without a request
+// or a quiescent root (including during connector restart). Retry once before
+// parking; a refusal stays blocked until another release pass.
+fn retry_blocked(engine: &mut Engine) {
+    if !engine.blocked {
+        return;
+    }
+    let event = match engine.passing.take() {
+        Some(event) => Some(event),
+        None => engine.pending.take(),
+    };
+    if let Some(event) = event {
+        engine.blocked = false;
+        engine.step(*event);
+        engine.ready = !engine.blocked;
+    }
 }
 
 /// A full diagnostic sink leaves the batch ahead of the next release (protocol/cluster.md, 3).
@@ -812,7 +832,8 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.pending_generation = false;
                 crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
             }
-            event @ (jig_protocol_store::Event::Committed { .. }
+            event @ (jig_protocol_store::Event::Census { .. }
+            | jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
             | jig_protocol_store::Event::FrameTooLarge { .. }
             | jig_protocol_store::Event::Page { .. }

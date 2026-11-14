@@ -239,3 +239,52 @@ fn a_deletion_key_round_trips_under_tag_nine() {
         assert!(PeopleKey::Deletion(project).live());
     }
 }
+
+#[test]
+fn every_written_family_has_one_unique_census_name() {
+    assert_eq!(crate::census::name(&[0, 0], crate::Keyspaces::NONE), "component.format");
+    assert_eq!(crate::census::name(&[1, 0, 5], crate::Keyspaces::NONE), "core.terminals");
+    for (index, &(prefix, name)) in keys::KEYSPACES.iter().enumerate() {
+        assert!(!name.is_empty() && name.len() <= 48 && name.contains('.'), "OWNER.FAMILY: {name}");
+        for byte in name.bytes() {
+            assert!(byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'.' || byte == b'-');
+        }
+        for &(other_prefix, other_name) in keys::KEYSPACES.get(..index).expect("earlier names") {
+            assert_ne!(prefix, other_prefix);
+            assert_ne!(name, other_name);
+        }
+    }
+    let mut rng = Rng::new(0x6300);
+    for _ in 0_u32..10_000 {
+        let key = fixtures::key(&mut rng);
+        assert_census_name(&keys::encode(&key, fixtures::KEY_LIMIT).unwrap());
+        let key = fixtures::own(&mut rng);
+        assert_census_name(&keys::encode_own(&key, fixtures::KEY_LIMIT).unwrap());
+    }
+    // These keys do not occur in the shared ordering generator.
+    for key in [
+        Key::People(jig_domain_people::Key::Deleted(1)),
+        Key::People(jig_domain_people::Key::Public(1)),
+        Key::People(jig_domain_people::Key::Deletion(1)),
+        Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: 1, key: [0; 16] })),
+        Key::Accounts(jig_domain_accounts::Key::Facts { account: 1 }),
+    ] {
+        assert_census_name(&keys::encode(&key, fixtures::KEY_LIMIT).unwrap());
+    }
+    for key in [keys::Own::Wires, keys::Own::Opening("worker".into())] {
+        assert_census_name(&keys::encode_own(&key, fixtures::KEY_LIMIT).unwrap());
+    }
+    assert_census_name(&keys::installation(fixtures::KEY_LIMIT).unwrap());
+}
+
+fn assert_census_name(key: &[u8]) {
+    let length = if key.first() == Some(&keys::COMPONENT) { 2 } else { 3 };
+    let prefix = key.get(..length).expect("complete encoded key");
+    let mut names = 0_u32;
+    for &(named, _) in keys::KEYSPACES {
+        if named == prefix {
+            names = names.checked_add(1).expect("bounded names");
+        }
+    }
+    assert_eq!(names, 1, "one name for the writer's prefix {prefix:?}");
+}

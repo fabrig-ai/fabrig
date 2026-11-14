@@ -87,6 +87,13 @@ pub fn ending_with_binary(
                     failure.set, failure.held, failure.additional, failure.limit
                 )
             }
+            Stop::ForgeLink { phase, link } => {
+                let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
+                format!(
+                    "{binary} serve: restart refused during {during}: forge {:?} {:?} links missing {:?}\n",
+                    link.kind, link.key, link.need
+                )
+            }
             Stop::Setting(key) => {
                 let words = temper_engine_domain_forge::settings::retired_words(*key);
                 format!("{binary} serve: restart refused: {}\n", String::from_utf8_lossy(&words))
@@ -173,6 +180,7 @@ fn restore_kind(kind: temper_engine_service::RestoreRangeKind) -> &'static str {
         Kind::EscalationDecision => "escalation decision",
         Kind::Census => "census",
         Kind::Forge => "forge",
+        Kind::History => "history",
     }
 }
 fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
@@ -397,6 +405,8 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::Job => "job",
                 Kind::JobAnswer => "job-answer",
                 Kind::Wires => "wires",
+                Kind::Ask => "ask",
+                Kind::Asked => "asked",
             };
             let bound = match unsent.bound {
                 Bound::Translation { version, halt } => {

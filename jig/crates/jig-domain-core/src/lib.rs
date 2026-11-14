@@ -138,6 +138,7 @@ pub struct Core {
     pub(crate) run_wall: Wall,
     /// Last reported store map bytes (protocol/store/README.md, 6.2).
     pub fill: u64,
+    pub census: Option<Box<documents::StoreCensus>>,
     pub(crate) workers_in_process: bool,
     pub(crate) stopping: bool,
     pub(crate) settling: bool,
@@ -384,6 +385,7 @@ impl Core {
             routes: limits.routes,
             run_inbox: limits.tasks.run_inbox,
             fill: 0,
+            census: None,
             person_answers: false,
             workers_in_process: config.workers_in_process,
             stopping: false,

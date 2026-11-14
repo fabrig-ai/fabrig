@@ -133,7 +133,7 @@ pub fn opened_with_budget(budget: u64) -> Store {
     limits.store.budget = budget;
     let mut store = Store::over(&limits, APPLICATION, &[], stores_with(&limits));
     let events = run(&mut store, Request::Open { owner: Token::new(1), root: ROOT, installation: INSTALLATION });
-    let [Event::Opened { owner: _, last: 0, installation: _, pending: false }] = &*events else {
+    let [Event::Opened { owner: _, last: 0, installation: _, pending: false }, Event::Census { .. }] = &*events else {
         panic!("empty store opens: {events:?}");
     };
     store
@@ -453,6 +453,7 @@ pub fn written(store: &mut Store, mut below: Below, turns: &[jig_domain_core_voc
             | file::Request::Cut { .. }
             | file::Request::Close { .. }
             | file::Request::SyncDirectory { .. }
+            | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
             | file::Request::ListPage { .. }

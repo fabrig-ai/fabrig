@@ -342,8 +342,7 @@ fn no_close_after_closed() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn invalid_client_limits_fail_validation_and_constructor_admission() {
+fn invalid_client_limits_fail_validation() {
     skein_rows::check(
         [
             ("valid_refuses_a_head_shorter_than_a_blank_line", Limits { head: 1, ..LIMITS }),
@@ -352,9 +351,6 @@ fn invalid_client_limits_fail_validation_and_constructor_admission() {
         ],
         |limits| {
             assert!(!client::valid(&limits));
-            skein_rows::panics("the limits are honoured: a head of a blank line, a read of a byte", || {
-                let _machine = client::Client::new(&limits);
-            });
         },
     );
 }

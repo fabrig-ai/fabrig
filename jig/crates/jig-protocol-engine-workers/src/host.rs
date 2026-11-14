@@ -375,6 +375,7 @@ pub fn grants(down: &hub::LinkDown) -> &[Grant] {
         | hub::LinkDown::Check { .. }
         | hub::LinkDown::SignOut { .. }
         | hub::LinkDown::Message { .. }
+        | hub::LinkDown::Asked { .. }
         | hub::LinkDown::Relayed { .. }
         | hub::LinkDown::TurnKept { .. }
         | hub::LinkDown::Acknowledge { .. }

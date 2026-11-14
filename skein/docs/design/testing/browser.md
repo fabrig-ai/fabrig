@@ -500,8 +500,10 @@ named scenario ceiling with headroom.
 
   A referee holds the contracts: one terminal per operation, nothing
   after `Closed`, every command answered or failed, and a press never
-  dispatched on a node that was refused. A few seeds run in the focused
-  suite, and many in the fuzzy one.
+  dispatched on a node that was refused. Each of its checks returns the
+  first contract broken as a finding, and the world or the test that
+  drives it fails on it (../../foundation/programming-model.md, 10.4). A
+  few seeds run in the focused suite, and many in the fuzzy one.
 - **The real browser:** the kit in the real loop against Chromium, opening
   fixed pages served by a small `skein-http` server in the same loop: a
   button that changes a heading, a form, a dialog that covers a button, a

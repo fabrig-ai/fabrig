@@ -21,6 +21,8 @@ const LIMITS: Limits = Limits {
     conflicts: 0,
     path_bytes: 0,
     remote_timeout: Duration::from_secs(60),
+    reds_read_ms: 5_000,
+    rerun_processes: 4,
     local_timeout: Duration::from_secs(10),
     facts: 16,
 };
@@ -112,6 +114,7 @@ impl Fill {
         let mut asked = Vec::new();
         while let Some(request) = self.out.pop() {
             asked.push(match request {
+                Request::Results { .. } | Request::ResultsEnd { .. } => panic!("this memory scenario has no checks"),
                 Request::Held { hold, .. } => Asked::Held { hold },
                 Request::Io { op, .. } => Asked::Io { op: op.kind() },
                 Request::Prepared { prepared, .. } => Asked::Prepared {
@@ -140,6 +143,13 @@ impl Fill {
 
     fn done(&mut self, hold: Token, done: Done) -> Vec<Asked> {
         self.step(Event::Done { owner: hold, done })
+    }
+
+    fn files(&mut self, hold: Token, mut next: Vec<Asked>) -> Vec<Asked> {
+        while next.as_slice() == [Asked::Io { op: Kind::Reds }] {
+            next = self.done(hold, Done::Succeeded);
+        }
+        next
     }
 
     /// Prepares the workstream `n` at the limits into the workspace it is
@@ -171,6 +181,7 @@ impl Fill {
                 [Asked::Io { op: Kind::CheckOut }]
             );
             let next = self.done(hold, Done::Succeeded);
+            let next = self.files(hold, next);
             if place + 1 < limits.repositories {
                 assert_eq!(next[..], [Asked::Io { op: Kind::Fetch }]);
             } else {
@@ -361,6 +372,7 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
     assert_eq!(fill.domain.holds(), limits.workspaces * 2);
     for hold in &active {
         let next = fill.done(*hold, Done::Conflicted { files: full_paths(&limits), cut: false });
+        let next = fill.files(*hold, next);
         let [Asked::Prepared { prepared: Preparation::Ready { conflicts, .. } }] = next[..] else { panic!("prepared") };
         assert_eq!(conflicts, u64::from(limits.repositories) * u64::from(limits.conflicts));
         assert_eq!(

@@ -322,3 +322,68 @@ fn a_lock_answered_after_its_deadline_keeps_its_own_answer() {
         assert_eq!(page.events.pop(), Some(expected));
     }
 }
+
+#[test]
+fn a_hard_link_names_both_roots_and_answers_linked_or_the_kernel_error() {
+    for result in [Ok(Done::Nothing), Err(Error::Exists), Err(Error::NotFound)] {
+        let env = file_env();
+        let mut io = FileIo::with_limits(&env.limits);
+        let (mut events, mut subs) = (Queue::with_capacity(2), Queue::with_capacity(2));
+        step::down(
+            &mut io,
+            &env,
+            Request::HardLink {
+                owner: OWNER,
+                from_root: STAGING,
+                from: Box::from(b"a".as_slice()),
+                to_root: CACHE,
+                to: Box::from(b"b".as_slice()),
+            },
+            &mut events,
+            &mut subs,
+        );
+        let submit = subs.pop().expect("one hard link");
+        assert_eq!(
+            submit.kind,
+            Op::HardLink {
+                from_dir: STAGING,
+                from: Box::from(b"a".as_slice()),
+                to_dir: CACHE,
+                to: Box::from(b"b".as_slice()),
+            }
+        );
+        let expected = match &result {
+            Ok(_) => Event::Linked { owner: OWNER },
+            Err(error) => Event::failed(OWNER, *error),
+        };
+        complete(&mut io, &env, submit, result, &mut events, &mut subs);
+        assert_eq!(events.pop(), Some(expected));
+        assert!(events.is_empty() && subs.is_empty(), "exactly one terminal event");
+    }
+}
+
+#[test]
+fn a_hard_link_refuses_either_invalid_name_before_any_record() {
+    for bad in [b"".as_slice(), b"a/b", b"nul\0", b".", b"..", &[b'x'; 256]] {
+        for (from, to) in [(bad, b"b".as_slice()), (b"a".as_slice(), bad)] {
+            let env = file_env();
+            let mut io = FileIo::with_limits(&env.limits);
+            let (mut events, mut subs) = (Queue::with_capacity(2), Queue::with_capacity(2));
+            step::down(
+                &mut io,
+                &env,
+                Request::HardLink {
+                    owner: OWNER,
+                    from_root: STAGING,
+                    from: Box::from(from),
+                    to_root: CACHE,
+                    to: Box::from(to),
+                },
+                &mut events,
+                &mut subs,
+            );
+            assert_eq!(events.pop(), Some(Event::failed(OWNER, Error::InvalidArgument)), "{from:?} -> {to:?}");
+            assert!(subs.is_empty(), "invalid names never reach the kernel");
+        }
+    }
+}

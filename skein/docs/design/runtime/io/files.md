@@ -56,7 +56,7 @@ pub enum Request {
     StatEntry { owner, directory: Token, name },                                   // Stated
     ReadLink { owner, directory: Token, name },                                    // LinkRead { target }
     MakeLink { owner, directory: Token, name, target },                            // Linked
-    HardLink { owner, from: Token, from_name, to: Token, to_name },                // Linked
+    HardLink { owner, from_root: Token, from, to_root: Token, to },                // Linked, as Rename names its two
     SetMode { owner, directory: Token, name, mode },                               // Changed
     SetOwner { owner, directory: Token, name, user, group },                       // Changed
     ListAttributes { owner, directory: Token, name },                              // AttributesListed { names }

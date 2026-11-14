@@ -20,6 +20,9 @@ pub struct Limits {
     pub repositories: u32,
     pub tasks: u32,
     pub holds: u32,
+    /// A goal's reds (temper/docs/design/domain/forge/reds.md, 7).
+    pub branch_reds: u32,
+    pub red_key_bytes: u32,
     pub subscriptions: u32,
     pub entries: u32,
     /// Connector payloads of live named calls, priced independently of outbox entries.
@@ -61,6 +64,9 @@ pub struct Limits {
     pub decided_per_project: u32,
     /// Retained findings per project (temper/docs/design/domain/findings.md, 9).
     pub findings_per_project: u32,
+    /// Whole-change history retention (temper/docs/design/domain/landing-history.md, 6).
+    pub history_days: u32,
+    pub history_events: u64,
     /// Criteria in each deployment or project judge table.
     pub judge_criteria: u32,
     /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration/settings.md, 2).
@@ -137,6 +143,9 @@ pub fn valid(l: &Limits) -> bool {
         // The store's failure and flake lists hold at most 1024 test ids.
         || l.tiers.failing_tests > 1024
         || l.tiers.test_id_bytes == 0
+        || l.history_days == 0
+        || l.history_days > 3650
+        || l.history_events == 0
         || l.findings_per_project == 0
         || l.judge_projects.checked_mul(l.findings_per_project).is_none()
         || l.decided_per_project == 0
@@ -145,6 +154,11 @@ pub fn valid(l: &Limits) -> bool {
         || l.repositories == 0
         || l.tasks == 0
         || l.holds == 0
+        || l.branch_reds == 0
+        || l.branch_reds > 256
+        || l.red_key_bytes == 0
+        || l.red_key_bytes > 512
+        || l.branch_reds.checked_mul(l.holds).is_none()
         || l.subscriptions == 0
         || l.entries == 0
         || l.resources_per_task == 0

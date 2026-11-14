@@ -363,6 +363,7 @@ fn pushed(world: &mut World, run: &engine::Assignment, turns: u64, head: u64) {
             pushed: Box::new([forge_top::Pushed {
                 tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
                 commit: translate::commit(head),
+                checked: true,
             }]),
             preparation: None,
         },
@@ -953,7 +954,7 @@ fn an_agreed_goal_finishing_before_asking_is_parked_then_woken_and_asks() {
         },
         engine::Parts {
             saved: None,
-            pushed: Box::new([forge_top::Pushed { tag, commit: translate::commit(head) }]),
+            pushed: Box::new([forge_top::Pushed { tag, commit: translate::commit(head), checked: true }]),
             preparation: None,
         },
     );

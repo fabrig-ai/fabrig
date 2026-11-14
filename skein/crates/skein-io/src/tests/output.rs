@@ -332,6 +332,7 @@ fn native_pipe_close_settles_waiting_output_and_actual_reap_waits_for_both_close
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }

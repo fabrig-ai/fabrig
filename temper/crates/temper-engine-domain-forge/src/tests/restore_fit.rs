@@ -52,7 +52,9 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         }),
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
+            job: None,
             landing: policy::Landing {
+                last_left: None,
                 round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                 task: n,
@@ -230,6 +232,30 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             hander: None,
             goal: None,
             reason: None,
+            signature: None,
+            seen: None,
+        }),
+        RecordKind::Red => Stored::Red(Red {
+            goal: n,
+            key: b"test a::t x".as_slice().into(),
+            head: Box::new([1; 20]),
+            why: b"inherited".as_slice().into(),
+            by: Recorder::Task(n),
+            at: 0,
+            generation: n,
+        }),
+        RecordKind::RedPass => {
+            Stored::RedPass(RedPass { change: n, key: b"test a::t x".as_slice().into(), generation: n })
+        }
+        RecordKind::RedNumber => Stored::RedNumber { last: n },
+        RecordKind::HistoryProject => Stored::HistoryProject(crate::history::Project {
+            project: number,
+            next: 1,
+            kept: 0,
+            whole_since: None,
+            marks: Box::new([]),
+            sweeping: None,
+            removing: false,
         }),
         RecordKind::Client => panic!("no own table"),
     }
@@ -279,6 +305,7 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
     use RecordKind as K;
     for (kind, limit) in [
         (K::Making, LIMITS.makings),
+        (K::HistoryProject, LIMITS.judge_projects),
         (K::Landing, LIMITS.landings),
         (
             K::Receipt,
@@ -621,7 +648,7 @@ fn expired_adopted_history_neither_counts_nor_links_an_absent_repository() {
     }
     assert_eq!(d.restore_fit_failure(), None);
     assert_eq!(d.fit_restored(&LIMITS), Ok(()));
-    d.reconcile(&reconcile::empty_tasks());
+    assert_eq!(d.missing_link(&reconcile::empty_tasks()), None);
 }
 #[test]
 fn nonexpired_adopted_history_still_asserts_its_missing_repository() {
@@ -686,6 +713,7 @@ fn independent_timer_room_is_checked_before_insertion() {
 
 fn landing(members: u32, gates: u32) -> LandingRow {
     let member = policy::Member {
+        round: None,
         unit: 0,
         branch: Box::from(b"temper/1/l61".as_slice()),
         combined: None,
@@ -709,7 +737,9 @@ fn landing(members: u32, gates: u32) -> LandingRow {
         landed: None,
     };
     LandingRow {
+        job: None,
         landing: policy::Landing {
+            last_left: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task: 1,
@@ -733,6 +763,7 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
         row.asks = vec![None; usize::try_from(LIMITS.landing_members).unwrap()].into_boxed_slice();
         row.entries = vec![
             LandingEntry {
+                run: None,
                 preparation: None,
                 base: None,
                 entry: 1,
@@ -754,6 +785,7 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
             LandingRow {
                 entries: vec![
                     LandingEntry {
+                        run: None,
                         preparation: None,
                         base: None,
                         entry: 1,
@@ -844,6 +876,7 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
     }
     if let Stored::Landing(row) = &mut record {
         row.landing.members = Box::new([policy::Member {
+            round: None,
             unit: 0,
             branch: Box::from(b"temper/1/l61".as_slice()),
             combined: None,

@@ -355,6 +355,7 @@ pub(super) fn write_parts(kind: Op) -> (Fd, Box<[u8]>, u32, u64) {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
@@ -390,6 +391,7 @@ pub(super) fn read_buffer(kind: Op) -> Box<[u8]> {
         | Op::Sync { .. }
         | Op::Lock { .. }
         | Op::Stat { .. }
+        | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }

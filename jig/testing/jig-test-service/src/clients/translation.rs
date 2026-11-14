@@ -72,6 +72,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::SettingsAnswer { .. }
         | core::Now::PersonAnswer { .. }
         | core::Now::SettledCallRefused { .. }
+        | core::Now::Ask { .. }
         | core::Now::Call { .. }
         | core::Now::DropCall { .. }
         | core::Now::Undelivered { .. }
@@ -135,6 +136,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => Some(*watcher),
         core::Event::SettingsCommit { .. }
         | core::Event::Fill { .. }
+        | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
         | core::Event::Marked { .. }
@@ -223,6 +225,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         }
         core::Event::SettingsCommit { .. }
         | core::Event::Fill { .. }
+        | core::Event::Census(..)
         | core::Event::Settling
         | core::Event::Stopping
         | core::Event::Marked { .. }

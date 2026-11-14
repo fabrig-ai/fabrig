@@ -318,7 +318,7 @@ impl skein_sim_world::Machine for Machine {
         match &mut call.ask {
             Ask::Close { file } => self.release(*file),
             Ask::Open { root, .. } | Ask::Spawn { root, .. } => *root = self.resolve(*root),
-            Ask::Rename { from_dir, to_dir, .. } => {
+            Ask::Rename { from_dir, to_dir, .. } | Ask::HardLink { from_dir, to_dir, .. } => {
                 *from_dir = self.resolve(*from_dir);
                 *to_dir = self.resolve(*to_dir);
             }

@@ -296,6 +296,7 @@ fn saving_repair_rebriefs(reported: bool) {
             pushed: Box::new([forge_top::Pushed {
                 tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
                 commit: translate::commit(saved),
+                checked: true,
             }]),
             ..engine::Parts::none()
         }

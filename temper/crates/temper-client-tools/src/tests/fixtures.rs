@@ -255,6 +255,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["project", "fund", "1", "200", "--key", "fund"],
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
+    &["landing", "history", "--project", "1"],
     &["task", "text", "1"],
     &["push", "list"],
     &["push", "add", "subscription.json"],
@@ -262,6 +263,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["draft", "ready", "--project", "shop", "draft.md", "--key", "draft-ready"],
     &["draft", "not-ready", "--project", "shop", "draft.md", "--key", "draft-not-ready"],
     &["draft", "list", "--project", "shop"],
+    &["deployment", "census"],
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -472,7 +474,7 @@ pub(crate) fn waiting_on_me() -> c::WaitsOn {
     c::WaitsOn::Party { whom: c::Whom::Person(PARTY), entries: 1, task: OTHER_TASK, kind: c::WaitedFor::Question }
 }
 pub(crate) fn goal(number: u64, waits_on: c::WaitsOn) -> c::Task {
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     let record =
         w::Task::new(&w::CEILINGS, jig_client_test_records::task_record().into_parts()).expect("record fixture");
     let limits = jig_client_protocol_link::Limits::new(
@@ -723,7 +725,9 @@ impl Harness {
         if json {
             self.json_calls.insert(self.next);
         }
-        let count = if crate::table::TOOLS[usize::from(call.tool)].name == b"change show" {
+        let count = if crate::table::TOOLS[usize::from(call.tool)].name == b"change show"
+            || crate::table::TOOLS[usize::from(call.tool)].name == b"landing history"
+        {
             SINGLE_READ
         } else if crate::jig::call::waiting(crate::table::TOOLS[usize::from(call.tool)], &call) {
             0
@@ -746,6 +750,7 @@ impl Harness {
                 | crate::jig::rows::PROPOSAL_AT
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
+                | crate::jig::rows::DEPLOYMENT_CENSUS_AT
                 | crate::jig::rows::ROLE_LIST_AT
                 | crate::jig::rows::ROLE_SHOW_AT
                 | crate::jig::rows::FINDING_FILE_AT
@@ -910,7 +915,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 118;
+pub(super) const TOOL_FORMS: u32 = 120;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

@@ -10,6 +10,8 @@ pub fn application() -> List<wire::Spoken> {
 }
 pub const SEED_ONE: u64 = 1;
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
+    application_ask: 64,
+    application_answer: 64,
     program_sources: 2,
     piece: 16,
     charter: 16,
@@ -72,7 +74,7 @@ use skein_lib::{List, Token, Writer};
 pub const TOKEN_ONE: &[u8] = b"access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
-pub fn codec() -> wire::v13::Limits {
+pub fn codec() -> wire::v14::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 pub fn hello() -> Hello {

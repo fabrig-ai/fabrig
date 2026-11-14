@@ -112,6 +112,30 @@ fn each_invalid_call_names_its_problem() {
     }
 }
 #[test]
+fn red_wrong_shapes_are_errors_at_decode_naming_the_member() {
+    for (input, expected) in [
+        (
+            r#"{"act":"end","key":"test a::t x","why":"fixed","at":"…"}"#.as_bytes(),
+            b"red: member at does not belong to this act".as_slice(),
+        ),
+        (br#"{"act":"list","why":"fixed"}"#, b"red: member why does not belong to this act"),
+        (br#"{"act":"list","strange":"x"}"#, b"red: member strange does not belong to this act"),
+        (br#"{"act":"end","key":"k"}"#, b"host call member missing: why"),
+        (
+            br#"{"act":"record","key":"k","at":"bad","why":"w"}"#,
+            b"host call out of range: red: at must be 40 or 64 lowercase hexadecimal digits",
+        ),
+    ] {
+        let mut called = call(7, b"red", input);
+        called.contract = temper_engine_smith::wire::VERSION;
+        let event = crate::tools::decode(TO, 3, 7, &called);
+        let root::Event::Worker(root::WorkerInput::RenderedHostCall { answer, .. }) = event else {
+            panic!("refused at decode")
+        };
+        assert_eq!(answer, core::SettledAnswer::Host { error: true, body: expected.into() });
+    }
+}
+#[test]
 fn a_report_result_keeps_its_words() {
     let report = smith_domain_run::outcome::Declared::Report(smith_domain_run::outcome::Report {
         text: b"finished".as_slice().into(),

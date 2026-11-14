@@ -170,12 +170,20 @@ impl Reconciliation {
                 | crate::ApplicationOutcome::Follow(_)
                 | crate::ApplicationOutcome::MakeRefused(_) => Ok(()),
             },
+            Stored::Red(row) => self.task(RecordKind::Red, row.goal, None),
+            Stored::RedPass(row) => self.task(RecordKind::RedPass, row.change, None),
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
             // Landing history outlives tasks (domain/forge/README.md, 5.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
-            Stored::Forge(_)
+            Stored::HistoryProject(_)
+            | Stored::HistoryEvent(_)
+            | Stored::HistoryChange(_)
+            | Stored::HistoryLanding(_)
+            | Stored::HistoryLast(_)
+            | Stored::Forge(_)
             | Stored::ForgeNumber { .. }
+            | Stored::RedNumber { .. }
             | Stored::Playground(_)
             | Stored::Landed { .. }
             | Stored::RefusedSetting(_)
@@ -195,19 +203,6 @@ impl Reconciliation {
     }
 }
 impl Domain {
-    /// Link restored rows to retained targets; a missing target is a writer bug.
-    #[expect(
-        clippy::panic,
-        reason = "an unmade restored link is a writer bug (jig/docs/design/domain/engine/restart.md)"
-    )]
-    pub fn reconcile(&mut self, tasks: &jig_domain_tasks::Domain) {
-        if self.restore_fit_failure().is_some() {
-            return;
-        }
-        if let Some(missing) = self.missing_link(tasks) {
-            panic!("forge link {:?} -> {:?} for {:?}", missing.kind, missing.need, missing.key);
-        }
-    }
     /// The first required restored link whose target is absent (jig/docs/design/domain/engine/restart.md).
     #[must_use]
     pub fn missing_link(&self, tasks: &jig_domain_tasks::Domain) -> Option<MissingLink> {
@@ -299,9 +294,13 @@ impl Domain {
             | RecordKind::Writer
             | RecordKind::Making
             | RecordKind::Binding
+            | RecordKind::HistoryProject
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft
+            | RecordKind::Red
+            | RecordKind::RedPass
+            | RecordKind::RedNumber
             | RecordKind::Away
             | RecordKind::Decided
             | RecordKind::Finding

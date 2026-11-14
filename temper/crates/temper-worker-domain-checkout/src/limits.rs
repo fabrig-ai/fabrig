@@ -35,6 +35,10 @@ pub struct Limits {
     /// Facts kept until the parent drains them. Beyond them, facts are dropped
     /// and counted.
     pub facts: u32,
+    /// Wait for the engine at each check (domain/forge/reds.md, 5.3).
+    pub reds_read_ms: u32,
+    /// Failing test processes a check may run again (domain/forge/reds.md, 5.2).
+    pub rerun_processes: u32,
 }
 
 /// Whether workspaces, preparations and repositories are nonzero and the hold-slot count
@@ -44,6 +48,8 @@ pub fn valid(limits: &Limits) -> bool {
     limits.workspaces != 0
         && limits.preparations != 0
         && limits.repositories != 0
+        && (100..=60_000).contains(&limits.reds_read_ms)
+        && limits.rerun_processes <= 16
         && holds(limits).is_some()
         && stores(limits).is_some()
 }

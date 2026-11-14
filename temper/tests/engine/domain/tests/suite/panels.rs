@@ -687,3 +687,115 @@ fn a_service_is_refused_device_registration_at_its_own_admission() {
         [Some(root::ApplicationAnswer::Device(forge::DeviceAnswer::Refused(forge::DeviceRefusal::Person)))]
     );
 }
+
+fn history_driver() -> (Driver, [u64; 2]) {
+    use temper_client_protocol_wire as wire;
+    let mut writer = temper_engine_forge_world::World::new(902);
+    writer.adopt();
+    let mut repository = writer
+        .stored()
+        .iter()
+        .find_map(|(_, row)| if let forge::Stored::Repository(row) = row { Some(row.clone()) } else { None })
+        .expect("adopted repository");
+    repository.project = 1;
+    writer.event(forge::Event::Restore { record: forge::Stored::Repository(repository) });
+    let mut row = temper_engine_forge_world::changes::change_row();
+    row.change.state = temper_engine_domain_forge_change::State::Ended;
+    row.ending = Some(forge::Ending::NoChange);
+    writer.event(forge::Event::Change { row });
+    let public = [forge::PublicTask { task: CHANGE, goal: None }];
+    let before = writer.public(1, wire::PUBLIC_CHANGE, Some(CHANGE), &public).expect("public change");
+    assert_eq!(writer.write_history(CHANGE, Wall::from_nanos(60_000_000_000), Some(61)), 1);
+    let after = writer.public(1, wire::PUBLIC_CHANGE, Some(CHANGE), &public).expect("public change");
+    assert_eq!(before.record, after.record, "history is absent from the public projection");
+    assert_eq!(before.tasks, after.tasks);
+    writer.evict_history_change(CHANGE, 1);
+    assert!(!writer.stored().contains_key(&forge::Key::Change(CHANGE)), "the change row was evicted");
+    let rows: Vec<_> = writer
+        .stored()
+        .iter()
+        .filter_map(|(_, row)| match row {
+            forge::Stored::HistoryProject(_)
+            | forge::Stored::HistoryEvent(_)
+            | forge::Stored::HistoryChange(_)
+            | forge::Stored::HistoryLanding(_)
+            | forge::Stored::HistoryLast(_) => Some(root::Record::Forge { row: Box::new(row.clone()) }),
+            _ => None,
+        })
+        .collect();
+    let mut driver = driver();
+    let member = driver.session();
+    let (_, outsider) = panel_sign_in(&mut driver, OTHER_IDENTITY);
+    driver.store.seed(rows.into_boxed_slice(), Box::new([root::Key::Forge(forge::Key::Change(CHANGE))]));
+    let driver = restarted_panels(&mut driver);
+    assert!(!driver.store.rows.contains_key(&root::Key::Forge(forge::Key::Change(CHANGE))));
+    (driver, [member, outsider])
+}
+#[test]
+fn history_is_project_private_survives_change_eviction_and_adds_nothing_public() {
+    use forge::history::{Of, Query, Reply};
+    use temper_client_protocol_wire as wire;
+    let (mut driver, [member, outsider]) = history_driver();
+    let query = Query { project: 1, of: Of::Change(CHANGE), since: None, until: None, after: None };
+    for (sign_in, project, key, admitted) in
+        [(outsider, 1, 801, false), (member, 2, 802, false), (member, 1, 803, true)]
+    {
+        let reply = ReplyTo::new(Token::new(key));
+        let before = driver.loads.len();
+        driver.send(root::Event::Party(root::PartyInput::ForgeRead {
+            reply,
+            sign_in,
+            scope: ApplicationScope::Project(project),
+            query: root::ForgeRead::History(query),
+        }));
+        driver.settle();
+        let reply = ReplyTo::new(Token::new(key));
+        let answer = driver
+            .delivered
+            .iter()
+            .find(|delivery| match delivery {
+                root::Delivery::Read { reply: got, .. } | root::Delivery::ForgeRead { reply: got, .. } => *got == reply,
+                _ => false,
+            })
+            .expect("history read answered once");
+        if admitted {
+            let root::Delivery::ForgeRead {
+                answer: root::ForgeReadAnswer::History(Reply::Page { events, upper, after, whole_since }),
+                ..
+            } = answer
+            else {
+                panic!("history page: {answer:?}")
+            };
+            assert_eq!(*upper, 1);
+            assert_eq!(*after, None);
+            assert_eq!(*whole_since, None);
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].change, CHANGE);
+            assert_eq!(events[0].number, 1);
+            assert_eq!(events[0].landing.expect("landing").task, 61);
+            let bytes = temper_engine_service_vocabulary::family::forge_read(
+                root::ForgeReadAnswer::History(Reply::Page {
+                    events: events.clone(),
+                    upper: *upper,
+                    after: *after,
+                    whole_since: *whole_since,
+                }),
+                b"",
+                &wire::v1::CEILINGS,
+            )
+            .expect("encoded history");
+            let page = wire::decode_history_answer(&bytes, &wire::v1::CEILINGS).expect("wire history");
+            let wire::v1::HistoryReply::Page(page) = page.result() else { panic!("wire page") };
+            assert_eq!(page.events().len(), 1);
+        } else {
+            assert_eq!(
+                *answer,
+                root::Delivery::Read {
+                    reply,
+                    answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Unknown)
+                }
+            );
+            assert_eq!(driver.loads.len(), before, "an outsider reaches no forge load");
+        }
+    }
+}

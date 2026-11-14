@@ -34,6 +34,8 @@ use crate::git::{Commit, Done, Missing, Op};
 #[derive(PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Event {
+    /// A clear supersedes check writes still in flight.
+    Reds { hold: Token, action: crate::git::Reds },
     /// Prepare a workspace for `spec`, on behalf of `client`, which holds it
     /// until it releases it. Answered by exactly one `Prepared`, after a
     /// `Held` if it was admitted.
@@ -69,6 +71,10 @@ pub enum Event {
 /// checkout -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A check results file, from the repository at its spec index.
+    Results { client: Token, check: u64, repository: u32, bytes: Option<Box<[u8]>> },
+    /// Every writable repository has been read for this check.
+    ResultsEnd { client: Token, check: u64 },
     /// The prepare for `client` was admitted, and `hold` names its hold from
     /// now on.
     Held { client: Token, hold: Token },

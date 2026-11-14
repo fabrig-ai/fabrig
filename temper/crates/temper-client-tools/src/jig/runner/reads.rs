@@ -204,6 +204,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             read(runner, &mut reading, 1, c::Read::Tasks { query, live, ended: None }, out);
         }
         rows::ROLE_SHOW_AT => read(runner, &mut reading, 1, c::Read::Task { task }, out),
+        rows::DEPLOYMENT_CENSUS_AT => read(runner, &mut reading, 1, c::Read::Deployment, out),
         rows::TASK_TEXT_AT => {
             let what = task_text_read(&reading.called.call);
             read(runner, &mut reading, 1, what, out);

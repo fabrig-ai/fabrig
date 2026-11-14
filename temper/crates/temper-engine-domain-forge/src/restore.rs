@@ -124,6 +124,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
     use RecordKind as K;
     use RestoreSet::Rows;
     match row {
+        Stored::HistoryProject(row) => room(
+            K::HistoryProject,
+            Rows(K::HistoryProject),
+            d.history_projects.len(),
+            d.history_projects.capacity(),
+            d.history_projects.contains_key(&row.project),
+        ),
         Stored::Forge(record) => {
             room(K::Forge, Rows(K::Forge), d.records.len(), l.forges, d.records.contains_key(&record.number))?;
             room(
@@ -142,6 +149,9 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 count(row.landing.members.len()),
                 u64::from(l.landing_members),
             )?;
+            if let Some(job) = &row.job {
+                field(K::Landing, RestoreSet::LandingMembers, count(job.members.len()), u64::from(l.landing_members))?;
+            }
             field(K::Landing, RestoreSet::LandingAsks, count(row.asks.len()), u64::from(l.landing_members))?;
             field(K::Landing, RestoreSet::LandingEntries, count(row.entries.len()), u64::from(l.entries))?;
             for member in &row.landing.members {
@@ -310,6 +320,19 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.aways.capacity(),
             d.aways.contains_key(&(row.party, row.project)),
         ),
+        Stored::Red(row) => {
+            let replacing = d.reds.contains_key(&(row.goal, row.key.clone()));
+            let held = u32::try_from(d.reds(row.goal).count()).expect("bounded reds");
+            room(K::Red, Rows(K::Red), held, l.branch_reds, replacing)?;
+            room(K::Red, Rows(K::Red), d.reds.len(), d.reds.capacity(), replacing)
+        }
+        Stored::RedPass(row) => {
+            let replacing = d.red_passes.contains_key(&(row.change, row.key.clone()));
+            let held = u32::try_from(d.red_passes(row.change).count()).expect("bounded red passes");
+            room(K::RedPass, Rows(K::RedPass), held, l.branch_reds, replacing)?;
+            room(K::RedPass, Rows(K::RedPass), d.red_passes.len(), d.red_passes.capacity(), replacing)
+        }
+        Stored::RedNumber { .. } => room(K::RedNumber, Rows(K::RedNumber), u32::from(d.red_number.is_some()), 1, false),
         Stored::Finding(row) => {
             let replacing = d.finding_rows().contains_key(&(row.project, row.number));
             let mut held = 0_u32;
@@ -442,7 +465,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::ForgeNumber { .. } | Stored::Playground(_) | Stored::Client(_) => Ok(()),
+        Stored::HistoryEvent(_)
+        | Stored::HistoryChange(_)
+        | Stored::HistoryLanding(_)
+        | Stored::HistoryLast(_)
+        | Stored::ForgeNumber { .. }
+        | Stored::Playground(_)
+        | Stored::Client(_) => Ok(()),
     }
 }
 

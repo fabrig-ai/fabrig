@@ -65,8 +65,25 @@ fn sign_in_service_uses_the_files_address_and_credential_and_keeps_the_sign_in()
     assert_eq!(f.exit(), Some(Exit::Code(0)));
     assert!(f.link_bearers.first().and_then(Option::as_ref).is_some_and(|bytes| bytes.as_ref() == service::CREDENTIAL));
     assert_eq!(f.stored(b"address"), Some(b"http://127.0.0.1:4100\n".as_slice()));
+    assert_eq!(f.stored(b"party"), Some(b"7\n".as_slice()));
+    assert_eq!(f.stored_modes.get(b"party".as_slice()), Some(&0o600));
+    assert_eq!(f.party_reads, 0);
     assert!(f.stored(b"token").is_some_and(|token| token == super::fixtures::TOKEN_BYTES));
     assert_ne!((f.stdout()).len(), 0);
+    f.no_service_leaked();
+}
+#[test]
+fn sign_in_service_keeps_working_in_a_signed_in_directory() {
+    let mut f = Frame::read(&["sign-in", "--service", "link-file"]);
+    f.link = service::FILE;
+    f.party = Some(b"7\n");
+    f.answer_sign_in_then_me();
+    assert_eq!(f.exit(), Some(Exit::Code(0)));
+    assert_eq!(f.stored(b"token"), None, "same credential stays kept");
+    assert_eq!(f.stored(b"address"), Some(b"http://127.0.0.1:4100\n".as_slice()));
+    assert_eq!(f.stored(b"party"), Some(b"7\n".as_slice()));
+    assert_eq!(f.stored_modes.get(b"party".as_slice()), Some(&0o600));
+    assert_eq!(f.party_reads, 0);
     f.no_service_leaked();
 }
 #[test]

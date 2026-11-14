@@ -27,6 +27,8 @@ pub enum StartStop {
     Load(loads::RestoreFailure),
     /// The forge's restored records do not fit its limits.
     ForgeFit { phase: Option<jig_domain_core::start::Phase>, failure: forge::RestoreFit },
+    /// A restored forge record links to a target the start does not hold.
+    ForgeLink { phase: Option<jig_domain_core::start::Phase>, link: forge::MissingLink },
     /// The deployment's namespace binding was refused.
     Binding,
     /// A current stored setting names a retired value or number.
@@ -79,6 +81,7 @@ pub struct Domain {
     pub(crate) start_pending: bool,
     pub(crate) rehearsal: Option<bool>,
     pub(crate) startup_fill: Option<u64>,
+    pub(crate) startup_census: Option<Box<jig_domain_core::documents::StoreCensus>>,
     pub(crate) sweep_rows: Queue<crate::Record>,
     pub(crate) sweep_page: bool,
     pub(crate) sweep_next: Option<crate::Key>,
@@ -99,6 +102,8 @@ pub struct Domain {
     pub(crate) application_playground: Option<crate::route::playground::Context>,
     pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
     pub(crate) playground_start: Option<crate::route::playground::Start>,
+    pub(crate) history_reads: Map<u64, (ReplyTo, u64, forge::history::Query)>,
+    pub(crate) next_history_read: u64,
     pub(crate) revision_reads: Map<Token, crate::ForgeRead>,
     pub(crate) view_reads: Map<Token, crate::route::ways::view::Flight>,
     pub(crate) playground_replies: Map<Token, (Option<Token>, crate::route::playground::Reply)>,
@@ -552,6 +557,7 @@ impl Domain {
             opened: false,
             start_pending: false,
             startup_fill: None,
+            startup_census: None,
             sweep_rows: Queue::uncapped(),
             sweep_page: false,
             sweep_next: None,
@@ -573,6 +579,8 @@ impl Domain {
             application_playground: None,
             playground_contexts: Map::with_capacity(limits.forge.applications),
             playground_start: None,
+            history_reads: Map::with_capacity(limits.fleet.calls),
+            next_history_read: 0,
             revision_reads: Map::with_capacity(limits.loads.loads),
             view_reads: Map::with_capacity(limits.loads.loads),
             playground_replies: Map::with_capacity(limits.forge.applications),
@@ -741,6 +749,7 @@ impl Domain {
             && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
             && self.revision_reads.is_empty()
+            && self.history_reads.is_empty()
             && self.view_reads.is_empty()
             && self.store_answers.is_empty()
             && self.adoption_restore.is_empty()
@@ -1425,6 +1434,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::Remember(_)
         | Read::SettingsNote { .. }
         | Read::ChangeDelegate { .. }
+        | Read::History { .. }
         | Read::Notes { .. }
         | Read::Proposal(_)
         | Read::TaskProposal { .. } => {

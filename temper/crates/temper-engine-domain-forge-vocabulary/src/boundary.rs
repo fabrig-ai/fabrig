@@ -822,6 +822,7 @@ pub enum ReleaseEnding {
 pub struct Pushed {
     pub tag: u64,
     pub commit: skein_forge::api::Commit,
+    pub checked: bool,
 }
 /// A goal's design-writing attempt, retained with its hold (domain/forge/branches.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -993,6 +994,7 @@ pub struct TaskRelease {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
     pub task_release: Option<TaskRelease>,
+    pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
@@ -1054,6 +1056,8 @@ pub struct ChangeRow {
     pub close: Option<Box<[u8]>>,
     /// The last merge job's result, at most 512 bytes (temper/docs/design/domain/forge/change/repairs.md).
     pub merge_result: Option<Box<[u8]>>,
+    /// Open intervals and the last event (landing-history.md, 3.2).
+    pub history: Option<crate::history::ChangeHistory>,
 }
 impl ChangeRow {
     /// The pull a judgement delegate reads; every other state keeps the change's pull.
@@ -1146,6 +1150,7 @@ pub enum LandingRefusal {
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub job: Option<crate::history::JobRecord>,
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
@@ -1160,6 +1165,14 @@ pub struct LandingEntry {
     pub member: u16,
     pub gate: u16,
     pub operation: Operation,
+    pub run: Option<LandingRun>,
+}
+/// Observation of a dispatch's current run (domain/landing-history.md, 3.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct LandingRun {
+    pub id: u64,
+    pub attempt: u32,
+    pub ended: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Operation {
@@ -1175,6 +1188,7 @@ pub enum Operation {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
+    pub job: Option<crate::history::JobStep>,
     pub outcomes: Box<[crate::preparation::Prepared]>,
     pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
@@ -1261,6 +1275,7 @@ pub enum CallPayload {
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
+    Red(Box<crate::RedReply>),
 }
 
 /// The connector's durable records, wrapped by the root store.
@@ -1363,6 +1378,16 @@ pub enum Stored {
     Device(crate::Device),
     Finding(crate::Finding),
     LandedDraft(crate::LandedDraft),
+    Red(crate::Red),
+    RedPass(crate::RedPass),
+    RedNumber {
+        last: u64,
+    },
+    HistoryProject(crate::history::Project),
+    HistoryEvent(crate::history::Event),
+    HistoryChange(crate::history::ChangeIndex),
+    HistoryLanding(crate::history::LandingIndex),
+    HistoryLast(crate::history::Last),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1415,6 +1440,14 @@ pub enum Key {
     Device { party: u64, number: u32 },
     LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
     Follow { project: u32, follow: u32 },
+    Red { goal: u64, key: Box<[u8]> },
+    RedNumber,
+    RedPass { change: u64, key: Box<[u8]> },
+    HistoryProject { project: u32 },
+    HistoryEvent { project: u32, number: u64 },
+    HistoryChange { project: u32, change: u64, number: u64 },
+    HistoryLanding { project: u32, landing: u64, number: u64 },
+    HistoryLast { project: u32, number: u64, change: u64 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1505,6 +1538,18 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    HistoryLoaded {
+        load: u64,
+        rows: Box<[Stored]>,
+        next: Option<Key>,
+    },
+    HistoryUnloaded {
+        load: u64,
+    },
+    ReadHistory {
+        read: u64,
+        query: crate::history::Query,
+    },
     /// Keep the merge judgement in the decision admitting its effect.
     Signed {
         task: u64,
@@ -1870,11 +1915,11 @@ pub enum Event {
         designs: Box<[Name]>,
         holders: Box<[u64]>,
     },
-    /// Release slots and confirm any pushed heads.
+    /// Release slots and confirm each branch, head and checked-delivery flag.
     Answered {
         task: u64,
         attempt: u64,
-        pushed: Box<[(Name, skein_forge::api::Commit)]>,
+        pushed: Box<[(Name, skein_forge::api::Commit, bool)]>,
     },
     /// Read a lost writer's resource afresh before making its slot available.
     Lost {
@@ -1932,6 +1977,11 @@ pub enum Event {
     QueueRepairStarted {
         owner: u64,
         repair: u64,
+    },
+    /// A job attempt was claimed or its result consumed in the root decision.
+    JobHistory {
+        task: u64,
+        job: crate::history::JobStep,
     },
     /// Remember a committed procedure child and its role in this change.
     Delegated {
@@ -2186,6 +2236,16 @@ pub fn is_root_read(owner: Token) -> bool {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    LoadHistory {
+        load: u64,
+        range: crate::history::HistoryRange,
+        after: Option<Key>,
+        most: u32,
+    },
+    HistoryPage {
+        read: u64,
+        answer: crate::history::Reply,
+    },
     Decided {
         to: skein_lib::ReplyTo,
         key: NamedCall,

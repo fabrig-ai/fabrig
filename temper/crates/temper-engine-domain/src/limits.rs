@@ -126,9 +126,10 @@ pub(crate) fn environment_core(env: &Env<Limits>) -> Env<jig_domain_core::Limits
 }
 
 /// The store map's bytes at or above which new party work is refused, as
-/// jig's `crates/jig-protocol-config/src/profile/small.rs` sets it until
-/// temper's configuration names its own (domain/root.md, 9).
-pub const FILL_MARK: u64 = 268_435_456;
+/// jig's `crates/jig-protocol-config/src/profile/standard.rs` sets it, within
+/// the map budget of the profile temper's boxes take, until temper's
+/// configuration names its own (domain/root.md, 9).
+pub const FILL_MARK: u64 = 1_073_741_824;
 /// Streams use temper's client's own bound of 31, above jig's small
 /// profile's 4 (`small.rs`, clients; protocol/configuration/limits.md).
 pub const WATCHES_PER_STREAM: u32 = 31;

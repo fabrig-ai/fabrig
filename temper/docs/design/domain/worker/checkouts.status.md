@@ -3,6 +3,7 @@
 2026-11-12. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
 
+
 `checkouts.md`'s design delivery has no known gap in running the repository's
 `.temper/pre-pr` and refusing a failed check. Its landing pin stays frozen
 for the hold. `checkouts.md`'s delivery retains the checkout's ancestry through

@@ -70,7 +70,7 @@ fn open(store: &mut crate::Store) -> Box<[Event]> {
 fn behind_open_defers_the_v1_model_catalogue_until_patching() {
     let mut store = store(OLD_MODEL, 0);
     let events = open(&mut store);
-    let [Event::Opened { .. }] = events.as_ref() else {
+    let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
         panic!("{events:?}; {:?}", store.start_open_failure());
     };
     assert!(store.directory.patch.is_some(), "the old generation enters patching");
@@ -116,7 +116,7 @@ fn u1_patches_a_v1_model_then_open_restores_its_catalogue() {
     let level = u32::try_from(patches::PATCHES.len()).expect("jig's level fits u32");
     let mut store = store(&bytes, level);
     let events = open(&mut store);
-    let [Event::Opened { .. }] = events.as_ref() else {
+    let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
         panic!("{events:?}");
     };
     assert_eq!(
@@ -185,7 +185,7 @@ fn a_disk_upgrade_patches_the_model_before_loading_its_catalogue() {
     let mut store = disk.store();
     store.patch_sets(SETS);
     let events = disk.open(&mut store);
-    let Some(Event::Opened { pending: true, .. }) = events.last() else {
+    let [.., Event::Opened { pending: true, .. }, Event::Census { .. }] = events.as_ref() else {
         panic!("{events:?}; {:?}", store.start_open_failure());
     };
     assert_eq!(disk.bytes(b"active").as_ref(), b"1\n", "the patched copy awaits its switch");

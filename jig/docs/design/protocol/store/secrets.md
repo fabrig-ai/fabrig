@@ -164,7 +164,7 @@
   Configured sources are spared even without an accounts-family row.
   Every application row is spared: a carried value an application used
   may still live at its drawn number. Every link is made before a
-  sweep runs (`../../domain/engine/restart.md`), so a link's panic
+  sweep runs (`../../domain/engine/restart.md`), so a link's refusal
   erases nothing. A value orphaned by a crash
   before the core says used or unused remains there, including an LLM
   key not yet adopted; collecting those values is later work.

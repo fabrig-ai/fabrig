@@ -137,6 +137,7 @@ fn finish(store: &mut Store, result: Result<bool, ()>, above: &mut Queue<Event>)
                     installation: store.installation,
                     pending: crate::patching::switch::pending(store),
                 });
+                crate::census::report(store, above);
             }
         }
         Ok(false) => {}
@@ -177,6 +178,7 @@ pub(crate) fn arrival(event: file::Event) -> Option<Arrival> {
         | file::Event::Stated { .. }
         | file::Event::Written { .. }
         | file::Event::Read { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Listed { .. }
         | file::Event::Cancelled { .. } => None,

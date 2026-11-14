@@ -959,7 +959,7 @@ fn a_landing_changes_repair_writes_the_goal_branch_under_its_goals_hold() {
             );
             outputs(
                 &mut d,
-                Event::Answered { task: DELEGATE, attempt: 1, pushed: Box::new([(name(), fixtures::BASE)]) },
+                Event::Answered { task: DELEGATE, attempt: 1, pushed: Box::new([(name(), fixtures::BASE, true)]) },
             );
             assert_eq!(d.hold(&name()).unwrap().writer, None);
             assert_eq!(d.branch_head(&name()), Some(fixtures::BASE));
@@ -1097,7 +1097,7 @@ fn a_design_writer_takes_no_slot_and_its_answer_reads_the_goal_afresh() {
     let hold = d.hold(&name()).unwrap();
     assert_eq!(hold.writer, None);
     assert_eq!(hold.design_writers.as_ref(), &[DesignWriter { task: GOAL, attempt: 1, rereading: false }]);
-    outputs(&mut d, Event::Answered { task: GOAL, attempt: 1, pushed: Box::new([(name(), fixtures::BASE)]) });
+    outputs(&mut d, Event::Answered { task: GOAL, attempt: 1, pushed: Box::new([(name(), fixtures::BASE, true)]) });
     assert_eq!(d.branch_head(&name()), Some(fixtures::HEAD), "the report is not the head");
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
@@ -1204,7 +1204,7 @@ fn confirm_head(d: &mut Domain, head: skein_forge::api::Commit) {
             holders: Box::new([GOAL]),
         },
     );
-    outputs(d, Event::Answered { task: DELEGATE, attempt: 1, pushed: Box::new([(name(), head)]) });
+    outputs(d, Event::Answered { task: DELEGATE, attempt: 1, pushed: Box::new([(name(), head, true)]) });
 }
 
 #[test]

@@ -159,6 +159,13 @@ fn the_runner_configuration_names_one_connection_by_its_token_file() {
     );
 }
 #[test]
+fn the_runner_keeps_temporary_files_under_its_scratch() {
+    let scratch = std::path::Path::new("/scratch/runner");
+    let command = crate::runner::command(std::path::Path::new("/runner"), scratch);
+    let temporary = command.get_envs().find(|(name, _)| *name == "TMPDIR").expect("TMPDIR").1.expect("set");
+    assert_eq!(std::path::Path::new(temporary), scratch.join("tmp"));
+}
+#[test]
 fn a_listed_runner_is_found_by_its_uuid() {
     let body = listed_runner();
     let row = crate::registration::listed(&body, "30313233-3435-3637-3839-616263646566").expect("found");

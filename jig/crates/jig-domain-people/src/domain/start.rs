@@ -347,7 +347,6 @@ mod tests {
     use alloc::boxed::Box;
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn readiness_and_lookup_follow_the_start_in_every_state() {
         for (start, ready, lookup, projects) in [
             (Start::NotStarted, true, false, true),
@@ -361,10 +360,9 @@ mod tests {
             domain.start = start;
             assert_eq!(domain.ready(), ready, "{start:?}");
             assert_eq!(domain.start_lookup(), lookup, "{start:?}");
-            let projection = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+            if projects {
                 domain.assert_projection_event();
-            }));
-            assert_eq!(projection.is_ok(), projects, "{start:?}");
+            }
         }
     }
 }

@@ -221,26 +221,6 @@ finish() {
     status=$?
     trap - EXIT INT TERM HUP
     set +e
-    # A held-login story installs this before import. Return while its box is
-    # still alive, including when nextest or this script received a signal.
-    # A failed return leaves the deployment alive for the owner's recovery.
-    if { [ "$rung" = true ] || [ "$held_landing" = true ]; } && [ -x "$store/give-back" ]; then
-        if ! timeout 60 "$store/give-back" >> "$notice" 2>&1; then
-            printf '%s\n' 'LOGIN NOT BACK: export/stat failed; box retained for recovery' >&2
-            printf 'return hook %s/give-back\n' "$store" >&2
-            exit 1
-        fi
-    fi
-    # This also covers a failed build or a signal before import/hook creation.
-    if [ "$rung" = true ]; then
-        if [ "$(LC_ALL=C stat -c %F -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 'regular file' ] ||
-           [ "$(stat -c %a -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 600 ] ||
-           ! [ "$(stat -c %s -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" -gt 0 ]; then
-            printf '%s\n' 'LOGIN NOT BACK: final stat failed; box retained for recovery' >&2
-            exit 1
-        fi
-        stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- "$TEMPER_TEST_LIVE_ACCOUNT" >> "$notice"
-    fi
     if [ -n "$runner" ]; then
         kill -TERM "$runner" 2>/dev/null
         wait "$runner" 2>/dev/null
@@ -249,13 +229,25 @@ finish() {
         kill "$follower" 2>/dev/null
         wait "$follower" 2>/dev/null
     fi
+    if [ "$rung" = true ] || [ "$held_landing" = true ]; then
+        # Anything at the lent path is left alone, including unsafe metadata.
+        if [ ! -e "$TEMPER_TEST_LIVE_ACCOUNT" ] && [ ! -L "$TEMPER_TEST_LIVE_ACCOUNT" ]; then
+            if [ -x "$store/give-back" ]; then
+                timeout 60 "$store/give-back" >> "$notice" 2>&1
+            fi
+            if [ ! -e "$TEMPER_TEST_LIVE_ACCOUNT" ] && [ ! -L "$TEMPER_TEST_LIVE_ACCOUNT" ]; then
+                TEMPER_TEST_LIVE_STORE="$store" TMPDIR="$scratch" ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --ignore-default-filter --run-ignored only \
+                    -E 'binary(=live) & test(=the_held_record_returns_on_a_box_of_its_own)' >> "$notice" 2>&1
+            fi
+        fi
+    fi
     stopped=true
     stop_owned || { stopped=false; status=1; }
-    if [ "$held_landing" = true ]; then
+    if [ "$rung" = true ] || [ "$held_landing" = true ]; then
         if [ "$(LC_ALL=C stat -c %F -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 'regular file' ] ||
            [ "$(stat -c %a -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" != 600 ] ||
            ! [ "$(stat -c %s -- "$TEMPER_TEST_LIVE_ACCOUNT" 2>/dev/null)" -gt 0 ]; then
-            printf '%s\n' 'LOGIN NOT BACK: final stat failed; store retained for recovery' >&2
+            printf 'LOGIN NOT BACK: final stat failed; store %s retained for recovery\n' "$store" >&2
             status=1
         else
             stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- "$TEMPER_TEST_LIVE_ACCOUNT" >> "$notice"
@@ -303,7 +295,7 @@ trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
-# A build failure or a signal also returns through finish, after stopping the box.
+# A build failure or a signal also returns through finish, returning the login before stopping the box.
 ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --no-run
 if [ "$rerun" = false ] && [ -z "${TEMPER_TEST_LIVE_ACCOUNT-}" ] && [ -z "$claude_identity" ] && [ "${1-}" != forge-land-claude-key ]; then
     printf '%s\n' 'Approve the printed ChatGPT address in a browser that reaches this machine.' \

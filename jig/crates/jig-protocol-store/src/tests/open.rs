@@ -102,7 +102,8 @@ fn assert_opened(events: &[Event], last: u64) {
 }
 
 fn assert_opened_with(events: &[Event], last: u64, installation: [u8; 16]) {
-    let [Event::Opened { owner, last: found, installation: answered, pending: false }] = events else {
+    let [Event::Opened { owner, last: found, installation: answered, pending: false }, Event::Census { .. }] = events
+    else {
         panic!("one opened terminal: {events:?}");
     };
     assert_eq!(*owner, Token::new(1));

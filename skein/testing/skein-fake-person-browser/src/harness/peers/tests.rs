@@ -138,7 +138,7 @@ impl Host for Peer {
 
 fn ready_and_drained(mut peer: Peer) -> (SocketAddr, usize) {
     let mut lent = [Lent { name: b"listener", peer: &mut peer }];
-    let mut peers = Peers::new(&mut lent).expect("borrow listener");
+    let mut peers = Peers::new(&mut lent);
     let mut limits = vec![0; FIRST];
     limits.extend_from_slice(&peers.limits);
     let mut ring = Ring::new(limits.iter().sum(), limits).expect("listener kernel");
@@ -161,7 +161,7 @@ fn ready_and_drained(mut peer: Peer) -> (SocketAddr, usize) {
                 Expired::Starved(verdict) => starved = Some(verdict),
             }
         }
-        assert_eq!(peers.drive(&mut ring, stamp.now, stamp.wall, address.is_some() || starved.is_some()).len(), 0);
+        peers.drive(&mut ring, stamp.now, stamp.wall, address.is_some() || starved.is_some());
         if starved.is_none() && address.is_none() && peers.ready() {
             let [(name, bound)] = peers.addresses().try_into().expect("one lent listener");
             assert_eq!(name.as_ref(), b"listener");
@@ -202,4 +202,42 @@ fn a_lent_peer_becomes_ready_after_claiming_its_adopted_listener() {
     let (address, listens) = ready_and_drained(Peer::new(Some(listener)));
     assert_eq!(address, reserved);
     assert_eq!(listens, 0, "adoption does not submit a kernel Listen");
+}
+
+#[test]
+fn a_lent_peer_is_named_before_control_and_only_after_the_name_changes() {
+    let output = std::cell::RefCell::new(Vec::new());
+    let mut last = None;
+    for (name, expected) in [
+        (b"neighbor".as_slice(), b"lent peer neighbor\n".as_slice()),
+        (b"neighbor".as_slice(), b"lent peer neighbor\n".as_slice()),
+        (b"other".as_slice(), b"lent peer neighbor\nlent peer other\n".as_slice()),
+    ] {
+        let result = super::call_with_report(
+            &mut last,
+            name,
+            || {
+                assert_eq!(output.borrow().as_slice(), expected, "the name precedes control");
+                Err::<(), _>("peer's value")
+            },
+            |line| {
+                use std::io::Write;
+                writeln!(output.borrow_mut(), "{line}").expect("write the test's report");
+            },
+        );
+        assert_eq!(result, Err("peer's value"), "the peer's return value is unchanged");
+    }
+}
+
+#[test]
+fn a_lent_peers_startup_error_names_the_peer() {
+    let mut peer = Peer::new(None);
+    let mut lent = [Lent { name: b"neighbor", peer: &mut peer }];
+    let mut peers = Peers::new(&mut lent);
+    let complete = Complete {
+        op: Token::new(7),
+        kind: Op::Socket { family: skein_io::kernel::Family::Ipv4 },
+        result: Err(skein_io::kernel::Error::Refused),
+    };
+    assert_eq!(peers.completion(FIRST, &complete), Some("lent peer neighbor startup: Refused".into()));
 }

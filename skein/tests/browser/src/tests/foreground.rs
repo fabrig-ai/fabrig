@@ -50,7 +50,7 @@ fn a_look_waits_for_its_own_page_to_come_to_the_front() {
         let bytes = world.sent.get(1).expect("read after foregrounding").strip_suffix(&[0]).expect("CDP delimiter");
         let command = Document::parse(bytes, world.env.limits.command).expect("encoded command");
         assert_eq!(command.root().get(b"method").expect("method").text().expect("method text").as_ref(), next);
-        world.assert_commands_settled();
+        world.check_commands_settled().expect("commands settled");
     }
 }
 
@@ -74,7 +74,7 @@ fn an_await_foregrounds_again_only_at_its_poll_and_keeps_its_deadline() {
     world.sent.clear();
     world.tick(world.env.now.saturating_add(poll));
     assert!(world.sent.is_empty(), "no foregrounding after the await ended");
-    world.assert_commands_settled();
+    world.check_commands_settled().expect("commands settled");
 }
 
 #[test]
@@ -86,5 +86,5 @@ fn a_refused_foreground_command_ends_the_look_without_reading() {
     assert_eq!(world.sent.len(), 1, "no capture after foregrounding failed");
     assert!(matches!(world.above.pop(), Some(Event::Refused { op: LOOK, why: Refusal::Gone, .. })));
     assert!(world.above.is_empty(), "one terminal");
-    world.assert_commands_settled();
+    world.check_commands_settled().expect("commands settled");
 }

@@ -5850,6 +5850,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-protocol-engine-clients",
  "jig-test-profile",
+ "serde_json",
  "skein-json",
  "skein-lib",
  "skein-push",
@@ -6426,6 +6427,7 @@ dependencies = [
  "jig-protocol-engine-clients-http",
  "jig-protocol-engine-workers",
  "jig-protocol-store",
+ "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "skein-channel",
  "skein-codec",
@@ -6459,6 +6461,7 @@ dependencies = [
  "temper-client-tools",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-service-startup",
  "temper-engine-service-stock",
@@ -6472,6 +6475,8 @@ dependencies = [
  "temper-protocol-worker-wire",
  "temper-service-core",
  "temper-test-env",
+ "temper-worker-domain",
+ "temper-worker-service",
  "temper-worker-service-fixtures",
 ]
 
@@ -7651,6 +7656,7 @@ dependencies = [
  "temper-engine-domain-forge-vocabulary",
  "temper-worker-domain-checkout",
  "temper-worker-domain-tooling",
+ "temper-worker-protocol-git",
 ]
 
 [[package]]
@@ -7692,6 +7698,7 @@ version = "0.0.0"
 dependencies = [
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "temper-worker-domain-checkout",
 ]
 

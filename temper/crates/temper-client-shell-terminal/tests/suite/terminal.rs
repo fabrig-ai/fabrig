@@ -201,6 +201,7 @@ fn refused_directory() -> temper_client_shell_terminal::terminal::Terminal {
                 | Op::Append { .. }
                 | Op::Truncate { .. }
                 | Op::Sync { .. }
+                | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }
                 | Op::MakeDirectory { .. }

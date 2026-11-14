@@ -496,11 +496,13 @@ a wall time each test chooses.
   machine fed by hand: its first flight, records no server writes (not
   TLS, past TLS's lengths, an alert, a message longer than the records
   held, a retry whose cookie no flight holds), the stream ending and
-  failing before and during the handshake, closes, and the bugs it
-  asserts: limits it cannot honour, a second handshake, the stream
-  before it, a second demand, a read or room past the limits, a `Send`
-  without room, a `Finish` with room or a read outstanding, a close
-  after close, and an answer no demand asked for.
+  failing before and during the handshake, and closes. Limits it cannot
+  honour are tested as `valid`'s answer and the native client's `None`;
+  the bugs it asserts (such limits given to the portable client, a
+  second handshake, the stream before it, a second demand, a read or
+  room past the limits, a `Send` without room, a `Finish` with room or a
+  read outstanding, a close after close, an answer no demand asked for)
+  are untested (`skein/docs/foundation/programming-model.md`, 10.4).
 - **Machine worlds** (`tests/tls`, `skein-tls-world`): one client from a
   seed between the server's ciphertext, cut at random, room granted late,
   ended or failed, and a user that reads with demands of every shape,

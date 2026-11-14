@@ -308,6 +308,8 @@ fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> O
         ),
         (b"checkout.name_bytes", bounds.remote_bytes, ceilings.repository_remote),
         (b"checkout.conflicts", bounds.conflicts, ceilings.files_files),
+        (b"forge.branch_reds", bounds.reds, ceilings.reds_reds),
+        (b"forge.red_key_bytes", bounds.red_key_bytes, ceilings.red_key),
         (b"checkout.path_bytes", bounds.path_bytes, ceilings.files_files_item),
         (b"identity.token_bytes", bounds.token_bytes, ceilings.token_token),
         (b"forges.installations", bounds.entries, ceilings.entries_entries),
@@ -371,6 +373,8 @@ pub fn channel(
                     // Saved's ceiling is checked with the checkout's other carriers.
                     (b"resource_resource_some", largest.resource, ceilings.resource_resource_some),
                     (b"application_value_secret", largest.grant, ceilings.application_value_secret),
+                    (b"ask_bytes", largest.ask, ceilings.ask_bytes),
+                    (b"ask_bytes_bytes", largest.answer, ceilings.ask_bytes_bytes),
                 ] {
                     if bytes > bound {
                         let prefix: &[u8] = if index == 0 { b"engine" } else { b"workers" };

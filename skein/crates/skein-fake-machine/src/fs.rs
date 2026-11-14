@@ -270,6 +270,8 @@ pub struct Machine {
     durable_nodes: BTreeMap<NodeId, Node>,
     pending_writes: BTreeMap<NodeId, Vec<(u64, Vec<u8>)>>,
     pending_dirs: BTreeSet<NodeId>,
+    /// New second names wait for their target directory to be synced.
+    pending_links: BTreeMap<(NodeId, Box<[u8]>), NodeId>,
     pending_moves: Vec<moves::Move>,
     next_node: NodeId,
     handles: BTreeMap<u64, Handle>,
@@ -309,6 +311,7 @@ impl Machine {
             durable_nodes: BTreeMap::from([(0, top)]),
             pending_writes: BTreeMap::new(),
             pending_dirs: BTreeSet::new(),
+            pending_links: BTreeMap::new(),
             pending_moves: Vec::new(),
             next_node: 1,
             handles: BTreeMap::new(),
@@ -359,6 +362,7 @@ impl Machine {
         // The laid scenario is the disk's initial durable state.
         self.durable_nodes = self.nodes.clone();
         self.pending_dirs.clear();
+        self.pending_links.clear();
         self.pending_writes.clear();
         self.issue(root, How::Directory)
     }
@@ -422,6 +426,7 @@ impl Machine {
             }
             Body::Directory { .. } => {
                 self.pending_dirs.remove(&id);
+                self.pending_links.retain(|(dir, _), _| *dir != id);
             }
             Body::Link(_) | Body::Special(_) => fail("only a file or directory is synced"),
         }
@@ -474,10 +479,26 @@ impl Machine {
             }
         }
         self.crash_moves(&mut surviving, &mut rng);
+        for ((dir, name), linked) in &self.pending_links {
+            if let Some(Node { body: Body::Directory { entries, .. }, .. }) = surviving.get_mut(dir)
+                && entries.get(name) == Some(linked)
+            {
+                let previous = self.durable_nodes.get(dir).and_then(|node| match &node.body {
+                    Body::Directory { entries, .. } => entries.get(name).copied(),
+                    Body::File(_) | Body::Link(_) | Body::Special(_) => None,
+                });
+                if let Some(previous) = previous {
+                    entries.insert(name.clone(), previous);
+                } else {
+                    entries.remove(name);
+                }
+            }
+        }
         recover_links(&mut surviving);
         self.nodes = surviving.clone();
         self.durable_nodes = surviving;
         self.pending_dirs.clear();
+        self.pending_links.clear();
         self.pending_writes.clear();
         self.handles.clear();
     }
@@ -576,6 +597,28 @@ impl Machine {
             }
             self.node_mut(source).parent = Some(to_dir);
         }
+        Ok(())
+    }
+
+    /// Gives the entry itself a second name, durable once the target directory is synced.
+    pub fn hard_link(&mut self, from_dir: Opened, from: &[u8], to_dir: Opened, to: &[u8]) -> Result<(), Refusal> {
+        let (from_dir, to_dir) = (self.handle(from_dir).node, self.handle(to_dir).node);
+        self.searchable(from_dir)?;
+        self.searchable(to_dir)?;
+        let source = self.look_up(from_dir, from)?.ok_or(Refusal::NotFound)?;
+        if self.look_up(to_dir, to)?.is_some() {
+            return Err(Refusal::Exists);
+        }
+        if self.is_directory(source)
+            || !self.may(to_dir, WRITE)
+            || (self.node(source).owner != self.owner && !self.may(source, READ | WRITE))
+        {
+            return Err(Refusal::Permission);
+        }
+        self.entries_mut(to_dir).insert(Box::from(to), source);
+        self.pending_links.insert((to_dir, Box::from(to)), source);
+        let node = self.node_mut(source);
+        node.links = node.links.checked_add(1).expect("bounded machine links");
         Ok(())
     }
 

@@ -344,3 +344,21 @@ fn a_worker_cut_fifty_times_is_taken_back_each_time() {
     assert_eq!(outcome.admitted_hellos, 51);
     assert_eq!(outcome.agent_starts, 0);
 }
+
+#[test]
+fn a_workers_application_ask_crosses_and_its_root_hears_the_numbered_answer() {
+    let outcome = run(Story::Ask);
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(
+        outcome.application_answer,
+        Some((
+            skein_lib::Token::new(1),
+            skein_lib::Token::new(1),
+            1,
+            jig_domain_host::AskAnswer::Bytes(b"x".as_slice().into())
+        ))
+    );
+    assert_eq!(outcome.turns_committed, 1);
+    assert_eq!(outcome.answers_acknowledged, 1);
+    assert!(outcome.services_empty);
+}

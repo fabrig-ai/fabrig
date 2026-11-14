@@ -634,6 +634,33 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
 }
 
 #[test]
+fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
+    use temper_engine_domain_forge::{Key, MissingLink, Need, RecordKind};
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    let end = End::Stopped(Stop::ForgeLink {
+        phase: Some(jig_domain_core::start::Phase::Link),
+        link: MissingLink {
+            kind: RecordKind::Names,
+            key: Key::Names(17),
+            need: Need::Repository(skein_forge::api::Repository { forge: 1, repository: 999 }),
+        },
+    });
+    for binary in ["temper", "temper-engine"] {
+        assert_eq!(
+            ending_with_binary(binary, Some(&end), false, &directories, b"/data/deployment", &[]),
+            (
+                format!(
+                    "{binary} serve: restart refused during link: forge Names Names(17) links missing Repository(Repository {{ forge: 1, repository: 999 }})\n"
+                ),
+                1
+            )
+        );
+    }
+}
+
+#[test]
 fn start_failures_name_the_set_key_setting_and_measured_limit() {
     use jig_domain_core::{
         HeldLimit, Key, settings,

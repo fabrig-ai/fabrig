@@ -89,6 +89,11 @@ pub enum Stop {
         phase: Option<jig_domain_core::start::Phase>,
         failure: temper_engine_domain_forge::RestoreFit,
     },
+    /// A restored forge record links to a target the start does not hold, at `phase`.
+    ForgeLink {
+        phase: Option<jig_domain_core::start::Phase>,
+        link: temper_engine_domain_forge::MissingLink,
+    },
     /// The deployment's namespace binding was refused.
     Binding,
     /// A current stored setting names a retired value or number.

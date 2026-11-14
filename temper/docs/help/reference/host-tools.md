@@ -28,6 +28,18 @@ Offered where the run's charter names the delegate family.
 - `state`: text; optional.
 - `mine`: true or false; optional.
 
+## red
+
+A red is a failure a goal's branch carries that no live change owns. record: key at why; end: key why; list
+
+A write.
+Offered where the run's charter names the delegate family.
+
+- `act`: one of `record`, `end` or `list`; required.
+- `key`: text; optional.
+- `at`: text; optional. 40 or 64 lowercase hex digits of the check's base.
+- `why`: text; optional.
+
 ## follow
 
 start: follow commit; hold/skip: follow commit reason; merge: follow commits (2+, queue order); list: project's follows; show: follow. Acts are owner's.

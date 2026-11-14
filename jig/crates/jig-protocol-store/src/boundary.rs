@@ -567,6 +567,10 @@ pub enum Event {
         number: u64,
         fill: u64,
     },
+    /// The map's named census, after Opened or a commit's answer (protocol/store/README.md, 6.3).
+    Census {
+        census: Box<jig_domain_core_vocabulary::documents::StoreCensus>,
+    },
     /// Commit `number` failed or was refused; the engine stops (protocol/store/README.md 5).
     Failed {
         number: u64,

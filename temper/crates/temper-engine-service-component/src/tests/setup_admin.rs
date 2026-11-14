@@ -230,6 +230,11 @@ fn admin_paste_reconciles_creates_with_its_label_then_keeps_and_restarts_from_re
     let object = forge.git.object(head).unwrap();
     assert!(contains(object.tree.get(temper_forge_setup::STARTER_PATH).unwrap(), b"runs-on: docker_1.x-y\n"));
     assert!(forge.service.setup().repository_hooks(1).next().is_none());
+    restart_admin_service(service, &mut forge);
+}
+
+// Keep extraction of the boxed engine's store off the first construction's frame.
+fn restart_admin_service(mut service: Box<crate::Service>, forge: &mut Forge) {
     service.engine.as_mut().unwrap().forge.down(skein_forge_connection::Request::Close);
     for _ in 0_u32..16 {
         forge.turn_io(service.engine.as_mut().unwrap());
@@ -239,7 +244,7 @@ fn admin_paste_reconciles_creates_with_its_label_then_keeps_and_restarts_from_re
     let mut restarted = boxed_restarted_service(store);
     restore_local(&mut restarted);
     for tick in 1..20_000 {
-        turn(&mut restarted, &mut forge, tick);
+        turn(&mut restarted, forge, tick);
         let engine = restarted.engine.as_ref().unwrap();
         if match engine.domain.forge_connection(1) {
             domain::Connection::Connected { .. } => true,
@@ -471,6 +476,8 @@ fn admin_record_files_and_directories_are_owner_only() {
         }
     }
     assert!(opened);
+    // This permissions fixture does not consume the census (jig protocol/store/README.md, 6.3).
+    let Some(StoreEvent::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
     fixtures::commit(&mut store, 1, Box::new([root::Write::Wires]));
     for _ in 0_u32..4096 {
         disk_turn(&mut store, &mut kernel);
