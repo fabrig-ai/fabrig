@@ -15,8 +15,6 @@ process ID on Linux and no parent on macOS; the child mode is Unix-only
 and absent from the portable face. macOS's direct launch and deferred
 crash lifetime are ../protocol/programs.md, sections 5.1 and 9's.
 
-- **Not yet:** 3.2: no `clippy.toml` here bans catching a panic: the two entries of
-  `tools/lints/design.md`, 4. [in flight: change 2953]
 - **Departs:**
   - 2.5: in `smith/crates/smith-agent-document/src/config/`,
     `TrustDocument`'s fields, `EndpointTransport::Tls`'s and the
