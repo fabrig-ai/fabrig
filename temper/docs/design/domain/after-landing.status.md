@@ -37,8 +37,6 @@ in section 14. The log's other gaps and the retained change rows remain below.
   because the answer of 2026-11-05 kept it for a closed change's panel. The log
   holds its titles without it: `a_landed_change_keeps_its_title_after_its_close`
   reads them after a restoration of the log and its repository alone.
-- **Departs:** 5.2: probes visit changed-key landings linearly, oldest
-  first, rather than bisecting the range. The first candidate whose commit
-  fails a test owns it; the last candidate owns what remains without a
-  probe. Unchanged-key landings are skipped. No reason for choosing this
-  traversal over bisection is recorded.
+- **Not yet:** 5.2, step 4: probes visit changed-key landings linearly,
+  oldest first, rather than halving groups; the tier's record keeps no
+  groups (section 10) [in flight: change 2943].
