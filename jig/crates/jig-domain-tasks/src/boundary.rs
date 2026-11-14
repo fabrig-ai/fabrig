@@ -1302,6 +1302,8 @@ pub use crate::index::Key;
 /// funding, writer slots and pool counts are restored before admission.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    Summary(Box<crate::TaskSummary>),
+    Retention(crate::RetentionRow),
     /// A standing hold, or a lifted hold still named by live tasks.
     PlacedHold(Box<crate::PlacedHold>),
     /// One party's durable update index.
@@ -1350,6 +1352,8 @@ impl Stored {
     #[must_use]
     pub const fn key(&self) -> Key {
         match self {
+            Stored::Summary(row) => Key::Summary(row.number),
+            Stored::Retention(row) => row.key(),
             Stored::PlacedHold(row) => Key::PlacedHold(row.number),
             Stored::Update(row) => row.key(),
             Stored::EndedByParty(row) => row.key(),

@@ -58,10 +58,17 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     if job == "charter-versions" {
         return charter_versions::page(page);
     }
+    if job == "retention-rows" {
+        return retention::rows(page);
+    }
+    if job == "retention-proposals" {
+        return retention::proposals(page);
+    }
     Err(JobRefusal { key: None, why: Box::from("no such jig job") })
 }
 
 mod charter_versions;
+mod retention;
 
 pub(crate) mod admission;
 pub(crate) mod kept;

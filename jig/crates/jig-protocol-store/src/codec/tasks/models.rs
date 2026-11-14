@@ -109,7 +109,9 @@ fn referenced(row: &d::Stored) -> u64 {
             }
             bits
         }
-        d::Stored::Update(_)
+        d::Stored::Summary(_)
+        | d::Stored::Retention(_)
+        | d::Stored::Update(_)
         | d::Stored::Result(_)
         | d::Stored::EndedByParty(_)
         | d::Stored::EndedByProject(_)
