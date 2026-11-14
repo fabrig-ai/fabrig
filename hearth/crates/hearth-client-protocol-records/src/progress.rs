@@ -42,15 +42,12 @@ impl Strays {
     }
 }
 
+/// A full store can reach its layer limit (hearth/docs/design/client/README.md, 3.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct StoreError {
+pub struct StoreFull {
     pub store: Box<[u8]>,
-    pub fault: StoreFault,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum StoreFault {
-    Full { limit: StoreLimit, most: u32 },
-    Failed { step: Step },
+    pub limit: StoreLimit,
+    pub most: u32,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum StoreLimit {
@@ -58,66 +55,31 @@ pub enum StoreLimit {
     Layers,
     CacheFiles,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Step {
-    Write,
-    List,
-    Remove,
-    Load,
-    Empty,
-    Keep,
-}
-impl Step {
-    fn name(self) -> &'static [u8] {
-        match self {
-            Self::List => b"list",
-            Self::Remove => b"remove",
-            Self::Load => b"load",
-            Self::Empty => b"empty",
-            Self::Keep => b"keep",
-            Self::Write => b"write",
-        }
-    }
-}
-impl StoreError {
+impl StoreFull {
     pub(crate) fn text(&self, lines: &mut Lines) {
         lines.put(b"the store ");
         lines.put(&self.store);
-        match self.fault {
-            StoreFault::Full { limit, most } => {
-                lines.put(b" is full: ");
-                lines.decimal(u64::from(most));
-                lines.put(match limit {
-                    StoreLimit::Resolutions => b" resolutions",
-                    StoreLimit::Layers => b" layers",
-                    StoreLimit::CacheFiles => b" cache files",
-                });
-            }
-            StoreFault::Failed { step } => {
-                lines.put(b": its ");
-                lines.put(step.name());
-                lines.put(b" failed");
-            }
-        }
+        lines.put(b" is full: ");
+        lines.decimal(u64::from(self.most));
+        lines.put(match self.limit {
+            StoreLimit::Resolutions => b" resolutions",
+            StoreLimit::Layers => b" layers",
+            StoreLimit::CacheFiles => b" cache files",
+        });
+        lines.put(b"\n");
     }
     pub(crate) fn json(&self, json: &mut Encoder) {
+        field(json, b"record", b"error");
+        field(json, b"kind", b"store");
         field(json, b"store", &self.store);
-        match self.fault {
-            StoreFault::Full { limit, most } => {
-                field(
-                    json,
-                    b"limit",
-                    match limit {
-                        StoreLimit::Resolutions => b"resolutions",
-                        StoreLimit::Layers => b"layers",
-                        StoreLimit::CacheFiles => b"cache_files",
-                    },
-                );
-                json.key(b"most");
-                json.unsigned(u64::from(most));
-            }
-            StoreFault::Failed { step } => field(json, b"step", step.name()),
-        }
+        field(json, b"limit", match self.limit {
+            StoreLimit::Resolutions => b"resolutions",
+            StoreLimit::Layers => b"layers",
+            StoreLimit::CacheFiles => b"cache_files",
+        });
+        json.key(b"most");
+        json.unsigned(u64::from(self.most));
+        field(json, b"class", b"operational");
     }
 }
 
