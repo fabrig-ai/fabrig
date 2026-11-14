@@ -495,6 +495,69 @@ blamed landing's full commit (2026-11-04).
 - **A comment on each member's pull request,** once per tier verdict:
   "cleared by run N", or "red: tests X, Y" and, once one lands, "repaired
   by #M". Keyed, as every comment of temper's (`forge/README.md`, section 4).
+- **Posted by the run's task, after its verdict is kept:** once the
+  verdict is judged and kept (sections 5 to 7: the record, the
+  landings' verification, the news), the run's task posts the status,
+  then the comments, one write at a time, in order, and ends done. It
+  lives while it posts, so the tier's next run starts once it has
+  posted. A tip judged by its receipt posts as a dispatched run does.
+- **The status's words,** its description cut to the forge's 140 bytes
+  at a character's boundary:
+  - green, the range cleared (5.1; 5.2, 1 with no failure left):
+    `success`, `run N passed`, or `run N passed by receipt`;
+  - red, failures left at the tip once rerun: `failure`, `run N
+    failed: B blamed, I inherited`, B the distinct failing tests blamed
+    on the range's landings, owned or suspected, I the run's other
+    failures, inherited; B `many` where a landing's blame is many, and
+    I `many` where the run's failures are many (section 4) and no
+    landing's blame is;
+  - pending, before a hold on its faults: section 3's words, posted
+    again at each hold of the run.
+
+  Its link is the judged run's whole part's forge run, never a
+  rerun's or a probe's; a receipt's run for a tip judged by its
+  receipt; for the pending status, the run part's last forge run, or
+  none where none was found.
+- **The comments,** on each pull request of each member of a landing in
+  the run's range, oldest landing first, then on each member of a red
+  landing this run repairs (5.3; section 7, `repairs`), in the order
+  the repairs are found. A member is a change of temper's the landing
+  brought, with its pull request, read from the landing log (section
+  10), else from the landing's `Verification` row and the change's row;
+  a landing temper did not make has none, and a change with no pull
+  request is skipped. A comment's first line, TIER the tier's name:
+  - `Cleared by TIER run N.` for a landing the verdict blames nothing;
+  - `Red: TIER run N blames this landing for X, Y.` for one that owns
+    failures, `for many tests` where they are many;
+  - `Suspected: TIER run N suspects this landing of X, Y.` under "tell
+    all" (5.2, 4);
+  - `Repaired by #M: TIER run N passed the failures blamed on this
+    landing.`, M the pull request of the change in the run's range
+    that names the red landing, the newest's (section 7), or
+    `Repaired: TIER run N passed the failures blamed on this landing.`
+    where none names it.
+
+  Then, after a blank line, `Run: URL`, the status's link, where there
+  is one. Test ids are written whole, in order, while the comment and
+  its key fit the forge client's `op_bytes` (skein's
+  `forge/client.md`), then `and K more`.
+- **Keys:** each write a keyed effect of the run's task (section 10):
+  purpose tag 8, operation 6 for the status, its part 0 for the
+  verdict's and 1 for a pending one; operation 7 for a comment, its
+  part the comment's index in the order above, from 0, so that a
+  restart posts each at most once (`forge/README.md`, section 4).
+- **What is posted is kept** on the tier's record from the verdict to
+  its last post (section 10): what the status says, and each comment's
+  pull request and what it says, so a restart posts the rest, with the
+  same words under the same keys, whatever its changes have become
+  meanwhile.
+- **A refused write is left:** a status or a comment the forge refuses
+  (a pull request locked or gone, the write refused) is skipped and the
+  next posted; it never holds the tier or its task. An uncertain write
+  is settled by the forge client, as any is.
+- **Nothing is posted** for a run with no verdict: a run of a tier
+  following goal branches (5.4), a run dropped (section 3), or a
+  person's hold (section 3).
 
 ## 10. Effects, reads and the store
 
@@ -565,7 +628,15 @@ blamed landing's full commit (2026-11-04).
   person's hold, its party, its time and its reason, at most 1024
   bytes (section 3); a probe's part keeps the group it probes, its
   `low` and `high` landings by their index in the range and its tests,
-  and the groups waiting, each with its own (5.2);
+  and the groups waiting, each with its own, named by their places in
+  the run's failures, so their bound is the failures' and not a
+  name's per landing (5.2); a judged run's
+  posting while its task posts (section 9): the run, its tip, its
+  link, the status's check and words, the verdict's blame of each
+  landing of the range, and each comment's pull request with the
+  landing it is for, or the red landing it repairs and the repairing
+  pull request, and the index of the next write, erased by the task's
+  last post or its close;
   for a tier following goal branches, each goal branch it follows,
   with its goal, its last run's tip, failures and start, and the branch
   its run in flight is for, within the forge's `holds`;
@@ -661,6 +732,13 @@ with failing tests by id and uploading their artifacts:
 - **the bound:** a runner down past it ends a change landed and
   uncleared; the late red is kept for findings;
 - **a repair** naming a red landing clears it, "repaired by";
+- **the forge shows it:** a green run's `success` status on its tip and
+  a `Cleared by` comment on each member's pull request; a red run's
+  `failure` status counting the blamed tests and a `Red:` comment on
+  the red landing's members, `Cleared by` on the others'; then the
+  repair's run, its status, and `Repaired by #M` on the red landing's
+  members; a restart between two comments posts each once; a run held
+  on its faults posts its pending status first;
 - **a documentation landing** every tier ignores clears at once;
 - **a landing temper did not make** is in a range like any other;
 - **a branch no tier follows:** a change landing into a goal's own
