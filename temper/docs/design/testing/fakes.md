@@ -285,8 +285,9 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
     makes later, through its setup routes and an admin's
     `CreateRepository`, as `made_ci` reaches those (skein's
     `testing/fakes/forge.md`, 4). Each dispatch makes a run at the
-    branch's head, its jobs' statuses `FILE / JOB` on that commit, as
-    the domain does. Absent, no repository holds a workflow, as before,
+    branch's head, read through its runs and jobs; like Forgejo's
+    dispatch-only jobs, it writes no commit status (skein's
+    `forge/forgejo.md`, 2; `../domain/landing.md`, 7.1). Absent, no repository holds a workflow, as before,
     and a dispatch finds none.
   - **`manual_merges`,** `{"allow": bool, "autodetect": bool}`, each
     false when absent: the domain's manual-merge settings (skein's

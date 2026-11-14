@@ -173,8 +173,9 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   cue }`) that run only when dispatched (`Write::Dispatch`), never on a
   push. Each dispatch makes a run of its own at the branch's head as the
   dispatch finds it, numbered after the repository's other runs, its
-  inputs kept, and a pending status per job on that commit, its context
-  `<file> / <job>`, its link the job's page; then each job's verdict
+  inputs kept, and a job per declared job, writing no commit status, as
+  Forgejo's dispatch-only jobs write none (`../../forge/forgejo.md`,
+  2); then each job's verdict
   after a drawn latency, by the chance or the cue as for `Checks`, and
   the run completes once its last job does. `Runs` lists them, `Run`
   reads one with its jobs, and `Rerun` runs a completed run's failed job
