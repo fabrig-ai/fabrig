@@ -476,6 +476,7 @@ Drafts:
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
+- [`draft/one-owner.md`](draft/one-owner.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
 - [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)

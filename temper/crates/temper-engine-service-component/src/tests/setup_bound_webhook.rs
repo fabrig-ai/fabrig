@@ -43,9 +43,7 @@ fn reconcile_hands_the_forge_the_bound_webhook_address_after_a_port_zero_bind() 
             assert!(!engine.setup.waiting_for_webhooks, "bind before records reaches the staged settings");
             assert!(engine.setup.component.is_none(), "the bind still waits for records");
         }
-        for _ in 0_u32..8 {
-            crate::forge::records::advance(engine);
-        }
+        load_records(engine);
         assert!(engine.forge_records.done());
         advance(engine);
         if !bind_first {

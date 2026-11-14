@@ -190,10 +190,7 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
     ])
 }
 
+#[expect(clippy::disallowed_macros, reason = "allocate the bounded worst-case word at its final length")]
 fn word(len: u32) -> Box<[u8]> {
-    let mut word = List::with_capacity(len);
-    for _ in 0..len {
-        word.push(b'x').expect("bounded segment bytes");
-    }
-    word.into_boxed()
+    alloc::vec![b'x'; skein_lib::usize_of(len)].into_boxed_slice()
 }

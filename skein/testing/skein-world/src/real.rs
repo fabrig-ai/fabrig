@@ -84,21 +84,37 @@ impl<P> Deref for CheckedOutcome<P> {
     }
 }
 
+impl<P> CheckedOutcome<P> {
+    /// Drops each process and returns the first ownership finding.
+    pub fn try_release(mut self) -> Result<(), String> {
+        self.release()
+    }
+
+    fn release(&mut self) -> Result<(), String> {
+        let Some(held) = self.0.held.take() else { return Ok(()) };
+        assert_eq!(self.0.procs.len(), held.len(), "an ownership entry per surviving process");
+        let mut finding = Ok(());
+        for (at, (proc, held)) in self.0.procs.drain(..).zip(held).enumerate() {
+            let span = Span::start();
+            drop(proc);
+            let freed = span.end().net.checked_neg().expect("a heap within an i64");
+            if freed != held && finding.is_ok() {
+                finding = Err(format!(
+                    "assertion `left == right` failed: real process {at} must release exactly its own metered heap: a leak, or heap made or freed outside its calls\n  left: {freed}\n right: {held}"
+                ));
+            }
+        }
+        finding
+    }
+}
+
 impl<P> Drop for CheckedOutcome<P> {
     fn drop(&mut self) {
         if std::thread::panicking() {
             return;
         }
-        let held = self.0.held.take().expect("a checked outcome keeps its ownership ledger");
-        assert_eq!(self.0.procs.len(), held.len(), "an ownership entry per surviving process");
-        for (at, (proc, held)) in self.0.procs.drain(..).zip(held).enumerate() {
-            let span = Span::start();
-            drop(proc);
-            let freed = span.end().net.checked_neg().expect("a heap within an i64");
-            assert_eq!(
-                freed, held,
-                "real process {at} must release exactly its own metered heap: a leak, or heap made or freed outside its calls"
-            );
+        if let Err(why) = self.release() {
+            crate::fail(&why);
         }
     }
 }
@@ -127,7 +143,12 @@ impl<P: Host, R: Referee<P>> CheckedWorld<P, R> {
     /// Runs on one kernel and retains final ownership checking in the outcome.
     #[must_use]
     pub fn run(self, clock: &Clock, patience: Duration) -> CheckedOutcome<P> {
-        CheckedOutcome(self.0.run(clock, patience))
+        self.try_run(clock, patience).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Returns the run's first finding after forced cleanup.
+    pub fn try_run(self, clock: &Clock, patience: Duration) -> Result<CheckedOutcome<P>, String> {
+        self.0.try_run(clock, patience).map(CheckedOutcome)
     }
 }
 
@@ -623,6 +644,12 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         let deadline = Deadline::arm("the real loop", patience);
         let start = deadline.start();
         self.world.controls.sched_start.set(deadline.thread_start());
+        if let Some(heap) = &self.world.heap
+            && let Err(why) = heap.findings.check()
+        {
+            self.forced_cleanup(kernel);
+            return Err(why);
+        }
         let mut last_word = None;
         let mut policy_wake: Vec<(usize, Time)> = Vec::new();
         loop {
@@ -657,6 +684,12 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 last_word = Some(self.world.referee.last_word().at(now));
             }
             self.settle_children();
+            if let Some(heap) = &self.world.heap
+                && let Err(why) = heap.findings.check()
+            {
+                self.forced_cleanup(kernel);
+                return Err(why);
+            }
             self.settle_root_signals();
             self.submit_cleanup(kernel.room());
             self.ring.enter(kernel, Wait::No);
@@ -705,6 +738,9 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                     Some(heap) => heap.around(at, turn),
                     None => turn(),
                 }
+                if let Some(heap) = &self.world.heap {
+                    heap.findings.check()?;
+                }
                 while let Some(record) = proc.submissions().pop() {
                     self.submits.push(record);
                 }
@@ -720,6 +756,9 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             }
             if self.ids.get(at) == Some(&host) {
                 at = at.checked_add(1).expect("bounded host count");
+            }
+            if let Some(heap) = &self.world.heap {
+                heap.findings.check()?;
             }
             if let Some(why) = crate::end_to_end::take_finding() {
                 return Err(why);
@@ -1157,7 +1196,13 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             *self.positions.get_mut(*host).expect("a position per host") = Some(at);
         }
         let peak = match &mut self.world.heap {
-            Some(heap) => Some(heap.release(at, proc)),
+            Some(heap) => match heap.release(at, proc) {
+                Ok(peak) => Some(peak),
+                Err(why) => {
+                    heap.findings.keep(Err(why));
+                    None
+                }
+            },
             None => {
                 drop(proc);
                 None

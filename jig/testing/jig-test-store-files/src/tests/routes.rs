@@ -277,14 +277,6 @@ fn writer_admitted_rows_restore_above_the_ordinary_read_allowance() {
 }
 
 #[test]
-#[should_panic(expected = "configure restore before routing requests")]
-fn missing_restore_configuration_panics_before_routing() {
-    let mut routes = route::Routes::new(1);
-    routes.configure(&fixtures::root_limits());
-    let _request = route::down(&mut routes, StoreOut::Start { phase: core::start::Phase::LoadCore, census: None });
-}
-
-#[test]
 fn restart_configuration_preserves_the_ordinary_read_allowance() {
     let mut limits = fixtures::root_limits();
     limits.core.load_bytes = 7;

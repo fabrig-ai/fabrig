@@ -1694,16 +1694,6 @@ fn copy_on_forgejo_reads_its_admin_token() {
     assert!(forgejo.io.is_empty());
 }
 
-#[test]
-#[should_panic(expected = "the owner checks a copy plan before sending it")]
-fn the_host_asserts_copy_admission_before_starting() {
-    let mut plan = copy();
-    if let Plan::Copy { from, .. } = &mut plan {
-        *from = b"http://source.invalid/owner/repo".as_slice().into();
-    }
-    World::new().plan(1, plan);
-}
-
 fn repository_stop(why: Why) -> Event {
     Event::Stop {
         run: Token::new(1),

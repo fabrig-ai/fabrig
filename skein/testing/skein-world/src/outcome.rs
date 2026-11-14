@@ -47,25 +47,41 @@ impl<P, M> Outcome<P, M> {
     }
 }
 
-impl<P, M> Drop for Outcome<P, M> {
-    fn drop(&mut self) {
+impl<P, M> Outcome<P, M> {
+    /// Drops each process, returning the first finding about its owned heap.
+    pub fn try_release(mut self) -> Result<(), String> {
+        self.release()
+    }
+
+    fn release(&mut self) -> Result<(), String> {
         let Some(held) = self.held.take() else {
-            return;
+            self.procs.clear();
+            return Ok(());
         };
-        if thread::panicking() {
-            return;
-        }
+        let mut finding = Ok(());
         for (at, (proc, held)) in self.procs.drain(..).zip(held).enumerate() {
             let span = Span::start();
             drop(proc);
             let freed = span.end().net.checked_neg().expect("a heap within an i64");
-            if freed != held {
-                crate::fail(&format!(
+            if freed != held && finding.is_ok() {
+                finding = Err(format!(
                     "seed {}: process {at}, dropped once settled, freed {freed} bytes, not the {held} it held of \
                      its own: a leak, or heap made or freed outside its calls",
                     self.seed
                 ));
             }
+        }
+        finding
+    }
+}
+
+impl<P, M> Drop for Outcome<P, M> {
+    fn drop(&mut self) {
+        if thread::panicking() {
+            return;
+        }
+        if let Err(why) = self.release() {
+            crate::fail(&why);
         }
     }
 }

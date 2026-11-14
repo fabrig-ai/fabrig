@@ -18,8 +18,21 @@
   is at least the largest row a writer can commit, never the on-demand
   read allowance (`core.load_bytes`), which bounds a party's or a run's
   loads alone. So every record its writers wrote restores
-  (`../../domain/engine/restart.md`), and a restart page that comes back
-  empty without moving its cursor is a bug and panics, never a loop.
+  (`../../domain/engine/restart.md`).
+- **A first row past the page's bytes refuses the page.** The asker's
+  decoded byte bound is configuration, and the store's rows may have been
+  written under larger limits, so a page whose first row does not fit it
+  (a census's ended read position with its task's record counted
+  together, `2`) is refused, never handed up empty:
+  `Event::PageRefused` with `restore::Failure { cause:
+  Cause::RowPastPage { needs, has }, row }`, `needs` the decoded bytes
+  that row asks (the pair's, for a census), `has` the request's decoded
+  byte bound, and `row` the first row's site. The engine stops with it as
+  with any refused page, and a configuration that raises the bound starts
+  it. A page that comes back empty without moving its cursor for any
+  other reason, such as a request for no rows, is our own code's bug and
+  an assertion, never a loop, which no test triggers
+  (`skein/docs/foundation/programming-model.md`, 10.4).
 - **A row that does not decode** stops the engine, as a failed commit
   does: the store holds bytes it did not write, or that broke since.
 

@@ -4,6 +4,12 @@
 //! holds no copy of what it sent: a line is drawn from the plan's seed when
 //! it is sent, and drawn again, from the same seed, to check its answer.
 
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;
+
+#[expect(clippy::disallowed_types, reason = "the peer check returns its finding as text (testing/README.md, 5)")]
+use alloc::string::String;
 use core::mem;
 
 use skein_io::Addr;
@@ -292,6 +298,7 @@ fn failing(state: State) -> State {
     }
 }
 
+#[expect(clippy::panic, reason = "the fake client fails the world on its peer's first breach (examples.md, 5)")]
 fn stream(
     state: State,
     up: Up,
@@ -312,7 +319,9 @@ fn stream(
     match up {
         Up::Bytes(answer) => {
             open.demand = None;
-            check(&mut open, plan, seen, &answer, now, limits);
+            if let Err(finding) = check(&mut open, plan, seen, &answer, now, limits) {
+                panic!("{finding}");
+            }
             let complete = seen.complete;
             if complete && let Some(state) = then(&mut open, plan, down) {
                 return state;
@@ -477,41 +486,64 @@ fn send(open: &mut Open, room: u32, seen: &mut Seen, down: &mut Queue<Io>) {
 /// (examples.md, 3.1): each answer is the oldest line unanswered, byte for
 /// byte; `busy` comes only first; `too long` only to the line past the
 /// limit; nothing comes after either but the end; a piece of a line, with no
-/// end of line, is never answered. A breach fails the world. No line begins
+/// end of line, is never answered. A breach returns its finding. No line begins
 /// with `b` (`first_byte`), so `busy` is never an answer misread.
-fn check(open: &mut Open, plan: &Plan, seen: &mut Seen, answer: &[u8], now: Time, limits: &Limits) {
-    assert!(open.refusal == Refusal::None, "the echo says nothing after a refusal but the end");
+#[expect(clippy::disallowed_types, reason = "the peer check returns its finding as text (testing/README.md, 5)")]
+fn check(
+    open: &mut Open,
+    plan: &Plan,
+    seen: &mut Seen,
+    answer: &[u8],
+    now: Time,
+    limits: &Limits,
+) -> Result<(), String> {
+    if open.refusal != Refusal::None {
+        return Err(String::from("the echo says nothing after a refusal but the end"));
+    }
     let index = seen.answered;
     if index == 0 && answer == BUSY {
         open.refusal = Refusal::Busy;
         seen.busy = seen.busy.checked_add(1).expect("fewer than 2^32 attempts");
-        return;
+        return Ok(());
     }
     if plan.long == Some(index) {
-        assert!(answer == TOO_LONG, "the echo answers a line past its limit with too long");
-        assert!(open.sender.begun > index, "too long comes once the line past the limit is begun");
+        if answer != TOO_LONG {
+            return Err(String::from("the echo answers a line past its limit with too long"));
+        }
+        if open.sender.begun <= index {
+            return Err(String::from("too long comes once the line past the limit is begun"));
+        }
         open.refusal = Refusal::TooLong;
         seen.too_long = true;
         seen.complete = true;
         seen.progress = Some(now);
-        return;
+        return Ok(());
     }
-    assert!(index < open.sender.sent, "the echo answers only a line sent whole");
+    if index >= open.sender.sent {
+        return Err(String::from("the echo answers only a line sent whole"));
+    }
     let len = length(plan, index, &mut open.checker, limits);
     let Some((last, text)) = answer.split_last() else {
         unreachable!("io delivers no empty answer to a scan");
     };
-    assert!(u32::try_from(answer.len()) == Ok(len), "the answer is the line it answers: its length");
+    if u32::try_from(answer.len()) != Ok(len) {
+        return Err(String::from("the answer is the line it answers: its length"));
+    }
     for (at, got) in text.iter().enumerate() {
         let line = if at == 0 { first_byte(&mut open.checker) } else { byte(&mut open.checker) };
-        assert!(*got == line, "the answer is the line it answers, byte for byte");
+        if *got != line {
+            return Err(String::from("the answer is the line it answers, byte for byte"));
+        }
     }
-    assert!(*last == b'\n', "the answer ends its line");
+    if *last != b'\n' {
+        return Err(String::from("the answer ends its line"));
+    }
     seen.answered = seen.answered.checked_add(1).expect("no more answers than lines");
     seen.progress = Some(now);
     if seen.answered == answered(plan) {
         seen.complete = true;
     }
+    Ok(())
 }
 
 /// The length of line `index`, its end of line included, drawn from `rng`

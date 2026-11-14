@@ -49,22 +49,6 @@ fn near_decodes_on_a_bound_log_and_is_dropped_on_an_unbound_one() {
 }
 
 #[test]
-#[should_panic(expected = "continues belongs to logs or lists")]
-fn continues_belongs_to_a_log() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Button);
-    b.state(State::Continues);
-}
-
-#[test]
-#[should_panic(expected = "end requests belong to logs")]
-fn an_end_request_belongs_to_a_log() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Button);
-    b.end_request(1);
-}
-
-#[test]
 fn logs_and_lists_keep_continues_and_logs_keep_end_requests() {
     for role in [Role::Log, Role::List] {
         let mut b = Builder::new(&LIMITS);

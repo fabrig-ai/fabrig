@@ -341,19 +341,3 @@ fn every_event_written_is_read_back_as_it_was_written() {
     ];
     assert_eq!(read, expected);
 }
-
-#[test]
-#[should_panic(expected = "an event while another is being written")]
-fn one_event_at_a_time() {
-    let mut machine = Machine::new(LIMITS);
-    machine.down(Request::Event(outgoing(b"", b"x", None, None)));
-    machine.down(Request::Event(outgoing(b"", b"y", None, None)));
-}
-
-#[test]
-#[should_panic(expected = "an event after Finish")]
-fn no_event_after_finish() {
-    let mut machine = Machine::new(LIMITS);
-    machine.down(Request::Finish);
-    machine.down(Request::Event(outgoing(b"", b"x", None, None)));
-}

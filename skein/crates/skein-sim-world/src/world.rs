@@ -325,15 +325,20 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
     /// Checks the settled world's contracts and returns what its steps left.
     #[must_use]
     pub fn finish(self) -> Finished<P, M> {
+        self.try_finish().unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Returns the first settlement finding, or what the world's steps left.
+    pub fn try_finish(self) -> Result<Finished<P, M>, String> {
         assert!(self.cuts.iter().all(|cut| cut.done), "each chosen cut point was reached");
         assert!(self.pending_startup.is_empty(), "all prepared startup descriptors were admitted or rolled back");
         for (proc, pid) in self.procs.iter().zip(&self.pids) {
             assert!(proc.is_empty(), "seed {}: {pid} holds nothing once settled", self.seed);
-            self.sim.assert_quiescent(*pid);
-            self.sim.assert_no_open_fds(*pid);
-            self.sim.assert_hosted_settled(*pid);
+            self.sim.check_quiescent(*pid)?;
+            self.sim.check_no_open_fds(*pid)?;
+            self.sim.check_hosted_settled(*pid)?;
         }
-        Finished {
+        Ok(Finished {
             machine: self.machine,
             killed: self.killed,
             seed: self.seed,
@@ -342,7 +347,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
             procs: self.procs,
             steps: self.steps,
             submissions: self.submissions,
-        }
+        })
     }
 
     /// Delivers a signal to a host's declared source between steps.

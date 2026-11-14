@@ -296,7 +296,29 @@ small buffers so that sends are cut and stall.
   call's shape, with no more bytes or entries than were asked, and a new
   handle that no process holds.
 - **At quiescence, on request:** nothing in flight, and every descriptor
-  closed.
+  closed; once a world settles, every hosted child that exited of its own
+  had its output pipes read to their end.
+- **Each check returns its finding** (../../foundation/programming-model.md, 10.4):
+  what broke, in the report's text, the seed and the trace's end with it.
+  The simulator's entry points call it and panic on its `Err`, once, so
+  the simulator's own tests call the check and read the finding, and
+  nothing triggers the panic. Each is a `&self` method of `Sim`, public,
+  with no effect, and returns `Result<(), String>`:
+  - `check_submission(pid, &Submit)`: a record's validity, its token
+    unused while in flight, its cancel's target, and every rule of its
+    descriptor, socket, file and process, as `submit` checks one record
+    before taking it;
+  - `check_answer(&Answer)`: an answer of the machine, as `answer` checks
+    one before taking it, and `check_issued(pid, handle)` for a handle it
+    issues;
+  - `check_completion` for a completion the simulator is about to make,
+    of the operation's shape;
+  - `check_quiescent(pid)`, `check_no_open_fds(pid)` and
+    `check_hosted_settled(pid)`, which `assert_quiescent`,
+    `assert_no_open_fds` and `assert_hosted_settled` panic on.
+
+  The panicking forms keep their names and signatures, so no world that
+  calls them changes.
 
 Memory is not the simulator's to check, though a simulated world checks it
 at every iteration (../../foundation/testing-strategy.md, 6), with the counting allocator,
@@ -318,7 +340,8 @@ was metered as its own, which also finds a leak.
 ## 6. Testing
 
 - **Its own tests** (`tests/sim`) submit records by hand: each rule of
-  the contract, each broken invariant, and a client and a server
+  the contract, each broken invariant, read from its check's finding
+  (5), and a client and a server
   exchanging bytes, calm and replayed; files through the seam to skein's
   minimal fake machine, each broken invariant of files and of the seam,
   each fault of files, and a replay; and, in the fuzzy suite

@@ -222,7 +222,10 @@ It watches what each client reported to its application (its requests
 to the application, and the documents it delivered by handle), what
 each person saw where there is a tree (the trees, as the person read
 them), and what the engine made durable (the scripted engine's commits,
-or the engine's store), never a client's state.
+or the engine's store), never a client's state. Its checks, jig's check's
+among them, return their findings, and the world fails with the first at
+its top; a test of a check reads it through the world's returning entry
+points (`../../domain/testing.md`, 7).
 
 ### 6.1 On the client's surface
 
@@ -277,8 +280,11 @@ In every world, whatever stands in front of the client:
 
 The client-domain request step tests cover `Seen`'s consumed table
 save with no `Down::Save`, parked-to-live sending, retries under the same
-engine key, application-key joins and conflicts, and named `Send` held
-while its name is held. The composed-client store tests contrast
+engine key, application-key joins, and named `Send` held
+while its name is held. An application key reused for another request
+or name is the application's bug and an assertion, which no test
+triggers (`skein/docs/foundation/programming-model.md`, 10.4), as is a
+client stepped with the other mode's pair (client/README.md, 4.4). The composed-client store tests contrast
 `Seen` alone, which needs no own `Stored` before its exchange, with
 ordinary and mixed requests: kept requests wait for `Stored`, failed
 writes answer only the ordinary records they carried as not kept, and

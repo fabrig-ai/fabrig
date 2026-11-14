@@ -11,7 +11,7 @@ mod limits;
 mod metadata;
 mod tokens;
 pub use fingerprint::{Fingerprint, Fingerprints, LayoutError, MAX_HELD, Root};
-pub use limits::{LimitLevel, limit_child, limit_name};
+pub use limits::{Bounds, LimitLevel, limit_child, limit_name};
 
 #[cfg(test)]
 mod tests;
@@ -453,6 +453,14 @@ impl Schema {
         *self.maximum.get(at.0).expect("checked declaration has its worst case")
     }
 
+    /// Every declaration's encoded worst case in one pass with one named-limit map.
+    /// Equal to `most_bytes_within` at each declaration: a mismatch gives no
+    /// bounds, and overflow ends the valid prefix. Unnamed limits use their ceilings.
+    #[must_use]
+    pub fn bounds_within(&self, names: &[&str], values: &[u32]) -> Bounds {
+        limits::bounds_within(self, names, values)
+    }
+
     /// The encoded worst case with matching named limits no larger than the text's bounds.
     /// Returns `None` for unequal slice lengths or arithmetic overflow.
     #[must_use]
@@ -466,9 +474,11 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     if text.len() > usize_of(MAX_TEXT) {
         return Err(SchemaError { line: 1, at: Span { start: 0, end: 0 }, wrong: Wrong::Long });
     }
-    let (count, final_line) = tokens::scan(text, None)?;
-    let mut tokens = List::with_capacity(count);
-    tokens::scan(text, Some(&mut tokens))?;
+    // A token occupies at least one text byte. Allocate once at that bound,
+    // already included by schema_bound, and check characters in the same pass
+    // that retains their spans.
+    let mut tokens = List::with_capacity(u32::try_from(text.len()).expect("text passed its ceiling"));
+    let final_line = tokens::scan(text, &mut tokens)?;
     let parser = grammar::Parser::new(bytes::copy_of(text), tokens, final_line);
     let mut parsed = parser.parse()?;
     layout::check(&mut parsed)?;

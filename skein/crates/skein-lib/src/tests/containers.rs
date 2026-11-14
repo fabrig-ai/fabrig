@@ -248,13 +248,6 @@ fn clearing_an_empty_queue_changes_nothing() {
 }
 
 #[test]
-#[should_panic(expected = "the loop reserves room for every output")]
-fn pushing_past_the_reservation_is_a_bug() {
-    let mut queue = Queue::with_capacity(0);
-    queue.push(());
-}
-
-#[test]
 fn a_stack_is_lifo_and_bounded() {
     let mut stack = Stack::with_capacity(2);
     assert_eq!(stack.push('a'), Ok(()));

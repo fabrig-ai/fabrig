@@ -30,6 +30,26 @@ fn json_edits_keep_unedited_bytes_and_use_original_spans_in_any_order() {
 }
 
 #[test]
+fn protocol_fixtures_keep_root_work_but_not_printed_links() {
+    let mut service = ready();
+    let link = service.links().pop().expect("printed fixture link");
+    let engine = service.engine.as_mut().expect("engine");
+    engine.clients.links.push(link);
+    let now = skein_lib::Time::from_nanos(1);
+    assert!(!engine.clients.links.is_empty(), "the caller still owns the printed link");
+    assert!(engine.work_pending(now), "the enclosing service must read that link");
+    assert!(!engine.clients.transport_pending(now, true), "a protocol peer waits for new input");
+    assert!(!engine.work_pending_without_clients(now), "fragments alone need no root pass");
+    engine.clients.early.push(period(2));
+    assert!(engine.work_pending_without_clients(now), "a published client input still takes the engine pass");
+    assert!(engine.clients.early.pop().is_some());
+    engine.events.push(period(2));
+    assert!(engine.work_pending(now), "a queued root input keeps the fixture awake");
+    assert!(engine.work_pending_without_clients(now), "a queued root input still takes the engine pass");
+    assert!(!engine.clients.links.is_empty(), "querying readiness leaves the link for its caller");
+}
+
+#[test]
 fn configured_service_keeps_the_supplied_records_store() {
     let mut store = records_store();
     commit(

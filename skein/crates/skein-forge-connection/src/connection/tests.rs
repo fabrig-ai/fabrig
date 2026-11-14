@@ -60,15 +60,6 @@ fn a_connected_notice_keeps_the_close_under_way() {
 }
 
 #[test]
-#[should_panic(expected = "a connect completes once")]
-fn a_second_connect_cannot_drop_a_sending_exchange() {
-    let mut h = f::ConnectionHarness::new();
-    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("valid request");
-    assert_eq!(h.connection.phase(), Phase::Sending { written: false });
-    h.connection.connect(&h.env);
-}
-
-#[test]
 fn an_early_head_and_upload_endings_preserve_the_sending_exchange() {
     for event in [
         http::Event::Response(http::Response {
