@@ -191,6 +191,7 @@ fn page(store: &Store, load: Token, range: &transport::Range) -> root::Event {
         let value = transport::Row {
             value: record.clone(),
             owner: Some(owner.clone()),
+            summary: None,
             ancestors: Box::new([]),
             related: None,
             unjoined: None,

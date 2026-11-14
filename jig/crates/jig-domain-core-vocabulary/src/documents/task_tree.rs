@@ -443,6 +443,38 @@ pub fn ending(limits: &Limits, value: &tasks::Ending) -> Result<Ending, Missing>
     })
 }
 
+/// Retention keeps cut result words but no fields, state or job payload
+/// (protocol/store/retention.md, 3 and 7).
+pub fn ending_from_summary(limits: &Limits, summary: &tasks::TaskSummary) -> Ending {
+    let reason = super::small::kept_text(limits, &summary.reason, summary.reason_cut);
+    let result = match &summary.result {
+        Some(result) => Some(summary_result(limits, result)),
+        None => None,
+    };
+    match summary.ending {
+        tasks::SummaryEnding::Done => Ending::Done(result.expect("done summary keeps its result")),
+        tasks::SummaryEnding::Failed => Ending::Failed(reason),
+        tasks::SummaryEnding::Cancelled { by, at } => Ending::Cancelled { reason, result, by, at },
+    }
+}
+
+fn summary_result(limits: &Limits, result: &tasks::SummaryResult) -> ResultValue {
+    let words = super::small::kept_text(limits, &result.words, result.words_cut);
+    match result.kind {
+        tasks::SummaryResultKind::Job | tasks::SummaryResultKind::Report | tasks::SummaryResultKind::NoChange => {
+            ResultValue::Report(words)
+        }
+        tasks::SummaryResultKind::Approved => ResultValue::Approved { state: Box::new([]), words: Some(words) },
+        tasks::SummaryResultKind::Verdict { code } => ResultValue::Verdict { code, fields: Box::new([]), words },
+        tasks::SummaryResultKind::Change { connector, kind, resource } => ResultValue::Change {
+            kind,
+            part: Part { connector, kind: PartKind::Result, key: PartKey::Number(resource) },
+            words,
+        },
+        tasks::SummaryResultKind::Failed => ResultValue::Failure(words),
+    }
+}
+
 pub fn hold_source(limits: &Limits, source: Option<&tasks::HoldSource>) -> Result<Option<Part>, Missing> {
     match source {
         Some(tasks::HoldSource::Account { connector, entry, .. }) => Ok(match entry {
@@ -553,16 +585,19 @@ pub fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<HoldLine>
 }
 
 pub fn budget(row: &tasks::TaskRecord) -> BudgetLine {
-    let left = row
-        .numbers
+    budget_figures(row.numbers, row.funder, row.authority.budget.deadline)
+}
+
+pub fn budget_figures(numbers: tasks::Numbers, funder: tasks::Funder, deadline: Option<Wall>) -> BudgetLine {
+    let left = numbers
         .budget
-        .checked_sub(row.numbers.spent)
+        .checked_sub(numbers.spent)
         .expect("spend within allotment")
-        .checked_sub(row.numbers.spent_below)
+        .checked_sub(numbers.spent_below)
         .expect("settled spend within allotment")
-        .checked_sub(row.numbers.reserved)
+        .checked_sub(numbers.reserved)
         .expect("reservations within remaining allotment");
-    BudgetLine { numbers: row.numbers, left, funder: row.funder, deadline: row.authority.budget.deadline }
+    BudgetLine { numbers, left, funder, deadline }
 }
 
 pub fn bound(limits: &Limits) -> usize {
