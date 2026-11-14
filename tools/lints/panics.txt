@@ -196,15 +196,14 @@ skein/tests/sim/tests/suite/processes.rs should_panic 7
 skein/tests/tls/tests/suite/handshake.rs should_panic 1
 skein/tests/tls/tests/suite/native_output.rs should_panic 3
 skein/tests/ui-text/tests/suite/terminal.rs should_panic 1
-skein/tests/world/tests/suite/deadline.rs catch_unwind 3
+skein/tests/world/tests/suite/deadline.rs catch_unwind 2
 skein/tests/world/tests/suite/deadline.rs resume_unwind 1
 skein/tests/world/tests/suite/domain_referee.rs should_panic 3
 skein/tests/world/tests/suite/domain_utilities.rs should_panic 1
 skein/tests/world/tests/suite/end_to_end.rs catch_unwind 3
 skein/tests/world/tests/suite/hosted.rs catch_unwind 1
 skein/tests/world/tests/suite/hosted.rs should_panic 5
-skein/tests/world/tests/suite/real.rs catch_unwind 2
-skein/tests/world/tests/suite/roots.rs catch_unwind 1
+skein/tests/world/tests/suite/real.rs catch_unwind 1
 skein/tests/world/tests/suite/steps.rs should_panic 3
 skein/tests/world/tests/suite/supervised_referee.rs catch_unwind 2
 skein/tests/world/tests/suite/world.rs should_panic 7
