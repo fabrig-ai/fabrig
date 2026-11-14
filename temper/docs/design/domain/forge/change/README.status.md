@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-14. Where the tree's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 1: parameter 18, the source landings a follow change
@@ -13,6 +13,8 @@
 
 
 - **Not yet:** 2, a change whose pushed head its landing branch already contains: it lives on, and only a contained catch-up ends with no change; nothing reads whether the base's tip contains a change's head.
+
+- **Not yet:** 2, step 1, *A result with a head always moves the change on*: a change whose producer ended with a pushed head can sit at producing with no pull request and no hold (`repairs.md`'s status, "Stalls") [in flight: change 2709].
 
 - **Not yet:** 2, *From its turn on, a contained head has landed*, and step 7: a change at its turn or landing whose head its landing branch contains sends its merge, the forge client sends it again, and a failed one holds without reading containment (`temper-engine-domain-forge-change/src/domain.rs`, `first`, `landing`) [in flight: change 2645].
 
