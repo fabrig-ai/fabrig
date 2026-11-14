@@ -71,6 +71,10 @@ pub enum Event {
 /// checkout -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A check results file, from the repository at its spec index.
+    Results { client: Token, check: u64, repository: u32, bytes: Option<Box<[u8]>> },
+    /// Every writable repository has been read for this check.
+    ResultsEnd { client: Token, check: u64 },
     /// The prepare for `client` was admitted, and `hold` names its hold from
     /// now on.
     Held { client: Token, hold: Token },

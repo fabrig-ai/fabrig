@@ -300,7 +300,8 @@ impl Component {
                 let command = if merging.is_some() { Command::Unmerged } else { Command::Add };
                 Next::Run(command)
             }
-            other @ (Next::Reds { .. }
+            other @ (Next::Results { .. }
+            | Next::Reds { .. }
             | Next::Run(_)
             | Next::Make
             | Next::Store
@@ -387,9 +388,10 @@ impl Component {
                 };
                 self.file_start(id, Task::alternates(at, *store, remote.clone()), out);
             }
-            Next::Reds { directory, content, marker } => {
-                self.file_start(id, Task::reds(directory, content, marker), out);
+            Next::Reds { directory, content, marker, rerun } => {
+                self.file_start(id, Task::reds(directory, content, marker, rerun), out);
             }
+            Next::Results { directory } => self.file_start(id, Task::results(directory), out),
             Next::Scan { files } => {
                 let op = self.slots.get(id).expect("live index").op.as_ref().expect("Commit op");
                 let at = match op {

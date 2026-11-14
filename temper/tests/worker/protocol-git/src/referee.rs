@@ -62,6 +62,7 @@ impl Referee {
                     assert_eq!(got, fault);
                 }
                 other @ (git::Done::Looked { .. }
+                | git::Done::Results { .. }
                 | git::Done::Paths { .. }
                 | git::Done::Brings { .. }
                 | git::Done::IsAncestor { .. }

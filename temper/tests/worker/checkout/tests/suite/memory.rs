@@ -22,6 +22,7 @@ const LIMITS: Limits = Limits {
     path_bytes: 0,
     remote_timeout: Duration::from_secs(60),
     reds_read_ms: 5_000,
+    rerun_processes: 4,
     local_timeout: Duration::from_secs(10),
     facts: 16,
 };
@@ -113,6 +114,7 @@ impl Fill {
         let mut asked = Vec::new();
         while let Some(request) = self.out.pop() {
             asked.push(match request {
+                Request::Results { .. } | Request::ResultsEnd { .. } => panic!("this memory scenario has no checks"),
                 Request::Held { hold, .. } => Asked::Held { hold },
                 Request::Io { op, .. } => Asked::Io { op: op.kind() },
                 Request::Prepared { prepared, .. } => Asked::Prepared {
