@@ -319,6 +319,14 @@ impl Store {
                         {
                             value[..2].copy_from_slice(&3_u16.to_be_bytes());
                         }
+                        // The broad tasks layouts use id 14; their unchanged bodies decode at version 13.
+                        if matches!(
+                            key,
+                            core::Key::Tasks(jig_domain_tasks::Key::Live(_) | jig_domain_tasks::Key::Ended(_))
+                        ) && value.starts_with(&[0, 14])
+                        {
+                            value[..2].copy_from_slice(&13_u16.to_be_bytes());
+                        }
                         let row = codec::decode(&key, &value, limits, names)
                             .ok_or_else(|| String::from("real stored row decodes"))?;
                         if let core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
