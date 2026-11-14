@@ -640,7 +640,7 @@ impl Throwaway {
             &self.instance.admin().token,
             "PATCH",
             "/api/v1/repos/acme/widget",
-            &json!({"autodetect_manual_merge":true}),
+            &json!({"allow_manual_merge":true,"autodetect_manual_merge":true}),
             200,
         );
     }

@@ -964,7 +964,7 @@ fn peer(root: &Path, forge: &Throwaway, story: Story) -> super::llm::Listening {
         skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
     )
     .expect("concurrent batch scripts");
-    super::llm_recipe(recipe)
+    super::llm_recipe(recipe).without_records()
 }
 
 /// One world drives the native person, ctl Steps, fake model and shipped binary.
