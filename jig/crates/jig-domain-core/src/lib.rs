@@ -160,6 +160,7 @@ pub struct Core {
     pub(crate) opened: bool,
     pub(crate) start_pending: bool,
     pub(crate) restart_attempts: u32,
+    fleet_versions: u32,
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
@@ -417,6 +418,7 @@ impl Core {
             opened: false,
             start_pending: false,
             restart_attempts: limits.fleet.attempts,
+            fleet_versions: limits.settings.versions,
             counters: Counters::bootstrap(config.deployment),
             seed_owners: config.owners.clone(),
             seed_projects: config.seed_projects,
