@@ -72,8 +72,9 @@ fn every_forge_key_lies_in_the_interval_and_no_core_key_does() {
         let key = fixtures::key(&mut random);
         let relative = keys::encode(&key, u32::MAX).expect("a drawn key fits");
         let tagged = jig_protocol_store::keys::application(&relative, u32::MAX).expect("tagged");
-        assert!(fixtures::within(&interval, &tagged), "{key:?}");
-        assert!(temper_engine_domain::Range::Forge.contains(&temper_engine_domain::Key::Forge(key)));
+        let restored = relative.first().copied().expect("family byte") < 128;
+        assert_eq!(fixtures::within(&interval, &tagged), restored, "{key:?}");
+        assert_eq!(temper_engine_domain::Range::Forge.contains(&temper_engine_domain::Key::Forge(key)), restored);
     }
     for key in fixtures::core_keys() {
         let tagged = jig_protocol_store::keys::encode(&key, u32::MAX).expect("a core key fits");
@@ -466,5 +467,29 @@ fn findings_keys_and_topic_use_the_reserved_bytes_and_order() {
         let mut writer = skein_kv::KeyWriter::new(u32::MAX);
         writer.tag(31).u64(project).u64(number);
         assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
+    }
+}
+
+#[test]
+fn history_keys_have_their_assigned_families_and_jig_fields() {
+    for (key, family, numbers) in [
+        (Key::HistoryProject { project: 3 }, 127, &[3][..]),
+        (Key::HistoryEvent { project: 3, number: 7 }, 128, &[3, 7][..]),
+        (Key::HistoryChange { project: 3, change: 5, number: 7 }, 129, &[3, 5, 7][..]),
+        (Key::HistoryLanding { project: 3, landing: 11, number: 7 }, 130, &[3, 11, 7][..]),
+        (Key::HistoryLast { project: 3, number: 7, change: 5 }, 131, &[3, 7, 5][..]),
+    ] {
+        let mut expected = skein_kv::KeyWriter::new(25);
+        expected.tag(family);
+        for number in numbers {
+            expected.u64(*number);
+        }
+        let expected = expected.finish().unwrap();
+        assert_eq!(keys::encode(&key, 25), Some(expected.clone()));
+        assert_eq!(keys::decode(&expected, &fixtures::LIMITS), Some(key.clone()));
+        assert_eq!(keys::encode(&key, u32::try_from(expected.len()).unwrap() - 1), None);
+        let tagged = jig_protocol_store::keys::application(&expected, u32::MAX).unwrap();
+        assert_eq!(fixtures::within(&crate::interval(), &tagged), family < 128);
+        assert_eq!(temper_engine_domain::Range::Forge.contains(&temper_engine_domain::Key::Forge(key)), family < 128);
     }
 }

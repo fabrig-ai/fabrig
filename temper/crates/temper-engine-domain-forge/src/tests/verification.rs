@@ -80,6 +80,8 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    history_days: 14,
+    history_events: 131_072,
     findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
@@ -205,6 +207,7 @@ fn adopted() -> Repository {
 fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        job: None,
         signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
@@ -263,6 +266,7 @@ fn opening_row() -> ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }

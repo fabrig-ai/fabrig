@@ -80,6 +80,8 @@ pub const LIMITS: d::Limits = d::Limits {
     tiers: temper_engine_domain_forge_vocabulary::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    history_days: 14,
+    history_events: 131_072,
     findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
@@ -176,6 +178,7 @@ fn entry(repository: Repository, number: u64, head: [u8; 32], parked: bool) -> d
 }
 fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u8; 32]>) -> d::Stored {
     d::Stored::Change(Box::new(d::ChangeRow {
+        job: None,
         signed: Box::new([]),
         task,
         repository,
@@ -234,6 +237,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }))
 }

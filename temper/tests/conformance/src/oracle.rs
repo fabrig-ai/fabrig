@@ -100,7 +100,9 @@ pub(super) fn close(world: &mut Harness<Temper>) -> Result<(), Violation> {
     }
     let forges = world.domain.root.forges();
     world.crash()?;
-    world.drain()?;
+    // Cold startup can drain immediate work while a fresh forge read awaits its
+    // timer. Wait for decisions to open before issuing the oracle's reads.
+    crate::stories::wait(world, |_| true)?;
     oracle::compare_forges(forges, world.domain.root.forges());
     for (index, (sign_in, query)) in snapshot.queries.iter().enumerate() {
         snapshot.compare_answer(index, read(world, *sign_in, query.clone())?);

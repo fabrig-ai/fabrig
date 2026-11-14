@@ -219,6 +219,16 @@ generation `A` to `A + 1`:
    each record, at its block's `from`, decoded by that version's kept
    text, run through the patch, encoded by its `to`'s and put back at
    its key; a record at another version refuses, `Patch` with its key.
+   **Heads alone:** each record is first offered to its family's
+   machine's `rehead` (skein's `data/codec/patches.md`, 3.1), with the
+   plan its walk would start (its block's, or its identity at the
+   version it has reached) and its range's root. Where it answers true,
+   the record, its head rewritten in place, is put back at its key as
+   it is, with no machine run, no site and no held record; where false,
+   it runs through the patch as above. A record put by its head alone
+   is one of the patch's records, in the same pages, commits and
+   counts. So a patch that moves the tasks family walks its milestones
+   at a put each.
    Each page is one commit through the component's own path, within
    skein-kv's bounds (`records.md`, 4); a record a page cannot hold alone refuses,
    `Check { why: Large }` with its key. The secrets' store is patched the

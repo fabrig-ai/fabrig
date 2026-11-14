@@ -124,6 +124,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
     use RecordKind as K;
     use RestoreSet::Rows;
     match row {
+        Stored::HistoryProject(row) => room(
+            K::HistoryProject,
+            Rows(K::HistoryProject),
+            d.history_projects.len(),
+            d.history_projects.capacity(),
+            d.history_projects.contains_key(&row.project),
+        ),
         Stored::Forge(record) => {
             room(K::Forge, Rows(K::Forge), d.records.len(), l.forges, d.records.contains_key(&record.number))?;
             room(
@@ -142,6 +149,9 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 count(row.landing.members.len()),
                 u64::from(l.landing_members),
             )?;
+            if let Some(job) = &row.job {
+                field(K::Landing, RestoreSet::LandingMembers, count(job.members.len()), u64::from(l.landing_members))?;
+            }
             field(K::Landing, RestoreSet::LandingAsks, count(row.asks.len()), u64::from(l.landing_members))?;
             field(K::Landing, RestoreSet::LandingEntries, count(row.entries.len()), u64::from(l.entries))?;
             for member in &row.landing.members {
@@ -442,7 +452,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::ForgeNumber { .. } | Stored::Playground(_) | Stored::Client(_) => Ok(()),
+        Stored::HistoryEvent(_)
+        | Stored::HistoryChange(_)
+        | Stored::HistoryLanding(_)
+        | Stored::HistoryLast(_)
+        | Stored::ForgeNumber { .. }
+        | Stored::Playground(_)
+        | Stored::Client(_) => Ok(()),
     }
 }
 

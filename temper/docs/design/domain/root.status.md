@@ -1,6 +1,11 @@
 # root: status
 
-2026-11-13. Where temper's code lags or departs from [root.md](root.md).
+2026-11-14. Where temper's code lags or departs from [root.md](root.md).
+
+- **Departs:** 9: the store's fill mark is jig's standard profile's, not small's,
+  because standard's map budget is that mark and temper's boxes take standard: under
+  small's mark, sign-ins would be refused once the map passed small's budget
+  (`temper/crates/temper-engine-domain/src/limits.rs`, `FILL_MARK`).
 
 
 Section 4's journal stops carry their reason through the service to an

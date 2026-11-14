@@ -42,6 +42,7 @@ pub enum RecordKind {
     Device,
     Finding,
     LandedDraft,
+    HistoryProject,
 }
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub enum Need {

@@ -107,6 +107,22 @@ repaired, the green prefix landed and the units above it carried to the
 next round (`domain/landing-search.md`). Its process stories and
 staging walks follow landing (`draft/merge-queue.status.md`).
 
+The landing history's milestone H1, goal 2474, keeps each change's and
+each landing's steps as events after their rows go
+(`domain/landing-history.md`): each written by the step that decides or
+observes it, under `queue` and `turn`, one change per event; kept in
+demand-loaded families the restart leaves out and the forge loads
+through the root; swept by change past `forge.history_days` or
+`forge.history_events`, idle projects and deleted ones included; and
+read by `temper ctl landing history`, and by `change show` of a change
+whose row went. Its milestone H2, goal 2649, reads them alone for where
+the time went (`domain/landing-times.md`): each change's span from ready
+to landed or ended split by a fold into states that don't overlap, held
+first and waiting last, partial where its history began after it was
+ready; each landing's rounds, probes and proof time; paged by change
+with the running totals in the cursor, and read by `temper ctl landing
+times` (`draft/landing-history.status.md`).
+
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
 repository its project adopts as context, each project's context
@@ -318,6 +334,8 @@ Design documents:
 - [`domain/forge/queues.md`](domain/forge/queues.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
+- [`domain/landing-history.md`](domain/landing-history.status.md)
+- [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
@@ -410,6 +428,7 @@ Drafts:
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
+- [`draft/landing-history.md`](draft/landing-history.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
@@ -417,6 +436,7 @@ Drafts:
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
@@ -432,6 +452,7 @@ Drafts:
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
+- [`draft/store-shape.md`](draft/store-shape.status.md) — S2, goal 2652: identity walks rewrite a record's head alone where its patch leaves its bytes valid.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)

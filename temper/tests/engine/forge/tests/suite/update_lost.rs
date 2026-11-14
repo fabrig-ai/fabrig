@@ -230,7 +230,7 @@ fn hold_branch(world: &mut World) {
         holders: Box::new([]),
     });
     let head = translate::commit(world.branch(BRANCH));
-    world.event(top::Event::Answered { task: CHANGE, attempt: 1, pushed: Box::new([(name, head)]) });
+    world.event(top::Event::Answered { task: CHANGE, attempt: 1, pushed: Box::new([(name, head, true)]) });
     world.run_for(1);
 }
 

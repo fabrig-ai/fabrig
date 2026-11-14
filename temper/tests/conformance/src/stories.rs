@@ -48,7 +48,7 @@ fn change_row(store: &Store) -> Option<&forge::ChangeRow> {
         Some(change.as_ref())
     })
 }
-fn wait(world: &mut World, done: impl Fn(&World) -> bool) -> Result<(), Violation> {
+pub(super) fn wait(world: &mut World, done: impl Fn(&World) -> bool) -> Result<(), Violation> {
     for _ in 0..30 {
         world.drain()?;
         if Temper::ready(&world.domain) && done(world) {

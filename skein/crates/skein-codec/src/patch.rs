@@ -10,6 +10,8 @@ pub use run::{Build, Halt, Old, Step};
 mod text;
 
 #[cfg(test)]
+mod rehead_tests;
+#[cfg(test)]
 mod tests;
 
 /// The patch text language this machine reads.
@@ -462,6 +464,14 @@ impl Patcher {
             .get(old.index())
             .expect("old declaration belongs to the plan")
             .copies
+    }
+
+    /// Rewrites only a kept record's head, without decoding or changing a run.
+    /// See data/codec/patches.md, 3.1 and 6; false leaves every byte untouched.
+    pub fn rehead(&self, plan: PlanIx, root: DeclIx, record: &mut [u8]) -> bool {
+        let plan = self.build.tables.plans.get(plan.0).expect("plan belongs to this patcher");
+        let old = self.build.tables.schemas.get(plan.old).expect("plan's old schema");
+        plan::rehead(plan, old, root, record)
     }
 
     /// A new declaration's old source, when it has one.

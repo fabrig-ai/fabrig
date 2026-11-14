@@ -755,10 +755,11 @@ fn an_overtaking_open_outcome_restarts_the_fresh_chain() {
             Op::Read(Read::PullFor { head: Box::from(b"temper/51".as_slice()), base: Box::from(b"main".as_slice()) }),
         ]
     );
-    let [Request::Save { .. }, Request::Marked { tasks }, Request::ChangeDecision { task, decision, entry, evidence }] =
-        finished.as_ref()
+    let Some(
+        [Request::Save { .. }, Request::Marked { tasks }, Request::ChangeDecision { task, decision, entry, evidence }],
+    ) = finished.last_chunk::<3>()
     else {
-        panic!("one saved decision")
+        panic!("the saved decision follows its history")
     };
     assert_eq!(tasks.as_ref(), &[fixtures::CHANGE, changes_subject(5), status_subject(5), APPROVALS_SUBJECT]);
     assert_eq!((*task, decision, entry, evidence), (fixtures::CHANGE, &change::Decision::Ready, &None, &None));
@@ -1278,6 +1279,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
     let mut row = fixtures::opening_row();
     row.change.last_head = Some(fixtures::HEAD);
     row.delegate = Some((52, change::Delegate::Gate { number: 1, head: fixtures::HEAD }));
+    row.delegate_status = change::Status::Pending;
     outputs(&mut d, Event::Change { row });
     let words = "Please include the pull request's number and address. ".repeat(100);
     outputs(
@@ -1372,6 +1374,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let mut row = fixtures::opening_row();
         row.delegate = Some((52, change::Delegate::Repair(change::Repair::Ci)));
+        row.delegate_status = change::Status::Pending;
         row.result.repaired(change::Repair::Ci, Some(fixtures::HEAD), LIMITS.client.answer_bytes);
         row.report = b"exports CSV".as_slice().into();
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });

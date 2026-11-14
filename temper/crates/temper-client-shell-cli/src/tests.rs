@@ -1500,3 +1500,26 @@ fn a_third_project_keeps_setup_calls_usable() {
         preset.domain.document_bytes
     );
 }
+
+#[test]
+fn invalid_history_filters_and_cursors_open_no_directory_and_send_nothing() {
+    for words in [
+        &["landing", "history", "--project", "1", "--change", "51", "--landing", "61"][..],
+        &["landing", "history", "--project", "1", "--after", "0200000000000000280000000000000020"][..],
+    ] {
+        let borrowed: Vec<_> = words.iter().map(|word| word.as_bytes()).collect();
+        assert!(crate::arguments::parse(&borrowed).is_err());
+    }
+    for input in [
+        br#"{"tool":"landing history","arguments":{"project":"1","change":51,"landing":61}}"#.as_slice(),
+        br#"{"tool":"landing history","arguments":{"project":"1","after":"0200000000000000280000000000000020"}}"#
+            .as_slice(),
+    ] {
+        let mut frame = fixtures::Frame::read(&["--call", "-"]);
+        frame.input = input;
+        frame.drain();
+        assert_eq!(frame.exit(), Some(Exit::Code(1)));
+        assert!(frame.no_directory());
+        assert_eq!(frame.requests(), 0);
+    }
+}

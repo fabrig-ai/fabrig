@@ -167,7 +167,7 @@ pub mod wire {
     pub const FAMILY: &str = "temper-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 6;
+    pub const VERSION: u16 = 7;
 
     /// The oldest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;

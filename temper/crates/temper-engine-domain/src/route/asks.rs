@@ -443,6 +443,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } => {
             if connector == domain.config.forge_connector {
+                forge_route::job_history::claimed(domain, task, attempt, kind.0);
                 let crate::boundary::PreparedWorkspace { workspace: prepared, claim_names } =
                     domain.run_workspaces.remove(&task).expect("prepared job workspace").into_prepared();
                 drop(super::now::claim_workspace(domain, env, task, &prepared, claim_names));

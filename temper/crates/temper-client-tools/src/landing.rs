@@ -1,5 +1,6 @@
 //! Landing views (domain/landing.md, 14; client/ctl/tools.md, 1).
 mod details;
+pub mod history;
 use crate::{
     jig::{
         self,
@@ -52,6 +53,7 @@ pub const LIST: Tool = Tool {
 #[derive(Debug)]
 pub(crate) struct Landings {
     calls: BTreeMap<u32, Watching>,
+    history: history::History,
 }
 #[derive(Debug)]
 struct Watching {
@@ -64,17 +66,21 @@ struct Watching {
 }
 impl Landings {
     pub(crate) fn new() -> Self {
-        Self { calls: BTreeMap::new() }
+        Self { calls: BTreeMap::new(), history: history::History::new() }
     }
     pub(crate) fn calls(&self) -> usize {
-        self.calls.len()
+        self.calls.len().checked_add(self.history.calls()).expect("bounded calls")
     }
 }
 pub(crate) fn owns(call: &jig::call::Call) -> bool {
     let name = crate::table::TOOLS.get(usize::from(call.tool)).expect("parsed tool").name;
-    name == READ.name || name == LIST.name
+    name == READ.name || name == LIST.name || name == history::HISTORY.name
 }
 pub(crate) fn call(state: &mut Landings, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
+    if crate::table::TOOLS.get(usize::from(called.call.tool)).expect("parsed tool").name == history::HISTORY.name {
+        history::call(&mut state.history, client, env, called, out);
+        return;
+    }
     if called.value.is_some() || jig::argv::check(crate::table::TOOLS, &called.call, &env.limits.tools).is_err() {
         out.push(Out::Printed {
             number: called.number,
@@ -96,6 +102,7 @@ fn handle(watch: &Watching, serial: u64) -> Handle {
     Handle { asker: Owner::Forge.asker(), number: (u64::from(watch.called.call_number) << 32_u32) | serial }
 }
 pub(crate) fn ready(state: &mut Landings, client: &Client, env: &Env<Limits>, out: &mut Queue<Out>) {
+    history::ready(&mut state.history, client, env, out);
     let Some(me) = crate::forge::me(client) else { return };
     for _ in 0..state.calls.len() {
         let mut next = None;
@@ -211,6 +218,7 @@ fn gone(watch: &Watching, limits: &Limits) -> jig::Printed {
     }
 }
 pub(crate) fn told(state: &mut Landings, client: &Client, env: &Env<Limits>, told: &Told, out: &mut Queue<Out>) {
+    history::told(&mut state.history, client, env, told, out);
     let handle = match told {
         Told::Changed { handle } | Told::Ended { handle, .. } | Told::Page { handle, .. } => *handle,
         Told::Link { .. }
@@ -769,4 +777,13 @@ pub(crate) fn print(panel: &w::LandingPanel, json: bool, limits: &Limits) -> jig
 }
 pub(crate) fn print_list(panel: &w::LandingsPanel, json: bool, limits: &Limits) -> jig::Printed {
     render_panel(None, Some(panel), json, limits)
+}
+
+impl Landings {
+    pub(crate) fn next_deadline(&self) -> Option<skein_lib::Time> {
+        self.history.next_deadline()
+    }
+}
+pub(crate) fn fire(state: &mut Landings, env: &Env<Limits>, out: &mut Queue<Out>) {
+    history::fire(&mut state.history, env, out);
 }

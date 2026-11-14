@@ -8,6 +8,7 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 mod findings;
+mod history;
 mod landing_views;
 mod refusals;
 mod ways;
@@ -505,6 +506,13 @@ pub fn to_root(
                             answer = Some(playground_answer(row, demo, limits));
                         }
                         None
+                    }
+                    w::Read::History(read) => {
+                        if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
+                            forge_settings_query(w::Read::History(read))
+                        } else {
+                            None
+                        }
                     }
                     w::Read::Finding(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
@@ -2245,6 +2253,7 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
+        root::ForgeReadAnswer::History(value) => history::answer(value, limits),
         root::ForgeReadAnswer::Finding(value) => findings::read_answer(value, limits),
         root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
@@ -2296,6 +2305,7 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
 
 fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
     match read {
+        w::Read::History(value) => Some(root::ForgeRead::History(history::query(value)?)),
         w::Read::Finding(value) => Some(root::ForgeRead::Finding { project: value.project(), number: value.number() }),
         w::Read::ProgramEnvironment => Some(root::ForgeRead::ProgramEnvironment),
         w::Read::Setting(value) => {

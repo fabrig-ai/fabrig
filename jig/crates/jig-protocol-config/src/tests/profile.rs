@@ -171,6 +171,16 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(Some(store.chunk), skein_kv::chunk_bytes(store.key, store.value));
 }
 
+// The core refuses new party work at its fill mark; a map whose budget is under
+// the mark refuses every commit that grows it first, and the engine stops.
+#[test]
+fn each_profiles_store_map_holds_its_fill_mark() {
+    for selected in [Profile::Small, Profile::Standard] {
+        let limits = profile(selected);
+        assert!(limits.store.store.budget >= limits.core.fill_mark, "{selected:?} map budget");
+    }
+}
+
 #[test]
 fn standard_page_holds_smiths_largest_turn() {
     let limits = profile(Profile::Standard);

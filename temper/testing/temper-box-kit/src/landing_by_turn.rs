@@ -166,6 +166,7 @@ pub fn evidence(root: &Path, setup: &Setup, change: u64) -> Evidence {
         .to_string();
     let show = ctl::alone(root, ctl::Call::new(&["landing", "show", &landing]));
     let panel = ctl::alone(root, ctl::Call::new(&["landing", "show", &landing, "--json"]));
+    assert_history(root, setup.project, &ctl::json(&panel), None);
     let change = ctl::alone(root, ctl::Call::new(&["change", "show", &change.to_string()]));
     let task = ctl::alone(root, ctl::Call::new(&["task", "show", &landing, "--json"]));
     let person = Person::new(root, setup.forge);
@@ -185,6 +186,75 @@ pub fn evidence(root: &Path, setup: &Setup, change: u64) -> Evidence {
         notes: person.contents("notes.txt"),
         main,
     }
+}
+
+/// End-of-story reads through ctl (domain/landing-history.md, 8).
+/// A cut member has no later round's landing-ended; a blamed member never turns (3.3).
+pub(super) fn assert_history(root: &Path, project: u64, panel: &Value, client: Option<&str>) {
+    let landing = panel["task"].as_u64().expect("landing task");
+    let events = history(root, project, "--landing", landing, client);
+    let members = panel["members"].as_array().expect("landing members");
+    assert!(events.iter().all(|event| event["landing"]["task"] == landing), "the landing filter holds");
+    for member in members {
+        let change = member["change"].as_u64().expect("member change");
+        for kind in ["formed", "gate-ended"] {
+            has_event(&events, change, kind);
+        }
+        if !member["landed"].is_null() {
+            for kind in ["proved", "turn"] {
+                has_event(&events, change, kind);
+            }
+        }
+        if member["left"].is_null()
+            && events.iter().any(|event| {
+                event["change"] == change
+                    && event["what"]["kind"] == "formed"
+                    && event["landing"]["round"] == panel["round"]["number"]
+            })
+        {
+            has_event(&events, change, "landing-ended");
+        }
+    }
+    assert!(events.iter().any(|event| event["what"]["kind"] == "landing-ended"), "{events:#?}");
+    let change = members.iter().find(|member| !member["landed"].is_null()).expect("a landed member")["change"]
+        .as_u64()
+        .expect("member change");
+    let events = history(root, project, "--change", change, client);
+    for kind in ["ready", "landed"] {
+        has_event(&events, change, kind);
+    }
+}
+fn has_event(events: &[Value], change: u64, kind: &str) {
+    assert!(
+        events.iter().any(|event| event["change"] == change && event["what"]["kind"] == kind),
+        "change {change} has {kind}: {events:#?}"
+    );
+}
+fn history(root: &Path, project: u64, of: &str, task: u64, client: Option<&str>) -> Vec<Value> {
+    let project = project.to_string();
+    let task = task.to_string();
+    let mut after: Option<String> = None;
+    let mut cursors = Vec::new();
+    let mut events = Vec::new();
+    loop {
+        let mut arguments = vec!["landing", "history", "--project", &project, of, &task, "--json"];
+        if let Some(cursor) = &after {
+            arguments.extend(["--after", cursor]);
+        }
+        let mut call = ctl::Call::new(&arguments);
+        if let Some(client) = client {
+            call = call.in_directory(client);
+        }
+        let ended = ctl::alone(root, call);
+        assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{}", String::from_utf8_lossy(&ended.stderr));
+        let page = ctl::json(&ended);
+        events.extend(page["events"].as_array().expect("history events").iter().cloned());
+        let Some(cursor) = page["after"].as_str() else { break };
+        assert!(!cursors.iter().any(|old| old == cursor), "history cursor advances");
+        cursors.push(cursor.to_owned());
+        after = Some(cursor.to_owned());
+    }
+    events
 }
 
 /// Real process-tier elapsed time, using the same monotonic shell clock as its worlds.

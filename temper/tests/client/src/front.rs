@@ -1282,17 +1282,22 @@ impl Joint {
     /// client/engine.md and client/testing.md: a pushed change lands through CI and an agent gate.
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false, false)
+        Self::change_landing(seed, limits, None, false, false, None)
     }
     /// testing/checks.md, 3: the deployment also waits for the project's owner's review.
     #[must_use]
     pub fn with_change_approval(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false, true)
+        Self::change_landing(seed, limits, None, false, true, None)
     }
     /// Settings and a following change through the same joined engine.
     #[must_use]
     pub fn with_settings_changes(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, true, false)
+        Self::change_landing(seed, limits, None, true, false, None)
+    }
+    /// One Change record's room, so a settled row can be evicted while its history stays.
+    #[must_use]
+    pub fn with_change_eviction(seed: u64, limits: &client::Limits) -> Self {
+        Self::change_landing(seed, limits, None, false, false, Some(1))
     }
     #[expect(
         clippy::too_many_lines,
@@ -1304,6 +1309,7 @@ impl Joint {
         session: Option<Duration>,
         settings: bool,
         approval: bool,
+        changes: Option<u32>,
     ) -> Self {
         // Chat, reviewer and change procedure; chat/change/producer depth;
         // the same owner in the project and deployment.
@@ -1317,6 +1323,9 @@ impl Joint {
         use jig_domain_authority as a;
         let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
             let (mut config, mut limits) = Self::procedure_config(seed);
+            if let Some(changes) = changes {
+                limits.forge.changes = changes;
+            }
             if let Some(session) = session {
                 limits.people.sign_in_lifetime = session;
             }
