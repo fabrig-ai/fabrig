@@ -482,10 +482,15 @@ impl PatchSets {
   before its baseline, level none; otherwise its level is its patches'
   count. From the baseline, temper's store shell hands the four real
   sets, `SKEIN_PATCH_SET` and `SMITH_PATCH_SET` of this crate,
-  `JIG_PATCH_SET` of `jig-protocol-accounts` (the lowest jig crate that
-  sees every jig family, since it depends on this one) and temper's own
+  `JIG_PATCH_SET` of `jig-protocol-accounts` and temper's own
   (temper's `protocol/baseline.md`, 4), each kept
-  at level 0 with no patch until a landing brings one; the component's tests hand it fixture owners' sets:
+  at level 0 with no patch until a landing brings one. This crate owns
+  `JIG_STORE_FAMILIES` and `JIG_STORE_PATCH_SET`: its families' metadata,
+  registered value types and written jobs. Accounts builds `JIG_PATCH_SET`
+  from that set, appending its own `jig-accounts` kept family; the store
+  names no accounts consumer. The store's real-family layout and job tests
+  use its own set, with no accounts family needed. The component's other
+  tests hand it fixture owners' sets:
   `jig-test-patches` in the application's slot and `jig-test-patches-jig`
   in jig's, so that the order across owners is shown, and
   `jig-test-patches-smith` in smith's, a fixture turn family whose frames

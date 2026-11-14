@@ -96,7 +96,7 @@ fn charter_versions_end_is_empty_and_unknown_jobs_are_refused() {
 }
 #[test]
 fn charter_versions_from_is_the_kept_v3_root_layout_and_the_job_is_admitted() {
-    let set = jig_protocol_accounts::JIG_PATCH_SET;
+    let set = crate::JIG_STORE_PATCH_SET;
     let job = set.jobs.iter().find(|job| job.name == "charter-versions").unwrap();
     let converts = job.converts.unwrap();
     let family = set.families.iter().find(|family| family.name == converts.family).unwrap();
@@ -110,60 +110,7 @@ fn charter_versions_from_is_the_kept_v3_root_layout_and_the_job_is_admitted() {
     jobs::admission::check(&crate::PatchSets { sets: Box::leak(Box::new([jig_set()])) }).unwrap();
 }
 
-/// The dev dependency links the non-test store library. Copy metadata into the
-/// test library's nominal types without maintaining a second catalogue.
+/// Store-owned production metadata, including the registered roots and written job.
 pub(crate) fn jig_set() -> crate::PatchSet {
-    let set = jig_protocol_accounts::JIG_PATCH_SET;
-    let store_map = set.families.iter().find(|f| f.name == "jig-store-settings").unwrap().map;
-    crate::PatchSet {
-        owner: crate::Owner::Jig,
-        name: set.name,
-        patches: set.patches,
-        fresh: set.fresh,
-        jobs: Box::leak(
-            set.jobs
-                .iter()
-                .map(|job| crate::Job {
-                    name: job.name,
-                    keys: Box::leak(job.keys.iter().map(|r| crate::KeyRange { from: r.from, to: r.to }).collect()),
-                    converts: job.converts.map(|c| crate::Converts {
-                        family: c.family,
-                        value_type: c.value_type,
-                        from: c.from,
-                    }),
-                })
-                .collect(),
-        ),
-        families: Box::leak(
-            set.families
-                .iter()
-                .map(|f| crate::KeptFamily {
-                    name: f.name,
-                    texts: f.texts,
-                    current: f.current,
-                    frames: f.frames,
-                    map: if f.map == store_map { crate::KeptMap::Store } else { crate::KeptMap::Secrets },
-                    keys: Box::leak(
-                        f.keys.iter().map(|k| crate::Keys { from: k.from, to: k.to, root: k.root }).collect(),
-                    ),
-                    flights: Box::leak(
-                        f.flights.iter().map(|k| crate::Keys { from: k.from, to: k.to, root: k.root }).collect(),
-                    ),
-                    types: Box::leak(
-                        f.types
-                            .iter()
-                            .map(|t| crate::ValueType {
-                                number: t.number,
-                                root: t.root,
-                                variant: t.variant,
-                                keys: Box::leak(
-                                    t.keys.iter().map(|r| crate::KeyRange { from: r.from, to: r.to }).collect(),
-                                ),
-                            })
-                            .collect(),
-                    ),
-                })
-                .collect(),
-        ),
-    }
+    crate::JIG_STORE_PATCH_SET
 }

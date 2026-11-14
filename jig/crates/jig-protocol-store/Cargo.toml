@@ -30,7 +30,6 @@ jig-domain-fleet.workspace = true
 jig-domain-link.workspace = true
 
 [dev-dependencies]
-jig-protocol-accounts.workspace = true
 skein-rows.workspace = true
 skein-codegen.workspace = true
 skein-scratch.workspace = true

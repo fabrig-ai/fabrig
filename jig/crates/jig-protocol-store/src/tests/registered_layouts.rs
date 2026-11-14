@@ -3,7 +3,7 @@
 #[test]
 fn real_registered_families_derive_from_latest_kept_to_current() {
     let families: Vec<_> =
-        jig_protocol_accounts::JIG_PATCH_SET.families.iter().filter(|family| !family.texts.is_empty()).collect();
+        crate::JIG_STORE_PATCH_SET.families.iter().filter(|family| !family.texts.is_empty()).collect();
     let mut old: Vec<_> = families
         .iter()
         .map(|family| skein_codec::schema::parse(family.texts.last().unwrap().as_bytes()).unwrap())

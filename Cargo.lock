@@ -2047,7 +2047,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-protocol-accounts",
  "jig-protocol-store-core",
  "jig-protocol-store-families",
  "jig-protocol-store-people",
