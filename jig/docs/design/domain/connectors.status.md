@@ -20,3 +20,4 @@ the test connector no longer reports one as a default of size 0
   4.2: a projection's or a release's failure for good, kept
   durably as news. 6.3: every effect of a step within its one decision.
   6.7: a procedure told to drain. 13: request budgets. 17: the deleted-project restore story remains `engine/settings.status.md`, 10.
+- **Not yet:** 9, a section read in several reads ending at its cutoff: temper's forge cuts only a pull section's files and comparison there, its reviews and CI sections reading on to the brief's deadline (temper's `temper/docs/design/domain/forge/change/repairs.status.md`) [in flight: change 3322].

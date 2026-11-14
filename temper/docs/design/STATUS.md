@@ -438,6 +438,7 @@ Drafts:
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/branch-reds.md`](draft/branch-reds.status.md)
+- [`draft/brief-pull-fits-deadline.md`](draft/brief-pull-fits-deadline.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
