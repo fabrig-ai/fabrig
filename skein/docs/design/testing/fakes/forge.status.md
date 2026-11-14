@@ -10,6 +10,9 @@ cache and the claims checked on every request are present.
   (`allow_manual_merge`, `autodetect_manual_merge`): the fake refuses
   `Do: manually-merged` (`skein-fake-forge-domain/src/pulls.rs`)
   [in flight: change 813].
+- **Not yet:** 2.3, *A job's state*: a job names no runner labels and
+  no needs, never waits for a runner or is blocked, and its steps say
+  none is running [in flight: change 2949].
 - **Not yet:** 4: the runs' listing has no `workflow_id`
   (`skein-fake-forge-forgejo/src/routes.rs`).
 - **Not yet:** 4: conditional reads: a raw read answers no `ETag`, and no

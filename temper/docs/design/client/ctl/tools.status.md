@@ -3,6 +3,7 @@
 2026-11-13. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
+- **Not yet:** 3: `tier hold` and `tier release`, absent from the table [in flight: change 2957].
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
 
@@ -15,8 +16,6 @@
 
 - **Not yet:** 3: a settings file's landing rule has no `sets`, in
   `temper-settings-form` or `temper-client-tools`' `render_rule`.
-
-- **Not yet:** 1, 3 and 5: the group `party`, `party make`, and the host's `sign-in --service` [in flight: change 724].
 
 - **Not yet:** 1, 2 and 3: the groups `finding` and `need`, FINDING's form and the placeholders `AREA` and `PARTY`; `finding list` and `finding show`; `finding file`, `finding hand`, `finding route`, `finding backlog`, `finding drop` and `need ask` [in flight: change 749].
 
@@ -45,3 +44,4 @@
   hold over the task's subtree (`jig/rows.rs` `STOP`), as jig's `Stop`
   does (jig's `domain/people/acts.md`, 1), where its row holds the task;
   `hold lift` is keyed optionally (`Keyed::Optional`).  the question-number omission remains `results.status.md`, 1. the budget-print scaling remains `results.status.md`, 1. the pinned-account wait contradiction remains `results.status.md`, 1. the person-task amendment's missing arguments remain `results.status.md`, 1.  the authority-entry bound remains `README.status.md`, 9.
+- **Not yet:** 1 and 3: the group `party` and `party make` [in flight: change 724].
