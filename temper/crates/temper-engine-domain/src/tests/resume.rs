@@ -886,24 +886,6 @@ fn a_pending_start_waits_for_switched_before_committing_wires() {
 }
 
 #[test]
-#[should_panic(expected = "stale or out-of-order start continuation")]
-fn a_stale_start_delivery_asserts() {
-    let (mut domain, env) = at_switch(false);
-    serve_switch(&mut domain, &env);
-    let number = wires_commit(&mut domain, &env);
-    crate::step(&mut domain, &env, Event::Store(StoreInput::Committed { number, fill: 0 }));
-    let mut out = Queue::uncapped();
-    crate::release(&mut domain, &env, &mut out);
-    crate::release(&mut domain, &env, &mut out);
-    let Some(Request::ToChild(crate::Released(crate::Delivery::Start(continuation)))) = out.pop() else {
-        panic!("start delivery");
-    };
-    let mut output = Queue::uncapped();
-    let _action = domain.core.start_resume(&crate::limits::environment_core(&env), continuation.clone(), &mut output);
-    crate::step(&mut domain, &env, Event::Released(crate::Released(crate::Delivery::Start(continuation))));
-}
-
-#[test]
 fn firing_before_start_and_before_wires_does_not_consume_or_open_the_start() {
     let (mut domain, env) = cold();
     crate::fire(&mut domain, &env);

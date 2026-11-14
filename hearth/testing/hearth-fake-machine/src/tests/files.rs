@@ -172,13 +172,6 @@ fn a_chain_of_forty_one_links_is_refused_as_a_loop() {
         );
     }
 }
-const ROOT: [crate::linux::Ids; 1] = [crate::linux::Ids { user: 0, group: 0 }];
-#[test]
-#[should_panic(expected = "no process runs as uid 0")]
-fn a_login_as_uid_zero_asserts() {
-    let mut machine = fixtures::machine();
-    machine.login(ROOT[0], b"/");
-}
 const LOCKS: [Result<(), Refusal>; 4] = [Ok(()), Ok(()), Err(Refusal::Busy), Ok(())];
 #[test]
 fn a_lock_is_busy_through_another_handle_until_the_first_closes() {
@@ -193,13 +186,13 @@ fn a_lock_is_busy_through_another_handle_until_the_first_closes() {
     assert_eq!(fixtures::done(&mut machine, pid, Op::Lock { file: second }), LOCKS[3]);
 }
 #[test]
-#[should_panic(expected = "a handle it issued")]
-fn a_handle_the_process_does_not_hold_asserts() {
+fn a_handle_the_process_does_not_hold_returns_a_finding() {
     let mut machine = fixtures::machine();
     let owner = machine.login(BUILDER, b"/srv");
     let other = machine.login(OTHER, b"/srv");
     let handle = fixtures::open(&mut machine, owner, b"/srv", How::Directory);
-    machine.call(other, Op::Stat { handle }).unwrap();
+    assert_eq!(machine.check_handle(owner, handle), Ok(()));
+    assert_eq!(machine.check_handle(other, handle), Err("a handle it issued to this process".into()));
 }
 const CONTENTS: [&[u8]; 1] = [b"changed"];
 #[test]

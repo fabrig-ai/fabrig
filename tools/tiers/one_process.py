@@ -447,7 +447,9 @@ class BinaryProcess:
         self.open_fds = set()
         self.cancelled_at = None
         names = b'|'.join(re.escape(test['name'].encode()) for test in job['tests'])
-        self.announcement = re.compile(rb'(?m)^test (' + names + rb') \.\.\. ')
+        # Keep the optional group while #[should_panic] tests remain in the repository
+        # (tools/lints/design.md, 7).
+        self.announcement = re.compile(rb'(?m)^test (' + names + rb')(?: - should panic)? \.\.\. ')
         # Libtest opens its logfile close-on-exec. A named pipe lets it do so
         # without inheriting a writer that its spawned fixtures would also keep.
         self.log_directory = tempfile.TemporaryDirectory(prefix='tiers-one-log-')
