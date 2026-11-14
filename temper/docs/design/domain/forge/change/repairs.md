@@ -439,9 +439,14 @@
   request, its CI, the ancestry of its head and its base's tip) are a
   wait on the forge as any is. A read with no answer, or one the forge
   client keeps refusing for its own capacity, counts the stall from
-  where that step's wait counts it, and past it the change is held at
-  that step, its words that step's (*A stall's hold says where*,
-  below). An exemption stands only while its cause does: its agent a
+  its first read, and past it the change is held at that step, its
+  words that step's (*A stall's hold says where*, below). That count
+  is the reads' own (2026-11-14): kept while the reads start over on
+  news or are retried for capacity, counted afresh from a release or
+  from an exemption's end, and gone once the reads decide. It moves
+  nothing the step's own wait counts from, so the step's waits keep
+  their rules: a conflict's settling, an approval's wait, CI's alarm.
+  An exemption stands only while its cause does: its agent a
   live task, that agent's question open, a dependency not ended, its
   forge not connected or its repository out of reach. Once the cause
   ends, the stall counts from that end, and no record left of a cause
