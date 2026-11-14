@@ -959,6 +959,14 @@ impl Referee<Proc> for Judge {
             return Err(finding.clone());
         }
         for proc in procs {
+            if let Kind::Caller(caller) = &proc.kind
+                && let Some(finding) = &caller.finding
+            {
+                self.finding = Some(finding.clone());
+                return Err(finding.clone());
+            }
+        }
+        for proc in procs {
             if let Kind::Service(host) = &proc.kind
                 && let Some(service) = &host.service
                 && let Some(engine) = service.engine_domain()
