@@ -388,6 +388,7 @@ name = "hearth-client-protocol-records"
 version = "0.0.0"
 dependencies = [
  "hearth-domain-render-vocabulary",
+ "hearth-lib",
  "skein-json",
  "skein-lib",
 ]

@@ -1,5 +1,10 @@
 use super::*;
-use crate::parts::{boot::Boot, data::*, exports::*, live, meta::*, secrets};
+use hearth_domain_render_vocabulary as render;
+use render::{
+    evaluate::Value,
+    parts::{boot::Boot, data::*, live, meta::*, secrets},
+    revision::{Firmware, Runs as PlacementKind},
+};
 use skein_lib::bytes::copy_of;
 
 #[test]
@@ -208,7 +213,7 @@ fn export_value_forms() {
             ),
         ),
         (
-            export(Value::Map(Box::new([(copy_of(b"up"), Value::Bool(true))]))),
+            export(fixtures::export_map(true)),
             spec_text!("exports      part 000000000000\n  vpn.endpoint   {\"up\":true}\n"),
             spec_json!(
                 r#"{"record":"part","target":"x1-prod","name":"exports","digest":"0000000000000000000000000000000000000000000000000000000000000000","exports":{"vpn":{"endpoint":{"up":true}}}}"#,

@@ -11,6 +11,7 @@ use render::errors::Place;
 use render::revision::Position;
 
 use skein_lib::bytes::copy_of;
+
 const GUARD: &str =
     "\ntasks/boot/task.json:22:7: carbon-lab: boot: requires modules: no initramfs modules for this hardware\n";
 #[test]

@@ -1,7 +1,16 @@
 use super::*;
-use crate::{
+use hearth_domain_render_vocabulary as render;
+use render::{
     diff::*,
-    parts::{data::*, exports::Value, live, meta::*, secrets, software},
+    evaluate::Value,
+    parts::{
+        data::*,
+        exports::{Change as ExportsChange, ExportChange},
+        live,
+        meta::{Change as MetaChange, MemberPair, PlacementPair, *},
+        secrets, software,
+    },
+    revision::{Firmware, Runs as PlacementKind},
 };
 use skein_lib::bytes::copy_of;
 
@@ -9,7 +18,10 @@ use skein_lib::bytes::copy_of;
 fn target_and_rebuild_forms() {
     check(&[
         (
-            fixtures::diff_change(b"west-prod", TargetChange::Added { spec_digest: [1; 32] }),
+            fixtures::diff_change(
+                b"west-prod",
+                TargetChange::Added { spec_digest: hearth_lib::encode::Digest([1; 32]) },
+            ),
             "west-prod                                           added spec 010101010101\n",
             "{\"record\":\"change\",\"target\":\"west-prod\",\"kind\":\"added\",\"added\":{\"spec_digest\":\"0101010101010101010101010101010101010101010101010101010101010101\"}}\n",
         ),
@@ -116,7 +128,7 @@ fn secrets_password_and_identity_names() {
 fn download(digest: [u8; 32]) -> software::Download {
     software::Download {
         path: copy_of(b"/opt/tool"),
-        sha256: digest,
+        sha256: hearth_lib::encode::Digest(digest),
         owner: copy_of(b"root"),
         group: copy_of(b"root"),
         how: software::How::File { mode: 0o755 },
@@ -272,10 +284,7 @@ fn export_change_value_forms() {
             ),
         ),
         (
-            export(
-                Value::Map(Box::new([(copy_of(b"up"), Value::Bool(false))])),
-                Value::Map(Box::new([(copy_of(b"up"), Value::Bool(true))])),
-            ),
+            export(fixtures::export_map(false), fixtures::export_map(true)),
             change_text!("  exports  ~ vpn.endpoint   {\"up\":false} → {\"up\":true}\n"),
             change_json!(
                 r#"{"kind":"exports","exports":[{"after":{"up":true},"before":{"up":false},"name":"endpoint","task":"vpn"}]}"#

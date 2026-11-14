@@ -47,48 +47,7 @@ fn a_document_without_placement_keeps_its_position_and_absence() {
     );
 }
 
-use crate::{
-    records::{self, parts::meta as client_meta},
-    render,
-    translate::answers,
-};
-fn client_kind_back(kind: client_meta::PlacementKind) -> target::Runs {
-    match kind {
-        client_meta::PlacementKind::Metal => target::Runs::Metal,
-        client_meta::PlacementKind::Vm => target::Runs::Vm,
-        client_meta::PlacementKind::Container => target::Runs::Container,
-    }
-}
-fn client_firmware_back(firmware: client_meta::Firmware) -> target::Firmware {
-    match firmware {
-        client_meta::Firmware::Efi => target::Firmware::Efi,
-        client_meta::Firmware::Bios => target::Firmware::Bios,
-    }
-}
-fn optional_client_firmware_back(firmware: Option<client_meta::Firmware>) -> Option<target::Firmware> {
-    Some(client_firmware_back(firmware?))
-}
-const CLIENT_KINDS: &[(target::Runs, client_meta::PlacementKind)] = &[
-    (target::Runs::Metal, client_meta::PlacementKind::Metal),
-    (target::Runs::Vm, client_meta::PlacementKind::Vm),
-    (target::Runs::Container, client_meta::PlacementKind::Container),
-];
-#[test]
-fn each_client_placement_kind_translates_and_back() {
-    for (source, expected) in CLIENT_KINDS {
-        assert_eq!(answers::runs(*source), *expected, "kind {source:?}");
-        assert_eq!(client_kind_back(*expected), *source, "kind {expected:?}");
-    }
-}
-const CLIENT_FIRMWARE: &[(target::Firmware, client_meta::Firmware)] =
-    &[(target::Firmware::Efi, client_meta::Firmware::Efi), (target::Firmware::Bios, client_meta::Firmware::Bios)];
-#[test]
-fn each_client_firmware_translates_and_back() {
-    for (source, expected) in CLIENT_FIRMWARE {
-        assert_eq!(answers::boot(*source), *expected, "firmware {source:?}");
-        assert_eq!(client_firmware_back(*expected), *source, "firmware {expected:?}");
-    }
-}
+use crate::{records, render, translate::answers};
 /// A build's unavailable step is the client's outcome alone, never render's.
 fn outcome_back(outcome: records::outcome::Outcome) -> Option<render::vocabulary::Outcome> {
     Some(match outcome {
@@ -113,49 +72,6 @@ fn each_client_outcome_translates_and_back() {
         assert_eq!(answers::outcome(*source), *expected, "outcome {source:?}");
         assert_eq!(outcome_back(*expected), Some(*source), "outcome {expected:?}");
     }
-}
-
-#[test]
-fn a_config_part_translates_to_the_records_and_back() {
-    let source = render::parts::Part {
-        digest: hearth_lib::encode::Digest([7; 32]),
-        record: render::parts::PartRecord::Config(render::parts::config::Config {
-            presets: Box::new([]),
-            tmpfiles: Box::new([]),
-            scripts: Box::new([]),
-            groups: Box::new([]),
-            users: Box::new([]),
-            members: Box::new([]),
-            tree: Box::new([render::parts::config::file(
-                b"etc/motd",
-                target::Mode::Executable,
-                hearth_lib::encode::Digest([8; 32]),
-            )]),
-        }),
-    };
-    let records::records::Part { digest, record } = crate::translate::parts::part(source);
-    assert_eq!(digest, [7; 32]);
-    let records::records::PartRecord::Config(config) = record else { panic!("config part") };
-    assert_eq!(
-        config::config_back(config),
-        render::parts::config::Config {
-            presets: Box::new([]),
-            tmpfiles: Box::new([]),
-            scripts: Box::new([]),
-            groups: Box::new([]),
-            users: Box::new([]),
-            members: Box::new([]),
-            tree: Box::new([render::parts::config::TreeEntry {
-                path: skein_lib::bytes::copy_of(b"/etc/motd"),
-                node: render::parts::config::Node::File {
-                    content_digest: hearth_lib::encode::Digest([8; 32]),
-                    mode: 0o755,
-                    owner: skein_lib::bytes::copy_of(b"root"),
-                    group: skein_lib::bytes::copy_of(b"root")
-                }
-            }])
-        }
-    );
 }
 
 const VALUES: &[(crate::config::json::Kind, target::Kind)] = &[
@@ -207,226 +123,6 @@ fn nested_configuration_values_keep_their_keys_lists_and_string_bytes() {
                 },
             }])),
         }
-    );
-}
-
-use crate::{records::diff as client_diff, render::diff, translate::changes};
-const CHANGES: &[(diff::TargetChange, client_diff::TargetChange)] = &[
-    (
-        diff::TargetChange::Added { spec_digest: hearth_lib::encode::Digest([9; 32]) },
-        client_diff::TargetChange::Added { spec_digest: [9; 32] },
-    ),
-    (diff::TargetChange::Removed, client_diff::TargetChange::Removed),
-    (diff::TargetChange::Same, client_diff::TargetChange::Same),
-    (
-        diff::TargetChange::Failed { side: diff::Side::From },
-        client_diff::TargetChange::Failed { side: client_diff::Side::From },
-    ),
-    (
-        diff::TargetChange::Failed { side: diff::Side::To },
-        client_diff::TargetChange::Failed { side: client_diff::Side::To },
-    ),
-    (
-        diff::TargetChange::Failed { side: diff::Side::Both },
-        client_diff::TargetChange::Failed { side: client_diff::Side::Both },
-    ),
-];
-fn side_back(side: client_diff::Side) -> diff::Side {
-    match side {
-        client_diff::Side::From => diff::Side::From,
-        client_diff::Side::To => diff::Side::To,
-        client_diff::Side::Both => diff::Side::Both,
-    }
-}
-fn needs_back(needs: client_diff::Needs) -> diff::Needs {
-    match needs {
-        client_diff::Needs::Known => diff::Needs::Known,
-        client_diff::Needs::Needed => diff::Needs::Needed,
-    }
-}
-fn rebuild_back(rebuild: client_diff::Rebuild) -> diff::Rebuild {
-    match rebuild {
-        client_diff::Rebuild::FromPackages { resolution } => {
-            diff::Rebuild::FromPackages { resolution: needs_back(resolution) }
-        }
-        client_diff::Rebuild::FromSoftware => diff::Rebuild::FromSoftware,
-        client_diff::Rebuild::FromConfig => diff::Rebuild::FromConfig,
-        client_diff::Rebuild::SlotOnly => diff::Rebuild::SlotOnly,
-        client_diff::Rebuild::Nothing => diff::Rebuild::Nothing,
-    }
-}
-fn change_back(change: client_diff::TargetChange) -> diff::TargetChange {
-    match change {
-        client_diff::TargetChange::Added { spec_digest } => {
-            diff::TargetChange::Added { spec_digest: hearth_lib::encode::Digest(spec_digest) }
-        }
-        client_diff::TargetChange::Removed => diff::TargetChange::Removed,
-        client_diff::TargetChange::Same => diff::TargetChange::Same,
-        client_diff::TargetChange::Failed { side } => diff::TargetChange::Failed { side: side_back(side) },
-        client_diff::TargetChange::Changed { parts, rebuild } => {
-            let mut translated = skein_lib::List::with_capacity(u32::try_from(parts.len()).expect("bounded parts"));
-            for part in parts {
-                match part {
-                    client_diff::PartChange::Secrets(value) => {
-                        translated
-                            .push(diff::PartChange::Secrets(crate::tests::fixtures::secrets_change_back(value)))
-                            .expect("parts");
-                    }
-                    client_diff::PartChange::Software(value) => {
-                        translated
-                            .push(diff::PartChange::Software(crate::tests::fixtures::software_change_back(value)))
-                            .expect("parts");
-                    }
-                    client_diff::PartChange::Live(value) => {
-                        translated
-                            .push(diff::PartChange::Live(crate::tests::fixtures::live_change_back(value)))
-                            .expect("parts");
-                    }
-                    client_diff::PartChange::Data(value) => {
-                        translated.push(diff::PartChange::Data(data::change_back(value))).expect("parts");
-                    }
-                    client_diff::PartChange::Exports(value) => {
-                        translated.push(diff::PartChange::Exports(export_changes::change_back(value))).expect("parts");
-                    }
-                    client_diff::PartChange::Packages(value) => {
-                        translated
-                            .push(diff::PartChange::Packages(crate::tests::fixtures::packages_change_back(value)))
-                            .expect("parts");
-                    }
-                    client_diff::PartChange::Boot(value) => {
-                        translated
-                            .push(diff::PartChange::Boot(crate::tests::fixtures::boot_change_back(value)))
-                            .expect("parts");
-                    }
-                    client_diff::PartChange::Meta(meta) => {
-                        translated.push(diff::PartChange::Meta(meta::back(meta))).expect("parts");
-                    }
-                    client_diff::PartChange::Config(change) => {
-                        translated.push(diff::PartChange::Config(accounts::change_back(change))).expect("part room");
-                    }
-                }
-            }
-            diff::TargetChange::Changed { parts: translated.into_boxed(), rebuild: rebuild_back(rebuild) }
-        }
-    }
-}
-fn node_back(node: records::parts::config::Node) -> render::parts::config::Node {
-    match node {
-        records::parts::config::Node::Link { target, owner, group } => {
-            render::parts::config::Node::Link { target, owner, group }
-        }
-        records::parts::config::Node::Directory { mode, owner, group } => {
-            render::parts::config::Node::Directory { mode, owner, group }
-        }
-        records::parts::config::Node::File { content_digest, mode, owner, group } => {
-            render::parts::config::Node::File {
-                content_digest: hearth_lib::encode::Digest(content_digest),
-                mode,
-                owner,
-                group,
-            }
-        }
-    }
-}
-fn entry_back(entry: client_diff::EntryChange) -> render::parts::config::EntryChange {
-    use render::parts::config::EntryChange;
-    match entry {
-        client_diff::EntryChange::Added { path, node } => EntryChange::Added { path, node: node_back(node) },
-        client_diff::EntryChange::Removed { path, node } => EntryChange::Removed { path, node: node_back(node) },
-        client_diff::EntryChange::Changed { path, before, after, sizes, hunks } => EntryChange::Changed {
-            path,
-            before: node_back(before),
-            after: node_back(after),
-            sizes: sizes_back(sizes),
-            hunks: optional_hunks_back(hunks),
-        },
-    }
-}
-#[test]
-fn each_change_rebuild_and_side_translates_to_the_records_and_back() {
-    for (source, expected) in CHANGES {
-        assert_eq!(changes::target_change(source.clone()), *expected, "change {source:?}");
-        assert_eq!(change_back(expected.clone()), source.clone(), "change {expected:?}");
-    }
-}
-const REBUILDS: &[(diff::Rebuild, client_diff::Rebuild)] = &[
-    (
-        diff::Rebuild::FromPackages { resolution: diff::Needs::Known },
-        client_diff::Rebuild::FromPackages { resolution: client_diff::Needs::Known },
-    ),
-    (
-        diff::Rebuild::FromPackages { resolution: diff::Needs::Needed },
-        client_diff::Rebuild::FromPackages { resolution: client_diff::Needs::Needed },
-    ),
-    (diff::Rebuild::FromSoftware, client_diff::Rebuild::FromSoftware),
-    (diff::Rebuild::FromConfig, client_diff::Rebuild::FromConfig),
-    (diff::Rebuild::SlotOnly, client_diff::Rebuild::SlotOnly),
-    (diff::Rebuild::Nothing, client_diff::Rebuild::Nothing),
-];
-#[test]
-fn each_rebuild_translates_to_the_records_and_back() {
-    for (source, expected) in REBUILDS {
-        assert_eq!(changes::rebuild(*source), *expected, "rebuild {source:?}");
-        assert_eq!(rebuild_back(*expected), *source, "rebuild {expected:?}");
-    }
-}
-#[test]
-fn the_tally_translates_to_the_records_and_back() {
-    let tally = diff::Tally {
-        from: target::Oid(skein_lib::bytes::copy_of(b"from")),
-        to: target::Oid(skein_lib::bytes::copy_of(b"to")),
-        targets: 4,
-        changed: 2,
-        unchanged: 1,
-    };
-    assert_eq!(
-        changes::tally(tally),
-        client_diff::Tally {
-            from: skein_lib::bytes::copy_of(b"from"),
-            to: skein_lib::bytes::copy_of(b"to"),
-            targets: 4,
-            changed: 2,
-            unchanged: 1
-        },
-        "failed target only in total"
-    );
-}
-#[test]
-fn a_changed_config_entry_translates_its_sizes_and_hunks() {
-    let change = super::fixtures::config_change();
-    let translated = changes::change(change.clone());
-    assert_eq!(translated.target.as_ref(), b"x1-prod");
-    assert_eq!(
-        change_back(translated.change),
-        diff::TargetChange::Changed {
-            parts: Box::new([diff::PartChange::Config(render::parts::config::Change {
-                presets: Box::new([]),
-                tmpfiles: Box::new([]),
-                scripts: None,
-                groups: Box::new([]),
-                users: Box::new([]),
-                members: Box::new([]),
-                tree: Box::new([render::parts::config::EntryChange::Changed {
-                    path: skein_lib::bytes::copy_of(b"/etc/motd"),
-                    before: render::parts::config::Node::File {
-                        content_digest: hearth_lib::encode::Digest([1; 32]),
-                        mode: 0o644,
-                        owner: skein_lib::bytes::copy_of(b"root"),
-                        group: skein_lib::bytes::copy_of(b"root")
-                    },
-                    after: render::parts::config::Node::File {
-                        content_digest: hearth_lib::encode::Digest([2; 32]),
-                        mode: 0o755,
-                        owner: skein_lib::bytes::copy_of(b"root"),
-                        group: skein_lib::bytes::copy_of(b"root")
-                    },
-                    sizes: Some(render::parts::config::Sizes { before: 9, after: 22 }),
-                    hunks: Some(diff::Hunks { lines: Box::new([]), left_out: 401, binary: false }),
-                }])
-            })]),
-            rebuild: diff::Rebuild::FromConfig,
-        },
-        "config node fields and rebuild preserved"
     );
 }
 
@@ -606,89 +302,21 @@ fn an_expressions_offsets_and_values_cross_unchanged() {
     );
 }
 
-fn line_kind_back(kind: client_diff::LineKind) -> diff::LineKind {
-    match kind {
-        client_diff::LineKind::Header => diff::LineKind::Hunk,
-        client_diff::LineKind::Context => diff::LineKind::Context,
-        client_diff::LineKind::Removed => diff::LineKind::Removed,
-        client_diff::LineKind::Added => diff::LineKind::Added,
-        client_diff::LineKind::NoNewline => diff::LineKind::NoNewline,
-    }
-}
-fn sizes_back(value: Option<client_diff::Sizes>) -> Option<render::parts::config::Sizes> {
-    let value = value?;
-    Some(render::parts::config::Sizes { before: value.before, after: value.after })
-}
-fn optional_hunks_back(value: Option<client_diff::Hunks>) -> Option<diff::Hunks> {
-    Some(hunks_back(value?))
-}
-fn hunks_back(hunks: client_diff::Hunks) -> diff::Hunks {
-    let mut lines = skein_lib::List::with_capacity(u32::try_from(hunks.lines.len()).expect("bounded lines"));
-    for line in hunks.lines {
-        lines.push(diff::Line { kind: line_kind_back(line.kind), text: line.text }).expect("line room");
-    }
-    diff::Hunks { lines: lines.into_boxed(), left_out: hunks.left_out, binary: hunks.binary }
-}
-const HUNK_KINDS: &[(diff::LineKind, client_diff::LineKind)] = &[
-    (diff::LineKind::Hunk, client_diff::LineKind::Header),
-    (diff::LineKind::Context, client_diff::LineKind::Context),
-    (diff::LineKind::Removed, client_diff::LineKind::Removed),
-    (diff::LineKind::Added, client_diff::LineKind::Added),
-    (diff::LineKind::NoNewline, client_diff::LineKind::NoNewline),
-];
-#[test]
-fn each_hunk_line_kind_translates_and_back() {
-    for (row, (render, records)) in HUNK_KINDS.iter().enumerate() {
-        let translated = changes::line_kind(*render);
-        assert_eq!(translated, *records, "row {row}: records kind");
-        assert_eq!(line_kind_back(translated), *render, "row {row}: records kind and back");
-    }
-}
-
-#[test]
-fn each_retained_hunk_line_translates_to_records_and_back() {
-    for (row, input) in super::fixtures::render_hunks().into_iter().enumerate() {
-        let back = hunks_back(changes::hunks(input.clone()));
-        assert_eq!(back, input, "row {row}: retained text, kinds, counts and binary marker");
-    }
-}
-
 mod composition;
 mod declarations;
 mod store_arrivals;
 
 mod instructions;
-mod meta;
 
 mod expansion;
 
 mod debian;
 mod fields;
 
-mod config;
-mod live;
-mod secrets;
-mod software;
-
 mod additions;
-mod boot;
-mod exports;
-mod files;
-mod packages;
+
 mod resolution;
-mod specs;
-
-mod package_changes;
-
-mod accounts;
-mod export_changes;
 
 mod resolve;
 
-mod data;
-pub(super) mod directives;
 mod record_store;
-
-mod diff_resolution;
-
-mod part_changes;

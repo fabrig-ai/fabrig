@@ -8,6 +8,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits, Refusal as JsonRefusal};
 use skein_lib::{List, Writer, bytes};
+
 pub(crate) const DEPTH: u32 = 64;
 pub(crate) fn print(record: &Record, after: Option<Type>, most: u32) -> Result<Box<[u8]>, Refusal> {
     let limits = Limits { depth: DEPTH, length: most };
@@ -77,7 +78,7 @@ fn line(json: &mut Encoder, record: &Record, index: usize) {
             Record::Unresolved(value) => value.json(json),
             Record::Waiting(waiting) => waiting.json(json),
             Record::Strays(strays) => strays.json(json),
-            Record::Change(change) => change.json(json),
+            Record::Change(change) => crate::diff::json(change, json),
             Record::Layer(layer) => layer.json(json),
             Record::Failed(failed) => (*failed).json(json),
             Record::Error(error) => crate::errors::json(error, json),
@@ -98,7 +99,7 @@ fn line(json: &mut Encoder, record: &Record, index: usize) {
                     },
                 );
                 if let Some(tally) = &terminal.diff {
-                    tally.json(json);
+                    crate::diff::tally_json(tally, json);
                 }
                 json.key(b"left_out");
                 json.unsigned(u64::from(terminal.left_out));
@@ -107,9 +108,9 @@ fn line(json: &mut Encoder, record: &Record, index: usize) {
                 if index == 1 {
                     field(json, b"record", b"spec");
                     field(json, b"target", &spec.meta.target);
-                    field(json, b"commit", &spec.commit);
+                    field(json, b"commit", &spec.commit.0);
                     json.key(b"digest");
-                    digest(json, &spec.digest);
+                    digest(json, &spec.digest.0);
                     if let Some(value) = &spec.resolution {
                         json.key(b"resolution");
                         resolution(json, value);
@@ -120,22 +121,22 @@ fn line(json: &mut Encoder, record: &Record, index: usize) {
                     if index == 2 {
                         field(json, b"name", b"meta");
                         json.key(b"digest");
-                        digest(json, &spec.meta_digest);
+                        digest(json, &spec.meta_digest.0);
                         json.key(b"meta");
-                        spec.meta.json(json);
+                        crate::parts::meta::json(&spec.meta, json);
                     } else {
                         let part = spec.parts.get(index.saturating_sub(3)).expect("one line per part");
                         field(json, b"name", part.record.name());
                         json.key(b"digest");
-                        digest(json, &part.digest);
-                        if let crate::records::PartRecord::Packages(packages) = &part.record
+                        digest(json, &part.digest.0);
+                        if let hearth_domain_render_vocabulary::parts::PartRecord::Packages(packages) = &part.record
                             && let Some(file) = &packages.initramfs_file
                         {
                             json.key(b"initramfs_file");
-                            digest(json, file);
+                            digest(json, &file.0);
                         }
                         json.key(part.record.name());
-                        part.record.json(json);
+                        crate::parts::part_json(&part.record, json);
                     }
                 }
             }
@@ -156,26 +157,26 @@ pub(crate) fn digest_hex(value: &[u8; 32]) -> [u8; 64] {
     digits
 }
 
-fn resolution(json: &mut Encoder, resolution: &crate::records::Resolution) {
-    use crate::records::Resolution;
+fn resolution(json: &mut Encoder, resolution: &hearth_domain_render_vocabulary::keys::Resolution) {
+    use hearth_domain_render_vocabulary::keys::Resolution;
     json.object_start();
     match resolution {
         Resolution::Needed { key } => {
             json.key(b"key");
-            digest(json, key);
+            digest(json, &key.0);
             field(json, b"kind", b"needed");
         }
         Resolution::Known { key, keys } => {
             json.key(b"key");
-            digest(json, key);
+            digest(json, &key.0);
             json.key(b"keys");
             json.object_start();
             json.key(b"config");
-            digest(json, &keys.config);
+            digest(json, &keys.config.0);
             json.key(b"packages");
-            digest(json, &keys.packages);
+            digest(json, &keys.packages.0);
             json.key(b"software");
-            digest(json, &keys.software);
+            digest(json, &keys.software.0);
             json.object_end();
             field(json, b"kind", b"known");
         }

@@ -1,12 +1,13 @@
 use super::*;
-use crate::{
-    diff::ScriptsChange,
-    parts::{config::Script, software},
+use hearth_domain_render_vocabulary as render;
+use render::parts::{
+    config::{Script, ScriptsChange},
+    software,
 };
 use skein_lib::bytes::copy_of;
 
 fn script(task: &[u8], digest: [u8; 32]) -> Script {
-    Script { task: copy_of(task), order: 300, content_digest: digest }
+    Script { task: copy_of(task), order: 300, content_digest: hearth_lib::encode::Digest(digest) }
 }
 fn config(scripts: ScriptsChange) -> Record {
     let mut config = config_change();

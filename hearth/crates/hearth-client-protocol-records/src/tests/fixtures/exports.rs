@@ -1,16 +1,25 @@
 use super::{Part, PartRecord, Spec, copy_of, duplicate, x1_prod};
-use crate::parts::exports::{Exports, Named, TaskExports, Value};
 use hearth_domain_render_vocabulary as render;
+use render::{
+    evaluate::{Entry as Named, Value},
+    exports::Exported as TaskExports,
+    parts::exports::Exports,
+};
 use skein_lib::List;
+
 pub const EXPORT_PRINT_DEPTH: u32 = 32;
 pub const EXPORT_PRINT_BRACKETS: usize = 32;
 pub fn with_exports(mut spec: Spec, task: &[u8], name: &[u8], value: Value) -> Spec {
     spec.parts = Box::new([Part {
-        digest: [0; 32],
+        digest: hearth_lib::encode::Digest([0; 32]),
         record: PartRecord::Exports(Exports {
             tasks: Box::new([TaskExports {
                 task: copy_of(task),
-                values: Box::new([Named { name: copy_of(name), value }]),
+                values: Box::new([
+                    Named { key: copy_of(b"an_absent_export_with_a_long_name"), value: None },
+                    Named { key: copy_of(name), value: Some(value) },
+                    Named { key: copy_of(b"last_absent"), value: None },
+                ]),
             }]),
         }),
     }]);
@@ -27,13 +36,20 @@ pub fn lists_around(depth: u32, value: &[u8]) -> Value {
     value
 }
 pub fn has_run(bytes: &[u8], parts: &[&[u8]]) -> bool {
-    let mut expected = List::with_capacity(u32::try_from(bytes.len()).expect("printed length"));
+    skein_lib::bytes::find(bytes, &joined(parts)).is_some()
+}
+pub fn joined(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("fixture length");
+    }
+    let mut expected = List::with_capacity(u32::try_from(length).expect("printed length"));
     for part in parts {
         for byte in *part {
             expected.push(*byte).expect("printed length");
         }
     }
-    skein_lib::bytes::find(bytes, expected.as_slice()).is_some()
+    expected.into_boxed()
 }
 pub fn printed_exports(form: crate::form::Form) -> Box<[u8]> {
     crate::form::print(
@@ -65,8 +81,8 @@ pub fn exported_error() -> render::errors::Error {
 }
 
 pub fn printed_export_change(form: crate::form::Form, before: Option<&[u8]>, after: Option<&[u8]>) -> Box<[u8]> {
-    let part = crate::diff::PartChange::Exports(crate::diff::ExportsChange {
-        entries: Box::new([crate::diff::ExportChange {
+    let part = render::diff::PartChange::Exports(render::parts::exports::Change {
+        entries: Box::new([render::parts::exports::ExportChange {
             task: copy_of(b"vpn"),
             name: copy_of(b"endpoint"),
             before: optional_string(before),
@@ -79,4 +95,12 @@ pub fn printed_export_change(form: crate::form::Form, before: Option<&[u8]>, aft
 
 fn optional_string(value: Option<&[u8]>) -> Option<Value> {
     Some(Value::String(copy_of(value?)))
+}
+
+pub fn export_map(up: bool) -> Value {
+    Value::Map(Box::new([
+        Named { key: copy_of(b"first_absent"), value: None },
+        Named { key: copy_of(b"up"), value: Some(Value::Bool(up)) },
+        Named { key: copy_of(b"last_absent"), value: None },
+    ]))
 }

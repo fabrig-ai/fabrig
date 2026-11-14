@@ -3,6 +3,7 @@ use crate::{
     form::{self, Form},
     limits,
 };
+
 #[test]
 fn accounts_print_as_choices_9_shows() {
     let text = form::print(Form::Text, &fixtures::accounts_spec(), None, &limits::SHIPPED).expect("spec");
