@@ -338,8 +338,6 @@ struct Judge<'a> {
     second: Option<Proof>,
     story: Story,
     probes: Vec<u64>,
-    blamed_read: Option<usize>,
-    blamed_panel: Option<Value>,
 }
 
 fn release(procs: &mut [Process], name: &[u8]) -> Result<(), String> {
@@ -1023,8 +1021,6 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
         second: None,
         story,
         probes: Vec::new(),
-        blamed_read: None,
-        blamed_panel: None,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(vec![person_root], || {
