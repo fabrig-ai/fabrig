@@ -90,6 +90,7 @@ fn deployment(mark: u64, cut: bool) -> c::Deployment {
     doc.waiting_attempts = 5;
     doc.proposals = c::Capacity { used: 7, limit: 16 };
     doc.store = c::StoreFill { bytes: 4_100_000, mark };
+    doc.census = None;
     doc.projects = List::uncapped();
     for (project, used) in [(f::PROJECT, 2), (99, 1)] {
         doc.projects
@@ -98,6 +99,161 @@ fn deployment(mark: u64, cut: bool) -> c::Deployment {
     }
     doc.cut = cut;
     doc
+}
+fn census_keyspace(prefix: &[u8], name: &str, rows: u64, bytes: u64, heads: &[Option<u16>]) -> c::CensusKeyspace {
+    c::CensusKeyspace {
+        prefix: prefix.into(),
+        name: name.into(),
+        rows,
+        keys: bytes / 2,
+        values: bytes.checked_sub(bytes / 2).unwrap(),
+        heads: List::from_boxed(heads.iter().map(|head| c::CensusHead { head: *head, rows: 1 }).collect()),
+        puts: 0,
+        erases: 0,
+        written: 0,
+    }
+}
+fn limits_with(doc: c::Deployment) -> (d::Domain, Token) {
+    let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    me.deployment_role = Some(c::HeldRole::Owner);
+    deliver(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+    let out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Limits) });
+    deliver(&mut root, deployment_watch(&out).unwrap(), c::Delivery::Deployment(Box::new(doc)));
+    (root, me_watch)
+}
+fn census_section(tree: &Tree) -> Option<&[Node]> {
+    main(tree)
+        .iter()
+        .find(|node| {
+            node.styles.as_slice().contains(&look::SETTINGS_SECTION)
+                && subtree(tree, node).iter().any(|child| {
+                    child.role == Role::Heading { level: 2 } && child.name.as_deref() == Some(b"What the store holds")
+                })
+        })
+        .map(|node| subtree(tree, node))
+}
+fn check_census_lines(tree: &Tree, expected: &[(&str, &str)]) {
+    assert_eq!(skein_ui::outline::check(tree), None);
+    let section = census_section(tree).expect("census section");
+    let lines = section.iter().find(|node| node.styles.as_slice().contains(&look::SETTINGS_LINES)).unwrap();
+    let lines = subtree(tree, lines);
+    assert!(lines.iter().all(|node| node.binding.is_none() && node.external.is_none()));
+    assert_eq!(
+        lines
+            .iter()
+            .filter(|node| node.role == Role::Text && node.name.is_some())
+            .map(|node| node.name.as_deref().unwrap())
+            .collect::<Vec<_>>(),
+        expected.iter().flat_map(|(name, value)| [name.as_bytes(), value.as_bytes()]).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        lines
+            .iter()
+            .filter(|node| node.styles.as_slice().contains(&look::SETTINGS_WHEN))
+            .map(|node| node.name.as_deref().unwrap())
+            .collect::<Vec<_>>(),
+        expected.iter().map(|(_, value)| value.as_bytes()).collect::<Vec<_>>()
+    );
+}
+#[test]
+fn limits_census_describes_keyspaces_in_row_order() {
+    let mut tasks = census_keyspace(&[4], "tasks.milestones", 993_441, 12_300_000, &[Some(3)]);
+    tasks.puts = 1_000;
+    tasks.erases = 204;
+    let mut doc = deployment(64_000_000, false);
+    doc.census = Some(Box::new(c::StoreCensus {
+        commit: 812,
+        since: 640,
+        keyspaces: List::from_boxed(Box::new([
+            census_keyspace(&[2, 12], "", 40, 100_000, &[]),
+            census_keyspace(&[2, 13], "", 40, 99_999, &[Some(1), Some(3)]),
+            census_keyspace(&[3], "legacy", 1, 4_100_000, &[None]),
+            tasks,
+            census_keyspace(&[5], "mixed", 2, 0, &[None, Some(3)]),
+        ])),
+    }));
+    let (root, _) = limits_with(doc);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let tree = view.tree();
+        named(tree, Role::Heading { level: 2 }, "What the store holds");
+        named(tree, Role::Paragraph, "As of commit 812; writes since commit 640, the store's last snapshot.");
+        let body = main(tree);
+        let facts = body
+            .iter()
+            .position(|node| {
+                node.name.as_deref()
+                    == Some(
+                        "The deployment’s owner sets these in its configuration; temper reads them at start."
+                            .as_bytes(),
+                    )
+            })
+            .unwrap();
+        let title = body.iter().position(|node| node.name.as_deref() == Some(b"What the store holds")).unwrap();
+        let lede = body
+            .iter()
+            .position(|node| {
+                node.name.as_deref() == Some(b"As of commit 812; writes since commit 640, the store's last snapshot.")
+            })
+            .unwrap();
+        assert!(facts < title && title < lede);
+        check_census_lines(
+            tree,
+            &[
+                ("tasks.milestones", "993,441 rows · 12 MB · 1,204 writes · layout 3"),
+                ("02 0c", "40 rows · 0.1 MB · 0 writes"),
+                ("02 0d", "40 rows · under 0.1 MB · 0 writes · layouts 1, 3"),
+                ("mixed", "2 rows · under 0.1 MB · 0 writes · layouts none, 3"),
+                ("legacy", "1 rows · 4.1 MB · 0 writes · layout none"),
+            ],
+        );
+    }
+}
+#[test]
+fn limits_census_is_optional_and_hidden_without_role() {
+    for present in [false, true] {
+        let mut doc = deployment(0, false);
+        if present {
+            doc.census = Some(Box::new(c::StoreCensus { commit: 812, since: 640, keyspaces: List::with_capacity(0) }));
+        }
+        let (mut root, me_watch) = limits_with(doc);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(census_section(view.tree()).is_some(), present);
+        }
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        me.deployment_role = None;
+        deliver(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            named(tree, Role::Paragraph, "Limits are seen by the deployment’s owners.");
+            assert!(census_section(tree).is_none());
+            assert!(!main(tree).iter().any(|node| node.styles.as_slice().contains(&look::SETTINGS_SECTION)));
+        }
+    }
+}
+#[test]
+fn limits_census_saturates_counts_and_sizes() {
+    let mut row = census_keyspace(&[1], "overflow", u64::MAX, 0, &[]);
+    row.puts = u64::MAX;
+    row.erases = 1;
+    row.keys = u64::MAX;
+    row.values = 1;
+    let mut doc = deployment(0, false);
+    doc.census = Some(Box::new(c::StoreCensus {
+        commit: 812,
+        since: 640,
+        keyspaces: List::from_boxed(Box::new([census_keyspace(&[], "", 0, 0, &[]), row])),
+    }));
+    let (root, _) = limits_with(doc);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        check_census_lines(
+            view.tree(),
+            &[
+                ("overflow", "18,446,744,073,709,551,615 rows · 18446744073710 MB · 18,446,744,073,709,551,615 writes"),
+                ("", "0 rows · under 0.1 MB · 0 writes"),
+            ],
+        );
+    }
 }
 fn project_read(out: &Queue<d::Request>) -> Token {
     out.iter()

@@ -14,5 +14,6 @@ mod store;
 mod target;
 
 mod fuzzy {
+    mod census;
     mod map;
 }

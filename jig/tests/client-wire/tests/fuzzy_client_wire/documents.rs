@@ -217,20 +217,41 @@ fn generated_census(rng: &mut Rng, rows: u32) -> StoreCensus {
         let head_count = if full { 8 } else { u32::try_from(rng.below(9)).expect("head bound") };
         let mut heads = skein_lib::List::with_capacity(head_count);
         for h in 0..head_count {
-            heads.push(CensusHead::new(&CEILINGS, CensusHeadParts {
-                head: if h == 0 { None } else { Some(u16::try_from(h).expect("head")) },
-                rows: rng.next_u64(),
-            }).expect("bounded head")).expect("head capacity");
+            heads
+                .push(
+                    CensusHead::new(
+                        &CEILINGS,
+                        CensusHeadParts {
+                            head: if h == 0 { None } else { Some(u16::try_from(h).expect("head")) },
+                            rows: rng.next_u64(),
+                        },
+                    )
+                    .expect("bounded head"),
+                )
+                .expect("head capacity");
         }
-        keyspaces.push(CensusKeyspace::new(&CEILINGS, CensusKeyspaceParts {
-            prefix: prefix.into_boxed_slice(), name,
-            rows: rng.next_u64(), keys: rng.next_u64(), values: rng.next_u64(), heads,
-            puts: rng.next_u64(), erases: rng.next_u64(), written: rng.next_u64(),
-        }).expect("bounded keyspace")).expect("row capacity");
+        keyspaces
+            .push(
+                CensusKeyspace::new(
+                    &CEILINGS,
+                    CensusKeyspaceParts {
+                        prefix: prefix.into_boxed_slice(),
+                        name,
+                        rows: rng.next_u64(),
+                        keys: rng.next_u64(),
+                        values: rng.next_u64(),
+                        heads,
+                        puts: rng.next_u64(),
+                        erases: rng.next_u64(),
+                        written: rng.next_u64(),
+                    },
+                )
+                .expect("bounded keyspace"),
+            )
+            .expect("row capacity");
     }
-    StoreCensus::new(&CEILINGS, StoreCensusParts {
-        commit: rng.next_u64(), since: rng.next_u64(), keyspaces,
-    }).expect("bounded report")
+    StoreCensus::new(&CEILINGS, StoreCensusParts { commit: rng.next_u64(), since: rng.next_u64(), keyspaces })
+        .expect("bounded report")
 }
 
 #[test]
