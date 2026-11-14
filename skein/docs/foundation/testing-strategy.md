@@ -54,8 +54,9 @@ failure is fixed, and a test's shape.
   kit and a service tests itself: a failure in a service's world that
   comes from skein is reproduced and fixed in skein's own tier.
 - **A test reads as what it shows.** One behaviour, the setup its
-  assertion reads, written once; its fixtures and sizes named, a bound
-  tested from both sides, a table's rows carrying data, and a recorded
+  assertion reads, written once; its fixtures and sizes named, a limit
+  that refuses tested from both sides and one an assertion guards at
+  its bound, a table's rows carrying data, and a recorded
   stream edited as records (section 10).
 
 ## 2. The tiers
@@ -573,7 +574,8 @@ nextest otherwise starts each test through a process of its own first, which
 doubles a test's start and guards only a terminal's job control, which a gate
 never uses. Cases of one behaviour that each cost little (a golden value per
 type, a refusal per limit, a check per source file) are rows of one table
-test, which checks every row and names each that fails; a group of rows takes
+test, which checks its rows in order and names the first that fails, where
+it stops, since nothing catches a panic (`programming-model.md`, 10.4); a group of rows takes
 a test of its own only to share the work across threads. A test is cheaper by
 its algorithm first: a fixture built once per test, not per case; a lookup by
 key, not a scan; the library's own searches, which run optimized in
@@ -723,8 +725,11 @@ design, a task or a review cites it, and none of them restates it.
   the number is the same in every checkout, at any depth. In temper's
   forge-setup, the owned example's minima moved with the scratch
   directory: 32 bytes in one worktree, 8 in another.
-- **A bound's two sides.** A limit is tested at the bound, which holds,
-  and one past it, which does not, each in a test or a row of its own.
+- **A bound's two sides.** A limit that refuses is tested at the bound,
+  which holds, and one past it, which is refused, each in a test or a
+  row of its own. A limit an assertion guards is tested at the bound,
+  with what was used against its price: one past it is the assertion,
+  which no test triggers (`programming-model.md`, 10.4).
 - **A recorded stream edited as records.** A test that alters a
   recorded stream (a transcript, an event log, a summary) parses it,
   changes the records it means to, and asserts how many it changed. It
