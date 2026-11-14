@@ -9,7 +9,7 @@
 //! - Ftruncate and fsync take only integer descriptors and lengths.
 //! - Statx reads a static empty path and writes one initialized local statx;
 //!   its output and pointers never outlive the call.
-//! - Renameat2, unlinkat and mkdirat borrow NUL-terminated local names during
+//! - Renameat2, linkat, unlinkat and mkdirat borrow NUL-terminated local names during
 //!   each call, with integer flags and descriptors. No pointer is retained.
 
 use super::sync;
@@ -81,6 +81,14 @@ pub(crate) fn rename(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8], no_replac
     let flags = if no_replace { libc::RENAME_NOREPLACE } else { 0 };
     // SAFETY: both names are NUL-terminated locals borrowed only by renameat2.
     status(unsafe { libc::renameat2(from_dir.raw(), from.as_ptr().cast(), to_dir.raw(), to.as_ptr().cast(), flags) })
+}
+
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
+pub(crate) fn hard_link(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8]) -> Result<(), i32> {
+    let from = sync::c_path(from);
+    let to = sync::c_path(to);
+    // SAFETY: both names are terminated locals borrowed only during linkat.
+    status(unsafe { libc::linkat(from_dir.raw(), from.as_ptr().cast(), to_dir.raw(), to.as_ptr().cast(), 0) })
 }
 
 /// An `EINTR` is returned, not retried (runtime/readiness.md, 4).

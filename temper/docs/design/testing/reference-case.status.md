@@ -46,7 +46,7 @@ merge's listing as the git layer does (`../protocol/git.status.md`).
    the live GitHub pull-read proof remains `live-tier.status.md` (Not yet).
    the live story's terminal-failure stop remains `live-tier.status.md` (Not yet).  the probe App's read-only record remains `live-tier.status.md` (Not yet).
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
-   the live held-record guard proof remains `live-tier.status.md` (Not yet).
+   the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
 - **Departs:** the whole document: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and

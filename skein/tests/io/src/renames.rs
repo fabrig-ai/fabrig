@@ -125,6 +125,7 @@ impl Owner {
                 | Event::Read { .. }
                 | Event::Cut { .. }
                 | Event::Synced { .. }
+                | Event::Linked { .. }
                 | Event::Renamed { .. }
                 | Event::Removed { .. }
                 | Event::Failed { .. }

@@ -92,7 +92,10 @@ skein-io                        files: the ring, or the simulator's disk
 - **On disk,** in the deployment's directory (`../configuration.md`,
   section 3), which nothing else writes. The two maps live in numbered
   generations; `active` names the one a start opens, and an upgrade
-  patches a copy into the next and switches to it (`opening.md`, 2). Transcripts
+  makes the next from the active one's files, linking the snapshot and
+  the log segments skein-kv writes no more and copying the rest,
+  patches it and switches to it (`opening.md`, 2). Two generations may
+  share a file under two names, which neither writes. Transcripts
   are shared by every generation:
 
 ```
@@ -596,7 +599,14 @@ Each within jig's suites' budgets.
   under a patch of another family patched past it; each
   refusal before any
   write; a second start refused `Busy` while one holds the lock; the
-  copy's secrets private; a cut at every write, sync and rename of the
+  copy's secrets private; the copy's snapshot and sealed segments
+  linked to the previous generation's, each file with two links, its
+  newest segment and its secrets copied with one, and a link the file
+  system refuses copied in its place; going back before the copy's
+  first commit of its own, after patch commits past skein-kv's snapshot
+  bound replaced the copy's linked snapshot, opening the previous
+  generation at its last commit with its records as they were; a cut
+  at every write, sync, link and rename of the
   first start, the copy, the patch commits, the manifest, the switch
   and the drop, each
   run from its own start, the referee finding one whole generation
@@ -795,13 +805,13 @@ intervals, and its indexes, by the rules of section 7.
     "Shrinking");
   - keys a patch moves (`opening.md`, 3), left to later work: a line for them
     in skein's patch text, and the key function's answer up and back;
-  - the free space checked before the copy (`opening.md`, 2);
+  - the free space checked before the copy (`opening.md`, 2), which
+    links its maps' sealed files and so needs room for its newest
+    segment, its secrets and its patch commits alone;
   - a gate holding each patch's `after` to at least the pin it lands
     on (`opening.md`, 3);
-  - a copy made by the file system (a reflink, or btrfs's snapshot:
-    skein's `runtime/io/files.md`) in place of one written file by file;
   - what a patch's working buffers pay (`opening.md`, 2): the copy reads and writes
-    a file in pieces of skein-kv's `Limits::chunk`, the row ceiling, not
+    each file it copies in pieces of skein-kv's `Limits::chunk`, the row ceiling, not
     its chunk target (skein's `data/kv.md`, 5 and 7), and the switch's digest
     check reads `active` into a buffer of the drivers' whole read, which
     that ceiling sets (`host::max_read`). So a patch pays about 60 MB on
@@ -811,7 +821,9 @@ intervals, and its indexes, by the rules of section 7.
   by the binary's core text, which every store holds until jig's first patch
   moves the core; that patch brings the kept text's decode with it.
 - **Backups:** copying the deployment's directory whole while the engine
-  is stopped works. An online backup would copy `active`, the generation
+  is stopped works; a copy that keeps hard links keeps the files two
+  generations share as one, and one that does not stores them twice and
+  restores a deployment that opens the same. An online backup would copy `active`, the generation
   it names and `transcripts/`, in that order (section 2), and rest on
   recovery's rule, and on skein-kv keeping each segment the copy has
   yet to read.

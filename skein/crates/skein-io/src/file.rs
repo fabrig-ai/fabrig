@@ -160,6 +160,14 @@ pub enum Request {
         to_root: Fd,
         to: Box<[u8]>,
     },
+    /// Gives an entry a second name: `Linked` or `Failed` (runtime/io/files.md).
+    HardLink {
+        owner: Token,
+        from_root: Fd,
+        from: Box<[u8]>,
+        to_root: Fd,
+        to: Box<[u8]>,
+    },
     /// Removes one file or empty directory by name: `Removed` or `Failed` (runtime/io/files.md).
     Remove {
         owner: Token,
@@ -297,6 +305,14 @@ impl core::fmt::Debug for Request {
                 .field("to_root", to_root)
                 .field("to", to)
                 .finish(),
+            Request::HardLink { owner, from_root, from, to_root, to } => f
+                .debug_struct("HardLink")
+                .field("owner", owner)
+                .field("from_root", from_root)
+                .field("from", from)
+                .field("to_root", to_root)
+                .field("to", to)
+                .finish(),
             Request::Remove { owner, root, name, directory } => f
                 .debug_struct("Remove")
                 .field("owner", owner)
@@ -409,6 +425,9 @@ pub enum Event {
     Closed {
         owner: Token,
     },
+    Linked {
+        owner: Token,
+    },
     Renamed {
         owner: Token,
     },
@@ -473,6 +492,7 @@ impl core::fmt::Debug for Event {
             Event::Cut { owner } => f.debug_struct("Cut").field("owner", owner).finish(),
             Event::Synced { owner } => f.debug_struct("Synced").field("owner", owner).finish(),
             Event::Closed { owner } => f.debug_struct("Closed").field("owner", owner).finish(),
+            Event::Linked { owner } => f.debug_struct("Linked").field("owner", owner).finish(),
             Event::Renamed { owner } => f.debug_struct("Renamed").field("owner", owner).finish(),
             Event::Removed { owner } => f.debug_struct("Removed").field("owner", owner).finish(),
             Event::Listed { owner, entries } => {
@@ -514,6 +534,7 @@ impl Event {
             | Event::Cut { owner }
             | Event::Synced { owner }
             | Event::Closed { owner }
+            | Event::Linked { owner }
             | Event::Renamed { owner }
             | Event::Removed { owner }
             | Event::Listed { owner, .. }

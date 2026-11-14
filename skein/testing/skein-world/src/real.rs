@@ -993,6 +993,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             | Op::Sync { .. }
             | Op::Lock { .. }
             | Op::Stat { .. }
+            | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }

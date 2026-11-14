@@ -13,7 +13,7 @@
    the live GitHub pull-read proof remains `live-tier.status.md` (Not yet).
    the live story's terminal-failure stop remains `live-tier.status.md` (Not yet).  the probe App's read-only record remains `live-tier.status.md` (Not yet).
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
-   the live held-record guard proof remains `live-tier.status.md` (Not yet).
+   the live held-record return's proof remains `live-tier.status.md` (Not yet).
   3: the shell subset;
   skein's fake machine runs no `sh` and no `rg`.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
 - **Departs:**  the retired case library remains `reference-case.status.md` (Departs, the whole document).
