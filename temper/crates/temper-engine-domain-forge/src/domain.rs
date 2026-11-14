@@ -1932,6 +1932,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::DropChange { task } => room::drop_change(d, env, task, out),
+        Event::DropErased { task } => room::drop_erased(d, task, out),
         Event::Change { row } => register_change(d, env, row, out),
         Event::Priority { task, priority } => d.priority(env, task, priority, out),
         Event::QueueRepairStarted { owner, repair } => {

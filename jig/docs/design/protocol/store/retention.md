@@ -104,8 +104,9 @@ tasks family's `Stored::Summary(Box<TaskSummary>)` at
 
 ## 4. The retention family
 
-`Retention { stage, since, number }`, stored as the tasks family's
-`Stored::Retention(Retention)` at
+`RetentionRow { stage, since, number }` (the name `Retention` is the
+retention class's), its stage a `RetentionStage`, stored as the tasks
+family's `Stored::Retention(RetentionRow)` at
 `Key::Retention { stage, since, number }`: tag 31 under the tasks
 child, census name `tasks.retention`, keyed by the stage, then `since`
 (a wall time, in nanoseconds), then the number. The value holds the key's
@@ -168,7 +169,10 @@ fields and nothing more.
 
 - **Loads** the task's ended record. With none, the row is erased alone.
 - **Deferred,** the row put again with `since` now, while:
-  - live work names the task (its stub); or
+  - live work names the task (its stub);
+  - its requester is a live task: a live task's document lists its
+    ended delegates, and a connector recovering a live task's work
+    reads its delegates' records (temper's change recovery does); or
   - its requester is a person who has not read it: its result's position
     is past the party's read results, or, for a task flagged
     conversation, its last reply is past its ended read position. This

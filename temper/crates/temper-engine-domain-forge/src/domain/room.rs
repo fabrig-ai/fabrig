@@ -85,6 +85,11 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
     if d.changes.len() != env.limits.changes {
         return;
     }
+    drop_erased(d, task, out);
+}
+
+// Task erasure needs no full table (domain/forge/change/README.md, 7).
+pub(super) fn drop_erased(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     if !d.droppable(task) && !d.droppable_last(task) {
         return;
     }
