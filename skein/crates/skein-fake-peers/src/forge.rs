@@ -273,6 +273,11 @@ impl Peer {
     pub fn observations(&self) -> &[Observation] {
         &self.observations
     }
+    /// Owned payload bytes held under the world's observation byte cap.
+    #[must_use]
+    pub fn observation_bytes(&self) -> u64 {
+        self.observed_bytes
+    }
     /// Reads a GitHub browser manifest retained by the hosted service.
     #[must_use]
     pub fn github_manifest(&self, state: &[u8]) -> Option<&skein_fake_forge_github::manifest::Manifest> {

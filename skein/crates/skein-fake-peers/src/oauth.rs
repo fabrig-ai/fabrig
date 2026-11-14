@@ -194,6 +194,11 @@ impl Peer {
     pub fn observations(&self) -> &[Observation] {
         &self.observations
     }
+    /// Owned payload bytes held under the world's observation byte cap.
+    #[must_use]
+    pub fn observation_bytes(&self) -> u64 {
+        self.observed_bytes
+    }
 
     /// Ends a peer whose clients have settled, retaining accepted work’s terminals.
     /// A caller ending it earlier names its scenario about peer hang-up.

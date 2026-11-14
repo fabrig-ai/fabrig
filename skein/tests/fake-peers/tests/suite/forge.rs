@@ -88,15 +88,6 @@ fn forge_peer_refuses_unusable_configuration_before_effects() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn owner_updates_must_preserve_representable_capacities() {
-    let mut world = World::new();
-    world.forge.borrow_mut().config.limits.files = u32::MAX;
-    let refusal = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| world.pass()));
-    skein_fake_peers_tests::assert_panic(refusal, "owner updates preserve usable limits");
-}
-
-#[test]
 fn forge_peer_publishes_its_bound_loopback_address() {
     let mut world = World::new();
     assert_eq!(world.peer.address(), None);
@@ -340,48 +331,69 @@ fn a_seed_replays_names_replies_observations_and_deliveries() {
     assert_eq!(first.frozen_trace(), second.frozen_trace());
 }
 
+// forge.md, 5: opening and close, one head and one call terminal.
+const REPOSITORY_EXCHANGE_RECORDS: u32 = 4;
+const CONNECTION_OPEN_AND_CLOSE_RECORDS: u32 = 2;
+const REPOSITORY_TARGET: &[u8] = b"/api/v1/repos/org/repo";
+
+fn repository_exchange_limits() -> Limits {
+    use skein_fake_forge_domain::api;
+    // request()'s three headers; Authorization's value is emptied in its snapshot.
+    const HEAD_BYTES: usize = REPOSITORY_TARGET.len()
+        + 3 * size_of::<skein_http::Header>()
+        + b"host127.0.0.1authorizationconnectionclose".len();
+    // The frozen Settings call owns the repository, its boxed result and default branch.
+    const CALL_BYTES: usize = fixtures::REPOSITORY.len() + size_of::<Result<api::Answer, api::Error>>() + b"main".len();
+    Limits {
+        observations: REPOSITORY_EXCHANGE_RECORDS,
+        observation_bytes: u32::try_from(HEAD_BYTES + CALL_BYTES).expect("repository exchange payload fits"),
+        ..limits()
+    }
+}
+
+fn repository_exchange(world: &mut World) -> Vec<u8> {
+    let fd = world.connect();
+    world.send(fd, &request(REPOSITORY_TARGET));
+    let response = world.response(fd);
+    world.close(fd);
+    world.settle();
+    response
+}
+
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn connection_records_fill_a_cap_that_every_kind_exceeds() {
-    const CONNECTION_OPEN_AND_CLOSE_RECORDS: u32 = 2;
-    for kept in [forge::Kept { connections: true, ..forge::Kept::NONE }, forge::Kept::EVERY] {
+fn connection_and_every_kind_records_fill_their_exact_caps() {
+    for (kept, caps, kinds) in [
+        (
+            forge::Kept { connections: true, ..forge::Kept::NONE },
+            Limits { observations: CONNECTION_OPEN_AND_CLOSE_RECORDS, observation_bytes: 0, ..limits() },
+            ["connection"].as_slice(),
+        ),
+        (forge::Kept::EVERY, repository_exchange_limits(), ["connection", "head", "call"].as_slice()),
+    ] {
         let mut world = World::new();
         world.peer = forge::Peer::new(
-            address(),
-            Limits { observations: CONNECTION_OPEN_AND_CLOSE_RECORDS, ..limits() },
-            config(),
-            protocol_limits(),
-            std::rc::Rc::clone(&world.forge),
-            SEED,
+            address(), caps, config(), protocol_limits(), std::rc::Rc::clone(&world.forge), SEED,
         )
         .unwrap()
         .keeping(kept);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let fd = world.open();
-            world.send(fd, &request(b"/api/v1/repos/org/repo"));
-            let response = world.response(fd);
-            world.close(fd);
-            world.settle();
-            response
-        }));
-        if kept == forge::Kept::EVERY {
-            skein_fake_peers_tests::assert_panic(result, "frozen record count fits");
-        } else {
-            assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert_eq!(world.peer.observations().len(), usize::try_from(CONNECTION_OPEN_AND_CLOSE_RECORDS).unwrap());
-            assert_eq!(fixtures::record_kinds(&world), ["connection"]);
-        }
+        let response = repository_exchange(&mut world);
+        assert!(response.starts_with(b"HTTP/1.1 200"));
+        assert_eq!(world.peer.observations().len(), usize::try_from(caps.observations).unwrap());
+        assert_eq!(world.peer.observation_bytes(), u64::from(caps.observation_bytes));
+        assert_eq!(fixtures::record_kinds(&world), kinds);
     }
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn without_records_serves_past_a_zero_cap() {
-    for recording in [true, false] {
+    for (recording, caps) in [
+        (true, repository_exchange_limits()),
+        (false, Limits { observations: 0, observation_bytes: 0, ..limits() }),
+    ] {
         let mut world = World::new();
         let mut peer = forge::Peer::new(
             address(),
-            Limits { observations: 0, observation_bytes: 0, ..limits() },
+            caps,
             config(),
             protocol_limits(),
             std::rc::Rc::clone(&world.forge),
@@ -392,20 +404,10 @@ fn without_records_serves_past_a_zero_cap() {
             peer = peer.without_records();
         }
         world.peer = peer;
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let fd = world.connect();
-            world.send(fd, &request(b"/api/v1/repos/org/repo"));
-            let response = world.response(fd);
-            world.close(fd);
-            response
-        }));
-        if recording {
-            skein_fake_peers_tests::assert_panic(result, "frozen record count fits");
-        } else {
-            assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert_eq!((world.peer.observations()).len(), 0);
-            world.settle();
-        }
+        let response = repository_exchange(&mut world);
+        assert!(response.starts_with(b"HTTP/1.1 200"));
+        assert_eq!(world.peer.observations().len(), usize::try_from(caps.observations).unwrap());
+        assert_eq!(world.peer.observation_bytes(), u64::from(caps.observation_bytes));
     }
 }
 
