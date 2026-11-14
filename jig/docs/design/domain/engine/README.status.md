@@ -53,7 +53,6 @@ continuation; none has a test (`temper/docs/design/draft/panics.md`,
 3.3). temper's forge link refuses as jig's do
 (`temper/docs/design/domain/root.md`, 8.1).
 
-- **Not yet:** 9: the restart oracle fails a story whose restart is refused as a stopped fixture, without naming the refusal [in flight: change 2732]
 
 `executors.md`, section 2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
