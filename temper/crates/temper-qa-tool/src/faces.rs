@@ -28,6 +28,40 @@ pub struct Entry {
     pub directory: bool,
 }
 
+/// Per-path line counts for the brief (qa/triage.md, 3); binary counts are both `None`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Changed {
+    pub path: String,
+    pub added: Option<u64>,
+    pub deleted: Option<u64>,
+}
+
+/// Parse NUL-terminated `git diff --numstat --no-renames -z` records.
+pub fn parse_numstat(text: &str) -> Result<Vec<Changed>, Refusal> {
+    if text.is_empty() {
+        return Ok(Vec::new());
+    }
+    let records = text.strip_suffix('\0').ok_or_else(|| refused("git numstat: unterminated record"))?;
+    records
+        .split('\0')
+        .map(|record| {
+            let mut fields = record.splitn(3, '\t');
+            let added = fields.next().ok_or_else(|| refused("git numstat: no added count"))?;
+            let deleted = fields.next().ok_or_else(|| refused("git numstat: no deleted count"))?;
+            let path = fields.next().filter(|path| !path.is_empty()).ok_or_else(|| refused("git numstat: no path"))?;
+            let (added, deleted) = if added == "-" && deleted == "-" {
+                (None, None)
+            } else {
+                (
+                    Some(added.parse().map_err(|why| refused(format!("git numstat: {why}")))?),
+                    Some(deleted.parse().map_err(|why| refused(format!("git numstat: {why}")))?),
+                )
+            };
+            Ok(Changed { path: path.into(), added, deleted })
+        })
+        .collect()
+}
+
 pub trait GitFace {
     fn fetch(&mut self, remote: &str, branch: &str) -> Result<(), Refusal>;
     fn head(&mut self, reference: &str) -> Result<String, Refusal>;
@@ -38,7 +72,7 @@ pub trait GitFace {
     fn entries(&mut self, commit: &str, directory: &str) -> Result<Vec<Entry>, Refusal>;
     fn file(&mut self, commit: &str, path: &str) -> Result<Option<Vec<u8>>, Refusal>;
     fn diff(&mut self, parent: &str, commit: &str) -> Result<Vec<u8>, Refusal>;
-    fn stat(&mut self, parent: &str, commit: &str) -> Result<String, Refusal>;
+    fn stat(&mut self, parent: &str, commit: &str) -> Result<Vec<Changed>, Refusal>;
     fn changed_paths(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
     fn qa_trailers(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal>;
     fn add_tree(&mut self, path: &Path, commit: &str) -> Result<(), Refusal>;
@@ -163,8 +197,8 @@ impl GitFace for RealGit {
     fn diff(&mut self, parent: &str, commit: &str) -> Result<Vec<u8>, Refusal> {
         self.bytes(&["diff", parent, commit, "--"])
     }
-    fn stat(&mut self, parent: &str, commit: &str) -> Result<String, Refusal> {
-        self.text(&["diff", "--stat", parent, commit, "--"])
+    fn stat(&mut self, parent: &str, commit: &str) -> Result<Vec<Changed>, Refusal> {
+        parse_numstat(&self.text(&["diff", "--numstat", "--no-renames", "-z", parent, commit, "--"])?)
     }
     fn changed_paths(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
         Ok(self
