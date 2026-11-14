@@ -23,7 +23,6 @@ jig/crates/jig-domain-core/src/tests/acts/proposals.rs should_panic 1
 jig/crates/jig-domain-core/src/tests/admission/named_people.rs catch_unwind 1
 jig/crates/jig-domain-core/src/tests/documents/chip_phase.rs catch_unwind 1
 jig/crates/jig-domain-core/src/tests/jobs.rs should_panic 4
-jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs catch_unwind 1
 jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs should_panic 1
 jig/crates/jig-domain-core/src/tests/settings/templates.rs should_panic 1
 jig/crates/jig-domain-core/src/tests/start.rs should_panic 4
