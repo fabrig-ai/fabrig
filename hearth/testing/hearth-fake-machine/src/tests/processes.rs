@@ -1,7 +1,7 @@
 use super::fixtures::{self, BUILDER};
 use crate::{
     hearth::Tool,
-    linux::{At, Counts, Exit, How, Item, Op, Pipe, Refusal, Reply, Signal, Spawn, Target, Way},
+    linux::{Counts, Exit, How, Item, Op, Pipe, Refusal, Reply, Signal, Spawn, Target, Way},
 };
 
 const UNCLAIMED: [Exit; 1] = [Exit::Code(127)];
@@ -163,12 +163,12 @@ fn an_exit_releases_the_process_s_lock() {
     assert_eq!(fixtures::done(machine.linux_mut(), second, Op::Lock { file: b }), RELEASED[0]);
 }
 #[test]
-#[should_panic(expected = "a process it started")]
-fn a_call_from_an_exited_process_asserts() {
+fn an_exited_process_returns_a_finding() {
     let mut machine = fixtures::whole();
     let parent = fixtures::builder(&mut machine);
+    assert_eq!(machine.linux().check_process(parent), Ok(()));
     machine.call(parent, Op::Exit { exit: Exit::Code(0) }).unwrap();
-    machine.call(parent, Op::Open { at: At::Root, path: b"/srv".as_slice().into(), how: How::Directory }).unwrap();
+    assert_eq!(machine.linux().check_process(parent), Err("a process it started, still running".into()));
 }
 const SIGNALED: [Exit; 1] = [Exit::Signal(15)];
 #[test]
