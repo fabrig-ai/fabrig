@@ -139,6 +139,11 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
 }
 
 #[test]
+fn turn_configuration_declares_the_prepare_job() {
+    support::turn_restart::tests::turn_configuration_declares_the_prepare_job();
+}
+
+#[test]
 fn turn_restart_keeps_the_moved_main_witness_on_retry() {
     support::turn_restart::tests::keeps_the_moved_main_witness_on_retry();
 }
