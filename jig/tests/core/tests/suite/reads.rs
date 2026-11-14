@@ -635,7 +635,7 @@ fn a_subtree_history_reads_each_delegates_rows_found_by_index() {
     let rows = subtree_history(&mut world, goal);
     assert!(rows.iter().any(|row| row.1 == goal));
     assert!(rows.iter().any(|row| row.1 == delegate));
-    assert_eq!(&rows[..2], &[(0, goal, 1), (1, goal, 1)]);
+    assert_eq!(&rows[..2], &[(0, goal, 1), (1, goal, 2)]);
     let mut members: Vec<_> = rows.iter().map(|row| row.1).collect();
     members.dedup();
     assert_eq!(members, [goal, delegate]);
