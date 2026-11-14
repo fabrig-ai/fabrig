@@ -28,7 +28,7 @@ fn scripted(story: &Story, agents: bool) -> Run {
         run.answer(),
         String::from_utf8_lossy(&run.errors)
     );
-    events::check_program(&run.events, &run.received);
+    events::check_program(&run.events, &run.received).expect("conforming program events");
     run
 }
 
@@ -155,7 +155,7 @@ fn a_program_deadline_keeps_unknown_transport_measures() {
         &program(b"source"),
         None,
     );
-    events::check_program(&run.events, &run.received);
+    events::check_program(&run.events, &run.received).expect("conforming program events");
     assert!(run.events.iter().any(|record| matches!(&record.event, Event::ResponseCompleted(response) if response.outcome == Outcome::Failed && response.request_bytes.is_none() && response.first_byte_ms.is_none() && response.largest_gap_ms.is_none())));
 }
 
@@ -215,7 +215,6 @@ fn a_slow_init_precedes_the_response_start() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn the_program_referee_checks_sent_message_order() {
     let run = scripted(
         &Story {
@@ -227,9 +226,12 @@ fn the_program_referee_checks_sent_message_order() {
     assert!(run.received.len() >= 2, "initial user text and a later continuation");
     let mut changed = run.received.clone();
     changed[0]["message"]["content"] = json!("different input");
-    assert!(std::panic::catch_unwind(|| events::check_program(&run.events, &changed)).is_err());
+    let finding = events::check_program(&run.events, &changed).expect_err("changed message differs");
+    assert!(finding.contains("message 0"), "{finding}");
     let mut reordered = run.received.clone();
     reordered.swap(0, 1);
-    assert!(std::panic::catch_unwind(|| events::check_program(&run.events, &reordered)).is_err());
-    assert!(std::panic::catch_unwind(|| events::check_program(&run.events, &run.received[1..])).is_err());
+    let finding = events::check_program(&run.events, &reordered).expect_err("swapped messages differ");
+    assert!(finding.contains("message 0"), "{finding}");
+    let finding = events::check_program(&run.events, &run.received[1..]).expect_err("omitted message differs");
+    assert!(finding.contains("message 0"), "{finding}");
 }

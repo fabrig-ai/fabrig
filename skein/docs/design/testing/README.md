@@ -253,13 +253,13 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   - `Referee::watch(&mut self, now: Time, procs: &[P]) -> Result<(), String>`
     watches every process after one iterated, and returns a broken safety
     expectation's finding. The simulated world's turns and the real loop
-    call it where they called `observe`, and fail with its `Err` at once,
-    observing nothing after it. `Referee::observe(&mut self, now, procs)`,
-    which panics on what it finds, stays for the referees outside skein
-    that aren't converted yet: it has an empty default, and `watch`'s
-    default calls it and returns `Ok(())`. A referee implements one of
-    the two, and none of skein's implements `observe`. Once no referee
-    does, `observe` goes and `watch` loses its default.
+    call it after each process iterated, and once in a pass where none
+    did, so at least once after each `act`, and fail with its `Err` at
+    once, observing nothing after it. Every referee implements it: it has
+    no default, and the trait has no `observe`. A referee panics in none
+    of its methods. What its `act`, `idle` or `passed` finds, it keeps:
+    `passed` answers `false` while it keeps one, and its next `watch`
+    returns it. A referee that has nothing to watch returns `Ok(())`.
   - `Expectations::check(&mut self, now: Time, procs: &[P]) -> Result<(), String>`
     sets each met expectation aside and returns the first broken one's
     finding, `seed <seed>: at <ns> ns, <expectation> broke: <why>`.

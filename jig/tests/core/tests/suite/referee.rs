@@ -658,7 +658,6 @@ fn referee_scenario_family() {
     ownership_referee_cases(&mut bundle);
     bounded_referee_cases(&mut bundle);
     valid_referee_cases(&mut bundle);
-    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
 #[test]

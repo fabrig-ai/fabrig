@@ -31,11 +31,11 @@ pub(crate) fn turn() -> skein_fake_llm_domain::api::Turn {
     }
 }
 impl Input {
-    pub(crate) fn act(&mut self, procs: &mut [Proc], store: &crate::world::Store) {
+    pub(crate) fn act(&mut self, procs: &mut [Proc], store: &crate::world::Store) -> Result<(), String> {
         let client = procs
             .iter()
             .find_map(|proc| if let Proc::Client(client) = proc { Some(client) } else { None })
-            .expect("native watcher");
+            .ok_or("native watcher")?;
         let state = client.received.iter().rev().find_map(|received| {
             if let Received::Delivery(c::Delivery::RunState(state)) = received {
                 if state.task == 1 { Some(state) } else { None }
@@ -47,28 +47,71 @@ impl Input {
             self.opened = true;
             for proc in procs {
                 if let Proc::Peer(peer) = proc {
-                    peer.release(HOLD).expect("input hold");
+                    peer.release(HOLD).map_err(|why| format!("input hold: {why:?}"))?;
                 }
             }
-            return;
+            return Ok(());
         }
         if !self.seen {
             if let Some(text) = client.text(RUN)
                 && let Some(writing) = &text.writing
             {
-                assert_eq!(writing.tool.bytes(), b"finish");
-                assert_ne!(writing.id.bytes().len(), 0);
-                assert_eq!(writing.input.bytes(), arguments().as_ref());
-                assert_eq!((writing.from, writing.through, writing.cut), (0, 76, false));
-                assert!(text.call.is_none());
-                assert_eq!(state.expect("opened run").committed_turn, 0);
-                assert!(crate::world::turns(store).is_empty(), "input is visible before its durable turn");
+                {
+                    let (observed_value, wanted) = (&(writing.tool.bytes()), &(b"finish"));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                {
+                    let (observed_value, wanted) = (&(writing.id.bytes().len()), &(0));
+                    if observed_value == wanted {
+                        return Err(format!(
+                            "assertion `left != right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                let expected_input = arguments();
+                {
+                    let (observed_value, wanted) = (&(writing.input.bytes()), &(expected_input.as_ref()));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                {
+                    let (observed_value, wanted) = (&(writing.from, writing.through, writing.cut), &(0, 76, false));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                if text.call.is_some() {
+                    return Err(String::from("assertion failed: text.call.is_none()"));
+                }
+                {
+                    let (observed_value, wanted) = (&(state.ok_or("opened run")?.committed_turn), &(0));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                if !crate::world::turns(store).is_empty() {
+                    return Err(String::from("input is visible before its durable turn"));
+                }
                 self.seen = true;
             }
         } else if state.is_some_and(|state| state.committed_turn >= 1) {
-            assert!(client.text(RUN).is_none(), "commit clears provisional input");
+            if client.text(RUN).is_some() {
+                return Err(String::from("commit clears provisional input"));
+            }
             self.committed = true;
         }
+        Ok(())
     }
     pub(crate) fn watch(procs: &mut [Proc]) {
         for proc in procs {

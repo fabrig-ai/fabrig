@@ -120,7 +120,7 @@ pub trait Application {
     /// Reconnect retained peers and observe the last durable store on a crash.
     /// This clears outside correlation only; `start` chooses the application's
     /// cold-load vocabulary after the harness rebuilds its domain.
-    fn cold(peers: &mut Self::Peers, store: &Self::Store, clock: Clock);
+    fn cold(peers: &mut Self::Peers, store: &Self::Store, clock: Clock) -> Result<(), Violation>;
     /// Translate the application’s fleet, task and connector timers.
     fn timers(config: &Self::Config) -> Vec<Self::Event>;
     /// Feed one event or store row to the concrete engine.
@@ -132,7 +132,12 @@ pub trait Application {
         clock: Clock,
     ) -> Vec<Output<<Self::Store as Durable>::Write, Self::Delivery>>;
     /// Record a peer’s request before the root receives it.
-    fn inbound(peers: &mut Self::Peers, store: &Self::Store, clock: Clock, input: &mut Self::Event);
+    fn inbound(
+        peers: &mut Self::Peers,
+        store: &Self::Store,
+        clock: Clock,
+        input: &mut Self::Event,
+    ) -> Result<(), Violation>;
     /// Translate a released output to the peer that owns it.
     fn deliver(
         peers: &mut Self::Peers,
@@ -140,7 +145,7 @@ pub trait Application {
         store: &mut Self::Store,
         clock: Clock,
         delivery: Self::Delivery,
-    ) -> Vec<Input<Self::Event>>;
+    ) -> Result<Vec<Input<Self::Event>>, Violation>;
     /// Advance fakes and return their independently produced events.
     fn poll(
         peers: &mut Self::Peers,
@@ -148,11 +153,18 @@ pub trait Application {
         store: &mut Self::Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<Self::Event>>;
+    ) -> Result<Vec<Input<Self::Event>>, Violation>;
     /// Observe the concrete transaction the store has just received.
-    fn submitted(_peers: &mut Self::Peers, _store: &Self::Store, _clock: Clock) {}
+    fn submitted(_peers: &mut Self::Peers, _store: &Self::Store, _clock: Clock) -> Result<(), Violation> {
+        Ok(())
+    }
     /// Map new system, host and durable-store evidence in arrival order.
-    fn observed(peers: &mut Self::Peers, systems: &Self::Systems, store: &Self::Store, clock: Clock) -> Vec<Observed>;
+    fn observed(
+        peers: &mut Self::Peers,
+        systems: &Self::Systems,
+        store: &Self::Store,
+        clock: Clock,
+    ) -> Result<Vec<Observed>, Violation>;
     /// Report whether the root’s cold start has opened admission.
     fn ready(domain: &Self::Domain) -> bool;
     /// Report whether the root has immediate work remaining.
@@ -304,7 +316,7 @@ impl<A: Application> Harness<A> {
         self.store.crash(self.seed);
         self.events.clear();
         self.outputs.clear();
-        A::cold(&mut self.peers, &self.store, self.clock);
+        A::cold(&mut self.peers, &self.store, self.clock)?;
         self.inspect()?;
         self.domain = A::build(&self.config);
         self.events.extend(A::start(&self.config, &mut self.store).into_iter().map(Input::Event));
@@ -338,7 +350,7 @@ impl<A: Application> Harness<A> {
         self.referee.observe(self.clock.now, Observed::Tick)?;
         if let Some(mut input) = self.events.pop_front() {
             if let Input::Event(event) = &mut input {
-                A::inbound(&mut self.peers, &self.store, self.clock, event);
+                A::inbound(&mut self.peers, &self.store, self.clock, event)?;
             }
             self.inspect()?;
             self.trace.log(format_args!("input {input:?}"));
@@ -351,7 +363,7 @@ impl<A: Application> Harness<A> {
             match output {
                 Output::Commit { number, writes } => {
                     self.store.submit(number, writes, 0);
-                    A::submitted(&mut self.peers, &self.store, self.clock);
+                    A::submitted(&mut self.peers, &self.store, self.clock)?;
                 }
                 Output::Deliver(delivery) => {
                     self.events.extend(A::deliver(
@@ -360,7 +372,7 @@ impl<A: Application> Harness<A> {
                         &mut self.store,
                         self.clock,
                         delivery,
-                    ));
+                    )?);
                     self.inspect()?;
                 }
                 Output::Stop => self.stopped = true,
@@ -403,7 +415,7 @@ impl<A: Application> Harness<A> {
                 &mut self.store,
                 self.clock,
                 A::ready(&self.domain),
-            ));
+            )?);
             self.inspect()?;
         }
         A::reclaim(&mut self.domain);
@@ -443,7 +455,7 @@ impl<A: Application> Harness<A> {
         referee: &mut Referee,
         clock: Clock,
     ) -> Result<(), Violation> {
-        let observations = A::observed(peers, systems, store, clock);
+        let observations = A::observed(peers, systems, store, clock)?;
         // Refresh the independent snapshot before this inspection's observations.
         if let Some(policy) = A::policy_snapshot(peers) {
             referee.policy.clone_from(policy);
@@ -472,17 +484,10 @@ impl<A: Application> Harness<A> {
     /// # Errors
     /// Returns the same broken promise or exhausted bound as a fresh drain.
     pub fn drain_from(&mut self, started: u64) -> Result<Outcome, Violation> {
+        eprintln!("application seed {}", self.seed);
         let spent = self.iterations.checked_sub(started).expect("drain starts before its snapshot");
         let remaining = self.referee.policy.story_steps.saturating_sub(spent);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.drain_iterations(remaining)))
-            .unwrap_or_else(|cause| {
-                let detail = cause
-                    .downcast_ref::<String>()
-                    .map(String::as_str)
-                    .or_else(|| cause.downcast_ref::<&str>().copied())
-                    .unwrap_or("non-string panic");
-                panic!("application seed {}: {detail}\n{}", self.seed, self.trace.join("\n"));
-            });
+        let result = self.drain_iterations(remaining);
         result.map_err(|violation| self.diagnostic(violation))
     }
 
@@ -568,7 +573,7 @@ where
         snapshot.crashes.push(snapshot.store.applied());
         snapshot.referee.observe(snapshot.clock.now, Observed::Restart)?;
         snapshot.store.crash(snapshot.seed);
-        A::cold(&mut snapshot.peers, &snapshot.store, snapshot.clock);
+        A::cold(&mut snapshot.peers, &snapshot.store, snapshot.clock)?;
         Self::inspect_outside(
             &mut snapshot.peers,
             &snapshot.systems,

@@ -371,9 +371,12 @@ impl Expectation<Application> for Terminal {
 }
 
 impl Referee<Application> for Expectations<Application, Terminal> {
-    fn observe(&mut self, now: Time, procs: &[Application]) {
-        assert!(procs[0].terminals.len() <= procs[0].expected, "one terminal per act throughout settlement");
-        Expectations::observe(self, now, procs);
+    fn watch(&mut self, now: Time, procs: &[Application]) -> Result<(), String> {
+        let application = procs.first().ok_or("machine")?;
+        if application.terminals.len() > application.expected {
+            return Err("one terminal per act throughout settlement".into());
+        }
+        self.check(now, procs)
     }
     fn next_deadline(&self) -> Option<Time> {
         Expectations::next_deadline(self)

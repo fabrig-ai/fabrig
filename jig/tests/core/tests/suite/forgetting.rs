@@ -249,7 +249,6 @@ fn a_seen_mark_and_its_waiter_wait_for_the_atomic_forgetting_commit() {
 }
 
 #[test]
-#[should_panic(expected = "Seen reply preceded its durable position/forget commit")]
 fn the_seen_observer_rejects_a_reply_before_the_position_commit() {
     let mut world = forgettable_world(843);
     let (task, _) = finish(&mut world);
@@ -262,11 +261,13 @@ fn the_seen_observer_rejects_a_reply_before_the_position_commit() {
         to: skein_lib::ReplyTo::new(skein_lib::Token::new(REQUEST_BASE + u64::from(MARK_TURNS))),
         reply: people::Reply::Outcome(people::Outcome::MarkedSeen { seen }),
     });
-    world.observer.delivered(0, &mut premature);
+    assert_eq!(
+        world.observer.delivered(0, &mut premature).expect_err("position is not durable"),
+        "Seen reply preceded its durable position/forget commit"
+    );
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_seen_reply_can_precede_a_later_marks_commit_for_the_same_position() {
     for conversation in [false, true] {
         let mut world = world(844);
@@ -301,14 +302,9 @@ fn a_seen_reply_can_precede_a_later_marks_commit_for_the_same_position() {
             to: skein_lib::ReplyTo::new(skein_lib::Token::new(REQUEST_BASE + u64::from(MARK_RESULTS))),
             reply: people::Reply::Outcome(people::Outcome::MarkedSeen { seen: second }),
         });
-        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            observer.delivered(0, &mut premature);
-        }))
-        .expect_err("the later reply must still require its own commit");
-        assert_eq!(
-            failure.downcast_ref::<&str>().copied(),
-            Some("Seen reply preceded its durable position/forget commit")
-        );
+        let failure =
+            observer.delivered(0, &mut premature).expect_err("the later reply must still require its own commit");
+        assert_eq!(failure, "Seen reply preceded its durable position/forget commit");
 
         let acknowledged = world.store.release_held().expect("first mark acknowledgement");
         assert_eq!(acknowledged, number);
@@ -332,7 +328,6 @@ fn a_seen_reply_can_precede_a_later_marks_commit_for_the_same_position() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_unchanged_ended_seen_mark_still_requires_its_own_position_commit() {
     for through in [0, 1] {
         let mut world = world(845);
@@ -359,14 +354,9 @@ fn an_unchanged_ended_seen_mark_still_requires_its_own_position_commit() {
             to: skein_lib::ReplyTo::new(skein_lib::Token::new(REQUEST_BASE + u64::from(MARK_RESULTS))),
             reply: people::Reply::Outcome(people::Outcome::MarkedSeen { seen }),
         });
-        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            observer.delivered(0, &mut premature);
-        }))
-        .expect_err("even a lower/equal ended mark rewrites the position");
-        assert_eq!(
-            failure.downcast_ref::<&str>().copied(),
-            Some("Seen reply preceded its durable position/forget commit")
-        );
+        let failure =
+            observer.delivered(0, &mut premature).expect_err("even a lower/equal ended mark rewrites the position");
+        assert_eq!(failure, "Seen reply preceded its durable position/forget commit");
         world.drain();
         assert_eq!(&world.people_answers[replies..], &[people::Reply::Outcome(people::Outcome::MarkedSeen { seen })]);
     }

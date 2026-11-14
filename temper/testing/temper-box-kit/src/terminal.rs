@@ -255,57 +255,74 @@ impl Delegate for Process {
     }
 }
 struct Judge {
+    failed: Option<String>,
     stopped: bool,
     deadline: super::patience::Patience,
     settled: bool,
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        if !self.stopped && procs[2].is_empty() && procs[3].is_empty() {
-            let Process::Binary(serve) = &mut procs[0] else { panic!("service binary") };
-            serve.signal(Signal::Terminate);
-            self.stopped = true;
+        if self.failed.is_some() {
+            return;
+        }
+        let result = (|| -> Result<(), String> {
+            if !self.stopped && procs[2].is_empty() && procs[3].is_empty() {
+                let Some(Process::Binary(serve)) = procs.first_mut() else {
+                    return Err(String::from("service binary"));
+                };
+                serve.signal(Signal::Terminate);
+                self.stopped = true;
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         self.settled = self.stopped && procs.iter().all(Host::is_empty);
-        let Process::Binary(serve) = &procs[0] else { panic!("service binary") };
-        assert!(
-            self.stopped || serve.exit_status().is_none(),
-            "service ended before the terminal: {}",
-            String::from_utf8_lossy(serve.stderr())
-        );
-        let Process::Binary(open) = &procs[2] else { panic!("terminal binary") };
-        let Process::Pipes(typist) = &procs[3] else { panic!("typist") };
-        assert!(
-            open.exit_status().is_none() || typist.actions.is_empty(),
-            "terminal exited before the script; stderr: {}",
-            String::from_utf8_lossy(open.stderr())
-        );
+        let Some(Process::Binary(serve)) = procs.first() else { return Err(String::from("service binary")) };
+        if !self.stopped && serve.exit_status().is_some() {
+            return Err(format!("service ended before the terminal: {}", String::from_utf8_lossy(serve.stderr())));
+        }
+        let Some(Process::Binary(open)) = procs.get(2) else { return Err(String::from("terminal binary")) };
+        let Some(Process::Pipes(typist)) = procs.get(3) else { return Err(String::from("typist")) };
+        if open.exit_status().is_some() && !typist.actions.is_empty() {
+            return Err(format!(
+                "terminal exited before the script; stderr: {}",
+                String::from_utf8_lossy(open.stderr())
+            ));
+        }
         for binary in [serve, open] {
-            if let Some(exit) = binary.exit_status() {
-                assert_eq!(
-                    exit,
-                    Exit::Code(0),
-                    "terminal story child failed: {}",
-                    String::from_utf8_lossy(binary.stderr())
-                );
+            if let Some(exit) = binary.exit_status()
+                && exit != Exit::Code(0)
+            {
+                return Err(format!("terminal story child failed: {}", String::from_utf8_lossy(binary.stderr())));
             }
         }
         if !self.settled
             && let Some(figures) = self.deadline.failed()
         {
-            panic!(
+            return Err(format!(
                 "terminal deadline; stdout: {}; stderr: {}; {figures}",
                 String::from_utf8_lossy(&typist.bytes),
                 String::from_utf8_lossy(open.stderr())
-            );
+            ));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.deadline.until() }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -344,6 +361,7 @@ impl Typist {
         let serve = self.serve.take().expect("service binary");
         let mut open = self.open.take().expect("terminal binary");
         let mut world = real::World::new(Judge {
+            failed: None,
             stopped: false,
             settled: false,
             deadline: super::patience::Patience::watching("the terminal and service draining", within, &open),

@@ -22,49 +22,69 @@ enum Page {
     Done,
 }
 struct Judge {
+    failed: Option<String>,
     page: Page,
     until: Time,
 }
 impl Referee<NativeClient> for Judge {
     fn act(&mut self, now: Time, clients: &mut [NativeClient]) {
-        let client = &mut clients[0];
-        match self.page {
-            Page::Starting if client.started() && named(client, Role::Status, b"Owner").is_some() => {
-                client.go(Address::Welcome { step: Step::Ready });
-                self.page = Page::Ready;
-            }
-            Page::Ready => {
-                let model = client.tree().nodes().iter().any(|node| {
-                    node.role == Role::Paragraph
-                        && node.name.as_deref().is_some_and(|name| name.starts_with(b"ChatGPT plan"))
-                });
-                let create = named(client, Role::Button, b"Create your project")
-                    .is_some_and(|node| !node.states.as_slice().contains(&State::Disabled));
-                if model && create {
-                    client.close();
-                    self.page = Page::Done;
-                }
-            }
-            Page::Starting | Page::Done => {}
+        if self.failed.is_some() {
+            return;
         }
-        assert!(
-            matches!(self.page, Page::Done) || now < self.until,
-            "Ready missing ChatGPT plan and enabled Create your project at {:?}; tree names: {:?}",
-            self.page,
-            client
-                .tree()
-                .nodes()
-                .iter()
-                .filter_map(|node| node.name.as_deref())
-                .map(String::from_utf8_lossy)
-                .collect::<Vec<_>>()
-        );
+        let result = (|| -> Result<(), String> {
+            let client = clients.first_mut().ok_or(String::from("native client"))?;
+            match self.page {
+                Page::Starting if client.started() && named(client, Role::Status, b"Owner").is_some() => {
+                    client.go(Address::Welcome { step: Step::Ready });
+                    self.page = Page::Ready;
+                }
+                Page::Ready => {
+                    let model = client.tree().nodes().iter().any(|node| {
+                        node.role == Role::Paragraph
+                            && node.name.as_deref().is_some_and(|name| name.starts_with(b"ChatGPT plan"))
+                    });
+                    let create = named(client, Role::Button, b"Create your project")
+                        .is_some_and(|node| !node.states.as_slice().contains(&State::Disabled));
+                    if model && create {
+                        client.close();
+                        self.page = Page::Done;
+                    }
+                }
+                Page::Starting | Page::Done => {}
+            }
+            if !matches!(self.page, Page::Done) && now >= self.until {
+                return Err(format!(
+                    "Ready missing ChatGPT plan and enabled Create your project at {:?}; tree names: {:?}",
+                    self.page,
+                    client
+                        .tree()
+                        .nodes()
+                        .iter()
+                        .filter_map(|node| node.name.as_deref())
+                        .map(String::from_utf8_lossy)
+                        .collect::<Vec<_>>()
+                ));
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
+        }
     }
-    fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {}
+    fn watch(&mut self, _now: Time, _clients: &[NativeClient]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         (!matches!(self.page, Page::Done)).then_some(self.until)
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         matches!(self.page, Page::Done)
     }
 }
@@ -81,7 +101,8 @@ fn ready_can_create(config: &Path, client: &Path) {
         .expect("socket");
     let root = skein_shell::open_root(client).expect("signed-in client's parent root");
     let clock = Clock::new();
-    let mut world = real::World::new(Judge { page: Page::Starting, until: clock.now().now.saturating_add(WITHIN) });
+    let mut world =
+        real::World::new(Judge { failed: None, page: Page::Starting, until: clock.now().now.saturating_add(WITHIN) });
     world.spawn_with_fds(vec![root], || {
         NativeClient::new(
             Settings {
@@ -158,41 +179,64 @@ enum Departure {
     Done,
 }
 struct Depart<'a> {
+    failed: Option<String>,
     page: Departure,
     until: Time,
     address: &'a std::cell::Cell<Option<Box<[u8]>>>,
 }
 impl Referee<NativeClient> for Depart<'_> {
     fn act(&mut self, now: Time, clients: &mut [NativeClient]) {
-        let client = &mut clients[0];
-        match self.page {
-            Departure::Starting if client.started() && named(client, Role::Status, b"Owner").is_some() => {
-                client.go(Address::Welcome { step: Step::Model { way: None } });
-                self.page = Departure::Model;
+        if self.failed.is_some() {
+            return;
+        }
+        let result = (|| -> Result<(), String> {
+            let client = clients.first_mut().ok_or(String::from("native client"))?;
+            match self.page {
+                Departure::Starting if client.started() && named(client, Role::Status, b"Owner").is_some() => {
+                    client.go(Address::Welcome { step: Step::Model { way: None } });
+                    self.page = Departure::Model;
+                }
+                Departure::Model => {
+                    if let Some(button) = named(client, Role::Button, b"Continue with ChatGPT") {
+                        let id = button.id;
+                        if !client.act(id, skein_ui::Act::Press) {
+                            return Err(String::from("Continue with ChatGPT accepts its press"));
+                        }
+                        self.page = Departure::Signing;
+                    }
+                }
+                Departure::Starting | Departure::Signing | Departure::Done => {}
             }
-            Departure::Model => {
-                if let Some(button) = named(client, Role::Button, b"Continue with ChatGPT") {
-                    let id = button.id;
-                    assert!(client.act(id, skein_ui::Act::Press), "Continue with ChatGPT accepts its press");
-                    self.page = Departure::Signing;
+            while let Some(notice) = client.notices() {
+                if let temper_client_shell_terminal::client::Shown::Notice(
+                    temper_client_shell_terminal::route::Notice::Leave { to },
+                ) = notice
+                {
+                    self.address.set(Some(to));
+                    client.close();
+                    self.page = Departure::Done;
                 }
             }
-            Departure::Starting | Departure::Signing | Departure::Done => {}
-        }
-        while let Some(notice) = client.notices() {
-            if let temper_client_shell_terminal::client::Shown::Notice(
-                temper_client_shell_terminal::route::Notice::Leave { to },
-            ) = notice
-            {
-                self.address.set(Some(to));
-                client.close();
-                self.page = Departure::Done;
+            if !matches!(self.page, Departure::Done) && now >= self.until {
+                return Err(format!("browser sign-in stalled at {:?}", self.page));
             }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
-        assert!(matches!(self.page, Departure::Done) || now < self.until, "browser sign-in stalled at {:?}", self.page);
     }
-    fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {}
+    fn watch(&mut self, _now: Time, _clients: &[NativeClient]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        Ok(())
+    }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         matches!(self.page, Departure::Done)
     }
     fn next_deadline(&self) -> Option<Time> {
@@ -213,6 +257,7 @@ fn browser_sign_in(config: &Path, client: &Path) {
     let clock = Clock::new();
     let address = std::cell::Cell::new(None);
     let mut world = real::World::new(Depart {
+        failed: None,
         page: Departure::Starting,
         until: clock.now().now.saturating_add(WITHIN),
         address: &address,

@@ -132,6 +132,7 @@ pub struct Run {
     pub login_states: Vec<wire::LoginState>,
 }
 struct Judge {
+    finding: Option<String>,
     shared: Rc<RefCell<Run>>,
     store: Store,
     rules: Rules,
@@ -147,106 +148,36 @@ struct Judge {
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        let story = if self.case == Case::Key { Story::Key { replaced: false } } else { Story::Chat };
-        self.accounts.act(procs, story, self.done);
-        if !self.done {
-            self.accounts.party(now, procs, &mut self.party, &mut self.views, Story::Chat);
-        }
-        for proc in procs.iter_mut() {
-            if let Proc::Engine(host) = proc {
-                world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now);
-                let engine = host.service.engine().expect("engine");
-                world::answer_parties(engine, &mut self.party, &mut self.views);
-                if !self.period && self.party.sign_in.is_some() {
-                    engine.parties_in().push(core::Event::Period { project: 1, period: 1, budget: 100, next: None });
-                    self.period = true;
-                }
-            }
-        }
-        if self.case == Case::Key && !self.sent && waiting(procs) {
-            self.party.extend(Box::new([jig_fake_parties::Act::Request {
-                key: [2; 16],
-                ask: jig_fake_parties::Ask::Say {
-                    task: jig_fake_parties::Task::Last,
-                    words: b"The tool ran".as_slice().into(),
-                    release: None,
-                },
-            }]));
-            self.sent = true;
-        }
-        let parked = self.store.rows.values().any(|row| {
-            matches!(row,
-            jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer)))
-            if answer.end == jig_domain_tasks::End::Parked)
-        });
-        self.cross(procs, parked);
-        let mut run = self.shared.borrow_mut();
-        run.turns = world::turns(&self.store).into_iter().cloned().collect();
-        run.terminals = self
-            .store
-            .rows
-            .values()
-            .filter_map(|row| {
-                if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) = row {
-                    Some(answer.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-        self.done = run.terminals.iter().any(|answer| answer.end != jig_domain_tasks::End::Parked);
-        run.sources =
-            self.store
-                .rows
-                .values()
-                .filter_map(|row| {
-                    if let jig_test_domain::Record::Core(core::Record::Accounts(
-                        jig_domain_accounts::Stored::Source { account, number, place, kind, .. },
-                    )) = row
-                    {
-                        Some((*account, *number, *place, *kind))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-        run.login_states = logins(procs).into_iter().map(|(_, state)| state).collect();
-        run.assignments = assignments(world::worker_wire(procs));
-        run.diagnostics = world::diagnostics(procs);
-        if self.done {
-            for proc in procs {
-                match proc {
-                    Proc::Engine(host) | Proc::Worker(host) if !host.stopping => {
-                        host.stopping = true;
-                        host.service.shutdown();
-                    }
-                    Proc::Peer(peer) => peer.shutdown(),
-                    _ => {}
-                }
-            }
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
     }
-    fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn overdue(&self, now: Time) -> Option<String> {
         (now > Time::ZERO.saturating_add(Duration::from_secs(45)))
             .then(|| format!("both ways settles: {:?}", self.shared.borrow()))
     }
     fn passed(&self) -> bool {
-        self.done
+        self.finding.is_none() && self.done
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::LastExpectation
     }
 }
 impl Judge {
-    fn cross(&mut self, procs: &mut [Proc], parked: bool) {
+    fn cross(&mut self, procs: &mut [Proc], parked: bool) -> Result<(), String> {
         if !self.case.crossing() || self.sent {
-            return;
+            return Ok(());
         }
         let signed_in = self.case == Case::KeyToLogin;
         if let Some(after) = self.check_after {
             let target = if signed_in { wire::LoginState::Usable } else { wire::LoginState::NotSignedIn };
-            if parked && logins(procs).iter().any(|(frame, state)| *frame >= after && *state == target) {
+            if parked && logins(procs)?.iter().any(|(frame, state)| *frame >= after && *state == target) {
                 self.party.extend(Box::new([jig_fake_parties::Act::Request {
                     key: [2; 16],
                     ask: jig_fake_parties::Ask::Say {
@@ -257,69 +188,93 @@ impl Judge {
                 }]));
                 self.sent = true;
             }
-        } else if waiting(procs) {
+        } else if waiting(procs)? {
             // The first run still owns its slot while the worker's periodic check
             // reports the host-local change. The next activation sees that inventory.
             self.login.set(Some(signed_in));
-            self.check_after = Some(engine_wire(procs).frames.len());
+            self.check_after = Some(engine_wire(procs)?.frames.len());
         }
+        Ok(())
     }
 }
-fn engine_wire(procs: &[Proc]) -> &processes::Wire {
+fn engine_wire(procs: &[Proc]) -> Result<&processes::Wire, String> {
     procs
         .iter()
         .find_map(|proc| if let Proc::Engine(engine) = proc { Some(&engine.wire) } else { None })
-        .expect("engine wire")
+        .ok_or_else(|| String::from("engine wire"))
 }
-fn logins(procs: &[Proc]) -> Vec<(usize, wire::LoginState)> {
-    engine_wire(procs)
-        .frames
-        .iter()
-        .enumerate()
-        .filter_map(|(frame, (_, kind, body))| {
-            if *kind != wire::Kind::Logins.number() {
-                return None;
+fn logins(procs: &[Proc]) -> Result<Vec<(usize, wire::LoginState)>, String> {
+    let mut found = Vec::new();
+    for (frame, (_, kind, body)) in engine_wire(procs)?.frames.iter().enumerate() {
+        if *kind == wire::Kind::Logins.number() {
+            let logins = wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(body))
+                .map_err(|why| format!("login inventory: {why:?}"))?;
+            if let Some(login) = logins.logins().iter().find(|login| login.name() == b"alice") {
+                found.push((frame, login.state().clone()));
             }
-            let logins = wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(body)).expect("login inventory");
-            logins.logins().iter().find(|login| login.name() == b"alice").map(|login| (frame, login.state().clone()))
-        })
-        .collect()
-}
-fn waiting(procs: &[Proc]) -> bool {
-    world::worker_wire(procs).frames.iter().any(|(_, kind, body)| {
-        *kind == wire::Kind::Fact.number() && {
-            let fact = wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(body)).expect("fact");
-            matches!(fact.value(), wire::FactValue::Phase(phase) if *phase.value() == wire::Phase::Waiting)
         }
-    })
+    }
+    Ok(found)
 }
-fn assignments(observed: &processes::Wire) -> Vec<Assignment> {
+fn waiting(procs: &[Proc]) -> Result<bool, String> {
+    for (_, kind, body) in &world::check_worker_wire(procs)?.frames {
+        if *kind == wire::Kind::Fact.number() {
+            let fact =
+                wire::Fact::decode(&wire::CEILINGS, &mut Reader::new(body)).map_err(|why| format!("fact: {why:?}"))?;
+            if matches!(fact.value(), wire::FactValue::Phase(phase) if *phase.value() == wire::Phase::Waiting) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+fn assignments(observed: &processes::Wire) -> Result<Vec<Assignment>, String> {
     observed
         .frames
         .iter()
-        .filter_map(|(_, kind, bytes)| {
-            if *kind != wire::Kind::Assignment.number() {
-                return None;
-            }
-            let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("assignment");
+        .filter(|(_, kind, _)| *kind == wire::Kind::Assignment.number())
+        .map(|(_, _, bytes)| {
+            let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(bytes))
+                .map_err(|why| format!("assignment: {why:?}"))?;
             let charter =
                 smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(assignment.charter()))
-                    .expect("charter");
-            let source = charter.main().account().expect("selected source");
-            let grant = assignment.grants().iter().find(|grant| grant.number() == source).expect("main's grant");
+                    .map_err(|why| format!("charter: {why:?}"))?;
+            let source = charter.main().account().ok_or("selected source")?;
+            let grant = assignment.grants().iter().find(|grant| grant.number() == source).ok_or("main's grant")?;
             let grant = match grant.value() {
                 wire::GrantValue::Credential(value) => {
-                    assert_eq!(*value.scheme(), wire::Scheme::Key);
-                    assert_eq!(value.bytes().expose(), fixtures::KEY);
+                    {
+                        let (observed_value, wanted) = (value.scheme(), &(wire::Scheme::Key));
+                        if observed_value != wanted {
+                            return Err(format!(
+                                "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                            ));
+                        }
+                    }
+                    {
+                        let (observed_value, wanted) = (&(value.bytes().expose()), &(fixtures::KEY));
+                        if observed_value != wanted {
+                            return Err(format!(
+                                "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                            ));
+                        }
+                    }
                     Grant::Key
                 }
                 wire::GrantValue::Program(value) => {
-                    assert_eq!(value.name(), b"alice");
+                    {
+                        let (observed_value, wanted) = (&(value.name()), &(b"alice"));
+                        if observed_value != wanted {
+                            return Err(format!(
+                                "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                            ));
+                        }
+                    }
                     Grant::Login
                 }
-                wire::GrantValue::Application(_) => panic!("main uses the LLM grant"),
+                wire::GrantValue::Application(_) => return Err(String::from("main uses the LLM grant")),
             };
-            Some(Assignment {
+            Ok(Assignment {
                 task: assignment.task(),
                 attempt: assignment.attempt(),
                 endpoint: charter.main().endpoint().to_vec(),
@@ -352,6 +307,7 @@ pub fn run(case: Case, story: &smith_fake_claude::Story, scripts: skein_fake_llm
     let client = files.open(base, b".", How::Directory).expect("client root");
     let shared = Rc::new(RefCell::new(Run::default()));
     let judge = Judge {
+        finding: None,
         shared: shared.clone(),
         store: Store::new(),
         rules: Rules::default(),
@@ -509,4 +465,89 @@ fn host_programs(world: &mut skein_world::World<Proc, Judge, files::Files>, case
         instances: 1,
         operations: smith_agent_shell::relay::operations(),
     });
+}
+
+impl Judge {
+    fn check_act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
+        let story = if self.case == Case::Key { Story::Key { replaced: false } } else { Story::Chat };
+        self.accounts.act(procs, story, self.done)?;
+        if !self.done {
+            self.accounts.party(now, procs, &mut self.party, &mut self.views, Story::Chat)?;
+        }
+        for proc in procs.iter_mut() {
+            if let Proc::Engine(host) = proc {
+                world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now)?;
+                let engine = host.service.engine().ok_or("engine")?;
+                world::answer_parties(engine, &mut self.party, &mut self.views)?;
+                if !self.period && self.party.sign_in.is_some() {
+                    engine.parties_in().push(core::Event::Period { project: 1, period: 1, budget: 100, next: None });
+                    self.period = true;
+                }
+            }
+        }
+        if self.case == Case::Key && !self.sent && waiting(procs)? {
+            self.party.extend(Box::new([jig_fake_parties::Act::Request {
+                key: [2; 16],
+                ask: jig_fake_parties::Ask::Say {
+                    task: jig_fake_parties::Task::Last,
+                    words: b"The tool ran".as_slice().into(),
+                    release: None,
+                },
+            }]));
+            self.sent = true;
+        }
+        let parked = self.store.rows.values().any(|row| {
+            matches!(row,
+            jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer)))
+            if answer.end == jig_domain_tasks::End::Parked)
+        });
+        self.cross(procs, parked)?;
+        let mut run = self.shared.borrow_mut();
+        run.turns = world::turns(&self.store).into_iter().cloned().collect();
+        run.terminals = self
+            .store
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) = row {
+                    Some(answer.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        self.done = run.terminals.iter().any(|answer| answer.end != jig_domain_tasks::End::Parked);
+        run.sources =
+            self.store
+                .rows
+                .values()
+                .filter_map(|row| {
+                    if let jig_test_domain::Record::Core(core::Record::Accounts(
+                        jig_domain_accounts::Stored::Source { account, number, place, kind, .. },
+                    )) = row
+                    {
+                        Some((*account, *number, *place, *kind))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+        run.login_states = logins(procs)?.into_iter().map(|(_, state)| state).collect();
+        run.assignments = assignments(world::check_worker_wire(procs)?)?;
+        run.diagnostics = world::check_diagnostics(procs)?;
+        if self.done {
+            for proc in procs {
+                match proc {
+                    Proc::Engine(host) | Proc::Worker(host) if !host.stopping => {
+                        host.stopping = true;
+                        host.service.shutdown();
+                    }
+                    Proc::Peer(peer) => peer.shutdown(),
+                    _ => {}
+                }
+            }
+        }
+
+        Ok(())
+    }
 }

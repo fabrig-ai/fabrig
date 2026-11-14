@@ -50,30 +50,49 @@ fn configure(directory: &Path, llm: SocketAddr) -> oauth::Peer {
     issuer
 }
 
-fn calls(procs: &[Process], deployment: usize) -> &ctl::Calls {
-    let Process::Calls(calls) = &procs[deployment + 1] else { panic!("ctl calls") };
-    calls
+fn calls(procs: &[Process], deployment: usize) -> Result<&ctl::Calls, String> {
+    Ok({
+        let Some(Process::Calls(calls)) = procs.get(deployment + 1) else { return Err(String::from("ctl calls")) };
+        calls
+    })
 }
-fn queue(procs: &mut [Process], deployment: usize, arguments: &[&str]) {
-    let Process::Calls(calls) = &mut procs[deployment + 1] else { panic!("ctl calls") };
+fn queue(procs: &mut [Process], deployment: usize, arguments: &[&str]) -> Result<(), String> {
+    let Some(Process::Calls(calls)) = procs.get_mut(deployment + 1) else { return Err(String::from("ctl calls")) };
     calls.push(ctl::Step::Run(ctl::Call::new(arguments)));
+
+    Ok(())
 }
-fn success(ended: &super::Ended) {
-    assert_eq!(ended.exit, Some(Exit::Code(0)), "ctl: {}", String::from_utf8_lossy(&ended.stderr));
+fn success(ended: &super::Ended) -> Result<(), String> {
+    if ended.exit != Some(Exit::Code(0)) {
+        return Err(format!("ctl: {}", String::from_utf8_lossy(&ended.stderr)));
+    }
+
+    Ok(())
 }
-fn account(ended: &super::Ended) -> serde_json::Value {
-    let value = ctl::json(ended);
-    let rows = value["accounts"]["party"].as_array().expect("holder's accounts");
-    let [account] = rows.as_slice() else { panic!("one signed-in account") };
-    assert_eq!(account["provider"], 1);
-    assert_eq!(account["plan"], true);
-    assert!(
-        account["sources"].as_array().expect("sources").iter().any(|source| {
+fn account(ended: &super::Ended) -> Result<serde_json::Value, String> {
+    Ok({
+        let value = super::check_ctl_json(ended)?;
+        let rows = value["accounts"]["party"].as_array().ok_or(String::from("holder's accounts"))?;
+        let [account] = rows.as_slice() else { return Err(String::from("one signed-in account")) };
+        {
+            let (left, right) = (&(account["provider"]), &(1));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(account["plan"]), &(true));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        if !account["sources"].as_array().ok_or(String::from("sources"))?.iter().any(|source| {
             source["kind"] == "sign_in" && source["usable"] == true && source["state"]["kind"] == "granted"
-        }),
-        "usable signed-in source"
-    );
-    account.clone()
+        }) {
+            return Err(String::from("usable signed-in source"));
+        }
+        account.clone()
+    })
 }
 
 #[derive(Debug)]
@@ -87,6 +106,7 @@ enum Phase {
     Stop,
 }
 struct Move {
+    failed: Option<String>,
     phase: Phase,
     file: PathBuf,
     record: Vec<u8>,
@@ -97,100 +117,167 @@ struct Move {
     result: mpsc::Sender<(u64, Vec<u8>)>,
 }
 impl Referee<Process> for Move {
+    #[expect(clippy::too_many_lines, reason = "the account transfer keeps each phase's finding before advancing")]
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        for deployment in [A, B] {
-            for ended in calls(procs, deployment).ends() {
-                success(ended);
-            }
+        if self.failed.is_some() {
+            return;
         }
-        match self.phase {
-            Phase::Connect if calls(procs, A).ends().len() == 2 => {
-                let address = sign_in::authorization_address(&calls(procs, A).ends()[1])
-                    .expect("connect's authorization address")
-                    .to_vec();
-                let Process::Visitor(visitor) = &mut procs[VISITOR] else { panic!("browser") };
-                visitor.hand(&address);
-                queue(procs, A, &["account", "list", "--until", "settled", "--json"]);
-                queue(procs, A, &["account", "list", "--json"]);
-                self.phase = Phase::Account;
-            }
-            Phase::Account if calls(procs, A).ends().len() == 4 => {
-                self.number = account(&calls(procs, A).ends()[3])["number"].as_u64().expect("account number");
-                assert!(!self.file.exists(), "export creates a new file");
-                queue(
-                    procs,
-                    A,
-                    &["account", "export", &self.number.to_string(), self.file.to_str().expect("file path")],
-                );
-                self.phase = Phase::Export;
-            }
-            Phase::Export if calls(procs, A).ends().len() == 5 => {
-                assert_eq!(
-                    calls(procs, A).ends()[4].stdout,
-                    format!("moved out: account {} to {}\n", self.number, self.file.display()).as_bytes()
-                );
-                assert_eq!(fs::metadata(&self.file).expect("exported file").permissions().mode() & 0o777, 0o600);
-                self.record = fs::read(&self.file).expect("keep file bytes only for the stale-token check");
-                queue(procs, A, &["account", "list", "--json"]);
-                self.phase = Phase::Withdrawn;
-            }
-            Phase::Withdrawn if calls(procs, A).ends().len() == 6 => {
-                let empty = ctl::json(&calls(procs, A).ends()[5]);
-                assert!(
-                    empty["accounts"]["party"].as_array().expect("A's accounts").is_empty(),
-                    "A holds nothing before import"
-                );
-                let Process::Calls(b) = &mut procs[B + 1] else { panic!("B's calls") };
-                b.push(ctl::Step::Run(ctl::Call::sign_in()));
-                queue(procs, B, &["account", "import", self.file.to_str().expect("file path"), "--key", "move-in"]);
-                self.phase = Phase::Import;
-            }
-            Phase::Import if calls(procs, B).ends().len() == 2 => {
-                let output = std::str::from_utf8(&calls(procs, B).ends()[1].stdout).expect("import output");
-                self.moved = output
-                    .strip_prefix("moved in: account ")
-                    .expect("import names its account")
-                    .strip_suffix('\n')
-                    .expect("one output line")
-                    .parse()
-                    .expect("B's account number");
-                assert!(!self.file.exists(), "import removes the file");
-                queue(procs, B, &["account", "list", "--until", "settled", "--json"]);
-                queue(procs, B, &["account", "list", "--json"]);
-                self.phase = Phase::Empty;
-            }
-            Phase::Empty if calls(procs, A).ends().len() == 6 && calls(procs, B).ends().len() == 4 => {
-                assert_eq!(account(&calls(procs, B).ends()[3])["number"], self.moved, "B holds the imported account");
-                let empty = ctl::json(&calls(procs, A).ends()[5]);
-                assert!(empty["accounts"]["party"].as_array().expect("A's accounts").is_empty(), "A holds nothing");
-                self.result.send((self.moved, std::mem::take(&mut self.record))).expect("move result");
-                for deployment in [A, B] {
-                    let Process::Calls(calls) = &mut procs[deployment + 1] else { panic!("ctl calls") };
-                    calls.release();
-                    let Process::Binary(binary) = &mut procs[deployment] else { panic!("serve") };
-                    binary.signal(Signal::Terminate);
+        let result = (|| -> Result<(), String> {
+            for deployment in [A, B] {
+                for ended in calls(procs, deployment)?.ends() {
+                    success(ended)?;
                 }
-                self.phase = Phase::Stop;
             }
-            Phase::Connect
-            | Phase::Account
-            | Phase::Export
-            | Phase::Withdrawn
-            | Phase::Import
-            | Phase::Empty
-            | Phase::Stop => {}
+            match self.phase {
+                Phase::Connect if calls(procs, A)?.ends().len() == 2 => {
+                    let address = sign_in::authorization_address(&calls(procs, A)?.ends()[1])
+                        .ok_or(String::from("connect's authorization address"))?
+                        .to_vec();
+                    let Some(Process::Visitor(visitor)) = procs.get_mut(VISITOR) else {
+                        return Err(String::from("browser"));
+                    };
+                    visitor.hand(&address);
+                    queue(procs, A, &["account", "list", "--until", "settled", "--json"])?;
+                    queue(procs, A, &["account", "list", "--json"])?;
+                    self.phase = Phase::Account;
+                }
+                Phase::Account if calls(procs, A)?.ends().len() == 4 => {
+                    self.number = account(&calls(procs, A)?.ends()[3])?["number"]
+                        .as_u64()
+                        .ok_or(String::from("account number"))?;
+                    if self.file.exists() {
+                        return Err(String::from("export creates a new file"));
+                    }
+                    queue(
+                        procs,
+                        A,
+                        &[
+                            "account",
+                            "export",
+                            &self.number.to_string(),
+                            self.file.to_str().ok_or(String::from("file path"))?,
+                        ],
+                    )?;
+                    self.phase = Phase::Export;
+                }
+                Phase::Export if calls(procs, A)?.ends().len() == 5 => {
+                    let expected = format!("moved out: account {} to {}\n", self.number, self.file.display());
+                    {
+                        let (left, right) = (&(calls(procs, A)?.ends()[4].stdout), &(expected.as_bytes()));
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
+                    }
+                    {
+                        let (left, right) = (
+                            &(fs::metadata(&self.file)
+                                .map_err(|error| format!("exported file: {error:?}"))?
+                                .permissions()
+                                .mode()
+                                & 0o777),
+                            &(0o600),
+                        );
+                        if left != right {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
+                            ));
+                        }
+                    }
+                    self.record = fs::read(&self.file)
+                        .map_err(|error| format!("keep file bytes only for the stale-token check: {error:?}"))?;
+                    queue(procs, A, &["account", "list", "--json"])?;
+                    self.phase = Phase::Withdrawn;
+                }
+                Phase::Withdrawn if calls(procs, A)?.ends().len() == 6 => {
+                    let empty = super::check_ctl_json(&calls(procs, A)?.ends()[5])?;
+                    if !empty["accounts"]["party"].as_array().ok_or(String::from("A's accounts"))?.is_empty() {
+                        return Err(String::from("A holds nothing before import"));
+                    }
+                    let Some(Process::Calls(b)) = procs.get_mut(B + 1) else { return Err(String::from("B's calls")) };
+                    b.push(ctl::Step::Run(ctl::Call::sign_in()));
+                    queue(
+                        procs,
+                        B,
+                        &[
+                            "account",
+                            "import",
+                            self.file.to_str().ok_or(String::from("file path"))?,
+                            "--key",
+                            "move-in",
+                        ],
+                    )?;
+                    self.phase = Phase::Import;
+                }
+                Phase::Import if calls(procs, B)?.ends().len() == 2 => {
+                    let output = std::str::from_utf8(&calls(procs, B)?.ends()[1].stdout)
+                        .map_err(|error| format!("import output: {error:?}"))?;
+                    self.moved = output
+                        .strip_prefix("moved in: account ")
+                        .ok_or(String::from("import names its account"))?
+                        .strip_suffix('\n')
+                        .ok_or(String::from("one output line"))?
+                        .parse()
+                        .map_err(|error| format!("B's account number: {error:?}"))?;
+                    if self.file.exists() {
+                        return Err(String::from("import removes the file"));
+                    }
+                    queue(procs, B, &["account", "list", "--until", "settled", "--json"])?;
+                    queue(procs, B, &["account", "list", "--json"])?;
+                    self.phase = Phase::Empty;
+                }
+                Phase::Empty if calls(procs, A)?.ends().len() == 6 && calls(procs, B)?.ends().len() == 4 => {
+                    if account(&calls(procs, B)?.ends()[3])?["number"] != self.moved {
+                        return Err(String::from("B holds the imported account"));
+                    }
+                    let empty = super::check_ctl_json(&calls(procs, A)?.ends()[5])?;
+                    if !empty["accounts"]["party"].as_array().ok_or(String::from("A's accounts"))?.is_empty() {
+                        return Err(String::from("A holds nothing"));
+                    }
+                    self.result
+                        .send((self.moved, std::mem::take(&mut self.record)))
+                        .map_err(|error| format!("move result: {error:?}"))?;
+                    for deployment in [A, B] {
+                        let Some(Process::Calls(calls)) = procs.get_mut(deployment + 1) else {
+                            return Err(String::from("ctl calls"));
+                        };
+                        calls.release();
+                        let Some(Process::Binary(binary)) = procs.get_mut(deployment) else {
+                            return Err(String::from("serve"));
+                        };
+                        binary.signal(Signal::Terminate);
+                    }
+                    self.phase = Phase::Stop;
+                }
+                Phase::Connect
+                | Phase::Account
+                | Phase::Export
+                | Phase::Withdrawn
+                | Phase::Import
+                | Phase::Empty
+                | Phase::Stop => {}
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         for deployment in [A, B] {
-            let Process::Binary(binary) = &procs[deployment] else { panic!("serve") };
-            assert!(
-                matches!(self.phase, Phase::Stop) || binary.exit_status().is_none(),
-                "serve failed: {}",
-                String::from_utf8_lossy(binary.stderr())
-            );
+            let Some(Process::Binary(binary)) = procs.get(deployment) else { return Err(String::from("serve")) };
+            if !matches!(self.phase, Phase::Stop) && binary.exit_status().is_some() {
+                return Err(format!("serve failed: {}", String::from_utf8_lossy(binary.stderr())));
+            }
         }
         self.settled = matches!(self.phase, Phase::Stop) && procs.iter().all(Host::is_empty);
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.settled).then_some(self.deadline)
@@ -199,6 +286,9 @@ impl Referee<Process> for Move {
         (!self.settled && now >= self.deadline).then(|| format!("account move stalled at {:?}", self.phase))
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -207,6 +297,7 @@ fn move_account(a: &Path, b: &Path, file: &Path) -> (u64, Vec<u8>) {
     let clock = Clock::new();
     let (result, received) = mpsc::channel();
     let mut world = real::World::new(Move {
+        failed: None,
         phase: Phase::Connect,
         file: file.into(),
         record: Vec::new(),
@@ -249,6 +340,7 @@ fn move_account(a: &Path, b: &Path, file: &Path) -> (u64, Vec<u8>) {
 }
 
 struct Peers {
+    failed: Option<String>,
     stop: mpsc::Receiver<()>,
     ended: bool,
     deadline: Time,
@@ -256,15 +348,32 @@ struct Peers {
 }
 impl Referee<Process> for Peers {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        self.wake = now.saturating_add(Duration::from_millis(10));
-        if !self.ended && !matches!(self.stop.try_recv(), Err(mpsc::TryRecvError::Empty)) {
-            let [Process::Issuer(issuer), Process::Peer(peer)] = procs else { panic!("independent peers") };
-            issuer.shutdown();
-            peer.shutdown();
-            self.ended = true;
+        if self.failed.is_some() {
+            return;
+        }
+        let result = (|| -> Result<(), String> {
+            self.wake = now.saturating_add(Duration::from_millis(10));
+            if !self.ended && !matches!(self.stop.try_recv(), Err(mpsc::TryRecvError::Empty)) {
+                let [Process::Issuer(issuer), Process::Peer(peer)] = procs else {
+                    return Err(String::from("independent peers"));
+                };
+                issuer.shutdown();
+                peer.shutdown();
+                self.ended = true;
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         Some(self.deadline.min(self.wake))
     }
@@ -272,7 +381,25 @@ impl Referee<Process> for Peers {
         (now >= self.deadline).then(|| "account move peers did not settle".into())
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.ended
+    }
+}
+
+pub mod tests {
+    use super::{Peers, Referee, Time, mpsc};
+
+    pub fn a_judge_keeps_an_action_finding_for_watch() {
+        let (stop, receive) = mpsc::channel();
+        let mut judge = Peers { failed: None, stop: receive, ended: false, deadline: Time::ZERO, wake: Time::ZERO };
+        stop.send(()).expect("stop requested");
+        judge.act(Time::ZERO, &mut []);
+        judge.ended = true;
+        assert!(!judge.passed(), "a kept finding prevents a pass");
+        assert_eq!(judge.watch(Time::ZERO, &[]), Err(String::from("independent peers")));
+        assert_eq!(judge.watch(Time::ZERO, &[]), Ok(()), "watch takes the kept finding");
     }
 }
 
@@ -381,6 +508,7 @@ pub fn run(directory: &Path) {
         let peers = scope.spawn(move || {
             let clock = Clock::new();
             let mut world = real::World::new(Peers {
+                failed: None,
                 stop: receiver,
                 ended: false,
                 deadline: clock.now().now.saturating_add(WITHIN),
@@ -421,9 +549,13 @@ pub fn run(directory: &Path) {
             ],
         ));
         for ended in &seen.calls {
-            success(ended);
+            success(ended).expect("successful call");
         }
-        assert_eq!(account(&seen.calls[1])["number"], number, "B kept the imported account after restart");
+        assert_eq!(
+            account(&seen.calls[1]).expect("imported account")["number"],
+            number,
+            "B kept the imported account after restart"
+        );
         assert_eq!(ctl::json(&seen.calls[3])["met"], true, "the moved account answered");
         refuse_file_token(address, registration["client"].as_str().expect("client id"), &record);
         assert!(!file.exists(), "the imported file stays gone");

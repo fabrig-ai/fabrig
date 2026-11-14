@@ -251,7 +251,16 @@ in the lower world that owns it, never here.
 - **Checks between iterations** are the strategy's for the real loop
   (skein/docs/foundation/testing-strategy.md, 2.8 and section 6), with the lower worlds'
   outside expectations; real deadlines bound waits, and the fake peers
-  stay available until their clients have settled.
+  stay available until their clients have settled. Each check returns
+  its finding (`README.md`, 4.2): the judge's `watch` returns a broken
+  check, and an overdue deadline seen in its `act` with the early
+  diagnostic, the report and the scheduler figures, kept for that
+  `watch`; a call answered past its bound, or a CLI timeout before it,
+  is a finding with its recorded figures, beside the assertion a story
+  calls at its top, and a starved wait still passes as starved; a
+  service that exits before its link fails the story through
+  `real::World::try_run` after the caller has settled, its receipts and
+  descriptors checked on that ordinary return.
 - **A story ends what it starts.** Its last call returns only once every
   activation the story started or woke has ended: a chat whose reply it
   read, a change it landed, a delegate it waited on, joined by `task

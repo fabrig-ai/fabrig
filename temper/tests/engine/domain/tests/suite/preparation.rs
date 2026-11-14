@@ -221,27 +221,15 @@ fn a_window_with_a_large_turn_starts_fresh_from_the_tail_that_fits() {
         "bounds: row={row}, page={}, store room={room}, journal={}",
         limits.loads.bytes, limits.journal.transcript_bytes
     );
-    let mut failures = Vec::new();
     for (name, bytes, around, cut) in [
         ("inside row", row - 1, false, false),
         ("past row", row + 1, false, true),
         ("past store room", large, false, true),
         ("pages around cut", large, true, true),
     ] {
-        let result = std::panic::catch_unwind(|| large_window_row(&limits, name, bytes, around, cut));
-        if let Err(error) = result {
-            let reason = error
-                .downcast_ref::<String>()
-                .map(String::as_str)
-                .or_else(|| error.downcast_ref::<&str>().copied())
-                .unwrap_or("non-text panic");
-            eprintln!("{name}: {reason}");
-            failures.push(name);
-        } else {
-            eprintln!("{name}: passed");
-        }
+        eprintln!("{name}: bytes={bytes}, around={around}, cut={cut}");
+        large_window_row(&limits, name, bytes, around, cut);
     }
-    assert!(failures.is_empty(), "large-window rows failed: {failures:?}");
 }
 
 fn large_window_row(limits: &engine::Limits, name: &str, bytes: u32, around: bool, cut: bool) {

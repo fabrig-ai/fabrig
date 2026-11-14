@@ -32,7 +32,6 @@ fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
     fn start() -> Store {
         let mut store = Store::new();
@@ -42,12 +41,17 @@ fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
             Observed::Bytes { path: path.clone(), at: 0, bytes: generation_snapshot(true, true) },
             Observed::Snapshot(path),
         ];
-        assert!(store.observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds()).is_empty());
+        assert!(
+            store
+                .observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds())
+                .expect("durable observation")
+                .is_empty()
+        );
         assert!(store.rows.is_empty(), "no typed claim about the old generation");
         assert!(!store.generations[b"generations/1".as_slice()].rows.is_empty(), "raw rows retained");
         store
     }
-    fn switch(store: &mut Store, malformed: bool) {
+    fn switch(store: &mut Store, malformed: bool) -> Result<Vec<Commit>, String> {
         let path = b"generations/2/store/snapshot".to_vec();
         let log = b"generations/2/store/log-00000000000000000002".to_vec();
         let row = core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Extent { oldest: 1, keys: 7 }));
@@ -69,10 +73,10 @@ fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
             Observed::Renamed { from: b"active.tmp".to_vec(), to: b"active".to_vec() },
             Observed::Sync(Vec::new()),
         ];
-        store.observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds());
+        store.observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds())
     }
     let mut store = start();
-    switch(&mut store, false);
+    switch(&mut store, false).expect("current generation switches");
     let header = root::Record::Core(core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Extent {
         oldest: 1,
         keys: 7,
@@ -82,8 +86,8 @@ fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
     assert_eq!(store.restored, Some(expected));
     assert!(store.deferred.is_none());
     let mut malformed = start();
-    let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| switch(&mut malformed, true)));
-    assert!(failed.is_err(), "a malformed current-generation row is still fatal");
+    let failed = switch(&mut malformed, true).expect_err("malformed current-generation row");
+    assert_eq!(failed, "real stored row decodes");
 }
 
 #[test]
@@ -105,7 +109,13 @@ fn a_torn_log_write_recovers_the_durable_prefix() {
     let mut store = Store::new();
     let mut events =
         vec![Observed::Bytes { path: fixture::LOG.to_vec(), at: 0, bytes }, Observed::Recovered(fixture::LOG.to_vec())];
-    assert_eq!(store.observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds()).len(), 1);
+    assert_eq!(
+        store
+            .observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds())
+            .expect("durable observation")
+            .len(),
+        1
+    );
     assert_eq!(store.applied, 1);
     assert_eq!(store.rows.get(&fixture::row().key()), Some(&fixture::row()));
 }
@@ -126,7 +136,10 @@ fn a_repair_snapshot_write_yields_no_commit_frames() {
     capture.complete(&Complete { op: SYNC, kind: Op::Sync { fd: Fd::new(1) }, result: Ok(Done::Nothing) });
     let mut store = Store::new();
     assert!(
-        store.observe(&mut capture.events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds()).is_empty()
+        store
+            .observe(&mut capture.events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds())
+            .expect("durable observation")
+            .is_empty()
     );
     assert_eq!(store.applied, 0);
 }
@@ -144,7 +157,10 @@ fn a_repair_snapshot_read_restores_the_durable_rows() {
         result: Ok(Done::Count(u32::try_from(bytes.len()).expect("snapshot length"))),
     });
     assert_eq!(
-        store.observe(&mut capture.events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds()).len(),
+        store
+            .observe(&mut capture.events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds())
+            .expect("durable observation")
+            .len(),
         1
     );
     assert_eq!(store.applied, 1);
@@ -183,7 +199,7 @@ fn the_durable_observer_retains_a_settings_copy_before_its_erase() {
         },
         skein_kv::Op::Erase { key: keys::encode(&held.key(), u32::MAX).expect("held key") },
     ]);
-    let commit = store.commit(1, ops, &limits, fixtures::store_names(), &fixture::bounds());
+    let commit = store.commit(1, ops, &limits, fixtures::store_names(), &fixture::bounds()).expect("observed commit");
     assert_eq!(
         commit.writes,
         vec![root::Write::CopySettingsRevision(1), root::Write::Erase(root::Key::Core(held.key()))]

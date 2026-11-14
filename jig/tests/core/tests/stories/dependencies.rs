@@ -310,7 +310,10 @@ fn wait_for_dependency(world: &mut World, seed: u64, parent: (u64, u64), target:
         key: core::CallKey { task: parent.0, attempt: parent.1, completion: 99, position: 0 },
         action: core::NamedAction::Amend { keep_parameters: false, target, revision: 0, amendment },
     });
-    world.observer.inbound(&world.store, now.as_nanos(), &mut event);
+    world
+        .observer
+        .inbound(&world.store, now.as_nanos(), &mut event)
+        .unwrap_or_else(|finding| panic!("{}", world.diagnostic(&finding)));
     root::step(&mut world.domain, &env, event);
     let mut out = Queue::uncapped();
     root::release(&mut world.domain, &env, &mut out);
