@@ -7,7 +7,7 @@ const PROXIES: &[Option<u16>] = &[None, Some(3142)];
 #[test]
 fn hearth_s_vector_reads_into_its_simulate_request() {
     for proxy in PROXIES {
-        let simulate = face::check(&fixtures::args(*proxy), &fixtures::env());
+        let simulate = face::check(&fixtures::args(*proxy), &fixtures::env()).unwrap();
         assert_eq!(simulate.variant, Variant::Apt);
         assert_eq!(simulate.architecture.as_ref(), b"amd64");
         assert_eq!(simulate.include.as_ref(), &[]);
@@ -23,17 +23,16 @@ fn several_includes_keep_their_names_in_order() {
     for includes in INCLUDES {
         let mut args = fixtures::args(None).into_vec();
         args.splice(5..5, includes.iter().copied().map(Box::from));
-        let simulate = face::check(&args, &fixtures::env());
+        let simulate = face::check(&args, &fixtures::env()).unwrap();
         assert_eq!(simulate.include.iter().map(AsRef::as_ref).collect::<Vec<_>>(), [b"git".as_slice(), b"mmdebstrap"]);
     }
 }
 
 #[test]
-#[should_panic(expected = "APT::Install-Recommends must be false")]
-fn recommends_outside_the_fake_s_model_asserts_naming_the_option() {
+fn recommends_outside_the_fake_s_model_returns_a_finding_naming_the_option() {
     let mut args = fixtures::args(None).into_vec();
     args[6] = b"--aptopt=APT::Install-Recommends \"true\"".as_slice().into();
-    let _ = face::check(&args, &fixtures::env());
+    assert_eq!(face::check(&args, &fixtures::env()), Err("APT::Install-Recommends must be false".into()));
 }
 
 const LISTS: &[(&[u8], &[u8])] = &[
