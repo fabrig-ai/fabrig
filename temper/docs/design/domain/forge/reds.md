@@ -311,8 +311,12 @@ with the check. The reference's check writes it as
   (jig's `protocol/channel/bridges.md`, 6.3), and the engine goes first,
   as for B1.
 - **The worker's figures:** the application's largest ask is a report's
-  worst case under the side's bounds above, within jig's ceiling for an
-  ask's bytes (`../../protocol/channel.md`, 8).
+  worst case at the schema's ceilings, on both sides, within jig's
+  ceiling for an ask's bytes (`../../protocol/channel.md`, 8): the
+  worker sends what its ceilings allow and jig's terms hold each
+  sender's size within its peer's, so the engine takes an ask of that
+  size and its decode, not the channel's size, holds the forge's
+  bounds above.
 
 ### 5.7 Passes kept, and reds ended by what lands
 
