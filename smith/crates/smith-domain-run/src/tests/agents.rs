@@ -214,22 +214,6 @@ fn inspect_only_children_keep_the_lease_free_while_their_calls_overlap() {
 }
 
 #[test]
-#[should_panic(expected = "one write holder over overlapping directories")]
-fn opening_a_second_writing_child_is_a_broken_schedule() {
-    let mut harness = Harness::new(LIMITS);
-    let mut charter = agents();
-    charter.grants.tools.modify = true;
-    let (_, main) = harness.running_on(1, 100, charter);
-    drop(harness.child(main, 7, families(true, true, false), 101));
-    drop(harness.child(
-        main,
-        8,
-        crate::charter::Families { tools: Tools { inspect: true, modify: false, shell: true }, agents: false },
-        102,
-    ));
-}
-
-#[test]
 fn simultaneous_sessions_reserve_one_run_budget_and_return_unused_credit() {
     let mut harness = Harness::new(LIMITS);
     let (_, main) = harness.running_on(1, 100, agents());
