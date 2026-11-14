@@ -81,6 +81,10 @@ slow-timeout = { period = "1000ms" }
 filter = "package(=smith-agent-shell) & test(=config::tests::native_validated_dense_prompts_fit_the_seen_joint_receiving_ceiling)"
 priority = 20
 
+[[profile.default.overrides]]
+filter = "package(=temper-engine-service-component) & kind(lib)"
+priority = 10
+
 # Every tree: the tests under tests/ first, the longest, then the many short
 # unit tests behind them, so that the run ends close to its total over the
 # threads.
