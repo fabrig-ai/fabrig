@@ -113,6 +113,33 @@ fn a_seed_policy_number_must_be_a_u32() {
     }
 }
 
+#[test]
+fn passed_agent_needs_name_their_bytes_and_limit() {
+    let initial = super::domain::needs_engine(&super::domain::needs_document(1_000_000)).unwrap();
+    let (bytes, room) = super::domain::needs_bound();
+    for budget in [bytes - room - 1, bytes - room, bytes] {
+        let mut engine =
+            defaults::parse(&defaults::without_defaults(fixtures::ENGINE_SMALL), Defaults::Passed).unwrap();
+        engine.limits.core.tasks.charters = 32;
+        engine.limits.core.run_bytes = 65_536;
+        engine.limits.core.settings.versions = 1;
+        engine.limits.core.fleet.needs_bytes = budget;
+        let result = crate::pass(&mut engine, crate::core(&initial, [0; 16], 0).defaults);
+        if budget >= bytes - room {
+            result.expect("passed needs fit at the bound");
+        } else {
+            let problems = result.unwrap_err();
+            assert_eq!(
+                problems.problems.as_slice(),
+                &[Problem {
+                    path: fixtures::path(&[b"limits", b"fleet", b"needs_bytes"]),
+                    what: What::NeedsBytes { bytes, limit: bytes - 1 },
+                }]
+            );
+        }
+    }
+}
+
 // jig/docs/design/protocol/configuration.md, 3: the copied policy is checked whole.
 #[test]
 fn a_copied_seed_names_its_executor_count_and_limit() {

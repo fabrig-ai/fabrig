@@ -50,6 +50,30 @@ pub enum AgentShortfall {
     Unacknowledged,
 }
 
+/// Needs past the fleet's owned byte bound (domain/engine/fleet.md).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct NeedsPast {
+    /// Owned bytes, or `u64::MAX` when accounting exceeds a `u64`.
+    pub held: u64,
+    pub limit: u64,
+}
+
+/// Check owned needs against the newest's budget and each held version's room.
+/// `limits` and `versions` must have passed the fleet's limits check.
+pub fn needs_fit(limits: &crate::Limits, versions: u32, needs: &Needs) -> Result<(), NeedsPast> {
+    let limit = crate::limits::needs_bytes(limits, versions).expect("validated needs bound");
+    match owned_bytes(needs) {
+        Some(held) => {
+            if held <= limit {
+                Ok(())
+            } else {
+                Err(NeedsPast { held, limit })
+            }
+        }
+        None => Err(NeedsPast { held: u64::MAX, limit }),
+    }
+}
+
 pub(crate) fn owned_bytes(needs: &Needs) -> Option<u64> {
     let mut bytes = len_u64(needs.charters.len()).checked_mul(u64::try_from(size_of::<CharterNeeds>()).ok()?)?;
     for charter in &needs.charters {
@@ -299,13 +323,7 @@ pub(crate) fn evidence(bounds: &Bounds) -> Bounds {
     bounds.clone()
 }
 pub(crate) fn replace(domain: &mut crate::Domain, limits: &crate::Limits, needs: Needs) {
-    assert!(
-        match owned_bytes(&needs) {
-            Some(bytes) => bytes <= crate::limits::needs_bytes(limits, domain.versions).expect("needs bound"),
-            None => false,
-        },
-        "replacement needs within their bound"
-    );
+    assert!(needs_fit(limits, domain.versions, &needs).is_ok(), "replacement needs within their bound");
     domain.needs = needs;
     for (_, id) in &domain.tokens {
         let channel = domain.channels.get_mut(*id).expect("connected channel");

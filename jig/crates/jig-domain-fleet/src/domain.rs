@@ -128,13 +128,7 @@ impl Domain {
     /// A domain with room for `limits`.
     #[must_use]
     pub fn new(limits: &Limits, versions: u32, needs: crate::Needs) -> Domain {
-        assert!(
-            match crate::needs::owned_bytes(&needs) {
-                Some(bytes) => bytes <= limits::needs_bytes(limits, versions).expect("needs bound"),
-                None => false,
-            },
-            "configured agent needs fit their byte bound"
-        );
+        assert!(crate::needs_fit(limits, versions, &needs).is_ok(), "configured agent needs fit their byte bound");
         let tracked = limits::tracked(limits).expect("validated fleet limits");
         let channels_count =
             limits.workers.checked_add(u32::from(limits.engine_slots > 0)).expect("validated fleet limits");

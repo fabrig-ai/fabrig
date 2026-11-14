@@ -41,6 +41,7 @@ impl Problems {
                 config::What::Because(words) => words,
                 config::What::PolicyExecutors { .. } => b"policy executor count exceeds authority.executors",
                 config::What::PolicyBytes { .. } => b"policy snapshot exceeds core.policy_bytes",
+                config::What::NeedsBytes { .. } => b"agent needs exceed fleet.needs_bytes",
                 config::What::PolicyEnvelope { .. } => b"policy bytes exceed the people-v13 codec envelope".as_slice(),
                 config::What::AmendmentEnvelope { .. } => {
                     b"amendment bytes exceed the people-v13 codec envelope".as_slice()
