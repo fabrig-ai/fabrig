@@ -81,8 +81,9 @@ fn chat_start_names_a_template_and_a_model() {
     let me = template_me();
     let mut expected = shapes::chat_from(&me, f::PROJECT, 5, f::call_words(TEMPLATE_CHAT, 2)).expect("named shape");
     let c::Ask::Create { tasks, .. } = &mut expected else { panic!("chat creates") };
-    tasks.get_mut(0).expect("chat").llm.as_mut().expect("template choice").main =
-        f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME));
+    let choice = tasks.get_mut(0).expect("chat").llm.as_mut().expect("template choice");
+    choice.main = f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME));
+    choice.later = None;
     let mut root = f::choice_root(me);
     let call = root.submit(&[
         "chat",

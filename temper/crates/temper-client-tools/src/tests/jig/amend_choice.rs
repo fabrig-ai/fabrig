@@ -130,7 +130,10 @@ fn amend_refuses_an_unknown_model() {
     );
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("unknown model");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unknown\n".as_slice()));
+    assert_eq!(
+        (answer.status, answer.stderr.as_ref()),
+        (1, b"--model unknown: not among the models you may choose in this project\n".as_slice())
+    );
 }
 #[test]
 fn amend_refuses_an_unknown_effort() {
@@ -140,7 +143,10 @@ fn amend_refuses_an_unknown_effort() {
     );
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("unknown effort");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"unknown effort: unknown\n".as_slice()));
+    assert_eq!(
+        (answer.status, answer.stderr.as_ref()),
+        (1, b"--effort unknown: not an effort chosen-model declares; it declares high\n".as_slice())
+    );
 }
 #[test]
 fn amend_refuses_an_account_flag() {

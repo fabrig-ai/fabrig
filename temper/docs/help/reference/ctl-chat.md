@@ -32,26 +32,25 @@ chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effor
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The opening words
   --model MODEL: text, at most 1048576 bytes, or - to read stdin; optional. A model the chat may use, as model list shows it
   --effort EFFORT: text, at most 1048576 bytes, or - to read stdin; optional. An effort that model offers
-  --sub-agent MODEL[:EFFORT]: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. Sub-agent choices: each model named once, with one effort; effort is required when the model declares efforts
+  --sub-agent MODEL[:EFFORT]: text, at most 1048576 bytes, or - to read stdin; repeated, at most 64. Sub-agent choices: each model once, its effort optional as --model's
 Start a chat in a project
 Prints: `done: task N, chat`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree
 --json: the record chat_create.
 Key: --key KEY, required.
-The chat's template chooses its model unless `--model` names one;
-`--effort` needs `--model`, and a model that declares efforts needs
-`--effort`. A chat past what your party may start, but within what
-it may propose, is proposed (exit 0). `chat not offered` and `chat
-exceeds offered bounds` (exit 1): your party may not start it.
-`--template` names one of the project's chat templates; one that is
-no chat's, or not offered, fails naming those `me` offers (exit 1).
-`--sub-agent` needs `--model` and replaces the template's sub-agents.
-Two choices: --sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B
-with distinct model names offered by `model list`.
-Available choices only: this list neither starts children nor assigns
-choices by child order. The parent's `sub_agent` call selects a model with
-optional `llm`; omitted, it uses main's model and effort.
-One model cannot be offered at two child efforts;
-multiple children may use the same choice.
+--effort needs --model; omitted, it takes the model's default effort.
+--model wins over the template for every run, its later choice included;
+it keeps first-choice sub-agents unless --sub-agent replaces them.
+Without --model the template's choice holds whole. A model flag a bound
+refuses names its flag, value and bound; nothing is made.
+Past start bounds but proposable: proposed (exit 0). `chat not offered`
+or `chat exceeds offered bounds` (exit 1): your party may not start it.
+--template must name an offered chat template; otherwise it fails naming
+those me offers (exit 1).
+--sub-agent needs --model. Two choices, distinct models from model list:
+--sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B
+Available choices only: they neither start children nor assign by order.
+The parent's sub_agent selects optional llm; omitted, main's model/effort.
+Each model has one child effort; multiple children may use that choice.
 Then task show TASK --until replied.
 ```
 
