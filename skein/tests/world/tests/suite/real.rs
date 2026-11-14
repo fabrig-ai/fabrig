@@ -233,7 +233,8 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
 #[cfg(target_os = "linux")]
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads the isolated starved real-loop child marker")]
 fn a_zero_patience_starved_real_loop_ends_its_process() {
-    const CHILD: &str = "SKEIN_STARVED_REAL_LOOP_CHILD";
+    // Both zero-patience checks select only themselves with --exact.
+    const CHILD: &str = "SKEIN_ZERO_PATIENCE_CHILD";
     if std::env::var_os(CHILD).is_some() {
         std::thread::sleep(core::time::Duration::from_millis(1));
         let mut world = real::World::new(Judge);
