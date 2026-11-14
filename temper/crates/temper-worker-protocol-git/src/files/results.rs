@@ -7,6 +7,41 @@ use skein_lib::{Intake, bytes, stream};
 use temper_worker_domain_checkout::git;
 
 const CAPACITY: u32 = 262_145;
+fn read_buffer(op: Op) -> Box<[u8]> {
+    match op {
+        Op::Read { buf, .. } => buf,
+        Op::Lock { .. }
+        | Op::Socket { .. }
+        | Op::Bind { .. }
+        | Op::Listen { .. }
+        | Op::Accept { .. }
+        | Op::Connect { .. }
+        | Op::Recv { .. }
+        | Op::Send { .. }
+        | Op::Shutdown { .. }
+        | Op::Close { .. }
+        | Op::Open { .. }
+        | Op::Write { .. }
+        | Op::Append { .. }
+        | Op::Truncate { .. }
+        | Op::Sync { .. }
+        | Op::Stat { .. }
+        | Op::HardLink { .. }
+        | Op::Rename { .. }
+        | Op::Remove { .. }
+        | Op::MakeDirectory { .. }
+        | Op::List { .. }
+        | Op::Spawn { .. }
+        | Op::Wait { .. }
+        | Op::Signal { .. }
+        | Op::Usage
+        | Op::Window { .. }
+        | Op::ReadSignal { .. }
+        | Op::PipeRead { .. }
+        | Op::PipeWrite { .. }
+        | Op::Cancel { .. } => unreachable!("results read completion"),
+    }
+}
 #[derive(Debug)]
 pub(crate) struct File {
     directory: Box<[u8]>,
@@ -97,7 +132,7 @@ impl File {
             }
             Phase::Read => {
                 let n = count(complete.result).unwrap_or(0);
-                let Op::Read { buf: bytes, .. } = complete.kind else { unreachable!("results read") };
+                let bytes = read_buffer(complete.kind);
                 let prefix = bytes.get(..usize::try_from(n).expect("kernel read count")).expect("read buffer");
                 self.bytes.append(prefix).expect("demand bounded by room");
                 self.phase = if n == 0 || self.bytes.room() == 0 || self.failed { Phase::Close } else { Phase::Read };
