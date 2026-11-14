@@ -979,6 +979,7 @@ pub fn run_narrowed(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
 }
 
 fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story) {
+    forge.detect_manual_merges();
     let peer = peer(root, forge, story);
     peer.configure(root);
     let clock = Clock::new();

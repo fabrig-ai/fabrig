@@ -633,6 +633,18 @@ impl Throwaway {
         serde_json::from_slice(&response.body).expect("elsewhere JSON")
     }
 
+    /// A merge train's members use Forgejo's manual-merge detection (domain/landing.md, 10).
+    pub fn detect_manual_merges(&self) {
+        request(
+            &self.instance,
+            &self.instance.admin().token,
+            "PATCH",
+            "/api/v1/repos/acme/widget",
+            &json!({"autodetect_manual_merge":true}),
+            200,
+        );
+    }
+
     /// Repositories outside the bot's organizations, before the managed deployment starts.
     pub fn adoption_repositories(&self) {
         let token = &self.instance.admin().token;
