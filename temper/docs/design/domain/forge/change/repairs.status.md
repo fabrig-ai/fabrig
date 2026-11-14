@@ -4,6 +4,7 @@
 
 - **Not yet:** "A forge section is sized by its cutoff": only a pull section's files and comparison have a cutoff, with the words `not read by the section's cutoff`; a reviews or CI section and every identity read wait to the brief's deadline, and a half of a repair's pair with nothing at its cutoff does not become words (`temper-engine-domain-forge/src/brief.rs`, `cutoff`, `finish_at_cutoff`, `expire`) [in flight: change 3322].
 - **Not yet:** "A forge section is sized by its cutoff": no engine domain story shows a resolution of a large, slow pull or a CI repair with slow logs or checks starting with its cut notices (`tests/engine/domain/tests/suite/forge_routes.rs`) [in flight: change 3328].
+- **Not yet:** "A section the forge answers later has a read of its own": a landing's repair whose landing keeps no failure (its row retired, its receipt evicted) leaves its CI section pending with no read, so every attempt fails `ci: not gathered by its deadline`; `gather` does not check a pending section has a read, and the REASON `the landing no longer keeps its failure` does not exist (`temper-engine-domain-forge/src/brief.rs`, `brief_ci`, `gather`) [in flight: change 3338].
 
 
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`).
