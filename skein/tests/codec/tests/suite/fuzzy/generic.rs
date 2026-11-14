@@ -8,8 +8,7 @@ use crate::support::generated;
 #[cfg(test)]
 mod tests {
     use super::{generated, generic};
-    use skein_codec::schema::{DeclIx, Schema};
-    use skein_codec::value::{Refusal, Value};
+    use skein_codec::value::Value;
     use skein_lib::Rng;
 
     // Per root: 1536 draws and their three mutations; every arbitrary length
@@ -24,44 +23,6 @@ mod tests {
             .chain([0])
             .chain(root.bytes())
             .fold(round, |hash, byte| hash.wrapping_mul(0x100_0000_01b3) ^ u64::from(byte))
-    }
-
-    #[derive(Debug)]
-    struct Oracle<'a> {
-        schema: &'a Schema,
-        decl: DeclIx,
-        family: &'a generated::Family,
-        root: &'a generated::Root,
-        value: &'a mut Value,
-    }
-
-    impl Oracle<'_> {
-        #[expect(clippy::panic, reason = "oracle disagreements report both results and the replay seed")]
-        fn compare(&mut self, seed: u64, bytes: &[u8], valid: bool) {
-            let Self { schema, decl, family, root, value } = self;
-            let decl = *decl;
-            let context = || format!("{}.{}, seed {seed:#018x}, bytes {bytes:?}", family.name, root.name);
-            let checked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-                let decoded = value.decode(schema, decl, bytes.into());
-                match (decoded, (root.decode)(bytes)) {
-                    (Ok(node), generated::Decoded::Value { debug, bytes: encoded }) => {
-                        assert_eq!(value.bytes(), bytes, "{}", context());
-                        assert_eq!(value.bytes(), encoded, "{}", context());
-                        assert_eq!(generic::render(schema, value, node, decl), debug, "{}", context());
-                    }
-                    (Err(Refusal::Problem(problem)), generated::Decoded::Problem { path, reason }) => {
-                        assert!(!valid, "draw or golden refused: {}: {problem:?}", context());
-                        assert_eq!(generic::path_name(schema, problem.path), path, "{}", context());
-                        assert_eq!(problem.reason, reason, "{}", context());
-                        assert_eq!(value.bytes(), b"", "refusal empties the value: {}", context());
-                    }
-                    (generic, generated) => panic!("{}: generic {generic:?}, generated {generated:?}", context()),
-                }
-            }));
-            if let Err(problem) = checked {
-                panic!("{}: decoder comparison panicked: {problem:?}", context());
-            }
-        }
     }
 
     fn mutations(bytes: &[u8], rng: &mut Rng) -> [Vec<u8>; 3] {
@@ -91,15 +52,15 @@ mod tests {
             let goldens = skein_codegen::generate(&drawn_schema).goldens;
             for root in family.roots {
                 let decl = schema.find(root.name.as_bytes()).expect("root");
-                let mut oracle = Oracle { schema: &schema, decl, family: &family, root, value: &mut value };
+                let mut oracle = generic::Oracle { schema: &schema, decl, family: &family, root, value: &mut value };
                 for round in 0..DRAWS {
                     let seed = seed(family.name, root.name, round);
                     let mut rng = Rng::new(seed);
                     let bytes = generated::draw(&drawn_schema, root.name, &mut rng);
-                    oracle.compare(seed, &bytes, true);
+                    oracle.compare(seed, &bytes, true).expect("decoder agreement");
                     cases = cases.checked_add(1).expect("case count");
                     for mutation in mutations(&bytes, &mut rng) {
-                        oracle.compare(seed, &mutation, false);
+                        oracle.compare(seed, &mutation, false).expect("decoder agreement");
                         cases = cases.checked_add(1).expect("case count");
                     }
                 }
@@ -107,13 +68,13 @@ mod tests {
                 for seed in 0..8 {
                     let bytes = generated::draw(&drawn_schema, root.name, &mut Rng::new(seed));
                     for cut in 0..bytes.len() {
-                        oracle.compare(seed, bytes.get(..cut).expect("prefix"), false);
+                        oracle.compare(seed, bytes.get(..cut).expect("prefix"), false).expect("decoder agreement");
                     }
                     for index in 0..bytes.len() {
                         let mut changed = bytes.clone();
                         for replacement in [0, 1, 2, 0x7f, 0x80, 0xff] {
                             *changed.get_mut(index).expect("chosen byte") = replacement;
-                            oracle.compare(seed, &changed, false);
+                            oracle.compare(seed, &changed, false).expect("decoder agreement");
                         }
                     }
                 }
@@ -123,7 +84,7 @@ mod tests {
                     for length in 0..=MAX_ARBITRARY {
                         let bytes =
                             (0..length).map(|_| u8::try_from(rng.below(256)).expect("byte")).collect::<Vec<_>>();
-                        oracle.compare(seed, &bytes, false);
+                        oracle.compare(seed, &bytes, false).expect("decoder agreement");
                         cases = cases.checked_add(1).expect("case count");
                     }
                 }
@@ -131,10 +92,10 @@ mod tests {
                     if generic::golden_root(&schema, &golden.name) == decl {
                         let seed = seed(family.name, root.name, u64::MAX);
                         let mut rng = Rng::new(seed);
-                        oracle.compare(seed, &golden.bytes, true);
+                        oracle.compare(seed, &golden.bytes, true).expect("decoder agreement");
                         cases = cases.checked_add(1).expect("case count");
                         for mutation in mutations(&golden.bytes, &mut rng) {
-                            oracle.compare(seed, &mutation, false);
+                            oracle.compare(seed, &mutation, false).expect("decoder agreement");
                             cases = cases.checked_add(1).expect("case count");
                         }
                     }
