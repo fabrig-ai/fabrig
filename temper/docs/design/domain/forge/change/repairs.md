@@ -57,7 +57,9 @@
   the change's head; the section's own head stays the change's, so a head
   that moved is `the change's head moved` (below). Where no review at that
   head has words and none has a remark on a line, the section says
-  `[the request for changes gave no remarks]` after what it gathered. Its
+  `[the request for changes gave no remarks]` after what it gathered,
+  unless it was cut at the brief's deadline (*A forge section is sized by
+  its cutoff*, below). Its
   words open `Repair a person's request for changes at HEAD: changes
   requested on the forge`, HEAD the change's head's first twelve digits as
   for every repair, then `Repair what the person's review on the forge
@@ -250,28 +252,68 @@
   comparison where it has one; it reads no later page of files and raises no
   limit. This holds for every pull section, a review's included, so a
   review of a small change to a large document starts.
-- **A pull section is sized by its cutoff,** whatever its forge reads are
-  doing, so a large pull, a slow forge or a comparison far behind its base
-  cuts the section rather than failing its brief `pull: not gathered by its
-  deadline` (jig's `domain/engine/briefs.md`, 1.1). Its cutoff is three
-  quarters of the way from the section's gathering to the brief's deadline
-  (the setting `root.brief.gather_ms` after the gathering starts):
-  22.5 seconds in at the default 30, leaving the brief its last quarter to
-  size, cut and take its sections. Once its item and its pull are read, a
-  read of its files or its comparison still unanswered at the cutoff is
-  left, its late answer dropped as a dropped section's is, and the section
-  completes with what it gathered and a notice for what it left, within its
-  byte budget: for its files,
-  `[files omitted from page P: not read by the section's cutoff; the pull changes F files; read_pull_files from page P lists the rest, and read_file reads a path at the head or the base]`,
-  P the page it was reading and F's clause as above, after which it reads no
-  comparison; for its comparison, `[comparison omitted: not read by the
-  section's cutoff]`. Past its cutoff it starts no read of files or
-  comparison, so a pull read answered after it completes the section at
-  once with the files notice. Its item and pull reads, which name what the
-  section is for, wait on to the brief's deadline as before, and a section
-  gathered with no deadline has no cutoff. Each read left is a `brief read
-  refused` line (below). This holds for every pull section: a resolution's,
-  a repair's and a review's.
+- **A forge section is sized by its cutoff,** whatever its forge reads are
+  doing, so a large pull, a slow forge, a comparison far behind its base,
+  many reviews or long job logs cut the section rather than failing its
+  brief `SECTION: not gathered by its deadline` (jig's
+  `domain/engine/briefs.md`, 1, *Within the deadline*, and 1.1). Every
+  section the forge gathers with a deadline, a pull section, a reviews
+  section and a CI section, has its cutoff three quarters of the way from
+  the section's gathering to the brief's deadline (the setting
+  `root.brief.gather_ms` after the gathering starts): 22.5 seconds in at
+  the default 30, before the brief's settle point at seven eighths,
+  leaving the brief its last quarter to size, cut and take its sections.
+  A section gathered with no deadline has no cutoff. At its cutoff, a read
+  of the section's still unanswered, at any stage, is left, its late
+  answer dropped as a dropped section's is, and each read left is a `brief
+  read refused` line (below). Past its cutoff the section starts no read
+  but its identity's (below). What it does then depends on what it has:
+  - *Past its identity,* it completes at once with what it gathered and a
+    notice for what it left, within its byte budget. Its identity is the
+    reads that name what it is for: a pull section's item and pull, the
+    pull's head checked against the pin (below); a reviews section's
+    reviews; a CI section's checks. Each notice says the section was cut
+    at the brief's deadline, apart from the byte room's notices and a
+    bound's (above), which keep their words:
+    - its files, a pull section's:
+      `[files cut at the brief's deadline: N of F files read; read_pull_files from page P lists the rest, and read_file reads a path at the head or the base]`,
+      N the files its files reads answered, carried or named, F the
+      forge's count of the pull's changed files from its pull read, as
+      above, and P the page it was reading; where the forge gave no count,
+      `N files read` alone. A pull read answered past the cutoff gives
+      `0 of F files read` from page 1.
+    - its comparison, a pull section's, whether its read was left or never
+      started because the files were cut:
+      `[comparison cut at the brief's deadline: not read; read it in your checkout]`
+      for a resolution's and a repair's, and
+      `[comparison cut at the brief's deadline: not read; read_pull_files lists the pull's files]`
+      for any other pull section's. A section that would read no
+      comparison (above) says nothing of one.
+    - its remarks, a reviews section's:
+      `[remarks cut at the brief's deadline: R of V reviews' remarks read; read_remarks reads a review's remarks]`,
+      V the reviews the section kept at its head and R those whose remarks
+      it read. A section so cut never says `[the request for changes gave
+      no remarks]`: it did not read them all.
+    - its logs, a CI section's: the failed check being read and each
+      failed check after it keep their heads, each with
+      `[job log cut at the brief's deadline; read_checks names its job and read_job reads its log]`
+      in place of its log, as a log that could not be read keeps its
+      check's marker (below).
+  - *Short of its identity,* it has nothing usable. A half of a repair's
+    pair whose other half still stands becomes words in its place, as a
+    read of it that fails does (below), REASON `not read by the brief's
+    deadline`: `[the pull request could not be read: not read by the
+    brief's deadline]`, and the same for the reviews and the failed
+    checks. Any other, a lone section or a half whose partner has already
+    become words, waits on to the brief's deadline: its identity answered
+    before then completes it at once, with the notices for all it left,
+    and one still unanswered fails the brief `SECTION: not gathered by its
+    deadline`, or `the forge client is busy` where the client refused it
+    (below).
+  This holds for every forge section gathered with a deadline: a
+  resolution's, a repair's and a review's pull section, a reviews section
+  and a CI section. A charter's document has no cutoff: it is optional,
+  and the brief's settle point drops it unanswered.
 - **A pull section is pinned at the change's head,** its last head as
   the change records it: each push or save of a delegate's, reported or
   read afresh after a lost attempt, records it (`../../agent/README.md`, 5).
@@ -375,7 +417,8 @@
   A repair's two forge sections, its pull section and its reason (CI's or
   reviews'), are a pair, and each can stand without the other: the agent has
   the other's words and its forge tools to read again. A read of one that
-  counts as transient or permanent becomes words in that section's place,
+  counts as transient or permanent, or one with nothing usable at its
+  cutoff (above), becomes words in that section's place,
   after what it had gathered, and the brief goes on:
   `[the pull request could not be read: REASON]`,
   `[the failed checks could not be read: REASON]` or
@@ -402,8 +445,8 @@
   A files read answered `Stale` read no head, so its line names the error
   alone:
   `temper-box serve: brief read refused task=T section=pull stage=files reason=the change's head moved error=Stale`.
-  A read left at the section's cutoff names its stage, `files` or
-  `compare`, and no error or heads:
+  A read left at the section's cutoff names its section and stage, of
+  any section and at any stage, and no error or heads:
   `temper-box serve: brief read refused task=T section=pull stage=compare reason=not read by the section's cutoff`.
   A read the forge answered and temper refused names no error: never
   `error=None`.
@@ -731,12 +774,14 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   instructions and brief name the failed check; the result and panel keep
   their words until that follow-up.
 
-- **A cutoff for the other forge sections** (`repairs.md`, a pull section's
-  cutoff): a CI or reviews section still waits on its reads to the brief's
-  deadline. A repair's pair stands on either half, so one failing becomes
-  words; a lone reviews section past the deadline still fails its brief.
-  Default: the pull section alone has a cutoff, the one a deployment met
-  (2026-11-12).
+- **A read left at its cutoff keeps running** (`repairs.md`, *A forge
+  section is sized by its cutoff*): skein's forge client has no way to
+  withdraw a read it admitted (skein's `forge/client.md`, 5), so a read a
+  section left, a page of files with each side of each file its own
+  request, holds one of the client's calls to its end, and a brief tried
+  again at once can find the client still reading for its last attempt.
+  Default: the read runs on and its answer is dropped; withdrawing an
+  admitted read is skein's client's to design (2026-11-14).
 
 - **A repair of another reason that changes nothing** (`repairs.md`, *A CI
   repair that changes nothing checks its head again*): a gate's or a
