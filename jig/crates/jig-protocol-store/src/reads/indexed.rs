@@ -19,6 +19,7 @@ fn owner_number(key: &core::Key) -> Result<u64, Failure> {
             tasks::Key::Live(_)
             | tasks::Key::Ended(_)
             | tasks::Key::PlacedHold(_)
+            | tasks::Key::LiveCold(_)
             | tasks::Key::Stub(_)
             | tasks::Key::Ledger(_)
             | tasks::Key::Writer(_)
@@ -97,6 +98,7 @@ fn update(value: &core::Record) -> Option<tasks::Update> {
             tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
@@ -127,6 +129,7 @@ fn delegate(value: &core::Record) -> Option<tasks::Edge> {
             tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)

@@ -11,6 +11,7 @@ mod generations;
 mod gets;
 mod intervals;
 mod keys;
+mod live_parts;
 mod open;
 mod pages;
 mod patching;

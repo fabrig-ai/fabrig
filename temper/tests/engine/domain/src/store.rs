@@ -307,6 +307,23 @@ impl Store {
         header.commits = number;
         let mut writes: Vec<_> =
             saves.into_vec().into_iter().filter(|row| row.key() != header_key).map(Write::Save).collect();
+        let mut parts = Vec::new();
+        for write in &writes {
+            if let Write::Save(Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(row)))) =
+                write
+            {
+                parts.push(Write::Save(Record::Core(jig_domain_core::Record::Tasks(
+                    jig_domain_tasks::Stored::LiveCold {
+                        number: row.number,
+                        spec: Box::new(row.spec.clone()),
+                        contract: row.contract.clone(),
+                        authority: row.authority.clone(),
+                        instructions: row.instructions.clone(),
+                    },
+                ))));
+            }
+        }
+        writes.extend(parts);
         writes.extend(erases.into_vec().into_iter().map(Write::Erase));
         writes.push(Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
             header,

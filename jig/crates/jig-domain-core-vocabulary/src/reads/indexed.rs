@@ -116,6 +116,7 @@ pub fn is_update(key: &Key) -> bool {
             tasks::Key::Live(_)
             | tasks::Key::Ended(_)
             | tasks::Key::PlacedHold(_)
+            | tasks::Key::LiveCold(_)
             | tasks::Key::Stub(_)
             | tasks::Key::Ledger(_)
             | tasks::Key::ClosedLedger(_)
@@ -162,6 +163,7 @@ pub fn ended_delegate_row(
             | tasks::Stored::Live(_)
             | tasks::Stored::Ended(_)
             | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::LiveCold { .. }
             | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
