@@ -216,6 +216,7 @@ fn abandonment_drops_every_document_row_and_its_titles() {
 
 fn repair() -> forge::ChangeRow {
     forge::ChangeRow {
+        task_release: None,
         job: None,
         signed: Box::new([]),
         task: 7,

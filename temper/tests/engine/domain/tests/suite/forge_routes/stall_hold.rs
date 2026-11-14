@@ -9,7 +9,7 @@ use temper_engine_domain_forge_change::{Hold, State};
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 1000; // A stall's read, durable hold, escalation and worker delivery.
 
-fn preparing(goal: bool) -> (World, engine::Assignment, u64, engine::Assignment) {
+pub(super) fn preparing(goal: bool) -> (World, engine::Assignment, u64, engine::Assignment) {
     preparing_rows(goal, None)
 }
 fn ci_world(rows: Option<u32>) -> World {
@@ -54,7 +54,7 @@ fn preparing_rows(goal: bool, rows: Option<u32>) -> (World, engine::Assignment, 
     (world, owner, task, producer)
 }
 
-fn waiting(world: &mut World, task: u64, producer: &engine::Assignment, ci: bool) {
+pub(super) fn waiting(world: &mut World, task: u64, producer: &engine::Assignment, ci: bool) {
     if ci {
         temper_engine_domain_world::kinds::produce(world, task, producer);
     } else {
@@ -112,7 +112,7 @@ fn stall(world: &mut World, task: u64) {
     assert_stalled(world, task);
 }
 
-fn assert_stalled(world: &World, task: u64) {
+pub(super) fn assert_stalled(world: &World, task: u64) {
     assert!(matches!(row(world, task).change.state, State::Held { why: Hold::Stalled, .. }));
     assert!(
         matches!(live_task(world, task).phase, tasks::Phase::Held { why: tasks::Hold::Stalled, .. }),
@@ -216,7 +216,7 @@ fn not_held(world: &World, task: u64) {
     assert!(matches!(live_task(world, task).escalation, tasks::Escalation::Unheld { .. }));
 }
 
-fn jump(world: &mut World, duration: Duration) {
+pub(super) fn jump(world: &mut World, duration: Duration) {
     world.env.now = world.env.now.saturating_add(duration);
     world.tick();
     world.until(Until::Ready);
@@ -469,7 +469,13 @@ fn an_undecided_stall_passes_up_to_a_person() {
 fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
     let (mut world, goal, task, producer) = preparing(true);
     waiting(&mut world, task, &producer, true);
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(170)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [170; 16],
+        ask: people::Ask::Say { project: 1, task, words: b"Read CI again.".as_slice().into() },
+    }));
     let mut read = None;
     for _ in 0..STEPS {
         if let Some(index) = world.events.iter().position(|event| matches!(event,
@@ -499,6 +505,7 @@ fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
         world.tick();
     }
     assert_eq!(live_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
     world.send(read);
     for _ in 0..STEPS {
         world.tick();

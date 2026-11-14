@@ -1,6 +1,6 @@
 # store: status
 
-2026-11-13. Where temper's code lags or departs from [store.md](store.md).
+2026-11-14. Where temper's code lags or departs from [store.md](store.md).
 
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read

@@ -28,7 +28,7 @@ pub enum Side {
     Both,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Made {
+pub(crate) enum Made {
     Spec(Box<Spec>),
     Failed(Class),
 }
@@ -59,7 +59,7 @@ pub enum Needs {
     Needed,
 }
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Layer {
+pub(crate) enum Layer {
     Packages,
     Software,
     Config,
@@ -75,7 +75,7 @@ pub struct Tally {
     pub unchanged: u32,
 }
 #[must_use]
-pub const fn layer(part: &PartRecord) -> Layer {
+pub(crate) const fn layer(part: &PartRecord) -> Layer {
     match part {
         PartRecord::Config(_) => Layer::Config,
         PartRecord::Secrets(_) | PartRecord::Boot(_) | PartRecord::Data(_) => Layer::Slot,
@@ -85,7 +85,7 @@ pub const fn layer(part: &PartRecord) -> Layer {
     }
 }
 #[must_use]
-pub fn rebuild(changed: &[Layer], resolution: Needs) -> Rebuild {
+pub(crate) fn rebuild(changed: &[Layer], resolution: Needs) -> Rebuild {
     match changed.iter().min() {
         Some(Layer::Packages) => Rebuild::FromPackages { resolution },
         Some(Layer::Software) => Rebuild::FromSoftware,
@@ -95,7 +95,7 @@ pub fn rebuild(changed: &[Layer], resolution: Needs) -> Rebuild {
     }
 }
 #[must_use]
-pub fn compare(from: Option<&Made>, to: Option<&Made>, resolution: Needs) -> TargetChange {
+pub(crate) fn compare(from: Option<&Made>, to: Option<&Made>, resolution: Needs) -> TargetChange {
     match (from, to) {
         (Some(Made::Failed(_)), Some(Made::Failed(_))) => TargetChange::Failed { side: Side::Both },
         (Some(Made::Failed(_)), _) => TargetChange::Failed { side: Side::From },
@@ -106,15 +106,13 @@ pub fn compare(from: Option<&Made>, to: Option<&Made>, resolution: Needs) -> Tar
             if before.digest == after.digest {
                 return TargetChange::Same;
             }
-            let from = config_part(before);
-            let to = config_part(after);
+            let old = compared_parts(before);
+            let new = compared_parts(after);
             let mut parts = skein_lib::List::with_capacity(9);
             if let Some(meta) = crate::parts::meta::change(&before.meta, &after.meta) {
                 parts.push(PartChange::Meta(meta)).expect("one meta change");
             }
             let mut layers = skein_lib::List::with_capacity(7);
-            let old = package_and_boot(before);
-            let new = package_and_boot(after);
             if let (Some((from, before)), Some((to, after))) = (old.packages, new.packages)
                 && from != to
             {
@@ -127,24 +125,24 @@ pub fn compare(from: Option<&Made>, to: Option<&Made>, resolution: Needs) -> Tar
                 parts.push(PartChange::Boot(boot::change(before, after))).expect("one boot");
                 layers.push(Layer::Slot).expect("three layers");
             }
-            let changed = match (from, to) {
+            let changed = match (old.config, new.config) {
                 (Some((old, _)), Some((new, _))) => old != new,
                 (None, None) => false,
                 (Some(_), None) | (None, Some(_)) => true,
             };
             if changed {
-                let old = config_record(from);
-                let new = config_record(to);
+                let old = config_record(old.config);
+                let new = config_record(new.config);
                 parts.push(PartChange::Config(config::change(old, new))).expect("one config");
                 layers.push(Layer::Config).expect("one config");
             }
-            let data = data::change(data_part(before), data_part(after));
+            let data = data::change(old.data, new.data);
             if !data.entries.is_empty() {
                 parts.push(PartChange::Data(data)).expect("one data");
                 layers.push(Layer::Slot).expect("four layers");
             }
             additional(before, after, &mut parts, &mut layers);
-            let exports = exports::change(exports_part(before), exports_part(after));
+            let exports = exports::change(old.exports, new.exports);
             if !exports.entries.is_empty() {
                 parts.push(PartChange::Exports(exports)).expect("one exports");
             }
@@ -156,22 +154,6 @@ pub fn compare(from: Option<&Made>, to: Option<&Made>, resolution: Needs) -> Tar
 fn config_record<'a>(part: Option<(&Digest, &'a config::Config)>) -> Option<&'a config::Config> {
     let (_, record) = part?;
     Some(record)
-}
-fn config_part(spec: &Spec) -> Option<(&Digest, &config::Config)> {
-    let mut found = None;
-    for part in &spec.parts {
-        match &part.record {
-            PartRecord::Config(config) => found = Some((&part.digest, config)),
-            PartRecord::Data(_)
-            | PartRecord::Secrets(_)
-            | PartRecord::Software(_)
-            | PartRecord::Live(_)
-            | PartRecord::Packages(_)
-            | PartRecord::Boot(_)
-            | PartRecord::Exports(_) => {}
-        }
-    }
-    found
 }
 
 /// Git's retained unified lines (hearth/docs/design/domain/render/README.md, 4.1).
@@ -215,49 +197,23 @@ pub(crate) fn tree(change: &mut TargetChange) -> &mut [config::EntryChange] {
     tree
 }
 
-struct PackageAndBoot<'a> {
+struct ComparedParts<'a> {
+    config: Option<(&'a Digest, &'a config::Config)>,
+    data: Option<&'a data::Data>,
+    exports: Option<&'a exports::Exports>,
     packages: Option<(&'a Digest, &'a packages::Packages)>,
     boot: Option<(&'a Digest, &'a boot::Boot)>,
 }
-fn package_and_boot(spec: &Spec) -> PackageAndBoot<'_> {
-    let mut found = PackageAndBoot { packages: None, boot: None };
+fn compared_parts(spec: &Spec) -> ComparedParts<'_> {
+    let mut found = ComparedParts { config: None, data: None, exports: None, packages: None, boot: None };
     for part in &spec.parts {
         match &part.record {
+            PartRecord::Config(config) => found.config = Some((&part.digest, config)),
+            PartRecord::Data(data) => found.data = Some(data),
+            PartRecord::Exports(exports) => found.exports = Some(exports),
             PartRecord::Packages(packages) => found.packages = Some((&part.digest, packages)),
             PartRecord::Boot(boot) => found.boot = Some((&part.digest, boot)),
-            PartRecord::Data(_)
-            | PartRecord::Config(_)
-            | PartRecord::Secrets(_)
-            | PartRecord::Software(_)
-            | PartRecord::Live(_)
-            | PartRecord::Exports(_) => {}
-        }
-    }
-    found
-}
-
-fn exports_part(spec: &Spec) -> Option<&exports::Exports> {
-    let mut found = None;
-    for part in &spec.parts {
-        match &part.record {
-            PartRecord::Exports(exports) => found = Some(exports),
-            PartRecord::Data(_)
-            | PartRecord::Config(_)
-            | PartRecord::Secrets(_)
-            | PartRecord::Software(_)
-            | PartRecord::Live(_)
-            | PartRecord::Packages(_)
-            | PartRecord::Boot(_) => {}
-        }
-    }
-    found
-}
-
-fn data_part(spec: &Spec) -> Option<&data::Data> {
-    let mut found = None;
-    for part in &spec.parts {
-        if let PartRecord::Data(data) = &part.record {
-            found = Some(data);
+            PartRecord::Secrets(_) | PartRecord::Software(_) | PartRecord::Live(_) => {}
         }
     }
     found

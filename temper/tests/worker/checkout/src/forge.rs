@@ -67,6 +67,8 @@ pub fn config() -> Config {
         setup_faults: 0,
         lost: 0,
         made_checks: Config::test().made_checks,
+        made_workflows: Config::test().made_workflows,
+        made_manual_merges: Config::test().made_manual_merges,
         limits: LIMITS,
         latency_min: Duration::ZERO,
         latency_max: Duration::ZERO,

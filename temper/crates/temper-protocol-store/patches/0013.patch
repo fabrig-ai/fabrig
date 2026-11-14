@@ -2,11 +2,5 @@ patch 1
 owner temper 13
 
 family temper-store 23 to 24
-add TierGroup
-add TierProbe.low u32 written
-add TierProbe.high u32 written
-add TierProbe.waiting list 759 TierGroup []
-written TierProbe.low
-written TierProbe.high
-add TierHold
-add TierRow.hold option TierHold none
+add TaskRelease
+add ChangeRow.task_release option TaskRelease none

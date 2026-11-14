@@ -105,6 +105,7 @@ pub struct World {
     pub walking: Option<Walking>,
     pub(crate) broken: bool,
     pub(crate) oracle_closed: bool,
+    seed: u64,
     pub(crate) restart_config: (root::Config, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
     fixture_rows: Box<[root::Record]>,
@@ -381,28 +382,39 @@ impl World {
 
     pub fn drain(&mut self) {
         self.domain.script_project_releases();
-        self.drive(300, true, true);
+        self.drive(300, true, true).unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    /// Add the world's replay key and the last boundary events.
+    #[must_use]
+    pub fn diagnostic(&self, finding: &str) -> String {
+        let tail = &self.trace[self.trace.len().saturating_sub(30)..];
+        format!("seed {}: {finding}\n{}", self.seed, tail.join("\n"))
+    }
+
+    fn fail(&self, finding: &str) -> ! {
+        panic!("{}", self.diagnostic(finding));
     }
 
     #[expect(clippy::too_many_lines, reason = "one loop routes root, store and peer work in order")]
-    fn drive(&mut self, steps: usize, tick: bool, consume: bool) {
+    fn drive(&mut self, steps: usize, tick: bool, consume: bool) -> Result<(), String> {
         if let Some(Cut::Disk { from: from @ jig_test_store_files::KillFrom::Commit(_), operation }) = self.cut {
             self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
         }
         for _ in 0..steps {
             if self.store.reached_kill() {
                 self.reached_cut = self.cut.take();
-                return;
+                return Ok(());
             }
             if self.stopped {
-                return;
+                return Ok(());
             }
             if self.supplied_wall.is_none() {
                 self.wall += 1_000_000;
             }
-            self.observer.observe(self.wall, crate::referee::Observed::Tick);
+            self.observer.observe(self.wall, crate::referee::Observed::Tick)?;
             let env = self.env();
-            self.observer.systems(self.wall, &self.systems);
+            self.observer.systems(self.wall, &self.systems)?;
             let sweep_waits = self.domain.start_phase() == Some(core::start::Phase::Sweep)
                 && !self.domain.quiescent()
                 && self.events.front().is_some_and(|event| {
@@ -421,7 +433,7 @@ impl World {
                         | root::Event::StartPageRefused { .. }
                         | root::Event::StartDone(_)
                 ) {
-                    self.observer.inbound(&self.store, self.wall, &mut event);
+                    self.observer.inbound(&self.store, self.wall, &mut event)?;
                     if let Some(offers) = &mut self.offers {
                         offers.inbound(&mut event);
                     }
@@ -483,17 +495,17 @@ impl World {
                         self.inject_assignment_renewal(&rows);
                         self.commits.push(rows.clone());
                         self.store.submit(number, rows.into_boxed_slice(), self.store_delay);
-                        self.observer.submitted(self.wall, &self.store);
+                        self.observer.submitted(self.wall, &self.store)?;
                         if self.cut == Some(Cut::Submitted(number)) {
                             self.reached_cut = self.cut.take();
-                            return;
+                            return Ok(());
                         }
                     }
                     root::Request::Deliver(delivery) => {
                         if self.manual {
-                            self.capture(delivery);
+                            self.capture(delivery)?;
                         } else {
-                            self.delivered(delivery);
+                            self.delivered(delivery)?;
                         }
                     }
                     root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
@@ -601,20 +613,20 @@ impl World {
             }
             if !self.stopped {
                 if tick {
-                    self.tick_store();
+                    self.tick_store()?;
                 }
                 if let Some(peer) = &mut self.store_peer {
                     peer.capture(Time::from_nanos(self.wall), &self.store);
                 }
                 if self.store.reached_kill() {
                     self.reached_cut = self.cut.take();
-                    return;
+                    return Ok(());
                 }
                 if self.cut == Some(Cut::Durable(self.store.applied)) {
                     self.reached_cut = self.cut.take();
-                    return;
+                    return Ok(());
                 }
-                self.observer.systems(self.wall, &self.systems);
+                self.observer.systems(self.wall, &self.systems)?;
                 self.restore_pages();
                 if let Some(watches) = &mut self.watches {
                     self.events.extend(watches.tick());
@@ -636,7 +648,7 @@ impl World {
                 }
             }
             if let Some(peers) = &self.peers {
-                self.observer.workers(self.wall, &peers.workers);
+                self.observer.workers(self.wall, &peers.workers)?;
             }
             if let Some(mut walking) = self.walking.take() {
                 walking.tick(self);
@@ -644,9 +656,9 @@ impl World {
             }
             crate::referee::public::check(self);
             self.domain.reclaim();
-            self.observer.observe(self.wall, self.heap.observed());
+            self.observer.observe(self.wall, self.heap.observed())?;
             if steps == 1 {
-                return;
+                return Ok(());
             }
             let held_restore = self.hold_restore_pages && self.restoring.is_some() && self.store.loading();
             if empty
@@ -660,10 +672,10 @@ impl World {
                     || self.reads.as_ref().is_some_and(crate::reads::Parties::paused))
                 && self.watches.as_ref().is_none_or(crate::peers::WatchParties::quiescent)
             {
-                return;
+                return Ok(());
             }
         }
-        panic!("effect world did not settle: {:?}", self.trace);
+        Err("effect world did not settle".into())
     }
 
     #[must_use]

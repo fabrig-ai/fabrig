@@ -396,11 +396,12 @@ fn make(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
 }
 
 struct Judge {
+    finding: Option<String>,
     done: bool,
 }
-impl Referee<Proc> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
-        let done = matches!(procs.first().expect("parent"), Proc::Parent(parent) if parent.is_empty());
+impl Judge {
+    fn act_checked(&mut self, _now: Time, procs: &mut [Proc]) -> Result<(), String> {
+        let done = matches!(procs.first().ok_or("parent")?, Proc::Parent(parent) if parent.is_empty());
         if done && !self.done {
             self.done = true;
             for proc in procs {
@@ -409,10 +410,24 @@ impl Referee<Proc> for Judge {
                 }
             }
         }
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
+}
+
+impl Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, _procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn passed(&self) -> bool {
-        self.done
+        self.finding.is_none() && (self.done)
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.done).then_some(Time::ZERO.saturating_add(Duration::from_secs(1)))
@@ -463,8 +478,9 @@ pub fn run(
     if short {
         config.buffer = 7;
     }
-    let mut world = skein_world::World::new(7, config, Judge { done: false }, skein_world::Memory::Checked)
-        .with_machine(skein_fake_machine::Rooted { files, root });
+    let mut world =
+        skein_world::World::new(7, config, Judge { finding: None, done: false }, skein_world::Memory::Checked)
+            .with_machine(skein_fake_machine::Rooted { files, root });
     world.host(HostedProgram {
         program: agent.program().into(),
         make,

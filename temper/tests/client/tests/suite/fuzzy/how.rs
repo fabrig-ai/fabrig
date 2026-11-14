@@ -4,7 +4,7 @@ mod landings;
 use jig_client::contract::TemplateBudget;
 use skein_lib::{List, Rng};
 use skein_ui::{Builder, Role};
-use std::{collections::BTreeSet, panic::catch_unwind};
+use std::collections::BTreeSet;
 use temper_client_domain::{
     forge,
     pages::how::{self, Budget, Facts, Head, Line, Path, Read},
@@ -302,18 +302,9 @@ fn parts_and_drawing_follow_only_the_current_facts() {
     let mut combinations = BTreeSet::new();
     let mut lengths = BTreeSet::new();
     for seed in 1..=SEEDS {
+        eprintln!("seed {seed}: replay with sweep({seed})");
         drawing.check(seed, &limits);
-        assert!(
-            catch_unwind(std::panic::AssertUnwindSafe(|| sweep(
-                seed,
-                &limits,
-                &bounds,
-                &mut combinations,
-                &mut lengths
-            )))
-            .is_ok(),
-            "seed {seed}: replay with sweep({seed})"
-        );
+        sweep(seed, &limits, &bounds, &mut combinations, &mut lengths);
     }
     assert_eq!(combinations.len(), FACT_COMBINATIONS, "every combination of parts' facts was drawn");
     assert_eq!(
@@ -529,10 +520,8 @@ fn reaches_sweep(seed: u64, coverage: &mut ReachesCoverage) {
 fn what_reaches_you_places_each_subject_once() {
     let mut coverage = ReachesCoverage::default();
     for seed in 1..=SEEDS {
-        assert!(
-            catch_unwind(std::panic::AssertUnwindSafe(|| reaches_sweep(seed, &mut coverage))).is_ok(),
-            "seed {seed}: replay with reaches_sweep({seed})"
-        );
+        eprintln!("seed {seed}: replay with reaches_sweep({seed})");
+        reaches_sweep(seed, &mut coverage);
     }
     assert_eq!(coverage.decide, BTreeSet::from([false, true]), "with and without a Decide line");
     assert_eq!(

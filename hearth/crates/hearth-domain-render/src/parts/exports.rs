@@ -8,7 +8,7 @@ use hearth_lib::{
     encode::{DEPTH, Digest, Item},
     hash::H,
 };
-use skein_lib::{List, Map, Stack, bytes};
+use skein_lib::{Joined, List, Map, Stack, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Exports {
     pub tasks: Box<[Exported]>,
@@ -27,43 +27,37 @@ pub struct ExportChange {
 /// Pair published values by task and name, comparing their canonical records.
 #[must_use]
 pub fn change(before: Option<&Exports>, after: Option<&Exports>) -> Change {
-    let mut count = 0_usize;
-    for part in before.into_iter().chain(after) {
-        for task in &part.tasks {
-            count = count.saturating_add(task.values.len());
-        }
-    }
-    let mut pairs = Map::with_capacity(u32::try_from(count).expect("bounded exports"));
-    for (part, from) in [(before, true), (after, false)] {
-        let Some(part) = part else { continue };
+    let mut old: Map<(&[u8], &[u8]), &Value> = Map::uncapped();
+    let mut new: Map<(&[u8], &[u8]), &Value> = Map::uncapped();
+    if let Some(part) = before {
         for task in &part.tasks {
             for entry in &task.values {
                 if let Some(value) = &entry.value {
-                    let key = (task.task.as_ref(), entry.key.as_ref());
-                    let (before, after) = pairs.get(&key).copied().unwrap_or((None, None));
-                    let pair = if from { (Some(value), after) } else { (before, Some(value)) };
-                    pairs.insert(key, pair).expect("export count");
+                    old.insert((task.task.as_ref(), entry.key.as_ref()), value).expect("an uncapped map");
                 }
             }
         }
     }
-    let mut entries = List::with_capacity(pairs.len());
-    for ((task, name), (before, after)) in &pairs {
-        let same = match (before, after) {
-            (Some(before), Some(after)) => value_items(before) == value_items(after),
-            (None, None) => true,
-            (Some(_), None) | (None, Some(_)) => false,
-        };
-        if !same {
-            entries
-                .push(ExportChange {
-                    task: bytes::copy_of(task),
-                    name: bytes::copy_of(name),
-                    before: before.cloned(),
-                    after: after.cloned(),
-                })
-                .expect("export count");
+    if let Some(part) = after {
+        for task in &part.tasks {
+            for entry in &task.values {
+                if let Some(value) = &entry.value {
+                    new.insert((task.task.as_ref(), entry.key.as_ref()), value).expect("an uncapped map");
+                }
+            }
         }
+    }
+    let mut entries = List::uncapped();
+    for ((task, name), joined) in old.join(&new) {
+        let (before, after) = match joined {
+            Joined::First(value) => (Some((*value).clone()), None),
+            Joined::Second(value) => (None, Some((*value).clone())),
+            Joined::Both(was, now) if value_items(was) == value_items(now) => continue,
+            Joined::Both(was, now) => (Some((*was).clone()), Some((*now).clone())),
+        };
+        entries
+            .push(ExportChange { task: bytes::copy_of(task), name: bytes::copy_of(name), before, after })
+            .expect("an uncapped list");
     }
     Change { entries: entries.into_boxed() }
 }

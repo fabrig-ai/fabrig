@@ -72,7 +72,7 @@ fn a_row_whose_key_disagrees_with_its_record_is_undecodable() {
     assert_eq!(records::row(&key, &[], &bounds), Err(Undecodable::Malformed), "malformed value");
 }
 #[test]
-fn the_store_version_is_twenty_one() {
+fn the_store_version_is_twenty_five() {
     assert_eq!(crate::STORE_VERSION, 25);
 }
 

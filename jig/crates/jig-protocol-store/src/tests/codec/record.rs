@@ -1,6 +1,6 @@
 //! Complete durable tasks and all remaining row kinds (protocol/store/records.md, 1).
 use super::{bound_problem, fixtures, saved_tasks, tasks_limits};
-use crate::{codec::tasks, tasks_v12 as wire};
+use crate::{codec::tasks, tasks_v13 as wire};
 use jig_domain_tasks as domain;
 use skein_lib::{Duration, Token, Wall};
 
@@ -52,6 +52,16 @@ fn a_live_task_record_reads_back_whole() {
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
+#[test]
+fn a_tasks_question_wake_watermark_reads_back() {
+    for question_woken in [0, 37, u64::MAX] {
+        let mut record = current_record();
+        record.question_woken = question_woken;
+        let row = live_record(record);
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+}
+
 #[test]
 fn a_task_record_with_started_from_dependencies_reads_back() {
     let mut record = current_record();
@@ -390,15 +400,7 @@ fn live_task_records_read_back_whole() {
 type Case = (&'static str, fn());
 
 fn table<const N: usize>(cases: [Case; N]) {
-    let mut failures = [None; N];
-    let mut passed = true;
-    for ((name, case), failure) in cases.into_iter().zip(&mut failures) {
-        if std::panic::catch_unwind(case).is_err() {
-            *failure = Some(name);
-            passed = false;
-        }
-    }
-    assert!(passed, "{failures:?}");
+    skein_rows::check(cases, |case| case());
 }
 
 #[test]

@@ -22,10 +22,13 @@ Every world checks what the strategy lists (skein/docs/foundation/testing-strate
   its `Debug` prints: `applied`, `rows`, `pending` and `held`.
   The comparison uses a test-only 64-bit word hasher: its
   digests are compared within one process and never kept, with no
-  cross-run or cross-target promise. A digest mismatch fails with both
-  states' text even when that text agrees. At each seed's end the worlds
+  cross-run or cross-target promise. A digest mismatch is the
+  comparison's finding, returned with both states' text even when that
+  text agrees, and the world fails with it. At each seed's end the worlds
   also compare their complete `Debug` text, retaining checks of what
-  `Hash` omits, before both close through the cold restart oracle.
+  `Hash` omits, a difference again a returned finding, before both close
+  through the cold restart oracle. A test of the comparison reads its
+  finding (`README.md`, 4.2).
 - **Secrets stay beside the domains:** in every world with the protocol
   layer, no git identity's value or API token appears in a domain's
   state, a fact, a store record or a log; the fake git program checks

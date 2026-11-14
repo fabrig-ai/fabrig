@@ -19,22 +19,6 @@ fn round_trip(row: d::Stored, family: u8) {
     assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
     assert_eq!(records::row(&bytes, &records::encode(&row), &bounds), Ok(row));
 }
-fn before_posting(row: &d::TierRow) -> Box<[u8]> {
-    use super::catch_up::{kept_schema, kept_value};
-    use crate::patches::kept::temper_store::p0014::new as fields;
-    let schema = kept_schema(25);
-    let bytes = records::encode(&d::Stored::Tier(row.clone()));
-    let (value, root) = kept_value(&schema, b"Row", bytes);
-    let tier = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
-    let span = value.span(value.field(tier, fields::tier_row::POSTING).unwrap()).unwrap();
-    let from = usize::try_from(span.start).unwrap();
-    let to = usize::try_from(span.end).unwrap();
-    let mut before = skein_lib::Writer::new(value.bytes().len().checked_sub(to.checked_sub(from).unwrap()).unwrap());
-    before.put(&[0, 24]).unwrap();
-    before.put(&value.bytes()[2..from]).unwrap();
-    before.put(&value.bytes()[to..]).unwrap();
-    before.finish()
-}
 
 #[test]
 fn tier_posting_round_trips_its_cursor_blame_and_comment_purposes() {
@@ -101,7 +85,7 @@ fn v24_rows_start_with_no_posting() {
             row.record.run = None;
             row.probe = None;
         }
-        let bytes = patched(24, 13, b"Row", before_posting(&row));
+        let bytes = patched(24, 13, b"Row", before_controls(&row, 24));
         let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
         assert!(decoded.posting.is_none());
         assert_eq!(decoded, row);
@@ -166,15 +150,15 @@ fn waiting_groups_and_a_persons_independent_hold_round_trip() {
     round_trip(d::Stored::Tier(row), 28);
 }
 
-// Omit v24's additions; the patcher decodes these bytes with the kept v23 schema.
-fn before_groups(row: &d::TierRow) -> Box<[u8]> {
+// Omit the controls' additions; the patcher decodes bytes with either kept schema.
+fn before_controls(row: &d::TierRow, version: u8) -> Box<[u8]> {
     use super::catch_up::{kept_schema, kept_value};
-    use crate::patches::kept::temper_store::p0013::new as fields;
-    let schema = kept_schema(24);
-    let bytes = before_posting(row);
+    use crate::patches::kept::temper_store::p0014::new as fields;
+    let schema = kept_schema(25);
+    let bytes = records::encode(&d::Stored::Tier(row.clone()));
     let (value, root) = kept_value(&schema, b"Row", bytes);
     let tier = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
-    let mut omitted = skein_lib::List::with_capacity(4);
+    let mut omitted = skein_lib::List::with_capacity(5);
     let record = value.field(tier, fields::tier_row::RECORD).unwrap();
     if let Some(run) = value.some(value.field(record, fields::tier_record::RUN).unwrap()).unwrap() {
         let part = value.field(run, fields::tier_run::PART).unwrap();
@@ -186,12 +170,13 @@ fn before_groups(row: &d::TierRow) -> Box<[u8]> {
         }
     }
     omitted.push(value.span(value.field(tier, fields::tier_row::HOLD).unwrap()).unwrap()).unwrap();
+    omitted.push(value.span(value.field(tier, fields::tier_row::POSTING).unwrap()).unwrap()).unwrap();
     let mut length = value.bytes().len();
     for span in omitted.as_slice() {
         length = length.checked_sub(usize::try_from(span.end.checked_sub(span.start).unwrap()).unwrap()).unwrap();
     }
     let mut before = skein_lib::Writer::new(length);
-    before.put(&[0, 23]).unwrap();
+    before.put(&[0, version]).unwrap();
     let mut from = 2;
     for span in omitted.as_slice() {
         before.put(&value.bytes()[from..usize::try_from(span.start).unwrap()]).unwrap();
@@ -231,7 +216,7 @@ fn v23_probes_resume_the_unsearched_suffix_and_rows_have_no_hold() {
         }
         // An old row cannot carry a person's hold, even when all its other fields are present.
         row.hold = None;
-        let before = before_groups(&row);
+        let before = before_controls(&row, 23);
         let bytes = patched(24, 13, b"Row", patched(23, 12, b"Row", before));
         let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
         assert!(decoded.hold.is_none(), "v23 has no person's hold");

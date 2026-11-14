@@ -7,30 +7,39 @@ use super::super::fixtures::{
 };
 use crate::{
     errors::{Format, Kind, Schema},
-    kinds::users::UserKind,
+    parts::config::UserKind,
     revision::declaration::{Map, Name},
 };
 #[test]
 fn a_user_without_fields_gets_5_6s_defaults() {
     let accounts = accounts([]).expect("defaults");
     assert_eq!(
-        fixtures::only(&accounts.users).kind,
-        UserKind::Sysusers {
-            uid: None,
-            group: b"alice".as_slice().into(),
-            gecos: Box::new([]),
-            home: b"/".as_slice().into(),
-            shell: b"/usr/sbin/nologin".as_slice().into(),
-            subordinate: None,
-            member_of: Box::new([])
-        }
+        (
+            &fixtures::only(&accounts.users).value.kind,
+            fixtures::only(&accounts.users).subordinate,
+            fixtures::only(&accounts.users).member_of.as_ref()
+        ),
+        (
+            &UserKind::Sysusers {
+                uid: None,
+                group: b"alice".as_slice().into(),
+                gecos: Box::new([]),
+                home: b"/".as_slice().into(),
+                shell: b"/usr/sbin/nologin".as_slice().into(),
+            },
+            None,
+            [].as_slice()
+        )
     );
 }
 #[test]
 fn a_package_user_takes_only_its_ids() {
     let accounts = accounts([text(Name::From, b"package"), integer(Name::Uid, MIN_UID), integer(Name::Gid, MAX_UID)])
         .expect("package ids");
-    assert_eq!(fixtures::only(&accounts.users).kind, fixture::PACKAGE_LIMITS);
+    assert_eq!(
+        (&fixtures::only(&accounts.users).value.kind, fixtures::only(&accounts.users).package_ids),
+        (&UserKind::Package, fixture::PACKAGE_LIMITS)
+    );
 }
 const PACKAGE_FIELDS: &[(Name, &[u8], &[u8])] = &[
     (Name::Group, b"other", b"group"),
@@ -112,10 +121,8 @@ fn a_subordinate_range_out_of_bounds_errs_below_or_above() {
 #[test]
 fn a_subordinate_range_at_the_limits_is_carried() {
     let accounts = accounts([range(MIN_SUBORDINATE, MAX_SUBORDINATE_COUNT)]).expect("range");
-    let UserKind::Sysusers { subordinate, .. } = &fixtures::only(&accounts.users).kind else {
-        panic!("sysusers account")
-    };
-    assert_eq!(*subordinate, Some(fixture::SUBORDINATE_LIMITS));
+    let UserKind::Sysusers { .. } = &fixtures::only(&accounts.users).value.kind else { panic!("sysusers account") };
+    assert_eq!(fixtures::only(&accounts.users).subordinate, Some(fixture::SUBORDINATE_LIMITS));
 }
 const BAD_TEXT: &[&[u8]] = &[b"/a:b", b"/a\"b", b"/a\\b", b"/a\nb", b"/a\x7fb"];
 const TEXT_FIELDS: &[Name] = &[Name::Gecos, Name::Home, Name::Shell];
@@ -143,7 +150,7 @@ fn equal_users_of_two_tasks_collapse() {
         config.users.as_ref(),
         [crate::parts::config::User {
             name: b"alice".as_slice().into(),
-            kind: crate::parts::config::UserKind::Sysusers {
+            kind: UserKind::Sysusers {
                 uid: None,
                 group: b"alice".as_slice().into(),
                 gecos: Box::new([]),

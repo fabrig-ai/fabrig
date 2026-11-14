@@ -4,7 +4,7 @@ use jig_domain_link::{Login, LoginState};
 impl World {
     /// Offer one input; count and drop any unadmitted input. Release is explicit.
     pub fn offer(&mut self, mut event: root::Event) {
-        self.observer.inbound(&self.store, self.wall, &mut event);
+        self.observer.inbound(&self.store, self.wall, &mut event).unwrap_or_else(|finding| self.fail(&finding));
         let env = self.env();
         if root::try_step(&mut self.domain, &env, event).is_err() {
             self.returned += 1;
@@ -13,7 +13,7 @@ impl World {
 
     /// Offer one input, retaining a refusal ahead of later queued inputs.
     pub fn send_retaining(&mut self, mut event: root::Event) {
-        self.observer.inbound(&self.store, self.wall, &mut event);
+        self.observer.inbound(&self.store, self.wall, &mut event).unwrap_or_else(|finding| self.fail(&finding));
         let env = self.env();
         if let Err(event) = root::try_step(&mut self.domain, &env, event) {
             self.returned += 1;
@@ -23,13 +23,13 @@ impl World {
 
     /// Release one batch without offering queued inputs or applying commits.
     pub fn collect(&mut self) {
-        self.drive(1, false, false);
+        self.drive(1, false, false).unwrap_or_else(|finding| self.fail(&finding));
     }
 
     /// Apply and offer the oldest store completion without releasing outputs.
     pub fn commit_one(&mut self) {
         assert!(!self.store.pending.is_empty(), "pending commit");
-        self.tick_store();
+        self.tick_store().unwrap_or_else(|finding| self.fail(&finding));
         let event = self.events.pop_front().expect("store terminal");
         self.send_retaining(event);
     }
@@ -65,16 +65,17 @@ impl World {
 }
 
 impl World {
-    pub(super) fn tick_store(&mut self) {
+    pub(super) fn tick_store(&mut self) -> Result<(), String> {
         match self.store.tick(false) {
             Ok(Some(number)) => self.events.push_front(root::Event::Committed { number, fill: self.fill }),
             Ok(None) => {}
             Err(number) => self.events.push_front(root::Event::Failed { number }),
         }
-        self.observer.durable(self.wall, &self.store);
+        self.observer.durable(self.wall, &self.store)?;
+        Ok(())
     }
-    pub(super) fn capture(&mut self, mut delivery: root::Delivery) {
-        self.observer.delivered(self.wall, &mut delivery);
+    pub(super) fn capture(&mut self, mut delivery: root::Delivery) -> Result<(), String> {
+        self.observer.delivered(self.wall, &mut delivery)?;
         match delivery {
             root::Delivery::Core(core::Held::ReadLoad { load, range }) => {
                 self.store.ask(StoreOut::ReadLoad { load, range });
@@ -110,6 +111,7 @@ impl World {
             | root::Delivery::LostRead { .. }
             | root::Delivery::Procedure { .. }) => self.released.push(root::Request::Deliver(other)),
         }
+        Ok(())
     }
 }
 fn sign_in(reply: Token) -> root::Event {

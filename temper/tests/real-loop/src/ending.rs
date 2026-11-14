@@ -63,12 +63,12 @@ pub(crate) struct Obligations {
 }
 impl Obligations {
     /// Called by the referee only, outside every host's heap meter.
-    pub(crate) fn read(&mut self, service: &ServiceHost, declared: &[Leftover]) {
-        let Some(service) = &service.service else { return };
+    pub(crate) fn read(&mut self, service: &ServiceHost, declared: &[Leftover]) -> Result<(), String> {
+        let Some(service) = &service.service else { return Ok(()) };
         if let Some(engine) = service.engine_domain() {
             let tasks = engine.tasks();
             for row in &tasks.view_tasks() {
-                let task = tasks.task(row.number).expect("live task view");
+                let task = tasks.task(row.number).ok_or("live task view")?;
                 self.phase(row.number, &task.phase);
             }
             // Terminal rows leave the live arena. Retained dependency stubs
@@ -95,6 +95,7 @@ impl Obligations {
                 self.task(hosting.run.raw(), state, "worker");
             }
         }
+        Ok(())
     }
     pub(crate) fn read_child(&mut self, index: usize, child: &Proc) {
         if child.exit().is_some() {
@@ -146,7 +147,7 @@ impl Obligations {
         for obligation in &self.live {
             match obligation.subject {
                 Subject::Task(task) => {
-                    let state = obligation.state.expect("task obligation has a state");
+                    let state = obligation.state.ok_or("task obligation has a state")?;
                     if let Some(left) = declared.iter().find(|left| left.task == task) {
                         if !left.may_be.contains(&state) {
                             writeln!(

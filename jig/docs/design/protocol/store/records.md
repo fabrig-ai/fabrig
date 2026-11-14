@@ -197,7 +197,11 @@ follow from the limits that bound each kind (4).
   `Credit` or a `Word`; decoding separates them into questions and
   unread words. The task record also keeps `asked_requester`, the
   durable latch set by admitting its first question-form message to its
-  current requester, never cleared (`../../domain/tasks/lifecycle.md`, 8).
+  current requester, never cleared (`../../domain/tasks/lifecycle.md`, 8),
+  and `question_woken`, a `u64`: the newest question number that has
+  woken it once at a park while it held a timer or a task watch, 0 for
+  none, never lowered (`../../domain/tasks/lifecycle.md`, 2). A patch
+  brings it to every stored task as 0.
 - **Golden bytes** in one set per family, for its current schema, and
   each patch's beside it from the baseline (skein's `data/codec/README.md`, section 5); a fuzz target per
   family's decoder; bounds at their limit and one past it.

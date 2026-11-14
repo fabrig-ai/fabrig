@@ -596,17 +596,14 @@ fn independent_referee_rejects_recommitted_terminal_and_unscripted_ack() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_replay_differing_in_its_root_store_or_counters_fails_its_compare() {
     use core::fmt::Debug;
     use core::hash::Hash;
     use skein_lib::{Buffer, Secret};
-    use temper_engine_domain_world::replay::{same_digest, same_text};
+    use temper_engine_domain_world::replay::{check_digest, check_text};
 
     fn difference<T: Hash + Debug>(first: &T, replay: &T, at: &str) -> String {
-        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| same_digest(first, replay, &at)));
-        let Err(failure) = failure else { panic!("different state at {at} must fail its digest comparison") };
-        let message = *failure.downcast::<String>().expect("comparison's diagnostic text");
+        let message = check_digest(first, replay, &at).expect_err("different states fail the digest comparison");
         assert!(message.contains(at), "{message}");
         assert!(message.contains(&format!("first: {first:?}")), "first state's text: {message}");
         assert!(message.contains(&format!("replay: {replay:?}")), "replay state's text: {message}");
@@ -638,8 +635,14 @@ fn a_replay_differing_in_its_root_store_or_counters_fails_its_compare() {
     for (at, change) in changes {
         let first = World::new(Settings::calm(60));
         let mut replay = World::new(Settings::calm(60));
+        assert_eq!(check_digest(&first, &replay, at), Ok(()));
+        assert_eq!(check_text(&first, &replay, at), Ok(()));
         change(&mut replay);
         difference(&first, &replay, at);
+        let message = check_text(&first, &replay, at).expect_err("different states fail the text comparison");
+        assert!(message.contains(at), "{message}");
+        assert!(message.contains(&format!("first: {first:?}")), "first state's text: {message}");
+        assert!(message.contains(&format!("replay: {replay:?}")), "replay state's text: {message}");
     }
 
     let hidden = [
@@ -647,7 +650,7 @@ fn a_replay_differing_in_its_root_store_or_counters_fails_its_compare() {
         (buffer(&[1, 2]), buffer(&[1, 3])),
     ];
     for (first, replay) in hidden {
-        same_text(&first, &replay, &"hidden bytes");
+        assert_eq!(check_text(&first, &replay, &"hidden bytes"), Ok(()));
         let message = difference(&first, &replay, "hidden bytes");
         assert!(message.contains("equal text: Hash covers state Debug omits"), "{message}");
     }

@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-12. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-14. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged

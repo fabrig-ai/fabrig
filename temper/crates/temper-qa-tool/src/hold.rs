@@ -1,12 +1,12 @@
 //! A pass's drive session and its one-shot clients (qa/places.md, 5).
 mod server;
 
-use crate::{Home, Refusal, faces::Environment, place::PlacePaths, refused};
+use crate::{Home, Refusal, faces::Environment, place::PlacePaths, private, refused};
 pub use server::Holder;
 use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
-    os::unix::{fs::OpenOptionsExt, net::UnixStream, process::CommandExt},
+    os::unix::{net::UnixStream, process::CommandExt},
     path::PathBuf,
     process::{Command, Stdio},
     time::Duration,
@@ -57,14 +57,7 @@ impl Drive {
     }
 
     fn lock(&self) -> Result<File, Refusal> {
-        OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .open(&self.place.drive_lock)
-            .map_err(|why| refused(format!("drive.lock: {why}")))
+        private::file(&self.place.drive_lock, OpenOptions::new().read(true).write(true).create(true).truncate(false))
     }
     fn busy(&self) -> Refusal {
         refused(format!(
@@ -81,16 +74,14 @@ impl Drive {
 
     pub fn open(&self, environment: &Environment) -> Result<Reply, Refusal> {
         // Check before starting a background process, so a refusal belongs to this command.
+        self.place.ensure()?;
         self.scripts()?;
         let lock = self.lock()?;
         lock.try_lock().map_err(|_| self.busy())?;
-        let log = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(self.place.directory.join("drive.log"))
-            .map_err(|why| refused(format!("drive.log: {why}")))?;
+        let log = private::file(
+            &self.place.directory.join("drive.log"),
+            OpenOptions::new().write(true).create(true).truncate(true),
+        )?;
         let mut command = Command::new(std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?);
         crate::faces::captured(&mut command, environment);
         // Release the probe before spawn: the child may take its lock before spawn returns.
@@ -160,6 +151,7 @@ impl Drive {
         Ok(reply)
     }
     fn request(&self, request: &str, bound: Option<(Duration, Duration)>) -> Result<Reply, Refusal> {
+        self.place.ensure()?;
         let lock = self.lock().map_err(|_| self.absent())?;
         if lock.try_lock().is_ok() {
             return Err(self.absent());

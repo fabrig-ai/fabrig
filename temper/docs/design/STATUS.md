@@ -92,9 +92,18 @@ Fake-model scripts take values from the conversation, so B0's and B1's
 twins replay as setups. By goal 1676 QA runs on the fakes alone: every
 setup's forge is the box's fake Forgejo, connected through ctl lines that
 name the box's values, and a recipe's `forge` lines commit files it
-holds, with no credential named. Its passes follow landing
-(`testing/qa/README.md`; `testing/qa/setups.md`;
-`draft/landed-qa.status.md`).
+holds, with no credential named. By goal 3014 QA reaches a deployment,
+ctl first: triage writes a landing's ctl cases first and a pass runs
+them first in a session of ctl and `forge` lines with no browser; a
+place may be of the deployment's kind, the kept build's engine, worker
+and agent started from a setup's `config/` at the place's ports beside
+the fake Forgejo and the fake model, saved and restored with a newer
+build of each; a `deployment patch` line gives a project's landing to
+what a recipe made; the fake Forgejo dispatches a gate a setup declares,
+decided by content; and the first deployment setup lands by `turn` at a
+`batch` of two. Its passes follow landing
+(`testing/qa/README.md`; `testing/qa/deployment.md`;
+`testing/qa/setups.md`; `draft/landed-qa.status.md`).
 
 The merge queue's milestones M1 to M3, goals 683, 2175 and 2336, make
 landing by `turn` a merge queue (`domain/landing.md`): a train per
@@ -412,6 +421,7 @@ Design documents:
 - [`testing/process-tier.md`](testing/process-tier.status.md)
 - [`testing/qa/README.md`](testing/qa/README.status.md)
 - [`testing/qa/builds.md`](testing/qa/builds.status.md)
+- [`testing/qa/deployment.md`](testing/qa/deployment.status.md)
 - [`testing/qa/findings.md`](testing/qa/findings.status.md)
 - [`testing/qa/landings.md`](testing/qa/landings.status.md)
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
@@ -423,12 +433,14 @@ Design documents:
 - [`testing/reference-case.md`](testing/reference-case.status.md)
 
 Drafts:
+- [`draft/after-landing-reds-1114.md`](draft/after-landing-reds-1114.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/branch-reds.md`](draft/branch-reds.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
+- [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
@@ -436,6 +448,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
+- [`draft/commit-failed-why.md`](draft/commit-failed-why.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
@@ -450,10 +463,12 @@ Drafts:
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)
 - [`draft/forge-polls-quiet.md`](draft/forge-polls-quiet.status.md)
 - [`draft/forge-reads-targeted.md`](draft/forge-reads-targeted.status.md)
+- [`draft/fuzzy-context.md`](draft/fuzzy-context.status.md)
 - [`draft/gate-compile.md`](draft/gate-compile.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
+- [`draft/goal-start-flags.md`](draft/goal-start-flags.status.md)
 - [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)

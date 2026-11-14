@@ -1,4 +1,5 @@
-//! Synchronous kit calls replayed against a command's object cache and answer log.
+//! Synchronous kit calls replayed against a command's object cache and answer log
+//! (temper/docs/design/testing/fakes.md, 3).
 use crate::{Transport, check::Credential, connection::Connection};
 use skein_fake_checkout::git::{Created, Fault, Pushed, Remote, Tree, Want};
 use skein_fake_forge_domain::api;
@@ -40,6 +41,7 @@ pub struct Route {
     log: Vec<Logged>,
     cursor: usize,
     missing: RefCell<Missing>,
+    finding: Option<String>,
     authenticated: bool,
 }
 impl Route {
@@ -58,6 +60,7 @@ impl Route {
             log: Vec::new(),
             cursor: 0,
             missing: RefCell::new(Missing::None),
+            finding: None,
             authenticated: false,
         }
     }
@@ -71,11 +74,15 @@ impl Route {
         }
     }
     fn logged(&mut self, call: Call) -> Option<Result<Answer, api::Error>> {
-        if !matches!(*self.missing.borrow(), Missing::None) {
+        if self.finding.is_some() || !matches!(*self.missing.borrow(), Missing::None) {
             return None;
         }
         if let Some(logged) = self.log.get(self.cursor) {
-            assert_eq!(call, logged.call, "replay asked {call:?}; logged {:?}", logged.call);
+            if call != logged.call {
+                self.finding = Some(format!("replay asked {call:?}; logged {:?}", logged.call));
+                self.miss(call);
+                return None;
+            }
             self.cursor += 1;
             self.authenticated = logged.authenticated;
             Some(logged.answer.clone())
@@ -240,6 +247,9 @@ impl Transport for Route {
         }
     }
     fn set_time(&mut self, _now: Time) {}
+    fn finding(&self) -> Option<&str> {
+        self.finding.as_deref()
+    }
     fn missed(&mut self) -> Missing {
         self.missing.replace(Missing::None)
     }

@@ -244,15 +244,7 @@ fn store_limits_below_their_required_sizes_are_refused() {
 type Case = (&'static str, fn());
 
 fn table<const N: usize>(cases: [Case; N]) {
-    let mut failures = [None; N];
-    let mut passed = true;
-    for ((name, case), failure) in cases.into_iter().zip(&mut failures) {
-        if std::panic::catch_unwind(case).is_err() {
-            *failure = Some(name);
-            passed = false;
-        }
-    }
-    assert!(passed, "{failures:?}");
+    skein_rows::check(cases, |case| case());
 }
 
 #[test]
@@ -263,7 +255,7 @@ fn current_layouts_are_the_eight_distinct_runtime_schema_fingerprints() {
     let families = [
         (layouts.component, current.component, include_bytes!("../../schema/component-v3.schema").as_slice()),
         (layouts.core, current.core, include_bytes!("../../schema/core-v6.schema").as_slice()),
-        (layouts.tasks, current.tasks, include_bytes!("../../schema/tasks-v12.schema").as_slice()),
+        (layouts.tasks, current.tasks, include_bytes!("../../schema/tasks-v13.schema").as_slice()),
         (layouts.people, current.people, include_bytes!("../../schema/people-v17.schema").as_slice()),
         (layouts.notes, current.notes, include_bytes!("../../schema/notes-v1.schema").as_slice()),
         (layouts.accounts, current.accounts, include_bytes!("../../schema/accounts-v2.schema").as_slice()),

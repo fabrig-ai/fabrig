@@ -37,6 +37,7 @@ pub struct ChatOutcome {
 }
 /// The world's external observer survives every service lifetime.
 pub struct Referee {
+    finding: Option<String>,
     chat: crate::fixtures::Chat,
     chat_outcome: Rc<RefCell<Option<ChatOutcome>>>,
     idle_until: Option<Time>,
@@ -73,11 +74,19 @@ impl Referee {
     ) -> Self {
         let applied = store.applied;
         let rows = store.rows.clone();
-        if applied > 0 {
-            rules.borrow_mut().observe(0, rules::Observed::Restart).expect("new service lifetime");
+        let finding = if applied > 0 {
+            let finding = rules
+                .borrow_mut()
+                .observe(0, rules::Observed::Restart)
+                .err()
+                .map(|why| format!("new service lifetime: {why:?}"));
             store.recovering();
-        }
+            finding
+        } else {
+            None
+        };
         Self {
+            finding,
             chat,
             chat_outcome,
             idle_until: None,
@@ -103,7 +112,7 @@ impl Referee {
             restarts,
         }
     }
-    fn mark_gate(&self, now: Time, service: &mut crate::world::ServiceHost) -> bool {
+    fn mark_gate(&self, now: Time, service: &mut crate::world::ServiceHost) -> Result<bool, String> {
         let source = self
             .rows
             .values()
@@ -113,25 +122,52 @@ impl Referee {
                 }
                 root::Record::Core(_) | root::Record::Connector { .. } => None,
             })
-            .expect("the previous start kept its source");
-        let state = service.service.account_startup(source, 1, now).expect("accounts component");
+            .ok_or("the previous start kept its source")?;
+        let state = service.service.account_startup(source, 1, now).ok_or("accounts component")?;
         if !service.held_mark.is_empty() {
-            assert!(!state.durable);
-            assert!(!state.driver_made, "driver is made only after the mark");
+            if state.durable {
+                return Err(String::from("assertion failed: !state.durable"));
+            }
+            if state.driver_made {
+                return Err(String::from("driver is made only after the mark"));
+            }
             // jig/docs/design/domain/engine/restart.md: the core holds account requests until durable Wires.
-            assert_eq!(state.restores_waiting, 0, "source restore is held by the core");
-            assert_eq!(state.wants_waiting, 0, "the restored source's want is held by the core");
-            assert!(!state.granted);
-            assert_eq!(service.early_connections, 0, "no provider connection or token request");
+            {
+                let (observed_value, wanted) = (&(state.restores_waiting), &(0));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "source restore is held by the core; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
+            {
+                let (observed_value, wanted) = (&(state.wants_waiting), &(0));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "the restored source's want is held by the core; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
+            if state.granted {
+                return Err(String::from("assertion failed: !state.granted"));
+            }
+            {
+                let (observed_value, wanted) = (&(service.early_connections), &(0));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "no provider connection or token request; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
             service.mark_gate_checked = true;
             service.hold_mark = false;
         }
-        service.mark_gate_checked
+        Ok(service.mark_gate_checked
             && state.durable
             && state.driver_made
             && state.granted
             && state.restores_waiting == 0
-            && state.wants_waiting == 0
+            && state.wants_waiting == 0)
     }
 
     fn expectation_deadline(&self) -> Time {
@@ -169,7 +205,7 @@ impl Referee {
             }
         }
     }
-    fn text_reached(&mut self, now: Time, service: &crate::world::ServiceHost, other: &[Proc]) -> bool {
+    fn text_reached(&mut self, now: Time, service: &crate::world::ServiceHost, other: &[Proc]) -> Result<bool, String> {
         use crate::fixtures::Chat;
         use jig_domain_tasks::{Active, Phase, Stored};
         let calls = other
@@ -191,7 +227,7 @@ impl Referee {
         let task = store.rows.values().find_map(|row| {
             if let root::Record::Core(core::Record::Tasks(Stored::Live(task))) = row { Some(task) } else { None }
         });
-        let Some(task) = task else { return false };
+        let Some(task) = task else { return Ok(false) };
         let parked = task.phase == Phase::Active(Active::Idle);
         let backing_off = matches!(task.phase, Phase::Active(Active::BackingOff { .. }));
         if (self.chat == Chat::OpenText && parked || self.chat == Chat::FiniteText && backing_off)
@@ -207,7 +243,7 @@ impl Referee {
                         &config.limits.channel.transcript,
                         &config.channel_endpoints,
                     )
-                    .expect("committed turn bytes");
+                    .map_err(|why| format!("committed turn bytes: {why:?}"))?;
                     for message in &decoded.messages {
                         if message.role == smith_domain::llm::Role::Assistant {
                             for block in &message.content {
@@ -232,23 +268,37 @@ impl Referee {
             self.idle_until = Some(now.saturating_add(crate::fixtures::idle_interval()));
         }
         let mut outcome = self.chat_outcome.borrow_mut();
-        let Some(outcome) = outcome.as_mut() else { return false };
+        let Some(outcome) = outcome.as_mut() else { return Ok(false) };
         outcome.claims = task.attempt;
         outcome.calls = calls;
-        if self.chat == Chat::OpenText {
-            assert_eq!(calls, 1, "an idle Open chat makes no further LLM call");
-            assert_eq!(task.attempt, 1, "an idle Open chat takes no further claim");
+        Ok(if self.chat == Chat::OpenText {
+            {
+                let (observed_value, wanted) = (&(calls), &(1));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "an idle Open chat makes no further LLM call; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
+            {
+                let (observed_value, wanted) = (&(task.attempt), &(1));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "an idle Open chat takes no further claim; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
             outcome.idle_elapsed = self.idle_until.is_some_and(|until| now >= until);
             outcome.idle_elapsed && parked
         } else {
             task.attempt == 2
-        }
+        })
     }
-    fn say(&mut self, now: Time, event: rules::Observed) {
+    fn say(&mut self, now: Time, event: rules::Observed) -> Result<(), String> {
         self.rules
             .borrow_mut()
             .observe(now.as_nanos(), event)
-            .expect("one-process conformance over bytes and durable rows");
+            .map_err(|why| format!("one-process conformance over bytes and durable rows: {why:?}"))
     }
 }
 pub(super) fn conformance() -> Rc<RefCell<rules::Referee>> {
@@ -375,13 +425,13 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
     }
     snapshot
 }
-fn received(seen: &Received, store: &Store) -> Vec<rules::Receipt> {
+fn received(seen: &Received, store: &Store) -> Result<Vec<rules::Receipt>, String> {
     if let Received::Answer {
         answer: client::Answer::Done(client::Outcome::Document(client::DocumentOutcome::Created { first, last, .. })),
         ..
     } = seen
     {
-        return (*first..=*last).map(rules::Receipt::Task).collect();
+        return Ok((*first..=*last).map(rules::Receipt::Task).collect());
     }
     if let Received::SignedIn { person } = seen {
         let receipts: Vec<_> = store
@@ -396,27 +446,167 @@ fn received(seen: &Received, store: &Store) -> Vec<rules::Receipt> {
                 root::Record::Core(_) | root::Record::Connector { .. } => None,
             })
             .collect();
-        assert!(!receipts.is_empty(), "signed-in response preceded a durable sign-in");
-        return receipts;
+        if receipts.is_empty() {
+            return Err(String::from("signed-in response preceded a durable sign-in"));
+        }
+        return Ok(receipts);
     }
     if let Received::Delivery(client::Delivery::RunState(run)) = seen
         && run.committed_turn > 0
     {
-        return vec![rules::Receipt::Turn(run.task, run.attempt.expect("committed run"), run.committed_turn)];
+        return Ok(vec![rules::Receipt::Turn(run.task, run.attempt.ok_or("committed run")?, run.committed_turn)]);
     }
     if let Received::Read(client::ReadResult::Value(client::ReadValue::Activity(page))) = seen {
-        return page
+        return Ok(page
             .rows
             .iter()
             .filter_map(|row| {
                 row.committed_turn().map(|turn| rules::Receipt::Turn(row.source.task, turn.attempt, turn.number))
             })
-            .collect();
+            .collect());
     }
-    Vec::new()
+    Ok(Vec::new())
 }
 impl skein_world::Referee<Proc> for Referee {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
+        }
+    }
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let Proc::Service(service) = procs.first().ok_or("one service process")? else {
+            return Err(String::from("one service process"));
+        };
+        if !service.attached {
+            return Ok(());
+        }
+        let durable = service.store.borrow();
+        for commit in &service.commits[self.commits_seen..] {
+            if commit.number <= self.applied {
+                continue;
+            }
+            for write in &commit.writes {
+                match write {
+                    root::Write::DropTranscript { task } => {
+                        self.rows.retain(|key, _| {
+                            if let root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                                task: owner,
+                                ..
+                            })) = key
+                            {
+                                owner != task
+                            } else {
+                                true
+                            }
+                        });
+                    }
+                    root::Write::Wires => {}
+                    root::Write::CopySettingsRevision(number) => {
+                        use jig_domain_core as core;
+                        let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(
+                            *number,
+                        ))));
+                        let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
+                            core::settings::Record::Revision { revision, .. },
+                        ))) = self.rows.get(&key).ok_or("held settings revision")?.clone()
+                        else {
+                            return Err(String::from("revision row"));
+                        };
+                        let row = root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
+                            core::settings::Record::Revision { history: true, revision },
+                        )));
+                        self.rows.insert(row.key(), row);
+                    }
+                    root::Write::Save(record) => {
+                        self.rows.insert(record.key(), record.clone());
+                    }
+                    root::Write::Erase(key) => {
+                        self.rows.remove(key);
+                    }
+                }
+            }
+            self.applied = commit.number;
+            self.say(now, rules::Observed::Durable { number: commit.number, snapshot: snapshot(&self.rows) })?;
+        }
+        self.commits_seen = service.commits.len();
+        if self.cold.is_some() && durable.applied >= self.applied && durable.applied > 0 {
+            self.say(now, rules::Observed::ColdStore { receipts: snapshot(&durable.rows).receipts })?;
+            self.cold = None;
+        }
+        for event in &service.wire.events[self.agent_seen..] {
+            self.say(now, event.clone())?;
+        }
+        self.agent_seen = service.wire.events.len();
+        for (index, proc) in procs.iter().enumerate() {
+            if let Proc::Client(client) = proc {
+                let offset = self.clients.get(&index).copied().unwrap_or(0);
+                for event in &client.received[offset..] {
+                    if let Received::Sent { attempt, key } = event {
+                        self.requests.insert((index, *attempt), *key);
+                    }
+                    if let Received::SignedIn { person } = event {
+                        self.parties.insert(index, *person);
+                    }
+                    let mut requires = received(event, &durable)?;
+                    if let Received::Answer { attempt, .. } = event {
+                        requires.push(rules::Receipt::Party(
+                            *self.parties.get(&index).ok_or("signed-in native client")?,
+                            *self.requests.get(&(index, *attempt)).ok_or("the answered request's actual key")?,
+                        ));
+                    }
+                    if !requires.is_empty() {
+                        self.say(now, rules::Observed::Released { requires })?;
+                    }
+                }
+                self.clients.insert(index, client.received.len());
+            }
+        }
+        if self.done && self.drained.is_none() && service.is_empty() {
+            if !durable.pending.is_empty() {
+                return Err(String::from("a drained shutdown leaves no commit waiting"));
+            }
+            self.say(now, rules::Observed::Drained { at: self.applied })?;
+            self.drained = Some(());
+        }
+        self.say(now, rules::Observed::Tick)?;
+        Ok(())
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        if self.done {
+            None
+        } else {
+            Some(
+                self.idle_until
+                    .filter(|_| self.chat == crate::fixtures::Chat::OpenText)
+                    .unwrap_or(self.expectation_deadline()),
+            )
+        }
+    }
+    fn overdue(&self, now: Time) -> Option<String> {
+        if !self.done && now >= self.expectation_deadline() {
+            Some(format!(
+                "one-process expectation not met: restarts{} link{}, finished{} lost{}, durable{}, clients{:?}",
+                *self.restarts.borrow(),
+                self.handed,
+                terminals(&self.store.borrow()),
+                settled(&self.store.borrow()),
+                self.store.borrow().applied,
+                self.status
+            ))
+        } else {
+            None
+        }
+    }
+    fn passed(&self) -> bool {
+        self.finding.is_none() && self.done
+    }
+}
+
+impl Referee {
+    fn check_act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         self.accounts(procs);
         let clients_done = procs
             .iter()
@@ -433,8 +623,8 @@ impl skein_world::Referee<Proc> for Referee {
             })
             .collect();
         let agent_started = procs.iter().any(|proc| matches!(proc, Proc::Agent { .. }));
-        let (services, other) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut services[0] else { panic!("one service process") };
+        let (service, other) = procs.split_first_mut().ok_or("one service process")?;
+        let Proc::Service(service) = service else { return Err(String::from("one service process")) };
         if !service.attached {
             service.store = self.store.clone();
             service.attached = true;
@@ -443,7 +633,7 @@ impl skein_world::Referee<Proc> for Referee {
                 self.handed = false;
                 self.agent_seen = 0;
                 self.commits_seen = 0;
-                self.say(now, rules::Observed::Restart);
+                self.say(now, rules::Observed::Restart)?;
                 self.store.borrow_mut().recovering();
                 self.cold = Some(());
                 *self.restarts.borrow_mut() += 1;
@@ -465,19 +655,19 @@ impl skein_world::Referee<Proc> for Referee {
                 if let Proc::Client(client) = proc
                     && client.signed_in == 0
                 {
-                    client.sign_in(&link).expect("printed link");
+                    client.sign_in(&link).map_err(|why| format!("printed link: {why:?}"))?;
                 }
             }
             self.handed = true;
         }
-        let gate_ready = self.scenario == Scenario::MarkGate && self.mark_gate(now, service);
+        let gate_ready = self.scenario == Scenario::MarkGate && self.mark_gate(now, service)?;
         let reached = match self.scenario {
             Scenario::Answer => {
                 clients_done
                     && if self.chat == crate::fixtures::Chat::Finite {
                         terminals(&self.store.borrow()) > 0
                     } else {
-                        self.text_reached(now, service, other)
+                        self.text_reached(now, service, other)?
                     }
             }
             Scenario::MidRun => {
@@ -510,127 +700,7 @@ impl skein_world::Referee<Proc> for Referee {
                 }
             }
         }
-    }
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        let Proc::Service(service) = &procs[0] else { panic!("one service process") };
-        if !service.attached {
-            return;
-        }
-        let durable = service.store.borrow();
-        for commit in &service.commits[self.commits_seen..] {
-            if commit.number <= self.applied {
-                continue;
-            }
-            for write in &commit.writes {
-                match write {
-                    root::Write::DropTranscript { task } => {
-                        self.rows.retain(|key, _| {
-                            if let root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
-                                task: owner,
-                                ..
-                            })) = key
-                            {
-                                owner != task
-                            } else {
-                                true
-                            }
-                        });
-                    }
-                    root::Write::Wires => {}
-                    root::Write::CopySettingsRevision(number) => {
-                        use jig_domain_core as core;
-                        let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(
-                            *number,
-                        ))));
-                        let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
-                            core::settings::Record::Revision { revision, .. },
-                        ))) = self.rows.get(&key).expect("held settings revision").clone()
-                        else {
-                            panic!("revision row")
-                        };
-                        let row = root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
-                            core::settings::Record::Revision { history: true, revision },
-                        )));
-                        self.rows.insert(row.key(), row);
-                    }
-                    root::Write::Save(record) => {
-                        self.rows.insert(record.key(), record.clone());
-                    }
-                    root::Write::Erase(key) => {
-                        self.rows.remove(key);
-                    }
-                }
-            }
-            self.applied = commit.number;
-            self.say(now, rules::Observed::Durable { number: commit.number, snapshot: snapshot(&self.rows) });
-        }
-        self.commits_seen = service.commits.len();
-        if self.cold.is_some() && durable.applied >= self.applied && durable.applied > 0 {
-            self.say(now, rules::Observed::ColdStore { receipts: snapshot(&durable.rows).receipts });
-            self.cold = None;
-        }
-        for event in &service.wire.events[self.agent_seen..] {
-            self.say(now, event.clone());
-        }
-        self.agent_seen = service.wire.events.len();
-        for (index, proc) in procs.iter().enumerate() {
-            if let Proc::Client(client) = proc {
-                let offset = self.clients.get(&index).copied().unwrap_or(0);
-                for event in &client.received[offset..] {
-                    if let Received::Sent { attempt, key } = event {
-                        self.requests.insert((index, *attempt), *key);
-                    }
-                    if let Received::SignedIn { person } = event {
-                        self.parties.insert(index, *person);
-                    }
-                    let mut requires = received(event, &durable);
-                    if let Received::Answer { attempt, .. } = event {
-                        requires.push(rules::Receipt::Party(
-                            *self.parties.get(&index).expect("signed-in native client"),
-                            *self.requests.get(&(index, *attempt)).expect("the answered request's actual key"),
-                        ));
-                    }
-                    if !requires.is_empty() {
-                        self.say(now, rules::Observed::Released { requires });
-                    }
-                }
-                self.clients.insert(index, client.received.len());
-            }
-        }
-        if self.done && self.drained.is_none() && service.is_empty() {
-            assert!(durable.pending.is_empty(), "a drained shutdown leaves no commit waiting");
-            self.say(now, rules::Observed::Drained { at: self.applied });
-            self.drained = Some(());
-        }
-        self.say(now, rules::Observed::Tick);
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        if self.done {
-            None
-        } else {
-            Some(
-                self.idle_until
-                    .filter(|_| self.chat == crate::fixtures::Chat::OpenText)
-                    .unwrap_or(self.expectation_deadline()),
-            )
-        }
-    }
-    fn overdue(&self, now: Time) -> Option<String> {
-        if !self.done && now >= self.expectation_deadline() {
-            Some(format!(
-                "one-process expectation not met: restarts{} link{}, finished{} lost{}, durable{}, clients{:?}",
-                *self.restarts.borrow(),
-                self.handed,
-                terminals(&self.store.borrow()),
-                settled(&self.store.borrow()),
-                self.store.borrow().applied,
-                self.status
-            ))
-        } else {
-            None
-        }
-    }
-    fn passed(&self) -> bool {
-        self.done
+
+        Ok(())
     }
 }

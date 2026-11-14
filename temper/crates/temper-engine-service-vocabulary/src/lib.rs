@@ -20,6 +20,7 @@ pub mod values;
 pub use forge::ForgeRuntime;
 pub use jig_protocol_engine_clients_http::server;
 pub use store::UnreadableRow;
+pub use store::route::{CommitStop, RouteStop};
 pub use temper_service_core::tokens;
 pub use tools::{render_for_task, render_for_task_page, settings_note};
 #[cfg(test)]

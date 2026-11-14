@@ -170,8 +170,9 @@ struct Judge {
     deadline: Time,
 }
 impl Referee<MakeProject> for Judge {
-    fn observe(&mut self, _now: Time, hosts: &[MakeProject]) {
+    fn watch(&mut self, _now: Time, hosts: &[MakeProject]) -> Result<(), String> {
         self.settled = hosts.iter().all(Host::is_empty);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         Some(self.deadline)

@@ -3,7 +3,7 @@ use super::{
     FaultKind, Missing,
     value::{Entry, Operand, Value},
 };
-use core::cmp::Ordering;
+use skein_lib::Bisection;
 pub(super) fn absent<'c>(missing: Missing, kind: FaultKind) -> Result<Operand<'c>, FaultKind> {
     match missing {
         Missing::Undefined => Ok(Operand::Undefined),
@@ -36,20 +36,14 @@ pub(super) fn key<'c>(value: Operand<'c>, name: &[u8], missing: Missing) -> Resu
     }
 }
 pub(super) fn find<'v>(entries: &'v [Entry], name: &[u8]) -> Option<&'v Entry> {
-    let (mut lo, mut hi) = (0_usize, entries.len());
-    for _ in 0..=usize::BITS {
-        if lo == hi {
-            return None;
-        }
-        let mid = lo.checked_add(hi.checked_sub(lo)?.checked_div(2)?)?;
-        let entry = entries.get(mid)?;
-        match entry.key.as_ref().cmp(name) {
-            Ordering::Equal => return Some(entry),
-            Ordering::Less => lo = mid.checked_add(1)?,
-            Ordering::Greater => hi = mid,
-        }
+    let mut search = Bisection::over(entries.len());
+    for _ in 0..Bisection::PROBES {
+        let Some(probe) = search.probe() else { break };
+        let entry = entries.get(probe).expect("a probe within the slice");
+        search.narrow(entry.key.as_ref().cmp(name));
     }
-    None
+    let entry = entries.get(search.end())?;
+    if entry.key.as_ref() == name { Some(entry) } else { None }
 }
 pub(super) fn item<'c>(value: Operand<'c>, index: Operand<'c>, missing: Missing) -> Result<Operand<'c>, FaultKind> {
     if value.undefined() {

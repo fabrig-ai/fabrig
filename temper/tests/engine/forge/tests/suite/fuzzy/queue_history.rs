@@ -19,6 +19,7 @@ fn advance(world: &mut World, task: u64, entry: u64) -> bool {
         }
         world.status(branch.as_bytes(), raw::Check::Passed);
         world.event(top::Event::DelegateResult {
+            ended_at: None,
             task,
             child,
             status: change::Status::Passed,
@@ -103,7 +104,7 @@ fn run(seed: u64) -> Vec<Vec<Event>> {
                 });
             }
             3 => {
-                world.event(top::Event::ReleaseChange { task });
+                world.event(top::Event::ReleaseChange { task, release: None });
                 done[index] = advance(&mut world, task, 1000 + step);
             }
             4 => {
@@ -118,7 +119,7 @@ fn run(seed: u64) -> Vec<Vec<Event>> {
         for (index, ended) in done.iter_mut().enumerate() {
             if !*ended {
                 let task = 51 + u64::try_from(index).expect("small queue");
-                world.event(top::Event::ReleaseChange { task });
+                world.event(top::Event::ReleaseChange { task, release: None });
                 *ended = advance(&mut world, task, 1000 + step * count + u64::try_from(index).expect("index"));
             }
         }

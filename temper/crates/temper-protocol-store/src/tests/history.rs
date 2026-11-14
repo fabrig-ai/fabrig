@@ -177,6 +177,12 @@ fn the_v20_change_patch_adds_no_backdated_history() {
     let (job, rest) = bytes.as_ref().split_first().unwrap();
     assert_eq!(*job, 0, "no pending job");
     assert_eq!(rest.split_last(), Some((&0, before.as_ref())), "no backdated history");
+    let bytes = patched(
+        24,
+        13,
+        b"ChangeRow",
+        patched(23, 12, b"ChangeRow", patched(22, 11, b"ChangeRow", patched(21, 10, b"ChangeRow", bytes))),
+    );
     let after = v25::ChangeRow::decode(&v25::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.history().is_none());
     assert!(after.job().is_none());

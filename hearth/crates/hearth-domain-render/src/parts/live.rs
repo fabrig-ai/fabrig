@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use hearth_lib::{encode::Digest, hash::H};
-use skein_lib::{List, Map as Ordered};
+use skein_lib::{Joined, List, Map as Ordered, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Live {
     pub paths: Box<[Covered]>,
@@ -32,7 +32,7 @@ pub enum Action {
 }
 impl Action {
     #[must_use]
-    pub fn name(self) -> &'static [u8] {
+    pub(crate) fn name(self) -> &'static [u8] {
         match self {
             Self::Reload => b"reload",
             Self::Restart => b"restart",
@@ -42,7 +42,7 @@ impl Action {
         }
     }
 }
-pub fn build(expansion: &Expansion) -> Result<Live, Box<[Error]>> {
+pub(crate) fn build(expansion: &Expansion) -> Result<Live, Box<[Error]>> {
     let entries = expansion.of(Map::Live);
     let mut capacity = 0_u32;
     for located in &entries {
@@ -82,7 +82,7 @@ pub fn build(expansion: &Expansion) -> Result<Live, Box<[Error]>> {
     Ok(Live { paths: paths.into_boxed() })
 }
 #[must_use]
-pub fn digest(live: &Live) -> Digest {
+pub(crate) fn digest(live: &Live) -> Digest {
     let mut hash = H::new(b"part:live", 1);
     let record = hash.values();
     record.map(u64::try_from(live.paths.len()).expect("path count"));
@@ -108,6 +108,7 @@ pub fn digest(live: &Live) -> Digest {
 pub struct Change {
     pub paths: Box<[ConsumersKeyed]>,
 }
+/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ConsumersKeyed {
     Added { key: Box<[u8]>, value: Box<[Consumer]> },
@@ -116,20 +117,28 @@ pub enum ConsumersKeyed {
 }
 
 #[must_use]
-pub fn change(before: &Live, after: &Live) -> Change {
-    Change {
-        paths: super::secrets::changed(
-            &before.paths,
-            &after.paths,
-            |row| &row.path,
-            |key, before, after| match (before, after) {
-                (None, Some(value)) => ConsumersKeyed::Added { key, value: value.consumers.clone() },
-                (Some(value), None) => ConsumersKeyed::Removed { key, value: value.consumers.clone() },
-                (Some(before), Some(after)) => {
-                    ConsumersKeyed::Changed { key, before: before.consumers.clone(), after: after.consumers.clone() }
-                }
-                (None, None) => unreachable!("union entry"),
-            },
-        ),
+pub(crate) fn change(before: &Live, after: &Live) -> Change {
+    let mut old: Ordered<&[u8], &Covered> = Ordered::uncapped();
+    let mut new: Ordered<&[u8], &Covered> = Ordered::uncapped();
+    for row in &before.paths {
+        old.insert(row.path.as_ref(), row).expect("an uncapped map");
     }
+    for row in &after.paths {
+        new.insert(row.path.as_ref(), row).expect("an uncapped map");
+    }
+    let mut changes = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => ConsumersKeyed::Removed { key: bytes::copy_of(key), value: row.consumers.clone() },
+            Joined::Second(row) => ConsumersKeyed::Added { key: bytes::copy_of(key), value: row.consumers.clone() },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => ConsumersKeyed::Changed {
+                key: bytes::copy_of(key),
+                before: was.consumers.clone(),
+                after: now.consumers.clone(),
+            },
+        };
+        changes.push(change).expect("an uncapped list");
+    }
+    Change { paths: changes.into_boxed() }
 }

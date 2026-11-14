@@ -31,6 +31,7 @@ pub struct Run {
 }
 
 struct Judge {
+    finding: Option<String>,
     shared: Rc<RefCell<Run>>,
     store: Store,
     rules: Rules,
@@ -44,92 +45,21 @@ struct Judge {
 
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        let ready = procs.iter().any(|proc| {
-            matches!(proc, Proc::Worker(worker) if worker.wire.frames.iter().any(|(_, kind, _)| *kind == wire::Kind::Logins.number()))
-        });
-        for proc in procs.iter_mut() {
-            match proc {
-                Proc::Engine(host) => {
-                    world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now);
-                    let engine = host.service.engine().expect("engine");
-                    if ready && !self.asked {
-                        self.expires = now.saturating_add(Duration::from_secs(1));
-                        engine.put_account(
-                            ACCOUNT,
-                            GENERATION,
-                            jig_protocol_accounts::table::Value {
-                                token: Secret::new(KEY.into()),
-                                scheme: match self.scheme {
-                                    Scheme::Key => jig_protocol_accounts::table::Scheme::Key,
-                                    Scheme::Bearer => jig_protocol_accounts::table::Scheme::Bearer,
-                                },
-                            },
-                            self.expires,
-                        );
-                        engine.parties_in().push(core::Event::Fleet(fleet::Event::ReadList {
-                            read: READ,
-                            endpoint: self.endpoint,
-                            grant: Grant {
-                                account: ACCOUNT,
-                                generation: GENERATION,
-                                form: Form::Credential(self.scheme),
-                                valid: Duration::from_secs(1),
-                            },
-                        }));
-                        self.asked = true;
-                    }
-                    for (_, kind, bytes) in host.wire.frames.iter().skip(self.observed) {
-                        if *kind == wire::Kind::ListRead.number() {
-                            let answer = wire::ListRead::decode(&wire::CEILINGS, &mut Reader::new(bytes))
-                                .expect("engine receives whole list read");
-                            assert_eq!(answer.read(), READ, "read number returns through the channel");
-                            self.shared.borrow_mut().answers.push(answer);
-                        }
-                    }
-                    self.observed = host.wire.frames.len();
-                }
-                Proc::Worker(_)
-                | Proc::Agent { .. }
-                | Proc::Auth(_)
-                | Proc::Client(_)
-                | Proc::Peer(_)
-                | Proc::Probe(_) => {}
-            }
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
-        if !self.shared.borrow().answers.is_empty() {
-            for proc in procs.iter_mut() {
-                if let Proc::Worker(host) = proc {
-                    let count = host.service.worker(0).expect("worker").value_count();
-                    self.shared.borrow_mut().values_after.get_or_insert(count);
-                    // The receiver's clock starts validity when the grant arrives.
-                    if self.scheme == Scheme::Key || now > self.expires.saturating_add(Duration::from_millis(10)) {
-                        self.shared.borrow_mut().values_expired = Some(count);
-                        self.done = true;
-                    }
-                }
-            }
-        }
-        for proc in procs {
-            match proc {
-                Proc::Engine(host) | Proc::Worker(host) => {
-                    self.rules.roots(&format!("{:?}", Roots(&host.service)), &[KEY]);
-                    if self.done && !host.stopping {
-                        host.stopping = true;
-                        host.service.shutdown();
-                    }
-                }
-                Proc::Peer(peer) if self.done => peer.shutdown(),
-                Proc::Peer(_) | Proc::Agent { .. } | Proc::Auth(_) | Proc::Client(_) | Proc::Probe(_) => {}
-            }
-        }
-        assert_eq!(self.rules.verdict(), skein_world::domain::Verdict::Passed, "root isolation");
     }
-    fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn overdue(&self, now: Time) -> Option<String> {
         (now > Time::ZERO.saturating_add(Duration::from_secs(10))).then(|| "worker list read settles".into())
     }
     fn passed(&self) -> bool {
-        self.done
+        self.finding.is_none() && self.done
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::LastExpectation
@@ -181,6 +111,7 @@ pub fn run(status: Option<u16>, scheme: Scheme, endpoint: u32) -> Run {
     ]);
     let shared = Rc::new(RefCell::new(Run::default()));
     let judge = Judge {
+        finding: None,
         shared: shared.clone(),
         store: Store::default(),
         rules: Rules::default(),
@@ -248,4 +179,104 @@ pub fn run(status: Option<u16>, scheme: Scheme, endpoint: u32) -> Run {
     outcome.machine.files.close(base);
     assert_eq!(outcome.machine.files.open_handles(), 0, "all list world files settle");
     result
+}
+
+impl Judge {
+    fn check_act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
+        let ready = procs.iter().any(|proc| {
+            matches!(proc, Proc::Worker(worker) if worker.wire.frames.iter().any(|(_, kind, _)| *kind == wire::Kind::Logins.number()))
+        });
+        for proc in procs.iter_mut() {
+            match proc {
+                Proc::Engine(host) => {
+                    world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now)?;
+                    let engine = host.service.engine().ok_or("engine")?;
+                    if ready && !self.asked {
+                        self.expires = now.saturating_add(Duration::from_secs(1));
+                        engine.put_account(
+                            ACCOUNT,
+                            GENERATION,
+                            jig_protocol_accounts::table::Value {
+                                token: Secret::new(KEY.into()),
+                                scheme: match self.scheme {
+                                    Scheme::Key => jig_protocol_accounts::table::Scheme::Key,
+                                    Scheme::Bearer => jig_protocol_accounts::table::Scheme::Bearer,
+                                },
+                            },
+                            self.expires,
+                        );
+                        engine.parties_in().push(core::Event::Fleet(fleet::Event::ReadList {
+                            read: READ,
+                            endpoint: self.endpoint,
+                            grant: Grant {
+                                account: ACCOUNT,
+                                generation: GENERATION,
+                                form: Form::Credential(self.scheme),
+                                valid: Duration::from_secs(1),
+                            },
+                        }));
+                        self.asked = true;
+                    }
+                    for (_, kind, bytes) in host.wire.frames.iter().skip(self.observed) {
+                        if *kind == wire::Kind::ListRead.number() {
+                            let answer = wire::ListRead::decode(&wire::CEILINGS, &mut Reader::new(bytes))
+                                .map_err(|why| format!("engine receives whole list read: {why:?}"))?;
+                            {
+                                let (observed_value, wanted) = (&(answer.read()), &(READ));
+                                if observed_value != wanted {
+                                    return Err(format!(
+                                        "read number returns through the channel; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                                    ));
+                                }
+                            }
+                            self.shared.borrow_mut().answers.push(answer);
+                        }
+                    }
+                    self.observed = host.wire.frames.len();
+                }
+                Proc::Worker(_)
+                | Proc::Agent { .. }
+                | Proc::Auth(_)
+                | Proc::Client(_)
+                | Proc::Peer(_)
+                | Proc::Probe(_) => {}
+            }
+        }
+        if !self.shared.borrow().answers.is_empty() {
+            for proc in procs.iter_mut() {
+                if let Proc::Worker(host) = proc {
+                    let count = host.service.worker(0).ok_or("worker")?.value_count();
+                    self.shared.borrow_mut().values_after.get_or_insert(count);
+                    // The receiver's clock starts validity when the grant arrives.
+                    if self.scheme == Scheme::Key || now > self.expires.saturating_add(Duration::from_millis(10)) {
+                        self.shared.borrow_mut().values_expired = Some(count);
+                        self.done = true;
+                    }
+                }
+            }
+        }
+        for proc in procs {
+            match proc {
+                Proc::Engine(host) | Proc::Worker(host) => {
+                    self.rules.roots(&format!("{:?}", Roots(&host.service)), &[KEY]);
+                    if self.done && !host.stopping {
+                        host.stopping = true;
+                        host.service.shutdown();
+                    }
+                }
+                Proc::Peer(peer) if self.done => peer.shutdown(),
+                Proc::Peer(_) | Proc::Agent { .. } | Proc::Auth(_) | Proc::Client(_) | Proc::Probe(_) => {}
+            }
+        }
+        {
+            let (observed_value, wanted) = (&(self.rules.verdict()), &(skein_world::domain::Verdict::Passed));
+            if observed_value != wanted {
+                return Err(format!(
+                    "root isolation; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                ));
+            }
+        }
+
+        Ok(())
+    }
 }

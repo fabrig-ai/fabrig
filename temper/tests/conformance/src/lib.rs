@@ -318,7 +318,7 @@ impl Application for Temper {
             }))),
         ]
     }
-    fn cold(peers: &mut Peers, store: &Store, _: Clock) {
+    fn cold(peers: &mut Peers, store: &Store, _: Clock) -> Result<(), r::Violation> {
         peers.projection.invalidate();
         peers.observed.push(r::Observed::ColdStore { receipts: observations::snapshot(store).receipts });
         for record in store.rows.values() {
@@ -345,6 +345,7 @@ impl Application for Temper {
         if peers.assignments.is_empty() {
             peers.chatted = false;
         }
+        Ok(())
     }
     fn timers(_: &Config) -> Vec<Event> {
         vec![Event::Fire]
@@ -396,8 +397,8 @@ impl Application for Temper {
         }
         outputs
     }
-    fn inbound(peers: &mut Peers, _: &Store, _: Clock, input: &mut Event) {
-        let Event::Root(input) = input else { return };
+    fn inbound(peers: &mut Peers, _: &Store, _: Clock, input: &mut Event) -> Result<(), r::Violation> {
+        let Event::Root(input) = input else { return Ok(()) };
         match input {
             engine::Event::Party(engine::PartyInput::Ask { models: _, reply_to, sign_in, key, ask }) => {
                 let call = destination(reply_to);
@@ -425,6 +426,7 @@ impl Application for Temper {
             }),
             _ => {}
         }
+        Ok(())
     }
     fn deliver(
         peers: &mut Peers,
@@ -432,25 +434,25 @@ impl Application for Temper {
         store: &mut Store,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<Event>> {
+    ) -> Result<Vec<Input<Event>>, r::Violation> {
         let request = match delivery {
             Delivery::Root(request) => *request,
-            Delivery::Returned(event) => return vec![Input::Event(Event::Root(*event))],
-            Delivery::Resume => return vec![Input::Event(Event::Fire)],
+            Delivery::Returned(event) => return Ok(vec![Input::Event(Event::Root(*event))]),
+            Delivery::Resume => return Ok(vec![Input::Event(Event::Fire)]),
         };
         let request = match request {
             engine::Request::Store(engine::StoreRequest::Read { load, range }) => {
                 let result = store.read(range);
-                return vec![Input::Event(Event::Root(engine::Event::Store(engine::StoreInput::ReadLoaded {
+                return Ok(vec![Input::Event(Event::Root(engine::Event::Store(engine::StoreInput::ReadLoaded {
                     load,
                     result,
-                })))];
+                })))]);
             }
             request => request,
         };
         // The protocol layer answers at once (testing-strategy.md, 4).
         let request = match peers.protocol.play(request) {
-            Ok(events) => return events.into_iter().map(|event| Input::Event(Event::Root(event))).collect(),
+            Ok(events) => return Ok(events.into_iter().map(|event| Input::Event(Event::Root(event))).collect()),
             Err(request) => *request,
         };
         let mut events = Vec::new();
@@ -496,7 +498,7 @@ impl Application for Temper {
             engine::Request::Drained => peers.observed.push(r::Observed::Drained { at: store.applied }),
             _ => {}
         }
-        events.into_iter().map(|event| Input::Event(Event::Root(event))).collect()
+        Ok(events.into_iter().map(|event| Input::Event(Event::Root(event))).collect())
     }
     fn poll(
         peers: &mut Peers,
@@ -504,7 +506,7 @@ impl Application for Temper {
         store: &mut Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<Event>> {
+    ) -> Result<Vec<Input<Event>>, r::Violation> {
         systems.generation = peers.generation;
         let mut events = systems.poll(clock);
         if ready {
@@ -598,9 +600,9 @@ impl Application for Temper {
                 }
             }
         }
-        events.into_iter().map(|event| Input::Event(Event::Root(event))).collect()
+        Ok(events.into_iter().map(|event| Input::Event(Event::Root(event))).collect())
     }
-    fn submitted(peers: &mut Peers, store: &Store, _: Clock) {
+    fn submitted(peers: &mut Peers, store: &Store, _: Clock) -> Result<(), r::Violation> {
         observations::submitted(store, &mut peers.projection);
         if let Some((number, writes)) = store.pending.back() {
             let mut forgotten = Vec::new();
@@ -615,8 +617,14 @@ impl Application for Temper {
                 peers.forgetting.insert(*number, forgotten);
             }
         }
+        Ok(())
     }
-    fn observed(peers: &mut Peers, systems: &systems::FakeForge, store: &Store, _: Clock) -> Vec<r::Observed> {
+    fn observed(
+        peers: &mut Peers,
+        systems: &systems::FakeForge,
+        store: &Store,
+        _: Clock,
+    ) -> Result<Vec<r::Observed>, r::Violation> {
         let mut observations = Vec::new();
         if let Some(snapshot) = peers.first_start.take() {
             // The bootstrap rows and its separate wires mark have the same public snapshot.
@@ -660,7 +668,7 @@ impl Application for Temper {
         observations.append(&mut peers.observed);
         observations.extend(systems.take_observed());
         observations::expenses(&peers.worker.expenses, &mut observations);
-        observations
+        Ok(observations)
     }
     fn ready(domain: &Domain) -> bool {
         domain.root.ready()

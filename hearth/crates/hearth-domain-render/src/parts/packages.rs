@@ -9,7 +9,8 @@ use hearth_lib::{
 use skein_lib::{List, bytes};
 pub(super) mod build;
 mod declarations;
-pub use build::{build, read};
+pub(crate) use build::build;
+pub use build::read;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Packages {
     pub initramfs_file: Option<Digest>,

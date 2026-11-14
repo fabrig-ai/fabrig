@@ -1000,6 +1000,7 @@ dependencies = [
  "jig-protocol-transcript",
  "skein-codec",
  "skein-lib",
+ "skein-rows",
  "skein-ui-web",
  "smith-transcript",
 ]
@@ -1011,6 +1012,7 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -1418,6 +1420,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -1963,6 +1966,7 @@ dependencies = [
  "skein-oauth",
  "skein-oauth-accounts",
  "skein-oauth-issuer",
+ "skein-rows",
  "skein-scratch",
  "skein-tls",
  "tempfile",
@@ -1992,6 +1996,7 @@ dependencies = [
  "skein-codec",
  "skein-lib",
  "skein-oauth-issuer",
+ "skein-rows",
  "smith-transcript",
 ]
 
@@ -2057,6 +2062,7 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-oauth",
+ "skein-rows",
  "skein-scratch",
  "skein-sim",
  "smith-transcript",
@@ -2947,6 +2953,7 @@ dependencies = [
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-ui",
  "skein-ui-web",
 ]
@@ -6643,6 +6650,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-json",
+ "skein-kv",
  "skein-lib",
  "skein-oauth-accounts",
  "skein-scratch",
@@ -7197,6 +7205,7 @@ dependencies = [
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-store-codec",
+ "temper-protocol-store-patches",
 ]
 
 [[package]]
@@ -7205,6 +7214,17 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
+]
+
+[[package]]
+name = "temper-protocol-store-patches"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-codegen",
+ "skein-forge",
+ "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]

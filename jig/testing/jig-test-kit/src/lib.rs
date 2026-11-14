@@ -294,31 +294,29 @@ impl Delegate for Process {
     }
 }
 struct Judge {
+    finding: Option<String>,
     ended: bool,
     deadline: Time,
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let Process::Person(person) = &procs[1] else { panic!("native person") };
-        if !self.ended && person.client.as_ref().is_some_and(Host::is_empty) {
-            let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-            binary.signal(Signal::Kill);
-            for proc in procs {
-                if let Process::Peer(peer) = proc {
-                    peer.shutdown();
-                }
-            }
-            self.ended = true;
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
-        let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-        assert!(
-            binary.exit_status().is_none() || self.ended,
-            "jig-test failed {:?}: {}",
-            binary.exit_status(),
-            String::from_utf8_lossy(binary.stderr())
-        );
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let Process::Binary(binary) = procs.first().ok_or("binary")? else { return Err(String::from("binary")) };
+        if binary.exit_status().is_some() && !self.ended {
+            return Err(format!(
+                "jig-test failed {:?}: {}",
+                binary.exit_status(),
+                String::from_utf8_lossy(binary.stderr())
+            ));
+        }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.ended).then_some(self.deadline)
@@ -327,7 +325,7 @@ impl Referee<Process> for Judge {
         (!self.ended && now >= self.deadline).then(|| "native person's script did not finish".into())
     }
     fn passed(&self) -> bool {
-        self.ended
+        self.finding.is_none() && self.ended
     }
 }
 #[expect(clippy::disallowed_methods, reason = "the test run selects its live profile from NEXTEST_PROFILE")]
@@ -349,6 +347,7 @@ pub fn run(
     let client_directory = tempfile::tempdir_in(directory).expect("fresh native client directory");
     let root = skein_shell::open_root(client_directory.path()).expect("client root");
     let mut world = real::World::new(Judge {
+        finding: None,
         ended: false,
         deadline: clock.now().now.saturating_add(Duration::from_secs(seconds - 10)),
     });
@@ -433,4 +432,24 @@ pub fn issuer() -> (oauth::Peer, std::net::SocketAddr, Fd) {
     let fd = ports::descriptor(listener);
     peer.adopt_listener(fd, address).expect("issuer adopts listener");
     (peer, address, fd)
+}
+
+impl Judge {
+    fn check_act(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
+        let Process::Person(person) = procs.get(1).ok_or("native person")? else {
+            return Err(String::from("native person"));
+        };
+        if !self.ended && person.client.as_ref().is_some_and(Host::is_empty) {
+            let Process::Binary(binary) = procs.get_mut(0).ok_or("binary")? else { return Err(String::from("binary")) };
+            binary.signal(Signal::Kill);
+            for proc in procs {
+                if let Process::Peer(peer) = proc {
+                    peer.shutdown();
+                }
+            }
+            self.ended = true;
+        }
+
+        Ok(())
+    }
 }

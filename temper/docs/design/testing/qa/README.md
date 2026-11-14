@@ -1,7 +1,8 @@
 # Landed QA
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, milestones Q1,
-Q3 and Q4 of `../../draft/landed-qa.execution.md`. QA after landing, beside
+Provisional, 2026-11-12, revised 2026-11-14, from
+`../../draft/landed-qa.md`, milestones Q1, Q3, Q4 and Q6 of
+`../../draft/landed-qa.execution.md`. QA after landing, beside
 the deployment: code watches main, keeps the ledger, keeps and deletes
 builds, restores setups, files findings and starts agents; agents triage
 each landing and run each pass. This document is the tool, its home, its
@@ -11,7 +12,9 @@ copies (`places.md`), passes (`passes.md`) and findings with their goal
 (`findings.md`) are Q3's, on Q2's drive session and recipes
 (`../../client/drive.md`, `../../client/recipe.md`); the TUI's cases, the
 setups' catalogue with its twins (`setups.md`), places' own ports and
-the figures bounds are tuned from are Q4's.
+the figures bounds are tuned from are Q4's; the `ctl` surface, run
+first, and places of a deployment's kind (`deployment.md`), with the
+first deployment setup, are Q6's.
 
 ## 1. In one page
 
@@ -31,24 +34,27 @@ the figures bounds are tuned from are Q4's.
   commit a move gained listed, so a goal's merge carried off the
   first-parent line is seen, and seen once.
 - **Kept builds** (`builds.md`): the deployment builds the box, its
-  client, the drive tool and the two web bundles at a landed tip and
+  client, the drive tool, the deployment's engine, worker and agent, and
+  the web bundle at a landed tip and
   hands them to `temper-qa build keep`, which checks every temper
   executable's version, writes the manifest and records the build. The
   loop deletes a build once no pass can need it.
 - **Triage** (`triage.md`): one landing at a time, in main's order, an
   agent session at a lower effort, given the landing's draft, diff and
-  the surfaces; it answers no QA or cases, and a case for a page a queued
-  case covers joins it.
+  the surfaces, ctl's first; it answers no QA or cases, and a case for a
+  page or ctl group a queued case covers joins it.
 - **Places and copies** (`places.md`): a place is a fixed directory with
-  its own `bin/`, where one box runs; a pass installs its build there,
+  its own `bin/`, where one box runs, or one deployment's processes
+  (`deployment.md`); a pass installs its build there,
   restores each case's setup from its copy, made again from its recipe
   when the build refuses it, and drives the box a line at a time through
   a holder the agent's one-shot commands speak to.
 - **Passes** (`passes.md`): a pass takes the newest reached kept build
   holding queued cases and every case it holds, in one step; one agent
   session covers them all, recording each outcome and finding as it
-  goes; with failed cases it files its request and waits, and resumes on
-  a build holding its goal's landing.
+  goes, its ctl cases first in a session with no browser; with failed
+  cases it files its request and waits, and resumes on a build holding
+  its goal's landing.
 - **Findings** (`findings.md`): each with its setup and the lines that
   reproduce it, linked to an open one it matches; a pass's open findings
   go back as one request, put on main by the deployment's command, and
@@ -72,7 +78,7 @@ the figures bounds are tuned from are Q4's.
   | `temper-qa triage none WHY` | a triage session's agent | `triage.md`, 4 |
   | `temper-qa triage case FILE` | a triage session's agent | `triage.md`, 4 |
   | `temper-qa pass setup NAME` | a pass session's agent | `places.md`, 4 |
-  | `temper-qa pass open` | a pass session's agent | `places.md`, 5 |
+  | `temper-qa pass open [--ctl]` | a pass session's agent | `places.md`, 5 |
   | `temper-qa pass line LINE` | a pass session's agent | `places.md`, 5 |
   | `temper-qa pass close` | a pass session's agent | `places.md`, 5 |
   | `temper-qa pass recipe NAME FILE` | a pass session's agent | `places.md`, 6 |
@@ -136,8 +142,8 @@ taken from the home.
   "bounds": { "poll": 60, "triage": 900, "build_wait": 21600, "pass": 7200 },
   "builds": "builds",
   "places": ["places/1"],
-  "surfaces": ["web", "tui"],
-  "areas": { "web": "AREA", "tui": "AREA" },
+  "surfaces": ["ctl", "web", "tui"],
+  "areas": { "ctl": "AREA", "web": "AREA", "tui": "AREA" },
   "request": { "command": ["PROGRAM", "ARG"], "state": ["PROGRAM", "ARG"], "area": "AREA" },
   "notify": ["PROGRAM", "ARG"]
 }
@@ -161,20 +167,25 @@ taken from the home.
   `pass`, a pass session's time, 7200 when absent (`passes.md`, 4).
 - **`builds`:** where kept builds are, `builds` when absent.
 - **`places`:** the places, at least one, `["places/1"]` when absent
-  (`places.md`, 2): each its directory, or `{"directory", "ports"}`,
-  `ports` the nine ports its boxes bind, as
+  (`places.md`, 2): each its directory, or `{"directory", "kind",
+  "ports"}`: `kind`, `box` or `deployment`, `box` when absent
+  (`places.md`, 2; `deployment.md`); `ports`, the nine ports its boxes
+  or its deployment's processes bind, as
   `TEMPER_INTERNAL_FAKE_BOX_PORTS` lists them
-  (`../../protocol/setup/box.md`, 5), each nonzero and distinct, and
-  distinct across places. Directories are distinct. A place's name in
+  (`../../protocol/setup/box.md`, 5; `deployment.md`, 2), each nonzero
+  and distinct, and distinct across places, required for a
+  deployment's place: `qa.json: place PLACE is a deployment's and names
+  no ports`. Directories are distinct. A place's name in
   the ledger is its directory as written here. More than one place
   needs each its ports (`places.md`, 2); the deployment adds one when
   `temper-qa tune` suggests it (`ledger.md`, 6).
-- **`surfaces`:** the surfaces a pass takes cases of, each `web` or
-  `tui`, `["web", "tui"]` when absent; a case of another surface stays queued
-  (`passes.md`, 3). Triage records cases of both
-  (`../../draft/landed-qa.md`, 4).
-- **`areas`:** each surface's area, `web` and `tui` each optional; a
-  finding on a surface with none takes `owner` (`findings.md`, 2).
+- **`surfaces`:** the surfaces a pass takes cases of, each `ctl`, `web`
+  or `tui`, `["ctl", "web", "tui"]` when absent; a case of another
+  surface stays queued (`passes.md`, 3). Triage records cases of all
+  three, ctl's first (`../../draft/landed-qa.md`, 4).
+- **`areas`:** each surface's area, `ctl`, `web` and `tui` each
+  optional; a finding on a surface with none takes `owner`
+  (`findings.md`, 2).
 - **`request`,** required: `command`, required, the deployment's command
   that puts a request on main and starts its goal (`findings.md`, 5);
   `state`, the command that says whether a goal has ended without
@@ -274,6 +285,11 @@ its binary's table test (`../tools.md`, 6), each failing first:
   suggestion made or withheld at its threshold (`ledger.md`, 6), and a
   wait for a place opened and closed by the loop's third step
   (`ledger.md`, 4.17).
+- **The `ctl` surface and the places' kinds:** a `ctl` case recorded
+  against ctl's groups and listed first in triage's and a pass's
+  briefs; a pass whose ctl cases run first opening its session with
+  `--ctl`, no browser started; a case's kind its setup's, and a pass at
+  a place of one kind taking cases of that kind alone.
 
 None starts a browser, a box, a real agent or the network; none runs
 `git` but the loop's real face, which the walk after landing exercises
@@ -288,14 +304,20 @@ The deployment's, on the machine that holds the places:
   request's commands for `request` (`findings.md`, 5 and 6);
 - `temper-qa run` as a service, with `TEMPER_INTERNAL_QA_HOME`, and
   `SKEIN_TEST_CHROMIUM` naming the Chromium the drive session takes
-  (`../../client/drive.md`, 2.1);
+  (`../../client/drive.md`, 2.1), which a deployment's place and a ctl
+  session never start;
+- a deployment's place, where its cases are wanted, with its own nine
+  ports in `qa.json` (3.2);
 - its after-landing work building at each landed tip and calling `temper-qa
   build keep` (`builds.md`, 2).
 
 ## 8. Later
 
-- **Edge cases, ctl and the help as surfaces, and real backends**
+- **Edge cases, the help as a surface, and real backends**
   (`../../draft/landed-qa.md`, 12).
+- **The web client and the TUI at a deployment's place,** then one
+  framework for both kinds (`../../draft/landed-qa.execution.md`, Q7
+  and Q8).
 
 ## 9. Open questions
 

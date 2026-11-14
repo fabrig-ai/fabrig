@@ -253,13 +253,13 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   - `Referee::watch(&mut self, now: Time, procs: &[P]) -> Result<(), String>`
     watches every process after one iterated, and returns a broken safety
     expectation's finding. The simulated world's turns and the real loop
-    call it where they called `observe`, and fail with its `Err` at once,
-    observing nothing after it. `Referee::observe(&mut self, now, procs)`,
-    which panics on what it finds, stays for the referees outside skein
-    that aren't converted yet: it has an empty default, and `watch`'s
-    default calls it and returns `Ok(())`. A referee implements one of
-    the two, and none of skein's implements `observe`. Once no referee
-    does, `observe` goes and `watch` loses its default.
+    call it after each process iterated, and once in a pass where none
+    did, so at least once after each `act`, and fail with its `Err` at
+    once, observing nothing after it. Every referee implements it: it has
+    no default, and the trait has no `observe`. A referee panics in none
+    of its methods. What its `act`, `idle` or `passed` finds, it keeps:
+    `passed` answers `false` while it keeps one, and its next `watch`
+    returns it. A referee that has nothing to watch returns `Ok(())`.
   - `Expectations::check(&mut self, now: Time, procs: &[P]) -> Result<(), String>`
     sets each met expectation aside and returns the first broken one's
     finding, `seed <seed>: at <ns> ns, <expectation> broke: <why>`.
@@ -291,6 +291,17 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
     kit's teardown fails with once, on an ordinary return. Conformance's
     real backend gives a wait that passes unanswered, its listener's
     among them, as a finding with its figures.
+  - A run's finding scope is its thread's, entered as the run starts
+    and left as it returns. Inside a run, a binary's teardown keeps its
+    finding for the run to return after its forced cleanup; outside
+    every run, the teardown fails with it at once. A real run started
+    while another is running on the same thread, as a story's scripted
+    step that runs a command's own world to its end before it answers,
+    is nested: the outer run waits while the inner one runs, the inner
+    run keeps and returns its own findings, and a finding the outer run
+    kept before the inner one started is still the outer run's after it
+    ends. Leaving a scope drops what its run kept but didn't return, so
+    no cleanup's later finding reaches another run, nested or next.
   - The domain world's referee, `skein_world::domain::Referee`, holds its
     verdict as a value (`verdict()`). `check_holding(seed)` and
     `check_passed(seed)`, each `-> Result<(), String>`, give the text
@@ -421,7 +432,7 @@ crates/skein-fake-machine       the minimal fake machine: files beneath a root, 
 crates/skein-sim-world          the simulated world: processes hosted over the simulator and stepped, which the harness and a playground run (world.md)
 testing/skein-conformance       the conformance suite: the backend interface, the scenarios, the driver, the checks
 testing/skein-heap              the counting allocator, the meter that checks a step under its scenario's ceiling, and the span a world meters its processes with
-testing/skein-scratch           a scratch directory beneath the system's temporary one, removed when dropped, for tests of files on the real kernel
+testing/skein-scratch           a scratch directory beneath the system's temporary one, removed when dropped, for tests of files on the real kernel; and the paths a test finds when it runs
 testing/skein-fork              a run forked at a chosen moment of a test and waited for, so that a sweep of cuts holds its prefix once
 testing/skein-rows              one table test's rows: each named as it runs, and the first failure ends the table (../../foundation/testing-strategy.md, 8)
 testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
@@ -554,6 +565,27 @@ heap ceiling, stays a test of its own. The kit shares nothing between
 rows; a fixture a body builds is built per row. The kit has no helper
 that expects a panic, as no kit has: a row that would panic tests an
 assertion, which goes, or a refusal, which its body reads as a value.
+
+**A test's paths** are `skein-scratch`'s `paths`, read when the test
+runs (../../foundation/testing-strategy.md, 8): its package, its tree,
+its workspace, the target's scratch space and the binaries it starts.
+A binary of the test's own package is `paths::binary(name)`, from
+`CARGO_BIN_EXE_<name>`, which cargo and nextest set for that package's
+binaries alone. A binary of another package, which the tier builds
+first with `cargo build -p <package> --bin <name>`
+(`tools/tiers/design.md`, 2.1), is
+`paths::built(package: &str, name: &str) -> PathBuf`: the file `name`
+in the nearest directory above the test's executable that holds a file
+of that name. Cargo puts that binary in the target's profile directory
+and the test's executable somewhere below it, in `deps/` or, with the
+pinned nightly's cargo, in `build/<test package>/<hash>/out/`, so no
+count of directories finds it; a directory of that name, such as
+`build/<name>/` for a package named as its binary, is passed over.
+Where no directory above holds the file, `built` fails naming the
+test's executable and the command that builds it. Every world that
+starts another package's binary takes it from `built`: jig's and
+temper's browser worlds, skein's browser suite and the UI example's
+tier. None counts directories up from its executable.
 
 A fake that runs as a step machine, as `skein-echo-client` does,
 is held to the subset instead (../../foundation/testing-strategy.md, 4): it has no

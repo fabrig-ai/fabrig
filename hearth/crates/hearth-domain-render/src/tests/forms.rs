@@ -131,6 +131,29 @@ fn a_listed_target_is_accepted() {
         Ok(Value::Map(Box::new([Entry { key: copy_of(b"x"), value: Some(Value::String(copy_of(b"x2-prod"))) }])))
     );
 }
+#[test]
+fn file_form_lookups_cover_paths_between_and_outside_the_edges() {
+    let listing = [b"b", b"d"].map(|path| revision::Entry {
+        path: copy_of(path),
+        mode: Mode::File,
+        oid: revision::Oid(copy_of(path)),
+        size: 8,
+    });
+    for (path, expected) in [
+        (b"a", Some(Schema::File { path: copy_of(b"a") })),
+        (b"b", None),
+        (b"c", Some(Schema::File { path: copy_of(b"c") })),
+        (b"d", None),
+        (b"e", Some(Schema::File { path: copy_of(b"e") })),
+    ] {
+        let value = schemas::composed(&string(at(2, 7), path));
+        assert_eq!(
+            forms::fault(&value, &Form::File, &Check::Default, &listing, u64::from(limits::SHIPPED.static_file)),
+            expected,
+            "path {path:?}"
+        );
+    }
+}
 const NONFILES: &[Mode] = &[Mode::Link, Mode::Submodule];
 #[test]
 fn a_file_must_be_listed_as_a_file() {

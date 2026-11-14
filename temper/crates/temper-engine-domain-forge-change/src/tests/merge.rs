@@ -245,11 +245,9 @@ fn a_pushed_head_already_contained_ends_with_no_change() {
             (State::Checking { head }, f.clone(), heard(), true),
             (State::Gating { head, asked: Box::new([]) }, f.clone(), heard(), true),
             (State::Queued { head, ready_since: at(0) }, f.clone(), heard(), true),
-            (State::First { head, ready_since: at(0) }, f.clone(), heard(), true),
             (opening.clone(), Facts { contains_head: Status::Failed, ..f.clone() }, heard(), false),
             (opening.clone(), Facts { contains_head: Status::Unknown, ..f.clone() }, heard(), false),
             (opening.clone(), Facts { branch: None, ..f.clone() }, heard(), false),
-            (State::Landing { head }, f.clone(), heard(), false),
             (State::Updating { from: head, base: BASE, ready_since: at(0) }, f.clone(), heard(), false),
             (State::Preparing { from: head, main: BASE, ready_since: at(0) }, f.clone(), heard(), false),
             (opening.clone(), f.clone(), Heard { delegate_live: true, ..heard() }, false),
@@ -273,6 +271,70 @@ fn a_pushed_head_already_contained_ends_with_no_change() {
             }
         }
     }
+}
+
+/// From its turn, a contained head lands at the observed tip, ahead of any merge outcome (change/README.md, 2).
+#[test]
+fn a_contained_head_from_its_turn_has_landed() {
+    for state in [State::First { head: HEAD, ready_since: at(0) }, State::Landing { head: HEAD }] {
+        for effect in [
+            EffectResult::None,
+            EffectResult::Pending,
+            EffectResult::Made,
+            EffectResult::Failed,
+            EffectResult::Conflict,
+        ] {
+            let mut c = change(state.clone());
+            c.owns_turn = true;
+            let f = Facts { contains_head: Status::Passed, contains_base: Status::Failed, base_tip: MERGE, ..facts() };
+            let h = Heard { effect, ..heard() };
+            let next = decide(&c, &f, &h);
+            assert_eq!(next.change.state, State::Landed { merge: MERGE, since: at(1) });
+            assert_eq!(next.decision, Decision::Finish { merge: MERGE });
+            assert!(!next.change.owns_turn);
+            assert_eq!(next.change.released, None);
+            let verifying = decide(&c, &Facts { verification: crate::Verification::Verifying, ..f.clone() }, &h);
+            assert_eq!(verifying.change.state, next.change.state);
+            assert_eq!(verifying.decision, Decision::Wait { until: Some(at(7201)) });
+            for not_contained in [Status::Unknown, Status::Pending, Status::Failed] {
+                let f = Facts { contains_head: not_contained, ..f.clone() };
+                assert_eq!(decide(&c, &f, &h), decide(&c, &Facts { contains_head: Status::Unknown, ..f }, &h));
+            }
+            for (branch, drift, writer) in [
+                (None, None, false),
+                (Some(NEW), None, false),
+                (Some(HEAD), Some(Hold::Retargeted), false),
+                (Some(HEAD), None, true),
+            ] {
+                let f = Facts { branch, drift, writer_taken: writer, ..f.clone() };
+                assert_eq!(decide(&c, &f, &h), decide(&c, &Facts { contains_head: Status::Unknown, ..f }, &h));
+            }
+            c.way = crate::Way::Turn;
+            c.landing = Some(9);
+            assert_eq!(decide(&c, &f, &h), decide(&c, &Facts { contains_head: Status::Unknown, ..f.clone() }, &h));
+            c.landing = None;
+            assert_eq!(decide(&c, &f, &h).change.state, next.change.state);
+            let merged = decide(&c, &Facts { pull: Pull::Merged { commit: NEW }, ..f }, &h);
+            assert_eq!(merged.change.state, State::Landed { merge: NEW, since: at(1) });
+        }
+    }
+}
+
+/// A release judges containment in its fresh step, not after retrying the merge (change/README.md, 2).
+#[test]
+fn a_released_failed_merge_lands_at_the_tip_holding_its_head() {
+    let c = change(State::Held { was: Box::new(State::Landing { head: HEAD }), why: Hold::Failed });
+    let f = Facts { contains_head: Status::Passed, base_tip: MERGE, ..facts() };
+    for (c, h) in
+        [(c.clone(), Heard { released: true, effect: EffectResult::Failed, ..heard() }), (released(&c, at(1)), heard())]
+    {
+        let next = decide(&c, &f, &h);
+        assert_eq!(next.change.state, State::Landed { merge: MERGE, since: at(1) });
+        assert_eq!(next.decision, Decision::Finish { merge: MERGE });
+        assert_eq!(next.change.released, None);
+        assert!(!next.change.owns_turn);
+    }
+    assert_eq!(decide(&c, &f, &heard()).decision, Decision::None, "a hold is not released by containment");
 }
 
 /// A catch-up asks a merge job without counting a conflict (temper/docs/design/domain/forge/change/repairs.md).

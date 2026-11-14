@@ -4,7 +4,7 @@ use jig_client_protocol_http::{PublicPath, public_target};
 use jig_protocol_engine_clients::PublicRead;
 use jig_protocol_engine_clients_http::public_path;
 use skein_lib::{List, Rng};
-use std::{fmt::Write as _, panic::catch_unwind};
+use std::fmt::Write as _;
 
 const FIRST_SEED: u64 = 0x7075_7a74;
 const SEEDS: u64 = 4;
@@ -29,15 +29,12 @@ fn path_of(read: &PublicRead) -> PublicPath {
 }
 
 fn inspect(seed: u64, bytes: &[u8], canonical: bool) -> Option<PublicRead> {
-    let result = catch_unwind(|| {
-        let read = public_path(bytes);
-        if canonical && let Some(read) = &read {
-            assert_eq!(public_target(&path_of(read)).as_ref(), bytes, "accepted target prints byte for byte");
-        }
-        read
-    });
-    assert!(result.is_ok(), "seed {seed:#x}, input {bytes:?}");
-    result.expect("checked result")
+    eprintln!("seed {seed:#x}, input {bytes:?}");
+    let read = public_path(bytes);
+    if canonical && let Some(read) = &read {
+        assert_eq!(public_target(&path_of(read)).as_ref(), bytes, "accepted target prints byte for byte");
+    }
+    read
 }
 
 fn number(rng: &mut Rng, sample: u32, offset: u32) -> u16 {
@@ -73,9 +70,8 @@ fn target(path: &PublicPath) -> Vec<u8> {
 }
 
 fn printed(seed: u64, path: &PublicPath, bytes: &[u8]) {
-    let result = catch_unwind(|| public_target(path));
-    assert!(result.is_ok(), "printer seed {seed:#x}, input {bytes:?}");
-    assert_eq!(result.expect("checked printer").as_ref(), bytes, "printer seed {seed:#x}, input {bytes:?}");
+    eprintln!("printer seed {seed:#x}, input {bytes:?}");
+    assert_eq!(public_target(path).as_ref(), bytes, "printer seed {seed:#x}, input {bytes:?}");
     let read =
         inspect(seed, bytes, true).unwrap_or_else(|| panic!("canonical refused, seed {seed:#x}, input {bytes:?}"));
     assert_eq!(read.owner, path.owner, "owner seed {seed:#x}, input {bytes:?}");

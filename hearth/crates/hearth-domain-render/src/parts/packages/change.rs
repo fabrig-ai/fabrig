@@ -1,5 +1,6 @@
 //! Typed packages differences (hearth/docs/design/domain/render/README.md, 4.1).
 use super::{Apt, Box, Initramfs, List, Packages, Preseed, Sources, Variant};
+use skein_lib::{Joined, Map, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
     pub resolution: crate::diff::ResolutionChange,
@@ -16,26 +17,31 @@ pub struct Names {
     pub added: Box<[Box<[u8]>]>,
     pub removed: Box<[Box<[u8]>]>,
 }
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SourcesPair {
     pub before: Sources,
     pub after: Sources,
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct VariantPair {
     pub before: Variant,
     pub after: Variant,
 }
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PreseedsPair {
     pub before: Box<[Preseed]>,
     pub after: Box<[Preseed]>,
 }
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct InitramfsPair {
     pub before: Option<Initramfs>,
     pub after: Option<Initramfs>,
 }
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AptPair {
     pub before: Apt,
@@ -43,7 +49,7 @@ pub struct AptPair {
 }
 
 #[must_use]
-pub fn change(before: &Packages, after: &Packages) -> Change {
+pub(crate) fn change(before: &Packages, after: &Packages) -> Change {
     Change {
         resolution: crate::diff::resolution(
             crate::keys::resolution(&super::inputs(before)),
@@ -105,12 +111,14 @@ pub struct SeedIds {
     pub uid: u32,
     pub gid: Option<u32>,
 }
+/// Key-ordered seed changes (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SeedUserKeyed {
     Added { key: Box<[u8]>, value: SeedIds },
     Removed { key: Box<[u8]>, value: SeedIds },
     Changed { key: Box<[u8]>, before: SeedIds, after: SeedIds },
 }
+/// Key-ordered seed changes (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SeedGroupKeyed {
     Added { key: Box<[u8]>, value: u32 },
@@ -119,34 +127,51 @@ pub enum SeedGroupKeyed {
 }
 
 fn seeds(before: &super::Seeds, after: &super::Seeds) -> SeedsChange {
-    SeedsChange {
-        users: crate::parts::secrets::changed(
-            &before.users,
-            &after.users,
-            |row| &row.name,
-            |key, before, after| match (before, after) {
-                (None, Some(value)) => SeedUserKeyed::Added { key, value: SeedIds { uid: value.uid, gid: value.gid } },
-                (Some(value), None) => {
-                    SeedUserKeyed::Removed { key, value: SeedIds { uid: value.uid, gid: value.gid } }
-                }
-                (Some(before), Some(after)) => SeedUserKeyed::Changed {
-                    key,
-                    before: SeedIds { uid: before.uid, gid: before.gid },
-                    after: SeedIds { uid: after.uid, gid: after.gid },
-                },
-                (None, None) => unreachable!("union entry"),
-            },
-        ),
-        groups: crate::parts::secrets::changed(
-            &before.groups,
-            &after.groups,
-            |row| &row.name,
-            |key, before, after| match (before, after) {
-                (None, Some(value)) => SeedGroupKeyed::Added { key, value: value.gid },
-                (Some(value), None) => SeedGroupKeyed::Removed { key, value: value.gid },
-                (Some(before), Some(after)) => SeedGroupKeyed::Changed { key, before: before.gid, after: after.gid },
-                (None, None) => unreachable!("union entry"),
-            },
-        ),
+    let mut old: Map<&[u8], &super::SeedUser> = Map::uncapped();
+    let mut new: Map<&[u8], &super::SeedUser> = Map::uncapped();
+    for row in &before.users {
+        old.insert(&row.name, row).expect("an uncapped map");
     }
+    for row in &after.users {
+        new.insert(&row.name, row).expect("an uncapped map");
+    }
+    let mut users = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => {
+                SeedUserKeyed::Removed { key: bytes::copy_of(key), value: SeedIds { uid: row.uid, gid: row.gid } }
+            }
+            Joined::Second(row) => {
+                SeedUserKeyed::Added { key: bytes::copy_of(key), value: SeedIds { uid: row.uid, gid: row.gid } }
+            }
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => SeedUserKeyed::Changed {
+                key: bytes::copy_of(key),
+                before: SeedIds { uid: was.uid, gid: was.gid },
+                after: SeedIds { uid: now.uid, gid: now.gid },
+            },
+        };
+        users.push(change).expect("an uncapped list");
+    }
+    let mut old: Map<&[u8], &super::SeedGroup> = Map::uncapped();
+    let mut new: Map<&[u8], &super::SeedGroup> = Map::uncapped();
+    for row in &before.groups {
+        old.insert(&row.name, row).expect("an uncapped map");
+    }
+    for row in &after.groups {
+        new.insert(&row.name, row).expect("an uncapped map");
+    }
+    let mut groups = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => SeedGroupKeyed::Removed { key: bytes::copy_of(key), value: row.gid },
+            Joined::Second(row) => SeedGroupKeyed::Added { key: bytes::copy_of(key), value: row.gid },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => {
+                SeedGroupKeyed::Changed { key: bytes::copy_of(key), before: was.gid, after: now.gid }
+            }
+        };
+        groups.push(change).expect("an uncapped list");
+    }
+    SeedsChange { users: users.into_boxed(), groups: groups.into_boxed() }
 }

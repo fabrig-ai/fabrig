@@ -243,6 +243,7 @@ fn child(spawn: &Spawn, inherited: &Inherited) -> Proc {
 
 #[derive(Debug)]
 struct Judge {
+    failed: Option<String>,
     controls: Controls,
     deadline: Option<Deadline>,
     deferred: bool,
@@ -252,12 +253,15 @@ struct Judge {
 }
 
 fn capture(procs: &[Proc]) -> &Synthetic {
+    check_capture(procs).expect("one capture root")
+}
+fn check_capture(procs: &[Proc]) -> Result<&Synthetic, String> {
     for proc in procs {
         if let Proc::Capture(host) = proc {
-            return host;
+            return Ok(host);
         }
     }
-    unreachable!("one capture root")
+    Err(String::from("one capture root"))
 }
 fn writes(procs: &[Proc], serve: bool) -> usize {
     for proc in procs {
@@ -291,9 +295,9 @@ fn occurrences(bytes: &[u8], needle: &[u8]) -> usize {
 }
 
 impl Judge {
-    fn ready(&self, procs: &[Proc]) -> bool {
-        let bytes = &capture(procs).received;
-        match self.stage {
+    fn ready(&self, procs: &[Proc]) -> Result<bool, String> {
+        let bytes = &check_capture(procs)?.received;
+        Ok(match self.stage {
             0 => writes(procs, true) == 1,
             1 => writes(procs, false) == 2 && contains(bytes, FIRST_DIAGNOSTIC),
             // Suffix cues let even a broken layout drain before its assertion.
@@ -304,70 +308,89 @@ impl Judge {
             6 => {
                 for proc in procs {
                     if !proc.is_empty() {
-                        return false;
+                        return Ok(false);
                     }
                 }
                 true
             }
             _ => false,
-        }
+        })
     }
-    fn check_deadline(&mut self) {
-        let deadline = self.deadline.as_ref().expect("the first act arms patience");
+    fn check_deadline(&mut self) -> Result<(), String> {
+        let deadline = self.deadline.as_ref().ok_or(String::from("the first act arms patience"))?;
         if !self.settled && !self.deferred && deadline.passed() {
             match deadline.expired() {
                 // The world owns the hosts' teardown and its final patience verdict.
                 Expired::Starved(_) => self.deferred = true,
-                Expired::Failed(figures) => panic!("shared-terminal stage {} did not settle: {figures}", self.stage),
+                Expired::Failed(figures) => {
+                    return Err(format!("shared-terminal stage {} did not settle: {figures}", self.stage));
+                }
             }
         }
+
+        Ok(())
     }
 }
 impl Referee<Proc> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
-        self.wake = None;
-        if self.deadline.is_none() {
-            self.deadline = Some(Deadline::arm("the shared-terminal stages", PATIENCE));
-        }
-        // Only the first prefix is initially runnable, regardless of spawn order.
-        for proc in &mut *procs {
-            if let Proc::Serve(host) = proc {
-                host.released = host.released.max(1);
-            }
-        }
-        if !self.ready(procs) {
-            self.check_deadline();
+        if self.failed.is_some() {
             return;
         }
-        for proc in &mut *procs {
-            match proc {
-                Proc::Serve(host) => match self.stage {
-                    1 => host.released = 2,
-                    2 => host.released = 3,
-                    4 => host.released = 4,
-                    _ => {}
-                },
-                Proc::Diagnostic(host) => match self.stage {
-                    0 => host.released = 2,
-                    3 => host.released = 4,
-                    _ => {}
-                },
-                Proc::Box(_) | Proc::Capture(_) => {}
+        let result = (|| -> Result<(), String> {
+            self.wake = None;
+            if self.deadline.is_none() {
+                self.deadline = Some(Deadline::arm("the shared-terminal stages", PATIENCE));
             }
+            // Only the first prefix is initially runnable, regardless of spawn order.
+            for proc in &mut *procs {
+                if let Proc::Serve(host) = proc {
+                    host.released = host.released.max(1);
+                }
+            }
+            if !self.ready(procs)? {
+                self.check_deadline()?;
+                return Ok(());
+            }
+            for proc in &mut *procs {
+                match proc {
+                    Proc::Serve(host) => match self.stage {
+                        1 => host.released = 2,
+                        2 => host.released = 3,
+                        4 => host.released = 4,
+                        _ => {}
+                    },
+                    Proc::Diagnostic(host) => match self.stage {
+                        0 => host.released = 2,
+                        3 => host.released = 4,
+                        _ => {}
+                    },
+                    Proc::Box(_) | Proc::Capture(_) => {}
+                }
+            }
+            if self.stage == 5 {
+                self.controls.signal(BOX_HOST, ServiceSignal::Terminate);
+            }
+            if self.stage == 6 {
+                self.settled = true;
+            }
+            self.stage = self.stage.checked_add(1).ok_or(String::from("seven causal stages"))?;
+            self.check_deadline()?;
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
-        if self.stage == 5 {
-            self.controls.signal(BOX_HOST, ServiceSignal::Terminate);
-        }
-        if self.stage == 6 {
-            self.settled = true;
-        }
-        self.stage = self.stage.checked_add(1).expect("seven causal stages");
-        self.check_deadline();
     }
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        if self.ready(procs) {
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        if self.ready(procs)? {
             self.wake = Some(now);
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled {
@@ -381,6 +404,9 @@ impl Referee<Proc> for Judge {
         }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -438,6 +464,7 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
     let (reader, stdout, stderr) = shared_terminal(root);
     let clock = Clock::new();
     let mut world = World::new_controlled(|controls| Judge {
+        failed: None,
         controls,
         deadline: None,
         deferred: false,
@@ -530,6 +557,7 @@ fn a_split_sign_in_link_stays_whole_on_the_shared_terminal() {
 
 #[derive(Debug)]
 struct RemoveJudge {
+    failed: Option<String>,
     controls: Controls,
     finished: &'static [u8],
     stopping: bool,
@@ -546,23 +574,39 @@ fn all_closed(procs: &[Proc]) -> bool {
 }
 impl Referee<Proc> for RemoveJudge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
-        self.wake = None;
-        if !self.stopping && contains(&capture(procs).received, self.finished) {
-            self.controls.signal(BOX_HOST, ServiceSignal::Terminate);
-            self.stopping = true;
+        if self.failed.is_some() {
+            return;
         }
-        self.settled = self.stopping && all_closed(procs);
+        let result = (|| -> Result<(), String> {
+            self.wake = None;
+            if !self.stopping && contains(&check_capture(procs)?.received, self.finished) {
+                self.controls.signal(BOX_HOST, ServiceSignal::Terminate);
+                self.stopping = true;
+            }
+            self.settled = self.stopping && all_closed(procs);
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
+        }
     }
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        if !self.stopping && contains(&capture(procs).received, self.finished) || self.stopping && all_closed(procs) {
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        if !self.stopping && contains(&check_capture(procs)?.received, self.finished)
+            || self.stopping && all_closed(procs)
+        {
             self.wake = Some(now);
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake
     }
     fn passed(&self) -> bool {
-        self.settled
+        self.failed.is_none() && self.settled
     }
 }
 #[test]
@@ -576,6 +620,7 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
     let (reader, stdout, stderr) = shared_terminal(root);
     let clock = Clock::new();
     let mut world = World::new_controlled(|controls| RemoveJudge {
+        failed: None,
         controls,
         finished: b"removed 17\n",
         stopping: false,
@@ -625,6 +670,7 @@ fn a_real_child_reads_the_secret_and_eof_on_stdin() {
     let (reader, stdout, stderr) = shared_terminal(root);
     let clock = Clock::new();
     let mut world = World::new_controlled(|controls| RemoveJudge {
+        failed: None,
         controls,
         finished: b"stdin ended\n",
         stopping: false,

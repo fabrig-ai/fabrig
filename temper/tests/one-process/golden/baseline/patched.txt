@@ -16,4 +16,5 @@ temper 10 40 16
 temper 11 40 16
 temper 12 40 16
 temper 13 40 16
+jig 6 138 2
 temper 14 40 16

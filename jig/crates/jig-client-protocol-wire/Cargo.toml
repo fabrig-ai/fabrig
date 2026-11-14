@@ -12,6 +12,7 @@ skein-lib.workspace = true
 skein-codec.workspace = true
 
 [dev-dependencies]
+skein-rows.workspace = true
 skein-codegen.workspace = true
 
 [lints]

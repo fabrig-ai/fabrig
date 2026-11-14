@@ -532,15 +532,23 @@ pub fn project_number(me: &Value, repository: &str) -> Result<u64, String> {
 /// The owned forge made by this story, read through the public client.
 #[must_use]
 pub fn owned_forge(client: &Path) -> Value {
-    let read = super::ctl::alone(client, Call::new(&["forge", "list", "--json"]));
-    owned_row(&super::ctl::json(&read)).clone()
+    check_owned_forge(client).unwrap_or_else(|why| panic!("{why}"))
+}
+pub fn check_owned_forge(client: &Path) -> Result<Value, String> {
+    let read = super::ctl::try_alone(client, Call::new(&["forge", "list", "--json"]))?;
+    Ok(check_owned_row(&super::ctl::try_json(&read)?)?.clone())
 }
 #[must_use]
 pub fn owned_row(read: &Value) -> &Value {
-    let mut rows = read["forges"].as_array().expect("forge rows").iter().filter(|row| row["mode"] == "owned");
-    let row = rows.next().expect("owned forge");
-    assert!(rows.next().is_none(), "one owned forge in this story: {read}");
-    row
+    check_owned_row(read).unwrap_or_else(|why| panic!("{why}"))
+}
+pub fn check_owned_row(read: &Value) -> Result<&Value, String> {
+    let mut rows = read["forges"].as_array().ok_or("forge rows")?.iter().filter(|row| row["mode"] == "owned");
+    let row = rows.next().ok_or("owned forge")?;
+    if rows.next().is_some() {
+        return Err(format!("one owned forge in this story: {read}"));
+    }
+    Ok(row)
 }
 
 /// The process story checks the printed API and person, and the public header
@@ -686,7 +694,9 @@ pub fn change_page(config: &Path, client: &Path, task: u64) -> String {
                 self.closing = true;
             }
         }
-        fn observe(&mut self, _now: skein_lib::Time, _clients: &[NativeClient]) {}
+        fn watch(&mut self, _now: skein_lib::Time, _clients: &[NativeClient]) -> Result<(), String> {
+            Ok(())
+        }
         fn next_deadline(&self) -> Option<skein_lib::Time> {
             if self.closing { None } else { self.until.until() }
         }
@@ -783,7 +793,13 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
 /// landing and after a restart, which keeps it with the change's record
 /// (domain/forge/change/README.md, 5).
 pub fn assert_landed_ci(run: &str, page: &str) {
-    assert!(page.contains("CI at its head\nPassed"), "{run}: CI at the landed change's head: {page}");
+    check_landed_ci(run, page).unwrap_or_else(|why| panic!("{why}"));
+}
+pub fn check_landed_ci(run: &str, page: &str) -> Result<(), String> {
+    if !page.contains("CI at its head\nPassed") {
+        return Err(format!("{run}: CI at the landed change's head: {page}"));
+    }
+    Ok(())
 }
 
 #[must_use]

@@ -44,6 +44,7 @@ pub(crate) struct Run {
 }
 #[expect(clippy::struct_excessive_bools, reason = "sign-in, receipt and service-end observations are independent")]
 pub(crate) struct Referee {
+    finding: Option<String>,
     controls: skein_world::Controls,
     pub(crate) store: Rc<RefCell<Store>>,
     rules: Rc<RefCell<rules::Referee>>,
@@ -158,6 +159,7 @@ impl Referee {
         committed.rows = run.borrow().rows.clone();
         run.borrow_mut().rules = Some(rules.clone());
         Self {
+            finding: None,
             controls,
             store,
             rules,
@@ -188,46 +190,52 @@ impl Referee {
             story: scenario,
         }
     }
-    fn stopping(&mut self) {
+    fn stopping(&mut self) -> Result<(), String> {
         match self.phase {
             crate::world::Phase::Drain => {
-                let mut stopped = stopped::at_signal(self.story, &self.store.borrow());
+                let mut stopped = stopped::at_signal(self.story, &self.store.borrow())?;
                 stopped.saved_head[0] = self.forge.borrow().saved_head(stopped.task);
                 self.run.borrow_mut().stopped = Some(stopped);
             }
             crate::world::Phase::Restart => {
                 let mut run = self.run.borrow_mut();
-                let disk = run.disk.clone().expect("world disk");
-                let stopped = run.stopped.as_mut().expect("stopped run");
-                stopped::at_restart(stopped, &self.store.borrow());
+                let disk = run.disk.clone().ok_or_else(|| String::from("world disk"))?;
+                let stopped = run.stopped.as_mut().ok_or_else(|| String::from("stopped run"))?;
+                stopped::at_restart(stopped, &self.store.borrow())?;
                 stopped.saved_head[1] = self.forge.borrow().saved_head(stopped.task);
-                stopped::checkout(stopped, &mut disk.borrow_mut());
+                stopped::checkout(stopped, &mut disk.borrow_mut())?;
             }
             _ => {}
         }
+
+        Ok(())
     }
-    fn observe_drain(&mut self, now: Time, service: &crate::world::ServiceHost) {
+    fn observe_drain(&mut self, now: Time, service: &crate::world::ServiceHost) -> Result<(), String> {
         if self.done.is_some() && self.drained.is_none() && service.is_empty() {
-            Self::check_roots(&service.service);
-            assert!(self.store.borrow().pending.is_empty(), "drain settles commits");
-            self.say(now, rules::Observed::Drained { at: self.applied });
+            Self::check_roots(&service.service)?;
+            if !(self.store.borrow().pending.is_empty()) {
+                return Err(String::from("drain settles commits"));
+            }
+            self.say(now, rules::Observed::Drained { at: self.applied })?;
             self.drained = Some(());
             self.run.borrow_mut().drained = true;
             if matches!(self.phase, crate::world::Phase::Restart) {
                 stopped::after_drain(
-                    self.run.borrow_mut().stopped.as_mut().expect("stopped run"),
+                    self.run.borrow_mut().stopped.as_mut().ok_or_else(|| String::from("stopped run"))?,
                     &self.store.borrow(),
-                );
+                )?;
             }
             if matches!(self.phase, crate::world::Phase::Drain) {
                 let mut run = self.run.borrow_mut();
                 if let Some(stopped) = run.stopped.as_mut() {
-                    stopped.interrupted = stopped::interrupted(stopped, &self.store.borrow());
+                    stopped.interrupted = stopped::interrupted(stopped, &self.store.borrow())?;
                 }
             }
         }
+
+        Ok(())
     }
-    fn stop_peers(&mut self, other: &mut [Proc]) {
+    fn stop_peers(&mut self, other: &mut [Proc]) -> Result<(), String> {
         if self.done.is_some() {
             let agents_ended = other.iter().all(|proc| !matches!(proc, Proc::Agent(agent) if !agent.is_empty()));
             for proc in other {
@@ -237,17 +245,21 @@ impl Referee {
                     && let Proc::Peer(peer) = proc
                 {
                     self.hold_released = true;
-                    peer.release(crate::stories::STOP_HOLD).expect("stop hold release");
+                    peer.release(crate::stories::STOP_HOLD).map_err(|why| format!("stop hold release: {why:?}"))?;
                 }
                 shutdown_peer(proc);
             }
         }
+
+        Ok(())
     }
-    fn say(&mut self, now: Time, event: rules::Observed) {
+    fn say(&mut self, now: Time, event: rules::Observed) -> Result<(), String> {
         self.rules
             .borrow_mut()
             .observe(now.as_nanos(), event)
-            .expect("one-process conformance over bytes and durable rows");
+            .map_err(|why| format!("one-process conformance over bytes and durable rows: {why:?}"))?;
+
+        Ok(())
     }
     fn adoption_window(&mut self, service: &crate::world::ServiceHost) {
         if let Some(saved) = crate::world::saved_adoptions(&mut self.saved_seen) {
@@ -277,10 +289,12 @@ impl Referee {
             self.run.borrow_mut().window = Some((start, service.observer.before_iteration));
         }
     }
-    pub(crate) fn check_roots(service: &temper_service::Service) {
+    pub(crate) fn check_roots(service: &temper_service::Service) -> Result<(), String> {
         let mut text = String::new();
-        write!(&mut text, "{:?}", secrets::Roots(service)).expect("root formatting");
-        secrets::require_formatted(&text, "root");
+        write!(&mut text, "{:?}", secrets::Roots(service)).map_err(|why| format!("root formatting: {why:?}"))?;
+        secrets::check(text.as_bytes(), "root")?;
+
+        Ok(())
     }
 }
 pub(crate) fn terminals(store: &Store) -> u32 {
@@ -337,48 +351,50 @@ fn snapshot(store: &Store) -> rules::Snapshot {
     snapshot
 }
 impl Referee {
-    fn phase_complete(&self, other: &[Proc]) -> bool {
-        match self.phase {
-            crate::world::Phase::Refused => unreachable!("refused starts send no shutdown signal"),
-            crate::world::Phase::SignIn => other
-                .iter()
-                .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
-            crate::world::Phase::Drain => stopped::ready(self.story, &self.store.borrow(), other),
-            crate::world::Phase::Restart => {
-                self.cold.is_none()
-                    && (self.run.borrow().settled > 0
-                        || self
-                            .run
-                            .borrow()
-                            .stopped
-                            .as_ref()
-                            .is_some_and(|stopped| stopped::next(stopped, &self.store.borrow()).is_some()))
-            }
-            crate::world::Phase::Fault { .. } => {
-                self.run.borrow().restarts > 0 && self.cold.is_none() && self.adopted > 0
-            }
-            crate::world::Phase::Story => match self.story {
-                crate::world::Story::NoWelcome | crate::world::Story::ModelsList => other
+    fn phase_complete(&self, other: &[Proc]) -> Result<bool, String> {
+        Ok({
+            match self.phase {
+                crate::world::Phase::Refused => return Err(String::from("refused starts send no shutdown signal")),
+                crate::world::Phase::SignIn => other
                     .iter()
-                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished)),
-                crate::world::Story::Chat { .. } => terminals(&self.store.borrow()) > 0,
-                crate::world::Story::ChatReadThenWait { .. } => chat_waited(&self.store.borrow()),
-                crate::world::Story::Adoption => self.adopted > 0,
-                crate::world::Story::Adopt => {
-                    let forge = self.forge.borrow();
-                    forge.complete() && forge::Forge::hooks_complete(other, crate::stories::ADOPT_HOOKS)
+                    .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
+                crate::world::Phase::Drain => stopped::ready(self.story, &self.store.borrow(), other)?,
+                crate::world::Phase::Restart => {
+                    self.cold.is_none()
+                        && (self.run.borrow().settled > 0
+                            || self
+                                .run
+                                .borrow()
+                                .stopped
+                                .as_ref()
+                                .is_some_and(|stopped| stopped::next(stopped, &self.store.borrow()).is_some()))
                 }
-                crate::world::Story::Merge | crate::world::Story::PlaygroundA => self.forge.borrow().complete(),
-                crate::world::Story::HeldChange => crate::stories::change_held(&self.store.borrow().rows),
-                crate::world::Story::CodingAtStop => unreachable!("stop story uses drain and restart"),
-            },
-        }
+                crate::world::Phase::Fault { .. } => {
+                    self.run.borrow().restarts > 0 && self.cold.is_none() && self.adopted > 0
+                }
+                crate::world::Phase::Story => match self.story {
+                    crate::world::Story::NoWelcome | crate::world::Story::ModelsList => other
+                        .iter()
+                        .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished)),
+                    crate::world::Story::Chat { .. } => terminals(&self.store.borrow()) > 0,
+                    crate::world::Story::ChatReadThenWait { .. } => chat_waited(&self.store.borrow()),
+                    crate::world::Story::Adoption => self.adopted > 0,
+                    crate::world::Story::Adopt => {
+                        let forge = self.forge.borrow();
+                        forge.complete() && forge::Forge::hooks_complete(other, crate::stories::ADOPT_HOOKS)
+                    }
+                    crate::world::Story::Merge | crate::world::Story::PlaygroundA => self.forge.borrow().complete(),
+                    crate::world::Story::HeldChange => crate::stories::change_held(&self.store.borrow().rows),
+                    crate::world::Story::CodingAtStop => return Err(String::from("stop story uses drain and restart")),
+                },
+            }
+        })
     }
 }
-impl skein_world::Referee<Proc> for Referee {
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+impl Referee {
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (service, other) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut service[0] else { panic!("service first") };
+        let Proc::Service(service) = &mut service[0] else { return Err(String::from("service first")) };
         if let Some(bound) = service.observer.hooks {
             self.forge.borrow_mut().hand_hooks(bound);
         }
@@ -398,7 +414,7 @@ impl skein_world::Referee<Proc> for Referee {
                     .pending
                     .front()
                     .map(|pending| restart::next(&self.committed.rows, &pending.writes));
-                self.say(now, rules::Observed::Restart);
+                self.say(now, rules::Observed::Restart)?;
                 self.store.borrow_mut().recovering();
                 self.settled_at = None;
                 self.adopted = 0;
@@ -453,29 +469,49 @@ impl skein_world::Referee<Proc> for Referee {
                     shutdown_peer(proc);
                 }
             }
-            return;
+            return Ok(());
         }
-        let complete = self.phase_complete(other);
+        let complete = self.phase_complete(other)?;
         if self.done.is_none()
             && (done || !matches!(self.phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }))
             && complete
-            && crate::oracle::readback(other)
+            && crate::oracle::readback(other)?
         {
             for proc in other.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc {
                     person.finish();
                 }
             }
-            self.stopping();
+            self.stopping()?;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             self.done = Some(());
         }
-        self.stop_peers(other);
+        self.stop_peers(other)?;
+
+        Ok(())
+    }
+}
+impl skein_world::Referee<Proc> for Referee {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
     }
     #[expect(clippy::too_many_lines, reason = "durable commits and their outside receipts are observed in order")]
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        self.forge.borrow_mut().observe(procs);
-        let Proc::Service(service) = &procs[0] else { panic!("service first") };
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        self.forge.borrow_mut().observe(procs)?;
+        let Proc::Service(service) = &procs[0] else { return Err(String::from("service first")) };
         self.adoption_window(service);
         let store = self.store.borrow();
         for commit in &service.observer.commits {
@@ -491,7 +527,7 @@ impl skein_world::Referee<Proc> for Referee {
                     now.as_nanos(),
                     rules::Observed::Durable { number: commit.number, snapshot: snapshot(&self.committed) },
                 )
-                .expect("durable conformance");
+                .map_err(|why| format!("durable conformance: {why:?}"))?;
             // A result in its requester's durable inbox has reached that task
             // (temper/docs/design/testing/README.md, 2.5).
             for row in self.committed.rows.values() {
@@ -509,7 +545,7 @@ impl skein_world::Referee<Proc> for Referee {
                                     now.as_nanos(),
                                     rules::Observed::Result { task: child, to: rules::Source::Task(task.number) },
                                 )
-                                .expect("durable result reached its requester");
+                                .map_err(|why| format!("durable result reached its requester: {why:?}"))?;
                         }
                     }
                 }
@@ -524,24 +560,24 @@ impl skein_world::Referee<Proc> for Referee {
             && let Some(rows) = restored
         {
             restart::check(&self.acknowledged, self.uncertain.as_ref(), &restart::forge(&rows))
-                .expect("restart recovered a whole forge commit");
+                .map_err(|why| format!("restart recovered a whole forge commit: {why:?}"))?;
             let mut recovered = Store::new();
             recovered.rows = rows;
             let receipts = snapshot(&recovered).receipts;
-            self.say(now, rules::Observed::ColdStore { receipts });
+            self.say(now, rules::Observed::ColdStore { receipts })?;
             self.cold = None;
         }
         // Only durable commits change these rows. Preserve the check at each
         // observation without scanning the same map again between commits.
         let store = self.store.borrow();
         if self.settled_at != Some(store.applied) {
-            self.run.borrow_mut().settled = settled(&store);
+            self.run.borrow_mut().settled = settled(&store)?;
             self.adopted = crate::stories::adopted(&store.rows);
             self.settled_at = Some(store.applied);
         }
         drop(store);
         for event in &service.observer.wire.events[self.agent_seen..] {
-            self.say(now, event.clone());
+            self.say(now, event.clone())?;
         }
         self.agent_seen = service.observer.wire.events.len();
         for proc in procs {
@@ -556,12 +592,17 @@ impl skein_world::Referee<Proc> for Referee {
                             *self.run.borrow_mut().applications.entry(*key).or_default() += 1;
                         }
                         client::Received::Application { key, answer } => {
-                            assert!(
-                                matches!(answer, temper_client_domain::forge::Answer::Adopted(_)),
-                                "adoption succeeded: {answer:?}"
-                            );
+                            if !(matches!(answer, temper_client_domain::forge::Answer::Adopted(_))) {
+                                return Err(format!("adoption succeeded: {answer:?}"));
+                            }
                             if let Some(old) = self.run.borrow_mut().answers.insert(*key, answer.clone()) {
-                                assert_eq!(&old, answer, "one outcome per adoption key");
+                                match (&(&old), &(answer)) {
+                                    (left, right) if left != right => {
+                                        let finding = String::from("one outcome per adoption key");
+                                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                                    }
+                                    _ => {}
+                                }
                             }
                         }
                         client::Received::PlaygroundStarted { .. }
@@ -574,12 +615,12 @@ impl skein_world::Referee<Proc> for Referee {
                         self.party = Some(*party);
                         self.signed_in = true;
                     }
-                    let requires = client_receipts(event, &self.store.borrow(), self.party);
+                    let requires = client_receipts(event, &self.store.borrow(), self.party)?;
                     self.released |= requires
                         .iter()
                         .any(|receipt| matches!(receipt, rules::Receipt::Turn(..) | rules::Receipt::Terminal(..)));
                     if !requires.is_empty() {
-                        self.say(now, rules::Observed::Released { requires });
+                        self.say(now, rules::Observed::Released { requires })?;
                     }
                 }
                 self.client_seen = person.wire.received.len();
@@ -588,8 +629,10 @@ impl skein_world::Referee<Proc> for Referee {
         // Serve's stop includes supervised agent cancellation. Only its recorded
         // end leaves teardown waiting on IO alone (protocol/README.md, 6).
         self.ended = service.service.end().is_some();
-        self.observe_drain(now, service);
-        self.say(now, rules::Observed::Tick);
+        self.observe_drain(now, service)?;
+        self.say(now, rules::Observed::Tick)?;
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if matches!(self.story, crate::world::Story::HeldChange) && matches!(self.phase, crate::world::Phase::SignIn) {
@@ -624,22 +667,23 @@ impl skein_world::Referee<Proc> for Referee {
         })
     }
     fn passed(&self) -> bool {
-        self.done.is_some()
-            && self.ended
-            && (matches!(self.phase, crate::world::Phase::Restart | crate::world::Phase::Refused)
-                || self.signed_in
-                    && (self.released
-                        || !matches!(self.phase, crate::world::Phase::Story)
-                        || matches!(
-                            self.story,
-                            crate::world::Story::Adoption
-                                | crate::world::Story::NoWelcome
-                                | crate::world::Story::ModelsList
-                                | crate::world::Story::Adopt
-                                | crate::world::Story::Merge
-                                | crate::world::Story::HeldChange
-                                | crate::world::Story::CodingAtStop
-                        )))
+        self.finding.is_none()
+            && (self.done.is_some()
+                && self.ended
+                && (matches!(self.phase, crate::world::Phase::Restart | crate::world::Phase::Refused)
+                    || self.signed_in
+                        && (self.released
+                            || !matches!(self.phase, crate::world::Phase::Story)
+                            || matches!(
+                                self.story,
+                                crate::world::Story::Adoption
+                                    | crate::world::Story::NoWelcome
+                                    | crate::world::Story::ModelsList
+                                    | crate::world::Story::Adopt
+                                    | crate::world::Story::Merge
+                                    | crate::world::Story::HeldChange
+                                    | crate::world::Story::CodingAtStop
+                            ))))
     }
 }
 pub(crate) fn require_replayed(run: &Run, store: &Store) {
@@ -664,78 +708,98 @@ pub(crate) fn require_replayed(run: &Run, store: &Store) {
         "one durable adoption outcome"
     );
 }
-fn settled(store: &Store) -> u32 {
-    u32::try_from(
-        store
-            .rows
-            .values()
-            .filter(|row| {
-                matches!(row,
-                    root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
-                        if matches!(terminal.end, jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Lost))
-                )
-            })
-            .count(),
-    )
-    .expect("settled claims")
-}
-fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) -> Vec<rules::Receipt> {
-    use jig_client::contract as c;
-    match event {
-        client::Received::SignedIn(party) => {
-            let receipts: Vec<_> = store
+fn settled(store: &Store) -> Result<u32, String> {
+    Ok({
+        u32::try_from(
+            store
                 .rows
                 .values()
-                .filter_map(|row| match row {
-                    root::Record::Core(core::Record::People(jig_domain_people::Stored::SignIn {
-                        number,
-                        person,
-                        ..
-                    })) if person == party => Some(rules::Receipt::SignIn(*number)),
-                    _ => None,
+                .filter(|row| {
+                    matches!(row,
+                        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
+                            if matches!(terminal.end, jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Lost))
+                    )
                 })
-                .collect();
-            assert!(!receipts.is_empty(), "sign-in bytes follow a durable sign-in");
-            receipts
-        }
-        client::Received::Answer { key, answer } => {
-            if matches!(answer, c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::MarkedSeen { .. }))) {
-                return Vec::new(); // A seen watermark has no kept request answer.
+                .count(),
+        )
+        .map_err(|why| format!("settled claims: {why:?}"))?
+    })
+}
+fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) -> Result<Vec<rules::Receipt>, String> {
+    Ok({
+        use jig_client::contract as c;
+        match event {
+            client::Received::SignedIn(party) => {
+                let receipts: Vec<_> = store
+                    .rows
+                    .values()
+                    .filter_map(|row| match row {
+                        root::Record::Core(core::Record::People(jig_domain_people::Stored::SignIn {
+                            number,
+                            person,
+                            ..
+                        })) if person == party => Some(rules::Receipt::SignIn(*number)),
+                        _ => None,
+                    })
+                    .collect();
+                if receipts.is_empty() {
+                    return Err(String::from("sign-in bytes follow a durable sign-in"));
+                }
+                receipts
             }
-            let mut receipts = vec![rules::Receipt::Party(party.expect("signed-in request"), *key)];
-            if let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, last, .. })) = answer {
-                receipts.extend((*first..=*last).map(rules::Receipt::Task));
+            client::Received::Answer { key, answer } => {
+                if matches!(answer, c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::MarkedSeen { .. }))) {
+                    return Ok(Vec::new()); // A seen watermark has no kept request answer.
+                }
+                let mut receipts =
+                    vec![rules::Receipt::Party(party.ok_or_else(|| String::from("signed-in request"))?, *key)];
+                if let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, last, .. })) = answer {
+                    receipts.extend((*first..=*last).map(rules::Receipt::Task));
+                }
+                receipts
             }
-            receipts
-        }
-        client::Received::Delivery(c::Delivery::RunState(run)) if run.committed_turn > 0 => {
-            vec![rules::Receipt::Turn(run.task, run.attempt.expect("committed attempt"), run.committed_turn)]
-        }
-        client::Received::Read(c::ReadValue::Ended(value)) => {
-            let c::EndedValue::Task { document, result } = &value.value else { return Vec::new() };
-            let details = &document.chip.details.details;
-            assert_eq!(result.task.task, document.chip.task, "result belongs to its task");
-            let mut receipts = vec![rules::Receipt::Ended(document.chip.task)];
-            // Procedures finish in task history; only agents have a run terminal.
-            if matches!(document.chip.executor, c::ChipExecutor::Agent { .. }) {
-                receipts.push(rules::Receipt::Terminal(document.chip.task, details.attempt.expect("finished attempt")));
+            client::Received::Delivery(c::Delivery::RunState(run)) if run.committed_turn > 0 => {
+                vec![rules::Receipt::Turn(
+                    run.task,
+                    run.attempt.ok_or_else(|| String::from("committed attempt"))?,
+                    run.committed_turn,
+                )]
             }
-            receipts
+            client::Received::Read(c::ReadValue::Ended(value)) => {
+                let c::EndedValue::Task { document, result } = &value.value else { return Ok(Vec::new()) };
+                let details = &document.chip.details.details;
+                match (&(result.task.task), &(document.chip.task)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("result belongs to its task");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                let mut receipts = vec![rules::Receipt::Ended(document.chip.task)];
+                // Procedures finish in task history; only agents have a run terminal.
+                if matches!(document.chip.executor, c::ChipExecutor::Agent { .. }) {
+                    receipts.push(rules::Receipt::Terminal(
+                        document.chip.task,
+                        details.attempt.ok_or_else(|| String::from("finished attempt"))?,
+                    ));
+                }
+                receipts
+            }
+            client::Received::Read(c::ReadValue::Activity(page)) => page
+                .rows
+                .iter()
+                .filter_map(|row| {
+                    row.committed_turn().map(|turn| rules::Receipt::Turn(row.source.task, turn.attempt, turn.number))
+                })
+                .collect(),
+            client::Received::Application { key, .. } | client::Received::PlaygroundStarted { key } => {
+                vec![rules::Receipt::Party(party.ok_or_else(|| String::from("signed-in forge request"))?, *key)]
+            }
+            client::Received::ApplicationSent { .. } | client::Received::Delivery(_) | client::Received::Read(_) => {
+                Vec::new()
+            }
         }
-        client::Received::Read(c::ReadValue::Activity(page)) => page
-            .rows
-            .iter()
-            .filter_map(|row| {
-                row.committed_turn().map(|turn| rules::Receipt::Turn(row.source.task, turn.attempt, turn.number))
-            })
-            .collect(),
-        client::Received::Application { key, .. } | client::Received::PlaygroundStarted { key } => {
-            vec![rules::Receipt::Party(party.expect("signed-in forge request"), *key)]
-        }
-        client::Received::ApplicationSent { .. } | client::Received::Delivery(_) | client::Received::Read(_) => {
-            Vec::new()
-        }
-    }
+    })
 }
 
 pub(crate) fn shutdown_peer(proc: &mut Proc) {

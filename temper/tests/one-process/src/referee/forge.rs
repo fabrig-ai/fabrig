@@ -60,13 +60,12 @@ impl Forge {
             self.prepared = true;
         }
     }
-    pub(crate) fn observe<H: Harness>(&mut self, procs: &[Process<H>]) {
+    pub(crate) fn observe<H: Harness>(&mut self, procs: &[Process<H>]) -> Result<(), String> {
         for proc in procs {
-            if let Process::Forge(peer) = proc {
-                assert!(
-                    peer.address().is_none() || peer.address() == Some(fixtures::FORGE),
-                    "forge binds the configured address"
-                );
+            if let Process::Forge(peer) = proc
+                && ((peer.address().is_some()) && (peer.address() != Some(fixtures::FORGE)))
+            {
+                return Err(String::from("forge binds the configured address"));
             }
             if let Process::Shell(shell) = proc
                 && !shell.written.is_empty()
@@ -81,7 +80,7 @@ impl Forge {
                 ledger.push(observed.clone());
             }
             if let Observation::Merged { repository, head, commit, .. } = &observed {
-                green(&forge, repository, *head);
+                green(&forge, repository, *head)?;
                 if commit != head {
                     self.merged.push((*head, *commit));
                 }
@@ -90,9 +89,9 @@ impl Forge {
             if by != 1 && !matches!(self.story, Story::PlaygroundA) {
                 continue;
             }
-            let metadata = forge.domain.metadata(&repository).expect("observed repository");
+            let metadata = forge.domain.metadata(&repository).map_err(|why| format!("observed repository: {why:?}"))?;
             if branch == metadata.default_branch && !self.merged.iter().any(|&(_, commit)| commit == to) {
-                green(&forge, &repository, to);
+                green(&forge, &repository, to)?;
             }
             if matches!(self.story, Story::PlaygroundA) {
                 // Keep the landing branch's move too: a queue may land the
@@ -102,7 +101,7 @@ impl Forge {
                     .iter()
                     .any(|&(head, commit)| commit == to && self.pushed.iter().any(|push| push.commit == head));
                 if from != Some(to) && (branch != metadata.default_branch || landed_push) {
-                    let object = forge.domain.object(to).expect("pushed object");
+                    let object = forge.domain.object(to).ok_or_else(|| String::from("pushed object"))?;
                     self.pushed.push(Pushed {
                         branch,
                         commit: to,
@@ -116,13 +115,21 @@ impl Forge {
             if !self.edited || from == Some(to) || branch == metadata.default_branch {
                 continue;
             }
-            let object = forge.domain.object(to).expect("observed pushed object");
+            let object = forge.domain.object(to).ok_or_else(|| String::from("observed pushed object"))?;
             let tree: BTreeMap<_, _> =
                 object.tree.iter().map(|(path, bytes)| (path.to_vec(), bytes.to_vec())).collect();
-            assert_eq!(tree, self.tree, "pushed tree is the completed agent edits");
+            match (&(tree), &(self.tree)) {
+                (left, right) if left != right => {
+                    let finding = String::from("pushed tree is the completed agent edits");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             let parents = object.parent.into_iter().chain(object.merge_parent).collect();
             self.pushed.push(Pushed { branch, commit: to, parents });
         }
+
+        Ok(())
     }
     pub(crate) fn hooks_complete(procs: &[Proc], hooks: usize) -> bool {
         procs.iter().any(|proc| {
@@ -173,16 +180,19 @@ impl Forge {
         })
     }
 }
-fn green(forge: &skein_fake_peers::forge::Forge, repository: &[u8], head: u64) {
+fn green(forge: &skein_fake_peers::forge::Forge, repository: &[u8], head: u64) -> Result<(), String> {
     let api::Answer::Checks(checks) = forge
         .domain
         .inspect(&forge.config, repository, &api::Read::Checks { commit: head })
-        .expect("landing CI statuses")
+        .map_err(|why| format!("landing CI statuses: {why:?}"))?
     else {
-        panic!("CI status answer")
+        return Err(String::from("CI status answer"));
     };
-    assert!(
-        !checks.is_empty() && checks.iter().all(|check| check.status.state == api::Check::Passed),
-        "nothing lands on a default branch without green CI: repository {repository:?}, head {head}, checks {checks:?}"
-    );
+    if checks.is_empty() && checks.iter().all(|check| check.status.state == api::Check::Passed) {
+        return Err(format!(
+            "nothing lands on a default branch without green CI: repository {repository:?}, head {head}, checks {checks:?}"
+        ));
+    }
+
+    Ok(())
 }

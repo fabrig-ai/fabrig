@@ -984,9 +984,17 @@ pub struct FollowCheck {
     pub faults: u32,
     pub held: Option<Box<[u8]>>,
 }
+/// A task release consumed by its change (temper/docs/design/domain/forge/change/repairs.md, A release).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TaskRelease {
+    pub revision: u64,
+    pub at: skein_lib::Wall,
+}
+
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub task_release: Option<TaskRelease>,
     pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
@@ -2009,6 +2017,8 @@ pub enum Event {
     DelegateResult {
         task: u64,
         child: u64,
+        /// The recovered end's stall origin, floored by a later release.
+        ended_at: Option<skein_lib::Wall>,
         status: change::Status,
         /// The child explicitly concluded that no change applies.
         no_change: bool,
@@ -2090,6 +2100,7 @@ pub enum Event {
     /// A requester or person released a held change.
     ReleaseChange {
         task: u64,
+        release: Option<TaskRelease>,
     },
     /// A held goal is active again after its drift was released (domain/forge/branches.md, 3).
     GoalReleased {

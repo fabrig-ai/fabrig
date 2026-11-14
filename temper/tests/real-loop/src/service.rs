@@ -231,13 +231,13 @@ impl ServiceHost {
         &mut self,
         peer: &mut skein_fake_peers::forge::Peer,
         calls: &[crate::calls::Called],
-    ) {
+    ) -> Result<(), String> {
         if let Some(fixture) = self.github
             && fixture.unaccepted_after_install
         {
-            self.github_seen.seed_unaccepted(peer);
+            self.github_seen.seed_unaccepted(peer)?;
         }
-        self.github_seen.checkpoint(peer, calls);
+        self.github_seen.checkpoint(peer, calls)
     }
     /// Settled lives in order; `ran()` and `linked()` retain their aggregate history.
     #[must_use]
@@ -247,12 +247,12 @@ impl ServiceHost {
     pub(crate) fn stopping(&self) -> bool {
         matches!(self.state, LifeState::Stopping | LifeState::Restarting)
     }
-    pub(crate) fn stop_for_restart(&mut self) {
-        assert!(
-            self.restartable && self.state == LifeState::First && !self.is_empty(),
-            "stop the first live cluster service"
-        );
+    pub(crate) fn stop_for_restart(&mut self) -> Result<(), String> {
+        if !(self.restartable && self.state == LifeState::First && !self.is_empty()) {
+            return Err("stop the first live cluster service".into());
+        }
         self.state = LifeState::Stopping;
+        Ok(())
     }
     pub(crate) fn settled(&self) -> bool {
         self.in_flight == 0
@@ -260,14 +260,18 @@ impl ServiceHost {
             && self.submissions.is_empty()
             && self.service.as_ref().is_some_and(Driven::is_empty)
     }
-    pub(crate) fn restart(&mut self) {
-        assert!(self.state == LifeState::Stopping && self.settled(), "restart a settled cluster service");
+    pub(crate) fn restart(&mut self) -> Result<(), String> {
+        if !(self.state == LifeState::Stopping && self.settled()) {
+            return Err("restart a settled cluster service".into());
+        }
         // The referee requests only; dropping and preparing stay in this host's iteration.
         self.state = LifeState::Restarting;
+        Ok(())
     }
-    pub(crate) fn restart_after_failures(&mut self, failures: u32) {
-        self.restart();
+    pub(crate) fn restart_after_failures(&mut self, failures: u32) -> Result<(), String> {
+        self.restart()?;
         self.start_failures = failures;
+        Ok(())
     }
     /// Starts refused by the shipped configuration checks, before a service is made.
     #[must_use]
@@ -416,9 +420,9 @@ impl ServiceHost {
     pub fn end(&self) -> Option<&crate::End> {
         self.service.as_ref().and_then(Driven::end)
     }
-    pub(crate) fn early_exit(&self, process: usize) -> String {
+    pub(crate) fn early_exit(&self, process: usize) -> Result<String, String> {
         const STDERR_TAIL: usize = 4096;
-        let service = self.service.as_ref().expect("an ended service was prepared");
+        let service = self.service.as_ref().ok_or("an ended service was prepared")?;
         let directories = Self::directories(&self.path, self.cluster.is_some());
         let (stderr, code) = temper_box_shell::service_ending(
             service.end(),
@@ -428,12 +432,12 @@ impl ServiceHost {
             service.unsettled(),
         );
         let tail = &stderr.as_bytes()[stderr.len().saturating_sub(STDERR_TAIL)..];
-        format!(
+        Ok(format!(
             "service {process} exited before caller release: {:?}; end={:?}\nstderr tail:\n{}",
             skein_io::kernel::Exit::Code(code),
             service.end(),
             String::from_utf8_lossy(tail)
-        )
+        ))
     }
     #[must_use]
     pub fn started_at(&self) -> Option<Time> {
@@ -475,9 +479,12 @@ impl ServiceHost {
         }
         self.watch.armed = true;
     }
-    pub fn arm(&mut self, key: skein_lib::RequestKey) {
-        assert!(self.cues.len() < cue::CUES, "bounded held cues");
+    pub fn arm(&mut self, key: skein_lib::RequestKey) -> Result<(), String> {
+        if self.cues.len() >= cue::CUES {
+            return Err("bounded held cues".into());
+        }
         self.cues.push(Cue::new(key));
+        Ok(())
     }
     #[must_use]
     pub fn held(&self) -> bool {

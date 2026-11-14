@@ -118,6 +118,7 @@ fn the_red_patch_keeps_old_rows_without_making_a_red_or_counter() {
     // A v21 ForgeNumber row: version, Value tag, then the last forge's u16.
     let bytes = patched(22, 11, b"Row", patched(21, 10, b"Row", b"\0\x15\x16\0\x03".as_slice().into()));
     assert_eq!(bytes.as_ref(), b"\0\x17\x16\0\x03");
+    let bytes = patched(23, 12, b"Row", bytes);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let bytes = patched(23, 12, b"Row", bytes);
     let bytes = patched(24, 13, b"Row", bytes);
@@ -217,6 +218,7 @@ fn the_red_reply_patch_preserves_old_named_calls_without_making_reds() {
     let after = patched(22, 11, b"Row", patched(21, 10, b"Row", before.clone()));
     assert_eq!(after.get(..2).unwrap(), b"\0\x17");
     assert_eq!(after.get(2..).unwrap(), before.get(2..).unwrap());
+    let after = patched(23, 12, b"Row", after);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let after = patched(23, 12, b"Row", after);
     let after = patched(24, 13, b"Row", after);
@@ -349,6 +351,7 @@ fn the_pass_and_flake_patch_restores_old_findings_without_either_option_or_inven
     let after = patched(22, 11, b"Row", before);
     let golden = skein_lib::bytes::concat(&[b"\0\x17\x26", &old_finding(), b"\0\0"]);
     assert_eq!(after, golden);
+    let after = patched(23, 12, b"Row", after);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let after = patched(23, 12, b"Row", after);
     let after = patched(24, 13, b"Row", after);

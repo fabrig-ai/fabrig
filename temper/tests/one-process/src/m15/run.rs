@@ -110,6 +110,7 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, app: u64) -> usize {
     reason = "independent monotonic observations track renewal, delivery and client completion"
 )]
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     forge: Rc<RefCell<Forge>>,
@@ -126,11 +127,14 @@ struct Judge {
     pushed: bool,
     landed: bool,
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+impl Judge {
+    #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (first, other) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { panic!("caller second") };
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
+            return Err(String::from("caller second"));
+        };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -138,36 +142,59 @@ impl skein_world::Referee<Proc> for Judge {
             self.handed = true;
         }
         for (index, answer) in caller.answers.iter().enumerate().skip(self.answers) {
-            assert!(
-                answer.exit == Exit::Code(0),
-                "run call {index} succeeds: {} {}",
-                observer::public_output(&answer.output),
-                observer::public_output(&answer.error)
-            );
+            if answer.exit != Exit::Code(0) {
+                return Err(format!(
+                    "run call {index} succeeds: {} {}",
+                    observer::public_output(&answer.output)?,
+                    observer::public_output(&answer.error)?
+                ));
+            }
             observer::artifact("ctl stdout", &answer.output);
             observer::artifact("ctl stderr", &answer.error);
         }
         self.answers = caller.answers.len();
         if !self.handed || self.answers != self.calls || self.stopping {
-            return;
+            return Ok(());
         }
         let peer = other
             .iter()
             .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
-            .expect("GitHub peer");
-        let minted = peer.github_layer().expect("GitHub").installations().minted();
-        let git = peer.git_calls().expect("git observation");
+            .ok_or_else(|| String::from("GitHub peer"))?;
+        let minted = peer.github_layer().ok_or_else(|| String::from("GitHub"))?.installations().minted();
+        let git = peer.git_calls().ok_or_else(|| String::from("git observation"))?;
         if !self.initial && self.read {
-            assert_eq!(minted, 2, "both initial scopes were issued");
-            assert_eq!(observer::tokens() as u64, minted, "every initial token byte was observed");
-            checkpoint(service, &self.store.borrow());
+            match (&(minted), &(2)) {
+                (left, right) if left != right => {
+                    let finding = String::from("both initial scopes were issued");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(observer::tokens() as u64), &(minted)) {
+                (left, right) if left != right => {
+                    let finding = String::from("every initial token byte was observed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            checkpoint(service, &self.store.borrow())?;
             self.initial = true;
         }
         if self.renew && self.initial && !self.refreshed && minted >= 4 && observer::tokens() as u64 == minted {
-            assert!(now >= Time::from_nanos(5_000_000_000), "the component's renewal timer fired");
-            assert_eq!(observer::tokens() as u64, minted, "every refreshed token byte was observed");
-            checkpoint(service, &self.store.borrow());
-            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
+            if now < Time::from_nanos(5_000_000_000) {
+                return Err(String::from("the component's renewal timer fired"));
+            }
+            match (&(observer::tokens() as u64), &(minted)) {
+                (left, right) if left != right => {
+                    let finding = String::from("every refreshed token byte was observed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            checkpoint(service, &self.store.borrow())?;
+            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
+                return Err(String::from("unreachable"));
+            };
             caller.commands.push_back(Command::new(&[
                 b"task",
                 b"message",
@@ -178,24 +205,19 @@ impl skein_world::Referee<Proc> for Judge {
             ]));
             self.calls += 1;
             self.refreshed = true;
-            return;
+            return Ok(());
         }
         if self.initial && self.pushed && self.landed && (!self.renew || self.refreshed) && !self.browsing && self.store.borrow().rows.values().any(|row| matches!(row, temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(task))) if task.number == 2)) {
-            assert_eq!(observer::tokens() as u64, minted, "the observer holds every issued token");
-            assert!(git.iter().any(|call| call.writes), "a real git delivery used a token");
-            assert!(
-                git.iter().any(|call| !call.writes && call.minted.is_some_and(|minted| minted.mint <= 2)),
-                "initial credential exercised checkout"
-            );
+            match (&(observer::tokens() as u64), &(minted)) { (left, right) if left != right => { let finding = String::from("the observer holds every issued token"); return Err(format!("{finding}\n left: {left:?}\nright: {right:?}")); }, _ => {} }
+            if !(git.iter().any(|call| call.writes)) { return Err(String::from("a real git delivery used a token")); }
+            if !(git.iter().any(|call| !call.writes && call.minted.is_some_and(|minted| minted.mint <= 2))) { return Err(String::from("initial credential exercised checkout")); }
             for request in git {
-                let identity = request.minted.expect("authenticated git request");
-                assert_eq!(identity.installation, 1);
-                assert!(request.status == 200 || (!request.writes && request.status == 404));
-                if self.renew && request.writes {
-                    assert!(identity.mint > 2, "delivery uses the refreshed credential");
-                }
+                let identity = request.minted.ok_or_else(|| String::from("authenticated git request"))?;
+                match (&(identity.installation), &(1)) { (left, right) if left != right => { let finding = String::from("assertion `left == right` failed"); return Err(format!("{finding}\n left: {left:?}\nright: {right:?}")); }, _ => {} }
+                if (request.status != 200) && (request.writes && request.status == 404) { return Err(format!("assertion failed: {}", stringify!(request.status == 200 || (!request.writes && request.status == 404)))); }
+                if (self.renew && request.writes) && (identity.mint <= 2) { return Err(String::from("delivery uses the refreshed credential")); }
             }
-            checkpoint(service, &self.store.borrow());
+            checkpoint(service, &self.store.borrow())?;
             for proc in other.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc {
                     person.saved();
@@ -206,9 +228,11 @@ impl skein_world::Referee<Proc> for Judge {
         if self.browsing
             && other.iter().any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished))
         {
-            checkpoint(service, &self.store.borrow());
-            crate::across_versions::tasks(&self.store.borrow());
-            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
+            checkpoint(service, &self.store.borrow())?;
+            crate::across_versions::tasks(&self.store.borrow())?;
+            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
+                return Err(String::from("unreachable"));
+            };
             caller.closed = true;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             for proc in other {
@@ -216,47 +240,70 @@ impl skein_world::Referee<Proc> for Judge {
             }
             self.stopping = true;
         }
+
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, procs: &[Proc]) {
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
         for proc in procs {
             if let Proc::Peer(peer) = proc {
-                observer::context(peer);
+                observer::context(peer)?;
                 self.read |= peer.observations().iter().any(|seen| matches!(seen, skein_fake_peers::llm::Observation::Query { query, .. } if query.messages.iter().flat_map(|message| message.parts.iter()).any(|part| matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: false, .. } if output.windows(b"Scope fixture".len()).any(|part| part == b"Scope fixture")))));
             }
         }
         let mut forge = self.forge.borrow_mut();
         while let Some(seen) = forge.domain.pop_observation() {
             if let forge::Observation::Merged { ref repository, ref base, commit, .. } = seen {
-                assert!(
-                    repository.as_ref() == b"acme/app" && base.as_ref() == b"main",
-                    "the installed change lands on main"
-                );
-                assert!(
-                    forge
-                        .domain
-                        .object(commit)
-                        .expect("merge object")
-                        .tree
-                        .iter()
-                        .any(|(path, bytes)| path.as_ref() == b"conflict.txt" && bytes.as_ref() == b"fixed\n"),
-                    "the landed tree contains the delivered edit"
-                );
+                if (repository.as_ref() != b"acme/app") || (base.as_ref() != b"main") {
+                    return Err(String::from("the installed change lands on main"));
+                }
+                if !(forge
+                    .domain
+                    .object(commit)
+                    .ok_or_else(|| String::from("merge object"))?
+                    .tree
+                    .iter()
+                    .any(|(path, bytes)| path.as_ref() == b"conflict.txt" && bytes.as_ref() == b"fixed\n"))
+                {
+                    return Err(String::from("the landed tree contains the delivered edit"));
+                }
                 self.landed = true;
             }
             if let forge::Observation::Moved { repository, branch, to, .. } = seen {
-                assert!(repository.as_ref() == b"acme/app", "delivery names its installed repository");
+                if repository.as_ref() != b"acme/app" {
+                    return Err(String::from("delivery names its installed repository"));
+                }
                 if branch.as_ref() == b"main" {
                     continue;
                 }
                 self.pushed |= forge
                     .domain
                     .object(to)
-                    .expect("delivered object")
+                    .ok_or_else(|| String::from("delivered object"))?
                     .tree
                     .iter()
                     .any(|(path, bytes)| path.as_ref() == b"conflict.txt" && bytes.as_ref() == b"fixed\n");
             }
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopping).then_some(PATIENCE)
@@ -277,7 +324,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopping
+        self.finding.is_none() && (self.stopping)
     }
 }
 /// Observe an installed token through agent reading, editing and git delivery, optionally across renewal.
@@ -306,6 +353,7 @@ pub fn delivery(renew: bool) -> observer::Counts {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store,
                 forge,

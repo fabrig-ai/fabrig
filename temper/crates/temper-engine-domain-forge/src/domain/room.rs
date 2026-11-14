@@ -94,6 +94,7 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
     d.stall_words.remove(&task);
     d.panel_ci.remove(&task);
     d.settling.remove(&task);
+    d.read_sessions.remove(&task);
     d.start_conflicts.remove(&task);
     d.procedure_wakes.remove(&task);
     d.change_due.remove(&task);

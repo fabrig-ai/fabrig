@@ -73,6 +73,8 @@ pub fn config() -> skein_fake_forge_domain::Config {
         setup_faults: 0,
         lost: 0,
         made_checks: skein_fake_forge_domain::Config::test().made_checks,
+        made_workflows: skein_fake_forge_domain::Config::test().made_workflows,
+        made_manual_merges: skein_fake_forge_domain::Config::test().made_manual_merges,
         limits: LIMITS,
         latency_min: Duration::ZERO,
         latency_max: Duration::ZERO,

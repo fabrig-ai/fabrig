@@ -3,7 +3,7 @@ pub use super::config::Script;
 use crate::{entries::Expansion, errors::Error, revision::declaration::Map};
 use alloc::boxed::Box;
 use hearth_lib::{encode::Digest, hash::H};
-use skein_lib::{List, Map as Ordered};
+use skein_lib::{Joined, List, Map as Ordered};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Software {
     pub downloads: Box<[Download]>,
@@ -28,7 +28,7 @@ pub struct Fetch {
     pub sha256: Digest,
     pub url: Box<[u8]>,
 }
-pub fn build(expansion: &Expansion, scripts: Box<[Script]>) -> Result<Software, Box<[Error]>> {
+pub(crate) fn build(expansion: &Expansion, scripts: Box<[Script]>) -> Result<Software, Box<[Error]>> {
     let entries = expansion.of(Map::Software);
     let count = u32::try_from(entries.len()).expect("entry bound");
     let mut paths = Ordered::with_capacity(count);
@@ -64,7 +64,7 @@ pub fn build(expansion: &Expansion, scripts: Box<[Script]>) -> Result<Software, 
     Ok(Software { downloads: downloads.into_boxed(), scripts, fetch: fetch.into_boxed() })
 }
 #[must_use]
-pub fn digest(software: &Software) -> Digest {
+pub(crate) fn digest(software: &Software) -> Digest {
     let mut hash = H::new(b"part:software", 1);
     let record = hash.values();
     record.map(2);
@@ -102,6 +102,7 @@ pub struct Change {
     pub downloads: Box<[DownloadKeyed]>,
     pub scripts: Option<super::config::ScriptsChange>,
 }
+/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum DownloadKeyed {
     Added { key: Box<[u8]>, value: Download },
@@ -110,21 +111,31 @@ pub enum DownloadKeyed {
 }
 
 #[must_use]
-pub fn change(before: &Software, after: &Software) -> Change {
-    Change {
-        downloads: super::secrets::changed(
-            &before.downloads,
-            &after.downloads,
-            |row| &row.path,
-            |key, before, after| match (before, after) {
-                (None, Some(value)) => DownloadKeyed::Added { key, value: value.clone() },
-                (Some(value), None) => DownloadKeyed::Removed { key, value: value.clone() },
-                (Some(before), Some(after)) => {
-                    DownloadKeyed::Changed { key, before: before.clone(), after: after.clone() }
-                }
-                (None, None) => unreachable!("union entry"),
+pub(crate) fn change(before: &Software, after: &Software) -> Change {
+    let mut old: Ordered<&[u8], &Download> = Ordered::uncapped();
+    let mut new: Ordered<&[u8], &Download> = Ordered::uncapped();
+    for row in &before.downloads {
+        old.insert(row.path.as_ref(), row).expect("an uncapped map");
+    }
+    for row in &after.downloads {
+        new.insert(row.path.as_ref(), row).expect("an uncapped map");
+    }
+    let mut changes = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => DownloadKeyed::Removed { key: skein_lib::bytes::copy_of(key), value: (*row).clone() },
+            Joined::Second(row) => DownloadKeyed::Added { key: skein_lib::bytes::copy_of(key), value: (*row).clone() },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => DownloadKeyed::Changed {
+                key: skein_lib::bytes::copy_of(key),
+                before: (*was).clone(),
+                after: (*now).clone(),
             },
-        ),
+        };
+        changes.push(change).expect("an uncapped list");
+    }
+    Change {
+        downloads: changes.into_boxed(),
         scripts: if before.scripts == after.scripts {
             None
         } else {

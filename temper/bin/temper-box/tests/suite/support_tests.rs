@@ -16,9 +16,13 @@ fn the_retained_cluster_charter_overrides_have_no_documents() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn printed_links_count_and_fail_without_disclosing_secrets() {
     support::printed_link_tests::printed_links_count_and_fail_without_disclosing_secrets();
+}
+
+#[test]
+fn a_judge_keeps_an_action_finding_for_watch() {
+    support::account_move::tests::a_judge_keeps_an_action_finding_for_watch();
 }
 
 #[test]
@@ -77,6 +81,64 @@ fn native_landing_rules_replace_the_projects_stock_review() {
 }
 
 #[test]
+fn turn_restart_configuration_passes_startup_admission() {
+    landing_configuration_admission("turn-restart-admission", support::turn_restart::configure);
+}
+
+#[test]
+fn batch_landing_configuration_passes_startup_admission() {
+    landing_configuration_admission("batch-landing-admission", support::batch_landing::configure);
+}
+
+fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u64)) {
+    use skein_lib::{List, Secret};
+    use temper_service::settings::{Files, Seeds};
+
+    let scratch = support::Scratch::startup(case);
+    let root = scratch.path();
+    let api = "127.0.0.1:3000".parse().expect("fixture forge");
+    let forge = support::Forge::Throwaway {
+        forgejo: std::path::Path::new("/fixture/forgejo"),
+        api,
+        git: format!("http://{api}/"),
+    };
+    support::configuration(root, &forge);
+    configure(root, 1);
+    let document = std::fs::read(root.join("temper.json")).expect("story configuration");
+    let directories = jig_protocol_config::Directories::working();
+    let named = temper_service::named(&document, &directories).expect("named story files");
+    let mut entries = List::with_capacity(u32::try_from(named.files.len()).expect("file count"));
+    for file in named.files {
+        let path = std::str::from_utf8(&file.path).expect("fixture path");
+        let bytes = std::fs::read(root.join(path)).expect("fixture file");
+        entries.push((file.path, Secret::new(bytes.into_boxed_slice()))).expect("named file count");
+    }
+    let agent = temper_worker_shell::agent::read(&root.join("agent.json")).expect("story agent");
+    let seeds = Seeds {
+        link_secret: None,
+        local_secret: None,
+        deployment: [7; 16],
+        installation: [8; 16],
+        seed: 7,
+        crypto: Secret::new(Box::new([9; 32])),
+    };
+    let result = temper_service::startup::check(
+        &document,
+        &directories,
+        &Files { entries },
+        &agent,
+        &seeds,
+        None,
+        List::with_capacity(0),
+        None,
+    );
+    if let Err(problems) = result {
+        panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));
+    }
+    scratch.remove();
+}
+
+#[test]
 fn turn_restart_keeps_the_moved_main_witness_on_retry() {
     support::turn_restart::tests::keeps_the_moved_main_witness_on_retry();
 }
@@ -115,6 +177,11 @@ fn patience_socket_waits_round_up_and_refusals_never_classify_as_starvation() {
 #[test]
 fn patience_an_interrupted_socket_retries_with_the_same_deadline() {
     support::patience::tests::an_interrupted_socket_retries_with_the_same_deadline();
+}
+
+#[test]
+fn cluster_passed_accepts_only_a_successful_settled_verdict() {
+    support::cluster::verdict_tests::passed_accepts_only_a_successful_settled_verdict();
 }
 
 #[test]
@@ -215,7 +282,6 @@ fn terminal_a_terminal_adoption_refusal_uses_the_current_frame() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn github_file_scan_excludes_only_jigs_generation_secrets_store() {
     support::github::file_scan_excludes_only_jigs_generation_secrets_store();
 }

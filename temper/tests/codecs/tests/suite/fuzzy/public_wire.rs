@@ -1,6 +1,5 @@
 //! Seeded visitor record decoding (temper/docs/design/client/forge/README.md, 9.4).
 use skein_lib::{List, Reader, Rng, Writer};
-use std::panic::catch_unwind;
 use temper_client_protocol_wire::public_v1 as w;
 
 // Match client_wire.rs's 2,000 draws, with each draw independently replayable.
@@ -56,9 +55,9 @@ fn decode(kind: Kind, bytes: &[u8], refuse: bool) -> Option<Box<[u8]>> {
 }
 
 fn check(kind: Kind, bytes: &[u8], context: &str, case: &str, valid: bool, refuse: bool) {
-    let result = catch_unwind(|| decode(kind, bytes, refuse));
-    assert!(result.is_ok(), "{context}{kind:?}, {case}, input {bytes:?}");
-    let encoded = result.expect("panic reported with seed and input");
+    // Seed, kind and case replay the input without dumping the full bound fixture.
+    eprintln!("{context}{kind:?}, {case}, input length {}", bytes.len());
+    let encoded = decode(kind, bytes, refuse);
     if valid {
         assert!(encoded.is_some(), "{context}{kind:?}, {case}: bound fixture must decode");
     }
@@ -69,12 +68,14 @@ fn check(kind: Kind, bytes: &[u8], context: &str, case: &str, valid: bool, refus
 
 #[test]
 fn public_records_decoders_never_panic_and_reencode_the_same() {
-    let fixtures = catch_unwind(bound_records).expect("seed 1: build bound records");
+    eprintln!("seed 1: build bound records");
+    let fixtures = bound_records();
     for (kind, golden, length_at, ceiling) in &fixtures {
         fixed(*kind, golden, *length_at, *ceiling);
     }
     for seed in 1..=SEEDS {
-        assert!(catch_unwind(|| sweep(seed, &fixtures)).is_ok(), "seed {seed}: public record sweep panicked");
+        eprintln!("seed {seed}: public record sweep");
+        sweep(seed, &fixtures);
     }
 }
 

@@ -79,16 +79,42 @@ impl Walk {
         };
         self.calls.push(visitor.send(address, Method::Get, path.as_bytes(), &[(b"Host", b"one.example")]));
     }
-    fn controls(&self, visitor: &Visitor, now: Time) {
-        assert!(now.saturating_since(self.started) <= fixtures::PERSON_WAIT, "signed-in work keeps its usual bound");
-        let read = visitor.answers[&self.signed_read.expect("signed-in read")].as_ref().expect("read response");
-        assert_eq!(read.status, 200);
-        assert!(matches!(
-            w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(&read.body)).expect("me answer"),
+    fn controls(&self, visitor: &Visitor, now: Time) -> Result<(), String> {
+        if now.saturating_since(self.started) > fixtures::PERSON_WAIT {
+            return Err(String::from("signed-in work keeps its usual bound"));
+        }
+        let read = visitor.answers[&self.signed_read.ok_or_else(|| String::from("signed-in read"))?]
+            .as_ref()
+            .ok_or_else(|| String::from("read response"))?;
+        match (&(read.status), &(200)) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        if !(matches!(
+            w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(&read.body))
+                .map_err(|why| format!("me answer: {why:?}"))?,
             w::ReadAnswer::Value(_)
-        ));
-        let control = visitor.answers[&self.control.expect("signed-in request")].as_ref().expect("request response");
-        assert!(matches!(requests::answer(&control.body), c::Answer::Done(_)), "signed-in request answered");
+        )) {
+            return Err(format!(
+                "assertion failed: {}",
+                stringify!(matches!(
+                    w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(&read.body))
+                        .ok_or_else(|| String::from("me answer"))?,
+                    w::ReadAnswer::Value(_)
+                ))
+            ));
+        }
+        let control = visitor.answers[&self.control.ok_or_else(|| String::from("signed-in request"))?]
+            .as_ref()
+            .ok_or_else(|| String::from("request response"))?;
+        if !(matches!(requests::answer(&control.body)?, c::Answer::Done(_))) {
+            return Err(String::from("signed-in request answered"));
+        }
+
+        Ok(())
     }
     #[expect(
         clippy::too_many_lines,
@@ -101,15 +127,15 @@ impl Walk {
         proxy: &mut Proxy,
         visitor: &mut Visitor,
         project: u64,
-    ) -> bool {
+    ) -> Result<bool, String> {
         if self.wake.is_some_and(|wake| now < wake) {
-            return false;
+            return Ok(false);
         }
         self.wake = None;
         match self.stage {
             0 => {
                 if self.phase == 8 {
-                    return true;
+                    return Ok(true);
                 }
                 self.calls.clear();
                 self.control = None;
@@ -134,27 +160,30 @@ impl Walk {
                         &c::Ask::Rename {
                             project: 1,
                             name: c::Text::new(format!("Public name {}", self.phase).into_bytes().into(), 64)
-                                .expect("project name"),
+                                .map_err(|why| format!("project name: {why:?}"))?,
                         },
-                        u8::try_from(90 + self.phase).expect("key"),
+                        u8::try_from(90 + self.phase).map_err(|why| format!("key: {why:?}"))?,
                     ));
                     self.stage = 3;
                 }
             }
             2 => {
-                if !visitor.answers.contains_key(self.calls.last().expect("rate read")) {
-                    return false;
+                if !visitor.answers.contains_key(self.calls.last().ok_or_else(|| String::from("rate read"))?) {
+                    return Ok(false);
                 }
-                let answer = visitor.answers[self.calls.last().expect("rate read")].as_ref().expect("HTTP answer");
-                assert_eq!(
-                    answer.status,
-                    if self.calls.len() <= 8 { 200 } else { 503 },
-                    "rate read {}",
-                    self.calls.len()
-                );
-                service_checks::policy(answer, false);
+                let answer = visitor.answers[self.calls.last().ok_or_else(|| String::from("rate read"))?]
+                    .as_ref()
+                    .ok_or_else(|| String::from("HTTP answer"))?;
+                match (&(answer.status), &(if self.calls.len() <= 8 { 200 } else { 503 })) {
+                    (left, right) if left != right => {
+                        let finding = format!("rate read {}", self.calls.len());
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                service_checks::policy(answer, false)?;
                 if self.calls.len() == 9 {
-                    busy(answer);
+                    busy(answer)?;
                     self.stage = 5;
                 } else {
                     self.public(visitor, fixtures::CLIENTS, project);
@@ -164,7 +193,8 @@ impl Walk {
                             visitor,
                             &c::Ask::Rename {
                                 project: 1,
-                                name: c::Text::new(b"Public name rate".as_slice().into(), 64).expect("name"),
+                                name: c::Text::new(b"Public name rate".as_slice().into(), 64)
+                                    .map_err(|why| format!("name: {why:?}"))?,
                             },
                             90,
                         ));
@@ -173,7 +203,7 @@ impl Walk {
             }
             3 => {
                 if observer.held.is_empty() {
-                    return false;
+                    return Ok(false);
                 }
                 self.upstream =
                     if self.phase == 7 { proxy.counts.upstream_other } else { proxy.counts.upstream_public };
@@ -206,16 +236,19 @@ impl Walk {
                     .iter()
                     .any(|id| visitor.answers.get(id).is_some_and(|a| a.as_ref().is_some_and(|a| a.status == 503)))
                 {
-                    return false;
+                    return Ok(false);
                 }
                 if (3..7).contains(&self.phase) {
-                    assert_eq!(
-                        proxy.counts.upstream_public - self.upstream,
-                        1,
-                        "proxy phase {} refuses before an upstream connection",
-                        self.phase
-                    );
-                    assert!(proxy.counts.busy > 0);
+                    match (&(proxy.counts.upstream_public - self.upstream), &(1)) {
+                        (left, right) if left != right => {
+                            let finding = format!("proxy phase {} refuses before an upstream connection", self.phase);
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    if proxy.counts.busy == 0 {
+                        return Err(format!("assertion failed: {}", stringify!(proxy.counts.busy > 0)));
+                    }
                 }
                 observer.hold = false;
                 self.stage = 5;
@@ -228,30 +261,35 @@ impl Walk {
                     .chain(self.signed_read.iter())
                     .all(|id| visitor.answers.contains_key(id))
                 {
-                    return false;
+                    return Ok(false);
                 }
-                self.controls(visitor, now);
+                self.controls(visitor, now)?;
                 if self.phase == 7 {
-                    assert_eq!(
-                        proxy.counts.upstream_other - self.upstream,
-                        2,
-                        "one anonymous call and the signed-in read reach the other pool"
-                    );
+                    match (&(proxy.counts.upstream_other - self.upstream), &(2)) {
+                        (left, right) if left != right => {
+                            let finding =
+                                String::from("one anonymous call and the signed-in read reach the other pool");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
                 }
                 let mut answered = 0;
                 let mut refused = 0;
                 for id in &self.calls {
-                    let answer = visitor.answers[id].as_ref().expect("public response");
-                    service_checks::policy(answer, self.phase >= 3);
+                    let answer = visitor.answers[id].as_ref().ok_or_else(|| String::from("public response"))?;
+                    service_checks::policy(answer, self.phase >= 3)?;
                     if answer.status == 503 {
-                        busy(answer);
+                        busy(answer)?;
                         refused += 1;
                     } else {
-                        assert!(if self.phase == 7 {
-                            answer.status == 401
-                        } else {
-                            matches!(answer.status, 200 | 404)
-                        });
+                        let accepted =
+                            if self.phase == 7 { answer.status == 401 } else { matches!(answer.status, 200 | 404) };
+                        if !accepted {
+                            return Err(String::from(
+                                "assertion failed: if self.phase == 7 { answer.status == 401 } else { matches!(answer.status, 200 | 404) }",
+                            ));
+                        }
                         answered += 1;
                     }
                 }
@@ -261,18 +299,46 @@ impl Walk {
                     2 => (2, 1),
                     _ => (1, 1),
                 };
-                assert_eq!((answered, refused), expected, "load phase {}", self.phase);
+                match (&(answered, refused), &(expected)) {
+                    (left, right) if left != right => {
+                        let finding = format!("load phase {}", self.phase);
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.phase += 1;
                 self.stage = 0;
             }
-            other => panic!("load stage {other}"),
+            other => return Err(format!("load stage {other}")),
         }
-        false
+        Ok(false)
     }
 }
-fn busy(answer: &Answer) {
-    assert_eq!(answer.status, 503);
-    assert_eq!(answer.header(b"retry-after"), Some(b"1".as_slice()));
-    assert_eq!(answer.header(b"cache-control"), Some(b"no-store".as_slice()));
-    assert!(answer.body.is_empty());
+fn busy(answer: &Answer) -> Result<(), String> {
+    match (&(answer.status), &(503)) {
+        (left, right) if left != right => {
+            let finding = String::from("assertion `left == right` failed");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+    match (&(answer.header(b"retry-after")), &(Some(b"1".as_slice()))) {
+        (left, right) if left != right => {
+            let finding = String::from("assertion `left == right` failed");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+    match (&(answer.header(b"cache-control")), &(Some(b"no-store".as_slice()))) {
+        (left, right) if left != right => {
+            let finding = String::from("assertion `left == right` failed");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+    if !(answer.body.is_empty()) {
+        return Err(format!("assertion failed: {}", stringify!(answer.body.is_empty())));
+    }
+
+    Ok(())
 }

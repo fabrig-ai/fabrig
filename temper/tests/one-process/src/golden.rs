@@ -160,6 +160,7 @@ pub(crate) fn in_flight(store: &Store) -> Option<&TaskRecord> {
     reason = "the stop, hold release, upgrade, history and client observations are independent"
 )]
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     forge: referee::forge::Forge,
@@ -197,13 +198,13 @@ impl Judge {
         self.client_started = true;
     }
 
-    fn stop_peers(&mut self, others: &mut [Proc]) {
+    fn stop_peers(&mut self, others: &mut [Proc]) -> Result<(), String> {
         let ended = others.iter().all(|proc| !matches!(proc, Proc::Agent(agent) if !agent.is_empty()));
         for proc in others {
             match proc {
                 Proc::Peer(peer) => {
                     if ended && !self.released {
-                        peer.release(stories::STOP_HOLD).expect("stop hold release");
+                        peer.release(stories::STOP_HOLD).map_err(|why| format!("stop hold release: {why:?}"))?;
                         self.released = true;
                     }
                     peer.shutdown();
@@ -212,14 +213,18 @@ impl Judge {
                 _ => {}
             }
         }
+
+        Ok(())
     }
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _: Time, procs: &mut [Proc]) {
+impl Judge {
+    fn act_checked(&mut self, _: Time, procs: &mut [Proc]) -> Result<(), String> {
         self.ticks += 1;
         let (first, others) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        assert!(self.ticks < 100_000, "golden story's bounded turns");
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
+        if self.ticks >= 100_000 {
+            return Err(String::from("golden story's bounded turns"));
+        }
         if !self.upgrade
             && let Some(link) = service.service.links().pop()
         {
@@ -230,7 +235,7 @@ impl skein_world::Referee<Proc> for Judge {
             }
         }
         if self.upgrade && !self.history_checked && self.store.borrow().wires.is_some_and(|number| number > 98) {
-            assert_history(&self.store.borrow());
+            assert_history(&self.store.borrow())?;
             self.history_checked = true;
         }
         if self.upgrade
@@ -249,12 +254,13 @@ impl skein_world::Referee<Proc> for Judge {
             for proc in others.iter() {
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
                     for answer in &caller.answers {
-                        assert_eq!(
-                            answer.exit,
-                            skein_io::kernel::Exit::Code(0),
-                            "ctl failed: {}",
-                            String::from_utf8_lossy(&answer.error)
-                        );
+                        match (&(answer.exit), &(skein_io::kernel::Exit::Code(0))) {
+                            (left, right) if left != right => {
+                                let finding = format!("ctl failed: {}", String::from_utf8_lossy(&answer.error));
+                                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -282,7 +288,7 @@ impl skein_world::Referee<Proc> for Judge {
             if self.upgrade {
                 for proc in others.iter() {
                     if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
-                        assert_client(&caller.answers);
+                        assert_client(&caller.answers)?;
                     }
                 }
             }
@@ -295,13 +301,35 @@ impl skein_world::Referee<Proc> for Judge {
             self.stopped = true;
         }
         if self.stopped {
-            self.stop_peers(others);
+            self.stop_peers(others)?;
+        }
+
+        Ok(())
+    }
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
         }
     }
-    fn observe(&mut self, _: Time, procs: &[Proc]) {
-        if !self.upgrade {
-            self.forge.observe(procs);
+    fn watch(&mut self, _: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
         }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.inner.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        if !self.upgrade {
+            self.forge.observe(procs)?;
+        }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopped).then_some(Time::from_nanos(60_000_000_000))
@@ -317,51 +345,83 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopped
+        self.finding.is_none() && (self.stopped)
     }
 }
 
-fn assert_client(answers: &[crate::ctl::Answer]) {
+fn assert_client(answers: &[crate::ctl::Answer]) -> Result<(), String> {
     for answer in answers {
-        assert_eq!(
-            answer.exit,
-            skein_io::kernel::Exit::Code(0),
-            "current client: {}",
-            String::from_utf8_lossy(&answer.error)
-        );
+        match (&(answer.exit), &(skein_io::kernel::Exit::Code(0))) {
+            (left, right) if left != right => {
+                let finding = format!("current client: {}", String::from_utf8_lossy(&answer.error));
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
     }
-    let [me, first, last, _new] = answers else { panic!("me, two archived turns, and a new chat") };
-    let me: serde_json::Value = serde_json::from_slice(&me.output).expect("current me JSON");
-    assert_eq!(me["party"]["number"], 1, "the kept token still names person 1");
-    assert_eq!(me["party"]["login"]["bytes"], "owner");
-    assert!(
-        me["projects"]
-            .as_array()
-            .expect("project memberships")
-            .iter()
-            .any(|project| project["project"] == 1 && project["name"]["bytes"] == "Demo")
-    );
-    assert!(
-        skein_lib::bytes::find(&first.output, b"delegate this change in playground/widget").is_some(),
-        "first kept chat turn read by current client"
-    );
-    assert!(
-        skein_lib::bytes::find(&last.output, b"CSV export is available from widget").is_some(),
-        "last kept chat turn read by current client"
-    );
+    let [me, first, last, _new] = answers else { return Err(String::from("me, two archived turns, and a new chat")) };
+    let me: serde_json::Value =
+        serde_json::from_slice(&me.output).map_err(|why| format!("current me JSON: {why:?}"))?;
+    match (&(me["party"]["number"]), &(1)) {
+        (left, right) if left != right => {
+            let finding = String::from("the kept token still names person 1");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+    match (&(me["party"]["login"]["bytes"]), &("owner")) {
+        (left, right) if left != right => {
+            let finding = String::from("assertion `left == right` failed");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+    if !(me["projects"]
+        .as_array()
+        .ok_or_else(|| String::from("project memberships"))?
+        .iter()
+        .any(|project| project["project"] == 1 && project["name"]["bytes"] == "Demo"))
+    {
+        return Err(format!(
+            "assertion failed: {}",
+            stringify!(
+                me["projects"]
+                    .as_array()
+                    .ok_or_else(|| String::from("project memberships"))?
+                    .iter()
+                    .any(|project| project["project"] == 1 && project["name"]["bytes"] == "Demo")
+            )
+        ));
+    }
+    if skein_lib::bytes::find(&first.output, b"delegate this change in playground/widget").is_none() {
+        return Err(String::from("first kept chat turn read by current client"));
+    }
+    if skein_lib::bytes::find(&last.output, b"CSV export is available from widget").is_none() {
+        return Err(String::from("last kept chat turn read by current client"));
+    }
+
+    Ok(())
 }
 
-fn assert_history(store: &Store) {
-    assert_eq!(store.installation, Some([9; 16]), "baseline installation id");
+fn assert_history(store: &Store) -> Result<(), String> {
+    match (&(store.installation), &(Some([9; 16]))) {
+        (left, right) if left != right => {
+            let finding = String::from("baseline installation id");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
     let rows = &store.rows;
-    assert!(
-        rows.values().any(|row| matches!(row, Row::Core(Record::Core(CoreRecord::Deployment(id))) if id.id == [7; 16])),
-        "baseline deployment id"
-    );
-    assert!(rows.values().any(|row| matches!(row, Row::Core(Record::People(jig_domain_people::Stored::Person { number: 1, identity })) if identity.login.as_ref() == b"owner" && identity.key.subject.as_ref() == b"owner-a")), "baseline person");
-    assert!(rows.values().any(|row| matches!(row, Row::Core(Record::People(jig_domain_people::Stored::Policy { project: 1, name, .. })) if name.as_ref() == "Demo")), "baseline project");
-    assert!(
-        rows.values().any(|row| matches!(
+    if !(rows
+        .values()
+        .any(|row| matches!(row, Row::Core(Record::Core(CoreRecord::Deployment(id))) if id.id == [7; 16])))
+    {
+        return Err(String::from("baseline deployment id"));
+    }
+    if !(rows.values().any(|row| matches!(row, Row::Core(Record::People(jig_domain_people::Stored::Person { number: 1, identity })) if identity.login.as_ref() == b"owner" && identity.key.subject.as_ref() == b"owner-a"))) { return Err(String::from("baseline person")); }
+    if !(rows.values().any(|row| matches!(row, Row::Core(Record::People(jig_domain_people::Stored::Policy { project: 1, name, .. })) if name.as_ref() == "Demo"))) { return Err(String::from("baseline project")); }
+    if !(rows.values().any(|row| {
+        matches!(
             row,
             Row::Core(Record::Accounts(jig_domain_accounts::Stored::Account {
                 number: 3,
@@ -370,11 +430,12 @@ fn assert_history(store: &Store) {
                 place: 1,
                 ..
             }))
-        )),
-        "added account"
-    );
-    assert!(
-        rows.values().any(|row| matches!(
+        )
+    })) {
+        return Err(String::from("added account"));
+    }
+    if !(rows.values().any(|row| {
+        matches!(
             row,
             Row::Core(Record::Accounts(jig_domain_accounts::Stored::Source {
                 account: 3,
@@ -382,19 +443,22 @@ fn assert_history(store: &Store) {
                 kind: jig_domain_accounts::Kind::Key,
                 ..
             }))
-        )),
-        "added account source"
-    );
-    assert!(rows.values().any(|row| matches!(row, Row::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Repository(repo) if repo.project == 1 && repo.provider.forge == 1 && repo.provider.repository == 1 && repo.owner.as_ref() == b"playground" && repo.name.as_ref() == b"widget"))), "adopted repository");
-    assert!(rows.values().any(|row| matches!(row, Row::Core(Record::Tasks(tasks::Stored::Ended(task))) if task.number == 2 && matches!(task.phase, tasks::Phase::Ended(_)))), "landed change task ended");
+        )
+    })) {
+        return Err(String::from("added account source"));
+    }
+    if !(rows.values().any(|row| matches!(row, Row::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Repository(repo) if repo.project == 1 && repo.provider.forge == 1 && repo.provider.repository == 1 && repo.owner.as_ref() == b"playground" && repo.name.as_ref() == b"widget")))) { return Err(String::from("adopted repository")); }
+    if !(rows.values().any(|row| matches!(row, Row::Core(Record::Tasks(tasks::Stored::Ended(task))) if task.number == 2 && matches!(task.phase, tasks::Phase::Ended(_))))) { return Err(String::from("landed change task ended")); }
     let task = rows
         .values()
         .find_map(|row| match row {
             Row::Core(Record::Tasks(tasks::Stored::Ended(task))) if task.number == 2 => Some(task),
             _ => None,
         })
-        .expect("kept ended task");
-    assert!(task.session.is_none(), "kept task has no session");
+        .ok_or_else(|| String::from("kept ended task"))?;
+    if task.session.is_some() {
+        return Err(String::from("kept task has no session"));
+    }
     let charter = rows
         .values()
         .find_map(|row| {
@@ -408,8 +472,14 @@ fn assert_history(store: &Store) {
             let jig_domain_core::settings::Value::Charter(charter) = &default.value else { return None };
             Some(charter)
         })
-        .expect("charter model");
-    assert_eq!(charter.policy.model.cache_life_ms, 0, "model declares no cache life");
+        .ok_or_else(|| String::from("charter model"))?;
+    match (&(charter.policy.model.cache_life_ms), &(0)) {
+        (left, right) if left != right => {
+            let finding = String::from("model declares no cache life");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
     let rule = rows
         .values()
         .find_map(|row| {
@@ -419,17 +489,20 @@ fn assert_history(store: &Store) {
             let temper_engine_domain_forge::settings::Value::Rule(rule) = &value.value else { return None };
             Some(rule)
         })
-        .expect("kept landing rule");
-    assert!(rule.sets.is_empty(), "kept landing rule names no set");
+        .ok_or_else(|| String::from("kept landing rule"))?;
+    if !(rule.sets.is_empty()) {
+        return Err(String::from("kept landing rule names no set"));
+    }
     let commit =
         [29, 11, 20, 228, 219, 1, 143, 237, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    assert!(rows.values().any(|row| matches!(row, Row::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Landed { task: 2, commit: kept } if *kept == commit))), "landing marker");
-    assert!(rows.values().any(|row| matches!(row, Row::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::LandingLog(log) if log.landings.iter().any(|landing| landing.commit == commit && landing.branch.as_ref() == b"main" && landing.changes.iter().any(|change| change.task == 2 && change.pull == Some(1)))))), "landing recorded");
-    assert!(rows.values().any(|row| matches!(row, Row::Core(Record::Core(CoreRecord::Terminal(end))) if end.task == 7 && end.attempt == 6 && end.end == tasks::End::Recheck)), "stopped coding attempt crossed");
-    assert!(
-        live(store).any(|task| task.number == 1 && task.phase == tasks::Phase::Active(tasks::Active::Idle)),
-        "replied chat waits"
-    );
+    if !(rows.values().any(|row| matches!(row, Row::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Landed { task: 2, commit: kept } if *kept == commit)))) { return Err(String::from("landing marker")); }
+    if !(rows.values().any(|row| matches!(row, Row::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::LandingLog(log) if log.landings.iter().any(|landing| landing.commit == commit && landing.branch.as_ref() == b"main" && landing.changes.iter().any(|change| change.task == 2 && change.pull == Some(1))))))) { return Err(String::from("landing recorded")); }
+    if !(rows.values().any(|row| matches!(row, Row::Core(Record::Core(CoreRecord::Terminal(end))) if end.task == 7 && end.attempt == 6 && end.end == tasks::End::Recheck))) { return Err(String::from("stopped coding attempt crossed")); }
+    if !(live(store).any(|task| task.number == 1 && task.phase == tasks::Phase::Active(tasks::Active::Idle))) {
+        return Err(String::from("replied chat waits"));
+    }
+
+    Ok(())
 }
 
 pub(crate) fn configuration(deployment: &[u8]) -> Box<[u8]> {
@@ -482,6 +555,7 @@ pub fn make(directory: &Path) {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store: store.clone(),
                 forge: referee::forge::Forge::new(start.fakes.forge.clone(), Story::PlaygroundA),
@@ -511,7 +585,7 @@ pub fn make(directory: &Path) {
     let Proc::Service(service) = &outcome.procs[0] else { panic!("service first") };
     assert!(service.service.is_empty(), "settled service stop");
     assert!(store.borrow().pending.is_empty(), "no pending commits at stop");
-    assert_history(&store.borrow());
+    assert_history(&store.borrow()).expect("golden history");
     files::export(&mut outcome.machine.0.borrow_mut(), directory, &start.deployment);
     world::lower_store(None);
 }
@@ -547,6 +621,7 @@ pub fn read(directory: &Path) {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store: store.clone(),
                 forge: referee::forge::Forge::new(start.fakes.forge.clone(), Story::PlaygroundA),

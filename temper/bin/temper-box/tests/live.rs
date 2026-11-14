@@ -10,20 +10,35 @@ fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
     let forgejo = support::forgejo::Throwaway::start(&scratch);
     support::configuration(scratch.path(), &forgejo.forge());
     let instructions = support::live::configure(scratch.path(), &forgejo);
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        support::live::run(scratch.path(), &forgejo, &instructions, Duration::from_secs(2_580))
-    }));
-    let completions = support::live::completions(scratch.path());
+    support::live::notice("TAG live-native; sitting=first; phase=chat-and-push; budget=2580s");
+    let result = (|| -> Result<(), String> {
+        let seen = support::live::run(scratch.path(), &forgejo, &instructions, Duration::from_secs(2_580))?;
+        if (seen.seen.signed_in, seen.seen.finished) != (1, true) {
+            return Err(String::from_utf8_lossy(&seen.seen.stderr).into_owned());
+        }
+        if forgejo.branch_head(&seen.branch) != Some(seen.pushed) {
+            return Err("the branch is at the run's commit".into());
+        }
+        Ok(())
+    })();
+    let completions = support::live::check_completions(scratch.path());
     support::live::notice(&format!(
-        "live completions={completions}; wall={}s; state={}",
+        "live completions={}; wall={}s; state={}",
+        completions.as_ref().map_or_else(|why| format!("unavailable: {why}"), u32::to_string),
         clock.now().now.saturating_since(started).as_nanos() / 1_000_000_000,
         scratch.path().display()
     ));
-    let seen = result.unwrap_or_else(|failed| std::panic::resume_unwind(failed));
-    support::live::notice(&format!("live completions={completions}; wall={}s", seen.wall_seconds));
-    assert_eq!((seen.seen.signed_in, seen.seen.finished), (1, true), "{}", String::from_utf8_lossy(&seen.seen.stderr));
-    assert_eq!(forgejo.branch_head(&seen.branch), Some(seen.pushed), "the branch is at the run's commit");
-    assert!((1..=25).contains(&completions), "at most 25 completions and at least one: {completions}");
+    let result = result.and_then(|()| {
+        let completions = completions?;
+        if !(1..=25).contains(&completions) {
+            return Err(format!("at most 25 completions and at least one: {completions}"));
+        }
+        Ok(())
+    });
+    result.unwrap_or_else(|why| {
+        support::live::notice(&format!("FAILURE {why}"));
+        panic!("{why}")
+    });
     forgejo.stop();
     scratch.remove();
 }
@@ -86,7 +101,7 @@ fn a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge() {
     owned_forge_landing(LiveModel::AnthropicKey { key: &key });
 }
 
-#[expect(clippy::too_many_lines, reason = "The guard spans both sittings and their landing assertions.")]
+#[expect(clippy::too_many_lines, reason = "The summary follows both sittings and their returned landing findings.")]
 fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     use std::{fs, os::unix::fs::PermissionsExt};
     use support::forge_land::{self, Face, LivePlan};
@@ -110,17 +125,24 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     let line = format!("Hello from temper, {tag}.");
     let words = format!("Please add the line \"{line}\" to the end of README.md in work/hello and land it.");
     support::live::notice(&format!("TAG {tag}"));
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    let mut completions = Ok(0);
+    let result = (|| -> Result<(), String> {
         let mut bot = None;
         let mut previous: Option<forge_land::LiveEvidence> = None;
-        let mut completions = 0;
         for (first, run) in [(true, "first"), (false, "second")] {
             let client = store.join(if kept { format!("{tag}-{run}") } else { run.to_owned() });
-            fs::create_dir(&client).expect("fresh client root");
-            fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client root");
+            fs::create_dir(&client).map_err(|error| format!("fresh client root: {error}"))?;
+            fs::set_permissions(&client, fs::Permissions::from_mode(0o700))
+                .map_err(|error| format!("private client root: {error}"))?;
             let remaining = deadline.saturating_since(clock.now().now);
-            assert!(remaining > Duration::from_secs(10), "40 minute total story budget");
-            let outcome = forge_land::run_live(
+            support::live::notice(&format!(
+                "TAG {tag}; sitting={run}; phase=forge-landing; budget={}s",
+                remaining.as_nanos() / 1_000_000_000
+            ));
+            if remaining <= Duration::from_secs(10) {
+                return Err("40 minute total story budget".into());
+            }
+            let outcome = forge_land::run_live_counted(
                 LivePlan {
                     paths: &paths,
                     client: &client,
@@ -136,58 +158,75 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
                 },
                 remaining,
                 Face::Live,
-            )
-            .unwrap_or_else(|message| panic!("{message}"));
+                &mut completions,
+            )?;
             let stderr = String::from_utf8_lossy(&outcome.stderr);
-            assert_eq!(outcome.exit, Some(skein_io::kernel::Exit::Code(0)), "{run}: {stderr}");
-            assert_eq!(outcome.left, Some(vec![]), "no surviving children: {stderr}");
-            bot = Some(forge_land::assert_forgejo_setup(
+            if outcome.exit != Some(skein_io::kernel::Exit::Code(0)) {
+                return Err(format!("{run}: {stderr}"));
+            }
+            if outcome.left != Some(vec![]) {
+                return Err(format!("no surviving children: {stderr}"));
+            }
+            bot = Some(forge_land::check_forgejo_setup(
                 if first && !kept { "first" } else { "second" },
                 &outcome.calls[..if first && !kept { 7 } else { 4 }],
                 &stderr,
                 bot,
                 &paths[1],
-            ));
-            let evidence = outcome.checked.expect("landing and reply checked before stopping");
-            completions = completions.max(evidence.completions);
-            let identity = forge_land::landed_identity(&evidence.task, &evidence.page);
-            assert!(identity.0.contains(&evidence.forge.merge), "temper reads the forge's merge hash");
-            assert!(identity.1.starts_with(&format!("PR #{} ·", evidence.forge.number)), "temper reads the same pull");
-            support::first_repository::assert_landed_ci(run, &evidence.page);
+            )?);
+            let evidence = outcome.checked.ok_or("landing and reply checked before stopping")?;
+
+            let identity = forge_land::check_landed_identity(&evidence.task, &evidence.page)?;
+            if !identity.0.contains(&evidence.forge.merge) {
+                return Err("temper reads the forge's merge hash".into());
+            }
+            if !identity.1.starts_with(&format!("PR #{} ·", evidence.forge.number)) {
+                return Err("temper reads the same pull".into());
+            }
+            support::first_repository::check_landed_ci(run, &evidence.page)?;
             if first {
                 previous = Some(evidence);
             } else {
-                let before = previous.as_ref().expect("first landing");
-                let before_identity = forge_land::landed_identity(&before.task, &before.page);
-                assert_eq!(identity, before_identity, "same change identity after restart");
-                assert_eq!(evidence.forge, before.forge, "no second push or merge: same branches and pulls");
-                assert_eq!(evidence.tasks, before.tasks, "same task numbers after restart");
-                assert_eq!(evidence.delegates, before.delegates, "same change and producer tasks");
+                let before = previous.as_ref().ok_or("first landing")?;
+                let before_identity = forge_land::check_landed_identity(&before.task, &before.page)?;
+                if identity != before_identity {
+                    return Err("same change identity after restart".into());
+                }
+                if evidence.forge != before.forge {
+                    return Err("no second push or merge: same branches and pulls".into());
+                }
+                if evidence.tasks != before.tasks {
+                    return Err("same task numbers after restart".into());
+                }
+                if evidence.delegates != before.delegates {
+                    return Err("same change and producer tasks".into());
+                }
                 for (position, turn) in &before.replies {
-                    assert_eq!(evidence.replies.get(position), Some(turn), "committed chat reply survives restart");
+                    if evidence.replies.get(position) != Some(turn) {
+                        return Err("committed chat reply survives restart".into());
+                    }
                 }
             }
         }
-        let evidence = previous.expect("landed identity");
+        let evidence = previous.ok_or("landed identity")?;
         let forge = evidence.forge;
         support::live::notice(&format!(
             "TAG {tag}\nPULL {} #{}\nMERGE {}\nCOMPLETIONS {}",
-            forge.url, forge.number, forge.merge, completions
+            forge.url, forge.number, forge.merge, evidence.completions
         ));
-    }));
+        if clock.now().now > deadline {
+            return Err("40 minute total story budget".into());
+        }
+        Ok(())
+    })();
     support::live::notice(&format!(
-        "TAG {tag}; wall={}s",
+        "TAG {tag}; completions={}; wall={}s",
+        completions.as_ref().map_or_else(|why| format!("unavailable: {why}"), u32::to_string),
         clock.now().now.saturating_since(started).as_nanos() / 1_000_000_000
     ));
-    result.unwrap_or_else(|failed| {
-        let message = failed
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| failed.downcast_ref::<&str>().copied())
-            .unwrap_or("live story failed");
+    result.unwrap_or_else(|message| {
         support::live::notice(&format!("FAILURE {message}"));
-        std::panic::resume_unwind(failed)
+        panic!("{message}")
     });
-    assert!(clock.now().now <= deadline, "40 minute total story budget");
     scratch.remove();
 }

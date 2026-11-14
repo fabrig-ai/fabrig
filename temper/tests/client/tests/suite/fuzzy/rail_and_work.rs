@@ -4,7 +4,6 @@ use skein_lib::{List, Rng, Wall};
 use std::{
     cmp::Reverse,
     collections::{BTreeMap, BTreeSet},
-    panic::catch_unwind,
 };
 use temper_client_domain::{
     forge::ways::Ways,
@@ -431,6 +430,7 @@ fn sweep(seed: u64) {
 fn parts_and_live_work_survive_random_settings_moves() {
     for seed in 1..=SEEDS {
         // sweep has no input but this seed; replay a failure with sweep(seed) alone.
-        assert!(catch_unwind(|| sweep(seed)).is_ok(), "seed {seed}: rail and Work sweep panicked");
+        eprintln!("seed {seed}: rail and Work sweep");
+        sweep(seed);
     }
 }

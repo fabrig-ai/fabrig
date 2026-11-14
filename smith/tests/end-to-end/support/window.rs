@@ -33,6 +33,7 @@ struct Watch {
 }
 
 pub(super) struct Judge {
+    finding: Option<String>,
     pub common: Settling,
     watch: Option<Watch>,
     program: Option<super::program_interrupt::Watch>,
@@ -59,24 +60,24 @@ impl Judge {
         let program = matches!(story, Story::ProgramCheck).then(|| {
             super::program_interrupt::Watch::new(scratch.join("state/smith/programs/work/fake-claude.observations"))
         });
-        Self { common, watch, program }
+        Self { finding: None, common, watch, program }
     }
 }
 
 impl Watch {
-    fn inspect(&mut self, procs: &[Process]) {
+    fn inspect(&mut self, procs: &[Process]) -> Result<(), String> {
         let binary = procs
             .iter()
             .find_map(|process| match process {
                 Process::Binary(binary) => Some(binary),
                 Process::Script(_) | Process::Sample(_) => None,
             })
-            .expect("shipped binary");
+            .ok_or("shipped binary")?;
         if binary.exit_status().is_some() {
             if self.after.is_none() {
-                self.after = Some(terminal_modes(self.master).expect("terminal modes after exit"));
+                self.after = Some(terminal_modes(self.master).map_err(|_| String::from("terminal modes after exit"))?);
             }
-            return;
+            return Ok(());
         }
         let shown = procs
             .iter()
@@ -84,42 +85,84 @@ impl Watch {
                 Process::Script(Proc::Terminal(person)) => Some(person.shown()),
                 Process::Binary(_) | Process::Script(_) | Process::Sample(_) => None,
             })
-            .expect("scripted person");
-        let modes = terminal_modes(self.master).expect("running terminal modes");
-        assert_eq!(modes, self.before, "smith leaves running terminal modes alone");
+            .ok_or("scripted person")?;
+        let modes = terminal_modes(self.master).map_err(|_| String::from("running terminal modes"))?;
+        if modes != self.before {
+            return Err(format!(
+                "smith leaves running terminal modes alone\nleft: {:?}\nright: {:?}",
+                modes, self.before
+            ));
+        }
         self.during = Some(modes);
         match self.resize {
             Resize::Response if skein_lib::bytes::find(shown, b"openai/gpt-6-luna; API key: in ").is_some() => {
-                resize_terminal(self.master, Size { rows: 24, columns: 20 }).expect("second window change");
+                resize_terminal(self.master, Size { rows: 24, columns: 20 })
+                    .map_err(|_| String::from("second window change"))?;
                 self.resize = Resize::Done;
             }
             Resize::None | Resize::Response | Resize::Done => {}
         }
+        Ok(())
     }
 
     fn passed(&self) -> bool {
+        self.after.is_some()
+            && self.during == Some(self.before)
+            && self.after == Some(self.before)
+            && matches!(self.resize, Resize::None | Resize::Done)
+    }
+
+    fn check(&self) -> Result<(), String> {
         if self.after.is_none() {
-            return false;
+            return Ok(());
         }
-        assert_eq!(self.during, Some(self.before), "running smith leaves terminal modes alone");
-        assert_eq!(self.after, Some(self.before), "exited smith leaves terminal modes alone");
-        matches!(self.resize, Resize::None | Resize::Done)
+        if self.during != Some(self.before) {
+            return Err(format!(
+                "running smith leaves terminal modes alone\nleft: {:?}\nright: {:?}",
+                self.during,
+                Some(self.before)
+            ));
+        }
+        if self.after != Some(self.before) {
+            return Err(format!(
+                "exited smith leaves terminal modes alone\nleft: {:?}\nright: {:?}",
+                self.after,
+                Some(self.before)
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl Judge {
+    fn act_checked(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
+        if let Some(watch) = &mut self.watch {
+            watch.inspect(procs)?;
+        }
+        if let Some(program) = &mut self.program {
+            program.act(now, procs)?;
+        }
+        self.common.act(now, procs);
+        Ok(())
     }
 }
 
 impl Referee<Process> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        if let Some(watch) = &mut self.watch {
-            watch.inspect(procs);
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
         }
-        if let Some(program) = &mut self.program {
-            program.act(now, procs);
-        }
-        self.common.act(now, procs);
     }
 
-    fn observe(&mut self, now: Time, procs: &[Process]) {
-        self.common.observe(now, procs);
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        self.common.watch(now, procs)?;
+        if let Some(watch) = &self.watch {
+            watch.check()?;
+        }
+        Ok(())
     }
 
     fn next_deadline(&self) -> Option<Time> {
@@ -135,9 +178,10 @@ impl Referee<Process> for Judge {
     }
 
     fn passed(&self) -> bool {
-        self.common.passed()
-            && self.watch.as_ref().is_none_or(Watch::passed)
-            && self.program.as_ref().is_none_or(super::program_interrupt::Watch::passed)
+        self.finding.is_none()
+            && (self.common.passed()
+                && self.watch.as_ref().is_none_or(Watch::passed)
+                && self.program.as_ref().is_none_or(super::program_interrupt::Watch::passed))
     }
 }
 

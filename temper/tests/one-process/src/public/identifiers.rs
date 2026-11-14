@@ -53,8 +53,12 @@ impl Walk {
     pub fn wake(&self) -> Option<Time> {
         self.wake
     }
-    fn answer<'a>(&self, visitor: &'a Visitor) -> &'a Answer {
-        visitor.answers[self.calls.last().expect("read")].as_ref().expect("HTTP answer")
+    fn answer<'a>(&self, visitor: &'a Visitor) -> Result<&'a Answer, String> {
+        Ok({
+            visitor.answers[self.calls.last().ok_or_else(|| String::from("read"))?]
+                .as_ref()
+                .ok_or_else(|| String::from("HTTP answer"))?
+        })
     }
     #[expect(
         clippy::too_many_lines,
@@ -67,53 +71,64 @@ impl Walk {
         _proxy: &Proxy,
         visitor: &mut Visitor,
         project: u64,
-    ) -> bool {
+    ) -> Result<bool, String> {
         if self.stage == 9 && observer.public_heads > self.public_heads {
             observer.hold = false;
         }
         if self.wake.is_some_and(|wake| now < wake) || self.calls.iter().any(|id| !visitor.answers.contains_key(id)) {
-            return false;
+            return Ok(false);
         }
         self.wake = None;
         if self.stage == 8 && observer.held.is_empty() {
-            return false;
+            return Ok(false);
         }
-        let ids = IDS.with(|ids| ids.borrow().as_ref().expect("public calibration").clone());
-        assert_eq!(ids.project, project, "fixture deployments draw the same public permutation");
-        assert!(!ids.delegates.is_empty(), "the tracked merge exposes the resolution delegate's identifier");
+        let ids = IDS.with(|ids| ids.borrow().clone()).ok_or_else(|| String::from("public calibration"))?;
+        match (&(ids.project), &(project)) {
+            (left, right) if left != right => {
+                let finding = String::from("fixture deployments draw the same public permutation");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        if ids.delegates.is_empty() {
+            return Err(String::from("the tracked merge exposes the resolution delegate's identifier"));
+        }
         match self.stage {
             0 | 2 => {
                 let number = if self.stage == 0 { 2 } else { 3 };
                 self.controls.push(requests::ask(
                     visitor,
                     &c::Ask::MakeProject {
-                        name: c::Text::new(format!("Project {number}").into_bytes().into(), 64).expect("name"),
+                        name: c::Text::new(format!("Project {number}").into_bytes().into(), 64)
+                            .map_err(|why| format!("name: {why:?}"))?,
                         policy: 1,
                     },
-                    u8::try_from(120 + number).expect("key"),
+                    u8::try_from(120 + number).map_err(|why| format!("key: {why:?}"))?,
                 ));
             }
             1 | 3 => {
                 if !self.controls.iter().all(|id| visitor.answers.contains_key(id)) {
-                    return false;
+                    return Ok(false);
                 }
                 let answer = requests::answer(
-                    &visitor.answers[self.controls.last().expect("project request")]
+                    &visitor.answers[self.controls.last().ok_or_else(|| String::from("project request"))?]
                         .as_ref()
-                        .expect("make project")
+                        .ok_or_else(|| String::from("make project"))?
                         .body,
-                );
-                assert!(matches!(answer, c::Answer::Done(_)), "make private project: {answer:?}");
+                )?;
+                if !(matches!(answer, c::Answer::Done(_))) {
+                    return Err(format!("make private project: {answer:?}"));
+                }
                 let number = if self.stage == 1 { 2 } else { 3 };
                 self.controls.push(requests::ask(
                     visitor,
                     &c::Ask::SetVisibility { project: number, public: true },
-                    u8::try_from(130 + number).expect("key"),
+                    u8::try_from(130 + number).map_err(|why| format!("key: {why:?}"))?,
                 ));
             }
             4 => {
                 if !self.controls.iter().all(|id| visitor.answers.contains_key(id)) {
-                    return false;
+                    return Ok(false);
                 }
                 self.calls.push(visitor.send(
                     fixtures::CLIENTS,
@@ -123,11 +138,23 @@ impl Walk {
                 ));
             }
             5 => {
-                let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&self.answer(visitor).body))
-                    .expect("all projects");
-                assert_eq!(projects.projects().len(), 3);
+                let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&self.answer(visitor)?.body))
+                    .map_err(|why| format!("all projects: {why:?}"))?;
+                match (&(projects.projects().len()), &(3)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.projects = projects.projects().iter().map(p::PublicProject::project).collect();
-                assert_eq!(self.projects[0], project);
+                match (&(self.projects[0]), &(project)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 let store = self.store.borrow();
                 let tasks: Vec<_> = store
                     .rows
@@ -143,31 +170,38 @@ impl Walk {
                         }
                     })
                     .collect();
-                assert!(
-                    tasks.iter().any(|task| task.number == 2
+                if !(tasks.iter().any(|task| {
+                    task.number == 2
                         && task.tracked.is_none()
                         && task.project == 1
-                        && task.requester == jig_domain_tasks::Party::Task(1)),
-                    "change outside every goal is a conversation's delegate"
-                );
-                assert!(
-                    tasks
-                        .iter()
-                        .any(|task| task.tracked.is_none() && task.requester == jig_domain_tasks::Party::Task(2)),
-                    "its resolution is a conversation descendant"
-                );
+                        && task.requester == jig_domain_tasks::Party::Task(1)
+                })) {
+                    return Err(String::from("change outside every goal is a conversation's delegate"));
+                }
+                if !(tasks
+                    .iter()
+                    .any(|task| task.tracked.is_none() && task.requester == jig_domain_tasks::Party::Task(2)))
+                {
+                    return Err(String::from("its resolution is a conversation descendant"));
+                }
                 self.wake = Some(Time::from_nanos(now.as_nanos() + 1_000_000_000));
             }
             _ => {
                 let row = (self.stage - 6) / 2;
                 if row == 6 {
-                    return true;
+                    return Ok(true);
                 }
                 if (self.stage - 6).is_multiple_of(2) {
                     if row == 0 {
                         self.instant = Some(now);
                     }
-                    assert_eq!(Some(now), self.instant, "excluded reads share one instant");
+                    match (&(Some(now)), &(self.instant)) {
+                        (left, right) if left != right => {
+                            let finding = String::from("excluded reads share one instant");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
                     let path = match row {
                         0 => format!("/jig/v1/public/0/1/3/{:016x}/{:016x}", self.projects[1], ids.change),
                         1 => format!("/jig/v1/public/0/1/2/{:016x}", self.projects[2]),
@@ -175,7 +209,7 @@ impl Walk {
                         3 => "/jig/v1/public/0/1/2/0000000000000000".to_owned(),
                         4 => format!("/jig/v1/public/0/1/3/{project:016x}/{:016x}", ids.delegates[0]),
                         5 => format!("/jig/v1/public/2/2/1/{project:016x}/{:016x}", ids.change),
-                        _ => unreachable!(),
+                        _ => return Err(String::from("unreachable")),
                     };
                     if row == 1 {
                         self.public_heads = observer.public_heads;
@@ -187,24 +221,42 @@ impl Walk {
                         &[(b"Host", b"one.example")],
                     ));
                 } else {
-                    let answer = self.answer(visitor);
-                    assert_eq!(answer.status, 404, "excluded row {row}");
-                    assert!(answer.body.is_empty());
-                    service_checks::policy(answer, false);
+                    let answer = self.answer(visitor)?;
+                    match (&(answer.status), &(404)) {
+                        (left, right) if left != right => {
+                            let finding = format!("excluded row {row}");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    if !(answer.body.is_empty()) {
+                        return Err(format!("assertion failed: {}", stringify!(answer.body.is_empty())));
+                    }
+                    service_checks::policy(answer, false)?;
                     if let Some(baseline) = &self.baseline {
-                        assert_eq!(answer, baseline, "all excluded identifiers have one answer, row {row}");
+                        match (&(answer), &(baseline)) {
+                            (left, right) if left != right => {
+                                let finding = format!("all excluded identifiers have one answer, row {row}");
+                                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                            }
+                            _ => {}
+                        }
                     } else {
                         UNKNOWN.with(|unknown| {
                             if PROXIED.with(Cell::get) {
-                                assert_eq!(
-                                    Some(answer),
-                                    unknown.borrow().as_ref(),
-                                    "direct and proxy unknown are byte for byte equal"
-                                );
+                                match (&(Some(answer)), &(unknown.borrow().as_ref())) {
+                                    (left, right) if left != right => {
+                                        let finding = String::from("direct and proxy unknown are byte for byte equal");
+                                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                                    }
+                                    _ => {}
+                                }
                             } else {
                                 *unknown.borrow_mut() = Some(answer.clone());
                             }
-                        });
+
+                            Ok(())
+                        })?;
                         self.baseline = Some(answer.clone());
                     }
                     if row == 0 {
@@ -224,6 +276,6 @@ impl Walk {
             }
         }
         self.stage += 1;
-        false
+        Ok(false)
     }
 }

@@ -1,7 +1,14 @@
 patch 1
-owner temper 14
+owner temper 14 after jig 6
 
 family temper-store 24 to 25
+add TierGroup
+add TierProbe.low u32 written
+add TierProbe.high u32 written
+add TierProbe.waiting list 759 TierGroup []
+written TierProbe.low
+written TierProbe.high
+add TierHold
 add TierPostedTests
 add TierPostedBlame
 add TierPostedLanding
@@ -10,4 +17,5 @@ add TierCommentRepair
 add TierCommentKind
 add TierComment
 add TierPosting
+add TierRow.hold option TierHold none
 add TierRow.posting option TierPosting none

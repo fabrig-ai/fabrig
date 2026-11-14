@@ -562,7 +562,12 @@ fn a_walk_by_pages_matches_a_walk_by_rows() {
         let intervals = [interval(200, 205)];
         let error =
             crate::pages::reader::walk_map(&mut store, map, &intervals, None, ROWS).err().expect("oversized row");
-        assert_eq!(error, restore::Failure::rowless(Cause::Walk(WalkFailure::Refused(skein_kv::Refusal::TooLarge))));
+        assert_eq!(
+            error,
+            restore::Failure::rowless(Cause::Walk(WalkFailure::Refused(skein_kv::Refusal::TooLarge(
+                skein_kv::Large::Page
+            ))))
+        );
         let _next = assert_walks_match(&mut store, map, &intervals, None, ROWS);
     }
 }
