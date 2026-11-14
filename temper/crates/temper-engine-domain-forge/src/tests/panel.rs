@@ -657,6 +657,7 @@ fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, comm
         .insert(
             (REPO, tier.clone()),
             TierRow {
+        posting: None,
                 hold: None,
                 observations: Box::new([]),
                 repository: REPO,

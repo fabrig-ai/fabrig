@@ -183,7 +183,7 @@ fn one_landings_red_wakes_its_goal_once_with_logs() {
     // These subscriptions match either the change or the topic, but not both.
     subscribe(&mut d, OTHER_GOAL, NEXT_SUBSCRIPTION, b"release", &[CHANGE]);
     subscribe(&mut d, OTHER_GOAL, NEXT_SUBSCRIPTION, b"main", &[THIRD_CHANGE]);
-    let waiting = tier_step(&mut d, RELEASE, false);
+    let waiting = settled_step(&mut d, RELEASE, false);
     assert_eq!(choice(&waiting), Some(&TierDecision::Wait { until: None }));
     assert_eq!(news(&waiting).len(), 0);
     assert!(d.verifications.get(&(REPO, NEXT_TIP)).unwrap().tiers[0].verdict.is_none());
@@ -193,7 +193,7 @@ fn one_landings_red_wakes_its_goal_once_with_logs() {
     respond(&mut d, Ok(log(FIRST_ATTEMPT, LOG)));
     let wake = respond(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
     assert!(wake.contains(&Request::WakeProcedure { task: TIER_TASK }));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     assert_eq!(
         news(&out),
         [expected(GOAL, SUBSCRIPTION, NEXT_TIP, failures(&[FIRST_TEST]), job_logs(Some(SECOND_LOG)))]
@@ -224,9 +224,9 @@ fn a_goals_landing_red_reaches_its_goal_branch_without_a_main_subscription() {
     // The branch topic knows the work landed into it, not the closer's landing out of it.
     subscribe(&mut d, GOAL, SUBSCRIPTION, branch, &[THIRD_CHANGE]);
     subscribe(&mut d, OTHER_GOAL, NEXT_SUBSCRIPTION, b"release", &[CHANGE]);
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     let mut wanted = expected(GOAL, SUBSCRIPTION, NEXT_TIP, failures(&[FIRST_TEST]), job_logs(Some(SECOND_LOG)));
     let Request::News { topic, .. } = &mut wanted else { panic!("expected news") };
     *topic = Topic::Landings { repository: REPO, branch: branch.as_slice().into() };
@@ -254,9 +254,9 @@ fn two_red_landings_tell_each_goal_its_own_failures() {
     verification(&mut d, NEXT_TIP, &[SECOND_CHANGE]);
     subscribe(&mut d, GOAL, SUBSCRIPTION, b"main", &[CHANGE]);
     subscribe(&mut d, OTHER_GOAL, NEXT_SUBSCRIPTION, b"main", &[SECOND_CHANGE]);
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     assert_eq!(
         news(&out),
         [
@@ -268,9 +268,9 @@ fn two_red_landings_tell_each_goal_its_own_failures() {
 #[test]
 fn inherited_failures_tell_no_goal_again() {
     let mut d = one();
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    tier_step(&mut d, RELEASE + 1, false);
+    settled_step(&mut d, RELEASE + 1, false);
     let receipt = row(&one()).result.clone();
     let kept = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
     kept.task = Some(NEXT_TASK);
@@ -284,7 +284,7 @@ fn inherited_failures_tell_no_goal_again() {
     });
     kept.result = receipt;
     verification(&mut d, LAST_TIP, &[SECOND_CHANGE]);
-    let out = tier_step(&mut d, RELEASE + 2, false);
+    let out = settled_step(&mut d, RELEASE + 2, false);
     assert_eq!(news(&out).len(), 0);
     assert!(d.tier_ops.reads.is_empty());
     assert!(row(&d).record.run.is_none());
@@ -294,16 +294,16 @@ fn inherited_failures_tell_no_goal_again() {
 fn unavailable_and_empty_job_logs_are_named_without_ends() {
     for answer in [Err(api::Error::Missing), Ok(log(SECOND_ATTEMPT, b""))] {
         let mut d = one();
-        tier_step(&mut d, RELEASE, false);
+        settled_step(&mut d, RELEASE, false);
         logs(&mut d, answer);
-        let out = tier_step(&mut d, RELEASE + 1, false);
+        let out = settled_step(&mut d, RELEASE + 1, false);
         assert_eq!(news(&out), [expected(GOAL, SUBSCRIPTION, NEXT_TIP, failures(&[FIRST_TEST]), job_logs(None))]);
     }
 }
 #[test]
 fn restart_repeats_unfinished_reads_and_tells_once() {
     let mut d = one();
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     run_answer(&mut d);
     respond(&mut d, Ok(log(FIRST_ATTEMPT, LOG)));
     let mut cold = restoring(None);
@@ -317,10 +317,10 @@ fn restart_repeats_unfinished_reads_and_tells_once() {
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let wake = outputs(&mut cold, Event::ReadAfresh);
     assert!(wake.contains(&Request::WakeProcedure { task: TIER_TASK }));
-    let waiting = tier_step(&mut cold, RELEASE + 1, false);
+    let waiting = settled_step(&mut cold, RELEASE + 1, false);
     assert_eq!(choice(&waiting), Some(&TierDecision::Wait { until: None }));
     logs(&mut cold, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut cold, RELEASE + 2, false);
+    let out = settled_step(&mut cold, RELEASE + 2, false);
     assert_eq!(
         news(&out),
         [expected(GOAL, SUBSCRIPTION, NEXT_TIP, failures(&[FIRST_TEST]), job_logs(Some(SECOND_LOG)))]
@@ -335,13 +335,13 @@ fn restart_repeats_unfinished_reads_and_tells_once() {
 #[test]
 fn failed_jobs_share_the_log_budget_and_keep_ends() {
     let mut d = one();
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     run_answer(&mut d);
     let mut bytes: Vec<_> = core::iter::repeat_n(b'x', usize::try_from(SHARE).unwrap() + 1).collect();
     bytes[0] = b'y';
     respond(&mut d, Ok(log(FIRST_ATTEMPT, &bytes)));
     respond(&mut d, Ok(log(SECOND_ATTEMPT, &bytes)));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     let end: Box<[u8]> = Box::from(&bytes[1..]);
     assert_eq!(
         news(&out),
@@ -362,9 +362,9 @@ fn failed_jobs_share_the_log_budget_and_keep_ends() {
 fn a_red_without_a_subscribed_goal_still_judges() {
     let mut d = one();
     d.subscriptions.remove(&(GOAL, Topic::Landings { repository: REPO, branch: b"main".as_slice().into() }));
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     assert_eq!(news(&out).len(), 0);
     assert!(row(&d).record.run.is_none());
     assert_eq!(filings(&out), [expected_finding()]);
@@ -378,9 +378,9 @@ fn a_red_without_a_subscribed_goal_still_judges() {
 fn a_landing_temper_did_not_make_asks_to_file_its_red() {
     let mut d = one();
     d.verifications.remove(&(REPO, NEXT_TIP));
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     assert_eq!(news(&out).len(), 0);
     assert!(row(&d).record.run.is_none());
     assert_eq!(filings(&out), [expected_finding()]);
@@ -403,9 +403,9 @@ fn a_red_names_the_lowest_kept_member_follow() {
         change.follows = Some(ChangeFollows { follow, commits: Box::new([BASE]) });
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
     }
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     let filings: Vec<_> = out
         .iter()
         .filter_map(|request| match request {
@@ -420,9 +420,9 @@ fn a_red_names_the_lowest_kept_member_follow() {
 fn a_filed_red_is_not_filed_again_in_a_later_run() {
     let mut d = one();
     d.verifications.remove(&(REPO, NEXT_TIP));
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     let calls = filings(&out);
     let [call] = calls.as_slice() else { panic!("one red filing") };
     let write = d.prepare_file_finding(&LIMITS, env().wall, Filer::Task(TIER_TASK), call.clone()).unwrap();
@@ -432,9 +432,9 @@ fn a_filed_red_is_not_filed_again_in_a_later_run() {
     d.verifications.remove(&(REPO, NEXT_TIP));
     outputs(&mut d, Event::Restore { record: saved });
     d.tiers.get_mut(&(REPO, TIER.into())).unwrap().record.run.as_mut().unwrap().number = 2;
-    tier_step(&mut d, RELEASE + 2, false);
+    settled_step(&mut d, RELEASE + 2, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut d, RELEASE + 3, false);
+    let out = settled_step(&mut d, RELEASE + 3, false);
     assert_eq!(filings(&out).len(), 0);
     assert!(row(&d).record.run.is_none());
 }
@@ -442,9 +442,9 @@ fn a_filed_red_is_not_filed_again_in_a_later_run() {
 #[test]
 fn a_landing_that_reaches_a_goal_files_no_finding() {
     let mut d = one();
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     assert_eq!(news(&out).len(), 1);
     assert_eq!(filings(&out).len(), 0);
 }
@@ -455,7 +455,7 @@ fn an_already_red_landing_needs_no_reads_or_news() {
     d.tiers.get_mut(&(REPO, TIER.into())).unwrap().record.run.as_mut().unwrap().number = 2;
     d.verifications.get_mut(&(REPO, NEXT_TIP)).unwrap().tiers[0].verdict =
         Some(TierVerdict { run: 1, blame: p::Blame::Suspect(failures(&[FIRST_TEST])) });
-    let out = tier_step(&mut d, RELEASE, false);
+    let out = settled_step(&mut d, RELEASE, false);
     assert_eq!(news(&out).len(), 0);
     assert!(d.tier_ops.reads.is_empty());
     assert!(row(&d).record.run.is_none());
@@ -464,16 +464,16 @@ fn an_already_red_landing_needs_no_reads_or_news() {
 #[test]
 fn a_run_read_failure_keeps_the_red_without_logs() {
     let mut d = one();
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     respond(&mut d, Err(api::Error::Missing));
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     assert_eq!(news(&out), [expected(GOAL, SUBSCRIPTION, NEXT_TIP, failures(&[FIRST_TEST]), Box::new([]))]);
 }
 
 #[test]
 fn cancelling_during_log_reads_discards_the_pending_news() {
     let mut d = one();
-    tier_step(&mut d, RELEASE, false);
+    settled_step(&mut d, RELEASE, false);
     let owner = read(&d);
     let run = run(&d);
     let out = close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);

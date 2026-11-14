@@ -1,7 +1,8 @@
 //! Section 9's literal projections, bounded as the forge client bounds them.
 #![expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "ordinary projection table rows use test containers")]
 use super::*;
-use CommentKind::{Verdict, Repaired};
+use CommentKind::Repaired;
+const VERDICT: CommentKind = CommentKind::Verdict { at: 0 };
 
 fn tests(ids: &[&[u8]]) -> p::Failures {
     p::Failures::Tests(ids.iter().map(|id| Box::from(*id)).collect())
@@ -33,16 +34,16 @@ fn status_words() {
 fn comment_words() {
     let owns = p::Blame::Owns(tests(&[b"x", b"y"]));
     let rows = [
-        (p::Blame::Cleared, Verdict, "https://forge/run", usize::MAX, "Cleared by slow run 3.\n\nRun: https://forge/run"),
-        (owns.clone(), Verdict, "", usize::MAX, "Red: slow run 3 blames this landing for x, y."),
-        (p::Blame::Owns(p::Failures::Many), Verdict, "", usize::MAX, "Red: slow run 3 blames this landing for many tests."),
-        (p::Blame::Suspect(tests(&[b"x"])), Verdict, "", usize::MAX, "Suspected: slow run 3 suspects this landing of x."),
+        (p::Blame::Cleared, VERDICT, "https://forge/run", usize::MAX, "Cleared by slow run 3.\n\nRun: https://forge/run"),
+        (owns.clone(), VERDICT, "", usize::MAX, "Red: slow run 3 blames this landing for x, y."),
+        (p::Blame::Owns(p::Failures::Many), VERDICT, "", usize::MAX, "Red: slow run 3 blames this landing for many tests."),
+        (p::Blame::Suspect(tests(&[b"x"])), VERDICT, "", usize::MAX, "Suspected: slow run 3 suspects this landing of x."),
         (p::Blame::Cleared, Repaired { by: Some(19) }, "", usize::MAX, "Repaired by #19: slow run 3 passed the failures blamed on this landing."),
         (p::Blame::Cleared, Repaired { by: None }, "", usize::MAX, "Repaired: slow run 3 passed the failures blamed on this landing."),
-        (owns, Verdict, "", 50, "Red: slow run 3 blames this landing for x, y."),
-        (p::Blame::Owns(tests(&[b"first-test-is-too-long", b"second"])), Verdict, "", 51,
+        (owns, VERDICT, "", 50, "Red: slow run 3 blames this landing for x, y."),
+        (p::Blame::Owns(tests(&[b"first-test-is-too-long", b"second"])), VERDICT, "", 51,
             "Red: slow run 3 blames this landing for and 2 more."),
-        (p::Blame::Owns(tests(&[b"x", b"a-long-test-id-that-will-not-fit", b"y"])), Verdict, "", 60,
+        (p::Blame::Owns(tests(&[b"x", b"a-long-test-id-that-will-not-fit", b"y"])), VERDICT, "", 60,
             "Red: slow run 3 blames this landing for x, and 2 more."),
     ];
     for (blame, repair, link, room, expected) in rows {

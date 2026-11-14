@@ -74,6 +74,25 @@ fn verdict_posts_use_logged_or_live_members_and_skip_refusals() {
 }
 
 #[test]
+fn goal_and_dropped_runs_post_nothing() {
+    for goal in [false, true] {
+        let mut d = dispatched();
+        let out = if goal {
+            let row = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
+            row.goal = Some(7);
+            row.goals = Box::new([TierGoal { goal: 7, branch: b"temper/1/g7".as_slice().into(), tip: Some(BASE), ran: None,
+                failing: p::Failures::Tests(Box::new([])), started: None }]);
+            completed(&mut d, api::Conclusion::Success, None);
+            finish(&mut d)
+        } else { close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled) };
+        assert!(row(&d).posting.is_none());
+        assert!(out.iter().all(|request| !matches!(request,
+            Request::Save { record: Stored::Entry { entry, .. }, .. } if matches!(entry.effect.write, api::Write::Status { .. } | api::Write::Post { .. }))));
+        assert!(row(&d).task.is_none());
+    }
+}
+
+#[test]
 fn fault_status_precedes_the_hold_and_the_verdict_replaces_it() {
     let mut d = dispatched();
     for fault in 0..=RETRIES {

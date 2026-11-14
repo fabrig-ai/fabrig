@@ -168,9 +168,9 @@ fn dispatching() -> Domain {
     let mut d = configured(None);
     baseline(&mut d);
     attach(&mut d, 1, TIER_TASK);
-    tier_step(&mut d, OPEN, false);
+    settled_step(&mut d, OPEN, false);
     made(&mut d, OPEN, skein_forge_client::Made::Branch(BASE));
-    tier_step(&mut d, DISPATCH, false);
+    settled_step(&mut d, DISPATCH, false);
     d
 }
 pub(super) fn dispatched() -> Domain {
@@ -221,18 +221,32 @@ fn completed(d: &mut Domain, conclusion: api::Conclusion, failed_step: Option<u3
     answer(d, api::Answer::Run(run));
 }
 fn finish(d: &mut Domain) -> Box<[Request]> {
-    tier_step(d, RELEASE, false);
+    settled_step(d, RELEASE, false);
     made(d, RELEASE, skein_forge_client::Made::Set);
-    let out = tier_step(d, RELEASE + 1, false);
+    let mut out = settled_step(d, RELEASE + 1, false);
     // Stories without log fixtures finish the disposable read as unavailable.
     if row(d).record.run.is_some() && row(d).result.is_some() {
         let owner = *d.tier_ops.reads.iter().next().expect("red run read").0;
         let mut reads = Queue::uncapped();
         crate::tiers::answered(d, &env(), owner, Err(api::Error::Missing), &mut reads);
-        tier_step(d, RELEASE + 2, false)
-    } else {
-        out
+        out = settled_step(d, RELEASE + 2, false);
     }
+    posted(d, out)
+}
+fn posted(d: &mut Domain, out: Box<[Request]>) -> Box<[Request]> {
+    let mut all = out.into_vec();
+    for entry in 1000..1100 {
+        let Some(posting) = &row(d).posting else { break };
+        if posting.part != 0 && posting.next > u32::try_from(posting.comments.len()).unwrap() { break; }
+        if let Some(entry) = posting.entry { made(d, entry, skein_forge_client::Made::Set); }
+        all.extend(tier_step(d, entry, false));
+        if row(d).task.is_none() { break; }
+    }
+    all.into_boxed_slice()
+}
+fn settled_step(d: &mut Domain, entry: u64, released: bool) -> Box<[Request]> {
+    let out = tier_step(d, entry, released);
+    posted(d, out)
 }
 fn requests(out: &[Request]) -> Vec<(u64, api::Commit)> {
     out.iter()
@@ -246,7 +260,7 @@ fn join_words(parts: &[&[u8]]) -> Box<[u8]> {
     parts.concat().into_boxed_slice()
 }
 fn choice(out: &[Request]) -> Option<&TierDecision> {
-    out.iter().find_map(|request| match request {
+    out.iter().rev().find_map(|request| match request {
         Request::TierDecision { decision, .. } => Some(decision),
         _ => None,
     })
@@ -310,9 +324,9 @@ fn moves_before_the_baseline_answer_are_not_landings() {
     assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
     assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
     attach(&mut d, 1, TIER_TASK);
-    tier_step(&mut d, OPEN, false);
+    settled_step(&mut d, OPEN, false);
     made(&mut d, OPEN, skein_forge_client::Made::Branch(NEXT_TIP));
-    tier_step(&mut d, DISPATCH, false);
+    settled_step(&mut d, DISPATCH, false);
     made(&mut d, DISPATCH, skein_forge_client::Made::Set);
     completed(&mut d, api::Conclusion::Success, None);
     assert_eq!(requests(&finish(&mut d)).len(), 0);
@@ -390,7 +404,7 @@ fn first_tip_starts_a_baseline_with_no_landings() {
 fn green_run_releases_its_branch_and_makes_a_receipt() {
     let mut d = dispatched();
     completed(&mut d, api::Conclusion::Success, None);
-    let out = tier_step(&mut d, RELEASE, false);
+    let out = settled_step(&mut d, RELEASE, false);
     let deleted = &d.entries.get(&RELEASE).unwrap().entry;
     assert_eq!(deleted.effect.write, api::Write::DeleteBranch { branch: b"temper/tier/browser.1".as_slice().into() });
     let mut released = false;
@@ -403,7 +417,7 @@ fn green_run_releases_its_branch_and_makes_a_receipt() {
     assert!(d.describe_tier_effect(TIER_TASK, RELEASE).is_none());
     made(&mut d, RELEASE, skein_forge_client::Made::Set);
     d.wait_tier(&env(), TIER_TASK, None);
-    let out = tier_step(&mut d, RELEASE + 1, false);
+    let out = settled_step(&mut d, RELEASE + 1, false);
     assert_eq!(
         choice(&out),
         Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
@@ -471,7 +485,7 @@ fn outside_push_is_kept_in_the_next_range() {
 fn setup_fault_is_retried_then_green() {
     let mut d = dispatched();
     completed(&mut d, api::Conclusion::Failure, Some(0));
-    let out = tier_step(&mut d, DISPATCH + 1, false);
+    let out = settled_step(&mut d, DISPATCH + 1, false);
     assert_eq!(
         d.entries.get(&(DISPATCH + 1)).unwrap().entry.effect.write,
         api::Write::Rerun { attempt: api::JobAttempt { head: BASE, run: RUN, job: JOB, attempt: 1 } }
@@ -504,18 +518,18 @@ fn exhausted_faults_hold_until_released_then_run_green() {
         completed(&mut d, api::Conclusion::Cancelled, None);
         if fault < RETRIES {
             let entry = DISPATCH + u64::from(fault) + 1;
-            tier_step(&mut d, entry, false);
+            settled_step(&mut d, entry, false);
             made(&mut d, entry, skein_forge_client::Made::Set);
         }
     }
-    let out = tier_step(&mut d, RELEASE + 3, false);
+    let out = settled_step(&mut d, RELEASE + 3, false);
     assert_eq!(
         choice(&out),
         Some(&TierDecision::Held {
             words: b"Tier browser run 1 held after 3 runner faults, last: cancelled".as_slice().into()
         })
     );
-    tier_step(&mut d, RELEASE + 4, true);
+    settled_step(&mut d, RELEASE + 4, true);
     assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 0);
     let api::Write::Dispatch { .. } = d.entries.get(&(RELEASE + 4)).unwrap().entry.effect.write else {
         panic!("released run dispatches afresh")
@@ -536,7 +550,7 @@ fn missing_workflow_dispatches_again_then_holds_with_its_kind_in_both_words() {
         let entry = DISPATCH + u64::from(fault);
         outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
         assert_eq!(row(&d).flight.as_ref().unwrap().fault, Some(keys::Fault::MissingWorkflow));
-        let out = tier_step(&mut d, entry + 1, false);
+        let out = settled_step(&mut d, entry + 1, false);
         assert_eq!(row(&d).record.run.as_ref().unwrap().faults, fault + 1);
         if fault < RETRIES {
             let api::Write::Dispatch { workflow, .. } = &d.entries.get(&(entry + 1)).unwrap().entry.effect.write else {
@@ -558,7 +572,7 @@ fn missing_workflow_dispatches_again_then_holds_with_its_kind_in_both_words() {
         kind, b"\n",
     ]);
     assert_eq!(skein_lib::bytes::count(&words, &line, 4), 3);
-    tier_step(&mut d, RELEASE + 4, true);
+    settled_step(&mut d, RELEASE + 4, true);
     assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 0);
     made(&mut d, RELEASE + 4, skein_forge_client::Made::Set);
     completed(&mut d, api::Conclusion::Success, None);
@@ -573,7 +587,7 @@ fn a_missing_workflow_in_the_saved_flight_keeps_its_words_after_restart() {
     for fault in 0..RETRIES {
         let entry = DISPATCH + u64::from(fault);
         outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
-        tier_step(&mut d, entry + 1, false);
+        settled_step(&mut d, entry + 1, false);
     }
     outcome(&mut d, DISPATCH + u64::from(RETRIES), skein_forge_client::Outcome::Failed(api::Error::Missing));
     let saved = row(&d).clone();
@@ -583,7 +597,7 @@ fn a_missing_workflow_in_the_saved_flight_keeps_its_words_after_restart() {
     outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
     outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut cold, Event::ReadAfresh);
-    let out = tier_step(&mut cold, RELEASE + 3, false);
+    let out = settled_step(&mut cold, RELEASE + 3, false);
     let kind = b"workflow tier.yml not found at 0404040404040404040404040404040404040404040404040404040404040404";
     assert_eq!(
         choice(&out),
@@ -600,7 +614,7 @@ fn other_dispatch_refusals_and_missing_reruns_stay_lost() {
         let mut d = if rerun { dispatched() } else { dispatching() };
         let entry = if rerun {
             completed(&mut d, api::Conclusion::Failure, Some(0));
-            tier_step(&mut d, DISPATCH + 1, false);
+            settled_step(&mut d, DISPATCH + 1, false);
             let api::Write::Rerun { .. } = d.entries.get(&(DISPATCH + 1)).unwrap().entry.effect.write else {
                 panic!("retry the failed job")
             };
@@ -611,7 +625,7 @@ fn other_dispatch_refusals_and_missing_reruns_stay_lost() {
         let error = if rerun { api::Error::Missing } else { api::Error::Refused };
         outcome(&mut d, entry, skein_forge_client::Outcome::Failed(error));
         assert_eq!(row(&d).flight.as_ref().unwrap().fault, Some(keys::Fault::Lost));
-        tier_step(&mut d, entry + 1, false);
+        settled_step(&mut d, entry + 1, false);
         let words = d.tier_execution_words(TIER_TASK).unwrap();
         assert!(skein_lib::bytes::find(&words, b"; lost\n").is_some());
         assert!(skein_lib::bytes::find(&words, b"not found at").is_none());
@@ -657,7 +671,7 @@ fn tier_effects_describe_the_branch_dispatch_and_rerun() {
     let mut d = configured(None);
     baseline(&mut d);
     attach(&mut d, 1, TIER_TASK);
-    tier_step(&mut d, OPEN, false);
+    settled_step(&mut d, OPEN, false);
     let (repository, what, effect) = d.describe_tier_effect(TIER_TASK, OPEN).unwrap();
     assert_eq!(
         (repository, what, effect.kind),
@@ -674,13 +688,13 @@ fn tier_effects_describe_the_branch_dispatch_and_rerun() {
     outputs(&mut d, Event::VetoTier { task: TIER_TASK, entry: OPEN });
     assert_eq!(row(&d).branch, TierBranch::Absent);
     assert!(!d.entries.contains_key(&OPEN));
-    tier_step(&mut d, OPEN, false);
+    settled_step(&mut d, OPEN, false);
     made(&mut d, OPEN, skein_forge_client::Made::Branch(BASE));
-    tier_step(&mut d, DISPATCH, false);
+    settled_step(&mut d, DISPATCH, false);
     assert_eq!(d.describe_tier_effect(TIER_TASK, DISPATCH).unwrap().2.kind, 16);
     made(&mut d, DISPATCH, skein_forge_client::Made::Set);
     completed(&mut d, api::Conclusion::Failure, Some(0));
-    tier_step(&mut d, DISPATCH + 1, false);
+    settled_step(&mut d, DISPATCH + 1, false);
     assert_eq!(d.describe_tier_effect(TIER_TASK, DISPATCH + 1).unwrap().2.kind, 17);
 }
 
@@ -755,9 +769,9 @@ fn a_green_whole_run_clears_its_nonempty_range() {
     completed(&mut d, api::Conclusion::Success, None);
     finish(&mut d);
     attach(&mut d, 2, NEXT_TASK);
-    tier_step(&mut d, OPEN, false);
+    settled_step(&mut d, OPEN, false);
     made(&mut d, OPEN, skein_forge_client::Made::Branch(NEXT_TIP));
-    tier_step(&mut d, DISPATCH, false);
+    settled_step(&mut d, DISPATCH, false);
     made(&mut d, DISPATCH, skein_forge_client::Made::Set);
     completed(&mut d, api::Conclusion::Success, None);
     let out = finish(&mut d);
@@ -818,11 +832,11 @@ fn a_vetoed_dispatch_is_a_fault_on_the_next_step() {
     let mut d = configured(None);
     baseline(&mut d);
     attach(&mut d, 1, TIER_TASK);
-    tier_step(&mut d, OPEN, false);
+    settled_step(&mut d, OPEN, false);
     made(&mut d, OPEN, skein_forge_client::Made::Branch(BASE));
-    tier_step(&mut d, DISPATCH, false);
+    settled_step(&mut d, DISPATCH, false);
     outputs(&mut d, Event::VetoTier { task: TIER_TASK, entry: DISPATCH });
-    tier_step(&mut d, DISPATCH + 1, false);
+    settled_step(&mut d, DISPATCH + 1, false);
     assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 1);
     let api::Write::Dispatch { .. } = d.entries.get(&(DISPATCH + 1)).unwrap().entry.effect.write else {
         panic!("vetoed dispatch is retried")
@@ -1007,7 +1021,7 @@ fn a_dropped_runs_landings_still_verify_in_the_next_numbered_run() {
     assert_eq!(run.landings, landings);
     assert!(d.verifications.iter().all(|(_, verification)| verification.tiers[0].verdict.is_none()));
     attach(&mut d, 3, TIER_TASK + 2);
-    tier_step(&mut d, OPEN, false);
+    settled_step(&mut d, OPEN, false);
     assert_eq!(
         d.entries.get(&OPEN).unwrap().entry.effect.write,
         api::Write::CreateBranch { branch: b"temper/tier/browser.3".as_slice().into(), commit: LAST_TIP }
@@ -1067,7 +1081,7 @@ fn dropping_a_full_range_compacts_only_adjacent_outside_landings() {
 fn late_dispatch_and_read_answers_cannot_revive_a_closed_tier_task() {
     let mut d = dispatched();
     // Keep one dispatch and its listing read in flight at the close.
-    tier_step(&mut d, DISPATCH + 1, false);
+    settled_step(&mut d, DISPATCH + 1, false);
     let key = (REPO, TIER.into());
     let owner = *d.tier_ops.reads.iter().next().expect("listing read").0;
     d.tiers.get_mut(&key).unwrap().flight.as_mut().unwrap().waiting = true;

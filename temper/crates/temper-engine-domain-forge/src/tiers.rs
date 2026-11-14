@@ -28,7 +28,6 @@ pub(crate) struct State {
     pub(crate) reads: Map<Token, Read>,
     pub(crate) follows: Map<(Repository, Box<[u8]>), crate::runs::Follow>,
     reds: Map<(Repository, Box<[u8]>), red::Fetch>,
-    postings: Map<(Repository, Box<[u8]>), post::Posting>,
 }
 impl State {
     pub(crate) fn new(l: &Limits) -> Self {
@@ -41,7 +40,6 @@ impl State {
             reads: Map::with_capacity(count.checked_mul(2).expect("tier reads")),
             follows: Map::with_capacity(count),
             reds: Map::with_capacity(count),
-            postings: Map::with_capacity(count),
         }
     }
 }
@@ -260,6 +258,7 @@ fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
         flight: None,
         held: None,
         result: None,
+        posting: None,
         received: false,
         goals: Box::new([]),
         goal: None,
@@ -794,7 +793,7 @@ fn advance(
     }
     if row.held.is_some() && row.goal.is_none() {
         let posting = post::pending(d, row, follow);
-        d.tier_ops.postings.insert((row.repository, row.tier.clone()), posting).expect("one posting per tier");
+        row.posting = Some(Box::new(posting));
     }
     remember(row, follow);
     if row.held.is_some()
@@ -849,7 +848,7 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
         | Write::Update { .. } => unreachable!("tier run operations"),
     };
     let part = match &write {
-        Write::Status { .. } | Write::Post { .. } => u32::from(post::identity(d, row).1),
+        Write::Status { .. } | Write::Post { .. } => u32::from(post::identity(row).1),
         Write::DeleteBranch { branch: name }
             if *name == branch(&row.tier, row.record.run.as_ref().expect("live run").number) =>
         {
@@ -935,8 +934,8 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u
     }
     let run = row.record.run.clone();
     if row.goal.is_none() {
-        let posting = post::compose(d, row, &verdict, words.clone());
-        d.tier_ops.postings.insert((row.repository, row.tier.clone()), posting).expect("one posting per tier");
+        let posting = post::compose(d, row, &verdict);
+        row.posting = Some(Box::new(posting));
     }
     row.record = p::judged(
         &row.record,
@@ -1090,7 +1089,7 @@ pub(crate) fn step(
         observed_part(d, env, &mut row, &mut follow, out);
         d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
     }
-    if d.tier_ops.postings.contains_key(&key) {
+    if post::active(&row) {
         post::step(d, env, &mut row, entry, out);
     } else if row.held.is_some() {
         held(d, &row, out);
@@ -1390,7 +1389,7 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
         | Outcome::Uncertain
         | Outcome::Queued => None,
     };
-    if outcome != Outcome::Queued && outcome != Outcome::Uncertain && post::settled(d, entry, out) {
+    if outcome != Outcome::Queued && outcome != Outcome::Uncertain && outcome != Outcome::Held && post::settled(d, entry, out) {
         return;
     }
     if let Some(commit) = made_branch
@@ -1793,8 +1792,15 @@ fn observation(
 }
 
 fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p::Landing]) -> Box<[u8]> {
+    let mut posted = List::with_capacity(u32::try_from(landings.len()).expect("bounded range"));
+    for (landing, blame) in landings.iter().zip(&verdict.landings) {
+        posted.push(crate::TierPostedLanding { commit: landing.commit, blame: blame.clone(), change: landing_change(d, row.repository, landing.commit) }).expect("bounded range");
+    }
+    posted_words(&row.tier, verdict, posted.as_slice())
+}
+fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPostedLanding]) -> Box<[u8]> {
     let mut parts = List::uncapped();
-    parts.push(verdict_summary(&row.tier, verdict)).expect("verdict words");
+    parts.push(verdict_summary(tier, verdict)).expect("verdict words");
     for (at, blame) in verdict.landings.iter().enumerate() {
         let (kind, failures) = match blame {
             p::Blame::Cleared => continue,
@@ -1802,7 +1808,10 @@ fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p:
             p::Blame::Suspect(failures) => (b" suspected of: ".as_slice(), failures),
         };
         let landing = landings.get(at).expect("one verdict per landing");
-        let continuation = landing_read(d, row.repository, landing.commit);
+        let continuation = match landing.change {
+            Some(task) => joined(&[b"; change show ", skein_lib::Decimal::of(task).as_bytes()]),
+            None => Box::new([]),
+        };
         let prefix = joined(&[b"\n", &crate::commit_text(&landing.commit), kind]);
         match failures {
             p::Failures::Many => {
@@ -1824,14 +1833,8 @@ fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p:
     words.into_boxed()
 }
 
-fn landing_read(d: &Domain, repository: Repository, commit: Commit) -> Box<[u8]> {
-    if let Some(verification) = d.verifications.get(&(repository, commit))
-        && let Some(change) = verification.changes.first()
-    {
-        joined(&[b"; change show ", skein_lib::Decimal::of(*change).as_bytes()])
-    } else {
-        Box::new([])
-    }
+fn landing_change(d: &Domain, repository: Repository, commit: Commit) -> Option<u64> {
+    d.verifications.get(&(repository, commit))?.changes.first().copied()
 }
 
 // One complete attribution per line lets the task shell fit its report without cutting an ID.
@@ -1920,7 +1923,8 @@ fn drop_run(d: &mut Domain, row: &mut TierRow, limits: &Limits) {
     let key = (row.repository, row.tier.clone());
     d.tier_ops.follows.remove(&key);
     d.tier_ops.walks.remove(&key);
-    d.tier_ops.postings.remove(&key);
+    let judged = match &row.posting { Some(posting) => posting.part == 0, None => false };
+    row.posting = None;
     let mut reads = List::with_capacity(d.tier_ops.reads.capacity());
     for (owner, reading) in &d.tier_ops.reads {
         if reading.tier == key {
@@ -1937,8 +1941,10 @@ fn drop_run(d: &mut Domain, row: &mut TierRow, limits: &Limits) {
         row.record.sequence = run.number;
         let pending = core::mem::replace(&mut row.pending, Box::new([]));
         let bound = limits.changes.checked_mul(2).expect("twice changes").checked_add(1).expect("range bound");
-        for landing in run.landings {
-            push_pending(d, row, TierLanding { commit: landing.commit, key: Some(landing.key) }, bound);
+        if !judged {
+            for landing in run.landings {
+                push_pending(d, row, TierLanding { commit: landing.commit, key: Some(landing.key) }, bound);
+            }
         }
         for landing in pending {
             push_pending(d, row, landing, bound);

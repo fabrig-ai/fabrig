@@ -2,36 +2,7 @@
 use super::{Box, Commit, Domain, Env, Limits, List, Request, TierRow, Write, api, joined, p};
 use skein_lib::Queue;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub(super) struct Posting {
-    pub number: u64,
-    pub tip: Commit,
-    pub link: Box<[u8]>,
-    pub check: api::Check,
-    pub description: Box<[u8]>,
-    pub landings: Box<[Landing]>,
-    pub comments: Box<[Comment]>,
-    pub next: u32,
-    pub entry: Option<u64>,
-    pub words: Option<Box<[u8]>>,
-    pub part: u16,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub(super) struct Landing {
-    pub commit: Commit,
-    pub blame: p::Blame,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub(super) struct Comment {
-    pub pull: u64,
-    pub landing: u32,
-    pub kind: CommentKind,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub(super) enum CommentKind {
-    Verdict,
-    Repaired { by: Option<u64> },
-}
+use crate::{TierPosting as Posting, TierPostedLanding as Landing, TierComment as Comment, TierCommentKind as CommentKind};
 
 pub(super) fn status(verdict: &p::Verdict, received: bool) -> (api::Check, Box<[u8]>) {
     let prefix = joined(&[b"run ", skein_lib::Decimal::of(verdict.number).as_bytes()]);
@@ -89,7 +60,7 @@ pub(super) fn comment(
             };
             return joined(&[&prefix, &run, b" passed the failures blamed on this landing", &suffix]);
         }
-        CommentKind::Verdict => match blame {
+        CommentKind::Verdict { .. } => match blame {
             p::Blame::Cleared => return joined(&[b"Cleared by ", &run, &suffix]),
             p::Blame::Owns(tests) => (joined(&[b"Red: ", &run, b" blames this landing for "]), tests),
             p::Blame::Suspect(tests) => (joined(&[b"Suspected: ", &run, b" suspects this landing of "]), tests),
@@ -165,20 +136,20 @@ fn repairing_pull(d: &Domain, row: &TierRow, commit: Commit, range: &[p::Landing
 }
 
 /// Called after verification is judged, before its changes can release their rows.
-pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict, words: Box<[u8]>) -> Posting {
+pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict) -> Posting {
     let range = &row.record.run.as_ref().expect("judged run").landings;
     let (check, description) = status(verdict, row.received);
     let link = match d.landing.receipts.get(&super::receipt_key(d, row, verdict.key)) {
         Some(receipt) => receipt.run.url.clone(),
         None => Box::new([]),
     };
-    let mut landings = List::uncapped();
-    let mut comments = List::uncapped();
+    let mut landings = List::with_capacity(u32::try_from(range.len()).expect("bounded range"));
+    let mut comments = List::with_capacity(temper_engine_domain_forge_vocabulary::tiers::posting_comments(&d.landing.limits).expect("checked posting bound"));
     for (landing, blame) in range.iter().zip(&verdict.landings) {
         let at = landings.len();
-        landings.push(Landing { commit: landing.commit, blame: blame.clone() }).expect("bounded judged range");
+        landings.push(Landing { commit: landing.commit, blame: blame.clone(), change: super::landing_change(d, row.repository, landing.commit) }).expect("bounded judged range");
         for pull in members(d, row, landing.commit) {
-            comments.push(Comment { pull, landing: at, kind: CommentKind::Verdict }).expect("bounded landing members");
+            comments.push(Comment { pull, landing: landing.commit, kind: CommentKind::Verdict { at: u16::try_from(at).expect("bounded range") } }).expect("bounded landing members");
         }
     }
     for ((repository, commit), verification) in &d.verifications {
@@ -190,12 +161,9 @@ pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict, words: Bo
                 && let Some(repaired) = tier.repaired
                 && repaired.run == verdict.number
             {
-                let at = landings.len();
-                let blame = tier.verdict.as_ref().expect("repaired red verdict").blame.clone();
-                landings.push(Landing { commit: *commit, blame }).expect("bounded repaired landings");
                 let kind = CommentKind::Repaired { by: repairing_pull(d, row, *commit, range) };
                 for pull in members(d, row, *commit) {
-                    comments.push(Comment { pull, landing: at, kind }).expect("bounded repaired members");
+                    comments.push(Comment { pull, landing: *commit, kind }).expect("bounded repaired members");
                 }
             }
         }
@@ -210,8 +178,8 @@ pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict, words: Bo
         comments: comments.into_boxed(),
         next: 0,
         entry: None,
-        words: Some(words),
         part: 0,
+        op_bytes: d.landing.limits.client.op_bytes,
     }
 }
 
@@ -231,12 +199,15 @@ pub(super) fn pending(d: &Domain, row: &TierRow, follow: &crate::runs::Follow) -
         comments: Box::new([]),
         next: 0,
         entry: None,
-        words: None,
-        // A later hold of the same run must not reuse an already settled client purpose.
-        part: u16::try_from(run.faults).expect("bounded retries").checked_add(1).expect("pending part"),
+        // Completed pending progress stays until the verdict, so another hold has a fresh purpose.
+        part: match &row.posting {
+            Some(posting) => posting.part,
+            None => 0,
+        }.checked_add(1).expect("pending status sequence"),
+        op_bytes: d.landing.limits.client.op_bytes,
     }
 }
-fn write(d: &Domain, limits: &Limits, row: &TierRow, posting: &Posting) -> Write {
+fn write(d: &Domain, row: &TierRow, posting: &Posting) -> Write {
     if posting.next == 0 {
         return Write::Status {
             commit: posting.tip, context: joined(&[b"temper/verdict/", &row.tier]), check: posting.check,
@@ -245,73 +216,90 @@ fn write(d: &Domain, limits: &Limits, row: &TierRow, posting: &Posting) -> Write
     }
     let part = posting.next.checked_sub(1).expect("comment index");
     let comment_row = posting.comments.get(skein_lib::usize_of(part)).expect("next comment");
-    let landing = posting.landings.get(skein_lib::usize_of(comment_row.landing)).expect("comment landing");
+    let blame = match comment_row.kind {
+        CommentKind::Verdict { at } => &posting.landings.get(usize::from(at)).expect("comment landing").blame,
+        CommentKind::Repaired { .. } => &p::Blame::Cleared,
+    };
     let key = super::purpose(d, row, 7, u16::try_from(part).expect("bounded comments"))
-        .key(&d.namespace, limits.client.op_bytes).expect("tier key fits operation");
-    let room = skein_lib::usize_of(limits.client.op_bytes).saturating_sub(key.len());
+        .key(&d.namespace, posting.op_bytes).expect("tier key fits operation");
+    let room = skein_lib::usize_of(posting.op_bytes).saturating_sub(key.len());
     Write::Post {
         number: comment_row.pull, key,
-        body: comment(&row.tier, posting.number, &landing.blame, comment_row.kind, &posting.link, room),
+        body: comment(&row.tier, posting.number, blame, comment_row.kind, &posting.link, room),
+    }
+}
+pub(super) fn active(row: &TierRow) -> bool {
+    match &row.posting {
+        Some(posting) => posting.part == 0 || posting.next <= u32::try_from(posting.comments.len()).expect("bounded comments"),
+        None => false,
     }
 }
 pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: u64, out: &mut Queue<Request>) {
-    let key = (row.repository, row.tier.clone());
-    let mut posting = d.tier_ops.postings.remove(&key).expect("posting run");
+    let mut posting = row.posting.take().expect("posting run");
     if posting.entry.is_some() {
-        d.tier_ops.postings.insert(key, posting).expect("one posting per tier");
+        row.posting = Some(posting);
         super::wait(row.task.expect("posting task"), out);
         return;
     }
     if posting.next > u32::try_from(posting.comments.len()).expect("bounded comments") {
-        if let Some(words) = posting.words.take() {
+        if posting.part == 0 {
+            let mut blames = List::with_capacity(u32::try_from(posting.landings.len()).expect("bounded range"));
+            for landing in &posting.landings { blames.push(landing.blame.clone()).expect("bounded range"); }
+            let verdict = p::Verdict { number: posting.number, tip: posting.tip, key: row.record.run.as_ref().expect("posting run").key,
+                failing: row.record.failing.clone(), landings: blames.into_boxed(), flakes: Box::new([]) };
+            let words = super::posted_words(&row.tier, &verdict, &posting.landings);
             super::done(d, row, words, out);
         } else {
+            row.posting = Some(posting);
+            super::save(row, out);
             super::held(d, row, out);
         }
         return;
     }
     if !super::room(d, env, entry) {
-        d.tier_ops.postings.insert(key, posting).expect("one posting per tier");
+        row.posting = Some(posting);
         super::wait(row.task.expect("posting task"), out);
         return;
     }
-    let write = write(d, &env.limits, row, &posting);
+    let write = write(d, row, &posting);
     posting.entry = Some(entry);
-    d.tier_ops.postings.insert(key, posting).expect("one posting per tier");
+    row.posting = Some(posting);
     super::effect(d, row, entry, write, false, out);
 }
 pub(super) fn settled(d: &mut Domain, entry: u64, out: &mut Queue<Request>) -> bool {
     let mut found = None;
-    for (key, posting) in &d.tier_ops.postings {
-        if posting.entry == Some(entry) {
+    for (key, row) in &d.tiers {
+        if let Some(posting) = &row.posting
+            && posting.entry == Some(entry)
+        {
             found = Some(key.clone());
             break;
         }
     }
     let Some(key) = found else { return false };
-    let posting = d.tier_ops.postings.get_mut(&key).expect("posting entry");
+    let row = d.tiers.get_mut(&key).expect("posting tier");
+    let posting = row.posting.as_mut().expect("posting entry");
     posting.entry = None;
     posting.next = posting.next.checked_add(1).expect("bounded writes");
-    if let Some(row) = d.tiers.get(&key)
-        && let Some(task) = row.task
-    {
+    if let Some(task) = row.task {
         out.push(Request::WakeProcedure { task });
     }
+    super::save(row, out);
     true
 }
 
-pub(super) fn identity(d: &Domain, row: &TierRow) -> (u8, u16) {
-    let posting = d.tier_ops.postings.get(&(row.repository, row.tier.clone())).expect("posting effect");
+pub(super) fn identity(row: &TierRow) -> (u8, u16) {
+    let posting = row.posting.as_ref().expect("posting effect");
     if posting.next == 0 { (6, posting.part) } else {
         (7, u16::try_from(posting.next.checked_sub(1).expect("comment index")).expect("bounded comments"))
     }
 }
 pub(super) fn describe(d: &Domain, row: &TierRow, entry: u64) -> Option<(u16, crate::What, Commit)> {
-    let posting = d.tier_ops.postings.get(&(row.repository, row.tier.clone()))?;
-    if posting.entry != Some(entry) || d.entries.get(&entry)?.entry.effect.write != write(d, &d.landing.limits, row, posting) {
+    let posting = row.posting.as_ref()?;
+    if posting.entry != Some(entry) || d.entries.get(&entry)?.entry.effect.write != write(d, row, posting) {
         return None;
     }
-    let (operation, part) = identity(d, row);
+    let (operation, part) = identity(row);
     if row.purpose != Some(super::purpose(d, row, operation, part)) { return None; }
     let (kind, what) = if posting.next == 0 { (6, crate::What::Repository) } else {
         let comment = posting.comments.get(skein_lib::usize_of(posting.next.checked_sub(1)?))?;
