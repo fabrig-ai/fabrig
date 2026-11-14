@@ -2,9 +2,8 @@
 
 2026-11-14. Where the design lags or departs from [one-owner.md](one-owner.md).
 
-- **Design lags:**
-  - 4: `skein/docs/foundation/programming-model.md` names no vocabulary, until O2's first change.
-  - 5: hearth's design keeps render's records in three places (`hearth/docs/design/README.md`, 4.2), until O2.
-  - 7: template 8's charter 17 lacks the two bullets, until O1.
-- **Design departs:** none.
+- **Design lags:** none.
+- **Design departs:**
+  - 4: O2's designer wrote the model's text itself, delivered with the goal's design, rather than in its first change: it is Markdown that no test reads, and the changes that build on it start sooner (the goal's designer, 2026-11-14).
+  - 5: the projections the client's records carried (a schema fault's typed names, a filter's name and arity, an export map's absent entries) are kept as the printer's, where they print, not as types of the records' own: the printer maps render's values to the version's form (2), and the copies around them go (the goal's designer, 2026-11-14).
 - **Open:** 8, the steward's records and adoption.

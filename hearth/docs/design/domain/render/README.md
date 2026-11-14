@@ -252,8 +252,9 @@ west-prod                                           nothing to build
 hearth-domain-builder            the builder's root: routes between its children
 ├── hearth-domain-render         configuration to spec; resolution's decisions; the diff        M1
 └── hearth-domain-store          M1: resolutions and cache files' records; M2: the rest         M1, M2
+hearth-domain-render-vocabulary  render's values: the spec's parts and keys, the diff's changes, the errors  M1
 
-hearth-protocol-builder          the builder's protocol layer: routes its machines, translates to render's types
+hearth-protocol-builder          the builder's protocol layer: routes its machines, compiles configuration into render's types
 ├── hearth-protocol-git          git's argument vectors; ls-tree, cat-file and diff records       M1
 ├── hearth-protocol-tree         M1: the frame, 3.1's decoder, records of kinds 1, 4 and 5        M1, M2
 ├── hearth-protocol-config       strict JSON to typed documents and declarations, with positions  M1
@@ -261,10 +262,12 @@ hearth-protocol-builder          the builder's protocol layer: routes its machin
 └── hearth-protocol-mmdebstrap   simulate's argument vector; Inst lines; Packages stanzas; tails  M1
 ```
 
-- **`hearth-domain-render`** holds the pipeline, resolution's decisions and the diff, and depends on lib alone. Outside it are read what crosses (5.2), the spec's records (`spec.md`, section 1), the diff's (4.1), the errors (`errors.md`), the limits (2.3), and what the world's laws and oracle drive (6.3, 6.5): evaluation, merging, validation and expansion. The rest is its own.
-- **The machines depend on lib only** (`skein/docs/foundation/programming-model.md`, 4), but `hearth-protocol-config`, which composes skein's JSON tokenizer and depends on `skein-json` too, as `skein-llm` does (`skein/docs/design/llm/README.md`). It can't call the template machine, so it hands up a declaration's expressions as text with their positions, and `hearth-protocol-builder` passes each through `hearth-protocol-template` before translating the declaration into render's types.
+- **`hearth-domain-render`** holds the pipeline, resolution's decisions and the diff, and depends on lib and its vocabulary alone. Outside it are read what crosses (5.2), the spec's records (`spec.md`, section 1), the diff's (4.1), the errors (`errors.md`), the limits (2.3), and what the world's laws and oracle drive (6.3, 6.5): evaluation, merging, validation and expansion. The rest is its own.
+- **`hearth-domain-render-vocabulary`** holds render's values that other crates name (`skein/docs/foundation/programming-model.md`, 4.6): the spec's parts and keys, the diff's changes and the errors, with the values their definitions reach, such as positions, declaration names, filters, export values, the error's class and the outcome. The two crates share one module tree: an item keeps its module path, so `hearth_domain_render_vocabulary::parts::packages::Component` is `hearth_domain_render::parts::packages::Component`, since each of render's modules re-exports its namesake in the vocabulary. A method that reads render's limits or decides, such as whether a changed file's hunks are asked for (4.1), stays in render as a free function. Render's limits stay in render: no other crate names them.
+- **Who names the vocabulary:** render, the builder's root and protocol layer, the client's printer, and the machines that decode its values: `hearth-protocol-config` a declaration's names, script fragments, placement kinds and firmware, and the fields and faults it refuses with; `hearth-protocol-git` a diff's hunks; `hearth-protocol-mmdebstrap` the archive's components. None holds a copy of them. The protocol layer translates only where a layer adds something: configuration's documents and declarations, which keep the byte offsets their decoder orders refusals by and are compiled, with their expressions, into render's; the template machine's instructions; the tools' and the store's own vocabularies.
+- **The machines depend on lib only** (`skein/docs/foundation/programming-model.md`, 4), and on render's vocabulary where they decode its values, but `hearth-protocol-config`, which composes skein's JSON tokenizer and depends on `skein-json` too, as `skein-llm` does (`skein/docs/design/llm/README.md`). It can't call the template machine, so it hands up a declaration's expressions as text with their positions, and `hearth-protocol-builder` passes each through `hearth-protocol-template` before translating the declaration into render's types.
 - **The client runs the same domain in-process** when no daemon answers, or for a local repository (hearth/docs/design/client/README.md, 3.5); in the daemon, the builder's root takes the steward's jobs (hearth/docs/design/domain/steward.md, section 3).
-- **The client prints with `hearth-client-protocol-records`'s printer** (hearth/docs/design/client/README.md, 3.2), which writes the spec, the diff and the errors as text and as JSON lines.
+- **The client prints with `hearth-client-protocol-records`'s printer** (hearth/docs/design/client/README.md, 3.2), which writes the spec, the diff and the errors, render's values from its vocabulary, as text and as JSON lines.
 
 ### 5.2 What crosses
 
