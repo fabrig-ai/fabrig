@@ -11,16 +11,14 @@ mod golden_tests {
 
     type Case = (&'static str, fn() -> bool);
 
-    pub(super) fn table<const N: usize>(cases: &[Case; N]) {
+    pub(super) fn table<const N: usize>(cases: &[Case; N]) -> [Option<&'static str>; N] {
         let mut failures = [None; N];
-        let mut passed = true;
         for ((name, case), failure) in cases.iter().zip(&mut failures) {
             if !case() {
-                *failure = Some(name);
-                passed = false;
+                *failure = Some(*name);
             }
         }
-        assert!(passed, "{failures:?}");
+        failures
     }
 
     pub(super) fn golden<T: PartialEq, E, D>(
@@ -570,7 +568,8 @@ mod golden_tests {
 
     #[test]
     fn golden_0() {
-        table(&GOLDEN_0);
+        let failures = table(&GOLDEN_0);
+        assert!(failures == [None; 508], "{failures:?}");
     }
 
     static BOUNDS_0: [Case; 64] = [
@@ -642,7 +641,8 @@ mod golden_tests {
 
     #[test]
     fn bounds_0() {
-        table(&BOUNDS_0);
+        let failures = table(&BOUNDS_0);
+        assert!(failures == [None; 64], "{failures:?}");
     }
 
     static BOUNDS_1: [Case; 7] = [
@@ -657,7 +657,8 @@ mod golden_tests {
 
     #[test]
     fn bounds_1() {
-        table(&BOUNDS_1);
+        let failures = table(&BOUNDS_1);
+        assert!(failures == [None; 7], "{failures:?}");
     }
 
 }
