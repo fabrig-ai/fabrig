@@ -2,7 +2,7 @@
 //! jig/docs/design/protocol/client/public-reads.md).
 use jig_client_protocol_wire::{PublicIndexBounds, public_limits, public_v1::*};
 use skein_lib::{Reader, Rng, Writer};
-use std::fs;
+use std::{fmt::Arguments, fs};
 
 const FIRST_SEED: u64 = 0x7075_b11c;
 const SEEDS: u64 = 4;
@@ -19,8 +19,8 @@ macro_rules! check {
     };
 }
 
-fn decoders(seed: u64, bytes: &[u8], limits: &Limits) {
-    eprintln!("seed {seed:#x}, limits {limits:?}, input {bytes:?}");
+fn decoders(seed: u64, bytes: &[u8], limits: &Limits, bounds: &str, case: Arguments<'_>) {
+    eprintln!("seed {seed:#x}, bounds {bounds}, {case}, input length {}", bytes.len());
     check!(PublicProjects, limits, bytes);
     check!(PublicProject, limits, bytes);
     check!(PublicBoard, limits, bytes);
@@ -42,20 +42,20 @@ fn byte(rng: &mut Rng) -> u8 {
     u8::try_from(rng.below(256)).expect("byte range")
 }
 
-fn arbitrary(seed: u64, rng: &mut Rng, limits: &Limits) {
+fn arbitrary(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str) {
     let mut bytes = [0; 512];
-    for _ in 0..ARBITRARY {
+    for sample in 0..ARBITRARY {
         let length = index(rng, bytes.len().checked_add(1).expect("small buffer"));
         let input = bytes.get_mut(..length).expect("bounded length");
         for value in &mut *input {
             *value = byte(rng);
         }
-        decoders(seed, input, limits);
+        decoders(seed, input, limits, bounds, format_args!("arbitrary {sample}"));
     }
 }
 
-fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, golden: &[u8]) {
-    decoders(seed, golden, limits);
+fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, bounds: &str, golden: &[u8], golden_index: usize) {
+    decoders(seed, golden, limits, bounds, format_args!("golden {golden_index} original"));
     for mutation in 0..MUTATIONS {
         let mut bytes = golden.to_vec();
         let position = index(rng, bytes.len().checked_add(1).expect("golden length"));
@@ -86,7 +86,7 @@ fn mutated(seed: u64, rng: &mut Rng, limits: &Limits, golden: &[u8]) {
             }
             _ => unreachable!("bounded mutations"),
         }
-        decoders(seed, &bytes, limits);
+        decoders(seed, &bytes, limits, bounds, format_args!("golden {golden_index} mutation {mutation}"));
     }
 }
 
@@ -103,16 +103,16 @@ fn public_records_decode_without_panic_and_re_encode_what_they_decode() {
     let goldens: Vec<_> = paths.iter().map(|path| fs::read(path).expect("public golden bytes")).collect();
     for seed in FIRST_SEED..FIRST_SEED.checked_add(SEEDS).expect("seed range") {
         let mut rng = Rng::new(seed);
-        for bounds in [
-            PublicIndexBounds { goals: 0, ended: 0, lines: 0, depth: 0, projects: 0 },
-            PublicIndexBounds { goals: 1, ended: 2, lines: 3, depth: 4, projects: 5 },
-            PublicIndexBounds { goals: 20, ended: 20, lines: 50, depth: 16, projects: 64 },
-            PublicIndexBounds { goals: 256, ended: 256, lines: 256, depth: 64, projects: 4096 },
+        for (bounds_name, bounds) in [
+            ("zero", PublicIndexBounds { goals: 0, ended: 0, lines: 0, depth: 0, projects: 0 }),
+            ("small", PublicIndexBounds { goals: 1, ended: 2, lines: 3, depth: 4, projects: 5 }),
+            ("medium", PublicIndexBounds { goals: 20, ended: 20, lines: 50, depth: 16, projects: 64 }),
+            ("large", PublicIndexBounds { goals: 256, ended: 256, lines: 256, depth: 64, projects: 4096 }),
         ] {
             let limits = public_limits(&bounds).expect("public bounds within ceilings");
-            arbitrary(seed, &mut rng, &limits);
-            for golden in &goldens {
-                mutated(seed, &mut rng, &limits, golden);
+            arbitrary(seed, &mut rng, &limits, bounds_name);
+            for (golden_index, golden) in goldens.iter().enumerate() {
+                mutated(seed, &mut rng, &limits, bounds_name, golden, golden_index);
             }
         }
     }
