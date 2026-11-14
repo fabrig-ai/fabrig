@@ -19,4 +19,5 @@ mod batches;
 mod history;
 mod reds;
 mod registered_layouts;
+mod unseeded_upgrade;
 mod value_types;
