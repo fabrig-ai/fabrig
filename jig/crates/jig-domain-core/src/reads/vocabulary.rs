@@ -47,6 +47,11 @@ pub(super) fn read_row_visible(core: &Core, party: u64, row: &Row, run_project: 
     {
         return false;
     }
+    if let Some(summary) = &row.summary
+        && !core.open_project(summary.project)
+    {
+        return false;
+    }
     row_visible(core, party, row)
 }
 
@@ -100,6 +105,12 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             notes::Scope::Project { project }
             | notes::Scope::Goal { project, .. }
             | notes::Scope::Resources { project, .. } => core.people.role(party, *project).is_some(),
+        },
+        Record::Tasks(
+            tasks::Stored::EndedByParty(_) | tasks::Stored::EndedByProject(_) | tasks::Stored::EndedDelegate(_),
+        ) if row_owner(row).is_none() => match &row.summary {
+            Some(summary) => core.people.role(party, summary.project).is_some(),
+            None => false,
         },
         Record::Core(_)
         | Record::Tasks(

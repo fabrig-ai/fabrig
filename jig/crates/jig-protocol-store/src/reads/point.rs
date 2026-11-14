@@ -44,7 +44,12 @@ pub(super) fn task(
         };
         return Ok(reads::Loaded::Page { rows: Box::new([row]), next: None });
     }
-    Ok(empty())
+    // A summary serves lists only (protocol/store/retention.md, 7).
+    match record(store, &core::Key::Tasks(tasks::Key::Summary(task)))? {
+        Some(core::Record::Tasks(tasks::Stored::Summary(_))) => Ok(reads::Loaded::Gone),
+        Some(_) => Err(Failure::Corrupt),
+        None => Ok(empty()),
+    }
 }
 
 fn page(

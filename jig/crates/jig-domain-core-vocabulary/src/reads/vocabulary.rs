@@ -274,6 +274,8 @@ pub struct Range {
 pub struct Row {
     pub value: Record,
     pub owner: Option<Box<tasks::TaskRecord>>,
+    /// Ended-index fallback only, when retention left no record (protocol/store/retention.md, 7).
+    pub summary: Option<Box<tasks::TaskSummary>>,
     /// Requester ancestors nearest first, copied from durable task records.
     pub ancestors: Box<[u64]>,
     /// Related immutable evidence, such as a decision or answered question.
@@ -520,6 +522,20 @@ pub fn row_bytes(row: &Row) -> Option<u64> {
         .checked_add(record_bytes(&row.value)?)?
         .checked_add(match &row.owner {
             Some(owner) => tasks::task_bytes(owner)?,
+            None => 0,
+        })?
+        .checked_add(match &row.summary {
+            Some(summary) => {
+                let words = match &summary.result {
+                    Some(result) => len_u64(result.words.len()),
+                    None => 0,
+                };
+                u64::try_from(size_of::<tasks::TaskSummary>())
+                    .ok()?
+                    .checked_add(len_u64(summary.title.len()))?
+                    .checked_add(len_u64(summary.reason.len()))?
+                    .checked_add(words)?
+            }
             None => 0,
         })?
         .checked_add(u64::try_from(size_of_val(row.ancestors.as_ref())).ok()?)?

@@ -66,6 +66,7 @@ fn joined_row(
     reads::Row {
         value: value.clone(),
         owner: Some(Box::new(task.clone())),
+        summary: None,
         ancestors: ancestors.into(),
         related,
         unjoined: None,
@@ -377,6 +378,7 @@ fn unowned(value: &core::Record) -> reads::Row {
     reads::Row {
         value: value.clone(),
         owner: None,
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,

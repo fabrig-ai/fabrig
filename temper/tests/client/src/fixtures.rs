@@ -542,6 +542,7 @@ pub fn read(
         value: Record::Tasks(tasks::Stored::Ended(row.clone())),
         ended_read: None,
         owner: Some(row.clone()),
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,
@@ -1712,6 +1713,7 @@ fn turn_read_row(front: &Joint, task: u64, value: jig_domain_core::Record) -> ji
     jig_domain_core::reads::Row {
         value,
         owner: Some(Box::new(front.engine.task(task).expect("live turn owner").clone())),
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,

@@ -150,6 +150,7 @@ fn line_cost(value: core::Record) -> u64 {
     reads::Row {
         value,
         owner: Some(Box::new(task_owner())),
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,
@@ -210,6 +211,57 @@ fn a_turn_past_what_is_left_ends_the_page_before_it() {
     assert_eq!(next, Some(activity_position(4)));
     assert_eq!(values(&rows).as_ref(), [turn_line(5, 3), fixtures::activity_line(CHILD, 4)]);
 }
+#[test]
+fn a_dropped_transcript_carries_every_activity_line_and_goes_on() {
+    let mut store = fixtures::opened();
+    let mut owner = task_owner();
+    owner.activity = 4;
+    fixtures::committed(
+        &mut store,
+        Box::new([
+            fixtures::header(1),
+            fixtures::save(core::Record::Tasks(tasks::Stored::Ended(Box::new(owner)))),
+            fixtures::save(turn_line(1, 1)),
+            fixtures::save(fixtures::activity_line(CHILD, 2)),
+        ]),
+    );
+    fixtures::committed(
+        &mut store,
+        Box::new([
+            fixtures::header(2),
+            fixtures::save(turn_line(3, 2)),
+            fixtures::save(fixtures::activity_line(CHILD, 4)),
+        ]),
+    );
+    let places =
+        crate::keys::encode_own(&crate::keys::Own::Transcript { task: CHILD }, store.limits.store.key).unwrap();
+    assert_eq!(fixtures::get_kv(&mut store, &places), None);
+    for backwards in [true, false] {
+        let mut range = full_range(None);
+        range.backwards = backwards;
+        range.rows = 10;
+        let (rows, next) = page(load(&mut store, range));
+        let mut expected =
+            [turn_line(1, 1), fixtures::activity_line(CHILD, 2), turn_line(3, 2), fixtures::activity_line(CHILD, 4)];
+        if backwards {
+            expected.reverse();
+        }
+        assert_eq!(values(&rows).as_ref(), expected);
+        assert_eq!(next, None);
+        for row in &rows {
+            assert_eq!(row.related, None);
+            let core::Record::Tasks(tasks::Stored::Activity(line)) = &row.value else { panic!("activity line") };
+            let unjoined = match line.position {
+                1 => Some(reads::UnjoinedTurn::Unread { task: CHILD, attempt: 1, turn: 1 }),
+                3 => Some(reads::UnjoinedTurn::Unread { task: CHILD, attempt: 1, turn: 2 }),
+                2 | 4 => None,
+                _ => panic!("four lines"),
+            };
+            assert_eq!(row.unjoined, unjoined);
+        }
+    }
+}
+
 #[test]
 fn an_unread_frame_ends_the_page_after_its_line() {
     let (mut store, disk) = transcript_page_with_last(WORDS[2]);

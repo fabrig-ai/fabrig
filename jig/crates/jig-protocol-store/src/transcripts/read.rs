@@ -153,11 +153,29 @@ pub(crate) fn activity(
     if done {
         return Ok(Some(page.finish(false)));
     }
+    let (task, attempt, turn) = page.identity().expect("pending turn line");
+    let key =
+        keys::encode_own(&keys::Own::Transcript { task }, store.limits.store.key).ok_or(reads::Failure::Corrupt)?;
+    if open::get(store, owner, key).or(Err(reads::Failure::Corrupt))?.is_none() {
+        // Dropped transcripts leave every turn unread, not a cut at the first
+        // frame (protocol/store/retention.md, 7; protocol/store/transcripts.md, 3).
+        for _ in 0..page.rows.len() {
+            let row = page.rows.get(page.index).expect("pending turn row");
+            page.bytes = page
+                .bytes
+                .checked_sub(row.owned_bytes().ok_or(reads::Failure::Corrupt)?)
+                .ok_or(reads::Failure::Corrupt)?;
+            page.unread();
+            if page.charge_words().or(Err(reads::Failure::Corrupt))? {
+                return Ok(Some(page.finish(false)));
+            }
+        }
+        return Err(reads::Failure::Corrupt);
+    }
     assert!(!store.transcripts.reads.contains_key(&owner), "one transcript read per owner");
     if store.transcripts.reads.len() == store.limits.reads {
         return Ok(Some(domain::reads::Loaded::Busy));
     }
-    let (task, attempt, turn) = page.identity().expect("pending turn line");
     let request = if range.backwards && range.after.is_none() {
         TranscriptRead::Page { task, backwards: true, after: None }
     } else {

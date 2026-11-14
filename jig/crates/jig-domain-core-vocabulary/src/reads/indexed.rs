@@ -176,7 +176,21 @@ pub fn ended_delegate_row(
         | crate::Record::Notes(_)
         | crate::Record::Accounts(_) => return Ok(None),
     };
-    let Some(owner) = &row.owner else { return Ok(None) };
+    let Some(owner) = &row.owner else {
+        // Ended delegates remain listable after shrinking (protocol/store/retention.md, 7).
+        let Some(summary) = &row.summary else { return Ok(None) };
+        if edge.requester != requester
+            || edge.task != summary.number
+            || summary.requester != tasks::Party::Task(requester)
+        {
+            return Ok(None);
+        }
+        return Ok(Some(super::PageRow::EndedDelegate(documents::EndedDelegate {
+            chip: documents::chip_from_summary(limits, summary),
+            ended: documents::task_tree::ending_from_summary(limits, summary),
+            at: Some(summary.ended_at),
+        })));
+    };
     if edge.requester != requester || edge.task != owner.number || owner.requester != tasks::Party::Task(requester) {
         return Ok(None);
     }

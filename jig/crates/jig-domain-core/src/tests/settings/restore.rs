@@ -135,6 +135,7 @@ fn page(core: &mut Core, limits: &Limits, output: &[Request], records: Box<[s::R
         rows.push(Row {
             value,
             owner: None,
+            summary: None,
             ancestors: Box::default(),
             related: None,
             linked: Box::default(),

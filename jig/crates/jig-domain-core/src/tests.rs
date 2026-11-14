@@ -2956,6 +2956,7 @@ pub(crate) fn stored_row(value: Record, owner: Option<tasks::TaskRecord>) -> cra
             Some(value) => Some(Box::new(value)),
             None => None,
         },
+        summary: None,
         ancestors: Box::new([]),
         related: None,
         unjoined: None,
