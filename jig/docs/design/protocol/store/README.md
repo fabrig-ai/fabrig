@@ -67,9 +67,10 @@ section 11.
   and LLM accounts' records and keys, each kept before it is used
   (`secrets.md`).
 - **Growth is bounded by retention and fill:** the domain forgets an
-  ended task once read, or shrinks it past a horizon on its timers, by
-  the task's retention class, and refuses new work above a high-water
-  mark of the map (section 6).
+  ended task once read, or drops its turns, shrinks it to its summary
+  and then erases it, each past a horizon, on its timer, by the task's
+  retention class (`retention.md`), and refuses new work above a
+  high-water mark of the map (section 6).
 - **The real store in every world:** the domain worlds run the component
   over skein-kv's in-memory mode, with an in-memory stand-in for
   transcripts' files, and the store's own world crashes it on skein's
@@ -488,37 +489,40 @@ secrets' store (`secrets.md`).
 
 ### 6.1 Retention
 
-Retention is the domain's: mechanisms on its timers, tested in its
-worlds, with horizons the deployment's configuration gives. What becomes
-of an ended task is its retention class, set from its template when it
-was made (`../../domain/tasks/README.md`, section 3):
+Retention is the domain's: passes on the core's timer, tested in its
+worlds, with horizons the deployment's limits give, each keyspace's
+declared by its owner (`retention.md`). What becomes of an ended task
+is its retention class, set from its template when it was made
+(`../../domain/tasks/README.md`, section 3):
 
-- **A task kept** stays to the deployment's retention horizon, and whole
-  while none is set.
-- **Ended tasks shrink** past a horizon: one commit erases a task's full
-  records (its record, history, activity, terminals, its ended read
-  position) and saves a summary, so what parties read of old work comes
-  from summaries. Its rows in the ended indexes stay, and a task query
-  joins its summary (`loads.md`, 3).
-- **Transcripts go** past a longer horizon, whole, by their task (`transcripts.md`, 5).
-  A live task keeps its transcript, whatever its age.
+- **A task kept** loses its turns, then its full record, then its
+  summary, each past its horizon (`retention.md`, 2 and 6). Its summary
+  is written when it ends, so what parties read of old work comes from
+  summaries once its record has gone: its rows in the ended indexes
+  stay with the summary, and a task query joins it (`loads.md`, 3;
+  `retention.md`, 7). A live task keeps its transcript, whatever its
+  age.
 - **Answered keys expire** past the people child's retention.
 - **A task forgotten once read** (`../../domain/people/README.md`, section 5) goes
   in one decision: its record, its rows in the ended indexes, its
   result's update and its ended read position (`loads.md`, 4).
 - **A forgotten task's remains go** at retention's next pass, whatever
-  their age: its activity, history, terminals and transcript, and its
-  replies' rows in its requester's updates (`loads.md`, 4). Nothing reads them,
-  and the requester's pages of updates skip those rows until then.
+  their age: its activity, history, terminals, transcript and summary,
+  and its replies' rows in its requester's updates (`loads.md`, 4;
+  `retention.md`, 6.4). Nothing reads them, and the requester's pages
+  of updates skip those rows until then.
 - **A deleted project's tasks go whole** (`../../domain/people/acts.md`, 2),
   whatever their retention class and age, once every task of the
   project has ended: each task in decisions of its own, one task at a
   time, its rows first, a page at a time (its history, activity and
   terminals, with its replies' rows in its requester's updates), then
   its transcript dropped (`transcripts.md`, 5) with its rows in the ended indexes and
-  its ended read position, and its record last, so that a deletion a
-  restart cut finds the task's record and erases what is left of it.
-  No summary is saved.
+  its ended read position, and its record and its summary last, so that
+  a deletion a restart cut finds the task's record and erases what is
+  left of it. A task of the project that retention already shrank is
+  found by its summary, and its summary goes with its rows in the ended
+  indexes. Its retention row is left, and erased alone when it comes due
+  (`retention.md`, 4).
 
 ### 6.2 Fill
 
@@ -824,8 +828,8 @@ mark (6.2);
 
 By each task's retention class, summaries of ended tasks kept,
 transcripts dropped, answered keys expired, and the remains of tasks
-forgotten once read collected, each on the domain's timer (6.1); a task
-forgotten once read erased in one decision (6.1; `../../domain/people/README.md`,
+forgotten once read collected, each on the domain's timer (6.1;
+`retention.md`); a task forgotten once read erased in one decision (6.1; `../../domain/people/README.md`,
 section 5);
 
 ### 10.7 Keys for single reads

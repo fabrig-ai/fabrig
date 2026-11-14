@@ -179,10 +179,11 @@ When no live task names a resource, it leaves the working set.
   temper's forge keeps the repositories an ended chat worked on, so that
   the chat reads their names while the store keeps it.
 - **The core tells every connector when a task is erased:** `Unname`,
-  in the decision that erases the task whole, whichever erases it: a
-  deleted project's erasure of its tasks (people/acts.md, 2), the forget
-  of a task forgotten once read (people/README.md, section 5), or retention at
-  the deployment's horizon (`../protocol/store/README.md`, 6.1). From then on
+  in the decision that erases the task's full record, whichever erases
+  it: a deleted project's erasure of its tasks (people/acts.md, 2), the
+  forget of a task forgotten once read (people/README.md, section 5), or
+  retention at the deployment's horizon, which keeps the task's summary
+  a while longer (`../protocol/store/retention.md`, 6.2). From then on
   nothing it named need be kept for it. A connector that keeps nothing
   past a release takes `Unname` as nothing to do.
 

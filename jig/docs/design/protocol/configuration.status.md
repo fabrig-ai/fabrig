@@ -42,4 +42,4 @@ figures to the application's page is deferred in `configuration.md`, section 8.
 
 Section 3's optional clients' `approval` boolean is present, defaults to
 false when absent, and reaches the clients' component's settings.
-- **Not yet:** 3: retention's horizons in the deployment member: none is parsed. 3, 4, 6: the engine's own slots for agents in the engine, and TLS for the workers' listener and the worker's `engine` address: `jig/crates/jig-protocol-config/src/hosts.rs` and `address.rs` read plaintext and in-process addresses alone. 5: `ops`'s calendar child (`../examples.md`, section 4).  the people-envelope diagnostic gap remains `limits.status.md` (Not yet, the whole document).
+- **Not yet:** 3, 4, 6: the engine's own slots for agents in the engine, and TLS for the workers' listener and the worker's `engine` address: `jig/crates/jig-protocol-config/src/hosts.rs` and `address.rs` read plaintext and in-process addresses alone. 5: `ops`'s calendar child (`../examples.md`, section 4).  the people-envelope diagnostic gap remains `limits.status.md` (Not yet, the whole document).

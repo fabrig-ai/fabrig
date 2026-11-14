@@ -42,7 +42,7 @@ words naming their bytes, a start still past it fails its run with its bytes and
 room, the link and its pings going on, and a side whose other frames,
 or the engine's smallest resumed start, could pass it is not made;
 making a start past it by its other parts run is an open question
-(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention remains `protocol/store/README.status.md`, 6.1; rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
+(`protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8, 10 and 13). Store retention (`protocol/store/retention.md`) erases an ended task's turns, then its full record, keeping a summary, then the summary, each past a horizon of the deployment's limits, on the core's hourly pass, and collects forgotten tasks' remains and decided person proposals (`protocol/store/retention.status.md`). Rehearsal and going back remain `protocol/store/opening.status.md`, 5. A start whose store fails a link refuses,
 naming the record and what it links to, and no route writes a link to
 a person the core does not hold; the core world, killed at any file
 operation of a decision and again during its restart, starts from a
