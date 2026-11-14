@@ -408,14 +408,14 @@ fn probe_branches_are_released_before_the_next_probe() {
     confirmed(&mut d);
     send(&mut d, PROBE_OPEN);
     send(&mut d, PROBE_DISPATCH);
-    completed(&mut d, api::Conclusion::Success, None);
+    red(&mut d);
     assert_eq!(
         send(&mut d, PROBE_DISPATCH + 1),
-        api::Write::DeleteBranch { branch: b"temper/tier/browser.1.0".as_slice().into() }
+        api::Write::DeleteBranch { branch: b"temper/tier/browser.1.1".as_slice().into() }
     );
     assert_eq!(
         send(&mut d, PROBE_DISPATCH + 2),
-        api::Write::CreateBranch { branch: b"temper/tier/browser.1.1".as_slice().into(), commit: NEXT_TIP }
+        api::Write::CreateBranch { branch: b"temper/tier/browser.1.0".as_slice().into(), commit: HEAD }
     );
 }
 #[test]

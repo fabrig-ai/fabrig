@@ -683,7 +683,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v23::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v24::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -741,13 +741,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v23::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v24::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v23::Row {
-    use crate::v23 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v24::Row {
+    use crate::v24 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),
@@ -1101,7 +1101,22 @@ pub fn tier_row() -> top::TierRow {
     }
     let landings = landings.into_boxed();
     let pending = tier_pending(&landings);
+    let mut waiting = List::with_capacity(2 * LIMITS.changes + 1);
+    for _ in 0..waiting.capacity() {
+        let mut places = List::with_capacity(LIMITS.tiers.failing_tests);
+        for place in 0..LIMITS.tiers.failing_tests {
+            places.push(u16::try_from(place).unwrap()).unwrap();
+        }
+        waiting
+            .push(p::Group {
+                low: 0,
+                high: u32::try_from(landings.len().checked_sub(1).unwrap()).unwrap(),
+                tests: places.into_boxed(),
+            })
+            .unwrap();
+    }
     top::TierRow {
+        hold: None,
         observations: Box::new([b'o'; 8192]),
         requested: true,
         cancelled: true,
@@ -1139,6 +1154,9 @@ pub fn tier_row() -> top::TierRow {
                 faults: 2,
                 part: p::Part::Probe {
                     landing: 1,
+                    low: 0,
+                    high: u32::try_from(landings.len().checked_sub(1).unwrap()).unwrap(),
+                    waiting: waiting.into_boxed(),
                     tests: p::Selection::Tests(tests.clone()),
                     finding: p::Finding { failing: failures.clone(), flakes: tests, blamed: blamed.into_boxed() },
                 },

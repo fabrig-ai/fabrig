@@ -59,6 +59,9 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
             held = held.checked_add(failures_bytes(failures)?)?;
         }
     }
+    if let Some(hold) = &row.hold {
+        held = held.checked_add(skein_lib::len_u64(hold.reason.len()))?;
+    }
     if let Some(run) = &row.record.run {
         held = held.checked_add(
             skein_lib::len_u64(run.landings.len()).checked_mul(u64::try_from(size_of::<p::Landing>()).ok()?)?,
@@ -66,7 +69,15 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         match &run.part {
             p::Part::Whole => {}
             p::Part::Rerun { failed } => held = held.checked_add(tests_bytes(failed)?)?,
-            p::Part::Probe { tests, finding, .. } => {
+            p::Part::Probe { tests, waiting, finding, .. } => {
+                held = held.checked_add(
+                    skein_lib::len_u64(waiting.len()).checked_mul(u64::try_from(size_of::<p::Group>()).ok()?)?,
+                )?;
+                for group in waiting {
+                    held = held.checked_add(
+                        skein_lib::len_u64(group.tests.len()).checked_mul(u64::try_from(size_of::<u16>()).ok()?)?,
+                    )?;
+                }
                 match tests {
                     p::Selection::All => {}
                     p::Selection::Tests(tests) => held = held.checked_add(tests_bytes(tests)?)?,

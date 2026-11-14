@@ -238,6 +238,9 @@ fn two_red_landings_tell_each_goal_its_own_failures() {
         Box::new([p::Landing { commit: LAST_TIP, key: LAST_TIP }, p::Landing { commit: NEXT_TIP, key: NEXT_TIP }]),
         p::Part::Probe {
             landing: 1,
+            low: 1,
+            high: 1,
+            waiting: Box::new([]),
             tests: p::Selection::Tests(Box::new([SECOND_TEST.into()])),
             finding: p::Finding {
                 failing: failures(&[FIRST_TEST, SECOND_TEST]),
