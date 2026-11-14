@@ -98,6 +98,16 @@ pub struct Converts {
   answers `Request::Job`. While a page is out, the owner may read other
   ranges of the map through `Store::patch_page`, as a written site's
   owner may.
+- **Its edge:** each page carries `edge`, what its answer may write:
+  `writes`, the commit edge's writes (`records.md`, 4: the lesser of
+  `limits.commits.writes` and `limits.store.ops`) less one for the
+  job's row; `bytes`, the store's commit bytes less the frame and the
+  job's row, and, for the application, less the tag's bytes on each of
+  `writes` keys, so an owner that counts each write by skein-kv's
+  `put_bytes` or `erase_bytes` over the keys it writes stays within.
+  One function computes it for the page and for the check of the
+  answer, so the two cannot differ. An owner whose rows each take
+  several writes consumes the rows whose writes fit (`through`).
 - **The answer:** the writes, puts and erases of whole keys (the
   application's relative to its tag), each within skein-kv's bounds,
   together within the store's commit edge (`records.md`, 4) less the
@@ -123,7 +133,8 @@ pub struct Converts {
 Event::Job { owner: Token, of: Owner, job: Box<str>, page: JobPage }
 Request::Job { owner: Token, answer: Result<JobAnswer, JobRefusal> }
 Event::Ran { owner: Token, of: Owner, job: Box<str>, rows: u64, commits: u64 }
-pub struct JobPage { pub rows: Box<[JobRow]>, pub end: bool, pub layout: Option<JobLayout> } // `layout`: a written job's, on its first page
+pub struct JobPage { pub rows: Box<[JobRow]>, pub end: bool, pub layout: Option<JobLayout>, pub edge: JobEdge } // `layout`: a written job's, on its first page
+pub struct JobEdge { pub writes: u32, pub bytes: u32 }
 pub struct JobRow { pub key: Box<[u8]>, pub value: Box<[u8]> }
 pub struct JobLayout { pub root: Box<str>, pub variant: Option<Box<str>>, pub text: Box<[u8]>, pub held: Box<[Box<[u8]>]> }
 pub struct JobAnswer { pub writes: Box<[JobWrite]>, pub through: Option<Box<[u8]>> }
