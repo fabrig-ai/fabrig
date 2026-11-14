@@ -1039,6 +1039,8 @@ fn a_refused_prepare_holds_the_landing_with_authority_findings() {
 
 #[test]
 fn a_train_forms_after_its_due_readiness_steps_settle() {
+    // World ticks advance 100 ms: two seconds keep the latch inside opening's stall.
+    const LATCH_TICKS: u32 = 20;
     let mut world = World::configured_limits(
         true,
         true,
@@ -1093,8 +1095,6 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
     world.slow_branch_latency = skein_lib::Duration::from_secs(1);
     finish_producer(&mut world, &producer_a, forge_world::REPO);
     finish_producer(&mut world, &producer_b, forge_world::REPO);
-    // World ticks advance 100 ms: two seconds keep the latch inside opening's stall.
-    const LATCH_TICKS: u32 = 20;
     for _ in 0..LATCH_TICKS {
         world.tick();
     }
