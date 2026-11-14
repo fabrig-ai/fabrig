@@ -8,6 +8,7 @@ pub(crate) mod phase;
 pub(crate) mod plan;
 pub mod sets;
 pub(crate) mod switch;
+mod types;
 pub(crate) mod walk;
 
 /// Records rewritten and page commits made by one patch (protocol/store/opening.md 2).

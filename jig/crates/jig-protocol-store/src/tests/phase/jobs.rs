@@ -372,7 +372,7 @@ fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
             ),
             ("outside owner", base, vec![Job { keys: &[KeyRange { from: &[3], to: &[4] }], ..job }], false),
             ("in secrets alone", with_secret, vec![Job { keys: Box::leak(Box::new([first])), ..job }], false),
-            ("written map family", base, vec![Job { converts, ..job }], true),
+            ("written unregistered family", base, vec![Job { converts, ..job }], false),
             (
                 "written family in secrets",
                 with_written_secret,
