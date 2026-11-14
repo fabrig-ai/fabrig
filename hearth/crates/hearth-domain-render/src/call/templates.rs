@@ -15,6 +15,7 @@ use crate::{
 use alloc::boxed::Box;
 use hearth_lib::encode::Digest;
 use skein_lib::{List, Map, Queue, Token};
+#[derive(Debug, Hash)]
 pub(crate) struct Prepared {
     pub data: parts::data::Data,
     pub accounts: crate::kinds::users::Accounts,
@@ -30,32 +31,19 @@ pub(crate) struct Prepared {
 }
 #[derive(Debug, Hash)]
 pub(crate) struct Target {
-    data: parts::data::Data,
+    prepared: Prepared,
     meta: Meta,
     containers: Box<[crate::compose::Container]>,
     meta_digest: Digest,
-    exports: parts::exports::Exports,
-    export_roots: Value,
     tasks: Box<[schema::Checked]>,
     debian: Value,
-    pub(crate) expansion: crate::entries::Expansion,
-    secrets: parts::secrets::Secrets,
-    software: parts::software::Software,
-    packages: parts::packages::Packages,
-    live: parts::live::Live,
-    boot: parts::boot::Boot,
     task: u32,
     rendered: u64,
     entry: u32,
     roots: Option<Roots>,
     tree: Map<Box<[u8]>, TreeEntry>,
-    accounts: crate::kinds::users::Accounts,
-    plans: Box<[Plan]>,
     outcome: Outcome,
     keeping: Option<Keeping>,
-    presets: Box<[parts::config::Preset]>,
-    tmpfiles: Box<[parts::config::Tmpfile]>,
-    scripts: Box<[crate::kinds::scripts::Source]>,
     script_rows: Map<(u16, Box<[u8]>), parts::config::Script>,
     script: u32,
     software_rows: Map<(u16, Box<[u8]>), parts::config::Script>,
@@ -73,25 +61,11 @@ impl Target {
         prepared: Prepared,
         capacity: u32,
     ) -> Self {
-        let Prepared {
-            accounts,
-            data,
-            installation,
-            expansion,
-            secrets,
-            software,
-            packages,
-            live,
-            boot,
-            exports,
-            export_roots,
-        } = prepared;
-        let super::scripts::Installation { plans, presets, tmpfiles, scripts } = installation;
-        let script_rows = Map::with_capacity(u32::try_from(scripts.len()).expect("task bound"));
+        let script_rows = Map::with_capacity(u32::try_from(prepared.installation.scripts.len()).expect("task bound"));
         let script_capacity = script_rows.capacity();
         let mut tree = Map::with_capacity(capacity.saturating_add(2));
-        let subordinate = crate::additions::subordinate(&accounts);
-        for plan in &plans {
+        let subordinate = crate::additions::subordinate(&prepared.accounts);
+        for plan in &prepared.installation.plans {
             for install in &plan.installs {
                 let node = match &install.make {
                     Make::Static { sha256, mode } => parts::config::Node::File {
@@ -117,32 +91,19 @@ impl Target {
             }
         }
         Self {
-            data,
+            prepared,
             meta,
             containers,
             meta_digest,
-            exports,
-            export_roots,
             tasks: checked.tasks,
             debian,
-            expansion,
-            secrets,
-            software,
-            packages,
-            live,
-            boot,
             task: 0,
             rendered: 0,
             entry: 0,
             roots: None,
             tree,
-            accounts,
-            plans,
             outcome: Outcome::Done,
             keeping: None,
-            presets,
-            tmpfiles,
-            scripts,
             script_rows,
             script: 0,
             software_rows: Map::with_capacity(script_capacity),
@@ -152,7 +113,7 @@ impl Target {
         }
     }
     fn run(&mut self, side: &mut Side) -> bool {
-        if let Some(request) = side.copies(&self.plans) {
+        if let Some(request) = side.copies(&self.prepared.installation.plans) {
             self.request = Some(request);
             return true;
         }
@@ -164,14 +125,22 @@ impl Target {
                     debian: self.debian.clone(),
                     settings: core::mem::replace(&mut task.settings, Value::Map(Box::new([]))),
                     tasks: core::mem::replace(&mut task.tasks, Value::Map(Box::new([]))),
-                    exports: crate::exports::of(&self.export_roots, &task.name).clone(),
+                    exports: crate::exports::of(&self.prepared.export_roots, &task.name).clone(),
                 });
             }
             let task_name = task.name.clone();
-            let count =
-                self.plans.get(usize::try_from(self.task).expect("bounded cursor")).expect("task plan").installs.len();
+            let count = self
+                .prepared
+                .installation
+                .plans
+                .get(usize::try_from(self.task).expect("bounded cursor"))
+                .expect("task plan")
+                .installs
+                .len();
             for index in self.entry..u32::try_from(count).expect("bounded entries") {
                 let install = self
+                    .prepared
+                    .installation
                     .plans
                     .get(usize::try_from(self.task).expect("bounded cursor"))
                     .expect("task plan")
@@ -273,7 +242,7 @@ impl Side {
                 }
                 Keeping::Initramfs(expected) => {
                     assert_eq!(digest, expected, "kept initramfs digest");
-                    target.packages.initramfs_file = Some(digest);
+                    target.prepared.packages.initramfs_file = Some(digest);
                 }
                 Keeping::Script(script) => {
                     assert_eq!(digest, script.content_digest, "kept rendered digest");
@@ -323,9 +292,9 @@ impl Side {
         for (_, file) in &target.tree {
             files.push(file.clone()).expect("tree count");
         }
-        let mut config = parts::config::account_rows(&target.accounts, files.into_boxed());
-        config.presets = target.presets;
-        config.tmpfiles = target.tmpfiles;
+        let mut config = parts::config::account_rows(&target.prepared.accounts, files.into_boxed());
+        config.presets = target.prepared.installation.presets;
+        config.tmpfiles = target.prepared.installation.tmpfiles;
         let mut scripts = List::with_capacity(target.script_rows.len());
         for (_, row) in &target.script_rows {
             scripts.push(row.clone()).expect("task bound");
@@ -335,30 +304,39 @@ impl Side {
         for (_, row) in &target.software_rows {
             scripts.push(row.clone()).expect("script bound");
         }
-        target.software.scripts = scripts.into_boxed();
+        target.prepared.software.scripts = scripts.into_boxed();
         let parts = Box::new([
-            parts::Part { digest: parts::boot::digest(&target.boot), record: parts::PartRecord::Boot(target.boot) },
             parts::Part {
-                digest: parts::packages::digest(&target.packages),
-                record: parts::PartRecord::Packages(target.packages),
+                digest: parts::boot::digest(&target.prepared.boot),
+                record: parts::PartRecord::Boot(target.prepared.boot),
             },
             parts::Part {
-                digest: parts::software::digest(&target.software),
-                record: parts::PartRecord::Software(target.software),
+                digest: parts::packages::digest(&target.prepared.packages),
+                record: parts::PartRecord::Packages(target.prepared.packages),
+            },
+            parts::Part {
+                digest: parts::software::digest(&target.prepared.software),
+                record: parts::PartRecord::Software(target.prepared.software),
             },
             parts::Part { digest: parts::config::digest(&config), record: parts::PartRecord::Config(config) },
-            parts::Part { digest: parts::data::digest(&target.data), record: parts::PartRecord::Data(target.data) },
             parts::Part {
-                digest: parts::secrets::digest(&target.secrets),
-                record: parts::PartRecord::Secrets(target.secrets),
+                digest: parts::data::digest(&target.prepared.data),
+                record: parts::PartRecord::Data(target.prepared.data),
             },
-            parts::Part { digest: parts::live::digest(&target.live), record: parts::PartRecord::Live(target.live) },
             parts::Part {
-                digest: parts::exports::digest(&target.exports),
-                record: parts::PartRecord::Exports(target.exports),
+                digest: parts::secrets::digest(&target.prepared.secrets),
+                record: parts::PartRecord::Secrets(target.prepared.secrets),
+            },
+            parts::Part {
+                digest: parts::live::digest(&target.prepared.live),
+                record: parts::PartRecord::Live(target.prepared.live),
+            },
+            parts::Part {
+                digest: parts::exports::digest(&target.prepared.exports),
+                record: parts::PartRecord::Exports(target.prepared.exports),
             },
         ]);
-        drop(target.expansion);
+        drop(target.prepared.expansion);
         Some(Answer::Spec(parts::Spec {
             resolution: None,
             digest: parts::spec_digest(&target.meta_digest, parts.as_ref()),

@@ -59,6 +59,11 @@ pub fn signed_in_plan(seed: u64) -> (Joint, Root, u32) {
 pub fn tools_fixture(seed: u64) -> (Joint, Root) {
     fixture_root(seed, Tools::On, 2, None, false, WelcomeForge::None, false)
 }
+/// A goal template with a later model choice, and two models with declared efforts.
+#[must_use]
+pub fn goal_choice_fixture(seed: u64) -> (Joint, Root) {
+    fixture_root(seed, Tools::GoalChoice, 2, None, false, WelcomeForge::None, false)
+}
 /// An owner's small initial pool and room to double the project's spend, configured before startup.
 #[must_use]
 pub fn tools_fixture_with_spend(seed: u64, spend: u64) -> (Joint, Root) {
@@ -68,6 +73,7 @@ pub fn tools_fixture_with_spend(seed: u64, spend: u64) -> (Joint, Root) {
 enum Tools {
     Off,
     On,
+    GoalChoice,
     Spend(u64),
     Trial,
     TrialSelection,
@@ -373,6 +379,25 @@ fn playground_providers(config: &mut engine::Config) {
     other.offers = a::Offers { sign_in: true, key: true, programs: Box::new([]) };
     config.core.settings.llm_providers.providers = Box::new([playground, other]);
 }
+fn goal_choice_template(config: &mut engine::Config) {
+    use jig_domain_people::{TemplateDeadline, TemplateExecutor};
+    use jig_domain_tasks::{LlmChoice, LlmLater, ModelEffort};
+    let efforts: Box<[Box<[u8]>]> = Box::new([Box::from(b"low".as_slice()), Box::from(b"medium".as_slice())]);
+    config.core.settings.models[0].efforts = efforts;
+    config.core.settings.models[0].effort = Some(b"low".as_slice().into());
+    config.core.defaults.charters[0].policy.model = config.core.settings.models[0].clone();
+    config.core.defaults.charters[0].policy.resume = false;
+    let template = &mut config.core.defaults.templates[1];
+    template.executor = TemplateExecutor::Charter(1);
+    template.deadline = TemplateDeadline::None;
+    let main = ModelEffort { model: 0, effort: Some(0) };
+    template.llm = Some(LlmChoice {
+        account: None,
+        main,
+        subagents: Box::new([main]),
+        later: Some(LlmLater { main, subagents: Box::new([main]) }),
+    });
+}
 #[expect(clippy::too_many_lines, reason = "one complete client fixture with its configured forge fields")]
 fn fixture_root(
     seed: u64,
@@ -385,13 +410,20 @@ fn fixture_root(
 ) -> (Joint, Root) {
     let spend = match tools {
         Tools::Spend(spend) => Some(spend),
-        Tools::Off | Tools::On | Tools::Trial | Tools::TrialSelection | Tools::TwoSignIns | Tools::Lending => None,
+        Tools::Off
+        | Tools::On
+        | Tools::GoalChoice
+        | Tools::Trial
+        | Tools::TrialSelection
+        | Tools::TwoSignIns
+        | Tools::Lending => None,
     };
     let two_sign_ins = tools == Tools::TwoSignIns;
     let lending_story = tools == Tools::Lending;
     let selection_story = tools == Tools::TrialSelection;
     let trial_story = matches!(tools, Tools::Trial | Tools::TrialSelection);
-    let tools = matches!(tools, Tools::On | Tools::Spend(_));
+    let goal_choice = tools == Tools::GoalChoice;
+    let tools = matches!(tools, Tools::On | Tools::GoalChoice | Tools::Spend(_));
     let welcome = forge != WelcomeForge::None;
     let forge_setup = matches!(forge, WelcomeForge::Owned | WelcomeForge::Playground { .. });
     let mut limits = if tools { temper_client_tools::limits::client() } else { fixtures::domain_limits() };
@@ -459,6 +491,9 @@ fn fixture_root(
             model.effort = None;
             config.core.settings.models = Box::new([primary, model.clone()]);
             config.core.defaults.charters.get_mut(0).expect("fixture charter").policy.alternatives = Box::new([model]);
+        }
+        if goal_choice {
+            goal_choice_template(&mut config);
         }
         if program {
             for charter in &mut config.core.defaults.charters {

@@ -46,6 +46,9 @@ pass's `files/` (`../testing/qa/passes.md`, 2; `../testing/qa/places.md`,
 its place on its fake forges' state (`../testing/process-tier.md`).
 
 - **Design lags:**
+  - 2, 4, 5, 7, 10: places are boxes alone and surfaces web and TUI (`../testing/qa/README.md`, 3.2; `../testing/qa/triage.md`, 3; `../testing/qa/places.md`), where the draft, since 2026-11-14, has places of two kinds, a box and a deployment, and ctl cases first; Q6 to Q8 carry it.
+  - 3: a kept build has no engine, worker or agent, and builds its bundles with `bundle.sh` options it no longer takes (`../testing/qa/builds.md`, 2), where loopback and recording are a page's query since 2026-11-12; Q6 carries both.
+  - 5: a place's box directory takes the umask's mode, and the drivers refuse it unless it is private (`../testing/qa/places.md`, 4; `../client/drive.md`); Q6 carries it.
   - 5, 7: a copy whose store a newer build refuses by name is made again with no finding (`../testing/qa/places.md`, 4), where the draft, since 2026-11-12, files a finding as well, so that passes prove the stores' patches; no milestone carries it yet.
 - **Design departs:**
   - 5: `project-landing` connects the box's fake Forgejo as its admin through a ctl line naming the box's values, where the draft names the web journey's setup as the first recipes' source: the web's connect takes the admin's token itself, which no recipe names, and gives no git program, so the box's agents would reach no fake forge's git. It reaches the journey's state, Hello with `work/hello` and ChatGPT, on the fake Forgejo (`../testing/qa/setups.md`, 2). The goal's designer, 2026-11-12.

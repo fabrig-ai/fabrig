@@ -12,7 +12,7 @@ impl Target {
                 Addition::Subuid => (b"/etc/subuid".as_slice(), self.subordinate.clone()),
                 Addition::Subgid => (b"/etc/subgid".as_slice(), self.subordinate.take()),
                 Addition::Initramfs => {
-                    (b"/etc/tiny-initramfs/tiny-initramfs.conf".as_slice(), initramfs(&self.packages))
+                    (b"/etc/tiny-initramfs/tiny-initramfs.conf".as_slice(), initramfs(&self.prepared.packages))
                 }
             };
             let Some(bytes) = bytes else { continue };

@@ -161,6 +161,7 @@ fn an_unpushed_changes_branch_is_read_only_when_due() {
                     &mut d,
                     &e,
                     Event::DelegateResult {
+                        ended_at: None,
                         task: fixtures::CHANGE,
                         child: 71,
                         status: change::Status::Unknown,

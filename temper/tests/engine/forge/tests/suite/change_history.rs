@@ -68,6 +68,7 @@ fn step(world: &mut World, entry: u64) -> change::Decision {
 }
 fn result(world: &mut World, failed: bool, passed: bool) {
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: TASK,
         child: CHILD,
         status: if passed { change::Status::Passed } else { change::Status::Failed },

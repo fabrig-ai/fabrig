@@ -1,4 +1,5 @@
 //! Procedure cells, queue order and landing-rule agreement.
+mod drift;
 use crate::{
     Change, Ci, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind,
     GateReport, Heard, Hold, Limits, Pending, PendingKind, Pull, QUESTIONS_OPEN, Questions, Ready, Repair, Route,

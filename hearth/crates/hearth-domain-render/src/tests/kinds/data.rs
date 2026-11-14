@@ -18,11 +18,11 @@ fn a_data_entry_defaults_to_the_data_class_and_0755() {
     assert_eq!(
         data::entry(b"journal", &[(Name::Path, b"/var/log/journal")]).expect("entry"),
         crate::kinds::data::Entry {
-            name: b"journal".as_slice().into(),
-            task: b"motd".as_slice().into(),
-            at: fixture::FILE_AT,
-            class: DataClass::Data,
-            path: b"/var/log/journal".as_slice().into(),
+            value: parts::data::DataEntry {
+                name: b"journal".as_slice().into(),
+                value: DataValue { class: DataClass::Data, path: b"/var/log/journal".as_slice().into() },
+            },
+            source: crate::entries::Claimant::new(b"motd", fixture::FILE_AT),
             mode: 0o755,
             owner: b"root".as_slice().into(),
             group: b"root".as_slice().into()
@@ -45,7 +45,7 @@ const VALID_NAMES: &[&[u8]] = &[b"a", b"a-0", b"a-", &[b'a'; data::MAX_NAME]];
 fn valid_data_names_are_kept() {
     for (row, name) in VALID_NAMES.iter().enumerate() {
         assert_eq!(
-            data::entry(name, &[(Name::Path, b"/var/lib/app")]).expect("name").name.as_ref(),
+            data::entry(name, &[(Name::Path, b"/var/lib/app")]).expect("name").value.name.as_ref(),
             *name,
             "row {row}"
         );
@@ -109,7 +109,11 @@ const CLASSES: &[(&[u8], DataClass)] =
 fn each_data_class_is_typed() {
     for (row, &(name, class)) in CLASSES.iter().enumerate() {
         assert_eq!(
-            data::entry(b"app", &[(Name::Path, b"/var/lib/app"), (Name::Class, name)]).expect("class").class,
+            data::entry(b"app", &[(Name::Path, b"/var/lib/app"), (Name::Class, name)])
+                .expect("class")
+                .value
+                .value
+                .class,
             class,
             "row {row}"
         );
