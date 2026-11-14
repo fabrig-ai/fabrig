@@ -65,7 +65,6 @@ fn escalation_at_or_after_grace_requests_kill_once() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn missing_grace_observation_fails_immediately_and_stays_failed() {
     let tree = live_tree();
     for (trigger, stderr, overflowed) in TRIGGERS {
@@ -73,20 +72,16 @@ fn missing_grace_observation_fails_immediately_and_stays_failed() {
             let state = snapshot(&tree, stderr, overflowed);
             let mut judge = triggered(trigger, &state, Cleanup::Kill);
             judge.act_snapshot(now, &state);
-            let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                judge.observe_snapshot(now, &state);
-            }))
-            .expect_err("the missing grace fails on this observation");
             assert_eq!(
-                failure.downcast_ref::<String>().expect("referee diagnostic"),
-                &format!("supervised referee failed: {MISSING_GRACE}"),
+                judge.observe_snapshot(now, &state),
+                Err(format!("supervised referee failed: {MISSING_GRACE}")),
                 "{trigger:?} at {now:?}"
             );
             // Even a later-supplied grace observation cannot undo the verdict.
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                judge.observe_snapshot(BEFORE, &state);
-            }))
-            .expect_err("the failed verdict remains permanent");
+            assert_eq!(
+                judge.observe_snapshot(BEFORE, &state),
+                Err(format!("supervised referee failed: {MISSING_GRACE}"))
+            );
             assert_eq!(judge.overdue(now).as_deref(), Some(MISSING_GRACE));
             assert!(!judge.passed());
         }
@@ -101,7 +96,7 @@ fn retained_exit_observation_records_grace_before_another_act() {
             let mut state = snapshot(&tree, stderr, overflowed);
             let mut judge = triggered(trigger, &state, Cleanup::Terminate);
             state.exit = Some(Exit::Signal(15));
-            judge.observe_snapshot(now, &state);
+            judge.observe_snapshot(now, &state).expect("the snapshot meets the referee rules");
             assert!(judge.saw_retained_exit, "{trigger:?}");
             assert!(judge.saw_grace, "{trigger:?} at {now:?}");
             assert_eq!(judge.kill_at, None);
@@ -118,7 +113,7 @@ fn retained_exit_at_or_after_grace_does_not_record_grace() {
             let mut state = snapshot(&tree, stderr, overflowed);
             let mut judge = triggered(trigger, &state, Cleanup::Terminate);
             state.exit = Some(Exit::Signal(15));
-            judge.observe_snapshot(now, &state);
+            judge.observe_snapshot(now, &state).expect("the snapshot meets the referee rules");
             assert!(judge.saw_retained_exit, "{trigger:?}");
             assert!(!judge.saw_grace, "{trigger:?} at {now:?}");
         }
@@ -131,7 +126,7 @@ fn delayed_observation_uses_retained_exit_after_kill_and_settlement() {
         let mut tree = live_tree();
         let mut state = snapshot(&tree, stderr, overflowed);
         let mut judge = triggered(trigger, &state, Cleanup::Kill);
-        judge.observe_snapshot(BEFORE, &state);
+        judge.observe_snapshot(BEFORE, &state).expect("the snapshot meets the referee rules");
         judge.act_snapshot(BOUNDARY, &state);
         // Only the historical membership survives the settled current poll.
         tree.live_pids.clear();
@@ -141,7 +136,7 @@ fn delayed_observation_uses_retained_exit_after_kill_and_settlement() {
         state = snapshot(&tree, stderr, overflowed);
         state.exit = Some(Exit::Signal(15));
         state.settled = true;
-        judge.observe_snapshot(AFTER, &state);
+        judge.observe_snapshot(AFTER, &state).expect("the snapshot meets the referee rules");
         assert!(judge.saw_retained_exit, "{trigger:?}");
         assert!(judge.passed(), "{trigger:?}");
         assert_eq!(judge.overdue(AFTER), None);

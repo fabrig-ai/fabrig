@@ -350,27 +350,30 @@ impl Tree {
         }
     }
 
-    pub(crate) fn abandon(&mut self, leader: Fd, retain_leader: bool) {
+    pub(crate) fn abandon(&mut self, leader: Fd, retain_leader: bool) -> Result<(), String> {
         // Cleanup while unwinding cannot turn an assertion or refusal into a pass.
         if std::thread::panicking() {
-            self.force_settle(leader, retain_leader);
-            return;
+            return self.force_settle(leader, retain_leader);
         }
         match self {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.abandon(leader, retain_leader),
             Self::Group(tree) => {
                 if tree.finished {
-                    return;
+                    return Ok(());
                 }
                 let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
-                if !retain_leader {
-                    let _settled = tree.finish(leader, Expectation::Measure, false);
+                let settled =
+                    if retain_leader { Ok(()) } else { tree.finish(leader, Expectation::Measure, false).map(|_| ()) };
+                if settled.is_err() {
+                    skein_shell::keeper::abandon_binary(Some(leader), &[]);
+                    tree.finished = true;
                 }
+                settled
             }
         }
     }
-    pub(crate) fn force_settle(&mut self, leader: Fd, retain_leader: bool) {
+    pub(crate) fn force_settle(&mut self, leader: Fd, retain_leader: bool) -> Result<(), String> {
         match self {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.force_settle(leader, retain_leader),
@@ -382,6 +385,7 @@ impl Tree {
                     }
                     tree.finished = true;
                 }
+                Ok(())
             }
         }
     }
@@ -764,7 +768,7 @@ impl LinuxTree {
         match self.finish_wait(leader, expectation, wait) {
             Ok(counts) => Ok(counts),
             Err(Failure::Starved(starved)) => {
-                self.force_settle(leader, wait == LeaderWait::Retain);
+                crate::end_to_end::teardown_finding(self.force_settle(leader, wait == LeaderWait::Retain));
                 starved.pass();
             }
             Err(Failure::Failed(why) | Failure::TimedOut(why)) => Err(why),
@@ -862,15 +866,15 @@ impl LinuxTree {
         };
         self.finished = true;
         if let Some(group) = self.cgroup.take() {
-            group.remove(wait == LeaderWait::Retain);
+            group.remove(wait == LeaderWait::Retain)?;
         }
         expected_tree_end(expectation, &mut lingering)?;
         Ok(counts)
     }
 
-    pub(crate) fn abandon(&mut self, leader: Fd, retain_leader: bool) {
+    pub(crate) fn abandon(&mut self, leader: Fd, retain_leader: bool) -> Result<(), String> {
         if self.finished {
-            return;
+            return Ok(());
         }
         let wait = if retain_leader {
             let _killed = self.signal(leader, Signal::Kill);
@@ -881,12 +885,12 @@ impl LinuxTree {
                 if deadline.passed() {
                     match deadline.expired() {
                         Expired::Starved(starved) => {
-                            self.force_settle(leader, retain_leader);
+                            crate::end_to_end::teardown_finding(self.force_settle(leader, retain_leader));
                             starved.pass();
                         }
                         Expired::Failed(figures) => {
-                            self.force_settle(leader, retain_leader);
-                            crate::fail(&format!("tree did not settle within its kill deadline: {figures}"));
+                            let _cleanup = self.force_settle(leader, retain_leader);
+                            return Err(format!("tree did not settle within its kill deadline: {figures}"));
                         }
                     }
                 }
@@ -896,13 +900,14 @@ impl LinuxTree {
         } else {
             LeaderWait::Observe
         };
-        let _settled = self.finish(leader, Expectation::Measure, wait);
-        self.force_settle(leader, retain_leader);
+        let settled = self.finish(leader, Expectation::Measure, wait).map(|_| ());
+        let forced = self.force_settle(leader, retain_leader);
+        settled.and(forced)
     }
 
-    fn force_settle(&mut self, leader: Fd, retain_leader: bool) {
+    fn force_settle(&mut self, leader: Fd, retain_leader: bool) -> Result<(), String> {
         if self.finished {
-            return;
+            return Ok(());
         }
         // No starvation verdict here: cleanup must preserve an unwinding failure.
         let deadline = Deadline::arm("the forced tree settlement", Duration::from_secs(2));
@@ -967,10 +972,12 @@ impl LinuxTree {
             skein_shell::keeper::close_keeper_fd(descriptor);
         }
         self.finished = true;
-        report_left_running(&survivors.into_iter().collect::<Vec<_>>(), &mut std::io::stderr().lock());
-        if let Some(group) = self.cgroup.take() {
-            group.remove(retain_leader && !self.leader_reaped);
-        }
+        let survivors = report_left_running(&survivors.into_iter().collect::<Vec<_>>(), &mut std::io::stderr().lock());
+        let removal = match self.cgroup.take() {
+            Some(group) => group.remove(retain_leader && !self.leader_reaped),
+            None => Ok(()),
+        };
+        survivors.and(removal)
     }
 }
 
@@ -1243,7 +1250,7 @@ impl Cgroup {
         })
     }
 
-    fn remove(mut self, retain_leader: bool) {
+    fn remove(mut self, retain_leader: bool) -> Result<(), String> {
         let mut empty = !self.populated();
         if !empty {
             let mut deadline = Deadline::arm("the abandoned tree cgroup", Duration::from_secs(2));
@@ -1267,9 +1274,9 @@ impl Cgroup {
             // The shared kernel owns a retained leader's reap. Keep this
             // directory's share of the base, including the observer, until
             // process exit; the same holds when killed members outlive the wait.
-            return;
+            return Ok(());
         }
-        remove_cgroup(&self.binary);
+        let binary = remove_cgroup(&self.binary);
         let last = CGROUP_BASE.with(|base| {
             let mut base = base.borrow_mut();
             let shared = base.as_mut().expect("a prepared cgroup base");
@@ -1279,34 +1286,38 @@ impl Cgroup {
         if let Some(base) = last {
             fs::write(base.original.join("cgroup.procs"), std::process::id().to_string())
                 .expect("the observer returns to its original cgroup");
-            remove_cgroup(&base.observer);
-            remove_cgroup(&base.parent);
+            let observer = remove_cgroup(&base.observer);
+            let parent = remove_cgroup(&base.parent);
+            return binary.and(observer).and(parent);
         }
+        binary
     }
 }
 
 #[cfg(target_os = "linux")]
-fn report_left_running(pids: &[u32], stderr: &mut impl Write) {
+fn report_left_running(pids: &[u32], stderr: &mut impl Write) -> Result<(), String> {
     if pids.is_empty() {
-        return;
+        return Ok(());
     }
     let pids = pids.iter().map(u32::to_string).collect::<Vec<_>>().join(" ");
     if std::thread::panicking() {
         let _reported = writeln!(stderr, "skein-world: left running: {pids}");
     } else {
-        crate::fail(&format!("left running: {pids}"));
+        return Err(format!("left running: {pids}"));
     }
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
-fn remove_cgroup(path: &Path) {
+fn remove_cgroup(path: &Path) -> Result<(), String> {
     if let Err(error) = fs::remove_dir(path) {
         if std::thread::panicking() {
             let _reported = writeln!(std::io::stderr().lock(), "removing cgroup {}: {error}", path.display());
         } else {
-            crate::fail(&format!("removing cgroup {}: {error}", path.display()));
+            return Err(format!("removing cgroup {}: {error}", path.display()));
         }
     }
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
@@ -1316,13 +1327,15 @@ impl Drop for LinuxTree {
         if self.cgroup.is_none() {
             WALK_ACTIVE.set(false);
         }
-        if let Some(group) = self.cgroup.take() {
-            group.remove(self.leader.is_some() && !self.leader_reaped);
-        }
+        let removal = match self.cgroup.take() {
+            Some(group) => group.remove(self.leader.is_some() && !self.leader_reaped),
+            None => Ok(()),
+        };
         if ACTIVE.get() == 0 && SUBREAPER_OWNED.replace(false) {
             skein_shell::keeper::set_subreaper(SUBREAPER_BEFORE.get())
                 .expect("the observer restores its subreaper setting");
         }
+        crate::end_to_end::teardown_finding(removal);
     }
 }
 
@@ -1332,51 +1345,19 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    #[should_panic(expected = "left running: 41 73")]
     fn survivors_fail_outside_unwinding() {
-        super::report_left_running(&[], &mut Vec::new());
-        super::report_left_running(&[41, 73], &mut Vec::new());
+        let mut stderr = Vec::new();
+        assert_eq!(super::report_left_running(&[], &mut stderr), Ok(()));
+        assert_eq!(super::report_left_running(&[41, 73], &mut stderr), Err("left running: 41 73".into()));
+        assert!(stderr.is_empty(), "ordinary-return findings are values, not stderr reports");
     }
 
     #[cfg(target_os = "linux")]
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-    fn survivors_are_reported_once_without_a_second_panic_while_unwinding() {
-        struct Report<'a>(&'a core::cell::RefCell<Vec<u8>>);
-        impl Drop for Report<'_> {
-            fn drop(&mut self) {
-                super::report_left_running(&[41, 73], &mut *self.0.borrow_mut());
-            }
-        }
-        let stderr = core::cell::RefCell::new(Vec::new());
-        let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            let _report = Report(&stderr);
-            crate::fail("the scenario's failure");
-        }))
-        .expect_err("the scenario still fails");
-        assert_eq!(failure.downcast_ref::<String>().map(String::as_str), Some("the scenario's failure"));
-        assert_eq!(*stderr.borrow(), b"skein-world: left running: 41 73\n");
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    #[should_panic(expected = "removing cgroup /missing-skein-cgroup:")]
     fn a_cgroup_removal_error_fails_outside_unwinding() {
-        super::remove_cgroup(std::path::Path::new("/missing-skein-cgroup"));
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    #[should_panic(expected = "the scenario's failure")]
-    fn a_cgroup_removal_error_preserves_the_unwinding_panic() {
-        struct RemoveCgroup;
-        impl Drop for RemoveCgroup {
-            fn drop(&mut self) {
-                super::remove_cgroup(std::path::Path::new("/missing-skein-cgroup"));
-            }
-        }
-        let _remove = RemoveCgroup;
-        crate::fail("the scenario's failure");
+        let path = std::path::Path::new("/missing-skein-cgroup");
+        let error = std::fs::remove_dir(path).expect_err("no such cgroup");
+        assert_eq!(super::remove_cgroup(path), Err(format!("removing cgroup {}: {error}", path.display())));
     }
 
     #[test]

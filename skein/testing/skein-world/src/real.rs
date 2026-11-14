@@ -619,6 +619,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
     }
 
     fn run(mut self, kernel: &mut Kernel, clock: &Clock, patience: Duration) -> Result<Outcome<P>, String> {
+        let _findings = crate::end_to_end::FindingScope::enter();
         let deadline = Deadline::arm("the real loop", patience);
         let start = deadline.start();
         self.world.controls.sched_start.set(deadline.thread_start());
@@ -719,6 +720,9 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             }
             if self.ids.get(at) == Some(&host) {
                 at = at.checked_add(1).expect("bounded host count");
+            }
+            if let Some(why) = crate::end_to_end::take_finding() {
+                return Err(why);
             }
             if ran {
                 self.world.referee.watch(now, &self.world.procs)?;
