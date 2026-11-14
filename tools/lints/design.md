@@ -19,6 +19,8 @@ themselves are `skein/docs/foundation/programming-model.md`, 10 and
   manifest of its own (section 6). No profile allows a `disallowed_*` lint.
 - **Catches only fall:** a count per file of `catch_unwind`, `resume_unwind` and `#[should_panic]`
   in every Rust file git tracks, against a list that only falls, refuses any new one (section 7).
+  The first two count none: the count refuses them outright, and every `clippy.toml` the gate's
+  clippy reads bans them (sections 4 and 7.4).
 
 ## 2. The profiles
 
@@ -93,6 +95,26 @@ applies to a directory's crates through one copy, or to a crate through its own.
 "...")]` whose reason starts with what it is: the binary's capture, a build script, a test harness, or
 the round or milestone that removes it (`skein/docs/foundation/cli.md`, 9, check 4).
 
+**Catching a panic,** in every variant and beyond them: `disallowed-methods` ends with these two
+entries, byte for byte the same in every file, their one reason citing
+`skein/docs/foundation/programming-model.md`, 10.4:
+
+```toml
+    { path = "std::panic::catch_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
+    { path = "std::panic::resume_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
+```
+
+- **Every `clippy.toml` the gate's clippy reads** (`.config/gate/README.md`, 2 and 3) holds them,
+  on every target, test modules and test crates included: the three variants and so their copies,
+  smith's own files (`smith/clippy.toml`, `smith/benchmarks/`, `smith/crates/`, its three crates'
+  copies and its two under `smith/tests/`), which `lints.py` doesn't check (section 8), and the
+  root's `tests/clippy.toml`. `fabrig-boundary`'s lints test holds it: every `clippy.toml` git
+  tracks, wherever it is, has both lines.
+- **No exception.** Neither is ever under an `#[expect]`: a site the ban finds is a catch, and goes.
+- **The ban and the count hold different things:** clippy sees a call however it is named, a
+  dependency's re-export under another name included; the count of section 7 reads every tracked
+  Rust file, `tools/`' fixtures among them, which clippy never compiles.
+
 A crate's lint profile and its variant are separate choices: `skein-sim` is on `step` with `ring`'s
 bans, since it holds to the step crates' lints and is ordinary Rust.
 
@@ -132,10 +154,12 @@ only sites are in its test modules, the root says `#![cfg_attr(test, expect(...)
 
 ## 7. The count of catches
 
-Nothing catches a panic, tests included (`skein/docs/foundation/programming-model.md`, 10.4). Tests
-on main still do, and a count holds them where they stand until each is converted: it lets no new
-one in and lets none come back. It holds `#[should_panic]`, which no lint can ban, and its file
-holds `tools/`' fixtures, which clippy never compiles.
+Nothing catches a panic, tests included, and no test triggers an assertion
+(`skein/docs/foundation/programming-model.md`, 10.4). `#[should_panic]` tests on main still do, and
+a count holds them where they stand until each is converted: it lets no new one in and lets none
+come back. It holds `#[should_panic]`, which no lint can ban, and its file holds `tools/`' fixtures,
+which clippy never compiles. `catch_unwind` and `resume_unwind` count none, and it refuses them
+(7.4).
 
 ```sh
 python3 -I -B tools/lints/panics.py           # the gate: 0 findings
@@ -172,7 +196,15 @@ PATH PATTERN COUNT
 
 a tracked path from the repository root, one of the three pattern names and a count of at least 1,
 separated by single spaces. Lines are sorted by path, then by pattern in the table's order, with
-at most one line for a path and a pattern. A path with no line for a pattern is listed at 0.
+at most one line for a path and a pattern. A path with no line for a pattern is listed at 0. No
+line names a refused pattern (7.4). The list opens with three comment lines, which `--write`
+writes when there is no list:
+
+```
+# tools/lints/design.md, 7: the count of catches.
+# --write lowers this list; nothing raises it.
+# Refused, so no line names them: catch_unwind, resume_unwind.
+```
 
 ### 7.3 Findings
 
@@ -181,7 +213,11 @@ One line each, `PATH: what is wrong`, then their count and the rule they break
 
 - **A count above its line:** a file's count of a pattern above the list's, a new file's or a
   pattern the file had none of among them, since those are listed at 0.
-- **A malformed list:** a line not of 7.2's form, out of order or repeated, or no list at all.
+- **A refused pattern counted:** any count of a refused pattern in a file (7.4), whatever the list
+  says, as `PATH: PATTERN count N, refused`.
+- **A malformed list:** a line not of 7.2's form, out of order or repeated, or no list at all. A
+  line naming a refused pattern is malformed, as `tools/lints/panics.txt: line N: PATTERN is
+  refused; no line names it`, even at a count the file holds.
 
 A count below its line, or a line whose file is gone, is no finding: the check prints it with
 `--write` as the way to lower it, and exits 0 if nothing else is wrong. A change that lowers a count
@@ -190,19 +226,22 @@ lowers its line in the same change; another branch that only removes catches nev
 ### 7.4 Only falling
 
 - **`--write`** rewrites each line to the count now, drops each line that reaches 0, and keeps the
-  comment lines where they stand. It never raises a line and never adds one, but writes every
-  file's counts when there is no list. With a finding standing it writes nothing and exits 1.
-- **Once a pattern counts none,** it has no line left, and any count of it anywhere is above its
-  line: the check refuses any, and keeps refusing.
+  comment lines where they stand. It never raises a line and never adds one, but writes 7.2's
+  header and every file's counts when there is no list. With a finding standing it writes nothing
+  and exits 1, so a refused pattern counted anywhere leaves the list as it is.
+- **Refused patterns:** once a pattern counts none, it has no line left, and the check refuses any,
+  and keeps refusing: `panics.py` names it in its refused patterns, a constant, `REFUSED`, so that no
+  line added by hand lets one back (7.3). `REFUSED` holds `catch_unwind` and `resume_unwind`. A
+  pattern joins it in the change that brings it to none, or after, and none leaves it.
 - **A file that moves** takes its lines with it, in the same change: its old path's lines go and
   its new path's come, at the same counts. That is the one line added by hand; any other raise
   breaks the rule this count holds.
 - **The gate runs it** beside `lints.py` (`.config/gate/README.md`, 8), and `fabrig-boundary` runs
   it and `test_panics.py` in its focused tests, so that both run on every change
   (`.config/gate/always.txt`).
-- **What follows:** once `catch_unwind` and `resume_unwind` count none, `disallowed-methods` lists
-  them in every `clippy.toml` the gate's clippy reads (section 4), and the count keeps
-  `#[should_panic]` alone (`temper/docs/design/draft/panics.md`, 7).
+- **Beside clippy's ban:** `disallowed-methods` lists `catch_unwind` and `resume_unwind` in every
+  `clippy.toml` the gate's clippy reads (section 4), and the list keeps `#[should_panic]` alone
+  (`temper/docs/design/draft/panics.md`, 7).
 
 ## 8. Later
 
