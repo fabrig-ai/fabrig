@@ -1215,6 +1215,7 @@ fn writable_repositories_exclude_an_ended_forge() {
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {
+        task_release: None,
         job: None,
         signed: Box::new([]),
         task: 7,
@@ -1276,6 +1277,135 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         merge_result: None,
         history: None,
         follow_check: None,
+    }
+}
+
+#[test]
+fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
+    use super::{forge, forge_change as change};
+    use skein_lib::{Queue, Wall};
+    let (mut domain, env) = two_forges();
+    let at = Wall::from_nanos(0);
+    let expected = [0xab; 32];
+    let observed = [0xcd; 32];
+    let stale = [0xef; 32];
+    let target = change::Judgement {
+        landing: 9,
+        round: 1,
+        pull: 10,
+        branch: b"ready/9".as_slice().into(),
+        base: b"main".as_slice().into(),
+        prefix: stale,
+    };
+    let mut out = Queue::uncapped();
+    let name = change_names(None)[0].clone();
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore {
+            record: forge::Stored::BranchHead(forge::BranchHead { name, commit: stale, owned: true }),
+        },
+        &mut out,
+    );
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    for was in [
+        change::State::Checking { head: expected },
+        change::State::Gating { head: expected, asked: Box::new([]) },
+        change::State::Queued { head: expected, ready_since: at },
+        change::State::First { head: expected, ready_since: at },
+        change::State::Ready { head: expected, ready_since: at },
+        change::State::Judging { head: expected, ready_since: at, target, asked: Box::new([]) },
+        change::State::CancellingGates { head: expected },
+        change::State::Recreating { head: expected },
+        change::State::Landing { head: expected },
+        change::State::Updating { from: expected, base: stale, ready_since: at },
+        change::State::Preparing { from: expected, main: stale, ready_since: at },
+        change::State::Opening { requested: true },
+    ] {
+        let mut row = change_row(Some(7));
+        row.change.last_head = Some(if let change::State::Opening { .. } = was { expected } else { stale });
+        row.ci = Some(change::Ci { head: stale, status: change::Status::Passed });
+        row.change.state = change::State::Held { was: Box::new(was), why: change::Hold::BranchMoved };
+        let evidence = forge::ChangeEvidence {
+            touched: forge::Touched::UNKNOWN,
+            prior: row.change.clone(),
+            head: Some(observed),
+            base_tip: stale,
+            contains_base: change::Status::Passed,
+            ci: change::Status::Passed,
+            gates: Box::new([]),
+            reviews: Box::new([]),
+            reviews_complete: true,
+            size: None,
+        };
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+            &mut out,
+        );
+        let mut routed = Queue::uncapped();
+        routed.push(forge::Request::ChangeDecision {
+            task: 7,
+            decision: change::Decision::Hold(change::Hold::BranchMoved),
+            entry: None,
+            evidence: Some(evidence),
+        });
+        super::outputs(&mut domain, &env, &mut decision, &mut routed);
+        let Some(super::Work::Tasks(super::tasks::Event::HoldFrom { source, .. })) = domain.work.pop() else {
+            panic!("a hold carries its read to the task");
+        };
+        let super::tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("drift account") };
+        assert_eq!(words.as_ref(), b"its branch moved: expected abababababab, found cdcdcdcdcdcd");
+    }
+}
+
+#[test]
+fn a_change_drift_account_prefers_the_forges_pair_including_unknown() {
+    use super::{forge, forge_change as change};
+    use skein_lib::Queue;
+    let (mut domain, env) = two_forges();
+    let mut out = Queue::uncapped();
+    let name = change_names(None)[0].clone();
+    let mut row = change_row(Some(7));
+    row.change.last_head = Some([0xef; 32]);
+    row.change.state = change::State::Held {
+        was: Box::new(change::State::Checking { head: [0xef; 32] }),
+        why: change::Hold::BranchMoved,
+    };
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut out,
+    );
+    for observed in [Some([0xcd; 32]), None] {
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Restore {
+                record: forge::Stored::Hold(forge::Hold {
+                    design_writers: Box::new([]),
+                    name: name.clone(),
+                    task: 7,
+                    writer: None,
+                    drift: Some(forge::Drift {
+                        at: env.wall,
+                        change: forge::DriftChange::Branch { expected: [0xab; 32], observed },
+                    }),
+                }),
+            },
+            &mut out,
+        );
+        let expected: &[u8] = if observed.is_some() {
+            b"its branch moved: expected abababababab, found cdcdcdcdcdcd"
+        } else {
+            b"its branch moved: expected abababababab, found unknown"
+        };
+        assert_eq!(
+            super::holds::change_account(&domain, &env, 7, change::Hold::BranchMoved, None).unwrap().as_ref(),
+            expected
+        );
     }
 }
 
@@ -2030,6 +2160,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 &mut domain.forge,
                 &env.with(env.limits.forge),
                 forge::Event::DelegateResult {
+                    ended_at: None,
                     task: 7,
                     child: 9,
                     status: forge_change::Status::Failed,
@@ -2040,7 +2171,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 },
                 &mut out,
             );
-            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Failed);
+            let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Failed, None);
             let super::StepEnd::HoldFrom { why: tasks::Hold::Procedure, source } = decision.end else {
                 panic!("cancelled {name} needs a procedure hold with its account")
             };
@@ -2824,9 +2955,16 @@ fn branch_moved_and_stalled_holds_keep_the_heads_and_wait_in_their_accounts() {
         row.change.last_head = Some(expected);
         row.ci = Some(change::Ci { head: found, status: change::Status::Pending });
         row.change.state = change::State::Held { was: Box::new(was), why };
-        let (domain, mut env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
+        let (domain, mut env, _) = restored_change([
+            super::forge::Stored::Change(Box::new(row)),
+            super::forge::Stored::BranchHead(super::forge::BranchHead {
+                name: change_names(None)[0].clone(),
+                commit: found,
+                owned: true,
+            }),
+        ]);
         env.limits.forge.change_policy.stall = skein_lib::Duration::from_secs(1800);
-        let decision = super::hold_change_decision(&domain, &env, 7, why);
+        let decision = super::hold_change_decision(&domain, &env, 7, why, None);
         let category = if why == change::Hold::BranchMoved { tasks::Hold::Drift } else { tasks::Hold::Stalled };
         assert_eq!(
             decision.end,
@@ -2859,7 +2997,7 @@ fn a_hold_past_questions_names_its_bound() {
         row.questions.taken = 4;
         row.questions.open = open.into();
         let (domain, env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
-        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Questions);
+        let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Questions, None);
         assert_eq!(
             decision.end,
             super::StepEnd::HoldFrom {
@@ -3985,6 +4123,47 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
         }
         let pending = super::landing_route::pending(&domain, &env, 7, change_row(None).repository, b"main");
         assert_eq!(pending.as_ref(), &[change::Pending { task: 8, kind: expected }]);
+    }
+}
+
+#[test]
+fn a_consumed_task_release_is_not_replayed_after_restore() {
+    use super::{forge, tasks};
+    use skein_lib::Queue;
+    let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
+    for revision in [1, 2] {
+        let (mut domain, env) = two_forges();
+        domain.core.tasks = tasks::Domain::new(
+            &env.limits.tasks,
+            tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+            7,
+            0,
+            Box::new([]),
+            Box::new([]),
+        );
+        let mut task = fixture.core.tasks.task(task).unwrap().clone();
+        task.number = 7;
+        task.due_reason = tasks::Why::Released;
+        task.revisions.hold = revision;
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(task)) },
+            &mut Queue::uncapped(),
+        );
+        let mut row = change_row(None);
+        row.task_release = Some(forge::TaskRelease { revision: 1, at: env.wall });
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+            &mut Queue::uncapped(),
+        );
+        assert_eq!(
+            super::delegate_record::is_release(&domain, 7),
+            revision != 1,
+            "a consumed revision survives restart; a later release remains fresh"
+        );
     }
 }
 

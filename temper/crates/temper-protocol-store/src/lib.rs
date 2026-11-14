@@ -5,26 +5,25 @@
 extern crate alloc;
 
 mod patch_set;
-#[path = "../patches/mod.rs"]
-pub mod patches;
 pub use patch_set::PATCH_SET;
+pub use temper_protocol_store_patches::patches;
 
 use alloc::boxed::Box;
 pub mod jobs;
 pub mod keys;
 pub use keys::KEYSPACES;
 pub mod records;
-pub use temper_protocol_store_codec::v23;
+pub use temper_protocol_store_codec::v24;
 #[cfg(test)]
 mod tests;
 
 /// One version for every durable family (protocol/store.md, section 4).
-pub const STORE_VERSION: u32 = 23;
+pub const STORE_VERSION: u32 = 24;
 
 /// The least ceiling on pending, run and blamed landings (protocol/store.md, section 4).
 #[must_use]
 pub fn tier_landings_ceiling() -> u32 {
-    v23::CEILINGS.tier_row_pending.min(v23::CEILINGS.tier_run_landings).min(v23::CEILINGS.tier_finding_blamed)
+    v24::CEILINGS.tier_row_pending.min(v24::CEILINGS.tier_run_landings).min(v24::CEILINGS.tier_finding_blamed)
 }
 
 /// The most `forge.changes` the tier rows hold at two landings per change plus one.
@@ -43,7 +42,7 @@ pub fn application(
     Some(jig_protocol_store::sizes::Application {
         version: STORE_VERSION,
         key: keys::largest(limits)?,
-        value: u32::try_from(v23::Row::encoded_bound(bounds.limits())?).ok()?,
+        value: u32::try_from(v24::Row::encoded_bound(bounds.limits())?).ok()?,
     })
 }
 
@@ -59,13 +58,13 @@ pub enum Undecodable {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Bounds {
     // Keep schema limits out of the store's by-value construction frames.
-    limits: Box<v23::Limits>,
+    limits: Box<v24::Limits>,
     forge: temper_engine_domain_forge_vocabulary::Limits,
 }
 impl Bounds {
     /// The generated decoder's limits.
     #[must_use]
-    pub const fn limits(&self) -> &v23::Limits {
+    pub const fn limits(&self) -> &v24::Limits {
         &self.limits
     }
     /// The domain limits for names and key decoding.
@@ -78,7 +77,7 @@ impl Bounds {
 /// Make schema bounds from the forge and task spec bytes, refusing any ceiling overflow.
 #[must_use]
 pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_words: u32) -> Option<Bounds> {
-    let limits = v23::Limits {
+    let limits = v24::Limits {
         closer_selections: forge.tasks,
         closing_question_words: forge.client.op_bytes.max(change_words),
         closing_asked_answer_some: forge.client.op_bytes.max(change_words),
@@ -149,7 +148,7 @@ pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_word
         subscriber_paths_item: forge.name_bytes,
         ..records::limits(forge)?
     };
-    v23::check_limits(&limits).ok()?;
+    v24::check_limits(&limits).ok()?;
     Some(Bounds { limits: Box::new(limits), forge: *forge })
 }
 

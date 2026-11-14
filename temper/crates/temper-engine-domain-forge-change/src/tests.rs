@@ -1,4 +1,5 @@
 //! Procedure cells, queue order and landing-rule agreement.
+mod drift;
 use crate::{
     Change, Ci, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind,
     GateReport, Heard, Hold, Limits, Pending, PendingKind, Pull, QUESTIONS_OPEN, Questions, Ready, Repair, Route,
@@ -49,6 +50,7 @@ fn change(state: State) -> Change {
 fn facts() -> Facts {
     Facts {
         fault: crate::Fault::Change,
+        rerun: false,
         pending: Box::new([]),
         ask: None,
         branch: Some(HEAD),
@@ -1645,6 +1647,7 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
     assert_eq!(decide(&c, &f, &heard()).decision, Decision::CancelGates { head: HEAD });
 }
 
+mod empty_repair;
 mod green;
 mod merge;
 mod relay;

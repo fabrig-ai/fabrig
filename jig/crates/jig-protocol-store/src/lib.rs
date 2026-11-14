@@ -395,7 +395,7 @@ fn frame_bound(codec: &codec::View) -> Option<u64> {
 // Bound for two decoded records, including their wire values and the census's joined task.
 fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
     core_v6::Row::decoded_bound(&codec.core)?
-        .checked_add(tasks_v12::Row::decoded_bound(&codec.tasks)?)?
+        .checked_add(tasks_v13::Row::decoded_bound(&codec.tasks)?)?
         .checked_add(people_v17::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
@@ -511,7 +511,7 @@ pub use jig_protocol_store_core::core_v6;
 pub use jig_protocol_store_families::accounts_v2;
 pub use jig_protocol_store_families::notes_v1;
 pub use jig_protocol_store_people::people_v17;
-pub use jig_protocol_store_tasks::tasks_v12;
+pub use jig_protocol_store_tasks::tasks_v13;
 pub mod keys;
 mod openings;
 pub use boundary::{

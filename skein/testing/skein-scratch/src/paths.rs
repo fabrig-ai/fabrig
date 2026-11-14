@@ -13,7 +13,7 @@
 
 use std::ffi::OsString;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::fail;
 
@@ -56,6 +56,31 @@ pub fn binary(name: &str) -> PathBuf {
     PathBuf::from(variable(&format!("CARGO_BIN_EXE_{name}")))
 }
 
+/// Another package's binary: the file `name` in the nearest directory above
+/// the test's executable that holds a file of that name. A directory of that
+/// name is passed over (skein/docs/design/testing/README.md, 6).
+#[must_use]
+pub fn built(package: &str, name: &str) -> PathBuf {
+    let executable = match std::env::current_exe() {
+        Ok(executable) => executable,
+        Err(error) => fail(&format!("the test's executable: {error}")),
+    };
+    built_from(&executable, package, name).unwrap_or_else(|error| fail(&error))
+}
+
+fn built_from(executable: &Path, package: &str, name: &str) -> Result<PathBuf, String> {
+    for directory in executable.parent().into_iter().flat_map(Path::ancestors) {
+        let binary = directory.join(name);
+        if binary.is_file() {
+            return Ok(binary);
+        }
+    }
+    Err(format!(
+        "no file {name} above the test's executable {}: build it with cargo build -p {package} --bin {name}",
+        executable.display()
+    ))
+}
+
 /// The target's scratch space, made if absent: `tmp` in the target
 /// directory, which holds the profile's directory and its `deps`, where the
 /// test's executable is. Cargo names it `CARGO_TARGET_TMPDIR` when it compiles
@@ -84,5 +109,59 @@ fn variable(name: &str) -> OsString {
     match std::env::var_os(name) {
         Some(value) => value,
         None => fail(&format!("{name} is unset: cargo and nextest set it when a test runs")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::built_from;
+    use crate::Scratch;
+    use std::fs;
+    use std::path::Path;
+
+    fn empty_file(path: &Path) {
+        fs::create_dir_all(path.parent().expect("fixture's directory")).expect("fixture directories");
+        fs::write(path, []).expect("empty fixture file");
+    }
+
+    #[test]
+    fn built_finds_the_nearest_file_above_deps() {
+        let scratch = Scratch::new("built-deps");
+        let executable = scratch.path().join("debug/deps/world-1a2b");
+        let binary = scratch.path().join("debug/jig-test");
+        empty_file(&executable);
+        empty_file(&binary);
+        empty_file(&scratch.path().join("jig-test"));
+        assert_eq!(built_from(&executable, "jig-test", "jig-test"), Ok(binary));
+    }
+
+    #[test]
+    fn built_finds_the_file_above_build_output() {
+        let scratch = Scratch::new("built-output");
+        let executable = scratch.path().join("debug/build/jig-client-browser-world/58e54be215185c94/out/world-1a2b");
+        let binary = scratch.path().join("debug/jig-test");
+        empty_file(&executable);
+        empty_file(&binary);
+        assert_eq!(built_from(&executable, "jig-test", "jig-test"), Ok(binary));
+    }
+
+    #[test]
+    fn built_passes_over_a_directory_named_as_the_binary() {
+        let scratch = Scratch::new("built-directory");
+        let executable = scratch.path().join("debug/build/temper-box/0f1e/out/process-9c8d");
+        let binary = scratch.path().join("debug/temper-box");
+        empty_file(&executable);
+        empty_file(&binary);
+        assert_eq!(built_from(&executable, "temper-box", "temper-box"), Ok(binary));
+    }
+
+    #[test]
+    fn built_missing_names_the_executable_and_build_command() {
+        let scratch = Scratch::new("built-missing");
+        let executable = scratch.path().join("debug/deps/world-1a2b");
+        empty_file(&executable);
+        let error = built_from(&executable, "jig-test", "jig-test").expect_err("no binary above the executable");
+        assert!(error.contains(&executable.display().to_string()), "{error}");
+        assert!(error.contains("cargo build -p jig-test --bin jig-test"), "{error}");
     }
 }

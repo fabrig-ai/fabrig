@@ -842,6 +842,7 @@ mod tests {
         use temper_engine_domain_forge as forge;
         use temper_engine_domain_forge_change as change;
         forge::ChangeRow {
+            task_release: None,
             job: None,
             signed: Box::new([]),
             task: 7,

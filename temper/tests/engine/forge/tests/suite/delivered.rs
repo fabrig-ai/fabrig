@@ -118,6 +118,7 @@ fn resolutions_and_repairs_deliver_their_heads_too() {
         claim(&mut world, 1);
         answer(&mut world, 1, head, true);
         world.event(top::Event::DelegateResult {
+            ended_at: None,
             task: TASK,
             child: CHILD,
             status: change::Status::Passed,

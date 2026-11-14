@@ -16,6 +16,7 @@ use serde_json::{Value, json};
 use skein_fake_llm_domain::api;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
+mod gates;
 mod scripts;
 mod take;
 

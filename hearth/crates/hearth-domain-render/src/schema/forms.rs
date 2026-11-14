@@ -4,7 +4,7 @@ use crate::{
     errors::{Format, Schema},
     revision::{Entry, Mode, declaration::Form},
 };
-use skein_lib::bytes;
+use skein_lib::{Bisection, bytes};
 #[must_use]
 pub fn check(format: Format, value: &[u8]) -> bool {
     match format {
@@ -75,7 +75,7 @@ pub(crate) fn octal(digits: &[u8]) -> u16 {
     }
     mode
 }
-fn segments(value: &[u8]) -> bool {
+pub(crate) fn segments(value: &[u8]) -> bool {
     let mut start = 0;
     for index in 0..=value.len() {
         if index == value.len() || value.get(index) == Some(&b'/') {
@@ -155,19 +155,12 @@ pub(crate) fn fault(value: &Composed, form: &Form, check: &Check<'_>, listing: &
     None
 }
 fn file<'a>(listing: &'a [Entry], path: &[u8]) -> Option<&'a Entry> {
-    let mut low = 0_usize;
-    let mut high = listing.len();
-    for _ in 0..=usize::BITS {
-        if low == high {
-            return None;
-        }
-        let middle = low.saturating_add(high.saturating_sub(low) / 2);
-        let entry = listing.get(middle).expect("bisected listing");
-        match entry.path.as_ref().cmp(path) {
-            core::cmp::Ordering::Less => low = middle.saturating_add(1),
-            core::cmp::Ordering::Greater => high = middle,
-            core::cmp::Ordering::Equal => return Some(entry),
-        }
+    let mut search = Bisection::over(listing.len());
+    for _ in 0..Bisection::PROBES {
+        let Some(probe) = search.probe() else { break };
+        let entry = listing.get(probe).expect("a probe within the slice");
+        search.narrow(entry.path.as_ref().cmp(path));
     }
-    unreachable!("bisection bound")
+    let entry = listing.get(search.end())?;
+    if entry.path.as_ref() == path { Some(entry) } else { None }
 }

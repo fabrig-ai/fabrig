@@ -7,6 +7,7 @@
 //! against the counting allocator (runtime/lib.md, 10), a binary of its own that
 //! declares it.
 
+pub mod containers;
 pub mod intake;
 pub mod journal;
 pub mod request_table;

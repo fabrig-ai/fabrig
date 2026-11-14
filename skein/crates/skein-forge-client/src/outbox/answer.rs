@@ -10,7 +10,7 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
 ) {
     let w = d.outbox.entries.get(&number).expect("call owner remains");
-    if w.withdrawn {
+    if w.withdrawn && w.entry.attempt.is_none() {
         super::finish(d, env, number, Outcome::Withdrawn, out);
         return;
     }

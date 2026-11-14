@@ -457,7 +457,7 @@ fn queue_exit_and_reentry_refresh_the_panel_behind() {
     );
     driver.send(engine::Event::Party(engine::PartyInput::Delivered { watcher: Token::new(914) }));
     driver.delivered.clear();
-    driver.send(engine::Event::Forge(Box::new(forge::Event::ReleaseChange { task: 52 })));
+    driver.send(engine::Event::Forge(Box::new(forge::Event::ReleaseChange { task: 52, release: None })));
     driver.settle();
     let panel = driver
         .delivered

@@ -102,7 +102,9 @@ fn baseline_fixture_sets() -> PatchSets {
     let fourth: &'static str = Box::leak(format!("patch 1\nowner {} 4\n\n{blocks}", jig.name).into_boxed_str());
     let (_, blocks) = jig_protocol_store::patches::PATCHES[4].split_once("\n\n").expect("real refusal reason blocks");
     let fifth: &'static str = Box::leak(format!("patch 1\nowner {} 5\n\n{blocks}", jig.name).into_boxed_str());
-    let texts = Box::leak(vec![first, second, third, fourth, fifth].into_boxed_slice());
+    let (_, blocks) = jig_protocol_store::patches::PATCHES[5].split_once("\n\n").expect("real question wake blocks");
+    let sixth: &'static str = Box::leak(format!("patch 1\nowner {} 6\n\n{blocks}", jig.name).into_boxed_str());
+    let texts = Box::leak(vec![first, second, third, fourth, fifth, sixth].into_boxed_slice());
     PatchSets {
         sets: Box::leak(Box::new([
             jig_protocol_store::SKEIN_PATCH_SET,
@@ -130,20 +132,29 @@ fn real_jig_set_versions_match_each_level() {
     };
     let binary = jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT);
     for (level, mut expected, steps) in [
-        (0, baseline, &[(Owner::Jig, 1), (Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5)][..]),
+        (
+            0,
+            baseline,
+            &[(Owner::Jig, 1), (Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5), (Owner::Jig, 6)][..],
+        ),
         (
             1,
             codec::component::Format { tasks: 10, people: 15, settings: 2, ..binary },
-            &[(Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5)][..],
+            &[(Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5), (Owner::Jig, 6)][..],
         ),
         (
             2,
             codec::component::Format { tasks: 10, people: 15, ..binary },
-            &[(Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5)][..],
+            &[(Owner::Jig, 3), (Owner::Jig, 4), (Owner::Jig, 5), (Owner::Jig, 6)][..],
         ),
-        (3, codec::component::Format { tasks: 11, people: 16, ..binary }, &[(Owner::Jig, 4), (Owner::Jig, 5)][..]),
-        (4, codec::component::Format { tasks: 11, ..binary }, &[(Owner::Jig, 5)][..]),
-        (5, binary, &[][..]),
+        (
+            3,
+            codec::component::Format { tasks: 11, people: 16, ..binary },
+            &[(Owner::Jig, 4), (Owner::Jig, 5), (Owner::Jig, 6)][..],
+        ),
+        (4, codec::component::Format { tasks: 11, ..binary }, &[(Owner::Jig, 5), (Owner::Jig, 6)][..]),
+        (5, codec::component::Format { tasks: 12, ..binary }, &[(Owner::Jig, 6)][..]),
+        (6, binary, &[][..]),
     ] {
         expected.levels =
             codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(level), application: None };
@@ -238,7 +249,8 @@ fn baseline_store_is_patched_from_zero_and_opens() {
             (Owner::Jig, 2),
             (Owner::Jig, 3),
             (Owner::Jig, 4),
-            (Owner::Jig, 5)
+            (Owner::Jig, 5),
+            (Owner::Jig, 6)
         ]
     );
     records.check(&mut world, 2, &"baseline patched from zero");

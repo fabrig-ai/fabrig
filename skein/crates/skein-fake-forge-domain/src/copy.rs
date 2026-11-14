@@ -44,6 +44,8 @@ pub(crate) fn start(
     let id = last.checked_add(1).ok_or(Error::Full)?;
     let checks = env.limits.made_checks.clone();
     let mut destination = Repository::empty(limits, copy_of(&full), copy_of(&default), checks, None, false);
+    destination.workflows.clone_from(&env.limits.made_workflows);
+    destination.manual_merges = env.limits.made_manual_merges;
     destination.id = id;
     destination.permissions.insert(user, Permission::Admin).expect("owner permission room");
     let destination = domain.repositories.insert(destination).expect("checked repository room");

@@ -55,8 +55,7 @@ a decoder (`cargo fuzz`); of `cli.md`, what a tree doesn't follow yet is
 its checks' exceptions and the `expect`s naming a round or milestone
 (`../foundation/cli.md`, section 9), and no binary has a table yet, so none has checks 6 and 7;
 of `programming-model.md`, 10.4, no test catches a panic, but `#[should_panic]` tests in every
-tree still trigger assertions, held where they stand by the count of `tools/lints/design.md`, 7,
-and of 10.1, no `clippy.toml` bans `catch_unwind` or `resume_unwind` yet, though none is left:
+tree still trigger assertions, held where they stand by the count of `tools/lints/design.md`, 7:
 the milestones of `temper/docs/design/draft/panics.execution.md` convert them.
 Check 5 counts a declared variable as read or set wherever a tracked
 file outside `docs/` names it, its own table's row among them, so a

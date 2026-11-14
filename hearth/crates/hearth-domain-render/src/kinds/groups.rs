@@ -1,19 +1,26 @@
 //! Group declarations and bounded account ids (hearth/docs/design/protocol/format/tasks.md, 6).
 use super::secrets::fault;
 use crate::{
-    entries::{Concrete, Located},
+    entries::{Claimant, Concrete, Located},
     errors::{Error, Schema},
-    revision::{Position, declaration::Name},
+    parts::config::{self, GroupKind},
+    revision::declaration::Name,
 };
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Group {
-    pub name: Box<[u8]>,
-    pub task: Box<[u8]>,
-    pub at: Position,
-    pub gid: Option<u32>,
-    pub package: bool,
+pub(crate) struct Group {
+    pub value: config::Group,
+    pub source: Claimant,
+    pub package_gid: Option<u32>,
+}
+impl Group {
+    pub(crate) const fn gid(&self) -> Option<u32> {
+        match self.value.kind {
+            GroupKind::Sysusers { gid } => gid,
+            GroupKind::Package => self.package_gid,
+        }
+    }
 }
 pub(crate) fn entry(located: &Located<'_>) -> Result<Group, Box<Error>> {
     match checked(located) {
@@ -22,12 +29,15 @@ pub(crate) fn entry(located: &Located<'_>) -> Result<Group, Box<Error>> {
     }
 }
 fn checked(located: &Located<'_>) -> Result<Group, (Name, Schema)> {
+    let package = package(located.entry)?;
+    let gid = id(located.entry, Name::Gid)?;
     Ok(Group {
-        name: located.entry.key.clone(),
-        task: copy_of(located.task),
-        at: located.entry.at,
-        package: package(located.entry)?,
-        gid: id(located.entry, Name::Gid)?,
+        value: config::Group {
+            name: located.entry.key.clone(),
+            kind: if package { GroupKind::Package } else { GroupKind::Sysusers { gid } },
+        },
+        source: Claimant::new(located.task, located.entry.at),
+        package_gid: if package { gid } else { None },
     })
 }
 

@@ -256,7 +256,23 @@ pub(crate) fn withdraw(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut
     let Some(writing) = d.outbox.entries.get(&number) else {
         return;
     };
+    if writing.entry.queued {
+        return;
+    }
     if writing.entry.attempt.is_some() {
+        let state = writing.state;
+        d.outbox.entries.get_mut(&number).expect("withdrawn entry remains").withdrawn = true;
+        match state {
+            State::Due(Phase::Make) | State::Waiting(Phase::Make) => {
+                finish(d, env, number, Outcome::Withdrawn, out);
+            }
+            State::Busy(Phase::Make) => {
+                if calls::cancel_entry(&mut d.calls, number) {
+                    finish(d, env, number, Outcome::Withdrawn, out);
+                }
+            }
+            State::Due(_) | State::Waiting(_) | State::Busy(_) => {}
+        }
         return;
     }
     match writing.state {
@@ -269,6 +285,12 @@ pub(crate) fn withdraw(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut
         }
     }
     finish(d, env, number, Outcome::Withdrawn, out);
+}
+pub(crate) fn withdrawn(d: &Domain, number: u64) -> bool {
+    match d.outbox.entries.get(&number) {
+        Some(w) => w.withdrawn && !w.entry.queued,
+        None => false,
+    }
 }
 pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
     if !d.outbox.ready || d.outbox.paused || d.calls.is_full() {
@@ -288,6 +310,10 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     let Some((number, phase)) = selected else {
         return false;
     };
+    if phase == Phase::Make && withdrawn(d, number) {
+        finish(d, env, number, Outcome::Withdrawn, out);
+        return true;
+    }
     match phase {
         Phase::Find { .. } => {
             let w = d.outbox.entries.get(&number).expect("selected entry remains");
