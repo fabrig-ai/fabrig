@@ -395,23 +395,58 @@ pub enum WatchRefusal {
 /// The core's outputs that are the link's (domain/root.md, 5).
 #[derive(Hash, Debug)]
 pub enum LinkNow {
+    Asked {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        number: u64,
+        answer: jig_domain_link::AskAnswer,
+    },
     /// The host receives a read answer without waiting for a commit (domain/engine/README.md, 4.4).
-    Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
+    Relayed {
+        channel: Token,
+        run: Token,
+        attempt: Token,
+        call: Box<[u8]>,
+        answer: Token,
+    },
     /// Forget a root-owned host payload that the fleet no longer needs.
-    DropPayload { payload: Token },
+    DropPayload {
+        payload: Token,
+    },
     /// Read the root-owned turn payload before routing the charged turn.
-    TurnPayload { run: Token, attempt: Token, turn: u32, body: Token },
+    TurnPayload {
+        run: Token,
+        attempt: Token,
+        turn: u32,
+        body: Token,
+    },
     /// Read and translate the root-owned answer payload before the task terminal.
-    AnswerPayload { run: Token, attempt: Token, payload: Token },
+    AnswerPayload {
+        run: Token,
+        attempt: Token,
+        payload: Token,
+    },
     /// Read the root-owned transcript after the task accepts its charge.
-    AcceptedTurn { payload: Token, task: u64, attempt: u64, turn: u32, accepted: tasks::Accepted },
+    AcceptedTurn {
+        payload: Token,
+        task: u64,
+        attempt: u64,
+        turn: u32,
+        accepted: tasks::Accepted,
+    },
     /// Inspect a root-owned host payload after the task child refuses it.
-    RefusedPayload { request: Token, problem: tasks::Problem },
+    RefusedPayload {
+        request: Token,
+        problem: tasks::Problem,
+    },
 }
 
 /// Core output that follows no mutation.
 #[derive(Hash, Debug)]
 pub enum Now {
+    /// An admitted application read, answered through `fleet::Event::Asked` without a commit.
+    Ask { channel: Token, run: Token, attempt: Token, number: u64, bytes: Box<[u8]> },
     /// The core's outputs for the link (domain/root.md, 5).
     Link(LinkNow),
     /// A bounded task read has no durable call record (domain/engine/executors.md, 3).
@@ -1277,6 +1312,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Sources { .. }
         | fleet::Event::Check { .. }
         | fleet::Event::SignOut { .. }
+        | fleet::Event::Ask { .. }
         | fleet::Event::Relay { .. } => true,
         fleet::Event::ListRead { .. }
         | fleet::Event::Mismatch { .. }
@@ -1290,6 +1326,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }
         | fleet::Event::Interrupt { .. }
+        | fleet::Event::Asked { .. }
         | fleet::Event::Relayed { .. }
         | fleet::Event::Acknowledge { .. }
         | fleet::Event::Loaded

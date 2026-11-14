@@ -27,6 +27,7 @@ mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
+mod red_tool;
 pub(crate) mod remember;
 pub(crate) mod see;
 pub(crate) mod ways;
@@ -323,6 +324,9 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
             return;
+        }
+        Event::Worker(crate::WorkerInput::Asked { channel, run, attempt, number, answer }) => {
+            crate::wire::asked(domain, channel, run, attempt, number, answer);
         }
         Event::Worker(crate::WorkerInput::Opened { worker, statement }) => {
             domain.openings.push(crate::WorkerOpening { worker, statement, at: env.wall });

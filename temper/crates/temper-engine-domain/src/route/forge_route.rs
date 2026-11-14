@@ -42,6 +42,8 @@ pub(crate) use landing_route::form_landings;
 use landing_route::start_landing;
 pub(crate) use landing_route::start_landing_step;
 use landing_route::{describe_landing_effect, landing_decision};
+mod reds;
+pub use reds::{RunRed, reds_for_run};
 mod reads;
 use reads::read_answer;
 pub(crate) use reads::read_call;

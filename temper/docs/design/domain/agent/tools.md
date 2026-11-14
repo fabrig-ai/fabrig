@@ -445,6 +445,14 @@
   and the run goes on. The writes are named and decided once, as
   `change`; `list` and `show` are reads.
 
+- **`red`,** of the delegate family, declared where `finding` is, so
+  that a goal's coordinator records the failures its branch carries
+  that no live change owns, and ends them (`../forge/reds.md`, section
+  3, which gives its members, answers and refusals): its `act` one of
+  `record`, `end` and `list`, answered for a run whose task holds a goal
+  branch alone. `record` and `end` are named and decided once, as
+  `finding`'s writes; `list` is a read.
+
 - **`follow`,** of the delegate family, declared where `finding` is, so
   that a standing role acts on the follows it owns in its task's
   project, as their owner (`../forge/follows.md`, section 5, *The role's

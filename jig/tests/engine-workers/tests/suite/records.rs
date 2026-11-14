@@ -14,6 +14,7 @@ mod records {
     }
     #[derive(Debug, PartialEq, Eq)]
     enum Record {
+        Ask,
         Hello,
         Turn,
         Call,
@@ -34,6 +35,7 @@ mod records {
         match request {
             Request::Hello { .. } => Record::Hello,
             Request::Up { up, .. } => match up {
+                LinkUp::Ask { .. } => Record::Ask,
                 LinkUp::ListRead { .. } => Record::ListRead,
                 LinkUp::Draining => Record::Draining,
                 LinkUp::Logins { .. } => Record::Logins,

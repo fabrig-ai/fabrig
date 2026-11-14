@@ -40,6 +40,7 @@ pub mod public;
 pub mod purpose;
 pub mod reconcile;
 pub mod red;
+pub mod reds;
 pub mod refusal;
 pub mod resources;
 pub mod restore;
@@ -108,6 +109,7 @@ pub use panel::{
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};
+pub use reds::{RecordRed, Recorder, Red, RedOutcome, RedRecorded, RedRefusal, RedReply};
 pub use refusal::{RefusalCause, bound_words};
 pub use restore::{RestoreFit, RestoreSet};
 pub use result::{ChangeResult, ResultText};
@@ -312,6 +314,8 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::HistoryLast(row) => Key::HistoryLast { project: row.project, number: row.number, change: row.change },
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
+        Stored::Red(row) => Key::Red { goal: row.goal, key: row.key.clone() },
+        Stored::RedNumber { .. } => Key::RedNumber,
         Stored::Playground(_) => Key::Playground,
         Stored::Follow(row) => Key::Follow { project: row.project, follow: row.follow },
         Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
@@ -545,6 +549,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::Red(row) => skein_lib::len_u64(row.key.len())
+            .checked_add(skein_lib::len_u64(row.head.len()))?
+            .checked_add(skein_lib::len_u64(row.why.len())),
         Stored::Finding(row) => {
             let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
             for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
@@ -572,6 +579,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => skein_lib::len_u64(words.len()),
                 None => 0,
             }),
+            CallPayload::Red(reply) => {
+                u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(reds::reply_bytes(reply)?)
+            }
             CallPayload::Finding(reply) => {
                 u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(findings::reply_bytes(reply)?)
             }
@@ -681,6 +691,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::HistoryChange(_)
         | Stored::HistoryLanding(_)
         | Stored::HistoryLast(_)
+        | Stored::RedNumber { .. }
         | Stored::RefusedSetting(_)
         | Stored::Away(_)
         | Stored::Looked(_)

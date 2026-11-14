@@ -481,6 +481,8 @@ fn set_notes(limits: &mut jig_domain_notes::Limits, name: &[u8], value: u64) -> 
 
 fn set_hub(limits: &mut jig_domain_host::Limits, name: &[u8], value: u64) -> Result<(), What> {
     let jig_domain_host::Limits {
+        application_ask_bytes: _,
+        application_answer_bytes: _,
         program_sources,
         source_interval: _,
         source_timeout: _,

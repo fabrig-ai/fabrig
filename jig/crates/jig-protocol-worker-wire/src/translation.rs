@@ -1,6 +1,6 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
-use crate::{Agreed, Application, Carried, Root, v13 as wire};
+use crate::{Agreed, Application, Carried, Root, v14 as wire};
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
@@ -140,8 +140,13 @@ impl Translation {
     fn application_total(&self, wire: &Agreed) -> bool {
         for root in &self.roots {
             let sent = match root.carried {
-                Carried::Left | Carried::Saved | Carried::Preparation | Carried::JobResult | Carried::Items => true,
-                Carried::JobSpec | Carried::Grant => false,
+                Carried::Left
+                | Carried::Saved
+                | Carried::Preparation
+                | Carried::JobResult
+                | Carried::Items
+                | Carried::Ask => true,
+                Carried::JobSpec | Carried::Grant | Carried::Answer => false,
             };
             if sent && root.wire == wire.name {
                 for bridge in &self.application {
@@ -706,6 +711,19 @@ impl Translation {
         limits: &wire::Limits,
     ) -> Result<wire::FromEngine, Untranslated> {
         Ok(match record {
+            wire::FromEngine::Asked(record) => {
+                let mut record = record.into_parts();
+                record.answer = match record.answer {
+                    wire::AskAnswer::Bytes(value) => {
+                        let bytes = self.carried(Carried::Answer, value.into_parts().bytes, agreed, down)?;
+                        wire::AskAnswer::Bytes(
+                            wire::AskBytes::new(limits, wire::AskBytesParts { bytes }).or(Err(order()))?,
+                        )
+                    }
+                    wire::AskAnswer::Refused => wire::AskAnswer::Refused,
+                };
+                wire::FromEngine::Asked(wire::Asked::new(limits, record).or(Err(order()))?)
+            }
             wire::FromEngine::Assignment(record) => {
                 wire::FromEngine::Assignment(self.assignment(record, agreed, down, limits)?)
             }
@@ -734,6 +752,11 @@ impl Translation {
         limits: &wire::Limits,
     ) -> Result<wire::FromWorker, Untranslated> {
         Ok(match record {
+            wire::FromWorker::Ask(record) => {
+                let mut record = record.into_parts();
+                record.bytes = self.carried(Carried::Ask, record.bytes, agreed, down)?;
+                wire::FromWorker::Ask(wire::Ask::new(limits, record).or(Err(order()))?)
+            }
             wire::FromWorker::Turn(record) => wire::FromWorker::Turn(self.turn(record, agreed, down, limits)?),
             wire::FromWorker::Answer(record) => wire::FromWorker::Answer(self.answer(record, agreed, down, limits)?),
             wire::FromWorker::JobAnswer(record) => {

@@ -751,8 +751,9 @@ and resends what it must after the next hello.
   each taken from the domains' limits by the components that use them: the
   largest charter, transcript (the resume limit, which bounds a current
   window), turn, message, call input, answer, result, fact, piece,
-  detail and grant; the application's largest items, left work, saved work and
-  evidence, which the application's limits give; slots, calls per run,
+  detail and grant; the application's largest items, left work, saved work,
+  evidence, ask and answer (`../../domain/hosts/hub.md`, 10), which the
+  application's limits give; slots, calls per run,
   turns kept per run, the messages a run's inbox takes (a start's, and a
   record's refusals), the endpoints a hello may declare, LLM accounts'
   sources, the program sources a worker may be given (which bound

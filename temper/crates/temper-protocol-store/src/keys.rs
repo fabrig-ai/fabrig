@@ -99,6 +99,9 @@ pub const LANDED_DRAFT: u8 = 41;
 pub const FOLLOW: u8 = 42;
 /// A person's devices (temper/docs/design/protocol/store.md, 2).
 pub const DEVICE: u8 = 43;
+/// A goal's reds (temper/docs/design/domain/forge/reds.md, 6).
+pub const RED: u8 = 44;
+pub const RED_NUMBER: u8 = 45;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_PROJECT: u8 = 127;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
@@ -173,9 +176,10 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
     // Writer is one family byte and an eight-byte forge number: 9 bytes.
     // Binding: family byte, two bytes per NUL, and byte-string terminator.
     let making = limits.name_bytes.min(1024).checked_mul(4)?.checked_add(13)?;
+    let red = limits.red_key_bytes.checked_mul(2)?.checked_add(11)?;
     // History index keys hold at most three eight-byte numbers plus the family.
     let history = 25;
-    Some(name.max(topic).max(making).max(history).max(159).max(1 + 2 * 254 + 2))
+    Some(name.max(topic).max(making).max(red).max(history).max(159).max(1 + 2 * 254 + 2))
 }
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
@@ -235,6 +239,12 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         }
         forge::Key::Forge(number) => {
             writer.tag(FORGE).u64(u64::from(*number));
+        }
+        forge::Key::Red { goal, key } => {
+            writer.tag(RED).u64(*goal).bytes(key);
+        }
+        forge::Key::RedNumber => {
+            writer.tag(RED_NUMBER);
         }
         forge::Key::ForgeNumber => {
             writer.tag(FORGE_NUMBER);
@@ -493,6 +503,15 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             }
             forge::Key::LandedDraft { repository, path }
         }
+        RED => {
+            let goal = reader.u64()?;
+            let key = reader.bytes()?;
+            if !forge::reds::key_fits(&key, limits.red_key_bytes) {
+                return None;
+            }
+            forge::Key::Red { goal, key }
+        }
+        RED_NUMBER => forge::Key::RedNumber,
         AWAY => forge::Key::Away { party: reader.u64()?, project: u32::try_from(reader.u64()?).ok()? },
         FINDING => forge::Key::Finding {
             project: u32::try_from(reader.u64()?).ok()?,

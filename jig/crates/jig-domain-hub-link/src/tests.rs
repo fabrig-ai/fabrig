@@ -821,3 +821,93 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
         assert_eq!(payload::ending(&ending), expected, "{failure:?}");
     }
 }
+
+fn asking_hub() -> (host::Hub, skein_lib::Env<host::Limits>) {
+    let limits = host::Limits {
+        application_ask_bytes: 1,
+        application_answer_bytes: 1,
+        piece_bytes: 0,
+        program_sources: 0,
+        source_interval: Duration::from_secs(1),
+        source_timeout: Duration::from_secs(1),
+        slots: 1,
+        accounts: 0,
+        charter_bytes: 0,
+        transcript_bytes: 0,
+        delivery_evidence_bytes: 0,
+        turn_bytes: 0,
+        outcome_bytes: 0,
+        detail_bytes: 0,
+        held: 0,
+        inbox: 0,
+        event_bytes: 0,
+        run_calls: 0,
+        facts: 0,
+        told: 0,
+        turns: 0,
+        turn_queue_bytes: 0,
+    };
+    let mut hub = host::Hub::new(&limits);
+    let env = skein_lib::Env { now: Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
+    let mut out = Queue::uncapped();
+    host::step(
+        &mut hub,
+        &env,
+        host::Event::Down(host::LinkDown::Assign {
+            assignment: host::Assignment {
+                assignment: host::RunAssignment {
+                    identity: [0; 16],
+                    run: RUN,
+                    attempt: ATTEMPT,
+                    workspace: None,
+                    save: false,
+                    live: host::LiveAsk::NONE,
+                    charter: Box::new([]),
+                    grants: Box::new([]),
+                },
+                messages: Box::new([]),
+                turns: Box::new([]),
+                answered: Box::new([]),
+            },
+        }),
+        &mut out,
+    );
+    let Some(host::Request::Agent(host::ToAgent::Start { .. })) = out.pop() else {
+        panic!("the hub starts its hosted attempt")
+    };
+    assert!(out.is_empty());
+    (hub, env)
+}
+
+#[test]
+fn the_engines_own_hub_routes_application_asks_and_answers_by_number() {
+    let (mut hub, env) = asking_hub();
+    let mut root = Queue::uncapped();
+    host::step(
+        &mut hub,
+        &env,
+        host::Event::Ask { run: RUN, attempt: ATTEMPT, bytes: b"x".as_slice().into() },
+        &mut root,
+    );
+    let Some(host::Request::Up(value)) = root.pop() else { panic!("hub ask") };
+    let mut link = link();
+    link.connect(CHANNEL);
+    let Some(core::Event::Fleet(fleet::Event::Ask { channel, run, attempt, number, bytes })) =
+        up(&mut link, CHANNEL, value)
+    else {
+        panic!("fleet ask")
+    };
+    assert_eq!((channel, run, attempt, number, bytes.as_ref()), (CHANNEL, RUN, ATTEMPT, 1, b"x".as_slice()));
+    let answer = host::AskAnswer::Bytes(b"y".as_slice().into());
+    let event = now(core::LinkNow::Asked { channel, run, attempt, number, answer: answer.clone() });
+    let mut out = Queue::uncapped();
+    step(&mut link, Time::ZERO, event, &mut out);
+    let Some(Request::Down { channel, value }) = out.pop() else { panic!("hub answer") };
+    assert_eq!(channel, CHANNEL);
+    assert_eq!(value, host::LinkDown::Asked { run: RUN, attempt: ATTEMPT, number: 1, answer: answer.clone() });
+    host::step(&mut hub, &env, host::Event::Down(value), &mut root);
+    assert_eq!(root.pop(), Some(host::Request::Asked { run: RUN, attempt: ATTEMPT, number: 1, answer }));
+    assert!(root.is_empty());
+    assert!(out.is_empty());
+    assert_eq!(link.payload_count(), 0, "a read keeps no payload for commitment");
+}

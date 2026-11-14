@@ -62,6 +62,7 @@ pub(crate) fn pop_activity(domain: &mut Hub) -> Option<LinkUp> {
             LinkUp::Piece { run, attempt, piece } => pending(domain, *run, *attempt, piece.turn),
             LinkUp::Activity { .. }
             | LinkUp::ListRead { .. }
+            | LinkUp::Ask { .. }
             | LinkUp::Draining
             | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }

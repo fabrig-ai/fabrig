@@ -182,6 +182,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::SettingsAnswer { .. }
         | core::Now::PersonAnswer { .. }
         | core::Now::SettledCallRefused { .. }
+        | core::Now::Ask { .. }
         | core::Now::Call { .. }
         | core::Now::DropCall { .. }
         | core::Now::Undelivered { .. }

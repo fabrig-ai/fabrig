@@ -22,6 +22,8 @@ fn terms_use_the_agreed_versions_own_table() {
 
 fn record(kind: Kind) -> &'static [u8] {
     match kind {
+        Kind::Ask => b"Ask",
+        Kind::Asked => b"Asked",
         Kind::Wires => b"Agreed",
         Kind::Hello => b"Hello",
         Kind::Turn => b"Turn",
@@ -55,7 +57,7 @@ fn record(kind: Kind) -> &'static [u8] {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the kinds test reads the current wire schema")]
 fn kinds_follow_every_schema_variant() {
-    let schema = skein_codec::schema::parse(include_str!("../../schema/worker-wire-v13.schema").as_bytes())
+    let schema = skein_codec::schema::parse(include_str!("../../schema/worker-wire-v14.schema").as_bytes())
         .expect("current schema");
     let mut seen = 0;
     for (name, base, direction) in [

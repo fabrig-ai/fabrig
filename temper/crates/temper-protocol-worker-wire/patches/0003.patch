@@ -1,0 +1,8 @@
+patch 1
+owner temper 3
+
+family temper-worker-wire 7 to 8
+add Ask
+add Red
+add Reds
+add Answer

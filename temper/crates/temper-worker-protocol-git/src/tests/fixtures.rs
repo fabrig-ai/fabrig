@@ -19,6 +19,7 @@ pub fn checkout() -> checkout::Limits {
         conflicts: 4,
         path_bytes: 64,
         remote_timeout: Duration::from_secs(30),
+        reds_read_ms: 5_000,
         local_timeout: Duration::from_secs(5),
         facts: 8,
     }

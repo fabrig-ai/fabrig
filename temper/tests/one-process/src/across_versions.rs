@@ -38,14 +38,18 @@ pub fn wires(versions: &[(&str, u16)]) -> Wires {
 pub(crate) fn worker_wires() -> Option<Wires> {
     STATE.with(|state| state.borrow().versions.as_ref().map(|versions| wires(versions)))
 }
-fn at_floors(run: impl FnOnce()) {
+fn at_compatible_versions(run: impl FnOnce()) {
     struct Reset;
     impl Drop for Reset {
         fn drop(&mut self) {
             STATE.with(|state| *state.borrow_mut() = State::default());
         }
     }
-    STATE.with(|state| *state.borrow_mut() = State { versions: Some(Vec::new()), opened: 0 });
+    // wires.md, 11: contract 2 needs smith-charter 5 and jig-worker-wire 13;
+    // every other worker wire stays at its floor.
+    STATE.with(|state| {
+        *state.borrow_mut() = State { versions: Some(vec![("smith-charter", 5), ("jig-worker-wire", 13)]), opened: 0 };
+    });
     let _reset = Reset;
     run();
     STATE.with(|state| assert!(state.borrow().opened > 0, "the engine logged the bridged opening"));
@@ -68,8 +72,8 @@ pub(crate) fn note(note: &temper_service::Note) {
             "temper",
             temper_engine_service::Note::WorkerOpened { worker: worker.clone(), wires: wires.clone() },
         );
-        assert!(line.contains("opened: jig-worker-wire 12,"), "{line}");
-        assert!(line.contains("smith-charter 4,"), "{line}");
+        assert!(line.contains("opened: jig-worker-wire 13,"), "{line}");
+        assert!(line.contains("smith-charter 5,"), "{line}");
         STATE.with(|state| state.borrow_mut().opened += 1);
     }
 }
@@ -98,11 +102,11 @@ pub(crate) fn tasks(store: &Store) {
 }
 /// A goal's change lands, with a message and an answered host call in its running run.
 pub fn goal() {
-    at_floors(crate::fixtures::core_after_project::bridged_goal);
+    at_compatible_versions(crate::fixtures::core_after_project::bridged_goal);
 }
 /// Checkout uses the initial identity; delivery uses its mid-run renewal.
 pub fn renewal() {
-    at_floors(|| {
+    at_compatible_versions(|| {
         let counts = crate::m15::delivery(true);
         assert_eq!(counts.tokens, 5);
         assert_eq!(counts.checkpoints, 5);

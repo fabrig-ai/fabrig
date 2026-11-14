@@ -888,6 +888,8 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Writer(row) => top::Key::Writer(row.forge),
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
+        top::Stored::Red(row) => top::Key::Red { goal: row.goal, key: row.key.clone() },
+        top::Stored::RedNumber { .. } => top::Key::RedNumber,
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },

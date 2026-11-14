@@ -52,6 +52,8 @@ pub fn limits() -> Limits {
         },
         watermark: temper_worker_domain::WATERMARK,
         host: host::Limits {
+            application_ask_bytes: 0,
+            application_answer_bytes: 0,
             program_sources: 12,
             source_interval: skein_lib::Duration::from_secs(60),
             source_timeout: skein_lib::Duration::from_secs(10),
@@ -82,6 +84,7 @@ pub fn limits() -> Limits {
             conflicts: 0,
             path_bytes: 0,
             remote_timeout: Duration::from_secs(60),
+            reds_read_ms: 5_000,
             local_timeout: Duration::from_secs(10),
             facts: 256,
         },

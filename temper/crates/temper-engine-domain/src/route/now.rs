@@ -17,6 +17,16 @@ use skein_lib::Queue;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes the core's immediate vocabulary")]
 pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, now: core::Now) {
     match now {
+        core::Now::Ask { channel, run, attempt, number, bytes } => {
+            let request = Request::Worker(crate::WorkerRequest::Host(Box::new(HostRequest::Ask {
+                channel,
+                run,
+                attempt,
+                number,
+                bytes,
+            })));
+            let _sent = super::now(domain, request);
+        }
         core::Now::Link(value) => link_now(domain, value),
         core::Now::RelayBusy { channel, run, attempt, call } => {
             let delivery = super::host_route::busy(channel, run, attempt, call);
@@ -189,6 +199,11 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
 
 fn link_now(domain: &mut Domain, value: core::LinkNow) {
     match value {
+        core::LinkNow::Asked { channel, run, attempt, number, answer } => {
+            let delivery =
+                Delivery::Link { channel, down: jig_domain_host::LinkDown::Asked { run, attempt, number, answer } };
+            assert!(super::now(domain, crate::boundary::delivery_output(delivery)), "ask answer door reserved");
+        }
         core::LinkNow::Relayed { channel, run, attempt, call, answer } => {
             let delivery = super::host_route::relayed(domain, channel, run, attempt, call, answer);
             assert!(super::now(domain, crate::boundary::delivery_output(delivery)), "read answer door reserved");

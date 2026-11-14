@@ -1,0 +1,16 @@
+patch 1
+owner temper 11 after jig 5
+
+family temper-store 21 to 22
+add Recorder
+add Red
+add RedNumber
+add RedRecorded
+add RedFull
+add RedRefusal
+add RedRefused
+add RedResult
+add RedReply
+add CallPayload.red
+add Value.red
+add Value.red_number
