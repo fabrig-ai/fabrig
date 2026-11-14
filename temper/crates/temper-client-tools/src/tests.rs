@@ -24,6 +24,7 @@ mod words;
 mod follow;
 mod landing;
 mod printed;
+mod tier;
 
 mod making;
 

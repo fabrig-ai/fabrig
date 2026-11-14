@@ -98,7 +98,10 @@ pub enum LogPart {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Read {
     /// Locate the forge's id by owner and name, addressed to repository 0.
-    Locate { owner: Box<[u8]>, name: Box<[u8]> },
+    Locate {
+        owner: Box<[u8]>,
+        name: Box<[u8]>,
+    },
     /// Inclusive forge time, least recently updated first, pages from 1.
     Items {
         /// Inclusive at the provider's time resolution. Saved positions come
@@ -115,50 +118,121 @@ pub enum Read {
     /// `since` is at or before the update of every comment above `after`;
     /// the dialect sends it as the forge's filter. Zero sends no filter.
     /// `after` stays the answer's check; an owner knowing no time sends zero.
-    Item { number: u64, after: u64, since: Time },
+    Item {
+        number: u64,
+        after: u64,
+        since: Time,
+    },
     /// Read pull.
-    Pull { number: u64, ci: bool },
+    Pull {
+        number: u64,
+        ci: bool,
+    },
     /// The open matching pull, else the oldest.
-    PullFor { head: Box<[u8]>, base: Box<[u8]> },
+    PullFor {
+        head: Box<[u8]>,
+        base: Box<[u8]>,
+    },
     /// Submitted reviews past the page's first `skip` retained rows.
-    Reviews { number: u64, page: u32, skip: u32 },
+    Reviews {
+        number: u64,
+        page: u32,
+        skip: u32,
+    },
     /// Read statuses.
-    Statuses { commit: Commit, page: u32 },
+    Statuses {
+        commit: Commit,
+        page: u32,
+    },
     /// Remarks past the page or slice's first `skip` rows.
-    Remarks { number: u64, review: u64, page: u32, skip: u32 },
+    Remarks {
+        number: u64,
+        review: u64,
+        page: u32,
+        skip: u32,
+    },
     /// Read branch.
-    Branch { branch: Box<[u8]> },
+    Branch {
+        branch: Box<[u8]>,
+    },
     /// Names starting with the nonempty branch prefix, bounded like a branch name.
     /// Only matching names count toward the adapter's answer limit.
-    Branches { prefix: Box<[u8]> },
+    Branches {
+        prefix: Box<[u8]>,
+    },
     /// Changed paths past the page's first `skip` rows; `sides` asks for their whole contents.
-    PullFiles { number: u64, head: Commit, page: u32, skip: u32, sides: bool },
+    PullFiles {
+        number: u64,
+        head: Commit,
+        page: u32,
+        skip: u32,
+        sides: bool,
+    },
     /// Names and counts; fewer names than `changed` means unknown overlap.
-    Compare { before: Commit, after: Commit },
+    Compare {
+        before: Commit,
+        after: Commit,
+    },
     /// Provider descriptions and links, with a failing job's attempt.
-    Checks { commit: Commit },
+    Checks {
+        commit: Commit,
+    },
     /// Bounded plaintext log for one failed job attempt at its head.
-    Job { attempt: JobAttempt, max_bytes: u32, part: LogPart },
+    Job {
+        attempt: JobAttempt,
+        max_bytes: u32,
+        part: LogPart,
+    },
+    JobState {
+        attempt: JobAttempt,
+    },
     /// One file at an immutable head, cut to the requested byte budget.
-    File { head: Commit, path: Box<[u8]>, max_bytes: u32 },
+    File {
+        head: Commit,
+        path: Box<[u8]>,
+        max_bytes: u32,
+    },
     /// Requires admin, including an absent rule.
-    Protection { branch: Box<[u8]> },
+    Protection {
+        branch: Box<[u8]>,
+    },
     /// Read settings.
     Settings,
     /// Read collaborators.
-    Collaborators { page: u32 },
+    Collaborators {
+        page: u32,
+    },
     /// Read permission.
-    Permission { user: u64 },
+    Permission {
+        user: u64,
+    },
     /// The runs of one workflow, by its file, at one commit, newest first, pages from 1.
-    Runs { workflow: Box<[u8]>, commit: Commit, page: u32 },
+    Runs {
+        workflow: Box<[u8]>,
+        commit: Commit,
+        page: u32,
+    },
     /// One run with its jobs.
-    Run { run: u64 },
+    Run {
+        run: u64,
+    },
     /// One tree, not recursively: a commit's root tree, or a tree by its id; pages from 1.
-    Tree { object: Commit, page: u32 },
+    Tree {
+        object: Commit,
+        page: u32,
+    },
     /// One file of a run's named artifact, stored or deflated, cut to `max_bytes` (forge/README.md, 3.2).
-    Artifact { run: u64, name: Box<[u8]>, max_bytes: u32 },
+    Artifact {
+        run: u64,
+        name: Box<[u8]>,
+        max_bytes: u32,
+    },
     /// The commits after `before` up to `after`, oldest first, pages from 1.
-    Commits { before: Commit, after: Commit, page: u32 },
+    Commits {
+        before: Commit,
+        after: Commit,
+        page: u32,
+    },
 }
 /// A typed forge write handed down from a committed outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -200,7 +274,9 @@ pub enum Write {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
     /// The located repository's nonzero id on its forge.
-    Located { repository: u32 },
+    Located {
+        repository: u32,
+    },
     /// Return items.
     Items {
         items: Box<[Summary]>,
@@ -210,38 +286,91 @@ pub enum Answer {
         now: Time,
     },
     /// Return item.
-    Item { item: Summary, comments: Box<[Comment]>, more: bool },
+    Item {
+        item: Summary,
+        comments: Box<[Comment]>,
+        more: bool,
+    },
     /// Return pull.
     Pull(Pull),
     /// Return reviews.
-    Reviews { reviews: Box<[Review]>, more: bool, cut: bool },
+    Reviews {
+        reviews: Box<[Review]>,
+        more: bool,
+        cut: bool,
+    },
     /// Return statuses.
-    Statuses { ci: Ci, statuses: Box<[Status]>, more: bool },
+    Statuses {
+        ci: Ci,
+        statuses: Box<[Status]>,
+        more: bool,
+    },
     /// Return remarks.
-    Remarks { remarks: Box<[Remark]>, more: bool, cut: bool },
+    Remarks {
+        remarks: Box<[Remark]>,
+        more: bool,
+        cut: bool,
+    },
     /// Return commit.
     Commit(Commit),
     /// Return branch names for adoption's deployment-prefix check.
     Branches(Box<[Box<[u8]>]>),
     /// The observed head must equal the request's head.
-    PullFiles { head: Commit, files: Box<[File]>, more: bool, cut: bool },
+    PullFiles {
+        head: Commit,
+        files: Box<[File]>,
+        more: bool,
+        cut: bool,
+    },
     /// Return compare.
     /// Names, counts and containment of two commits; no contents (forge/README.md, 3.2 and 3.3).
-    Compare { before: Commit, after: Commit, ahead: u64, behind: u64, files: Box<[Box<[u8]>]>, changed: u64 },
+    Compare {
+        before: Commit,
+        after: Commit,
+        ahead: u64,
+        behind: u64,
+        files: Box<[Box<[u8]>]>,
+        changed: u64,
+    },
     /// Return checks.
     Checks(Box<[Status]>),
     /// Bytes from one pinned job attempt, cut to the requested byte budget.
-    Job { attempt: JobAttempt, step: Option<Step>, log: Box<[u8]>, truncated: bool },
+    Job {
+        attempt: JobAttempt,
+        step: Option<Step>,
+        log: Box<[u8]>,
+        truncated: bool,
+    },
+    JobState {
+        attempt: JobAttempt,
+        state: JobState,
+        labels: Box<[Box<[u8]>]>,
+        step: Option<Step>,
+        cut: bool,
+    },
     /// One bounded file from the requested immutable head.
-    File { head: Commit, path: Box<[u8]>, bytes: Box<[u8]>, truncated: bool },
+    File {
+        head: Commit,
+        path: Box<[u8]>,
+        bytes: Box<[u8]>,
+        truncated: bool,
+    },
     /// A directory's immediate entries at one head, in the forge's order.
-    Directory { head: Commit, path: Box<[u8]>, entries: Box<[Entry]>, truncated: bool },
+    Directory {
+        head: Commit,
+        path: Box<[u8]>,
+        entries: Box<[Entry]>,
+        truncated: bool,
+    },
     /// Return protection.
     Protection(Option<Protection>),
     /// Return settings.
     Settings(Settings),
     /// Return collaborators.
-    Collaborators { collaborators: Box<[Collaborator]>, more: bool },
+    Collaborators {
+        collaborators: Box<[Collaborator]>,
+        more: bool,
+    },
     /// Return permission.
     Permission(UserPermission),
     /// Return created.
@@ -257,13 +386,22 @@ pub enum Answer {
     /// Return branch.
     Branch(BranchCreation),
     /// The runs of one workflow at one commit, newest first.
-    Runs { runs: Box<[Run]>, more: bool },
+    Runs {
+        runs: Box<[Run]>,
+        more: bool,
+    },
     /// One run with its jobs.
     Run(Run),
     /// One tree's entries, in name order.
-    Tree { entries: Box<[TreeEntry]>, more: bool },
+    Tree {
+        entries: Box<[TreeEntry]>,
+        more: bool,
+    },
     /// One page of a range's commits, oldest first.
-    Commits { commits: Box<[CommitMessage]>, more: bool },
+    Commits {
+        commits: Box<[CommitMessage]>,
+        more: bool,
+    },
     /// Return done.
     Done,
 }
@@ -545,7 +683,7 @@ pub struct JobAttempt {
     pub job: u64,
     pub attempt: u32,
 }
-/// The first failed step of a job attempt (forge/README.md, 3.6).
+/// A retained job step: failed for a log, running for its state (forge/job-state.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Step {
     pub number: u32,
@@ -687,4 +825,13 @@ pub struct CommitMessage {
     pub id: Commit,
     pub parents: Box<[Commit]>,
     pub message: Box<[u8]>,
+}
+
+/// A job attempt without its log (forge/job-state.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum JobState {
+    Waiting,
+    Blocked,
+    Running,
+    Completed,
 }

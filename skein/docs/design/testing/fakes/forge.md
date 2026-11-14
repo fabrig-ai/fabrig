@@ -183,6 +183,12 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   step (`setup_faults`), or a run lost with no step failed (`lost`), so a
   world reaches the runner's faults; `Cue::Message` fails a job's
   workflow step, as a test would.
+- **A job's state** (`../../forge/job-state.md`, section 5): a job names
+  the runner labels it asks for and the jobs it needs, and the world the
+  labels its runners serve, all by default. A job asking for a label no
+  runner serves waits, with no steps, its status pending; one whose
+  needs have not ended is blocked; one running is at a step, so a
+  `JobState` read names each.
 - **Merges and updates by style:** a fast-forward-only merge moves the
   base to the head and refuses one that does not contain the base's tip
   (`Conflict`); an update by rebase replays the branch's commits onto the

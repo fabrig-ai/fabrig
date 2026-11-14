@@ -78,7 +78,9 @@ fn external_red(world: &mut World) -> skein_forge::api::Commit {
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"failures", b"suite.alpha\n", 1)
             .expect("outside landing");
     let commit = translate::commit(commit);
-    until(world, RUN_TICKS * 2, "outside landing judged red", |world| tier(world).record.sequence == 2);
+    until(world, RUN_TICKS * 2, "outside landing judged red", |world| {
+        tier(world).record.sequence == 2 && tier(world).posting.is_none()
+    });
     assert_eq!(
         tier(world).record.failing,
         temper_engine_domain_forge_tiers::Failures::Tests(Box::new([b"suite.alpha".as_slice().into()]))
@@ -156,6 +158,8 @@ fn full_new_findings_do_not_hold_an_outside_landings_red() {
     assert_eq!(news(&world, triager).len(), 1, "only the existing finding's news");
     assert!(tier(&world).record.run.is_none(), "red judgement completed despite the full table");
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"failures", b"", 1).expect("outside repair");
-    until(&mut world, RUN_TICKS, "tier judges the next landing", |world| tier(world).record.sequence == 3);
+    until(&mut world, RUN_TICKS, "tier judges the next landing", |world| {
+        tier(world).record.sequence == 3 && tier(world).posting.is_none()
+    });
     assert_eq!(tier(&world).record.failing, temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])));
 }

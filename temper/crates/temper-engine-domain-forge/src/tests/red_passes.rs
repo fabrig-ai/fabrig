@@ -78,6 +78,7 @@ fn merged_pull() -> PendingStep {
         pull_ci: false,
         ci: change::Status::Passed,
         failed: change_ci::Failed::new(Box::new([])),
+        stall: None,
         base_ci: change::Status::Passed,
         contains_base: change::Status::Passed,
         contains_head: change::Status::Unknown,

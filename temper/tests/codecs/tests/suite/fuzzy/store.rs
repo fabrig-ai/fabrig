@@ -86,7 +86,7 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
-    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v24");
+    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v25");
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
@@ -315,6 +315,7 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
     tier_rows(rng, bounds);
 }
 
+#[expect(clippy::too_many_lines, reason = "one drawn tier row covers its policy, flight and independent hold")]
 fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
     use temper_engine_domain_forge_tiers as p;
     let repository = skein_forge::api::Repository {
@@ -328,13 +329,26 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         _ => p::Blame::Suspect(failures.clone()),
     };
     let tests = Box::new([Box::from(b"a".as_slice()), Box::from(b"z".as_slice())]);
+    let waiting: Box<[p::Group]> = match &failures {
+        p::Failures::Tests(failing) if failing.len() == 2 && rng.below(2) == 0 => {
+            Box::from([p::Group { low: 1, high: 1, tests: Box::new([1]) }])
+        }
+        p::Failures::Tests(_) | p::Failures::Many => Box::new([]),
+    };
     let part = match rng.below(3) {
         0 => p::Part::Whole,
         1 => p::Part::Rerun { failed: tests.clone() },
         _ => p::Part::Probe {
             landing: 0,
+            low: 0,
+            high: 0,
+            waiting,
             tests: if rng.below(2) == 0 { p::Selection::All } else { p::Selection::Tests(tests.clone()) },
-            finding: p::Finding { failing: failures.clone(), flakes: tests, blamed: Box::new([blame.clone()]) },
+            finding: p::Finding {
+                failing: failures.clone(),
+                flakes: tests,
+                blamed: Box::new([blame.clone(), p::Blame::Cleared]),
+            },
         },
     };
     let run = if rng.below(2) == 0 {
@@ -345,11 +359,16 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             tip: [3; 32],
             key: [4; 32],
             faults: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
-            landings: Box::new([p::Landing { commit: [1; 32], key: [2; 32] }]),
+            landings: Box::new([
+                p::Landing { commit: [1; 32], key: [2; 32] },
+                p::Landing { commit: [3; 32], key: [4; 32] },
+            ]),
             part,
         })
     };
-    let row = forge::Stored::Tier(forge::TierRow {
+    let mut tier = forge::TierRow {
+        posting: None,
+        hold: None,
         observations: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
         requested: false,
         cancelled: false,
@@ -382,7 +401,15 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             flakes: Box::new([p::Flake { test: Box::from(b"flake".as_slice()), count: 2 }]),
             run,
         },
-    });
+    };
+    if rng.below(2) == 0 {
+        tier.hold = Some(forge::TierHold {
+            party: rng.next_u64(),
+            at: skein_lib::Wall::from_nanos(rng.next_u64()),
+            reason: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
+        });
+    }
+    let row = forge::Stored::Tier(tier);
     row_and_key(&row, rng, bounds);
     verification_row(rng, bounds, repository, blame);
     let row = forge::Stored::Receipt {

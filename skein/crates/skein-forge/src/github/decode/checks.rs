@@ -15,6 +15,7 @@ pub(super) struct State {
     job: document::Job,
     step: api::Step,
     failed: bool,
+    running: bool,
     completed: bool,
     conclusion: Option<api::Check>,
 }
@@ -22,9 +23,20 @@ impl State {
     pub(super) fn new() -> Self {
         Self {
             run: document::Run::new(api::Check::Pending),
-            job: document::Job { id: 0, run: 0, attempt: 0, head: [0; 32], step: None },
+            job: document::Job {
+                id: 0,
+                run: 0,
+                attempt: 0,
+                head: [0; 32],
+                step: None,
+                state: api::JobState::Waiting,
+                labels: Box::new([]),
+                running_step: None,
+                cut: false,
+            },
             step: api::Step { number: 0, name: Box::from([]) },
             failed: false,
+            running: false,
             completed: false,
             conclusion: None,
         }
@@ -32,7 +44,10 @@ impl State {
     pub(super) fn step_end(&mut self) {
         let step = core::mem::replace(&mut self.step, api::Step { number: 0, name: Box::from([]) });
         if core::mem::replace(&mut self.failed, false) && self.job.step.is_none() {
-            self.job.step = Some(step);
+            self.job.step = Some(step.clone());
+        }
+        if core::mem::replace(&mut self.running, false) && self.job.running_step.is_none() {
+            self.job.running_step = Some(step);
         }
     }
     pub(super) fn job(&self) -> document::Job {
@@ -65,11 +80,24 @@ impl State {
                 if node == Node::JobStep {
                     if key == b"name" {
                         self.step.name = text;
+                    } else if key == b"status" {
+                        self.running = text.as_ref() == b"in_progress";
                     } else {
                         self.failed = text.as_ref() == b"failure";
                     }
+                } else if node == Node::JobLabels {
+                    crate::job_state::keep(&mut self.job.labels, &mut self.job.cut, text);
                 } else if node == Node::Job {
-                    self.job.head = id::commit(&text).ok_or(Malformed::Id { field: key })?;
+                    if key == b"status" {
+                        self.job.state = match text.as_ref() {
+                            b"waiting" => api::JobState::Blocked,
+                            b"in_progress" => api::JobState::Running,
+                            b"completed" => api::JobState::Completed,
+                            _ => api::JobState::Waiting,
+                        };
+                    } else {
+                        self.job.head = id::commit(&text).ok_or(Malformed::Id { field: key })?;
+                    }
                 } else if node == Node::RunOutput {
                     self.run.title = text;
                 } else if node == Node::RunApp {
@@ -100,6 +128,7 @@ impl State {
                     };
                 }
             }
+            Token::Null if node == Node::JobLabels => self.job.cut = true,
             Token::ObjectStart
             | Token::ObjectEnd
             | Token::ArrayStart

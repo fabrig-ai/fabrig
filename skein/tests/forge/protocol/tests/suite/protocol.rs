@@ -141,6 +141,7 @@ use skein_forge_kit::client::commit;
 
 fn workflow() -> raw::Workflow {
     raw::Workflow {
+        requirements: Box::new([]),
         fails: Box::new([]),
         flaky: Box::new([]),
         report: None,
@@ -548,5 +549,92 @@ fn junit_reports_are_cut_after_decoding_either_zip_format() {
             );
         }
         world.finish();
+    }
+}
+
+#[test]
+fn pending_jobs_read_through_each_wire_face_until_a_runner_serves_their_labels() {
+    for github in [false, true] {
+        for (which, expected) in [(0, api::JobState::Waiting), (1, api::JobState::Blocked), (2, api::JobState::Running)]
+        {
+            let mut workflow = workflow();
+            workflow.passes = 1000;
+            workflow.latency_min = Duration::from_secs(100);
+            workflow.latency_max = Duration::from_secs(100);
+            workflow.requirements = Box::new([
+                raw::JobRequirements {
+                    job: b"build".as_slice().into(),
+                    labels: Box::new([b"docker".as_slice().into()]),
+                    needs: Box::new([]),
+                },
+                raw::JobRequirements {
+                    job: b"test".as_slice().into(),
+                    labels: Box::new([]),
+                    needs: Box::new([b"build".as_slice().into()]),
+                },
+            ]);
+            let mut world = World::turn_on(23, Box::new([workflow]), Box::new([]), github);
+            if which != 2 {
+                world.runner_labels(Some(Box::new([])));
+            }
+            let head = branch(&mut world, b"main");
+            assert_eq!(
+                world
+                    .direct(raw::Op::Write(raw::Write::Dispatch {
+                        workflow: b"gate.yml".as_slice().into(),
+                        branch: b"main".as_slice().into(),
+                        inputs: Box::new([])
+                    }))
+                    .expect("job-state fixture read"),
+                raw::Answer::Done
+            );
+            let raw::Answer::Runs(runs) = world
+                .inspect(&raw::Read::Runs {
+                    workflow: Some(b"gate.yml".as_slice().into()),
+                    commit: None,
+                    number: None,
+                    page: 1,
+                    limit: 2,
+                })
+                .expect("job-state fixture read")
+            else {
+                panic!("runs")
+            };
+            let id = runs[0].id;
+            let raw::Answer::Jobs(jobs) = world.inspect(&raw::Read::Jobs { run: id }).expect("job-state fixture read")
+            else {
+                panic!("jobs")
+            };
+            let job = &jobs[usize::from(which == 1)];
+            let attempt = JobAttempt { head, run: id, job: job.id, attempt: job.attempt };
+            let read = Read::JobState { attempt };
+            let Answer::JobState { state, labels, step, cut, .. } =
+                world.read(read.clone()).expect("job-state fixture read")
+            else {
+                panic!("job state")
+            };
+            assert_eq!(state, expected, "github {github}, row {which}");
+            let expected_labels: &[Box<[u8]>] = if which == 1 { &[] } else { &[Box::from(b"docker".as_slice())] };
+            assert_eq!(labels.as_ref(), expected_labels);
+            assert_eq!(
+                step,
+                if which == 2 { Some(api::Step { number: 1, name: b"build".as_slice().into() }) } else { None }
+            );
+            assert!(!cut);
+            if which == 0 {
+                world.run_for(Duration::from_secs(201));
+                assert!(matches!(
+                    world.read(read.clone()).expect("job-state fixture read"),
+                    Answer::JobState { state: api::JobState::Waiting, .. }
+                ));
+                world.runner_labels(None);
+                world.run_for(Duration::from_secs(100));
+                assert!(matches!(
+                    world.read(read).expect("job-state fixture read"),
+                    Answer::JobState { state: api::JobState::Running, .. }
+                ));
+            }
+            world.finish();
+        }
     }
 }

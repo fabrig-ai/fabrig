@@ -280,6 +280,9 @@ fn a_files_false_comparison_keeps_commits_and_lists_no_files() {
 fn a_jobs_steps_keep_their_numbers_names_and_statuses() {
     let input = a::Answer::Job {
         job: a::Job {
+            labels: Box::new([]),
+            needs: Box::new([]),
+            wait: None,
             name: Box::new([]),
             state: a::RunState::Completed,
             conclusion: Some(a::Conclusion::Failure),
@@ -298,7 +301,15 @@ fn a_jobs_steps_keep_their_numbers_names_and_statuses() {
     assert_eq!(
         answers::read(&config(), &crate::setup::Store::new(&limits()), &Request::Job { at: at(), job: 8 }, &input),
         Ok(Answer::Job {
-            job: d::Job { id: 8, run_id: 7, attempt: 2, name: Box::new([]), status: d::StepStatus::Failure },
+            job: d::Job {
+                id: 8,
+                run_id: 7,
+                attempt: 2,
+                name: Box::new([]),
+                status: d::StepStatus::Failure,
+                labels: Box::new([]),
+                cut: false
+            },
             steps: Box::new([
                 d::Step { number: 0, name: boxed(b"Setup"), status: d::StepStatus::Success },
                 d::Step { number: 1, name: boxed(b"Work"), status: d::StepStatus::Cancelled },

@@ -507,6 +507,30 @@
   says that step's WHAT where the table gives one, and otherwise `the
   forge to answer its reads` (2026-11-14): `no progress at producing for
   30 minutes: waiting for the forge to answer its reads`.
+- **A stall on CI says why** (`../../../draft/ci-on-forgejo-17.md`,
+  section 3): before a change is held because CI at its head never
+  reported, it reads that head's checks afresh (skein's `Read::Checks`)
+  and the state of each pending check's job (skein's
+  `forge/job-state.md`), one read per job, only then: nothing on the
+  periodic path. The hold's words follow the stall's, one clause per
+  pending check, in the checks' order, after `; `:
+  `CONTEXT: waiting for a runner labelled L1, L2` (no runner with its
+  labels took it, `labelled` and its list left out when the job names
+  none), `CONTEXT: blocked by the jobs it needs`, `CONTEXT: running at
+  step N, NAME` (`running` alone when no step says so), `CONTEXT:
+  pending, no job linked` (a check whose status names no job: CI another
+  system reports, or a forge whose pending checks name none), `CONTEXT:
+  pending, its job unread` (the job's read failed or answered
+  `MissingJob`), and `CONTEXT: completed` (a job ended since the stall's
+  last read). At most 8 clauses, then `; and K more pending`; clauses
+  kept whole within the hold's bytes, those that do not fit counted in
+  K. For instance, `no progress at checking for 31 minutes: waiting for
+  CI at 0123456789ab; ci / test: waiting for a runner labelled docker;
+  ci / lint: blocked by the jobs it needs`. A checks read that fails
+  holds with the stall's words alone. The clauses live in the hold's
+  words alone, never in the store: a change held again after its
+  restoration (*Every hold reaches its task*, below) holds with the
+  stall's words alone.
 - **A stall holds as any hold does.** The change and its task are held
   together, never one without the other: its escalation waits for its
   holder, which it wakes (jig's `domain/tasks/lifecycle.md`, 6 and `jig/docs/design/domain/tasks/proposals.md`): the

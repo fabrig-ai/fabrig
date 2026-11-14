@@ -143,7 +143,7 @@ pub(super) fn start_due(
     if !existing && row.goals.is_empty() && row.record.run.is_none() {
         return;
     }
-    if row.record.run.is_none() {
+    if row.hold.is_none() && row.record.run.is_none() {
         let mut selected: Option<(Option<Time>, u64)> = None;
         for goal in &row.goals {
             if goal.tip.is_none() || goal.tip == goal.ran || !span_passed(goal.started, tier.span, env.now) {

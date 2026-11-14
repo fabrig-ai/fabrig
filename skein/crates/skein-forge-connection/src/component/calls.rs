@@ -344,6 +344,7 @@ pub(super) fn page_size(op: &api::Op, kind: crate::settings::Kind, cap: u32, l: 
             | api::Read::File { .. }
             | api::Read::Run { .. }
             | api::Read::Artifact { .. }
+            | api::Read::JobState { .. }
             | api::Read::Job { .. }
             | api::Read::Settings => return 1,
         },

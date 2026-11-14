@@ -72,6 +72,7 @@ pub(crate) fn answered(
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)

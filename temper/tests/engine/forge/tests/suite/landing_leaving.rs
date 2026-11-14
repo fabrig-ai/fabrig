@@ -13,11 +13,27 @@ use temper_engine_forge_world::{
 const MEMBER: &[u8] = b"temper/51";
 
 fn configured(latency: u64, failure: bool, advisory: bool) -> World {
+    configured_with_wait(latency, failure, advisory, false)
+}
+fn configured_with_wait(latency: u64, failure: bool, advisory: bool, waiting: bool) -> World {
     let mut world = World::public_turn(
         31,
         raw::Workflow {
+            requirements: if waiting {
+                Box::new([raw::JobRequirements {
+                    job: b"test".as_slice().into(),
+                    labels: Box::new([b"docker".as_slice().into()]),
+                    needs: Box::new([]),
+                }])
+            } else {
+                Box::new([])
+            },
             file: b"gate.yml".as_slice().into(),
-            jobs: Box::new([b"test".as_slice().into(), b"lint".as_slice().into()]),
+            jobs: if waiting {
+                Box::new([b"test".as_slice().into()])
+            } else {
+                Box::new([b"test".as_slice().into(), b"lint".as_slice().into()])
+            },
             fails: Box::new([]),
             flaky: Box::new([]),
             report: None,
@@ -29,6 +45,9 @@ fn configured(latency: u64, failure: bool, advisory: bool) -> World {
             cue: failure.then(|| raw::Cue::File { path: b"file".as_slice().into(), green: b"fixed".as_slice().into() }),
         },
     );
+    if waiting {
+        world.runner_labels(Some(Box::new([])));
+    }
     world.adopt();
     let mut gates = Vec::new();
     if advisory {
@@ -246,24 +265,40 @@ fn runner_faults_past_the_projects_retries_hold_without_repair() {
 }
 #[test]
 fn a_run_past_the_projects_timeout_holds_naming_its_run() {
-    let mut world = configured(100, false, false);
-    world.gate_policy(landing::Project { gate_timeout: Duration::from_secs(5), ..landing::Project::DEFAULT });
-    proving(&mut world);
-    for entry in 200..240 {
-        if matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Hold(_)) {
-            break;
+    for waiting in [false, true] {
+        let mut world = configured_with_wait(100, false, false, waiting);
+        world.gate_policy(landing::Project { gate_timeout: Duration::from_secs(5), ..landing::Project::DEFAULT });
+        proving(&mut world);
+        assert!(
+            !world.take_calls().iter().any(|op| matches!(op, api::Op::Read(api::Read::JobState { .. }))),
+            "no job-state read before the bound"
+        );
+        for entry in 200..240 {
+            if matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Hold(_)) {
+                break;
+            }
         }
+        let landing::Phase::Held { why: landing::Hold::Timeout { run, .. }, .. } = world.landing(LANDING).landing.phase
+        else {
+            panic!("timeout hold: {:?}", world.landing(LANDING))
+        };
+        assert_ne!(run, 0);
+        assert_eq!(
+            world.landing_hold_words(LANDING).as_deref(),
+            Some(
+                format!(
+                    "gate gate of org/repo: run {run} running past its bound{}",
+                    if waiting {
+                        "; test: waiting for a runner labelled docker"
+                    } else {
+                        "; test: running at step 1, test; lint: running at step 1, lint"
+                    }
+                )
+                .as_bytes()
+            )
+        );
+        assert_eq!(world.change(CHANGE).change.repairs, 0);
     }
-    let landing::Phase::Held { why: landing::Hold::Timeout { run, .. }, .. } = world.landing(LANDING).landing.phase
-    else {
-        panic!("timeout hold: {:?}", world.landing(LANDING))
-    };
-    assert_ne!(run, 0);
-    assert_eq!(
-        world.landing_hold_words(LANDING).as_deref(),
-        Some(format!("gate gate of org/repo: run {run} running past its bound").as_bytes())
-    );
-    assert_eq!(world.change(CHANGE).change.repairs, 0);
 }
 #[test]
 fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_receipts() {
