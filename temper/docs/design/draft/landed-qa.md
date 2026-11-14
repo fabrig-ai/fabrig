@@ -475,6 +475,21 @@ For deployments, in three steps, each usable as it lands:
   forge, so that landing by turn's merges run there; the `ctl` surface
   and its cases first. It reuses what the box's kind has: the builds,
   the ledger, the recipes' lines, the place's commands and findings.
+  For landing by turn, the first use, it also needs (the user,
+  2026-11-14, so that its cases run through the machinery alone):
+  - **a gate the fake forge dispatches,** declared by the setup, in its
+    `config/` or in a file its `forge` lines commit, its verdict decided
+    by content as a head's CI is (section 6), so that a batch proves
+    green or red by what its members hold;
+  - **several goals at once:** the fake model's and the fake coding
+    agent's scripts carrying two or more goals of one setup to ready
+    changes together, each taking its numbers and heads from the
+    conversation (section 6), so that a batch forms;
+  - **a project's landing given to what the recipe made:** its `by`,
+    `batch` and gates name a project and repository by numbers made at
+    runtime (`../domain/landing.md`, 13.1), so a line changes the
+    place's configuration between two of its starts, or ctl changes
+    them once they are settings.
 - **The web client and the TUI on a deployment:** the drivers' browser
   and terminal reach a deployment's engine rather than a box of their
   own, once the drivers' browser starts at the places.
@@ -524,6 +539,11 @@ Focused and fuzzy suites alone, each failing first:
   dispatched on the fake Forgejo and the turn merged by the worker's
   git; ctl signed in with no link printed; the place's directories
   private under any umask;
+- landing by turn through the machinery: a setup's gate declared and
+  dispatched on the fake Forgejo, green or red by what a member holds;
+  two goals' scripted changes ready together and landed in one landing;
+  a project's landing set to `turn` on a project and repository the
+  recipe made;
 - resuming: on a build holding the goal's landing at a later commit; open
   findings checked first, then failed cases, then cases that build holds,
   and none later; a finding open after two goals handed on.
