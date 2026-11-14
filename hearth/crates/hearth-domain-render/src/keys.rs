@@ -21,7 +21,7 @@ impl Resolution {
     }
 }
 #[must_use]
-pub fn resolution(inputs: &Inputs) -> Digest {
+pub(crate) fn resolution(inputs: &Inputs) -> Digest {
     let mut hash = H::new(b"resolution", 4);
     for items in [&inputs.sources, &inputs.request, &inputs.variant, &inputs.apt] {
         for item in items {
@@ -31,7 +31,7 @@ pub fn resolution(inputs: &Inputs) -> Digest {
     hash.finish()
 }
 #[must_use]
-pub fn layers(resolution: &Digest, packages: &Digest, software: &Digest, config: &Digest) -> Keys {
+pub(crate) fn layers(resolution: &Digest, packages: &Digest, software: &Digest, config: &Digest) -> Keys {
     let packages = layer(b"packages", resolution, packages);
     let software = layer(b"software", &packages, software);
     Keys { packages, software, config: layer(b"config", &software, config) }
@@ -63,7 +63,7 @@ pub fn part(spec: &Spec, name: &[u8]) -> Digest {
 }
 
 #[must_use]
-pub fn closure(packages: &[crate::resolution::Package]) -> Digest {
+pub(crate) fn closure(packages: &[crate::resolution::Package]) -> Digest {
     let mut hash = H::new(b"closure", 1);
     hash.values().list(u64::try_from(packages.len()).expect("bounded closure"));
     for package in packages {

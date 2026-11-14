@@ -297,13 +297,7 @@ impl super::Side {
                     Some(crate::diff::Made::Spec(spec)) => spec,
                     Some(crate::diff::Made::Failed(_)) | None => unreachable!("spec holder"),
                 };
-                let keys = crate::keys::layers(
-                    &known.digest,
-                    &crate::keys::part(spec, b"packages"),
-                    &crate::keys::part(spec, b"software"),
-                    &crate::keys::part(spec, b"config"),
-                );
-                spec.resolution = Some(Box::new(crate::keys::Resolution::Known { key, keys }));
+                known.apply(key, spec);
             }
         }
         for target in targets.as_slice() {
