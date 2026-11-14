@@ -68,10 +68,16 @@ pub struct Config {
     pub ci: u64,
     /// CI inherited by every repository made through the forge.
     pub made_checks: crate::api::Checks,
+    /// Dispatch-only workflows inherited by every repository made through the forge.
+    pub made_workflows: Box<[crate::api::Workflow]>,
+    /// Manual merge settings inherited by every repository made through the forge.
+    pub made_manual_merges: crate::api::ManualMerges,
     /// Per mille: a dispatched job fails during set-up.
     pub setup_faults: u32,
     /// Per mille per job: its run loses the job, with no failed step.
     pub lost: u32,
+    /// Labels served by runners; None serves every label.
+    pub runner_labels: Option<Box<[Box<[u8]>]>>,
     /// The time to deliver a webhook is drawn from `hook_min..=hook_max`, or,
     /// for the `hooks_late` chance of them, from `late_min..=late_max`; and
     /// the `hooks_lost` chance of them is never delivered.
@@ -124,8 +130,11 @@ impl Config {
                 reruns: 0,
                 cue: None,
             },
+            made_workflows: Box::new([]),
+            made_manual_merges: crate::api::ManualMerges::OFF,
             setup_faults: 0,
             lost: 0,
+            runner_labels: None,
             hook_min: Duration::ZERO,
             hook_max: Duration::ZERO,
             hooks_late: 0,

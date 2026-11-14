@@ -235,6 +235,67 @@ fn declared_pull_file_rebinds_a_pushed_head_to_pull_seven() {
 }
 
 #[test]
+fn made_repositories_keep_workflows_and_merge_settings_across_an_image() {
+    for enabled in [false, true] {
+        for mode in [0_u32, 1, 2] {
+            let mut config = calm();
+            if enabled {
+                config.made_workflows = Box::new([crate::api::Workflow {
+                    file: copy_of(b"gate.yml"),
+                    jobs: names(&[b"gate"]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    cue: None,
+                    fails: Box::new([]),
+                    flaky: Box::new([]),
+                    report: None,
+                    select: None,
+                    requirements: Box::new([]),
+                }]);
+                config.made_manual_merges =
+                    crate::api::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true };
+            }
+            let mut h = Harness::new(config.clone());
+            let name = b"org/made";
+            match mode {
+                0 => {
+                    crate::create_repository(&mut h.domain, &config, 3, name, b"made", ENGINE).unwrap();
+                }
+                1 => {
+                    crate::create_empty_repository(&mut h.domain, &config, name, ENGINE).unwrap();
+                }
+                2 => {
+                    h.ok(
+                        ENGINE,
+                        write(Write::Copy {
+                            owner: copy_of(b"org"),
+                            name: copy_of(b"made"),
+                            fill: crate::api::Fill::Whole,
+                        }),
+                    );
+                    h.settle();
+                }
+                _ => unreachable!("three creation paths"),
+            }
+            for restored in [false, true] {
+                if restored {
+                    let image = h.domain.image().unwrap();
+                    let mut config = config.clone();
+                    config.made_workflows = Box::new([]);
+                    config.made_manual_merges = crate::api::ManualMerges::OFF;
+                    h.domain = Domain::from_image(&config, &image).unwrap();
+                }
+                let repository = h.domain.repositories.get(h.domain.id(name)).unwrap();
+                assert_eq!(repository.workflows, config.made_workflows, "mode {mode}, restored {restored}");
+                assert_eq!(repository.manual_merges, config.made_manual_merges, "mode {mode}, restored {restored}");
+            }
+        }
+    }
+}
+
+#[test]
 fn made_repositories_keep_their_checks_across_an_image() {
     for checked in [false, true] {
         for mode in [0_u32, 1, 2] {

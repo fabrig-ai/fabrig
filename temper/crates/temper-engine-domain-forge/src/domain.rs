@@ -81,6 +81,8 @@ enum StepStage {
     Base,
     Pull,
     Ci,
+    StallChecks,
+    StallJobs,
     BaseCi,
     Run(u64),
     Compare,
@@ -112,6 +114,7 @@ pub(crate) struct PendingStep {
     pull_ci: bool,
     ci: change::Status,
     failed: crate::change_ci::Failed,
+    stall: Option<crate::stall::Report>,
     base_ci: change::Status,
     contains_base: change::Status,
     contains_head: change::Status,
@@ -264,6 +267,7 @@ pub struct Domain {
     pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
     pub(crate) steps: Map<Token, PendingStep>,
+    pub(crate) stall_words: Map<u64, crate::stall::Report>,
     pub(crate) read_sessions: Map<u64, read_session::Session>,
     // Volatile, bounded by changes (temper/docs/design/domain/forge/adoption.md, 1).
     change_connections: Option<Box<Map<u64, skein_lib::Wall>>>,
@@ -275,7 +279,7 @@ pub struct Domain {
     pub(crate) issues: Map<u64, IssueRow>,
     releases: Map<u64, ReleaseRow>,
     pub(crate) kept: Map<u64, Box<[Name]>>,
-    namespace: Box<[u8]>,
+    pub(crate) namespace: Box<[u8]>,
     pub(crate) adoptions: Map<Token, adoption::PendingAdoption>,
     pub(crate) application: adoption::State,
     pub(crate) writers: Map<u16, u64>,
@@ -905,6 +909,7 @@ impl Domain {
             closing: crate::closer::State::new(l.tasks),
             changes: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
+            stall_words: Map::with_capacity(l.changes.checked_add(l.landings).expect("task bounds")),
             read_sessions: Map::with_capacity(l.changes),
             change_connections: None,
             start_conflicts: Map::with_capacity(l.changes),
@@ -1702,6 +1707,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 let row = row.clone();
                 save_change(d, out, row);
             }
+        }
+        Event::TierAct { request, token, party, call } => {
+            crate::tiers::hold::asked(d, env, request, token, party, call, out);
         }
         Event::FollowAct { request, token, retention, project, follow, act, authorized } => {
             crate::follows::asked(d, env, request, token, retention, project, follow, act, authorized, out);
@@ -3307,6 +3315,7 @@ fn superseded_head(
             | Answer::PullFiles { .. }
             | Answer::Compare { .. }
             | Answer::Checks(_)
+            | Answer::JobState { .. }
             | Answer::Job { .. }
             | Answer::File { .. }
             | Answer::Directory { .. }
@@ -4259,6 +4268,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pull_ci: false,
         ci: change::Status::Unknown,
         failed: crate::change_ci::Failed::new(Box::new([])),
+        stall: None,
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
         contains_head: change::Status::Unknown,
@@ -4380,6 +4390,7 @@ fn step_verified(
         pull_ci: false,
         ci: change::Status::Unknown,
         failed: crate::change_ci::Failed::new(Box::new([])),
+        stall: None,
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
         contains_head: change::Status::Unknown,
@@ -4454,6 +4465,25 @@ fn step_read(
         }
         return;
     }
+    if pending.stage == StepStage::StallChecks || pending.stage == StepStage::StallJobs {
+        if pending.stage == StepStage::StallChecks {
+            pending.stall = Some(match result {
+                Ok(skein_forge::api::Answer::Checks(checks)) => crate::stall::Report::checks(&checks),
+                Ok(_) | Err(_) => crate::stall::Report::checks(&[]),
+            });
+        } else if let Some(report) = &mut pending.stall {
+            report.answered(result);
+        }
+        if let Some(read) = pending.stall.as_mut().expect("diagnostic report").next() {
+            pending.stage = StepStage::StallJobs;
+            let repository = row.repository;
+            d.steps.insert(owner, pending).expect("existing step");
+            child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+        } else {
+            finish_step(d, env, pending, out);
+        }
+        return;
+    }
     if let StepStage::FollowCheck(kind) = pending.stage {
         let mut row = row.clone();
         let action = crate::follow_check::answered(d, env, &mut row, kind, result, &mut pending.follow_tree, out);
@@ -4500,7 +4530,9 @@ fn step_read(
         pull_ci = required.is_empty();
     }
     let next = match pending.stage {
-        StepStage::FollowCheck(_) => unreachable!("workflow reads handled above"),
+        StepStage::StallChecks | StepStage::StallJobs | StepStage::FollowCheck(_) => {
+            unreachable!("special reads handled above")
+        }
         StepStage::Branch => {
             if pending.branch_fresh
                 && let Some(read) = d.settling.get_mut(&pending.task)
@@ -5255,7 +5287,7 @@ fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change
 }
 
 #[expect(clippy::too_many_lines, reason = "one coherent snapshot records a green repair ending before stepping onward")]
-fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
+fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out: &mut Queue<Request>) {
     let Some(mut row) = titled_change(d, env, &pending, out) else { return };
     crate::job_history::merged(d, env.wall, &mut row, pending.branch, out);
     let before = crate::panel::ready(&row);
@@ -5341,6 +5373,28 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
         d.review_requests.remove(&row.task);
         heard.review_request = None;
         let advanced = stepped.change != row.change;
+        if stepped.decision == change::Decision::Hold(change::Hold::Stalled)
+            && pending.stall.is_none()
+            && let change::State::Checking { head } = row.change.state
+        {
+            pending.stage = StepStage::StallChecks;
+            d.sequence = d.sequence.checked_add(1).expect("owner ids fit");
+            let owner = Token::new(d.sequence | (1_u64 << 62));
+            let repository = row.repository;
+            d.stall_words.remove(&row.task);
+            d.steps.insert(owner, pending).expect("one step per change");
+            child(
+                d,
+                env,
+                skein_forge_client::Event::Read {
+                    owner,
+                    repository,
+                    read: skein_forge::api::Read::Checks { commit: head },
+                },
+                out,
+            );
+            return;
+        }
         row.change = stepped.change;
         crate::readiness::advanced(d, env, &mut row, &effect_prior, &facts, out);
         let decision = stepped.decision;
@@ -5404,6 +5458,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
             | change::Decision::Finish { .. }
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
+                if let Some(report) = pending.stall.take() {
+                    d.stall_words.insert(row.task, report).expect("bounded tasks");
+                }
                 crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
                 crate::landing::change_advanced(d, &mut row, &prior, decision, out);
                 let withdrawn = take_landed_merge(d, &mut row);
@@ -7790,6 +7847,7 @@ fn changed(
             | skein_forge::api::Answer::Checks(_)
             | skein_forge::api::Answer::Directory { .. }
             | skein_forge::api::Answer::File { .. }
+            | skein_forge::api::Answer::JobState { .. }
             | skein_forge::api::Answer::Job { .. }
             | skein_forge::api::Answer::Protection(_)
             | skein_forge::api::Answer::Settings(_)

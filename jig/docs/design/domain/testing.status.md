@@ -78,6 +78,9 @@ observation and world-cost work.
   model panics on a patch that breaks it. [in flight: change 2856]
   7: jig's world referees implement `observe`, not `watch`.
   [in flight: change 2857]
+  7: `jig-client-wire-world`'s and `jig-client-protocol-world`'s public
+  sweeps write each case's whole input before they run it, not the case
+  and its length. [in flight: change 3078]
 - **Not yet:**
   7: the client's world asserts its referee's findings at once, with no
   returning entry points. [in flight: change 3115]

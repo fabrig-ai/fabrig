@@ -10,6 +10,7 @@ mod place;
 mod reference;
 mod run;
 mod run_passes;
+mod stat;
 mod world;
 
 use temper_qa_tool::{CaseInput, Ledger, Pages};

@@ -48,6 +48,9 @@ pub(in super::super) fn account(
         } else {
             waiting(&mut words, was, row);
         }
+        if let change::State::Checking { .. } = was.as_ref() {
+            return Some(domain.forge.ci_stall_words(task, words.as_slice(), tasks::HOLD_ACCOUNT_BYTES));
+        }
     } else {
         return None;
     }

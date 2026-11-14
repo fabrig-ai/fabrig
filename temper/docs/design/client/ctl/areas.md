@@ -3,7 +3,7 @@
 The table grows area by area, each with its stories (`testing.md`).
 
 1. **A chat to a landed change** (the first milestone's story,
-   `../../README.md`, section 2): the host's tools of `tools.md`, 5; every read
+   `../../README.md`, section 2): the host's tools of `host.md`; every read
    of `tools.md`, 2 other than the general proposal read of area 2; the watched
    reads' waits (`tools.md`, 4); every act of 5.3.
 2. **Goals and plans:** `goal start --project PROJECT [--template TEMPLATE]
@@ -190,7 +190,7 @@ The table grows area by area, each with its stories (`testing.md`).
    | `account import FILE` | moves a record in from FILE, read as a key's file is: taken into the secrets' store, checked as this application's and its subject held by no other holder, the account made or the one of its subject renewed; prints `moved in: account N`, `, renewed` after it for a renewal, then removes FILE. FILE refused (not private, a link, empty, past the bound), exit 1, nothing sent. Refused, exit 2, FILE kept: "not ours" (another application's or LLM provider's record), "held" (its subject held by another holder), "moving" (its subject's account moving out here) | move in | yes |
 
    - **The verbs are plain verbs,** as the other tools' are. Eight are
-     not jig's words: `sign-in` and `sign-out` are the host's (`tools.md`, 5), so
+     not jig's words: `sign-in` and `sign-out` are the host's (`host.md`), so
      a sign-in with a provider is `account connect` and its end `account
      disconnect`; `account forget`, `account rank`, `account verify` and
      `account retry` are jig's remove, order, check and resume; `account

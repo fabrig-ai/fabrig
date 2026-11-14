@@ -29,6 +29,9 @@ fn a_job_with_no_failed_step_translates_to_its_whole_logs_end() {
         &asked,
         forge::Answer::Job {
             job: forge::Job {
+                labels: Box::new([]),
+                needs: Box::new([]),
+                wait: None,
                 id: 7,
                 run: 3,
                 index: 0,

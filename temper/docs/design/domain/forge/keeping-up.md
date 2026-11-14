@@ -379,7 +379,12 @@ for it, never a read of another kind or another party's.
   status at all while Actions' check runs end. Which rows are CI is the
   adoption's: where the landing branch's rules name required checks
   (`adoption.md`, 4, `Protection`'s contexts), those contexts, each of which must
-  have reported; otherwise every row. They fold to one verdict: failed
+  have reported; otherwise every row but temper's own verdicts,
+  `temper/verdict/<tier>` (`../after-landing.md`, section 9), which
+  judge a commit after it landed and are not its CI, so that a red
+  tier's status on main's tip never stops the landings that go on
+  (`../after-landing.md`, section 7, *Others go on*); a rule that
+  names one as required keeps it. They fold to one verdict: failed
   when any of them failed; else pending when any is pending or a
   required context has no row; else passed when any is there; else
   unknown, which the change waits on as pending (`change/repairs.md`, stalls). The

@@ -2,6 +2,7 @@
 //! protocol/setup/playground.md).
 pub mod github;
 pub mod observations;
+mod workflows;
 use crate::{Refusal, read};
 use alloc::boxed::Box;
 use core::net::SocketAddr;
@@ -61,6 +62,8 @@ pub struct Document {
     github: Option<github::Github>,
     ci_ms: u32,
     made_checks: api::Checks,
+    workflows: Box<[api::Workflow]>,
+    manual_merges: api::ManualMerges,
 }
 impl Document {
     /// The fake forge of a checked setup entry, its token at `admin_token` (protocol/setup/playground.md).
@@ -89,6 +92,8 @@ impl Document {
             github: None,
             ci_ms: 0,
             made_checks: limits().made_checks,
+            workflows: Box::new([]),
+            manual_merges: api::ManualMerges::OFF,
         }
     }
     /// The seeded App's public test private key, for the fake box's own-App path.
@@ -97,6 +102,10 @@ impl Document {
         let github = self.github.as_ref()?;
         Some(github.pem())
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the document checks joint repository identities beside its forge-wide settings"
+    )]
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
         let d = read::document(bytes)?;
         let p = Path::root();
@@ -122,6 +131,14 @@ impl Document {
         let made_checks = match made_ci_at {
             Some(at) => checks_paced(ci(&d, at, &p.member(b"made_ci"), false)?.as_ref(), ci_ms),
             None => limits().made_checks,
+        };
+        let workflows = match o.member(&d, b"workflows") {
+            Some(at) => workflows::decode(&d, at, &p.member(b"workflows"), ci_ms)?,
+            None => Box::new([]),
+        };
+        let manual_merges = match o.member(&d, b"manual_merges") {
+            Some(at) => workflows::manual_merges(&d, at, &p.member(b"manual_merges"))?,
+            None => api::ManualMerges::OFF,
         };
         read::finish(o, &d, &p)?;
         let listen = read::listen(&d, listen_at, &p.member(b"listen"))?;
@@ -196,6 +213,8 @@ impl Document {
             github,
             ci_ms,
             made_checks,
+            workflows,
+            manual_merges,
         })
     }
     #[must_use]
@@ -225,7 +244,13 @@ impl Document {
     #[must_use]
     pub fn seed(&self, seed: u64) -> (Forge, forgejo::Config) {
         let mut configuration = limits();
+        if !self.workflows.is_empty() {
+            configuration.limits.workflows = workflows::WORKFLOWS;
+            configuration.limits.workflow_runs = workflows::RUNS;
+        }
         configuration.made_checks = self.made_checks.clone();
+        configuration.made_workflows.clone_from(&self.workflows);
+        configuration.made_manual_merges = self.manual_merges;
         let mut domain = domain::Domain::new(&configuration, seed);
         let mut repositories = List::with_capacity(crate::ENTRIES);
         for (i, repository) in self.repositories.iter().enumerate() {
@@ -246,9 +271,9 @@ impl Document {
             };
             domain::repository(
                 &mut domain,
-                &limits(),
+                &configuration,
                 api::Setup {
-                    workflows: Box::new([]),
+                    workflows: self.workflows.clone(),
                     id,
                     name: full.clone(),
                     default: repository.landing.clone(),
@@ -259,12 +284,13 @@ impl Document {
                     hooked: true,
                 },
             );
+            domain::manual_merges(&mut domain, &full, self.manual_merges);
             if let Some(github) = &self.github {
                 domain::grant(&mut domain, &full, github.bot(), api::Permission::Admin);
             }
             repositories.push(forgejo::Repository { id, full, protected: None }).expect("sixteen repositories");
         }
-        let sources = seed_sources(&mut domain, &mut repositories, &self.sources);
+        let sources = seed_sources(&mut domain, &configuration, &mut repositories, &self.sources);
         drain_seed_observations(&mut domain);
         let users = owners(&self.owner, &repositories);
         let config = forgejo::Config {
@@ -460,6 +486,7 @@ fn check_sources(sources: &[Source], repositories: &[Repository]) -> Result<(), 
 }
 fn seed_sources(
     domain: &mut domain::Domain,
+    configuration: &domain::Config,
     repositories: &mut List<forgejo::Repository>,
     sources: &[Source],
 ) -> Box<[forgejo::Source]> {
@@ -472,9 +499,9 @@ fn seed_sources(
         id = id.checked_add(1).expect("checked source ids");
         let first = domain::repository(
             domain,
-            &limits(),
+            configuration,
             api::Setup {
-                workflows: Box::new([]),
+                workflows: configuration.made_workflows.clone(),
                 id,
                 name: source.repository.clone(),
                 default: source.landing.clone(),
@@ -485,6 +512,7 @@ fn seed_sources(
                 hooked: false,
             },
         );
+        domain::manual_merges(domain, &source.repository, configuration.made_manual_merges);
         seed_branches(domain, source, first);
         domain::grant(domain, &source.repository, 1, api::Permission::Read);
         drain_seed_observations(domain);
@@ -596,6 +624,7 @@ pub fn checks_paced(ci: Option<&Ci>, ci_ms: u32) -> api::Checks {
 #[must_use]
 pub fn limits() -> domain::Config {
     domain::Config {
+        runner_labels: None,
         setup_faults: 0,
         lost: 0,
         limits: domain::Limits {
@@ -640,6 +669,8 @@ pub fn limits() -> domain::Config {
         rate_window: Duration::ZERO,
         ci: 0,
         made_checks: domain::Config::test().made_checks,
+        made_workflows: Box::new([]),
+        made_manual_merges: api::ManualMerges::OFF,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,

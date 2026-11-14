@@ -205,10 +205,12 @@ place (jig's `domain/engine/overlays.md`).
   the counted baselines on everything, then, against the base the worker
   pins (`../../domain/worker/checkouts.md`), the lints of the packages the
   delivery changed and the focused tests of those packages and their
-  direct dependents; a lint or test failure the repository's
-  `.temper/known-reds.md` lists, and a counted baseline or citation the
-  base has too, is reported as inherited and refuses nothing; without the
-  pin, the first two alone, saying so.
+  direct dependents; a lint or test failure the goal's reds name, which
+  temper keeps and its worker writes for each check to `temper/reds`
+  (`../../domain/forge/reds.md`, 5), and a counted baseline or citation
+  the base has too, is reported as inherited and refuses nothing; the
+  repository keeps no list of known reds; without the pin, the first two
+  alone, saying so.
   Coding agents run no build or test: this check runs them, mechanically,
   at each delivery (the owner, 2026-11-09). A pull request into a goal's
   branch runs no CI (its rules ask none: the rules above;

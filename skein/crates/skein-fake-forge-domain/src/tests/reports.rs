@@ -242,6 +242,7 @@ fn workflow(jobs: &[&[u8]]) -> crate::api::Workflow {
         select: None,
         file: copy_of(b"gate.yml"),
         jobs: names(jobs),
+        requirements: Box::new([]),
         latency_min: Duration::from_secs(10),
         latency_max: Duration::from_secs(10),
         passes: 1000,

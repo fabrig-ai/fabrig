@@ -17,7 +17,7 @@ mod tests;
 mod verdict;
 
 pub use boundary::{
-    Blame, Commit, Failures, Finding, Flake, Format, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt,
+    Blame, Commit, Failures, Finding, Flake, Format, Group, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt,
     Record, Run, Selection, Settings, Suspects, TestId, Unreadable, Verdict,
 };
 pub use report::{failed, report};

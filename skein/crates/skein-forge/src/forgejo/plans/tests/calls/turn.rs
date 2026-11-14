@@ -175,7 +175,15 @@ fn run_reads_jobs_and_the_first_failed_step() {
         },
     ]);
     let bytes = server_answer(&server::Answer::Job {
-        job: d::Job { id: 10, run_id: 7, attempt: 3, name: Box::from(*b"failed"), status: d::StepStatus::Failure },
+        job: d::Job {
+            id: 10,
+            run_id: 7,
+            attempt: 3,
+            name: Box::from(*b"failed"),
+            status: d::StepStatus::Failure,
+            labels: Box::new([]),
+            cut: false,
+        },
         steps: Box::new([
             d::Step { number: 1, name: Box::from(*b"x"), status: d::StepStatus::Failure },
             d::Step { number: 2, name: Box::from(*b"cleanup"), status: d::StepStatus::Failure },

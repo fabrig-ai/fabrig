@@ -81,6 +81,7 @@ struct Archive {
 }
 impl ArchiveFace for Archive {
     fn create(&mut self, scratch: &Path, archive: &Path) -> Result<(), Refusal> {
+        assert_mode(archive, 0o600);
         self.saved.push(archive.to_owned());
         let snapshot = self.store.join(self.saved.len().to_string());
         copy(&scratch.join("config"), &snapshot.join("config"));
@@ -215,6 +216,126 @@ impl World {
             .expect("recipe command");
         (code, String::from_utf8(output).expect("output"))
     }
+}
+
+/// Run the test in an isolated process; the shell restores its mask even on failure.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test harness reads its own isolated umask subprocess marker, not the tool's environment"
+)]
+pub(super) fn under_umasks(name: &str, masks: &[&str]) -> bool {
+    if std::env::var_os("QA_TEST_UMASK").is_some() {
+        return false;
+    }
+    for mask in masks {
+        let status = Command::new("sh")
+            .args(["-c", "old=$(umask); umask \"$1\"; \"$2\" --exact \"$3\" --nocapture; result=$?; umask \"$old\"; exit \"$result\"", "qa-umask", mask])
+            .arg(std::env::current_exe().expect("test executable"))
+            .arg(name)
+            .env("QA_TEST_UMASK", mask)
+            .stdin(Stdio::null())
+            .status()
+            .expect("test under umask");
+        assert!(status.success(), "{name} under umask {mask}: {status}");
+    }
+    true
+}
+
+pub(super) fn assert_mode(path: &Path, expected: u32) {
+    assert_eq!(fs::metadata(path).expect("mode").permissions().mode() & 0o7777, expected, "{}", path.display());
+}
+
+#[test]
+fn restores_are_private_under_permissive_umasks() {
+    if under_umasks("place::restores_are_private_under_permissive_umasks", &["022", "000"]) {
+        return;
+    }
+    let mut world = World::new();
+    assert_eq!(world.setup("welcome").0, 0);
+    let paths = &world.place.paths;
+    for path in [&paths.directory, &paths.scratch, &paths.copies, &paths.copies.join("welcome")] {
+        assert_mode(path, 0o700);
+    }
+    for path in [&paths.setup, &paths.walk_log, &paths.copies.join("welcome").join(format!("{WELCOME}-{BUILD}.tar"))] {
+        assert_mode(path, 0o600);
+    }
+}
+
+#[test]
+fn setup_tightens_existing_place_directories_and_files() {
+    let mut world = World::new();
+    let paths = &world.place.paths;
+    for path in [&paths.directory, &paths.scratch, &paths.copies] {
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).expect("old directory mode");
+    }
+    for path in [&paths.walk_log, &paths.directory.join("setup.tmp")] {
+        fs::write(path, "old").expect("old file");
+        fs::set_permissions(path, fs::Permissions::from_mode(0o666)).expect("old file mode");
+    }
+    assert_eq!(world.setup("welcome").0, 0);
+    let paths = &world.place.paths;
+    for path in [&paths.directory, &paths.scratch, &paths.copies] {
+        assert_mode(path, 0o700);
+    }
+    for path in [&paths.setup, &paths.walk_log] {
+        assert_mode(path, 0o600);
+    }
+}
+
+fn assert_install_modes(source: &Path, installed: &Path) {
+    assert_mode(installed, 0o700);
+    for entry in fs::read_dir(source).expect("build directory") {
+        let entry = entry.expect("entry");
+        let target = installed.join(entry.file_name());
+        let metadata = entry.metadata().expect("build mode");
+        if metadata.is_dir() {
+            assert_install_modes(&entry.path(), &target);
+        } else {
+            assert_mode(&target, metadata.permissions().mode() & 0o7777);
+        }
+    }
+}
+
+#[test]
+fn installation_privatizes_directories_but_keeps_build_file_modes() {
+    use super::world::{Agent, World, baseline, land};
+    use sha2::{Digest, Sha256};
+    use std::io::Write;
+    if under_umasks("place::installation_privatizes_directories_but_keeps_build_file_modes", &["022"]) {
+        return;
+    }
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    let build = world.installable_build(2);
+    for (path, mode) in [("bin/nested/deep/tool", 0o711), ("bundle/assets/deep/note", 0o640)] {
+        let full = build.join(path);
+        fs::create_dir_all(full.parent().expect("parent")).expect("build directories");
+        fs::write(&full, path).expect("build file");
+        fs::set_permissions(&full, fs::Permissions::from_mode(mode)).expect("build mode");
+        writeln!(
+            fs::OpenOptions::new().append(true).open(build.join("manifest")).expect("manifest"),
+            "{:x}  {path}",
+            Sha256::digest(path.as_bytes())
+        )
+        .expect("manifest row");
+    }
+    let place = world.home.directory.join("places/1");
+    for path in [&place, &place.join("box"), &place.join("copies")] {
+        fs::create_dir_all(path).expect("existing place");
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755)).expect("old directory mode");
+    }
+    run.tick();
+    run.tick();
+    assert_eq!(world.ledger().passes.len(), 1, "installed pass started");
+    for name in ["bin", "bundle"] {
+        assert_install_modes(&build.join(name), &place.join(name));
+    }
+    for path in [&place, &place.join("box"), &place.join("copies")] {
+        assert_mode(path, 0o700);
+    }
+    assert_mode(&place.join("drive.lock"), 0o600);
 }
 
 #[test]

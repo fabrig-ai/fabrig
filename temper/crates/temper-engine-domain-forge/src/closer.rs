@@ -228,6 +228,7 @@ fn observation(answer: Answer) -> Observed {
         | Answer::Branches(_)
         | Answer::PullFiles { .. }
         | Answer::Checks(_)
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::File { .. }
         | Answer::Directory { .. }

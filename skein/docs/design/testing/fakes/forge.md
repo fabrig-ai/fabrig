@@ -173,8 +173,9 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   cue }`) that run only when dispatched (`Write::Dispatch`), never on a
   push. Each dispatch makes a run of its own at the branch's head as the
   dispatch finds it, numbered after the repository's other runs, its
-  inputs kept, and a pending status per job on that commit, its context
-  `<file> / <job>`, its link the job's page; then each job's verdict
+  inputs kept, and a job per declared job, writing no commit status, as
+  Forgejo's dispatch-only jobs write none (`../../forge/forgejo.md`,
+  2); then each job's verdict
   after a drawn latency, by the chance or the cue as for `Checks`, and
   the run completes once its last job does. `Runs` lists them, `Run`
   reads one with its jobs, and `Rerun` runs a completed run's failed job
@@ -182,6 +183,12 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   step (`setup_faults`), or a run lost with no step failed (`lost`), so a
   world reaches the runner's faults; `Cue::Message` fails a job's
   workflow step, as a test would.
+- **A job's state** (`../../forge/job-state.md`, section 5): a job names
+  the runner labels it asks for and the jobs it needs, and the world the
+  labels its runners serve, all by default. A job asking for a label no
+  runner serves waits, with no steps, its status pending; one whose
+  needs have not ended is blocked; one running is at a step, so a
+  `JobState` read names each.
 - **Merges and updates by style:** a fast-forward-only merge moves the
   base to the head and refuses one that does not contain the base's tip
   (`Conflict`); an update by rebase replays the branch's commits onto the
@@ -651,7 +658,11 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   (2.6) alike, as a Forgejo whose runner takes every repository runs a
   new one's checks; `made_checks` with no contexts, its default, makes
   them report none, as before. A made repository keeps the checks it was
-  made with across an image (2.7).
+  made with across an image (2.7). `Config.made_workflows` gives every
+  repository it makes its dispatch-only workflows, none by default;
+  `Config.made_manual_merges` gives its manual-merge settings, both off by
+  default. A made repository and a copy's destination alike take these,
+  and keep them across an image.
   Collaborator lists contain explicit grants only: site administration
   and organization ownership grant access without adding membership.
   Pagination counts the listed collaborators after excluding implicit access.

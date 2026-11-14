@@ -1,6 +1,6 @@
 # delivery-checks: status
 
-2026-11-11. Where the design lags or departs from [delivery-checks.md](delivery-checks.md).
+2026-11-14. Where the design lags or departs from [delivery-checks.md](delivery-checks.md).
 
 - **Design lags:**
   - The draft's third ranked item: the coding charter's words still say
@@ -17,11 +17,14 @@
   every caller runs the focused and fuzzy suites so.
 - **Design departs:** the draft's second ranked item: nothing is built or
   tested at the base. A lint or test failure is inherited only when the
-  checked tree's `.temper/known-reds.md` lists it, and a build failure is
-  always the delivery's; exceeded counts, citations and design sizes are
-  still compared with the base (`tools/pre-pr/design.md`, 5). Base runs
-  were what pushed a failing delivery past its check bound; the user,
-  2026-11-11.
+  goal's reds name it: temper's records of the failures the goal's branch
+  carries, which its coordinator records and its worker writes for each
+  check (`../domain/forge/reds.md`, 3 and 5; `branch-reds.md`, 8), the
+  tree keeping no list of its own; a build failure is always the
+  delivery's; exceeded counts, citations and design sizes are still
+  compared with the base (`tools/pre-pr/design.md`, 5). Base runs were
+  what pushed a failing delivery past its check bound; the user,
+  2026-11-11, and the records for the list, the user, 2026-11-13.
 - **Decided:** 3, by the owner, 2026-11-09: work in progress before a
   question is saved without a delivery, by a new tool, `save`, which pushes
   the tree to the change's own branch with no checks, marked unchecked in

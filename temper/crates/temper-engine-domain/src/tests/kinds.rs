@@ -1698,3 +1698,55 @@ fn dependency_structural_refusals_name_the_dependency_and_restore_rechecks_the_t
     assert!(domain.forge.proposal_settings(PROPOSAL).is_empty());
     crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
 }
+
+#[test]
+fn a_tier_act_admits_only_project_or_deployment_owners_and_carries_the_party() {
+    use jig_domain_people::{ApplicationScope, Role};
+    for (role, scope_project, admitted) in [
+        (Role::Owner, 2, true),
+        (Role::Owner, 0, true),
+        (Role::Maintainer, 2, false),
+        (Role::Member, 2, false),
+        (Role::Observer, 2, false),
+    ] {
+        let (mut domain, env) = reader_in(Some(role), scope_project);
+        let call = forge::TierActRequest {
+            project: 2,
+            repository: None,
+            tier: b"browser".as_slice().into(),
+            act: forge::TierAct::Hold { reason: b"maintenance".as_slice().into() },
+        };
+        domain.application = Some((OWNER, crate::Application::Tier(call.clone())));
+        let mut requests = Queue::uncapped();
+        requests.push(jig_domain_core::Request::Ask {
+            connector: domain.config.forge_connector,
+            ask: jig_domain_core::Ask::Application {
+                request: Token::new(21),
+                token: Token::new(22),
+                owner: OWNER,
+                person: 1,
+                scope: ApplicationScope::Own,
+                role: Some(role),
+                retention: skein_lib::Duration::from_secs(60),
+            },
+        });
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
+        let mut received = None;
+        while let Some(work) = domain.work.pop() {
+            if let Work::Forge(forge::Event::TierAct { party, call, .. }) = work {
+                received = Some((party, call));
+            }
+        }
+        assert_eq!(received, if admitted { Some((1, call)) } else { None }, "{role:?} of {scope_project}");
+        if !admitted {
+            assert_eq!(
+                domain.forge.application_answer(Token::new(22)),
+                Some(forge::Answered::Adopt(forge::ApplicationOutcome::CoreRefused(
+                    jig_domain_people::Refusal::Role { held: Some(role) }
+                )))
+            );
+        }
+        crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    }
+}

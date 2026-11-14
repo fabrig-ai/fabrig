@@ -124,9 +124,14 @@ impl<'c> Runner<'c> {
             Does::Enter { names, iterable, over } => {
                 let outer = self.budget;
                 let value = expression(&mut self.evaluator, iterable, context, &self.bindings, &mut self.budget)?;
-                let mut frame =
-                    located(frame::Frame::new(value, names, at, self.bindings.len(), outer, self.budget), at)?;
-                if located(frame.bind(&mut self.bindings, &mut self.budget, &mut self.iterations), at)? {
+                let mut frame = match frame::Frame::new(value, names, at, self.bindings.len(), outer, self.budget) {
+                    Ok(frame) => frame,
+                    Err(kind) => return Err(Fault { at, kind }),
+                };
+                if match frame.bind(&mut self.bindings, &mut self.budget, &mut self.iterations) {
+                    Ok(bound) => bound,
+                    Err(kind) => return Err(Fault { at, kind }),
+                } {
                     match self.frames.push(frame) {
                         Ok(()) => Ok(()),
                         Err(_frame) => Err(FaultKind::Limit),
@@ -141,7 +146,10 @@ impl<'c> Runner<'c> {
                 let frame = self.frames.top_mut().expect("compiled loop");
                 self.bindings.truncate(frame.base);
                 self.budget = frame.iteration;
-                if located(frame.bind(&mut self.bindings, &mut self.budget, &mut self.iterations), frame.at)? {
+                if match frame.bind(&mut self.bindings, &mut self.budget, &mut self.iterations) {
+                    Ok(bound) => bound,
+                    Err(kind) => return Err(Fault { at: frame.at, kind }),
+                } {
                     next = pc.checked_sub(usize::try_from(*back).expect("jump fits")).expect("compiled back jump");
                 } else {
                     self.budget = frame.outer;
@@ -191,9 +199,9 @@ pub fn place(lines: &[u32], at: u32) -> Position {
     }
 }
 
-fn located<T>(result: Result<T, FaultKind>, at: u32) -> Result<T, Fault> {
+fn located(result: Result<(), FaultKind>, at: u32) -> Result<(), Fault> {
     match result {
-        Ok(value) => Ok(value),
+        Ok(()) => Ok(()),
         Err(kind) => Err(Fault { at, kind }),
     }
 }

@@ -65,8 +65,10 @@ fn check_files(directory: &Path) -> Result<Vec<PathBuf>, Refusal> {
         "bin/fake-claude",
         "bin/temper",
         "bin/temper-client-journeys",
+        "bin/temper-engine",
+        "bin/temper-worker",
+        "bin/temper-agent",
         "bundle/index.html",
-        "bundle-record/index.html",
     ] {
         if !fs::symlink_metadata(directory.join(path)).is_ok_and(|metadata| metadata.is_file()) {
             missing.push(format!("{} lacks {path}", directory.display()));
