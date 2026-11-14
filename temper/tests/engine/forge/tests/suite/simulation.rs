@@ -1207,6 +1207,7 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
             world.status(b"temper/51", raw::Check::Passed);
         } else {
             world.event(top::Event::DelegateResult {
+                ended_at: None,
                 task: 51,
                 child: 52,
                 status: change::Status::Passed,
@@ -1264,6 +1265,7 @@ fn failed_ci_repair_world() -> World {
     );
     world.event(top::Event::Delegated { task: 51, child: 52, kind: change::Delegate::Repair(change::Repair::Ci) });
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: 52,
         status: change::Status::Failed,
@@ -1296,6 +1298,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
     world.run_for(1);
     world.restart();
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: 52,
         status: change::Status::Failed,
@@ -1312,6 +1315,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
     world.push(b"temper/51", b"repaired");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: 53,
         status: change::Status::Passed,
@@ -3342,6 +3346,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
     row.delegate = Some((PRODUCER, change::Delegate::Produce));
     world.event(top::Event::Change { row });
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: PRODUCER,
         status: change::Status::Failed,

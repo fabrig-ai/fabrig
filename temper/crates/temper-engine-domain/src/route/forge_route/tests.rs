@@ -2149,6 +2149,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 &mut domain.forge,
                 &env.with(env.limits.forge),
                 forge::Event::DelegateResult {
+                    ended_at: None,
                     task: 7,
                     child: 9,
                     status: forge_change::Status::Failed,

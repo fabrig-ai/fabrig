@@ -2044,6 +2044,10 @@ impl World {
                     }));
                 }
                 engine::Request::Forge { call, repository, op } => {
+                    if self.busy_reads && matches!(op, skein_forge::api::Op::Read(_)) {
+                        self.held_reads.get_or_insert_with(Vec::new).push(engine::Request::Forge { call, repository, op });
+                        continue;
+                    }
                     if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })) {
                         if let Some(reads) = &mut self.held_comparisons {
                             reads.push(engine::Request::Forge { call, repository, op });
@@ -2653,9 +2657,7 @@ impl World {
                     let call = to.into_token();
                     let op = self.pending.remove(&call).expect("one pending forge call");
                     let repository = self.pending_repositories.remove(&call).expect("pending call's repository");
-                    let result = if self.busy_reads && matches!(op, skein_forge::api::Op::Read(_)) {
-                        Err(skein_forge::api::Error::Busy)
-                    } else { match result {
+                    let result = match result {
                         Ok(answer) => {
                             let mut answer = translate::answer(&op, answer, &self.env.limits.forge.client);
                             if let Some(head) = self.lagging_pull_head
@@ -2678,7 +2680,7 @@ impl World {
                         Err(error) => {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
                         }
-                    }};
+                    };
                     if let Ok(skein_forge::api::Answer::Located { repository }) = &result
                         && let Some(name) = translate::locate_name(&op)
                     {

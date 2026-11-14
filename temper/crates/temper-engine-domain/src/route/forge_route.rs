@@ -50,6 +50,7 @@ pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod close;
+pub(crate) mod delegate_record;
 pub(crate) use close::{made as close_made, saved as close_saved};
 mod merge;
 pub(crate) mod prepare;
@@ -2654,6 +2655,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             .expect("one released relay per change step");
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
+    delegate_record::take_release(domain, task);
     domain.work.push(Work::Forge(step));
     true
 }
@@ -2669,6 +2671,7 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext) {
             if held { Some((forge_change::Status::Failed, true, false)) } else { change_delegate_status(&word.kind) };
         if let Some((status, failed, cancelled)) = status {
             domain.work.push(Work::Forge(forge::Event::DelegateResult {
+                ended_at: None,
                 task,
                 child,
                 status,
@@ -2695,6 +2698,7 @@ fn change_step(
     base: &[u8],
     held_read: bool,
 ) -> forge::Event {
+    let released = !held_read && delegate_record::is_release(domain, task);
     forge::Event::StepChange {
         merge_job: match domain.core.tasks.delegation(task) {
             Some(context) => {
@@ -2717,39 +2721,7 @@ fn change_step(
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
             // The forge consumes a person's release before starting asynchronous reads.
-            released: !held_read
-                && match (domain.forge.change(task), domain.core.tasks.task(task)) {
-                    (Some(change), Some(task)) => {
-                        let held = match &change.change.state {
-                            forge_change::State::Held { .. } => true,
-                            forge_change::State::Producing { .. }
-                            | forge_change::State::Opening { .. }
-                            | forge_change::State::Recreating { .. }
-                            | forge_change::State::Reopening { .. }
-                            | forge_change::State::Checking { .. }
-                            | forge_change::State::Judging { .. }
-                            | forge_change::State::Gating { .. }
-                            | forge_change::State::CancellingGates { .. }
-                            | forge_change::State::Ready { .. }
-                            | forge_change::State::Preparing { .. }
-                            | forge_change::State::Queued { .. }
-                            | forge_change::State::First { .. }
-                            | forge_change::State::Updating { .. }
-                            | forge_change::State::WaitingProducer { .. }
-                            | forge_change::State::Resolving { .. }
-                            | forge_change::State::Repairing { .. }
-                            | forge_change::State::Landing { .. }
-                            | forge_change::State::Landed { .. }
-                            | forge_change::State::Red { .. }
-                            | forge_change::State::Cleared { .. }
-                            | forge_change::State::Uncleared { .. }
-                            | forge_change::State::NoChange { .. }
-                            | forge_change::State::Ended => false,
-                        };
-                        held && task.due_reason == tasks::Why::Released
-                    }
-                    _ => false,
-                },
+            released,
             cancelled: false,
         },
         gates: Box::new([]),

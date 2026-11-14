@@ -1952,6 +1952,8 @@ pub enum Event {
     DelegateResult {
         task: u64,
         child: u64,
+        /// A terminal recovered from the task's durable record keeps its end time.
+        ended_at: Option<skein_lib::Wall>,
         status: change::Status,
         /// The child explicitly concluded that no change applies.
         no_change: bool,

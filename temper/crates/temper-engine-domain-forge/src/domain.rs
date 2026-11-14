@@ -1893,8 +1893,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
-        Event::DelegateResult { task, child, status, no_change, failed, cancelled, words } => {
-            delegate_result(d, env, task, child, status, no_change, failed, cancelled, &words, out);
+        Event::DelegateResult { task, child, ended_at, status, no_change, failed, cancelled, words } => {
+            delegate_result(d, env, task, child, ended_at, status, no_change, failed, cancelled, &words, out);
         }
         Event::DependenciesMet { task } => dependencies_met(d, env, task, out),
         Event::RelayRefused { task, questions, words } => {
@@ -1914,7 +1914,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             if let Some(row) = d.changes.get_mut(&task) {
                 let before = crate::panel::ready(row);
                 let owned = row.change.owns_turn;
-                let was_asking = agent_asking(row);
+                let was_asking = has_agent_question(row);
                 let hold = match questions.open.first() {
                     Some(question) => {
                         question.stands == change::Stands::Taken
@@ -1923,7 +1923,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     None => false,
                 };
                 row.questions = questions;
-                let answered = was_asking && !agent_asking(row);
+                let answered = was_asking && !has_agent_question(row);
                 if hold {
                     row.change.state = relay_hold(&row.change.state, change::Hold::Questions);
                     row.change.owns_turn = false;
@@ -3637,6 +3637,7 @@ fn delegate_result(
     env: &Env<Limits>,
     task: u64,
     child: u64,
+    ended_at: Option<skein_lib::Wall>,
     status: change::Status,
     no_change: bool,
     failed: bool,
@@ -3673,7 +3674,7 @@ fn delegate_result(
         | change::Delegate::Merge { .. } => true,
     };
     if agent {
-        row.change.since = env.wall;
+        row.change.since = ended_at.unwrap_or(env.wall).min(env.wall);
         if let Some(read) = d.settling.get_mut(&task) {
             read.branch.due = true;
         }
@@ -3918,7 +3919,6 @@ fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
     None
 }
 
-#[expect(clippy::too_many_lines, reason = "one fresh-read chain keeps task standing, containment and connection waits")]
 fn step_owner(d: &Domain, task: u64) -> Option<Token> {
     for (owner, pending) in &d.steps {
         if pending.task == task {
@@ -3941,6 +3941,7 @@ fn arm_gather(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
     d.wait_change(env, pending.task, Some(until));
 }
 
+#[expect(clippy::too_many_lines, reason = "one fresh-read chain keeps task standing, containment and connection waits")]
 fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Queue<Request>) {
     if d.stopping {
         return;
@@ -4880,6 +4881,10 @@ fn wait_for_forge(
     out: &mut Queue<Request>,
 ) {
     let Some(mut row) = d.changes.get(&pending.task).cloned() else { return };
+    if row.terminal() {
+        emit(out, Request::WakeProcedure { task: row.task });
+        return;
+    }
     if let change::State::Held { .. } = row.change.state {
         emit(
             out,
@@ -4942,7 +4947,7 @@ fn titled_change(
         && (producing || row.delegate_status == change::Status::Passed)
         && row.change.state == (change::State::Producing { requested: true })
     {
-        if agent_asking(&row) || waits_for_dependencies(&row, pending) {
+        if agent_asking(&row, pending.heard.delegate_live) || waits_for_dependencies(&row, pending) {
             row.change.since = env.wall;
             d.changes.insert(task, row.clone()).expect("replaces change");
             save_change(d, out, row);
@@ -5218,6 +5223,7 @@ fn drive_check(
             let repository = row.repository;
             d.changes.insert(row.task, row.clone()).expect("known change");
             save_change(d, out, row);
+            arm_gather(d, env, &pending);
             d.steps.insert(owner, pending).expect("one read per change");
             child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
         }
@@ -5356,6 +5362,26 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
     None
 }
 
+// Only an ended task's slot stops being a wait after the fresh branch read.
+// Effect entries keep their own settlement, independently of the agent's end.
+fn ended_branch_writer(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> bool {
+    if pending.heard.delegate_live || !pending.branch_fresh {
+        return false;
+    }
+    for (name, hold) in &d.holds {
+        if name.forge == row.repository.forge
+            && name.repository == row.repository.repository
+            && crate::items::branch_matches(name, &row.branch)
+        {
+            return match hold.writer {
+                Some(Writer::Run { .. } | Writer::Lost { .. }) => true,
+                Some(Writer::Entry(_)) | None => false,
+            };
+        }
+    }
+    false
+}
+
 #[expect(clippy::too_many_lines, reason = "the coherent change snapshot includes question and early-start facts")]
 fn change_facts(
     d: &Domain,
@@ -5383,7 +5409,11 @@ fn change_facts(
     };
     let requester_writing = change_requester_writing(d, row);
     let (writer_taken, requester_branch) = match change_branch_hold(d, row) {
-        Some((holder, taken)) => (taken && !requester_writing || held_branch_merge(d, row), holder != row.task),
+        Some((holder, taken)) => (
+            taken && !requester_writing && !ended_branch_writer(d, row, pending)
+                || held_branch_merge(d, row),
+            holder != row.task,
+        ),
         None => (false, false),
     };
     // A fresh procedure read can precede the keep's drift read. Only a head
@@ -5478,7 +5508,7 @@ fn change_facts(
         may_merge,
         queue_repair_active: pending.queue_repair_active,
         kept: pending.kept,
-        asking: agent_asking(row),
+        asking: agent_asking(row, pending.heard.delegate_live),
         settling: match window {
             Some((_, end)) => Some(end),
             None => None,
@@ -5486,7 +5516,11 @@ fn change_facts(
     }
 }
 
-fn agent_asking(row: &ChangeRow) -> bool {
+fn agent_asking(row: &ChangeRow, live: bool) -> bool {
+    live && has_agent_question(row)
+}
+
+fn has_agent_question(row: &ChangeRow) -> bool {
     let Some((task, _)) = row.delegate else { return false };
     for question in &row.questions.open {
         if question.asker == task {
@@ -5945,6 +5979,11 @@ fn accept_released_branch(
 /// Released updates and re-runs drop failed results, retaining conflicts
 /// (temper/docs/design/domain/forge/README.md, 6, and change/README.md, 2, step 3).
 fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    if let Some(owner) = step_owner(d, task) {
+        d.steps.remove(&owner);
+    }
+    d.change_due.remove(&task);
+    branch_due(d, task);
     let Some(row) = d.changes.get_mut(&task) else {
         emit(out, Request::Refused { task });
         return;
@@ -5953,6 +5992,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     let released = change::released(&row.change, env.wall);
     let lifted = released.state != row.change.state;
     row.change = released;
+    row.change.since = env.wall;
     if lifted && row.effect == change::EffectResult::Failed {
         match row.change.state {
             change::State::Updating { .. }
@@ -6016,6 +6056,26 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     {
         // A poll may finish before the procedure's fresh snapshot does.
         accept_released_branch(d, env, &mut saved, head, out);
+    }
+    fresh_release_reads(d, env, &saved, out);
+}
+
+// A release cannot join an in-flight observation from before it. Hints fence
+// shared fresh reads in the client as well as advancing its watched reads.
+fn fresh_release_reads(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, out: &mut Queue<Request>) {
+    for branch in [&row.branch, &row.base] {
+        child(d, env, skein_forge_client::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: row.repository, change: skein_forge::api::Change::Branch(branch.clone()), key: None,
+            },
+        }, out);
+    }
+    if let Some(number) = row.pull {
+        child(d, env, skein_forge_client::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: row.repository, change: skein_forge::api::Change::Item(number), key: None,
+            },
+        }, out);
     }
 }
 

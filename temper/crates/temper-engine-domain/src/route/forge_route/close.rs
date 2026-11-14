@@ -127,6 +127,7 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
         let Some(child) = domain.core.tasks.task(milestone.task) else { return };
         let Some(task) = held_change(domain, child.requester, child.number) else { return };
         domain.work.push(Work::Forge(forge::Event::DelegateResult {
+            ended_at: None,
             task,
             child: child.number,
             status: forge_change::Status::Failed,

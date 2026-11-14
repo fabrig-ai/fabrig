@@ -1233,6 +1233,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                             };
                             world.event(top::Event::Delegated { task: 51, child, kind });
                             world.event(top::Event::DelegateResult {
+                                ended_at: None,
                                 task: 51,
                                 child,
                                 status: change::Status::Passed,
