@@ -66,7 +66,9 @@ fn the_reference_landing_member_parses() {
     );
     let document = config::document(&input, &DOCUMENT).expect("startup document");
     let at = read::Object::new(&document, 0).expect("document object").member(&document, b"application").unwrap();
-    let jig = fixtures::engine().jig;
+    let mut jig = fixtures::engine().jig;
+    jig.limits.core.tasks.spec_bytes = 16_384;
+    jig.limits.core.tasks.result_bytes = 4_096;
     let mut problems = Problems::empty();
     let members = application::parse(&document, at, &jig, &config::Directories::working(), &mut problems);
     assert_eq!(lines(&problems).as_ref(), b"", "reference landing accepted");
@@ -142,6 +144,40 @@ fn project_batch_defaults_and_bounds_name_its_member() {
         } else {
             assert!(skein_lib::bytes::find(&words, b"application.landing.projects[0].batch").is_some(), "{words:?}");
             assert!(skein_lib::bytes::find(&words, reason.as_bytes()).is_some(), "{words:?}");
+        }
+    }
+}
+
+#[test]
+fn turn_without_prepare_is_refused_with_needed_and_configured_limits() {
+    const DOCUMENT: config::DocumentLimits = config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 };
+    for (by, spec, result, refused) in [
+        ("queue", 4096, 512, false),
+        ("turn", 4096, 512, true),
+        ("turn", 16383, 4096, true),
+        ("turn", 16384, 4095, true),
+        ("turn", 16384, 4096, false),
+    ] {
+        let input = fixtures::with(
+            &fixtures::document(),
+            b"application.landing",
+            format!("{{\"projects\":[{{\"project\":1,\"by\":\"{by}\"}}]}}").as_bytes(),
+        );
+        let document = config::document(&input, &DOCUMENT).unwrap();
+        let at = read::Object::new(&document, 0).unwrap().member(&document, b"application").unwrap();
+        let mut jig = fixtures::engine().jig;
+        jig.limits.core.tasks.spec_bytes = spec;
+        jig.limits.core.tasks.result_bytes = result;
+        let mut problems = Problems::empty();
+        let _members = application::parse(&document, at, &jig, &config::Directories::working(), &mut problems);
+        let words = String::from_utf8(lines(&problems).into_vec()).unwrap();
+        assert_eq!(!words.is_empty(), refused, "{by}: {spec}/{result}: {words}");
+        for (limit, has, needs) in [("tasks.spec_bytes", spec, 16384), ("tasks.result_bytes", result, 4096)] {
+            if by == "turn" && has < needs {
+                for expected in [limit.to_owned(), has.to_string(), needs.to_string(), "prepare job".to_owned()] {
+                    assert!(words.contains(&expected), "missing {expected}: {words}");
+                }
+            }
         }
     }
 }

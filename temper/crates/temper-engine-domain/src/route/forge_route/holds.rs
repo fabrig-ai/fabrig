@@ -160,7 +160,7 @@ pub(crate) fn refused_step(
     step: u64,
     findings_: &[authority::Finding],
 ) {
-    let Some((connector, code @ 2, current)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code @ (2 | 3), current)) = domain.core.tasks.procedure_due(task) else { return };
     if current != step || connector != domain.config.forge_connector {
         return;
     }

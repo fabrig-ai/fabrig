@@ -150,15 +150,11 @@ fn hello_prepare(slots: u32) -> engine::Event {
     event
 }
 fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        false,
-        1000,
-        Gate::default(),
-        None,
-        StoryLimits { turn: true, landing_members, ..StoryLimits::default() },
-    );
+    produced_turn_change_with(StoryLimits { turn: true, landing_members, ..StoryLimits::default() })
+}
+
+fn produced_turn_change_with(limits: StoryLimits) -> (World, u64) {
+    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, limits);
     world.adopt();
     world.send(hello_prepare(2));
     let ask = adoption_chat(&world);
@@ -989,4 +985,54 @@ fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set
     assert_eq!(events[1].what, h::What::JobEnded { job: h::Job::Prepare, outcome: h::JobOutcome::Done });
     assert_eq!((events[1].operation, events[1].attempt), (events[0].operation, events[0].attempt));
     assert!(events[1].head.is_some());
+}
+
+#[test]
+fn a_first_turn_prepare_is_delegated_under_stocks_executor_ceiling() {
+    let (mut world, _) = produced_turn_change(None);
+    world.manual_prepare_jobs();
+    for _ in 0..600 {
+        world.tick();
+        if !world.jobs.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(world.jobs.len(), 1, "first prepare needs no person's decision");
+    assert_eq!(world.jobs[0].kind, jig_domain_link::JobKind(1));
+}
+
+fn assert_prepare_hold(limits: StoryLimits, reason: &str) {
+    let (mut world, _) = produced_turn_change_with(limits);
+    for _ in 0..600 {
+        world.tick();
+        if landing_rows(&world).iter().any(|row| {
+            task_row(&world, row.landing.task).is_some_and(|task| matches!(task.phase, tasks::Phase::Held { .. }))
+        }) {
+            break;
+        }
+    }
+    let row = landing_rows(&world).into_iter().next().expect("landing formed");
+    let task = task_row(&world, row.landing.task).expect("landing task");
+    let tasks::Phase::Held { source: Some(source), .. } = &task.phase else {
+        panic!("landing must hold with words: {:?}", task.phase)
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
+    let words = std::str::from_utf8(words).expect("account words");
+    assert!(words.contains(reason), "{words}");
+}
+
+#[test]
+fn an_undeclared_prepare_holds_the_landing_with_its_reason() {
+    assert_prepare_hold(
+        StoryLimits { turn: true, omit_prepare: true, ..StoryLimits::default() },
+        "prepare job kind 1 is not declared",
+    );
+}
+
+#[test]
+fn a_refused_prepare_holds_the_landing_with_authority_findings() {
+    assert_prepare_hold(
+        StoryLimits { turn: true, refuse_prepare: true, ..StoryLimits::default() },
+        "executor outside its delegation authority",
+    );
 }

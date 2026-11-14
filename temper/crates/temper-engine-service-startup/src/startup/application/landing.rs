@@ -35,6 +35,26 @@ pub(super) fn parse(
                 problems.push(path.member(b"rules"), What::Half(crate::startup::EngineWhat::ProjectLandingStored));
             }
             let landing = project_landing(&mut object, document, &path, &limits.forge, problems);
+            if let Some(landing) = &landing
+                && landing.by == engine::Way::Turn
+            {
+                let bound = limits::prepare_bound();
+                for (name, has, needs) in [
+                    (b"tasks.spec_bytes".as_slice(), jig.limits.core.tasks.spec_bytes, bound.spec),
+                    (b"tasks.result_bytes".as_slice(), jig.limits.core.tasks.result_bytes, bound.result),
+                ] {
+                    if has < needs {
+                        problems.push(
+                            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(name),
+                            What::Short {
+                                bytes: u64::from(has),
+                                of: b"by: turn prepare job kind 1",
+                                needs: u64::from(needs),
+                            },
+                        );
+                    }
+                }
+            }
             read::finish(object, document, &path, problems);
             if let Some(project) = project {
                 let mut found = false;

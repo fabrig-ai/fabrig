@@ -190,6 +190,8 @@ pub struct StoryLimits {
     pub procedure_batch: bool,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
+    pub omit_prepare: bool,
+    pub refuse_prepare: bool,
     pub dispatch_passes: Option<u32>,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
@@ -393,6 +395,8 @@ impl World {
             merge_authority,
             resolutions,
             turn,
+            omit_prepare,
+            refuse_prepare,
             dispatch_passes: _,
             landing_members,
             batch,
@@ -657,17 +661,46 @@ impl World {
                         }
                     }
                     rules.ceiling.grants = grants.into_boxed();
-                    rules.ceiling.delegation.kinds = Box::new([
-                        authority::Executor::Charter(1),
-                        authority::Executor::Charter(2),
-                        authority::Executor::Charter(4),
-                        authority::Executor::Procedure(2),
-                        authority::Executor::Procedure(3),
-                        authority::Executor::Procedure(4),
-                        authority::Executor::Procedure(6),
-                        authority::Executor::Job(4),
-                        authority::Executor::Job(1),
-                    ]);
+                    let stock = temper_engine_service_stock::stock::with_models(
+                        Box::new([jig_domain_core::settings::CatalogueModel {
+                            number: 1,
+                            model: walking::charter().policy.model,
+                            first_read: None,
+                            shown: None,
+                            description: None,
+                            picker: true,
+                            withdrawn: false,
+                            source: jig_domain_core::settings::ModelSource::Stock,
+                            estimated: false,
+                        }]),
+                        limits.tasks.result_bytes,
+                    );
+                    // Keep stock's job and procedure ceiling; this world offers three charters and one role.
+                    rules.ceiling.delegation.kinds = stock
+                        .rules
+                        .ceiling
+                        .delegation
+                        .kinds
+                        .into_vec()
+                        .into_iter()
+                        .filter(|kind| match kind {
+                            authority::Executor::Charter(number) => [1, 2, 4].contains(number),
+                            authority::Executor::Role(number) => *number == 0,
+                            authority::Executor::Procedure(_) | authority::Executor::Job(_) => true,
+                        })
+                        .collect();
+                    if refuse_prepare {
+                        rules.ceiling.delegation.kinds = rules
+                            .ceiling
+                            .delegation
+                            .kinds
+                            .into_vec()
+                            .into_iter()
+                            .filter(|kind| *kind != authority::Executor::Job(1))
+                            .collect();
+                    }
+                    limits.authority.executors = 22;
+                    limits.tasks.executor_kinds = 22;
                     policy.ceiling = rules.ceiling.clone();
                     let rule = engine::LandingRule {
                         sets: Box::new([]),
@@ -874,7 +907,7 @@ impl World {
                 bound.kind = jig_domain_link::JobKind(1);
                 bound.spec = bound.spec.min(limits.tasks.spec_bytes);
                 bound.result = bound.result.min(limits.tasks.result_bytes);
-                config.core.jobs = Box::new([bound]);
+                config.core.jobs = if omit_prepare { Box::new([]) } else { Box::new([bound]) };
             }
             if merge_kind {
                 let mut bound = protocol::merge_bound();
