@@ -88,6 +88,16 @@ pub struct KeyRange {
   number names it in the registry's keys (3), so a declaration or a
   variant renamed (`was`, skein's `data/codec/README.md`, section 3)
   keeps its value type.
+- **One root per range:** a range never holds two roots that only the
+  values' bytes tell apart, since a layout names one root. The settings'
+  charter versions (`01 00 08 03`) held two, a version without an
+  overlay as a `CharterVersion` and one with an overlay as an
+  `OverlaidCharterVersion`, decoded by trial at the same keys
+  (`../../domain/engine/overlays.md`, 7). They are one value type at
+  `CharterVersion`, whose declaration gains `overlay: option Overlay`,
+  and jig's written job `charter-versions` (6) puts each stored value
+  again as that one root; the binary then declares no
+  `OverlaidCharterVersion`.
 - **Checked where the set is admitted,** at every open, beside
   `opening.md`, 3's checks, a failure refused `Set` with patch 0: each
   number given once in its family; each root a declaration of `current`
@@ -266,6 +276,16 @@ at the binary's. Its owner's function reads the old value by skein's
 generic values (skein's `data/codec/README.md`, section 8) and builds
 the new by its generated code. The check takes the layout as converted
 (5.3), and the next writing open retires it.
+
+A written job also takes a layout that a plan reaches when the values
+at that layout are not all the root it names: the settings' charter
+versions at their seeded layout (2). Its job, `charter-versions`,
+converts from `CharterVersion`'s layout in the settings' last kept text.
+Its function reads each value as that text's `CharterVersion` or,
+failing that, its `OverlaidCharterVersion`, as the codec did by trial,
+and puts the value again as the binary's `CharterVersion`. The read edge
+leaves values at a written job's `from` layout to the job, never to a
+plan (`jobs.md`, 4).
 
 ## 7. Bounds
 
