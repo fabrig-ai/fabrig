@@ -233,6 +233,20 @@ impl Disk {
         let fd = if let file::Event::Opened { file, .. } = &event { io.descriptor(*file) } else { None };
         Arrived { event, fd }
     }
+    /// A separate scratch deployment, adopted on all three lanes.
+    pub fn scratch_root(&mut self) -> Root {
+        let handle = self.machine.lay(&[]);
+        let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
+        let mut token = None;
+        for io in &mut self.io {
+            let found = io.adopt_root(fd).expect("scratch root fits");
+            if let Some(token) = token {
+                assert_eq!(found, token);
+            }
+            token = Some(found);
+        }
+        Root { token: token.expect("three drivers"), fd }
+    }
     /// Another descriptor of the same deployment, with its own driver token.
     pub fn second_root(&mut self) -> Root {
         let handle = self.machine.open(self.handle, b".", How::Directory).expect("another open");

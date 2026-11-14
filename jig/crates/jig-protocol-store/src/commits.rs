@@ -8,10 +8,19 @@ pub(crate) fn submit(
     store: &mut Store,
     env: &skein_lib::Env<crate::Limits>,
     number: u64,
-    ops: Box<[skein_kv::Op]>,
+    mut ops: Box<[skein_kv::Op]>,
     above: &mut Queue<Event>,
     below: &mut crate::Below,
 ) {
+    for op in &mut ops {
+        if let skein_kv::Op::Put { key, value } = op
+            && store.registry.write(key, value).is_err()
+        {
+            store.phase = crate::Phase::Stopped;
+            crate::transcripts::failed(store, Some(number), above);
+            return;
+        }
+    }
     let kv_env = crate::directory::env(store, env, false);
     let mut events = Queue::uncapped();
     skein_kv::down(
