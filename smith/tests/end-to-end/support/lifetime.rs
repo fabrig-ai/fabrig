@@ -46,16 +46,22 @@ fn alive(process: &Identity) -> bool {
     clippy::disallowed_types,
     reason = "protocol/programs.md, 5.1: SIGKILL targets the agent alone, without ending its tree"
 )]
-fn kill_agent(agent: &Identity) {
-    assert!(alive(agent), "the observed agent identity still holds");
+fn kill_agent(agent: &Identity) -> Result<(), String> {
+    if !alive(agent) {
+        return Err(String::from("the observed agent identity still holds"));
+    }
     let status = std::process::Command::new("/bin/kill")
         .args(["-KILL", &agent.pid.to_string()])
         .status()
-        .expect("signal the agent");
-    assert!(status.success(), "SIGKILL delivered to the agent");
+        .map_err(|_| String::from("signal the agent"))?;
+    if !status.success() {
+        return Err(String::from("SIGKILL delivered to the agent"));
+    }
+    Ok(())
 }
 
 struct Judge {
+    finding: Option<String>,
     poll: Time,
     deadline: Time,
     killed: Option<Time>,
@@ -74,15 +80,13 @@ impl Judge {
             }
         }
     }
-}
 
-impl Referee<Binary> for Judge {
-    fn act(&mut self, now: Time, processes: &mut [Binary]) {
+    fn act_checked(&mut self, now: Time, processes: &mut [Binary]) -> Result<(), String> {
         if now < self.poll {
-            return;
+            return Ok(());
         }
         self.poll = now.saturating_add(Duration::from_millis(10));
-        let binary = processes.first_mut().expect("product");
+        let binary = processes.first_mut().ok_or("product")?;
         if self.killed.is_none() && !self.cleaning {
             let members: Vec<_> = binary.tree_status().live_pids.iter().filter_map(|pid| identity(*pid)).collect();
             let product =
@@ -102,13 +106,16 @@ impl Referee<Binary> for Judge {
                             && process.arguments.iter().any(|argument| argument == b"--mcp-relay")
                     });
                     if let Some(relay) = relay {
-                        let found = [agent.pid, print.pid, relay.pid]
-                            .map(|pid| identity(pid).expect("hanging fixture stays alive"));
+                        let found = [
+                            identity(agent.pid).ok_or("hanging fixture stays alive")?,
+                            identity(print.pid).ok_or("hanging fixture stays alive")?,
+                            identity(relay.pid).ok_or("hanging fixture stays alive")?,
+                        ];
                         eprintln!(
                             "abort tree (pid, start): {:?}",
                             found.iter().map(|process| (process.pid, process.start)).collect::<Vec<_>>()
                         );
-                        kill_agent(agent);
+                        kill_agent(agent)?;
                         self.found = Some(found);
                         self.killed = Some(now);
                         self.deadline = now.saturating_add(Duration::from_secs(10));
@@ -121,23 +128,35 @@ impl Referee<Binary> for Judge {
             self.cleaning = true;
             binary.signal_tree(Signal::Kill);
         }
+        Ok(())
+    }
+}
+
+impl Referee<Binary> for Judge {
+    fn act(&mut self, now: Time, processes: &mut [Binary]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, processes).err();
+        }
     }
 
-    fn observe(&mut self, now: Time, processes: &[Binary]) {
-        let product = processes.first().expect("product");
+    fn watch(&mut self, now: Time, processes: &[Binary]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let product = processes.first().ok_or("product")?;
         if product.is_empty() {
             self.record_leftovers(now);
-            assert!(
-                self.found.is_some(),
-                "agent, print and relay observed: {}",
-                String::from_utf8_lossy(product.stderr())
-            );
-            assert_eq!(
-                self.leftovers.as_deref(),
-                Some([].as_slice()),
-                "the fake print process and its relay must die with the agent"
-            );
+            if self.found.is_none() {
+                return Err(format!("agent, print and relay observed: {}", String::from_utf8_lossy(product.stderr())));
+            }
+            if self.leftovers.as_deref() != Some([].as_slice()) {
+                return Err(format!(
+                    "the fake print process and its relay must die with the agent\nleft: {:?}\nright: Some([])",
+                    self.leftovers.as_deref()
+                ));
+            }
         }
+        Ok(())
     }
 
     fn next_deadline(&self) -> Option<Time> {
@@ -149,7 +168,7 @@ impl Referee<Binary> for Judge {
     }
 
     fn passed(&self) -> bool {
-        self.leftovers.is_some()
+        self.finding.is_none() && (self.leftovers.is_some())
     }
 }
 
@@ -176,6 +195,7 @@ pub fn abort_agent(scratch: &Scratch) {
     )
     .expect("supervised product");
     let mut world = real::World::new(Judge {
+        finding: None,
         poll: start,
         deadline: start.saturating_add(Duration::from_secs(10)),
         killed: None,

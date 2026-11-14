@@ -460,7 +460,15 @@ pub fn charter() -> Box<[u8]> {
 
 pub use world::{Order, OrderSnapshot, TraceCase, World, long_child_answer};
 
-pub use events::{check as assert_event_conformance, check_program as assert_program_event_conformance};
+/// Panics on the direct provider stream's first conformance finding.
+pub fn assert_event_conformance(records: &[smith_events::Record]) {
+    events::check(records).unwrap_or_else(|why| panic!("{why}"));
+}
+
+/// Panics on the program stream's first conformance finding.
+pub fn assert_program_event_conformance(records: &[smith_events::Record], received: &[serde_json::Value]) {
+    events::check_program(records, received).unwrap_or_else(|why| panic!("{why}"));
+}
 
 mod world;
 

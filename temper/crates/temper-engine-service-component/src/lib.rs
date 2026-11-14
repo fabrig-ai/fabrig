@@ -67,8 +67,11 @@ pub enum Stop {
     Journal {
         why: JournalStop,
     },
+    /// A failed commit's cause, after the root's Uncommitted policy
+    /// (temper/docs/design/protocol/store.md, 4).
     CommitFailed {
         number: u64,
+        why: CommitStop,
     },
     Start(Problems),
     /// jig's start refused a fit at `phase` (jig jig/docs/design/domain/engine/restart.md).

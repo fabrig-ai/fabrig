@@ -92,28 +92,28 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
-    ) -> Vec<Commit> {
-        let Some(bytes) = self.files.get(path) else { return Vec::new() };
-        let Some((number, ops)) = snapshots::read(bytes) else { return Vec::new() };
+    ) -> Result<Vec<Commit>, String> {
+        let Some(bytes) = self.files.get(path) else { return Ok(Vec::new()) };
+        let Some((number, ops)) = snapshots::read(bytes) else { return Ok(Vec::new()) };
         if self
             .generation(path)
             .is_some_and(|generation| generation.snapshot.is_some_and(|snapshot| snapshot >= number))
         {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         if !self.record(path, number, &ops, true) {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         if self.deferred.is_some() {
             return self.active_file(limits, names, connector);
         }
         if self.applied >= number {
-            return Vec::new();
+            return Ok(Vec::new());
         }
-        let commit = self.commit(number, ops, limits, names, connector);
+        let commit = self.commit(number, ops, limits, names, connector)?;
         self.apply(&commit, limits);
         self.recovered.extend(1..=number);
-        vec![commit]
+        Ok(vec![commit])
     }
 
     pub(super) fn active_file(
@@ -121,21 +121,21 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
-    ) -> Vec<Commit> {
-        let Some(bytes) = self.files.get(b"active".as_slice()) else { return Vec::new() };
+    ) -> Result<Vec<Commit>, String> {
+        let Some(bytes) = self.files.get(b"active".as_slice()) else { return Ok(Vec::new()) };
         let Some(number) = std::str::from_utf8(bytes).ok().and_then(|text| text.strip_suffix('\n')) else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
-        let Ok(number) = number.parse::<u64>() else { return Vec::new() };
+        let Ok(number) = number.parse::<u64>() else { return Ok(Vec::new()) };
         let active = format!("generations/{number}").into_bytes();
         if self.active.as_ref() == Some(&active) && self.deferred.as_ref() != Some(&active) {
-            return Vec::new();
+            return Ok(Vec::new());
         }
         self.active = Some(active.clone());
-        let Some(generation) = self.generations.get(&active) else { return Vec::new() };
+        let Some(generation) = self.generations.get(&active) else { return Ok(Vec::new()) };
         if behind(&generation.rows, self.binary()) {
             self.deferred = Some(active);
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let number = generation.number;
         let history = (self.observed_through > 0).then(|| {
@@ -161,7 +161,7 @@ impl Store {
         self.restored = None;
         self.restoring = true;
         self.deferred = None;
-        let commit = self.commit(number, ops, limits, names, connector);
+        let commit = self.commit(number, ops, limits, names, connector)?;
         self.apply(&commit, limits);
         let mut committed = Vec::new();
         if let Some(history) = history {
@@ -181,13 +181,18 @@ impl Store {
                 ..Store::default()
             };
             for (number, ops) in history {
-                assert_eq!(number, replay.applied + 1, "current generation's captured commit order");
-                let commit = replay.commit(number, ops, limits, names, connector);
+                if number != replay.applied + 1 {
+                    return Err(format!(
+                        "current generation's captured commit order: left {number:?}, right {:?}",
+                        replay.applied + 1
+                    ));
+                }
+                let commit = replay.commit(number, ops, limits, names, connector)?;
                 replay.apply(&commit, limits);
                 committed.push(commit);
             }
-            if number >= self.observed_through {
-                assert_eq!(replay.applied, number, "whole current generation recovered");
+            if (number >= self.observed_through) && (replay.applied != number) {
+                return Err(format!("whole current generation recovered: left {:?}, right {number:?}", replay.applied));
             }
         } else {
             committed.push(commit);
@@ -195,6 +200,6 @@ impl Store {
         self.recovered.extend(1..=number);
         self.restored = Some(self.rows.clone());
         self.restoring = false;
-        committed
+        Ok(committed)
     }
 }

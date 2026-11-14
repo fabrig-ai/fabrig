@@ -12,8 +12,8 @@ use jig_test_connector as connector;
 use skein_lib::{Duration, Rng};
 
 fn replay(seed: u64, scenario: impl FnOnce()) {
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(scenario));
-    assert!(result.is_ok(), "fault scenario seed {seed}");
+    eprintln!("fault scenario seed {seed}");
+    scenario();
 }
 
 #[test]

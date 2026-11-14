@@ -106,19 +106,19 @@ impl Referee {
         if self.released { None } else { self.at }
     }
 
-    pub(super) fn act(&mut self, now: Time, procs: &mut [Proc]) {
+    pub(super) fn act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let trace = procs.iter_mut().find_map(|proc| match proc {
             Proc::Tracing(trace) => Some(trace),
             Proc::Parent(_) | Proc::Agent(..) | Proc::Peer(..) => None,
         });
-        let Some(trace) = trace else { return };
+        let Some(trace) = trace else { return Ok(()) };
         let pressure = trace.pressure.get_or_insert_with(|| Pressure::new(self.order));
         if pressure.held.is_some() && self.at.is_none() && !self.released {
             pressure.snapshot.output_held = true;
             self.at = Some(now.saturating_add(INPUT_DELAY));
         }
         if self.released || self.at.is_none_or(|at| at > now) {
-            return;
+            return Ok(());
         }
         let count = match self.order {
             Order::Requests => REQUEST_MESSAGES,
@@ -131,8 +131,8 @@ impl Referee {
                     Proc::Parent(parent) => Some(parent),
                     Proc::Tracing(_) | Proc::Agent(..) | Proc::Peer(..) => None,
                 })
-                .expect("host parent");
-            parent.program_messages.push_back(message(self.sent));
+                .ok_or("host parent")?;
+            parent.program_messages.push_back(message(self.sent)?);
             parent.program_message = true;
             self.sent += 1;
             self.at = Some(now.saturating_add(OUTPUT_DELAY));
@@ -143,34 +143,39 @@ impl Referee {
                     Proc::Parent(parent) => Some(parent.order_messages_written),
                     Proc::Tracing(_) | Proc::Agent(..) | Proc::Peer(..) => None,
                 })
-                .expect("host parent");
+                .ok_or("host parent")?;
             let trace = procs
                 .iter_mut()
                 .find_map(|proc| match proc {
                     Proc::Tracing(trace) => Some(trace),
                     Proc::Parent(_) | Proc::Agent(..) | Proc::Peer(..) => None,
                 })
-                .expect("trace adapter");
-            let pressure = trace.pressure.as_mut().expect("pressure installed");
+                .ok_or("trace adapter")?;
+            let pressure = trace.pressure.as_mut().ok_or("pressure installed")?;
             pressure.snapshot.released_at_ms = now.as_nanos() / 1_000_000;
             pressure.snapshot.messages_written = written;
             pressure.released = true;
             self.released = true;
             self.at = None;
         }
+        Ok(())
     }
 }
 
-fn message(index: usize) -> skein_channel::Frame {
+fn message(index: usize) -> Result<skein_channel::Frame, String> {
     let message = smith_channel::Message::new(
         &smith_channel::CEILINGS,
         smith_channel::MessageParts {
             finish_requested: false,
-            name: u64::try_from(index + 1).expect("two named messages"),
+            name: u64::try_from(index + 1).map_err(|_| String::from("two named messages"))?,
             label: b"host".as_slice().into(),
             text: b"hello".as_slice().into(),
         },
     )
-    .expect("bounded message");
-    crate::frame!(0x0101, message)
+    .map_err(|_| String::from("bounded message"))?;
+    let mut writer = skein_lib::Writer::new(usize::try_from(message.measure()).map_err(|_| "record size")?);
+    message.encode(&mut writer).map_err(|_| "measured record")?;
+    let mut frame = skein_channel::frame_writer(0x0101, message.measure()).map_err(|_| "record frame")?;
+    frame.put(&writer.finish()).map_err(|_| "measured frame body")?;
+    frame.finish().map_err(|_| "filled frame".into())
 }

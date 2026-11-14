@@ -487,7 +487,7 @@ the client wire (`README.md`, section 11).
   stopped: WHY`, WHY one of `the store answered commit N, with S sent
   and D durable`, `a decision past the store's E writes`, `the commit
   counter at its end`. A commit the store failed keeps its own line,
-  `temper-box serve: commit N failed`, and a start's refusal its own lines
+  `temper-box serve: commit N failed: WHY` (`store.md`, 4), and a start's refusal its own lines
   (`binaries.md`).
 - **Bounded, and free when the core answers:** at most 240 bytes, no
   request's words and no secret; one reason held, and a comparison as

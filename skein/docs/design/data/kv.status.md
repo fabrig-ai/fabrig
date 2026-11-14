@@ -1,6 +1,6 @@
 # kv: status
 
-2026-11-13. Where skein's code lags or departs from [kv.md](kv.md).
+2026-11-14. Where skein's code lags or departs from [kv.md](kv.md).
 
 
 - **Not yet:** 9: the model-map referee across simulated-disk commits,

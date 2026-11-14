@@ -62,6 +62,29 @@ After a fatal file failure, repair reports `Recovered { last }` or
 - **Refusals happen at the entrance,** before anything is written: a
   commit whose bytes would take the map past its budget, an op past the
   key or value limit, a queue full.
+- **A refusal says which,** as bounded data and never a key's or a
+  value's bytes, so an owner can say why without asking again.
+  `Refused`'s `Refusal` is one of:
+  - `TooLarge(Large)`, `Large` naming what passed its limit: `Key` (an
+    op's key, a get's, or a load's range end past `Limits::key`),
+    `Value` (a put's value past `Limits::value`), `Ops` (more ops than
+    `Limits::ops`), `Frame` (the commit's encoded frame past
+    `Limits::commit`, or past what a frame can encode), `Page` (a load's
+    `max` zero or past `Limits::page`, or its first row past the `max`
+    it asked), `Range` (a load's range ending before its start).
+  - `Full(Exhausted)`, `Exhausted` naming what the commit would
+    exhaust: `Budget { used, budget, projected }`, the map's bytes,
+    where `budget` is `Limits::budget`, `used` the bytes admission
+    counted before this commit, with the commits queued ahead of it
+    (section 7), and `projected` the bytes this commit would leave,
+    past `budget` (a charge past `u64` makes it `u64::MAX`);
+    `Entries { capacity }`, more entries than the map's `capacity`
+    holds; `Numbers`, the commit numbers at their end.
+  - `Busy` (the queue or its bytes full) and `Unavailable` (not open, or
+    closing), which carry nothing.
+
+  The checks keep their order; only what a refusal carries is new.
+  `Large`, `Exhausted` and `Refusal` are `Copy`.
 - **An in-memory store** (`Store::memory`) has no directory: it takes
   commits without an `Open` and applies them at once, for an owner's
   tests that need no files.

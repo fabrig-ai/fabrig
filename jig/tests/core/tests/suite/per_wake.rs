@@ -653,5 +653,4 @@ fn per_wake_scenarios() {
     crate::bundle::case!(bundle, 867, a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice);
     crate::bundle::case!(bundle, 868, an_escalation_its_part_left_waits_for_a_change);
     crate::bundle::case!(bundle, 869, a_covered_escalation_stays_parked_across_a_restart);
-    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }

@@ -23,14 +23,9 @@ counted around each reused pass, never by an address.
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
-  5: in a one-process run, `Starved::pass` and `pass_starved` unwind with
-  `std::panic::resume_unwind` and the payload `StarvedPass`, so that the
-  process goes on to its next test, where they would end it with exit 0
-  after the line, and the one-process runner starts no new process for
-  the names left (`tools/tiers/design.md`, 11.5 and 11.6); skein-world's
-  tests of the starved pass and of a starved referee's teardown catch it;
-  milestone P6 of `temper/docs/design/draft/panics.execution.md`.
-  [in flight: change 2711]
+  5: `Referee` keeps `observe`, which panics on what it finds, and
+  `watch`'s default calls it; the referees of jig's, temper's, smith's
+  and hearth's worlds implement `observe`. [in flight: change 2882]
   5: two step tests show a table kept by its address, not by the span's
   count, and their binaries declare no counting allocator: skein-lib's
   `removing_a_list_item_moves_the_last_and_keeps_capacity`, a list
@@ -46,14 +41,6 @@ counted around each reused pass, never by an address.
   and `supervise-grandchild` descendants spinning. [in flight: change 1551]
   5: no fixture outlives its test: an unwinding test's walk can leave a
   descendant running, unreported. [in flight: change 1552]
-  5: a binary's expected end and the tree keeper fail the test where
-  they find a process still running or a cgroup's removal error, not as
-  values the real loop and the kit's teardown read, and
-  `skein/tests/world`'s end-to-end judges implement `observe`.
-  [in flight: change 2752]
-  5: the referees of the echo, llm-connection, oauth-accounts,
-  playground, protocol and tls worlds implement `observe`, not `watch`.
-  [in flight: change 2755]
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: the focused cost repairs' at-least-6 CPU s saving is unproved.

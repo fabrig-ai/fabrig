@@ -381,7 +381,6 @@ fn effect_fences_scenarios() {
     );
     crate::bundle::case!(bundle, 131, a_conflicting_late_terminal_cannot_replace_an_already_committed_answer);
     crate::bundle::case!(bundle, 135, late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run);
-    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
 fn dependency_world(seed: u64, executor: tasks::Executor) -> (World, u64, u64) {

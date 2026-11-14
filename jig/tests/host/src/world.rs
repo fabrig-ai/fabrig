@@ -442,32 +442,29 @@ impl World {
     /// settled world. Panics if it takes more than `iterations`.
     pub fn run(&mut self, iterations: u32) {
         let seed = self.settings.seed;
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.run_iterations(iterations))).unwrap_or_else(
-            |cause| {
-                let detail = cause
-                    .downcast_ref::<String>()
-                    .map(String::as_str)
-                    .or_else(|| cause.downcast_ref::<&str>().copied())
-                    .unwrap_or("non-string panic");
-                panic!("host seed {seed}: {detail}\n{}", self.trace.lines().join("\n"));
-            },
-        );
+        eprintln!("host seed {seed}");
+        self.run_iterations(iterations).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
-    fn run_iterations(&mut self, iterations: u32) {
+    fn run_iterations(&mut self, iterations: u32) -> Result<(), String> {
         for _ in 0..iterations {
             self.iterate();
             if self.has_work_now() {
                 continue;
             }
             let Some(next) = self.wire.next_time() else {
-                self.assert_settled();
-                return;
+                return self.check_settled().map_err(|detail| self.finding(&detail));
             };
-            assert!(next > self.now, "time moves forward");
+            if next <= self.now {
+                return Err(self.finding("time moves forward"));
+            }
             self.now = next;
         }
-        panic!("the world did not settle in {iterations} iterations");
+        Err(self.finding(&format!("the world did not settle in {iterations} iterations")))
+    }
+
+    fn finding(&self, detail: &str) -> String {
+        format!("host seed {}: {detail}\n{}", self.settings.seed, self.trace.lines().join("\n"))
     }
 
     /// One iteration of the loop, as the shell would run it.
@@ -1076,24 +1073,43 @@ impl World {
     }
 
     /// Checks the invariants of a world with nothing left to happen.
-    fn assert_settled(&self) {
-        assert!(self.wire.is_empty(), "nothing is in flight");
-        assert!(!self.stage.has_events(), "the host has taken everything");
-        assert!(!self.host.is_ready(), "no run waits on the ready list");
-        assert_eq!(self.host.hosted(), 0, "every slot is free");
-        assert_eq!(self.host.calls(), 0, "no host call is in flight");
-        assert!(self.admitted.is_empty(), "every admitted run has answered");
-        self.calls.assert_settled();
-        assert!(self.relays.is_empty(), "every engine delivery ended or was cancelled");
-        self.engine.assert_settled();
-        self.parent.assert_settled();
+    fn check_settled(&self) -> Result<(), String> {
+        if !self.wire.is_empty() {
+            return Err("nothing is in flight".into());
+        }
+        if self.stage.has_events() {
+            return Err("the host has taken everything".into());
+        }
+        if self.host.is_ready() {
+            return Err("no run waits on the ready list".into());
+        }
+        if self.host.hosted() != 0 {
+            return Err(format!("every slot is free: {} hosted", self.host.hosted()));
+        }
+        if self.host.calls() != 0 {
+            return Err(format!("no host call is in flight: {} calls", self.host.calls()));
+        }
+        if !self.admitted.is_empty() {
+            return Err("every admitted run has answered".into());
+        }
+        self.calls.check_settled()?;
+        if !self.relays.is_empty() {
+            return Err("every engine delivery ended or was cancelled".into());
+        }
+        self.engine.check_settled()?;
+        self.parent.check_settled()?;
         let facts = &self.stats.facts;
         if self.host.facts_lost() == 0 {
             let admitted = facts.get("admitted").copied().unwrap_or(0);
             let answered: u32 =
                 ["ended", "parked", "failed"].iter().map(|kind| facts.get(kind).copied().unwrap_or(0)).sum();
-            assert_eq!(admitted, answered, "every admitted run tells how it answered");
+            if admitted != answered {
+                return Err(format!(
+                    "every admitted run tells how it answered: {admitted} admitted, {answered} answered"
+                ));
+            }
         }
+        Ok(())
     }
 }
 
@@ -1176,4 +1192,25 @@ fn cancel_path(hosted: &Hosted, answer: &host::Ending) -> Option<&'static str> {
 
 fn len(bytes: &[u8]) -> u64 {
     len_u64(bytes.len())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Open, Settings, World};
+    use skein_lib::{Time, Token};
+
+    #[test]
+    fn an_unsettled_ledger_returns_its_finding_with_the_seed_and_trace() {
+        let mut settings = Settings::calm(17);
+        settings.engine.assignments = 0;
+        let mut world = World::with_trace(&settings, true);
+        world.trace.log(Time::ZERO, format_args!("unanswered call"));
+        world
+            .calls
+            .open((Token::new(1), Token::new(2)), Open { agent: Token::new(1), call: Token::new(2), delivery: false });
+        let finding = world.run_iterations(1).expect_err("the call has no terminal");
+        assert!(finding.starts_with("host seed 17: every host call has ended:"), "{finding}");
+        assert!(finding.contains("have not"), "{finding}");
+        assert!(finding.contains("unanswered call"), "{finding}");
+    }
 }

@@ -604,7 +604,6 @@ fn runs_scenarios() {
     crate::bundle::case!(bundle, 171, a_window_turn_charging_exactly_the_room_resumes_whole);
     crate::bundle::case!(bundle, 173, a_window_turn_just_past_the_room_starts_fresh_with_a_marker);
     crate::bundle::case!(bundle, 174, a_large_tool_turn_keeps_its_place_between_other_texts);
-    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
 #[test]

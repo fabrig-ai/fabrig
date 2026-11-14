@@ -292,50 +292,78 @@ enum Phase {
     Closing,
 }
 struct Judge {
+    failed: Option<String>,
     phase: Phase,
     patience: support::patience::Patience,
     settled: bool,
 }
 impl Referee<Root> for Judge {
     fn act(&mut self, _now: Time, roots: &mut [Root]) {
-        let [Root::Client(binary), Root::Terminal(terminal), Root::Peer(peer)] = roots else {
-            panic!("binary, terminal and peer")
-        };
-        match self.phase {
-            Phase::Lending if terminal.has(b"LOGIN-READY") && !terminal.writing => {
-                assert!(terminal.has(b"\x1b[?1049l"), "LEAVE before login");
-                assert!(terminal.has(b"temper: Claude Code signs in here."));
-                terminal.bytes.clear();
-                terminal.keys(b"work input\n");
-                self.phase = Phase::Reading;
+        if self.failed.is_some() {
+            return;
+        }
+        let result = (|| -> Result<(), String> {
+            let [Root::Client(binary), Root::Terminal(terminal), Root::Peer(peer)] = roots else {
+                return Err(String::from("binary, terminal and peer"));
+            };
+            match self.phase {
+                Phase::Lending if terminal.has(b"LOGIN-READY") && !terminal.writing => {
+                    if !terminal.has(b"\x1b[?1049l") {
+                        return Err(String::from("LEAVE before login"));
+                    }
+                    if !terminal.has(b"temper: Claude Code signs in here.") {
+                        return Err(String::from(
+                            "assertion failed: terminal.has(b\"temper: Claude Code signs in here.\")",
+                        ));
+                    }
+                    terminal.bytes.clear();
+                    terminal.keys(b"work input\n");
+                    self.phase = Phase::Reading;
+                }
+                Phase::Reading if terminal.has(b"LOGIN-READ") => {
+                    self.phase = Phase::Back;
+                }
+                Phase::Back
+                    if terminal.has(b"\x1b[?1049h") && terminal.has(b"Claude Code signed in") && !terminal.writing =>
+                {
+                    let modes = skein_shell::terminal_modes(terminal.stream.ok_or(String::from("master"))?)
+                        .map_err(|error| format!("terminal modes: {error:?}"))?;
+                    if modes.echo || modes.lines {
+                        return Err(String::from("the TUI's raw modes are back"));
+                    }
+                    terminal.keys(b"\x03");
+                    self.phase = Phase::Closing;
+                }
+                Phase::Closing if binary.exit_status().is_some() => peer.close(),
+                Phase::Lending | Phase::Reading | Phase::Back | Phase::Closing => {}
             }
-            Phase::Reading if terminal.has(b"LOGIN-READ") => {
-                self.phase = Phase::Back;
-            }
-            Phase::Back
-                if terminal.has(b"\x1b[?1049h") && terminal.has(b"Claude Code signed in") && !terminal.writing =>
-            {
-                let modes = skein_shell::terminal_modes(terminal.stream.expect("master")).expect("terminal modes");
-                assert!(!modes.echo && !modes.lines, "the TUI's raw modes are back");
-                terminal.keys(b"\x03");
-                self.phase = Phase::Closing;
-            }
-            Phase::Closing if binary.exit_status().is_some() => peer.close(),
-            Phase::Lending | Phase::Reading | Phase::Back | Phase::Closing => {}
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, roots: &[Root]) {
+    fn watch(&mut self, _now: Time, roots: &[Root]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         self.settled = matches!(self.phase, Phase::Closing) && roots.iter().all(Host::is_empty);
         if !self.settled
             && let Some(figures) = self.patience.failed()
         {
-            panic!("terminal loan did not settle: {figures}");
+            return Err(format!("terminal loan did not settle: {figures}"));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.patience.until() }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -413,6 +441,7 @@ else:
     let Streams::Terminal { stream } = binary.take_streams().expect("terminal") else { panic!("terminal master") };
     skein_shell::resize_terminal(stream, Size { columns: 80, rows: 24 }).expect("80 by 24");
     let mut world = real::World::new(Judge {
+        failed: None,
         phase: Phase::Lending,
         patience: support::patience::Patience::watching("TUI's terminal loan", support::WITHIN, &binary),
         settled: false,

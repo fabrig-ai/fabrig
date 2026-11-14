@@ -105,6 +105,31 @@ fn application_referee_accepts_failed_commit_retry_expiry_and_identical_replay()
 }
 
 #[test]
+fn an_observer_finding_reaches_the_harness_with_seed_and_trace() {
+    use jig_domain_core as core;
+    use jig_domain_tasks as tasks;
+    use jig_test_domain as root;
+
+    let mut world = Harness::<Testing>::with_trace(Config::new(31, false, 2, None), 31, true);
+    world.drain().expect("faithful startup");
+    let line = world
+        .store
+        .rows
+        .values_mut()
+        .find_map(|record| match record {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(line))) => Some(line),
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .expect("durable activity");
+    line.at = skein_lib::Wall::from_nanos(line.at.as_nanos() + 1);
+    world.store.applied += 1;
+    let failure = world.drain().expect_err("observer finding must leave the adapter");
+    assert_eq!(failure.promise, Promise::Commit);
+    assert!(failure.why.contains("seed 31: immutable activity row changed"), "{failure:?}");
+    assert!(failure.why.contains("output "), "trace accompanies the finding: {failure:?}");
+}
+
+#[test]
 fn every_broken_root_is_caught_from_durable_rows_and_outside_deliveries() {
     for (fault, promise) in [
         (Fault::EarlyOutput, Promise::Commit),

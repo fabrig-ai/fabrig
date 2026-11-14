@@ -16,9 +16,9 @@ impl Walk {
     pub fn wake(&self) -> Option<Time> {
         self.wake
     }
-    pub fn act(&mut self, now: Time, proxy: &Proxy, visitor: &mut Visitor, project: u64) -> bool {
+    pub fn act(&mut self, now: Time, proxy: &Proxy, visitor: &mut Visitor, project: u64) -> Result<bool, String> {
         if self.wake.is_some_and(|wake| now < wake) || self.calls.iter().any(|id| !visitor.answers.contains_key(id)) {
-            return false;
+            return Ok(false);
         }
         self.wake = None;
         let path = format!("/jig/v1/public/2/2/2/{project:016x}");
@@ -33,12 +33,11 @@ impl Walk {
                 self.stage = 1;
             }
             1 => {
-                assert!(
-                    self.calls.iter().all(|id| visitor.answers[id].is_none()),
-                    "connections closed before reading their answers"
-                );
+                if !(self.calls.iter().all(|id| visitor.answers[id].is_none())) {
+                    return Err(String::from("connections closed before reading their answers"));
+                }
                 if !proxy.idle() {
-                    return false;
+                    return Ok(false);
                 }
                 self.wake = Some(Time::from_nanos(now.as_nanos() + 1_000_000_000));
                 self.stage = 2;
@@ -53,16 +52,24 @@ impl Walk {
                 self.stage = 3;
             }
             3 => {
-                let answer = visitor.answers[self.calls.last().expect("fresh read")].as_ref().expect("HTTP answer");
-                assert_eq!(answer.status, 200, "all eight burst reads after abandonment are answered");
-                service_checks::policy(answer, false);
+                let answer = visitor.answers[self.calls.last().ok_or_else(|| String::from("fresh read"))?]
+                    .as_ref()
+                    .ok_or_else(|| String::from("HTTP answer"))?;
+                match (&(answer.status), &(200)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("all eight burst reads after abandonment are answered");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                service_checks::policy(answer, false)?;
                 if self.calls.len() == 10 {
-                    return true;
+                    return Ok(true);
                 }
                 self.stage = 2;
             }
-            other => panic!("abandonment stage {other}"),
+            other => return Err(format!("abandonment stage {other}")),
         }
-        false
+        Ok(false)
     }
 }

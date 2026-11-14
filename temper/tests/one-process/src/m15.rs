@@ -48,6 +48,7 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, app: u64) -> usize {
     11
 }
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     app: u64,
@@ -56,11 +57,13 @@ struct Judge {
     browsing: bool,
     stopping: bool,
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
+impl Judge {
+    fn act_checked(&mut self, _now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (first, other) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { panic!("native caller second") };
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
+            return Err(String::from("native caller second"));
+        };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -68,27 +71,38 @@ impl skein_world::Referee<Proc> for Judge {
             self.handed = true;
         }
         if !self.handed || caller.answers.len() != self.calls {
-            return;
+            return Ok(());
         }
         if !self.browsing {
-            let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { unreachable!() };
+            let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { return Err(String::from("unreachable")) };
             let peer = other
                 .iter()
                 .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
-                .expect("GitHub peer");
-            assert!(peer.git_calls().expect("git observation").is_empty(), "pastes start no git writes");
-            assert_eq!(peer.github_layer().expect("GitHub").installations().iter().count(), 1);
+                .ok_or_else(|| String::from("GitHub peer"))?;
+            if !(peer.git_calls().ok_or_else(|| String::from("git observation"))?.is_empty()) {
+                return Err(String::from("pastes start no git writes"));
+            }
+            match (&(peer.github_layer().ok_or_else(|| String::from("GitHub"))?.installations().iter().count()), &(1)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             for (index, answer) in caller.answers.iter().enumerate() {
-                assert!(
-                    answer.exit == Exit::Code(if index == 7 { 2 } else { 0 }),
-                    "paste call {index} settles as scripted"
-                );
+                if answer.exit != Exit::Code(if index == 7 { 2 } else { 0 }) {
+                    return Err(format!("paste call {index} settles as scripted"));
+                }
                 observer::artifact("ctl stdout", &answer.output);
                 observer::artifact("ctl stderr", &answer.error);
             }
-            assert!(caller.answers[1].output == caller.answers[3].output, "failed paste replay keeps its run");
-            assert!(caller.answers[4].output == caller.answers[6].output, "good paste replay keeps its run");
-            checkpoint(service, &self.store.borrow());
+            if caller.answers[1].output != caller.answers[3].output {
+                return Err(String::from("failed paste replay keeps its run"));
+            }
+            if caller.answers[4].output != caller.answers[6].output {
+                return Err(String::from("good paste replay keeps its run"));
+            }
+            checkpoint(service, &self.store.borrow())?;
             for proc in other.iter_mut() {
                 if let Proc::Other(HarnessProcess::Client(person)) = proc {
                     person.saved();
@@ -102,10 +116,21 @@ impl skein_world::Referee<Proc> for Judge {
             let peer = other
                 .iter()
                 .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
-                .expect("GitHub peer");
-            assert_eq!(observer::tokens() as u64, peer.github_layer().expect("GitHub").installations().minted());
-            checkpoint(service, &self.store.borrow());
-            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
+                .ok_or_else(|| String::from("GitHub peer"))?;
+            match (
+                &(observer::tokens() as u64),
+                &(peer.github_layer().ok_or_else(|| String::from("GitHub"))?.installations().minted()),
+            ) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            checkpoint(service, &self.store.borrow())?;
+            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
+                return Err(String::from("unreachable"));
+            };
             caller.closed = true;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             for proc in other {
@@ -113,13 +138,35 @@ impl skein_world::Referee<Proc> for Judge {
             }
             self.stopping = true;
         }
+
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, procs: &[Proc]) {
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
         for proc in procs {
-            if let Proc::Peer(peer) = proc {
-                observer::context(peer);
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
             }
         }
+
+        for proc in procs {
+            if let Proc::Peer(peer) = proc {
+                observer::context(peer)?;
+            }
+        }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopping).then_some(Time::from_nanos(10_000_000_000))
@@ -129,13 +176,15 @@ impl skein_world::Referee<Proc> for Judge {
             .then(|| format!("M15 pastes: handed {}, browsing {}", self.handed, self.browsing))
     }
     fn passed(&self) -> bool {
-        self.stopping
+        self.finding.is_none() && (self.stopping)
     }
 }
-fn checkpoint(service: &world::ServiceHost, store: &Store) {
+fn checkpoint(service: &world::ServiceHost, store: &Store) -> Result<(), String> {
     observer::artifact("public roots", format!("{:?}", referee::secrets::Roots(&service.service)).as_bytes());
     observer::artifact("nonsecret records", format!("{:?}", store.rows).as_bytes());
-    observer::checkpoint();
+    observer::checkpoint()?;
+
+    Ok(())
 }
 /// Refused and replayed pasted keys remain absent from every public surface in this story.
 #[must_use]
@@ -161,7 +210,16 @@ pub fn refused_replayed_pastes() -> Counts {
             fixtures::SEED,
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
-            |controls| Judge { controls, store, app, calls: 0, handed: false, browsing: false, stopping: false },
+            |controls| Judge {
+                finding: None,
+                controls,
+                store,
+                app,
+                calls: 0,
+                handed: false,
+                browsing: false,
+                stopping: false,
+            },
         )
         .with_machine(machine);
         for (program, roots) in programs::programs::<OneProcess>() {

@@ -40,15 +40,18 @@ pub(super) fn ask(visitor: &mut Visitor, ask: &c::Ask, key: u8) -> u64 {
         &keyed(ask, key),
     )
 }
-pub(super) fn answer(bytes: &[u8]) -> c::Answer {
-    let record = w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed answer");
-    jig_client_protocol_link::translate::answers::answer(
-        record,
-        &jig_client_protocol_link::Limits::new(
-            temper_client_shell_terminal::limits::native().client.client.domain,
-            temper_client_shell_terminal::limits::native().client.client.exchanges,
+pub(super) fn answer(bytes: &[u8]) -> Result<c::Answer, String> {
+    Ok({
+        let record = w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(bytes))
+            .map_err(|why| format!("keyed answer: {why:?}"))?;
+        jig_client_protocol_link::translate::answers::answer(
+            record,
+            &jig_client_protocol_link::Limits::new(
+                temper_client_shell_terminal::limits::native().client.client.domain,
+                temper_client_shell_terminal::limits::native().client.client.exchanges,
+            )
+            .map_err(|why| format!("native limits: {why:?}"))?,
         )
-        .expect("native limits"),
-    )
-    .expect("answer translation")
+        .map_err(|why| format!("answer translation: {why:?}"))?
+    })
 }

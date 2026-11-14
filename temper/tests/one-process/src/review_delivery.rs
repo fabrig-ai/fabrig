@@ -126,6 +126,7 @@ enum Stage {
 }
 #[expect(clippy::struct_excessive_bools, reason = "the scenario records setup, exercise and teardown facts separately")]
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     warm: bool,
@@ -144,6 +145,7 @@ struct Judge {
 impl Judge {
     fn new(controls: skein_world::Controls, store: Rc<RefCell<Store>>, warm: bool, goal: bool, exercise: bool) -> Self {
         Self {
+            finding: None,
             controls,
             store,
             warm,
@@ -226,80 +228,97 @@ impl Judge {
             })
             .collect()
     }
-    fn review(&mut self, caller: &mut Caller) {
+    fn review(&mut self, caller: &mut Caller) -> Result<(), String> {
         let tasks = self.tasks();
         let Some(review) = tasks.iter().find(|task| task.executor == jig_domain_tasks::Executor::Agent { charter: 4 })
         else {
-            return;
+            return Ok(());
         };
-        if self.goal {
-            assert!(
-                tasks.iter().any(|task| task.label == 2 && task.tracked.is_some()),
-                "a tracked goal delegates the change"
-            );
+        if (self.goal) && (!(tasks.iter().any(|task| task.label == 2 && task.tracked.is_some()))) {
+            return Err(String::from("a tracked goal delegates the change"));
         }
         self.review = Some(review.number);
-        assert_eq!(review.tries.invalid, 0, "an assignment refused before its first turn has no result");
-        if review.tries.permanent == 0 {
-            return;
+        match (&(review.tries.invalid), &(0)) {
+            (left, right) if left != right => {
+                let finding = String::from("an assignment refused before its first turn has no result");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
         }
-        assert!(
-            matches!(
-                review.phase,
-                jig_domain_tasks::Phase::Active(_)
-                    | jig_domain_tasks::Phase::Held { .. }
-                    | jig_domain_tasks::Phase::Ended(_)
-            ),
-            "review starts or reaches terminal refusal within its bound: {:?}",
-            review.phase
-        );
-        assert_eq!(review.run_reserved, 0, "refusal releases the reservation");
-        assert!(
-            !self.store.borrow().agent_records.iter().any(|record| matches!(record,
-            referee::AgentRecord::Start { task, .. } if *task == review.number)),
-            "unencodable review starts no process"
-        );
+        if review.tries.permanent == 0 {
+            return Ok(());
+        }
+        if !(matches!(
+            review.phase,
+            jig_domain_tasks::Phase::Active(_)
+                | jig_domain_tasks::Phase::Held { .. }
+                | jig_domain_tasks::Phase::Ended(_)
+        )) {
+            return Err(format!("review starts or reaches terminal refusal within its bound: {:?}", review.phase));
+        }
+        match (&(review.run_reserved), &(0)) {
+            (left, right) if left != right => {
+                let finding = String::from("refusal releases the reservation");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        if self.store.borrow().agent_records.iter().any(|record| {
+            matches!(record,
+            referee::AgentRecord::Start { task, .. } if *task == review.number)
+        }) {
+            return Err(String::from("unencodable review starts no process"));
+        }
         let change = tasks
             .iter()
             .find(|task| matches!(task.executor, jig_domain_tasks::Executor::Procedure { .. }))
-            .expect("change");
+            .ok_or_else(|| String::from("change"))?;
         self.change = Some(change.number);
         Self::command(
             caller,
             &["task", "cancel", &change.number.to_string(), "Regression cancellation", "--key", "delivery-cancel"],
         );
         self.stage = Stage::Cancel;
+
+        Ok(())
     }
-    fn can_progress(&self) -> bool {
-        match self.stage {
-            Stage::Cancel => {
-                let tasks = self.tasks();
-                [self.change.expect("checked fixture"), self.review.expect("checked fixture")].iter().all(|number| {
-                    tasks
-                        .iter()
-                        .any(|task| task.number == *number && matches!(task.phase, jig_domain_tasks::Phase::Ended(_)))
-                })
+    fn can_progress(&self) -> Result<bool, String> {
+        Ok({
+            match self.stage {
+                Stage::Cancel => {
+                    let tasks = self.tasks();
+                    [
+                        self.change.ok_or_else(|| String::from("checked fixture"))?,
+                        self.review.ok_or_else(|| String::from("checked fixture"))?,
+                    ]
+                    .iter()
+                    .all(|number| {
+                        tasks.iter().any(|task| {
+                            task.number == *number && matches!(task.phase, jig_domain_tasks::Phase::Ended(_))
+                        })
+                    })
+                }
+                Stage::Close | Stage::RecoveryClose => {
+                    self.tasks().iter().all(|task| matches!(task.phase, jig_domain_tasks::Phase::Ended(_)))
+                }
+                Stage::Recovery => self.tasks().iter().any(|task| {
+                    task.spec.words.as_ref() == b"@recovery"
+                        && task.ever_turned
+                        && matches!(task.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle))
+                }),
+                Stage::Setup | Stage::Review | Stage::Done => true,
             }
-            Stage::Close | Stage::RecoveryClose => {
-                self.tasks().iter().all(|task| matches!(task.phase, jig_domain_tasks::Phase::Ended(_)))
-            }
-            Stage::Recovery => self.tasks().iter().any(|task| {
-                task.spec.words.as_ref() == b"@recovery"
-                    && task.ever_turned
-                    && matches!(task.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle))
-            }),
-            Stage::Setup | Stage::Review | Stage::Done => true,
-        }
+        })
     }
-    fn progress(&mut self, caller: &mut Caller) {
-        if !self.can_progress() {
-            return;
+    fn progress(&mut self, caller: &mut Caller) -> Result<(), String> {
+        if !self.can_progress()? {
+            return Ok(());
         }
         match self.stage {
             Stage::Setup => {
                 let expected = if self.warm { 2 } else { 5 };
                 if self.answered != expected {
-                    return;
+                    return Ok(());
                 }
                 if self.exercise {
                     Self::command(
@@ -311,10 +330,10 @@ impl Judge {
                     self.stage = Stage::Done;
                 }
             }
-            Stage::Review => self.review(caller),
+            Stage::Review => self.review(caller)?,
             Stage::Cancel => {
                 let tasks = self.tasks();
-                let chat = tasks.iter().find(|task| task.flags.conversation).expect("chat");
+                let chat = tasks.iter().find(|task| task.flags.conversation).ok_or_else(|| String::from("chat"))?;
                 Self::command(caller, &["chat", "close", &chat.number.to_string(), "--key", "delivery-close"]);
                 self.stage = Stage::Close;
             }
@@ -322,41 +341,56 @@ impl Judge {
                 Self::command(caller, &["chat", "start", "--project", "1", "--key", "delivery-recovery", "@recovery"]);
                 self.stage = Stage::Recovery;
             }
-            Stage::Recovery => self.recovery(caller),
+            Stage::Recovery => self.recovery(caller)?,
             Stage::RecoveryClose => {
                 self.stage = Stage::Done;
             }
             Stage::Done => {}
         }
+
+        Ok(())
     }
-    fn recovery(&mut self, caller: &mut Caller) {
+    fn recovery(&mut self, caller: &mut Caller) -> Result<(), String> {
         let tasks = self.tasks();
-        let task = tasks.iter().find(|task| task.spec.words.as_ref() == b"@recovery").expect("ready recovery");
+        let task = tasks
+            .iter()
+            .find(|task| task.spec.words.as_ref() == b"@recovery")
+            .ok_or_else(|| String::from("ready recovery"))?;
         Self::command(caller, &["chat", "close", &task.number.to_string(), "--key", "recovery-close"]);
         self.stage = Stage::RecoveryClose;
+
+        Ok(())
     }
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
+impl Judge {
+    fn act_checked(&mut self, _now: Time, procs: &mut [Proc]) -> Result<(), String> {
         self.wake = None;
         self.steps += 1;
-        assert!(self.steps < STEPS, "stage {:?}, {} answers", self.stage, self.answered);
+        if self.steps >= STEPS {
+            return Err(format!("stage {:?}, {} answers", self.stage, self.answered));
+        }
         let (first, others) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut others[0] else { panic!("caller second") };
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut others[0] else {
+            return Err(String::from("caller second"));
+        };
         self.setup(service, caller);
         while self.answered < caller.answers.len() {
             let answer = &caller.answers[self.answered];
-            assert_eq!(
-                answer.exit,
-                Exit::Code(0),
-                "ctl: {} {}",
-                String::from_utf8_lossy(&answer.output),
-                String::from_utf8_lossy(&answer.error)
-            );
+            match (&(answer.exit), &(Exit::Code(0))) {
+                (left, right) if left != right => {
+                    let finding = format!(
+                        "ctl: {} {}",
+                        String::from_utf8_lossy(&answer.output),
+                        String::from_utf8_lossy(&answer.error)
+                    );
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             self.answered += 1;
         }
-        self.progress(caller);
+        self.progress(caller)?;
         if self.stage == Stage::Done && !self.stopping {
             caller.closed = true;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
@@ -369,23 +403,52 @@ impl skein_world::Referee<Proc> for Judge {
             }
             self.stopping = true;
         }
+
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, procs: &[Proc]) {
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
         let applied = self.store.borrow().applied;
         if self.checked == applied {
-            return;
+            return Ok(());
         }
         self.checked = applied;
-        let Proc::Service(service) = &procs[0] else { panic!("service") };
-        referee::Referee::check_roots(&service.service);
+        let Proc::Service(service) = &procs[0] else { return Err(String::from("service")) };
+        referee::Referee::check_roots(&service.service)?;
+
+        Ok(())
     }
     fn idle(&mut self, now: Time, _procs: &[Proc], _settled: bool) {
-        // Referee::next_deadline includes when the judge will act, even if
-        // the product has no work left to wake the world (testing-strategy.md, 7).
-        self.wake = (!self.stopping
-            && matches!(self.stage, Stage::Cancel | Stage::Close | Stage::Recovery | Stage::RecoveryClose)
-            && self.can_progress())
-        .then_some(now);
+        if self.finding.is_some() {
+            return;
+        }
+        // Wake the judge even when the product has no work (testing-strategy.md, 7).
+        match self.can_progress() {
+            Ok(ready) => {
+                self.wake = (!self.stopping
+                    && matches!(self.stage, Stage::Cancel | Stage::Close | Stage::Recovery | Stage::RecoveryClose)
+                    && ready)
+                    .then_some(now);
+            }
+            Err(why) => self.finding = Some(why),
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopping).then(|| self.wake.map_or(DEADLINE, |wake| wake.min(DEADLINE)))
@@ -429,7 +492,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopping
+        self.finding.is_none() && (self.stopping)
     }
 }
 

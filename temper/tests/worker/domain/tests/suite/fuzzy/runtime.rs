@@ -16,12 +16,10 @@ fn runtime_random_turn_sizes_and_tiny_windows_settle() {
             _ => Close::Committed,
         };
         let settings = Settings { seed, turns, byte_slots, merging: seed % 2 == 0, close };
-        let result = std::panic::catch_unwind(|| {
-            let mut world = World::new(settings, RUNTIME_HEAP_CEILING);
-            world.run();
-            // Stopping also takes the independent agent window already sent.
-            assert!(world.stats().peak_retained <= turns * 2);
-        });
-        assert!(result.is_ok(), "runtime seed {seed}, settings {settings:?}");
+        eprintln!("runtime seed {seed}, settings {settings:?}");
+        let mut world = World::new(settings, RUNTIME_HEAP_CEILING);
+        world.run();
+        // Stopping also takes the independent agent window already sent.
+        assert!(world.stats().peak_retained <= turns * 2);
     }
 }
