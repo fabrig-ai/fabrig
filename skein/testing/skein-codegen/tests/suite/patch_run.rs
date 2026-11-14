@@ -204,6 +204,22 @@ mod tests {
     }
 
     #[test]
+    fn derived_patch_writes_defaults_as_values_without_asking() {
+        const DEFAULTS: &str = "family shelf 2\nrecord Book { id: u8 score: u32 = 0007 note: text 8 = \"hi #é\" o: option u8 = some #default\n 3 empty: list 4 u8 = [ #empty\n ] absent: option u8 }\nenum State { ready }\n";
+        const TEXT: &str = "patch 1\nowner shop 1\n\nfamily shelf 1 to 2\nadd Book.score u32 0007\nadd Book.note text 8 \"hi #é\"\nadd Book.o option u8 some 3\nadd Book.empty list 4 u8 [ ]\nadd Book.absent option u8 none\n";
+        let root =
+            crate_files("defaults", &[("schema/shelf-v2.schema", DEFAULTS), ("schema/kept/shelf-v1.schema", V1)]);
+        let base = landed(&[("schema/kept/shelf-v1.schema", V1)]);
+        let report = run(&root, &base, &options()).expect("default patch");
+        assert_files(&root, &[("patches/0001.patch", TEXT)]);
+        assert_eq!(report.asked, Vec::<String>::new());
+        assert_eq!(report.findings, []);
+        run(&root, &base, &options()).expect("default patch rerun");
+        assert_files(&root, &[("patches/0001.patch", TEXT)]);
+        end(&root);
+    }
+
+    #[test]
     fn written_change_places_its_site_after_declaration() {
         const WRITTEN: &str = "family shelf 2\nrecord Book { id: bool }\nenum State { ready }\n";
         const TEXT: &str = "patch 1\nowner shop 1\n\nfamily shelf 1 to 2\nretype Book.id u8 bool\nwritten Book\n";

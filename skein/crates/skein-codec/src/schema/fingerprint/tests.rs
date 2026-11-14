@@ -111,6 +111,10 @@ fn names_comments_layout_and_boxing_preserve_every_fingerprint() {
     let base = schema("family f 3\nrecord A { x: u8 } enum E { a, b: A } record R { x: A, y: bytes 8 pieces A }");
     let cases = [
         (
+            "defaults and former names",
+            "family f 3\nrecord A was Before { x was old: u8 = 7 } enum E { a was empty, b: A } record R { x: A, y: bytes 8 pieces A = 0x }",
+        ),
+        (
             "declaration and references",
             "family f 3\nrecord B { x: u8 } enum E { a, b: B } record R { x: B, y: bytes 8 pieces B }",
         ),
