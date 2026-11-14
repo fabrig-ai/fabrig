@@ -1,13 +1,12 @@
 //! Setups restored and recipes proven by the place's own build (qa/places.md, 2, 4, 6–8).
 mod files;
 use crate::faces::{ArchiveFace, DriveFace, RecipeWalk, WalkOutput};
-use crate::{Home, Ledger, Pass, Refusal, document as d, refused};
+use crate::{Home, Ledger, Pass, Refusal, document as d, private, refused};
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
-    fs::{self, File, OpenOptions},
+    fs::{self, OpenOptions},
     io::Write,
-    os::unix::fs::OpenOptionsExt,
     path::{Path, PathBuf},
 };
 
@@ -40,8 +39,8 @@ impl PlacePaths {
         }
     }
     pub fn ensure(&self) -> Result<(), Refusal> {
-        for path in [&self.bin, &self.bundle, &self.scratch, &self.copies] {
-            io(path, fs::create_dir_all(path))?;
+        for path in [&self.directory, &self.bin, &self.bundle, &self.scratch, &self.copies] {
+            private::directory(path)?;
         }
         Ok(())
     }
@@ -50,10 +49,8 @@ impl PlacePaths {
 /// Probe and release immediately: a holder left by an ended pass still owns its place.
 pub fn place_busy(place: &PlacePaths) -> Result<bool, Refusal> {
     place.ensure()?;
-    let file = io(
-        &place.drive_lock,
-        OpenOptions::new().read(true).write(true).create(true).truncate(false).mode(0o600).open(&place.drive_lock),
-    )?;
+    let file =
+        private::file(&place.drive_lock, OpenOptions::new().read(true).write(true).create(true).truncate(false))?;
     match file.try_lock() {
         Ok(()) => Ok(false),
         Err(std::fs::TryLockError::WouldBlock) => Ok(true),
@@ -207,7 +204,8 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
     }
     fn write_setup(&self, text: &str) -> Result<(), Refusal> {
         let temporary = self.paths.directory.join("setup.tmp");
-        io(&temporary, fs::write(&temporary, text))?;
+        let mut file = private::file(&temporary, OpenOptions::new().write(true).create(true).truncate(true))?;
+        io(&temporary, file.write_all(text.as_bytes()))?;
         io(&self.paths.setup, fs::rename(&temporary, &self.paths.setup))
     }
     fn copies(&self, name: &str) -> Result<Vec<Copy>, Refusal> {
@@ -233,9 +231,10 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
     }
     fn save_copy(&mut self, recipe: &Recipe, output: &mut impl Write) -> Result<(), Refusal> {
         let directory = self.paths.copies.join(&recipe.name);
-        io(&directory, fs::create_dir_all(&directory))?;
+        private::directory(&directory)?;
         let temporary = directory.join("copy.tmp");
         remove(&temporary)?;
+        private::file(&temporary, OpenOptions::new().write(true).create_new(true))?;
         self.archive.create(&self.paths.scratch, &temporary)?;
         let kept = directory.join(format!("{}-{}.tar", recipe.hash, self.pass.build));
         io(&kept, fs::rename(&temporary, &kept))?;
@@ -328,7 +327,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let hash = chain.last().expect("nonempty chain").hash.clone();
         remove(&self.paths.setup)?;
         // The whole log is retained across retries and subsequent walks.
-        io(&self.paths.walk_log, File::create(&self.paths.walk_log))?;
+        private::file(&self.paths.walk_log, OpenOptions::new().write(true).create(true).truncate(true))?;
         let mut ceiling = chain.len();
         let mut saved = Vec::new();
         loop {
@@ -448,7 +447,7 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
         let from = if input.after == "fresh" {
             remove(&self.paths.setup)?;
             self.empty()?;
-            io(&self.paths.walk_log, File::create(&self.paths.walk_log))?;
+            private::file(&self.paths.walk_log, OpenOptions::new().write(true).create(true).truncate(true))?;
             None
         } else {
             let restored = self.restore(&input.after, output)?;
