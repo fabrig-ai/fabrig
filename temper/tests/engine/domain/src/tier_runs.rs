@@ -346,7 +346,7 @@ pub fn until(world: &mut World, ticks: u32, description: &str, met: impl Fn(&Wor
             .values()
             .filter_map(|row| match row {
                 Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) =>
-                    Some((row.number, &row.phase, String::from_utf8_lossy(&row.spec.words))),
+                    Some((row.number, &row.phase)),
                 _ => None,
             })
             .collect::<Vec<_>>()
