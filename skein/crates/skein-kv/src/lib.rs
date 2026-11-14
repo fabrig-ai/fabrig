@@ -22,7 +22,7 @@ mod store;
 #[cfg(test)]
 mod tests;
 
-pub use boundary::{Event, Failure, Op, Page, Range, Refusal, Request, Row};
+pub use boundary::{Event, Exhausted, Failure, Large, Op, Page, Range, Refusal, Request, Row};
 pub use census::{CENSUS_HEADS, CENSUS_KEYSPACES, CENSUS_PREFIX, Census, CensusRule, Head, Keyspace};
 pub use frame::{FRAME_BYTES, erase_bytes, put_bytes};
 pub use key::{KeyReader, KeyWriter};

@@ -1,6 +1,6 @@
 # Repair after landing's non-live reds of 11-14
 
-Draft, 2026-11-14. A manual non-live after-landing run at main 6bd49188cb (11-14 10:41Z, on w2) found 108 reds in four pairs: browser-jig 7 of 7, browser-skein 73 of 100, browser-temper 12 of 12 and process-temper 16 of 53. conformance-hearth was green. Each process red was repeated alone, by name. The run's logs are on w2, under `~/src/fabrig/temper-worker/ci/after/runs/20261114T104149Z/`, and the by-name reruns are under its `rerun/`.
+Draft, 2026-11-14. A manual non-live after-landing run at main 6bd49188cb (11-14 10:41Z, on w2) found 108 reds in four pairs: browser-jig 7 of 7, browser-skein 73 of 100, browser-temper 12 of 12 and process-temper 16 of 53. conformance-hearth was green. Each process red was repeated alone, by name. The run's logs are on w2, under `temper-worker/ci/after/runs/20261114T104149Z/`, and the by-name reruns are under its `rerun/`.
 
 ## 1. Browser worlds can't find their servers (92 reds)
 
