@@ -64,12 +64,21 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         }
     }
     if let Some(posting) = &row.posting {
-        held = held.checked_add(u64::try_from(size_of::<crate::TierPosting>()).ok()?)?
+        held = held
+            .checked_add(u64::try_from(size_of::<crate::TierPosting>()).ok()?)?
             .checked_add(skein_lib::len_u64(posting.link.len()))?
             .checked_add(skein_lib::len_u64(posting.description.len()))?
-            .checked_add(skein_lib::len_u64(posting.landings.len()).checked_mul(u64::try_from(size_of::<crate::TierPostedLanding>()).ok()?)?)?
-            .checked_add(skein_lib::len_u64(posting.comments.len()).checked_mul(u64::try_from(size_of::<crate::TierComment>()).ok()?)?)?;
-        for landing in &posting.landings { held = held.checked_add(blame_bytes(&landing.blame)?)?; }
+            .checked_add(
+                skein_lib::len_u64(posting.landings.len())
+                    .checked_mul(u64::try_from(size_of::<crate::TierPostedLanding>()).ok()?)?,
+            )?
+            .checked_add(
+                skein_lib::len_u64(posting.comments.len())
+                    .checked_mul(u64::try_from(size_of::<crate::TierComment>()).ok()?)?,
+            )?;
+        for landing in &posting.landings {
+            held = held.checked_add(blame_bytes(&landing.blame)?)?;
+        }
     }
     if let Some(hold) = &row.hold {
         held = held.checked_add(skein_lib::len_u64(hold.reason.len()))?;

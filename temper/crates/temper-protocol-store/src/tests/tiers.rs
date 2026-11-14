@@ -58,18 +58,33 @@ fn tier_posting_round_trips_its_cursor_blame_and_comment_purposes() {
     ]);
     for pending in [false, true] {
         for next in 0..=4 {
-            if pending && next > 1 { continue; }
+            if pending && next > 1 {
+                continue;
+            }
             row.posting = Some(Box::new(d::TierPosting {
-                number: 3, tip: [4; 32], link: Box::new([b'u'; 2048]),
+                number: 3,
+                tip: [4; 32],
+                link: Box::new([b'u'; 2048]),
                 check: if pending { skein_forge::api::Check::Pending } else { skein_forge::api::Check::Failed },
                 description: Box::new([b'd'; 140]),
                 landings: if pending { Box::new([]) } else { landings.clone() },
-                comments: if pending { Box::new([]) } else { Box::new([
-                    d::TierComment { pull: 41, landing: [2; 32], kind: d::TierCommentKind::Verdict { at: 1 } },
-                    d::TierComment { pull: 42, landing: [6; 32], kind: d::TierCommentKind::Repaired { by: Some(43) } },
-                    d::TierComment { pull: 44, landing: [7; 32], kind: d::TierCommentKind::Repaired { by: None } },
-                ]) },
-                next, entry: if next == 0 { Some(17) } else { None }, part: u16::from(pending), op_bytes: fixtures::LIMITS.client.op_bytes,
+                comments: if pending {
+                    Box::new([])
+                } else {
+                    Box::new([
+                        d::TierComment { pull: 41, landing: [2; 32], kind: d::TierCommentKind::Verdict { at: 1 } },
+                        d::TierComment {
+                            pull: 42,
+                            landing: [6; 32],
+                            kind: d::TierCommentKind::Repaired { by: Some(43) },
+                        },
+                        d::TierComment { pull: 44, landing: [7; 32], kind: d::TierCommentKind::Repaired { by: None } },
+                    ])
+                },
+                next,
+                entry: if next == 0 { Some(17) } else { None },
+                part: u16::from(pending),
+                op_bytes: fixtures::LIMITS.client.op_bytes,
             }));
             round_trip(d::Stored::Tier(row.clone()), 28);
         }
@@ -82,7 +97,10 @@ fn v24_rows_start_with_no_posting() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for run in [false, true] {
         let mut row = fixtures::tier_row();
-        if !run { row.record.run = None; row.probe = None; }
+        if !run {
+            row.record.run = None;
+            row.probe = None;
+        }
         let bytes = patched(24, 13, b"Row", before_posting(&row));
         let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
         assert!(decoded.posting.is_none());

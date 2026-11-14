@@ -11,8 +11,8 @@ use skein_forge::api;
 use temper_engine_domain_forge_landing as keys;
 use temper_engine_domain_forge_tiers as p;
 mod goals;
-mod red;
 mod post;
+mod red;
 
 const TIER: &[u8] = b"browser";
 const TIER_TASK: u64 = 61;
@@ -237,10 +237,16 @@ fn posted(d: &mut Domain, out: Box<[Request]>) -> Box<[Request]> {
     let mut all = out.into_vec();
     for entry in 1000..1100 {
         let Some(posting) = &row(d).posting else { break };
-        if posting.part != 0 && posting.next > u32::try_from(posting.comments.len()).unwrap() { break; }
-        if let Some(entry) = posting.entry { made(d, entry, skein_forge_client::Made::Set); }
+        if posting.part != 0 && posting.next > u32::try_from(posting.comments.len()).unwrap() {
+            break;
+        }
+        if let Some(entry) = posting.entry {
+            made(d, entry, skein_forge_client::Made::Set);
+        }
         all.extend(tier_step(d, entry, false));
-        if row(d).task.is_none() { break; }
+        if row(d).task.is_none() {
+            break;
+        }
     }
     all.into_boxed_slice()
 }

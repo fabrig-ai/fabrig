@@ -63,9 +63,17 @@ mod tests {
             want: Ci,
         }
         let cases = [
-            Case { rows: &[(b"temper/verdict/slow", Check::Failed), (b"ci", Check::Passed)], required: &[], want: Ci::Passed },
+            Case {
+                rows: &[(b"temper/verdict/slow", Check::Failed), (b"ci", Check::Passed)],
+                required: &[],
+                want: Ci::Passed,
+            },
             Case { rows: &[(b"temper/verdict/slow", Check::Failed)], required: &[], want: Ci::None },
-            Case { rows: &[(b"temper/verdict/slow", Check::Failed)], required: &[b"temper/verdict/slow"], want: Ci::Failed },
+            Case {
+                rows: &[(b"temper/verdict/slow", Check::Failed)],
+                required: &[b"temper/verdict/slow"],
+                want: Ci::Failed,
+            },
             Case { rows: &[], required: &[], want: Ci::None },
             Case { rows: &[(b"ci", Check::Passed)], required: &[], want: Ci::Passed },
             Case { rows: &[(b"ci", Check::Passed), (b"lint", Check::Pending)], required: &[], want: Ci::Pending },

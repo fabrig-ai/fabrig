@@ -412,6 +412,38 @@ pub fn merge(world: &World, number: u64) -> skein_forge::api::Commit {
     }
 }
 
+/// Settle the verdict's writes and observe the forge changes they made before a cold oracle.
+pub fn posted(world: &mut World) {
+    until(world, LANDING_TICKS, "verdict posts observed", |world| {
+        for record in world.store.rows.values() {
+            let Record::Forge { row } = record else { continue };
+            match row.as_ref() {
+                forge_top::Stored::Tier(tier) if tier.posting.as_ref().is_some_and(|posting| posting.part == 0) => {
+                    return false;
+                }
+                forge_top::Stored::Client(skein_forge_client::Stored::Live(live))
+                    if live.watch.resource.repository == forge_world::REPO =>
+                {
+                    if let Some(item) = &live.cached.item {
+                        let Ok(raw::Answer::Item { item: current, .. }) = world.fake.inspect(
+                            &world.fake_env.limits,
+                            b"org/repo",
+                            &raw::Read::Item { number: item.number, after: 0, since: None },
+                        ) else {
+                            continue;
+                        };
+                        if item.updated != current.updated {
+                            return false;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        restart_cut(world)
+    });
+}
+
 #[must_use]
 pub fn restart_cut(world: &World) -> bool {
     world.store.pending.is_empty() && world.pending.is_empty()

@@ -25,7 +25,9 @@ fn start_chat(mut world: World) -> (World, engine::Assignment) {
 }
 
 pub(super) fn baseline(world: &mut World) {
-    until(world, RUN_TICKS, "baseline judged", |world| tier(world).record.sequence == 1 && tier(world).posting.is_none());
+    until(world, RUN_TICKS, "baseline judged", |world| {
+        tier(world).record.sequence == 1 && tier(world).posting.is_none()
+    });
     // The 90-second baseline outlives the fixture's 60-second sign-in.
     sign_in(world);
 }
@@ -141,7 +143,9 @@ fn green(turn: bool) -> (World, u64) {
     baseline(&mut world);
     let number = produce(&mut world, &chat, 93, b"file", b"small fix");
     verifying(&mut world, number);
-    until(&mut world, RUN_TICKS, "tier judged", |world| tier(world).record.sequence == 2 && tier(world).posting.is_none());
+    until(&mut world, RUN_TICKS, "tier judged", |world| {
+        tier(world).record.sequence == 2 && tier(world).posting.is_none()
+    });
     tier_done(&world, 2, "Tier slow run 2: green, cleared 1 landing");
     cleared(&mut world, number);
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
@@ -173,7 +177,9 @@ fn two_landings() -> (World, [u64; 2]) {
         run.landings.iter().map(|landing| landing.commit).collect::<Vec<_>>(),
         [merge(&world, a), merge(&world, b)]
     );
-    until(&mut world, RUN_TICKS, "range judged", |world| tier(world).record.sequence == 2 && tier(world).posting.is_none());
+    until(&mut world, RUN_TICKS, "range judged", |world| {
+        tier(world).record.sequence == 2 && tier(world).posting.is_none()
+    });
     tier_done(&world, 2, "Tier slow run 2: green, cleared 2 landings");
     cleared(&mut world, a);
     cleared(&mut world, b);
@@ -244,7 +250,9 @@ fn repaired() -> (World, [u64; 2]) {
         matches!(panel(&mut world, red), forge_top::PanelStep::Red { .. }),
         "red survives until the repair run judges"
     );
-    until(&mut world, RUN_TICKS, "repair judged", |world| tier(world).record.sequence == 3 && tier(world).posting.is_none());
+    until(&mut world, RUN_TICKS, "repair judged", |world| {
+        tier(world).record.sequence == 3 && tier(world).posting.is_none()
+    });
     tier_done(&world, 3, "Tier slow run 3: green, cleared 1 landing");
     cleared(&mut world, red);
     cleared(&mut world, repair);
@@ -446,7 +454,8 @@ fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
     assert!(before.contains(&format!("forge run {} http://forge/org/repo/actions/runs/{}", run.number, run.number)));
     world.restart_same();
     until(&mut world, RUN_TICKS, "baseline completed after restart", |world| {
-        tier(world).record.sequence == 1 && tier(world).posting.is_none()
+        tier(world).record.sequence == 1
+            && tier(world).posting.is_none()
             && restart_cut(world)
             && matches!(task(world, number).phase, tasks::Phase::Ended(_))
     });
@@ -728,7 +737,9 @@ fn failed_landing(failures: &[u8], many: bool) -> (World, u64) {
             tier(world).record.run.as_ref().is_some_and(|run| matches!(run.part, policy::Part::Rerun { .. }))
         });
     }
-    until(&mut world, RUN_TICKS, "failed landing judged", |world| tier(world).record.sequence == 2 && tier(world).posting.is_none());
+    until(&mut world, RUN_TICKS, "failed landing judged", |world| {
+        tier(world).record.sequence == 2 && tier(world).posting.is_none()
+    });
     until(&mut world, LANDING_TICKS, "red panel", |world| matches!(change(world, red).change.state, State::Red { .. }));
     (world, red)
 }

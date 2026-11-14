@@ -2,7 +2,9 @@
 use super::{Box, Commit, Domain, Env, Limits, List, Request, TierRow, Write, api, joined, p};
 use skein_lib::Queue;
 
-use crate::{TierPosting as Posting, TierPostedLanding as Landing, TierComment as Comment, TierCommentKind as CommentKind};
+use crate::{
+    TierComment as Comment, TierCommentKind as CommentKind, TierPostedLanding as Landing, TierPosting as Posting,
+};
 
 pub(super) fn status(verdict: &p::Verdict, received: bool) -> (api::Check, Box<[u8]>) {
     let prefix = joined(&[b"run ", skein_lib::Decimal::of(verdict.number).as_bytes()]);
@@ -32,7 +34,10 @@ pub(super) fn status(verdict: &p::Verdict, received: bool) -> (api::Check, Box<[
         p::Failures::Many => Box::from(b"0".as_slice()),
         p::Failures::Tests(_) => Box::from(skein_lib::Decimal::of(super::inherited_tests(verdict)).as_bytes()),
     };
-    (api::Check::Failed, description(&joined(&[&prefix, b" failed: ", &blamed, b" blamed, ", &inherited, b" inherited"])))
+    (
+        api::Check::Failed,
+        description(&joined(&[&prefix, b" failed: ", &blamed, b" blamed, ", &inherited, b" inherited"])),
+    )
 }
 fn decimal(value: u32) -> Box<[u8]> {
     Box::from(skein_lib::Decimal::of(u64::from(value)).as_bytes())
@@ -72,7 +77,9 @@ pub(super) fn comment(
         complete = joined(&[&complete, if at == 0 { b"" } else { b", " }, test]);
     }
     let complete = joined(&[&prefix, &complete, &suffix]);
-    if complete.len() <= room { return complete; }
+    if complete.len() <= room {
+        return complete;
+    }
     let mut ids = Box::from(b"".as_slice());
     let count = u32::try_from(tests.len()).expect("bounded test ids");
     for (at, test) in tests.iter().enumerate() {
@@ -144,12 +151,27 @@ pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict) -> Postin
         None => Box::new([]),
     };
     let mut landings = List::with_capacity(u32::try_from(range.len()).expect("bounded range"));
-    let mut comments = List::with_capacity(temper_engine_domain_forge_vocabulary::tiers::posting_comments(&d.landing.limits).expect("checked posting bound"));
+    let mut comments = List::with_capacity(
+        temper_engine_domain_forge_vocabulary::tiers::posting_comments(&d.landing.limits)
+            .expect("checked posting bound"),
+    );
     for (landing, blame) in range.iter().zip(&verdict.landings) {
         let at = landings.len();
-        landings.push(Landing { commit: landing.commit, blame: blame.clone(), change: super::landing_change(d, row.repository, landing.commit) }).expect("bounded judged range");
+        landings
+            .push(Landing {
+                commit: landing.commit,
+                blame: blame.clone(),
+                change: super::landing_change(d, row.repository, landing.commit),
+            })
+            .expect("bounded judged range");
         for pull in members(d, row, landing.commit) {
-            comments.push(Comment { pull, landing: landing.commit, kind: CommentKind::Verdict { at: u16::try_from(at).expect("bounded range") } }).expect("bounded landing members");
+            comments
+                .push(Comment {
+                    pull,
+                    landing: landing.commit,
+                    kind: CommentKind::Verdict { at: u16::try_from(at).expect("bounded range") },
+                })
+                .expect("bounded landing members");
         }
     }
     for ((repository, commit), verification) in &d.verifications {
@@ -185,16 +207,28 @@ pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict) -> Postin
 
 pub(super) fn pending(d: &Domain, row: &TierRow, follow: &crate::runs::Follow) -> Posting {
     let run = row.record.run.as_ref().expect("held run");
-    let previous = match &row.posting { Some(posting) => posting.part, None => 0 };
+    let previous = match &row.posting {
+        Some(posting) => posting.part,
+        None => 0,
+    };
     let exhausted = previous == u16::MAX;
     let description = description(&joined(&[
-        b"held after ", &decimal(run.faults), b" runner faults, last: ",
-        &super::fault_words(run, &super::configured(d, row).expect("configured tier").workflow, row.held.expect("fault")),
+        b"held after ",
+        &decimal(run.faults),
+        b" runner faults, last: ",
+        &super::fault_words(
+            run,
+            &super::configured(d, row).expect("configured tier").workflow,
+            row.held.expect("fault"),
+        ),
     ]));
     Posting {
         number: run.number,
         tip: run.tip,
-        link: match &follow.run { Some(run) => run.url.clone(), None => Box::new([]) },
+        link: match &follow.run {
+            Some(run) => run.url.clone(),
+            None => Box::new([]),
+        },
         check: api::Check::Pending,
         description,
         landings: Box::new([]),
@@ -209,8 +243,11 @@ pub(super) fn pending(d: &Domain, row: &TierRow, follow: &crate::runs::Follow) -
 fn write(d: &Domain, row: &TierRow, posting: &Posting) -> Write {
     if posting.next == 0 {
         return Write::Status {
-            commit: posting.tip, context: joined(&[b"temper/verdict/", &row.tier]), check: posting.check,
-            description: posting.description.clone(), link: posting.link.clone(),
+            commit: posting.tip,
+            context: joined(&[b"temper/verdict/", &row.tier]),
+            check: posting.check,
+            description: posting.description.clone(),
+            link: posting.link.clone(),
         };
     }
     let part = posting.next.checked_sub(1).expect("comment index");
@@ -220,16 +257,20 @@ fn write(d: &Domain, row: &TierRow, posting: &Posting) -> Write {
         CommentKind::Repaired { .. } => &p::Blame::Cleared,
     };
     let key = super::purpose(d, row, 7, u16::try_from(part).expect("bounded comments"))
-        .key(&d.namespace, posting.op_bytes).expect("tier key fits operation");
+        .key(&d.namespace, posting.op_bytes)
+        .expect("tier key fits operation");
     let room = skein_lib::usize_of(posting.op_bytes).saturating_sub(key.len());
     Write::Post {
-        number: comment_row.pull, key,
+        number: comment_row.pull,
+        key,
         body: comment(&row.tier, posting.number, blame, comment_row.kind, &posting.link, room),
     }
 }
 pub(super) fn active(row: &TierRow) -> bool {
     match &row.posting {
-        Some(posting) => posting.part == 0 || posting.next <= u32::try_from(posting.comments.len()).expect("bounded comments"),
+        Some(posting) => {
+            posting.part == 0 || posting.next <= u32::try_from(posting.comments.len()).expect("bounded comments")
+        }
         None => false,
     }
 }
@@ -243,9 +284,17 @@ pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: 
     if posting.next > u32::try_from(posting.comments.len()).expect("bounded comments") {
         if posting.part == 0 {
             let mut blames = List::with_capacity(u32::try_from(posting.landings.len()).expect("bounded range"));
-            for landing in &posting.landings { blames.push(landing.blame.clone()).expect("bounded range"); }
-            let verdict = p::Verdict { number: posting.number, tip: posting.tip, key: row.record.run.as_ref().expect("posting run").key,
-                failing: row.record.failing.clone(), landings: blames.into_boxed(), flakes: Box::new([]) };
+            for landing in &posting.landings {
+                blames.push(landing.blame.clone()).expect("bounded range");
+            }
+            let verdict = p::Verdict {
+                number: posting.number,
+                tip: posting.tip,
+                key: row.record.run.as_ref().expect("posting run").key,
+                failing: row.record.failing.clone(),
+                landings: blames.into_boxed(),
+                flakes: Box::new([]),
+            };
             let words = super::posted_words(&row.tier, &verdict, &posting.landings);
             super::done(d, row, words, out);
         } else {
@@ -289,7 +338,9 @@ pub(super) fn settled(d: &mut Domain, entry: u64, out: &mut Queue<Request>) -> b
 
 pub(super) fn identity(row: &TierRow) -> (u8, u16) {
     let posting = row.posting.as_ref().expect("posting effect");
-    if posting.next == 0 { (6, posting.part) } else {
+    if posting.next == 0 {
+        (6, posting.part)
+    } else {
         (7, u16::try_from(posting.next.checked_sub(1).expect("comment index")).expect("bounded comments"))
     }
 }
@@ -299,8 +350,12 @@ pub(super) fn describe(d: &Domain, row: &TierRow, entry: u64) -> Option<(u16, cr
         return None;
     }
     let (operation, part) = identity(row);
-    if row.purpose != Some(super::purpose(d, row, operation, part)) { return None; }
-    let (kind, what) = if posting.next == 0 { (6, crate::What::Repository) } else {
+    if row.purpose != Some(super::purpose(d, row, operation, part)) {
+        return None;
+    }
+    let (kind, what) = if posting.next == 0 {
+        (6, crate::What::Repository)
+    } else {
         let comment = posting.comments.get(skein_lib::usize_of(posting.next.checked_sub(1)?))?;
         (7, crate::What::Pull(comment.pull))
     };

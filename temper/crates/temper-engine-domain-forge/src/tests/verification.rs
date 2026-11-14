@@ -385,7 +385,7 @@ fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::ap
         .insert(
             (REPO, Box::from(tier)),
             TierRow {
-        posting: None,
+                posting: None,
                 hold: None,
                 observations: Box::new([]),
                 repository: REPO,

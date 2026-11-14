@@ -277,6 +277,7 @@ fn a_procedure_batchs_follow_change_dispatches_its_own_gate_before_queue_or_turn
             forge_top::FollowVerdict::Passed
         );
         assert!(world.writes.iter().all(|write| !matches!(write, skein_forge::api::Write::Status { context, .. } if context.starts_with(b"temper/gate/follow."))));
+        tier_runs::posted(&mut world);
         world.close();
     }
 }
