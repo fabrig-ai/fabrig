@@ -12,7 +12,7 @@ use skein_io::file;
 use skein_io::kernel::{Error, Fd};
 use skein_lib::{Env, Queue, Token, usize_of};
 
-use crate::boundary::{Event, Failure, Op, Page, Range, Refusal, Request};
+use crate::boundary::{Event, Exhausted, Failure, Large, Op, Page, Range, Refusal, Request};
 use crate::frame;
 use crate::map::{KvMap, Queued};
 use crate::snapshot;
@@ -233,6 +233,11 @@ impl Store {
     #[cfg(test)]
     pub(crate) fn projected_keys(&self) -> u32 {
         self.admitted.keys()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn exhaust_numbers(&mut self) {
+        self.last = u64::MAX;
     }
 
     /// An in-memory store for protocol tests; commits are applied at once.
@@ -612,15 +617,15 @@ fn commit_disk(store: &mut Store, dir: Dir, phase: Phase, owner: Token, ops: Box
         return dir.at(phase);
     }
     let Some(number) = store.next_number(&phase) else {
-        above.push(Event::Refused { owner, refusal: Refusal::Full });
+        above.push(Event::Refused { owner, refusal: Refusal::Full(Exhausted::Numbers) });
         return dir.at(phase);
     };
-    if too_large(&ops, &env.limits) {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
+    if let Some(large) = too_large(&ops, &env.limits) {
+        above.push(Event::Refused { owner, refusal: Refusal::TooLarge(large) });
         return dir.at(phase);
     }
     let Some(bytes) = frame::encode(number, &ops, env.limits.commit) else {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
+        above.push(Event::Refused { owner, refusal: Refusal::TooLarge(Large::Frame) });
         return dir.at(phase);
     };
     let projected = match store.admitted.check(&store.map, &ops, &env.limits) {
@@ -648,7 +653,7 @@ fn commit_disk(store: &mut Store, dir: Dir, phase: Phase, owner: Token, ops: Box
 fn get(store: &Store, owner: Token, key: Box<[u8]>, available: bool, step: &mut Step<'_>) {
     let Step { env, above, below: _ } = step;
     if key.len() > usize_of(env.limits.key) {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
+        above.push(Event::Refused { owner, refusal: Refusal::TooLarge(Large::Key) });
         return;
     }
     if !available {
@@ -669,16 +674,22 @@ fn load(store: &Store, owner: Token, range: Range, max: Page, available: bool, s
         return;
     }
     if max.rows == 0 || max.bytes == 0 || max.rows > env.limits.page.rows || max.bytes > env.limits.page.bytes {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
+        above.push(Event::Refused { owner, refusal: Refusal::TooLarge(Large::Page) });
         return;
     }
     if range.start.len() > usize_of(env.limits.key)
         || match &range.end {
-            Some(end) => end.len() > usize_of(env.limits.key) || end.as_ref() < range.start.as_ref(),
+            Some(end) => end.len() > usize_of(env.limits.key),
             None => false,
         }
     {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
+        above.push(Event::Refused { owner, refusal: Refusal::TooLarge(Large::Key) });
+        return;
+    }
+    if let Some(end) = &range.end
+        && end.as_ref() < range.start.as_ref()
+    {
+        above.push(Event::Refused { owner, refusal: Refusal::TooLarge(Large::Range) });
         return;
     }
     match store.map.page(&range, max) {
@@ -706,34 +717,34 @@ fn close_requested(store: &Store, mut dir: Dir, phase: Phase, owner: Token, step
     }
 }
 
-fn too_large(ops: &[Op], limits: &Limits) -> bool {
+fn too_large(ops: &[Op], limits: &Limits) -> Option<Large> {
     if ops.len() > usize_of(limits.ops) {
-        return true;
+        return Some(Large::Ops);
     }
     for op in ops {
         if op.key().len() > usize_of(limits.key) {
-            return true;
+            return Some(Large::Key);
         }
         match op {
             Op::Put { value, .. } if value.len() > usize_of(limits.value) => {
-                return true;
+                return Some(Large::Value);
             }
             Op::Put { .. } | Op::Erase { .. } => {}
         }
     }
     match frame::encoded_len(ops) {
-        Some(size) => size > usize_of(limits.commit),
-        None => true,
+        Some(size) if size <= usize_of(limits.commit) => None,
+        Some(..) | None => Some(Large::Frame),
     }
 }
 
 fn commit_memory(store: &mut Store, limits: &Limits, owner: Token, ops: Box<[Op]>, above: &mut Queue<Event>) {
     let Some(number) = store.last.checked_add(1) else {
-        above.push(Event::Refused { owner, refusal: Refusal::Full });
+        above.push(Event::Refused { owner, refusal: Refusal::Full(Exhausted::Numbers) });
         return;
     };
-    if too_large(&ops, limits) {
-        above.push(Event::Refused { owner, refusal: Refusal::TooLarge });
+    if let Some(large) = too_large(&ops, limits) {
+        above.push(Event::Refused { owner, refusal: Refusal::TooLarge(large) });
         return;
     }
     match store.map.check(&ops, limits) {

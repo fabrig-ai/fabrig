@@ -80,7 +80,9 @@ pub(super) fn activity(
             Ok(walked) => walked,
             Err(failure)
                 if failure.cause
-                    == restore::Cause::Walk(restore::WalkFailure::Refused(skein_kv::Refusal::TooLarge)) =>
+                    == restore::Cause::Walk(restore::WalkFailure::Refused(skein_kv::Refusal::TooLarge(
+                        skein_kv::Large::Page,
+                    ))) =>
             {
                 more = true;
                 break;
