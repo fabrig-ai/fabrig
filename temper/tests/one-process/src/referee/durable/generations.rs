@@ -110,6 +110,7 @@ impl Store {
         if self.applied >= number {
             return Ok(Vec::new());
         }
+        self.layouts = super::layouts::Layouts::default();
         let commit = self.commit(number, ops, limits, names, connector)?;
         self.apply(&commit, limits);
         self.recovered.extend(1..=number);
@@ -150,6 +151,7 @@ impl Store {
             .iter()
             .map(|(key, value)| skein_kv::Op::Put { key: key.as_slice().into(), value: value.as_slice().into() })
             .collect();
+        let source_layouts = std::mem::take(&mut self.layouts);
         self.rows.clear();
         self.lengths.clear();
         self.pending.clear();
@@ -178,6 +180,7 @@ impl Store {
                     .map(|(path, bytes)| (path.clone(), bytes.clone()))
                     .collect(),
                 restoring: true,
+                layouts: source_layouts,
                 ..Store::default()
             };
             for (number, ops) in history {

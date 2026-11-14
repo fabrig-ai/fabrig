@@ -1423,7 +1423,8 @@ impl Joint {
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
             // The deep task row includes its optional session, talk, question watermark and open attempt.
-            let opening = u32::try_from(size_of::<Option<jig_domain_tasks::OpenAttempt>>()).expect("inline attempt bytes");
+            let opening =
+                u32::try_from(size_of::<Option<jig_domain_tasks::OpenAttempt>>()).expect("inline attempt bytes");
             limits.journal.transcript_bytes = 8264_u32.checked_add(opening).expect("deep row allowance");
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
