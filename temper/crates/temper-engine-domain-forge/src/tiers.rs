@@ -5,12 +5,9 @@ use skein_forge::api::{self, Commit, Repository, Write};
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
-#[cfg_attr(
-    not(test),
-    expect(unused_imports, reason = "the top reaches this payload measurement only in its tests")
-)]
 pub use temper_engine_domain_forge_vocabulary::tiers::*;
 mod goals;
+pub(crate) mod hold;
 pub(crate) mod parts;
 mod post;
 pub(crate) mod red;
@@ -305,7 +302,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             Some(row) => row,
             None => empty(repository, tier.name),
         };
-        if row.record.judged.is_none() && row.record.run.is_none() && row.baseline.is_none() {
+        if row.hold.is_none() && row.record.judged.is_none() && row.record.run.is_none() && row.baseline.is_none() {
             save(&row, out);
             d.tiers.insert(key.clone(), row).expect("bounded tiers");
             if !d.stopping && !reading(d, &key) && !d.tier_ops.walks.contains_key(&key) {
@@ -332,7 +329,8 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             None if ready => row.pending.last().copied(),
             None => None,
         };
-        if let Some(target) = target
+        if row.hold.is_none()
+            && let Some(target) = target
             && let Some(tip_key) = target.key
             && p::due(&row.record, target.commit)
             && goals::span_passed(row.started, tier.span, env.now)
@@ -636,7 +634,7 @@ pub(crate) fn needs_head(row: &TierRow, name: &Name) -> bool {
 fn branch(tier: &[u8], number: u64) -> Box<[u8]> {
     joined(&[b"temper/tier/", tier, b".", skein_lib::Decimal::of(number).as_bytes()])
 }
-fn joined(parts: &[&[u8]]) -> Box<[u8]> {
+pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     let mut length = 0_u32;
     for part in parts {
         length = length.checked_add(u32::try_from(part.len()).expect("bounded words")).expect("word length");
@@ -1563,7 +1561,7 @@ pub(crate) fn released(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
 }
 
 fn span_deadline(d: &Domain, row: &TierRow) -> Option<Time> {
-    if row.record.run.is_some() {
+    if row.hold.is_some() || row.record.run.is_some() {
         return None;
     }
     let tier = configured(d, row)?;

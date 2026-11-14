@@ -11,6 +11,7 @@ use skein_forge::api;
 use temper_engine_domain_forge_landing as keys;
 use temper_engine_domain_forge_tiers as p;
 mod goals;
+mod hold;
 mod post;
 mod red;
 
@@ -520,35 +521,43 @@ fn failed_run_without_a_report_is_a_fault() {
 }
 #[test]
 fn exhausted_faults_hold_until_released_then_run_green() {
-    let mut d = dispatched();
-    for fault in 0..=RETRIES {
-        completed(&mut d, api::Conclusion::Cancelled, None);
-        if fault < RETRIES {
-            let entry = DISPATCH + u64::from(fault) + 1;
-            settled_step(&mut d, entry, false);
-            made(&mut d, entry, skein_forge_client::Made::Set);
+    for held in [false, true] {
+        let mut d = dispatched();
+        if held {
+            hold::act(&mut d, TierAct::Hold { reason: b"maintenance".as_slice().into() });
         }
+        for fault in 0..=RETRIES {
+            completed(&mut d, api::Conclusion::Cancelled, None);
+            if fault < RETRIES {
+                let entry = DISPATCH + u64::from(fault) + 1;
+                settled_step(&mut d, entry, false);
+                made(&mut d, entry, skein_forge_client::Made::Set);
+            }
+        }
+        let out = settled_step(&mut d, RELEASE + 3, false);
+        assert_eq!(
+            choice(&out),
+            Some(&TierDecision::Held {
+                words: b"Tier browser run 1 held after 3 runner faults, last: cancelled".as_slice().into()
+            })
+        );
+        assert_eq!(row(&d).hold.is_some(), held);
+        settled_step(&mut d, RELEASE + 4, true);
+        assert_eq!(row(&d).hold.is_some(), held);
+        assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 0);
+        let api::Write::Dispatch { .. } = d.entries.get(&(RELEASE + 4)).unwrap().entry.effect.write else {
+            panic!("released run dispatches afresh")
+        };
+        made(&mut d, RELEASE + 4, skein_forge_client::Made::Set);
+        completed(&mut d, api::Conclusion::Success, None);
+        let out = finish(&mut d);
+        assert_eq!(
+            choice(&out),
+            Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
+        );
     }
-    let out = settled_step(&mut d, RELEASE + 3, false);
-    assert_eq!(
-        choice(&out),
-        Some(&TierDecision::Held {
-            words: b"Tier browser run 1 held after 3 runner faults, last: cancelled".as_slice().into()
-        })
-    );
-    settled_step(&mut d, RELEASE + 4, true);
-    assert_eq!(row(&d).record.run.as_ref().unwrap().faults, 0);
-    let api::Write::Dispatch { .. } = d.entries.get(&(RELEASE + 4)).unwrap().entry.effect.write else {
-        panic!("released run dispatches afresh")
-    };
-    made(&mut d, RELEASE + 4, skein_forge_client::Made::Set);
-    completed(&mut d, api::Conclusion::Success, None);
-    let out = finish(&mut d);
-    assert_eq!(
-        choice(&out),
-        Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
-    );
 }
+
 #[test]
 fn missing_workflow_dispatches_again_then_holds_with_its_kind_in_both_words() {
     let mut d = dispatching();

@@ -1698,6 +1698,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 save_change(d, out, row);
             }
         }
+        Event::TierAct { request, token, party, call } => {
+            crate::tiers::hold::asked(d, env, request, token, party, call, out);
+        }
         Event::FollowAct { request, token, retention, project, follow, act, authorized } => {
             crate::follows::asked(d, env, request, token, retention, project, follow, act, authorized, out);
         }

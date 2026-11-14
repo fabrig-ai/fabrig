@@ -2325,7 +2325,11 @@ impl World {
                     Delivery::Application { outcome, .. } => match outcome {
                         Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
                         Some(engine::ApplicationAnswer::Follow(outcome)) => self.follow_answers.push(outcome),
-                        Some(engine::ApplicationAnswer::Looked(_) | engine::ApplicationAnswer::FileFinding(_)) => {}
+                        Some(
+                            engine::ApplicationAnswer::Looked(_)
+                            | engine::ApplicationAnswer::FileFinding(_)
+                            | engine::ApplicationAnswer::Tier(Ok(())),
+                        ) => {}
                         answer => panic!("retained application answer: {answer:?}"),
                     },
                     _ => {}

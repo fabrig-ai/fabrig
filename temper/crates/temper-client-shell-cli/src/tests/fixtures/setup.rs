@@ -46,6 +46,7 @@ impl Frame {
             | f::Request::HandFinding(_)
             | f::Request::TriageFinding(_)
             | f::Request::SetDraft(_)
+            | f::Request::TierAct(_)
             | f::Request::FollowAct(_)
             | f::Request::TryAccount(_)
             | f::Request::Dismiss(_)
