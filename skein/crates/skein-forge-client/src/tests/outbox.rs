@@ -116,6 +116,101 @@ fn a_closed_pull_found_after_an_uncertain_open_is_raced() {
     );
     assert_eq!(h.writes, 1);
 }
+fn sent_merge(h: &mut Harness) -> super::Sent {
+    h.make(
+        1,
+        Write::Merge { number: 9, head: [1; 32], how: api::MergeHow::Style },
+        Condition::Merge { base: Box::from(&b"main"[..]) },
+    );
+    h.clock();
+    let check = h.one();
+    h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
+    let sent = h.one();
+    assert_eq!(sent.op, Op::Write(Write::Merge { number: 9, head: [1; 32], how: api::MergeHow::Style }));
+    sent
+}
+#[test]
+fn a_withdrawn_lost_merge_settles_without_resending_and_keeps_its_lane() {
+    for withdraw_before_answer in [true, false] {
+        let mut h = Harness::new();
+        let sent = sent_merge(&mut h);
+        if withdraw_before_answer {
+            h.step(Event::Withdraw { entry: 1 });
+        }
+        h.answer(sent, Err(Error::Timeout));
+        let find = h.one();
+        if !withdraw_before_answer {
+            h.step(Event::Withdraw { entry: 1 });
+        }
+        h.make(2, comment(), Condition::None);
+        assert!(h.send().is_none(), "uncertain merge holds its lane");
+        assert_eq!(find.op, Op::Read(Read::Pull { number: 9, ci: false }));
+        h.answer(find, Ok(Answer::Pull(pull([1; 32]))));
+        assert_eq!(h.domain.next_deadline(), Some(at(111)));
+        assert!(h.send().is_none());
+        h.fire(111);
+        let find = h.one();
+        h.answer(find, Ok(Answer::Pull(pull([1; 32]))));
+        assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain), (1, Outcome::Withdrawn)]);
+        assert_eq!(h.writes, 1);
+        h.clock();
+        assert_eq!(h.one().op, Op::Write(comment()), "settlement frees the lane");
+    }
+}
+#[test]
+fn a_withdrawn_lost_merge_found_merged_is_made() {
+    let mut h = Harness::new();
+    let sent = sent_merge(&mut h);
+    h.step(Event::Withdraw { entry: 1 });
+    h.answer(sent, Err(Error::Timeout));
+    let find = h.one();
+    h.answer(find, Ok(Answer::Pull(api::Pull { merged: Some([4; 32]), ..pull([1; 32]) })));
+    assert_eq!(
+        h.outcomes.as_slice(),
+        &[(1, Outcome::Uncertain), (1, Outcome::Made { made: Made::Merged([4; 32]), found: true })]
+    );
+    assert_eq!(h.writes, 1);
+    assert!(h.store.is_empty());
+}
+#[test]
+fn a_withdrawn_sent_merge_keeps_its_success_and_does_not_retry_a_rate_refusal() {
+    for rate_refused in [true, false] {
+        let mut h = Harness::new();
+        let sent = sent_merge(&mut h);
+        h.step(Event::Withdraw { entry: 1 });
+        if rate_refused {
+            h.answer(sent, Err(Error::RateLimited { after: Duration::from_secs(2) }));
+            h.fire(102);
+        } else {
+            h.answer(sent, Ok(Answer::Merged([4; 32])));
+        }
+        let find = h.one();
+        assert_eq!(find.op, Op::Read(Read::Pull { number: 9, ci: false }));
+        h.answer(find, Ok(Answer::Pull(api::Pull { merged: Some([4; 32]), ..pull([1; 32]) })));
+        assert_eq!(
+            h.outcomes.as_slice().last(),
+            Some(&(1, Outcome::Made { made: Made::Merged([4; 32]), found: rate_refused }))
+        );
+        assert_eq!(h.writes, 1);
+        assert!(h.store.is_empty());
+    }
+}
+#[test]
+fn a_withdrawn_lost_comment_is_not_held_for_remake() {
+    let mut h = Harness::new();
+    h.make(1, comment(), Condition::None);
+    h.clock();
+    let sent = h.one();
+    h.answer(sent, Err(Error::Timeout));
+    let find = h.one();
+    h.step(Event::Withdraw { entry: 1 });
+    h.answer(find, Err(Error::Missing));
+    h.fire(111);
+    let find = h.one();
+    h.answer(find, Err(Error::Missing));
+    assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain), (1, Outcome::Withdrawn)]);
+    assert_eq!(h.writes, 1);
+}
 #[test]
 fn a_missing_comment_target_is_searched_until_its_deadline_then_held() {
     let mut h = Harness::new();

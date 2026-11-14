@@ -15,6 +15,7 @@ use skein_lib::{Id, List, Queue, ReplyTo, Token};
 /// What a live load waiter reads, if it still reads anything.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Waiting {
+    ChangeDelegate,
     History,
     Escalation,
     Proposal,
@@ -30,6 +31,7 @@ pub(crate) enum Waiting {
 
 pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
     match domain.archive_reads.get(Id::from_token(waiter))? {
+        Some(Read::ChangeDelegate { .. }) => Some(Waiting::ChangeDelegate),
         Some(Read::History { .. }) => Some(Waiting::History),
         Some(Read::Escalation(_)) => Some(Waiting::Escalation),
         Some(Read::Proposal(_)) => Some(Waiting::Proposal),
@@ -126,7 +128,8 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
     match take_read(domain, waiter) {
         Some(Read::Notes { owner }) => Some(owner),
         Some(
-            Read::History { .. }
+            Read::ChangeDelegate { .. }
+            | Read::History { .. }
             | Read::Document(_)
             | Read::Remember(_)
             | Read::SettingsNote { .. }

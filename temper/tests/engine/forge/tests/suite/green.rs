@@ -58,6 +58,7 @@ fn a_green_head_cancels_a_repair_not_running_then_goes_on() {
     let decision = change_step(&mut world, 1, change::Status::Pending, Box::new([]));
     assert_eq!(decision, change::Decision::CancelRepair { head });
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: TASK,
         child: REPAIR,
         status: change::Status::Failed,

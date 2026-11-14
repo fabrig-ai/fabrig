@@ -218,6 +218,7 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        task_release: None,
         job: None,
         signed: Box::new([]),
         task: CHANGE,

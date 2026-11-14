@@ -554,6 +554,7 @@ fn finish_failed_producer(world: &mut World, first: &engine::Assignment, task: u
 
 fn producer_terminal(world: &mut World, task: u64, child: u64, words: &[u8]) {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::DelegateResult {
+        ended_at: None,
         task,
         child,
         status: temper_engine_domain_forge_change::Status::Failed,

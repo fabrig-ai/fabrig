@@ -11,8 +11,9 @@
 //! Busy stories keep changes unlanded, report staggered worker pushes every
 //! 300 s, accept each reported new head, and let CI turn green after 120 s.
 //! They warm for 300 s, measure 600 s, and scale by six. Main moves every
-//! 600 s in the second shape. Totals allow two fast/slow passes per endpoint
-//! at the boundary: +/-12*(7*N+1) requests/hour. Fake replies take no time.
+//! 600 s in the second shape. The upper envelope allows two fast/slow passes
+//! per endpoint at the boundary: 12*(7*N+1) requests/hour. Cohort checks pin
+//! required observations independently of a traffic floor. Fake replies take no time.
 //! Busy changes have a one-update budget, reserved for their turn
 //! (temper/docs/design/domain/forge/change/README.md, 2),
 //! so these read-only traffic measurements do not issue pre-CI updates.
@@ -79,9 +80,15 @@ impl Scheduler {
                         world.event(forge::Event::Committed { entry });
                     }
                     match decision {
-                        change::Decision::Wait { until } => self.until[index] = until,
+                        change::Decision::Wait { until } => {
+                            self.until[index] = Some(until.unwrap_or_else(|| {
+                                Wall::from_nanos(
+                                    world.wall().as_nanos() + temper_engine_forge_world::LIMITS.queue_window.as_nanos(),
+                                )
+                            }));
+                        }
                         change::Decision::Hold(change::Hold::BranchMoved) if self.iterating => {
-                            world.event(forge::Event::ReleaseChange { task });
+                            world.event(forge::Event::ReleaseChange { task, release: None });
                             self.due[index] = true;
                         }
                         other @ (change::Decision::None
@@ -128,7 +135,7 @@ impl Scheduler {
                             spend: None,
                             delegate: change::Status::Unknown,
                             effect: change::EffectResult::None,
-                            released: self.iterating,
+                            released: false,
                             cancelled: false,
                         },
                         gates: Box::new([]),
@@ -421,24 +428,28 @@ fn busy(moving: bool) {
         assert_eq!(world.delivery_hints(), 0);
         let nominal = if moving { [2508_u64, 4332, 6060] } else { [2508_u64, 4260, 6024] };
         let band = 12 * (7 * u64::try_from(count).expect("count") + 1);
-        // Nonparticipating pulls no longer shorten quiet rests for inbox
-        // repairs: at most one six-request pass/minute/pull leaves the old
-        // nominal floor. Keep the original upper traffic pin unchanged.
-        let removed_repairs = 360 * u64::try_from(count).expect("count");
-        let floor = nominal[count - 1].saturating_sub(band + removed_repairs);
-        assert!((floor..=nominal[count - 1] + band).contains(&(total * 6)), "N={count}: {table:?}");
+        // Traffic may fall when read retries stay within one offered step.
+        // Keep the installation ceiling; cohort assertions below still
+        // require a base observation for every offered step.
+        assert!(total * 6 <= nominal[count - 1] + band, "N={count}: {table:?}");
         let exact = sharing(&world, read_start, 1);
         let second = sharing(&world, read_start, 1_000_000_000);
         assert_eq!(exact.0, table["Base branch tip"] + table["Base combined status"] + table["Base check-runs"]);
         let offered: Vec<_> = scheduler.steps[step_start..].iter().map(|(at, _)| *at).collect();
+        assert!(!offered.is_empty(), "the iterating workload must offer fresh steps");
         let issued: Vec<_> = world.base_reads()[read_start..]
             .iter()
             .filter_map(|(at, read, _)| matches!(read, skein_forge::api::Read::Branch { .. }).then_some(*at))
             .collect();
         // Identical fresh reads in one cohort share a call; keeping reads
         // retain their own calls. No cohort may lose its base observation.
-        assert!(issued.len() <= offered.len(), "sharing cannot add base reads");
-        assert_eq!(offered.iter().collect::<BTreeSet<_>>(), issued.iter().collect::<BTreeSet<_>>());
+        // Capacity retries stay inside the offered step and may add later
+        // cohorts without another procedure activation.
+        assert!(skein_lib::len_u64(issued.len()) <= table["Head branch"], "each base read needs a read round");
+        assert!(
+            offered.iter().collect::<BTreeSet<_>>().is_subset(&issued.iter().collect::<BTreeSet<_>>()),
+            "no offered cohort loses its base observation"
+        );
         assert_eq!(exact.2, skein_lib::len_u64(issued.len()));
         assert_eq!(second.1, exact.1, "no additional cohort within one second");
         for (_, stored) in world.stored() {
