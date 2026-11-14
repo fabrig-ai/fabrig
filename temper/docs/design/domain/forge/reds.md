@@ -1,11 +1,14 @@
 # A goal's reds
 
-Provisional, 2026-11-13. Written from `../../draft/branch-reds.md`,
-sections 3 to 5, 6's second and third points, 9 and 10, its milestone B1.
-What temper keeps of the failures a goal's branch carries, how a goal's run
-records and ends them, and how a delivery's check reads them at its start.
-The reference project's check reads them as `tools/pre-pr/design.md`, 5
-says. What is open is listed in section 9.
+Provisional, 2026-11-14. Written from `../../draft/branch-reds.md`,
+sections 3 to 7, 9 and 10, its milestones B1 and B2. What temper keeps
+of the failures a goal's branch carries, how a goal's run records and
+ends them, how a delivery's check reads them at its start, and what the
+check reports at its end: the reds it passed, which end when its change
+lands, and the tests that failed only under load, filed as flakes. The
+reference project's check reads and writes them as
+`tools/pre-pr/design.md`, 4 to 7 says. What is open is listed in
+section 9.
 
 ## 1. In one page
 
@@ -17,7 +20,7 @@ says. What is open is listed in section 9.
   its coordinator judges; nobody else records one (3).
 - **Bounded per goal** by `forge.branch_reds`: a record past it is
   refused and the goal held (3).
-- **Ended** by `red`, and with its goal (4).
+- **Ended** by `red`, with its goal, and by what lands (4).
 - **Read at each check's start:** the worker asks the engine for the reds
   of the goal its run's work lands into, keeps those whose commit the
   check's base contains, and writes them to `temper/reds` in the
@@ -25,7 +28,17 @@ says. What is open is listed in section 9.
 - **The check waits for that file,** a bounded time, where the worker has
   said it writes one, so that a check never reads an earlier check's
   file for its own (5.3).
-- **Kept** as two families of the forge connector's (6).
+- **Reported at each check's end,** passed or refused: the check writes
+  `temper/check-results`, the reds it passed or failed and the tests
+  that failed under load but passed when their process ran again (5.5);
+  the worker reads it and sends it to the engine, an application's ask
+  the engine keeps (5.6).
+- **A change's passes kept,** from its passed checks, each red's latest
+  observation; when the change lands into the goal's branch, each red it
+  passed ends, unless recorded again since (5.7).
+- **Flakes filed** as `flake` findings of the run's project, counted on an
+  open one with the same signature (5.8).
+- **Kept** as three families of the forge connector's (6).
 
 ## 2. A red
 
@@ -111,11 +124,11 @@ says. What is open is listed in section 9.
 - **With its goal:** a goal's reds are erased in the decision that
   releases its goal branch at its task's end, done, cancelled or failed
   (`branches.md`), so a goal that has ended holds none.
-- **By what lands:** a red a change's check passed outright ends when
-  that change lands into the goal's branch (`../../draft/branch-reds.md`,
-  6, its milestone B2); not in this design yet.
+- **By what lands:** a red a change's passed check passed outright ends
+  when that change lands into the goal's branch, unless it was recorded
+  again after that pass (5.7).
 
-## 5. The read at a check's start
+## 5. A check's reds and results
 
 ### 5.1 What the engine answers
 
@@ -152,24 +165,32 @@ says. What is open is listed in section 9.
   MS the decimal milliseconds the check waits for `temper/reds` at its
   start, `checkout.reds_read_ms` plus 1,000. The worker writes it in each
   such repository at prepare, so a check knows the file is coming.
+- **`temper/rerun`,** beside it: the line `temper-rerun 1 N`, N the
+  decimal `checkout.rerun_processes`, the most failing tests' processes
+  the check runs again after its run (5.5). Written at prepare with the
+  marker, written to `temper/rerun.tmp` and renamed; a check that finds
+  none runs nothing again.
 
 ### 5.3 When
 
-- **At prepare:** the worker removes `temper/reds` and writes
-  `temper/reds-wait`.
+- **At prepare:** the worker removes `temper/reds` and
+  `temper/check-results`, and writes `temper/reds-wait` and
+  `temper/rerun`.
 - **At each check's start,** when the run tells its host its checks are
   starting (smith's `domain/run.md`, 8.1, the `long` of a check): the
-  worker removes `temper/reds`, asks (5.4), and, with an answer within
+  worker removes `temper/reds` and `temper/check-results`, asks (5.4),
+  and, with an answer within
   `checkout.reds_read_ms`, writes the file in each repository (5.2).
   An ask that fails or isn't answered in time writes nothing, and the
   check waits out its bound and judges with no reds. Every check starts
   afresh: a refused check, one run again for time and the check before
   a `finish` each read the reds as they are then, so a red recorded while
   the change waits on a question counts at its next check.
-- **At each check's end,** when the run tells its host its checks ended:
-  the worker removes `temper/reds`, so the next check waits for a file
-  of its own. An answer that comes after its check ended, or after
-  another check started, is dropped.
+- **At each check's end,** when the run tells its host its checks ended,
+  passed or refused: the worker removes `temper/reds`, so the next check
+  waits for a file of its own, and reads and reports
+  `temper/check-results` (5.6). An answer that comes after its check
+  ended, or after another check started, is dropped.
 - **Why the check waits:** smith starts the check before it tells its
   host, and waits for nothing from it (smith's `domain/run.md`, 8.1), so
   the worker's file can only follow the check's start. The check, finding
@@ -201,23 +222,184 @@ says. What is open is listed in section 9.
   versions meeting an engine of the previous ones can't send `ask` down,
   so it closes its channel at the statement and the engine goes first
   (jig's `protocol/channel/bridges.md`, 6.3).
-- **The worker's figures:** an ask is a few bytes; an answer at most
-  `forge.branch_reds` reds of `forge.red_key_bytes`, which temper gives
-  jig as the application's largest answer (jig's
-  `protocol/channel/README.md`, 10).
+- **The worker's figures:** an ask of reds is a few bytes; an answer at
+  most `forge.branch_reds` reds of `forge.red_key_bytes`, which temper
+  gives jig as the application's largest answer (jig's
+  `protocol/channel/README.md`, 10). A report's ask is 5.6's.
+
+### 5.5 The results file
+
+The check's contract with the worker, as `temper/reds` is the worker's
+with the check. The reference's check writes it as
+`../../../../../tools/pre-pr/design.md`, 6 says.
+
+- **Where and when:** `temper/check-results`, at `git rev-parse
+  --git-path temper/check-results`, written by the check at its end,
+  passed or refused, to `temper/check-results.tmp` beside it and renamed,
+  so the worker reads a whole file or none. A check writes it only where
+  it found temper's marker `temper/reds-wait` (5.2): a checkout outside
+  temper gets none. A cache hit writes none, nor does a check stopped
+  before its end.
+- **Its form,** each line ending with a line feed:
+  - `temper-check 1`;
+  - `check TREE BASE VERDICT`: TREE the tree it checked and BASE its
+    base, each 40 or 64 lowercase hexadecimal digits, BASE `-` where it
+    had none; VERDICT `passed` or `refused`, as its exit says;
+  - `passed KEY`: an entry of `temper/reds` its run selected and that
+    passed outright: not ignored, starved, cancelled or unobserved, and
+    not passing only when its process ran again;
+  - `failed KEY`: an entry of `temper/reds` its run selected that failed,
+    inherited as it was;
+  - `flake KEY`: a test that failed in its run and passed when its
+    process ran again (`../../draft/branch-reds.md`, 7; the reference's,
+    `../../../../../tools/pre-pr/design.md`, 4), then its log under load,
+    each line of it as `| TEXT`, an empty one as `|`, at most 1,536 bytes
+    of text.
+
+  The `passed` and `failed` lines come in key order, a key once and
+  never in both; the `flake` lines after them, in the order the check ran
+  them again, a key once, at most `temper/rerun`'s N. A key is the
+  check's form of an entry, `test <binary id> <name>` or
+  `lint <package> <code> <file>`, at most 512 bytes.
+- **Bounded:** at most 262,144 bytes. The worker reads a file past it,
+  or one with any other line (a wrong header or check line, an unknown
+  word, a key past 512 bytes or on two lines, a `|` line not after a
+  `flake`), as malformed, and reports nothing of it.
+
+### 5.6 The report
+
+- **At each check's end** (5.3), in each repository 5.2 writes the reds
+  in, the worker reads `temper/check-results`, then removes it. The read
+  is that checkout's next work, ahead of a delivery's push the run asks
+  for after its check, so that the report goes up before the run's
+  answer: the fence (jig's `domain/hosts/hub.md`, 10) refuses an ask
+  once the attempt has ended. A missing file reports nothing: a cache
+  hit, a check of a tree without the reference's check, a check
+  stopped. A malformed one reports nothing of that repository, and the
+  worker logs why.
+- **One ask per repository with a file,** in tag order, each sent once
+  the previous one is answered or refused: an application's ask, as 5.4's,
+  the run's task and attempt beside it. The worker waits for nothing on
+  it: the answer, `kept`, says the engine took it, and a refused report is
+  lost, never sent again. A report not yet sent when the next check
+  starts is dropped.
+- **Its bytes,** `temper-worker-wire`'s (`../../protocol/channel.md`):
+  `Ask` gains `results`, `CheckResults { tag, check, tree, base,
+  verdict, passed, failed, flakes }`: `tag` the repository's, as `Left`
+  names one; `check` the worker's number of the check within the
+  attempt, from 1, its identity with the run's task and attempt; `tree`
+  and `base` 20 or 32 bytes, `base` an option; `verdict` `Verdict { passed,
+  refused }`; `passed` and `failed` lists of keys; `flakes` a list of
+  `Flake { key, log }`, the log its `|` lines' text joined by line feeds.
+  `Answer` gains `kept`, which carries nothing. Bounds: on the engine,
+  `passed` and `failed` at most `forge.branch_reds` keys of
+  `forge.red_key_bytes`; on the worker, the schema's ceilings, 256 keys
+  of 512 bytes; on both, at most 16 flakes, each key at most 512 bytes
+  and log at most 2,048 bytes. A report the engine can't decode is
+  refused, as 5.4's ask is.
+- **On the engine,** the service answers `kept` at once and hands the
+  report to the root as the worker's input, with the run's task and
+  attempt; the root decides on it in its next decision (5.7, 5.8).
+  Nothing is kept for the ask itself (jig's `domain/hosts/hub.md`, 10):
+  a report lost with an engine's restart is lost. A worker sends each
+  check's report once, so the engine decides on each identity once.
+- **Its versions:** `temper-worker-wire` moves by one, with its kept
+  text and bridge. A worker of the previous version reports nothing:
+  its checks write files no one reads. A worker of this version meeting
+  an engine of the previous one can't send `results` down, so it closes
+  at the statement, `Ask` counted among the parts a worker sends whole
+  (jig's `protocol/channel/bridges.md`, 6.3), and the engine goes first,
+  as for B1.
+- **The worker's figures:** the application's largest ask is a report's
+  worst case under the side's bounds above, within jig's ceiling for an
+  ask's bytes (`../../protocol/channel.md`, 8).
+
+### 5.7 Passes kept, and reds ended by what lands
+
+- **The report's change** is the run's task, or its nearest requester,
+  holding a `Change` row; its goal, the one holding that change's
+  destination, as 5.1 finds them. A report keeps no passes where the run
+  has no such change or goal, where its task is not live or its attempt
+  not current, or where `tag` names a repository other than the
+  change's.
+- **A passed check's alone:** checked is delivered (smith's
+  `domain/run.md`, 8.1), so a refused check's tree is never the
+  change's, and its `passed` and `failed` lines change nothing. Its
+  flakes are filed (5.8).
+- **Each key's latest observation:** for each `passed KEY` the goal holds
+  as a red, the change's pass of it, `RedPass { change, key, generation
+  }`, its generation `RedNumber`'s last given (0 with none), replacing
+  any; for each `failed KEY`, the change's pass of it erased; a key the
+  report doesn't name keeps what the change's earlier passed checks
+  observed. Then each pass of the change whose key the goal no longer
+  holds is erased, so a change holds at most `forge.branch_reds`. A
+  change's check selects what it changed and its dependents, so a later
+  check, a resolution's above all, may run less than an earlier one:
+  what it did not run again, the earlier pass still says.
+- **At its landing:** in the decision that first records the change's
+  merge into its destination, wherever that is recorded (a merge the
+  forge made for it, a pull request found merged, a landing read back):
+  each red of the goal whose key the change has a pass of, with the
+  red's generation at most the pass's, ends, its row erased as `red`'s
+  end erases it. A red recorded again after the pass, at a later
+  generation, stays. Then the change's passes are erased. Its record's
+  fields go with it; the change's landing is in its history.
+- **Never landed, nothing ended:** a change that ends without a merge,
+  or whose row is dropped, has its passes erased.
+- **A cache hit** reports nothing (5.6), so the change keeps what its
+  last passed check observed, the same tree's, since the check's cache
+  holds its last pass alone (`../../../../../tools/pre-pr/design.md`, 7).
+
+### 5.8 Flakes filed
+
+- **Each `flake KEY`** of a report, of a passed or a refused check, files
+  or counts a `flake` finding in the run's task's project
+  (`../findings.md`, 4), in the decision on the report. Its signature:
+  the repository `tag` names, the source `check`, the key as its one id,
+  no first line.
+- **Counted:** where the project has an open finding, of kind `flake`
+  and not `dropped`, with that signature, its `seen` count grows by one,
+  and nothing else changes and no one hears.
+- **Filed:** otherwise, a finding of kind `flake`, severity `low`, no
+  area, so its project's triager's (`../areas.md`, 5: routing by path is
+  later), its filer the run's task, `seen` 1, the signature above, its
+  title `Flake in a delivery's check: KEY`, cut to 200 bytes at a
+  character's start, and its body, cut to 4,096 bytes from its end,
+  marked `[cut]`:
+
+  ```
+  A test failed in a delivery's check and passed when its process ran again, with nothing else of the check running.
+  Repository: OWNER/NAME
+  Test: KEY
+  Seen in task T's check C (attempt A): tree TREE, base BASE.
+  Its log under load:
+  LOG
+  ```
+
+  TREE and BASE as hexadecimal, BASE `none` without one. A filing the
+  project's bound refuses (`../findings.md`, 9) is dropped; the rest of
+  the report stands.
+- **Once per check:** each report is decided once (5.6), so a flake is
+  filed or counted once per check identity.
 
 ## 6. Kept
 
-- **Two families of the forge connector's** (`../../protocol/store.md`,
+- **Three families of the forge connector's** (`../../protocol/store.md`,
   2): `Red`, keyed by the goal, then the key's bytes, a red's row with
-  every field of section 2; and `RedNumber`, one row, `{ last }`, the
-  last generation given, as `ForgeNumber` keeps the last forge number.
+  every field of section 2; `RedNumber`, one row, `{ last }`, the
+  last generation given, as `ForgeNumber` keeps the last forge number;
+  and `RedPass`, keyed by the change's task, then the key's bytes, `{
+  change, key, generation }` (5.7).
 - **Written** in the decision of `red`'s record, the red's row and
-  `RedNumber` together; **erased** by its end and with its goal (4).
-  `RedNumber` is never erased, so a generation is never given twice.
-- **Bounded** by `forge.branch_reds` times `forge.holds`: a goal holding
-  reds holds its goal branch, so at most `forge.holds` goals hold any.
-  The restore refuses a store past it, as other families' bounds are
+  `RedNumber` together; **erased** by its end, with its goal (4) and by
+  its change's landing (5.7). `RedNumber` is never erased, so a
+  generation is never given twice. A pass is written and erased in the
+  decision on a passed check's report, and erased at its change's
+  landing, its end without a merge and its row's drop (5.7).
+- **Bounded:** reds by `forge.branch_reds` times `forge.holds`: a goal
+  holding reds holds its goal branch, so at most `forge.holds` goals
+  hold any; passes by `forge.branch_reds` times `forge.changes`. The
+  restore refuses a store past either, as other families' bounds are
   checked.
 - **Restored** at the forge's restart step, as every family is
   (`../../protocol/store.md`, 5).
@@ -225,8 +407,11 @@ says. What is open is listed in section 9.
 ## 7. The limits
 
 `forge.branch_reds`, 64 in both profiles, and `forge.red_key_bytes`, 256,
-among the forge's limits; `checkout.reds_read_ms`, 5,000, among the
-checkout's (`../../protocol/configuration/limits.md`).
+among the forge's limits; `checkout.reds_read_ms`, 5,000, and
+`checkout.rerun_processes`, 4, from 0 to 16, among the checkout's
+(`../../protocol/configuration/limits.md`). `rerun_processes` is the
+worker's, which writes it for the check (5.2), though the draft names it
+among the forge's; 16 is the report's ceiling of flakes (5.6).
 
 ## 8. Testing
 
@@ -251,9 +436,48 @@ checkout's (`../../protocol/configuration/limits.md`).
   run again included, and removed at its end and at prepare; reds whose
   head the base doesn't contain left out; a slow or failed ask writing
   none; a late answer dropped.
+- **The forge domain's passes, focused:** a passed check's pass kept with
+  the generation it was observed at, a `failed` line erasing one, a key
+  the report doesn't name keeping its pass, a refused check's lines
+  changing nothing, a pass of a key the goal doesn't hold not kept; at
+  the change's landing, by each way a merge is recorded, a passed red
+  ended and one recorded again after the pass kept; a change ending
+  without a merge, and one dropped, ending nothing and erasing its
+  passes; a restore of `RedPass`, and one past its bound refused.
+- **Fuzzy,** in the same module: random records, replacements, ends,
+  reports (passed and refused, with passes and failures), landings,
+  ends without a merge and goal releases keep each goal within
+  `forge.branch_reds` and each change's passes within it, each key once,
+  and end a red only at a landing of a change whose latest passed check
+  passed it after its record.
+- **Flakes, focused:** a flake filed with its title, body, signature and
+  `seen` 1; a second report's flake of the same key and repository
+  counted on it; one of another repository, or after the first is
+  dropped, filed anew; a refused check's flake filed; the project's bound
+  refusing a filing without refusing the report.
+- **The report's way:** the engine answering `kept` and deciding on a
+  report, a report of an attempt not live refused, bytes that don't
+  decode refused; `temper-worker-wire`'s patch and bridge by its crate's
+  tests.
+- **The worker's report:** `temper/rerun` written at prepare;
+  `temper/check-results` removed at prepare and at each check's start,
+  read at each check's end, a refused check's included, and sent with
+  the check's number; no file, a malformed one and an oversized one
+  reporting nothing; two repositories reported one after the other; the
+  report going up before a `finish`'s run answer.
+- **A story across both,** in the service's world: a red recorded, a
+  change's fake check passing it, the change landing into the goal's
+  branch and the red gone; a fake check's flake filed as a finding.
 
 ## 9. Open questions
 
 - **A person recording a red,** by ctl or the page, as `party N`: the
   record keeps the recorder's kind for it. Default: none; a goal's run
   records them.
+- **A goal told of a red its landing ended,** as news, or kept in its
+  activity. Default: not told, so that no coordinator wakes for it; the
+  goal's `red list` no longer names it.
+- **A refused report sent again,** with the engine deduplicating by its
+  identity. Default: lost; a lost report keeps what the change kept,
+  which ends less, never a red the change's last passed check failed,
+  but where that check's own report was the one lost.

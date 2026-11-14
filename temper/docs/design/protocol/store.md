@@ -216,6 +216,18 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   (`../domain/forge/reds.md`, 3). Their patch, the one after the
   latest when it lands, moves `STORE_VERSION` by one and adds the
   declarations and variants without making a row for an older store.
+- **A change's passes of its goal's reds,** after them, at the next free
+  byte when it lands (46 where no other family has taken it since):
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 46 | `RedPass` | `RedPass { change, key }`: the change's task, then the key's bytes | a passed check's pass of a red (`../domain/forge/reds.md`, 5.7): `change`, `key` of at most `red_key_bytes`, and `generation`, `RedNumber`'s last when it was observed. Written and erased by the decision on a passed check's report; erased at its change's landing, its end without a merge and its row's drop | `branch_reds` times `changes` |
+
+  Its record is the schema's `Value` variant `red_pass`, appended after
+  the last. The same patch appends to `Finding` its options `signature`
+  and `seen` (`../domain/findings.md`, 4), an older store's findings
+  having neither. It moves `STORE_VERSION` by one, the one after the
+  latest when it lands, without making a row for an older store.
 - **The landing history** (`../domain/landing-history.md`, 4.1): 127
   `HistoryProject`, keyed by the project, its next event's number, the
   events kept, `whole_since`, its hours' marks, the change being swept
