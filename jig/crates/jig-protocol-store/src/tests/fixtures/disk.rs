@@ -129,6 +129,10 @@ impl Disk {
     pub fn store(&self) -> Store {
         Store::on_directory(&store_limits(), APPLICATION, &[], self.seeded)
     }
+    /// Give schema-bearing registry scenes their map room before construction.
+    pub fn store_with_limits(&self, limits: &crate::Limits) -> Store {
+        Store::on_directory(limits, APPLICATION, &[], self.seeded)
+    }
     /// Bound recovery reads for small generation-operation scenes too.
     pub fn store_with_chunk(&self, chunk: u32) -> Store {
         let mut limits = store_limits();

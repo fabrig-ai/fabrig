@@ -1,5 +1,5 @@
 //! Jig's owner set (jig/docs/design/protocol/store/opening.md, 3).
-use jig_protocol_store::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType, patches};
+use jig_protocol_store::{Converts, Job, KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType, patches};
 
 /// The component, core, children and secrets; Moved is held inside Carried.
 #[expect(
@@ -7,7 +7,18 @@ use jig_protocol_store::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, V
     reason = "value types name the binary's generated schema texts (protocol/store/layouts.md, 2)"
 )]
 pub const JIG_PATCH_SET: PatchSet = PatchSet {
-    jobs: &[],
+    jobs: &[Job {
+        name: "charter-versions",
+        keys: &[KeyRange { from: &[1, 0, 8, 3], to: &[1, 0, 8, 4] }],
+        converts: Some(Converts {
+            family: "jig-store-settings",
+            value_type: 4,
+            from: [
+                0x6e, 0x0c, 0x3b, 0xa3, 0x49, 0x0f, 0x65, 0xbc, 0x43, 0xe0, 0xae, 0x0e, 0xc2, 0x7d, 0xe2, 0x3f, 0x38,
+                0xaf, 0x27, 0x02, 0x03, 0x51, 0x74, 0xba, 0x8c, 0x38, 0x93, 0xc7, 0x9b, 0xf7, 0xd9, 0x89,
+            ],
+        }),
+    }],
     owner: Owner::Jig,
     name: "jig",
     patches: patches::PATCHES,

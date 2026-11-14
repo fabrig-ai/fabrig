@@ -32,14 +32,18 @@ fn started() -> World {
     world
 }
 fn rehearse(world: &mut World, expected: &[WorkerOpening]) {
-    let registry = world.retained().keys().filter(|key| key.starts_with(&[0, 6]) || key.starts_with(&[0, 7])).count();
+    let metadata = world
+        .retained()
+        .keys()
+        .filter(|key| key.starts_with(&[0, 6]) || key.starts_with(&[0, 7]) || key.starts_with(&[0, 8]))
+        .count();
     world.crash(SEED);
     let before = world.contents();
     let events = world.rehearse();
     let Some(Event::Rehearsing { openings, .. }) = events.first() else { panic!("{events:?}") };
     assert_eq!(openings.as_ref(), expected);
     assert!(
-        matches!(events.get(1), Some(Event::Decoded { records, .. }) if *records == 1 + u64::try_from(expected.len() + registry).expect("openings and registry count")),
+        matches!(events.get(1), Some(Event::Decoded { records, .. }) if *records == 1 + u64::try_from(expected.len() + metadata).expect("openings, registry and jobs count")),
         "every opening is walked by its kept text: {events:?}"
     );
     assert!(matches!(events.last(), Some(Event::Opened { pending: false, .. })), "{events:?}");

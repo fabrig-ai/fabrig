@@ -325,7 +325,7 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
     let mut value = [0, 7, 2];
     assert_eq!(store.registry.read(b"\x02c/0", &mut value, &mut out, &mut store.layout_work.workspace), &[0, 2, 2]);
 }
-fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>) {
+pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>) {
     let number = store.stores.store.last() + 1;
     let Write::Save(record) = fixtures::header(number) else { panic!() };
     let key = crate::keys::encode(&record.key(), store.limits.store.key).unwrap();

@@ -925,6 +925,8 @@ pub enum Path {
     ExtentTail,
     /// The `charter` field of `CharterVersion`.
     CharterVersionCharter,
+    /// The `overlay` field of `CharterVersion`.
+    CharterVersionOverlay,
     /// The version of `CharterVersion`.
     CharterVersionVersion,
     /// Bytes after `CharterVersion`.
@@ -943,14 +945,6 @@ pub enum Path {
     ProposalVersion,
     /// Bytes after `Proposal`.
     ProposalTail,
-    /// The `charter` field of `OverlaidCharterVersion`.
-    OverlaidCharterVersionCharter,
-    /// The `overlay` field of `OverlaidCharterVersion`.
-    OverlaidCharterVersionOverlay,
-    /// The version of `OverlaidCharterVersion`.
-    OverlaidCharterVersionVersion,
-    /// Bytes after `OverlaidCharterVersion`.
-    OverlaidCharterVersionTail,
 }
 
 /// A decoding or bound failure at a schema path.
@@ -5515,19 +5509,22 @@ impl Extent {
 pub struct CharterVersionParts {
     /// The `charter` field.
     pub charter: Option<Charter>,
+    /// The `overlay` field.
+    pub overlay: Option<Overlay>,
 }
 
 /// `CharterVersion` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CharterVersion {
     charter: Option<Charter>,
+    overlay: Option<Overlay>,
 }
 
 impl CharterVersion {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: CharterVersionParts) -> Result<Self, Problem> {
-        let CharterVersionParts { charter } = parts;
-        let value = Self { charter };
+        let CharterVersionParts { charter, overlay } = parts;
+        let value = Self { charter, overlay };
         value.check(limits)?;
         Ok(value)
     }
@@ -5536,12 +5533,19 @@ impl CharterVersion {
     #[must_use]
     pub fn charter(&self) -> &Option<Charter> { &self.charter }
 
+    /// Reads the `overlay` field.
+    #[must_use]
+    pub fn overlay(&self) -> &Option<Overlay> { &self.overlay }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> CharterVersionParts { CharterVersionParts { charter: self.charter } }
+    pub fn into_parts(self) -> CharterVersionParts { CharterVersionParts { charter: self.charter, overlay: self.overlay } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if let Some(some_0) = self.charter.as_ref() {
+        some_0.check(limits)?;
+        }
+        if let Some(some_0) = self.overlay.as_ref() {
         some_0.check(limits)?;
         }
         Ok(())
@@ -5616,52 +5620,6 @@ impl Proposal {
         item_0.check(limits)?;
         }
         if self.applications.capacity() > limits.proposal_applications.min(CEILINGS.proposal_applications) { return Err(Problem { path: Path::ProposalApplications, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-/// Movable fields of `OverlaidCharterVersion`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OverlaidCharterVersionParts {
-    /// The `charter` field.
-    pub charter: Option<Charter>,
-    /// The `overlay` field.
-    pub overlay: Overlay,
-}
-
-/// `OverlaidCharterVersion` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct OverlaidCharterVersion {
-    charter: Option<Charter>,
-    overlay: Overlay,
-}
-
-impl OverlaidCharterVersion {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: OverlaidCharterVersionParts) -> Result<Self, Problem> {
-        let OverlaidCharterVersionParts { charter, overlay } = parts;
-        let value = Self { charter, overlay };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `charter` field.
-    #[must_use]
-    pub fn charter(&self) -> &Option<Charter> { &self.charter }
-
-    /// Reads the `overlay` field.
-    #[must_use]
-    pub fn overlay(&self) -> &Overlay { &self.overlay }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> OverlaidCharterVersionParts { OverlaidCharterVersionParts { charter: self.charter, overlay: self.overlay } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if let Some(some_0) = self.charter.as_ref() {
-        some_0.check(limits)?;
-        }
-        self.overlay.check(limits)?;
         Ok(())
     }
 }
@@ -10375,6 +10333,11 @@ impl CharterVersion {
         if let Some(some_0) = field_charter {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
+        let field_overlay = &self.overlay;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_overlay {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -10383,6 +10346,14 @@ impl CharterVersion {
         writer.put(&3_u16.to_be_bytes())?;
         let field_charter = &self.charter;
         match field_charter {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_overlay = &self.overlay;
+        match field_overlay {
             Some(some_0) => {
                 writer.put(&[1_u8])?;
         some_0.encode(writer)?;
@@ -10403,7 +10374,8 @@ impl CharterVersion {
         let version = reader.u16().ok_or(Problem { path: Path::CharterVersionVersion, reason: skein_codec::Reason::Short })?;
         if version != 3 { return Err(Problem { path: Path::CharterVersionVersion, reason: skein_codec::Reason::Version }); }
         let decoded_charter = match reader.u8().ok_or(Problem { path: Path::CharterVersionCharter, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Charter::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::CharterVersionCharter, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { charter: decoded_charter })
+        let decoded_overlay = match reader.u8().ok_or(Problem { path: Path::CharterVersionOverlay, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Overlay::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::CharterVersionOverlay, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { charter: decoded_charter, overlay: decoded_overlay })
     }
 }
 
@@ -10484,54 +10456,6 @@ impl Proposal {
         let decoded_items = { let count = match skein_codec::read_count(reader, limits.proposal_items.min(CEILINGS.proposal_items)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProposalItems, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::ProposalItems, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Item::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_applications = { let count = match skein_codec::read_count(reader, limits.proposal_applications.min(CEILINGS.proposal_applications)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProposalApplications, reason }), }; if count > reader.remaining() / 13 { return Err(Problem { path: Path::ProposalApplications, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Recorded::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { key: decoded_key, models: decoded_models, against: decoded_against, items: decoded_items, applications: decoded_applications })
-    }
-}
-
-impl OverlaidCharterVersion {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_charter = &self.charter;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_charter {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
-        }
-        let field_overlay = &self.overlay;
-        size = size.checked_add(field_overlay.measure()).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&3_u16.to_be_bytes())?;
-        let field_charter = &self.charter;
-        match field_charter {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        some_0.encode(writer)?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_overlay = &self.overlay;
-        field_overlay.encode(writer)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::OverlaidCharterVersionTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let version = reader.u16().ok_or(Problem { path: Path::OverlaidCharterVersionVersion, reason: skein_codec::Reason::Short })?;
-        if version != 3 { return Err(Problem { path: Path::OverlaidCharterVersionVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_charter = match reader.u8().ok_or(Problem { path: Path::OverlaidCharterVersionCharter, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Charter::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::OverlaidCharterVersionCharter, reason: skein_codec::Reason::Tag }) };
-        let decoded_overlay = Overlay::decode_from(limits, reader)?;
-        Ok(Self { charter: decoded_charter, overlay: decoded_overlay })
     }
 }
 
@@ -13553,7 +13477,7 @@ impl CharterVersion {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 2_u64;
-        size = size.checked_add(1_u64.checked_add(Charter::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(Charter::encoded_bound_within(limits)?)?)?.checked_add(1_u64.checked_add(Overlay::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -13566,7 +13490,7 @@ impl CharterVersion {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(Charter::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Charter::decoded_bound_within(limits)?)?.checked_add(Overlay::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -13599,34 +13523,6 @@ impl Proposal {
         heap = heap.checked_add(0_u64)?.checked_add(List::<ModelName>::price(limits.proposal_models)?.checked_add(u64::from(limits.proposal_models).checked_mul(ModelName::decoded_bound_within(limits)?)?)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(List::<Item>::price(limits.proposal_items)?.checked_add(u64::from(limits.proposal_items).checked_mul(Item::decoded_bound_within(limits)?)?)?)?;
         heap = heap.checked_add(List::<Recorded>::price(limits.proposal_applications)?.checked_add(u64::from(limits.proposal_applications).checked_mul(Recorded::decoded_bound_within(limits)?)?)?)?;
-        heap.checked_add(0)
-    }
-}
-
-impl OverlaidCharterVersion {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 2_u64;
-        size = size.checked_add(1_u64.checked_add(Charter::encoded_bound_within(limits)?)?)?.checked_add(Overlay::encoded_bound_within(limits)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(Charter::decoded_bound_within(limits)?)?.checked_add(Overlay::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -13750,7 +13646,6 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Extent::encoded_bound_within(limits)?);
     biggest = biggest.max(CharterVersion::encoded_bound_within(limits)?);
     biggest = biggest.max(Proposal::encoded_bound_within(limits)?);
-    biggest = biggest.max(OverlaidCharterVersion::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
@@ -13873,6 +13768,5 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Extent::decoded_bound_within(limits)?);
     biggest = biggest.max(CharterVersion::decoded_bound_within(limits)?);
     biggest = biggest.max(Proposal::decoded_bound_within(limits)?);
-    biggest = biggest.max(OverlaidCharterVersion::decoded_bound_within(limits)?);
     Some(biggest)
 }

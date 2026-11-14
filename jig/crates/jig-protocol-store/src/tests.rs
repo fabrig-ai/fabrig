@@ -24,6 +24,7 @@ mod transcripts;
 
 mod settings;
 
+pub(crate) mod charter_versions;
 mod operations;
 mod phase;
 mod registered_layouts;
