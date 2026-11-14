@@ -29,29 +29,28 @@ impl Watch {
         }
     }
 
-    pub fn act(&mut self, now: Time, procs: &mut [Process]) {
+    pub fn act(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
         if self.settled {
-            return;
+            return Ok(());
         }
         if let Some(sent) = self.sent {
             if let Some(Process::Binary(binary)) = procs.first()
                 && binary.exit_status().is_some()
             {
-                assert!(
-                    now.saturating_since(sent) < Duration::from_secs(5),
-                    "check interruption settles within five seconds"
-                );
-                assert!(
-                    !std::path::Path::new(&format!("/proc/{}", self.status_process.expect("observed status process")))
-                        .exists(),
-                    "the status child is gone"
-                );
+                if now.saturating_since(sent) >= Duration::from_secs(5) {
+                    return Err(String::from("check interruption settles within five seconds"));
+                }
+                if std::path::Path::new(&format!("/proc/{}", self.status_process.ok_or("observed status process")?))
+                    .exists()
+                {
+                    return Err(String::from("the status child is gone"));
+                }
                 self.settled = true;
             }
-            return;
+            return Ok(());
         }
         if now < self.poll {
-            return;
+            return Ok(());
         }
         self.poll = now.saturating_add(Duration::from_millis(10));
         // The fake program appends this log outside the world's ring. Keep the
@@ -60,23 +59,23 @@ impl Watch {
             self.reader = std::fs::OpenOptions::new().read(true).open(&self.path).ok().map(std::io::BufReader::new);
         }
         if let Some(reader) = &mut self.reader {
-            while reader.read_until(b'\n', &mut self.pending).expect("program log append") > 0 {
+            while reader.read_until(b'\n', &mut self.pending).map_err(|_| String::from("program log append"))? > 0 {
                 if self.pending.last() != Some(&b'\n') {
                     break;
                 }
                 if let Ok(record) = serde_json::from_slice::<serde_json::Value>(&self.pending)
                     && record.get("arguments") == Some(&serde_json::json!(["auth", "status"]))
                 {
-                    self.statuses = self.statuses.checked_add(1).expect("bounded program status observations");
+                    self.statuses = self.statuses.checked_add(1).ok_or("bounded program status observations")?;
                     if self.statuses == 3 {
                         self.status_process = Some(
                             u32::try_from(
                                 record
                                     .get("process")
                                     .and_then(serde_json::Value::as_u64)
-                                    .expect("injected process number"),
+                                    .ok_or("injected process number")?,
                             )
-                            .expect("process number fits"),
+                            .map_err(|_| String::from("process number fits"))?,
                         );
                     }
                 }
@@ -89,6 +88,7 @@ impl Watch {
             }
             self.sent = Some(now);
         }
+        Ok(())
     }
 
     pub fn next_deadline(&self) -> Option<Time> {

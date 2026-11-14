@@ -16,6 +16,7 @@ enum Page {
     Done,
 }
 struct Judge {
+    failed: Option<String>,
     page: Page,
     leaving: bool,
     until: Time,
@@ -25,49 +26,72 @@ fn named(client: &NativeClient, role: Role, name: &[u8]) -> bool {
 }
 impl Referee<NativeClient> for Judge {
     fn act(&mut self, now: Time, clients: &mut [NativeClient]) {
-        let client = &mut clients[0];
-        match self.page {
-            Page::Waiting if client.started() && named(client, Role::Status, b"Owner") => {
-                client.go(Address::Welcome { step: Step::Forge { forge: None } });
-                self.page = if self.leaving { Page::Leaving } else { Page::Forge };
-            }
-            Page::Forge
-                if named(client, Role::Heading { level: 1 }, b"Connect a forge")
-                    && named(client, Role::Link, b"Run on this machine") =>
-            {
-                assert!(!named(client, Role::Button, b"Try the playground"));
-                client.close();
-                self.page = Page::Done;
-            }
-            Page::Leaving
-                if client.tree().nodes().iter().any(|node| {
-                    node.text.iter().flat_map(|run| run.text.iter().copied()).collect::<Vec<_>>()
-                        == "Leaving the playground…".as_bytes()
-                }) =>
-            {
-                client.close();
-                self.page = Page::Done;
-            }
-            Page::Waiting | Page::Forge | Page::Leaving | Page::Done => {}
+        if self.failed.is_some() {
+            return;
         }
-        assert!(
-            matches!(self.page, Page::Done) || now < self.until,
-            "reset reload did not reach its page: {:?}; {:?}",
-            self.page,
-            client
-                .tree()
-                .nodes()
-                .iter()
-                .filter_map(|node| node.name.as_deref())
-                .map(String::from_utf8_lossy)
-                .collect::<Vec<_>>()
-        );
+        let result = (|| -> Result<(), String> {
+            let client = clients.first_mut().ok_or(String::from("native client"))?;
+            match self.page {
+                Page::Waiting if client.started() && named(client, Role::Status, b"Owner") => {
+                    client.go(Address::Welcome { step: Step::Forge { forge: None } });
+                    self.page = if self.leaving { Page::Leaving } else { Page::Forge };
+                }
+                Page::Forge
+                    if named(client, Role::Heading { level: 1 }, b"Connect a forge")
+                        && named(client, Role::Link, b"Run on this machine") =>
+                {
+                    if named(client, Role::Button, b"Try the playground") {
+                        return Err(String::from(
+                            "assertion failed: !named(client, Role::Button, b\"Try the playground\")",
+                        ));
+                    }
+                    client.close();
+                    self.page = Page::Done;
+                }
+                Page::Leaving
+                    if client.tree().nodes().iter().any(|node| {
+                        node.text.iter().flat_map(|run| run.text.iter().copied()).collect::<Vec<_>>()
+                            == "Leaving the playground…".as_bytes()
+                    }) =>
+                {
+                    client.close();
+                    self.page = Page::Done;
+                }
+                Page::Waiting | Page::Forge | Page::Leaving | Page::Done => {}
+            }
+            if !matches!(self.page, Page::Done) && now >= self.until {
+                return Err(format!(
+                    "reset reload did not reach its page: {:?}; {:?}",
+                    self.page,
+                    client
+                        .tree()
+                        .nodes()
+                        .iter()
+                        .filter_map(|node| node.name.as_deref())
+                        .map(String::from_utf8_lossy)
+                        .collect::<Vec<_>>()
+                ));
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
+        }
     }
-    fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {}
+    fn watch(&mut self, _now: Time, _clients: &[NativeClient]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         (!matches!(self.page, Page::Done)).then_some(self.until)
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         matches!(self.page, Page::Done)
     }
 }
@@ -86,8 +110,12 @@ fn reload(config: &Path, client: &Path, directory: &[u8], leaving: bool) {
         .expect("socket");
     let root = skein_shell::open_root(client).expect("signed-in client's parent root");
     let clock = Clock::new();
-    let mut world =
-        real::World::new(Judge { page: Page::Waiting, leaving, until: clock.now().now.saturating_add(super::WITHIN) });
+    let mut world = real::World::new(Judge {
+        failed: None,
+        page: Page::Waiting,
+        leaving,
+        until: clock.now().now.saturating_add(super::WITHIN),
+    });
     world.spawn_with_fds(vec![root], || {
         NativeClient::new(
             Settings {
@@ -142,9 +170,13 @@ struct ResetJudge {
 }
 impl Referee<Process> for ResetJudge {
     fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         self.settled = procs.iter().all(Host::is_empty);
-        assert!(self.settled || now < self.until, "reset did not remove its project before the cut");
+        if !self.settled && now >= self.until {
+            return Err(String::from("reset did not remove its project before the cut"));
+        }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.settled).then_some(self.until)

@@ -1,6 +1,6 @@
 # checks: status
 
-2026-11-12. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-14. Where the tree's code lags or departs from [checks.md](checks.md).
 
 
 - **Departs:** 1: temper's measured focused request-world sum is

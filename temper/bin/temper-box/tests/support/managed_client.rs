@@ -14,6 +14,7 @@ use temper_client_domain::{Address, Choice};
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 
 struct Person {
+    failed: Option<String>,
     actor: skein_fake_person::Person<Address>,
     sign_in: bool,
     finished: bool,
@@ -24,66 +25,90 @@ struct Person {
 }
 impl Referee<NativeClient> for Person {
     fn act(&mut self, now: Time, clients: &mut [NativeClient]) {
-        let client = &mut clients[0];
-        while let Some(signing) = client.signing() {
-            match signing {
-                Signing::SignedIn { party } => {
-                    assert_eq!(party, 1, "the printed link signs in party 1");
-                    self.retry = None;
-                    if self.sign_in {
-                        self.finished = true;
-                        client.close();
-                    }
-                }
-                Signing::Again | Signing::Busy => self.retry = Some(now.saturating_add(Duration::from_millis(100))),
-                Signing::LinkUsed
-                | Signing::LinkExpired
-                | Signing::Approval(_)
-                | Signing::LinkUnknown
-                | Signing::Refused
-                | Signing::Lost
-                | Signing::SignedOut
-                | Signing::Full { .. } => {
-                    panic!("the sitting's sign-in was refused");
-                }
-            }
-        }
-        if self.retry.is_some_and(|at| at <= now) {
-            self.retry = None;
-            client.sign_in(&self.link).expect("retry the same printed link");
-        }
-        if !self.finished
-            && let Some(figures) = self.until.failed()
-        {
-            panic!("signed-in Ready timed out: {figures}");
-        }
-        if self.until.deferred() || self.finished || !client.started() || self.sign_in {
+        if self.failed.is_some() {
             return;
         }
-        self.wake = Some(now);
-        match self.actor.next(&mut TreeFace::new(client.tree()), now) {
-            Next::Do(Doing::Go { address }) => client.go(address),
-            Next::Do(Doing::Act { node, act }) => assert!(client.act(node, act), "Ready offers the person's act"),
-            Next::Do(Doing::Reload) => panic!("no reload in the sitting"),
-            Next::Wait { until } => self.wake = until,
-            Next::Done => {
-                self.finished = true;
-                client.close();
+        let result = (|| -> Result<(), String> {
+            let client = clients.first_mut().ok_or(String::from("native client"))?;
+            while let Some(signing) = client.signing() {
+                match signing {
+                    Signing::SignedIn { party } => {
+                        if party != 1 {
+                            return Err(String::from("the printed link signs in party 1"));
+                        }
+                        self.retry = None;
+                        if self.sign_in {
+                            self.finished = true;
+                            client.close();
+                        }
+                    }
+                    Signing::Again | Signing::Busy => self.retry = Some(now.saturating_add(Duration::from_millis(100))),
+                    Signing::LinkUsed
+                    | Signing::LinkExpired
+                    | Signing::Approval(_)
+                    | Signing::LinkUnknown
+                    | Signing::Refused
+                    | Signing::Lost
+                    | Signing::SignedOut
+                    | Signing::Full { .. } => {
+                        return Err(String::from("the sitting's sign-in was refused"));
+                    }
+                }
             }
-            Next::Failed { step, why } => panic!("Ready failed at semantic step {step}: {why:?}"),
+            if self.retry.is_some_and(|at| at <= now) {
+                self.retry = None;
+                client.sign_in(&self.link).map_err(|error| format!("retry the same printed link: {error:?}"))?;
+            }
+            if !self.finished
+                && let Some(figures) = self.until.failed()
+            {
+                return Err(format!("signed-in Ready timed out: {figures}"));
+            }
+            if self.until.deferred() || self.finished || !client.started() || self.sign_in {
+                return Ok(());
+            }
+            self.wake = Some(now);
+            match self.actor.next(&mut TreeFace::new(client.tree()), now) {
+                Next::Do(Doing::Go { address }) => client.go(address),
+                Next::Do(Doing::Act { node, act }) => {
+                    if !client.act(node, act) {
+                        return Err(String::from("Ready offers the person's act"));
+                    }
+                }
+                Next::Do(Doing::Reload) => return Err(String::from("no reload in the sitting")),
+                Next::Wait { until } => self.wake = until,
+                Next::Done => {
+                    self.finished = true;
+                    client.close();
+                }
+                Next::Failed { step, why } => return Err(format!("Ready failed at semantic step {step}: {why:?}")),
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {
+    fn watch(&mut self, _now: Time, _clients: &[NativeClient]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         if !self.finished
             && let Some(figures) = self.until.failed()
         {
-            panic!("signed-in Ready timed out: {figures}");
+            return Err(format!("signed-in Ready timed out: {figures}"));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.finished { None } else { [self.until.until(), self.wake, self.retry].into_iter().flatten().min() }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.finished
     }
 }
@@ -128,6 +153,7 @@ pub fn ready(root: &Path, link: &str, mode: Mode) {
     let root = skein_shell::open_root(root).expect("sitting scratch root");
     let clock = Clock::new();
     let mut world = real::World::new(Person {
+        failed: None,
         actor: skein_fake_person::Person::new(steps),
         sign_in,
         finished: false,

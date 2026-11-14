@@ -193,13 +193,15 @@ pub(crate) fn catalogue(sources: &[Source], workflow: bool) -> temper_fake_git_h
 fn command(caller: &mut Caller, words: &[&[u8]]) {
     caller.commands.push_back(Command::new(words));
 }
-pub(crate) fn json(answer: &crate::ctl::Answer) -> serde_json::Value {
-    // Connect and copy print progress before their terminal adoption answers.
-    serde_json::Deserializer::from_slice(&answer.output)
-        .into_iter::<serde_json::Value>()
-        .last()
-        .expect("terminal ctl answer")
-        .expect("ctl JSON")
+pub(crate) fn json(answer: &crate::ctl::Answer) -> Result<serde_json::Value, String> {
+    Ok({
+        // Connect and copy print progress before their terminal adoption answers.
+        serde_json::Deserializer::from_slice(&answer.output)
+            .into_iter::<serde_json::Value>()
+            .last()
+            .ok_or_else(|| String::from("terminal ctl answer"))?
+            .map_err(|why| format!("ctl JSON: {why:?}"))?
+    })
 }
 fn copy(caller: &mut Caller, key: &[u8], until_adopted: bool) {
     let mut words: Vec<&[u8]> = vec![
@@ -259,6 +261,7 @@ enum SourceStage {
     BesideRepository,
 }
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     transport: temper_fake_git_hosted::Typed,
@@ -277,21 +280,52 @@ impl Judge {
         peer.shutdown();
     }
 
-    fn beside_repository(&self, caller: &Caller, peer: &Peer) {
+    #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+    fn beside_repository(&self, caller: &Caller, peer: &Peer) -> Result<(), String> {
         let [_, connected, _, copied, forges, project] = caller.answers.as_slice() else {
-            panic!("sign-in, connect, connected forge, copy, forges and project answers")
+            return Err(String::from("sign-in, connect, connected forge, copy, forges and project answers"));
         };
-        let connected = json(connected);
-        assert_eq!(connected["project"], 1, "the first repository is adopted into project 1");
-        assert_eq!(connected["outcome"]["adopted"]["forge"], 1);
-        let copied = json(copied);
-        assert_eq!(copied["adopted"], true, "ctl waited for adoption");
-        let forges = json(forges);
-        let [forge] = forges["forges"].as_array().expect("forge rows").as_slice() else {
-            panic!("one connected forge")
+        let connected = json(connected)?;
+        match (&(connected["project"]), &(1)) {
+            (left, right) if left != right => {
+                let finding = String::from("the first repository is adopted into project 1");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        match (&(connected["outcome"]["adopted"]["forge"]), &(1)) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        let copied = json(copied)?;
+        match (&(copied["adopted"]), &(true)) {
+            (left, right) if left != right => {
+                let finding = String::from("ctl waited for adoption");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        let forges = json(forges)?;
+        let [forge] = forges["forges"].as_array().ok_or_else(|| String::from("forge rows"))?.as_slice() else {
+            return Err(String::from("one connected forge"));
         };
-        assert_eq!(forge["number"], 1);
-        assert_eq!(forge["makings"].as_array().expect("making rows").len(), 0);
+        match (&(forge["number"]), &(1)) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        match (&(forge["makings"].as_array().ok_or_else(|| String::from("making rows"))?.len()), &(0)) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
         let provider = peer
             .observations()
             .iter()
@@ -306,43 +340,103 @@ impl Judge {
                     None
                 }
             })
-            .expect("the forge gave the copied repository its provider id");
-        let project = json(project);
-        assert_eq!(project["number"], 1);
-        let resources = project["resources"].as_array().expect("project resources");
-        assert_eq!(resources.len(), 2, "the first repository and the copy share the project");
+            .ok_or_else(|| String::from("the forge gave the copied repository its provider id"))?;
+        let project = json(project)?;
+        match (&(project["number"]), &(1)) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        let resources = project["resources"].as_array().ok_or_else(|| String::from("project resources"))?;
+        match (&(resources.len()), &(2)) {
+            (left, right) if left != right => {
+                let finding = String::from("the first repository and the copy share the project");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
         // Project resources name the forge and provider id as big-endian hex segments.
         let key = serde_json::json!(["0001", format!("{provider:08x}")]);
         let repository = resources
             .iter()
             .find(|row| row["part"]["key"]["path"] == key)
-            .expect("the copy's provider identity joined the first repository's project");
-        assert_eq!(repository["role"], "owned");
-        assert_eq!(repository["home"], false, "the copy is not the project's home");
+            .ok_or_else(|| String::from("the copy's provider identity joined the first repository's project"))?;
+        match (&(repository["role"]), &("owned")) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        match (&(repository["home"]), &(false)) {
+            (left, right) if left != right => {
+                let finding = String::from("the copy is not the project's home");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
 
         let forge = self.transport.forge.borrow();
-        let source_metadata = forge.domain.metadata(b"acme/app").expect("source metadata");
-        let metadata = forge.domain.metadata(DESTINATION).expect("copy metadata");
-        assert_eq!(metadata.default_branch, source_metadata.default_branch);
-        let source = forge.domain.branch(b"acme/app", &source_metadata.default_branch).expect("source head");
-        let tip = forge.domain.branch(DESTINATION, &metadata.default_branch).expect("copy head");
-        let commit = forge.domain.object(tip).expect("copy's workflow commit");
-        assert_eq!(commit.parent, Some(source), "one workflow commit above the source head");
-        assert_eq!(commit.merge_parent, None);
-        let source_tree = &forge.domain.object(source).expect("source commit").tree;
-        assert_eq!(source_tree.get(SOURCE_WORKFLOW_PATH).expect("source's workflow").as_ref(), SOURCE_WORKFLOW);
+        let source_metadata = forge.domain.metadata(b"acme/app").map_err(|why| format!("source metadata: {why:?}"))?;
+        let metadata = forge.domain.metadata(DESTINATION).map_err(|why| format!("copy metadata: {why:?}"))?;
+        match (&(metadata.default_branch), &(source_metadata.default_branch)) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        let source = forge
+            .domain
+            .branch(b"acme/app", &source_metadata.default_branch)
+            .ok_or_else(|| String::from("source head"))?;
+        let tip =
+            forge.domain.branch(DESTINATION, &metadata.default_branch).ok_or_else(|| String::from("copy head"))?;
+        let commit = forge.domain.object(tip).ok_or_else(|| String::from("copy's workflow commit"))?;
+        match (&(commit.parent), &(Some(source))) {
+            (left, right) if left != right => {
+                let finding = String::from("one workflow commit above the source head");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        match (&(commit.merge_parent), &(None)) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+        let source_tree = &forge.domain.object(source).ok_or_else(|| String::from("source commit"))?.tree;
+        match (
+            &(source_tree.get(SOURCE_WORKFLOW_PATH).ok_or_else(|| String::from("source's workflow"))?.as_ref()),
+            &(SOURCE_WORKFLOW),
+        ) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
         let mut expected: std::collections::BTreeMap<_, _> = source_tree.iter().collect();
-        let starter = temper_forge_setup::starter_workflow(RUNNER).expect("label's starter workflow");
+        let starter =
+            temper_forge_setup::starter_workflow(RUNNER).ok_or_else(|| String::from("label's starter workflow"))?;
         let starter_path = temper_forge_setup::STARTER_PATH.into();
         expected.insert(&starter_path, &starter);
-        assert_eq!(
-            commit.tree.iter().collect::<std::collections::BTreeMap<_, _>>(),
-            expected,
-            "the source's README and workflow are unchanged beside the label's starter"
-        );
+        match (&(commit.tree.iter().collect::<std::collections::BTreeMap<_, _>>()), &(expected)) {
+            (left, right) if left != right => {
+                let finding = String::from("the source's README and workflow are unchanged beside the label's starter");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
+
+        Ok(())
     }
 
-    fn caller(&mut self, service: &mut temper_service::Service, caller: &mut Caller) {
+    fn caller(&mut self, service: &mut temper_service::Service, caller: &mut Caller) -> Result<(), String> {
         if !self.handed
             && let Some(link) = service.links().pop()
         {
@@ -377,16 +471,22 @@ impl Judge {
         }
         while self.answers < caller.answers.len() {
             let answer = &caller.answers[self.answers];
-            assert_eq!(
-                answer.exit,
-                Exit::Code(0),
-                "copy ctl {}: {} {}",
-                self.answers,
-                String::from_utf8_lossy(&answer.output),
-                String::from_utf8_lossy(&answer.error)
-            );
+            match (&(answer.exit), &(Exit::Code(0))) {
+                (left, right) if left != right => {
+                    let finding = format!(
+                        "copy ctl {}: {} {}",
+                        self.answers,
+                        String::from_utf8_lossy(&answer.output),
+                        String::from_utf8_lossy(&answer.error)
+                    );
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             self.answers += 1;
         }
+
+        Ok(())
     }
     fn calls(&mut self, peer: &Peer) {
         for record in &peer.observations()[self.peer_seen..] {
@@ -401,15 +501,18 @@ impl Judge {
         self.peer_seen = peer.observations().len();
     }
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _: Time, procs: &mut [Proc]) {
+impl Judge {
+    #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+    fn act_checked(&mut self, _: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (first, others) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
         let (callers, peers) = others.split_at_mut(1);
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut callers[0] else { panic!("ctl second") };
-        let Proc::Forge(peer_host) = &mut peers[0] else { panic!("forge third") };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut callers[0] else {
+            return Err(String::from("ctl second"));
+        };
+        let Proc::Forge(peer_host) = &mut peers[0] else { return Err(String::from("forge third")) };
         self.calls(peer_host);
-        self.caller(&mut service.service, caller);
+        self.caller(&mut service.service, caller)?;
         let mut store = self.store.borrow_mut();
         let restarted = STARTS.with(|starts| starts.borrow().lives > 1);
         for commit in service.observer.commits.drain(..) {
@@ -439,20 +542,29 @@ impl skein_world::Referee<Proc> for Judge {
             && self.seen.borrow().cut.is_none()
             && self.transport.forge.borrow().domain.metadata(DESTINATION).is_ok()
         {
-            assert!(row.is_some_and(|row| row.copying), "the copy mark is durable before migration");
-            assert!(
-                self.transport.forge.borrow().domain.branch(DESTINATION, BRANCH).is_none(),
-                "the source is still copying"
-            );
+            if !(row.is_some_and(|row| row.copying)) {
+                return Err(String::from("the copy mark is durable before migration"));
+            }
+            if self.transport.forge.borrow().domain.branch(DESTINATION, BRANCH).is_some() {
+                return Err(String::from("the source is still copying"));
+            }
             self.seen.borrow_mut().cut = Some(service.observer.submitted);
         }
         self.seen.borrow_mut().restarted = restarted;
         if matches!(self.source, SourceStage::Cut | SourceStage::Closing)
             && row.is_some_and(|row| matches!(row.state, MakingState::Failed(_)))
         {
-            assert!(row.expect("failed row").copying, "failed copy retains its mark");
-            assert!(self.transport.forge.borrow().domain.metadata(DESTINATION).is_ok(), "partial copy remains");
-            assert!(self.transport.forge.borrow().domain.branch(DESTINATION, BRANCH).is_none());
+            if !(row.ok_or_else(|| String::from("failed row"))?.copying) {
+                return Err(String::from("failed copy retains its mark"));
+            }
+            if self.transport.forge.borrow().domain.metadata(DESTINATION).is_err() {
+                return Err(String::from("partial copy remains"));
+            }
+            if self.transport.forge.borrow().domain.branch(DESTINATION, BRANCH).is_some() {
+                return Err(String::from(
+                    "assertion failed: self.transport.forge.borrow().domain.branch(DESTINATION, BRANCH).is_none()",
+                ));
+            }
             if self.source == SourceStage::Cut {
                 peer_host.shutdown();
                 self.source = SourceStage::Closing;
@@ -467,7 +579,7 @@ impl skein_world::Referee<Proc> for Judge {
         }
         self.seen.borrow_mut().adopted = acted(&store);
         if self.source == SourceStage::BesideRepository && self.answers == 6 && !self.stopped {
-            self.beside_repository(caller, peer_host);
+            self.beside_repository(caller, peer_host)?;
             self.shutdown(caller, peer_host);
             self.stopped = true;
         } else if self.source != SourceStage::BesideRepository
@@ -488,22 +600,87 @@ impl skein_world::Referee<Proc> for Judge {
                     }
                 })
                 .collect();
-            assert_eq!(adopted.len(), 1, "one adopted repository");
-            assert_eq!(adopted[0].project, 1);
-            assert_eq!(adopted[0].owner.as_ref(), b"acme");
-            assert_eq!(adopted[0].name.as_ref(), b"copied");
-            assert_eq!(adopted[0].role, temper_engine_domain_forge::Role::Owned);
-            assert_eq!(adopted[0].settings.default_branch.as_ref(), BRANCH);
+            match (&(adopted.len()), &(1)) {
+                (left, right) if left != right => {
+                    let finding = String::from("one adopted repository");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(adopted[0].project), &(1)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(adopted[0].owner.as_ref()), &(b"acme")) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(adopted[0].name.as_ref()), &(b"copied")) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(adopted[0].role), &(temper_engine_domain_forge::Role::Owned)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(adopted[0].settings.default_branch.as_ref()), &(BRANCH)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             let forge = self.transport.forge.borrow();
-            let source = forge.domain.branch(b"acme/app", BRANCH).expect("source head");
-            let tip = forge.domain.branch(DESTINATION, BRANCH).expect("copy head");
-            assert_eq!(forge.domain.object(tip).expect("workflow commit").parent, Some(source));
+            let source = forge.domain.branch(b"acme/app", BRANCH).ok_or_else(|| String::from("source head"))?;
+            let tip = forge.domain.branch(DESTINATION, BRANCH).ok_or_else(|| String::from("copy head"))?;
+            match (&(forge.domain.object(tip).ok_or_else(|| String::from("workflow commit"))?.parent), &(Some(source)))
+            {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             self.shutdown(caller, peer_host);
             self.stopped = true;
         }
         store.pending.clear();
+
+        Ok(())
     }
-    fn observe(&mut self, _: Time, _: &[Proc]) {}
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopped).then_some(DEADLINE)
     }
@@ -518,7 +695,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopped
+        self.finding.is_none() && (self.stopped)
     }
 }
 
@@ -545,6 +722,7 @@ fn run(fill: Fill, cut: Option<u32>, stage: SourceStage) -> Outcome {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store,
                 transport: transport.clone(),

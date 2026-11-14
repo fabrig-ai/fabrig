@@ -67,6 +67,7 @@ enum Stage {
     Done,
 }
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     seen: Rc<RefCell<Paging>>,
@@ -78,27 +79,34 @@ struct Judge {
     checked: Cell<u64>,
 }
 impl Judge {
-    fn next(&mut self, caller: &mut Caller, words: &[&str], json: bool) {
-        assert!(self.answers < 20, "bounded continuation calls");
+    fn next(&mut self, caller: &mut Caller, words: &[&str], json: bool) -> Result<(), String> {
+        if self.answers >= 20 {
+            return Err(String::from("bounded continuation calls"));
+        }
         let mut words: Vec<_> = words.iter().map(|word| word.as_bytes()).collect();
         if json {
             words.push(b"--json");
         }
         caller.commands.push_back(Command::new(&words));
+
+        Ok(())
     }
-    fn answer(&mut self, caller: &mut Caller) {
+    fn answer(&mut self, caller: &mut Caller) -> Result<(), String> {
         let answer = &caller.answers[self.answers];
-        referee::secrets::require(&answer.output, "paging output");
-        referee::secrets::require(&answer.error, "paging diagnostic");
-        assert!(
-            answer.exit == Exit::Code(0),
-            "paging call {:?}/{} accepted: {} {}",
-            self.stage,
-            self.answers,
-            String::from_utf8_lossy(&answer.output),
-            String::from_utf8_lossy(&answer.error)
-        );
-        assert!(answer.error.is_empty(), "paging call has no diagnostic");
+        referee::secrets::check(&answer.output, "paging output")?;
+        referee::secrets::check(&answer.error, "paging diagnostic")?;
+        if answer.exit != Exit::Code(0) {
+            return Err(format!(
+                "paging call {:?}/{} accepted: {} {}",
+                self.stage,
+                self.answers,
+                String::from_utf8_lossy(&answer.output),
+                String::from_utf8_lossy(&answer.error)
+            ));
+        }
+        if !(answer.error.is_empty()) {
+            return Err(String::from("paging call has no diagnostic"));
+        }
         let output = answer.output.clone();
         self.answers += 1;
         match self.stage {
@@ -108,73 +116,110 @@ impl Judge {
                 }
             }
             Stage::Task => {
-                let task: Value = serde_json::from_slice(&output).expect("task JSON");
-                self.activity_head = task["activity"].as_u64().expect("task activity");
-                assert!(self.activity_head >= 3);
+                let task: Value = serde_json::from_slice(&output).map_err(|why| format!("task JSON: {why:?}"))?;
+                self.activity_head = task["activity"].as_u64().ok_or_else(|| String::from("task activity"))?;
+                if self.activity_head < 3 {
+                    return Err(format!("assertion failed: {}", stringify!(self.activity_head >= 3)));
+                }
                 self.stage = Stage::Activity;
-                self.next(caller, &["task", "activity", "3"], true);
+                self.next(caller, &["task", "activity", "3"], true)?;
             }
-            Stage::Activity => self.activity(caller, &output),
-            Stage::Tree => self.tree(caller, output),
-            Stage::Delegates => self.delegates(caller, &output),
+            Stage::Activity => self.activity(caller, &output)?,
+            Stage::Tree => self.tree(caller, output)?,
+            Stage::Delegates => self.delegates(caller, &output)?,
             Stage::Stop => self.stage = Stage::Done,
-            Stage::Settled | Stage::Done => panic!("unexpected paging answer"),
+            Stage::Settled | Stage::Done => return Err(String::from("unexpected paging answer")),
         }
+
+        Ok(())
     }
 
-    fn activity(&mut self, caller: &mut Caller, output: &[u8]) {
-        let page: Value = serde_json::from_slice(output).expect("activity JSON");
-        let rows = page["rows"].as_array().expect("activity rows");
-        assert!(!rows.is_empty() && rows.len() <= 2, "template row bound");
+    fn activity(&mut self, caller: &mut Caller, output: &[u8]) -> Result<(), String> {
+        let page: Value = serde_json::from_slice(output).map_err(|why| format!("activity JSON: {why:?}"))?;
+        let rows = page["rows"].as_array().ok_or_else(|| String::from("activity rows"))?;
+        if rows.is_empty() && rows.len() <= 2 {
+            return Err(String::from("template row bound"));
+        }
         let mut seen = self.seen.borrow_mut();
         seen.pages += 1;
         for row in rows {
-            let position = row["position"].as_u64().expect("activity position");
+            let position = row["position"].as_u64().ok_or_else(|| String::from("activity position"))?;
             if let Some(previous) = seen.positions.last() {
-                assert_eq!(position + 1, *previous, "no missing activity");
+                match (&(position + 1), previous) {
+                    (left, right) if left != right => {
+                        let finding = String::from("no missing activity");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
             } else {
-                assert_eq!(position, self.activity_head);
+                match (&(position), &(self.activity_head)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
             }
             seen.positions.push(position);
         }
         drop(seen);
         if let Some(next) = page["read_on"].as_str() {
-            self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), true);
+            self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), true)?;
         } else {
-            assert_eq!(self.seen.borrow().positions.last(), Some(&1));
+            match (&(self.seen.borrow().positions.last()), &(Some(&1))) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             self.stage = Stage::Tree;
-            self.next(caller, &["task", "show", "1", "--tree"], false);
+            self.next(caller, &["task", "show", "1", "--tree"], false)?;
         }
+
+        Ok(())
     }
-    fn tree(&mut self, caller: &mut Caller, output: Vec<u8>) {
-        let text = String::from_utf8(output).expect("tree text");
-        let next =
-            text.lines().find_map(|line| line.strip_prefix("read on with: ")).expect("tree continuation").to_owned();
+    fn tree(&mut self, caller: &mut Caller, output: Vec<u8>) -> Result<(), String> {
+        let text = String::from_utf8(output).map_err(|why| format!("tree text: {why:?}"))?;
+        let next = text
+            .lines()
+            .find_map(|line| line.strip_prefix("read on with: "))
+            .ok_or_else(|| String::from("tree continuation"))?
+            .to_owned();
         self.seen.borrow_mut().tree = text;
         self.stage = Stage::Delegates;
-        self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), false);
+        self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), false)?;
+
+        Ok(())
     }
-    fn delegates(&mut self, caller: &mut Caller, output: &[u8]) {
-        let text = std::str::from_utf8(output).expect("delegates text");
+    fn delegates(&mut self, caller: &mut Caller, output: &[u8]) -> Result<(), String> {
+        let text = std::str::from_utf8(output).map_err(|why| format!("delegates text: {why:?}"))?;
         let tasks: Vec<u64> = text
             .lines()
             .filter_map(|line| line.split_once(" · ").and_then(|(number, _)| number.parse().ok()))
             .collect();
-        assert!(!tasks.is_empty() && tasks.len() <= 2, "template task page bound");
+        if tasks.is_empty() && tasks.len() <= 2 {
+            return Err(String::from("template task page bound"));
+        }
         self.seen.borrow_mut().delegates.extend(tasks);
         if let Some(next) = text.lines().find_map(|line| line.strip_prefix("read on with: ")) {
-            self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), false);
+            self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), false)?;
         } else {
             self.stage = Stage::Stop;
-            self.next(caller, &["task", "stop", "1", "--key", "paging-stop"], false);
+            self.next(caller, &["task", "stop", "1", "--key", "paging-stop"], false)?;
         }
+
+        Ok(())
     }
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
+impl Judge {
+    fn act_checked(&mut self, _now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (first, others) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut others[0] else { panic!("native caller second") };
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut others[0] else {
+            return Err(String::from("native caller second"));
+        };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -202,11 +247,11 @@ impl skein_world::Referee<Proc> for Judge {
             self.handed = true;
         }
         if caller.answers.len() > self.answers {
-            self.answer(caller);
+            self.answer(caller)?;
         }
         if matches!(self.stage, Stage::Settled) && referee::terminals(&self.store.borrow()) == 2 {
             self.stage = Stage::Task;
-            self.next(caller, &["task", "show", "3"], true);
+            self.next(caller, &["task", "show", "3"], true)?;
         }
         if matches!(self.stage, Stage::Done) && !self.stopping {
             caller.closed = true;
@@ -218,13 +263,35 @@ impl skein_world::Referee<Proc> for Judge {
             }
             self.stopping = true;
         }
+
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, procs: &[Proc]) {
-        let Proc::Service(service) = &procs[0] else { panic!("service") };
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        let Proc::Service(service) = &procs[0] else { return Err(String::from("service")) };
         let applied = self.store.borrow().applied;
         if self.checked.replace(applied) != applied {
-            referee::Referee::check_roots(&service.service);
+            referee::Referee::check_roots(&service.service)?;
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopping).then_some(Time::from_nanos(10_000_000_000))
@@ -246,7 +313,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopping
+        self.finding.is_none() && (self.stopping)
     }
 }
 /// Read the Small profile's two-row pages through shipped native ctl and simulated files/sockets.
@@ -271,6 +338,7 @@ pub fn paging(draw: u64) -> Paging {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store,
                 seen: seen.clone(),

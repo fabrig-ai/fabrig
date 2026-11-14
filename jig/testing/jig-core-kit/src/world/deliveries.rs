@@ -3,14 +3,14 @@ use super::{Fault, ReplyTo, StoreOut, Token, World, connector, core, people, roo
 use jig_domain_link::{Login, LoginState};
 impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
-    pub(super) fn delivered(&mut self, mut delivery: root::Delivery) {
-        self.observer.delivered(self.wall, &mut delivery);
+    pub(super) fn delivered(&mut self, mut delivery: root::Delivery) -> Result<(), String> {
+        self.observer.delivered(self.wall, &mut delivery)?;
         if !matches!(delivery, root::Delivery::System { .. } | root::Delivery::LostRead { .. })
             && let Some(mut walking) = self.walking.take()
         {
             walking.delivered(self, delivery);
             self.walking = Some(walking);
-            return;
+            return Ok(());
         }
         if let Some(offers) = &mut self.offers {
             offers.delivered(&mut delivery);
@@ -20,7 +20,7 @@ impl World {
         }
         if let Some(peer) = &mut self.client_peer {
             match peer.capture(self.store.applied, delivery) {
-                Ok(()) => return,
+                Ok(()) => return Ok(()),
                 Err(unowned) => delivery = unowned,
             }
         }
@@ -29,7 +29,7 @@ impl World {
             if let root::Delivery::Core(core::Held::PeopleReply { to, reply }) = delivery {
                 peers.reply(to, &reply);
                 self.people_answers.push(reply);
-                return;
+                return Ok(());
             }
         }
         match delivery {
@@ -135,7 +135,7 @@ impl World {
                 self.procedure = Some(task);
                 self.procedure_inputs.push((step, number, code, context.clone()));
                 if self.hold_procedures {
-                    return;
+                    return Ok(());
                 }
                 self.events.push_back(root::Event::Connector {
                     number,
@@ -145,7 +145,7 @@ impl World {
             root::Delivery::LostRead { connector, resource, call, .. } => {
                 if self.hold_lost_reads {
                     self.pending_lost_reads.push((connector, resource, call));
-                    return;
+                    return Ok(());
                 }
                 let event = self.systems[usize::from(connector - 1)].answer(call, Fault::None);
                 self.events.push_back(root::Event::WriterRead { connector, resource, event });
@@ -171,11 +171,11 @@ impl World {
                 }
                 if self.hold_lookups && matches!(call, connector::SystemRequest::Look { .. }) {
                     self.pending_lookups.push((number, call));
-                    return;
+                    return Ok(());
                 }
                 if self.hold_writes && matches!(call, connector::SystemRequest::Apply { .. }) {
                     self.pending_writes.push((number, call));
-                    return;
+                    return Ok(());
                 }
                 let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
                 self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
@@ -188,7 +188,7 @@ impl World {
                 self.sign_in = Some(sign_in);
                 self.people_answers.push(reply);
                 if !initial {
-                    return;
+                    return Ok(());
                 }
                 self.events.push_back(root::Event::Core(core::Event::People(people::Event::Ask {
                     models: Box::new([]),
@@ -251,5 +251,6 @@ impl World {
             }
             root::Delivery::Fleet(_) => panic!("root releases its fleet continuations internally"),
         }
+        Ok(())
     }
 }

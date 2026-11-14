@@ -11,26 +11,53 @@ use skein_world::{
 };
 use smith_local_process_world::terminal::{Action, Terminal};
 
-struct Judge;
-impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
+#[derive(Default)]
+struct Judge {
+    finding: Option<String>,
+}
+impl Judge {
+    fn act_checked(procs: &mut [Process]) -> Result<(), String> {
         for (binary, terminal) in [(0, 1), (2, 3)] {
-            let exit = match &procs[binary] {
+            let exit = match procs.get(binary).ok_or("binary process")? {
                 Process::Binary(binary) => binary.exit_status(),
                 Process::Terminal(_) => None,
             };
             if let Some(exit) = exit {
-                match &mut procs[terminal] {
+                match procs.get_mut(terminal).ok_or("terminal process")? {
                     Process::Terminal(terminal) => terminal.finished(exit),
-                    Process::Binary(_) => unreachable!(),
+                    Process::Binary(_) => return Err("internal error: entered unreachable code".into()),
                 }
             }
         }
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+}
+
+impl Referee<Process> for Judge {
+    fn act(&mut self, _now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = Self::act_checked(procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn passed(&self) -> bool {
-        true
+        self.finding.is_none()
     }
+}
+
+#[test]
+fn the_judge_keeps_an_act_finding_until_watch() {
+    let mut judge = Judge::default();
+    judge.act(Time::ZERO, &mut []);
+    assert!(!judge.passed(), "an act finding prevents a pass");
+    assert_eq!(judge.watch(Time::ZERO, &[]), Err("binary process".into()));
+    assert!(!judge.passed(), "the finding remains held");
+    assert_eq!(judge.watch(Time::ZERO, &[]), Err("binary process".into()));
 }
 
 enum Process {
@@ -66,7 +93,7 @@ fn host_id_drawn_by_two_processes_is_one_value() {
     let files = Files::new("smith-credentials");
     let base = files.path().join("installation");
     let clock = Clock::new();
-    let mut world = real::World::new(Judge);
+    let mut world = real::World::new(Judge::default());
     for serial in ["3", "4"] {
         let mut binary = Binary::start(
             Command {

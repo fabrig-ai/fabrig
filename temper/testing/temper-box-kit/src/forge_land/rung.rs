@@ -766,6 +766,7 @@ fn fake_account(root: &Path, paths: &[PathBuf; 3], file: &Path) {
 }
 
 struct TwinPeers {
+    finding: Option<String>,
     stop: std::sync::mpsc::Receiver<()>,
     ended: bool,
     deadline: Time,
@@ -777,14 +778,20 @@ impl skein_world::Referee<super::super::Process> for TwinPeers {
         self.wake = at.saturating_add(Duration::from_millis(10));
         if !self.ended && !matches!(self.stop.try_recv(), Err(std::sync::mpsc::TryRecvError::Empty)) {
             let [super::super::Process::Issuer(issuer), super::super::Process::Peer(peer)] = procs else {
-                panic!("twin peers")
+                self.finding = Some("twin peers".into());
+                return;
             };
             issuer.shutdown();
             peer.shutdown();
             self.ended = true;
         }
     }
-    fn observe(&mut self, _at: Time, _procs: &[super::super::Process]) {}
+    fn watch(&mut self, _at: Time, _procs: &[super::super::Process]) -> Result<(), String> {
+        match &self.finding {
+            Some(why) => Err(why.clone()),
+            None => Ok(()),
+        }
+    }
     fn next_deadline(&self) -> Option<Time> {
         Some(self.deadline.min(self.wake))
     }
@@ -792,7 +799,7 @@ impl skein_world::Referee<super::super::Process> for TwinPeers {
         (at >= self.deadline).then(|| "B0 twin peers did not settle".into())
     }
     fn passed(&self) -> bool {
-        self.ended
+        self.finding.is_none() && self.ended
     }
 }
 
@@ -822,6 +829,7 @@ pub fn offline_walk(root: &Path) {
             // Setup plus the unchanged whole-walk bound; not a phase increase.
             let within = Duration::from_secs(700);
             let mut world = skein_world::real::World::new(TwinPeers {
+                finding: None,
                 stop: receiver,
                 ended: false,
                 deadline: clock.now().now.saturating_add(within),

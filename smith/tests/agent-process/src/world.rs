@@ -657,6 +657,7 @@ enum CredentialStory {
 }
 
 struct Referee {
+    finding: Option<String>,
     release: Option<Release>,
     cancel: bool,
     provider_rejected: bool,
@@ -673,10 +674,10 @@ struct Referee {
     orders: Option<orders::Referee>,
     expected: skein_world::Expectations<Proc, Terminal>,
 }
-impl skein_world::Referee<Proc> for Referee {
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+impl Referee {
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         if let Some(orders) = &mut self.orders {
-            orders.act(now, procs);
+            orders.act(now, procs)?;
         }
         let mut release = None;
         if let Some(waiting) = &mut self.release {
@@ -728,50 +729,83 @@ impl skein_world::Referee<Proc> for Referee {
                 Proc::Agent(_, _) | Proc::Tracing(_) => {}
             }
         }
+        Ok(())
     }
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        let parent = procs.iter().find_map(|p| if let Proc::Parent(p) = p { Some(p) } else { None }).expect("parent");
+}
+
+impl skein_world::Referee<Proc> for Referee {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    #[expect(clippy::too_many_lines, reason = "the ordered channel and provider checks return their first finding")]
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let parent = procs.iter().find_map(|p| if let Proc::Parent(p) = p { Some(p) } else { None }).ok_or("parent")?;
         let answers = parent.peer.observed().iter().filter(|frame| frame.kind == 0x0110).count();
-        assert!(answers <= 1, "one Answer for one Start");
-        assert!(
-            parent.peer.observed().iter().filter(|frame| frame.kind == 0x0106).count() <= 1,
-            "one admission for one Start"
-        );
-        let peer = procs.iter().find_map(|p| if let Proc::Peer(p, _) = p { Some(p) } else { None }).expect("peer");
-        assert!(fake::queries(peer).count() <= self.maximum_queries, "bounded completion scenario");
+        if answers > 1 {
+            return Err(String::from("one Answer for one Start"));
+        }
+        if parent.peer.observed().iter().filter(|frame| frame.kind == 0x0106).count() > 1 {
+            return Err(String::from("one admission for one Start"));
+        }
+        let peer = procs.iter().find_map(|p| if let Proc::Peer(p, _) = p { Some(p) } else { None }).ok_or("peer")?;
+        if fake::queries(peer).count() > self.maximum_queries {
+            return Err(String::from("bounded completion scenario"));
+        }
         let entrance_refused = self.workspace_refusal.is_some()
             || (matches!(self.credential_story, CredentialStory::Supplied) && !parent.admitted())
             || matches!(self.tracing, Some((TraceCase::Refused, _)));
         if matches!(self.hang_up, HangUp::Never) && parent.status.is_some() {
             if entrance_refused {
-                assert!(!parent.admitted(), "an entrance refusal has no admission");
-            } else {
-                assert!(parent.admitted(), "the host observed admission; answer={:?}", parent.peer.observed());
+                if parent.admitted() {
+                    return Err(String::from("an entrance refusal has no admission"));
+                }
+            } else if !parent.admitted() {
+                return Err(format!("the host observed admission; answer={:?}", parent.peer.observed()));
             }
-            let peer = procs.iter().find_map(|p| if let Proc::Peer(p, _) = p { Some(p) } else { None }).expect("peer");
+            let peer =
+                procs.iter().find_map(|p| if let Proc::Peer(p, _) = p { Some(p) } else { None }).ok_or("peer")?;
             if matches!(self.tracing, Some((TraceCase::Parked, _))) {
-                assert_eq!(fake::queries(peer).count(), 0, "empty zero-waiting work parks without a provider request");
+                if fake::queries(peer).count() != 0 {
+                    return Err(format!(
+                        "empty zero-waiting work parks without a provider request\nleft: {:?}\nright: {:?}",
+                        fake::queries(peer).count(),
+                        0
+                    ));
+                }
             } else if self.provider_rejected || matches!(self.tracing, Some((TraceCase::ProviderRejected, _))) {
-                assert!(fake::context_rejected(peer), "the independent provider rejected the request");
-            } else if !self.cancel && !matches!(self.credential_story, CredentialStory::Refresh) && !entrance_refused {
-                assert!(fake::replied(peer), "provider answered before agent exit");
+                if !(fake::context_rejected(peer)) {
+                    return Err(String::from("the independent provider rejected the request"));
+                }
+            } else if !self.cancel
+                && !matches!(self.credential_story, CredentialStory::Refresh)
+                && !entrance_refused
+                && !(fake::replied(peer))
+            {
+                return Err(String::from("provider answered before agent exit"));
             }
         }
-        for frame in parent.peer.observed().get(self.reviewed..).expect("channel observations only grow") {
+        for frame in parent.peer.observed().get(self.reviewed..).ok_or("channel observations only grow")? {
             if frame.kind == 0x010f {
                 let fact =
                     smith_channel::Fact::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&frame.body))
-                        .expect("host's validated Fact");
+                        .map_err(|_| String::from("host's validated Fact"))?;
                 match fact.kind() {
                     smith_channel::FactKind::Admitted => self.admitted_facts += 1,
                     smith_channel::FactKind::Ended => self.answer_facts += 1,
                     smith_channel::FactKind::LlmFinished => {
-                        if self.full_completion {
-                            assert_eq!(
+                        if self.full_completion
+                            && fact.count() != u64::from(crate::limits().llm.translation.client.output_items)
+                        {
+                            return Err(format!(
+                                "all maximum provider parts decoded\nleft: {:?}\nright: {:?}",
                                 fact.count(),
-                                u64::from(crate::limits().llm.translation.client.output_items),
-                                "all maximum provider parts decoded"
-                            );
+                                u64::from(crate::limits().llm.translation.client.output_items)
+                            ));
                         }
                     }
                     smith_channel::FactKind::LlmStarted
@@ -787,25 +821,36 @@ impl skein_world::Referee<Proc> for Referee {
         if parent.is_empty() {
             for proc in procs {
                 if let Proc::Agent(agent, errors) = proc {
-                    assert!(agent.failure().is_none(), "diagnostic pipe succeeds");
-                    assert_eq!(parent.errors, errors.bytes(), "the parent receives exactly the shipped writer's bytes");
+                    if agent.failure().is_some() {
+                        return Err(String::from("diagnostic pipe succeeds"));
+                    }
+                    if parent.errors != errors.bytes() {
+                        return Err(format!(
+                            "the parent receives exactly the shipped writer's bytes\nleft: {:?}\nright: {:?}",
+                            parent.errors,
+                            errors.bytes()
+                        ));
+                    }
                 }
             }
         }
         self.reviewed = parent.peer.observed().len();
-        assert!(self.admitted_facts <= 1 && self.answer_facts <= 1, "one fact terminal per activation");
+        if !(self.admitted_facts <= 1 && self.answer_facts <= 1) {
+            return Err(String::from("one fact terminal per activation"));
+        }
         if matches!(self.hang_up, HangUp::Never)
             && parent.status.is_some()
             && self.tracing.is_none()
             && !entrance_refused
+            && parent.peer.observed().iter().filter(|frame| frame.kind == 0x0106).count() != 1
         {
-            assert_eq!(
+            return Err(format!(
+                "the reliable admission frame agrees with the host; its fact projection is best effort\nleft: {:?}\nright: {:?}",
                 parent.peer.observed().iter().filter(|frame| frame.kind == 0x0106).count(),
-                1,
-                "the reliable admission frame agrees with the host; its fact projection is best effort"
-            );
+                1
+            ));
         }
-        self.expected.observe(now, procs);
+        self.expected.check(now, procs)
     }
     fn next_deadline(&self) -> Option<Time> {
         let release = self.release.as_ref().filter(|release| !release.released).and_then(|release| release.at);
@@ -820,7 +865,7 @@ impl skein_world::Referee<Proc> for Referee {
         self.expected.overdue(now)
     }
     fn passed(&self) -> bool {
-        self.expected.passed()
+        self.finding.is_none() && (self.expected.passed())
     }
 }
 
@@ -1114,7 +1159,7 @@ impl World {
 
     /// Check record pairings, per-type counts and response totals from the file.
     pub fn assert_event_conformance(&self) {
-        crate::events::check(&self.records);
+        crate::assert_event_conformance(&self.records);
     }
 
     /// Facts refused by the channel projection, as counted by that component.
@@ -1207,6 +1252,7 @@ impl World {
 
     fn referee(&self) -> Referee {
         Referee {
+            finding: None,
             release: self.release.clone(),
             cancel: self.cancel,
             provider_rejected: self.provider_rejected,

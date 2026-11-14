@@ -1,6 +1,6 @@
 # process-tier: status
 
-2026-11-13. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-14. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
 
 - **Not yet:** the whole document: the hangup/rebind and Linux killed-box stories in
@@ -88,3 +88,13 @@ the fake's own process story.
    the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
 - **Not yet:** the whole document: the managed-sitting driver lag remains `live-tier.status.md` (Not yet, the whole document).
+- **Not yet:**
+  the whole document: the printed link's count panics rather than
+  returning its finding. [in flight: change 2878]
+  the whole document: the cluster's `Members` has no returning verdict.
+  [in flight: change 2874]
+  the whole document: the cluster's judges panic on the members'
+  failure, and the unexpected-exit story catches it.
+  [in flight: change 2876]
+  the whole document: `Members::passed` panics on a member's failure.
+  [in flight: change 2882]

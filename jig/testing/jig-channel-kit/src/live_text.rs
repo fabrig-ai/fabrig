@@ -30,9 +30,9 @@ pub(crate) fn line() -> skein_fake_llm_domain::api::Line {
 }
 
 impl Reply {
-    pub(crate) fn act(&mut self, procs: &mut [Proc], store: &crate::world::Store) {
+    pub(crate) fn act(&mut self, procs: &mut [Proc], store: &crate::world::Store) -> Result<(), String> {
         let client =
-            procs.iter().find_map(|p| if let Proc::Client(c) = p { Some(c) } else { None }).expect("native watcher");
+            procs.iter().find_map(|p| if let Proc::Client(c) = p { Some(c) } else { None }).ok_or("native watcher")?;
         let state = client.received.iter().rev().find_map(|r| {
             if let Received::Delivery(c::Delivery::RunState(state)) = r
                 && state.task == TASK
@@ -49,29 +49,74 @@ impl Reply {
         } else if self.prefixes.len() < PREFIXES.len() {
             if let Some(text) = client.text(RUN) {
                 if self.prefixes.last().is_some_and(|previous| previous.as_ref() == text.text.bytes()) {
-                    return;
+                    return Ok(());
                 }
-                assert_eq!(text.text.bytes(), PREFIXES[self.prefixes.len()], "prefix before next release");
-                assert_eq!((text.turn.number, text.turn.retry, text.from, text.cut), (TURN, 0, 0, false));
-                assert_eq!(text.through as usize, text.text.bytes().len());
-                assert_eq!(text.attempt, text.turn.attempt);
-                assert_eq!(state.expect("opened run watch").committed_turn, 0);
-                assert!(text.call.is_none());
-                assert!(crate::world::turns(store).is_empty(), "each prefix precedes the durable turn");
+                {
+                    let (observed_value, wanted) = (&(text.text.bytes()), &(PREFIXES[self.prefixes.len()]));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "prefix before next release; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                {
+                    let (observed_value, wanted) =
+                        (&(text.turn.number, text.turn.retry, text.from, text.cut), &(TURN, 0, 0, false));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                {
+                    let (observed_value, wanted) = (&(text.through as usize), &(text.text.bytes().len()));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                {
+                    let (observed_value, wanted) = (&(text.attempt), &(text.turn.attempt));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                {
+                    let (observed_value, wanted) = (&(state.ok_or("opened run watch")?.committed_turn), &(0));
+                    if observed_value != wanted {
+                        return Err(format!(
+                            "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
+                if text.call.is_some() {
+                    return Err(String::from("assertion failed: text.call.is_none()"));
+                }
+                if !crate::world::turns(store).is_empty() {
+                    return Err(String::from("each prefix precedes the durable turn"));
+                }
                 self.prefixes.push(text.text.bytes().into());
                 release = HOLDS.get(self.prefixes.len()).copied();
             }
         } else if state.is_some_and(|state| state.committed_turn >= TURN) {
-            assert!(state.expect("committed state").writing.is_none(), "committed reply has no writing");
-            assert!(client.text(RUN).is_none(), "committed turn clears retained provisional text");
+            if state.ok_or("committed state")?.writing.is_some() {
+                return Err(String::from("committed reply has no writing"));
+            }
+            if client.text(RUN).is_some() {
+                return Err(String::from("committed turn clears retained provisional text"));
+            }
             self.committed = true;
         }
         if let Some(hold) = release {
             for proc in procs {
                 if let Proc::Peer(peer) = proc {
-                    peer.release(hold).expect("named provider hold");
+                    peer.release(hold).map_err(|why| format!("named provider hold: {why:?}"))?;
                 }
             }
         }
+        Ok(())
     }
 }

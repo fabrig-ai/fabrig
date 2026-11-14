@@ -100,6 +100,7 @@ enum Phase {
     Ended,
 }
 struct Judge {
+    finding: Option<String>,
     phase: Phase,
     peers: Peers,
     deadline: Time,
@@ -112,9 +113,11 @@ struct Judge {
     run: String,
     ended: Option<Time>,
 }
-fn client(procs: &mut [Process]) -> &mut NativeClient {
-    let Process::Person(person) = &mut procs[1] else { panic!("native person") };
-    person.client.as_mut().expect("native client")
+fn client(procs: &mut [Process]) -> Result<&mut NativeClient, String> {
+    let Process::Person(person) = procs.get_mut(1).ok_or("native person")? else {
+        return Err(String::from("native person"));
+    };
+    person.client.as_mut().ok_or_else(|| String::from("native client"))
 }
 fn progress(previous: &mut String, document: &c::Accounts, source: u32) {
     let state = if let Some(end) = document.last_end.as_ref().filter(|end| end.source == source) {
@@ -185,17 +188,20 @@ fn reported(task: &c::Task) -> bool {
 }
 impl Judge {
     /// One line per change of the chat's run; a run that can't answer fails here, with its words.
-    fn running(&mut self, now: Time) {
-        let (Some(chat), Some(task)) = (self.chat, &self.task) else { return };
+    fn running(&mut self, now: Time) -> Result<(), String> {
+        let (Some(chat), Some(task)) = (self.chat, &self.task) else { return Ok(()) };
         let line = run_line(task);
         if line != self.run {
             eprintln!("Live chat task={chat}: {line}");
             self.run = line;
         }
-        assert!(!failed(task), "live chat task={chat} can't answer: {}", self.run);
+        if failed(task) {
+            return Err(format!("live chat task={chat} can't answer: {}", self.run));
+        }
         if reported(task) && self.ended.is_none() {
             self.ended = Some(now);
         }
+        Ok(())
     }
     fn receive(&mut self, native: &NativeClient) -> Option<c::Answer> {
         let mut answer = None;
@@ -214,124 +220,65 @@ impl Judge {
         self.received = native.received.len();
         answer
     }
-    fn signing(&mut self, procs: &mut [Process], source: u32) {
-        let Some(document) = &self.accounts else { return };
+    fn signing(&mut self, procs: &mut [Process], source: u32) -> Result<(), String> {
+        let Some(document) = &self.accounts else { return Ok(()) };
         progress(&mut self.state, document, source);
-        let Some(end) = document.last_end.as_ref().filter(|end| end.source == source) else { return };
+        let Some(end) = document.last_end.as_ref().filter(|end| end.source == source) else { return Ok(()) };
         match end.end {
             c::AccountEnd::Made { account, declined } | c::AccountEnd::Renewed { account, declined } => {
-                assert!(!declined, "ChatGPT sign-in made, but plan usage was declined");
-                let account = document.accounts.iter().find(|line| line.number == account).expect("made account");
-                let grant = account.sources.iter().find(|grant| grant.number == source).expect("signed-in source");
-                assert!(account.plan, "ChatGPT sign-in made without plan usage");
+                if declined {
+                    return Err(String::from("ChatGPT sign-in made, but plan usage was declined"));
+                }
+                let account = document.accounts.iter().find(|line| line.number == account).ok_or("made account")?;
+                let grant = account.sources.iter().find(|grant| grant.number == source).ok_or("signed-in source")?;
+                if !account.plan {
+                    return Err(String::from("ChatGPT sign-in made without plan usage"));
+                }
                 if grant.usable && grant.state == c::AccountState::Granted {
-                    assert!(matches!(account.holder, c::AccountHolder::Party(_)), "a plan is held by its person");
-                    assert_eq!(grant.kind, c::AccountKind::SignIn);
+                    if !matches!(account.holder, c::AccountHolder::Party(_)) {
+                        return Err(String::from("a plan is held by its person"));
+                    }
+                    {
+                        let (observed_value, wanted) = (&(grant.kind), &(c::AccountKind::SignIn));
+                        if observed_value != wanted {
+                            return Err(format!(
+                                "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                            ));
+                        }
+                    }
                     self.sign_in_deadline = None;
-                    let native = client(procs);
+                    let native = client(procs)?;
                     native.account_request(jig_client::Event::Unwatch { handle: ACCOUNTS });
                     native.hold_after_script();
                     native.resume_after_account_setup();
                     self.phase = Phase::Answer { source };
                 }
             }
-            c::AccountEnd::Failed { failure } => panic!("ChatGPT sign-in failed: {failure:?}"),
-            c::AccountEnd::Refused { refusal } => panic!("ChatGPT sign-in refused: {refusal:?}"),
+            c::AccountEnd::Failed { failure } => return Err(format!("ChatGPT sign-in failed: {failure:?}")),
+            c::AccountEnd::Refused { refusal } => return Err(format!("ChatGPT sign-in refused: {refusal:?}")),
         }
+        Ok(())
     }
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        let Process::Person(person) = &mut procs[1] else { panic!("native person") };
-        let Some(native) = &mut person.client else { return };
-        let answer = self.receive(native);
-        match self.phase {
-            Phase::Admission => {
-                if native.signed_in == 1 && native.account_sign_in_ready() {
-                    native.account_request(jig_client::Event::Watch {
-                        handle: ACCOUNTS,
-                        subject: jig_client::Watchable::Jig(c::Subject::Accounts),
-                    });
-                    native.ask_account_sign_in(
-                        SIGN_IN,
-                        c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: PROVIDER },
-                    );
-                    self.sign_in_deadline = Some(now.saturating_add(self.peers.sign_in_wait()));
-                    self.phase = Phase::Address;
-                }
-            }
-            Phase::Address => {
-                if let Some(answer) = answer {
-                    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted {
-                        source,
-                        address,
-                    })) = answer
-                    else {
-                        panic!("ChatGPT sign-in start: {answer:?}");
-                    };
-                    self.peers.visit(procs, &address);
-                    self.phase = Phase::Signing { source };
-                    self.signing(procs, source);
-                }
-            }
-            Phase::Signing { source } => self.signing(procs, source),
-            Phase::Answer { source } => {
-                match answer {
-                    Some(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, .. })))
-                        if self.chat.is_none() =>
-                    {
-                        self.chat = Some(first);
-                        native.account_request(jig_client::Event::Watch {
-                            handle: CHAT,
-                            subject: jig_client::Watchable::Jig(c::Subject::Task { task: first }),
-                        });
-                    }
-                    Some(refused @ c::Answer::Refused { .. }) => panic!("live chat refused: {refused:?}"),
-                    Some(_) | None => {}
-                }
-                self.running(now);
-                if native.script_finished() {
-                    native.account_request(jig_client::Event::Unwatch { handle: CHAT });
-                    self.ended = None;
-                    native.hold_for_account_sign_in();
-                    native.ask_account_sign_in(SIGN_OUT, c::Ask::SignOut { holder: c::AskAccountHolder::Own, source });
-                    self.phase = Phase::SignOut;
-                }
-            }
-            Phase::SignOut => {
-                if let Some(answer) = answer {
-                    assert_eq!(
-                        answer,
-                        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
-                            confirmed: true,
-                            failed_hosts: Box::new([])
-                        })),
-                        "ChatGPT sign-out confirmed by the issuer and every host"
-                    );
-                    eprintln!("ChatGPT sign-out confirmed=true; failed_hosts=[]");
-                    native.finish_account_sign_in();
-                    self.phase = Phase::Closing;
-                }
-            }
-            Phase::Closing => {
-                if native.is_empty() {
-                    let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-                    binary.signal(Signal::Kill);
-                    self.peers.shutdown(procs);
-                    self.phase = Phase::Ended;
-                }
-            }
-            Phase::Ended => {}
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
-        let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-        assert!(
-            binary.exit_status().is_none() || matches!(self.phase, Phase::Ended),
-            "jig-test failed {:?}: {}",
-            binary.exit_status(),
-            String::from_utf8_lossy(binary.stderr())
-        );
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let Process::Binary(binary) = procs.first().ok_or("binary")? else { return Err(String::from("binary")) };
+        if binary.exit_status().is_some() && !matches!(self.phase, Phase::Ended) {
+            return Err(format!(
+                "jig-test failed {:?}: {}",
+                binary.exit_status(),
+                String::from_utf8_lossy(binary.stderr())
+            ));
+        }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if matches!(self.phase, Phase::Ended) {
@@ -347,13 +294,14 @@ impl Referee<Process> for Judge {
             .map(|_| format!("live ChatGPT phase {:?}: {}; chat: {}", self.phase, self.state, self.run))
     }
     fn passed(&self) -> bool {
-        matches!(self.phase, Phase::Ended)
+        self.finding.is_none() && matches!(self.phase, Phase::Ended)
     }
 }
 
-pub fn run(directory: &Path, started: Time, peers: Peers) -> (u32, u32) {
+pub fn run(directory: &Path, started: Time, peers: Peers) -> Result<(u32, u32), String> {
     let clock = Clock::new();
     let mut world = real::World::new(Judge {
+        finding: None,
         phase: Phase::Admission,
         peers,
         deadline: started.saturating_add(peers.deadline()),
@@ -379,18 +327,20 @@ pub fn run(directory: &Path, started: Time, peers: Peers) -> (u32, u32) {
         directory,
         Script::answered_report(WORDS.as_bytes(), support::ANSWER, Duration::from_secs(240)),
         support::CLIENT_SEED,
-    );
+    )?;
     if let Some((issuer, issuer_fd, peer, peer_fd)) = fakes {
         world.spawn_with_fds(vec![issuer_fd], || Process::Issuer(Box::new(issuer)));
         world.spawn(|| Process::Visitor(Box::default()));
         world.spawn_with_fds(vec![peer_fd], || Process::Peer(Box::new(peer)));
     }
     let remaining = started.saturating_add(peers.whole()).saturating_since(clock.now().now);
-    let outcome = world.run(&clock, remaining);
-    assert!(outcome.procs.iter().all(Host::is_empty), "all live sign-in io settles");
-    let Process::Person(person) = &outcome.procs[1] else { panic!("native person") };
-    let native = person.client.as_ref().expect("signed-in client");
-    (native.signed_in, native.chats_made)
+    let outcome = world.try_run(&clock, remaining)?;
+    if !outcome.procs.iter().all(Host::is_empty) {
+        return Err(String::from("all live sign-in io settles"));
+    }
+    let Process::Person(person) = &outcome.procs[1] else { return Err(String::from("native person")) };
+    let native = person.client.as_ref().ok_or("signed-in client")?;
+    Ok((native.signed_in, native.chats_made))
 }
 
 pub const INSTRUCTIONS: &str = "Report exactly: Process answer";
@@ -408,40 +358,52 @@ pub fn store_limits(bytes: &[u8]) -> codec::View {
     codec::limits(&engine.limits.core).expect("live store codec limits")
 }
 
-pub fn completions(directory: &Path, limits: &codec::View) -> u32 {
+pub fn completions(directory: &Path, limits: &codec::View) -> Result<u32, String> {
     let path = directory.join("state/transcripts/0000000000000000/0000000000000001");
     let bytes = match fs::read(path) {
         Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return 0,
-        Err(error) => panic!("live transcript: {error}"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(format!("live transcript: {error}")),
     };
     let mut at = 0;
     let mut count = 0;
     while at + 4 <= bytes.len() {
-        let length = u32::from_be_bytes(bytes[at..at + 4].try_into().expect("frame length")) as usize;
+        let length =
+            u32::from_be_bytes(bytes[at..at + 4].try_into().map_err(|why| format!("frame length: {why:?}"))?) as usize;
         if length < 12 || at + length > bytes.len() {
             break;
         }
-        let turn = transcripts::frame::decode(&bytes[at..at + length], limits).expect("durable live turn");
-        assert_eq!((turn.task, turn.attempt, turn.turn), (1, 1, count + 1));
+        let turn = transcripts::frame::decode(&bytes[at..at + length], limits)
+            .map_err(|why| format!("durable live turn: {why:?}"))?;
+        {
+            let (observed_value, wanted) = (&(turn.task, turn.attempt, turn.turn), &(1, 1, count + 1));
+            if observed_value != wanted {
+                return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
+            }
+        }
         // Smith's transcript.md, 1: a turn is one completion, including compaction.
         count += 1;
         at += length;
     }
-    count
+    Ok(count)
 }
 
-pub fn capture(directory: &Path, destination: &Path) -> bool {
-    let bytes = fs::read(directory.join("agent-trace.jsonl")).expect("Smith provider trace");
+pub fn capture(directory: &Path, destination: &Path) -> Result<bool, String> {
+    let bytes =
+        fs::read(directory.join("agent-trace.jsonl")).map_err(|why| format!("Smith provider trace: {why:?}"))?;
     let mut requests = Vec::new();
     for line in bytes.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()) {
-        let record: serde_json::Value = serde_json::from_slice(line).expect("Smith event JSON");
+        let record: serde_json::Value =
+            serde_json::from_slice(line).map_err(|why| format!("Smith event JSON: {why:?}"))?;
         if let Some(prompt) = record.get("prompt") {
             requests.push(serde_json::json!({"instructions":prompt["system"],"input":prompt["messages"]}));
         }
     }
-    fs::write(destination, serde_json::to_vec_pretty(&requests).expect("request capture JSON"))
-        .expect("system/input capture file");
+    fs::write(
+        destination,
+        serde_json::to_vec_pretty(&requests).map_err(|why| format!("request capture JSON: {why:?}"))?,
+    )
+    .map_err(|why| format!("system/input capture file: {why:?}"))?;
     let present = requests.iter().any(|request| {
         request["instructions"].as_str().is_some_and(|system| system.contains(INSTRUCTIONS) && system.contains(WORDS))
     });
@@ -451,20 +413,29 @@ pub fn capture(directory: &Path, destination: &Path) -> bool {
         if present { "present" } else { "absent" },
         destination.display()
     );
-    assert!(!requests.is_empty(), "provider request captured before interpreting the answer");
-    present
+    if requests.is_empty() {
+        return Err(String::from("provider request captured before interpreting the answer"));
+    }
+    Ok(present)
 }
 
-pub fn check(directory: &Path, limits: &codec::View, outcome: (u32, u32), peers: Peers) {
-    let count = completions(directory, limits);
+pub fn check(directory: &Path, limits: &codec::View, outcome: (u32, u32), peers: Peers) -> Result<(), String> {
+    let count = completions(directory, limits)?;
     eprintln!("live completions={count}");
-    assert!(
-        capture(directory, &directory.join("live-request.json")),
-        "the provider request includes charter and task words"
-    );
-    support::trace::check(directory, peers.credential());
-    assert!((1..=5).contains(&count), "at most five real completions, and at least one answer");
-    assert_eq!(outcome, (1, 1));
+    if !capture(directory, &directory.join("live-request.json"))? {
+        return Err(String::from("the provider request includes charter and task words"));
+    }
+    support::trace::try_check(directory, peers.credential())?;
+    if !(1..=5).contains(&count) {
+        return Err(String::from("at most five real completions, and at least one answer"));
+    }
+    {
+        let (observed_value, wanted) = (&(outcome), &(1, 1));
+        if observed_value != wanted {
+            return Err(format!("assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"));
+        }
+    }
+    Ok(())
 }
 
 /// The live story's real backends or independent fake peers on loopback.
@@ -546,17 +517,23 @@ impl Peers {
             Self::Fake | Self::Refusing => Some(fixtures::TOKEN_SECOND),
         }
     }
-    fn visit(self, procs: &mut [Process], address: &[u8]) {
+    fn visit(self, procs: &mut [Process], address: &[u8]) -> Result<(), String> {
         match self {
             Self::Real => {
-                eprintln!("Sign in at: {}", std::str::from_utf8(address).expect("authorization URL"));
+                eprintln!(
+                    "Sign in at: {}",
+                    std::str::from_utf8(address).map_err(|why| format!("authorization URL: {why:?}"))?
+                );
                 eprintln!("(the browser must reach 127.0.0.1:1455 on this machine: ssh -L 1455:127.0.0.1:1455 HOST)");
             }
             Self::Fake | Self::Refusing => {
-                let Process::Visitor(visitor) = &mut procs[3] else { panic!("browser") };
+                let Process::Visitor(visitor) = procs.get_mut(3).ok_or("browser")? else {
+                    return Err(String::from("browser"));
+                };
                 visitor.hand(address);
             }
         }
+        Ok(())
     }
     fn shutdown(self, procs: &mut [Process]) {
         if let Self::Fake | Self::Refusing = self {
@@ -593,13 +570,14 @@ pub(super) fn spawn_client<R: Referee<Process>>(
     directory: &Path,
     script: Script,
     seed: u64,
-) -> tempfile::TempDir {
+) -> Result<tempfile::TempDir, String> {
     let mut binary = support::start(directory);
-    let streams = binary.take_streams().expect("binary pipes");
+    let streams = binary.take_streams().ok_or("binary pipes")?;
     let fds = streams.descriptors();
-    let Streams::Pipes { input, output } = streams else { panic!("pipes mode") };
-    let client_directory = tempfile::tempdir_in(directory).expect("native client directory");
-    let root = skein_shell::open_root(client_directory.path()).expect("client root");
+    let Streams::Pipes { input, output } = streams else { return Err(String::from("pipes mode")) };
+    let client_directory =
+        tempfile::tempdir_in(directory).map_err(|why| format!("native client directory: {why:?}"))?;
+    let root = skein_shell::open_root(client_directory.path()).map_err(|why| format!("client root: {why:?}"))?;
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds.into_iter().chain([root]).collect(), || {
         Process::Person(Box::new(Person {
@@ -618,7 +596,105 @@ pub(super) fn spawn_client<R: Referee<Process>>(
             submissions: Queue::with_capacity(512),
         }))
     });
-    client_directory
+    Ok(client_directory)
+}
+
+impl Judge {
+    fn check_act(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
+        let Process::Person(person) = procs.get_mut(1).ok_or("native person")? else {
+            return Err(String::from("native person"));
+        };
+        let Some(native) = &mut person.client else { return Ok(()) };
+        let answer = self.receive(native);
+        match self.phase {
+            Phase::Admission => {
+                if native.signed_in == 1 && native.account_sign_in_ready() {
+                    native.account_request(jig_client::Event::Watch {
+                        handle: ACCOUNTS,
+                        subject: jig_client::Watchable::Jig(c::Subject::Accounts),
+                    });
+                    native.ask_account_sign_in(
+                        SIGN_IN,
+                        c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: PROVIDER },
+                    );
+                    self.sign_in_deadline = Some(now.saturating_add(self.peers.sign_in_wait()));
+                    self.phase = Phase::Address;
+                }
+            }
+            Phase::Address => {
+                if let Some(answer) = answer {
+                    let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted {
+                        source,
+                        address,
+                    })) = answer
+                    else {
+                        return Err(format!("ChatGPT sign-in start: {answer:?}"));
+                    };
+                    self.peers.visit(procs, &address)?;
+                    self.phase = Phase::Signing { source };
+                    self.signing(procs, source)?;
+                }
+            }
+            Phase::Signing { source } => self.signing(procs, source)?,
+            Phase::Answer { source } => {
+                match answer {
+                    Some(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Created { first, .. })))
+                        if self.chat.is_none() =>
+                    {
+                        self.chat = Some(first);
+                        native.account_request(jig_client::Event::Watch {
+                            handle: CHAT,
+                            subject: jig_client::Watchable::Jig(c::Subject::Task { task: first }),
+                        });
+                    }
+                    Some(refused @ c::Answer::Refused { .. }) => return Err(format!("live chat refused: {refused:?}")),
+                    Some(_) | None => {}
+                }
+                self.running(now)?;
+                if native.script_finished() {
+                    native.account_request(jig_client::Event::Unwatch { handle: CHAT });
+                    self.ended = None;
+                    native.hold_for_account_sign_in();
+                    native.ask_account_sign_in(SIGN_OUT, c::Ask::SignOut { holder: c::AskAccountHolder::Own, source });
+                    self.phase = Phase::SignOut;
+                }
+            }
+            Phase::SignOut => {
+                if let Some(answer) = answer {
+                    {
+                        let (observed_value, wanted) = (
+                            &(answer),
+                            &(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
+                                confirmed: true,
+                                failed_hosts: Box::new([]),
+                            }))),
+                        );
+                        if observed_value != wanted {
+                            return Err(format!(
+                                "ChatGPT sign-out confirmed by the issuer and every host; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                            ));
+                        }
+                    }
+                    eprintln!("ChatGPT sign-out confirmed=true; failed_hosts=[]");
+                    native.finish_account_sign_in();
+                    self.phase = Phase::Closing;
+                }
+            }
+            Phase::Closing => {
+                if native.is_empty() {
+                    let Process::Binary(binary) = procs.get_mut(0).ok_or("binary")? else {
+                        return Err(String::from("binary"));
+                    };
+                    binary.signal(Signal::Kill);
+                    self.peers.shutdown(procs);
+                    self.phase = Phase::Ended;
+                }
+            }
+            Phase::Ended => {}
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

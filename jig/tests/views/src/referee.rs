@@ -41,6 +41,7 @@ enum Seen {
     Stream { watcher: Token, turn: TurnName, from: u32, to: u32, text: Vec<u8>, cut: bool, call: Option<Call> },
     Ended { watcher: Token, end: End },
     Refused { watcher: Token },
+    Input,
 }
 #[derive(Debug, Default)]
 struct Text {
@@ -64,7 +65,7 @@ impl Expectations for Checks {
     type Name = Token;
     type Stimulus = ();
     #[expect(clippy::too_many_lines, reason = "each public observation checks one outside invariant")]
-    fn observe(&mut self, seen: Seen, _judge: &mut Judge<Token, ()>) {
+    fn observe(&mut self, seen: Seen, judge: &mut Judge<Token, ()>) {
         match seen {
             Seen::Asked { watcher, party, subject, window, follow } => {
                 let mut positions = BTreeMap::new();
@@ -73,7 +74,7 @@ impl Expectations for Checks {
                 {
                     positions.insert(turn, follow.offset);
                 }
-                assert!(
+                judge.check(
                     self.asked
                         .insert(
                             watcher,
@@ -87,20 +88,26 @@ impl Expectations for Checks {
                                 made: None,
                                 last: None,
                                 stream_flight: None,
-                                positions
-                            }
+                                positions,
+                            },
                         )
                         .is_none(),
-                    "unique admission request"
+                    "unique admission request",
                 );
             }
             Seen::Changed { subject, generation } => {
                 self.generations.insert(subject, generation);
             }
             Seen::Watching { watcher } => {
-                let watch = self.asked.remove(&watcher).expect("parent admitted this watch");
-                assert!(self.open.insert(watcher, watch).is_none(), "unique open watch");
-                assert!(self.open.len() <= skein_lib::length::usize_of(self.limits.watchers), "global watch capacity");
+                let Some(watch) = self.asked.remove(&watcher) else {
+                    judge.fail("parent admitted this watch");
+                    return;
+                };
+                judge.check(self.open.insert(watcher, watch).is_none(), "unique open watch");
+                judge.check(
+                    self.open.len() <= skein_lib::length::usize_of(self.limits.watchers),
+                    "global watch capacity",
+                );
                 let mut parties = BTreeMap::<Token, u32>::new();
                 let mut runs = BTreeSet::new();
                 for watch in self.open.values() {
@@ -109,48 +116,69 @@ impl Expectations for Checks {
                         runs.insert(follow.run);
                     }
                 }
-                assert!(parties.values().all(|count| *count <= self.limits.watchers_per_party), "party watch capacity");
-                assert!(
+                judge.check(
+                    parties.values().all(|count| *count <= self.limits.watchers_per_party),
+                    "party watch capacity",
+                );
+                judge.check(
                     runs.len() <= skein_lib::length::usize_of(self.limits.watchers),
-                    "followed runs are bounded by open watches, independently of retained-run admission"
+                    "followed runs are bounded by open watches, independently of retained-run admission",
                 );
             }
             Seen::Make { watcher, subject, window } => {
-                let watch = self.open.get_mut(&watcher).expect("open watch");
-                assert_eq!(watch.subject, subject, "subject echoed");
-                assert_eq!(watch.window, window, "window echoed");
-                assert!(!watch.document_flight && !watch.making, "one construction or document in flight");
+                let Some(watch) = self.open.get_mut(&watcher) else {
+                    judge.fail("open watch");
+                    return;
+                };
+                judge.check(watch.subject == subject, "subject echoed");
+                judge.check(watch.window == window, "window echoed");
+                judge.check(!watch.document_flight && !watch.making, "one construction or document in flight");
                 watch.making = true;
             }
             Seen::Made { watcher, document } => {
-                let watch = self.open.get_mut(&watcher).expect("open watch");
-                assert!(watch.making, "owner was asked to make");
-                assert!(
+                let Some(watch) = self.open.get_mut(&watcher) else {
+                    judge.fail("open watch");
+                    return;
+                };
+                judge.check(watch.making, "owner was asked to make");
+                judge.check(
                     document.bytes.len() <= skein_lib::length::usize_of(watch.window.rows),
-                    "document respects its window"
+                    "document respects its window",
                 );
-                assert_eq!(
-                    document.generation,
-                    *self.generations.get(&watch.subject).unwrap_or(&0),
-                    "owner made the current state"
+                judge.check(
+                    document.generation == *self.generations.get(&watch.subject).unwrap_or(&0),
+                    "owner made the current state",
                 );
                 watch.made = Some(document.generation);
             }
             Seen::MadeTerminal { watcher } => {
-                let watch = self.open.get_mut(&watcher).expect("open watch");
-                assert!(watch.making, "outstanding construction");
+                let Some(watch) = self.open.get_mut(&watcher) else {
+                    judge.fail("open watch");
+                    return;
+                };
+                judge.check(watch.making, "outstanding construction");
                 watch.making = false;
             }
             Seen::Deliver { watcher } => {
-                let watch = self.open.get_mut(&watcher).expect("open watch");
-                assert!(!watch.document_flight && !watch.making, "one document in flight");
-                watch.last = Some(watch.made.take().expect("owner made a document"));
+                let Some(watch) = self.open.get_mut(&watcher) else {
+                    judge.fail("open watch");
+                    return;
+                };
+                judge.check(!watch.document_flight && !watch.making, "one document in flight");
+                let Some(made) = watch.made.take() else {
+                    judge.fail("owner made a document");
+                    return;
+                };
+                watch.last = Some(made);
                 watch.document_flight = true;
                 self.deliveries += 1;
             }
             Seen::DocumentTaken { watcher } => {
-                let watch = self.open.get_mut(&watcher).expect("open watch");
-                assert!(watch.document_flight, "document terminal has its flight");
+                let Some(watch) = self.open.get_mut(&watcher) else {
+                    judge.fail("open watch");
+                    return;
+                };
+                judge.check(watch.document_flight, "document terminal has its flight");
                 watch.document_flight = false;
             }
             Seen::Text { run, turn, offset, text, call } => {
@@ -162,77 +190,110 @@ impl Expectations for Checks {
                     source.cut |= known;
                     source.bytes.resize(offset_index, 0);
                 } else {
-                    assert_eq!(
-                        source.bytes.get(offset_index..),
-                        text.get(..source.bytes.len() - offset_index),
-                        "repeated host prefixes agree"
+                    judge.check(
+                        source.bytes.get(offset_index..) == text.get(..source.bytes.len() - offset_index),
+                        "repeated host prefixes agree",
                     );
                 }
                 source.bytes.truncate(offset_index);
                 source.bytes.extend_from_slice(&text);
-                let end = u32::try_from(source.bytes.len()).expect("source length");
+                let Ok(end) = u32::try_from(source.bytes.len()) else {
+                    judge.fail("source length");
+                    return;
+                };
                 let beginning = end.saturating_sub(self.limits.text_bytes);
                 source.cut |= beginning > source.beginning;
                 source.beginning = source.beginning.max(beginning);
                 if let Some(call) = call {
-                    source.call = Some(observed_call(call, source.call.as_ref()));
+                    let Some(call) = observed_call(call, source.call.as_ref(), judge) else {
+                        return;
+                    };
+                    source.call = Some(call);
                 }
             }
             Seen::Called { run, call } => {
                 if let Some((_, source)) = self.text.iter_mut().rfind(|((owner, _), _)| *owner == run) {
-                    source.call = Some(observed_call(call, source.call.as_ref()));
+                    let Some(call) = observed_call(call, source.call.as_ref(), judge) else {
+                        return;
+                    };
+                    source.call = Some(call);
                 }
             }
             Seen::Stream { watcher, turn, from, to, text, cut, call } => {
-                let watch = self.open.get_mut(&watcher).expect("open watch");
-                assert!(watch.stream_flight.is_none(), "one provisional stream in flight");
-                let follow = watch.follow.expect("watch follows this run");
-                let source = self.text.get(&(follow.run, turn)).expect("host wrote this named turn");
+                let Some(watch) = self.open.get_mut(&watcher) else {
+                    judge.fail("open watch");
+                    return;
+                };
+                judge.check(watch.stream_flight.is_none(), "one provisional stream in flight");
+                let Some(follow) = watch.follow else {
+                    judge.fail("watch follows this run");
+                    return;
+                };
+                let Some(source) = self.text.get(&(follow.run, turn)) else {
+                    judge.fail("host wrote this named turn");
+                    return;
+                };
                 let requested = *watch.positions.get(&turn).unwrap_or(&0);
-                let end = u32::try_from(source.bytes.len()).expect("source length");
+                let Ok(end) = u32::try_from(source.bytes.len()) else {
+                    judge.fail("source length");
+                    return;
+                };
                 let beginning = source.beginning;
                 let position = if (beginning..=end).contains(&requested) { requested } else { 0 };
                 if !cut {
-                    assert_eq!(from, position, "each turn keeps its own offset");
+                    judge.check(from == position, "each turn keeps its own offset");
                 }
-                assert_eq!(cut, source.cut || from > position, "a gap or trimmed suffix marks the turn cut");
-                assert_eq!(
-                    to.checked_sub(from),
-                    Some(u32::try_from(text.len()).expect("bounded text")),
-                    "absolute positions describe bytes"
+                judge.check(cut == (source.cut || from > position), "a gap or trimmed suffix marks the turn cut");
+                let Ok(length) = u32::try_from(text.len()) else {
+                    judge.fail("bounded text");
+                    return;
+                };
+                judge.check(to.checked_sub(from) == Some(length), "absolute positions describe bytes");
+                judge.check(
+                    text.len() <= skein_lib::length::usize_of(self.limits.text_bytes),
+                    "bounded retained suffix",
                 );
-                assert!(text.len() <= skein_lib::length::usize_of(self.limits.text_bytes), "bounded retained suffix");
-                assert_eq!(
-                    source.bytes.get(skein_lib::length::usize_of(from)..skein_lib::length::usize_of(to)),
-                    Some(text.as_slice()),
-                    "provisional bytes are a prefix-consistent source copy"
+                judge.check(
+                    source.bytes.get(skein_lib::length::usize_of(from)..skein_lib::length::usize_of(to))
+                        == Some(text.as_slice()),
+                    "provisional bytes are a prefix-consistent source copy",
                 );
                 if let Some(call) = &call {
-                    assert!(
+                    judge.check(
                         call.identity.id.len() + call.tool.len() + call.input.len()
                             <= skein_lib::length::usize_of(self.limits.text_bytes),
-                        "bounded provisional call"
+                        "bounded provisional call",
                     );
                 }
-                assert_eq!(&call, &source.call, "current call belongs to this turn");
+                judge.check(call == source.call, "current call belongs to this turn");
                 watch.stream_flight = Some((turn, to));
             }
             Seen::StreamTaken { watcher } => {
-                let watch = self.open.get_mut(&watcher).expect("open watch");
-                let (turn, to) = watch.stream_flight.take().expect("stream terminal has its flight");
+                let Some(watch) = self.open.get_mut(&watcher) else {
+                    judge.fail("open watch");
+                    return;
+                };
+                let Some((turn, to)) = watch.stream_flight.take() else {
+                    judge.fail("stream terminal has its flight");
+                    return;
+                };
                 watch.positions.insert(turn, to);
             }
             Seen::Ended { watcher, end } => {
-                let watch = self.open.remove(&watcher).expect("one end per admitted watch");
-                assert!(
+                let Some(watch) = self.open.remove(&watcher) else {
+                    judge.fail("one end per admitted watch");
+                    return;
+                };
+                judge.check(
                     !watch.document_flight && !watch.making && watch.stream_flight.is_none(),
-                    "end follows every outstanding terminal"
+                    "end follows every outstanding terminal",
                 );
                 self.ended.push((watcher, end));
             }
+            Seen::Input => judge.fail("input has separate unit stories; this world scripts text and made calls"),
             Seen::Refused { watcher } => {
-                assert!(!self.open.contains_key(&watcher), "refusal opens nothing");
-                self.asked.remove(&watcher).expect("refused admission was asked");
+                judge.check(!self.open.contains_key(&watcher), "refusal opens nothing");
+                judge.check(self.asked.remove(&watcher).is_some(), "refused admission was asked");
             }
         }
     }
@@ -292,9 +353,7 @@ impl Referee {
                 call: call.clone(),
             }),
             Event::Called { run, call, .. } => self.observe(Seen::Called { run: *run, call: call.clone() }),
-            Event::Input { .. } => {
-                unreachable!("input has separate unit stories; this world scripts text and made calls")
-            }
+            Event::Input { .. } => self.observe(Seen::Input),
             Event::Changed { .. }
             | Event::Gone { .. }
             | Event::RunEnded { .. }
@@ -353,22 +412,35 @@ impl Referee {
     pub fn open_subjects(&self) -> Vec<Token> {
         self.harness.expectations().open.values().map(|watch| watch.subject).collect()
     }
+    pub fn check_holding(&self, seed: u64) -> Result<(), String> {
+        self.harness.check_holding(seed)
+    }
     pub fn assert_caught_up(&self) {
+        if let Err(why) = self.check_caught_up() {
+            panic!("{why}");
+        }
+    }
+    pub fn check_caught_up(&self) -> Result<(), String> {
         let checks = self.harness.expectations();
         for watch in checks.open.values() {
-            assert_eq!(
-                watch.last,
-                Some(*checks.generations.get(&watch.subject).unwrap_or(&0)),
-                "last delivery follows the final subject change"
-            );
+            if watch.last != Some(*checks.generations.get(&watch.subject).unwrap_or(&0)) {
+                return Err("last delivery follows the final subject change".into());
+            }
         }
+        Ok(())
     }
 }
 
-fn observed_call(mut call: Call, previous: Option<&Call>) -> Call {
+fn observed_call(mut call: Call, previous: Option<&Call>, judge: &mut Judge<Token, ()>) -> Option<Call> {
     call.began = Some(match previous {
-        Some(previous) if previous.identity == call.identity => previous.began.expect("source first seen"),
+        Some(previous) if previous.identity == call.identity => {
+            let Some(began) = previous.began else {
+                judge.fail("source first seen");
+                return None;
+            };
+            began
+        }
         Some(_) | None => Wall::EPOCH,
     });
-    call
+    Some(call)
 }

@@ -6,18 +6,38 @@ use core::hash::{Hash, Hasher};
 
 /// Panics, with both states' text, unless `first` and `replay` digest alike.
 pub fn same_digest<T: Hash + Debug>(first: &T, replay: &T, at: &dyn Display) {
+    if let Err(finding) = check_digest(first, replay, at) {
+        panic!("{finding}");
+    }
+}
+
+/// Returns a digest mismatch with both states' text, including when their text agrees.
+pub fn check_digest<T: Hash + Debug>(first: &T, replay: &T, at: &dyn Display) -> Result<(), String> {
     if digest(first) != digest(replay) {
         let first_text = format!("{first:?}");
         let replay_text = format!("{replay:?}");
         let text =
             if first_text == replay_text { "equal text: Hash covers state Debug omits" } else { "different text" };
-        panic!("state digests differ at {at} ({text})\nfirst: {first_text}\nreplay: {replay_text}");
+        return Err(format!("state digests differ at {at} ({text})\nfirst: {first_text}\nreplay: {replay_text}"));
     }
+    Ok(())
 }
 
 /// Panics unless both print alike, which holds what `Hash` leaves out by design.
 pub fn same_text<T: Debug>(first: &T, replay: &T, at: &dyn Display) {
-    assert_eq!(format!("{first:?}"), format!("{replay:?}"), "complete state at {at}");
+    if let Err(finding) = check_text(first, replay, at) {
+        panic!("{finding}");
+    }
+}
+
+/// Returns a text mismatch, holding what `Hash` leaves out by design.
+pub fn check_text<T: Debug>(first: &T, replay: &T, at: &dyn Display) -> Result<(), String> {
+    let first_text = format!("{first:?}");
+    let replay_text = format!("{replay:?}");
+    if first_text != replay_text {
+        return Err(format!("complete state at {at}\nfirst: {first_text}\nreplay: {replay_text}"));
+    }
+    Ok(())
 }
 
 fn digest<T: Hash>(state: &T) -> u64 {

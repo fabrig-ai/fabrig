@@ -43,6 +43,10 @@ pub trait Transport: Remote {
     fn commit_tree(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> u64;
     /// Set the forge's input clock before the run makes any call.
     fn set_time(&mut self, now: Time);
+    /// The first replay order mismatch; typed transports have no answer log.
+    fn finding(&self) -> Option<&str> {
+        None
+    }
     /// Take the first miss, including an encoding refusal; typed calls miss none.
     fn missed(&mut self) -> Missing;
 }

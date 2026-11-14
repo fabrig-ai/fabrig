@@ -19,9 +19,10 @@
   link counts the lines of its stdout and never compares their bytes, which
   would write the link's secret into the log. Each line must be a complete
   link ending in a line feed; any other or unfinished line fails too.
-  Its panic carries the box's stderr with every line holding `secret=`
+  The count is a check that returns its finding (`README.md`, 4.2),
+  which carries the box's stderr with every line holding `secret=`
   filtered out, so that a second
-  link says why it came.
+  link says why it came; the story fails with it.
 
 - **Focused wiring,** one short test in the ordinary `suite` binary:
   a shipped `temper-box serve` on a scratch configuration signs in a native
@@ -352,7 +353,16 @@
   engine records, read through the client (the forge's state, from the
   fake forge's API, once
   it joins: ../protocol/cluster.md, 5), and no process of the cluster
-  outliving it. Without delegated cgroups the cluster's tests fail at
+  outliving it. The members' verdict is a value, never a panic
+  (`README.md`, 4.2): `Members::verdict(&self) -> Result<bool, String>`
+  answers `Ok(false)` until every member has stopped, `Ok(true)` once
+  they all stopped as asked, and, once they have stopped, `Err` with the
+  finding of a member that ended unexpectedly or never became ready, or
+  that needed tree cleanup. `Members::passed` is its `Ok(true)` alone.
+  Each judge over the members returns that `Err` from its `watch`, so an
+  unexpected end is reported after the client and the members have
+  settled, and the story that kills a member reads it.
+  Without delegated cgroups the cluster's tests fail at
   their start, saying why (`README.md`, section 6). These remain in the process
   profile because SIGKILL/SIGSTOP, parent death, delegated cgroups and
   process exit order are their Musts. The case library's `fakes.md`, 1/`fakes.md`, 3

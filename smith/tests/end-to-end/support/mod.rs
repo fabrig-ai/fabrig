@@ -111,10 +111,10 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         for proc in procs {
             if let Process::Script(Proc::Terminal(person)) = proc {
-                self.sign_in.observe(person.shown());
+                self.sign_in.check(person.shown())?;
             }
         }
         if (!self.visiting && self.sign_in.url().is_some())
@@ -144,10 +144,10 @@ impl Referee<Process> for Judge {
         }
         let authenticated = procs.iter().any(|p| matches!(p, Process::Script(Proc::Issuer(_))));
         if authenticated && !self.saved && procs.iter().any(|p| matches!(p, Process::Script(Proc::Peer(p)) if smith_local_process_world::llm::queries(p).next().is_some())) {
-            let bytes = std::fs::read(&self.tokens).expect("saved before grant use");
-            let record = skein_oauth::decode_record(&bytes, &smith_local_shell::credentials::token_limits()).expect("private token record");
-            let directory = self.tokens.ancestors().nth(3).expect("scratch credential path");
-            assert!(record.access_token.expose() == fixture_access(directory).as_ref(), "token persists before provider query");
+            let bytes = std::fs::read(&self.tokens).map_err(|_| String::from("saved before grant use"))?;
+            let record = skein_oauth::decode_record(&bytes, &smith_local_shell::credentials::token_limits()).map_err(|_| String::from("private token record"))?;
+            let directory = self.tokens.ancestors().nth(3).ok_or("scratch credential path")?;
+            if record.access_token.expose() != check_fixture_access(directory)?.as_ref() { return Err(String::from("token persists before provider query")); }
             self.saved = true;
         }
         let shown = procs
@@ -160,21 +160,23 @@ impl Referee<Process> for Judge {
         for proc in procs {
             if let Process::Binary(p) = proc
                 && let Some(exit) = p.exit_status()
+                && exit != Exit::Code(0)
             {
-                assert_eq!(
-                    exit,
-                    Exit::Code(0),
-                    "shipped local failed: {}\nterminal: {}",
+                return Err(format!(
+                    "shipped local failed: {}\nterminal: {}\nleft: {:?}\nright: {:?}",
                     String::from_utf8_lossy(p.stderr()),
-                    String::from_utf8_lossy(shown)
-                );
+                    String::from_utf8_lossy(shown),
+                    exit,
+                    Exit::Code(0)
+                ));
             }
         }
         if !self.reviewed && procs.iter().all(Host::is_empty) {
-            let seen = observations(procs, self.saved);
-            referee::review_binary(&seen, &self.checkout, self.ending.clone()).assert_passed(self.seed);
+            let seen = check_observations(procs, self.saved)?;
+            referee::review_binary(&seen, &self.checkout, self.ending.clone()).check_passed(self.seed)?;
             self.reviewed = true;
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.next_act.into_iter().chain([self.deadline]).min()
@@ -188,17 +190,21 @@ impl Referee<Process> for Judge {
 }
 
 fn observations(procs: &[Process], saved: bool) -> Seen {
+    check_observations(procs, saved).unwrap_or_else(|why| panic!("{why}"))
+}
+
+fn check_observations(procs: &[Process], saved: bool) -> Result<Seen, String> {
     let person = procs
         .iter()
         .find_map(|p| if let Process::Script(Proc::Terminal(p)) = p { Some(p) } else { None })
-        .expect("person");
+        .ok_or("person")?;
     let peer = procs
         .iter()
         .find_map(|p| if let Process::Script(Proc::Peer(p)) = p { Some(p) } else { None })
-        .expect("provider");
+        .ok_or("provider")?;
     let browser = procs.iter().find_map(|p| if let Process::Script(Proc::Browser(p)) = p { Some(p) } else { None });
     let issuer = procs.iter().find_map(|p| if let Process::Script(Proc::Issuer(p)) = p { Some(p) } else { None });
-    Seen {
+    Ok(Seen {
         facts: vec![],
         shown: person.shown().to_vec(),
         errors: person.errors().to_vec(),
@@ -211,7 +217,7 @@ fn observations(procs: &[Process], saved: bool) -> Seen {
             browser_replied: browser.is_some_and(|b| b.replied()),
             saved_before_query: saved,
         }),
-    }
+    })
 }
 
 #[must_use]
@@ -255,15 +261,20 @@ fn fixture_environment(
 }
 
 fn fixture_access(directory: &Path) -> Box<[u8]> {
-    let login: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("auth.json")).expect("synthetic login file"))
-            .expect("synthetic login JSON");
-    login
+    check_fixture_access(directory).unwrap_or_else(|why| panic!("{why}"))
+}
+
+fn check_fixture_access(directory: &Path) -> Result<Box<[u8]>, String> {
+    let login: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(directory.join("auth.json")).map_err(|_| String::from("synthetic login file"))?,
+    )
+    .map_err(|_| String::from("synthetic login JSON"))?;
+    Ok(login
         .pointer("/tokens/access_token")
         .and_then(serde_json::Value::as_str)
-        .expect("synthetic access token")
+        .ok_or("synthetic access token")?
         .as_bytes()
-        .into()
+        .into())
 }
 
 #[must_use]
@@ -389,68 +400,92 @@ pub fn read_trace(directory: &Path, prefix: &[u8]) -> Vec<smith_events::Record> 
     read_trace_resolved(&mut resolved_settings(directory), prefix)
 }
 
+fn check_trace(directory: &Path, prefix: &[u8]) -> Result<Vec<smith_events::Record>, String> {
+    check_trace_resolved(&mut check_resolved_settings(directory)?, prefix)
+}
+
 fn resolved_settings(directory: &Path) -> smith_local_shell::settings::resolve::Resolved {
+    check_resolved_settings(directory).unwrap_or_else(|why| panic!("{why}"))
+}
+
+fn check_resolved_settings(directory: &Path) -> Result<smith_local_shell::settings::resolve::Resolved, String> {
     let source = smith_local_shell::settings::Source {
         layer: smith_local_shell::settings::Layer::User,
         path: directory.join("config/smith/config.toml"),
-        text: std::fs::read_to_string(directory.join("config/smith/config.toml")).expect("product settings"),
+        text: std::fs::read_to_string(directory.join("config/smith/config.toml"))
+            .map_err(|_| String::from("product settings"))?,
     };
     let settings = smith_local_shell::settings::from_sources(
         &smith_local_shell::command::Shared::default(),
         directory.into(),
         &[source],
     )
-    .expect("merged product settings");
-    smith_local_shell::settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line())).0
+    .map_err(|_| String::from("merged product settings"))?;
+    Ok(smith_local_shell::settings::resolve::resolve_startup(&settings).map_err(|why| why.line())?.0)
 }
 
 fn read_trace_resolved(
     resolved: &mut smith_local_shell::settings::resolve::Resolved,
     prefix: &[u8],
 ) -> Vec<smith_events::Record> {
-    let trace = resolved.agent.trace.as_ref().expect("configured agent destination").path.clone();
-    let _limits = smith_local_shell::check::interactive_limits(resolved).expect("producer limits");
+    check_trace_resolved(resolved, prefix).unwrap_or_else(|why| panic!("{why}"))
+}
+
+fn check_trace_resolved(
+    resolved: &mut smith_local_shell::settings::resolve::Resolved,
+    prefix: &[u8],
+) -> Result<Vec<smith_events::Record>, String> {
+    let trace = resolved.agent.trace.as_ref().ok_or("configured agent destination")?.path.clone();
+    let _limits =
+        smith_local_shell::check::interactive_limits(resolved).map_err(|_| String::from("producer limits"))?;
     let configuration = &resolved.agent;
-    let events = configuration.service.limits.events.expect("configured event producer");
+    let events = configuration.service.limits.events.ok_or("configured event producer")?;
     let limits = events.sinks.records;
-    let ceiling = events.sinks.line_ceiling(events.capture).expect("seen writer-derived line ceiling");
-    let bytes = std::fs::read(trace).expect("seen append trace");
-    assert!(bytes.starts_with(prefix), "durable trace prefix stays unchanged");
+    let ceiling = events.sinks.line_ceiling(events.capture).ok_or("seen writer-derived line ceiling")?;
+    let bytes = std::fs::read(trace).map_err(|_| String::from("seen append trace"))?;
+    if !bytes.starts_with(prefix) {
+        return Err(String::from("durable trace prefix stays unchanged"));
+    }
     let mut reader = smith_events::Reader::with_ceiling(&limits, ceiling)
-        .unwrap_or_else(|why| panic!("configured receiving bounds {limits:?}: {why:?}"));
+        .map_err(|why| format!("configured receiving bounds {limits:?}: {why:?}"))?;
     let mut records = Vec::new();
-    for chunk in bytes.get(prefix.len()..).expect("prefix retained").chunks(7) {
+    for chunk in bytes.get(prefix.len()..).ok_or("prefix retained")?.chunks(7) {
         let mut remaining = chunk;
         while !remaining.is_empty() {
-            let line = reader.feed(remaining).expect("typed producer line");
-            assert!(line.consumed > 0, "bounded reader makes progress");
-            remaining = remaining.get(line.consumed..).expect("consumed input");
+            let line = reader.feed(remaining).map_err(|_| String::from("typed producer line"))?;
+            if line.consumed == 0 {
+                return Err(String::from("bounded reader makes progress"));
+            }
+            remaining = remaining.get(line.consumed..).ok_or("consumed input")?;
             if line.complete {
-                records.push(line.record.expect("the writing version names a known record"));
+                records.push(line.record.ok_or("the writing version names a known record")?);
             }
         }
     }
-    reader.finish().expect("the append file ends between complete records");
+    reader.finish().map_err(|_| String::from("the append file ends between complete records"))?;
     let mut beginning = 0_usize;
     for (index, record) in records.iter().enumerate() {
         if matches!(&record.event, smith_events::Event::SessionEnded(_)) {
-            smith_agent_process_world::assert_event_conformance(
-                records.get(beginning..=index).expect("one seen process stream"),
-            );
-            beginning = index.checked_add(1).expect("bounded trace inventory");
+            smith_agent_process_world::events::check(records.get(beginning..=index).ok_or("one seen process stream")?)?;
+            beginning = index.checked_add(1).ok_or("bounded trace inventory")?;
         }
     }
-    assert_eq!(
-        beginning,
-        records.len(),
-        "each native invocation has its authoritative end; record types {:?}",
-        records.iter().map(|record| std::mem::discriminant(&record.event)).collect::<Vec<_>>()
-    );
-    assert!(!records.is_empty(), "the shipped process wrote its configured trace");
-    records
+    if beginning != records.len() {
+        return Err(format!(
+            "each native invocation has its authoritative end; record types {:?}\nleft: {:?}\nright: {:?}",
+            records.iter().map(|record| std::mem::discriminant(&record.event)).collect::<Vec<_>>(),
+            beginning,
+            records.len()
+        ));
+    }
+    if records.is_empty() {
+        return Err(String::from("the shipped process wrote its configured trace"));
+    }
+    Ok(records)
 }
 
 pub(crate) struct Settling {
+    finding: Option<String>,
     poll: Time,
     next_act: Option<Time>,
     terminal_sign_in: referee::SignIn,
@@ -464,6 +499,7 @@ pub(crate) struct Settling {
 impl Settling {
     pub(crate) fn new(now: Time, deadline: Time) -> Self {
         Self {
+            finding: None,
             poll: now,
             next_act: None,
             terminal_sign_in: referee::SignIn::default(),
@@ -475,18 +511,16 @@ impl Settling {
             trace: None,
         }
     }
-}
 
-impl Referee<Process> for Settling {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
+    fn act_checked(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
         if now >= self.poll
             && let Some(runtime) = &self.foreign
         {
             for entry in std::fs::read_dir(runtime).into_iter().flatten() {
-                let entry = entry.expect("private fixture entry");
+                let entry = entry.map_err(|_| String::from("private fixture entry"))?;
                 if entry.file_name().as_encoded_bytes().starts_with(b".smith-exec-") {
                     std::fs::write(entry.path().join("foreign.txt"), b"kept foreign content")
-                        .expect("foreign fixture file");
+                        .map_err(|_| String::from("foreign fixture file"))?;
                     self.foreign = None;
                     break;
                 }
@@ -521,12 +555,24 @@ impl Referee<Process> for Settling {
                 }
             }
         }
+        Ok(())
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+}
+
+impl Referee<Process> for Settling {
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
         for process in procs {
             match process {
-                Process::Binary(binary) => self.stderr_sign_in.observe(binary.stderr()),
-                Process::Script(Proc::Terminal(person)) => self.terminal_sign_in.observe(person.shown()),
+                Process::Binary(binary) => self.stderr_sign_in.check(binary.stderr())?,
+                Process::Script(Proc::Terminal(person)) => self.terminal_sign_in.check(person.shown())?,
                 Process::Script(_) | Process::Sample(_) => {}
             }
         }
@@ -571,6 +617,7 @@ impl Referee<Process> for Settling {
                 }
             }
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         // Foreign runtime entries and trace appends have no ring completion here.
@@ -583,7 +630,7 @@ impl Referee<Process> for Settling {
         (now >= self.deadline).then(|| "startup refusal did not exit and drain".into())
     }
     fn passed(&self) -> bool {
-        self.foreign.is_none() && self.trace.as_ref().is_none_or(|(_, growing)| *growing)
+        self.finding.is_none() && (self.foreign.is_none() && self.trace.as_ref().is_none_or(|(_, growing)| *growing))
     }
 }
 

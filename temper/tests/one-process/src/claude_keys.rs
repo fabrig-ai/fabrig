@@ -113,6 +113,7 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
 }
 
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     stage: u32,
@@ -123,22 +124,54 @@ struct Judge {
 fn command(caller: &mut Caller, words: &[&str]) {
     caller.commands.push_back(Command::new(&words.iter().map(|word| word.as_bytes()).collect::<Vec<_>>()));
 }
-fn listed(caller: &Caller) -> Value {
-    let document: Value =
-        serde_json::from_slice(&caller.answers.last().expect("account list").output).expect("accounts JSON");
-    document["accounts"].clone()
+fn listed(caller: &Caller) -> Result<Value, String> {
+    Ok({
+        let document: Value =
+            serde_json::from_slice(&caller.answers.last().ok_or_else(|| String::from("account list"))?.output)
+                .map_err(|why| format!("accounts JSON: {why:?}"))?;
+        document["accounts"].clone()
+    })
 }
-fn assert_account(account: &Value, kinds: &[&str]) {
-    assert_eq!(account["provider"], 2);
-    assert_eq!(account["provider_name"]["bytes"], "anthropic");
-    let sources = account["sources"].as_array().expect("sources");
-    assert_eq!(sources.iter().map(|source| source["kind"].as_str().expect("source kind")).collect::<Vec<_>>(), kinds);
+fn assert_account(account: &Value, kinds: &[&str]) -> Result<(), String> {
+    match (&(account["provider"]), &(2)) {
+        (left, right) if left != right => {
+            let finding = String::from("assertion `left == right` failed");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+    match (&(account["provider_name"]["bytes"]), &("anthropic")) {
+        (left, right) if left != right => {
+            let finding = String::from("assertion `left == right` failed");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+    let sources = account["sources"].as_array().ok_or_else(|| String::from("sources"))?;
+    match (
+        &(sources
+            .iter()
+            .map(|source| source["kind"].as_str().ok_or_else(|| String::from("source kind")))
+            .collect::<Result<Vec<_>, _>>()?),
+        &(kinds),
+    ) {
+        (left, right) if left != right => {
+            let finding = String::from("assertion `left == right` failed");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+
+    Ok(())
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+impl Judge {
+    #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (services, rest) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut services[0] else { panic!("service first") };
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut rest[0] else { panic!("caller second") };
+        let Proc::Service(service) = &mut services[0] else { return Err(String::from("service first")) };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut rest[0] else {
+            return Err(String::from("caller second"));
+        };
         if self.stage == 0
             && let Some(link) = service.service.links().pop()
         {
@@ -152,40 +185,55 @@ impl skein_world::Referee<Proc> for Judge {
         }
         while self.answered < caller.answers.len() {
             let answer = &caller.answers[self.answered];
-            assert_eq!(
-                answer.exit,
-                Exit::Code(0),
-                "account call {}: {} {}",
-                self.answered,
-                String::from_utf8_lossy(&answer.output),
-                String::from_utf8_lossy(&answer.error)
-            );
+            match (&(answer.exit), &(Exit::Code(0))) {
+                (left, right) if left != right => {
+                    let finding = format!(
+                        "account call {}: {} {}",
+                        self.answered,
+                        String::from_utf8_lossy(&answer.output),
+                        String::from_utf8_lossy(&answer.error)
+                    );
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             self.answered += 1;
             self.deadline = now.saturating_add(temper_client_shell_cli::limits::DEADLINE);
         }
         if self.stage != 0 && caller.answers.len() == self.target {
             match self.stage {
                 1 => {
-                    let list = listed(caller);
-                    let party = list["party"].as_array().expect("party accounts");
-                    assert_eq!(party.len(), 1);
-                    assert_account(&party[0], &["key"]);
-                    assert!(party[0]["holder"]["party"].is_number());
+                    let list = listed(caller)?;
+                    let party = list["party"].as_array().ok_or_else(|| String::from("party accounts"))?;
+                    match (&(party.len()), &(1)) {
+                        (left, right) if left != right => {
+                            let finding = String::from("assertion `left == right` failed");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    assert_account(&party[0], &["key"])?;
+                    if !(party[0]["holder"]["party"].is_number()) {
+                        return Err(format!(
+                            "assertion failed: {}",
+                            stringify!(party[0]["holder"]["party"].is_number())
+                        ));
+                    }
                     command(caller, &["account", "declare", "2", "claude_code", "personal", "--key", "claude-login"]);
                     command(caller, &["account", "list", "--json"]);
                     self.target += 2;
                     self.stage = 2;
                 }
                 2 => {
-                    let list = listed(caller);
+                    let list = listed(caller)?;
                     let account = list["party"]
                         .as_array()
-                        .expect("party accounts")
+                        .ok_or_else(|| String::from("party accounts"))?
                         .iter()
                         .find(|account| account["sources"][0]["kind"] == "program")
-                        .expect("declared login");
-                    assert_account(account, &["program"]);
-                    let number = account["number"].as_u64().expect("account number").to_string();
+                        .ok_or_else(|| String::from("declared login"))?;
+                    assert_account(account, &["program"])?;
+                    let number = account["number"].as_u64().ok_or_else(|| String::from("account number"))?.to_string();
                     command(
                         caller,
                         &[
@@ -208,18 +256,45 @@ impl skein_world::Referee<Proc> for Judge {
                     self.stage = 3;
                 }
                 3 => {
-                    let list = listed(caller);
-                    let party = list["party"].as_array().expect("party accounts");
-                    assert_eq!(party.len(), 2);
-                    assert_account(&party[0], &["key"]);
-                    assert_account(&party[1], &["program", "key"]);
-                    assert_eq!(party[1]["holder"], party[0]["holder"]);
-                    assert_eq!(party[1]["sources"][0]["name"], "personal");
-                    let deployment = list["deployment"].as_array().expect("owner sees deployment accounts");
-                    let account =
-                        deployment.iter().find(|account| account["provider"] == 2).expect("deployment Claude key");
-                    assert_account(account, &["key"]);
-                    assert_eq!(account["holder"]["deployment"], true);
+                    let list = listed(caller)?;
+                    let party = list["party"].as_array().ok_or_else(|| String::from("party accounts"))?;
+                    match (&(party.len()), &(2)) {
+                        (left, right) if left != right => {
+                            let finding = String::from("assertion `left == right` failed");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    assert_account(&party[0], &["key"])?;
+                    assert_account(&party[1], &["program", "key"])?;
+                    match (&(party[1]["holder"]), &(party[0]["holder"])) {
+                        (left, right) if left != right => {
+                            let finding = String::from("assertion `left == right` failed");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    match (&(party[1]["sources"][0]["name"]), &("personal")) {
+                        (left, right) if left != right => {
+                            let finding = String::from("assertion `left == right` failed");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    let deployment =
+                        list["deployment"].as_array().ok_or_else(|| String::from("owner sees deployment accounts"))?;
+                    let account = deployment
+                        .iter()
+                        .find(|account| account["provider"] == 2)
+                        .ok_or_else(|| String::from("deployment Claude key"))?;
+                    assert_account(account, &["key"])?;
+                    match (&(account["holder"]["deployment"]), &(true)) {
+                        (left, right) if left != right => {
+                            let finding = String::from("assertion `left == right` failed");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
                     caller.closed = true;
                     self.controls.signal(0, ServiceSignal::Terminate);
                     self.stage = 4;
@@ -228,8 +303,30 @@ impl skein_world::Referee<Proc> for Judge {
             }
         }
         self.store.borrow_mut().pending.clear();
+
+        Ok(())
     }
-    fn observe(&mut self, _: Time, _: &[Proc]) {}
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         (self.stage < 4).then_some(self.deadline)
     }
@@ -238,7 +335,7 @@ impl skein_world::Referee<Proc> for Judge {
             .then(|| format!("Claude accounts stage {}, answers {}/{}", self.stage, self.answered, self.target))
     }
     fn passed(&self) -> bool {
-        self.stage == 4
+        self.finding.is_none() && (self.stage == 4)
     }
 }
 
@@ -260,6 +357,7 @@ pub fn walk() {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store,
                 stage: 0,

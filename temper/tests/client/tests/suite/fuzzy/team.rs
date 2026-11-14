@@ -3,7 +3,6 @@
 use jig_client::contract as c;
 use jig_client_kit::stories;
 use skein_lib::{List, Rng, Wall};
-use std::panic::catch_unwind;
 use temper_client_domain::pages::team::{self, Person, Waits};
 use temper_client_protocol_wire::v1 as w;
 
@@ -416,10 +415,8 @@ fn sweep(seed: u64) -> bool {
 fn team_parts_follow_their_rules() {
     let mut shared = 0;
     for seed in 1..=SEEDS {
-        match catch_unwind(|| sweep(seed)) {
-            Ok(some) => shared += u32::from(some),
-            Err(error) => panic!("seed {seed}: Team parts sweep panicked: {error:?}"),
-        }
+        eprintln!("seed {seed}: Team parts sweep");
+        shared += u32::from(sweep(seed));
     }
     assert!(shared > 0, "the sweep reaches a shared built-in role");
 }

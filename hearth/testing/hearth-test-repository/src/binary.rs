@@ -177,8 +177,9 @@ struct Judge {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, _procs: &mut [Process]) {}
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
         self.settled = procs.iter().all(Host::is_empty);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         None

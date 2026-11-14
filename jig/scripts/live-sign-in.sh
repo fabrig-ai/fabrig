@@ -13,9 +13,9 @@ ${JIG_WRAPPER:+"$JIG_WRAPPER"} cargo nextest run -p jig-test --profile live --no
 # short (an interrupt, nextest's timeout) leaves no secret behind: the
 # secrets' stores and the agent trace are erased however it ends.
 scratch=$(readlink -f "$(mktemp -d)")
-# The test's world starts jig-test in a process group of its own and stops it
-# only as the test unwinds, so an interrupt leaves it running in the scratch,
-# holding port 1455: it is stopped before anything is erased.
+# The test's world starts jig-test in a process group of its own. Once the
+# runner has ended, stop any children left holding the scratch and port 1455
+# before erasing the records.
 stop() {
     local process left=()
     for process in /proc/[0-9]*; do
@@ -35,15 +35,37 @@ erase() {
     stop
     find "$scratch" \( -type d -name secrets -prune -o -type f -name agent-trace.jsonl \) -exec rm -rf {} +
 }
-trap erase EXIT
+runner=
+cleanup() {
+    local status=$?
+    trap '' INT TERM
+    if [[ -n $runner ]]; then
+        kill -TERM "$runner" 2>/dev/null || true
+        wait "$runner" || true
+        runner=
+    fi
+    erase
+    if ((status == 0)); then
+        rm -rf "$scratch"
+    else
+        printf '%s\n' "Diagnostics, without secrets: $scratch" \
+            "A sign-in that did not sign out may still be listed at the issuer. Disconnect it in ChatGPT's settings, under Apps."
+    fi
+}
+trap cleanup EXIT
+interrupted=0
+trap 'interrupted=130' INT
+trap 'interrupted=143' TERM
 status=0
 TMPDIR=$scratch cargo nextest run -p jig-test --profile live --no-capture \
-    -E 'test(=a_person_signs_in_to_chatgpt_and_a_real_model_answers)' || status=$?
-erase
-if ((status == 0)); then
-    rm -rf "$scratch"
-else
-    printf '%s\n' "Diagnostics, without secrets: $scratch" \
-        "A sign-in that did not sign out may still be listed at the issuer. Disconnect it in ChatGPT's settings, under Apps."
+    -E 'test(=a_person_signs_in_to_chatgpt_and_a_real_model_answers)' &
+runner=$!
+if ((interrupted != 0)); then
+    exit "$interrupted"
 fi
+wait "$runner" || status=$?
+if ((interrupted != 0)); then
+    exit "$interrupted"
+fi
+runner=
 exit "$status"

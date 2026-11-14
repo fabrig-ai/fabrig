@@ -193,7 +193,6 @@ fn effects_scenarios() {
         87,
         a_full_connector_outbox_is_busy_without_a_record_or_charge_and_can_retry_the_same_name
     );
-    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
 // Reuse an actual world's durable claim and public configuration, restoring

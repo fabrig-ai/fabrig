@@ -240,7 +240,8 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
         std::env::var("JIG_CORE_SETTINGS_SEEDS").ok().map_or(24, |value| value.parse::<u64>().expect("seed count"));
     let mut coverage = [false; 8];
     for seed in 713..713 + count {
-        let result = std::panic::catch_unwind(|| {
+        eprintln!("settings replay seed {seed}");
+        let reached = {
             let mut reached = [false; 8];
             let mut rng = Rng::new(seed);
             let mut world = start(2);
@@ -304,8 +305,7 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
             restart(&mut world, configuration().0);
             agree(&world);
             reached
-        });
-        let Ok(reached) = result else { panic!("settings replay seed {seed}") };
+        };
         for at in 0..coverage.len() {
             coverage[at] |= reached[at];
         }
@@ -397,7 +397,8 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
     let first = std::env::var("JIG_SETTINGS_PROPOSALS_SEED")
         .map_or(713, |value| value.parse::<u64>().expect("settings proposal seed"));
     for seed in first..first.checked_add(count).expect("settings seed range") {
-        let result = std::panic::catch_unwind(|| {
+        eprintln!("settings proposal replay seed {seed}");
+        let reached = {
             let mut reached = [false; 6];
             let mut rng = Rng::new(seed);
             let mut world = start(4);
@@ -467,8 +468,7 @@ fn random_settings_proposals_decisions_and_restarts_keep_all_three_owners_in_agr
                 proposal_sets_agree(&mut world, signed);
             }
             reached
-        });
-        let Ok(reached) = result else { panic!("settings proposal replay seed {seed}") };
+        };
         for (covered, reached) in coverage.iter_mut().zip(reached) {
             *covered |= reached;
         }
