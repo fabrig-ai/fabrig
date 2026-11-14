@@ -286,16 +286,24 @@ fn exchange(ask: temper_worker_domain::wire::Ask, expected: temper_worker_domain
 
 #[test]
 fn a_hosted_run_gets_its_goals_reds_through_jigs_channel() {
-    use temper_worker_domain::wire::{Ask, Answer, Red};
-    exchange(Ask::Reds, Answer::Reds { reds: Box::new([
-        Red { key: b"lint p c f".as_slice().into(), head: Box::new([1; 20]) },
-        Red { key: b"test a::t x".as_slice().into(), head: Box::new([2; 32]) },
-    ]) });
+    use temper_worker_domain::wire::{Answer, Ask, Red};
+    exchange(
+        Ask::Reds,
+        Answer::Reds {
+            reds: Box::new([
+                Red { key: b"lint p c f".as_slice().into(), head: Box::new([1; 20]) },
+                Red { key: b"test a::t x".as_slice().into(), head: Box::new([2; 32]) },
+            ]),
+        },
+    );
 }
 
 #[test]
 fn a_hosted_runs_results_are_kept_through_jigs_channel() {
-    exchange(temper_worker_domain::wire::Ask::Results(super::results::report()), temper_worker_domain::wire::Answer::Kept);
+    exchange(
+        temper_worker_domain::wire::Ask::Results(super::results::report()),
+        temper_worker_domain::wire::Answer::Kept,
+    );
 }
 
 #[test]

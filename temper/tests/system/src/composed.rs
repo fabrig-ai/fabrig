@@ -1396,8 +1396,8 @@ impl World {
                 self.worker_events.push_back(worker::Event::Done { owner, done });
                 let _moves = self.forge.moves();
             }
-            // io ends each operation at once: its outcome has won the race.
-            worker::Request::CancelIo { .. } => {}
+            // Diagnostics do not affect the story. IO ends at once, winning the cancellation race.
+            worker::Request::ResultsIgnored { .. } | worker::Request::CancelIo { .. } => {}
         }
     }
 

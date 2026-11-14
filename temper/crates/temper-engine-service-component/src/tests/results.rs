@@ -14,7 +14,10 @@ pub(super) fn report() -> worker::CheckResults {
         verdict: worker::Verdict::Passed,
         passed: Box::new([b"test fabrig-x::t a".as_slice().into()]),
         failed: Box::new([]),
-        flakes: Box::new([worker::Flake { key: b"test fabrig-x::t b".as_slice().into(), log: b"boom".as_slice().into() }]),
+        flakes: Box::new([worker::Flake {
+            key: b"test fabrig-x::t b".as_slice().into(),
+            log: b"boom".as_slice().into(),
+        }]),
     }
 }
 
@@ -24,24 +27,52 @@ fn a_results_ask_queues_the_report_with_run_and_attempt_and_answers_kept_at_once
     let engine = service.engine.as_mut().unwrap();
     assert!(engine.events.is_empty());
     let bytes = temper_worker_service::translate::ask(worker::Ask::Results(report()));
-    crate::route::request(engine, root::Request::Worker(root::WorkerRequest::Host(Box::new(root::HostRequest::Ask {
-        channel: Token::new(7), run: Token::new(run.task), attempt: Token::new(run.attempt), number: 19, bytes,
-    }))));
+    crate::route::request(
+        engine,
+        root::Request::Worker(root::WorkerRequest::Host(Box::new(root::HostRequest::Ask {
+            channel: Token::new(7),
+            run: Token::new(run.task),
+            attempt: Token::new(run.attempt),
+            number: 19,
+            bytes,
+        }))),
+    );
     let event = engine.events.pop().expect("report first");
     let root::Event::Worker(root::WorkerInput::CheckResults { run: task, attempt, results }) = &event else {
         panic!("decoded report")
     };
     assert_eq!((task.raw(), attempt.raw()), (run.task, run.attempt));
-    assert_eq!(results, &root::wire::CheckResults {
-        tag: 1, check: 2, tree: Box::new([3; 20]), base: None, verdict: root::wire::Verdict::Passed,
-        passed: Box::new([b"test fabrig-x::t a".as_slice().into()]), failed: Box::new([]),
-        flakes: Box::new([root::wire::Flake { key: b"test fabrig-x::t b".as_slice().into(), log: b"boom".as_slice().into() }]),
-    });
-    let Some(root::Event::Worker(root::WorkerInput::Asked { channel, run: task, attempt, number, answer: host::AskAnswer::Bytes(bytes) })) = engine.events.pop() else {
+    assert_eq!(
+        results,
+        &root::wire::CheckResults {
+            tag: 1,
+            check: 2,
+            tree: Box::new([3; 20]),
+            base: None,
+            verdict: root::wire::Verdict::Passed,
+            passed: Box::new([b"test fabrig-x::t a".as_slice().into()]),
+            failed: Box::new([]),
+            flakes: Box::new([root::wire::Flake {
+                key: b"test fabrig-x::t b".as_slice().into(),
+                log: b"boom".as_slice().into()
+            }]),
+        }
+    );
+    let Some(root::Event::Worker(root::WorkerInput::Asked {
+        channel,
+        run: task,
+        attempt,
+        number,
+        answer: host::AskAnswer::Bytes(bytes),
+    })) = engine.events.pop()
+    else {
         panic!("encoded answer follows without a domain step")
     };
     assert_eq!((channel.raw(), task.raw(), attempt.raw(), number), (7, run.task, run.attempt, 19));
-    assert_eq!(temper_worker_service::translate::answer(&bytes, &temper_protocol_worker_wire::v1::CEILINGS), Some(worker::Answer::Kept));
+    assert_eq!(
+        temper_worker_service::translate::answer(&bytes, &temper_protocol_worker_wire::v1::CEILINGS),
+        Some(worker::Answer::Kept)
+    );
     assert!(engine.events.is_empty());
     // The domain's report decision is an empty route in this change.
     let before = engine.domain.deployment().commits;

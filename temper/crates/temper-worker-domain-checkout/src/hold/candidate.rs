@@ -259,7 +259,8 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
                 | Step::Restore => unreachable!("merge conflicts precede commit"),
             }
         }
-        Done::Paths { .. }
+        Done::Results { .. }
+        | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::IsAncestor { .. }
         | Done::Unchanged
@@ -378,6 +379,7 @@ pub(super) fn pushed(
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -425,6 +427,7 @@ pub(super) fn pushed(
             Done::Fetched { .. }
             | Done::Committed { .. }
             | Done::Unchanged
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }

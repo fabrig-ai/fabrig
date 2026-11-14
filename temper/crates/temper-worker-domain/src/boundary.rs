@@ -124,6 +124,8 @@ pub enum Event {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A results file was absent or malformed; content-free diagnostic.
+    ResultsIgnored { owner: Token, tag: u64, reason: Box<[u8]> },
     /// Encode temper’s check read before asking the hub.
     RedsAsk { owner: Token, check: u64, ask: wire::Ask },
     /// Decode the hub’s answer before the check uses it.

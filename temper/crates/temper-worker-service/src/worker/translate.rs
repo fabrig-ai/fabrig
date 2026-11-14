@@ -20,21 +20,32 @@ pub fn ask(ask: temper_worker_domain::wire::Ask) -> Box<[u8]> {
             }
             let mut flakes = List::with_capacity(v1::CEILINGS.check_results_flakes);
             for flake in results.flakes {
-                flakes.push(v1::Flake::new(
-                    &v1::CEILINGS, v1::FlakeParts { key: flake.key, log: flake.log },
-                ).expect("bounded flake")).expect("bounded flakes");
+                flakes
+                    .push(
+                        v1::Flake::new(&v1::CEILINGS, v1::FlakeParts { key: flake.key, log: flake.log })
+                            .expect("bounded flake"),
+                    )
+                    .expect("bounded flakes");
             }
-            v1::Ask::Results(v1::CheckResults::new(&v1::CEILINGS, v1::CheckResultsParts {
-                tag: results.tag,
-                check_number: results.check,
-                tree: results.tree,
-                base: results.base,
-                verdict: match results.verdict {
-                    worker::Verdict::Passed => v1::Verdict::Passed,
-                    worker::Verdict::Refused => v1::Verdict::Refused,
-                },
-                passed, failed, flakes,
-            }).expect("bounded check report"))
+            v1::Ask::Results(
+                v1::CheckResults::new(
+                    &v1::CEILINGS,
+                    v1::CheckResultsParts {
+                        tag: results.tag,
+                        check_number: results.check,
+                        tree: results.tree,
+                        base: results.base,
+                        verdict: match results.verdict {
+                            worker::Verdict::Passed => v1::Verdict::Passed,
+                            worker::Verdict::Refused => v1::Verdict::Refused,
+                        },
+                        passed,
+                        failed,
+                        flakes,
+                    },
+                )
+                .expect("bounded check report"),
+            )
         }
     };
     wire::ask(&value)
