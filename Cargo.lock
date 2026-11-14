@@ -3236,6 +3236,7 @@ dependencies = [
 name = "skein-fake-machine"
 version = "0.0.0"
 dependencies = [
+ "skein-heap",
  "skein-io",
  "skein-lib",
  "skein-sim",
@@ -7198,14 +7199,19 @@ dependencies = [
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-accounts",
+ "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
  "skein-codegen",
+ "skein-fake-machine",
  "skein-forge",
  "skein-forge-client",
+ "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-scratch",
+ "skein-sim",
  "skein-world",
  "temper-client-protocol-wire",
  "temper-engine-domain",

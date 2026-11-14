@@ -1,5 +1,6 @@
 //! File lengths become durable with the file's sync (testing/simulator.md, 3.3).
 use super::{Body, LARGEST_FILE, Machine, Opened, Refusal, fail};
+use alloc::rc::Rc;
 
 impl Machine {
     /// Sets the open file's length, zeros filling any extension.
@@ -12,7 +13,7 @@ impl Machine {
         let Body::File(contents) = &mut self.node_mut(node).body else {
             fail("only a file is opened to cut");
         };
-        contents.resize(length, 0);
+        Rc::make_mut(contents).resize(length, 0);
         Ok(())
     }
 }

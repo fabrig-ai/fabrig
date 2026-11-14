@@ -9,6 +9,7 @@ pub use patch_set::PATCH_SET;
 pub use temper_protocol_store_patches::patches;
 
 use alloc::boxed::Box;
+pub mod jobs;
 pub mod keys;
 pub use keys::KEYSPACES;
 pub mod records;

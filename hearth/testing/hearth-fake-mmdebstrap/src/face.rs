@@ -41,8 +41,8 @@ pub struct Printed {
     pub exit: u8,
 }
 /// Accept precisely the invocation hearth writes, with no inherited environment.
-#[must_use]
-pub fn check(args: &[Box<[u8]>], env: &[Box<[u8]>]) -> Simulate {
+/// Returns a finding for options outside the fake's model (hearth/docs/design/testing/fake-machine.md, 6).
+pub fn check(args: &[Box<[u8]>], env: &[Box<[u8]>]) -> Result<Simulate, String> {
     let mut args = args.iter().map(AsRef::as_ref);
     for fixed in [b"--verbose".as_slice(), b"--simulate", b"--mode=chrootless", b"--variant=apt"] {
         assert_eq!(args.next(), Some(fixed), "hearth/docs/design/domain/render/spec.md 2.2's ordered vector");
@@ -60,11 +60,9 @@ pub fn check(args: &[Box<[u8]>], env: &[Box<[u8]>]) -> Simulate {
         next = args.next().expect("apt options after includes");
     }
     assert_eq!(next, b"--aptopt=Acquire::Check-Valid-Until \"false\"");
-    assert_eq!(
-        args.next(),
-        Some(b"--aptopt=APT::Install-Recommends \"false\"".as_slice()),
-        "APT::Install-Recommends must be false"
-    );
+    if args.next() != Some(b"--aptopt=APT::Install-Recommends \"false\"".as_slice()) {
+        return Err("APT::Install-Recommends must be false".into());
+    }
     next = args.next().expect("skip or proxy");
     let proxy = next.strip_prefix(b"--aptopt=Acquire::http::Proxy \"http://127.0.0.1:").map(|port| {
         let port = port.strip_suffix(b"/\"").expect("loopback proxy URL");
@@ -84,14 +82,14 @@ pub fn check(args: &[Box<[u8]>], env: &[Box<[u8]>]) -> Simulate {
         [b"TMPDIR=".as_slice(), &scratch].concat().into(),
     ]);
     assert_eq!(env, expected.as_ref(), "the complete environment of hearth/docs/design/domain/render/spec.md 2.2");
-    Simulate {
+    Ok(Simulate {
         variant: Variant::Apt,
         architecture: architecture.into(),
         include: include.into(),
         proxy,
         suite,
         scratch,
-    }
+    })
 }
 /// Decode the source lines hearth writes; their order is the source preference.
 #[must_use]

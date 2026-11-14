@@ -12,6 +12,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         return;
     }
     crate::rehearsal::announce(store, above);
+    if let Err(why) = crate::jobs::admission::check(&store.patch_sets) {
+        return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
+    }
     let format_key = keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits");
     let header_key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
     let Ok(found) = get_open(store, owner, format_key) else {
@@ -36,6 +39,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
                 above,
             );
         } else if last == 0 {
+            if let Err(why) = crate::registry::open(store, true) {
+                return refuse(store, owner, why, above);
+            }
             ready(store, owner, last, true, above, below);
         } else {
             refuse(store, owner, OpenRefusal::Numbers { store: last, header: 0 }, above);
@@ -55,7 +61,21 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     if !crate::rehearsal::records(store, owner, found_levels, above) {
         return;
     }
-    if compared == format::Compared::Behind
+    let jobs = match crate::jobs::kept::pending(store) {
+        Ok(pending) => pending,
+        Err(why) => return refuse(store, owner, why, above),
+    };
+    if (compared == format::Compared::Behind || jobs)
+        && let Err(why) = pending(store, found_levels, binary)
+    {
+        return refuse(store, owner, why, above);
+    }
+    let registry = match crate::registry::open(store, false) {
+        Ok(writing) => writing,
+        Err(why) => return refuse(store, owner, why, above),
+    };
+    if registry
+        && store.directory.patch.is_none()
         && let Err(why) = pending(store, found_levels, binary)
     {
         return refuse(store, owner, why, above);
@@ -221,13 +241,18 @@ fn get_row(store: &mut Store, owner: Token, key: Box<[u8]>, opening: bool) -> Re
     skein_kv::down(
         &mut store.stores.store,
         &crate::memory_env(store.limits.store),
-        skein_kv::Request::Get { owner, key },
+        skein_kv::Request::Get { owner, key: key.clone() },
         &mut above,
         &mut below,
     );
     assert!(below.is_empty(), "a memory get issues no file operation");
     match restore::reader::joined(above.pop()) {
-        Ok(value) => Ok(value),
+        Ok(mut value) => {
+            if let Some(value) = &mut value {
+                crate::registry::read(store, &key, value);
+            }
+            Ok(value)
+        }
         Err(failure) => {
             if let Some(site) = site {
                 store.open_failed(restore::OpenFailure::Data(restore::Failure::at(

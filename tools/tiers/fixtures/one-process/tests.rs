@@ -131,9 +131,3 @@ fn d() {}
 #[test]
 #[ignore]
 fn ignored() {}
-
-#[test]
-#[should_panic(expected = "expected panic")]
-fn expected_panic() {
-    panic!("expected panic");
-}

@@ -147,6 +147,7 @@ pub struct World {
     pub auto_ack: bool,
     pub auto_answer: bool,
     pending: Vec<parent::Event>,
+    finding: Option<String>,
 }
 
 impl World {
@@ -207,6 +208,7 @@ impl World {
             auto_ack: true,
             auto_answer: true,
             pending: Vec::new(),
+            finding: None,
         }
     }
 
@@ -240,6 +242,17 @@ impl World {
 
     /// Deliver one parent command, recording parent terminals first.
     pub fn event(&mut self, event: parent::Event) {
+        if self.finding.is_none()
+            && let Err(why) = self.event_checked(event)
+            && self.finding.is_none()
+        {
+            self.finding = Some(why);
+        }
+        self.watch().unwrap_or_else(|why| panic!("{why}"));
+    }
+
+    fn event_checked(&mut self, event: parent::Event) -> Result<(), String> {
+        self.trace.log(self.stage.env.now, format!("up {event:?}"));
         match &event {
             parent::Event::Spawn { client, start } => {
                 let seen = self.seen.entry(*client).or_default();
@@ -255,8 +268,8 @@ impl World {
                 }
             }
             parent::Event::Answer { agent, call, .. } => {
-                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
-                assert!(seen.calls.remove(call), "one parent terminal");
+                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).ok_or("parent's slot")?;
+                seen.observe_answer(*call)?;
             }
             parent::Event::Acknowledge { agent, turn } => {
                 let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
@@ -268,13 +281,16 @@ impl World {
             }
             parent::Event::Grant { .. } | parent::Event::Drain { .. } | parent::Event::Stop { .. } => {}
         }
-        self.trace.log(self.stage.env.now, format!("up {event:?}"));
         self.stage.push(event);
         while let Some(event) = self.stage.next_event() {
             inline::step(&mut self.agent, &self.stage.env, Input::Parent(event), &mut self.stage.out);
             self.outputs();
+            if self.finding.is_some() {
+                return Ok(());
+            }
         }
         self.pass();
+        Ok(())
     }
 
     /// Drive at most one hundred deadlines until this client has its answer.
@@ -297,16 +313,17 @@ impl World {
         while let Some(event) = self.schedule.next(now) {
             self.event(event);
         }
-        while self.provider.is_due(now) {
+        while self.finding.is_none() && self.provider.is_due(now) {
             provider::fire(&mut self.provider, &self.provider_env, &mut self.provider_out);
             self.provider_replies();
         }
-        while self.agent.is_due(now) {
+        while self.finding.is_none() && self.agent.is_due(now) {
             inline::fire(&mut self.agent, &self.stage.env, &mut self.stage.out);
             self.outputs();
             self.pass();
         }
         self.pass();
+        self.watch().unwrap_or_else(|why| panic!("{why}"));
     }
 
     /// Earliest provider, slot or scheduled parent alarm.
@@ -324,6 +341,7 @@ impl World {
     pub fn run(&mut self) {
         for _ in 0..4096 {
             self.pass();
+            self.watch().unwrap_or_else(|why| panic!("{why}"));
             if self.seen.values().all(|seen| seen.gone.is_some()) && !self.seen.is_empty() && self.schedule.is_empty() {
                 return;
             }
@@ -340,8 +358,20 @@ impl World {
         panic!("bounded inline story did not settle\n{}", self.trace.lines().join("\n"));
     }
 
+    /// Return the first parent referee finding with this world's trace.
+    ///
+    /// # Errors
+    /// Returns the first refused observation, naming the seed and ordered trace.
+    pub fn watch(&self) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(format!("{why}\n{}", self.trace.lines().join("\n")));
+        }
+        Ok(())
+    }
+
     /// Verify every lower right and emitted parent call/turn is settled.
     pub fn settled(&self) {
+        self.watch().unwrap_or_else(|why| panic!("{why}"));
         self.lower.assert_settled();
         assert!(self.bindings.is_empty());
         assert_eq!(self.pending_machine.len(), 0);
@@ -373,6 +403,19 @@ impl World {
     }
 
     fn outputs(&mut self) {
+        if self.finding.is_none()
+            && let Err(why) = self.outputs_checked()
+            && self.finding.is_none()
+        {
+            self.finding = Some(why);
+        }
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the inline driver routes each ordered output and returns its first finding"
+    )]
+    fn outputs_checked(&mut self) -> Result<(), String> {
         while let Some(request) = self.stage.out.pop() {
             self.trace.log(self.stage.env.now, format!("down {request:?}"));
             self.record_route(&request);
@@ -414,7 +457,7 @@ impl World {
                     }
                     let lower_settled = !self.bindings.values().any(|binding| Some(binding.agent) == seen.agent)
                         && !self.pending_machine.iter().any(|(agent, _, _)| Some(*agent) == seen.agent);
-                    seen.observe_parent(request, lower_settled, lower_settled);
+                    seen.observe_parent(request, lower_settled, lower_settled)?;
                 }
                 Output::Lower { agent, request } => match request {
                     Lower::Complete { owner, prompt, .. } => {
@@ -471,7 +514,11 @@ impl World {
                     }
                 },
             }
+            if self.finding.is_some() {
+                break;
+            }
         }
+        Ok(())
     }
 
     fn machine_request(&mut self, agent: Token, request: smith_protocol_machine::FromDomain) {
@@ -496,6 +543,9 @@ impl World {
             self.lower.end(callback);
             inline::step(&mut self.agent, &self.stage.env, Input::Below { agent, terminal }, &mut self.stage.out);
             self.outputs();
+            if self.finding.is_some() {
+                break;
+            }
         }
     }
 
@@ -559,6 +609,9 @@ impl World {
                 &mut self.stage.out,
             );
             self.outputs();
+            if self.finding.is_some() {
+                break;
+            }
         }
         self.provider.reclaim();
     }
@@ -566,6 +619,9 @@ impl World {
     fn pass(&mut self) {
         for _ in 0..4096 {
             self.outputs();
+            if self.finding.is_some() {
+                return;
+            }
             if self.auto_machine
                 && self.pending_machine.iter().any(|(_, _, terminal)| {
                     self.tool_terminals == ToolTerminals::Forward || !matches!(terminal, Below::Done { .. })

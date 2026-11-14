@@ -64,7 +64,8 @@ default-filter = """
   & not binary(/^(conformance|recorded)_/)
 ) | package(=fabrig-boundary)
 """
-global-timeout = "200s"
+# 230 s, a band-aid by the user's word of 11-14, until the default suite is back under 200 s by the testing strategy's order of repairs (skein/docs/foundation/testing-strategy.md, 8.1).
+global-timeout = "230s"
 slow-timeout = { period = "6s" }
 
 [[profile.default.overrides]]

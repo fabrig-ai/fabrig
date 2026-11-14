@@ -2,9 +2,11 @@
 //! keeps the core's text, but a connector's section is only its number,
 //! kind, fixed name, token and size. Its owner keeps the bytes through assignment.
 //!
-//! One deadline covers gathering and cuts. A required section that does not
-//! arrive fails the brief; an optional one leaves a missing marker. Abandoning
-//! a brief drops every connector token it was handed.
+//! One deadline covers gathering and cuts; a settle point seven eighths of the
+//! way there stops optional gathering to leave time for cuts (domain/engine/briefs.md,
+//! section 1). A required section that does not arrive fails the brief; an optional
+//! one leaves a missing marker. Abandoning a brief drops every connector token it
+//! was handed.
 
 use alloc::boxed::Box;
 
@@ -53,7 +55,7 @@ impl Failure {
 pub enum Missing {
     /// Its owner could not gather it.
     Failed,
-    /// Gathering or cutting passed the brief's deadline.
+    /// Optional gathering passed the settle point, or gathering or cutting passed the deadline.
     Late,
     /// It could not fit within the brief's byte budget.
     Budget,
@@ -120,9 +122,11 @@ struct Active {
     allotted: List<u32>,
     budget: u32,
     waiting: u32,
+    deadline: Time,
+    settled: bool,
 }
 
-/// Bounded active briefs and their single gathering deadline each.
+/// Bounded active briefs and their single timer each, for settling then expiry.
 #[derive(Hash, Debug)]
 pub struct Domain {
     briefs: Map<Token, Active>,
@@ -136,7 +140,7 @@ impl Domain {
         Domain { briefs: Map::with_capacity(limits.briefs), deadlines: Deadlines::with_capacity(limits.briefs) }
     }
 
-    /// The earliest gathering deadline.
+    /// The earliest settle point or brief deadline.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         self.deadlines.next()
@@ -171,10 +175,21 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     }
 }
 
-/// Expire the earliest due brief after the stage has taken today's inputs.
+/// Settle or expire the earliest due brief after the stage has taken today's inputs.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let Some(brief) = domain.deadlines.expire(env.now) else { return };
     let Some(mut active) = domain.briefs.remove(&brief) else { return };
+    if env.now < active.deadline && !active.settled {
+        settle(&mut active, out);
+        active.settled = true;
+        domain.deadlines.arm(brief, active.deadline).expect("admitted brief deadline");
+        if active.waiting == 0 {
+            allocate(domain, brief, active, false, out);
+        } else {
+            domain.briefs.insert(brief, active).expect("same active brief");
+        }
+        return;
+    }
     let mut failure = None;
     let mut cutting = false;
     for index in 0..active.sections.len() {
@@ -186,7 +201,11 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 }
                 let section = active.sections.get(index).expect("section");
                 if section.required() && failure.is_none() {
-                    failure = Some(late(section));
+                    failure = Some(match status {
+                        Status::Gathering => late(section),
+                        Status::Cutting => uncut(section),
+                        Status::Ready | Status::Missing(_) | Status::Dropped(_) => unreachable!("waiting section"),
+                    });
                 }
                 *status = Status::Missing(Missing::Late);
             }
@@ -202,6 +221,21 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     } else {
         allocate(domain, brief, active, true, out);
     }
+}
+
+fn settle(active: &mut Active, out: &mut Queue<Request>) {
+    for index in 0..active.sections.len() {
+        let section = active.sections.get(index).expect("section");
+        let status = active.status.get_mut(index).expect("section status");
+        match *status {
+            Status::Gathering if !section.required() => {
+                *status = Status::Missing(Missing::Late);
+                active.waiting = active.waiting.checked_sub(1).expect("an outstanding section");
+            }
+            Status::Gathering | Status::Cutting | Status::Ready | Status::Missing(_) | Status::Dropped(_) => {}
+        }
+    }
+    drop_missing(active, out);
 }
 
 fn begin(
@@ -247,12 +281,19 @@ fn begin(
             Planned::Connector { .. } => {}
         }
     }
+    let span = u128::from(deadline.saturating_since(env.now).as_nanos());
+    let nanos = span.saturating_mul(7).checked_div(8).expect("positive divisor");
+    let settle_at = env
+        .now
+        .saturating_add(skein_lib::Duration::from_nanos(u64::try_from(nanos).expect("seven eighths of a span fits")));
     let mut active = Active {
         sections: List::with_capacity(count),
         status: List::with_capacity(count),
         allotted: List::with_capacity(count),
         budget,
         waiting: 0,
+        deadline,
+        settled: settle_at == deadline,
     };
     for section in sections {
         let status = match &section {
@@ -270,7 +311,7 @@ fn begin(
     if active.waiting == 0 {
         allocate(domain, brief, active, false, out);
     } else {
-        domain.deadlines.arm(brief, deadline).expect("admitted brief deadline");
+        domain.deadlines.arm(brief, settle_at).expect("admitted brief deadline");
         domain.briefs.insert(brief, active).expect("admitted brief room");
     }
 }
@@ -424,7 +465,7 @@ fn allocate(domain: &mut Domain, brief: Token, mut active: Active, expired: bool
                     let index = locate(&active, *token).expect("planned connector token");
                     if active.sections.get(index).expect("section").required() {
                         domain.deadlines.cancel(brief);
-                        fail(brief, &active, Missing::Late, late(active.sections.get(index).expect("section")), out);
+                        fail(brief, &active, Missing::Late, uncut(active.sections.get(index).expect("section")), out);
                         return;
                     }
                 }
@@ -531,6 +572,14 @@ fn late(section: &Planned) -> Failure {
         fate: Fate::Infrastructure,
         section: section_name(section),
         words: Box::from(b"not gathered by its deadline".as_slice()),
+    }
+}
+
+fn uncut(section: &Planned) -> Failure {
+    Failure {
+        fate: Fate::Infrastructure,
+        section: section_name(section),
+        words: Box::from(b"not cut by its deadline".as_slice()),
     }
 }
 

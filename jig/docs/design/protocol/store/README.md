@@ -34,11 +34,18 @@ section 11.
   each owner's patch level and the deployment; a store of another
   version or deployment refuses to open, and before the first release
   nothing is translated (`records.md`).
+- **Values name their layout.** A registered family's value carries its
+  value type's layout id, an entry of the store's registry; the open
+  checks that each layout held converts to the binary's, and each value
+  is converted as it is read (`layouts.md`).
 - **Generations.** The maps live in numbered generations under the
-  deployment's directory, `active` naming the open one. A store behind
-  the binary's patch levels is patched at open in a copy, checked, and
-  switched to by one durable rename; a crash anywhere leaves one whole
-  generation active (`README.md`, section 2, and `opening.md`, section 2 to 4).
+  deployment's directory, `active` naming the open one. A store the open
+  must write before serving (a patch pending, its registry to seed or
+  extend, a job pending) is upgraded at open in a new generation made
+  by links, checked, and switched to by one durable rename; a crash
+  anywhere leaves one whole generation active (`README.md`, section 2,
+  and `opening.md`, section 2 to 4). Jobs at open walk the map for their
+  owners when a binary needs it in another shape (`jobs.md`).
 - **One decision, one commit, the same number.** Each of the root's
   commits is one skein-kv commit with the same number. Group commit folds
   bursts into one sync. A failed or refused commit stops the engine
@@ -346,6 +353,7 @@ child puts live first.
 | component | the format row | none: one row | at open |
 | component | the installation's identifier, at its reserved key in the accounts' family (01 04 03): drawn by the shell at each start (`../configuration.md`, section 7) and kept by the store's first commit, beside the format row (`records.md`, 3), so that each later start's draw is ignored | none: one row | at open, handed up as the store opens, never by the restart's ranges (`loads.md`, 2) |
 | component | transcripts' places: each task's committed length and its current window's start; each attempt's first turn | task; task, attempt | at open, the run proofs' tasks' lengths (`transcripts.md`, 4); the rest when read |
+| component | the registry: each layout of the registered families' value types, the schema texts they name, and the jobs done (`layouts.md`, 3; `jobs.md`, 2) | family, value type, id; a text's digest; owner, job | at open, whole |
 | core | the deployment: its id, its numbers (the next project's among them, past every project seeded or made), the last commit | none: one row | at start |
 | core | settings (`../../domain/engine/settings.md`, 7): the defaults the newest revision was made with, a record per setting; the changes over them, a record per setting changed (its value whole, or its removal, with the revision that made it); the held revisions' records; the charter versions held revisions read and the newest does not; pending proposals' sets; of an application's kinds, each setting's state and size and each item's edit and size, never the value, which its connector's family keeps (`../../domain/engine/settings.md`, 5) | under the core's family tag 8: kind, then scope (0 for the deployment, a project's number), then number, for defaults and changes; revision; charter, then the revision that made it; proposal | at start, after the deployment's row, before every other family of the core's |
 | core | settings' history: the records of revisions no longer held, each with its number, the revision it was made against, when, who decided it, the proposal it came from, whether it moved running work, and its items with the values they set and what each replaced (`../../domain/engine/settings.md`, 10), an application's with their sizes alone (`../../domain/engine/settings.md`, 5); within the history limit, the oldest erased by the decision that makes a newer one | under the core's family tag 9: revision | on demand |

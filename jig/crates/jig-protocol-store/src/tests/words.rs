@@ -68,6 +68,20 @@ fn a_numbers_refusal_says_to_restore_whole_or_move_the_generations() {
 fn a_failed_refusal_says_to_check_space_and_permissions_then_restore() {
     says(OpenRefusal::Failed, FAILED, "\n\n-");
 }
+#[test]
+fn an_unplanned_layout_says_to_start_a_build_that_converts_it() {
+    says(
+        OpenRefusal::Layout {
+            family: "fixture".into(),
+            value_type: 0,
+            id: 2,
+            values: Some(1),
+            why: crate::Unplanned::Text,
+        },
+        "- `Layout`: \"",
+        "\"",
+    );
+}
 
 #[test]
 fn todays_layouts_refusal_says_to_move_its_three_directories() {
@@ -117,6 +131,15 @@ fn a_layout_refusal_names_its_family_and_says_to_move_the_generations() {
         let words = OpenRefusal::OlderBuild { why: Older::Layout(family) }.words().join("`<deployment>`");
         assert_eq!(words, settings.replacen("whose settings family's", clause, 1), "{family:?}");
     }
+}
+
+#[test]
+fn a_job_refusal_says_the_designs_words() {
+    says(
+        OpenRefusal::Job { owner: crate::Owner::Jig, job: "fixture".into(), key: None, why: "refused".into() },
+        "- `Job`: \"",
+        "\"",
+    );
 }
 
 #[test]

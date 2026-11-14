@@ -3,7 +3,10 @@
 - **From the baseline on,** a landing that changes the layout of a
   stored family brings a patch beside it, and a store behind its
   binary applies the patches between, in order. Until the baseline,
-  nothing asks for one.
+  nothing asks for one. A registered family (`README.md`, section 5)
+  brings none from its registration on: its store converts each value
+  as it is read (`layouts.md`), and its patches landed before keep
+  running for the stores behind them.
 - **Files, in the owner's crate beside its schemas:**
   - `schema/kept/<family>-v<N>.schema`: every version's text from the
     baseline on, never edited once landed but by the command's refresh

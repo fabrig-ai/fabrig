@@ -9,7 +9,7 @@ use skein_forge::forgejo::plans::{Failure, Heard, plan::Range};
 use skein_forge::forgejo::request;
 use skein_lib::{
     Duration, Time, Wall,
-    stream::{Fault, Up},
+    stream::{Fault, Read, Up},
 };
 
 #[test]
@@ -337,6 +337,101 @@ fn a_chunked_raw_read_keeps_the_last_short_piece() {
     assert_eq!(h.connection.phase(), Phase::Idle, "complete body reusable");
 }
 
+/// Three distinct HTTP chunks, each large enough to expose bytewise demands.
+fn three_chunk_body() -> Box<[u8]> {
+    let mut body = skein_lib::Writer::new(3000);
+    for byte in *b"abc" {
+        body.put(&fixtures::filled(1000, byte)).expect("three pieces fit");
+    }
+    body.finish()
+}
+fn three_chunk_response(body: &[u8]) -> Box<[u8]> {
+    assert_eq!(body.len(), 3000);
+    let head = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n";
+    let mut response = skein_lib::Writer::new(head.len().checked_add(3026).unwrap());
+    response.put(head).unwrap();
+    for piece in body.chunks(1000) {
+        response.put(b"3e8\r\n").unwrap();
+        response.put(piece).unwrap();
+        response.put(b"\r\n").unwrap();
+    }
+    response.put(b"0\r\n\r\n").unwrap();
+    response.finish()
+}
+fn arrived_reads(h: &fixtures::ConnectionHarness, most: u32) {
+    assert!(h.body_demands > 0 && h.body_demands <= most, "a few body demands, not one per byte");
+    for read in &h.body_reads {
+        let Read::Arrived { max } = read else { panic!("an unsized body must read arrivals, got {read:?}") };
+        assert!(*max > 0 && *max <= h.env.limits.chunk, "bounded, positive arrival demand");
+    }
+}
+#[test]
+fn chunked_heads_read_arrivals_within_the_remaining_retention_room() {
+    let body = three_chunk_body();
+    let response = three_chunk_response(&body);
+    for (max, kept, more, reads, phase) in [
+        (3000, 3000, false, [1000, 1000, 1000].as_slice(), Phase::Idle),
+        (1499, 1500, true, [1000, 500].as_slice(), Phase::Closed),
+    ] {
+        let mut h = fixtures::ConnectionHarness::with_chunk(4096);
+        h.start_forgejo(raw_request(), Some(Range::Head(max))).unwrap();
+        let heard = h.buffered_answer(&response, response.len(), false);
+        arrived_reads(&h, 3);
+        for (read, expected) in h.body_reads.iter().zip(reads) {
+            assert_eq!(read, &Read::Arrived { max: *expected }, "HTTP chunk and Grow room bound the read");
+        }
+        assert_eq!(h.body_reads.len(), u32::try_from(reads.len()).unwrap());
+        assert_eq!(
+            heard.last(),
+            Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&body[..kept]), more }))
+        );
+        assert_eq!(h.connection.phase(), phase);
+    }
+}
+#[test]
+fn known_length_raw_bodies_keep_filling_the_chunk_or_remaining_bytes() {
+    let body = three_chunk_body();
+    let response = fixtures::ok(&body);
+    for range in [Range::Head(3000), Range::Tail(1200)] {
+        let mut h = fixtures::ConnectionHarness::with_chunk(1024);
+        h.start_forgejo(raw_request(), Some(range)).unwrap();
+        let heard = h.buffered_answer(&response, response.len(), false);
+        assert_eq!(h.body_reads.as_slice(), &[Read::Fill(1024), Read::Fill(1024), Read::Fill(952)]);
+        let (bytes, more) = match range {
+            Range::Head(_) => (body.as_ref(), false),
+            Range::Tail(_) => (&body[1800..], true),
+        };
+        assert_eq!(
+            heard.last(),
+            Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(bytes), more }))
+        );
+    }
+}
+#[test]
+fn close_delimited_raw_bodies_read_arrivals_through_eof() {
+    let body = three_chunk_body();
+    let headers = b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n";
+    let mut response = skein_lib::Writer::new(headers.len() + body.len());
+    response.put(headers).unwrap();
+    response.put(&body).unwrap();
+    let response = response.finish();
+    for range in [Range::Head(4000), Range::Tail(1200)] {
+        let mut h = fixtures::ConnectionHarness::with_chunk(4096);
+        h.start_forgejo(raw_request(), Some(range)).unwrap();
+        let heard = h.buffered_answer(&response, response.len(), true);
+        arrived_reads(&h, 2);
+        let (bytes, more) = match range {
+            Range::Head(_) => (body.as_ref(), false),
+            Range::Tail(_) => (&body[1800..], true),
+        };
+        assert_eq!(
+            heard.last(),
+            Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(bytes), more }))
+        );
+        assert_eq!(h.connection.phase(), Phase::Closed, "EOF ends the body and the connection");
+    }
+}
+
 #[test]
 fn the_tail_keeps_the_last_max_bytes_across_writes() {
     for (name, pieces, expected, dropped) in [
@@ -390,6 +485,75 @@ fn a_chunked_tail_read_keeps_the_last_bytes_across_pieces() {
         Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&b"cde"[..]), more: true }))
     );
     assert_eq!(h.connection.phase(), Phase::Closed, "Earlier bytes were dropped");
+}
+#[test]
+fn chunked_tails_read_arrivals_in_a_few_demands_per_chunk() {
+    let body = three_chunk_body();
+    let response = three_chunk_response(&body);
+    let mut h = fixtures::ConnectionHarness::with_chunk(4096);
+    h.start_forgejo(raw_request(), Some(Range::Tail(1200))).unwrap();
+    let heard = h.buffered_answer(&response, response.len(), false);
+    arrived_reads(&h, 3);
+    assert_eq!(
+        heard.last(),
+        Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&body[1800..]), more: true }))
+    );
+    assert_eq!(h.connection.phase(), Phase::Closed);
+}
+#[test]
+fn chunked_tail_arrivals_still_enforce_the_body_input_bound() {
+    let body = three_chunk_body();
+    let response = three_chunk_response(&body);
+    for (bound, malformed) in [(3000, false), (2999, true)] {
+        let mut h = fixtures::ConnectionHarness::with_chunk(4096);
+        h.env.limits.body_bytes_in = bound;
+        h.start_forgejo(raw_request(), Some(Range::Tail(1200))).unwrap();
+        let heard = h.buffered_answer(&response, response.len(), false);
+        arrived_reads(&h, 3);
+        let expected = if malformed {
+            skein_forge::forgejo::plans::Body::Malformed(skein_forge::decode::Malformed::Bound { field: b"log" })
+        } else {
+            skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(&body[1800..]), more: true }
+        };
+        assert_eq!(heard.last(), Some(&Heard::Done(expected)));
+        assert_eq!(h.connection.phase(), Phase::Closed);
+    }
+}
+#[test]
+fn chunked_failed_step_arrivals_keep_the_failure_suffix_and_drain_cleanup() {
+    use skein_forge::github::{
+        plans::{
+            self,
+            plan::{Comparison, Retention},
+        },
+        request::Request,
+    };
+    let marker = b"##[error]Process completed with exit code 1.\n";
+    let end = 1990 + marker.len();
+    let mut body = skein_lib::Writer::new(3000);
+    body.put(&fixtures::filled(1990, b'x')).unwrap();
+    body.put(marker).unwrap();
+    body.put(&fixtures::filled(3000 - end, b'z')).unwrap();
+    let body = body.finish();
+    let response = three_chunk_response(&body);
+    let mut h = fixtures::ConnectionHarness::github();
+    h.env.limits.chunk = 4096;
+    h.start_github(
+        plans::plan::Exchange {
+            request: Request::Followed { target: Box::from(b"/job.log".as_slice()) },
+            retention: Some(Retention::FailedStep { bytes: 1200 }),
+            comparison: Comparison::Full,
+        },
+        None,
+    )
+    .unwrap();
+    let heard = h.buffered_github_answer(&response, response.len(), false);
+    arrived_reads(&h, 3);
+    assert_eq!(
+        heard.last(),
+        Some(&plans::Heard::Done(plans::Body::Raw { bytes: Box::from(&body[end - 1200..end]), more: true }))
+    );
+    assert_eq!(h.connection.phase(), Phase::Closed, "cleanup was omitted");
 }
 #[test]
 fn a_tail_read_past_body_bytes_in_is_malformed_and_closes() {

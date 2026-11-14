@@ -129,6 +129,10 @@ impl Disk {
     pub fn store(&self) -> Store {
         Store::on_directory(&store_limits(), APPLICATION, &[], self.seeded)
     }
+    /// Give schema-bearing registry scenes their map room before construction.
+    pub fn store_with_limits(&self, limits: &crate::Limits) -> Store {
+        Store::on_directory(limits, APPLICATION, &[], self.seeded)
+    }
     /// Bound recovery reads for small generation-operation scenes too.
     pub fn store_with_chunk(&self, chunk: u32) -> Store {
         let mut limits = store_limits();
@@ -228,6 +232,20 @@ impl Disk {
         assert!(events.is_empty());
         let fd = if let file::Event::Opened { file, .. } = &event { io.descriptor(*file) } else { None };
         Arrived { event, fd }
+    }
+    /// A separate scratch deployment, adopted on all three lanes.
+    pub fn scratch_root(&mut self) -> Root {
+        let handle = self.machine.lay(&[]);
+        let fd = self.sim.root(self.pid, Handle::new(handle.raw()));
+        let mut token = None;
+        for io in &mut self.io {
+            let found = io.adopt_root(fd).expect("scratch root fits");
+            if let Some(token) = token {
+                assert_eq!(found, token);
+            }
+            token = Some(found);
+        }
+        Root { token: token.expect("three drivers"), fd }
     }
     /// Another descriptor of the same deployment, with its own driver token.
     pub fn second_root(&mut self) -> Root {

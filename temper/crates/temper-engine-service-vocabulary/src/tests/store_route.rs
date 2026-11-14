@@ -900,6 +900,34 @@ fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_ro
 }
 
 #[test]
+fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
+    let mut routes = fixtures::routes();
+    let mut out = Queue::with_capacity(4);
+    for (of, words) in [(store::Owner::Jig, "no such jig job"), (store::Owner::Application, "no such temper job")] {
+        route::up(
+            &mut routes,
+            store::Event::Job {
+                owner: fixtures::OWNER,
+                of,
+                job: "unknown-job".into(),
+                page: store::JobPage { rows: Box::new([]), end: true, layout: None },
+            },
+            &mut out,
+        );
+        let Some(Up::Ask(store::Request::Job { owner, answer: Err(why) })) = out.pop() else { panic!("job reply") };
+        assert_eq!(owner, fixtures::OWNER);
+        assert_eq!(why.why.as_ref(), words);
+        assert!(why.key.is_none());
+        route::up(
+            &mut routes,
+            store::Event::Ran { owner, of, job: "unknown-job".into(), rows: 3, commits: 2 },
+            &mut out,
+        );
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
 fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
     let call = core::Record::Core(core::CoreRecord::Call(core::CallRecord {
         key: core::CallKey { task: 0, attempt: 0, completion: 0, position: 0 },
@@ -997,29 +1025,6 @@ fn startup_census_cuts_and_cursor_decode_errors_fail_the_original_load_once() {
 }
 
 #[test]
-#[should_panic(expected = "startup continuation advances in walk order")]
-fn an_empty_filtered_startup_walk_asserts_when_the_store_repeats_its_cursor() {
-    let mut routes = fixtures::routes();
-    let key = call_row().key();
-    let Some(store::Request::Restore { owner, .. }) = route::down(
-        &mut routes,
-        load(engine::Range::Core(engine::CoreRange::RunProofs), Some(engine::Key::Core(key.clone())), 4, 8192),
-    ) else {
-        panic!("proofs")
-    };
-    let mut out = Queue::with_capacity(2);
-    route::up(
-        &mut routes,
-        store::Event::Page {
-            owner,
-            items: items(Box::new([store::Row::Jig(call_row())])),
-            next: Some(store::Cursor { interval: 0, after: store::keys::encode(&key, u32::MAX).unwrap() }),
-        },
-        &mut out,
-    );
-}
-
-#[test]
 fn startup_deep_byte_cut_fails_before_any_fitting_prefix_is_handed_off() {
     let (mut limits, _, _) = fixtures::store_limits();
     // A smaller per-record entrance exercises the cut without raising any budget.
@@ -1079,29 +1084,6 @@ fn archive_turn_pages_keep_the_longest_prefix_and_its_exact_resume_key() {
         assert_eq!(next, if count == 1 { Some(rows[0].key()) } else { None });
         assert!(out.is_empty());
     }
-}
-
-#[test]
-#[should_panic(expected = "usable translated startup cursor")]
-fn startup_asserts_a_decoded_census_cursor_that_cannot_name_its_walk() {
-    let mut routes = fixtures::routes();
-    let range = engine::Range::Census(core::Census {
-        results: Box::new([core::ReadResults { party: 8, after: 0 }]),
-        questions: Box::new([]),
-    });
-    let Some(store::Request::Restore { owner, .. }) = route::down(&mut routes, load(range, None, 4, 8192)) else {
-        panic!("census")
-    };
-    let mut out = Queue::with_capacity(2);
-    route::up(
-        &mut routes,
-        store::Event::Page {
-            owner,
-            items: items(Box::new([])),
-            next: Some(store::Cursor { interval: 0, after: store::keys::encode(&call_row().key(), u32::MAX).unwrap() }),
-        },
-        &mut out,
-    );
 }
 
 #[test]

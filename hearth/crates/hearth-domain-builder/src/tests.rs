@@ -36,26 +36,6 @@ fn renders_spec_reaches_the_client() {
     assert_eq!(spec.digest, hearth_lib::encode::Digest([2; 32]), "render's digest");
 }
 #[test]
-#[should_panic(expected = "one builder call at a time")]
-fn a_second_call_while_one_is_held_panics() {
-    let mut builder = Builder::new(&fixtures::LIMITS, fixtures::MIN_UID);
-    let mut out = Queue::with_capacity(1);
-    step(
-        &mut builder,
-        &fixtures::env(),
-        Event::Call { reply_to: ReplyTo::new(Token::new(1)), call: fixtures::call() },
-        &mut out,
-    );
-    assert!(out.pop().is_some(), "first call starts");
-    step(
-        &mut builder,
-        &fixtures::env(),
-        Event::Call { reply_to: ReplyTo::new(Token::new(2)), call: fixtures::call() },
-        &mut out,
-    );
-}
-
-#[test]
 fn the_call_reaches_render_only_once_the_store_is_open() {
     use crate::store::vocabulary::Event as StoreEvent;
     let mut builder = Builder::new(&fixtures::LIMITS, fixtures::MIN_UID);

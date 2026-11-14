@@ -17,6 +17,7 @@ const REAL_SETS: crate::PatchSets = crate::PatchSets {
         patches: &[],
         fresh: None,
         families: &[crate::KeptFamily {
+            current: REAL,
             name: smith_transcript::FAMILY,
             texts: &[REAL],
             frames: Some(smith_transcript::ROOT),

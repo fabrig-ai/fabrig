@@ -439,6 +439,10 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 String::from_utf8_lossy(&tool)
             )
         }
+        temper_engine_service::Note::Ran { of, job, rows, commits } => {
+            let binary = if binary == "temper" { "temper-box" } else { binary };
+            format!("{binary} serve: ran {} {job}: {rows} rows in {commits} commits\n", crate::upgrade::owner(of))
+        }
         temper_engine_service::Note::Patched { of, patch, counts } => {
             let binary = if binary == "temper" { "temper-box" } else { binary };
             format!(

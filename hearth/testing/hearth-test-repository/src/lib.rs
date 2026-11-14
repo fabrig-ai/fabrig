@@ -57,12 +57,20 @@ impl Repository {
     }
     #[must_use]
     pub fn make_on(path: &OsStr, label: &str, files: &[File]) -> Self {
+        Self::try_make_on(path, label, files).unwrap_or_else(|error| panic!("{error}"))
+    }
+    /// Refuses when git cannot be started on the supplied `PATH`, naming the cause.
+    pub fn try_make_on(path: &OsStr, label: &str, files: &[File]) -> Result<Self, String> {
         let repository = Self::empty(label);
-        git(&repository.work_tree, path, &["init", "--quiet", "--initial-branch=main", "--template="]);
+        drop(try_git_output(
+            &repository.work_tree,
+            path,
+            &["init", "--quiet", "--initial-branch=main", "--template="],
+        )?);
         repository.write(files);
-        git(&repository.work_tree, path, &["add", "-A"]);
-        git(&repository.work_tree, path, &["commit", "--allow-empty", "-q", "-m", "thin"]);
-        repository
+        drop(try_git_output(&repository.work_tree, path, &["add", "-A"])?);
+        drop(try_git_output(&repository.work_tree, path, &["commit", "--allow-empty", "-q", "-m", "thin"])?);
+        Ok(repository)
     }
     fn write(&self, files: &[File]) {
         for file in files {
@@ -121,6 +129,9 @@ pub fn git(directory: &Path, path: &OsStr, args: &[&str]) {
 }
 #[expect(clippy::must_use_candidate, reason = "fixture git commands also run for their side effects")]
 pub fn git_output(directory: &Path, path: &OsStr, args: &[&str]) -> Vec<u8> {
+    try_git_output(directory, path, args).unwrap_or_else(|error| panic!("{error}"))
+}
+fn try_git_output(directory: &Path, path: &OsStr, args: &[&str]) -> Result<Vec<u8>, String> {
     let result = Command::new("git")
         .current_dir(directory)
         .args(args)
@@ -139,9 +150,9 @@ pub fn git_output(directory: &Path, path: &OsStr, args: &[&str]) -> Vec<u8> {
         .env("GIT_COMMITTER_EMAIL", COMMIT_EMAIL)
         .env("GIT_COMMITTER_DATE", COMMIT_DATE)
         .output()
-        .expect("git is required on the supplied PATH");
+        .map_err(|error| format!("git is required on the supplied PATH: {error}"))?;
     assert!(result.status.success(), "git {args:?} failed: {}", String::from_utf8_lossy(&result.stderr));
-    result.stdout
+    Ok(result.stdout)
 }
 
 pub const THIN_TEXT: &str = "target       x1-prod   base x1   environment prod\nplacement    metal efi 7th-gen\nspec         23656fdf46b7\nboot         part bc6cab417252\n  mutable    false\npackages     part 64b1b99b813a   resolution 4ee22520f418 needed\n  sources    forky amd64 main 20261001T030405Z\n  variant    apt\n  microcode  generic\n  apt        install_recommends false\nsoftware     part 656d135b92c3\nconfig       part 369415fd653c\n  /etc/motd                file 0644 root:root 775324fcea7f\n  /usr/local/bin/motd      file 0755 root:root f487088ec8b1\ndata         part 2d4765200bab\nsecrets      part ac870b5c968e\nlive         part 6f1b7fda0c21\nexports      part 970579fd41be\n";

@@ -414,6 +414,8 @@ fn bounded_sets(families: usize, name_bytes: usize) -> PatchSets {
             Box::leak(format!("family {name} 1\nversioned record Empty {{ n: u64 }}\n").into_boxed_str());
         let texts = Box::leak(vec![text].into_boxed_slice());
         kept.push(KeptFamily {
+            current: texts.last().expect("kept text"),
+            types: &[],
             flights: &[],
             frames: None,
             name,

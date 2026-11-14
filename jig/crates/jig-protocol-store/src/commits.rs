@@ -1,5 +1,5 @@
 //! Root commits, numbered with skein-kv's (protocol/store/README.md, 5 and 6.2).
-use crate::{CommitCheck, Event, Store, Write, codec, format, keys};
+use crate::{CommitCheck, CommitFailure, Event, Store, Write, codec, format, keys};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{CoreRecord, Record};
 use skein_lib::{List, Map, Queue, Token};
@@ -8,10 +8,19 @@ pub(crate) fn submit(
     store: &mut Store,
     env: &skein_lib::Env<crate::Limits>,
     number: u64,
-    ops: Box<[skein_kv::Op]>,
+    mut ops: Box<[skein_kv::Op]>,
     above: &mut Queue<Event>,
     below: &mut crate::Below,
 ) {
+    for op in &mut ops {
+        if let skein_kv::Op::Put { key, value } = op
+            && store.registry.write(key, value).is_err()
+        {
+            store.phase = crate::Phase::Stopped;
+            crate::transcripts::failed(store, Some(number), CommitFailure::Check(CommitCheck::Encoding), above);
+            return;
+        }
+    }
     let kv_env = crate::directory::env(store, env, false);
     let mut events = Queue::uncapped();
     skein_kv::down(
@@ -129,6 +138,8 @@ pub(crate) fn operations(
         }
     }
     if format_due {
+        store.registry.first(&mut ops).ok_or(Refusal::Check(CommitCheck::Capacity))?;
+        crate::jobs::kept::first(store, &mut ops, number).ok_or(Refusal::Check(CommitCheck::Encoding))?;
         let id = deployment.expect("the first root commit saves its deployment header");
         let mut row = format::current(store.application.version, id);
         row.levels = crate::patching::plan::binary(&store.patch_sets);

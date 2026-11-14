@@ -578,7 +578,8 @@ fn observed_requests_render_the_run_key_only_for_openai() {
             prompt.affinity = llm::Affinity { key: [0x42; 16], thread };
             let (wire, terminal) = run_client(prompt, &configuration, 200 + u64::from(thread));
             assert!(matches!(terminal, Event::Below(smith_domain::Below::Completed { .. })));
-            let request = smith_protocol_llm_world::referee::NativeRequest::from_http(&wire.peer.requests);
+            let request = smith_protocol_llm_world::referee::NativeRequest::from_http(&wire.peer.requests)
+                .expect("native request findings");
             match configuration.endpoint.provider {
                 skein_llm::Provider::OpenAi => {
                     assert_eq!(request.affinity, Some("\"42424242-4242-4242-4242-424242424242\"".into()));
@@ -626,8 +627,10 @@ fn only_uses_automatic_wire_choice_and_keeps_all_definitions_and_not_run_feedbac
             },
         ]);
         let (only, _) = run_client(final_prompt, configuration, 802);
-        let ordinary = smith_protocol_llm_world::referee::NativeRequest::from_http(&auto.peer.requests);
-        let narrowed = smith_protocol_llm_world::referee::NativeRequest::from_http(&only.peer.requests);
+        let ordinary = smith_protocol_llm_world::referee::NativeRequest::from_http(&auto.peer.requests)
+            .expect("native request findings");
+        let narrowed = smith_protocol_llm_world::referee::NativeRequest::from_http(&only.peer.requests)
+            .expect("native request findings");
         assert_eq!(ordinary.tools, narrowed.tools, "narrowing never changes observed native definitions");
         let choice = |wire: &ClientPeer| {
             let requests = skein_llm_kit::identity(&wire.peer.requests);
@@ -677,8 +680,10 @@ fn a_compaction_asks_none_in_each_dialect_and_the_next_window_its_choice() {
         let (continued, _) = run_client(next, configuration, 812);
         assert_eq!(native_choice(&compaction), Some(none));
         assert_eq!(native_choice(&continued), only);
-        let old = smith_protocol_llm_world::referee::NativeRequest::from_http(&compaction.peer.requests);
-        let new = smith_protocol_llm_world::referee::NativeRequest::from_http(&continued.peer.requests);
+        let old = smith_protocol_llm_world::referee::NativeRequest::from_http(&compaction.peer.requests)
+            .expect("native request findings");
+        let new = smith_protocol_llm_world::referee::NativeRequest::from_http(&continued.peer.requests)
+            .expect("native request findings");
         assert_eq!(old.tools, new.tools);
         assert!(old.tools.is_some());
     }

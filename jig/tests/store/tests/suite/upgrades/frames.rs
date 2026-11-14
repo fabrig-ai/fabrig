@@ -19,20 +19,28 @@ const BASE: PatchSets = PatchSets {
     sets: &[
         PatchSet {
             patches: &[],
-            families: &[KeptFamily { texts: &[BODY.texts[0]], ..BODY }],
+            families: &[KeptFamily { current: BODY.texts[0], texts: &[BODY.texts[0]], ..BODY }],
             ..frame_reads::SETS.sets[0]
         },
         PatchSet {
             patches: &[],
-            families: &[KeptFamily { texts: &[TURN.texts[0]], ..TURN }],
+            families: &[KeptFamily { current: TURN.texts[0], texts: &[TURN.texts[0]], ..TURN }],
             ..frame_reads::SETS.sets[1]
         },
     ],
 };
 const EMPTY: PatchSets = PatchSets {
     sets: &[
-        PatchSet { patches: &[], families: &[KeptFamily { texts: &[], ..BODY }], ..frame_reads::SETS.sets[0] },
-        PatchSet { patches: &[], families: &[KeptFamily { texts: &[], ..TURN }], ..frame_reads::SETS.sets[1] },
+        PatchSet {
+            patches: &[],
+            families: &[KeptFamily { current: "", texts: &[], ..BODY }],
+            ..frame_reads::SETS.sets[0]
+        },
+        PatchSet {
+            patches: &[],
+            families: &[KeptFamily { current: "", texts: &[], ..TURN }],
+            ..frame_reads::SETS.sets[1]
+        },
     ],
 };
 
@@ -235,6 +243,7 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
             replaced(
                 Owner::Jig,
                 &[KeptFamily {
+                    current: "family fixture-frame 6\nrecord TurnRecord { transcript: bytes 64 holds fixture-turn Turn }\n",
                     texts: &[
                         "family fixture-frame 6\nrecord TurnRecord { transcript: bytes 64 holds fixture-turn Turn }\n",
                     ],
@@ -244,13 +253,24 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
         ),
         (
             "enumeration root",
-            replaced(Owner::Smith, &[KeptFamily { texts: &["family fixture-turn 2\nenum Turn { blank }\n"], ..TURN }]),
+            replaced(
+                Owner::Smith,
+                &[KeptFamily {
+                    current: "family fixture-turn 2\nenum Turn { blank }\n",
+                    texts: &["family fixture-turn 2\nenum Turn { blank }\n"],
+                    ..TURN
+                }],
+            ),
         ),
         (
             "unversioned turn",
             replaced(
                 Owner::Smith,
-                &[KeptFamily { texts: &["family fixture-turn 2\nrecord Turn { said: text 64 }\n"], ..TURN }],
+                &[KeptFamily {
+                    current: "family fixture-turn 2\nrecord Turn { said: text 64 }\n",
+                    texts: &["family fixture-turn 2\nrecord Turn { said: text 64 }\n"],
+                    ..TURN
+                }],
             ),
         ),
         (
@@ -258,6 +278,7 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
             replaced(
                 Owner::Jig,
                 &[KeptFamily {
+                    current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds absent Turn }\n",
                     texts: &[
                         "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds absent Turn }\n",
                     ],
@@ -270,6 +291,7 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
             replaced(
                 Owner::Jig,
                 &[KeptFamily {
+                    current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 }\n",
                     texts: &["family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 }\n"],
                     ..BODY
                 }],
@@ -280,6 +302,7 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
             replaced(
                 Owner::Jig,
                 &[KeptFamily {
+                    current: "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds fixture-turn Turn extra: bytes 64 holds fixture-turn Turn }\n",
                     texts: &[
                         "family fixture-frame 6\nversioned record TurnRecord { transcript: bytes 64 holds fixture-turn Turn extra: bytes 64 holds fixture-turn Turn }\n",
                     ],
@@ -292,6 +315,7 @@ fn invalid_sets() -> Vec<(&'static str, PatchSets)> {
             replaced(
                 Owner::Smith,
                 &[KeptFamily {
+                    current: "family fixture-turn 2\nversioned record Turn { back: bytes 64 holds fixture-frame TurnRecord }\n",
                     texts: &[
                         "family fixture-turn 2\nversioned record Turn { back: bytes 64 holds fixture-frame TurnRecord }\n",
                     ],
@@ -489,7 +513,8 @@ fn kept_turn_nodes_are_not_limited_by_encoded_byte_count() {
         "family fixture-turn 2\nrecord Empty {}\nversioned record Turn { said: text 64 tokens: u32 nodes: list 512 Empty }\n",
     ];
     const NODE_ITEMS: u32 = 512;
-    let sets = replaced(Owner::Smith, &[KeptFamily { texts: TEXTS, ..TURN }]);
+    const CURRENT: &str = TEXTS.last().expect("kept text");
+    let sets = replaced(Owner::Smith, &[KeptFamily { current: CURRENT, texts: TEXTS, ..TURN }]);
     let limits = patches::limits();
     let (mut component, env) = frame_reads::closed(sets, &limits);
     frame_reads::open(&mut component, &env);
@@ -522,11 +547,13 @@ fn a_party_turn_uses_patched_bytes() {
 fn foreign(sets: PatchSets, frames: Option<&'static str>) -> PatchSets {
     let mut sets = sets.sets.to_vec();
     sets.push(PatchSet {
+        jobs: &[],
         owner: Owner::Application,
         name: "fixture-foreign",
         patches: &[],
         fresh: None,
         families: Box::leak(Box::new([KeptFamily {
+            current: "family fixture-foreign 1\nversioned record Other { content: bytes 64 }\n",
             name: "fixture-foreign",
             texts: &["family fixture-foreign 1\nversioned record Other { content: bytes 64 }\n"],
             frames,

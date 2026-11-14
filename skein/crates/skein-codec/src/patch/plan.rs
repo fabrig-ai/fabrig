@@ -1,10 +1,10 @@
 //! Matching, line checks and retained conversions (data/codec/patches.md, 2–3 and 6).
 
-use super::text::{Block, Kind, Line, LineKind, Parsed, Range, Token};
+use super::text::{Block, Line, LineKind, Parsed, Range, Token};
 use super::{Missing, Op, PatchError, PatchWrong, Tables, Target, add, spelled};
 use crate::schema::{DeclIx, FieldIx, Held, Schema, Shape, Span, Type, TypeIx, VariantIx};
 use alloc::boxed::Box;
-use skein_lib::{List, bytes, usize_of};
+use skein_lib::{List, bytes};
 
 mod keeps;
 mod reverse;
@@ -430,7 +430,7 @@ pub(crate) fn payload(matching: &List<Option<DeclIx>>, old: Option<DeclIx>, new:
         None => new.is_none(),
     }
 }
-fn held(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Held, b: Held) -> Comparison {
+pub(crate) fn held(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Held, b: Held) -> Comparison {
     match a {
         Held::Opaque => match b {
             Held::Opaque => Comparison::Equal,
@@ -1124,49 +1124,6 @@ fn check_operation(
     Ok(())
 }
 
-fn emit(pool: &mut List<u8>, byte: u8) {
-    pool.push(byte).expect("encoded values bounded before allocation");
-}
-fn uint(pool: &mut List<u8>, value: u64, width: u32) {
-    let bytes = value.to_be_bytes();
-    let start = 8_u32.checked_sub(width).expect("integer width at most eight");
-    for at in start..8 {
-        emit(pool, *bytes.get(usize_of(at)).expect("integer byte index"));
-    }
-}
-fn encoded_hex(pool: &mut List<u8>, value: &[u8], bound: u32, fixed: bool, pieces: bool) -> Result<(), PatchWrong> {
-    if !value.starts_with(b"0x") {
-        return Err(PatchWrong::Value);
-    }
-    let digits = value.get(2..).expect("hex prefix checked");
-    let length = u32::try_from(digits.len()).expect("patch ceiling");
-    if length.checked_rem(2) != Some(0) {
-        return Err(PatchWrong::Value);
-    }
-    let length = length.checked_div(2).expect("nonzero divisor");
-    if length > bound || (fixed && length != bound) || (pieces && length != 0) {
-        return Err(PatchWrong::Value);
-    }
-    if !fixed {
-        uint(pool, u64::from(length), 4);
-    }
-    for &[high, low] in digits.as_chunks::<2>().0 {
-        // A value's hex digits are lower case (data/codec/patches.md, 2), though lib
-        // reads either case.
-        if high.is_ascii_uppercase() || low.is_ascii_uppercase() {
-            return Err(PatchWrong::Value);
-        }
-        let a = bytes::hex_value(high).ok_or(PatchWrong::Value)?;
-        let b = bytes::hex_value(low).ok_or(PatchWrong::Value)?;
-        emit(pool, a.checked_mul(16).expect("hex digit").checked_add(b).expect("hex byte"));
-    }
-    Ok(())
-}
-
-#[expect(
-    clippy::too_many_lines,
-    reason = "the value encoder exhaustively lists the accepted forms of every schema type (data/codec/patches.md, 2)"
-)]
 fn value(
     pool: &mut List<u8>,
     schema: &Schema,
@@ -1179,146 +1136,20 @@ fn value(
     for at in range.start..range.end {
         let token = token(parsed, at);
         let word = spelled(patch, token.at);
-        let wrong = token.error(PatchWrong::Value);
         if word == b"?" {
             return Err(token.error(PatchWrong::Asked));
         }
         if word == b"written" {
             if at != range.start {
-                return Err(wrong);
+                return Err(token.error(PatchWrong::Value));
             }
             return Ok(Source::Written);
         }
-        if word == b"some" {
-            match schema.ty(ty) {
-                Type::Option(inner) => {
-                    emit(pool, 1);
-                    ty = inner;
-                    continue;
-                }
-                Type::U8
-                | Type::U16
-                | Type::U32
-                | Type::U64
-                | Type::Bool
-                | Type::Duration
-                | Type::Fixed(_)
-                | Type::Secret { .. }
-                | Type::Text(_)
-                | Type::Bytes { .. }
-                | Type::List { .. }
-                | Type::Named(_) => return Err(wrong),
-            }
+        match crate::schema::constant::encode(pool, schema, ty, word) {
+            Ok(Some(inner)) => ty = inner,
+            Ok(None) => return Ok(Source::Value { start, end: pool.len() }),
+            Err(()) => return Err(token.error(PatchWrong::Value)),
         }
-        if word == b"none" {
-            match schema.ty(ty) {
-                Type::Option(_) => emit(pool, 0),
-                Type::U8
-                | Type::U16
-                | Type::U32
-                | Type::U64
-                | Type::Bool
-                | Type::Duration
-                | Type::Fixed(_)
-                | Type::Secret { .. }
-                | Type::Text(_)
-                | Type::Bytes { .. }
-                | Type::List { .. }
-                | Type::Named(_) => return Err(wrong),
-            }
-        } else {
-            match schema.ty(ty) {
-                integer @ (Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Duration) => {
-                    let width = match integer {
-                        Type::Duration => 8,
-                        Type::U8 | Type::U16 | Type::U32 | Type::U64 => width(integer).expect("integer type"),
-                        Type::Bool
-                        | Type::Fixed(_)
-                        | Type::Secret { .. }
-                        | Type::Text(_)
-                        | Type::Bytes { .. }
-                        | Type::List { .. }
-                        | Type::Option(_)
-                        | Type::Named(_) => unreachable!("integer type"),
-                    };
-                    let value = bytes::decimal(word).ok_or(wrong)?;
-                    let maximum = match width {
-                        1 => u64::from(u8::MAX),
-                        2 => u64::from(u16::MAX),
-                        4 => u64::from(u32::MAX),
-                        8 => u64::MAX,
-                        _ => unreachable!("integer width"),
-                    };
-                    if value > maximum {
-                        return Err(wrong);
-                    }
-                    uint(pool, value, width);
-                }
-                Type::Bool => {
-                    if word == b"true" {
-                        emit(pool, 1);
-                    } else if word == b"false" {
-                        emit(pool, 0);
-                    } else {
-                        return Err(wrong);
-                    }
-                }
-                Type::Fixed(bound) => {
-                    if let Err(wrong) = encoded_hex(pool, word, bound, true, false) {
-                        return Err(token.error(wrong));
-                    }
-                }
-                Type::Bytes { bound, held } => {
-                    let pieces = match held {
-                        Held::Opaque => false,
-                        Held::Pieces(_) => true,
-                        Held::Record { .. } => return Err(wrong),
-                    };
-                    if let Err(wrong) = encoded_hex(pool, word, bound, false, pieces) {
-                        return Err(token.error(wrong));
-                    }
-                }
-                Type::Text(bound) => {
-                    if token.kind != Kind::Text {
-                        return Err(wrong);
-                    }
-                    let content = spelled(
-                        patch,
-                        Span { start: add(token.at.start, 1), end: token.at.end.checked_sub(1).expect("quoted text") },
-                    );
-                    let length = u32::try_from(content.len()).expect("patch ceiling");
-                    if length > bound || !crate::text_is_valid(content) {
-                        return Err(wrong);
-                    }
-                    uint(pool, u64::from(length), 4);
-                    for &byte in content {
-                        emit(pool, byte);
-                    }
-                }
-                Type::List { .. } => {
-                    if word != b"[" {
-                        return Err(wrong);
-                    }
-                    uint(pool, 0, 4);
-                }
-                Type::Named(decl) => match schema.declaration(decl).shape {
-                    Shape::Record { .. } => return Err(wrong),
-                    Shape::Enum { first, count } => {
-                        let mut selected = None;
-                        for index in 0..count {
-                            let variant = schema.variant(VariantIx::new(add(first.index(), index)));
-                            if word == schema.spelled(variant.name) && variant.record.is_none() {
-                                selected = Some(index);
-                                break;
-                            }
-                        }
-                        emit(pool, u8::try_from(selected.ok_or(wrong)?).expect("enum tag at most 255"));
-                    }
-                },
-                Type::Secret { .. } | Type::Option(_) => return Err(wrong),
-            }
-        }
-        return Ok(Source::Value { start, end: pool.len() });
     }
     Err(token(parsed, range.start).error(PatchWrong::Value))
 }

@@ -14,7 +14,9 @@ static BLOCKS: Mutex<Option<Blocks>> = Mutex::new(None);
 /// kernel's ephemeral range, in blocks this process holds until it ends.
 pub fn reserve<const N: usize>(taken: &[SocketAddr]) -> [TcpListener; N] {
     let mut blocks = BLOCKS.lock().expect("port chooser lock");
-    let blocks = blocks.get_or_insert_with(|| Blocks::new(ephemeral_first(), std::process::id()));
+    let blocks = blocks.get_or_insert_with(|| {
+        Blocks::new(ephemeral_first(), std::process::id()).unwrap_or_else(|finding| panic!("{finding}"))
+    });
     std::array::from_fn(|_| blocks.listener(taken))
 }
 
@@ -50,11 +52,15 @@ struct Blocks {
     end: u16,
 }
 impl Blocks {
-    fn new(ephemeral_first: u16, start: u32) -> Self {
+    fn new(ephemeral_first: u16, start: u32) -> Result<Self, String> {
         let blocks = ephemeral_first.saturating_sub(LOWEST) / BLOCK;
-        assert!(blocks >= 2, "{RANGE_FILE}: first port {ephemeral_first} leaves fewer than two blocks above {LOWEST}");
+        if blocks < 2 {
+            return Err(format!(
+                "{RANGE_FILE}: first port {ephemeral_first} leaves fewer than two blocks above {LOWEST}"
+            ));
+        }
         let first = LOWEST + u16::try_from(start % u32::from(blocks)).expect("block index fits") * BLOCK;
-        Self { claims: Vec::new(), next: first..first, first, end: LOWEST + blocks * BLOCK }
+        Ok(Self { claims: Vec::new(), next: first..first, first, end: LOWEST + blocks * BLOCK })
     }
 
     fn claim(&mut self) {

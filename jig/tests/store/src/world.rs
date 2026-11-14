@@ -238,6 +238,12 @@ impl World {
         }
     }
 
+    /// Drop the simulator and drivers, retaining only the component for heap observations.
+    #[must_use]
+    pub fn into_component(self) -> Store {
+        self.store
+    }
+
     /// Consume a settled world to inspect the component's durable rows.
     #[must_use]
     pub fn into_stores(self) -> jig_protocol_store::Stores {
@@ -574,9 +580,17 @@ impl World {
             for event in events {
                 match event {
                     // This store world has no census consumer (protocol/store/README.md, 6.3).
-                    Event::Census { .. } => {}
+                    Event::Census { .. } | Event::Ran { .. } => {}
                     Event::Page { .. } | Event::PageRefused { .. } => {
                         unreachable!("a start's pages need a start-mode store")
+                    }
+                    Event::Job { owner, of, job, page } => {
+                        let result = if of == Owner::Jig {
+                            jig_protocol_store::jobs::page(&job, &page)
+                        } else {
+                            Err(jig_protocol_store::JobRefusal { key: None, why: "no such fixture job".into() })
+                        };
+                        answer = Some(Request::Job { owner, answer: result });
                     }
                     Event::Site { owner, of, key, site, at, patcher } => {
                         answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));

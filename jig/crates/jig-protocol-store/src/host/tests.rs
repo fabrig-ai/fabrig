@@ -260,9 +260,12 @@ fn a_store_whose_reads_are_below_its_page_is_refused() {
 #[test]
 fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
     const BASE: crate::PatchSet = crate::PatchSet {
+        jobs: &[],
         owner: crate::Owner::Application,
         name: "fixture",
         families: &[crate::KeptFamily {
+            current: jig_test_patches::patches::kept::fixture_label::TEXTS[0],
+            types: &[],
             name: "fixture-label",
             texts: &[jig_test_patches::patches::kept::fixture_label::TEXTS[0]],
             map: crate::KeptMap::Store,

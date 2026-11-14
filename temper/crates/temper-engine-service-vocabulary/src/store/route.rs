@@ -291,16 +291,11 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                 root(into, engine::StoreInput::ReadLoaded { load, result });
             }
         }
+        store::Event::Job { owner, of, job, page } => {
+            into.push(Up::Ask(job_answer(owner, of, &job, &page)));
+        }
         store::Event::Site { owner, of, site, at, patcher, key: _ } => {
-            into.push(Up::Ask(dispatch(
-                owner,
-                of,
-                site,
-                at,
-                patcher,
-                &mut routes.patch_context,
-                &mut routes.application_patch_context,
-            )));
+            into.push(Up::Ask(dispatch(routes, owner, of, site, at, patcher)));
         }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
         store::Event::OpenRefused { .. } => stop(routes, RouteStop::Open, into),
@@ -312,6 +307,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         | store::Event::BackRefused { .. }
         | store::Event::Closed { .. }
         | store::Event::Patched { .. }
+        | store::Event::Ran { .. }
         | store::Event::Opened { .. }
         | store::Event::Kept { .. }
         | store::Event::Carried { .. }
@@ -592,15 +588,26 @@ fn page_bytes(record: &engine::Record, kept: u64) -> Option<(u64, u64)> {
     Some((payload, kept.checked_add(slot)?))
 }
 
+/// Route each job page to its owner's dispatch (jig protocol/store/jobs.md, 3).
+fn job_answer(owner: Token, of: store::Owner, job: &str, page: &store::JobPage) -> store::Request {
+    let answer = match of {
+        store::Owner::Jig => store::jobs::page(job, page),
+        store::Owner::Application => families::jobs::page(job, page),
+        store::Owner::Skein | store::Owner::Smith => {
+            Err(store::JobRefusal { key: None, why: Box::from("no such job: this owner declares none") })
+        }
+    };
+    store::Request::Job { owner, answer }
+}
+
 /// Route each written site to its owner with the deployment's admitted inputs.
 fn dispatch(
+    routes: &mut Routes,
     owner: Token,
     of: store::Owner,
     site: skein_codec::patch::Site,
     at: skein_codec::value::Node,
     mut patcher: Box<skein_codec::patch::Patcher>,
-    context: &mut store::patches::Context,
-    application: &mut families::patches::Context,
 ) -> store::Request {
     let (old, new) = patcher.parts();
     let result = match of {
@@ -610,8 +617,10 @@ fn dispatch(
         store::Owner::Smith => {
             smith_transcript::patches::written(site, old, new, at, &mut smith_transcript::patches::Context::default())
         }
-        store::Owner::Jig => store::patches::written(site, old, new, at, context),
-        store::Owner::Application => families::patches::written(site, old, new, at, application),
+        store::Owner::Jig => store::patches::written(site, old, new, at, &mut routes.patch_context),
+        store::Owner::Application => {
+            families::patches::written(site, old, new, at, &mut routes.application_patch_context)
+        }
     };
     store::Request::Site { owner, patcher, result }
 }

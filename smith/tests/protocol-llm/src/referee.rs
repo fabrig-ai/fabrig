@@ -14,8 +14,14 @@ pub struct NativeRequest {
 impl NativeRequest {
     /// Read the captured HTTP body's raw values without re-encoding their
     /// bytes, inflated when the endpoint sends gzip.
-    #[must_use]
-    pub fn from_http(bytes: &[u8]) -> Self {
+    ///
+    /// # Errors
+    /// Returns the first finding about native cache markers or affinity.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "keep native marker checks in first-finding order beside raw byte removal"
+    )]
+    pub fn from_http(bytes: &[u8]) -> Result<Self, String> {
         let bytes = &skein_llm_kit::identity(bytes)[..];
         let head = skein_lib::bytes::find(bytes, b"\r\n\r\n").expect("observed HTTP request head");
         let fields: std::collections::BTreeMap<String, Box<serde_json::value::RawValue>> =
@@ -30,12 +36,20 @@ impl NativeRequest {
             let system_blocks: Vec<serde_json::Value> =
                 serde_json::from_str(system.get()).expect("Anthropic system block array");
             let system_markers = system_blocks.iter().filter(|block| block.get("cache_control").is_some()).count();
-            assert_eq!(system_markers, usize::from(!system_blocks.is_empty()), "one marker for nonempty system text");
+            if system_markers != usize::from(!system_blocks.is_empty()) {
+                return Err("one marker for nonempty system text".into());
+            }
             for (index, block) in system_blocks.iter().enumerate() {
                 if let Some(marker) = block.get("cache_control") {
-                    assert_eq!(index + 1, system_blocks.len(), "fixed marker is on the last system block");
-                    assert_eq!(block["type"], "text", "system marker belongs to text");
-                    assert_eq!(marker, &serde_json::json!({ "type": "ephemeral" }), "provider default cache lifetime");
+                    if index + 1 != system_blocks.len() {
+                        return Err("fixed marker is on the last system block".into());
+                    }
+                    if block["type"] != "text" {
+                        return Err("system marker belongs to text".into());
+                    }
+                    if marker != &serde_json::json!({ "type": "ephemeral" }) {
+                        return Err("provider default cache lifetime".into());
+                    }
                 }
             }
             let values = history
@@ -57,13 +71,19 @@ impl NativeRequest {
                 let tools: Vec<serde_json::Value> = serde_json::from_str(tools.get()).expect("native tools");
                 tools.iter().filter(|tool| tool.get("cache_control").is_some()).count()
             });
-            assert!(system_markers + markers + tool_markers <= 4, "Anthropic breakpoint allowance");
+            if system_markers + markers + tool_markers > 4 {
+                return Err("Anthropic breakpoint allowance".into());
+            }
             for block in values.iter().flat_map(|message| message["content"].as_array().expect("native blocks")) {
-                if matches!(block["type"].as_str(), Some("thinking" | "redacted_thinking")) {
-                    assert!(block.get("cache_control").is_none(), "thinking never carries a marker");
+                if matches!(block["type"].as_str(), Some("thinking" | "redacted_thinking"))
+                    && block.get("cache_control").is_some()
+                {
+                    return Err("thinking never carries a marker".into());
                 }
             }
-            assert!(markers <= 1, "at most one moving Anthropic tail marker");
+            if markers > 1 {
+                return Err("at most one moving Anthropic tail marker".into());
+            }
             for (message, item) in history.iter_mut().enumerate() {
                 let fields: std::collections::BTreeMap<String, Box<serde_json::value::RawValue>> =
                     serde_json::from_str(item).expect("native message fields");
@@ -75,37 +95,43 @@ impl NativeRequest {
                     let offset = cursor + item[cursor..].find(block.get()).expect("next exact native block");
                     cursor = offset + block.get().len();
                     if values[message]["content"][part].get("cache_control").is_some() {
-                        assert!(
-                            message + 1 == values.len() && part == eligible,
-                            "moving Anthropic marker is on the last eligible block of the last message"
-                        );
-                        assert!(block.get().ends_with(&format!("{MARKER}}}")), "exact dialect tail marker bytes");
+                        if message + 1 != values.len() || part != eligible {
+                            return Err(
+                                "moving Anthropic marker is on the last eligible block of the last message".into()
+                            );
+                        }
+                        if !block.get().ends_with(&format!("{MARKER}}}")) {
+                            return Err("exact dialect tail marker bytes".into());
+                        }
                         let position = offset + block.get().len() - 1 - MARKER.len();
                         item.replace_range(position..position + MARKER.len(), "");
                         cursor -= MARKER.len();
                     }
                 }
             }
-            assert_eq!(markers, 1, "exactly one moving Anthropic tail marker");
+            if markers != 1 {
+                return Err("exactly one moving Anthropic tail marker".into());
+            }
         }
-        let affinity = fields.get("prompt_cache_key").map(|cache| {
+        let affinity = if let Some(cache) = fields.get("prompt_cache_key") {
             let head = core::str::from_utf8(&bytes[..head]).expect("native HTTP head");
-            assert!(
-                !head.lines().any(|line| {
-                    line.split_once(':').is_some_and(|(name, _)| {
-                        name.eq_ignore_ascii_case("session-id") || name.eq_ignore_ascii_case("thread-id")
-                    })
-                }),
-                "public affinity has no headers"
-            );
-            cache.get().to_string()
-        });
-        Self {
+            if head.lines().any(|line| {
+                line.split_once(':').is_some_and(|(name, _)| {
+                    name.eq_ignore_ascii_case("session-id") || name.eq_ignore_ascii_case("thread-id")
+                })
+            }) {
+                return Err("public affinity has no headers".into());
+            }
+            Some(cache.get().to_string())
+        } else {
+            None
+        };
+        Ok(Self {
             affinity,
             system: system.get().into(),
             tools: fields.get("tools").map(|tools| tools.get().into()),
             history,
-        }
+        })
     }
 }
 
@@ -114,6 +140,8 @@ impl NativeRequest {
 pub enum Seen {
     /// A native body associated with a logical completion owner.
     Request { owner: Token, request: NativeRequest },
+    /// The first finding while reading a native request from the byte peer.
+    RequestFinding(String),
 }
 
 /// Native prefix state, independent of the domain referee.
@@ -128,6 +156,7 @@ impl Expectations for Meeting {
     type Stimulus = ();
     fn observe(&mut self, seen: Seen, judge: &mut Judge<Self::Name, Self::Stimulus>) {
         match seen {
+            Seen::RequestFinding(finding) => judge.fail(finding),
             Seen::Request { owner, request } => {
                 if let Some(previous) = self.requests.get(&owner) {
                     judge.check(previous.affinity == request.affinity, "native affinity stays fixed within a window");

@@ -109,6 +109,7 @@ impl Hosted {
             | crate::Request::Close { .. }
             | crate::Request::Open { .. }
             | crate::Request::Site { .. }
+            | crate::Request::Job { .. }
             | crate::Request::Commit { .. }
             | crate::Request::Restore { .. }
             | crate::Request::Load { .. }
