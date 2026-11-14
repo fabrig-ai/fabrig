@@ -9,5 +9,3 @@ are present, including `ENOTTY` on descriptors without a window.
   `HardLink`, and of the filesystem (../runtime/kernel.md, 6.4 and 6.5),
   their disk faults, and what a power loss keeps of them. 3.4: cgroups,
   contained spawn and their faults.
-- **Not yet:** 3.1, 3.3: `HardLink` through the machine seam, and what a
-  power loss keeps of a second name [in flight: change 2656].

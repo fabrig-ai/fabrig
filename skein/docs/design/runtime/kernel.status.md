@@ -15,6 +15,3 @@ gives the descriptor an immediate read end and accepts its writes.
   `SyncFilesystem` and btrfs's subvolume records. 6.2, 6.6: cgroups and
   contained spawn, the helper among them. 7: the invariants of those
   records. 8: their conformance scenarios.
-- **Not yet:** 3, 6.4, 7, 8: `HardLink`, on the ring, the readiness
-  backends and the simulator, its invariants and its conformance
-  scenario [in flight: change 2656].

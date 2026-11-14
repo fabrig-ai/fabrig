@@ -2,7 +2,6 @@
 
 2026-11-11. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
-- **Not yet:** 5: `linkat` among the files' calls [in flight: change 2656].
 - **Departs:**  the trust-count reporting departure remains `shell.status.md`, 6.2.
    the user's request of 2026-11-04 asked each part of its
   round to end with fewer lines than it started; the part that built `store_file`

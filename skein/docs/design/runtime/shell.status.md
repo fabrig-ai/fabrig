@@ -32,7 +32,6 @@ fixtures (`temper/docs/design/testing/tools.md`); temper's remaining binaries
 are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
 
 - **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown`.
-- **Not yet:** 4: `LINKAT` among the ring's operations and its probe [in flight: change 2656].
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
   startup.
