@@ -2,8 +2,6 @@
 # --write lowers this list; nothing raises it.
 # Refused, so no line names them: catch_unwind, resume_unwind.
 smith/tests/host/tests/suite/referee.rs should_panic 10
-temper/bin/temper-box/tests/suite/fake.rs should_panic 1
-temper/bin/temper-box/tests/suite/support_tests.rs should_panic 3
 temper/tests/engine/domain/src/oracle.rs should_panic 2
 temper/tests/engine/domain/src/walking.rs should_panic 1
 temper/tests/engine/domain/tests/suite/oracle.rs should_panic 2

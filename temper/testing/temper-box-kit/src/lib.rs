@@ -687,6 +687,7 @@ impl Referee<Process> for ChatJudge<'_> {
         }
     }
     fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        ctl::check(procs)?;
         if let Some(why) = self.failed.take() {
             return Err(why);
         }
