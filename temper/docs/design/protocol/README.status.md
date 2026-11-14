@@ -3,8 +3,6 @@
 2026-11-14. Where temper's code lags or departs from [README.md](README.md).
 
 
-- **Not yet:** 6.2: the failed commit's line with its WHY
-  [in flight: change 61].
 `binaries.md`, section 3's feature-free `temper-agent` is present, with its shared
 help, run, list, relay, program-child and argv0 Claude launcher
 dispatch, the launcher and the substitution `temper-launcher`'s, and
