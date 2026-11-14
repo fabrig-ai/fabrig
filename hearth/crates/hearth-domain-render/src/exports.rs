@@ -13,14 +13,15 @@ mod cache;
 pub(crate) use cache::{Cache, Fleet};
 mod conform;
 mod value;
-pub use conform::conform;
+#[cfg(test)]
+pub(crate) use conform::conform;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Exported {
     pub task: Box<[u8]>,
     pub values: Box<[Entry]>,
 }
 /// Static export faults, at the value string's opening quote.
-pub fn check(declaration: &Declaration, document: u32, faults: &mut List<crate::schema::Fault>) {
+pub(crate) fn check(declaration: &Declaration, document: u32, faults: &mut List<crate::schema::Fault>) {
     for export in &declaration.exports {
         let schema = match expression(&export.value) {
             None => Some(Schema::Export { fault: ExportFault::Form }),
@@ -70,7 +71,8 @@ fn expression(value: &Interpolated) -> Option<&evaluate::Expression> {
     }
 }
 /// One target's typed values; absent optionals remain absent.
-pub fn evaluate(
+#[cfg(test)]
+pub(crate) fn evaluate(
     against: &Against<'_>,
     check: &Check<'_>,
     settings: &Value,

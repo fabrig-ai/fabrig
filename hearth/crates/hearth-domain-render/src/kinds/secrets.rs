@@ -51,16 +51,7 @@ pub(crate) fn fault(located: &Located<'_>, name: Option<Name>, schema: Schema) -
 }
 pub(crate) fn file(located: &Located<'_>) -> Result<crate::parts::secrets::SecretFile, Box<Error>> {
     let entry = located.entry;
-    if let Err(schema) = formed(&entry.key, Format::Secret) {
-        return Err(Box::new(fault(located, None, schema)));
-    }
-    let path = match required(entry, Name::Path) {
-        Ok(path) => path,
-        Err(schema) => return Err(Box::new(fault(located, None, schema))),
-    };
-    if let Err(schema) = formed(path, Format::Path) {
-        return Err(Box::new(fault(located, Some(Name::Path), schema)));
-    }
+    let path = named_path(located, Format::Secret)?;
     let mode = match mode(entry) {
         Ok(mode) => mode,
         Err(schema) => return Err(Box::new(fault(located, Some(Name::Mode), schema))),
@@ -72,4 +63,20 @@ pub(crate) fn file(located: &Located<'_>) -> Result<crate::parts::secrets::Secre
         owner: text(entry, Name::Owner, b"root"),
         group: text(entry, Name::Group, b"root"),
     })
+}
+
+/// A named file or directory reports a missing path at the entry and a malformed path at its field.
+pub(crate) fn named_path<'a>(located: &Located<'a>, format: Format) -> Result<&'a [u8], Box<Error>> {
+    let entry = located.entry;
+    if let Err(schema) = formed(&entry.key, format) {
+        return Err(Box::new(fault(located, None, schema)));
+    }
+    let path = match required(entry, Name::Path) {
+        Ok(path) => path,
+        Err(schema) => return Err(Box::new(fault(located, None, schema))),
+    };
+    if let Err(schema) = formed(path, Format::Path) {
+        return Err(Box::new(fault(located, Some(Name::Path), schema)));
+    }
+    Ok(path)
 }

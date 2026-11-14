@@ -32,7 +32,7 @@ pub enum Action {
 }
 impl Action {
     #[must_use]
-    pub fn name(self) -> &'static [u8] {
+    pub(crate) fn name(self) -> &'static [u8] {
         match self {
             Self::Reload => b"reload",
             Self::Restart => b"restart",
@@ -42,7 +42,7 @@ impl Action {
         }
     }
 }
-pub fn build(expansion: &Expansion) -> Result<Live, Box<[Error]>> {
+pub(crate) fn build(expansion: &Expansion) -> Result<Live, Box<[Error]>> {
     let entries = expansion.of(Map::Live);
     let mut capacity = 0_u32;
     for located in &entries {
@@ -82,7 +82,7 @@ pub fn build(expansion: &Expansion) -> Result<Live, Box<[Error]>> {
     Ok(Live { paths: paths.into_boxed() })
 }
 #[must_use]
-pub fn digest(live: &Live) -> Digest {
+pub(crate) fn digest(live: &Live) -> Digest {
     let mut hash = H::new(b"part:live", 1);
     let record = hash.values();
     record.map(u64::try_from(live.paths.len()).expect("path count"));
@@ -108,28 +108,16 @@ pub fn digest(live: &Live) -> Digest {
 pub struct Change {
     pub paths: Box<[ConsumersKeyed]>,
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ConsumersKeyed {
-    Added { key: Box<[u8]>, value: Box<[Consumer]> },
-    Removed { key: Box<[u8]>, value: Box<[Consumer]> },
-    Changed { key: Box<[u8]>, before: Box<[Consumer]>, after: Box<[Consumer]> },
-}
+pub type ConsumersKeyed = crate::diff::Keyed<Box<[Consumer]>>;
 
 #[must_use]
-pub fn change(before: &Live, after: &Live) -> Change {
+pub(crate) fn change(before: &Live, after: &Live) -> Change {
     Change {
-        paths: super::secrets::changed(
+        paths: crate::diff::keyed(
             &before.paths,
             &after.paths,
             |row| &row.path,
-            |key, before, after| match (before, after) {
-                (None, Some(value)) => ConsumersKeyed::Added { key, value: value.consumers.clone() },
-                (Some(value), None) => ConsumersKeyed::Removed { key, value: value.consumers.clone() },
-                (Some(before), Some(after)) => {
-                    ConsumersKeyed::Changed { key, before: before.consumers.clone(), after: after.consumers.clone() }
-                }
-                (None, None) => unreachable!("union entry"),
-            },
+            |change| change.map(|row| row.consumers.clone()),
         ),
     }
 }

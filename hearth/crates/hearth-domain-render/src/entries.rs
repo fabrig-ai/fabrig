@@ -16,7 +16,7 @@ pub struct Fault {
 }
 /// Every false or unevaluable guard, in name order.
 #[must_use]
-pub fn guards(declaration: &Declaration, context: &Context<'_>, limits: &Limits) -> Box<[Fault]> {
+pub(crate) fn guards(declaration: &Declaration, context: &Context<'_>, limits: &Limits) -> Box<[Fault]> {
     let mut faults = List::with_capacity(u32::try_from(declaration.requires.len()).expect("bounded guards"));
     let mut evaluator = Evaluator::new(limits);
     let bindings = Bindings::with_capacity(0);
@@ -226,7 +226,7 @@ impl<'c> Source<'c> {
     }
 }
 /// Rebind the index among present elements of an entry's iterable.
-pub fn element<'c>(
+pub(crate) fn element<'c>(
     entry: &Entry,
     index: u32,
     context: &Context<'c>,
@@ -262,7 +262,7 @@ fn length(value: Written<'_>) -> usize {
     }
 }
 /// Declaration strings accept text and integers, charging every emitted byte.
-pub fn interpolate<'c>(
+pub(crate) fn interpolate<'c>(
     text: &Interpolated,
     context: &Context<'c>,
     bindings: &Bindings<'c>,
@@ -335,18 +335,36 @@ pub enum Fielded {
     Strings(Box<[Box<[u8]>]>),
     Range { base: i64, count: i64 },
 }
+/// A concrete declaration's task and place, retained beside admitted part records.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Expansion {
+pub(crate) struct Claimant {
+    pub task: Box<[u8]>,
+    pub at: Position,
+}
+impl Claimant {
+    pub(crate) fn new(task: &[u8], at: Position) -> Self {
+        Self { task: bytes::copy_of(task), at }
+    }
+    pub(crate) fn place(&self) -> crate::errors::Place {
+        let mut path = Writer::new(self.task.len().saturating_add(16));
+        path.put(b"tasks/").expect("path room");
+        path.put(&self.task).expect("path room");
+        path.put(b"/task.json").expect("path room");
+        crate::errors::Place { path: path.finish(), position: Some(self.at) }
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct Expansion {
     pub tasks: Box<[Expanded]>,
 }
 #[derive(Clone, Copy, Debug)]
-pub struct Located<'a> {
+pub(crate) struct Located<'a> {
     pub task: &'a [u8],
     pub entry: &'a Concrete,
 }
 impl Expansion {
     /// A reserved entry cannot reach a kind and yield a second error.
-    pub fn refuse(&mut self, map: Map, task: &[u8], key: &[u8]) {
+    pub(crate) fn refuse(&mut self, map: Map, task: &[u8], key: &[u8]) {
         for expanded in &mut self.tasks {
             if expanded.task.as_ref() != task {
                 continue;
@@ -367,7 +385,7 @@ impl Expansion {
     }
 
     #[must_use]
-    pub fn of(&self, map: Map) -> Box<[Located<'_>]> {
+    pub(crate) fn of(&self, map: Map) -> Box<[Located<'_>]> {
         let mut count = 0_u32;
         for task in &self.tasks {
             for group in &task.groups {
@@ -399,35 +417,35 @@ impl Concrete {
         None
     }
     #[must_use]
-    pub fn text(&self, name: Name) -> Option<&[u8]> {
+    pub(crate) fn text(&self, name: Name) -> Option<&[u8]> {
         match self.field(name)? {
             Fielded::Text(text) => Some(text),
             Fielded::Int(_) | Fielded::Bool(_) | Fielded::Strings(_) | Fielded::Range { .. } => None,
         }
     }
     #[must_use]
-    pub fn int(&self, name: Name) -> Option<i64> {
+    pub(crate) fn int(&self, name: Name) -> Option<i64> {
         match self.field(name)? {
             Fielded::Int(value) => Some(*value),
             Fielded::Text(_) | Fielded::Bool(_) | Fielded::Strings(_) | Fielded::Range { .. } => None,
         }
     }
     #[must_use]
-    pub fn bool(&self, name: Name) -> Option<bool> {
+    pub(crate) fn bool(&self, name: Name) -> Option<bool> {
         match self.field(name)? {
             Fielded::Bool(value) => Some(*value),
             Fielded::Text(_) | Fielded::Int(_) | Fielded::Strings(_) | Fielded::Range { .. } => None,
         }
     }
     #[must_use]
-    pub fn strings(&self, name: Name) -> Option<&[Box<[u8]>]> {
+    pub(crate) fn strings(&self, name: Name) -> Option<&[Box<[u8]>]> {
         match self.field(name)? {
             Fielded::Strings(each) => Some(each),
             Fielded::Text(_) | Fielded::Int(_) | Fielded::Bool(_) | Fielded::Range { .. } => None,
         }
     }
     #[must_use]
-    pub fn range(&self, name: Name) -> Option<(i64, i64)> {
+    pub(crate) fn range(&self, name: Name) -> Option<(i64, i64)> {
         match self.field(name)? {
             Fielded::Range { base, count } => Some((*base, *count)),
             Fielded::Text(_) | Fielded::Int(_) | Fielded::Bool(_) | Fielded::Strings(_) => None,

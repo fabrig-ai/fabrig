@@ -40,7 +40,7 @@ pub(super) fn goal_me() -> c::Me {
     let mut subagents = List::with_capacity(1);
     subagents.push(f::model_effort(b"gpt-6.1-sol", Some(b"medium"))).unwrap();
     draft.llm = Some(c::LlmChoice {
-        later: None,
+        later: Some(c::LlmLater { main: f::model_effort(b"later-model", Some(b"high")), subagents: subagents.clone() }),
         account: None,
         main: f::model_effort(b"gpt-6.1-sol", Some(b"high")),
         subagents,
@@ -82,6 +82,7 @@ fn goal_start_fills_the_named_template() {
     assert_eq!(task.deadline, c::NewDeadline::Named);
     assert_eq!(task.symbols.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
     let llm = task.llm.as_ref().unwrap();
+    assert_eq!(llm, goal_me().projects.get(0).unwrap().templates.get(1).unwrap().llm.as_ref().unwrap());
     assert_eq!(llm.account, None);
     assert_eq!(llm.main, f::model_effort(b"gpt-6.1-sol", Some(b"high")));
     assert_eq!(llm.subagents.as_slice(), &[f::model_effort(b"gpt-6.1-sol", Some(b"medium"))]);
@@ -300,4 +301,57 @@ fn invalid_controls_are_usage_errors() {
     let mut argv = f::extended(STOCK, &[]);
     *argv.get_mut(9).unwrap() = "2026-02-30T00:00Z";
     f::parse(argv.as_slice()).expect_err("invalid date");
+}
+
+#[test]
+fn starts_model_flags_replace_the_whole_template_choice() {
+    for (flags, main, children) in [
+        (
+            &["--model", "chosen-model"][..],
+            f::model_effort(b"chosen-model", Some(b"high")),
+            List::from_boxed(Box::new([f::model_effort(b"gpt-6.1-sol", Some(b"medium"))])),
+        ),
+        (
+            &[
+                "--model",
+                "chosen-model",
+                "--effort",
+                "high",
+                "--sub-agent",
+                "plain-model:medium",
+                "--sub-agent",
+                "chosen-model:high",
+            ][..],
+            f::model_effort(b"chosen-model", Some(b"high")),
+            List::from_boxed(Box::new([
+                f::model_effort(b"plain-model", Some(b"medium")),
+                f::model_effort(b"chosen-model", Some(b"high")),
+            ])),
+        ),
+    ] {
+        let mut me = goal_me();
+        let child = me.projects.get_mut(0).unwrap().models.get_mut(1).unwrap();
+        child.efforts = List::from_boxed(Box::new([f::act_text(b"low"), f::act_text(b"medium")]));
+        let argv = f::extended(
+            &[
+                "goal",
+                "start",
+                "--project",
+                "shop",
+                "--template",
+                "4",
+                "--as-allowed",
+                "--deadline",
+                "1970-01-01T00:01Z",
+                "work",
+                "--key",
+                "flags",
+            ],
+            flags,
+        );
+        let mut root = f::choice_root(me);
+        let call = root.submit(argv.as_slice());
+        let choice = f::chat_task(&root, call).llm.as_ref().unwrap();
+        assert_eq!(choice, &c::LlmChoice { main, subagents: children, account: None, later: None });
+    }
 }

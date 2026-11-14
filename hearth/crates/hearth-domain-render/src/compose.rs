@@ -9,7 +9,7 @@ mod hearth;
 pub(crate) use hearth::reserved;
 use skein_lib::{List, Map, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Target {
+pub(crate) struct Target {
     pub name: Box<[u8]>,
     pub base: Box<[u8]>,
     pub environment: Box<[u8]>,
@@ -21,12 +21,12 @@ pub struct Target {
 }
 /// A target placed on a host of the same environment (hearth/docs/design/protocol/format/README.md, 3.5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Container {
+pub(crate) struct Container {
     pub name: Box<[u8]>,
     pub placement: crate::parts::meta::Placement,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct TooMany;
+pub(crate) struct TooMany;
 #[derive(Debug)]
 struct Maker {
     target: Target,
@@ -34,11 +34,11 @@ struct Maker {
 }
 type Makers = Map<(Box<[u8]>, Box<[u8]>, u32, u32), Maker>;
 #[derive(Debug)]
-pub struct Discovery {
+pub(crate) struct Discovery {
     pub targets: Box<[Target]>,
     pub names: Box<[Box<[u8]>]>,
 }
-pub fn targets(
+pub(crate) fn targets(
     documents: &Documents,
     limits: &Limits,
     errors: &mut crate::errors::Collector,
@@ -143,15 +143,7 @@ fn admit(
     Ok(())
 }
 fn composition(target: &Target, at: crate::errors::Place, why: crate::errors::Composition) -> crate::errors::Error {
-    crate::errors::Error {
-        side: None,
-        kind: crate::errors::Kind::Composition(why),
-        class: crate::vocabulary::Class::Configuration,
-        at: Some(at),
-        also: None,
-        target: Some(target.name.clone()),
-        task: None,
-    }
+    error_at(at, why, Some(target.name.clone()), None)
 }
 fn members(documents: &Documents, document: Option<u32>) -> Option<&revision::Members> {
     documents.get(document?)?.members.as_ref()
@@ -347,11 +339,11 @@ fn map_target(target: Option<Composed>, from: Provenance) -> (Provenance, Box<[P
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Settings {
+pub(crate) struct Settings {
     pub tasks: Box<[Present]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Present {
+pub(crate) struct Present {
     pub name: Box<[u8]>,
     pub from: Provenance,
     pub settings: Composed,
@@ -360,7 +352,8 @@ pub struct Present {
 mod tasks;
 pub(crate) use tasks::{Index, bounded, indexes, task};
 /// Presence uses host layers alone; settings include fleet and environment.
-pub fn compose(
+#[cfg(test)]
+pub(crate) fn compose(
     target: &Target,
     documents: &Documents,
     defaults: &crate::schema::Defaults,
@@ -521,7 +514,7 @@ fn layers<'a>(target: &Target, documents: &'a Documents) -> [Option<(u32, &'a re
     ]
 }
 #[must_use]
-pub fn placement(target: &Target, documents: &Documents) -> Option<revision::Placement> {
+pub(crate) fn placement(target: &Target, documents: &Documents) -> Option<revision::Placement> {
     let mut placement = None;
     for (_, source, kind) in layers(target, documents).into_iter().flatten() {
         if [Layer::Environment, Layer::BaseEnv, Layer::BaseEnvMember].contains(&kind)
@@ -533,7 +526,7 @@ pub fn placement(target: &Target, documents: &Documents) -> Option<revision::Pla
     placement
 }
 #[must_use]
-pub fn present(target: &Target, documents: &Documents) -> Box<[Box<[u8]>]> {
+pub(crate) fn present(target: &Target, documents: &Documents) -> Box<[Box<[u8]>]> {
     let indexes = indexes(target, documents);
     let mut names = List::with_capacity(u32::try_from(indexes.len()).expect("task count"));
     for index in indexes {
@@ -666,11 +659,19 @@ fn error(
     target: Option<Box<[u8]>>,
     task: Option<Box<[u8]>>,
 ) -> crate::errors::Error {
+    error_at(crate::errors::Place { path: bytes::copy_of(path), position }, why, target, task)
+}
+fn error_at(
+    at: crate::errors::Place,
+    why: crate::errors::Composition,
+    target: Option<Box<[u8]>>,
+    task: Option<Box<[u8]>>,
+) -> crate::errors::Error {
     crate::errors::Error {
         side: None,
         kind: crate::errors::Kind::Composition(why),
         class: crate::errors::Class::Configuration,
-        at: Some(crate::errors::Place { path: bytes::copy_of(path), position }),
+        at: Some(at),
         also: None,
         target,
         task,
@@ -678,7 +679,7 @@ fn error(
 }
 
 /// The host's containers, in target name order (hearth/docs/design/protocol/format/README.md, 3.5).
-pub fn containers(
+pub(crate) fn containers(
     host: &Target,
     targets: &[Target],
     documents: &Documents,
@@ -734,4 +735,4 @@ pub(crate) fn metadata(target: &Target, placement: revision::Placement) -> crate
 }
 
 mod debian;
-pub use debian::debian;
+pub(crate) use debian::debian;

@@ -1,6 +1,6 @@
 use super::{Config, GroupKeyed, MemberChange, UserKeyed};
 use alloc::boxed::Box;
-use skein_lib::{List, Map};
+use skein_lib::List;
 pub(super) fn groups(before: Option<&Config>, after: Option<&Config>) -> Box<[GroupKeyed]> {
     let before = match before {
         Some(config) => config.groups.as_ref(),
@@ -10,32 +10,7 @@ pub(super) fn groups(before: Option<&Config>, after: Option<&Config>) -> Box<[Gr
         Some(config) => config.groups.as_ref(),
         None => &[],
     };
-    let capacity = u32::try_from(before.len().saturating_add(after.len())).expect("entry count");
-    let mut entries = Map::with_capacity(capacity);
-    for row in before {
-        entries.insert(row.name.clone(), (Some(&row.kind), None)).expect("entry count");
-    }
-    for row in after {
-        if let Some((_, value)) = entries.get_mut(&row.name) {
-            *value = Some(&row.kind);
-        } else {
-            entries.insert(row.name.clone(), (None, Some(&row.kind))).expect("entry count");
-        }
-    }
-    let mut changes = List::with_capacity(capacity);
-    for (key, (old, new)) in &entries {
-        let change = match (old, new) {
-            (None, Some(value)) => GroupKeyed::Added { key: key.clone(), value: (*value).clone() },
-            (Some(value), None) => GroupKeyed::Removed { key: key.clone(), value: (*value).clone() },
-            (Some(before), Some(after)) if before != after => {
-                GroupKeyed::Changed { key: key.clone(), before: (*before).clone(), after: (*after).clone() }
-            }
-            (Some(_), Some(_)) => continue,
-            (None, None) => unreachable!("union entry"),
-        };
-        changes.push(change).expect("entry count");
-    }
-    changes.into_boxed()
+    crate::diff::keyed(before, after, |row| &row.name, |change| change.map(|row| row.kind.clone()))
 }
 pub(super) fn users(before: Option<&Config>, after: Option<&Config>) -> Box<[UserKeyed]> {
     let before = match before {
@@ -46,32 +21,7 @@ pub(super) fn users(before: Option<&Config>, after: Option<&Config>) -> Box<[Use
         Some(config) => config.users.as_ref(),
         None => &[],
     };
-    let capacity = u32::try_from(before.len().saturating_add(after.len())).expect("entry count");
-    let mut entries = Map::with_capacity(capacity);
-    for row in before {
-        entries.insert(row.name.clone(), (Some(&row.kind), None)).expect("entry count");
-    }
-    for row in after {
-        if let Some((_, value)) = entries.get_mut(&row.name) {
-            *value = Some(&row.kind);
-        } else {
-            entries.insert(row.name.clone(), (None, Some(&row.kind))).expect("entry count");
-        }
-    }
-    let mut changes = List::with_capacity(capacity);
-    for (key, (old, new)) in &entries {
-        let change = match (old, new) {
-            (None, Some(value)) => UserKeyed::Added { key: key.clone(), value: (*value).clone() },
-            (Some(value), None) => UserKeyed::Removed { key: key.clone(), value: (*value).clone() },
-            (Some(before), Some(after)) if before != after => {
-                UserKeyed::Changed { key: key.clone(), before: (*before).clone(), after: (*after).clone() }
-            }
-            (Some(_), Some(_)) => continue,
-            (None, None) => unreachable!("union entry"),
-        };
-        changes.push(change).expect("entry count");
-    }
-    changes.into_boxed()
+    crate::diff::keyed(before, after, |row| &row.name, |change| change.map(|row| row.kind.clone()))
 }
 pub(super) fn members(before: Option<&Config>, after: Option<&Config>) -> Box<[MemberChange]> {
     let before = match before {

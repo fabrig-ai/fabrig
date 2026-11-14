@@ -44,6 +44,33 @@ fn each_distinct_key_is_found_once_at_its_first_holder_in_name_order() {
     assert_eq!(out.pop(), None);
 }
 #[test]
+fn a_known_resolution_answers_with_layer_keys_over_its_digest_and_the_specs_parts() {
+    let mut side = fixtures::specs::finding(false);
+    side.finding.resolve(None);
+    let mut record = fixtures::diff_record(fixtures::KEY_A, Box::new([]));
+    record.digest = fixtures::KEY_D;
+    side.found(Some(record), false);
+    assert_eq!(
+        fixtures::next_resolution(&mut side),
+        Some(Request::Find { request: Token::new(5), key: fixtures::KEY_B })
+    );
+    side.found(None, false);
+    let mut out = Queue::with_capacity(1);
+    let Some(crate::vocabulary::Answer::Spec(spec)) = side.resolved_answer(&mut out) else { panic!("spec") };
+    assert_eq!(
+        spec.resolution.as_deref(),
+        Some(&keys::Resolution::Known {
+            key: fixtures::KEY_A,
+            keys: keys::layers(
+                &fixtures::KEY_D,
+                &keys::part(&spec, b"packages"),
+                &keys::part(&spec, b"software"),
+                &keys::part(&spec, b"config"),
+            ),
+        })
+    );
+}
+#[test]
 fn a_declined_find_leaves_the_key_needed() {
     let mut side = fixtures::finding_side();
     let mut out = Queue::with_capacity(1);
