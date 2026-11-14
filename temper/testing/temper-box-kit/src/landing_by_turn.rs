@@ -243,6 +243,10 @@ fn has_event(events: &[Value], change: u64, kind: &str) -> Result<(), String> {
 
     Ok(())
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "history is also checked inside a story loop, so each ctl loop runs on a separate thread"
+)]
 fn history(root: &Path, project: u64, of: &str, task: u64, client: Option<&str>) -> Result<Vec<Value>, String> {
     Ok({
         let project = project.to_string();
@@ -259,7 +263,8 @@ fn history(root: &Path, project: u64, of: &str, task: u64, client: Option<&str>)
             if let Some(client) = client {
                 call = call.in_directory(client);
             }
-            let ended = ctl::alone(root, call);
+            let ended =
+                std::thread::scope(|scope| scope.spawn(|| ctl::alone(root, call)).join().expect("history ctl read"));
             if ended.exit != Some(skein_io::kernel::Exit::Code(0)) {
                 return Err(format!("{}", String::from_utf8_lossy(&ended.stderr)));
             }

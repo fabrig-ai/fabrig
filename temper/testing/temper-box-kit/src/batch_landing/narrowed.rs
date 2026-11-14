@@ -1,8 +1,7 @@
 //! The observed red boundary, its green turn and the remaining member's round
 //! (temper/docs/design/domain/landing-search.md, 3–5 and 8).
 use super::{
-    Judge, Phase, Process, Proof, Script, Turn, Value, change, gate_runs, get, hold, landing, landings, main,
-    member_branch, members, sha,
+    Judge, Phase, Process, Proof, Script, Turn, Value, gate_runs, get, hold, main, member_branch, members, sha,
 };
 use skein_fake_llm_domain::api::Finish;
 
@@ -37,9 +36,21 @@ impl Judge<'_> {
                 return Ok(false);
             }
             let statuses = get(self.forge, &format!("commits/{prefix}/status"));
+            let states = statuses["statuses"].as_array().map(|rows| {
+                rows.iter()
+                    .map(|status| serde_json::json!({"context":status["context"],"status":status["status"]}))
+                    .collect::<Vec<_>>()
+            });
+            self.observe(
+                run,
+                serde_json::json!({"prefix":prefix,"wanted":verdict,"run":actual["status"],"states":states}),
+            );
+            if statuses["total_count"] == 0 && statuses["statuses"].is_null() {
+                return Ok(false);
+            }
             statuses["statuses"]
                 .as_array()
-                .ok_or(String::from("statuses"))?
+                .ok_or_else(|| format!("statuses: {statuses}"))?
                 .iter()
                 .any(|status| status["context"] == "temper/gate/gate" && status["status"] == verdict)
         })
@@ -88,7 +99,8 @@ impl Judge<'_> {
             if !member["landed"].is_null() {
                 return Err(String::from("the blamed member did not land"));
             }
-            let change = change(self.root, member["change"].as_u64().ok_or(String::from("blamed change"))?)?;
+            let change = self.change(member["change"].as_u64().ok_or(String::from("blamed change"))?)?;
+            self.observe(0, serde_json::json!({"step":change["step"],"runs":change["runs"],"hold":change["hold"]}));
             if change["step"] != "repairing" || change["runs"].as_u64().is_none() {
                 return Ok(false);
             }
@@ -157,7 +169,7 @@ impl Judge<'_> {
         }
         let Some(run) = self.barrier.waiting(Some(self.probes[1])) else { return Ok(()) };
         let task = first.panel["task"].as_u64().ok_or(String::from("landing task"))?;
-        let panel = landing(self.root, task)?;
+        let panel = self.landing(task)?;
         if !self.member_landed(&members(&panel)?[0], &members(&first.panel)?[0])? {
             return Ok(());
         }
@@ -169,7 +181,7 @@ impl Judge<'_> {
         if !self.blamed(&panel)? {
             return Ok(());
         }
-        if landings(self.root)?["landings"].as_array().ok_or(String::from("landings"))?.len() != 1 {
+        if self.landings()?["landings"].as_array().ok_or(String::from("landings"))?.len() != 1 {
             return Err(String::from("the suffix stays in its landing"));
         }
         {
@@ -249,7 +261,7 @@ impl Judge<'_> {
             if !self.receipt(second.run, prefix, "success")? {
                 return Ok(false);
             }
-            let panel = landing(self.root, second.panel["task"].as_u64().ok_or(String::from("landing task"))?)?;
+            let panel = self.landing(second.panel["task"].as_u64().ok_or(String::from("landing task"))?)?;
             if panel["phase"] != "landed"
                 || !self.member_landed(&members(&panel)?[2], third)?
                 || !self.blamed(&panel)?
@@ -302,7 +314,7 @@ impl Judge<'_> {
             Step::Boundary => self.boundary()?,
             Step::Remainder => {
                 if self.remainder()? {
-                    // The owner and repair stay held; no repair result is needed
+                    // The repair stays held; no repair result is needed
                     // to witness the next round's turn. Terminate drains them.
                     self.stop(procs)?;
                 }

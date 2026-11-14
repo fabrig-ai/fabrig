@@ -16,9 +16,9 @@ fn process_engine(case: &str) -> jig_protocol_config::Engine {
     value["engine"]["limits"]["overrides"]["authority.grants"] = 15.into();
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 15.into();
     // The standing charters, closer procedure and close job are delegation targets.
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 21.into();
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 22.into();
     // The standing charters, closer procedure and close job are delegation targets.
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 21.into();
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 22.into();
     value["engine"]["limits"]["overrides"]["notes.scopes"] = 18.into();
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
@@ -124,7 +124,7 @@ fn the_owned_example_fits_the_native_client() {
 fn assert_owned_limits(limits: &serde_json::Value) {
     let mut expected = serde_json::json!({"engine":{"limits":{"profile":"standard","overrides":{
         "documents.rows":2,"documents.text_bytes":512,
-        "authority.executors":21,"tasks.executor_kinds":21,"tasks.charters":16,
+        "authority.executors":22,"tasks.executor_kinds":22,"tasks.charters":16,
         "clients.streams":8,"clients.exchanges":12,
         "clients_http.streams":8,"clients_http.calls":12,
         "fleet.configured_workers":8,"fleet.workers":2,
@@ -299,5 +299,29 @@ fn the_clusters_workers_admit_the_initial_stock() {
             "{process} must admit startup stock before the story applies its settings"
         );
     }
+    scratch.remove();
+}
+
+#[test]
+fn the_turn_story_profile_declares_prepare_and_fits_its_store() {
+    let scratch = support::Scratch::startup("turn-story-store");
+    support::configuration(scratch.path(), &support::Forge::Unreached);
+    let path = scratch.path().join("temper.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).expect("configuration")).expect("JSON");
+    support::batch_landing::message_room(scratch.path(), &mut value);
+    let document = serde_json::to_vec(&value).expect("deployment JSON");
+    let agent = temper_worker_shell::agent::read(&scratch.path().join("agent.json")).expect("agent");
+    let _store = temper_service::startup::store_limits(
+        &document,
+        &jig_protocol_config::Directories::working(),
+        Some(&agent.declaration()),
+    )
+    .unwrap_or_else(|why| panic!("turn store: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
+    let document = jig_protocol_config::document(&document, &DOCUMENT).expect("document");
+    let at = jig_protocol_config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
+    let engine =
+        temper_service::startup::engine(&document, at, &jig_protocol_config::Directories::working()).expect("engine");
+    assert_eq!(temper_service::limits::prepare_jobs(&engine.limits).len(), 1);
     scratch.remove();
 }

@@ -21,11 +21,18 @@ pub struct Reads {
     pub change: Value,
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a nested ctl real loop runs on its own thread and joins before the story advances"
+)]
 fn read(root: &Path, arguments: &[&str]) -> Result<Value, String> {
     Ok({
-        // Hand run (2026-11-14): its own thread, as one real loop per thread asks.
+        // A ctl read owns its real loop on a separate thread.
         let call = std::thread::scope(|scope| {
-            scope.spawn(|| ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json())).join().expect("ctl read")
+            scope
+                .spawn(|| ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json()))
+                .join()
+                .expect("ctl read")
         });
         if call.exit != Some(Exit::Code(0)) {
             return Err(format!("{}", String::from_utf8_lossy(&call.stderr)));
@@ -51,13 +58,15 @@ pub fn start(scratch: &super::Scratch) -> Throwaway {
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     config["application"]["landing"]["projects"] = json!([]);
     write_private(&path, &serde_json::to_vec(&config).expect("configuration JSON"));
-    forge.with_repository(scratch, 20, landing_by_turn::WORKFLOW)
+    let forge = forge.with_repository(scratch, 20, landing_by_turn::WORKFLOW);
+    forge.enable_turn_merges();
+    forge
 }
 
 /// Select turn landing for the seeded project, whose policy names stock policy 1.
 pub fn configure(root: &Path, repository: u64) {
     configure_batch(root, repository, 1);
-    // Hand run (2026-11-14): the prepare job's result needs messages of at least 4096 bytes.
+    // The prepare job needs the standard engine profile and room for its result.
     let path = root.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     super::batch_landing::message_room(root, &mut value);
