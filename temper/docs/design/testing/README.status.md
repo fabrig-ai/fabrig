@@ -143,22 +143,18 @@ that proof remains with the after-landing runs (11).
   on the runner, so `../draft/macos.md`'s acceptance stands open.
 
 - **Not yet:**
-  4.2: the real-loop world's judges implement `observe`.
-  [in flight: change 2865]
-  4.2: the one-process world's referees implement `observe`, its
-  durable observer panics on a current row that doesn't decode (2.5),
-  and its walk and signal cases catch to name themselves.
-  [in flight: change 2866]
-  4.2: temper's fuzzy sweeps catch a panic to name their seed.
-  [in flight: change 2868]
-  4.2: the cluster's `Members` has no returning verdict.
-  [in flight: change 2874]
-  4.2: the GitHub stories' judges implement `observe`.
-  [in flight: change 2875]
-  4.2: the cluster and case library's judges implement `observe`.
-  [in flight: change 2876]
-  4.2: the forge landing's, ctl's and the live story's judges implement
-  `observe`. [in flight: change 2877]
-  4.2: temper-box's other judges and its kit's implement `observe`.
-  [in flight: change 2878]
+  4.2: temper-box-kit's ctl checks panic where they find, and the fake
+  box's readiness panics when the child ends before it is ready; their
+  tests are `#[should_panic]`. [in flight: change 3248]
+  4.2: the domain world's cold restart oracle and erasing close panic
+  on a difference, the walking world's delivery `expect`s its referee's
+  refusal, and their tests are `#[should_panic]`.
+  [in flight: change 3249]
+  4.2: the one-process observer's scan panics on a newly issued token's
+  finding, and the real loop's `Until` step panics on a failed or
+  signalled observation; their tests are `#[should_panic]`.
+  [in flight: change 3250]
+  4.2: the worker world's referee of turns panics on a changed replay or
+  a turn gap, and the port chooser panics on a narrow range; their
+  tests are `#[should_panic]`. [in flight: change 3251]
 
