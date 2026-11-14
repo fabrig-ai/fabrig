@@ -3818,9 +3818,26 @@ fn delegate_result(
     }
 }
 
-/// The last done dependency refreshes producing before jig's Met steps it (change/repairs.md).
+/// The last done dependency refreshes readiness before forming (domain/landing.md, 9).
 fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
-    let Some(row) = d.changes.get_mut(&task) else { return };
+    let Some(row) = d.changes.get(&task) else { return };
+    if row.terminal() {
+        return;
+    }
+    let mut reading = None;
+    for (token, pending) in &d.steps {
+        if pending.task == task {
+            reading = Some(*token);
+        }
+    }
+    if let Some(owner) = reading {
+        let pending = d.steps.get_mut(&owner).expect("dependent gather");
+        pending.kept = false;
+        pending.pending = Box::new([]);
+    }
+    d.change_due.remove(&task);
+    emit(out, Request::WakeProcedure { task });
+    let row = d.changes.get_mut(&task).expect("live dependent change");
     let owned = row.change.owns_turn;
     let mut ended = false;
     if let change::State::Held { was, why: change::Hold::Stalled } = &row.change.state

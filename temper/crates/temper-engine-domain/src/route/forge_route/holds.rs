@@ -165,7 +165,7 @@ pub(crate) fn refused_step(
         return;
     }
     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-    append(&mut words, b"Delegate refused");
+    append(&mut words, if code == 3 { b"Landing prepare delegate refused" } else { b"Delegate refused" });
     findings(&mut words, findings_);
     recovery(domain, task, &mut words);
     let decision = decision(domain, env, task, words.into_boxed());

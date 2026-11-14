@@ -173,6 +173,16 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+    // A dependency completion can wake several changes together. Their due steps
+    // must settle readiness before the train selects its sealed members.
+    for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
+        if let Some(change) = domain.forge.change(task)
+            && change.base.as_ref() == branch
+            && domain.core.tasks.procedure_due(task).is_some()
+        {
+            return false;
+        }
+    }
     let Some(repo) = domain.forge.repository(repository) else { return false };
     let project = repo.project;
     let mut excluded = List::with_capacity(env.limits.forge.changes);

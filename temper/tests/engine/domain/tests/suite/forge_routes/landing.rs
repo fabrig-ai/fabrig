@@ -150,11 +150,11 @@ fn hello_prepare(slots: u32) -> engine::Event {
     event
 }
 fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
-    produced_turn_change_with(StoryLimits { turn: true, landing_members, ..StoryLimits::default() })
+    produced_turn_change_with(&StoryLimits { turn: true, landing_members, ..StoryLimits::default() })
 }
 
-fn produced_turn_change_with(limits: StoryLimits) -> (World, u64) {
-    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, limits);
+fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
+    let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, *limits);
     world.adopt();
     world.send(hello_prepare(2));
     let ask = adoption_chat(&world);
@@ -1001,7 +1001,7 @@ fn a_first_turn_prepare_is_delegated_under_stocks_executor_ceiling() {
     assert_eq!(world.jobs[0].kind, jig_domain_link::JobKind(1));
 }
 
-fn assert_prepare_hold(limits: StoryLimits, reason: &str) {
+fn assert_prepare_hold(limits: &StoryLimits, reason: &str) {
     let (mut world, _) = produced_turn_change_with(limits);
     for _ in 0..600 {
         world.tick();
@@ -1024,7 +1024,7 @@ fn assert_prepare_hold(limits: StoryLimits, reason: &str) {
 #[test]
 fn an_undeclared_prepare_holds_the_landing_with_its_reason() {
     assert_prepare_hold(
-        StoryLimits { turn: true, omit_prepare: true, ..StoryLimits::default() },
+        &StoryLimits { turn: true, omit_prepare: true, ..StoryLimits::default() },
         "prepare job kind 1 is not declared",
     );
 }
@@ -1032,7 +1032,82 @@ fn an_undeclared_prepare_holds_the_landing_with_its_reason() {
 #[test]
 fn a_refused_prepare_holds_the_landing_with_authority_findings() {
     assert_prepare_hold(
-        StoryLimits { turn: true, refuse_prepare: true, ..StoryLimits::default() },
+        &StoryLimits { turn: true, refuse_prepare: true, ..StoryLimits::default() },
         "executor outside its delegation authority",
     );
+}
+
+#[test]
+fn a_train_forms_after_its_due_readiness_steps_settle() {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { turn: true, batch: Some(2), slots: Some(4), ..StoryLimits::default() },
+    );
+    world.adopt();
+    let mut event = hello_prepare(4);
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("hello")
+    };
+    hello.bounds.message_bytes = 256;
+    world.send(event);
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    let (a, producer_a) = make_change(&mut world, &chat, 95, b"org/repo");
+    let (b, producer_b) = make_change(&mut world, &chat, 96, b"org/repo");
+    push_change(&mut world, &producer_a, b"org/repo");
+    push_change(&mut world, &producer_b, b"org/repo");
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Release together", Box::new([]));
+    delegate.authority = live_task(&world, chat.task).authority.clone();
+    delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    delegate.authority.budget.spend = 10;
+    let answer = world.scripted_call(&chat, 98, engine::Tool::Delegate { batch: Box::new([delegate]) });
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("latch delegated: {answer:?}") };
+    let latch = made[0].task;
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if world.assigned.iter().any(|run| run.task == latch) {
+            break;
+        }
+    }
+    let latch_run = world.assigned.iter().find(|run| run.task == latch).expect("latch run").clone();
+    for task in [a, b] {
+        let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Ready together");
+        amendment.dependencies = Some(Box::new([latch]));
+        let revision = live_task(&world, task).revisions.spec;
+        let answer = world.scripted_call(
+            &chat,
+            100 + task,
+            engine::Tool::Amend { keep_parameters: false, target: task, revision, amendment },
+        );
+        assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "amended: {answer:?}");
+        assert_eq!(live_task(&world, task).waiting_on.as_ref(), [latch]);
+    }
+    world.slow_branch = producer_b.workspace.repositories[0].push.clone();
+    finish_producer(&mut world, &producer_a, forge_world::REPO);
+    finish_producer(&mut world, &producer_b, forge_world::REPO);
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+    }
+    assert!(landing_rows(&world).is_empty(), "the latch keeps both changes");
+    goal_landing::finish_run(
+        &mut world,
+        &latch_run,
+        tasks::TaskResult::Report { words: b"Ready together".as_slice().into() },
+    );
+    world.manual_prepare_jobs();
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if !landing_rows(&world).is_empty() {
+            break;
+        }
+    }
+    let rows = landing_rows(&world);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a, b]);
 }

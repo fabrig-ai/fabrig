@@ -401,7 +401,9 @@ The default, for a project with no prepare command:
   1); a train into a repository's main, or into a branch no goal holds,
   has none. The job tells, from the upstream's tip the round read
   (5.1), given in its request (`worker/jobs.md`).
-- **Its outcome:** the engine reads each member's branch afresh once
+- **Its outcome:** the round retains the job's report before reading
+  its prefixes, so a read waiting for client room or a restart cannot
+  consume that report. The engine reads each member's branch afresh once
   the job has ended. Its tip is the member's prefix when its parents
   are the prefix below and the member's head, a merge, or the prefix
   below alone with the member's head in its `Head` trailer, a line of
@@ -685,7 +687,10 @@ The default, for a project with no prepare command:
   beside those before it ends the batch and waits, first in line. A refused unit (4.1) is held
   and passed over. Forming is judged when a change becomes ready, when
   a landing ends, when a change's priority moves, and at a restart, for
-  each train they touch.
+  each train they touch. Its due change procedures settle their readiness
+  before that train forms: one dependency completion waking several
+  changes does not seal a landing after only the first readiness check.
+  Other trains settle and form independently.
 - **No race, no reservation:** a train's branch moves only by its
   landing's turn, or by a push from outside temper, which makes a round
   stale (section 8). Stale rounds are counted on the landing and

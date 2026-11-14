@@ -841,6 +841,23 @@ fn pending_for(d: &Domain, task: u64) -> Option<Token> {
     }
     existing
 }
+// A procedure consumes its result even when a prefix read is busy (domain/landing.md, 5.2).
+fn remember_preparation(d: &mut Domain, env: &Env<Limits>, task: u64, heard: &LandingHeard, out: &mut Queue<Request>) {
+    if heard.outcomes.is_empty()
+        && heard.preparation != policy::Preparation::Failed
+        && heard.preparation != policy::Preparation::Conflict
+    {
+        return;
+    }
+    let Some(row) = d.landing.rows.get(&task) else { return };
+    let failure = crate::preparation::remember(&row.landing.round.failure, &heard.failure, env.limits.landing_members);
+    if row.landing.round.failure != failure {
+        let mut row = row.clone();
+        row.landing.round.failure = failure;
+        save(d, row, out);
+    }
+}
+
 pub(crate) fn job_woken(d: &mut Domain, task: u64) {
     if let Some(token) = pending_for(d, task) {
         d.landing.pending.get_mut(&token).expect("pending landing gather").woken = true;
@@ -860,6 +877,7 @@ pub(crate) fn step(
     if let Some(job) = heard.job.take() {
         crate::job_history::heard(d, env.wall, task, job, out);
     }
+    remember_preparation(d, env, task, &heard, out);
     if let Some(row) = d.landing.rows.get(&task)
         && row.landing.phase == policy::Phase::Cancelled
     {
@@ -2000,13 +2018,6 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     };
     if unprepared {
         row.landing.round.upstream = p.upstream;
-    }
-    if !p.heard.outcomes.is_empty()
-        || p.heard.preparation == policy::Preparation::Failed
-        || p.heard.preparation == policy::Preparation::Conflict
-    {
-        row.landing.round.failure =
-            crate::preparation::remember(&row.landing.round.failure, &p.heard.failure, env.limits.landing_members);
     }
     if continue_retry(d, &mut row, p.entry, out) {
         return;

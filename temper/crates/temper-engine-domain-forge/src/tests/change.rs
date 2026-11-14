@@ -2478,3 +2478,21 @@ fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
         );
     }
 }
+
+#[test]
+fn a_met_dependency_wakes_an_idle_gating_change() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(
+        change::State::Gating { head: fixtures::HEAD, asked: Box::new([]) },
+        change::Delegate::Produce,
+    );
+    let row = d.changes.get_mut(&fixtures::CHANGE).expect("gating change");
+    row.delegate = None;
+    row.delegate_status = change::Status::Passed;
+    row.change.way = change::Way::Turn;
+    let out = outputs(&mut d, Event::DependenciesMet { task: fixtures::CHANGE });
+    assert!(
+        out.contains(&Request::WakeProcedure { task: fixtures::CHANGE }),
+        "last dependency must refresh readiness before forming: {out:?}"
+    );
+}

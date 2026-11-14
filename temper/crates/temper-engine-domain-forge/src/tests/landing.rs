@@ -1712,3 +1712,41 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
         assert_eq!(decision, Some(expected));
     }
 }
+
+#[test]
+fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
+    let mut d = landing_fixture();
+    fixtures::connect(&mut d);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    member_landing(&mut d);
+    let row = d.landing.rows.get_mut(&61).expect("round");
+    row.landing.phase = policy::Phase::Preparing;
+    row.landing.round.pull = None;
+    row.landing.round.combined = None;
+    row.landing.members[0].candidate = None;
+    let report = br#"{"combined":[{"member":1,"by":"merge"}],"conflicts":[]}"#;
+    let prepared = preparation::outcomes(report, LIMITS.landing_members).expect("prepare report");
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: prepared.clone(),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: report.as_slice().into(),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+    );
+    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Busy));
+    let row = d.landing.rows.get(&61).expect("waiting round");
+    assert_eq!(preparation::outcomes(&row.landing.round.failure, LIMITS.landing_members), Some(prepared));
+}
