@@ -16,6 +16,7 @@ jig-protocol-transcript.workspace = true
 workspace = true
 
 [dev-dependencies]
+skein-rows.workspace = true
 skein-ui-web.workspace = true
 jig-client-test-records = {path = "../../testing/jig-client-test-records"}
 smith-transcript.workspace = true

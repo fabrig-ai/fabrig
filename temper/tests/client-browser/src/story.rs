@@ -27,13 +27,20 @@ impl Stories {
     /// Panic unless the run is done, with the failed step's story first in the message.
     #[track_caller]
     pub fn assert_done(&self, outcome: Outcome) {
+        if let Err(finding) = self.check_done(outcome) {
+            panic!("{finding}");
+        }
+    }
+
+    /// Returns a failed run's report, attributed to its story where one had begun.
+    pub fn check_done(&self, outcome: Outcome) -> Result<(), String> {
         match outcome {
-            Outcome::Done => {}
+            Outcome::Done => Ok(()),
             Outcome::Failed { person, step, report } => {
                 if let Some(story) = (person == self.person).then(|| self.story(step)).flatten() {
-                    panic!("{story}: person {person}, step {step}: {report}");
+                    return Err(format!("{story}: person {person}, step {step}: {report}"));
                 }
-                panic!("person {person}, step {step}: {report}");
+                Err(format!("person {person}, step {step}: {report}"))
             }
         }
     }
@@ -63,29 +70,28 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "second: person 1, step 3: the report")]
     fn a_failure_is_named_by_its_story() {
-        stories().assert_done(Outcome::Failed { person: 1, step: 3, report: "the report".into() });
+        assert_eq!(
+            stories().check_done(Outcome::Failed { person: 1, step: 3, report: "the report".into() }),
+            Err("second: person 1, step 3: the report".into())
+        );
     }
 
     #[test]
-    #[should_panic(expected = "person 0, step 3: the report")]
     fn another_persons_failure_has_no_story() {
-        stories().assert_done(Outcome::Failed { person: 0, step: 3, report: "the report".into() });
+        assert_eq!(
+            stories().check_done(Outcome::Failed { person: 0, step: 3, report: "the report".into() }),
+            Err("person 0, step 3: the report".into())
+        );
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn unattributed_failures_report_only_the_person_and_step() {
         for (person, step) in [(0, 3), (1, 0)] {
-            let failure = std::panic::catch_unwind(|| {
-                stories().assert_done(Outcome::Failed { person, step, report: "the report".into() });
-            })
-            .expect_err("a failed run must panic");
-            assert_eq!(
-                failure.downcast_ref::<String>().expect("formatted failure"),
-                &format!("person {person}, step {step}: the report")
-            );
+            let failure = stories()
+                .check_done(Outcome::Failed { person, step, report: "the report".into() })
+                .expect_err("a failed run returns its finding");
+            assert_eq!(failure, format!("person {person}, step {step}: the report"));
         }
     }
 

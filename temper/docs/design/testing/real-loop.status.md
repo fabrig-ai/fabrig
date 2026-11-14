@@ -1,6 +1,6 @@
 # real-loop: status
 
-2026-11-11. Where the tree's code lags or departs from [real-loop.md](real-loop.md).
+2026-11-14. Where the tree's code lags or departs from [real-loop.md](real-loop.md).
 
 - **Not yet:** the whole document: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). the whole document:
@@ -14,3 +14,7 @@
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
    the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
+- **Not yet:** the whole document: the checks between iterations panic
+  on their findings, an answer past its bound, a CLI timeout and an
+  overdue deadline among them, and their tests catch.
+  [in flight: change 2865]

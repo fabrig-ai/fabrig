@@ -145,10 +145,11 @@ impl skein_world::Referee<Peer> for Bound {
             procs[0].shutdown();
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Peer]) {
+    fn watch(&mut self, now: Time, procs: &[Peer]) -> Result<(), String> {
         if !self.seen && procs[0].address().is_some() {
             self.wake = Some(now);
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake
