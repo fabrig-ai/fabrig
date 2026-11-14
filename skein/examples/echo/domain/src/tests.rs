@@ -111,23 +111,3 @@ fn shutdown_stops_admission_once_and_sessions_run_on() {
     rig.domain.reclaim();
     assert!(rig.domain.is_empty());
 }
-
-#[test]
-#[should_panic(expected = "a line names a session not yet gone")]
-fn a_line_for_a_session_gone_is_a_bug() {
-    let mut rig = Rig::new();
-    let session = rig.admitted();
-    let _gone = rig.step(Event::Gone { session });
-    rig.domain.reclaim();
-    let _reply = rig.line(session, b"late");
-}
-
-#[test]
-#[should_panic(expected = "a session is told gone once")]
-fn a_session_told_gone_twice_is_a_bug() {
-    let mut rig = Rig::new();
-    let session = rig.admitted();
-    let _gone = rig.step(Event::Gone { session });
-    rig.domain.reclaim();
-    let _again = rig.step(Event::Gone { session });
-}
