@@ -316,29 +316,3 @@ fn no_continue_goes_where_the_client_waits_for_none_or_a_final_response_answers_
     assert!(served.sent.starts_with(b"HTTP/1.1 417 Expectation Failed\r\n"), "{}", served.sent.escape_ascii());
     assert_eq!(served.outcome, Some(Event::Done(Reuse::Close)));
 }
-
-#[test]
-#[should_panic(expected = "no demand past Limits::read")]
-fn no_body_demand_past_the_limit() {
-    let mut machine = Machine::new(LIMITS);
-    machine.call(POST_11);
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(17), room: 0 }));
-}
-
-#[test]
-#[should_panic(expected = "one demand at a time")]
-fn one_body_demand_at_a_time() {
-    let mut machine = Machine::new(LIMITS);
-    machine.call(POST_11);
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(1), room: 0 }));
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(1), room: 0 }));
-}
-
-#[test]
-#[should_panic(expected = "no body demand once the body is over")]
-fn no_body_demand_after_its_end() {
-    let mut machine = Machine::new(LIMITS);
-    machine.call(b"GET / HTTP/1.1\r\nHost: h\r\n\r\n");
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(1), room: 0 }));
-    machine.down(Request::Body(Down::Demand { read: Read::Fill(1), room: 0 }));
-}

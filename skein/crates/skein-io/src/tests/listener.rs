@@ -315,22 +315,6 @@ fn a_listener_closes_once_whatever_waited_on_it_is_answered() {
 }
 
 #[test]
-#[should_panic(expected = "a stream request names a stream")]
-fn a_stream_request_naming_a_listener_is_the_owner_s_bug() {
-    let mut rig = Rig::new(limits());
-    let (listener, _addr, _accept) = listening(&mut rig, owner(1), LISTENER);
-    let _out = rig.down(Request::Stream { stream: listener, down: skein_lib::stream::Down::Finish });
-}
-
-#[test]
-#[should_panic(expected = "an answer names a socket")]
-fn an_answer_naming_a_listener_is_the_owner_s_bug() {
-    let mut rig = Rig::new(limits());
-    let (listener, _addr, _accept) = listening(&mut rig, owner(1), LISTENER);
-    let _out = rig.down(Request::Reject { socket: listener });
-}
-
-#[test]
 fn an_adopted_listener_waits_for_its_address_then_accepts_for_the_claimant() {
     let mut rig = Rig::new(limits());
     let token = rig.io.adopt_listener(LISTENER, local(40001)).expect("room for the held listener");

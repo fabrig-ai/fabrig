@@ -10,4 +10,4 @@ their fallback. A node's hint is not printed; a heading's visible short
 form stays its text, independently of its whole name and hint.
 
 - **Not yet:** 8: a test triggers the terminal's stop on an application's
-  line past its bytes, `#[should_panic]`.
+  line past its bytes, `#[should_panic]`. [in flight: change 3131]

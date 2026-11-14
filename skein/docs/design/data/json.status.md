@@ -6,7 +6,7 @@ Unlisted sections have no known gap.
 
 - **Not yet:**
   - 6: the fuzz target.
-  - 6: the writer's assertion tests, `#[should_panic]`, go with `temper/docs/design/draft/panics.execution.md`, P8.
+  - 6: the writer's assertion tests, `#[should_panic]`, go with `temper/docs/design/draft/panics.execution.md`, P8. [in flight: change 3133]
 - **Departs:**
   - 5.1: `skein/docs/foundation/programming-model.md`, 6.1 has the queues
     between components uncapped, but `skein-json/src/collector.rs`'s
