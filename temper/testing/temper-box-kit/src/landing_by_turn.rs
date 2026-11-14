@@ -204,8 +204,9 @@ pub(super) fn check_history(root: &Path, project: u64, panel: &Value, client: Op
     }
     for member in members {
         let change = member["change"].as_u64().ok_or(String::from("member change"))?;
-        for kind in ["formed", "gate-ended"] {
-            has_event(&events, change, kind)?;
+        has_event(&events, change, "formed")?;
+        if !member["landed"].is_null() || !member["left"]["failed"].is_null() || !member["left"]["blamed"].is_null() {
+            has_event(&events, change, "gate-ended")?;
         }
         if !member["landed"].is_null() {
             for kind in ["proved", "turn"] {
@@ -225,10 +226,8 @@ pub(super) fn check_history(root: &Path, project: u64, panel: &Value, client: Op
     if !events.iter().any(|event| event["what"]["kind"] == "landing-ended") {
         return Err(format!("{events:#?}"));
     }
-    let change =
-        members.iter().find(|member| !member["landed"].is_null()).ok_or(String::from("a landed member"))?["change"]
-            .as_u64()
-            .ok_or(String::from("member change"))?;
+    let Some(member) = members.iter().find(|member| !member["landed"].is_null()) else { return Ok(()) };
+    let change = member["change"].as_u64().ok_or(String::from("member change"))?;
     let events = history(root, project, "--change", change, client)?;
     for kind in ["ready", "landed"] {
         has_event(&events, change, kind)?;

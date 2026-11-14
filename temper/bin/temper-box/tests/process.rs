@@ -175,6 +175,60 @@ fn a_red_batch_is_narrowed_before_the_remaining_change_lands() {
     batch_landing("batch-red-narrowed", true);
 }
 
+#[test]
+fn a_copied_projects_red_member_repairs_and_lands_later() {
+    deployment_turn("copied-red-repaired", support::batch_landing::deployment::run_repaired);
+}
+
+#[test]
+fn a_deployment_sized_repository_root_lands_by_turn() {
+    deployment_turn("deployment-root", support::batch_landing::deployment::run_green);
+}
+
+#[test]
+fn two_conflicting_changes_resolve_and_land_by_turn() {
+    deployment_turn("deployment-conflict", support::batch_landing::deployment::run_conflict);
+}
+
+#[test]
+fn a_goal_delivering_mid_proof_leaves_and_lands_its_new_head() {
+    deployment_turn("deployment-midproof", support::batch_landing::deployment::run_midproof);
+}
+
+#[test]
+fn a_batch_of_four_narrows_its_breaking_member_with_deployment_limits() {
+    use support::{batch_landing, landing_by_turn, turn_restart};
+    let scratch = support::Scratch::new("deployment-batch-four");
+    let barrier = support::forgejo::JobBarrier::new(scratch.path());
+    let forge = turn_restart::start(&scratch);
+    forge.add_file(".forgejo/workflows/gate.yaml", barrier.gate_workflow(landing_by_turn::WORKFLOW).as_bytes());
+    batch_landing::deployment::add_root(&forge);
+    support::configuration(scratch.path(), &forge.forge());
+    batch_landing::deployment::configure_policy(
+        scratch.path(),
+        forge.repository(),
+        4,
+        batch_landing::deployment::Policy::StockCopy,
+    );
+    batch_landing::run_narrowed_four(scratch.path(), &forge, &barrier);
+    forge.stop();
+    scratch.remove();
+}
+
+fn deployment_turn(case: &str, run: fn(&std::path::Path, &support::forgejo::Throwaway, &support::forgejo::JobBarrier)) {
+    use support::{batch_landing::deployment, landing_by_turn, turn_restart};
+    let scratch = support::Scratch::new(case);
+    let barrier = support::forgejo::JobBarrier::new(scratch.path());
+    let forge = turn_restart::start(&scratch);
+    forge.add_file(".forgejo/workflows/gate.yaml", barrier.gate_workflow(landing_by_turn::WORKFLOW).as_bytes());
+    deployment::add_root(&forge);
+    support::configuration(scratch.path(), &forge.forge());
+    deployment::configure(scratch.path(), forge.repository());
+    run(scratch.path(), &forge, &barrier);
+    forge.stop();
+    scratch.remove();
+}
+
 fn batch_landing(case: &str, narrowed: bool) {
     use support::{batch_landing, landing_by_turn, turn_restart};
     let scratch = support::Scratch::new(case);
@@ -203,11 +257,13 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
-    turn_restart::configure(scratch.path(), forge.repository());
+    turn_restart::cuts::configure(scratch.path(), forge.repository());
     let started = clock.now().now;
-    let (proof, _) = turn_restart::run(scratch.path(), &forge, &barrier, None);
+    let preparing = turn_restart::cuts::preparing(scratch.path(), &forge, &barrier);
+    assert_eq!(preparing.reads.landing["phase"], "preparing");
+    eprintln!("turn restart cut: preparing");
+    let proof = turn_restart::cuts::prepared(scratch.path(), &forge, &barrier, &preparing);
     eprintln!("turn restart first run: {}", landing_by_turn::elapsed(&clock, started));
-    let proof = proof.expect("stopped inside the gate job");
     let panel = &proof.reads.landing;
     eprintln!("turn restart mid-proof: {}", serde_json::to_string(&proof.reads.landing).expect("landing JSON"));
     assert_eq!(panel["phase"], "proving");
@@ -234,7 +290,10 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let proof = retried.as_ref().unwrap_or(&proof);
     let started = clock.now().now;
     barrier.release(proof.run);
-    let (_, landed) = turn_restart::run(scratch.path(), &forge, &barrier, Some(proof));
+    let turning = turn_restart::cuts::turn(scratch.path(), &forge, &barrier, proof);
+    assert_eq!(turning.reads.landing["phase"], "turn");
+    eprintln!("turn restart cut: turn");
+    let (_, landed) = turn_restart::run(scratch.path(), &forge, &barrier, Some(&turning));
     eprintln!("turn restart second run: {}", landing_by_turn::elapsed(&clock, started));
     let landed = landed.expect("landed reads before stopping");
     assert_eq!(landed.landing["phase"], "landed");

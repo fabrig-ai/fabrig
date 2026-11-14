@@ -58,10 +58,11 @@ impl Judge<'_> {
 
     fn probe(&mut self, boundary: usize, verdict: &str) -> Result<(), String> {
         let first = self.first.as_ref().ok_or(String::from("top proof"))?;
-        let (previous, prefix) = if boundary == 1 {
-            (first.run, sha(&members(&first.panel)?[2]["candidate"])?)
+        let (previous, prefix) = if self.probes.is_empty() {
+            (first.run, super::candidate(&first.panel)?)
         } else {
-            (self.probes[0], sha(&members(&first.panel)?[0]["candidate"])?)
+            let index = usize::from(self.story.ready().len() == 4);
+            (self.probes[0], sha(&members(&first.panel)?[index]["candidate"])?)
         };
         if !self.receipt(previous, prefix, verdict)? {
             return Ok(());
@@ -77,7 +78,7 @@ impl Judge<'_> {
                 return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
             }
         }
-        if gate_runs(self.forge)?.len() != boundary + 1 {
+        if gate_runs(self.forge)?.len() != self.probes.len() + 2 {
             return Err(String::from("one probe at a time, no push runs"));
         }
         if main(self.forge)? != self.base {
@@ -85,7 +86,7 @@ impl Judge<'_> {
         }
         self.probes.push(run);
         self.barrier.release(run);
-        self.phase = Phase::Search(if boundary == 1 { Step::Two } else { Step::Boundary });
+        self.phase = Phase::Search(if self.probes.len() == 1 { Step::Two } else { Step::Boundary });
 
         Ok(())
     }
@@ -164,7 +165,13 @@ impl Judge<'_> {
 
     fn boundary(&mut self) -> Result<(), String> {
         let first = self.first.as_ref().ok_or(String::from("top proof"))?;
-        if !self.receipt(self.probes[1], sha(&members(&first.panel)?[1]["candidate"])?, "failure")? {
+        let red = if self.story.ready().len() == 4 { self.probes[0] } else { self.probes[1] };
+        if !self.receipt(red, sha(&members(&first.panel)?[1]["candidate"])?, "failure")? {
+            return Ok(());
+        }
+        if self.story.ready().len() == 4
+            && !self.receipt(self.probes[1], sha(&members(&first.panel)?[0]["candidate"])?, "success")?
+        {
             return Ok(());
         }
         let Some(run) = self.barrier.waiting(Some(self.probes[1])) else { return Ok(()) };
@@ -212,36 +219,26 @@ impl Judge<'_> {
         if sha(&third["base"])? != green {
             return Err(String::from("the next round stacks onto the first turn's tip"));
         }
-        let prefix = sha(&third["candidate"])?;
+        let mut below = green.to_owned();
+        for (index, member) in members(&panel)?.iter().enumerate().skip(2) {
+            let prefix = sha(&member["candidate"])?;
+            let commit = get(self.forge, &format!("git/commits/{prefix}"));
+            if commit["parents"].as_array().ok_or("parents")?.len() != 2
+                || commit["parents"][0]["sha"] != below
+                || commit["parents"][1]["sha"] != sha(&member["head"])?
+            {
+                return Err("the remaining stack preserves its heads on the green prefix".into());
+            }
+            if member["head"] != members(&first.panel)?[index]["head"] {
+                return Err("no member head rewritten".into());
+            }
+            prefix.clone_into(&mut below);
+        }
+        let prefix = super::candidate(&panel)?;
         self.dispatched(run, prefix)?;
-        let branch = panel["round"]["branch"].as_str().ok_or(String::from("next round's landing branch"))?;
-        {
-            let (left, right) = (&(get(self.forge, &format!("branches/{branch}"))["commit"]["id"]), &(prefix));
-            if left != right {
-                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-            }
-        }
-        let commit = get(self.forge, &format!("git/commits/{prefix}"));
-        {
-            let (left, right) = (&(commit["parents"].as_array().ok_or(String::from("parents"))?.len()), &(2));
-            if left != right {
-                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-            }
-        }
-        {
-            let (left, right) = (&(commit["parents"][0]["sha"]), &(green));
-            if left != right {
-                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-            }
-        }
-        {
-            let (left, right) = (&(commit["parents"][1]["sha"]), &(sha(&third["head"])?));
-            if left != right {
-                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-            }
-        }
-        if third["head"] != members(&first.panel)?[2]["head"] {
-            return Err(String::from("no member head rewritten"));
+        let branch = panel["round"]["branch"].as_str().ok_or("next round branch")?;
+        if get(self.forge, &format!("branches/{branch}"))["commit"]["id"] != prefix {
+            return Err("the round branch names its top".into());
         }
         if gate_runs(self.forge)?.len() != 4 {
             return Err(String::from("top, two probes and the next round only"));
@@ -263,7 +260,7 @@ impl Judge<'_> {
         Ok({
             let second = self.second.as_ref().ok_or(String::from("second round"))?;
             let third = &members(&second.panel)?[2];
-            let prefix = sha(&third["candidate"])?;
+            let prefix = super::candidate(&second.panel)?;
             if !self.receipt(second.run, prefix, "success")? {
                 return Ok(false);
             }
@@ -273,6 +270,11 @@ impl Judge<'_> {
                 || !self.blamed(&panel)?
             {
                 return Ok(false);
+            }
+            for (landed, prepared) in members(&panel)?.iter().zip(members(&second.panel)?).skip(2) {
+                if !self.member_landed(landed, prepared)? {
+                    return Ok(false);
+                }
             }
             let first = self.first.as_ref().ok_or(String::from("top proof"))?;
             if !self.member_landed(&members(&panel)?[0], &members(&first.panel)?[0])? {
@@ -315,8 +317,14 @@ impl Judge<'_> {
 
     pub(super) fn search(&mut self, step: Step, procs: &mut [Process]) -> Result<(), String> {
         match step {
-            Step::One => self.probe(1, "failure")?,
-            Step::Two => self.probe(2, "success")?,
+            Step::One => self.probe(if self.story.ready().len() == 4 { 2 } else { 1 }, "failure")?,
+            Step::Two => {
+                if self.story.ready().len() == 4 {
+                    self.probe(1, "failure")?;
+                } else {
+                    self.probe(2, "success")?;
+                }
+            }
             Step::Boundary => self.boundary()?,
             Step::Remainder => {
                 if self.remainder()? {
