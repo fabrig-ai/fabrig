@@ -16,6 +16,7 @@ mod pass_end;
 mod pass_files;
 mod passes;
 pub mod place;
+mod private;
 mod recording;
 mod report;
 mod requests;

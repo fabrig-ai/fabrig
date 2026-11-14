@@ -465,12 +465,7 @@ impl DriveFace for RealDrive {
     fn walk(&mut self, request: &RecipeWalk<'_>) -> Result<WalkOutput, Refusal> {
         use std::io::{BufRead, Seek};
         let place = request.place;
-        let mut log = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .read(true)
-            .open(&place.walk_log)
-            .map_err(|why| refused(format!("walk.log: {why}")))?;
+        let mut log = crate::private::file(&place.walk_log, OpenOptions::new().create(true).append(true).read(true))?;
         let start = log.seek(std::io::SeekFrom::End(0)).map_err(|why| refused(format!("walk.log: {why}")))?;
         let output = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
         let error = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
