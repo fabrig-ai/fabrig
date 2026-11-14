@@ -1066,3 +1066,21 @@ fn a_forges_missing_merge_mark_cannot_keep_the_turn_past_its_poll() {
     assert_eq!(finished.decision, Decision::Finish);
     assert_eq!(finished.landing.phase, Phase::Landed);
 }
+
+#[test]
+fn a_late_merge_readback_gives_manual_detection_a_whole_poll() {
+    let (mut landing, mut f) = stacked(3);
+    landing.phase = Phase::Turn { at: at(10) };
+    for fresh in &mut f.members {
+        fresh.main = prefix(2);
+    }
+    let waiting = step(&landing, &f, &PROJECT, &LIMITS, at(100));
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(105)) });
+    assert_eq!(waiting.landing.members[0].landed, Some(prefix(0)));
+    let restored = waiting.landing.clone();
+    assert_eq!(step(&restored, &f, &PROJECT, &LIMITS, at(104)).decision, Decision::Wait { until: Some(at(105)) });
+    assert_eq!(
+        step(&restored, &f, &PROJECT, &LIMITS, at(105)).decision,
+        Decision::Landed { member: 0, prefix: prefix(0) }
+    );
+}

@@ -163,6 +163,33 @@ fn a_turn_landing_is_found_after_a_runner_cancellation_and_restarts() {
     turn_landing_restarts("turn-retry-restarts", true);
 }
 
+/// temper/docs/design/domain/landing.md, 15: an external worker survives each engine restart.
+#[test]
+fn an_engine_restarts_in_each_turn_landing_phase() {
+    support::turn_drills::run(support::turn_drills::Drill::Phases);
+}
+
+/// temper/docs/design/domain/landing.md, 15: the external worker saves an in-flight producer.
+#[test]
+fn an_engine_and_worker_restart_during_delivery_beside_proof() {
+    support::turn_drills::run(support::turn_drills::Drill::Delivery);
+}
+
+/// temper/docs/design/domain/landing.md, 5 and 9: four template goals share one turn.
+#[test]
+fn four_goals_land_together_after_loading_batch_four() {
+    support::turn_drills::run(support::turn_drills::Drill::BatchFour);
+}
+
+/// temper/docs/design/domain/landing.md, 7 and 9: the third member is blamed and repaired.
+#[test]
+fn a_breaking_third_goal_is_narrowed_and_repaired_in_batch_four() {
+    support::turn_drills::run(support::turn_drills::Drill::Breaking);
+}
+
+
+
+
 /// temper/docs/design/testing/process-tier.md: a queue that lands green.
 #[test]
 fn a_batch_of_three_lands_by_one_fast_forward() {

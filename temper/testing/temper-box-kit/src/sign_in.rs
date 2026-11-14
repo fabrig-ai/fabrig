@@ -511,7 +511,8 @@ impl Referee<Process> for AnswerJudge {
                     match proc {
                         Process::Peer(peer) => peer.shutdown(),
                         Process::Issuer(issuer) => issuer.shutdown(),
-                        Process::Binary(_)
+                        Process::Member(_)
+                        | Process::Binary(_)
                         | Process::Calls(_)
                         | Process::Person(_)
                         | Process::Stdout(_)

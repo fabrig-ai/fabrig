@@ -1864,6 +1864,23 @@ fn landing_view() -> forge::LandingView {
     }
 }
 #[test]
+fn a_first_round_search_uses_its_members_base_at_boundary_zero() {
+    let mut value = landing_view();
+    value.step = forge::LandingStep::Probing;
+    value.round.upstream = None;
+    value.round.search = Some(forge::LandingSearch { green: 0, red: 1 });
+    value.members[0].base = Some([0x22; 32]);
+    value.members[0].candidate = Some([0x33; 32]);
+    value.members[0].left = None;
+    let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
+        .expect("the original round's search has a base");
+    let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
+    assert_eq!((search.green().member(), search.green().prefix()), (0, &[0x22; 32]));
+    assert_eq!((search.red().member(), search.red().prefix()), (1, &[0x33; 32]));
+}
+
+#[test]
 fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
     let mut value = landing_view();
     value.step = forge::LandingStep::Probing;
