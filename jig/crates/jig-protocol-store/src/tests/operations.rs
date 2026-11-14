@@ -187,7 +187,8 @@ fn a_copy_links_only_snapshot_and_sealed_fixed_width_segments() {
     }
     let mut disk = Disk::new(&items);
     assert_eq!(copy(&mut disk, 1, CHUNK), Progress::Done);
-    for item in items.iter().filter(|item| if let skein_fake_machine::Made::File(_) = item.made { true } else { false }) {
+    for item in items.iter().filter(|item| if let skein_fake_machine::Made::File(_) = item.made { true } else { false })
+    {
         let suffix = item.path.strip_prefix(b"generations/1/").expect("source prefix");
         let linked = suffix == b"store/snapshot" || suffix == b"store/log-00000000000000000001";
         let target = [b"generations/2/", suffix].concat();
@@ -195,12 +196,31 @@ fn a_copy_links_only_snapshot_and_sealed_fixed_width_segments() {
         assert_eq!(disk.links(&target), if linked { 2 } else { 1 }, "target {suffix:?}");
         assert_eq!(disk.bytes(&item.path), disk.bytes(&target));
     }
-    let linked: Vec<_> = disk.requests().iter().filter_map(|(_, seen)| match seen {
-        Seen::Link { from, to } => { assert_eq!(from, to); Some(from.as_ref()) }
-        Seen::Create { .. } | Seen::Read { .. } | Seen::Write { .. } | Seen::SyncFile
-        | Seen::Rename { .. } | Seen::Lock | Seen::Load | Seen::Make(_) | Seen::Private(_)
-        | Seen::Open | Seen::Store { .. } | Seen::Remove { .. } | Seen::Sync | Seen::Close | Seen::Other => None,
-    }).collect();
+    let linked: Vec<_> = disk
+        .requests()
+        .iter()
+        .filter_map(|(_, seen)| match seen {
+            Seen::Link { from, to } => {
+                assert_eq!(from, to);
+                Some(from.as_ref())
+            }
+            Seen::Create { .. }
+            | Seen::Read { .. }
+            | Seen::Write { .. }
+            | Seen::SyncFile
+            | Seen::Rename { .. }
+            | Seen::Lock
+            | Seen::Load
+            | Seen::Make(_)
+            | Seen::Private(_)
+            | Seen::Open
+            | Seen::Store { .. }
+            | Seen::Remove { .. }
+            | Seen::Sync
+            | Seen::Close
+            | Seen::Other => None,
+        })
+        .collect();
     assert_eq!(linked, [b"log-00000000000000000001".as_slice(), b"snapshot"]);
 }
 
@@ -227,22 +247,43 @@ fn a_copy_finds_the_newest_segment_beyond_the_first_listing_page() {
 fn a_refused_link_copies_but_every_other_error_fails() {
     use skein_io::kernel::Error;
     for (error, copies) in [
-        (Error::Permission, true), (Error::TooManyLinks, true), (Error::Other(18), true),
-        (Error::Busy, false), (Error::Refused, false), (Error::Reset, false),
-        (Error::BrokenPipe, false), (Error::NotConnected, false), (Error::AddressInUse, false),
-        (Error::AddressNotAvailable, false), (Error::Unreachable, false), (Error::TimedOut, false),
-        (Error::TooManyOpenFiles, false), (Error::NoBufferSpace, false), (Error::Cancelled, false),
-        (Error::TooLate, false), (Error::NotFound, false), (Error::Exists, false),
-        (Error::NotADirectory, false), (Error::IsADirectory, false), (Error::NotEmpty, false),
-        (Error::NoSpace, false), (Error::ReadOnly, false), (Error::NameTooLong, false),
-        (Error::Escape, false), (Error::NotAFile, false), (Error::InvalidArgument, false),
+        (Error::Permission, true),
+        (Error::TooManyLinks, true),
+        (Error::Other(18), true),
+        (Error::Busy, false),
+        (Error::Refused, false),
+        (Error::Reset, false),
+        (Error::BrokenPipe, false),
+        (Error::NotConnected, false),
+        (Error::AddressInUse, false),
+        (Error::AddressNotAvailable, false),
+        (Error::Unreachable, false),
+        (Error::TimedOut, false),
+        (Error::TooManyOpenFiles, false),
+        (Error::NoBufferSpace, false),
+        (Error::Cancelled, false),
+        (Error::TooLate, false),
+        (Error::NotFound, false),
+        (Error::Exists, false),
+        (Error::NotADirectory, false),
+        (Error::IsADirectory, false),
+        (Error::NotEmpty, false),
+        (Error::NoSpace, false),
+        (Error::ReadOnly, false),
+        (Error::NameTooLong, false),
+        (Error::Escape, false),
+        (Error::NotAFile, false),
+        (Error::InvalidArgument, false),
     ] {
         let mut items = copy_items();
         items.push(Item::file(b"generations/1/store/snapshot", b"snapshot bytes").mode(0o600));
         let mut disk = Disk::new(&items);
         disk.refuse_links(error);
         assert_eq!(copy(&mut disk, 1, 4), if copies { Progress::Done } else { Progress::Failed }, "{error:?}");
-        assert!(disk.requests().iter().any(|(_, seen)| if let Seen::Link { .. } = seen { true } else { false }), "{error:?}: attempted link");
+        assert!(
+            disk.requests().iter().any(|(_, seen)| if let Seen::Link { .. } = seen { true } else { false }),
+            "{error:?}: attempted link"
+        );
         assert_eq!(disk.links(b"generations/1/store/snapshot"), 1);
         assert_eq!(disk.bytes(b"generations/1/store/snapshot").as_ref(), b"snapshot bytes");
         if copies {
@@ -250,9 +291,14 @@ fn a_refused_link_copies_but_every_other_error_fails() {
             assert_eq!(disk.bytes(b"generations/2/store/snapshot").as_ref(), b"snapshot bytes");
             assert!(disk.requests().iter().any(|(_, seen)| *seen == Seen::SyncFile));
             assert!(disk.requests().iter().any(|(_, seen)| *seen == Seen::Read { max: 4 }));
-            assert!(disk.tree().iter().any(|(p, _, mode)| p.as_ref() == b"generations/2/store/snapshot" && *mode == 0o600));
+            assert!(
+                disk.tree().iter().any(|(p, _, mode)| p.as_ref() == b"generations/2/store/snapshot" && *mode == 0o600)
+            );
         } else {
-            assert!(!disk.requests().iter().any(|(_, seen)| if let Seen::Create { .. } = seen { true } else { false }), "{error:?}: no fallback");
+            assert!(
+                !disk.requests().iter().any(|(_, seen)| if let Seen::Create { .. } = seen { true } else { false }),
+                "{error:?}: no fallback"
+            );
         }
     }
 }

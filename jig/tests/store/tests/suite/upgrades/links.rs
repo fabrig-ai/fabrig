@@ -61,10 +61,13 @@ fn pending_copy_links_sealed_store_files_and_copies_the_rest_privately() {
     assert_eq!(world.active(), b"1\n");
     let source = files(&mut world, 1);
     let target = files(&mut world, 2);
-    let segments: Vec<_> = source.keys().filter(|path| {
-        path.strip_prefix(b"generations/1/store/log-".as_slice())
-            .is_some_and(|digits| digits.len() == 20 && digits.iter().all(u8::is_ascii_digit))
-    }).collect();
+    let segments: Vec<_> = source
+        .keys()
+        .filter(|path| {
+            path.strip_prefix(b"generations/1/store/log-".as_slice())
+                .is_some_and(|digits| digits.len() == 20 && digits.iter().all(u8::is_ascii_digit))
+        })
+        .collect();
     assert!(segments.len() >= 3, "several opens leave sealed segments beside the newest");
     let newest = segments.last().expect("segments");
     let mut linked = 0;
@@ -74,7 +77,12 @@ fn pending_copy_links_sealed_store_files_and_copies_the_rest_privately() {
             continue;
         }
         let sealed = segments.contains(&path) && path != *newest;
-        let links = if suffix == b"store/snapshot" || sealed { linked += 1; 2 } else { 1 };
+        let links = if suffix == b"store/snapshot" || sealed {
+            linked += 1;
+            2
+        } else {
+            1
+        };
         let to = [b"generations/2/", suffix].concat();
         assert_eq!(world.links(path), links, "source {}", String::from_utf8_lossy(path));
         assert_eq!(world.links(&to), links, "copy {}", String::from_utf8_lossy(&to));
@@ -84,7 +92,9 @@ fn pending_copy_links_sealed_store_files_and_copies_the_rest_privately() {
         }
     }
     assert_eq!(world.changes().iter().filter(|(_, change)| *change == Change::Link).count(), linked);
-    for (path, directory, mode) in world.layout_entries().into_iter().filter(|(path, _, _)| path.starts_with(b"generations/2/secrets")) {
+    for (path, directory, mode) in
+        world.layout_entries().into_iter().filter(|(path, _, _)| path.starts_with(b"generations/2/secrets"))
+    {
         assert_eq!(mode, if directory { 0o700 } else { 0o600 }, "{}", String::from_utf8_lossy(&path));
     }
     Records::story().check_public(&mut world, 2, &"pending linked copy");
@@ -110,20 +120,31 @@ fn cross_device_links_fall_back_to_single_link_files_and_all_records() {
 
 #[test]
 fn back_after_patch_snapshots_keeps_the_shared_previous_files_whole() {
-    // Source replay is empty, so only the copy's patch commits cross this ceiling.
-    let mut limits = patches::limits();
-    limits.store.snapshot_after = 1;
-    let mut world = Records::story().committed_with(SEED, BASE, 1, limits, &[]);
+    let mut world = previous();
     let before = files(&mut world, 1);
+    let replay: u64 = before
+        .iter()
+        .filter(|(path, _)| path.starts_with(b"generations/1/store/log-"))
+        .map(|(_, bytes)| u64::try_from(bytes.as_ref().expect("segment bytes").len()).expect("small fixture"))
+        .sum();
+    // The source replay stays below the ceiling; the first patch commit crosses it.
+    let mut limits = patches::limits();
+    limits.store.snapshot_after = replay + 1;
+    world.restart_with_limits(SEED, limits);
     world.patch_sets(SETS);
     world.trace_writes();
     world.open_switched().expect("patch snapshots and switch");
-    assert!(world.changes().iter().any(|(_, change)| *change == Change::Link));
+    assert!(
+        world.changes().iter().filter(|(_, change)| *change == Change::Link).count() >= 3,
+        "snapshot and sealed segments were linked before patch snapshots replaced them"
+    );
     let after = files(&mut world, 2);
     let old = before.get(b"generations/1/store/snapshot".as_slice()).expect("previous snapshot");
     assert_ne!(after.get(b"generations/2/store/snapshot".as_slice()), Some(old), "copy replaced its snapshot");
     assert_eq!(world.links(b"generations/1/store/snapshot"), 1, "replacement dropped only the copy's name");
-    for (path, _) in before.iter().filter(|(path, bytes)| path.starts_with(b"generations/1/store/log-") && bytes.is_some()) {
+    for (path, _) in
+        before.iter().filter(|(path, bytes)| path.starts_with(b"generations/1/store/log-") && bytes.is_some())
+    {
         let to = [b"generations/2/", path.strip_prefix(b"generations/1/").expect("source prefix")].concat();
         assert!(!after.contains_key(&to), "snapshot dropped the copy's sealed segment");
         assert_eq!(world.links(path), 1);
@@ -134,10 +155,10 @@ fn back_after_patch_snapshots_keeps_the_shared_previous_files_whole() {
     assert!(matches!(events.as_slice(), [Event::Back { to: 1, .. }]), "{events:?}");
     world.restart_with_limits(SEED, patches::limits());
     world.patch_sets(BASE);
-    assert_eq!(world.open_switched(), Some(1));
+    assert_eq!(world.open_switched(), Some(3));
     patches::kept(&before, &files(&mut world, 1), &"back after snapshots");
     assert!(!world.paths().iter().any(|path| path.starts_with(b"generations/2")));
-    world.accept_recovery(1);
+    world.accept_recovery(3);
     Records::story().check(&mut world, 1, &"previous records");
 }
 
@@ -151,8 +172,12 @@ fn second_upgrade_drops_only_shared_names_then_links_the_survivors() {
     trace.trace_writes();
     trace.open_switched().expect("second upgrade");
     let drop = patches::first_change(&trace, Change::Rename);
-    let copy = trace.changes().iter().find(|(operation, change)| *operation > drop && *change == Change::Make)
-        .expect("copy mkdir follows drop").0;
+    let copy = trace
+        .changes()
+        .iter()
+        .find(|(operation, change)| *operation > drop && *change == Change::Make)
+        .expect("copy mkdir follows drop")
+        .0;
 
     let mut world = previous();
     world.patch_sets(MID);
@@ -184,7 +209,8 @@ fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
     trace.patch_sets(SETS);
     trace.trace_writes();
     trace.open_switched().expect("discover link cuts");
-    let links: Vec<_> = trace.changes().iter().filter(|(_, change)| *change == Change::Link).map(|(operation, _)| *operation).collect();
+    let links: Vec<_> =
+        trace.changes().iter().filter(|(_, change)| *change == Change::Link).map(|(operation, _)| *operation).collect();
     assert!(links.len() >= 2, "a cut between links leaves an unsynced link");
     let cuts = patches::cuts(&trace);
     assert!(links.iter().all(|link| cuts.contains(link)), "mutation sweeps include links");
@@ -197,7 +223,8 @@ fn cuts_at_each_link_remove_partial_names_and_retry_from_whole_source() {
         world.cut_at(cut);
         assert_eq!(world.open(), None);
         assert!(world.reached_cut());
-        let made = world.changes().iter().filter(|(operation, change)| *operation < cut && *change == Change::Link).count();
+        let made =
+            world.changes().iter().filter(|(operation, change)| *operation < cut && *change == Change::Link).count();
         if made > 0 {
             assert!(link_counts(&mut world, &before).values().any(|links| *links == 2), "a link made before the cut");
         }

@@ -1,7 +1,11 @@
 //! The deployment's generations on disk (protocol/store/README.md, 2, and protocol/store/opening.md, 1, 2 and 4).
 use crate::{Arrived, Root, directory::OWNER};
 use alloc::boxed::Box;
-use skein_io::{digest::Digest, file, kernel::{Error, Kind}};
+use skein_io::{
+    digest::Digest,
+    file,
+    kernel::{Error, Kind},
+};
 use skein_lib::{Decimal, List, Queue, Writer};
 
 pub(crate) const ACTIVE: &[u8] = b"active";
@@ -603,7 +607,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
         }
         CopyStep::NewestClose => {
             match arrived.event {
-                file::Event::Closed { .. } => {},
+                file::Event::Closed { .. } => {}
                 file::Event::Opened { .. }
                 | file::Event::Refused { .. }
                 | file::Event::Locked { .. }
@@ -699,11 +703,29 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             };
             match error {
                 Error::Permission | Error::TooManyLinks | Error::Other(_) => copy_open(copying, queue),
-                Error::Busy | Error::Refused | Error::Reset | Error::BrokenPipe | Error::NotConnected
-                | Error::AddressInUse | Error::AddressNotAvailable | Error::Unreachable | Error::TimedOut
-                | Error::TooManyOpenFiles | Error::NoBufferSpace | Error::Cancelled | Error::TooLate
-                | Error::NotFound | Error::Exists | Error::NotADirectory | Error::IsADirectory | Error::NotEmpty
-                | Error::NoSpace | Error::ReadOnly | Error::NameTooLong | Error::Escape | Error::NotAFile
+                Error::Busy
+                | Error::Refused
+                | Error::Reset
+                | Error::BrokenPipe
+                | Error::NotConnected
+                | Error::AddressInUse
+                | Error::AddressNotAvailable
+                | Error::Unreachable
+                | Error::TimedOut
+                | Error::TooManyOpenFiles
+                | Error::NoBufferSpace
+                | Error::Cancelled
+                | Error::TooLate
+                | Error::NotFound
+                | Error::Exists
+                | Error::NotADirectory
+                | Error::IsADirectory
+                | Error::NotEmpty
+                | Error::NoSpace
+                | Error::ReadOnly
+                | Error::NameTooLong
+                | Error::Escape
+                | Error::NotAFile
                 | Error::InvalidArgument => return copy_fail(copying, queue),
             }
         }
@@ -962,8 +984,7 @@ fn drop_arrived(dropping: &mut Dropping, arrived: Arrived, queue: &mut Queue<fil
                 let file::Event::Failed { error, .. } = arrived.event else {
                     return drop_close(dropping, Progress::Failed, queue);
                 };
-                let progress =
-                    if error == Error::NotFound { Progress::Done } else { Progress::Failed };
+                let progress = if error == Error::NotFound { Progress::Done } else { Progress::Failed };
                 return drop_close(dropping, progress, queue);
             };
             queue

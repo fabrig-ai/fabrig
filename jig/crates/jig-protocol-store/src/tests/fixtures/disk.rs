@@ -198,7 +198,10 @@ impl Disk {
     pub fn file(&mut self, driver: usize, request: file::Request) -> Arrived {
         self.requests.push((driver, seen(&request)));
         if let (Some(error), file::Request::HardLink { owner, .. }) = (self.link_error, &request) {
-            return Arrived { event: file::Event::Failed { owner: *owner, error, committed: false, residue: None }, fd: None };
+            return Arrived {
+                event: file::Event::Failed { owner: *owner, error, committed: false, residue: None },
+                fd: None,
+            };
         }
         let io = &mut self.io[driver];
         assert!(io.takes());
