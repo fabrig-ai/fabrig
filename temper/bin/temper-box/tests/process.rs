@@ -186,6 +186,11 @@ fn a_deployment_sized_repository_root_lands_by_turn() {
 }
 
 #[test]
+fn two_conflicting_changes_resolve_and_land_by_turn() {
+    deployment_turn("deployment-conflict", support::batch_landing::deployment::run_conflict);
+}
+
+#[test]
 fn a_goal_delivering_mid_proof_leaves_and_lands_its_new_head() {
     deployment_turn("deployment-midproof", support::batch_landing::deployment::run_midproof);
 }
