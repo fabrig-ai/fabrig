@@ -316,12 +316,24 @@ pub fn either(seed: u64, plans: [crate::owner::Plan; 2]) -> [Seen; 2] {
 struct EitherJudge(u32);
 
 impl skein_world::Referee<crate::world::Hosted> for EitherJudge {
-    fn act(&mut self, _now: Time, procs: &mut [crate::world::Hosted]) {
-        assert!(self.0 < 199_999, "either pair settles: {:?}", procs[0].proc.log);
+    fn act(&mut self, _now: Time, _procs: &mut [crate::world::Hosted]) {
         self.0 += 1;
     }
-    fn observe(&mut self, now: Time, _procs: &[crate::world::Hosted]) {
-        assert!(now < END, "either pair ends within its deadline");
+    fn watch(&mut self, now: Time, procs: &[crate::world::Hosted]) -> Result<(), String> {
+        if self.0 > 199_999 {
+            return Err(format!(
+                "either pair settles within 199999 iterations: {} iterations, {:?}",
+                self.0, procs[0].proc.log
+            ));
+        }
+        if now >= END {
+            return Err(format!(
+                "either pair ends within its deadline: {} ns, before {} ns",
+                now.as_nanos(),
+                END.as_nanos()
+            ));
+        }
+        Ok(())
     }
     fn passed(&self) -> bool {
         true

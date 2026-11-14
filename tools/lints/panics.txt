@@ -183,7 +183,6 @@ skein/testing/skein-world/src/tree.rs catch_unwind 1
 skein/testing/skein-world/src/tree.rs should_panic 3
 skein/tests/codec/tests/suite/fuzzy/generic.rs catch_unwind 1
 skein/tests/heap/tests/suite/meter.rs should_panic 6
-skein/tests/io/src/processes.rs catch_unwind 2
 skein/tests/lib/tests/suite/journal.rs should_panic 1
 skein/tests/llm-connection/tests/suite/close.rs should_panic 5
 skein/tests/llm/tests/suite/bounded_peer_memory.rs catch_unwind 2
