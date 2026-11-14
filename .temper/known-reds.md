@@ -52,3 +52,12 @@ Goal 2959, 2026-11-14: the startup refusal's 2 s settling deadline is overrun on
 - test smith::end_to_end program_rechecks::program_exec_keeps_the_agent_check
 - test smith::end_to_end program_children::exec_on_claude_asks_two_sub_agents_side_by_side
 - test smith::end_to_end program_runs::a_program_turn_exit_keeps_the_run_failure
+
+Inherited from main 8d486c06f0, 2026-11-14 (draft after-landing-reds-1114.md names a lab path):
+
+- test fabrig-boundary::outward no_file_names_the_lab
+
+Inherited smith end_to_end flakes, CI run 832 on 5cc4862416, 2026-11-14 (pass alone; outside this hearth-only goal):
+
+- test smith::end_to_end program_children::exec_on_claude_asks_two_sub_agents_side_by_side
+- test smith::end_to_end program_runs::a_program_exec_offers_the_live_claude_story_s_tools

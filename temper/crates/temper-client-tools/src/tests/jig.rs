@@ -42,6 +42,7 @@ mod goal_template;
 mod party;
 mod restore;
 mod role;
+mod start_model;
 
 mod project_delete;
 mod visibility;

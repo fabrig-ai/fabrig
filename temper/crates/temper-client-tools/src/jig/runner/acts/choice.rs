@@ -4,7 +4,6 @@ use super::{Call, Failed, value};
 use crate::jig::{
     call::{Value, Values},
     render,
-    runner::Printed,
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -24,6 +23,11 @@ pub(crate) fn selection(
     before: Option<&c::LlmChoice>,
 ) -> Result<Option<c::LlmChoice>, Failed> {
     let mut choice = llm(call, model, effort, me, project, before)?;
+    if value(call, usize::from(model)).is_some()
+        && let Some(choice) = choice.as_mut()
+    {
+        choice.later = None;
+    }
     if let Some(Some(_)) = call.values.get(usize::from(subagent))
         && value(call, usize::from(model)).is_none()
     {
@@ -44,11 +48,14 @@ pub(crate) fn llm(
     before: Option<&c::LlmChoice>,
 ) -> Result<Option<c::LlmChoice>, Failed> {
     let Some(Value::Text(name)) = value(call, usize::from(model_argument)) else { return Ok(before.cloned()) };
-    let model = offered(me, project, name).ok_or(Failed::NotOffered { name: reported(name) })?;
+    let Some(model) = offered(me, project, name) else { return Err(not_offered(b"--model", name, None)) };
     let effort = match value(call, usize::from(effort_argument)) {
         Some(value) => {
             let Value::Text(name) = value else { return Err(Failed::Fixed(b"effort not loaded")) };
-            Some(offered_effort(model, name).ok_or(Failed::Unknown { what: b"effort", name: reported(name) })?)
+            let Some(effort) = offered_effort(model, name) else {
+                return Err(unknown_effort(b"--effort", name, model, name, false));
+            };
+            Some(effort)
         }
         None => model.effort.clone(),
     };
@@ -84,15 +91,20 @@ pub(crate) fn sub_agents(
             }
             None => (text.as_ref(), None),
         };
-        let model = offered(me, project, name).ok_or(Failed::NotOffered { name: reported(name) })?;
+        let Some(model) = offered(me, project, name) else {
+            return Err(not_offered(b"--sub-agent", text, Some(name)));
+        };
         for previous in &subagents {
             if previous.model == model.name {
-                return Err(Failed::SubAgentNamedTwice { name: reported(name) });
+                return Err(flag_refusal(b"--sub-agent", text, &[&echo(name), b" is already a sub-agent"]));
             }
         }
         let effort = match effort {
             Some(name) => {
-                Some(offered_effort(model, name).ok_or(Failed::Unknown { what: b"effort", name: reported(name) })?)
+                let Some(effort) = offered_effort(model, name) else {
+                    return Err(unknown_effort(b"--sub-agent", text, model, name, true));
+                };
+                Some(effort)
             }
             None => model.effort.clone(),
         };
@@ -121,11 +133,55 @@ fn offered_effort(model: &c::MeModel, name: &[u8]) -> Option<c::Text> {
     }
     None
 }
-// Keep up to four more bytes (at least one more code point) so named()
-// sees a name over 256 B as cut.
-fn reported(name: &[u8]) -> Box<[u8]> {
-    let end = render::text_end(name, NAME_ECHO_BYTES.saturating_add(4));
-    Box::from(name.get(..end).expect("bounded failure name"))
+fn not_offered(flag: &[u8], value: &[u8], model: Option<&[u8]>) -> Failed {
+    match model {
+        Some(model) => {
+            flag_refusal(flag, value, &[&echo(model), b" is not among the models you may choose in this project"])
+        }
+        None => flag_refusal(flag, value, &[b"not among the models you may choose in this project"]),
+    }
+}
+fn unknown_effort(flag: &[u8], value: &[u8], model: &c::MeModel, effort: &[u8], subagent: bool) -> Failed {
+    let mut parts: List<Box<[u8]>> = List::with_capacity(model.efforts.len().saturating_mul(2).saturating_add(6));
+    if subagent {
+        parts.push(echo(effort)).expect("effort fits");
+        parts.push(Box::from(b" is ".as_slice())).expect("effort separator fits");
+    }
+    parts.push(Box::from(b"not an effort ".as_slice())).expect("reason fits");
+    parts.push(echo(model.name.bytes())).expect("model fits");
+    parts.push(Box::from(b" declares; it declares ".as_slice())).expect("declaration fits");
+    if model.efforts.is_empty() {
+        parts.push(Box::from(b"none".as_slice())).expect("no efforts fit");
+    }
+    for (index, effort) in model.efforts.as_slice().iter().enumerate() {
+        if index != 0 {
+            parts.push(Box::from(b", ".as_slice())).expect("separator fits");
+        }
+        parts.push(echo(effort.bytes())).expect("declared effort fits");
+    }
+    flag_refusal(flag, value, &[&joined(&parts)])
+}
+fn flag_refusal(flag: &[u8], value: &[u8], why: &[&[u8]]) -> Failed {
+    let mut parts = List::with_capacity(u32::try_from(why.len()).expect("bounded reason").saturating_add(4));
+    parts.push(Box::from(flag)).expect("flag fits");
+    parts.push(Box::from(b" ".as_slice())).expect("space fits");
+    parts.push(echo(value)).expect("value fits");
+    parts.push(Box::from(b": ".as_slice())).expect("separator fits");
+    for part in why {
+        parts.push(Box::from(*part)).expect("reason fits");
+    }
+    Failed::Detail(joined(&parts))
+}
+fn joined(parts: &List<Box<[u8]>>) -> Box<[u8]> {
+    let mut length = 0usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("refusal fits");
+    }
+    let mut out = Writer::new(length);
+    for part in parts {
+        out.put(part).expect("measured refusal");
+    }
+    out.finish()
 }
 fn name_end(name: &[u8]) -> usize {
     let mut end = render::text_end(name, NAME_ECHO_BYTES);
@@ -153,30 +209,6 @@ fn echo(name: &[u8]) -> Box<[u8]> {
     }
     out.finish()
 }
-pub(super) fn named(prefix: &[u8], what: &[u8], name: &[u8], json: bool) -> Printed {
-    let end = name_end(name);
-    let cut = end < name.len();
-    let length = prefix
-        .len()
-        .checked_add(what.len())
-        .expect("error prefix fits")
-        .checked_add(2)
-        .expect("separator fits")
-        .checked_add(end)
-        .expect("echo fits")
-        .checked_add(if cut { 3 } else { 0 })
-        .expect("cut marker fits");
-    let mut out = Writer::new(length);
-    out.put(prefix).expect("measured error prefix");
-    out.put(what).expect("measured name kind");
-    out.put(b": ").expect("measured separator");
-    out.put(name.get(..end).expect("UTF-8 echo range")).expect("measured echo");
-    if cut {
-        out.put(b"...").expect("measured cut marker");
-    }
-    render::failure(&out.finish(), json, 1)
-}
-
 /// The first named effort of `items` that its model, as `me` shows it, doesn't offer
 /// (client/ctl/tools.md, 3).
 pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Box<[u8]>> {

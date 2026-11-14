@@ -1,4 +1,5 @@
 //! Typed differences and the lowest changed layer (hearth/docs/design/domain/render/README.md, 4.1, 4.2).
+mod keyed;
 mod resolution;
 use crate::{
     parts::{PartRecord, Spec, boot, config, data, exports, live, packages, secrets, software},
@@ -7,7 +8,29 @@ use crate::{
 };
 use alloc::boxed::Box;
 use hearth_lib::encode::Digest;
+pub(crate) use keyed::keyed;
 pub use resolution::*;
+/// A part's value added, removed or changed at a byte key.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Keyed<T> {
+    Added { key: Box<[u8]>, value: T },
+    Removed { key: Box<[u8]>, value: T },
+    Changed { key: Box<[u8]>, before: T, after: T },
+}
+
+/// A changed value's two sides.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Changed<T> {
+    pub before: T,
+    pub after: T,
+}
+
+impl<T: PartialEq + Clone> Changed<T> {
+    pub(crate) fn between(before: &T, after: &T) -> Option<Self> {
+        if before == after { None } else { Some(Self { before: before.clone(), after: after.clone() }) }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
     pub target: Box<[u8]>,
@@ -28,7 +51,7 @@ pub enum Side {
     Both,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Made {
+pub(crate) enum Made {
     Spec(Box<Spec>),
     Failed(Class),
 }
@@ -59,7 +82,7 @@ pub enum Needs {
     Needed,
 }
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Layer {
+pub(crate) enum Layer {
     Packages,
     Software,
     Config,
@@ -75,7 +98,7 @@ pub struct Tally {
     pub unchanged: u32,
 }
 #[must_use]
-pub const fn layer(part: &PartRecord) -> Layer {
+pub(crate) const fn layer(part: &PartRecord) -> Layer {
     match part {
         PartRecord::Config(_) => Layer::Config,
         PartRecord::Secrets(_) | PartRecord::Boot(_) | PartRecord::Data(_) => Layer::Slot,
@@ -85,7 +108,7 @@ pub const fn layer(part: &PartRecord) -> Layer {
     }
 }
 #[must_use]
-pub fn rebuild(changed: &[Layer], resolution: Needs) -> Rebuild {
+pub(crate) fn rebuild(changed: &[Layer], resolution: Needs) -> Rebuild {
     match changed.iter().min() {
         Some(Layer::Packages) => Rebuild::FromPackages { resolution },
         Some(Layer::Software) => Rebuild::FromSoftware,
@@ -95,7 +118,7 @@ pub fn rebuild(changed: &[Layer], resolution: Needs) -> Rebuild {
     }
 }
 #[must_use]
-pub fn compare(from: Option<&Made>, to: Option<&Made>, resolution: Needs) -> TargetChange {
+pub(crate) fn compare(from: Option<&Made>, to: Option<&Made>, resolution: Needs) -> TargetChange {
     match (from, to) {
         (Some(Made::Failed(_)), Some(Made::Failed(_))) => TargetChange::Failed { side: Side::Both },
         (Some(Made::Failed(_)), _) => TargetChange::Failed { side: Side::From },
@@ -157,21 +180,26 @@ fn config_record<'a>(part: Option<(&Digest, &'a config::Config)>) -> Option<&'a 
     let (_, record) = part?;
     Some(record)
 }
-fn config_part(spec: &Spec) -> Option<(&Digest, &config::Config)> {
+fn part<T>(spec: &Spec, read: fn(&PartRecord) -> Option<&T>) -> Option<(&Digest, &T)> {
     let mut found = None;
     for part in &spec.parts {
-        match &part.record {
-            PartRecord::Config(config) => found = Some((&part.digest, config)),
-            PartRecord::Data(_)
-            | PartRecord::Secrets(_)
-            | PartRecord::Software(_)
-            | PartRecord::Live(_)
-            | PartRecord::Packages(_)
-            | PartRecord::Boot(_)
-            | PartRecord::Exports(_) => {}
+        if let Some(value) = read(&part.record) {
+            found = Some((&part.digest, value));
         }
     }
     found
+}
+fn config_part(spec: &Spec) -> Option<(&Digest, &config::Config)> {
+    part(spec, |record| match record {
+        PartRecord::Config(config) => Some(config),
+        PartRecord::Data(_)
+        | PartRecord::Secrets(_)
+        | PartRecord::Software(_)
+        | PartRecord::Live(_)
+        | PartRecord::Packages(_)
+        | PartRecord::Boot(_)
+        | PartRecord::Exports(_) => None,
+    })
 }
 
 /// Git's retained unified lines (hearth/docs/design/domain/render/README.md, 4.1).
@@ -237,20 +265,17 @@ fn package_and_boot(spec: &Spec) -> PackageAndBoot<'_> {
 }
 
 fn exports_part(spec: &Spec) -> Option<&exports::Exports> {
-    let mut found = None;
-    for part in &spec.parts {
-        match &part.record {
-            PartRecord::Exports(exports) => found = Some(exports),
-            PartRecord::Data(_)
-            | PartRecord::Config(_)
-            | PartRecord::Secrets(_)
-            | PartRecord::Software(_)
-            | PartRecord::Live(_)
-            | PartRecord::Packages(_)
-            | PartRecord::Boot(_) => {}
-        }
-    }
-    found
+    let (_, exports) = part(spec, |record| match record {
+        PartRecord::Exports(exports) => Some(exports),
+        PartRecord::Data(_)
+        | PartRecord::Config(_)
+        | PartRecord::Secrets(_)
+        | PartRecord::Software(_)
+        | PartRecord::Live(_)
+        | PartRecord::Packages(_)
+        | PartRecord::Boot(_) => None,
+    })?;
+    Some(exports)
 }
 
 fn data_part(spec: &Spec) -> Option<&data::Data> {

@@ -1,16 +1,10 @@
 //! The existing typed rows plus the password reference and implicit own group.
 use super::{Claimant, Declared, Rows};
 use crate::{
-    entries::Located,
     errors::{Collector, Subject},
-    kinds::{
-        self,
-        cmdline::Parameter,
-        groups::Group,
-        users::{User, UserKind},
-    },
+    kinds::{self, cmdline::Parameter, groups::Group, users::User},
     parts::{
-        config::{Preset, Tmpfile},
+        config::{self, GroupKind, Preset, Tmpfile, UserKind},
         packages::Preseed,
     },
     revision::declaration::{Map, Name},
@@ -21,20 +15,30 @@ use skein_lib::{List, bytes::copy_of};
 pub(super) enum Row {
     User(User, Option<Box<[u8]>>),
     Group(Group, bool),
-    Preset(Preset),
-    Tmpfile(Tmpfile),
-    Preseed(Preseed),
-    Parameter(Parameter),
+    Preset(Preset, Claimant),
+    Tmpfile(Tmpfile, Claimant),
+    Preseed(Preseed, Claimant),
+    Parameter(Parameter, Claimant),
 }
 impl Row {
+    pub(super) fn source(&self) -> &Claimant {
+        match self {
+            Self::User(user, _) => &user.source,
+            Self::Group(group, _) => &group.source,
+            Self::Preset(_, source)
+            | Self::Tmpfile(_, source)
+            | Self::Preseed(_, source)
+            | Self::Parameter(_, source) => source,
+        }
+    }
     pub(super) const fn subject(&self) -> Subject {
         match self {
             Self::User(..) => Subject::User,
             Self::Group(..) => Subject::Group,
-            Self::Preset(_) => Subject::Preset,
-            Self::Tmpfile(_) => Subject::Tmpfiles,
-            Self::Preseed(_) => Subject::Preseed,
-            Self::Parameter(_) => Subject::Parameter,
+            Self::Preset(..) => Subject::Preset,
+            Self::Tmpfile(..) => Subject::Tmpfiles,
+            Self::Preseed(..) => Subject::Preseed,
+            Self::Parameter(..) => Subject::Parameter,
         }
     }
     pub(super) const fn explicit(&self) -> bool {
@@ -42,20 +46,26 @@ impl Row {
     }
     pub(super) fn same(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::User(a, ap), Self::User(b, bp)) => a.kind == b.kind && ap == bp,
+            (Self::User(a, ap), Self::User(b, bp)) => {
+                a.value.kind == b.value.kind
+                    && a.subordinate == b.subordinate
+                    && a.member_of == b.member_of
+                    && a.package_ids == b.package_ids
+                    && ap == bp
+            }
             (Self::Group(_, false), Self::Group(_, false)) => true,
-            (Self::Group(a, _), Self::Group(b, _)) => a.gid == b.gid && a.package == b.package,
-            (Self::Preset(a), Self::Preset(b)) => a == b,
-            (Self::Tmpfile(a), Self::Tmpfile(b)) => a == b,
-            (Self::Preseed(a), Self::Preseed(b)) => a == b,
-            (Self::Parameter(a), Self::Parameter(b)) => a.order == b.order && a.param == b.param,
+            (Self::Group(a, _), Self::Group(b, _)) => a.value.kind == b.value.kind && a.package_gid == b.package_gid,
+            (Self::Preset(a, _), Self::Preset(b, _)) => a == b,
+            (Self::Tmpfile(a, _), Self::Tmpfile(b, _)) => a == b,
+            (Self::Preseed(a, _), Self::Preseed(b, _)) => a == b,
+            (Self::Parameter(a, _), Self::Parameter(b, _)) => a.order == b.order && a.param == b.param,
             (
                 Self::User(..)
                 | Self::Group(..)
-                | Self::Preset(_)
-                | Self::Tmpfile(_)
-                | Self::Preseed(_)
-                | Self::Parameter(_),
+                | Self::Preset(..)
+                | Self::Tmpfile(..)
+                | Self::Preseed(..)
+                | Self::Parameter(..),
                 _,
             ) => false,
         }
@@ -64,7 +74,7 @@ impl Row {
 const fn matches_group(row: &Row) -> bool {
     match row {
         Row::Group(_, explicit) => !*explicit,
-        Row::User(..) | Row::Preset(_) | Row::Tmpfile(_) | Row::Preseed(_) | Row::Parameter(_) => false,
+        Row::User(..) | Row::Preset(..) | Row::Tmpfile(..) | Row::Preseed(..) | Row::Parameter(..) => false,
     }
 }
 pub(super) fn gather(rows: &mut Rows, declared: &Declared<'_>, errors: &mut Collector) {
@@ -80,7 +90,7 @@ pub(super) fn gather(rows: &mut Rows, declared: &Declared<'_>, errors: &mut Coll
                             continue;
                         }
                     };
-                    Row::Preset(row)
+                    Row::Preset(row, Claimant::new(located.task, located.entry.at))
                 }
                 Map::Tmpfiles => {
                     let row = match kinds::tmpfiles::entry(located) {
@@ -90,15 +100,15 @@ pub(super) fn gather(rows: &mut Rows, declared: &Declared<'_>, errors: &mut Coll
                             continue;
                         }
                     };
-                    Row::Tmpfile(row)
+                    Row::Tmpfile(row, Claimant::new(located.task, located.entry.at))
                 }
                 Map::Preseeds => {
                     let Ok(row) = kinds::preseeds::entry(located.entry) else { continue };
-                    Row::Preseed(row)
+                    Row::Preseed(row, Claimant::new(located.task, located.entry.at))
                 }
                 Map::Cmdline => {
                     let Ok(row) = kinds::cmdline::entry(located.entry) else { continue };
-                    Row::Parameter(row)
+                    Row::Parameter(row, Claimant::new(located.task, located.entry.at))
                 }
                 Map::Packages
                 | Map::Initramfs
@@ -111,7 +121,7 @@ pub(super) fn gather(rows: &mut Rows, declared: &Declared<'_>, errors: &mut Coll
                 | Map::Identity
                 | Map::Live => unreachable!("declaration kinds"),
             };
-            add(rows, located, &located.entry.key, row, declared.target, errors);
+            rows.insert(&located.entry.key, row, declared.target, errors);
         }
     }
     let located = declared.expansion.of(Map::Data);
@@ -122,17 +132,8 @@ pub(super) fn gather(rows: &mut Rows, declared: &Declared<'_>, errors: &mut Coll
         }
     }
     for line in crate::additions::data_lines(data.as_slice()) {
-        rows.insert(
-            &line.tmpfile.path.clone(),
-            Row::Tmpfile(line.tmpfile),
-            Claimant::new(&line.task, line.at),
-            declared.target,
-            errors,
-        );
+        rows.insert(&line.tmpfile.path.clone(), Row::Tmpfile(line.tmpfile, line.source), declared.target, errors);
     }
-}
-fn add(rows: &mut Rows, located: &Located<'_>, key: &[u8], row: Row, target: &[u8], errors: &mut Collector) {
-    rows.insert(key, row, Claimant::new(located.task, located.entry.at), target, errors);
 }
 fn fault(rows: &mut Rows, mut error: crate::errors::Error, declared: &Declared<'_>, errors: &mut Collector) {
     rows.valid = false;
@@ -158,38 +159,29 @@ fn accounts(rows: &mut Rows, declared: &Declared<'_>, errors: &mut Collector) {
     }
     for user in &declared.accounts.users {
         let mut password = None;
-        if let Some(secret) = passwords.get(&(user.task.as_ref(), user.name.as_ref())) {
+        if let Some(secret) = passwords.get(&(user.source.task.as_ref(), user.value.name.as_ref())) {
             password = Some(copy_of(secret));
         }
-        rows.insert(
-            &user.name,
-            Row::User(user.clone(), password),
-            Claimant::new(&user.task, user.at),
-            declared.target,
-            errors,
-        );
-        if let UserKind::Sysusers { uid, group, .. } = &user.kind
-            && *group == user.name
+        rows.insert(&user.value.name, Row::User(user.clone(), password), declared.target, errors);
+        if let UserKind::Sysusers { uid, group, .. } = &user.value.kind
+            && *group == user.value.name
         {
             rows.insert(
-                &user.name,
+                &user.value.name,
                 Row::Group(
-                    Group { name: user.name.clone(), task: user.task.clone(), at: user.at, gid: *uid, package: false },
+                    Group {
+                        value: config::Group { name: user.value.name.clone(), kind: GroupKind::Sysusers { gid: *uid } },
+                        source: user.source.clone(),
+                        package_gid: None,
+                    },
                     false,
                 ),
-                Claimant::new(&user.task, user.at),
                 declared.target,
                 errors,
             );
         }
     }
     for group in &declared.accounts.groups {
-        rows.insert(
-            &group.name,
-            Row::Group(group.clone(), true),
-            Claimant::new(&group.task, group.at),
-            declared.target,
-            errors,
-        );
+        rows.insert(&group.value.name, Row::Group(group.clone(), true), declared.target, errors);
     }
 }
