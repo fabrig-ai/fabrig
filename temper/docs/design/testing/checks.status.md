@@ -13,19 +13,6 @@
   11:42Z, within section 1's 1250; package sums include warm nextest
   overhead. The 15 s ceiling has not been raised.
 
-- **Not yet:** 1, the engine component's guide: building a service builds
-  its worker wires' schemas and bounds again for each part that reads them,
-  and the whole six-wire table to keep Temper's entry [in flight: change 2990].
-- **Not yet:** 1, the engine component's guide: the setup tests and the
-  component's base fixtures build two or three whole services per case,
-  `records_store` a whole started service only to take its maps
-  [in flight: change 2992].
-- **Not yet:** 1, the engine component's guide: the component's other unit
-  tests rebuild their worlds per row, generate an RSA key with a child
-  process, and run fixed-count turn loops [in flight: change 2994].
-- **Not yet:** 1, the engine component's guide: the binary's process takes
-  about 138 CPU s on the development machine (11-14), 443 of its 569 tests
-  past 40 ms [in flight: change 2996].
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
