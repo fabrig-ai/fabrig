@@ -7,6 +7,7 @@ use crate::{
     start, step,
 };
 use alloc::boxed::Box;
+use skein_lib::List;
 
 struct RangeCase {
     keys: &'static [u8],
@@ -17,67 +18,162 @@ struct RangeCase {
     fault: bool,
 }
 
+const RANGE_CASES: &[RangeCase] = &[
+    RangeCase {
+        keys: &[1, 2, 3, 4, 5, 6, 7, 8],
+        owners: &[5],
+        probes: &[3, 5, 4],
+        many: false,
+        report_many: false,
+        fault: false,
+    },
+    RangeCase {
+        keys: &[1, 2, 3, 4, 5, 6, 7, 8],
+        owners: &[1, 6],
+        probes: &[3, 1, 0, 5, 6],
+        many: false,
+        report_many: false,
+        fault: false,
+    },
+    RangeCase {
+        keys: &[0, 1, 2, 3, 4, 5, 6, 7],
+        owners: &[5],
+        probes: &[4, 6, 5],
+        many: false,
+        report_many: false,
+        fault: false,
+    },
+    RangeCase {
+        keys: &[1, 2, 3, 3, 4, 5, 6, 7],
+        owners: &[5],
+        probes: &[4, 6, 5],
+        many: false,
+        report_many: false,
+        fault: false,
+    },
+    RangeCase {
+        keys: &[1, 2, 3, 4, 5, 6, 7, 7],
+        owners: &[5],
+        probes: &[3, 5, 4],
+        many: false,
+        report_many: false,
+        fault: false,
+    },
+    RangeCase { keys: &[0, 0, 0], owners: &[2], probes: &[], many: false, report_many: false, fault: false },
+    RangeCase { keys: &[0, 1, 1], owners: &[1], probes: &[], many: false, report_many: false, fault: false },
+    RangeCase {
+        keys: &[1, 2, 3, 4, 5, 6, 7, 8],
+        owners: &[5],
+        probes: &[3, 5, 4],
+        many: true,
+        report_many: false,
+        fault: false,
+    },
+    RangeCase { keys: &[0, 1, 1], owners: &[1], probes: &[], many: true, report_many: false, fault: false },
+    RangeCase { keys: &[1, 2, 3, 4], owners: &[1, 1], probes: &[1, 0], many: false, report_many: true, fault: false },
+    RangeCase {
+        keys: &[1, 2, 3, 4, 5, 6, 7, 8],
+        owners: &[1, 6],
+        probes: &[3, 1, 0, 5, 6],
+        many: false,
+        report_many: false,
+        fault: true,
+    },
+    RangeCase { keys: &[1, 2, 3, 4, 5], owners: &[4], probes: &[2, 3], many: false, report_many: false, fault: false },
+    RangeCase {
+        keys: &[1, 2, 3, 4, 5],
+        owners: &[0, 1, 3, 4],
+        probes: &[2, 1, 0, 3],
+        many: false,
+        report_many: false,
+        fault: false,
+    },
+    RangeCase {
+        keys: &[1, 1, 2, 2, 3, 3],
+        owners: &[0, 4],
+        probes: &[2, 0],
+        many: false,
+        report_many: false,
+        fault: false,
+    },
+];
+
 #[test]
 fn ranges_bisect_candidates_lowest_group_first() {
-    let cases = [
-        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 8], owners: &[5], probes: &[3, 5, 4], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 8], owners: &[1, 6], probes: &[3, 1, 0, 5, 6], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[0, 1, 2, 3, 4, 5, 6, 7], owners: &[5], probes: &[4, 6, 5], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[1, 2, 3, 3, 4, 5, 6, 7], owners: &[5], probes: &[4, 6, 5], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 7], owners: &[5], probes: &[3, 5, 4], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[0, 0, 0], owners: &[2], probes: &[], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[0, 1, 1], owners: &[1], probes: &[], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 8], owners: &[5], probes: &[3, 5, 4], many: true, report_many: false, fault: false },
-        RangeCase { keys: &[0, 1, 1], owners: &[1], probes: &[], many: true, report_many: false, fault: false },
-        RangeCase { keys: &[1, 2, 3, 4], owners: &[1, 1], probes: &[1, 0], many: false, report_many: true, fault: false },
-        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 8], owners: &[1, 6], probes: &[3, 1, 0, 5, 6], many: false, report_many: false, fault: true },
-        RangeCase { keys: &[1, 2, 3, 4, 5], owners: &[4], probes: &[2, 3], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[1, 2, 3, 4, 5], owners: &[0, 1, 3, 4], probes: &[2, 1, 0, 3], many: false, report_many: false, fault: false },
-        RangeCase { keys: &[1, 1, 2, 2, 3, 3], owners: &[0, 4], probes: &[2, 0], many: false, report_many: false, fault: false },
-    ];
-    for (case, row) in cases.iter().enumerate() {
+    for (case, row) in RANGE_CASES.iter().enumerate() {
         let record = record(tests(&[]));
-        let landings = row.keys.iter().enumerate().map(|(i, key)| landing([u8::try_from(i).unwrap(); 32], [10 + key; 32])).collect();
+        let mut landings = List::with_capacity(u32::try_from(row.keys.len()).expect("fixture range"));
+        for (i, key) in row.keys.iter().enumerate() {
+            landings
+                .push(landing(
+                    [u8::try_from(i).expect("fixture commit"); 32],
+                    [10_u8.checked_add(*key).expect("fixture key"); 32],
+                ))
+                .expect("fixture range");
+        }
         let names = ["a", "b", "c", "d"];
         let selected = &names[..row.owners.len()];
         let failing = if row.many { Failures::Many } else { tests(selected) };
-        let mut next = start(&record, TIP, K_TIP, landings, Some(Receipt::Failed(failing.clone())), &SETTINGS);
-        let mut probes = Vec::new();
+        let mut next =
+            start(&record, TIP, K_TIP, landings.into_boxed(), Some(Receipt::Failed(failing.clone())), &SETTINGS);
+        let mut probes = List::with_capacity(u32::try_from(row.keys.len()).expect("fixture range"));
         let mut retried = false;
         let result = loop {
             match next {
                 Next::Judged(verdict) => break verdict,
                 Next::Held(_) => panic!("case {case} held"),
-                Next::Dispatch(run) => {
-                    let Part::Probe { landing, tests: selection, .. } = &run.part else { panic!("only probes") };
-                    assert!(!probes.contains(landing), "case {case}: a landing is never probed twice");
-                    probes.push(*landing);
+                Next::Dispatch(mut run) => {
+                    let Part::Probe { landing, .. } = &run.part else { panic!("only probes") };
+                    assert!(!probes.as_slice().contains(landing), "case {case}: a landing is never probed twice");
+                    probes.push(*landing).expect("one probe per landing");
                     if row.fault && !retried && probes.len() == 2 {
                         let retry = dispatched(step(&record, &run, Outcome::Fault, &SETTINGS));
                         assert_eq!(retry.part, run.part, "the fault retries the entire part, including waiting groups");
                         assert_eq!(retry.faults, 1);
                         retried = true;
+                        run = retry;
                     }
-                    let failed: Vec<_> = selected.iter().zip(row.owners).filter_map(|(name, owner)| {
+                    let Part::Probe { landing, tests: selection, .. } = &run.part else { panic!("only probes") };
+                    let mut failed = List::with_capacity(4);
+                    for (name, owner) in selected.iter().zip(row.owners) {
                         let requested = match selection {
                             Selection::All => true,
-                            Selection::Tests(tests) => tests.iter().any(|test| test.as_ref() == name.as_bytes()),
+                            Selection::Tests(tests) => tests.binary_search(&Box::from(name.as_bytes())).is_ok(),
                         };
-                        (requested && owner <= landing).then_some(*name)
-                    }).collect();
-                    let outcome = if failed.is_empty() { Outcome::Passed } else if row.many || row.report_many {
+                        if requested && owner <= landing {
+                            failed.push(*name).expect("selected tests fit");
+                        }
+                    }
+                    let outcome = if failed.is_empty() {
+                        Outcome::Passed
+                    } else if row.many || row.report_many {
                         Outcome::Failed(Failures::Many)
-                    } else { Outcome::Failed(tests(&failed)) };
+                    } else {
+                        Outcome::Failed(tests(failed.as_slice()))
+                    };
                     next = step(&record, &run, outcome, &SETTINGS);
                 }
             }
         };
-        assert_eq!(probes, row.probes, "case {case}");
-        let expected: Vec<_> = (0..row.keys.len()).map(|i| {
-            let owned: Vec<_> = selected.iter().zip(row.owners).filter_map(|(name, owner)| (usize::try_from(*owner).unwrap() == i).then_some(*name)).collect();
-            if owned.is_empty() { Blame::Cleared } else if row.many { Blame::Owns(Failures::Many) } else { Blame::Owns(tests(&owned)) }
-        }).collect();
-        assert_eq!(result.landings.as_ref(), expected, "case {case}");
+        assert_eq!(probes.as_slice(), row.probes, "case {case}");
+        let mut expected = List::with_capacity(u32::try_from(row.keys.len()).expect("fixture range"));
+        for i in 0..row.keys.len() {
+            let mut owned = List::with_capacity(4);
+            for (name, owner) in selected.iter().zip(row.owners) {
+                if usize::try_from(*owner).expect("owner fits") == i {
+                    owned.push(*name).expect("fixture tests");
+                }
+            }
+            let blame = if owned.is_empty() {
+                Blame::Cleared
+            } else if row.many {
+                Blame::Owns(Failures::Many)
+            } else {
+                Blame::Owns(tests(owned.as_slice()))
+            };
+            expected.push(blame).expect("one blame per landing");
+        }
+        assert_eq!(result.landings.as_ref(), expected.as_slice(), "case {case}");
         assert_eq!(result.failing, failing);
     }
 }
@@ -549,7 +645,10 @@ fn probes_skip_an_unchanged_key_between_changed_landings() {
         }
     );
     let verdict = verdict(step(&record, &first, Outcome::Passed, &SETTINGS));
-    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Cleared, Blame::Cleared, Blame::Owns(tests(&["a"]))]);
+    assert_eq!(
+        verdict.landings.as_ref(),
+        &[Blame::Cleared, Blame::Cleared, Blame::Cleared, Blame::Owns(tests(&["a"]))]
+    );
 }
 
 #[test]

@@ -596,6 +596,7 @@ pub fn checks_paced(ci: Option<&Ci>, ci_ms: u32) -> api::Checks {
 #[must_use]
 pub fn limits() -> domain::Config {
     domain::Config {
+        runner_labels: None,
         setup_faults: 0,
         lost: 0,
         limits: domain::Limits {

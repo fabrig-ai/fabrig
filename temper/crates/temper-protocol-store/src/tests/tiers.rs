@@ -31,7 +31,7 @@ fn tier_records_keep_the_whole_policy_and_all_parts() {
         run.part.clone(),
         p::Part::Whole,
         p::Part::Rerun { failed: Box::new([Box::from(b"failed".as_slice())]) },
-        p::Part::Probe { landing: 0, tests: p::Selection::All, finding },
+        p::Part::Probe { landing: 0, low: 0, high: 1, tests: p::Selection::All, waiting: Box::new([]), finding },
     ] {
         let mut row = full.clone();
         row.record.run.as_mut().unwrap().part = part;
@@ -53,6 +53,143 @@ fn tier_records_keep_the_whole_policy_and_all_parts() {
     empty.record = p::Record { sequence: 0, judged: None, failing: p::Failures::Many, flakes: Box::new([]), run: None };
     round_trip(d::Stored::Tier(empty), 28);
 }
+#[test]
+fn waiting_groups_and_a_persons_independent_hold_round_trip() {
+    let mut row = fixtures::tier_row();
+    let p::Part::Probe { low, high, waiting, finding, .. } = &mut row.record.run.as_mut().unwrap().part else {
+        panic!("probe fixture")
+    };
+    *low = 0;
+    *high = 1;
+    *waiting = Box::new([
+        p::Group { low: 2, high: 3, tests: Box::new([1, 3]) },
+        p::Group { low: 4, high: 5, tests: Box::new([2]) },
+    ]);
+    match &finding.failing {
+        p::Failures::Tests(tests) => assert!(tests.len() >= 4),
+        p::Failures::Many => panic!("enumerated finding"),
+    }
+    row.hold =
+        Some(d::TierHold { party: u64::MAX, at: skein_lib::Wall::from_nanos(42), reason: Box::new([b'r'; 1024]) });
+    round_trip(d::Stored::Tier(row.clone()), 28);
+    row.record.run = None;
+    row.probe = None;
+    round_trip(d::Stored::Tier(row), 28);
+}
+
+// Omit only v24's additions; the patcher decodes these bytes with the kept v23 schema.
+fn before_groups(row: &d::TierRow) -> Box<[u8]> {
+    use super::catch_up::{kept_schema, kept_value};
+    use crate::patches::kept::temper_store::p0013::new as fields;
+    let schema = kept_schema(24);
+    let bytes = records::encode(&d::Stored::Tier(row.clone()));
+    let (value, root) = kept_value(&schema, b"Row", bytes);
+    let tier = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
+    let mut omitted = skein_lib::List::with_capacity(4);
+    let record = value.field(tier, fields::tier_row::RECORD).unwrap();
+    if let Some(run) = value.some(value.field(record, fields::tier_record::RUN).unwrap()).unwrap() {
+        let part = value.field(run, fields::tier_run::PART).unwrap();
+        if value.tag(part).unwrap() == fields::tier_part::PROBE {
+            let probe = value.payload(part).unwrap().unwrap();
+            for field in [fields::tier_probe::LOW, fields::tier_probe::HIGH, fields::tier_probe::WAITING] {
+                omitted.push(value.span(value.field(probe, field).unwrap()).unwrap()).unwrap();
+            }
+        }
+    }
+    omitted.push(value.span(value.field(tier, fields::tier_row::HOLD).unwrap()).unwrap()).unwrap();
+    let mut length = value.bytes().len();
+    for span in omitted.as_slice() {
+        length = length.checked_sub(usize::try_from(span.end.checked_sub(span.start).unwrap()).unwrap()).unwrap();
+    }
+    let mut before = skein_lib::Writer::new(length);
+    before.put(&[0, 23]).unwrap();
+    let mut from = 2;
+    for span in omitted.as_slice() {
+        before.put(&value.bytes()[from..usize::try_from(span.start).unwrap()]).unwrap();
+        from = usize::try_from(span.end).unwrap();
+    }
+    before.put(&value.bytes()[from..]).unwrap();
+    before.finish()
+}
+
+#[test]
+fn v23_probes_resume_the_unsearched_suffix_and_rows_have_no_hold() {
+    use super::catch_up::patched;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for part in 0_u8..6 {
+        let mut row = fixtures::tier_row();
+        let run = row.record.run.as_mut().unwrap();
+        match part {
+            0 => row.record.run = None,
+            1 => run.part = p::Part::Whole,
+            2 => run.part = p::Part::Rerun { failed: Box::new([Box::from(b"a".as_slice())]) },
+            3..=5 => {
+                let p::Part::Probe { landing, low, high, waiting, .. } = &mut run.part else { panic!("probe") };
+                *landing = match part {
+                    3 => 0,
+                    4 => 5,
+                    5 => u32::try_from(run.landings.len().checked_sub(1).unwrap()).unwrap(),
+                    _ => unreachable!(),
+                };
+                *low = *landing;
+                *high = u32::try_from(run.landings.len().checked_sub(1).unwrap()).unwrap();
+                *waiting = Box::new([]);
+            }
+            _ => unreachable!(),
+        }
+        if row.record.run.is_none() {
+            row.probe = None;
+        }
+        // An old row cannot carry a person's hold, even when all its other fields are present.
+        row.hold = None;
+        let before = before_groups(&row);
+        let bytes = patched(23, 12, b"Row", before);
+        let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
+        assert!(decoded.hold.is_none(), "v23 has no person's hold");
+        if part >= 3 {
+            let run = decoded.record.run.as_ref().unwrap();
+            let p::Part::Probe { landing, low, high, waiting, .. } = &run.part else { panic!("probe") };
+            assert_eq!(low, landing, "the unsearched suffix starts at the old probe");
+            assert_eq!(
+                usize::try_from(*high).unwrap(),
+                run.landings.len().checked_sub(1).unwrap(),
+                "the run supplies the last landing"
+            );
+            assert!(waiting.is_empty());
+        }
+        assert_eq!(decoded, row, "part {part}");
+    }
+}
+
+#[test]
+fn probe_groups_refuse_bad_ranges_and_failure_places() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for case in 0_u8..9 {
+        let mut row = fixtures::tier_row();
+        let run = row.record.run.as_mut().unwrap();
+        let past = u32::try_from(run.landings.len()).unwrap();
+        let p::Part::Probe { low, high, waiting, finding, .. } = &mut run.part else { panic!("probe fixture") };
+        *waiting = Box::new([p::Group { low: 2, high: 3, tests: Box::new([0]) }]);
+        match case {
+            0 => *low = high.checked_add(1).unwrap(),
+            1 => *low = past,
+            2 => *high = past,
+            3 => waiting[0].low = 4,
+            4 => waiting[0].low = past,
+            5 => waiting[0].high = past,
+            6 => waiting[0].tests = Box::new([u16::try_from(fixtures::LIMITS.tiers.failing_tests).unwrap()]),
+            7 => waiting[0].tests = Box::new([1, 0]),
+            8 => finding.failing = p::Failures::Many,
+            _ => unreachable!(),
+        }
+        assert_eq!(
+            records::decode(&records::encode(&d::Stored::Tier(row)), &bounds),
+            Err(Undecodable::Malformed),
+            "case {case}"
+        );
+    }
+}
+
 #[test]
 fn verification_keeps_every_verdict_and_repair_and_receipts_keep_failures() {
     for failures in [
@@ -175,15 +312,20 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.failed_tests_tests, fixtures::LIMITS.tiers.failing_tests);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 119_459);
-    assert!(skein_lib::len_u64(empty_goals.len()) < crate::v23::TierRow::encoded_bound(l).unwrap());
+    assert_eq!(empty_goals.len(), 120_220);
+    assert!(skein_lib::len_u64(empty_goals.len()) < crate::v24::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
+    full.hold = Some(d::TierHold {
+        party: u64::MAX,
+        at: skein_lib::Wall::from_nanos(u64::MAX),
+        reason: Box::new([b'r'; 1024]),
+    });
     full.goals = fixtures::tier_goals();
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
-    assert_eq!(skein_lib::len_u64(row.len()), crate::v23::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 186_259);
+    assert_eq!(skein_lib::len_u64(row.len()), crate::v24::TierRow::encoded_bound(l).unwrap() + 3);
+    assert_eq!(row.len(), 188_064);
 }
 
 #[test]
@@ -308,7 +450,7 @@ fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
         );
     }
     let mut limits = fixtures::LIMITS;
-    limits.holds = crate::v23::CEILINGS.tier_row_goals;
+    limits.holds = crate::v24::CEILINGS.tier_row_goals;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_some());
     limits.holds += 1;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_none());

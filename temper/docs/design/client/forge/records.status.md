@@ -3,6 +3,7 @@
 2026-11-12. Where the tree's code lags or departs from [records.md](records.md).
 
 
+- **Not yet:** `TierActRequest`, `tier_act`, and its outcome `tier`: the family has no tier act, and its wire is at version 21 [in flight: change 2957].
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
   `rules`, a `PathRules` of `PathRule` rows, on the wire [in flight:
   change 871].

@@ -3,6 +3,7 @@
 2026-11-13. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
+- **Not yet:** 3: `tier hold` and `tier release`, absent from the table [in flight: change 2957].
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
 

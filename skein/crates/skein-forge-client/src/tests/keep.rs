@@ -1241,6 +1241,7 @@ fn drain_kept_reads(h: &mut Harness) -> Box<[Read]> {
             | Read::PullFiles { .. }
             | Read::Compare { .. }
             | Read::Checks { .. }
+            | Read::JobState { .. }
             | Read::Job { .. }
             | Read::File { .. }
             | Read::Protection { .. }
@@ -1315,6 +1316,7 @@ fn is_listing(read: &Read) -> bool {
         | Read::PullFiles { .. }
         | Read::Compare { .. }
         | Read::Checks { .. }
+        | Read::JobState { .. }
         | Read::Job { .. }
         | Read::File { .. }
         | Read::Protection { .. }

@@ -480,6 +480,7 @@ fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
     for index in 0..u64::from(LIMITS.repositories) {
         let mut configured = setup(index);
         configured.workflows = Box::new([Workflow {
+            requirements: Box::new([]),
             file: Box::from(*b"r.yml"),
             jobs: Box::new([Box::from(*b"tests")]),
             latency_min: Duration::ZERO,

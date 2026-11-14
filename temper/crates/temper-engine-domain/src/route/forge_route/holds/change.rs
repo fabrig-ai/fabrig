@@ -38,6 +38,9 @@ pub(in super::super) fn account(domain: &Domain, env: &Env<Limits>, task: u64, w
         );
         append(&mut words, b" minutes: waiting for ");
         waiting(&mut words, was, row);
+        if let change::State::Checking { .. } = was.as_ref() {
+            return Some(domain.forge.ci_stall_words(task, words.as_slice(), tasks::HOLD_ACCOUNT_BYTES));
+        }
     } else {
         return None;
     }

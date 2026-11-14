@@ -114,6 +114,7 @@ pub struct World {
     run_repositories: BTreeMap<Token, Box<[u8]>>,
     pub forge_calls: u32,
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
+    pub scripted_forge_reads: Vec<(skein_forge::api::Read, Result<skein_forge::api::Answer, skein_forge::api::Error>)>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
     pub signed_in: Option<u64>,
@@ -1061,6 +1062,7 @@ impl World {
                 tier,
                 if turn {
                     Box::new([raw::Workflow {
+                        requirements: Box::new([]),
                         fails: Box::new([]),
                         flaky: Box::new([]),
                         report: None,
@@ -1223,6 +1225,7 @@ impl World {
             run_repositories: BTreeMap::new(),
             forge_calls: 0,
             forge_reads: None,
+            scripted_forge_reads: Vec::new(),
             adopted: Vec::new(),
             follow_answers: Vec::new(),
             signed_in: None,
@@ -2074,6 +2077,20 @@ impl World {
                         reads.push((call, read.clone()));
                     }
                     self.forge_calls += 1;
+                    if let skein_forge::api::Op::Read(read) = &op
+                        && let Some((_, result)) = self.scripted_forge_reads.iter().find(|(asked, _)| asked == read)
+                    {
+                        self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
+                            skein_forge_client::Event::Answered {
+                                free: 0,
+                                rate: None,
+                                call,
+                                cost: 1,
+                                result: result.clone(),
+                            },
+                        ))));
+                        continue;
+                    }
                     let issue_write = match &op {
                         skein_forge::api::Op::Write(skein_forge::api::Write::CreateIssue { .. }) => true,
                         skein_forge::api::Op::Write(

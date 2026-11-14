@@ -96,6 +96,7 @@ pub(super) enum Node {
     RunApp,
     Job,
     JobSteps,
+    JobLabels,
     JobStep,
 }
 /// Payload roles share the walker without extending the document-only Node vocabulary.
@@ -412,7 +413,14 @@ fn document_fields(node: Node) -> &'static [Field] {
         Node::RunOutput => const { &[optional(b"title", Read::Text)] },
         Node::RunApp => const { &[optional(b"slug", Read::Text)] },
         Node::JobStep => {
-            const { &[field(b"number", Read::Number), field(b"name", Read::Text), optional(b"conclusion", Read::Text)] }
+            const {
+                &[
+                    field(b"number", Read::Number),
+                    field(b"name", Read::Text),
+                    optional(b"conclusion", Read::Text),
+                    optional(b"status", Read::Text),
+                ]
+            }
         }
         Node::Job => {
             const {
@@ -420,6 +428,8 @@ fn document_fields(node: Node) -> &'static [Field] {
                     field(b"id", Read::Number),
                     field(b"run_id", Read::Number),
                     field(b"run_attempt", Read::Number),
+                    optional(b"status", Read::Text),
+                    optional(b"labels", Read::Container(Role::Document(Node::JobLabels))),
                     optional(b"steps", Read::Container(Role::Document(Node::JobSteps))),
                     field(b"head_sha", Read::Text),
                 ]
@@ -551,6 +561,7 @@ fn document_fields(node: Node) -> &'static [Field] {
         | Node::Runs
         | Node::IssueRows
         | Node::CommentRows
+        | Node::JobLabels
         | Node::Labels
         | Node::InstallationRows
         | Node::ReachableRows
@@ -568,6 +579,7 @@ fn element(role: Role) -> Option<Role> {
     match node {
         Node::Range(node) => range_element(node),
         Node::Protection(node) => protection::element(node),
+        Node::JobLabels => Some(Role::Document(Node::JobLabels)),
         Node::JobSteps => Some(Role::Document(Node::JobStep)),
         Node::LogRows => Some(Role::Document(Node::LogRow)),
         Node::AppEvents => Some(Role::Document(Node::AppEvents)),
@@ -764,6 +776,7 @@ impl Walk {
     fn root(role: Role, limits: &Limits) -> Self {
         Self { open: Stack::with_capacity(limits.json.depth), want: Want::Start(role), limits: *limits, enqueue: false }
     }
+    #[expect(clippy::too_many_lines, reason = "the walker dispatches scalar arrays beside container arrays")]
     pub(super) fn step(&mut self, event: Event) -> Result<Move, Malformed> {
         if let Event::Failed(error) = event {
             return Err(Malformed::Json(error));
@@ -778,6 +791,18 @@ impl Walk {
                     self.end()
                 } else {
                     let frame = self.open.top_mut().expect("array");
+                    if frame.node == Role::Document(Node::JobLabels) {
+                        self.want = Want::Element;
+                        return match event {
+                            Event::Token(Token::String(text)) => {
+                                Ok(Move::Scalar(Node::JobLabels, b"labels", Token::String(text)))
+                            }
+                            Event::Long(_) => Ok(Move::Scalar(Node::JobLabels, b"labels", Token::Null)),
+                            Event::Token(_) | Event::Skipped(_) | Event::Done | Event::Failed(_) | Event::Closed => {
+                                Err(Malformed::Shape { field: b"labels" })
+                            }
+                        };
+                    }
                     if frame.node == Role::Document(Node::GraphqlErrors) && frame.seen != 0 && !self.enqueue {
                         return self.unknown(&event, 0);
                     }
@@ -802,9 +827,7 @@ impl Walk {
                         return Ok(Move::Scalar(Node::AppEvents, b"events", self.app_text(event, b"events")?));
                     }
                     frame.seen = frame.seen.checked_add(1).ok_or(Malformed::Bound { field: b"errors" })?;
-                    if (frame.node == Role::Document(Node::LogRows) || frame.node == Role::Document(Node::JobSteps))
-                        && frame.seen > self.limits.inner
-                    {
+                    if frame.node == Role::Document(Node::LogRows) && frame.seen > self.limits.inner {
                         return Err(Malformed::Bound {
                             field: if frame.node == Role::Document(Node::JobSteps) { b"steps" } else { b"deliveries" },
                         });
@@ -871,7 +894,8 @@ impl Walk {
                 }
             }
             Want::Element => {
-                if self.open.top().expect("array").node == Role::Document(Node::AppEvents)
+                if self.open.top().expect("array").node == Role::Document(Node::JobLabels)
+                    || self.open.top().expect("array").node == Role::Document(Node::AppEvents)
                     || self.open.top().expect("array").node == Role::Document(Node::Protection(P::Contexts))
                 {
                     Request::Text(self.limits.string_bytes)
