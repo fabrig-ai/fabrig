@@ -431,6 +431,10 @@ impl Run {
 /// Actions job metadata shared by Checks and the Job read.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Job {
+    pub state: api::JobState,
+    pub labels: Box<[Box<[u8]>]>,
+    pub running_step: Option<api::Step>,
+    pub cut: bool,
     pub step: Option<api::Step>,
     pub id: u64,
     pub run: u64,

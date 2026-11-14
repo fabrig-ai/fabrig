@@ -253,7 +253,10 @@ impl Plan {
                 let step = plan.begin(bounds)?;
                 return Ok((State::Delegated(Box::new(Delegate::Contents(plan))), step));
             }
-            read @ (api::Read::Checks { .. } | api::Read::Statuses { .. } | api::Read::Job { .. }) => {
+            read @ (api::Read::Checks { .. }
+            | api::Read::Statuses { .. }
+            | api::Read::JobState { .. }
+            | api::Read::Job { .. }) => {
                 let mut plan = super::actions::Plan::new(read, row, bounds)?;
                 let step = plan.begin();
                 return Ok((State::Delegated(Box::new(Delegate::Actions(plan))), step));
@@ -710,6 +713,7 @@ fn checks_ci(answer: api::Answer) -> Result<api::Ci, api::Error> {
         | api::Answer::Located { .. }
         | api::Answer::PullFiles { .. }
         | api::Answer::Compare { .. }
+        | api::Answer::JobState { .. }
         | api::Answer::Job { .. }
         | api::Answer::Directory { .. }
         | api::Answer::File { .. }

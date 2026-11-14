@@ -11,6 +11,7 @@ mod directory;
 pub mod forgejo;
 pub mod github;
 pub mod host;
+mod job_state;
 pub mod limits;
 pub mod locate;
 pub mod measure;

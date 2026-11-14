@@ -80,6 +80,7 @@ fn pending(task: u64) -> PendingStep {
         pull_ci: true,
         ci: change::Status::Passed,
         failed: crate::change_ci::Failed::new(Box::new([])),
+        stall: None,
         base_ci: change::Status::Passed,
         contains_base: change::Status::Passed,
         contains_head: change::Status::Failed,

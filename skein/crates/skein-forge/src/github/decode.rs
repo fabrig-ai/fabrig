@@ -375,6 +375,7 @@ impl Decoder {
                 | Node::RunOutput
                 | Node::RunApp
                 | Node::Job
+                | Node::JobLabels
                 | Node::JobSteps
                 | Node::CollaboratorRows
                 | Node::User
@@ -467,7 +468,11 @@ impl Decoder {
                 token,
             ) => return self.log.scalar(node, key, token),
             (Node::PullGraphql(node), key, token) => return self.pull_graphql.scalar(node, key, token),
-            (node @ (Node::RunItem | Node::RunOutput | Node::RunApp | Node::Job | Node::JobStep), key, token) => {
+            (
+                node @ (Node::RunItem | Node::RunOutput | Node::RunApp | Node::Job | Node::JobLabels | Node::JobStep),
+                key,
+                token,
+            ) => {
                 return self.checks.scalar(node, key, token);
             }
             (Node::IdResult, b"id", Token::Number(text)) | (Node::NumberResult, b"number", Token::Number(text)) => {

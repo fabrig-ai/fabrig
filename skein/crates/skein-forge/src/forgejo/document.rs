@@ -391,6 +391,8 @@ pub struct Job {
     pub attempt: u32,
     pub name: Box<[u8]>,
     pub status: StepStatus,
+    pub labels: Box<[Box<[u8]>]>,
+    pub cut: bool,
 }
 
 /// One step of a job's latest attempt, delivered as a streaming row.
@@ -542,7 +544,15 @@ pub(crate) fn run() -> Run {
     }
 }
 pub(crate) fn job() -> Job {
-    Job { id: 0, run_id: 0, attempt: 0, name: Box::new([]), status: StepStatus::Unknown }
+    Job {
+        id: 0,
+        run_id: 0,
+        attempt: 0,
+        name: Box::new([]),
+        status: StepStatus::Unknown,
+        labels: Box::new([]),
+        cut: false,
+    }
 }
 
 /// A comparison's full commit fields.
