@@ -66,7 +66,7 @@ pub struct KeptFamily {
 pub struct ValueType {
     pub number: u16,                    // the value type's, within its family: stable, never reused
     pub root: &'static str,             // its root declaration, as `current` spells it
-    pub variant: Option<&'static str>,  // the leading enumeration's variant, for a broad root
+    pub variant: Option<&'static str>,  // the leading enumeration's variant, for a broad root its keys tell apart
     pub keys: &'static [KeyRange],      // the keys that hold it
 }
 pub struct KeyRange {
@@ -77,14 +77,21 @@ pub struct KeyRange {
 
 - **One per kind of value its keys tell apart:** the tasks family's
   milestones (`01 01 0a`) are one, its live tasks another; a family whose
-  roots are records of their own (the settings') has one per root. Its
+  roots are records of their own (the settings') has one per root. A
+  broad root whose keys do not tell its variants apart is one value type
+  without a variant, the declaration whole (skein's
+  `data/codec/README.md`, 9.4): the settings' `ApplicationState`, led by
+  its `follows`, and the tasks' live and ended tasks, whose keys hold a
+  task written before talk (`live`, `ended`) beside one written since
+  (`live_talk`, `ended_talk`); a change to any variant of its root moves
+  it. Its
   number names it in the registry's keys (3), so a declaration or a
   variant renamed (`was`, skein's `data/codec/README.md`, section 3)
   keeps its value type.
 - **Checked where the set is admitted,** at every open, beside
   `opening.md`, 3's checks, a failure refused `Set` with patch 0: each
   number given once in its family; each root a declaration of `current`
-  and each variant given exactly where that root is broad, naming one of
+  and each variant given only where that root is broad, naming one of
   its leading enumeration's variants (`Schema::root`); each range
   non-empty and the ranges of all the family's types ordered, disjoint,
   and together exactly the family's `keys`, so that each key the family
