@@ -268,7 +268,9 @@ the new by its generated code. The check takes the layout as converted
   `README.md`, section 8's worst case beside the patch machines, which
   no serving open holds.
 - **Per read:** a converted value is built in a `Buffer` at the store's
-  value bound (`records.md`, 4); a value at the binary's layout, or at
+  value bound (`records.md`, 4), with one skein `layout::Workspace`
+  beside it fitted at open to every plan the store holds, so a read
+  allocates nothing; a value at the binary's layout, or at
   one whose plan keeps, is rewritten in its two head bytes alone.
 - **The registry's rows** within skein-kv's value bound: a `Text` at
   most 262,144 bytes, refused `Set` with patch 0 where a `current` or a

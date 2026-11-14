@@ -117,6 +117,10 @@ the new value's into the caller's buffer:
 Nothing recurses: a list's items, a record's fields and a held record's
 reach are entered on an explicit stack whose depth the plan computes
 from the reach's nesting, and refused past `MAX_DEPTH` when planned.
+The stack and its span tables are the caller's `Workspace`, fitted to
+the plan before the pass, so the plan stays shared and unchanged by a
+pass and the pass allocates nothing; a workspace too small for the plan
+is refused at once (`Room`), before a byte is read.
 
 ## 4. The interface
 
@@ -135,10 +139,23 @@ impl Plan {
         new: &Schema, new_root: Root, new_held: &[&Schema],
     ) -> Result<Plan, Underived>;
     pub fn keeps(&self) -> bool;                       // the root keeps: its head alone moves
-    pub fn convert(&self, old: &[u8], out: &mut Buffer) -> Result<(), Misconverted>; // lib's Buffer, cleared first
-    pub fn workspace_bound(&self) -> Option<u64>;      // its stack's tables
+    pub fn convert(&self, old: &[u8], out: &mut Buffer, work: &mut Workspace)
+        -> Result<(), Misconverted>;                   // lib's Buffer, cleared first; Room if `work` does not fit
+    pub fn workspace_bound(&self) -> Option<u64>;      // its stack's tables, in bytes
+}
+
+pub struct Workspace { /* the pass's stack and its span tables, reused from pass to pass */ }
+impl Workspace {
+    pub fn new() -> Workspace;                         // empty: allocates nothing
+    pub fn fit(&mut self, plan: &Plan) -> bool;        // grows to the plan's need, never shrinks; false: its bound overflows
+    pub fn fits(&self, plan: &Plan) -> bool;
 }
 ```
+
+- A workspace is the caller's, beside its `Buffer`: one fitted to each
+  of several plans in turn serves them all, so a store fits one to every
+  plan it holds at open and allocates nothing per read. A pass leaves
+  nothing in it the next pass reads.
 
 - `derive` judges what both roots reach and nothing else, so its cost
   is that reach's parts, not the texts'; the plan holds no reference to
@@ -156,10 +173,13 @@ impl Plan {
 
 - **A plan's tables** are per declaration and part of the reach, at most
   `MAX_DECLARATIONS` per text it reaches, and the defaults' bytes, the
-  new text's pool's; its stack is `MAX_DEPTH` levels, each a record's
-  span table at the reach's most fields.
+  new text's pool's.
+- **A workspace** is the caller's, `workspace_bound` bytes for its plan:
+  the plan's stack depth in levels (at most `MAX_DEPTH`), each a
+  record's span table at the reach's most fields, allocated by `fit`
+  outside any pass.
 - **A pass's output** is the caller's `Buffer`, within its capacity; it
-  allocates nothing else.
+  allocates nothing else, in the buffer, the workspace or elsewhere.
 
 ## 6. Tests
 
@@ -180,8 +200,9 @@ impl Plan {
   decoder takes or refuses as it would any.
 - **Keeps:** a plan that keeps converts each drawn value to itself but
   for its head.
-- **Memory:** a pass allocates nothing past its buffer, counted by the
-  counting allocator.
+- **Memory:** a pass allocates nothing past its buffer and a fitted
+  workspace, counted by the counting allocator; a workspace that does
+  not fit is `Room`.
 
 ## 7. Open questions
 
