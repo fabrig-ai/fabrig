@@ -309,12 +309,13 @@ impl Referee<world::Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, processes: &[world::Process]) {
+    fn watch(&mut self, now: Time, processes: &[world::Process]) -> Result<(), String> {
         let address_ready =
             processes.iter().any(|process| process.issuer().is_some_and(|peer| peer.address().is_some()));
         let settled = processes.iter().any(|process| process.client().is_some_and(Host::is_empty));
         self.wake = ((!self.delivered && address_ready) || (settled && !self.shutdown)).then_some(now);
         self.passed = self.shutdown && processes.iter().all(Host::is_empty);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake.or(Some(Time::from_nanos(180_000_000_000)))

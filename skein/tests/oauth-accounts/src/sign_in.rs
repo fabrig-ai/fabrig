@@ -484,7 +484,7 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, processes: &[Process]) {
+    fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let client = processes.iter().find_map(Process::client).expect("owner");
         let browser = processes.iter().find_map(Process::browser).expect("browser");
         let issuer = processes.iter().find_map(Process::issuer).expect("issuer");
@@ -502,37 +502,37 @@ impl Referee<Process> for Judge {
             || (!self.shutdown && client.is_empty() && browser.is_empty()))
         .then_some(now);
         if client.closed {
-            self.client_closed(client, issuer);
+            self.client_closed(client, issuer)?;
         }
         let posts = issuer
             .observations()
             .iter()
             .filter(|observation| matches!(observation, peer::Observation::Post { .. }))
             .count();
-        assert!(
-            posts
-                <= if matches!(
-                    self.story,
-                    Story::Public
-                        | Story::Profile(_)
-                        | Story::TwoPorts
-                        | Story::OpenIdAgain
-                        | Story::Return(Return::After)
-                ) {
-                    2
-                } else {
-                    1
-                }
-        );
+        if posts
+            > if matches!(
+                self.story,
+                Story::Public | Story::Profile(_) | Story::TwoPorts | Story::OpenIdAgain | Story::Return(Return::After)
+            ) {
+                2
+            } else {
+                1
+            }
+        {
+            return Err(String::from(
+                "assertion failed: posts <= if matches!( self.story, Story::Public | Story::Profile(_) | Story::TwoPorts | Story::OpenIdAgain | Story::Return(Return::After) ) { 2 } else { 1 }",
+            ));
+        }
         if !self.private_failure
             && client.closed
             && browser.is_empty()
             && !matches!(self.story, Story::Cancel | Story::Abort | Story::Timeout)
         {
-            assert!(browser.done);
-            assert_eq!(
-                posts,
-                if matches!(
+            if !browser.done {
+                return Err(String::from("assertion failed: browser.done"));
+            }
+            if posts
+                != if matches!(
                     self.story,
                     Story::Public
                         | Story::Profile(_)
@@ -544,9 +544,27 @@ impl Referee<Process> for Judge {
                 } else {
                     usize::from(!matches!(self.story, Story::PasteExpired | Story::PasteCancelled))
                 }
-            );
+            {
+                return Err(format!(
+                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                    posts,
+                    if matches!(
+                        self.story,
+                        Story::Public
+                            | Story::Profile(_)
+                            | Story::TwoPorts
+                            | Story::OpenIdAgain
+                            | Story::Return(Return::After)
+                    ) {
+                        2
+                    } else {
+                        usize::from(!matches!(self.story, Story::PasteExpired | Story::PasteCancelled))
+                    }
+                ));
+            }
         }
         self.passed = self.shutdown && processes.iter().all(Host::is_empty);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake.or(Some(Time::from_nanos(180_000_000_000)))
