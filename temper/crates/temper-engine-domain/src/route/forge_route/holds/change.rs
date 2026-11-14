@@ -43,7 +43,11 @@ pub(in super::super) fn account(
             skein_lib::Decimal::of(env.limits.forge.change_policy.stall.as_nanos() / 60_000_000_000).as_bytes(),
         );
         append(&mut words, b" minutes: waiting for ");
-        waiting(&mut words, was, row);
+        if evidence.is_some() {
+            waiting_on_reads(&mut words, was, row);
+        } else {
+            waiting(&mut words, was, row);
+        }
     } else {
         return None;
     }
@@ -113,6 +117,35 @@ fn step_name(state: &change::State) -> &'static [u8] {
         change::State::NoChange { .. } => b"no change",
         change::State::Ended => b"ended",
         change::State::Held { was, .. } => step_name(was),
+    }
+}
+
+fn waiting_on_reads(words: &mut List<u8>, state: &change::State, row: &forge::ChangeRow) {
+    match state {
+        change::State::Opening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::Landing { .. } => waiting(words, state, row),
+        change::State::Held { was, .. } => waiting_on_reads(words, was, row),
+        change::State::Producing { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Judging { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::WaitingProducer { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended => append(words, b"the forge to answer its reads"),
     }
 }
 

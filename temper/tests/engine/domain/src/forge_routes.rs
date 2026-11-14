@@ -149,6 +149,8 @@ pub struct World {
     pub review_files_delay: Option<Duration>,
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
+    pub hold_reads_at_any_step: bool,
+    pub busy_reads: bool,
     /// Source comparisons withheld before their terminal, including across a cold restart.
     pub held_comparisons: Option<Vec<engine::Request>>,
     /// An unusable comparison must conservatively keep a source landing.
@@ -1253,6 +1255,8 @@ impl World {
             review_files_delay: None,
             gate,
             held_reads: None,
+            hold_reads_at_any_step: false,
+            busy_reads: false,
             held_comparisons: None,
             fail_comparisons: false,
             hold_write_answers: None,
@@ -2060,9 +2064,9 @@ impl World {
                     }
                     if let Some(reads) = &mut self.held_reads
                         && matches!(op, skein_forge::api::Op::Read(_))
-                        && self.store.rows.values().any(|row| matches!(row,
+                        && (self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
                             Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
-                                if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. }))))
+                                if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))))
                     {
                         reads.push(engine::Request::Forge { call, repository, op });
                         continue;
@@ -2649,7 +2653,9 @@ impl World {
                     let call = to.into_token();
                     let op = self.pending.remove(&call).expect("one pending forge call");
                     let repository = self.pending_repositories.remove(&call).expect("pending call's repository");
-                    let result = match result {
+                    let result = if self.busy_reads && matches!(op, skein_forge::api::Op::Read(_)) {
+                        Err(skein_forge::api::Error::Busy)
+                    } else { match result {
                         Ok(answer) => {
                             let mut answer = translate::answer(&op, answer, &self.env.limits.forge.client);
                             if let Some(head) = self.lagging_pull_head
@@ -2672,7 +2678,7 @@ impl World {
                         Err(error) => {
                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
                         }
-                    };
+                    }};
                     if let Ok(skein_forge::api::Answer::Located { repository }) = &result
                         && let Some(name) = translate::locate_name(&op)
                     {

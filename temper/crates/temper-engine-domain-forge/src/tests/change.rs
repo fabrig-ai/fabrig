@@ -2475,3 +2475,51 @@ fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
         );
     }
 }
+
+
+fn restarted_producing() -> Domain {
+    use temper_engine_domain_forge_change as change;
+    let mut d = fixtures::connected_domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    row.change.state = change::State::Producing { requested: true };
+    outputs(&mut d, Event::Change { row });
+    fixtures::step_change(&mut d);
+    for _ in 0..3 {
+        fixtures::missing_pull_reads(&mut d);
+        outputs(&mut d, Event::Hint { hint: skein_forge::api::Hint {
+            repository: REPO, change: skein_forge::api::Change::Branch(b"temper/51".as_slice().into()), key: None,
+        }});
+        // The root's activation after branch news replaces this gather's input.
+        fixtures::step_change(&mut d);
+        assert!(fixtures::finish_missing(&mut d).is_empty(), "the woken gather restarts, not decides");
+    }
+    d
+}
+
+#[test]
+fn a_gather_restarted_by_news_still_spends_its_steps_stall() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = restarted_producing();
+    let mut env = env();
+    env.wall = Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()).saturating_add(1));
+    let mut out = Queue::uncapped();
+    fire(&mut d, &env, &mut out);
+    assert!(out.iter().any(|request| matches!(request, Request::ChangeDecision {
+        task: fixtures::CHANGE, decision: change::Decision::Hold(change::Hold::Stalled), ..
+    })), "restarting is not progress: {out:?}");
+    assert!(matches!(d.change(fixtures::CHANGE).unwrap().change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+}
+
+#[test]
+fn a_gather_that_finishes_after_news_decides_before_its_stall() {
+    let mut d = restarted_producing();
+    fixtures::missing_pull_reads(&mut d);
+    let finished = fixtures::finish_missing(&mut d);
+    assert!(built_entry(&finished, fixtures::OPEN + 1), "the fresh gather decides: {finished:?}");
+}

@@ -2132,7 +2132,22 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     for task in &changes {
         d.change_due.remove(task);
-        emit(out, Request::WakeProcedure { task: *task });
+        let owner = step_owner(d, *task);
+        if let Some(owner) = owner {
+            let pending = d.steps.remove(&owner).expect("collected gather");
+            wait_for_forge(d, env, &pending, None, out);
+            let held = match d.changes.get(task) {
+                Some(row) => {
+                    if let change::State::Held { .. } = row.change.state { true } else { row.terminal() }
+                },
+                None => true,
+            };
+            if !held && !connection_wait::contains(d, *task) {
+                d.steps.insert(owner, pending).expect("gather keeps its room");
+            }
+        } else {
+            emit(out, Request::WakeProcedure { task: *task });
+        }
     }
     let mut landings = List::with_capacity(env.limits.landings);
     for (task, when) in &d.landing.due {
@@ -3904,6 +3919,28 @@ fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
 }
 
 #[expect(clippy::too_many_lines, reason = "one fresh-read chain keeps task standing, containment and connection waits")]
+fn step_owner(d: &Domain, task: u64) -> Option<Token> {
+    for (owner, pending) in &d.steps {
+        if pending.task == task {
+            return Some(*owner);
+        }
+    }
+    None
+}
+
+// A step's reads spend its wait's stall, even while wakes replace its snapshot
+// (temper/docs/design/domain/forge/change/repairs.md, Stalls).
+fn arm_gather(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
+    let Some(row) = d.changes.get(&pending.task) else { return };
+    if let change::State::Held { .. } = row.change.state {
+        return;
+    }
+    let until = skein_lib::Wall::from_nanos(
+        row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
+    );
+    d.wait_change(env, pending.task, Some(until));
+}
+
 fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Queue<Request>) {
     if d.stopping {
         return;
@@ -3943,12 +3980,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         step_verified(d, env, task, merge, heard, out);
         return;
     }
-    let mut owner = None;
-    for (token, pending) in &d.steps {
-        if pending.task == task {
-            owner = Some(*token);
-        }
-    }
+    let owner = step_owner(d, task);
     if gates.len() > skein_lib::usize_of(env.limits.change_policy.gates) {
         crate::refusal::resource_limit(
             out,
@@ -3962,7 +3994,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         return;
     }
     if let Some(owner) = owner {
-        let pending = d.steps.get_mut(&owner).expect("found pending step");
+        let mut pending = d.steps.remove(&owner).expect("found pending step");
         // Entries hand off in number order (skein's forge/client.md, 7.2);
         // the newest wake reserves the restart's entry and reads jig's current kept answer.
         pending.entry = entry;
@@ -3979,6 +4011,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending.queue_repair_active = queue_repair_active;
         pending.gates = gates;
         pending.woken = true;
+        arm_gather(d, env, &pending);
+        d.steps.insert(owner, pending).expect("gather keeps its room");
         return;
     }
     if connection_wait::waiting(d, task, row.repository.forge) {
@@ -4035,6 +4069,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         paths_whole: false,
         woken: false,
     };
+    arm_gather(d, env, &pending);
     d.steps.insert(owner, pending).expect("step capacity checked");
     if read_branch {
         branch_sent(d, task, producer);
@@ -4189,20 +4224,6 @@ pub(crate) fn ancestry_status(result: Result<skein_forge::api::Answer, skein_for
     }
 }
 
-// Local read admission has made no forge call; retry when the client's room returns.
-fn retry_step(env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
-    let until = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000));
-    emit(
-        out,
-        Request::ChangeDecision {
-            task,
-            decision: change::Decision::Wait { until: Some(until) },
-            entry: None,
-            evidence: None,
-        },
-    );
-}
-
 #[expect(clippy::too_many_lines, reason = "one bounded fresh-read chain preserves its stage and facts")]
 fn step_read(
     d: &mut Domain,
@@ -4239,7 +4260,8 @@ fn step_read(
     }
     if pending.stage != StepStage::Paths && result == Err(skein_forge::api::Error::Busy) {
         branch_due(d, pending.task);
-        retry_step(env, pending.task, out);
+        let retry = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000));
+        wait_for_forge(d, env, &pending, Some(retry), out);
         return;
     }
     if result == Err(skein_forge::api::Error::NotConnected) {
@@ -4815,6 +4837,15 @@ fn wake_after_turn(d: &mut Domain, row: &ChangeRow, owned: bool) {
 }
 
 fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
+    d.change_due.remove(&pending.task);
+    let Some(row) = d.changes.get(&pending.task) else { return };
+    let until = skein_lib::Wall::from_nanos(
+        row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
+    );
+    if pending.woken && env.wall >= until {
+        wait_for_forge(d, env, &pending, None, out);
+        return;
+    }
     if pending.woken {
         step_change(
             d,
@@ -4857,6 +4888,10 @@ fn wait_for_forge(
         return;
     }
     let dependencies = waits_for_dependencies(&row, pending);
+    if connection_wait::waiting(d, row.task, row.repository.forge) {
+        connection_wait::wait(d, env, row.task, out);
+        return;
+    }
     if pending.heard.delegate_live || dependencies {
         row.change.since = env.wall;
     }
@@ -4881,7 +4916,13 @@ fn wait_for_forge(
     {
         save_change(d, out, row);
     }
-    emit(out, Request::ChangeDecision { task: pending.task, decision, entry: None, evidence: None });
+    let evidence = if decision == change::Decision::Hold(change::Hold::Stalled) {
+        let row = d.changes.get(&pending.task).expect("held change");
+        Some(step_evidence(d, row, pending, row.change.clone()))
+    } else {
+        None
+    };
+    emit(out, Request::ChangeDecision { task: pending.task, decision, entry: None, evidence });
 }
 
 fn titled_change(
@@ -5456,7 +5497,8 @@ fn step_evidence(d: &Domain, row: &ChangeRow, pending: &PendingStep, prior: chan
         touched: step_touched(d, row, pending),
         prior,
         head: pending.branch,
-        base_tip: pending.base_tip.expect("step read base tip"),
+        // An unfinished gather supplies evidence only to name its read stall.
+        base_tip: pending.base_tip.unwrap_or([0; 32]),
         contains_base: pending.contains_base,
         ci: if match d.repositories.get(&row.repository) {
             Some(repository) => repository.ci,

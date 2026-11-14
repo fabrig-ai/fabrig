@@ -18,7 +18,7 @@ fn status(world: &mut World, head: u64, state: raw::Check) {
     );
 }
 
-fn finish(world: &mut World, producer: &engine::Assignment) {
+pub(super) fn finish(world: &mut World, producer: &engine::Assignment) {
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,

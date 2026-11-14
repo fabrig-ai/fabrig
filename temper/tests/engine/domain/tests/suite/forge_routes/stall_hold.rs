@@ -9,7 +9,7 @@ use temper_engine_domain_forge_change::{Hold, State};
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 1000; // A stall's read, durable hold, escalation and worker delivery.
 
-fn preparing(goal: bool) -> (World, engine::Assignment, u64, engine::Assignment) {
+pub(super) fn preparing(goal: bool) -> (World, engine::Assignment, u64, engine::Assignment) {
     let (mut world, owner) = if goal {
         let mut world = World::configured_ci(true, true, true);
         world.adopt();
@@ -41,7 +41,7 @@ fn preparing(goal: bool) -> (World, engine::Assignment, u64, engine::Assignment)
     (world, owner, task, producer)
 }
 
-fn waiting(world: &mut World, task: u64, producer: &engine::Assignment, ci: bool) {
+pub(super) fn waiting(world: &mut World, task: u64, producer: &engine::Assignment, ci: bool) {
     if ci {
         temper_engine_domain_world::kinds::produce(world, task, producer);
     } else {
@@ -99,7 +99,7 @@ fn stall(world: &mut World, task: u64) {
     assert_stalled(world, task);
 }
 
-fn assert_stalled(world: &World, task: u64) {
+pub(super) fn assert_stalled(world: &World, task: u64) {
     assert!(matches!(row(world, task).change.state, State::Held { why: Hold::Stalled, .. }));
     assert!(
         matches!(live_task(world, task).phase, tasks::Phase::Held { why: tasks::Hold::Stalled, .. }),
@@ -203,7 +203,7 @@ fn not_held(world: &World, task: u64) {
     assert!(matches!(live_task(world, task).escalation, tasks::Escalation::Unheld { .. }));
 }
 
-fn jump(world: &mut World, duration: Duration) {
+pub(super) fn jump(world: &mut World, duration: Duration) {
     world.env.now = world.env.now.saturating_add(duration);
     world.tick();
     world.until(Until::Ready);
