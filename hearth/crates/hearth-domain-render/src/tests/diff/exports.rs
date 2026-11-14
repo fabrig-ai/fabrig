@@ -64,6 +64,32 @@ fn changed_exports_are_ordered_by_task_then_name() {
     }
     assert_eq!(names.as_slice(), &[(b"core".as_slice(), b"name".as_slice()), (b"vpn", b"a"), (b"vpn", b"z")]);
 }
+#[test]
+fn exports_are_removed_added_and_changed_in_key_order() {
+    let before = fixtures::exports(&[
+        (b"z", &[(b"same", Value::Int(4))]),
+        (b"task", &[(b"c", Value::Int(1)), (b"a", Value::Int(2))]),
+    ]);
+    let after = fixtures::exports(&[
+        (b"z", &[(b"same", Value::Int(4))]),
+        (b"task", &[(b"c", Value::Int(3)), (b"b", Value::Int(2))]),
+    ]);
+    assert_eq!(
+        exports::change(Some(&before), Some(&after)),
+        exports::Change {
+            entries: Box::new([
+                ExportChange { task: copy_of(b"task"), name: copy_of(b"a"), before: Some(Value::Int(2)), after: None },
+                ExportChange { task: copy_of(b"task"), name: copy_of(b"b"), before: None, after: Some(Value::Int(2)) },
+                ExportChange {
+                    task: copy_of(b"task"),
+                    name: copy_of(b"c"),
+                    before: Some(Value::Int(1)),
+                    after: Some(Value::Int(3))
+                },
+            ])
+        }
+    );
+}
 const REBUILDS: &[(bool, Rebuild)] = &[(false, Rebuild::Nothing), (true, Rebuild::FromConfig)];
 #[test]
 fn exports_alone_rebuild_nothing_and_with_config_from_config() {
