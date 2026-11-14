@@ -15,7 +15,7 @@ pub const PATCH_SET: PatchSet = PatchSet {
     fresh: None,
     families: &[
         KeptFamily {
-            current: include_str!("../schema/store-v24.schema"),
+            current: include_str!("../schema/store-v25.schema"),
             types: &[
                 ValueType { number: 0, root: "Row", variant: Some("call"), keys: &[KeyRange { from: &[0], to: &[1] }] },
                 ValueType {
