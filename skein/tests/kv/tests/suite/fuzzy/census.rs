@@ -65,15 +65,18 @@ impl Model {
                 Op::Put { key, value } => {
                     // Recount present heads after removing the overwritten row.
                     // Short values share None but are not bound overflow.
-                    let heads: BTreeSet<_> = self.rows.values()
-                        .filter(|row| row.space == space && row.head.is_some()).map(|row| row.head).collect();
+                    let heads: BTreeSet<_> = self
+                        .rows
+                        .values()
+                        .filter(|row| row.space == space && row.head.is_some())
+                        .map(|row| row.head)
+                        .collect();
                     let folded = self.rows.values().any(|row| row.space == space && row.head != head(&row.value));
                     let mut assigned = head(value);
                     if !heads.contains(&assigned) && (heads.len() == CENSUS_HEADS - 1 || folded) {
                         assigned = None;
                     }
                     self.rows.insert(key.to_vec(), Row { value: value.to_vec(), space, head: assigned });
-
                 }
                 Op::Erase { .. } => {}
             }
@@ -112,12 +115,22 @@ impl Model {
     }
 
     fn check(&self, census: &Census, seed: u64, step: u64) {
-        let actual: Vec<_> = census.keyspaces().iter().map(|space| {
-            let heads: Vec<_> = space.heads().iter().map(|entry| (entry.head, entry.rows)).collect();
-            (space.prefix().to_vec(), ([space.rows, space.keys, space.values, space.puts, space.erases, space.written], heads))
-        }).collect();
-        let expected: Vec<_> = self.counts().into_iter()
-            .map(|(space, (count, heads))| (space, (count, heads.into_iter().collect::<Vec<_>>()))).collect();
+        let actual: Vec<_> = census
+            .keyspaces()
+            .iter()
+            .map(|space| {
+                let heads: Vec<_> = space.heads().iter().map(|entry| (entry.head, entry.rows)).collect();
+                (
+                    space.prefix().to_vec(),
+                    ([space.rows, space.keys, space.values, space.puts, space.erases, space.written], heads),
+                )
+            })
+            .collect();
+        let expected: Vec<_> = self
+            .counts()
+            .into_iter()
+            .map(|(space, (count, heads))| (space, (count, heads.into_iter().collect::<Vec<_>>())))
+            .collect();
         assert_eq!(census.since(), self.since, "seed {seed}, step {step}");
         assert_eq!(actual, expected, "seed {seed}, step {step}");
     }
@@ -136,9 +149,18 @@ fn put(key: &[u8], value: &[u8]) -> Op {
 
 fn limits() -> Limits {
     Limits {
-        key: 8, value: 8, ops: 256, commit: 8192, queued: 4, queued_bytes: 32768,
-        budget: 1_048_576, segment: 4096, snapshot_after: u64::MAX, chunk: 256,
-        page: Page { rows: 4, bytes: 64 }, deadline: Duration::from_secs(1),
+        key: 8,
+        value: 8,
+        ops: 256,
+        commit: 8192,
+        queued: 4,
+        queued_bytes: 32768,
+        budget: 1_048_576,
+        segment: 4096,
+        snapshot_after: u64::MAX,
+        chunk: 256,
+        page: Page { rows: 4, bytes: 64 },
+        deadline: Duration::from_secs(1),
     }
 }
 
