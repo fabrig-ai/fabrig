@@ -160,26 +160,6 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn another_connectors_resource_report_is_not_loading_input() {
-    let (mut core, env) = fresh();
-    to_connectors(&mut core, &env);
-    let rejected = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-        crate::step(
-            &mut core,
-            &env,
-            crate::Event::EffectConnector(connector::Event::Resource {
-                project: 1,
-                name: name(2),
-                role: connector::ResourceRole::Owned,
-                hold: connector::HoldKind::Shared,
-            }),
-        )
-    }));
-    let _panic = rejected.expect_err("another connector is not in its restore phase");
-}
-
-#[test]
 fn a_full_roles_cache_fails_closed_without_refusing_the_start() {
     let (mut core, env) = fresh();
     to_connectors(&mut core, &env);

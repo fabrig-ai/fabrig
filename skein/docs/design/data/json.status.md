@@ -1,11 +1,12 @@
 # json: status
 
-2026-11-07. Where skein's code lags or departs from [json.md](json.md).
+2026-11-14. Where skein's code lags or departs from [json.md](json.md).
 
 Unlisted sections have no known gap.
 
 - **Not yet:**
   - 6: the fuzz target.
+  - 6: the writer's assertion tests, `#[should_panic]`, go with `temper/docs/design/draft/panics.execution.md`, P8.
 - **Departs:**
   - 5.1: `skein/docs/foundation/programming-model.md`, 6.1 has the queues
     between components uncapped, but `skein-json/src/collector.rs`'s
