@@ -57,7 +57,9 @@ impl crate::Stored {
                     authority(&mut value.after.authority, moved);
                 }
             }
-            crate::Stored::Update(_)
+            crate::Stored::Summary(_)
+            | crate::Stored::Retention(_)
+            | crate::Stored::Update(_)
             | crate::Stored::Result(_)
             | crate::Stored::EndedByParty(_)
             | crate::Stored::EndedByProject(_)

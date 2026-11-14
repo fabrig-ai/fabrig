@@ -446,7 +446,9 @@ pub(crate) fn decision_record(row: &tasks::Stored, at: Wall) -> Option<ProposalD
                 created: None,
             })
         }
-        tasks::Stored::Live(_)
+        tasks::Stored::Summary(_)
+        | tasks::Stored::Retention(_)
+        | tasks::Stored::Live(_)
         | tasks::Stored::Ended(_)
         | tasks::Stored::Ledger(_)
         | tasks::Stored::Writer(_)

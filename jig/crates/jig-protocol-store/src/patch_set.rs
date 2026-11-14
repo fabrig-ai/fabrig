@@ -14,6 +14,10 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
                 0xaf, 0x27, 0x02, 0x03, 0x51, 0x74, 0xba, 0x8c, 0x38, 0x93, 0xc7, 0x9b, 0xf7, 0xd9, 0x89,
             ],
         }),
+    }, Job {
+        name: "retention-rows", keys: &[KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] }], converts: None,
+    }, Job {
+        name: "retention-proposals", keys: &[KeyRange { from: &[1, 0, 6, 1], to: &[1, 0, 6, 2] }], converts: None,
     }],
     owner: Owner::Jig,
     name: "jig",
@@ -229,7 +233,15 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
                 number: 18,
                 root: "Row",
                 variant: Some("placed_hold"),
-                keys: &[KeyRange { from: &[1, 1, 21], to: &[1, 2] }],
+                keys: &[KeyRange { from: &[1, 1, 21], to: &[1, 1, 30] }],
+            },
+            ValueType {
+                number: 19, root: "Row", variant: Some("summary"),
+                keys: &[KeyRange { from: &[1, 1, 30], to: &[1, 1, 31] }],
+            },
+            ValueType {
+                number: 20, root: "Row", variant: Some("retention"),
+                keys: &[KeyRange { from: &[1, 1, 31], to: &[1, 2] }],
             },
         ],
         name: "jig-store-tasks",
