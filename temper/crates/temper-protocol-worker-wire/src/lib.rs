@@ -61,6 +61,15 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         identity_login: bounds.text_bytes,
         identity_name: bounds.text_bytes,
         identity_email: bounds.text_bytes,
+        flake_key: v1::CEILINGS.flake_key,
+        flake_log: v1::CEILINGS.flake_log,
+        check_results_tree: v1::CEILINGS.check_results_tree,
+        check_results_base_some: v1::CEILINGS.check_results_base_some,
+        check_results_passed: bounds.reds,
+        check_results_passed_item: bounds.red_key_bytes,
+        check_results_failed: bounds.reds,
+        check_results_failed_item: bounds.red_key_bytes,
+        check_results_flakes: v1::CEILINGS.check_results_flakes,
         reds_reds: bounds.reds,
         red_key: bounds.red_key_bytes,
         red_head: v1::CEILINGS.red_head,
@@ -198,7 +207,7 @@ pub mod wire {
     pub const FAMILY: &str = "temper-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 8;
+    pub const VERSION: u16 = 9;
 
     /// The oldest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;
