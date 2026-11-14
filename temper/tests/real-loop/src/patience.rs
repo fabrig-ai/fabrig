@@ -110,10 +110,11 @@ impl PendingStreak {
 }
 
 /// Skein asks overdue only on an idle pass. A busy spin must ask it from act as well.
-pub(crate) fn fail_overdue<P, R: Referee<P>>(judge: &R, now: Time) {
+pub(crate) fn check_overdue<P, R: Referee<P>>(judge: &R, now: Time) -> Result<(), String> {
     if let Some(why) = judge.overdue(now) {
-        panic!("at {now:?}, the referee failed the real loop before patience:\n{why}");
+        return Err(format!("at {now:?}, the referee failed the real loop before patience:\n{why}"));
     }
+    Ok(())
 }
 
 pub(crate) fn header(id: usize, name: &str, host: &dyn Host, streak: u64, now: Time, out: &mut String) {
@@ -215,7 +216,7 @@ pub(crate) fn describe(id: usize, proc: &mut Proc, now: Time, out: &mut String) 
 
 #[cfg(test)]
 mod tests {
-    use super::{Patience, Verdict, fail_overdue, header, verdict};
+    use super::{Patience, Verdict, check_overdue, header, verdict};
     use crate::service::ServiceHost;
     use skein_io::kernel::{Complete, Exit, Fd, Submit};
     use skein_lib::{Duration, Queue, Time, Wall};
@@ -259,6 +260,7 @@ mod tests {
     }
     struct Judge {
         patience: Patience,
+        finding: Option<String>,
     }
     impl Referee<Frozen> for Judge {
         fn act(&mut self, now: Time, procs: &mut [Frozen]) {
@@ -266,12 +268,18 @@ mod tests {
                 let frozen = &procs[0];
                 let mut report = String::new();
                 header(0, "service", &frozen.service, frozen.service.pending_streak.passes(), now, &mut report);
-                super::service_pending(frozen.service.service.as_ref().expect("prepared service"), now, &mut report);
+                let Some(service) = frozen.service.service.as_ref() else {
+                    self.finding = Some("prepared service".into());
+                    return;
+                };
+                super::service_pending(service, now, &mut report);
                 self.patience.capture(report);
-                fail_overdue::<Frozen, _>(self, now);
+                self.finding = check_overdue::<Frozen, _>(self, now).err();
             }
         }
-        fn observe(&mut self, _now: Time, _procs: &[Frozen]) {}
+        fn watch(&mut self, _now: Time, _procs: &[Frozen]) -> Result<(), String> {
+            self.finding.clone().map_or(Ok(()), Err)
+        }
         fn next_deadline(&self) -> Option<Time> {
             self.patience.deadline()
         }
@@ -284,7 +292,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_busy_world_fails_through_overdue_naming_the_pending_service_component() {
         let scratch = crate::Scratch::new("overdue-service");
         let mut service = ServiceHost::new(scratch.path().into(), Fd::new(0), true);
@@ -314,17 +321,11 @@ mod tests {
             tree_waited: None,
         };
         assert!(guard.handle(verdict(Expired::Failed(figures))));
-        let mut world = World::new(Judge { patience: guard });
+        let mut world = World::new(Judge { patience: guard, finding: None });
         world.spawn(|| Frozen { service, completions: Queue::with_capacity(1), submissions: Queue::with_capacity(1) });
-        let error = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _outcome = world.run(&skein_shell::Clock::new(), patience);
-        }))
-        .expect_err("the world cannot settle");
-        let message = error
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| error.downcast_ref::<&str>().copied())
-            .expect("panic text");
+        let Err(message) = world.try_run(&skein_shell::Clock::new(), patience) else {
+            panic!("the world cannot settle")
+        };
         assert!(message.contains("the referee failed the real loop before patience"), "{message}");
         assert!(message.contains("engine: Some(\n        Engine {\n            work_pending: true"), "{message}");
         assert!(message.contains("store: true"), "{message}");
@@ -373,14 +374,13 @@ mod tests {
             assert!(!guard.due(), "the world's patience owns the starved verdict");
             assert_eq!(guard.deadline(), None, "the early deadline cannot keep waking the loop");
             assert_eq!(guard.overdue(), None);
-            let judge = Judge { patience: guard };
-            fail_overdue::<Frozen, _>(&judge, now);
+            let judge = Judge { patience: guard, finding: None };
+            check_overdue::<Frozen, _>(&judge, now).expect("starved loop has no finding");
             guard = judge.patience;
         }
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_failed_verdict_keeps_the_early_diagnostic_with_its_report_and_figures() {
         let mut guard = armed_guard();
         let early = guard.deadline().expect("armed deadline");
@@ -396,12 +396,9 @@ mod tests {
         assert!(guard.handle(verdict(Expired::Failed(figures))));
         guard.capture("held service component".into());
         assert_eq!(guard.deadline(), Some(early));
-        let judge = Judge { patience: guard };
-        let error = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            fail_overdue::<Frozen, _>(&judge, early);
-        }))
-        .expect_err("a failed verdict still fails before patience");
-        let message = error.downcast_ref::<String>().expect("formatted early diagnostic");
+        let judge = Judge { patience: guard, finding: None };
+        let message =
+            check_overdue::<Frozen, _>(&judge, early).expect_err("a failed verdict still fails before patience");
         assert!(message.contains("the referee failed the real loop before patience"), "{message}");
         assert!(message.contains("held service component"), "{message}");
         assert!(message.contains(&expected), "{message}");
