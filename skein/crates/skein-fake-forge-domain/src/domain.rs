@@ -68,6 +68,10 @@ pub struct Config {
     pub ci: u64,
     /// CI inherited by every repository made through the forge.
     pub made_checks: crate::api::Checks,
+    /// Dispatch-only workflows inherited by every repository made through the forge.
+    pub made_workflows: Box<[crate::api::Workflow]>,
+    /// Manual merge settings inherited by every repository made through the forge.
+    pub made_manual_merges: crate::api::ManualMerges,
     /// Per mille: a dispatched job fails during set-up.
     pub setup_faults: u32,
     /// Per mille per job: its run loses the job, with no failed step.
@@ -124,6 +128,8 @@ impl Config {
                 reruns: 0,
                 cue: None,
             },
+            made_workflows: Box::new([]),
+            made_manual_merges: crate::api::ManualMerges::OFF,
             setup_faults: 0,
             lost: 0,
             hook_min: Duration::ZERO,
