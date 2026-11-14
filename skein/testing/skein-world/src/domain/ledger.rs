@@ -28,16 +28,27 @@ impl<K: Ord + Copy + Debug, V> Ledger<K, V> {
 
     /// Opens the request `key`, which no other in flight has.
     pub fn open(&mut self, key: K, value: V) {
+        self.try_open(key, value).unwrap_or_else(|why| crate::fail(&why));
+    }
+
+    /// Returns a finding if the key is already in flight.
+    pub fn try_open(&mut self, key: K, value: V) -> Result<(), String> {
         let what = self.what;
-        assert!(self.open.insert(key, value).is_none(), "each {what} in flight has a key of its own: {key:?}");
+        if self.open.insert(key, value).is_some() {
+            return Err(format!("each {what} in flight has a key of its own: {key:?}"));
+        }
+        Ok(())
     }
 
     /// Ends the request `key`, which is in flight: its one end.
     pub fn end(&mut self, key: K) -> V {
+        self.try_end(key).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Returns a finding if the request is not in flight.
+    pub fn try_end(&mut self, key: K) -> Result<V, String> {
         let what = self.what;
-        self.open
-            .remove(&key)
-            .unwrap_or_else(|| crate::fail(&alloc::format!("a {what} ends once, while in flight: {key:?}")))
+        self.open.remove(&key).ok_or_else(|| format!("a {what} ends once, while in flight: {key:?}"))
     }
 
     /// Ends the request `key` if it is still in flight: for an end that may

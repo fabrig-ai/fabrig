@@ -74,13 +74,14 @@ pub(crate) fn drive(seed: u64, mut client: Client, mut rig: Rig) -> (Client, Tra
         let env = Env { now, wall, limits: profile };
         let server_env = Env { now, wall, limits: server_limits };
         if rig.callbacks.is_some() {
-            crate::sign_in::restart(&mut client, &env);
+            crate::sign_in::restart(&mut client, &env).unwrap_or_else(|why| panic!("{why}"));
         }
         let component = client.component.as_mut().expect("component");
         if component.has_work() || component.next_deadline().is_some_and(|due| due <= now) {
             component.fire(&env, &mut client.above, &mut client.requests, &mut client.files);
         }
-        client.observe(&env);
+        client.observe(&env).unwrap_or_else(|why| panic!("{why}"));
+        client.check_contracts().unwrap_or_else(|why| panic!("{why}"));
         if let Some(callbacks) = &mut rig.callbacks {
             callbacks.script(&mut client, &env, &mut issuer, &mut issuer_out);
         } else {

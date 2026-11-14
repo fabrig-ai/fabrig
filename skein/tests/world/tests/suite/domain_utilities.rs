@@ -41,12 +41,12 @@ fn terminal_races_remove_each_open_obligation_once() {
 }
 
 #[test]
-#[should_panic(expected = "a domain effect ends once, while in flight: 1")]
 fn a_duplicate_terminal_is_a_boundary_failure() {
     let mut ledger = Ledger::new("domain effect");
     ledger.open(1_u64, ());
     ledger.end(1);
-    ledger.end(1);
+    let finding = ledger.try_end(1).expect_err("a terminal is duplicated");
+    assert!(finding.contains("a domain effect ends once, while in flight: 1"), "{finding}");
 }
 
 #[test]
