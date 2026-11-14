@@ -39,12 +39,12 @@ pub fn file(path: &[u8], mode: Mode, content_digest: Digest) -> TreeEntry {
     }
 }
 #[must_use]
-pub fn digest(config: &Config) -> Digest {
+pub(crate) fn digest(config: &Config) -> Digest {
     let mut hash = H::new(b"part:config", 1);
     encode(config, hash.values());
     hash.finish()
 }
-pub fn encode(config: &Config, record: &mut Encoder) {
+fn encode(config: &Config, record: &mut Encoder) {
     record.map(7);
     accounts::encode(config, record);
     directives::encode(config, record);
@@ -118,7 +118,7 @@ pub enum EntryChange {
     Changed { path: Box<[u8]>, before: Node, after: Node, sizes: Option<Sizes>, hunks: Option<crate::diff::Hunks> },
 }
 #[must_use]
-pub fn change(before: Option<&Config>, after: Option<&Config>) -> Change {
+pub(crate) fn change(before: Option<&Config>, after: Option<&Config>) -> Change {
     let presets = directives_changes::presets(before, after);
     let tmpfiles = directives_changes::tmpfiles(before, after);
     let scripts = directives_changes::scripts(before, after);
@@ -133,43 +133,26 @@ pub fn change(before: Option<&Config>, after: Option<&Config>) -> Change {
         Some(config) => config.tree.as_ref(),
         None => &[],
     };
-    let capacity = u32::try_from(before.len().saturating_add(after.len())).expect("bounded trees");
-    let mut paths = skein_lib::Map::with_capacity(capacity);
-    for entry in before {
-        paths.insert(entry.path.clone(), (Some(&entry.node), None)).expect("tree capacity");
-    }
-    for entry in after {
-        if let Some((_, node)) = paths.get_mut(&entry.path) {
-            *node = Some(&entry.node);
-        } else {
-            paths.insert(entry.path.clone(), (None, Some(&entry.node))).expect("tree capacity");
-        }
-    }
-    let mut tree = skein_lib::List::with_capacity(capacity);
-    for (path, (old, new)) in &paths {
-        let change = match (old, new) {
-            (None, Some(node)) => EntryChange::Added { path: path.clone(), node: (*node).clone() },
-            (Some(node), None) => EntryChange::Removed { path: path.clone(), node: (*node).clone() },
-            (Some(old), Some(new)) if old != new => EntryChange::Changed {
-                path: path.clone(),
-                before: (*old).clone(),
-                after: (*new).clone(),
+    let tree = crate::diff::keyed(
+        before,
+        after,
+        |entry| &entry.path,
+        |change| match change {
+            crate::diff::Keyed::Added { key, value } => EntryChange::Added { path: key, node: value.node.clone() },
+            crate::diff::Keyed::Removed { key, value } => EntryChange::Removed { path: key, node: value.node.clone() },
+            crate::diff::Keyed::Changed { key, before, after } => EntryChange::Changed {
+                path: key,
+                before: before.node.clone(),
+                after: after.node.clone(),
                 sizes: None,
                 hunks: None,
             },
-            (Some(_), Some(_)) => continue,
-            (None, None) => unreachable!("union path"),
-        };
-        tree.push(change).expect("tree capacity");
-    }
-    Change { tree: tree.into_boxed(), groups, users, members, presets, tmpfiles, scripts }
+        },
+    );
+    Change { presets, tmpfiles, scripts, groups, users, members, tree }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Sizes {
-    pub before: u64,
-    pub after: u64,
-}
+pub type Sizes = crate::diff::Changed<u64>;
 impl EntryChange {
     pub(crate) fn pair(
         &mut self,
@@ -198,29 +181,20 @@ impl EntryChange {
 }
 
 /// A rendered template installs with exactly its last suffix removed.
+#[cfg(test)]
 #[must_use]
-pub fn rendered(path: &[u8], mode: Mode, content_digest: Digest) -> TreeEntry {
+pub(crate) fn rendered(path: &[u8], mode: Mode, content_digest: Digest) -> TreeEntry {
     file(path.strip_suffix(b".j2").expect("template suffix"), mode, content_digest)
 }
 
 mod accounts;
 pub use accounts::{Group, GroupKind, Member, User, UserKind};
 
-pub use accounts::build as accounts;
+pub(crate) use accounts::build as accounts;
 pub(crate) use accounts::rows as account_rows;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum GroupKeyed {
-    Added { key: Box<[u8]>, value: GroupKind },
-    Removed { key: Box<[u8]>, value: GroupKind },
-    Changed { key: Box<[u8]>, before: GroupKind, after: GroupKind },
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum UserKeyed {
-    Added { key: Box<[u8]>, value: UserKind },
-    Removed { key: Box<[u8]>, value: UserKind },
-    Changed { key: Box<[u8]>, before: UserKind, after: UserKind },
-}
+pub type GroupKeyed = crate::diff::Keyed<GroupKind>;
+pub type UserKeyed = crate::diff::Keyed<UserKind>;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum MemberChange {
     Added(Member),
@@ -233,22 +207,8 @@ mod directives;
 pub(crate) use directives::encode_scripts;
 pub use directives::{Action, Line, LineKind, Preset, Script, Tmpfile};
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum PresetKeyed {
-    Added { key: Box<[u8]>, value: Action },
-    Removed { key: Box<[u8]>, value: Action },
-    Changed { key: Box<[u8]>, before: Action, after: Action },
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum LineKeyed {
-    Added { key: Box<[u8]>, value: Line },
-    Removed { key: Box<[u8]>, value: Line },
-    Changed { key: Box<[u8]>, before: Line, after: Line },
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ScriptsChange {
-    pub before: Box<[Script]>,
-    pub after: Box<[Script]>,
-}
+pub type PresetKeyed = crate::diff::Keyed<Action>;
+pub type LineKeyed = crate::diff::Keyed<Line>;
+pub type ScriptsChange = crate::diff::Changed<Box<[Script]>>;
 
 mod directives_changes;

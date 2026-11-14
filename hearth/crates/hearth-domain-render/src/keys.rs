@@ -1,5 +1,5 @@
 //! Resolution and layer keys (hearth/docs/design/domain/render/spec.md, 1.5, 2.1).
-use crate::parts::{PartRecord, Spec, packages::Inputs};
+use crate::parts::{Spec, packages::Inputs};
 use hearth_lib::{encode::Digest, hash::H};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Keys {
@@ -45,17 +45,7 @@ fn layer(tag: &[u8], parent: &Digest, part: &Digest) -> Digest {
 #[must_use]
 pub fn part(spec: &Spec, name: &[u8]) -> Digest {
     for part in &spec.parts {
-        let tag: &[u8] = match &part.record {
-            PartRecord::Data(_) => b"data",
-            PartRecord::Config(_) => b"config",
-            PartRecord::Packages(_) => b"packages",
-            PartRecord::Secrets(_) => b"secrets",
-            PartRecord::Software(_) => b"software",
-            PartRecord::Live(_) => b"live",
-            PartRecord::Boot(_) => b"boot",
-            PartRecord::Exports(_) => b"exports",
-        };
-        if tag == name {
+        if part.record.name() == name {
             return part.digest;
         }
     }
