@@ -7,7 +7,6 @@
 - **Not yet:** 2: family 42, `Follow`, a follow's record [in flight: change 105].
 
 - **Not yet:** 2: the `Change` row's `follows` [in flight: change 99].
-- **Not yet:** 2: family 46, `RedPass`, a change's passes of its goal's reds, and `Finding`'s options `signature` and `seen` [in flight: change 2820].
 
 
 Section 2 has no known implementation gap in provider 0's subject.

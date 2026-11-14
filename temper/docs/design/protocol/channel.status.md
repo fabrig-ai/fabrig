@@ -2,7 +2,6 @@
 
 2026-11-14. Where temper's code lags or departs from [channel.md](channel.md).
 
-- **Not yet:** 1, 8: the ask carries no check's results, and the application's largest ask is fixed, not a report's worst case [in flight: change 2819].
 
 
 - **Not yet:** 8: jig's ceiling for `saved` is 65,536, below what temper's payload ceilings let the checkout's conflicts make, so a raise of `checkout.conflicts` past about 120 meets it before the links' rooms.
