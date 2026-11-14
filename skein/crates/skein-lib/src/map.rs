@@ -1,6 +1,7 @@
 //! Bounded ordered maps (programming-model.md, 6.1): domain tables keyed by
 //! value, up to a limit.
 
+use core::cmp::Ordering;
 use core::hash::{Hash, Hasher};
 
 use alloc::collections::BTreeMap;
@@ -134,6 +135,15 @@ impl<K: Ord, V> Map<K, V> {
         self.entries.iter()
     }
 
+    /// Each key of either map once, in key order (runtime/lib.md, 5.2).
+    pub fn join<'a>(&'a self, other: &'a Map<K, V>) -> Join<'a, K, V> {
+        let mut first = self.entries.iter();
+        let mut second = other.entries.iter();
+        let next_first = first.next();
+        let next_second = second.next();
+        Join { first, second, next_first, next_second }
+    }
+
     /// The entries in a key range, in key order.
     pub fn range<Q, R>(&self, range: R) -> btree_map::Range<'_, K, V>
     where
@@ -142,6 +152,61 @@ impl<K: Ord, V> Map<K, V> {
         R: RangeBounds<Q>,
     {
         self.entries.range(range)
+    }
+}
+
+/// The values at a joined key, first map then second (runtime/lib.md, 5.2).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Joined<'a, V> {
+    First(&'a V),
+    Second(&'a V),
+    Both(&'a V, &'a V),
+}
+
+impl<V> Copy for Joined<'_, V> {}
+
+impl<V> Clone for Joined<'_, V> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+/// A borrowing, allocation-free walk over two maps by key (runtime/lib.md, 5.2).
+pub struct Join<'a, K, V> {
+    first: btree_map::Iter<'a, K, V>,
+    second: btree_map::Iter<'a, K, V>,
+    next_first: Option<(&'a K, &'a V)>,
+    next_second: Option<(&'a K, &'a V)>,
+}
+
+impl<'a, K: Ord, V> Iterator for Join<'a, K, V> {
+    type Item = (&'a K, Joined<'a, V>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let Some((first_key, first_value)) = self.next_first else {
+            let (key, value) = self.next_second?;
+            self.next_second = self.second.next();
+            return Some((key, Joined::Second(value)));
+        };
+        let Some((second_key, second_value)) = self.next_second else {
+            self.next_first = self.first.next();
+            return Some((first_key, Joined::First(first_value)));
+        };
+        match first_key.cmp(second_key) {
+            Ordering::Less => {
+                self.next_first = self.first.next();
+                Some((first_key, Joined::First(first_value)))
+            }
+            Ordering::Equal => {
+                self.next_first = self.first.next();
+                self.next_second = self.second.next();
+                Some((first_key, Joined::Both(first_value, second_value)))
+            }
+            Ordering::Greater => {
+                self.next_second = self.second.next();
+                Some((second_key, Joined::Second(second_value)))
+            }
+        }
     }
 }
 
