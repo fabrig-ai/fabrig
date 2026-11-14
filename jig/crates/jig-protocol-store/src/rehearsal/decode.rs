@@ -122,13 +122,14 @@ fn family_records(
     for (range, root) in ranges.into_boxed() {
         let mut cursor = None;
         for _ in 0..=rows(store, family) {
-            let page = match pages::reader::walk_map(
-                store,
-                family.map,
-                core::slice::from_ref(&range),
-                cursor.as_ref(),
-                pages::map_limits(store, family.map).page.rows,
-            ) {
+            let rows = pages::map_limits(store, family.map).page.rows;
+            // Registered records are decoded by their stored layout, not the serving layout.
+            let walked = if registered {
+                pages::reader::walk_stored(store, core::slice::from_ref(&range), cursor.as_ref(), rows)
+            } else {
+                pages::reader::walk_map(store, family.map, core::slice::from_ref(&range), cursor.as_ref(), rows)
+            };
+            let page = match walked {
                 Ok(page) => page,
                 Err(failure) => {
                     store.open_failed(restore::OpenFailure::Data(failure));

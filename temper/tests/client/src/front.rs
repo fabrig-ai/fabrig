@@ -1422,8 +1422,9 @@ impl Joint {
             limits.journal.held = 1024;
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
-            // The deep task row includes its optional session and talk, and the question wake watermark.
-            limits.journal.transcript_bytes = 8264;
+            // The deep task row includes its optional session, talk, question watermark and open attempt.
+            let opening = u32::try_from(size_of::<Option<jig_domain_tasks::OpenAttempt>>()).expect("inline attempt bytes");
+            limits.journal.transcript_bytes = 8264_u32.checked_add(opening).expect("deep row allowance");
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;
@@ -1448,8 +1449,7 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
-                // The deep row also carries the question wake watermark beside its closer, session and talk.
-                limits.journal.transcript_bytes = 8272;
+                limits.journal.transcript_bytes = 8272_u32.checked_add(opening).expect("settings row allowance");
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();

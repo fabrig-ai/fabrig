@@ -570,6 +570,13 @@ fn restore_does_not_rejudge_shape_phase_authorization_or_funding_conservation() 
             name: "attempt disagreement",
             apply: |row| {
                 row.phase = Phase::Active(Active::Running { attempt: 99 });
+                row.open_attempt = Some(jig_domain_tasks::OpenAttempt {
+                    attempt: 99,
+                    claimed: None,
+                    started: None,
+                    from: 0,
+                    end: None,
+                });
                 row.attempt = 1;
             },
         },
