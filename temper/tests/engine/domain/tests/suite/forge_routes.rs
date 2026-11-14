@@ -122,6 +122,7 @@ mod red_findings;
 mod tiers;
 mod triager_prover;
 
+mod brief_deadline;
 #[path = "forge_routes/brief_failure.rs"]
 mod brief_failure;
 
@@ -818,6 +819,18 @@ fn failed_ci_repair(
     branch: &[u8],
     checks: &[&[u8]],
 ) -> engine::Assignment {
+    start_failed_ci(world, producer, branch, checks);
+    for _ in 0..200 {
+        world.tick();
+        if world.assigned.len() >= 3 {
+            break;
+        }
+    }
+    world.assigned.get(2).expect("Failed CI assigned a repair").clone()
+}
+
+/// Push the producer's head, fail the named checks and end the producer.
+fn start_failed_ci(world: &mut World, producer: &engine::Assignment, branch: &[u8], checks: &[&[u8]]) {
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
@@ -854,13 +867,6 @@ fn failed_ci_repair(
         engine::Parts::none(),
     );
     world.send(event);
-    for _ in 0..200 {
-        world.tick();
-        if world.assigned.len() >= 3 {
-            break;
-        }
-    }
-    world.assigned.get(2).expect("Failed CI assigned a repair").clone()
 }
 
 /// The words of a repair's CI section.

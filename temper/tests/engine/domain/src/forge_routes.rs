@@ -149,6 +149,10 @@ pub struct World {
     pub slow_branch_latency: Duration,
     /// Delay the review diff independently of the change's fresh checks.
     pub review_files_delay: Option<Duration>,
+    /// Delay each failed job's log independently of checks and pull reads.
+    pub job_read_delay: Option<Duration>,
+    /// Delay checks only while a CI repair is preparing, not while discovering its failure.
+    pub repair_checks_delay: Option<Duration>,
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
     pub hold_reads_at_any_step: bool,
@@ -218,6 +222,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
+    /// CI contexts whose real fake-forge jobs run at every pushed head.
+    pub ci_contexts: Option<&'static [&'static [u8]]>,
     pub kinds: bool,
     /// Two stock standing roles with the world's scripted model, beside a tier.
     pub standing_roles: bool,
@@ -395,6 +401,7 @@ impl World {
             forge_charter,
             applications,
             forge_commits: _,
+            ci_contexts: _,
             kinds,
             standing_roles,
             questions,
@@ -1098,7 +1105,13 @@ impl World {
             labels: Box::new([]),
             checks: raw::Checks {
                 cues: Box::new([]),
-                contexts: if turn { Box::new([]) } else { Box::new([Box::from(&b"build"[..])]) },
+                contexts: if let Some(contexts) = timing.ci_contexts {
+                    contexts.iter().map(|context| Box::from(*context)).collect()
+                } else if turn {
+                    Box::new([])
+                } else {
+                    Box::new([Box::from(&b"build"[..])])
+                },
                 latency_min: Duration::ZERO,
                 latency_max: Duration::ZERO,
                 silent: if silent_ci { 1000 } else { 0 },
@@ -1265,6 +1278,8 @@ impl World {
             slow_branch: None,
             slow_branch_latency: Duration::from_secs(20),
             review_files_delay: None,
+            job_read_delay: None,
+            repair_checks_delay: None,
             gate,
             held_reads: None,
             hold_reads_at_any_step: false,
@@ -2167,7 +2182,9 @@ impl World {
                     }
                     // Nonparticipating keep-up reads Item after u64::MAX. The change
                     // finishes its fresh Checks before its repair enters Preparing.
-                    let preparing_ci = (self.fail_brief_reads.is_some() || self.slow_brief_reads)
+                    let preparing_ci = (self.fail_brief_reads.is_some()
+                        || self.slow_brief_reads
+                        || self.repair_checks_delay.is_some())
                         && self.store.rows.values().any(|row| {
                             matches!(row,
                             Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
@@ -2280,6 +2297,13 @@ impl World {
                         } else {
                             None
                         };
+                    let ci_delay = match &op {
+                        skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. }) => self.job_read_delay,
+                        skein_forge::api::Op::Read(skein_forge::api::Read::Checks { .. }) if preparing_ci => {
+                            self.repair_checks_delay
+                        }
+                        _ => None,
+                    };
                     self.pending.insert(call, op);
                     self.pending_repositories.insert(call, Box::from(name));
                     let mut limits = self.fake_env.limits.clone();
@@ -2287,7 +2311,7 @@ impl World {
                         limits.latency_min = self.slow_branch_latency;
                         limits.latency_max = self.slow_branch_latency;
                     }
-                    if let Some(delay) = review_delay.or(comparison_delay) {
+                    if let Some(delay) = review_delay.or(comparison_delay).or(ci_delay) {
                         limits.latency_min = delay;
                         limits.latency_max = delay;
                     }
