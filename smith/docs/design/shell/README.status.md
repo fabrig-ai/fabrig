@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-12. Where smith's code lags or departs from [README.md](README.md).
+2026-11-14. Where smith's code lags or departs from [README.md](README.md).
 
 Section 2.1, and 2.6 but for its entry below, have no known gap at main's `fdc26f71c6`:
 `smith-agent-profile` owns the values, derivation and checks beneath the
@@ -15,6 +15,8 @@ process ID on Linux and no parent on macOS; the child mode is Unix-only
 and absent from the portable face. macOS's direct launch and deferred
 crash lifetime are ../protocol/programs.md, sections 5.1 and 9's.
 
+- **Not yet:** 3.2: no `clippy.toml` here bans catching a panic: the two entries of
+  `tools/lints/design.md`, 4. [in flight: change 2953]
 - **Departs:**
   - 2.5: in `smith/crates/smith-agent-document/src/config/`,
     `TrustDocument`'s fields, `EndpointTransport::Tls`'s and the
