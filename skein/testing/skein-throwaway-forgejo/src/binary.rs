@@ -49,6 +49,8 @@ impl Forgejo {
     pub fn sha256(&self) -> &str {
         &self.sha256
     }
+    /// Starts a server that dies with this calling thread on Linux.
+    /// Keep that thread alive for the instance's use (testing/fakes/forge.md, 6).
     /// # Errors
     /// Returns the provisioning failure, cleaning up anything started.
     pub fn start(&self, scratch: &Path, settings: &Settings) -> Result<Instance, Failure> {
@@ -58,6 +60,7 @@ impl Forgejo {
 pub(crate) fn environment(cmd: &mut Command, scratch: &Path) {
     cmd.env_clear()
         .env("HOME", scratch.join("home"))
+        .env("TMPDIR", scratch.join("tmp"))
         .env("PATH", "/usr/bin:/bin")
         .env("TZ", "Asia/Kolkata")
         .env("GIT_CONFIG_NOSYSTEM", "1")

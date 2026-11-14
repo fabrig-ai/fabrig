@@ -1098,7 +1098,7 @@ esac
             words: "",
             line: "",
         };
-        plan.install_return_hook(&self.stub);
+        plan.install_return_hook(&self.stub).expect("install return hook");
         Self::import(&plan, &self.stub, &self.record);
         let now = skein_lib::Time::ZERO;
         let mut ending = Ending::new(true, first, failed, now);
@@ -1122,26 +1122,6 @@ esac
     }
 }
 
-/// testing/live-tier.md: validation between boxes cannot strand an imported login.
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_held_login_returns_when_validation_panics_between_boxes() {
-    let mut boxes = HeldBox::new("held-between-boxes");
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        boxes.run(true, false).expect("first box succeeds");
-        let _ = support::forge_land::landed_identity("", "");
-        boxes.run(false, false).expect("second box succeeds");
-    }));
-    let failure = result.expect_err("validation remains a failure");
-    let message =
-        failure.downcast_ref::<String>().map(String::as_str).or_else(|| failure.downcast_ref::<&str>().copied());
-    assert_eq!(message, Some("landed result line"));
-    assert_eq!(boxes.starts, 1, "validation panics before the second box starts");
-    assert_eq!(boxes.returned_before_stop, [true], "record is private, nonempty and back before the first stop");
-    assert!(boxes.record.is_file(), "the stopped box no longer owns the record");
-    boxes.scratch.remove();
-}
-
 /// Both successful boxes return before stopping; failures in either do the same.
 #[test]
 fn a_held_login_returns_on_restart_and_failures_in_either_box() {
@@ -1161,7 +1141,6 @@ fn a_held_login_returns_on_restart_and_failures_in_either_box() {
 
 /// A terminal give-back wins over hook installation and every later import.
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn terminal_login_cleanup_excludes_a_restart_import() {
     use support::forge_land::{LiveModel, LivePlan};
     let mut boxes = HeldBox::new("held-terminal-return");
@@ -1183,8 +1162,8 @@ fn terminal_login_cleanup_excludes_a_restart_import() {
         words: "",
         line: "",
     };
-    let installed = std::panic::catch_unwind(|| plan.install_return_hook(&boxes.stub));
-    assert!(installed.is_err(), "terminal cleanup must exclude replacement of its return hook");
+    let installed = plan.install_return_hook(&boxes.stub);
+    assert_eq!(installed, Err("terminal return excludes another import".into()));
     let words = ["account", "import", boxes.record.to_str().expect("record path"), "--key", "restart-plan"];
     let imported = support::ctl::alone(root, plan.held_import(&boxes.stub, &words));
     assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(1)));
@@ -1200,7 +1179,17 @@ fn held_launcher(case: &str, story: &str, body: &str) -> (support::Scratch, std:
     let account = root.join("synthetic-record");
     support::write_private(&account, b"synthetic fixture");
     let cargo = root.join("cargo");
-    support::write_private(&cargo, format!("#!/bin/sh\nset -eu\n{body}\n").as_bytes());
+    support::write_private(
+        &cargo,
+        format!(
+            r#"#!/bin/sh
+set -eu
+printf '%s :: %s\n' "$TEMPER_TEST_LIVE_STORE" "$*" >> "$HOME/cargo-calls"
+{body}
+"#
+        )
+        .as_bytes(),
+    );
     fs::set_permissions(&cargo, fs::Permissions::from_mode(0o700)).expect("executable build stub");
     let output = launcher(root, story, None)
         .env(temper_test_env::LIVE_ACCOUNT.name, &account)
@@ -1213,9 +1202,18 @@ fn held_launcher(case: &str, story: &str, body: &str) -> (support::Scratch, std:
 #[test]
 fn the_launcher_returns_the_ordinary_held_login_after_build_failure() {
     for story in ["forge-land", "rung-b0"] {
-        let (scratch, output) = held_launcher("held-build-failure", story, "exit 17");
+        let body = r#"mkdir -p "$HOME/STORY_STORE"
+printf '#!/bin/sh\ntouch "$HOME/hook-ran"\n' > "$HOME/STORY_STORE/give-back"
+chmod 700 "$HOME/STORY_STORE/give-back"
+exit 17"#;
+        let body = body.replace("STORY_STORE", if story == "forge-land" { "store/forge-land" } else { "store" });
+        let (scratch, output) = held_launcher("held-build-failure", story, &body);
         assert_eq!(output.status.code(), Some(17), "{}", String::from_utf8_lossy(&output.stderr));
         assert!(String::from_utf8_lossy(&output.stdout).contains("LOGIN BACK: regular file mode=600"));
+        let calls = std::fs::read_to_string(scratch.path().join("cargo-calls")).expect("cargo calls");
+        assert_eq!(calls.lines().count(), 1, "a record at rest needs no return test");
+        assert!(scratch.path().join("synthetic-record").is_file());
+        assert!(!scratch.path().join("hook-ran").exists(), "a record at rest needs no hook");
         scratch.remove();
     }
 }
@@ -1231,7 +1229,8 @@ mv "$TEMPER_TEST_LIVE_ACCOUNT" "$TEMPER_TEST_LIVE_STORE/synthetic-import"
 cat > "$TEMPER_TEST_LIVE_STORE/give-back" <<'HOOK'
 #!/bin/sh
 set -eu
-test -d "/proc/$(cat "$TEMPER_TEST_LIVE_STORE/runner")"
+test ! -d "/proc/$(cat "$TEMPER_TEST_LIVE_STORE/runner")"
+kill -0 "$(cat "$TEMPER_TEST_LIVE_STORE/box")"
 mv "$TEMPER_TEST_LIVE_STORE/synthetic-import" "$TEMPER_TEST_LIVE_ACCOUNT"
 printf '%s\n' 'HOOK RETURNED'
 HOOK
@@ -1241,9 +1240,10 @@ for directory in "$TMPDIR/owned" "$TEMPER_TEST_LIVE_STORE/owned"; do
     mkdir -p "$directory"
     (cd "$directory"; exec sleep 30) >/dev/null 2>&1 &
     printf '%s\n' "$!" >> "$HOME/owned-children"
+    printf '%s\n' "$!" > "$TEMPER_TEST_LIVE_STORE/box"
 done
 kill -TERM "$PPID"
-# Stay alive until the launcher has run the hook, then accept its TERM.
+# The launcher must end and reap this PID before running the hook.
 exec sleep 30"#;
         let body = body.replace(
             "$TEMPER_TEST_LIVE_STORE",
@@ -1254,48 +1254,126 @@ exec sleep 30"#;
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("HOOK RETURNED"), "{stdout}");
         assert!(stdout.contains("LOGIN BACK: regular file mode=600"), "{stdout}");
-        let children = std::fs::read_to_string(scratch.path().join("owned-children")).expect("owned stub children");
-        let mut survivors = Vec::new();
-        for pid in children.lines() {
-            let running = std::process::Command::new("kill")
-                .args(["-0", pid])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status()
-                .expect("owned stub status")
-                .success();
-            if running {
-                let _cleanup = std::process::Command::new("kill").args(["-KILL", pid]).status();
-                survivors.push(pid);
-            }
-        }
-        assert!(survivors.is_empty(), "the sitting stops its scratch and store descendants: {survivors:?}");
+        let calls = std::fs::read_to_string(scratch.path().join("cargo-calls")).expect("cargo calls");
+        assert_eq!(calls.lines().count(), 2, "the installed hook needs no new box");
+        assert_launcher_children_stopped(scratch.path());
         scratch.remove();
     }
 }
 
+fn assert_launcher_children_stopped(root: &std::path::Path) {
+    let children = std::fs::read_to_string(root.join("owned-children")).expect("owned stub children");
+    let mut survivors = Vec::new();
+    for pid in children.lines() {
+        let running = std::process::Command::new("kill")
+            .args(["-0", pid])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .expect("owned stub status")
+            .success();
+        if running {
+            let _cleanup = std::process::Command::new("kill").args(["-KILL", pid]).status();
+            survivors.push(pid);
+        }
+    }
+    assert!(survivors.is_empty(), "the sitting stops its scratch and store descendants: {survivors:?}");
+}
+
 #[test]
 fn the_launcher_refuses_changed_ordinary_held_login_metadata() {
+    use std::os::unix::fs::PermissionsExt;
     for story in ["forge-land", "rung-b0"] {
-        let (scratch, output) =
-            held_launcher("held-metadata", story, r#"chmod 644 "$TEMPER_TEST_LIVE_ACCOUNT"; exit 17"#);
+        let body = r#"mkdir -p "$HOME/STORY_STORE"
+printf '#!/bin/sh\ntouch "$HOME/hook-ran"\n' > "$HOME/STORY_STORE/give-back"
+chmod 700 "$HOME/STORY_STORE/give-back"
+chmod 644 "$TEMPER_TEST_LIVE_ACCOUNT"
+exit 17"#;
+        let body = body.replace("STORY_STORE", if story == "forge-land" { "store/forge-land" } else { "store" });
+        let (scratch, output) = held_launcher("held-metadata", story, &body);
         assert_eq!(output.status.code(), Some(1));
-        assert!(String::from_utf8_lossy(&output.stderr).contains("LOGIN NOT BACK:"));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("LOGIN NOT BACK:"), "{stderr}");
+        assert!(!stderr.contains("synthetic-record"), "only the store is named");
+        let metadata = std::fs::symlink_metadata(scratch.path().join("synthetic-record")).expect("unchanged record");
+        assert_eq!(metadata.permissions().mode() & 0o7777, 0o644);
+        assert_eq!(metadata.len(), u64::try_from(b"synthetic fixture".len()).expect("fixture length"));
+        assert!(!scratch.path().join("hook-ran").exists());
+        let calls = std::fs::read_to_string(scratch.path().join("cargo-calls")).expect("cargo calls");
+        assert_eq!(calls.lines().count(), 1, "unsafe metadata runs no return test");
         scratch.remove();
     }
 }
 
 #[test]
 fn the_launcher_records_a_failed_ordinary_return_hook() {
-    let body = r#"mkdir -p "$TEMPER_TEST_LIVE_STORE/forge-land"
-printf '#!/bin/sh\nexit 9\n' > "$TEMPER_TEST_LIVE_STORE/forge-land/give-back"
-chmod 700 "$TEMPER_TEST_LIVE_STORE/forge-land/give-back"
+    for story in ["forge-land", "rung-b0"] {
+        for returns in [true, false] {
+            let body = r#"case " $* " in *" --no-run "*) exit 0 ;; esac
+case " $* " in
+*the_held_record_returns_on_a_box_of_its_own*)
+    test "$TEMPER_TEST_LIVE_STORE" = "$HOME/STORY_STORE"
+    test -f "$TEMPER_TEST_LIVE_STORE/hook-ran"
+    test "$TMPDIR" != "$HOME"
+    mkdir -p "$TMPDIR/return-box"
+    (cd "$TMPDIR/return-box"; exec sleep 30) >/dev/null 2>&1 &
+    printf '%s\n' "$!" >> "$HOME/owned-children"
+    RETURN
+    ;;
+esac
+mkdir -p "$HOME/STORY_STORE"
+mv "$TEMPER_TEST_LIVE_ACCOUNT" "$HOME/STORY_STORE/synthetic-import"
+cat > "$HOME/STORY_STORE/give-back" <<'HOOK'
+#!/bin/sh
+touch "$HOME/STORY_STORE/hook-ran"
+exit 9
+HOOK
+chmod 700 "$HOME/STORY_STORE/give-back"
+for directory in "$TMPDIR/owned" "$HOME/STORY_STORE/owned"; do
+    mkdir -p "$directory"
+    (cd "$directory"; exec sleep 30) >/dev/null 2>&1 &
+    printf '%s\n' "$!" >> "$HOME/owned-children"
+done
 exit 17"#;
-    let (scratch, output) = held_launcher("held-return-failure", "forge-land", body);
-    assert_eq!(output.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("LOGIN NOT BACK: export/stat failed"));
-    assert!(scratch.path().join("store/forge-land/give-back").is_file(), "store retained for recovery");
-    scratch.remove();
+            let story_store = if story == "forge-land" { "store/forge-land" } else { "store" };
+            let body = body.replace("STORY_STORE", story_store).replace(
+                "    RETURN",
+                if returns {
+                    "    mv \"$TEMPER_TEST_LIVE_STORE/synthetic-import\" \"$TEMPER_TEST_LIVE_ACCOUNT\"; exit 0"
+                } else {
+                    "    exit 19"
+                },
+            );
+            let (scratch, output) = held_launcher("held-return-failure", story, &body);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            assert_eq!(output.status.code(), Some(if returns { 17 } else { 1 }), "{stdout}\n{stderr}");
+            let store = scratch.path().join(story_store);
+            let calls = std::fs::read_to_string(scratch.path().join("cargo-calls")).expect("cargo calls");
+            assert_eq!(calls.lines().count(), 3, "build, story, then the return: {calls}");
+            let returned = calls.lines().nth(2).expect("return invocation");
+            assert!(returned.starts_with(&format!("{} :: ", store.display())), "{returned}");
+            assert!(returned.contains("--ignore-default-filter --run-ignored only"), "{returned}");
+            assert!(
+                returned.ends_with("binary(=live) & test(=the_held_record_returns_on_a_box_of_its_own)"),
+                "{returned}"
+            );
+            if returns {
+                assert!(stdout.contains("LOGIN BACK: regular file mode=600"), "{stdout}");
+            } else {
+                assert!(stderr.contains(&support::held_login::not_back("final stat failed", &store)), "{stderr}");
+                assert!(
+                    !stdout.contains("synthetic-record") && !stderr.contains("synthetic-record"),
+                    "only the store is named"
+                );
+                assert!(!scratch.path().join("synthetic-record").exists(), "no record created");
+                assert!(store.join("synthetic-import").is_file(), "import retained");
+            }
+            assert!(store.join("give-back").is_file(), "store retained for recovery");
+            assert_launcher_children_stopped(scratch.path());
+            scratch.remove();
+        }
+    }
 }
 
 #[test]
@@ -1409,7 +1487,7 @@ esac
     assert_eq!(imported.lines().nth(1), plan.client_directory().to_str(), "import's DIRECTORY");
     assert_eq!(imported, format!("ctl\n{}\n{}\n", client.display(), arguments.join("\n")));
     fs::remove_file(&seen).expect("clear import arguments");
-    plan.install_return_hook(&stub);
+    plan.install_return_hook(&stub).expect("install return hook");
     fs::remove_file(&record).expect("synthetic import removes the record");
     let returned = std::process::Command::new(store.join("give-back"))
         .stdin(std::process::Stdio::null())
