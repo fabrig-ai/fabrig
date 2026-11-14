@@ -166,7 +166,10 @@ fn observe_prefix_and_usage(
     let requests = world
         .protocol_calls()
         .iter()
-        .map(|binding| smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request))
+        .map(|binding| {
+            smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request)
+                .expect("native request findings")
+        })
         .collect::<Vec<_>>();
     for adjacent in requests.windows(2) {
         assert_eq!(adjacent[0].system, adjacent[1].system, "exact native system bytes");
@@ -430,7 +433,8 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
             }
         };
         assert_eq!(affinity.thread, 0);
-        let original = smith_protocol_llm_world::referee::NativeRequest::from_http(&first.protocol_calls()[0].request);
+        let original = smith_protocol_llm_world::referee::NativeRequest::from_http(&first.protocol_calls()[0].request)
+            .expect("native request findings");
         let saved = Transcript {
             version: first.turns()[0].version,
             endpoint: first.turns()[0].endpoint,
@@ -465,7 +469,8 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
                     "Anthropic ignores affinity and uses its native breakpoints"
                 );
             }
-            let observed = smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request);
+            let observed = smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request)
+                .expect("native request findings");
             match (&original.affinity, &observed.affinity) {
                 (Some(original), Some(observed)) => {
                     assert_eq!(observed, original, "the recorded run cache key survives the new seed");

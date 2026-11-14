@@ -6,13 +6,10 @@ hearth/testing/hearth-fake-machine/src/tests/ledger.rs should_panic 1
 hearth/testing/hearth-fake-machine/src/tests/processes.rs should_panic 1
 hearth/testing/hearth-fake-mmdebstrap/src/tests/face.rs should_panic 1
 smith/tests/host/tests/suite/referee.rs should_panic 10
-smith/tests/protocol-llm/tests/suite/referee.rs should_panic 7
 temper/bin/temper-box/tests/suite/fake.rs should_panic 1
 temper/bin/temper-box/tests/suite/support_tests.rs should_panic 3
-temper/testing/temper-fixtures/src/ports/tests.rs should_panic 1
 temper/tests/engine/domain/src/oracle.rs should_panic 2
 temper/tests/engine/domain/src/walking.rs should_panic 1
 temper/tests/engine/domain/tests/suite/oracle.rs should_panic 2
 temper/tests/one-process/src/m15/observer.rs should_panic 1
 temper/tests/real-loop/src/calls.rs should_panic 2
-temper/tests/worker/domain/src/runtime.rs should_panic 2
