@@ -51,7 +51,7 @@ fn red_families_have_golden_keys_and_record_bytes() {
     let key = keys::encode(&d::stored_key(&number), u32::MAX).unwrap();
     assert_eq!(key.as_ref(), &[45]);
     assert_eq!(keys::decode(&key, &fixtures::LIMITS), Some(d::Key::RedNumber));
-    let golden = b"\0\x18\x2d\xff\xff\xff\xff\xff\xff\xff\xff";
+    let golden = b"\0\x19\x2d\xff\xff\xff\xff\xff\xff\xff\xff";
     assert_eq!(records::encode(&number).as_ref(), golden);
     assert_eq!(records::row(&key, golden, &bounds), Ok(number));
 }
@@ -177,7 +177,7 @@ fn named_red_answers_have_golden_bytes_and_charge_every_snapshot() {
             })),
         };
         let golden = skein_lib::bytes::concat(&[
-            b"\0\x18\0".as_slice(),
+            b"\0\x19\0".as_slice(),
             &7_u64.to_be_bytes(),
             &1_u64.to_be_bytes(),
             &2_u32.to_be_bytes(),
@@ -236,7 +236,7 @@ fn red_passes_have_golden_keys_and_bytes_and_admit_only_bounded_matching_keys() 
     let key = keys::encode(&d::stored_key(&row), u32::MAX).unwrap();
     assert_eq!(key.as_ref(), b"\x2e\0\0\0\0\0\0\0\x07key\0\0");
     let golden =
-        skein_lib::bytes::concat(&[b"\0\x18\x2e", &7_u64.to_be_bytes(), b"\0\0\0\x03key", &5_u64.to_be_bytes()]);
+        skein_lib::bytes::concat(&[b"\0\x19\x2e", &7_u64.to_be_bytes(), b"\0\0\0\x03key", &5_u64.to_be_bytes()]);
     assert_eq!(records::encode(&row), golden);
     assert_eq!(records::row(&key, &golden, &bounds), Ok(row));
     let wrong = keys::encode(&d::Key::RedPass { change: 8, key: b"key".as_slice().into() }, u32::MAX).unwrap();
@@ -300,7 +300,7 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
         } else {
             b"\0\0"
         };
-        let golden = skein_lib::bytes::concat(&[b"\0\x18\x26", &old_finding(), options]);
+        let golden = skein_lib::bytes::concat(&[b"\0\x19\x26", &old_finding(), options]);
         let stored = d::Stored::Finding(row.clone());
         assert_eq!(records::encode(&stored), golden);
         assert_eq!(records::decode(&golden, &bounds), Ok(stored));

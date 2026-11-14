@@ -468,6 +468,7 @@ fn ignored_documentation_is_judged_by_receipt_without_dispatch() {
             heard: TierHeard { released: false, message_bytes: 4096 },
         },
     );
+    let out = posted(&mut d, out);
     assert_eq!(
         choice(&out),
         Some(&TierDecision::Done { words: b"Tier browser run 2: green, cleared 1 landing".as_slice().into() })
