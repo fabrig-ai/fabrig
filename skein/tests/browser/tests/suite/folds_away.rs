@@ -41,9 +41,7 @@ fn arrive(steps: impl IntoIterator<Item = harness::Step>) -> Script {
     reason = "skein's round: reads SKEIN_UI_EXAMPLE_BUNDLE to locate the browser test bundle"
 )]
 pub(super) fn setup() -> Setup<'static> {
-    let exe = std::env::current_exe().expect("test executable");
-    let server = exe.parent().and_then(std::path::Path::parent).expect("target debug").join("skein-ui-example");
-    assert!(server.is_file(), "prebuild skein-ui-example-server");
+    let server = skein_scratch::paths::built("skein-ui-example-server", "skein-ui-example");
     let bundle = std::env::var_os("SKEIN_UI_EXAMPLE_BUNDLE").expect("build and supply the example bundle");
     Setup {
         server,

@@ -63,23 +63,20 @@ pub fn harness(setup: Setup<'_>) -> skein_fake_person_browser::Harness {
     skein_fake_person_browser::Harness::new(setup).page_query(PAGE_QUERY).page_addresses(is_page)
 }
 
-/// The `temper-box` binary beside the test executable.
+/// The `temper-box` binary built for the browser tier.
 #[must_use]
 pub fn temper() -> PathBuf {
     binary("temper-box")
 }
 
-/// The static host beside the test executable (temper/docs/design/testing/tools.md, 5).
+/// The static host built for the browser tier (temper/docs/design/testing/tools.md, 5).
 #[must_use]
 pub fn playground_serve() -> PathBuf {
     binary("temper-playground-serve")
 }
 
 fn binary(name: &str) -> PathBuf {
-    let exe = std::env::current_exe().expect("test executable");
-    let binary = exe.parent().and_then(Path::parent).expect("target directory").join(name);
-    assert!(binary.is_file(), "build the browser server with cargo build -p {name}: {}", binary.display());
-    binary
+    skein_scratch::paths::built(name, name)
 }
 #[must_use]
 pub fn chromium() -> PathBuf {

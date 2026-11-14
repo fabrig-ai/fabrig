@@ -2953,6 +2953,7 @@ dependencies = [
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-ui",
  "skein-ui-web",
 ]
