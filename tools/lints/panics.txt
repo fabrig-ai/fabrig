@@ -1,18 +1,10 @@
 # tools/lints/design.md, 7: the count of catches.
 # --write lowers this list; nothing raises it.
 # Refused, so no line names them: catch_unwind, resume_unwind.
-hearth/crates/hearth-domain-builder/src/tests.rs should_panic 1
-hearth/crates/hearth-lib/src/tests/encode.rs should_panic 8
-hearth/crates/hearth-lib/src/tests/hash.rs should_panic 2
-hearth/crates/hearth-protocol-tree/src/tests/tree.rs should_panic 4
-hearth/crates/hearth-service-builder/src/tests/valid.rs should_panic 2
-hearth/testing/hearth-fake-machine/src/tests/behind.rs should_panic 1
 hearth/testing/hearth-fake-machine/src/tests/files.rs should_panic 2
 hearth/testing/hearth-fake-machine/src/tests/ledger.rs should_panic 1
 hearth/testing/hearth-fake-machine/src/tests/processes.rs should_panic 1
-hearth/testing/hearth-fake-machine/src/tests/universe.rs should_panic 1
 hearth/testing/hearth-fake-mmdebstrap/src/tests/face.rs should_panic 1
-hearth/tests/builder/tests/real/main.rs should_panic 1
 smith/crates/smith-domain-run/src/tests/agents.rs should_panic 1
 smith/crates/smith-local-protocol/src/tests/store.rs should_panic 3
 smith/crates/smith-protocol-machine/src/tests/routing.rs should_panic 1
