@@ -200,6 +200,10 @@ pub fn census_bound() -> Option<u64> {
 }
 
 pub fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
+    other_fields_bound(limits)?.checked_add(census_bound()?)
+}
+
+fn other_fields_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let carriers = u64::from(limits.lines)
         .checked_mul(u64::from(limits.lines))?
         .checked_add(u64::from(limits.rows).checked_mul(2)?)?
@@ -229,8 +233,7 @@ pub fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(List::<u16>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<Deployment>()).ok()?)?
         .checked_add(super::catalogue::offers_bound(limits)?)?
-        .checked_add(super::catalogue::rows_bound(limits)?)?
-        .checked_add(census_bound()?)
+        .checked_add(super::catalogue::rows_bound(limits)?)
 }
 
 #[cfg(test)]
@@ -279,6 +282,10 @@ mod tests {
             lines: 0,
             versions: super::super::Versions { minimum: 1, maximum: 1 },
         };
-        assert!(document_bound(&limits).unwrap() >= heap, "a census fits even with no configured document rows");
+        assert_eq!(
+            document_bound(&limits).unwrap() - other_fields_bound(&limits).unwrap(),
+            heap,
+            "the census has its own room even with no configured document rows"
+        );
     }
 }

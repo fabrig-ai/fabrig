@@ -196,7 +196,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::TASK_NOTES_AT
         | rows::ROLE_LIST_AT
         | rows::ROLE_SHOW_AT
-        | rows::PROJECT_SHOW_AT => {
+        | rows::PROJECT_SHOW_AT
+        | rows::DEPLOYMENT_CENSUS_AT => {
             reads::start(runner, client, env, called, out);
         }
         rows::CONNECT_AT | rows::ADD_KEY_AT | rows::DECLARE_AT | rows::IMPORT_AT => {
