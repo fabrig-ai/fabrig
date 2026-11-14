@@ -8,6 +8,80 @@ use crate::{
 };
 use alloc::boxed::Box;
 
+struct RangeCase {
+    keys: &'static [u8],
+    owners: &'static [u32],
+    probes: &'static [u32],
+    many: bool,
+    report_many: bool,
+    fault: bool,
+}
+
+#[test]
+fn ranges_bisect_candidates_lowest_group_first() {
+    let cases = [
+        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 8], owners: &[5], probes: &[3, 5, 4], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 8], owners: &[1, 6], probes: &[3, 1, 0, 5, 6], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[0, 1, 2, 3, 4, 5, 6, 7], owners: &[5], probes: &[4, 6, 5], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[1, 2, 3, 3, 4, 5, 6, 7], owners: &[5], probes: &[4, 6, 5], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 7], owners: &[5], probes: &[3, 5, 4], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[0, 0, 0], owners: &[2], probes: &[], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[0, 1, 1], owners: &[1], probes: &[], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 8], owners: &[5], probes: &[3, 5, 4], many: true, report_many: false, fault: false },
+        RangeCase { keys: &[0, 1, 1], owners: &[1], probes: &[], many: true, report_many: false, fault: false },
+        RangeCase { keys: &[1, 2, 3, 4], owners: &[1, 1], probes: &[1, 0], many: false, report_many: true, fault: false },
+        RangeCase { keys: &[1, 2, 3, 4, 5, 6, 7, 8], owners: &[1, 6], probes: &[3, 1, 0, 5, 6], many: false, report_many: false, fault: true },
+        RangeCase { keys: &[1, 2, 3, 4, 5], owners: &[4], probes: &[2, 3], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[1, 2, 3, 4, 5], owners: &[0, 1, 3, 4], probes: &[2, 1, 0, 3], many: false, report_many: false, fault: false },
+        RangeCase { keys: &[1, 1, 2, 2, 3, 3], owners: &[0, 4], probes: &[2, 0], many: false, report_many: false, fault: false },
+    ];
+    for (case, row) in cases.iter().enumerate() {
+        let record = record(tests(&[]));
+        let landings = row.keys.iter().enumerate().map(|(i, key)| landing([u8::try_from(i).unwrap(); 32], [10 + key; 32])).collect();
+        let names = ["a", "b", "c", "d"];
+        let selected = &names[..row.owners.len()];
+        let failing = if row.many { Failures::Many } else { tests(selected) };
+        let mut next = start(&record, TIP, K_TIP, landings, Some(Receipt::Failed(failing.clone())), &SETTINGS);
+        let mut probes = Vec::new();
+        let mut retried = false;
+        let result = loop {
+            match next {
+                Next::Judged(verdict) => break verdict,
+                Next::Held(_) => panic!("case {case} held"),
+                Next::Dispatch(run) => {
+                    let Part::Probe { landing, tests: selection, .. } = &run.part else { panic!("only probes") };
+                    assert!(!probes.contains(landing), "case {case}: a landing is never probed twice");
+                    probes.push(*landing);
+                    if row.fault && !retried && probes.len() == 2 {
+                        let retry = dispatched(step(&record, &run, Outcome::Fault, &SETTINGS));
+                        assert_eq!(retry.part, run.part, "the fault retries the entire part, including waiting groups");
+                        assert_eq!(retry.faults, 1);
+                        retried = true;
+                    }
+                    let failed: Vec<_> = selected.iter().zip(row.owners).filter_map(|(name, owner)| {
+                        let requested = match selection {
+                            Selection::All => true,
+                            Selection::Tests(tests) => tests.iter().any(|test| test.as_ref() == name.as_bytes()),
+                        };
+                        (requested && owner <= landing).then_some(*name)
+                    }).collect();
+                    let outcome = if failed.is_empty() { Outcome::Passed } else if row.many || row.report_many {
+                        Outcome::Failed(Failures::Many)
+                    } else { Outcome::Failed(tests(&failed)) };
+                    next = step(&record, &run, outcome, &SETTINGS);
+                }
+            }
+        };
+        assert_eq!(probes, row.probes, "case {case}");
+        let expected: Vec<_> = (0..row.keys.len()).map(|i| {
+            let owned: Vec<_> = selected.iter().zip(row.owners).filter_map(|(name, owner)| (usize::try_from(*owner).unwrap() == i).then_some(*name)).collect();
+            if owned.is_empty() { Blame::Cleared } else if row.many { Blame::Owns(Failures::Many) } else { Blame::Owns(tests(&owned)) }
+        }).collect();
+        assert_eq!(result.landings.as_ref(), expected, "case {case}");
+        assert_eq!(result.failing, failing);
+    }
+}
+
 #[test]
 fn due_waits_for_run_and_for_a_new_tip() {
     let mut record = record(tests(&[]));
@@ -88,6 +162,9 @@ fn unchanged_first_landing_is_skipped_by_the_probe() {
         probe.part,
         Part::Probe {
             landing: 1,
+            low: 0,
+            high: 2,
+            waiting: Box::new([]),
             tests: Selection::Tests(ids(&["a", "b"])),
             finding: finding(tests(&["a", "b"]), &[Blame::Cleared, Blame::Cleared, Blame::Cleared]),
         }
@@ -105,6 +182,9 @@ fn unchanged_last_landing_needs_no_further_probe() {
         probe.part,
         Part::Probe {
             landing: 0,
+            low: 0,
+            high: 2,
+            waiting: Box::new([]),
             tests: Selection::Tests(ids(&["a", "b"])),
             finding: finding(tests(&["a", "b"]), &[Blame::Cleared, Blame::Cleared, Blame::Cleared]),
         }
@@ -118,16 +198,19 @@ fn two_landings_own_the_tests_they_first_fail() {
     let record = record(tests(&[]));
     let run = rerun(&record, three(), &["a", "b"]);
     let first = dispatched(step(&record, &run, Outcome::Failed(tests(&["a", "b"])), &SETTINGS));
-    let second = dispatched(step(&record, &first, Outcome::Failed(tests(&["a", "foreign"])), &SETTINGS));
+    let second = dispatched(step(&record, &first, Outcome::Failed(tests(&["a", "b", "foreign"])), &SETTINGS));
     assert_eq!(
         second.part,
         Part::Probe {
-            landing: 1,
-            tests: Selection::Tests(ids(&["b"])),
-            finding: finding(tests(&["a", "b"]), &[Blame::Owns(tests(&["a"])), Blame::Cleared, Blame::Cleared]),
+            landing: 0,
+            low: 0,
+            high: 1,
+            waiting: Box::new([]),
+            tests: Selection::Tests(ids(&["a", "b"])),
+            finding: finding(tests(&["a", "b"]), &[Blame::Cleared, Blame::Cleared, Blame::Cleared]),
         }
     );
-    let verdict = verdict(step(&record, &second, Outcome::Failed(tests(&["b"])), &SETTINGS));
+    let verdict = verdict(step(&record, &second, Outcome::Failed(tests(&["a"])), &SETTINGS));
     assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(tests(&["a"])), Blame::Owns(tests(&["b"])), Blame::Cleared]);
 }
 
@@ -137,7 +220,7 @@ fn probes_preserve_inherited_failures_and_flakes() {
     let run = rerun(&record, three(), &["a", "b", "c", "d"]);
     let first = dispatched(step(&record, &run, Outcome::Failed(tests(&["a", "b", "c"])), &SETTINGS));
     let second = dispatched(step(&record, &first, Outcome::Failed(tests(&["b"])), &SETTINGS));
-    let verdict = verdict(step(&record, &second, Outcome::Passed, &SETTINGS));
+    let verdict = verdict(step(&record, &second, Outcome::Failed(tests(&["b"])), &SETTINGS));
     assert_eq!(verdict.failing, tests(&["a", "b", "c"]));
     assert_eq!(verdict.flakes, ids(&["d"]));
     assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(tests(&["b"])), Blame::Cleared, Blame::Owns(tests(&["c"]))]);
@@ -188,6 +271,9 @@ fn many_failures_probe_the_whole_tier() {
         probe.part,
         Part::Probe {
             landing: 0,
+            low: 0,
+            high: 1,
+            waiting: Box::new([]),
             tests: Selection::All,
             finding: finding(Failures::Many, &[Blame::Cleared, Blame::Cleared]),
         }
@@ -265,6 +351,9 @@ fn failed_receipt_starts_probes_when_range_needs_them() {
         run.part,
         Part::Probe {
             landing: 0,
+            low: 0,
+            high: 1,
+            waiting: Box::new([]),
             tests: Selection::Tests(ids(&["a"])),
             finding: finding(tests(&["a"]), &[Blame::Cleared, Blame::Cleared])
         }
@@ -420,6 +509,9 @@ fn many_receipt_starts_a_whole_tier_probe() {
         run.part,
         Part::Probe {
             landing: 0,
+            low: 0,
+            high: 1,
+            waiting: Box::new([]),
             tests: Selection::All,
             finding: finding(Failures::Many, &[Blame::Cleared, Blame::Cleared]),
         }
@@ -445,15 +537,19 @@ fn probes_skip_an_unchanged_key_between_changed_landings() {
         &["a"],
     );
     let first = dispatched(step(&record, &run, Outcome::Failed(tests(&["a"])), &SETTINGS));
-    let second = dispatched(step(&record, &first, Outcome::Passed, &SETTINGS));
     assert_eq!(
-        second.part,
+        first.part,
         Part::Probe {
             landing: 2,
+            low: 0,
+            high: 3,
+            waiting: Box::new([]),
             tests: Selection::Tests(ids(&["a"])),
             finding: finding(tests(&["a"]), &[Blame::Cleared, Blame::Cleared, Blame::Cleared, Blame::Cleared]),
         }
     );
+    let verdict = verdict(step(&record, &first, Outcome::Passed, &SETTINGS));
+    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Cleared, Blame::Cleared, Blame::Owns(tests(&["a"]))]);
 }
 
 #[test]

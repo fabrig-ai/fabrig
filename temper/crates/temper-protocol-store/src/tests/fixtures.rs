@@ -1102,6 +1102,7 @@ pub fn tier_row() -> top::TierRow {
     let landings = landings.into_boxed();
     let pending = tier_pending(&landings);
     top::TierRow {
+        hold: None,
         observations: Box::new([b'o'; 8192]),
         requested: true,
         cancelled: true,
