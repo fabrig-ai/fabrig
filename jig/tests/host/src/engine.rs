@@ -156,8 +156,16 @@ impl Engine {
     }
 
     pub fn assert_settled(&self) {
+        self.check_settled().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Returns the assignments that still await an answer.
+    pub fn check_settled(&self) -> Result<(), String> {
         let open: Vec<_> = self.open.keys().collect();
-        assert!(open.is_empty(), "every assignment has been answered: {open:?} have not");
+        if !open.is_empty() {
+            return Err(format!("every assignment has been answered: {open:?} have not"));
+        }
+        Ok(())
     }
 
     /// What the engine does first.

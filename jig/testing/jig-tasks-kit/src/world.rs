@@ -229,6 +229,8 @@ pub struct World {
     pub referee: Referee<Tasks>,
     pub trace: Trace,
     seed: u64,
+    /// Stories read the referee's kept finding at their top.
+    defer_checks: bool,
     call: u64,
     message: u64,
     commit: u64,
@@ -269,6 +271,7 @@ impl World {
             referee: Referee::new(Tasks::default()),
             trace,
             seed,
+            defer_checks: false,
             call: 0,
             message: 0,
             commit: 0,
@@ -365,7 +368,9 @@ impl World {
         self.trace.observed(self.env.now, &seen);
         let mut stimuli = Vec::new();
         self.referee.observe(self.env.now, seen, &mut stimuli);
-        self.referee.assert_holding(self.seed);
+        if !self.defer_checks {
+            self.referee.check_holding(self.seed).unwrap_or_else(|finding| panic!("{finding}"));
+        }
         for stimulus in stimuli {
             match stimulus {
                 Stimulus::Restart => self.restart(),
@@ -1456,7 +1461,9 @@ impl World {
             self.settle(task);
         }
         self.observe(Seen::Finished);
-        self.referee.assert_passed(self.seed);
+        if !self.defer_checks {
+            self.referee.check_passed(self.seed).unwrap_or_else(|finding| panic!("{finding}"));
+        }
     }
 
     /// Report and retain the connector's latest named rule (domain/tasks/holds.md).
@@ -1523,30 +1530,30 @@ pub fn run_story_choices(seed: u64, choices: Story) -> (Trace, Frozen) {
 }
 
 fn story(seed: u64, consume_facts: bool, trace: Trace, choices: Option<Story>) -> (Trace, Frozen) {
+    eprintln!("task seed {seed}, choices {choices:?}");
     let mut w = World::start(seed, &LIMITS, trace);
     w.consume_facts = consume_facts;
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| story_run(seed, &mut w, choices))).unwrap_or_else(
-        |cause| {
-            let detail = cause
-                .downcast_ref::<String>()
-                .map(String::as_str)
-                .or_else(|| cause.downcast_ref::<&str>().copied())
-                .unwrap_or("non-string panic");
-            panic!("task seed {seed}, choices {choices:?}: {detail}\n{}", w.trace.lines.join("\n"));
-        },
-    );
+    w.defer_checks = true;
+    story_run(seed, &mut w, choices).unwrap_or_else(|finding| {
+        panic!("task seed {seed}, choices {choices:?}: {finding}\n{}", w.trace.lines.join("\n"));
+    });
     (std::mem::take(&mut w.trace), w.frozen())
 }
 
-fn story_run(seed: u64, w: &mut World, choices: Option<Story>) {
+#[expect(clippy::too_many_lines, reason = "the story returns each action's referee finding before its next action")]
+fn story_run(seed: u64, w: &mut World, choices: Option<Story>) -> Result<(), String> {
     let mut rng = Rng::new(seed);
     let arrival = Duration::from_millis(rng.between(1, 20));
     w.env.now = w.env.now.saturating_add(arrival);
     w.env.wall = Wall::from_nanos(arrival.as_nanos());
     w.make(Party::Person(1), vec![task(1, &[])]);
+    w.referee.check_holding(seed)?;
     w.claim_task(1);
+    w.referee.check_holding(seed)?;
     w.make(Party::Task(1), vec![task(2, &[]), task(3, &[2])]);
+    w.referee.check_holding(seed)?;
     w.claim_fresh(2);
+    w.referee.check_holding(seed)?;
     let reply_to = w.to();
     w.stage(Event::Turn {
         refused: Box::new([]),
@@ -1559,12 +1566,15 @@ fn story_run(seed: u64, w: &mut World, choices: Option<Story>) {
         outstanding: Box::new([]),
         cumulative: 5,
     });
+    w.referee.check_holding(seed)?;
     // Defaults remain eager draws at their original positions: an ordinary
     // seeded replay's random stream and every action stay unchanged.
     if choices.map_or(rng.chance(500), |story| story.turn == TurnState::Committed) {
         w.durable();
+        w.referee.check_holding(seed)?;
     }
     w.restart();
+    w.referee.check_holding(seed)?;
     let drawn_retry = match rng.below(3) {
         0 => RetryEnd::Refused,
         1 => RetryEnd::Lost,
@@ -1574,22 +1584,31 @@ fn story_run(seed: u64, w: &mut World, choices: Option<Story>) {
     match choices.map_or(drawn_retry, |story| story.retry) {
         RetryEnd::Refused => {
             w.terminal(2, End::Refused);
+            w.referee.check_holding(seed)?;
             w.advance();
+            w.referee.check_holding(seed)?;
             w.claim_fresh(2);
+            w.referee.check_holding(seed)?;
         }
         RetryEnd::Lost => {
             w.terminal(2, End::Failed(tasks::Class::Lost));
+            w.referee.check_holding(seed)?;
             w.advance();
+            w.referee.check_holding(seed)?;
             w.claim_fresh(2);
+            w.referee.check_holding(seed)?;
         }
         RetryEnd::None => {}
     }
     if choices.map_or(rng.chance(500), |story| story.restart_after_retry == Restart::Restore) {
         w.restart();
+        w.referee.check_holding(seed)?;
     }
     if choices.map_or(rng.chance(200), |story| story.child == ChildResult::Failed) {
         w.terminal(2, End::Finished { result: TaskResult::Failure { reason: Box::new([1]) }, cancel_delegates: false });
+        w.referee.check_holding(seed)?;
         w.settle(2);
+        w.referee.check_holding(seed)?;
         assert!(matches!(w.record(3).phase, tasks::Phase::Held { .. }));
     } else {
         w.terminal_cause(
@@ -1597,27 +1616,42 @@ fn story_run(seed: u64, w: &mut World, choices: Option<Story>) {
             End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },
             Cause::Priced { cumulative: rng.between(1, 10) },
         );
+        w.referee.check_holding(seed)?;
         w.settle(2);
+        w.referee.check_holding(seed)?;
         w.claim_fresh(3);
+        w.referee.check_holding(seed)?;
         w.finish(3);
+        w.referee.check_holding(seed)?;
         w.settle(3);
+        w.referee.check_holding(seed)?;
     }
     w.make(Party::Task(1), vec![task(4, &[])]);
+    w.referee.check_holding(seed)?;
     w.claim_fresh(4);
+    w.referee.check_holding(seed)?;
     w.make(Party::Task(4), vec![task(5, &[])]);
+    w.referee.check_holding(seed)?;
     w.claim_fresh(5);
+    w.referee.check_holding(seed)?;
     if choices.map_or(rng.chance(500), |story| story.restart_before_close == Restart::Restore) {
         w.restart();
+        w.referee.check_holding(seed)?;
     }
     for task in [3, 4] {
         if w.records.contains_key(&Key::Live(task)) {
             w.observe(Seen::Cancelled { task });
+            w.referee.check_holding(seed)?;
         }
     }
     w.terminal(1, End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: true });
+    w.referee.check_holding(seed)?;
     w.complete_cancel();
+    w.referee.check_holding(seed)?;
+    w.referee.check_passed(seed)?;
     assert_eq!(w.results.len(), 5);
     assert_eq!(w.live(), 0);
+    Ok(())
 }
 
 fn live_row(record: &Stored) -> Option<&jig_domain_tasks::TaskRecord> {
