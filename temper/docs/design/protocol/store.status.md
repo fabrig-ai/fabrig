@@ -2,7 +2,6 @@
 
 2026-11-13. Where temper's code lags or departs from [store.md](store.md).
 
-- **Not yet:** 3: the families' names for the census, `KEYSPACES` [in flight: change 2671].
 
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].
