@@ -7,6 +7,7 @@ mod request_table;
 
 mod fuzzy {
     mod bytes;
+    mod containers;
     mod intake;
     mod journal;
     mod request_table;

@@ -9,6 +9,25 @@ fn a_key_of_a_root_gives_the_maps_value() {
         Ok(Some(Value::Int(2222)))
     );
 }
+#[test]
+fn sorted_map_lookups_cover_keys_between_and_outside_the_edges() {
+    let mut roots = Roots::x1_prod();
+    roots.settings = fixtures::map(&[(b"b", Some(Value::Int(2))), (b"d", Some(Value::Int(4)))]);
+    for (key_name, expected) in
+        [(b"a", None), (b"b", Some(Value::Int(2))), (b"c", None), (b"d", Some(Value::Int(4))), (b"e", None)]
+    {
+        assert_eq!(
+            fixtures::evaluate(&roots, &[name(0, b"settings", Missing::Error), key(9, key_name, Missing::Undefined)]),
+            Ok(expected),
+            "key {key_name:?}"
+        );
+    }
+    roots.settings = fixtures::map(&[]);
+    assert_eq!(
+        fixtures::evaluate(&roots, &[name(0, b"settings", Missing::Error), key(9, b"b", Missing::Undefined)]),
+        Ok(None)
+    );
+}
 const UNKNOWN: &[bool] = &[false, true];
 #[test]
 fn an_unknown_name_fails_at_its_offset() {
