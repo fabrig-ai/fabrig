@@ -207,6 +207,7 @@ fn reviewing() -> Domain {
 
 fn review(words: &[u8]) -> Event {
     Event::DelegateResult {
+        ended_at: None,
         task: fixtures::CHANGE,
         child: 52,
         status: change::Status::Passed,

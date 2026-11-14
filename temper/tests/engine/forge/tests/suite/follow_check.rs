@@ -103,6 +103,7 @@ fn the_follow_workflow_repairs_from_its_report_then_lands_and_keeps_green_parity
     world.status(b"temper/51", raw::Check::Passed);
     let repaired = translate::commit(world.branch(b"temper/51"));
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: 52,
         status: c::Status::Passed,

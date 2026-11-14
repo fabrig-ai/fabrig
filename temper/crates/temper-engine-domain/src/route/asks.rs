@@ -534,6 +534,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 }
             };
             if connector == domain.config.forge_connector && code == forge_route::CHANGE_CODE {
+                if forge_route::delegate_record::start(domain, env, decision, &context) {
+                    return;
+                }
                 if !forge_route::start_change(domain, env, &context) {
                     forge_route::start_refused(domain, task);
                 }

@@ -233,10 +233,24 @@ impl Driver {
                 self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
             let commit = self.store.applied;
+            if self.events.is_empty() && self.out.is_empty() && self.store.idle()
+                && self.forge.as_ref().is_none_or(crate::forge_stand::ForgeStand::quiescent)
+                && self.store.rows.values().any(|row| matches!(row, Record::Core(core::Record::Tasks(tasks::Stored::Live(task))) if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. }) && task.phase == tasks::Phase::Active(tasks::Active::Due)))
+                && let Some(due) = self.root.next_deadline(&self.env)
+                && due <= self.env.now.saturating_add(skein_lib::Duration::from_secs(1))
+            {
+                let span = due.as_nanos().saturating_sub(self.env.now.as_nanos());
+                self.env.wall = skein_lib::Wall::from_nanos(self.env.wall.as_nanos().saturating_add(span));
+                self.env.now = self.env.now.max(due);
+                engine::fire(&mut self.root, &self.env);
+                engine::release(&mut self.root, &self.env, &mut self.out);
+                self.collect();
+            }
             self.advance(true);
             // Domain::quiescent also rejects future fleet deadlines. This
             // boundary drains immediate commits, deliveries and loads only.
             if self.root.ready()
+                && !self.root.forge_work_ready()
                 && self.root.held_bytes() == 0
                 && self.events.is_empty()
                 && self.out.is_empty()

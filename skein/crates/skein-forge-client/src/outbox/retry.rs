@@ -272,7 +272,9 @@ pub(super) fn not_found(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
     let w = d.outbox.entries.get(&number).expect("find owns entry");
     let left = remaining(&w.entry, d.outbox.clock, env);
     if left == Duration::ZERO {
-        if recovery(&w.entry.effect.write) == Recovery::Unrecoverable && !w.again {
+        if w.withdrawn {
+            super::finish(d, env, number, Outcome::Withdrawn, out);
+        } else if recovery(&w.entry.effect.write) == Recovery::Unrecoverable && !w.again {
             super::finish(d, env, number, Outcome::Held, out);
         } else if w.entry.failures >= env.limits.write_attempts {
             super::finish(d, env, number, Outcome::Failed(Error::Timeout), out);
