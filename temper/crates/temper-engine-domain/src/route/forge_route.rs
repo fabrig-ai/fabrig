@@ -5299,13 +5299,13 @@ pub(crate) fn outputs(
                         None => false,
                     };
                     let failed = match outcome {
-                        skein_forge_client::Outcome::Failed(_)
+                        skein_forge_client::Outcome::Failed(skein_forge::api::Error::Stale)
                         | skein_forge_client::Outcome::Raced { .. }
-                        | skein_forge_client::Outcome::Withdrawn => true,
-                        skein_forge_client::Outcome::Made { .. }
+                        | skein_forge_client::Outcome::Made { .. }
                         | skein_forge_client::Outcome::Queued
                         | skein_forge_client::Outcome::Uncertain
                         | skein_forge_client::Outcome::Held => false,
+                        skein_forge_client::Outcome::Failed(_) | skein_forge_client::Outcome::Withdrawn => true,
                     };
                     if failed
                         && landing_route::failed_effect_needs_hold(domain, task, entry)
