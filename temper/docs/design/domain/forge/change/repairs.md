@@ -461,7 +461,11 @@
   | updating | `its update of 0123456789ab with main at 89abcdef0123` |
   | landing | `its merge of 0123456789ab` |
 
-  A step not listed says its own wait in the same shape.
+  A step not listed says its own wait in the same shape. A change held
+  on its step's own reads (*What a step reads is waited on too*, above)
+  says that step's WHAT where the table gives one, and otherwise `the
+  forge to answer its reads` (2026-11-14): `no progress at producing for
+  30 minutes: waiting for the forge to answer its reads`.
 - **A stall holds as any hold does.** The change and its task are held
   together, never one without the other: its escalation waits for its
   holder, which it wakes (jig's `domain/tasks/lifecycle.md`, 6 and `jig/docs/design/domain/tasks/proposals.md`): the
