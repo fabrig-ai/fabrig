@@ -175,6 +175,12 @@ fn an_engine_and_worker_restart_during_delivery_beside_proof() {
     support::turn_drills::run(support::turn_drills::Drill::Delivery);
 }
 
+/// temper/docs/design/domain/landing.md, 5 and 9: four template goals share one turn.
+#[test]
+fn four_goals_land_together_after_loading_batch_four() {
+    support::turn_drills::run(support::turn_drills::Drill::BatchFour);
+}
+
 /// temper/docs/design/testing/process-tier.md: a queue that lands green.
 #[test]
 fn a_batch_of_three_lands_by_one_fast_forward() {

@@ -1,5 +1,6 @@
 //! Staging's turn drills on separate engine and worker processes and a scripted model.
 //! temper/docs/design/domain/landing.md, 5, 7, 8 and 15.
+mod batch;
 mod delivery;
 use super::{
     Process, Scratch,
@@ -25,6 +26,7 @@ use std::{
 pub enum Drill {
     Phases,
     Delivery,
+    BatchFour,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Stage {
@@ -37,6 +39,7 @@ enum Stage {
     Verify,
     WorkerStopping,
     DeliveryRest,
+    Batch,
     Stop,
 }
 
@@ -114,10 +117,13 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
     let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
     shared.retain(|script| !script.cue.starts_with(b"## Task\n\n@coding"));
     let mut scripts = shared;
-    for number in 1..=3 {
+    for number in 1..=if drill == Drill::BatchFour { 4 } else { 3 } {
         let words = format!("@drill-code-{number} Edit line {number}");
         let mut child = delegate["batch"][0].clone();
         child["spec"]["words"] = words.clone().into();
+        if drill == Drill::BatchFour {
+            child["tracked"] = json!({"priority":number});
+        }
         let mut goal = owner.clone();
         goal.cue = format!("@drill-goal-{number}").into_bytes().into();
         goal.turns[0] = call(b"delegate", &json!({"batch":[child]}));
@@ -127,6 +133,9 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
             call(b"write", &json!({"path":format!("walk/line-{number}"),"content":format!("Changed {number}\n")})),
             call(b"finish", &json!({"form":"change","fields":{"title":format!("Drill change {number}"),"body":"Edit one line."}})),
         ]) });
+    }
+    if drill == Drill::BatchFour {
+        batch::scripts(&mut scripts);
     }
     if drill == Drill::Delivery {
         delivery::scripts(&mut scripts);
@@ -199,6 +208,7 @@ struct Judge<'a> {
     worker: PathBuf,
     drill: Drill,
     delivery_armed: bool,
+    batch: batch::Batch,
     forge: &'a Throwaway,
     barrier: &'a JobBarrier,
     stage: Stage,
@@ -242,7 +252,9 @@ impl Judge<'_> {
         let Some((key, index)) = self.pending.as_ref() else { return Ok(()) };
         let Some(ended) = calls(procs).ends().get(*index) else { return Ok(()) };
         if ended.exit != Some(Exit::Code(0)) {
-            if self.stage == Stage::Resume && String::from_utf8_lossy(&ended.stderr).contains("nothing listens") {
+            if matches!(self.stage, Stage::Resume | Stage::Batch)
+                && String::from_utf8_lossy(&ended.stderr).contains("nothing listens")
+            {
                 self.pending = None;
                 return Ok(());
             }
@@ -422,7 +434,11 @@ impl Judge<'_> {
                     self.checked = 1;
                 }
                 if calls(procs).foreground_idle() {
-                    self.start_goal(procs);
+                    if self.drill == Drill::BatchFour {
+                        self.begin_batch(procs);
+                    } else {
+                        self.start_goal(procs);
+                    }
                 }
             }
             Stage::Observe => self.observe(procs)?,
@@ -445,7 +461,7 @@ impl Judge<'_> {
                 if self.drill == Drill::Phases && self.number == 2 {
                     self.barrier.release(self.run.ok_or("held gate")?);
                 }
-                self.stage = Stage::Resume;
+                self.stage = if self.drill == Drill::BatchFour { Stage::Batch } else { Stage::Resume };
             }
             Stage::Resume => {
                 let task = self.panel.as_ref().ok_or("retained landing")?["task"].as_u64().ok_or("task")?;
@@ -514,6 +530,7 @@ impl Judge<'_> {
                 }
                 self.stop(procs);
             }
+            Stage::Batch => self.batch(procs)?,
             Stage::WorkerStopping => self.stopped_worker(procs)?,
             Stage::DeliveryRest => self.remaining_delivery(procs)?,
             Stage::Stop => {}
@@ -571,7 +588,7 @@ pub fn run(drill: Drill) {
     let forge = turn_restart::start(&scratch);
     let workflow = barrier.gate_workflow(super::landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
-    for number in 1..=3 {
+    for number in 1..=4 {
         forge.add_file(&format!("walk/line-{number}"), b"Before\n");
     }
     super::configuration(root, &forge.forge());
@@ -588,6 +605,7 @@ pub fn run(drill: Drill) {
         worker: worker.clone(),
         drill,
         delivery_armed: false,
+        batch: batch::Batch::default(),
         forge: &forge,
         barrier: &barrier,
         stage: Stage::Setup,
