@@ -12,6 +12,10 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   going on through the turn once proving, idle and held while preparing.
   It waits on jig’s drain and project-scoped placed holds
   (`jig/docs/design/domain/tasks/lifecycle.status.md`, 10).
+- **Not yet:** 9: changes made ready by one event form one landing; the
+  root forms once its own work is empty, while jig's dependency-driven
+  re-evaluations of the other changes may still be due, so the first
+  forms alone. [in flight: change 3217]
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
 
