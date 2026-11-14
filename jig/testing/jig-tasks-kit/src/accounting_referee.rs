@@ -317,7 +317,6 @@ impl Accounting {
                     | Stored::Activity(_)
                     | Stored::History(_)
                     | Stored::Milestone(_)
-                    | Stored::Attempt(_)
                     | Stored::Hold(_)
                     | Stored::ClosedLedger(_)
                     | Stored::DecidedProposal(_)

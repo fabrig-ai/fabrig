@@ -1,5 +1,6 @@
 //! Durability observations from real file completions, independent of the service.
 mod generations;
+mod layouts;
 pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;
@@ -32,6 +33,7 @@ pub struct Store {
     validated: BTreeMap<Vec<u8>, usize>,
     lengths: BTreeMap<u64, u64>,
     generations: BTreeMap<Vec<u8>, generations::Generation>,
+    layouts: layouts::Layouts,
     active: Option<Vec<u8>>,
     deferred: Option<Vec<u8>>,
     pub(crate) levels: Option<codec::component::Levels>,
@@ -188,11 +190,14 @@ impl Store {
                 }
                 Observed::Pending { path, bytes } => {
                     if self.deferred.is_none() && self.is_active(&path) {
-                        self.pending = frames(&bytes, self.applied)
+                        let layouts = self.layouts.clone();
+                        let pending = frames(&bytes, self.applied)
                             .0
                             .into_iter()
                             .map(|(number, ops)| self.commit(number, ops, limits, names, connector))
-                            .collect::<Result<_, _>>()?;
+                            .collect::<Result<_, _>>();
+                        self.layouts = layouts;
+                        self.pending = pending?;
                     }
                 }
                 Observed::Renamed { from, to } => {
@@ -298,27 +303,22 @@ impl Store {
         self.applied = commit.number;
     }
     fn commit(
-        &self,
+        &mut self,
         number: u64,
         ops: Box<[skein_kv::Op]>,
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
     ) -> Result<Commit, String> {
+        self.layouts.observe(&ops);
         let mut writes = Vec::new();
         let mut installation = None;
         let mut wires = false;
         for op in ops {
             match op {
-                skein_kv::Op::Put { key, mut value } => {
+                skein_kv::Op::Put { key, value } => {
+                    let value = self.layouts.serving(&key, value)?;
                     if let Some(key) = keys::decode(&key) {
-                        // The charter-version job stores layout 4; the domain
-                        // referee reads its unchanged family-version head.
-                        if matches!(key, core::Key::Core(core::CoreKey::Settings(core::settings::Key::Charter { .. })))
-                            && value.starts_with(&[0, 4])
-                        {
-                            value[..2].copy_from_slice(&3_u16.to_be_bytes());
-                        }
                         let row = codec::decode(&key, &value, limits, names)
                             .ok_or_else(|| String::from("real stored row decodes"))?;
                         if let core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
