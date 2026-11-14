@@ -8,7 +8,7 @@ mod grammar;
 mod layout;
 mod limits;
 mod tokens;
-pub use fingerprint::{Fingerprint, Fingerprints};
+pub use fingerprint::{Fingerprint, Fingerprints, LayoutError, MAX_HELD, Root};
 pub use limits::{LimitLevel, limit_child, limit_name};
 
 #[cfg(test)]
