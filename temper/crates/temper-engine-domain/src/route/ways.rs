@@ -416,6 +416,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::Finding { .. }
         | forge::Key::Follow { .. }
         | forge::Key::Red { .. }
+        | forge::Key::RedPass { .. }
         | forge::Key::RedNumber
         | forge::Key::HistoryProject { .. }
         | forge::Key::HistoryEvent { .. }

@@ -63,6 +63,47 @@ pub struct Finding {
     pub hander: Option<Filer>,
     pub goal: Option<u64>,
     pub reason: Option<Box<[u8]>>,
+    pub signature: Option<FindingSignature>,
+    pub seen: Option<u32>,
+}
+/// Matching identity kept on a finding (domain/findings.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FindingSignature {
+    pub repository: skein_forge::api::Repository,
+    pub source: Box<[u8]>,
+    pub ids: Box<[Box<[u8]>]>,
+    pub first: Box<[u8]>,
+}
+impl FindingSignature {
+    #[must_use]
+    pub fn fits(&self) -> bool {
+        if self.source.is_empty()
+            || self.source.len() > 64
+            || self.ids.is_empty()
+            || self.ids.len() > 64
+            || self.first.len() > 512
+        {
+            return false;
+        }
+        let mut previous: Option<&[u8]> = None;
+        for id in &self.ids {
+            if id.len() > 512 {
+                return false;
+            }
+            if let Some(previous) = previous
+                && previous >= id.as_ref()
+            {
+                return false;
+            }
+            previous = Some(id);
+        }
+        true
+    }
+}
+#[derive(Hash, Debug)]
+pub enum CheckFlake {
+    Filed(FindingWrite),
+    Counted(FindingWrite),
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FileFinding {
