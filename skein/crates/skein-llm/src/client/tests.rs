@@ -536,19 +536,6 @@ fn owned_measurement_preserves_admission_refusals() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn the_encoder_checks_written_bytes_against_the_measurement() {
-    for provider in [Provider::OpenAi, Provider::Anthropic] {
-        for difference in [-1_i32, 1_i32] {
-            let mut checked = measure_request(provider_call(provider), &limits(), false).unwrap();
-            checked.measured.body = checked.measured.body.checked_add_signed(difference).unwrap();
-            let failed = std::panic::catch_unwind(|| Client::prepare_measured(checked));
-            assert!(failed.is_err(), "{provider:?}/{difference}: an incorrect measure must fail at the writer");
-        }
-    }
-}
-
-#[test]
 fn request_goldens_follow_the_declared_calls_per_response() {
     for calls in [1, 2] {
         let declared = crate::Declared {

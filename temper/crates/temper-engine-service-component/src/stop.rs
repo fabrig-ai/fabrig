@@ -134,6 +134,7 @@ pub(crate) fn root(engine: &mut Engine) {
             None => Stop::RestorePage { range: failure.range, failure: engine.store.routes.page_failure().cloned() },
         },
         Some(root::StartStop::ForgeFit { phase, failure }) => Stop::ForgeFit { phase, failure },
+        Some(root::StartStop::ForgeLink { phase, link }) => Stop::ForgeLink { phase, link },
         Some(root::StartStop::Binding) => Stop::Binding,
         Some(root::StartStop::Setting(key)) => Stop::Setting(key),
         None => match engine.domain.journal_stop() {

@@ -257,12 +257,14 @@ impl Core {
             return true;
         }
         for (&(proposer, proposal), value) in &self.settings_proposals {
-            if let Some(key) = value.key {
-                assert!(
-                    key < self.current.keys,
-                    "proposal {:?} has a key at or past the restored counter",
-                    crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal }))
-                );
+            if let Some(key) = value.key
+                && key >= self.current.keys
+            {
+                self.refuse_restore(crate::start::Failure::Link {
+                    record: crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal })),
+                    linked: crate::start::Linked::SettingsProposal { proposer, proposal: u64::from(proposal) },
+                });
+                return false;
             }
         }
         for (&setting, _) in &self.current.defaults {

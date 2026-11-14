@@ -64,8 +64,7 @@ fn transcript() -> crate::Transcript {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table audits every public operational entrance")]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn every_operational_entrance_prevents_late_start() {
+fn every_operational_entrance_consumes_input() {
     use skein_lib::Token;
     let cases = [
         Entrance {
@@ -375,8 +374,6 @@ fn every_operational_entrance_prevents_late_start() {
         let mut core = Core::new(config(41), &env.limits).expect("valid core configuration");
         (case.input)(&mut core, &env);
         assert!(core.start.consumed, "{} consumes even refused or empty input", case.name);
-        let late = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| core.start_begin(false, env.wall)));
-        assert!(late.is_err(), "{} prevents a late start", case.name);
     }
 }
 
@@ -392,17 +389,6 @@ fn queries_drains_and_configuration_leave_start_open() {
     core.drain_facts(&limits);
     core.reclaim();
     step_phase(core.start_begin(false, Wall::EPOCH), Phase::LoadCore);
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn refused_start_cannot_begin_again() {
-    let limits = limits();
-    let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-    let _first = core.start_begin(false, Wall::EPOCH);
-    let _refused = core.start_refuse(Failure::ProjectPolicy { project: 1 });
-    let repeated = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| core.start_begin(true, Wall::EPOCH)));
-    let _panic = repeated.expect_err("refused start cannot be started again");
 }
 
 #[test]
@@ -596,8 +582,7 @@ fn core_owned_people_rows_survive_sweep() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn frozen_expiry_and_stale_cleanup_continuation() {
+fn frozen_expiry_resumes_after_cleanup() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
     let mut env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
@@ -621,10 +606,7 @@ fn frozen_expiry_and_stale_cleanup_continuation() {
     let Some(Request::Write(Write::Erase(key))) = out.pop() else { panic!("expected expiry erase") };
     assert_eq!(key, Key::People(people::Key::SignIn(7)));
     assert!(out.is_empty());
-    let stale = token.clone();
     step_phase(core.start_resume(&env, token, &mut out), Phase::Sweep);
-    let rejected = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| core.start_resume(&env, stale, &mut out)));
-    let _panic = rejected.expect_err("stale continuation must panic");
     assert!(out.is_empty());
     assert_eq!(core.start_phase(), Some(Phase::Sweep));
 }

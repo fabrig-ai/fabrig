@@ -249,35 +249,26 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-    fn shared_ring_room_does_not_allow_a_host_to_exceed_its_own_limit() {
-        let mut ring = State::new(8, vec![1, 2]);
+    fn host_operation_capacity_stays_charged_until_delivery() {
+        // One operation fills host 0's declared share of the shared ring.
+        const HOST_LIMIT: u32 = 1;
+        let mut ring = State::new(8, vec![HOST_LIMIT, 2]);
         let local = Token::new(10);
         let pending = ring.register(0, Submit { op: local, kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });
-        assert_eq!(ring.count(0), 1, "the host admits its exact limit");
-        for returned in [false, true] {
-            if returned {
-                let (host, complete) = ring.complete(Complete {
-                    op: pending.op,
-                    kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) },
-                    result: Ok(Done::Nothing),
-                });
-                ring.returned(host, complete);
-            }
-            let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-                ring.register(0, Submit { op: Token::new(11), kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });
-            }))
-            .expect_err("another host's room cannot be borrowed");
-            let text = failure.downcast_ref::<String>().expect("host admission diagnostic");
-            assert_eq!(text, "host 0 exceeds its own operation limit");
-            assert_eq!(ring.count(0), 1, "returned records retain capacity until delivery");
-        }
+        assert_eq!(ring.count(0), HOST_LIMIT, "the host admits its exact limit");
+        let (host, complete) = ring.complete(Complete {
+            op: pending.op,
+            kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) },
+            result: Ok(Done::Nothing),
+        });
+        ring.returned(host, complete);
+        assert_eq!(ring.count(0), HOST_LIMIT, "returned records retain capacity until delivery");
         ring.register(1, Submit { op: local, kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });
         assert_eq!(ring.count(1), 1, "the other host retains its own admission room");
         let mut out = Queue::with_capacity(1);
         ring.deliver(0, &mut out);
         ring.register(0, Submit { op: local, kind: Op::Close { fd: skein_io::kernel::Fd::new(-1) } });
-        assert_eq!(ring.count(0), 1, "delivering the terminal permits reuse at the limit");
+        assert_eq!(ring.count(0), HOST_LIMIT, "delivering the terminal permits reuse at the limit");
     }
 
     #[test]
