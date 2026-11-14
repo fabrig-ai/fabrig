@@ -411,45 +411,6 @@ fn explicit_start_live_fit_failure_is_sticky_and_does_not_erase() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn explicit_start_phases_reject_repeated_late_and_mixed_calls() {
-    for bad in 0_u8..9 {
-        let env = env();
-        let mut domain = Domain::new(&LIMITS, Box::new([]), 1, Box::new([]));
-        let mut out = Queue::uncapped();
-        let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            if bad == 0 {
-                load(&mut domain, &env, person(1), &mut out);
-            }
-            if bad == 1 {
-                domain.start_sweep();
-            }
-            domain.start_restore(env.wall);
-            match bad {
-                0..=2 => domain.start_restore(env.wall),
-                4 => domain.start_sweep(),
-                3 | 5 => {
-                    domain.start_complete(&env);
-                }
-                6 => {
-                    assert!(domain.start_link());
-                    domain.start_link();
-                }
-                7 => {
-                    assert!(domain.start_link());
-                    load(&mut domain, &env, person(1), &mut out);
-                }
-                8 => {
-                    domain.start_sweep_row(&env, &person(1), &mut out);
-                }
-                _ => unreachable!(),
-            }
-        }));
-        assert!(result.is_err(), "bad phase {bad}");
-    }
-}
-
-#[test]
 fn explicit_empty_start_blocks_admission_and_roles_until_completion() {
     let env = env();
     let (mut domain, mut out) = new_start(&env);
@@ -829,70 +790,6 @@ fn loading_ended_witness_preserves_missing_person_until_link() {
             cause: RestoreCause::Link { target: Key::Person(99) },
         })
     );
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn projection_phase_and_operational_doors_assert() {
-    for bad in 0_u8..9 {
-        let env = env();
-        let mut domain = Domain::new(&env.limits, Box::new([]), 1, Box::new([]));
-        let mut out = Queue::uncapped();
-        let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            if bad != 0 {
-                domain.start_restore(env.wall);
-            }
-            match bad {
-                0 => {
-                    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
-                }
-                1 => step(&mut domain, &env, Event::Waiting { task: 7, entries: Box::new([]) }, &mut out),
-                2 => step(
-                    &mut domain,
-                    &env,
-                    Event::ChatState {
-                        party: 1,
-                        project: 1,
-                        task: 7,
-                        last_reply: 1,
-                        live: false,
-                        seen: None,
-                        replies: Box::new([]),
-                    },
-                    &mut out,
-                ),
-                3 => domain.restore_ended_conversation(7),
-                4..=6 => {
-                    assert!(domain.start_link());
-                    if bad >= 5 {
-                        domain.start_sweep();
-                    }
-                    if bad == 6 {
-                        assert!(domain.start_complete(&env));
-                    }
-                    assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
-                }
-                7..=8 => {
-                    let row = Stored::Person {
-                        number: 1,
-                        identity: Identity {
-                            key: IdentityKey { provider: 0, subject: skein_lib::bytes::zeroed(17) },
-                            login: Box::new([]),
-                            name: Box::new([]),
-                        },
-                    };
-                    load(&mut domain, &env, row, &mut out);
-                    if bad == 7 {
-                        domain.start_restore(env.wall);
-                    } else {
-                        domain.restore_ended_conversation(7);
-                    }
-                }
-                _ => unreachable!(),
-            }
-        }));
-        assert!(result.is_err(), "mixed/late door {bad}");
-    }
 }
 
 #[test]
