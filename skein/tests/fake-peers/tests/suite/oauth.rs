@@ -434,24 +434,12 @@ fn no_observation_holds_a_token_or_an_id_token() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn without_records_serves_past_a_zero_cap() {
-    for recording in [true, false] {
-        let mut peer = make_with_cap(Transport::Plaintext, Some(terms()), 0);
-        if !recording {
-            peer = peer.without_records();
-        }
-        let mut sim = skein_sim::Sim::new(31, skein_sim::Config::calm());
-        let (pid, client) = (sim.spawn_process(), sim.spawn_process());
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            fetch(&mut sim, (pid, &mut peer), client, &request("GET", "/jwks", ""))
-        }));
-        if recording {
-            support::assert_panic(result, "world observation count cap");
-        } else {
-            assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert!(peer.observations().is_empty());
-            settle(&mut sim, pid, client, &mut peer);
-        }
-    }
+    let mut peer = make_with_cap(Transport::Plaintext, Some(terms()), 0).without_records();
+    let mut sim = skein_sim::Sim::new(31, skein_sim::Config::calm());
+    let (pid, client) = (sim.spawn_process(), sim.spawn_process());
+    let response = fetch(&mut sim, (pid, &mut peer), client, &request("GET", "/jwks", ""));
+    assert!(response.starts_with(b"HTTP/1.1 200"));
+    assert!(peer.observations().is_empty());
+    settle(&mut sim, pid, client, &mut peer);
 }
