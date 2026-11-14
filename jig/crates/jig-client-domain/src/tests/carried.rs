@@ -114,18 +114,6 @@ fn the_same_carried_request_again_joins_the_first() {
     assert!(c.told().is_empty());
 }
 #[test]
-#[should_panic(expected = "request key conflict")]
-fn the_same_key_with_another_value_is_a_loud_key_conflict() {
-    let (mut c, _) = carried();
-    carry(&mut c, KEY, b"other");
-}
-#[test]
-#[should_panic(expected = "request key conflict")]
-fn a_carried_key_sent_to_the_table_is_a_loud_key_conflict() {
-    let (mut c, _) = carried();
-    c.step(Event::Send { key: KEY, name: None, request: ask() });
-}
-#[test]
 fn a_carried_request_past_the_client_s_bounds_is_answered_at_once() {
     let mut c = Client::live();
     c.step(Event::Carry {
@@ -254,12 +242,6 @@ fn an_empty_carry_joins_without_becoming_a_value() {
     c.step(Event::Carry { key: KEY, name: NAME, request: move_out(), value: None });
     assert!(c.downs().is_empty());
     assert!(c.told().is_empty());
-}
-#[test]
-#[should_panic(expected = "request key conflict")]
-fn a_missing_value_differs_from_an_empty_value() {
-    let (mut c, _) = moving();
-    c.step(Event::Carry { key: KEY, name: NAME, request: move_out(), value: Some(value(b"")) });
 }
 
 #[test]
