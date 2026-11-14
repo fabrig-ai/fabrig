@@ -188,6 +188,9 @@ impl Drop for ChildGuard {
 
 #[cfg(target_os = "linux")]
 fn parent_death_parent(mode: &str) -> ExitCode {
+    if mode == "spawn" {
+        return parent_death_spawn();
+    }
     let mut child = ChildGuard(
         Command::new(std::env::current_exe().expect("fixture path"))
             .args(["parent-death-child", "--parent", &std::process::id().to_string(), mode])
@@ -200,6 +203,21 @@ fn parent_death_parent(mode: &str) -> ExitCode {
     std::io::stdin().read_exact(&mut start).expect("observer registered child");
     child.0.stdin.take().expect("child input").write_all(&start).expect("release exec child");
     let status = child.0.wait().expect("wait for exec child");
+    if status.success() { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+}
+
+#[cfg(target_os = "linux")]
+fn parent_death_spawn() -> ExitCode {
+    let mut command = Command::new("/bin/sleep");
+    command.arg("30");
+    let mut child = ChildGuard(
+        skein_shell::spawn_dying_with_parent(&mut command, skein_io::kernel::Signal::Kill)
+            .expect("spawn parent-death child"),
+    );
+    std::fs::write("child-pid", child.0.id().to_string()).expect("report child PID");
+    let mut start = [0_u8; 1];
+    std::io::stdin().read_exact(&mut start).expect("observer registered child");
+    let status = child.0.wait().expect("wait for spawned child");
     if status.success() { ExitCode::SUCCESS } else { ExitCode::FAILURE }
 }
 
