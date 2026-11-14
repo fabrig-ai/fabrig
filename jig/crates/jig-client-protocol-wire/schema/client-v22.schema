@@ -1,4 +1,4 @@
-family jig-client-wire 21
+family jig-client-wire 22
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -801,6 +801,9 @@ record SubjectRun { task: u64 turn: option ProvisionalTurnName offset: u32 }
 record SubjectTerminal { terminal: u64 }
 enum Subject { me, task: SubjectTask, tree: SubjectTree, chips: SubjectChips, inbox: SubjectInbox, tasks: SubjectTasks, run: SubjectRun, deployment, accounts, settings, terminal: SubjectTerminal }
 record StoreFill { bytes: u64 mark: u64 }
+record CensusHead { head: option u16 rows: u64 }
+record CensusKeyspace { prefix: bytes 8 name: text 48 rows: u64 keys: u64 values: u64 heads: list 8 CensusHead puts: u64 erases: u64 written: u64 }
+record StoreCensus { commit: u64 since: u64 keyspaces: list 129 CensusKeyspace }
 record Capacity { used: u32 limit: u32 }
 record ProjectCapacity { project: u32 tasks: Capacity proposals: u32 }
 enum AttemptState { waiting, adopted, claimed, cancelled, handed, acknowledged, stray, kept, fenced, closed }

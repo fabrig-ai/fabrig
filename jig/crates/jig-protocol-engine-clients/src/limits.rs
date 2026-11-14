@@ -18,7 +18,7 @@ pub struct Limits {
     pub exchanges_per_client: u32,
     /// A message's bytes, owned by the component (protocol/client/wire.md, 2.2, and protocol/client/README.md, 10).
     pub message_bytes: u32,
-    pub wire: jig_client_protocol_wire::v21::Limits,
+    pub wire: jig_client_protocol_wire::v22::Limits,
     pub link_span: Duration,
 }
 /// Whether these limits are representable: every edge bound they size
@@ -44,10 +44,10 @@ pub fn valid(limits: &Limits) -> bool {
     {
         return false;
     }
-    jig_client_protocol_wire::v21::check_limits(&limits.wire).is_ok()
-        && jig_client_protocol_wire::v21::KeyedAnswer::encoded_bound(&limits.wire).is_some()
-        && jig_client_protocol_wire::v21::ReadAnswer::encoded_bound(&limits.wire).is_some()
-        && jig_client_protocol_wire::v21::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
+    jig_client_protocol_wire::v22::check_limits(&limits.wire).is_ok()
+        && jig_client_protocol_wire::v22::KeyedAnswer::encoded_bound(&limits.wire).is_some()
+        && jig_client_protocol_wire::v22::ReadAnswer::encoded_bound(&limits.wire).is_some()
+        && jig_client_protocol_wire::v22::AuthorizeAnswer::encoded_bound(&limits.wire).is_some()
         && limits.exchanges.checked_add(limits.exchanges).is_some()
         && provider_bounds(&provider_limits(limits)).is_some()
 }
@@ -107,8 +107,8 @@ impl PublicLimits {
 /// Whole first deliveries for every watch beside the in-flight hello, including stream-event tags
 /// (jig/docs/design/protocol/client/README.md, 10).
 #[must_use]
-pub fn stream_queue_bytes(watches: u32, wire: &jig_client_protocol_wire::v21::Limits) -> Option<u32> {
-    let delivery = jig_client_protocol_wire::v21::Delivery::encoded_bound(wire)?.checked_add(1)?;
-    let hello = jig_client_protocol_wire::v21::Hello::encoded_bound(wire)?.checked_add(1)?;
+pub fn stream_queue_bytes(watches: u32, wire: &jig_client_protocol_wire::v22::Limits) -> Option<u32> {
+    let delivery = jig_client_protocol_wire::v22::Delivery::encoded_bound(wire)?.checked_add(1)?;
+    let hello = jig_client_protocol_wire::v22::Hello::encoded_bound(wire)?.checked_add(1)?;
     u32::try_from(delivery.checked_mul(u64::from(watches))?.checked_add(hello)?).ok()
 }

@@ -1,6 +1,6 @@
 //! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 
 pub(crate) fn wake_rule(value: &w::WakeRule) -> c::WakeRule {
     match value {

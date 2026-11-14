@@ -1,6 +1,6 @@
 //! Program document facts reach their allocated client records.
 use crate::translate::programs;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_fleet as fleet;
 use jig_domain_link::{LoginState, SourceFailure};

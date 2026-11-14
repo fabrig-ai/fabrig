@@ -1,4 +1,4 @@
-//! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store/README.md, 6.2).
+//! Deployment facts, store fill and census (client/domain/pages.md, 7; protocol/store/README.md, 6.2–6.3).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
 use super::{Chip, TaskLink};
@@ -8,6 +8,37 @@ use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, Wall};
+
+/// Census bounds (client/domain/contract/documents.md, 1).
+pub const CENSUS_ROWS: usize = 129;
+pub const CENSUS_PREFIX: usize = 8;
+pub const CENSUS_NAME: usize = 48;
+pub const CENSUS_HEADS: usize = 8;
+
+/// Last store report (protocol/store/README.md, 6.3; client/domain/contract/documents.md, 1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct StoreCensus {
+    pub commit: u64,
+    pub since: u64,
+    pub keyspaces: List<CensusKeyspace>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct CensusKeyspace {
+    pub prefix: Box<[u8]>,
+    pub name: Box<str>,
+    pub rows: u64,
+    pub keys: u64,
+    pub values: u64,
+    pub heads: List<CensusHead>,
+    pub puts: u64,
+    pub erases: u64,
+    pub written: u64,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct CensusHead {
+    pub head: Option<u16>,
+    pub rows: u64,
+}
 
 /// Store map bytes at the last commit answer and its admission mark (protocol/store/README.md, 6.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -112,6 +143,7 @@ pub struct ProjectCapacity {
 #[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
 pub struct Deployment {
     pub store: StoreFill,
+    pub census: Option<Box<StoreCensus>>,
     pub hosts: List<Host>,
     pub attempts: List<HostRun>,
     pub accounts: List<Account>,
@@ -156,6 +188,17 @@ pub struct HelloRefusalLine {
     pub why: fleet::HelloRefusal,
 }
 
+/// Heap of the boxed report, its rows and every row's independent prefix, name and heads.
+pub fn census_bound() -> Option<u64> {
+    let row = u64::try_from(CENSUS_PREFIX.checked_add(CENSUS_NAME)?)
+        .ok()?
+        .checked_add(List::<CensusHead>::price(u32::try_from(CENSUS_HEADS).ok()?)?)?;
+    u64::try_from(size_of::<StoreCensus>())
+        .ok()?
+        .checked_add(List::<CensusKeyspace>::price(u32::try_from(CENSUS_ROWS).ok()?)?)?
+        .checked_add(u64::try_from(CENSUS_ROWS).ok()?.checked_mul(row)?)
+}
+
 pub fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let carriers = u64::from(limits.lines)
         .checked_mul(u64::from(limits.lines))?
@@ -186,5 +229,47 @@ pub fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(List::<u16>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<Deployment>()).ok()?)?
         .checked_add(super::catalogue::offers_bound(limits)?)?
-        .checked_add(super::catalogue::rows_bound(limits)?)
+        .checked_add(super::catalogue::rows_bound(limits)?)?
+        .checked_add(census_bound()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deployment_bound_includes_a_census_at_every_independent_bound() {
+        let mut keyspaces = List::with_capacity(129);
+        for _ in 0_u32..129 {
+            let mut heads = List::with_capacity(8);
+            for head in 0..8 {
+                heads.push(CensusHead { head: Some(head), rows: u64::MAX }).unwrap();
+            }
+            keyspaces.push(CensusKeyspace {
+                prefix: Box::new([255; 8]),
+                name: "n".repeat(48).into_boxed_str(),
+                rows: u64::MAX,
+                keys: u64::MAX,
+                values: u64::MAX,
+                heads,
+                puts: u64::MAX,
+                erases: u64::MAX,
+                written: u64::MAX,
+            }).unwrap();
+        }
+        let census = Box::new(StoreCensus { commit: u64::MAX, since: 1, keyspaces });
+        let mut heap = u64::try_from(size_of_val(census.as_ref())).unwrap()
+            + List::<CensusKeyspace>::price(census.keyspaces.capacity()).unwrap();
+        for row in &census.keyspaces {
+            heap += u64::try_from(row.prefix.len() + row.name.len()).unwrap()
+                + List::<CensusHead>::price(row.heads.capacity()).unwrap();
+        }
+        assert_eq!(census_bound(), Some(heap));
+        let limits = super::super::DocumentLimits {
+            roles: 0, segments: 0, grants: 0, executors: 0, implications: 0,
+            rows: 0, text_bytes: 0, chips: 0, lines: 0,
+            versions: super::super::Versions { minimum: 1, maximum: 1 },
+        };
+        assert!(document_bound(&limits).unwrap() >= heap, "a census fits even with no configured document rows");
+    }
 }
