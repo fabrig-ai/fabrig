@@ -7,12 +7,14 @@ import re
 import subprocess
 
 PATTERNS = ("catch_unwind", "resume_unwind", "should_panic")
+REFUSED = ("catch_unwind", "resume_unwind")
 WORDS = tuple(re.compile(r"\b" + name + r"\b") for name in PATTERNS[:2])
 ATTRIBUTE = re.compile(r"#\[\s*should_panic\b")
 LIST = Path("tools/lints/panics.txt")
 RULE = "skein/docs/foundation/programming-model.md, 10.4"
 HEADER = ("# tools/lints/design.md, 7: the count of catches.\n"
-          "# --write lowers this list; nothing raises it.\n")
+          "# --write lowers this list; nothing raises it.\n"
+          "# Refused, so no line names them: catch_unwind, resume_unwind.\n")
 
 
 def order(key):
@@ -62,6 +64,9 @@ def read_list(lines):
         if not valid:
             findings.append(f"{LIST}: line {number}: expected PATH PATTERN COUNT (count at least 1)")
             continue
+        if pattern in REFUSED:
+            findings.append(f"{LIST}: line {number}: {pattern} is refused; no line names it")
+            continue
         key = path, pattern
         if key in limits:
             findings.append(f"{LIST}: line {number}: repeated {path} {pattern}")
@@ -77,9 +82,11 @@ def main():
     parser.add_argument("--write", action="store_true", help="initialize or lower the list")
     args = parser.parse_args()
     current = counts()
+    missing = False
     try:
         lines = LIST.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
     except FileNotFoundError:
+        missing = True
         if args.write:
             lines = HEADER.splitlines(keepends=True) + [
                 f"{path} {pattern} {current[path, pattern]}\n"
@@ -91,11 +98,13 @@ def main():
             findings = [f"{LIST}: no list; initialize with --write"]
     else:
         limits, findings = read_list(lines)
-        for key in sorted(current, key=order):
-            count, limit = current[key], limits.get(key, 0)
-            if count > limit:
-                path, pattern = key
-                findings.append(f"{path}: {pattern} count {count} exceeds list {limit}")
+    for key in sorted(current, key=order):
+        path, pattern = key
+        count, limit = current[key], limits.get(key, 0)
+        if pattern in REFUSED:
+            findings.append(f"{path}: {pattern} count {count}, refused")
+        elif not missing and count > limit:
+            findings.append(f"{path}: {pattern} count {count} exceeds list {limit}")
     if args.write and not findings:
         lowered = []
         for line in lines:
