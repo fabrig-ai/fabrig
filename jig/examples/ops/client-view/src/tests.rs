@@ -1367,6 +1367,7 @@ fn environment_form_uses_the_supplied_request_revision_and_keeps_whole_width_sec
 fn configured_deployment(connector: u16) -> Deployment {
     Deployment {
         store: StoreFill { bytes: 0, mark: 0 },
+        census: None,
         hosts: list([]),
         attempts: list([]),
         accounts: list([]),

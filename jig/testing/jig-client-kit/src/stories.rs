@@ -91,7 +91,7 @@ fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange { first: 21, last: 21 },
+                versions: VersionRange { first: 22, last: 22 },
                 truth,
                 bounds: Bounds {
                     text: 32,
@@ -522,6 +522,7 @@ pub fn deployment() -> Deployment {
     };
     Deployment {
         store: StoreFill { bytes: 1, mark: 1024 },
+        census: None,
         hosts: list([host(1), host(2)]),
         attempts: list([run(1), run(2)]),
         accounts: list([account(1), account(2)]),

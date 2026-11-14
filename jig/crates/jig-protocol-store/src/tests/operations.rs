@@ -29,7 +29,10 @@ const SECRET_NUMBER: u64 = 1;
 fn opened(disk: &mut Disk) -> Store {
     let mut store = disk.store_with_chunk(CHUNK);
     let events = disk.open(&mut store);
-    assert!({ if let [Event::Opened { .. }] = events.as_ref() { true } else { false } }, "{events:?}");
+    assert!(
+        { if let [Event::Opened { .. }, Event::Census { .. }] = events.as_ref() { true } else { false } },
+        "{events:?}"
+    );
     store
 }
 fn real_generation() -> Disk {

@@ -272,6 +272,13 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     project.
   - `Away` is the party, then the project; `Decided` is the project,
     then the number.
+- **Each family's byte has a name** for the store's census, in a table
+  of `temper-protocol-store` that the engine hands jig's component with
+  its patch set (jig's `protocol/store/README.md`, 6.3): `temper.` and the
+  family's name in lower case, its words joined by `-` (`temper.changes`,
+  `temper.landing-history`), one per family byte section 2 names. A test
+  holds the table to the families' bytes: every byte written has one
+  name, and no two names repeat.
 - **Written out, not generated:** each family has a small encoder and
   decoder in `temper-protocol-store`. A property test holds each encoder
   to the order `Key` derives, on generated keys of every family, and

@@ -67,6 +67,7 @@ impl World {
         self.adopt();
         self.settle();
         let Some(Event::Opened { owner, last: 0, .. }) = self.above.pop() else { panic!("empty store opens") };
+        let Some(Event::Census { .. }) = self.above.pop() else { panic!("opened census") };
         assert_eq!(owner, Token::new(41));
         assert!(self.above.is_empty());
     }
@@ -98,6 +99,7 @@ fn adoption_modes_open_rehearse_and_go_back_without_an_implicit_open() {
     world.settle();
     let Some(Event::Rehearsing { .. }) = world.above.pop() else { panic!("no implicit Open before Rehearsing") };
     let Some(Event::Opened { .. }) = world.above.pop() else { panic!("scratch opens") };
+    let Some(Event::Census { .. }) = world.above.pop() else { panic!("opened census") };
     assert!(world.above.is_empty());
     world.host.down(
         &mut world.store,
@@ -142,6 +144,7 @@ fn a_commit_waits_for_its_driver_and_is_recovered_after_close() {
     world.adopt();
     world.settle();
     let Some(Event::Opened { last: 1, .. }) = world.above.pop() else { panic!("committed map recovers") };
+    let Some(Event::Census { .. }) = world.above.pop() else { panic!("opened census") };
     world.close();
 }
 

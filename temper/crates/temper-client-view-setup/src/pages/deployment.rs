@@ -1,12 +1,14 @@
-//! Deployment's read-only pages (temper/docs/design/client/pages/README.md, Members and Limits).
+//! Deployment's read-only pages (temper/docs/design/client/pages/settings.md, 1).
 use super::settings::{self, Tab};
 use crate::{
     bindings::Bindings,
     look,
-    words::{Word, Words},
+    words::{Word, Words, grouped},
 };
 use alloc::boxed::Box;
+use core::cmp::Reverse;
 use jig_client::contract as c;
+use skein_lib::{Decimal, List, Writer, bytes::hex_digit};
 use skein_ui::{Builder, Role, Run, Style, phrases::Hole};
 use temper_client_domain::{
     Domain,
@@ -127,7 +129,12 @@ pub fn limits(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
             section(b, &w.say(Word::LimitsTab, &[]));
             b.close();
         }
-        builders::Read::Hosts(doc) => capacities(b, root, w, doc),
+        builders::Read::Hosts(doc) => {
+            capacities(b, root, w, doc);
+            if let Some(report) = &doc.census {
+                census(b, w, report);
+            }
+        }
     }
     b.close();
     b.close();
@@ -194,6 +201,76 @@ fn capacities(b: &mut Builder, root: &Domain, w: &Words, doc: &c::Deployment) {
     }
     text(b, Role::Paragraph, &w.say(Word::LimitsFacts, &[]), look::SETTINGS_FACTS);
     b.close();
+}
+fn census(b: &mut Builder, w: &Words, report: &c::StoreCensus) {
+    section(b, &w.say(Word::LimitsCensusTitle, &[]));
+    crate::cards::text(
+        b,
+        Role::Paragraph,
+        &w.say(Word::LimitsCensusLede, &[Hole::Number(report.commit), Hole::Number(report.since)]),
+    );
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_LINES);
+    let mut order = List::with_capacity(u32::try_from(c::CENSUS_ROWS).expect("census bound fits"));
+    for (index, row) in report.keyspaces.iter().take(c::CENSUS_ROWS).enumerate() {
+        order
+            .push((Reverse(row.rows), row.prefix.as_ref(), u32::try_from(index).expect("bounded census index")))
+            .expect("bounded census order");
+    }
+    let mut order = order.into_boxed();
+    order.sort_unstable();
+    for (_, _, index) in &order {
+        let row = report.keyspaces.get(*index).expect("ordered census row");
+        let name = if row.name.is_empty() { census_prefix(&row.prefix) } else { row.name.as_bytes().into() };
+        let bytes = row.keys.saturating_add(row.values);
+        let size = if bytes < 100_000 { w.say(Word::LimitsCensusSmall, &[]) } else { megabytes(w, bytes) };
+        let value = w.say(
+            Word::LimitsCensusRow,
+            &[
+                Hole::Name(grouped(row.rows)),
+                Hole::Name(size),
+                Hole::Name(grouped(row.puts.saturating_add(row.erases))),
+            ],
+        );
+        line(b, &name, &census_layouts(w, &row.heads, value));
+    }
+    b.close();
+    b.close();
+}
+fn census_prefix(prefix: &[u8]) -> Box<[u8]> {
+    let length = prefix.len().checked_mul(3).expect("bounded census prefix").saturating_sub(1);
+    let mut text = Writer::new(length);
+    for (index, byte) in prefix.iter().enumerate() {
+        if index != 0 {
+            text.put(b" ").expect("prefix spacing fits");
+        }
+        text.put(&[hex_digit(byte >> 4), hex_digit(*byte)]).expect("prefix hex fits");
+    }
+    text.finish()
+}
+fn census_layouts(w: &Words, heads: &List<c::CensusHead>, value: Box<[u8]>) -> Box<[u8]> {
+    if heads.is_empty() {
+        return value;
+    }
+    let mut order = List::with_capacity(u32::try_from(c::CENSUS_HEADS).expect("head bound fits"));
+    for head in heads.iter().take(c::CENSUS_HEADS) {
+        order.push(head.head).expect("bounded census heads");
+    }
+    let mut order = order.into_boxed();
+    order.sort_unstable();
+    let mut layouts = None;
+    for head in &order {
+        let name = match head {
+            Some(head) => Decimal::of(u64::from(*head)).as_bytes().into(),
+            None => w.say(Word::LimitsCensusNoHead, &[]),
+        };
+        layouts = Some(match layouts {
+            None => name,
+            Some(previous) => w.say(Word::LimitsCensusHeadsJoin, &[Hole::Name(previous), Hole::Name(name)]),
+        });
+    }
+    let word = if order.len() == 1 { Word::LimitsCensusLayout } else { Word::LimitsCensusLayouts };
+    w.say(word, &[Hole::Name(value), Hole::Name(layouts.expect("nonempty census heads"))])
 }
 fn megabytes(w: &Words, bytes: u64) -> Box<[u8]> {
     if bytes < 10_000_000 {

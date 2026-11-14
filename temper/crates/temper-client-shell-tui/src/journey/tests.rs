@@ -708,7 +708,7 @@ fn local_records_are_refused_outside_their_places() {
 #[test]
 fn front_reports_replay_through_box_line_read() {
     use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     use temper_client_tui::{BoxEnd, BoxLine, BoxStage};
     let (mut walk, duties) = linked_walk_duties(true);
     let stages =
@@ -766,7 +766,7 @@ fn front_reports_replay_through_box_line_read() {
 fn lending_reports_and_duties_replay_through_the_host() {
     use crate::host::tests::{delivery_report, terminal_document, watch};
     use jig_client::contract::LoginExit;
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     let (mut walk, duties) = linked_walk_duties(true);
     let duties = walk.admit(duties);
     let subject = w::Subject::Terminal(

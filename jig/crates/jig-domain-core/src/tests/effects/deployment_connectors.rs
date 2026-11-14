@@ -308,6 +308,51 @@ fn program_facts() -> (Core, Env<Limits>) {
     ));
     (core, env)
 }
+#[test]
+fn census_reports_replace_the_deployment_and_deliver_each_to_its_watcher() {
+    let (mut core, limits) = watch_core();
+    assert_eq!(deployment(&core, &limits).census, None);
+    let watcher = Token::new(30);
+    let first = watch_outputs(
+        &mut core,
+        &limits,
+        Event::Watch { watcher, sign_in: 10, subject: Watched::Deployment, window: window() },
+    );
+    let Request::Held(held) = &first[0] else { panic!("held deployment") };
+    let Held::Delivery { document, .. } = held.as_ref() else { panic!("deployment delivery") };
+    let Document::Deployment(value) = document.as_ref() else { panic!("deployment") };
+    assert_eq!(value.census, None);
+    for commit in [12, 13] {
+        drop(watch_outputs(&mut core, &limits, Event::Delivered { watcher }));
+        let mut heads = List::with_capacity(1);
+        heads.push(CensusHead { head: Some(3), rows: 5 }).unwrap();
+        let mut keyspaces = List::with_capacity(1);
+        keyspaces
+            .push(CensusKeyspace {
+                prefix: Box::new([1, 1, 10]),
+                name: "tasks.milestones".into(),
+                rows: 5,
+                keys: 15,
+                values: 25,
+                heads,
+                puts: 120,
+                erases: 0,
+                written: 6480,
+            })
+            .unwrap();
+        let census = Box::new(StoreCensus { commit, since: 1, keyspaces });
+        drop(watch_outputs(&mut core, &limits, Event::Census(census.clone())));
+        assert_eq!(deployment(&core, &limits).census, Some(census.clone()));
+        let changed = finish_watch_outputs(&mut core, &limits);
+        assert_eq!(changed.len(), 1, "each report marks the deployment");
+        let Request::Held(held) = &changed[0] else { panic!("held deployment") };
+        let Held::Delivery { watcher: delivered, document } = held.as_ref() else { panic!("deployment delivery") };
+        assert_eq!(*delivered, watcher);
+        let Document::Deployment(value) = document.as_ref() else { panic!("deployment") };
+        assert_eq!(value.census, Some(census));
+    }
+}
+
 fn program_inventory(core: &mut Core, env: &Env<Limits>, state: LoginState) {
     drop(step(
         core,

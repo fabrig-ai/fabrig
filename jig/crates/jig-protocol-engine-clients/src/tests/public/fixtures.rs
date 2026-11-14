@@ -151,12 +151,12 @@ pub fn bytes(reply: PublicReply) -> Box<[u8]> {
     bytes
 }
 
-pub fn frame_public_identifiers(value: &wire::v21::Me, limits: &wire::v21::Limits) -> [Option<u64>; 2] {
+pub fn frame_public_identifiers(value: &wire::v22::Me, limits: &wire::v22::Limits) -> [Option<u64>; 2] {
     let mut reader = Reader::new(value.projects());
     let mut ids = [None; 2];
     for id in &mut ids {
         let project = skein_codec::piece::split(&mut reader).unwrap().unwrap();
-        let project = wire::v21::MeProject::decode(limits, &mut Reader::new(&project)).unwrap();
+        let project = wire::v22::MeProject::decode(limits, &mut Reader::new(&project)).unwrap();
         *id = *project.public();
     }
     ids
