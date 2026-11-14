@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use hearth_lib::{encode::Digest, hash::H};
-use skein_lib::{List, Map as Ordered};
+use skein_lib::{Joined, List, Map as Ordered, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Live {
     pub paths: Box<[Covered]>,
@@ -108,16 +108,37 @@ pub(crate) fn digest(live: &Live) -> Digest {
 pub struct Change {
     pub paths: Box<[ConsumersKeyed]>,
 }
-pub type ConsumersKeyed = crate::diff::Keyed<Box<[Consumer]>>;
+/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ConsumersKeyed {
+    Added { key: Box<[u8]>, value: Box<[Consumer]> },
+    Removed { key: Box<[u8]>, value: Box<[Consumer]> },
+    Changed { key: Box<[u8]>, before: Box<[Consumer]>, after: Box<[Consumer]> },
+}
 
 #[must_use]
 pub(crate) fn change(before: &Live, after: &Live) -> Change {
-    Change {
-        paths: crate::diff::keyed(
-            &before.paths,
-            &after.paths,
-            |row| &row.path,
-            |change| change.map(|row| row.consumers.clone()),
-        ),
+    let mut old: Ordered<&[u8], &Covered> = Ordered::uncapped();
+    let mut new: Ordered<&[u8], &Covered> = Ordered::uncapped();
+    for row in &before.paths {
+        old.insert(row.path.as_ref(), row).expect("an uncapped map");
     }
+    for row in &after.paths {
+        new.insert(row.path.as_ref(), row).expect("an uncapped map");
+    }
+    let mut changes = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => ConsumersKeyed::Removed { key: bytes::copy_of(key), value: row.consumers.clone() },
+            Joined::Second(row) => ConsumersKeyed::Added { key: bytes::copy_of(key), value: row.consumers.clone() },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => ConsumersKeyed::Changed {
+                key: bytes::copy_of(key),
+                before: was.consumers.clone(),
+                after: now.consumers.clone(),
+            },
+        };
+        changes.push(change).expect("an uncapped list");
+    }
+    Change { paths: changes.into_boxed() }
 }
