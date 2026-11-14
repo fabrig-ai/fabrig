@@ -10,11 +10,51 @@ use crate::{
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
-/// Use the shipped document's standard profiles and declared-message sizing.
-/// A copied project retains its grants when its prepare executor is added.
+// The copied ceiling has these executor kinds and fifteen forge grants.
+const COPIED_CHARTERS: &[u64] = &[1, 2, 4, 5, 9, 11, 12, 13, 14, 15, 16];
+const COPIED_PROCEDURES: &[u64] = &[2, 3, 4, 6];
+const COPIED_JOBS: &[u64] = &[3, 4];
+const COPIED_ROLES: &[u64] = &[0, 1, 2];
+const COPIED_FORGE_KINDS: &[u64] = &[1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17];
+
+fn copied_executor(value: &Value) -> bool {
+    for (field, numbers) in
+        [("charter", COPIED_CHARTERS), ("procedure", COPIED_PROCEDURES), ("job", COPIED_JOBS), ("role", COPIED_ROLES)]
+    {
+        if let Some(number) = value[field].as_u64() {
+            return numbers.contains(&number);
+        }
+    }
+    false
+}
+
+fn copied_grant(value: &Value, delete_branch: bool) -> bool {
+    value["kind"].as_u64().is_some_and(|kind| COPIED_FORGE_KINDS.contains(&kind) && (delete_branch || kind != 15))
+}
+
+/// The stock copy retains its grants; a retained project can lack branch deletion.
+#[derive(Clone, Copy)]
+pub enum Policy {
+    StockCopy,
+    WithoutDeleteBranch,
+}
+
+/// Shipped capacity bounds and the retained project that lacks branch deletion.
 pub fn configure(root: &Path, repository: u64) {
-    configure_standard(root, repository, 1);
-    write_private(&root.join("copied-project.json"), b"{}");
+    configure_policy(root, repository, 1, Policy::WithoutDeleteBranch);
+}
+
+/// The owner adds only the prepare executor to the selected copied policy.
+pub fn configure_policy(root: &Path, repository: u64, batch: u16, policy: Policy) {
+    configure_standard(root, repository, batch);
+    let delete_branch = match policy {
+        Policy::StockCopy => true,
+        Policy::WithoutDeleteBranch => false,
+    };
+    write_private(
+        &root.join("copied-project.json"),
+        &serde_json::to_vec(&json!({"delete_branch":delete_branch})).expect("policy option"),
+    );
 }
 
 /// Shipped capacities, with the explicit member and branch bounds a larger batch needs.
@@ -55,6 +95,9 @@ pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
     if !root.join("copied-project.json").exists() {
         return steps;
     }
+    let option: Value =
+        serde_json::from_slice(&fs::read(root.join("copied-project.json")).expect("policy option")).expect("JSON");
+    let delete_branch = option["delete_branch"].as_bool().expect("branch-delete grant option");
     let base = steps.len();
     steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "--json"]).in_directory("private")));
     steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "policy", "1", "--json"]).in_directory("private")));
@@ -62,15 +105,15 @@ pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
     steps.push(ctl::Step::Then(Box::new(move |calls| {
         let mut policy = ctl::json(&calls[base + 1])["value"].clone();
         let ceiling = &mut policy["ceiling"];
-        ceiling["delegation"]["kinds"].as_array_mut().expect("executors").retain(|kind| kind != &json!({"job":1}));
-        ceiling["grants"].as_array_mut().expect("grants").retain(|grant| grant["kind"] != 15);
-        policy["projections"].as_array_mut().expect("projections").retain(|grant| grant["kind"] != 15);
+        ceiling["delegation"]["kinds"].as_array_mut().expect("executors").retain(copied_executor);
+        ceiling["grants"].as_array_mut().expect("grants").retain(|grant| copied_grant(grant, delete_branch));
+        policy["projections"].as_array_mut().expect("projections").retain(|grant| copied_grant(grant, delete_branch));
         for role in policy["roles"].as_array_mut().expect("roles") {
-            role["authority"]["grants"].as_array_mut().expect("role grants").retain(|grant| grant["kind"] != 15);
-            role["authority"]["delegation"]["kinds"]
+            role["authority"]["grants"]
                 .as_array_mut()
-                .expect("role executors")
-                .retain(|kind| kind != &json!({"job":1}));
+                .expect("role grants")
+                .retain(|grant| copied_grant(grant, delete_branch));
+            role["authority"]["delegation"]["kinds"].as_array_mut().expect("role executors").retain(copied_executor);
         }
         write_private(
             &file,
@@ -88,7 +131,11 @@ pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
     steps.push(ctl::Step::Then(Box::new(move |calls| {
         let copied: Value = serde_json::from_slice(&fs::read(&copied).expect("copied project")).expect("policy JSON");
         let mut policy = copied["items"][0]["set"].clone();
-        assert!(!policy["ceiling"]["grants"].as_array().expect("grants").iter().any(|grant| grant["kind"] == 15));
+        assert_eq!(
+            policy["ceiling"]["grants"].as_array().expect("grants").iter().any(|grant| grant["kind"] == 15),
+            delete_branch,
+            "adding the executor preserves the copied grants"
+        );
         policy["ceiling"]["delegation"]["kinds"].as_array_mut().expect("executors").push(json!({"job":1}));
         write_private(
             &file,

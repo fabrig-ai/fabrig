@@ -204,7 +204,12 @@ fn a_batch_of_four_narrows_its_breaking_member_with_deployment_limits() {
     forge.add_file(".forgejo/workflows/gate.yaml", barrier.gate_workflow(landing_by_turn::WORKFLOW).as_bytes());
     batch_landing::deployment::add_root(&forge);
     support::configuration(scratch.path(), &forge.forge());
-    batch_landing::deployment::configure_standard(scratch.path(), forge.repository(), 4);
+    batch_landing::deployment::configure_policy(
+        scratch.path(),
+        forge.repository(),
+        4,
+        batch_landing::deployment::Policy::StockCopy,
+    );
     batch_landing::run_narrowed_four(scratch.path(), &forge, &barrier);
     forge.stop();
     scratch.remove();
