@@ -123,7 +123,6 @@ fn failed(deadline: &Deadline) -> skein_world::Figures {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_idle_unanswered_deadline_fails_with_its_figures() {
     let deadline = Deadline::arm("the idle answer", Duration::from_millis(20));
     std::thread::sleep(core::time::Duration::from_nanos(deadline.remaining().as_nanos()));
@@ -132,9 +131,7 @@ fn an_idle_unanswered_deadline_fails_with_its_figures() {
     assert_eq!(figures.patience, Duration::from_millis(20));
     assert!(figures.elapsed >= figures.patience);
     assert_eq!(figures.tree_waited, None);
-    let failure =
-        std::panic::catch_unwind(|| panic!("no answer: {figures}")).expect_err("an unanswered idle wait fails");
-    let text = failure.downcast_ref::<String>().expect("failure includes its figures");
+    let text = format!("no answer: {figures}");
     assert!(text.starts_with("no answer: the idle answer: patience 20000000 ns; elapsed "), "{text}");
     assert!(text.contains("thread runnable wait ") && text.contains("thread CPU "), "{text}");
     assert!(text.ends_with("tree runnable wait UNAVAILABLE (ns)"), "{text}");
