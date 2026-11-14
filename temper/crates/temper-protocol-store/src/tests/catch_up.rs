@@ -47,7 +47,7 @@ fn patched_with(
 }
 
 fn current(root: &[u8], mut bytes: Box<[u8]>) -> Box<[u8]> {
-    for (version, patch) in [(11, 0), (12, 1), (13, 2), (14, 3), (15, 4), (16, 5), (17, 6), (18, 7), (19, 8)] {
+    for (version, patch) in [(11, 0), (12, 1), (13, 2), (14, 3), (15, 4), (16, 5), (17, 6), (18, 7), (19, 8), (20, 9)] {
         bytes = patched(version, patch, root, bytes);
     }
     bytes

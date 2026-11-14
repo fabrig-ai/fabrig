@@ -121,7 +121,7 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
     if let jig_domain_core::Record::Tasks(tasks::Stored::Ended(child)) = record {
         let Some(task) = held_change(domain, child.requester, child.number) else { return };
         let Some(context) = domain.core.tasks.run_context(task) else { return };
-        super::change_results(domain, &context);
+        super::change_results(domain, &context, None);
     } else if let jig_domain_core::Record::Tasks(tasks::Stored::Milestone(milestone)) = record {
         let Some(words) = failed_words(&milestone.phase) else { return };
         let Some(child) = domain.core.tasks.task(milestone.task) else { return };

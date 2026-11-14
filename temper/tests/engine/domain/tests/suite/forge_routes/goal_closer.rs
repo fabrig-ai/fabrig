@@ -123,6 +123,7 @@ fn goal_world_with_updates(
             approvals: Box::new([]),
         },
     ]));
+    if stall.is_some() { world.tick_interval = Duration::from_millis(10); }
     if commits.is_some() {
         let client = skein_forge_client::Limits { rows: 8, ..world.env.limits.forge.client };
         world = world.with_forge_client(client);

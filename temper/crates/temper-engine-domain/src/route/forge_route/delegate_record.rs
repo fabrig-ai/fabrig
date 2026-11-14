@@ -51,14 +51,14 @@ pub(crate) fn start(
     }
     let Some(row) = domain.forge.change(task) else { return false };
     let Some((child, _)) = row.delegate else { return false };
-    for word in &context.inbox {
-        if !released && word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind).is_some() {
-            return false;
-        }
-    }
     let mut stale_question = false;
     for question in &row.questions.open {
         stale_question |= question.asker == child;
+    }
+    for word in &context.inbox {
+        if !released && !stale_question && word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind).is_some() {
+            return false;
+        }
     }
     if domain.core.tasks.task(child).is_some()
         || (!released && row.delegate_status != forge_change::Status::Unknown && !stale_question)
@@ -172,7 +172,7 @@ pub(crate) fn loaded(
         forge::Event::DelegateResult { task, child, ended_at, status, no_change, failed, cancelled, words },
     );
     if let Some(context) = domain.core.tasks.run_context(task)
-        && !super::start_change(domain, env, &context)
+        && !super::start_recovered_change(domain, env, &context, Some((child, ended_at)))
     {
         super::start_refused(domain, task);
     }

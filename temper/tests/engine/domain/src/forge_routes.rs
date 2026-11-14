@@ -176,6 +176,8 @@ pub struct World {
     pub drained: Option<u64>,
     pub unsettled: Vec<engine::Unsettled>,
     pub busy_calls: u32,
+    /// Time per normal tick; short-stall stories can drive reads with less shell latency.
+    pub tick_interval: Duration,
     /// Opt-in worker answer acknowledgements for settlement stories.
     pub acknowledgements: Option<Vec<(u64, u64)>>,
 }
@@ -1273,6 +1275,7 @@ impl World {
             drained: None,
             unsettled: Vec::new(),
             busy_calls: 0,
+            tick_interval: Duration::from_millis(100),
             acknowledgements: None,
             merges: 0,
             writes: Vec::new(),
@@ -2645,7 +2648,7 @@ impl World {
                 self.env.now = self.env.now.max(due);
             }
         } else {
-            self.env.now = self.env.now.saturating_add(Duration::from_millis(100));
+            self.env.now = self.env.now.saturating_add(self.tick_interval);
         }
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.fake_env.now = self.env.now;

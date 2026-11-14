@@ -2398,8 +2398,15 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
+    start_recovered_change(domain, env, context, None)
+}
+
+#[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
+pub(super) fn start_recovered_change(
+    domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext,
+    recovered: Option<(u64, Option<skein_lib::Wall>)>,
+) -> bool {
     let task = context.task;
     if close::refusal(domain, context).is_some() {
         return false;
@@ -2629,7 +2636,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             subscribe_goal(domain, env, goal, forge::Topic::Landings { repository: provider, branch: base.clone() });
         }
     } else {
-        change_results(domain, context);
+        change_results(domain, context, recovered);
     }
     step_dependents(domain, env, task);
     retry_change_names(domain, env, task);
@@ -2660,7 +2667,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     true
 }
 
-fn change_results(domain: &mut Domain, context: &tasks::RunContext) {
+fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: Option<(u64, Option<skein_lib::Wall>)>) {
     let task = context.task;
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
@@ -2671,7 +2678,7 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext) {
             if held { Some((forge_change::Status::Failed, true, false)) } else { change_delegate_status(&word.kind) };
         if let Some((status, failed, cancelled)) = status {
             domain.work.push(Work::Forge(forge::Event::DelegateResult {
-                ended_at: None,
+                ended_at: match recovered { Some((recovered, at)) if recovered == child => at, Some(_) | None => None },
                 task,
                 child,
                 status,
