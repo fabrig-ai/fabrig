@@ -209,6 +209,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester: false,
+        question_woken: 0,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
         hold_bound_since: None,
