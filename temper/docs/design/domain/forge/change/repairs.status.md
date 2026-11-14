@@ -2,7 +2,6 @@
 
 2026-11-14. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
-- **Not yet:** "Stalls", its "What a step reads is waited on too", and "A release", its "Deciding afresh reads afresh": a step's gather that never completes, keeps starting over or meets a busy client waits with no stall; a stored question whose asker ended still exempts; a release keeps an outstanding gather and reads no delegate's result afresh, and a party's release of an unheld change is no release (`temper-engine-domain-forge/src/domain.rs`, `step_change`, `retry_step`, `agent_asking`; `temper-engine-domain/src/route/forge_route.rs`, `change_step`) [in flight: change 2709].
 
 
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`).
