@@ -2167,13 +2167,15 @@ impl World {
                     }
                     // Nonparticipating keep-up reads Item after u64::MAX. The change
                     // finishes its fresh Checks before its repair enters Preparing.
-                    if let Some((pull, checks, error)) = self.fail_brief_reads
+                    let preparing_ci = (self.fail_brief_reads.is_some() || self.slow_brief_reads)
                         && self.store.rows.values().any(|row| {
                             matches!(row,
                             Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
                                 if row.spec.words.starts_with(b"Repair CI at ")
                                     && row.phase == tasks::Phase::Active(tasks::Active::Preparing))
-                        })
+                        });
+                    if let Some((pull, checks, error)) = self.fail_brief_reads
+                        && preparing_ci
                         && ((pull
                             && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Item { after: 0, .. })))
                             || (checks
@@ -2258,7 +2260,13 @@ impl World {
                             None
                         };
                     let slow = (self.slow_brief_reads
-                        && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Job { .. })))
+                        && preparing_ci
+                        && matches!(
+                            op,
+                            skein_forge::api::Op::Read(
+                                skein_forge::api::Read::Checks { .. } | skein_forge::api::Read::Item { after: 0, .. }
+                            )
+                        ))
                         || matches!((&op, &self.slow_branch),
                             (skein_forge::api::Op::Read(skein_forge::api::Read::Branch { branch }), Some(slow))
                                 if branch == slow);
