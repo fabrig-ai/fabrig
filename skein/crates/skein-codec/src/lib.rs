@@ -12,6 +12,7 @@ use alloc::boxed::Box;
 use skein_lib::Reader;
 
 pub mod bridge;
+pub mod layout;
 pub mod patch;
 pub mod piece;
 pub mod schema;

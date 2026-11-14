@@ -430,7 +430,7 @@ pub(crate) fn payload(matching: &List<Option<DeclIx>>, old: Option<DeclIx>, new:
         None => new.is_none(),
     }
 }
-fn held(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Held, b: Held) -> Comparison {
+pub(crate) fn held(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Held, b: Held) -> Comparison {
     match a {
         Held::Opaque => match b {
             Held::Opaque => Comparison::Equal,
