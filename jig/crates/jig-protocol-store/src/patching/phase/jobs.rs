@@ -44,7 +44,10 @@ impl Running {
     }
     pub(super) fn committed(&mut self, number: u64, above: &mut Queue<Event>, token: skein_lib::Token) -> bool {
         match self.waiting {
-            Waiting::Registry { number: expected } if number == expected => { self.waiting = Waiting::Ready; true }
+            Waiting::Registry { number: expected } if number == expected => {
+                self.waiting = Waiting::Ready;
+                true
+            }
             Waiting::Commit { number: expected, end } if number == expected => {
                 self.commits = self.commits.checked_add(1).expect("commits bounded by commit number");
                 if end {
@@ -138,7 +141,10 @@ fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> O
     let (of, job) = running.current();
     let ranges = ranges(store, of, &job)?;
     let written = store.registry.written(&job);
-    let id = match &written { Some((id, _)) => Some(*id), None => None };
+    let id = match &written {
+        Some((id, _)) => Some(*id),
+        None => None,
+    };
     let walked = load_values(store, running, &ranges, job.converts.is_some(), id)?;
     if walked.rows.is_empty() && walked.next.is_some() {
         return None;
@@ -154,27 +160,55 @@ fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> O
         owner: store.directory.owner,
         of,
         job: Box::from(job.name),
-        page: JobPage { rows: rows.into_boxed(), end, layout: if running.first { match written { Some((_, layout)) => Some(layout), None => None } } else { None } },
+        page: JobPage {
+            rows: rows.into_boxed(),
+            end,
+            layout: if running.first {
+                match written {
+                    Some((_, layout)) => Some(layout),
+                    None => None,
+                }
+            } else {
+                None
+            },
+        },
     });
     running.first = false;
     Some(())
 }
-fn load_values(store: &mut Store, running: &mut Running, ranges: &[skein_kv::Range], written: bool, id: Option<u16>) -> Option<pages::Walked> {
+fn load_values(
+    store: &mut Store,
+    running: &mut Running,
+    ranges: &[skein_kv::Range],
+    written: bool,
+    id: Option<u16>,
+) -> Option<pages::Walked> {
     let mut bound = 1_u64;
-    for space in store.stores.store.census().keyspaces() { bound = bound.checked_add(space.rows)?; }
+    for space in store.stores.store.census().keyspaces() {
+        bound = bound.checked_add(space.rows)?;
+    }
     for _ in 0..bound {
         let walked = match pages::reader::walk(store, ranges, running.after.as_ref(), store.limits.store.ops) {
             Ok(walked) => walked,
-            Err(failure) => { store.open_failed(crate::restore::OpenFailure::Data(failure)); return None; }
+            Err(failure) => {
+                store.open_failed(crate::restore::OpenFailure::Data(failure));
+                return None;
+            }
         };
-        if !written { return Some(walked); }
+        if !written {
+            return Some(walked);
+        }
         let mut rows = List::uncapped();
         let mut last = None;
         for row in walked.rows {
             last = Some(row.cursor.clone());
-            if id.is_some() && crate::registry::head(&row.row.value) == id { rows.push(row).ok()?; }
+            if id.is_some() && crate::registry::head(&row.row.value) == id {
+                rows.push(row).ok()?;
+            }
         }
-        if !rows.is_empty() || walked.next.is_none() { return Some(pages::Walked { rows: rows.into_boxed(), next: walked.next }); }
+        if !rows.is_empty() || walked.next.is_none() {
+            return Some(pages::Walked { rows: rows.into_boxed(), next: walked.next });
+        }
         running.after = last;
     }
     None
@@ -182,7 +216,10 @@ fn load_values(store: &mut Store, running: &mut Running, ranges: &[skein_kv::Ran
 pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     let Patching::Jobs(mut running) = *take(store) else { unreachable!("resume routed jobs") };
     if !running.registered {
-        if !running.ready() { state(store, Patching::Jobs(running)); return; }
+        if !running.ready() {
+            state(store, Patching::Jobs(running));
+            return;
+        }
         let Some(ops) = store.registry.batch(&store.limits) else { return refuse(store, above) };
         if !ops.is_empty() {
             let Some(number) = store.stores.store.last().checked_add(1) else { return refuse(store, above) };

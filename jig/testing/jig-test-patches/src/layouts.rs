@@ -1,8 +1,11 @@
 //! A registered fixture's kept and binary texts (jig's protocol/store/layouts.md, 8).
-pub const FIRST: &str = "family fixture-layouts 1\nversioned record Growing { n: u8 }\nversioned record Stable { ok: bool }\n";
-pub const KEPT: &str = "family fixture-layouts 2\nversioned record Growing { n: u16 }\nversioned record Stable { ok: bool }\n";
+pub const FIRST: &str =
+    "family fixture-layouts 1\nversioned record Growing { n: u8 }\nversioned record Stable { ok: bool }\n";
+pub const KEPT: &str =
+    "family fixture-layouts 2\nversioned record Growing { n: u16 }\nversioned record Stable { ok: bool }\n";
 pub const CURRENT: &str = "family fixture-layouts 2\nversioned record Growing { n: u16, added: u8 = 7 }\nversioned record Stable { ok: bool }\n";
-pub const WRITTEN: &str = "family fixture-layouts 2\nversioned record Growing { n: u16, added: u8 }\nversioned record Stable { ok: bool }\n";
+pub const WRITTEN: &str =
+    "family fixture-layouts 2\nversioned record Growing { n: u16, added: u8 }\nversioned record Stable { ok: bool }\n";
 pub const HOLDER: &str = "family fixture-holder 1\nrecord Changed { child: bytes 32 holds fixture-child Child }\nenum Value { changed: Changed, stable }\nversioned record Row { value: Value }\n";
 pub const CHILD: &str = "family fixture-child 1\nversioned record Child { n: u8 }\n";
 pub const CHILD_CURRENT: &str = "family fixture-child 1\nversioned record Child { n: u8, added: u8 = 7 }\n";

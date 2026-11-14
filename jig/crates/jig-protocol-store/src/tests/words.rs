@@ -70,7 +70,17 @@ fn a_failed_refusal_says_to_check_space_and_permissions_then_restore() {
 }
 #[test]
 fn an_unplanned_layout_says_to_start_a_build_that_converts_it() {
-    says(OpenRefusal::Layout { family: "fixture".into(), value_type: 0, id: 2, values: Some(1), why: crate::Unplanned::Text }, "- `Layout`: \"", "\"");
+    says(
+        OpenRefusal::Layout {
+            family: "fixture".into(),
+            value_type: 0,
+            id: 2,
+            values: Some(1),
+            why: crate::Unplanned::Text,
+        },
+        "- `Layout`: \"",
+        "\"",
+    );
 }
 
 #[test]

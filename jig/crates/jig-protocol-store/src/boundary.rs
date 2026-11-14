@@ -341,7 +341,11 @@ pub enum OpenRefusal {
 }
 /// Why a layout cannot be planned (protocol/store/opening.md, 1.8).
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared }
+pub enum Unplanned {
+    Underived(skein_codec::layout::Underived),
+    Text,
+    Undeclared,
+}
 
 /// A refusal whose fix moves the generations (protocol/store/README.md 2), `why` saying
 /// which version or build.

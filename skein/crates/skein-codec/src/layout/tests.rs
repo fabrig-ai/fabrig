@@ -174,6 +174,29 @@ fn held_records_convert_in_their_length_and_enforce_the_new_bound() {
 }
 
 #[test]
+fn held_enumerations_keep_append_and_convert_whole_without_a_head() {
+    let old = schema("record R { held: bytes 8 holds g E }", 1);
+    let new = schema("record R { held: bytes 8 holds g E }", 2);
+    let a = schema::parse(b"family g 1 enum E { a b }").expect("held enum");
+    let same = Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[&a]).expect("held identity");
+    check(&same, &[0, 0, 0, 1, 1], &[0, 0, 0, 1, 1], true);
+    let initial = old.layout(root(&old, None), &[&a]).expect("held enum fingerprint");
+    for (text, tag, keeps) in
+        [(b"family g 9 enum E { a b c }".as_slice(), 1, true), (b"family g 9 enum E { c a b }".as_slice(), 2, false)]
+    {
+        let b = schema::parse(text).expect("changed held enum");
+        let plan = Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[&b]).expect("held enum plan");
+        check(&plan, &[0, 0, 0, 1, 1], &[0, 0, 0, 1, tag], keeps);
+        assert_ne!(initial, new.layout(root(&new, None), &[&b]).expect("changed enum fingerprint"));
+    }
+    let absent = schema::parse(b"family g 9 record Other { n: u8 }").expect("not the named held declaration");
+    let refusal = Plan::derive(&old, root(&old, None), &[&a], &new, root(&new, None), &[&absent])
+        .expect_err("held type is not a record or enumeration");
+    assert_eq!(refusal.why, Why::Held);
+    assert_eq!(new.layout(root(&new, None), &[&absent]), Err(schema::LayoutError::Root));
+}
+
+#[test]
 fn pieces_copy_kept_items_and_open_changed_items() {
     let old = "record A { a: u8 } record R { items: bytes 32 pieces A }";
     let wire = &[0, 0, 0, 10, 0, 0, 0, 1, 5, 0, 0, 0, 1, 7];

@@ -310,11 +310,7 @@ fn dependency(
                 if next.spelled(next.family()) != schema.spelled(family) {
                     continue;
                 }
-                let decl = next.find(schema.spelled(name)).ok_or(LayoutError::Root)?;
-                match next.declaration(decl).shape {
-                    Shape::Record { .. } => {}
-                    Shape::Enum { .. } => return Err(LayoutError::Root),
-                }
+                let decl = next.root(schema.spelled(name), None).ok_or(LayoutError::Root)?.decl;
                 for (at, table) in tables.iter().enumerate() {
                     if table.source == Some(source) {
                         return Ok(Some(Target {

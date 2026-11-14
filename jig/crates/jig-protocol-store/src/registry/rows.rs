@@ -1,5 +1,5 @@
 //! Registry rows, their seed and commit operations (protocol/store/layouts.md, 3 and 5).
-use super::{Layouts, Row, RowKey, Type, Range, Text, texts};
+use super::{Layouts, Range, Row, RowKey, Text, Type, texts};
 use crate::{KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
 use alloc::boxed::Box;
 use skein_lib::{Map, Reader, Writer};
@@ -8,48 +8,102 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
     let ranges = [skein_kv::Range { start: Box::from([0, 6]), end: Some(Box::from([0, 8])) }];
     let mut after = None;
     let mut count = 0_u64;
-    for space in store.stores.store.census().keyspaces() { count = count.checked_add(space.rows).ok_or(OpenRefusal::Failed)?; }
+    for space in store.stores.store.census().keyspaces() {
+        count = count.checked_add(space.rows).ok_or(OpenRefusal::Failed)?;
+    }
     for _ in 0..=count {
         let page = match crate::pages::reader::walk(store, &ranges, after.as_ref(), store.limits.store.ops) {
             Ok(page) => page,
-            Err(failure) => { store.open_failed(crate::restore::OpenFailure::Data(failure)); return Err(OpenRefusal::Failed); }
+            Err(failure) => {
+                store.open_failed(crate::restore::OpenFailure::Data(failure));
+                return Err(OpenRefusal::Failed);
+            }
         };
         for row in page.rows {
             match keys::decode_own(&row.row.key) {
                 Some(keys::Own::Layout { family, number, id }) => {
-                    let value = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(&row.row.value)).ok().ok_or(OpenRefusal::Failed)?;
-                    layouts.rows.insert((family, number, id), Row { value, stored: true, retire: false }).expect("uncapped registry");
+                    let value = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(&row.row.value))
+                        .ok()
+                        .ok_or(OpenRefusal::Failed)?;
+                    layouts
+                        .rows
+                        .insert((family, number, id), Row { value, stored: true, retire: false })
+                        .expect("uncapped registry");
                 }
                 Some(keys::Own::Text(digest)) => {
-                    let value = wire::Text::decode(&wire::CEILINGS, &mut Reader::new(&row.row.value)).ok().ok_or(OpenRefusal::Failed)?;
+                    let value = wire::Text::decode(&wire::CEILINGS, &mut Reader::new(&row.row.value))
+                        .ok()
+                        .ok_or(OpenRefusal::Failed)?;
                     let bytes = Box::from(value.text());
-                    let schema = if texts::digest(&bytes) == digest { skein_codec::schema::parse(&bytes).ok() } else { None };
+                    let schema =
+                        if texts::digest(&bytes) == digest { skein_codec::schema::parse(&bytes).ok() } else { None };
                     layouts.texts.insert(digest, Text { bytes, schema, stored: true }).expect("uncapped texts");
                 }
-                Some(keys::Own::Format | keys::Own::Layouts | keys::Own::Wires | keys::Own::Opening(_) | keys::Own::Job { .. } | keys::Own::Transcript { .. } | keys::Own::Attempt { .. }) | None => return Err(OpenRefusal::Failed),
+                Some(
+                    keys::Own::Format
+                    | keys::Own::Layouts
+                    | keys::Own::Wires
+                    | keys::Own::Opening(_)
+                    | keys::Own::Job { .. }
+                    | keys::Own::Transcript { .. }
+                    | keys::Own::Attempt { .. },
+                )
+                | None => return Err(OpenRefusal::Failed),
             }
         }
         after = page.next;
-        if after.is_none() { return Ok(()); }
+        if after.is_none() {
+            return Ok(());
+        }
     }
     Err(OpenRefusal::Failed)
 }
-fn made(layouts: &Layouts, binary: &texts::Binary, family: &KeptFamily, ty: &ValueType, current: bool) -> Option<wire::Layout> {
+fn made(
+    layouts: &Layouts,
+    binary: &texts::Binary,
+    family: &KeptFamily,
+    ty: &ValueType,
+    current: bool,
+) -> Option<wire::Layout> {
     let text = binary.text(family.name, current)?;
     let held = binary.held(layouts, text, current)?;
     let schema = layouts.texts.get(&text)?.schema.as_ref()?;
     let root = schema.root(ty.root.as_bytes(), super::variant(ty.variant))?;
     let schemas = texts::schemas(layouts, &held, false)?;
     let layout = schema.layout(root, schemas.as_slice()).ok()?.digest();
-    wire::Layout::new(&wire::CEILINGS, wire::LayoutParts { root: Box::from(ty.root.as_bytes()), variant: match super::variant(ty.variant) { Some(v) => Some(Box::from(v)), None => None }, layout, text, held }).ok()
+    wire::Layout::new(
+        &wire::CEILINGS,
+        wire::LayoutParts {
+            root: Box::from(ty.root.as_bytes()),
+            variant: match super::variant(ty.variant) {
+                Some(v) => Some(Box::from(v)),
+                None => None,
+            },
+            layout,
+            text,
+            held,
+        },
+    )
+    .ok()
 }
 pub(super) fn seed(store: &Store, layouts: &mut Layouts, binary: &mut texts::Binary) -> Result<(), OpenRefusal> {
     for set in store.patch_sets.sets {
         for family in set.families {
             for ty in family.types {
-                let value = made(layouts, binary, family, ty, false).ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?;
-                let id = layouts.texts.get(value.text()).ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?.schema.as_ref().ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?.version();
-                layouts.rows.insert((Box::from(family.name), ty.number, id), Row { value, stored: false, retire: false }).expect("uncapped seed");
+                let value =
+                    made(layouts, binary, family, ty, false).ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?;
+                let id = layouts
+                    .texts
+                    .get(value.text())
+                    .ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?
+                    .schema
+                    .as_ref()
+                    .ok_or(OpenRefusal::Set { owner: set.owner, patch: 0 })?
+                    .version();
+                layouts
+                    .rows
+                    .insert((Box::from(family.name), ty.number, id), Row { value, stored: false, retire: false })
+                    .expect("uncapped seed");
             }
         }
     }
@@ -62,26 +116,47 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
             for ty in family.types {
                 let refusal = OpenRefusal::Set { owner: set.owner, patch: 0 };
                 let value = made(layouts, binary, family, ty, true).ok_or(refusal.clone())?;
-                let version = layouts.texts.get(value.text()).ok_or(refusal.clone())?.schema.as_ref().ok_or(refusal.clone())?.version();
+                let version = layouts
+                    .texts
+                    .get(value.text())
+                    .ok_or(refusal.clone())?
+                    .schema
+                    .as_ref()
+                    .ok_or(refusal.clone())?
+                    .version();
                 let mut found = None;
                 let mut greatest = None;
                 for ((name, number, id), row) in &layouts.rows {
                     if name.as_ref() == family.name && *number == ty.number {
                         greatest = Some(greatest.unwrap_or(0_u16).max(*id));
-                        if row.value.layout() == value.layout() { found = Some(*id); }
+                        if row.value.layout() == value.layout() {
+                            found = Some(*id);
+                        }
                     }
                 }
                 let id = match found {
                     Some(id) => id,
                     None => {
-                        let id = match greatest { Some(id) => id.checked_add(1).ok_or(refusal.clone())?, None => version };
-                        layouts.rows.insert((Box::from(family.name), ty.number, id), Row { value, stored: false, retire: false }).expect("uncapped registration");
+                        let id = match greatest {
+                            Some(id) => id.checked_add(1).ok_or(refusal.clone())?,
+                            None => version,
+                        };
+                        layouts
+                            .rows
+                            .insert(
+                                (Box::from(family.name), ty.number, id),
+                                Row { value, stored: false, retire: false },
+                            )
+                            .expect("uncapped registration");
                         changed = true;
                         id
                     }
                 };
                 let index = layouts.types.len();
-                layouts.types.push(Type { family: family.name, number: ty.number, version, binary: id, plans: Map::uncapped() }).expect("uncapped types");
+                layouts
+                    .types
+                    .push(Type { family: family.name, number: ty.number, version, binary: id, plans: Map::uncapped() })
+                    .expect("uncapped types");
                 for range in ty.keys {
                     let from = super::whole(set.owner, range.from, store.limits.store.key).ok_or(refusal.clone())?;
                     let to = super::whole(set.owner, range.to, store.limits.store.key).ok_or(refusal.clone())?;
@@ -99,9 +174,16 @@ pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), Ope
     let mut used = Map::uncapped();
     for (row_key, row) in &layouts.rows {
         let key = key(row_key, store.limits.store.key).ok_or(OpenRefusal::Failed)?;
-        if row.retire { if row.stored { layouts.pending.push(skein_kv::Op::Erase { key }); } continue; }
+        if row.retire {
+            if row.stored {
+                layouts.pending.push(skein_kv::Op::Erase { key });
+            }
+            continue;
+        }
         used.insert(*row.value.text(), ()).expect("uncapped digests");
-        for digest in row.value.held() { used.insert(*digest, ()).expect("uncapped digests"); }
+        for digest in row.value.held() {
+            used.insert(*digest, ()).expect("uncapped digests");
+        }
         if !row.stored {
             let mut writer = Writer::new(skein_lib::usize_of(row.value.measure()));
             row.value.encode(&mut writer).ok().ok_or(OpenRefusal::Failed)?;
@@ -112,12 +194,16 @@ pub(super) fn operations(store: &Store, layouts: &mut Layouts) -> Result<(), Ope
         let key = keys::encode_own(&keys::Own::Text(*digest), store.limits.store.key).ok_or(OpenRefusal::Failed)?;
         if used.contains_key(digest) {
             if !text.stored {
-                let value = wire::Text::new(&wire::CEILINGS, wire::TextParts { text: text.bytes.clone() }).ok().ok_or(OpenRefusal::Failed)?;
+                let value = wire::Text::new(&wire::CEILINGS, wire::TextParts { text: text.bytes.clone() })
+                    .ok()
+                    .ok_or(OpenRefusal::Failed)?;
                 let mut writer = Writer::new(skein_lib::usize_of(value.measure()));
                 value.encode(&mut writer).ok().ok_or(OpenRefusal::Failed)?;
                 layouts.pending.push(skein_kv::Op::Put { key, value: writer.finish() });
             }
-        } else if text.stored { layouts.pending.push(skein_kv::Op::Erase { key }); }
+        } else if text.stored {
+            layouts.pending.push(skein_kv::Op::Erase { key });
+        }
     }
     Ok(())
 }

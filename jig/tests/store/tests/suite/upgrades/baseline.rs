@@ -39,7 +39,22 @@ fn source_commit(rows: &[Row]) -> Vec<u8> {
 
 fn source_world(format: codec::component::Format, extra: Vec<Row>, sets: jig_protocol_store::PatchSets) -> World {
     let baseline = &fixed::BASELINE;
-    let limits = patches::limits();
+    let mut limits = patches::limits();
+    // Registry Text rows retain the real families' kept schemas as whole values.
+    for set in sets.sets {
+        for family in set.families {
+            for text in family.texts.iter().copied().chain([family.current]) {
+                limits.store.value = limits.store.value.max(u32::try_from(text.len()).expect("schema bytes") + 6);
+            }
+        }
+    }
+    limits.store.page.bytes = limits.store.key + limits.store.value;
+    limits.store.chunk = skein_kv::chunk_bytes(limits.store.key, limits.store.value).expect("registry row chunk");
+    limits.store.commit = limits
+        .store
+        .commit
+        .max(skein_kv::FRAME_BYTES + skein_kv::put_bytes(limits.store.key, limits.store.value).expect("schema put"));
+    limits.store.queued_bytes = u64::from(limits.store.commit) * 2;
     let own = |key| keys::encode_own(&key, limits.store.key).expect("own key");
     let header = root::header(1);
     let mut rows = vec![

@@ -11,9 +11,13 @@ pub(super) fn digest(bytes: &[u8]) -> Digest {
     hash.finish()
 }
 #[expect(clippy::disallowed_methods, reason = "registry root and family names are checked UTF-8 at decoding")]
-pub(super) fn string(bytes: &[u8]) -> Option<Box<str>> { Some(Box::from(core::str::from_utf8(bytes).ok()?)) }
+pub(super) fn string(bytes: &[u8]) -> Option<Box<str>> {
+    Some(Box::from(core::str::from_utf8(bytes).ok()?))
+}
 #[derive(Debug)]
-pub(super) struct Binary { names: Map<&'static str, (Digest, Digest)> }
+pub(super) struct Binary {
+    names: Map<&'static str, (Digest, Digest)>,
+}
 impl Binary {
     pub(super) fn new(sets: &PatchSets, layouts: &mut Layouts) -> Result<Self, OpenRefusal> {
         let mut names = Map::uncapped();
@@ -23,15 +27,25 @@ impl Binary {
                 let mut digests = List::with_capacity(2);
                 for text in [*seed, family.current] {
                     let refusal = OpenRefusal::Set { owner: set.owner, patch: 0 };
-                    if text.len() > skein_lib::usize_of(crate::registry_v1::CEILINGS.text_text) { return Err(refusal); }
+                    if text.len() > skein_lib::usize_of(crate::registry_v1::CEILINGS.text_text) {
+                        return Err(refusal);
+                    }
                     let digest = digest(text.as_bytes());
                     if !layouts.texts.contains_key(&digest) {
                         let Ok(schema) = schema::parse(text.as_bytes()) else { return Err(refusal) };
-                        layouts.texts.insert(digest, Text { bytes: Box::from(text.as_bytes()), schema: Some(schema), stored: false }).expect("uncapped texts");
+                        layouts
+                            .texts
+                            .insert(
+                                digest,
+                                Text { bytes: Box::from(text.as_bytes()), schema: Some(schema), stored: false },
+                            )
+                            .expect("uncapped texts");
                     }
                     digests.push(digest).expect("two texts");
                 }
-                names.insert(family.name, (*digests.get(0).expect("seed"), *digests.get(1).expect("current"))).expect("uncapped names");
+                names
+                    .insert(family.name, (*digests.get(0).expect("seed"), *digests.get(1).expect("current")))
+                    .expect("uncapped names");
             }
         }
         Ok(Self { names })
@@ -55,7 +69,9 @@ impl Binary {
                     let Some(name) = holds(schema, field.ty) else { continue };
                     let Some(&pair) = self.names.get(name) else { continue };
                     let digest = if current { pair.1 } else { pair.0 };
-                    if digest == text || held.as_slice().contains(&digest) { continue; }
+                    if digest == text || held.as_slice().contains(&digest) {
+                        continue;
+                    }
                     held.push(digest).ok()?;
                     pending.push(digest).ok()?;
                 }
@@ -69,8 +85,21 @@ fn holds(schema: &Schema, mut ty: TypeIx) -> Option<&str> {
     for _ in 0..schema.text().len() {
         match schema.ty(ty) {
             Type::List { item, .. } | Type::Option(item) => ty = item,
-            Type::Bytes { held: Held::Record { family, .. }, .. } | Type::Secret { held: Held::Record { family, .. }, .. } => return core::str::from_utf8(schema.spelled(family)).ok(),
-            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration | Type::Fixed(_) | Type::Text(_) | Type::Named(_) | Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. } | Type::Secret { held: Held::Opaque | Held::Pieces(_), .. } => return None,
+            Type::Bytes { held: Held::Record { family, .. }, .. }
+            | Type::Secret { held: Held::Record { family, .. }, .. } => {
+                return core::str::from_utf8(schema.spelled(family)).ok();
+            }
+            Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::Bool
+            | Type::Duration
+            | Type::Fixed(_)
+            | Type::Text(_)
+            | Type::Named(_)
+            | Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. }
+            | Type::Secret { held: Held::Opaque | Held::Pieces(_), .. } => return None,
         }
     }
     None
@@ -79,7 +108,9 @@ pub(super) fn schemas<'a>(layouts: &'a Layouts, digests: &List<Digest>, stored: 
     let mut schemas = List::with_capacity(digests.len());
     for digest in digests {
         let text = layouts.texts.get(digest)?;
-        if stored && !text.stored { return None; }
+        if stored && !text.stored {
+            return None;
+        }
         schemas.push(text.schema.as_ref()?).ok()?;
     }
     Some(schemas)

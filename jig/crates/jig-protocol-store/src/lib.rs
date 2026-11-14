@@ -95,8 +95,8 @@ pub struct Store {
     application: sizes::Application,
     codec_limits: codec::View,
     layouts: codec::component::Layouts,
-    registry: registry::Layouts,
-    layout_work: skein_codec::layout::Workspace,
+    registry: Box<registry::Layouts>,
+    layout_work: Box<skein_codec::layout::Workspace>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
     names: Box<[jig_domain_core_vocabulary::settings::ModelName]>,
     stores: Stores,
@@ -228,8 +228,8 @@ impl Store {
             application,
             codec_limits,
             layouts: format::layouts(),
-            registry: registry::Layouts::new(),
-            layout_work: skein_codec::layout::Workspace::new(),
+            registry: Box::new(registry::Layouts::new()),
+            layout_work: Box::new(skein_codec::layout::Workspace::new()),
             names: codec::names(models),
             opening_keys: skein_lib::Map::uncapped(),
             stores,
@@ -515,8 +515,8 @@ pub mod keys;
 mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
-    KeptWire, Load, Older, OpenRefusal, Unplanned, OpenedTerm, OpenedWire, Request, Restore, Root, Row, SecretOwner, SecretRow,
-    SecretValue, Secrets, TranscriptRead, Undecoded, WorkerOpening, Write,
+    KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root, Row, SecretOwner, SecretRow,
+    SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, WorkerOpening, Write,
 };
 
 #[cfg(test)]

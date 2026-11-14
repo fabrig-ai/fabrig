@@ -245,7 +245,8 @@ pub fn limits() -> Limits {
         commit: 1_073_741_824,
         queued: 2,
         queued_bytes: 2_147_483_648,
-        budget: 65_536,
+        // The registered schemas and layout rows share the map with fixture values.
+        budget: 262_144,
         segment: 1_073_741_824,
         snapshot_after: 1_073_741_824,
         chunk: 2_098_196,

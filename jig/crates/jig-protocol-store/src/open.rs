@@ -39,7 +39,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
                 above,
             );
         } else if last == 0 {
-            if let Err(why) = crate::registry::open(store, true) { return refuse(store, owner, why, above); }
+            if let Err(why) = crate::registry::open(store, true) {
+                return refuse(store, owner, why, above);
+            }
             ready(store, owner, last, true, above, below);
         } else {
             refuse(store, owner, OpenRefusal::Numbers { store: last, header: 0 }, above);
@@ -72,8 +74,10 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         Ok(writing) => writing,
         Err(why) => return refuse(store, owner, why, above),
     };
-    if registry && store.directory.patch.is_none()
-        && let Err(why) = pending(store, found_levels, binary) {
+    if registry
+        && store.directory.patch.is_none()
+        && let Err(why) = pending(store, found_levels, binary)
+    {
         return refuse(store, owner, why, above);
     }
     // Refuse another family's version before decoding its header.
