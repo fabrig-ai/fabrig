@@ -415,6 +415,7 @@ fn read_answer(store: &mut Store, mut below: Below, disk: &[u8], chunk: u32) -> 
         | file::Request::Sync { .. }
         | file::Request::Close { .. }
         | file::Request::SyncDirectory { .. }
+        | file::Request::HardLink { .. }
         | file::Request::Rename { .. }
         | file::Request::Remove { .. }
         | file::Request::ListPage { .. }

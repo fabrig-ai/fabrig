@@ -204,7 +204,8 @@ impl Task {
                         return Action::Run(dirs.rename(*from_dir, from.clone()));
                     }
                 }
-                Op::Lock { .. }
+                Op::HardLink { .. }
+                | Op::Lock { .. }
                 | Op::Socket { .. }
                 | Op::Bind { .. }
                 | Op::Listen { .. }
@@ -394,6 +395,7 @@ impl Scan {
                         | Op::Truncate { .. }
                         | Op::Sync { .. }
                         | Op::Stat { .. }
+                        | Op::HardLink { .. }
                         | Op::Rename { .. }
                         | Op::Remove { .. }
                         | Op::MakeDirectory { .. }
@@ -454,6 +456,7 @@ fn page(complete: kernel::Complete) -> Result<Box<[u8]>, Error> {
         | Op::Truncate { .. }
         | Op::Sync { .. }
         | Op::Stat { .. }
+        | Op::HardLink { .. }
         | Op::Rename { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }

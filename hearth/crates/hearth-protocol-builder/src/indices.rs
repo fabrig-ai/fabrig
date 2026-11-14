@@ -187,6 +187,7 @@ impl Indices {
             | file::Event::Stated { .. }
             | file::Event::Written { .. }
             | file::Event::Cut { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. }
             | file::Event::Removed { .. } => unreachable!("indices file operation"),
         }

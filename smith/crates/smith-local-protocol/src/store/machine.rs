@@ -389,6 +389,7 @@ fn terminal(event: file::Event) -> Terminal {
         | file::Event::Stated { .. }
         | file::Event::Written { .. }
         | file::Event::Read { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Cut { .. }
         | file::Event::Listed { .. } => unreachable!("store requests have whole-file terminals"),
