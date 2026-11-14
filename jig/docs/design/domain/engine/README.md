@@ -691,8 +691,8 @@ such as an account's last end, or a task's runtime on a host that died
 with the engine. A field in doubt is durable; no story opts out but a
 deliberately broken fixture; and a difference left after the projection
 is a finding, a writer not keeping what its document shows. A link
-that cannot be made panics, failing the story with the record and the
-link.
+that cannot be made refuses the restart (`restart.md`), and the oracle
+fails the story naming the refusal's phase, record and link.
 This is where the cross-record rules a restore once checked live, one
 writer at a time: each child's rules are the oracle's to prove over
 every writer of its records, never the restore's to judge.
