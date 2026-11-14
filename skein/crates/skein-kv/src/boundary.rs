@@ -108,12 +108,33 @@ pub enum Event {
     },
 }
 
+/// Why a request was refused, as bounded data without a key's or value's bytes
+/// (skein/docs/design/data/kv.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Refusal {
-    TooLarge,
-    Full,
+    TooLarge(Large),
+    Full(Exhausted),
     Busy,
     Unavailable,
+}
+
+/// What passed its limit (skein/docs/design/data/kv.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Large {
+    Key,
+    Value,
+    Ops,
+    Frame,
+    Page,
+    Range,
+}
+
+/// What the commit would exhaust (skein/docs/design/data/kv.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Exhausted {
+    Budget { used: u64, budget: u64, projected: u64 },
+    Entries { capacity: u32 },
+    Numbers,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

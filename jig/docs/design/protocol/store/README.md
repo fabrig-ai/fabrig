@@ -257,7 +257,7 @@ the application's part with the application's codecs.
 
 | Down, to the component | Up, from it |
 |---|---|
-| **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, a copy of the bytes under one of its keys to another, and a task's transcript dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (6.2); **failed** n; or **FrameTooLarge** n, with task, full encoded bytes and page limit (section 5) |
+| **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, a copy of the bytes under one of its keys to another, and a task's transcript dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (6.2); **failed** n, with why (section 5); or **FrameTooLarge** n, with task, full encoded bytes and page limit (section 5) |
 | **restore** a restart step's range: jig's (the core's live families, `loads.md`, 2), or the application's, as byte intervals under its tag | jig's records, typed, then done; the application's rows as bytes, then done |
 | **load** a page of a child's range: jig's, or the application's intervals | the page's rows, typed or as bytes, and a cursor if more remain |
 | **read** a party's read: its scope, position, direction, rows and bytes (`../../domain/engine/README.md`, 5.3) | the page, each row with its joins, and its cursor; or busy, or gone |
@@ -415,6 +415,42 @@ secrets' store (`secrets.md`).
   refuses (too large, the map full) would be a decision already made and
   not kept, so it stops the engine as a failure does. Section 6 keeps
   the map from filling.
+- **A failure says why.** `Event::Failed { number, why }` carries
+  `why: CommitFailure`: which of the store's failures it was, as data,
+  bounded, with no record's contents and no text the store builds. The
+  application words it (temper's `protocol/store.md`, 4). It is
+  in-process: no journal record, stored family or wire message carries
+  it.
+
+  | `CommitFailure` | The commit |
+  |---|---|
+  | `Refused(skein_kv::Refusal)` | skein-kv refused it at its entrance, its refusal as skein's `data/kv.md`, 2 gives it: the map full with its bytes, its budget and the bytes this commit would leave; a key, a value, the ops or the frame past its limit; busy; unavailable |
+  | `Failed` | skein-kv answered it failed: a write or a sync of its log failed or stalled, and its outcome is uncertain |
+  | `Owner { owner }` | skein-kv answered `Committed` for `number` under `owner`, the root's commit it was submitted for, which isn't `number` |
+  | `Transcript` | a file step of its transcripts failed: a frame's file opened, made, written or synced, its directory's sync or close, a dropped transcript's removal, or the writer's own bookkeeping (its table of open files, its counter) |
+  | `Check(CommitCheck)` | the store's own checks refused it before skein-kv saw it, naming the check |
+  | `Stopped` | it was queued, or waiting on its frames, when another commit's failure stopped the store |
+
+  `CommitCheck` names the check: `Number` (its number isn't the store's next,
+  or is at or before the last durable one), `Closed` (the store isn't
+  open), `Queue` (the queue behind transcripts' syncs is full), `Writes`
+  (more writes than the root's bound, `Commits::writes`), `Switching`
+  (wires, a dropped transcript or a turn while a patch switch is
+  pending), `Encoding` (a key, a record, a turn's frame or the first
+  commit's own rows past its codec's limits), `Copy` (a copy's first
+  key the map doesn't hold, or its read failing), `Reads` (a read of the
+  map the commit needs, for a turn's place, a dropped transcript's
+  attempts or the openings it erases, failing or not decoding),
+  `Capacity` (more operations, places or keys than the commit's bounds
+  hold), `Bytes` (its operations past the store's commit bytes,
+  `Limits::commit` of its skein-kv limits). `CommitFailure` and `CommitCheck`
+  are `Copy`.
+
+  The commit whose failure it is carries its cause, and each commit
+  skein-kv answers failed carries `Failed`; every other commit the stop
+  fails, queued behind it or waiting on its frames, carries `Stopped`,
+  as do the earlier pending commits a `FrameTooLarge` fails (below). A
+  failed commit of the secrets' store answers as before.
 - **An oversized transcript frame refuses the whole commit before data
   IO.** Each actual encoded current frame, including all metadata, payload
   and its wrapper, must fit the store's page byte bound `P`; equality is

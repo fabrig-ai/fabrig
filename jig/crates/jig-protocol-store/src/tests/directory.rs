@@ -151,13 +151,31 @@ fn a_failed_skein_commit_on_disk_answers_failed() {
     let Some(file::Request::WriteAt { owner, .. }) = below.store.pop() else {
         panic!("disk write");
     };
+    let (_, mut below) =
+        fixtures::answer(&mut store, Io::Store(Arrived { event: file::Event::Written { owner }, fd: None }));
+    let Some(file::Request::Sync { owner, .. }) = below.store.pop() else {
+        panic!("disk sync");
+    };
     let arrived = Arrived {
         event: file::Event::Failed { owner, error: Error::Permission, committed: false, residue: None },
         fd: None,
     };
     let (events, _) = fixtures::answer(&mut store, Io::Store(arrived));
-    let [Event::Failed { number: 1 }] = &*events else {
+    let [Event::Failed { number: 1, why: crate::CommitFailure::Failed }] = &*events else {
         panic!("failed root commit");
+    };
+    assert_eq!(store.phase, Phase::Stopped);
+}
+#[test]
+fn another_committed_owner_carries_the_submitted_root_number() {
+    let mut store = fixtures::opened();
+    let mut kv = Queue::uncapped();
+    kv.push(skein_kv::Event::Committed { owner: Token::new(17), number: 18 });
+    let mut above = Queue::uncapped();
+    crate::directory::events_up(&mut store, false, &mut kv, &mut above, &mut fixtures::below());
+    let events = fixtures::events(&mut above);
+    let [Event::Failed { number: 18, why: crate::CommitFailure::Owner { owner: 17 } }] = &*events else {
+        panic!("mismatched owner names its root commit: {events:?}");
     };
     assert_eq!(store.phase, Phase::Stopped);
 }
