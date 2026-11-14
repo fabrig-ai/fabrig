@@ -158,7 +158,7 @@ pub struct Pages {
     adopting: Option<welcome::Adopting>,
     pub(crate) welcome_first: Option<welcome::First>,
     pub(crate) welcome_copies: Option<crate::forge::making::Copies>,
-    pub(crate) welcome_decision: Option<welcome::FirstRun>,
+    pub(crate) welcome_ready: bool,
     party: Option<u64>,
     next: u64,
     pub(crate) serial: u64,
@@ -481,7 +481,7 @@ impl Pages {
             adopting: None,
             welcome_first: None,
             welcome_copies: None,
-            welcome_decision: None,
+            welcome_ready: false,
             party: None,
             next: 1,
             serial: 0,
@@ -2908,9 +2908,8 @@ fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
     if pages.address != (Address::Welcome { step: crate::Step::Ready }) || pages.default_project.making.is_some() {
         return;
     }
-    match pages.welcome_decision {
-        Some(welcome::FirstRun::Whole | welcome::FirstRun::Unfinished { step: crate::Step::Ready }) => {}
-        Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) | None => return,
+    if !pages.welcome_ready {
+        return;
     }
     let offered = welcome::offered(pages.welcome_first(), pages.welcome_copies());
     let Ok(asked) = jig_client::contract::Text::new(pages.default_project.asked(&offered).into(), welcome::NAME_BYTES)

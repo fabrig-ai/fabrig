@@ -1,5 +1,6 @@
 //! A newer build at the same paths: temper/docs/design/protocol/setup/box.md, 1 and 5.
-//! Linux supplies executable identities and retained process-tree observations.
+//! The worker's pin follows temper/docs/design/domain/worker/README.md, 5;
+//! live executable observations follow temper/docs/design/testing/process-tier.md's newer-build story.
 use crate::support::{
     self, Ended, boxed,
     ctl::{self, Call, Step},
@@ -10,7 +11,7 @@ use serde_json::{Value, json};
 use skein_io::kernel::Exit;
 use std::{
     fs::{self, File},
-    io::{Read, Write},
+    io::{BufRead, BufReader, Read, Write},
     os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
 };
@@ -84,7 +85,15 @@ impl Installed {
     }
 
     fn probe(&self, old: Vec<Identity>) -> Probe {
-        Probe { program: self.bin().join("temper-box"), adapter: self.bin().join("fake-claude"), old }
+        let document: Value = serde_json::from_slice(&fs::read(self.config().join("temper.json")).expect("box config"))
+            .expect("box config JSON");
+        let worker = document["application"]["workers"][0]["root"].as_str().expect("worker root");
+        Probe {
+            program: self.bin().join("temper-box"),
+            adapter: self.bin().join("fake-claude"),
+            pin: self.paths[1].join("box/fake-backends/data").join(worker).join("agent/temper-box"),
+            old,
+        }
     }
 
     /// Keep unlinked files open so the filesystem cannot reuse their old inodes.
@@ -107,6 +116,7 @@ impl Installed {
 struct Probe {
     program: PathBuf,
     adapter: PathBuf,
+    pin: PathBuf,
     old: Vec<Identity>,
 }
 impl Probe {
@@ -121,32 +131,54 @@ impl Probe {
         tree
     }
 
-    fn check(&self, pids: &[u32]) {
-        let programs = [&self.program, &self.adapter];
-        let identities = programs.map(|path| Identity::of(path));
-        let mut seen = Vec::new();
+    fn check(&self, guard: &Guard, pids: &[u32], running: bool) {
+        let identities = [&self.program, &self.adapter].map(|path| Identity::of(path));
+        let mut leader = false;
+        let mut serve = false;
+        let mut agent = false;
+        let mut adapter = false;
         for pid in pids {
-            let exe = PathBuf::from(format!("/proc/{pid}/exe"));
-            let path = fs::read_link(&exe).expect("live process executable");
+            let Some(executable) = guard.executable(*pid).unwrap_or_else(|why| panic!("PID {pid}: executable: {why}"))
+            else {
+                continue;
+            };
+            let path = &executable.path;
             assert!(!path.as_os_str().as_encoded_bytes().ends_with(b" (deleted)"), "PID {pid}: deleted exe");
             let name = path.file_name().expect("executable name").to_string_lossy();
             assert!(!name.contains("forgejo") && !name.contains("runner"), "PID {pid}: Forgejo or runner");
-            let identity = Identity::of(&exe);
-            assert!(!self.old.contains(&identity), "PID {pid}: old build inode");
-            assert!(
-                identities.contains(&identity),
-                "PID {pid}: executable outside the installed bin files: {}",
-                path.display()
-            );
-            seen.push(identity);
+            let identity = Identity::metadata(&executable.file.metadata().expect("observed executable identity"));
+            assert!(!self.old.contains(&identity), "PID {pid}: old build or first pin inode");
+            let argument = |word: &[u8]| executable.arguments.split(|byte| *byte == 0).any(|arg| arg == word);
+            let pinned_agent = *path == self.pin && argument(b"agent");
+            if pinned_agent {
+                assert_eq!(identity, Identity::of(&self.pin), "PID {pid}: worker's pin file");
+                assert!(
+                    same_bytes(executable.file, File::open(&self.program).expect("installed program")),
+                    "PID {pid}: agent pin differs from the installed temper-box"
+                );
+                agent = true;
+            } else {
+                assert!(
+                    identities.contains(&identity),
+                    "PID {pid}: executable outside the installed bin files and worker's agent pin: {}",
+                    path.display()
+                );
+                leader |= identity == identities[0] && argument(b"--fake-backends");
+                serve |= identity == identities[0] && argument(b"serve");
+                adapter |= identity == identities[1] && argument(b"-p");
+            }
         }
-        assert!(seen.contains(&identities[0]), "the installed box is running");
-        assert!(boxed::find(pids, &self.program, b"serve").is_some(), "the new engine is running");
+        assert!(leader, "the installed box must be read alive");
+        assert!(serve, "serve must be read alive");
+        if running {
+            assert!(agent, "the pinned agent must be read alive");
+            assert!(adapter, "the installed adapter must be read alive");
+        }
     }
 
     fn after_link(&self) {
         let guard = Guard::observing_test();
-        self.check(&self.tree(&guard));
+        self.check(&guard, &self.tree(&guard), false);
     }
 
     fn during_run(&self) {
@@ -155,17 +187,36 @@ impl Probe {
             let guard = Guard::observing_test();
             let pids = self.tree(&guard);
             patience.watch_process(pids[0]);
-            if boxed::find(&pids, &self.program, b"agent").is_some()
-                && boxed::find(&pids, &self.adapter, b"-p").is_some()
-            {
-                self.check(&pids);
+            if boxed::find(&pids, &self.pin, b"agent").is_some() && boxed::find(&pids, &self.adapter, b"-p").is_some() {
+                self.check(&guard, &pids, true);
                 return;
             }
             if let Some(figures) = patience.failed() {
-                panic!("new agent and adapter did not start: {figures}");
+                let executables: Vec<_> =
+                    pids.iter().map(|pid| (*pid, fs::read_link(format!("/proc/{pid}/exe")))).collect();
+                panic!("new agent and adapter did not start: {figures}; executables: {executables:?}");
             }
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
+    }
+}
+
+/// Compare executable bytes without retaining whole binaries in memory.
+fn same_bytes(left: File, right: File) -> bool {
+    let mut left = BufReader::new(left);
+    let mut right = BufReader::new(right);
+    loop {
+        let a = left.fill_buf().expect("observed executable bytes");
+        let b = right.fill_buf().expect("installed executable bytes");
+        let length = a.len().min(b.len());
+        if length == 0 {
+            return a == b;
+        }
+        if a[..length] != b[..length] {
+            return false;
+        }
+        left.consume(length);
+        right.consume(length);
     }
 }
 
@@ -502,16 +553,19 @@ fn a_stopped_fake_box_starts_with_new_files_at_the_same_paths() {
         root,
         first_chat(programs, root.into()),
         |binary| {
-            installed.probe(Vec::new()).after_link();
-            (kept(root, &Forgejo::opening(binary.stderr(), root)), Guard::observing_test())
+            let probe = installed.probe(Vec::new());
+            probe.after_link();
+            let pin = File::open(&probe.pin).expect("first start's pinned agent");
+            (kept(root, &Forgejo::opening(binary.stderr(), root)), Guard::observing_test(), pin)
         },
     );
     drained(&first, 12);
-    let (before, observed) = first.checked.expect("initial chat and reads completed");
+    let (before, observed, first_pin) = first.checked.expect("initial chat and reads completed");
     assert!(observed.has_descendants(), "box tree observed before the stop");
     assert!(observed.all_exited(), "nothing left after the first termination");
 
-    let old_files = installed.replace();
+    let mut old_files = installed.replace();
+    old_files.push(first_pin);
     let old = old_files.iter().map(|file| Identity::metadata(&file.metadata().expect("old file"))).collect();
     let client = root.join("restarted-client");
     super::private(&client);
