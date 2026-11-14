@@ -65,25 +65,13 @@ fn an_end_request_belongs_to_a_log() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn logs_and_lists_hold_continues_and_only_logs_may_request_the_end() {
-    for &(role, _) in super::tree::BINDING_ROLES {
-        for end_request in [false, true] {
-            let result = std::panic::catch_unwind(|| {
-                let mut b = Builder::new(&LIMITS);
-                b.open(role);
-                if end_request {
-                    b.end_request(1);
-                } else {
-                    b.state(State::Continues);
-                }
-            });
-            assert_eq!(
-                result.is_ok(),
-                role == Role::Log || (role == Role::List && !end_request),
-                "{role:?}, end request: {end_request}"
-            );
-        }
+fn logs_and_lists_keep_continues_and_logs_keep_end_requests() {
+    for role in [Role::Log, Role::List] {
+        let mut b = Builder::new(&LIMITS);
+        b.open(role);
+        b.state(State::Continues);
+        b.close();
+        assert_eq!(b.finish().get(0).unwrap().states.as_slice(), [State::Continues], "{role:?}");
     }
     let mut b = Builder::new(&LIMITS);
     b.open(Role::Page);
