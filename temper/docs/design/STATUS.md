@@ -115,8 +115,13 @@ demand-loaded families the restart leaves out and the forge loads
 through the root; swept by change past `forge.history_days` or
 `forge.history_events`, idle projects and deleted ones included; and
 read by `temper ctl landing history`, and by `change show` of a change
-whose row went. Where the time went, `landing times`, is H2's
-(`draft/landing-history.status.md`).
+whose row went. Its milestone H2, goal 2649, reads them alone for where
+the time went (`domain/landing-times.md`): each change's span from ready
+to landed or ended split by a fold into states that don't overlap, held
+first and waiting last, partial where its history began after it was
+ready; each landing's rounds, probes and proof time; paged by change
+with the running totals in the cursor, and read by `temper ctl landing
+times` (`draft/landing-history.status.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -330,6 +335,7 @@ Design documents:
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/landing-history.md`](domain/landing-history.status.md)
+- [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
