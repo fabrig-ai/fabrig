@@ -101,7 +101,6 @@ skein/examples/echo/protocol/src/tests/conn.rs should_panic 1
 skein/testing/skein-echo-client/src/tests.rs should_panic 4
 skein/testing/skein-fake-person-browser/src/harness/deadline_tests.rs should_panic 1
 skein/testing/skein-world/src/end_to_end.rs should_panic 1
-skein/tests/heap/tests/suite/meter.rs should_panic 6
 skein/tests/lib/tests/suite/journal.rs should_panic 1
 skein/tests/llm-connection/tests/suite/close.rs should_panic 5
 skein/tests/llm/tests/suite/bounded_peer_memory.rs should_panic 2
