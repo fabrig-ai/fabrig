@@ -187,6 +187,11 @@ fn a_breaking_third_goal_is_narrowed_and_repaired_in_batch_four() {
     support::turn_drills::run(support::turn_drills::Drill::Breaking);
 }
 
+/// temper/docs/design/domain/landing.md, 4.3 and 9: a conflicting member resolves next round.
+#[test]
+fn conflicting_goals_depart_and_resolve_in_batch_four() {
+    support::turn_drills::run(support::turn_drills::Drill::Conflict);
+}
 
 
 

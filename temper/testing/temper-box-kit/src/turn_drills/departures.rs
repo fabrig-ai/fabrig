@@ -24,9 +24,9 @@ pub(super) fn scripts(scripts: &mut Vec<Script>, drill: Drill) {
         return;
     }
     let (cue, path) = if drill == Drill::Breaking {
-        (b"Repair the failed landing gate".as_slice(), "walk/red")
+        (b"## Task\n\nRepair the failed landing gate".as_slice(), "walk/red")
     } else {
-        (b"Resolve the merge conflict".as_slice(), "walk/line-1")
+        (b"## Task\n\nResolve the merge conflict".as_slice(), "walk/line-1")
     };
     if drill == Drill::Breaking {
         let producer = scripts

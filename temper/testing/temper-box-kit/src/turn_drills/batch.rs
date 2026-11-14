@@ -40,12 +40,13 @@ pub(super) fn scripts(scripts: &mut Vec<Script>) {
         .iter_mut()
         .find(|script| script.cue.as_ref() == b"Review this change at the named head")
         .expect("review");
+    review.cue = b"## Task\n\nReview this change at the named head".as_slice().into();
     review.turns[0].lines =
         [vec![super::super::batch_landing::hold(b"drill-batch-reviews")], review.turns[0].lines.to_vec()]
             .concat()
             .into();
     scripts.push(Script {
-        cue: b"@drill-latch".as_slice().into(),
+        cue: b"## Task\n\n@drill-latch".as_slice().into(),
         turns: Box::new([Turn {
             lines: Box::new([
                 super::super::batch_landing::hold(b"drill-batch-ready"),
@@ -100,12 +101,14 @@ impl Judge<'_> {
                 release(procs, b"drill-moving")?;
                 let panel = self.batch.panel.as_ref().ok_or("panel")?;
                 let task = panel["members"][1]["change"].as_u64().ok_or("moving change")?;
-                let original = panel["members"][1]["head"].clone();
-                if let Some(change) = self.read(procs, &["change", "show", &task.to_string()])
-                    && change["head"] != original
-                {
-                    self.barrier.release(self.batch.run.ok_or("held proof")?);
-                    self.batch.phase = Phase::Running;
+                let original = panel["members"][1]["head"].as_str().ok_or("original head")?.to_owned();
+                if let Some(change) = self.read(procs, &["change", "show", &task.to_string()]) {
+                    let head = change["head"].as_str().ok_or("delivered head")?;
+                    // The change prints Forgejo's SHA-1; the landing prints its padded commit.
+                    if !original.starts_with(head) {
+                        self.barrier.release(self.batch.run.ok_or("held proof")?);
+                        self.batch.phase = Phase::Running;
+                    }
                 }
             }
             Phase::Running => {
@@ -294,10 +297,13 @@ impl Judge<'_> {
         }
         let Some(list) = self.read(procs, &["landing", "list", "--project", "1", "--ended"]) else { return Ok(()) };
         let rows = list["landings"].as_array().ok_or("landings")?;
-        if rows.len() > 2 {
+        // A conflict with an earlier member is retried against main after its turn.
+        // That empty attempt ends before the resolution's fresh head rejoins.
+        let expected = if self.drill == Drill::Conflict { 3 } else { 2 };
+        if rows.len() > expected {
             return Err(format!("one departing member rejoins once: {list}"));
         }
-        if rows.len() != 2 || rows.iter().any(|row| row["phase"] != "landed") {
+        if rows.len() != expected || rows.iter().any(|row| row["phase"] != "landed") {
             return Ok(());
         }
         if !self.batch.departed || !self.batch.green_prefix {
@@ -305,7 +311,10 @@ impl Judge<'_> {
         }
         let next = rows
             .iter()
-            .find(|row| row["task"] != self.batch.panel.as_ref().expect("first panel")["task"])
+            .find(|row| {
+                row["task"] != self.batch.panel.as_ref().expect("first panel")["task"]
+                    && row["landed"].as_array().is_some_and(|landed| !landed.is_empty())
+            })
             .ok_or("next landing")?
             .clone();
         self.batch.panel = Some(next);
