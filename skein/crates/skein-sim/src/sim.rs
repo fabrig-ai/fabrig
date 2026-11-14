@@ -527,35 +527,53 @@ impl Sim {
     /// Fails the world unless `pid` has nothing in flight: every operation
     /// completed, and every completion reaped (testing-strategy.md, 5).
     pub fn assert_quiescent(&self, pid: Pid) {
+        if let Err(finding) = self.check_quiescent(pid) {
+            Self::die(&finding);
+        }
+    }
+
+    /// Checks that every operation completed and every completion was reaped.
+    pub fn check_quiescent(&self, pid: Pid) -> Result<(), String> {
         let process = self.process(pid);
         if let Some((token, flight)) = process.flights.first_key_value() {
             let what =
                 format!("not quiescent: {} in flight, the first {token:?}, {:?}", process.flights.len(), flight.kind);
-            self.fail(pid, &what);
+            return Err(self.finding(pid, &what));
         }
+        Ok(())
     }
 
     /// Fails the world unless every descriptor of `pid` is closed.
     pub fn assert_no_open_fds(&self, pid: Pid) {
+        if let Err(finding) = self.check_no_open_fds(pid) {
+            Self::die(&finding);
+        }
+    }
+
+    /// Checks that every descriptor of `pid` is closed.
+    pub fn check_no_open_fds(&self, pid: Pid) -> Result<(), String> {
         let process = self.process(pid);
         if let Some((fd, _)) = process.fds.first_key_value() {
-            self.fail(pid, &format!("{} descriptors open, the first {fd:?}", process.fds.len()));
+            return Err(self.finding(pid, &format!("{} descriptors open, the first {fd:?}", process.fds.len())));
         }
         if let Some((fd, file)) = process.files.first_key_value() {
-            self.fail(pid, &format!("{} files open, the first {fd:?}, {file:?}", process.files.len()));
+            return Err(self.finding(pid, &format!("{} files open, the first {fd:?}, {file:?}", process.files.len())));
         }
         if let Some((fd, _)) = process.pipe_fds.first_key_value() {
-            self.fail(pid, &format!("{} pipes open, the first {fd:?}", process.pipe_fds.len()));
+            return Err(self.finding(pid, &format!("{} pipes open, the first {fd:?}", process.pipe_fds.len())));
         }
         if let Some((fd, _)) = process.inherited_pipes.iter().find(|(_, pipe)| pipe.process_open) {
-            self.fail(pid, &format!("an inherited pipe open, {fd:?}"));
+            return Err(self.finding(pid, &format!("an inherited pipe open, {fd:?}")));
         }
         if let Some((fd, _)) = process.pidfds.first_key_value() {
-            self.fail(pid, &format!("{} pidfds open, the first {fd:?}", process.pidfds.len()));
+            return Err(self.finding(pid, &format!("{} pidfds open, the first {fd:?}", process.pidfds.len())));
         }
         if let Some((fd, _)) = process.signal_fds.first_key_value() {
-            self.fail(pid, &format!("{} signal descriptors open, the first {fd:?}", process.signal_fds.len()));
+            return Err(
+                self.finding(pid, &format!("{} signal descriptors open, the first {fd:?}", process.signal_fds.len()))
+            );
         }
+        Ok(())
     }
 
     /// Every submission and every completion reaped so far.
@@ -588,17 +606,28 @@ impl Sim {
 
 // Submission and the broken invariants.
 impl Sim {
+    /// Checks one record's validity, token, target and descriptor rules without taking it.
+    pub fn check_submission(&self, pid: Pid, submit: &Submit) -> Result<(), String> {
+        let summary = Summary::of(&submit.kind);
+        if !submit.kind.is_valid() {
+            return Err(self.finding(pid, &format!("an invalid record: {summary:?}")));
+        }
+        if self.process(pid).flights.contains_key(&submit.op) {
+            return Err(self.finding(pid, &format!("{:?} is already in flight", submit.op)));
+        }
+        self.check(pid, summary)?;
+        Ok(())
+    }
+
     fn submit_one(&mut self, pid: Pid, submit: Submit) {
-        let Submit { op: token, kind } = submit;
-        let summary = Summary::of(&kind);
+        let token = submit.op;
+        let summary = Summary::of(&submit.kind);
         self.record(pid, Event::Submit { op: token, kind: summary });
-        if !kind.is_valid() {
-            self.fail(pid, &format!("an invalid record: {summary:?}"));
+        if let Err(finding) = self.check_submission(pid, &submit) {
+            Self::die(&finding);
         }
-        if self.process(pid).flights.contains_key(&token) {
-            self.fail(pid, &format!("{token:?} is already in flight"));
-        }
-        let named = self.check(pid, summary);
+        let Submit { kind, .. } = submit;
+        let named = self.check(pid, summary).expect("submission checked before routing");
         let serial = self.next_serial;
         self.next_serial = serial.checked_add(1).expect("fewer than 2^64 submissions");
         let flight = Flight { serial, kind: summary, held: None, done: false, timer: None };
@@ -656,24 +685,25 @@ impl Sim {
         }
     }
 
-    /// Fails the world on a broken invariant of the contract about `kind`'s
+    /// Returns the finding for a broken invariant of the contract about `kind`'s
     /// descriptors or target, and answers what its descriptor names.
     #[expect(clippy::too_many_lines, reason = "descriptor and socket checks share one ordered set of invariants")]
-    fn check(&self, pid: Pid, kind: Summary) -> On {
+    fn check(&self, pid: Pid, kind: Summary) -> Result<On, String> {
         let process = self.process(pid);
         if let Summary::Window { .. } = kind {
-            return On::Nothing;
+            return Ok(On::Nothing);
         }
         if let Summary::Cancel { target } = kind {
             if let Some(flight) = process.flights.get(&target) {
                 if let Summary::Cancel { .. } = flight.kind {
-                    self.fail(pid, &format!("a Cancel of {target:?}, which is a Cancel"));
+                    return Err(self.finding(pid, &format!("a Cancel of {target:?}, which is a Cancel")));
                 }
                 if !flight.kind.cancellable() {
-                    self.fail(pid, &format!("a Cancel of {target:?}, {:?}, which io never cancels", flight.kind));
+                    return Err(self
+                        .finding(pid, &format!("a Cancel of {target:?}, {:?}, which io never cancels", flight.kind)));
                 }
             }
-            return On::Nothing;
+            return Ok(On::Nothing);
         }
         if matches!(
             kind,
@@ -689,24 +719,24 @@ impl Sim {
                     || process.pidfds.contains_key(&fd)
                     || process.signal_fds.contains_key(&fd))
         {
-            self.check_process(pid, kind);
-            return On::Process;
+            self.check_process(pid, kind)?;
+            return Ok(On::Process);
         }
         let [first, second] = kind.fds();
         let Some(fd) = first else {
-            return On::Nothing;
+            return Ok(On::Nothing);
         };
         for named in [Some(fd), second].into_iter().flatten() {
             if !process.fds.contains_key(&named) && !process.files.contains_key(&named) {
-                self.fail(pid, &format!("{kind:?} on {named:?}, which is not open in this process"));
+                return Err(self.finding(pid, &format!("{kind:?} on {named:?}, which is not open in this process")));
             }
         }
         if kind.is_file() || process.files.contains_key(&fd) {
-            self.check_file(pid, kind);
-            return On::Files;
+            self.check_file(pid, kind)?;
+            return Ok(On::Files);
         }
         let Some(&id) = process.fds.get(&fd) else {
-            self.fail(pid, &format!("{kind:?} on {fd:?}, which is not open in this process"));
+            return Err(self.finding(pid, &format!("{kind:?} on {fd:?}, which is not open in this process")));
         };
         let socket = self.sockets.get(&id).expect("an open descriptor names a socket");
         let mut on_fd = Vec::new();
@@ -717,10 +747,10 @@ impl Sim {
         }
         let count = |wanted: fn(&Summary) -> bool| on_fd.iter().filter(|kind| wanted(kind)).count();
         if count(|kind| matches!(kind, Summary::Connect { .. })) > 0 {
-            self.fail(pid, &format!("{kind:?} beside a Connect in flight on {fd:?}"));
+            return Err(self.finding(pid, &format!("{kind:?} beside a Connect in flight on {fd:?}")));
         }
         if socket.closing_only && !matches!(kind, Summary::Close { .. }) {
-            self.fail(pid, &format!("{kind:?} after a Connect on {fd:?} failed or was cancelled"));
+            return Err(self.finding(pid, &format!("{kind:?} after a Connect on {fd:?} failed or was cancelled")));
         }
         let broken = match kind {
             Summary::Bind { addr, .. } | Summary::Connect { addr, .. } if Family::of(&addr) != socket.family => {
@@ -777,12 +807,14 @@ impl Sim {
             | Summary::Usage
             | Summary::ReadSignal { .. }
             | Summary::PipeRead { .. }
-            | Summary::PipeWrite { .. } => self.bug("a process operation passed socket checks"),
+            | Summary::PipeWrite { .. } => {
+                return Err(self.report("a bug of the simulator: a process operation passed socket checks"));
+            }
         };
         if let Some(broken) = broken {
-            self.fail(pid, &format!("{broken}: {kind:?}, with {on_fd:?} in flight on {fd:?}"));
+            return Err(self.finding(pid, &format!("{broken}: {kind:?}, with {on_fd:?} in flight on {fd:?}")));
         }
-        On::Socket(id)
+        Ok(On::Socket(id))
     }
 }
 
@@ -1517,17 +1549,27 @@ impl Sim {
 
 // Bookkeeping.
 impl Sim {
-    fn complete(&mut self, pid: Pid, token: Token, op: Op, result: Result<Done, Error>) {
-        let complete = Complete { op: token, kind: op, result };
+    /// Checks the completion's shape and that its token has not already completed.
+    pub fn check_completion(&self, pid: Pid, complete: &Complete) -> Result<(), String> {
+        let token = complete.op;
         if !complete.is_valid() {
-            self.fail(pid, &format!("the simulator broke the contract with {complete:?}"));
+            return Err(self.finding(pid, &format!("the simulator broke the contract with {complete:?}")));
         }
-        let Some(flight) = self.process_mut(pid).flights.get_mut(&token) else {
-            self.fail(pid, &format!("a completion of {token:?}, which is not in flight"));
+        let Some(flight) = self.process(pid).flights.get(&token) else {
+            return Err(self.finding(pid, &format!("a completion of {token:?}, which is not in flight")));
         };
         if flight.done || flight.held.is_some() {
-            self.fail(pid, &format!("a second completion of {token:?}"));
+            return Err(self.finding(pid, &format!("a second completion of {token:?}")));
         }
+        Ok(())
+    }
+
+    fn complete(&mut self, pid: Pid, token: Token, op: Op, result: Result<Done, Error>) {
+        let complete = Complete { op: token, kind: op, result };
+        if let Err(finding) = self.check_completion(pid, &complete) {
+            Self::die(&finding);
+        }
+        let flight = self.process_mut(pid).flights.get_mut(&token).expect("completion checked in flight");
         flight.done = true;
         let latency = self.latency(pid);
         if latency == 0 {
@@ -1695,19 +1737,24 @@ impl Sim {
         }
     }
 
+    /// A finding about a process, with the seed and trace's end.
+    fn finding(&self, pid: Pid, what: &str) -> String {
+        self.report(&format!("{pid}: {what}"))
+    }
+
     /// Fails the world, loudly, with the seed and the end of the trace.
     fn fail(&self, pid: Pid, what: &str) -> ! {
-        self.die(&format!("{pid}: {what}"));
+        Self::die(&self.report(&format!("{pid}: {what}")));
     }
 
     /// Fails the world on a bug of the simulator itself.
     fn bug(&self, what: &str) -> ! {
-        self.die(&format!("a bug of the simulator: {what}"));
+        Self::die(&self.report(&format!("a bug of the simulator: {what}")));
     }
 
     #[expect(clippy::panic, reason = "the simulator fails the world on a broken invariant (testing/simulator.md, 5)")]
-    fn die(&self, what: &str) -> ! {
-        panic!("{}", self.report(what));
+    fn die(what: &str) -> ! {
+        panic!("{what}");
     }
 }
 

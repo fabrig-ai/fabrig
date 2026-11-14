@@ -1,41 +1,43 @@
 //! Descriptor access rules for files (runtime/kernel.md, 6.1).
 use super::{Pid, Sim, files};
 use crate::trace::Summary;
-use alloc::format;
+use alloc::{format, string::String};
 use skein_io::kernel::OpenHow;
 impl Sim {
-    /// Fails the world on a broken invariant of an operation on files whose
+    /// Returns the finding for a broken invariant of an operation on files whose
     /// descriptors are open, or of any other on a file's: each a file's, and
     /// opened as the operation needs; only a `Close` beside an operation on
     /// sockets, and nothing in flight beside it.
-    pub(super) fn check_file(&self, pid: Pid, kind: Summary) {
+    pub(super) fn check_file(&self, pid: Pid, kind: Summary) -> Result<(), String> {
         let process = self.process(pid);
         for fd in kind.fds().into_iter().flatten() {
             if let Some(file) = process.files.get(&fd)
                 && file.access == files::Access::Record(OpenHow::PathNoFollow)
                 && !matches!(kind, Summary::Stat { .. } | Summary::Close { .. })
             {
-                self.fail(pid, "only Stat and Close may use a path-only descriptor");
+                return Err(self.finding(pid, "only Stat and Close may use a path-only descriptor"));
             }
         }
         if let Summary::Close { fd } = kind {
             for flight in process.flights.values() {
                 if flight.kind.fds().contains(&Some(fd)) {
-                    self.fail(pid, &format!("a Close while {:?} is in flight on {fd:?}", flight.kind));
+                    return Err(self.finding(pid, &format!("a Close while {:?} is in flight on {fd:?}", flight.kind)));
                 }
             }
-            return;
+            return Ok(());
         }
         if !kind.is_file() {
-            self.fail(pid, &format!("an operation on sockets on a file's descriptor: {kind:?}"));
+            return Err(self.finding(pid, &format!("an operation on sockets on a file's descriptor: {kind:?}")));
         }
         for fd in kind.fds().into_iter().flatten() {
             if process.fds.contains_key(&fd) {
-                self.fail(pid, &format!("an operation on files on {fd:?}, a socket's descriptor: {kind:?}"));
+                return Err(
+                    self.finding(pid, &format!("an operation on files on {fd:?}, a socket's descriptor: {kind:?}"))
+                );
             }
         }
         let Some(fd) = kind.fd() else {
-            self.bug("an operation on files names a descriptor");
+            return Err(self.report("a bug of the simulator: an operation on files names a descriptor"));
         };
         let how = process.files.get(&fd).expect("checked open, and not a socket's").access;
         let broken = match kind {
@@ -86,7 +88,9 @@ impl Sim {
             | Summary::Send { .. }
             | Summary::Shutdown { .. }
             | Summary::Close { .. }
-            | Summary::Cancel { .. } => self.bug("only an operation on files is checked as one"),
+            | Summary::Cancel { .. } => {
+                return Err(self.report("a bug of the simulator: only an operation on files is checked as one"));
+            }
             Summary::Spawn { .. }
             | Summary::Wait { .. }
             | Summary::Signal { .. }
@@ -94,11 +98,14 @@ impl Sim {
             | Summary::Usage
             | Summary::ReadSignal { .. }
             | Summary::PipeRead { .. }
-            | Summary::PipeWrite { .. } => self.bug("a process operation passed file checks"),
+            | Summary::PipeWrite { .. } => {
+                return Err(self.report("a bug of the simulator: a process operation passed file checks"));
+            }
         };
         if let Some(broken) = broken {
-            self.fail(pid, &format!("{broken}, opened {how:?}: {kind:?}"));
+            return Err(self.finding(pid, &format!("{broken}, opened {how:?}: {kind:?}")));
         }
+        Ok(())
     }
 }
 

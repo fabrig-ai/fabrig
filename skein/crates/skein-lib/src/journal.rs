@@ -139,7 +139,8 @@ impl<W, O> Journal<W, O> {
     }
 
     /// Accepts one decision, making at most one numbered commit.
-    /// A writing decision at `u64::MAX` panics: commit numbering is exhausted.
+    /// A writing decision past number `u64::MAX` stops the journal without a commit;
+    /// its held outputs are dropped, and `release` answers `Stopped`.
     pub fn accept(&mut self, mut decision: Decision<W, O>) {
         assert!(self.open.is_some(), "accept an open decision");
         self.open = None;
@@ -147,7 +148,11 @@ impl<W, O> Journal<W, O> {
             return;
         }
         if !decision.writes.is_empty() {
-            self.last_number = self.last_number.checked_add(1).expect("commit numbering exhausted at u64::MAX");
+            let Some(number) = self.last_number.checked_add(1) else {
+                self.stopped = true;
+                return;
+            };
+            self.last_number = number;
             self.outstanding.push(self.last_number);
             self.pending.push(Commit { number: self.last_number, writes: decision.writes });
         }
@@ -229,7 +234,7 @@ impl<W, O> Journal<W, O> {
         if moved > 0 { Released::Some } else { Released::None }
     }
 
-    /// Whether the journal has stopped: a failed or invalid commit, or `stop`.
+    /// Whether the journal has stopped: a failed or invalid commit, exhausted numbering, or `stop`.
     #[must_use]
     pub const fn stopped(&self) -> bool {
         self.stopped

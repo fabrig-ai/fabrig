@@ -571,8 +571,9 @@ and changes no code above io:
   transfer through short sends, a large file through its reads and
   writes, what it completes itself (a `List` among them), a listing's
   position handed from one `List` to the next across its own buffer, a
-  root opened at startup, the invariants it asserts, and dropping it with
-  operations in flight.
+  root opened at startup, and dropping it with operations in flight. The
+  invariants it and the readiness backend assert, their guards'
+  included, are untested (../../foundation/programming-model.md, 10.4).
 - **The conformance suite** runs against each backend the host has,
   each scenario once (`tests/conformance/real`; kernel.md, 8): one test
   binary, a module for each backend over one list of cases, `ring`

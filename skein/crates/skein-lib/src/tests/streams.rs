@@ -132,13 +132,6 @@ fn a_line_scan_ends_at_the_first_cr_or_lf() {
 }
 
 #[test]
-#[should_panic(expected = "a scan holds its delimiter")]
-fn a_line_scan_of_nothing_is_the_caller_s_bug() {
-    let mut intake = Intake::with_capacity(4);
-    drop(intake.meet(Read::Line { max: 0 }));
-}
-
-#[test]
 fn a_delimiter_ending_at_max_is_found() {
     let mut intake = Intake::with_capacity(8);
     assert_eq!(intake.append(b"abc\r\nde"), Ok(()));
@@ -455,27 +448,6 @@ fn every_meet_takes_what_the_buffer_holds_demands_changing_or_not() {
 }
 
 #[test]
-#[should_panic(expected = "a fill past the intake's cap would never be met")]
-fn a_fill_past_the_cap_is_a_bug() {
-    let mut intake = Intake::with_capacity(4);
-    drop(intake.meet(Read::Fill(5)));
-}
-
-#[test]
-#[should_panic(expected = "a scan past the intake's cap would never be met")]
-fn a_scan_past_the_cap_is_a_bug() {
-    let mut intake = Intake::with_capacity(4);
-    drop(intake.meet(scan(Delimiter::LF, 5)));
-}
-
-#[test]
-#[should_panic(expected = "a scan holds its delimiter")]
-fn a_scan_shorter_than_its_delimiter_is_a_bug() {
-    let mut intake = Intake::with_capacity(4);
-    drop(intake.meet(scan(Delimiter::CRLF, 1)));
-}
-
-#[test]
 fn clearing_an_intake_keeps_its_capacity_and_resets_the_scan_cache() {
     let mut intake = Intake::with_capacity(8);
     intake.append(b"abcd").unwrap();
@@ -502,12 +474,6 @@ fn a_read_of_what_has_arrived_waits_for_one_byte() {
     assert_eq!(intake.meet(Read::Arrived { max: 64 }), None);
     intake.append(b"a").unwrap();
     assert_eq!(intake.meet(Read::Arrived { max: 64 }), Some(boxed(b"a")));
-}
-
-#[test]
-#[should_panic(expected = "a read of what has arrived has a positive maximum")]
-fn a_read_of_what_has_arrived_of_zero_is_the_caller_s_bug() {
-    drop(Intake::with_capacity(4).meet(Read::Arrived { max: 0 }));
 }
 
 #[test]

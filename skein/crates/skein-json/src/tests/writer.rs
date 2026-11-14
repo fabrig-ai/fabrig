@@ -200,13 +200,6 @@ fn adjacent_escapes_fit_exactly_at_their_compact_length() {
 }
 
 #[test]
-#[should_panic(expected = "a document measured first is never refused")]
-fn a_writing_pass_with_a_bad_number_is_a_bug() {
-    let mut json = Encoder::write(1, &WRITER);
-    json.number(b"x");
-}
-
-#[test]
 fn a_writing_pass_writes_its_text_unchecked() {
     let mut json = Encoder::write(4, &WRITER);
     json.string(b"\xC0\x80");
@@ -304,61 +297,6 @@ fn a_document_past_the_limits_is_refused_when_measured() {
 #[test]
 fn the_encoder_bound_counts_stack_and_document() {
     assert_eq!(writer::encoder_bound(&Limits { depth: 8, length: 1000 }), Some(8 + 1000));
-}
-
-#[test]
-#[should_panic(expected = "a key is an object's")]
-fn a_key_outside_an_object_is_a_bug() {
-    let mut json = Encoder::measure(&WRITER);
-    json.array_start();
-    json.key(b"a");
-}
-
-#[test]
-#[should_panic(expected = "a value in an object follows its key")]
-fn a_value_without_its_key_is_a_bug() {
-    let mut json = Encoder::measure(&WRITER);
-    json.object_start();
-    json.null();
-}
-
-#[test]
-#[should_panic(expected = "a document holds one value")]
-fn a_second_value_is_a_bug() {
-    let mut json = Encoder::measure(&WRITER);
-    json.null();
-    json.null();
-}
-
-#[test]
-#[should_panic(expected = "an end is the innermost container's")]
-fn an_end_of_the_wrong_container_is_a_bug() {
-    let mut json = Encoder::measure(&WRITER);
-    json.array_start();
-    json.object_end();
-}
-
-#[test]
-#[should_panic(expected = "a document is measured whole")]
-fn measuring_half_a_document_is_a_bug() {
-    let mut json = Encoder::measure(&WRITER);
-    json.array_start();
-    json.measured().unwrap();
-}
-
-#[test]
-#[should_panic(expected = "a document measured first fits")]
-fn a_writing_pass_longer_than_its_measure_is_a_bug() {
-    let mut json = Encoder::write(3, &WRITER);
-    json.string(b"ab");
-}
-
-#[test]
-#[should_panic(expected = "a writer is finished full")]
-fn a_writing_pass_shorter_than_its_measure_is_a_bug() {
-    let mut json = Encoder::write(5, &WRITER);
-    json.string(b"a");
-    drop(json.finish());
 }
 
 #[test]

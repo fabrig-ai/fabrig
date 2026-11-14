@@ -1,6 +1,6 @@
 //! The machine fed by hand: the handshake's first flight, records no TLS
 //! server would write, the stream ending or failing before the handshake
-//! and during it, closes, and the side above's bugs, asserted.
+//! and during it, and closes.
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -213,91 +213,4 @@ fn a_handshake_demand_waits_and_failure_drops_what_follows() {
     // On their way when the failure went up.
     assert_eq!(machine.down(Request::Stream(Down::Finish)), (Vec::new(), Vec::new()));
     assert_eq!(machine.down(Request::Close), (Vec::from([Event::Closed]), Vec::new()));
-}
-
-#[test]
-#[should_panic(expected = "the plaintext stream before the handshake was asked for")]
-fn the_stream_before_the_handshake_is_a_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.down(Request::Stream(Down::Demand { read: Read::Fill(1), room: 0 })));
-}
-
-#[test]
-#[should_panic(expected = "one Handshake")]
-fn a_second_handshake_is_a_bug() {
-    let (mut machine, _) = started(LIMITS);
-    drop(machine.down(Request::Handshake));
-}
-
-#[test]
-#[should_panic(expected = "one demand at a time")]
-fn a_second_unanswered_demand_is_a_bug() {
-    let (mut machine, _) = started(LIMITS);
-    drop(machine.down(Request::Stream(Down::Demand { read: Read::Fill(1), room: 0 })));
-    drop(machine.down(Request::Stream(Down::Demand { read: Read::Fill(1), room: 0 })));
-}
-
-#[test]
-#[should_panic(expected = "no read past Limits::read")]
-fn a_read_past_the_limit_is_a_bug() {
-    let (mut machine, _) = started(LIMITS);
-    drop(machine.down(Request::Stream(Down::Demand { read: Read::Fill(17), room: 0 })));
-}
-
-#[test]
-#[should_panic(expected = "no room past Limits::send")]
-fn room_past_the_limit_is_a_bug() {
-    let (mut machine, _) = started(LIMITS);
-    drop(machine.down(Request::Stream(Down::Demand { read: Read::Nothing, room: 17 })));
-}
-
-#[test]
-#[should_panic(expected = "a Send within the room granted")]
-fn a_send_without_room_granted_is_a_bug() {
-    let (mut machine, _) = started(LIMITS);
-    drop(machine.down(Request::Stream(Down::Send(Box::from(&b"x"[..])))));
-}
-
-#[test]
-#[should_panic(expected = "Finish with no room demanded")]
-fn finishing_with_room_demanded_is_a_bug() {
-    let (mut machine, _) = started(LIMITS);
-    drop(machine.down(Request::Stream(Down::Demand { read: Read::Nothing, room: 4 })));
-    drop(machine.down(Request::Stream(Down::Finish)));
-}
-
-#[test]
-#[should_panic(expected = "Finish with no read outstanding")]
-fn finishing_with_a_read_outstanding_is_a_bug() {
-    let (mut machine, _) = started(LIMITS);
-    drop(machine.down(Request::Stream(Down::Demand { read: Read::Fill(4), room: 0 })));
-    drop(machine.down(Request::Stream(Down::Finish)));
-}
-
-#[test]
-#[should_panic(expected = "a Close after Close")]
-fn a_close_after_close_is_a_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.down(Request::Close));
-    drop(machine.down(Request::Close));
-}
-
-#[test]
-#[should_panic(expected = "an answer before the handshake demanded anything")]
-fn an_answer_before_any_demand_is_a_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.up(Up::Room));
-}
-
-#[test]
-#[should_panic(expected = "bytes answer a fill, exactly")]
-fn bytes_must_answer_the_fill_exactly() {
-    let (mut machine, _) = started(LIMITS);
-    drop(machine.bytes(&[22, 3, 3, 0]));
-}
-
-#[test]
-#[should_panic(expected = "the limits are honoured")]
-fn limits_that_cannot_be_honoured_are_a_bug() {
-    drop(Machine::new(Limits { records: 1, ..LIMITS }));
 }

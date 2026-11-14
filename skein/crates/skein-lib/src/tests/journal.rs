@@ -247,12 +247,16 @@ fn restored_maximum_number_allows_unwritten_outputs() {
 }
 
 #[test]
-#[should_panic(expected = "commit numbering exhausted at u64::MAX")]
-fn restored_maximum_number_panics_on_writing_accept() {
+fn restored_maximum_number_stops_on_writing_accept() {
     let mut journal = Journal::<u8, u8>::uncapped(RELEASE, u64::MAX);
     let mut decision = journal.decide();
     decision.push_write(1);
+    decision.push_held(9);
     journal.accept(decision);
+    assert!(journal.commit().is_none());
+    let mut out = Queue::with_capacity(1);
+    assert_eq!(journal.release(&mut out), Released::Stopped);
+    assert!(out.is_empty());
 }
 
 #[test]

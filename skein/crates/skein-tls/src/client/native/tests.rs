@@ -337,40 +337,6 @@ fn stale_output_cannot_touch_another_grant() {
 }
 
 #[test]
-#[should_panic(expected = "matching native Send within grant")]
-fn matching_oversized_send_is_a_bug() {
-    let mut machine = Machine::new();
-    let lower = machine.started();
-    machine.sent_hello(lower);
-    machine.client.upper_output = UpperOutput::Granted { right: Token::new(5), bytes: 1 };
-    machine.down(Request::Output(OutputDown::Send { right: Token::new(5), bytes: Box::from(&b"large"[..]) }));
-}
-
-#[test]
-#[should_panic(expected = "native Finish after Ready once")]
-fn finish_before_ready_is_a_bug() {
-    let mut machine = Machine::new();
-    machine.started();
-    machine.down(Request::Client(client::Request::Stream(Down::Finish)));
-}
-
-#[test]
-#[should_panic(expected = "native plaintext Demand is read-only")]
-fn classic_room_is_a_bug_on_the_native_face() {
-    let mut machine = Machine::new();
-    machine.started();
-    machine.down(Request::Client(client::Request::Stream(Down::Demand { read: Read::Nothing, room: 1 })));
-}
-
-#[test]
-#[should_panic(expected = "lower terminal precedes physical Closed")]
-fn closure_requires_every_output_terminal_below() {
-    let mut machine = Machine::new();
-    machine.started();
-    machine.up(LowerEvent::Closed);
-}
-
-#[test]
 fn duplicate_closure_preserves_the_first_terminal() {
     let mut machine = Machine::new();
     let lower = machine.started();
@@ -598,15 +564,6 @@ fn ready_survives_token_exhaustion_in_the_same_step() {
     assert_eq!(machine.above.pop(), Some(Event::Client(client::Event::Stream(Up::Failed(Fault::Other)))));
     assert_eq!(machine.above.pop(), Some(Event::Client(client::Event::Failed(client::Error::Other))));
     assert!(machine.above.is_empty() && machine.below.is_empty(), "no new right below after exhaustion");
-}
-
-#[test]
-#[should_panic(expected = "ciphertext Fill is answered exactly")]
-fn ciphertext_must_answer_the_fill_exactly() {
-    let mut machine = Machine::new();
-    let right = machine.started();
-    machine.sent_hello(right);
-    machine.up(LowerEvent::Stream(Up::Bytes(Box::from([0; 4]))));
 }
 
 #[test]

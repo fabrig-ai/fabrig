@@ -19,7 +19,7 @@ fn a_spawn_hosts_the_child_with_its_arguments_environment_and_pipes() {
     world.spawn_root(Handle::new(1), |root| {
         Script::parent(root, &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait])
     });
-    let outcome = world.run();
+    let outcome = world.try_run().expect("the hosted exchange settles cleanly");
     assert_eq!(outcome.procs.len(), 2);
     assert_eq!(outcome.procs[0].received, b"reply");
     assert_eq!(outcome.procs[1].received, b"hello");
@@ -80,36 +80,49 @@ fn simple(
     acts: &[Act],
     memory: Memory,
 ) -> skein_world::Outcome<Script, RootMachine> {
+    try_simple(make, acts, memory).unwrap_or_else(|why| panic!("{why}"))
+}
+
+fn try_simple(
+    make: fn(&Spawn, &Inherited) -> Script,
+    acts: &[Act],
+    memory: Memory,
+) -> Result<skein_world::Outcome<Script, RootMachine>, String> {
     let mut world = World::new(7, Config::calm(), Judge, memory).with_machine(RootMachine);
     world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make, instances: 1, operations: 8 });
     world.spawn_root(Handle::new(1), |root| Script::parent(root, acts));
-    world.run()
+    world.try_run()
 }
 
 #[test]
-#[should_panic(expected = "past its scenario's ceiling")]
 fn a_hosted_child_past_its_scenarios_ceiling_fails() {
     // Below the child's 64 KiB hog; construction still fits.
     const CEILING: u64 = 32 * 1024;
-    let _outcome = simple(hogging_child, &[Act::Spawn, Act::Read(1), Act::Wait], Memory::Within(CEILING));
+    let finding = try_simple(hogging_child, &[Act::Spawn, Act::Read(1), Act::Wait], Memory::Within(CEILING))
+        .expect_err("the world returns its finding");
+    assert!(finding.contains("past its scenario's ceiling"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a leak")]
 fn a_hosted_child_that_leaks_fails_when_dropped() {
-    drop(simple(leaky_child, &[Act::Spawn, Act::Read(1), Act::Wait], Memory::Checked));
+    let finding = simple(leaky_child, &[Act::Spawn, Act::Read(1), Act::Wait], Memory::Checked)
+        .try_release()
+        .expect_err("the child leaks");
+    assert!(finding.contains("a leak"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "idle, unsettled")]
 fn a_hosted_child_without_a_terminal_does_not_settle() {
-    let _outcome = simple(empty_child_without_exit, &[Act::Spawn, Act::Read(1)], Memory::Checked);
+    let finding = try_simple(empty_child_without_exit, &[Act::Spawn, Act::Read(1)], Memory::Checked)
+        .expect_err("the world returns its finding");
+    assert!(finding.contains("idle, unsettled"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "read to its end")]
 fn closing_a_hosted_childs_output_without_reading_its_end_does_not_settle() {
-    let _outcome = simple(leaky_child, &[Act::Spawn, Act::Wait], Memory::Checked);
+    let finding =
+        try_simple(leaky_child, &[Act::Spawn, Act::Wait], Memory::Checked).expect_err("the world returns its finding");
+    assert!(finding.contains("read to its end"), "{finding}");
 }
 
 #[test]
@@ -167,14 +180,15 @@ fn leaky_killed_child(_spawn: &Spawn, inherited: &Inherited) -> Script {
 }
 
 #[test]
-#[should_panic(expected = "terminated process 1 freed")]
 fn a_killed_childs_leak_is_checked_when_it_is_dropped() {
     use skein_io::kernel::Signal;
-    drop(simple(
+    let finding = try_simple(
         leaky_killed_child,
         &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Signal(Signal::Kill), Act::Read(1), Act::Wait],
         Memory::Checked,
-    ));
+    )
+    .expect_err("the killed child leaks");
+    assert!(finding.contains("terminated process 1 freed"), "{finding}");
 }
 
 /// Keeps the root's startup signal alongside the existing exchange script.

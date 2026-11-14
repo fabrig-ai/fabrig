@@ -42,13 +42,6 @@ fn token_fixture() -> (Component, Env<Limits>, Queue<skein_io::Request>) {
     (c, env, Queue::uncapped())
 }
 #[test]
-#[should_panic(expected = "connection token prefix")]
-fn api_tokens_stop_before_the_listener_range() {
-    let (mut c, env, mut io) = token_fixture();
-    c.common.next_token = LISTENER_OWNER;
-    c.test_open_own(&env, &mut io);
-}
-#[test]
 fn the_last_api_token_is_still_issued() {
     let (mut c, env, mut io) = token_fixture();
     c.common.next_token = LAST_API_OWNER;

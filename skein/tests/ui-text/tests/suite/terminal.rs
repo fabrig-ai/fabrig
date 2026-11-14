@@ -220,10 +220,17 @@ fn terminal_operations_validate_the_configuration() {
 }
 
 #[test]
-#[should_panic(expected = "application line within its bytes")]
-fn a_line_past_its_bytes_stops_the_terminal() {
-    let mut terminal = Terminal::new(settings(32), &fixtures::LIMITS).unwrap();
-    terminal.say(&[b'x'; 65]);
+fn an_application_line_fills_its_byte_bound_and_is_written_whole() {
+    let mut p = start(32, 4096);
+    p.drain();
+    let line = vec![b'x'; usize::try_from(settings(32).line_bytes).unwrap()];
+    p.terminal.say(&line);
+    p.drive(Time::ZERO, false);
+    let written = p.drain();
+    let mut expected = b"test: ".to_vec();
+    expected.extend_from_slice(&line);
+    expected.push(b'\n');
+    assert_eq!(written.as_ref(), expected.as_slice());
 }
 
 #[test]
