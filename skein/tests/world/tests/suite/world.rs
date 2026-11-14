@@ -107,10 +107,12 @@ fn time_does_not_move_while_a_process_has_deferred_work() {
 }
 
 #[test]
-#[should_panic(expected = "unmet: Receives")]
 fn an_overdue_liveness_expectation_fails_naming_what_is_pending() {
     let expect = vec![Expect::Receives { at: 0, by: ms(5) }];
-    let _outcome = world(Config::calm(), expect, server, sender, Memory::Checked).run();
+    let finding = world(Config::calm(), expect, server, sender, Memory::Checked)
+        .try_run()
+        .expect_err("the world returns its finding");
+    assert!(finding.contains("unmet: Receives"), "{finding}");
 }
 
 #[test]
@@ -138,26 +140,29 @@ fn checked_memory_reports_peaks_without_a_ceiling() {
 }
 
 #[test]
-#[should_panic(expected = "past its scenario's ceiling")]
 fn a_process_past_its_scenarios_ceiling_fails() {
     // Below the hog's 64 KiB, while admitting both scripts' construction.
     const CEILING: u64 = 32 * 1024;
     const HOG_BYTES: usize = 64 * 1024;
-    let _outcome =
-        world(Config::calm(), Vec::new(), || server().hogging(HOG_BYTES), sender, Memory::Within(CEILING)).run();
+    let finding = world(Config::calm(), Vec::new(), || server().hogging(HOG_BYTES), sender, Memory::Within(CEILING))
+        .try_run()
+        .expect_err("the world returns its finding");
+    assert!(finding.contains("past its scenario's ceiling"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a leak")]
 fn a_process_that_leaks_fails_once_settled() {
-    let _outcome = world(
+    let finding = world(
         Config::calm(),
         vec![Expect::Receives { at: 0, by: ms(1_000) }],
         || server().leaking(100),
         sender,
         Memory::Checked,
     )
-    .run();
+    .run()
+    .try_release()
+    .expect_err("the settled process leaks");
+    assert!(finding.contains("a leak"), "{finding}");
 }
 
 #[test]
@@ -180,11 +185,11 @@ fn the_same_seed_replays_to_the_same_trace() {
 }
 
 #[test]
-#[should_panic(expected = "process 0 requires policy deadline 10000000 ns")]
 fn a_keep_time_after_the_last_word_fails_the_world_naming_the_process() {
     let mut world = World::new(SEED, Config::calm(), Judge::new(SEED, Vec::new()), Memory::Checked);
     world.spawn(|| Script::new(ms(10), &[]));
-    let _outcome = world.run();
+    let finding = world.try_run().expect_err("the world returns its finding");
+    assert!(finding.contains("process 0 requires policy deadline 10000000 ns"), "{finding}");
 }
 
 #[test]
@@ -203,16 +208,15 @@ fn a_scenario_that_names_a_later_last_word_may_wait_for_it() {
 }
 
 #[test]
-#[should_panic(expected = "process 0 requires policy deadline 10000000 ns")]
 fn a_named_later_last_word_still_rejects_policy_deadlines_after_it() {
     let referee = skein_world_tests::Later(skein_world::LastWord::After(ms(5)));
     let mut world = World::new(SEED, Config::calm(), referee, Memory::Checked);
     world.spawn(|| Script::new(ms(10), &[]));
-    let _outcome = world.run();
+    let finding = world.try_run().expect_err("the world returns its finding");
+    assert!(finding.contains("process 0 requires policy deadline 10000000 ns"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "past its scenario's ceiling")]
 fn root_construction_is_charged_before_the_first_iteration() {
     use skein_world_tests::hosted::{Judge, Script};
 
@@ -225,6 +229,8 @@ fn root_construction_is_charged_before_the_first_iteration() {
         script.held = vec![0; PAYLOAD_BYTES].into_boxed_slice();
         script
     });
+    let finding = world.try_run().expect_err("construction exceeds the ceiling");
+    assert!(finding.contains("past its scenario's ceiling"), "{finding}");
 }
 
 struct AllocatingJudge {

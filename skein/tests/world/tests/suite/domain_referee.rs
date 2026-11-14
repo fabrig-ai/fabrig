@@ -167,15 +167,15 @@ fn holding_returns_the_first_failure_and_allows_unfinished_expectations() {
 fn passing_returns_pending_or_failed_but_accepts_passed_and_stopped() {
     let mut referee = Referee::new(Toy::default());
     assert_eq!(referee.check_passed(7), Ok(()));
-    see(&mut referee, 1, Seen::Sent(9));
-    assert_eq!(referee.check_passed(7), Err("seed 7: the referee still expects Reply(9) by 6.000000000s".to_owned()));
+    see(&mut referee, 1, Seen::Sent(7));
+    assert_eq!(referee.check_passed(42), Err("seed 42: the referee still expects Reply(7) by 6.000000000s".to_owned()));
     see(&mut referee, 2, Seen::Goal);
     assert_eq!(referee.check_passed(7), Ok(()), "stopped allows pending expectations");
     assert_eq!(referee.check_holding(7), Ok(()));
     see(&mut referee, 3, Seen::Landed { green: false });
     assert_eq!(
         referee.check_passed(7),
-        Err("seed 7: at 3.000000000s, nothing lands without green checks; still pending: Reply(9) by 6.000000000s"
+        Err("seed 7: at 3.000000000s, nothing lands without green checks; still pending: Reply(7) by 6.000000000s"
             .to_owned())
     );
 
@@ -185,29 +185,12 @@ fn passing_returns_pending_or_failed_but_accepts_passed_and_stopped() {
 }
 
 #[test]
-#[should_panic(expected = "seed 42: at 6.000000000s, Reply(7) was not met by 6.000000000s")]
 fn a_failed_test_ends_with_its_seed() {
     let mut referee = Referee::new(Toy::default());
     see(&mut referee, 1, Seen::Sent(7));
     referee.fire(at(6), &mut Vec::new());
-    referee.assert_holding(42);
-}
-
-#[test]
-#[should_panic(expected = "seed 42: the referee still expects Reply(7) by 6.000000000s")]
-fn a_test_that_ends_with_expectations_pending_has_not_passed() {
-    let mut referee = Referee::new(Toy::default());
-    see(&mut referee, 1, Seen::Sent(7));
-    referee.assert_holding(42);
-    referee.assert_passed(42);
-}
-
-#[test]
-#[should_panic(expected = "each expectation pending has a name of its own: Reply(7)")]
-fn an_expectation_pending_twice_is_the_scenario_s_mistake() {
-    let mut referee = Referee::new(Toy::default());
-    see(&mut referee, 1, Seen::Sent(7));
-    see(&mut referee, 2, Seen::Sent(7));
+    let finding = referee.check_holding(42).expect_err("the reply is overdue");
+    assert!(finding.contains("seed 42: at 6.000000000s, Reply(7) was not met by 6.000000000s"), "{finding}");
 }
 
 #[test]

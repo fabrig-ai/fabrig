@@ -209,7 +209,7 @@ impl Capture {
             match expectation {
                 Expectation::Supervise => self.overflowed = true,
                 Expectation::EndsWithBinary | Expectation::Measure => {
-                    assert!(bytes.len() <= room, "binary stderr exceeds its scenario limit of {} bytes", self.limit);
+                    keep_finding(format!("binary stderr exceeds its scenario limit of {} bytes", self.limit));
                 }
             }
         }
@@ -957,8 +957,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "binary stderr exceeds its scenario limit of 2 bytes")]
-    fn measured_capture_keeps_the_legacy_scenario_assertion() {
-        Capture::new(2).push(b"abc", Expectation::Measure);
+    fn measured_capture_keeps_its_scenario_finding() {
+        for expectation in [Expectation::Measure, Expectation::EndsWithBinary] {
+            let _scope = super::FindingScope::enter();
+            Capture::new(2).push(b"abc", expectation);
+            let finding = take_finding().expect("overflow is kept for the run");
+            assert!(finding.contains("binary stderr exceeds its scenario limit of 2 bytes"), "{finding}");
+        }
     }
 }

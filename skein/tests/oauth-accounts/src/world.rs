@@ -166,69 +166,86 @@ impl Contracts {
         }
     }
     /// Checks a generation before accepting its grant or held notice.
-    pub fn granted(&mut self, generation: u64) {
-        assert!(!self.closed, "Closed is the last owner event");
-        assert!(self.kept.contains(&generation), "nothing lent before its keep terminal");
+    pub fn granted(&mut self, generation: u64) -> Result<(), String> {
+        self.check_open()?;
+        if !self.kept.contains(&generation) {
+            return Err(String::from("nothing lent before its keep terminal"));
+        }
         if self.grant.contains(0) {
-            self.grant.end(0);
-        } else {
-            assert!(self.last_generation.is_none_or(|prior| generation > prior), "held notices name a new generation");
+            self.grant.try_end(0)?;
+        } else if self.last_generation.is_some_and(|prior| generation <= prior) {
+            return Err(String::from("held notices name a new generation"));
         }
         self.last_generation = Some(generation);
+        Ok(())
     }
     /// Opens the candidate's required durability terminal.
-    pub fn keep(&mut self, generation: u64) {
-        assert!(!self.closed, "Closed is the last owner event");
-        self.keeps.open(generation, ());
+    pub fn keep(&mut self, generation: u64) -> Result<(), String> {
+        self.check_open()?;
+        self.keeps.try_open(generation, ())
     }
     /// Delivers exactly the pending keeper terminal.
-    pub fn kept(&mut self, generation: u64, kept: bool) {
-        self.keeps.end(generation);
+    pub fn kept(&mut self, generation: u64, kept: bool) -> Result<(), String> {
+        self.keeps.try_end(generation)?;
         if kept {
             self.kept.push(generation);
         }
+        Ok(())
     }
     /// Ends a pending grant or the owner's existing hold.
-    pub fn failed(&mut self) {
-        assert!(!self.closed, "Closed is the last owner event");
+    pub fn failed(&mut self) -> Result<(), String> {
+        self.check_open()?;
         if self.grant.contains(0) {
-            self.grant.end(0);
-        } else {
-            assert!(self.last_generation.take().is_some(), "only a pending or held grant fails");
+            self.grant.try_end(0)?;
+        } else if self.last_generation.take().is_none() {
+            return Err(String::from("only a pending or held grant fails"));
         }
+        Ok(())
     }
     /// Opens the component's close obligation once, even when upgraded to abort.
-    pub fn closing(&mut self) {
+    pub fn closing(&mut self) -> Result<(), String> {
         if !self.close.contains(0) {
-            self.close.open(0, ());
+            self.close.try_open(0, ())?;
         }
+        Ok(())
     }
     /// Opens the next owner grant after its predecessor ended.
-    pub fn requesting(&mut self) {
-        self.grant.open(0, ());
+    pub fn requesting(&mut self) -> Result<(), String> {
+        self.grant.try_open(0, ())
     }
     /// Records a shared record read under the owner's lock.
-    pub fn read(&mut self, generation: u64) {
+    pub fn read(&mut self, generation: u64) -> Result<(), String> {
         self.kept.push(generation);
+        Ok(())
     }
     /// Each held owner lock requires one release before Closed.
-    pub fn locked(&mut self, account: u32) {
-        assert!(!self.closed, "Closed is the last owner event");
-        self.locks.open(account, ());
+    pub fn locked(&mut self, account: u32) -> Result<(), String> {
+        self.check_open()?;
+        self.locks.try_open(account, ())
     }
     /// Releases exactly one lock taken by a Held answer.
-    pub fn unlocked(&mut self, account: u32) {
-        assert!(!self.closed, "Closed is the last owner event");
-        self.locks.end(account);
+    pub fn unlocked(&mut self, account: u32) -> Result<(), String> {
+        self.check_open()?;
+        self.locks.try_end(account)
     }
     /// Settles the owner's close only once, after keeper obligations.
-    pub fn closed(&mut self) {
-        assert!(!self.closed, "one Closed");
-        self.close.end(0);
-        self.keeps.assert_settled();
-        self.locks.assert_settled();
-        self.grant.assert_settled();
+    pub fn closed(&mut self) -> Result<(), String> {
+        if self.closed {
+            return Err(String::from("one Closed"));
+        }
+        self.close.try_end(0)?;
+        self.keeps.check_settled()?;
+        self.locks.check_settled()?;
+        self.grant.check_settled()?;
         self.closed = true;
+        Ok(())
+    }
+
+    fn check_open(&self) -> Result<(), String> {
+        if self.closed {
+            return Err(String::from("Closed is the last owner event"));
+        }
+        Ok(())
     }
 }
 
@@ -259,6 +276,7 @@ pub struct Client {
     pub(crate) facts: Vec<Fact>,
     records: Vec<oauth::SavedToken>,
     pub(crate) contracts: Contracts,
+    finding: Option<String>,
     pub(crate) closing: bool,
     pub(crate) closed: bool,
     pub(crate) recovered: Option<u64>,
@@ -297,6 +315,7 @@ impl Client {
             facts: Vec::with_capacity(16),
             records: Vec::with_capacity(4),
             contracts: Contracts::with_pending_grant(),
+            finding: None,
             closing: false,
             closed: false,
             recovered: None,
@@ -444,39 +463,44 @@ impl Client {
     pub(crate) fn close(&mut self, env: &Env<accounts::Limits>) {
         if !self.closing {
             self.closing = true;
-            self.contracts.closing();
+            if let Err(why) = self.contracts.closing() {
+                self.finding.get_or_insert(why);
+                return;
+            }
             self.ask(env, accounts::Request::Close);
         }
     }
-    fn observe_story(&mut self, env: &Env<accounts::Limits>) -> bool {
+    fn observe_story(&mut self, env: &Env<accounts::Limits>) -> Result<bool, String> {
         if self.sign_in.is_some() {
-            crate::sign_in::observe(self, env);
-            return true;
+            crate::sign_in::observe(self, env)?;
+            return Ok(true);
         }
         if self.shared.is_some() {
-            crate::shared::observe(self, env);
-            return true;
+            crate::shared::observe(self, env)?;
+            return Ok(true);
         }
         if self.sign_out.is_some() {
             crate::sign_out::observe(self, env);
-            return true;
+            return Ok(true);
         }
         if self.accounts.is_some() {
             crate::accounts::observe(self, env);
-            return true;
+            return Ok(true);
         }
-        false
+        Ok(false)
     }
 
-    pub(crate) fn observe(&mut self, env: &Env<accounts::Limits>) {
-        if self.observe_story(env) {
-            return;
+    pub(crate) fn observe(&mut self, env: &Env<accounts::Limits>) -> Result<(), String> {
+        if self.observe_story(env)? {
+            return Ok(());
         }
         if let Some(event) = self.above.pop() {
-            assert!(!self.closed, "Closed is once and last");
+            if self.closed {
+                return Err(String::from("Closed is once and last"));
+            }
             match event {
                 accounts::Event::Granted { generation, token, valid, .. } => {
-                    self.contracts.granted(generation);
+                    self.contracts.granted(generation)?;
                     assert!(valid > Duration::ZERO);
                     assert_eq!(token.expose(), if generation == 0 { b"old" } else { b"new" });
                     self.facts.push(Fact::Granted(generation));
@@ -494,7 +518,7 @@ impl Client {
                     }
                 }
                 accounts::Event::Keep { account, record } => {
-                    self.contracts.keep(record.generation);
+                    self.contracts.keep(record.generation)?;
                     self.facts.push(Fact::Keep(record.generation));
                     assert_eq!(
                         record.refresh_token.as_ref().map(skein_lib::Secret::expose),
@@ -505,7 +529,7 @@ impl Client {
                         self.close(env);
                         assert!(!self.closed);
                     }
-                    self.contracts.kept(record.generation, kept);
+                    self.contracts.kept(record.generation, kept)?;
                     self.ask(
                         env,
                         accounts::Request::Kept {
@@ -517,20 +541,20 @@ impl Client {
                     self.records.push(record);
                 }
                 accounts::Event::Failed { failure, .. } => {
-                    self.contracts.failed();
+                    self.contracts.failed()?;
                     self.facts.push(Fact::Failed(failure));
                     if (matches!(failure, accounts::Failure::Unloaded { .. })
                         || failure == accounts::Failure::Exchange(oauth::Failure::Refused))
                         && self.retry_load.take().is_some()
                     {
-                        self.contracts.grant.open(0, ());
+                        self.contracts.requesting()?;
                         self.ask(env, accounts::Request::Grant { account: 0 });
                     } else {
                         self.close(env);
                     }
                 }
                 accounts::Event::Closed => {
-                    self.contracts.closed();
+                    self.contracts.closed()?;
                     self.facts.push(Fact::Closed);
                     self.closed = true;
                     if let Some(driver) = &mut self.file_driver {
@@ -563,10 +587,11 @@ impl Client {
                 }
             }
         }
+        Ok(())
     }
-    fn private_io(&mut self, env: &Env<accounts::Limits>) {
+    fn private_io(&mut self, env: &Env<accounts::Limits>) -> Result<(), String> {
         if self.file_driver.is_none() {
-            return;
+            return Ok(());
         }
         while let Some(lower) = self.files.pop() {
             match lower {
@@ -576,9 +601,9 @@ impl Client {
                         let record =
                             oauth::decode_record(bytes, &env.limits.client.document).expect("candidate record");
                         if let Some(owner) = &mut self.sign_in {
-                            crate::sign_in::keeping(owner, record.generation);
+                            crate::sign_in::keeping(owner, record.generation)?;
                         } else {
-                            self.contracts.keep(record.generation);
+                            self.contracts.keep(record.generation)?;
                             self.facts.push(Fact::Keep(record.generation));
                         }
                         assert!(self.file_keep.is_none());
@@ -629,9 +654,9 @@ impl Client {
                 let (_, record) = self.file_keep.take().expect("matching keep");
                 let yes = matches!(event, io::file::Event::Stored { .. });
                 if let Some(owner) = &mut self.sign_in {
-                    crate::sign_in::kept(owner, record, yes);
+                    crate::sign_in::kept(owner, record, yes)?;
                 } else {
-                    self.contracts.kept(record.generation, yes);
+                    self.contracts.kept(record.generation, yes)?;
                     self.records.push(record);
                 }
             }
@@ -646,14 +671,23 @@ impl Client {
         while let Some(submit) = self.file_driver.as_mut().expect("file driver").take_submit() {
             self.submissions.push(submit);
         }
+        Ok(())
     }
 }
 
-impl Host for Client {
-    fn iterate(&mut self, now: Time, wall: Wall) {
+impl Client {
+    /// Returns a contract finding kept by a host turn for its referee.
+    pub(crate) fn check_contracts(&self) -> Result<(), String> {
+        match &self.finding {
+            Some(why) => Err(why.clone()),
+            None => Ok(()),
+        }
+    }
+
+    fn try_iterate(&mut self, now: Time, wall: Wall) -> Result<(), String> {
         let env = Env { now, wall, limits: self.limits };
         if self.sign_in.is_some() {
-            crate::sign_in::restart(self, &env);
+            crate::sign_in::restart(self, &env)?;
         }
         if self.component.is_none() && self.address.is_some() {
             self.start(&env);
@@ -662,7 +696,7 @@ impl Host for Client {
             crate::sign_in::redirected(self, &env);
         }
         let io_env = Env { now, wall, limits: self.limits.io };
-        self.private_io(&env);
+        self.private_io(&env)?;
         // The file driver shares the kernel's completions: it takes its own (they submit only into its
         // queue, which `private_io` drains), and io's stage takes the rest in their order.
         for _ in 0..self.completions.len() {
@@ -693,7 +727,7 @@ impl Host for Client {
             component.fire(&env, &mut self.above, &mut self.requests, &mut self.files);
         }
         {
-            self.observe(&env);
+            self.observe(&env)?;
             if self.story == Story::Released
                 && !self.closing
                 && now >= self.started.saturating_add(Duration::from_secs(40))
@@ -721,12 +755,25 @@ impl Host for Client {
             crate::shared::before_socket(self, &request);
             io::down(&mut self.io, &io_env, request, &mut self.submissions);
         }
-        self.private_io(&env);
+        self.private_io(&env)?;
         self.io.reclaim();
         if let Some(component) = &mut self.component {
             component.reclaim();
         }
+        Ok(())
     }
+}
+
+impl Host for Client {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        if self.finding.is_some() {
+            return;
+        }
+        if let Err(why) = self.try_iterate(now, wall) {
+            self.finding.get_or_insert(why);
+        }
+    }
+
     fn completions(&mut self) -> &mut Queue<kernel::Complete> {
         &mut self.completions
     }
@@ -887,6 +934,7 @@ impl Referee<Process> for Judge {
     )]
     fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let client = processes.iter().find_map(Process::client).expect("client");
+        client.check_contracts()?;
         self.wake = ((client.component.is_none()
             && processes.iter().any(|process| process.issuer().is_some_and(|peer| peer.address().is_some())))
             || (client.is_empty() && !self.shutdown))
