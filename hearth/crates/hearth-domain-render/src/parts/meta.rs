@@ -49,10 +49,26 @@ pub struct PlacementPair {
 #[must_use]
 pub(crate) fn change(before: &Meta, after: &Meta) -> Option<Change> {
     let change = Change {
-        base: if before.base == after.base { None } else { Some(NamePair { before: before.base.clone(), after: after.base.clone() }) },
-        member: if before.member == after.member { None } else { Some(MemberPair { before: before.member.clone(), after: after.member.clone() }) },
-        environment: if before.environment == after.environment { None } else { Some(NamePair { before: before.environment.clone(), after: after.environment.clone() }) },
-        placement: if before.placement == after.placement { None } else { Some(PlacementPair { before: before.placement.clone(), after: after.placement.clone() }) },
+        base: if before.base == after.base {
+            None
+        } else {
+            Some(NamePair { before: before.base.clone(), after: after.base.clone() })
+        },
+        member: if before.member == after.member {
+            None
+        } else {
+            Some(MemberPair { before: before.member.clone(), after: after.member.clone() })
+        },
+        environment: if before.environment == after.environment {
+            None
+        } else {
+            Some(NamePair { before: before.environment.clone(), after: after.environment.clone() })
+        },
+        placement: if before.placement == after.placement {
+            None
+        } else {
+            Some(PlacementPair { before: before.placement.clone(), after: after.placement.clone() })
+        },
     };
     if change.base.is_none() && change.member.is_none() && change.environment.is_none() && change.placement.is_none() {
         None
