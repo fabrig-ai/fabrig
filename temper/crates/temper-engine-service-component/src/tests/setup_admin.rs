@@ -1113,8 +1113,8 @@ fn each_access_stop_answers_by_its_step_and_names_adopt() {
         (Stage::Bot, Why::Missing, Refusal::InvalidAnswer),
         (Stage::Bot, Why::Refused(403), Refusal::InvalidAnswer),
     ];
+    let mut service = service(&forge);
     for (step, why, expected) in cases {
-        let mut service = service(&forge);
         let engine = service.engine.as_mut().unwrap();
         while engine.notes.pop().is_some() {}
         public::adopt_access(engine, 1, Token::new(70), b"other".as_slice().into(), b"closed".as_slice().into());
