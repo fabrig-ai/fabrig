@@ -9,7 +9,7 @@ pub fn accounts_with_ranges(rows: &[(&[u8], i64, i64)]) -> Accounts {
     for &(name, base, count) in rows {
         let accounts = kinds::accounts([kinds::range(base, count)]).expect("valid range");
         let mut user = super::only(&accounts.users).clone();
-        user.name = copy_of(name);
+        user.value.name = copy_of(name);
         users.push(user).expect("fixture count");
     }
     Accounts { users: users.into_boxed(), groups: Box::new([]) }

@@ -50,7 +50,7 @@ pub enum Algorithm {
     Ecdsa,
     Rsa,
 }
-pub fn build(expansion: &Expansion) -> Result<Secrets, Box<[Error]>> {
+pub(crate) fn build(expansion: &Expansion) -> Result<Secrets, Box<[Error]>> {
     let files = expansion.of(Map::Secrets);
     let identity = expansion.of(Map::Identity);
     let users = expansion.of(Map::Users);
@@ -112,7 +112,7 @@ pub fn build(expansion: &Expansion) -> Result<Secrets, Box<[Error]>> {
     Ok(Secrets { files: files.into_boxed(), passwords: users.into_boxed(), identity: identity.into_boxed() })
 }
 #[must_use]
-pub fn digest(secrets: &Secrets) -> Digest {
+pub(crate) fn digest(secrets: &Secrets) -> Digest {
     let mut hash = H::new(b"part:secrets", 1);
     encode(secrets, hash.values());
     hash.finish()
@@ -180,7 +180,7 @@ pub enum Named {
 }
 
 #[must_use]
-pub fn change(before: &Secrets, after: &Secrets) -> Change {
+pub(crate) fn change(before: &Secrets, after: &Secrets) -> Change {
     Change {
         files: named(&before.files, &after.files, |row| &row.name),
         passwords: named(&before.passwords, &after.passwords, |row| &row.user),
@@ -188,37 +188,9 @@ pub fn change(before: &Secrets, after: &Secrets) -> Change {
     }
 }
 fn named<T: PartialEq + core::fmt::Debug>(before: &[T], after: &[T], key: fn(&T) -> &[u8]) -> Box<[Named]> {
-    changed(before, after, key, |key, before, after| match (before, after) {
-        (None, Some(_)) => Named::Added(key),
-        (Some(_), None) => Named::Removed(key),
-        (Some(_), Some(_)) => Named::Changed(key),
-        (None, None) => unreachable!("union entry"),
+    crate::diff::keyed(before, after, key, |change| match change {
+        crate::diff::Keyed::Added { key, .. } => Named::Added(key),
+        crate::diff::Keyed::Removed { key, .. } => Named::Removed(key),
+        crate::diff::Keyed::Changed { key, .. } => Named::Changed(key),
     })
-}
-type Make<T, C> = fn(Box<[u8]>, Option<&T>, Option<&T>) -> C;
-pub(crate) fn changed<T: PartialEq + core::fmt::Debug, C: core::fmt::Debug>(
-    before: &[T],
-    after: &[T],
-    key: fn(&T) -> &[u8],
-    make: Make<T, C>,
-) -> Box<[C]> {
-    let capacity = u32::try_from(before.len().saturating_add(after.len())).expect("bounded entries");
-    let mut pairs = skein_lib::Map::with_capacity(capacity);
-    for row in before {
-        pairs.insert(Box::<[u8]>::from(key(row)), (Some(row), None)).expect("entry count");
-    }
-    for row in after {
-        if let Some((_, value)) = pairs.get_mut(key(row)) {
-            *value = Some(row);
-        } else {
-            pairs.insert(Box::<[u8]>::from(key(row)), (None, Some(row))).expect("entry count");
-        }
-    }
-    let mut changes = List::with_capacity(capacity);
-    for (key, (before, after)) in &pairs {
-        if before != after {
-            changes.push(make(key.clone(), *before, *after)).expect("entry count");
-        }
-    }
-    changes.into_boxed()
 }
