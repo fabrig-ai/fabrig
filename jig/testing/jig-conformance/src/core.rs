@@ -405,7 +405,12 @@ impl Observer {
 
     /// Observe inbound peer traffic, before the root may decide it. `store` runs
     /// only for an event whose check reads a row (`jig/docs/design/domain/testing.md`, 5).
-    pub fn inbound<'a>(&mut self, store: impl FnOnce() -> Store<'a>, now: u64, event: &mut core::Event) -> Result<(), String> {
+    pub fn inbound<'a>(
+        &mut self,
+        store: impl FnOnce() -> Store<'a>,
+        now: u64,
+        event: &mut core::Event,
+    ) -> Result<(), String> {
         self.project_makes.act(event);
         let reads_row = matches!(
             event,
@@ -568,8 +573,7 @@ impl Observer {
                 | core::Record::Accounts(_) => None,
             }))
             .collect();
-        self.observe(now, r::Observed::ColdStore { receipts })?;
-        Ok(())
+        self.observe(now, r::Observed::ColdStore { receipts })
     }
 
     /// Observe the commit the store has just received, and the revisions it names.
@@ -624,10 +628,9 @@ impl Observer {
                 if let Write::Erase(core::Key::Tasks(tasks::Key::Ended(task))) = write {
                     for key in store.rows.keys() {
                         if matches!(key, core::Key::People(people::Key::ReadConversation { task: chat, .. }) if chat == task)
+                            && !pending.writes.contains(&Write::Erase(key.clone()))
                         {
-                            if !pending.writes.contains(&Write::Erase(key.clone())) {
-                                return Err("read marker erases with its owner".into());
-                            }
+                            return Err("read marker erases with its owner".into());
                         }
                     }
                     tasks.push(*task);
@@ -648,8 +651,7 @@ impl Observer {
 
     /// Snapshot only the store's durable rows, including held acknowledgements.
     pub fn durable(&mut self, now: u64, store: &Store<'_>) -> Result<(), String> {
-        self.durable_at(now, store, store.applied)?;
-        Ok(())
+        self.durable_at(now, store, store.applied)
     }
 
     /// Upgrade metadata and the start's mark do not change the referee's
@@ -947,8 +949,7 @@ impl Observer {
             | core::Held::NotesWritten { .. }
             | core::Held::NotesDeleted { .. } => {}
         }
-        self.observe(now, r::Observed::Released { requires })?;
-        Ok(())
+        self.observe(now, r::Observed::Released { requires })
     }
     /// A host's independently reported completion charge.
     pub fn completion(&mut self, now: u64, task: u64, attempt: u64, cumulative: u64) -> Result<(), String> {
@@ -986,7 +987,12 @@ impl Observer {
         })
     }
 
-    fn reply_receipts(&mut self, to: &mut skein_lib::ReplyTo, reply: &people::Reply, requires: &mut Vec<r::Receipt>) -> Result<(), String> {
+    fn reply_receipts(
+        &mut self,
+        to: &mut skein_lib::ReplyTo,
+        reply: &people::Reply,
+        requires: &mut Vec<r::Receipt>,
+    ) -> Result<(), String> {
         match reply {
             people::Reply::SignedIn { sign_in, .. } => requires.push(r::Receipt::SignIn(*sign_in)),
             people::Reply::Signer(_)

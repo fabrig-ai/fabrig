@@ -254,19 +254,16 @@ impl Observer {
         if store.applied == self.inner.applied() {
             return Ok(());
         }
-        self.inner.durable(now, &store_view(store))?;
-        Ok(())
+        self.inner.durable(now, &store_view(store))
     }
     pub fn fresh_mark(&mut self, now: u64, store: &Store) -> Result<(), String> {
         if store.applied == self.inner.applied() {
             return Ok(());
         }
-        self.inner.fresh_mark(now, &store_view(store))?;
-        Ok(())
+        self.inner.fresh_mark(now, &store_view(store))
     }
     pub fn cold(&mut self, now: u64, store: &Store) -> Result<(), String> {
-        self.inner.cold(now, &store_view(store))?;
-        Ok(())
+        self.inner.cold(now, &store_view(store))
     }
     pub fn delivered(&mut self, now: u64, delivery: &mut root::Delivery) -> Result<(), String> {
         let mut requires = Vec::new();
@@ -285,10 +282,7 @@ impl Observer {
                     &assignment.messages,
                 )?;
             }
-            root::Delivery::Core(held) => {
-                self.inner.delivered(now, held)?;
-                return Ok(());
-            }
+            root::Delivery::Core(held) => return self.inner.delivered(now, held),
             root::Delivery::CallAnswer { task, attempt, call: settled, writes, .. } => {
                 self.inner.call_answer(*task, *attempt, settled.serial, *writes)?;
             }
@@ -326,8 +320,7 @@ impl Observer {
             | root::Delivery::Start(_)
             | root::Delivery::System { .. } => {}
         }
-        self.observe(now, r::Observed::Released { requires })?;
-        Ok(())
+        self.observe(now, r::Observed::Released { requires })
     }
 }
 fn core_row(row: &root::Record) -> Option<&jig_domain_core::Record> {
@@ -470,7 +463,15 @@ mod activity_tests {
     use jig_domain_tasks as tasks;
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
+    fn a_referee_finding_returns_with_its_time() {
+        let configuration = crate::world::fixture(507, false).0;
+        let mut observer = Observer::new(&configuration);
+        observer.observe(6, r::Observed::Heap { held: 1, maximum: 1 }).expect("at the ceiling");
+        let error = observer.observe(7, r::Observed::Heap { held: 2, maximum: 1 }).expect_err("over the ceiling");
+        assert_eq!(error, "referee Violation { promise: Bounded, why: \"engine heap exceeded its ceiling\" } at 7");
+    }
+
+    #[test]
     fn activity_referee_rejects_changed_or_erased_lines() {
         for erased in [false, true] {
             let configuration = crate::world::fixture(507, false).0;
@@ -485,7 +486,7 @@ mod activity_tests {
             let key = row.key();
             store.rows.insert(key.clone(), row);
             store.applied = 1;
-            observer.durable(0, &store);
+            observer.durable(0, &store).expect("initial activity row");
             if erased {
                 store.rows.remove(&key);
             } else {
@@ -500,8 +501,11 @@ mod activity_tests {
                 );
             }
             store.applied = 2;
-            let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| observer.durable(1, &store)));
-            assert!(rejected.is_err(), "referee must reject an immutable row changing or disappearing");
+            let rejected = observer.durable(1, &store).expect_err("immutable activity");
+            assert_eq!(
+                rejected,
+                if erased { "immutable activity row disappeared" } else { "immutable activity row changed" }
+            );
         }
     }
 }
@@ -527,7 +531,7 @@ mod view_tests {
         let mut observer = Observer::new(&configuration);
         let store = Store::new(&jig_test_profile::limits(), &configuration.core.settings.models);
         let mut event = core::Event::People(people::Event::CloseProject { project: 1 });
-        observer.inner.inbound(|| panic!("event reads no row"), 0, &mut event);
+        observer.inner.inbound(|| panic!("event reads no row"), 0, &mut event).expect("valid observation");
 
         let mut event = core::Event::People(people::Event::Ask {
             models: Box::new([]),
@@ -537,14 +541,17 @@ mod view_tests {
             ask: people::Ask::MarkSeen { seen: people::Seen::Results { through: 1 } },
         });
         let views = Cell::new(0);
-        observer.inner.inbound(
-            || {
-                views.set(views.get() + 1);
-                store_view(&store)
-            },
-            0,
-            &mut event,
-        );
+        observer
+            .inner
+            .inbound(
+                || {
+                    views.set(views.get() + 1);
+                    store_view(&store)
+                },
+                0,
+                &mut event,
+            )
+            .expect("valid observation");
         assert_eq!(views.get(), 1, "party request reads one current view");
     }
 
@@ -559,24 +566,30 @@ mod view_tests {
             at: skein_lib::Wall::EPOCH,
             line: tasks::Line::Milestone { position: 1 },
         }));
-        observer.inner.submitted(
-            Some(conformance::Commit { number: 1, writes: vec![conformance::Write::Save(&row)] }),
-            Vec::new(),
-            || panic!("commit erases no task"),
-        );
+        observer
+            .inner
+            .submitted(
+                Some(conformance::Commit { number: 1, writes: vec![conformance::Write::Save(&row)] }),
+                Vec::new(),
+                || panic!("commit erases no task"),
+            )
+            .expect("valid observation");
 
         let views = Cell::new(0);
-        observer.inner.submitted(
-            Some(conformance::Commit {
-                number: 2,
-                writes: vec![conformance::Write::Erase(core::Key::Tasks(tasks::Key::Ended(1)))],
-            }),
-            Vec::new(),
-            || {
-                views.set(views.get() + 1);
-                store_view(&store)
-            },
-        );
+        observer
+            .inner
+            .submitted(
+                Some(conformance::Commit {
+                    number: 2,
+                    writes: vec![conformance::Write::Erase(core::Key::Tasks(tasks::Key::Ended(1)))],
+                }),
+                Vec::new(),
+                || {
+                    views.set(views.get() + 1);
+                    store_view(&store)
+                },
+            )
+            .expect("valid observation");
         assert_eq!(views.get(), 1, "ended-task erasure reads one current view");
     }
 }
