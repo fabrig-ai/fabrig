@@ -384,7 +384,7 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
                 wait(next, None)
             }
         }
-        Phase::Turn { .. } => turn(next, facts),
+        Phase::Turn { .. } => turn(next, facts, limits, now),
         Phase::Landed | Phase::Held { .. } | Phase::Cancelled => unreachable!("inactive phases returned above"),
     }
 }
@@ -828,7 +828,7 @@ fn red(mut landing: Landing, facts: &Facts, gate: u16, run: u64) -> Stepped {
     done(landing, decision)
 }
 
-fn turn(mut landing: Landing, facts: &Facts) -> Stepped {
+fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Stepped {
     let top = top(&landing);
     if let Some(top) = top {
         let member = landing.members.get(usize::from(top)).expect("top");
@@ -871,6 +871,12 @@ fn turn(mut landing: Landing, facts: &Facts) -> Stepped {
                 }
             }
             if !member.told {
+                // The change releases its branch when told; wait for the forge's
+                // manual-merge detection before that release (landing.md, 8).
+                if member.combined == Some(crate::Combine::Merge) && fresh.merged != Some(prefix) {
+                    let until = Wall::from_nanos(now.as_nanos().saturating_add(limits.poll.as_nanos()));
+                    return wait(landing, Some(until));
+                }
                 member.told = true;
                 return done(landing, Decision::Landed { member: position(index), prefix });
             }

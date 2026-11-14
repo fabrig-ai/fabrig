@@ -341,6 +341,7 @@ fn the_turn_merges_at_the_candidate_then_tells_its_change_after_readback() {
     f.members[0].merge = Status::Passed;
     assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None });
     f.members[0].main = HEAD;
+    f.members[0].merged = Some(HEAD);
     let two = decide(&one.landing, &f);
     assert_eq!(two.decision, Decision::Landed { member: 0, prefix: HEAD });
     assert_eq!(two.landing.members[0].landed, Some(HEAD));
@@ -840,6 +841,7 @@ fn the_turn_rebuilds_stale_stacks_and_lands_each_member_at_its_prefix() {
         assert_eq!(member.landed, Some(prefix(i)));
     }
     f.members[0].record = Status::Passed;
+    f.members[1].merged = Some(prefix(1));
     let told = decide(&record.landing, &f);
     assert_eq!(told.decision, Decision::Landed { member: 0, prefix: prefix(0) });
     let told = decide(&told.landing, &f);
@@ -1022,4 +1024,21 @@ fn a_new_round_blames_its_own_boundary_not_a_previous_rounds_unit() {
     );
     assert!(landing.members[1].left.is_none());
     assert!(landing.members[3].left.is_none());
+}
+
+#[test]
+fn a_merged_member_waits_for_its_pull_before_its_change_is_told() {
+    let (mut landing, mut f) = stacked(3);
+    landing.phase = Phase::Turn { at: at(4) };
+    for fresh in &mut f.members {
+        fresh.main = prefix(2);
+    }
+    let waiting = decide(&landing, &f);
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)) });
+    assert_eq!(waiting.landing.members[0].landed, Some(prefix(0)));
+    assert!(!waiting.landing.members[0].told);
+    f.members[0].merged = Some(prefix(0));
+    let told = decide(&waiting.landing, &f);
+    assert_eq!(told.decision, Decision::Landed { member: 0, prefix: prefix(0) });
+    assert_eq!(decide(&told.landing, &f).decision, Decision::Wait { until: Some(at(15)) });
 }
