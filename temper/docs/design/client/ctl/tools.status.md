@@ -2,7 +2,7 @@
 
 2026-11-13. Where the tree's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 2: `deployment census` [in flight: change 2667].
+- **Not yet:** 2: `deployment census` [in flight: change 2673].
 
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].

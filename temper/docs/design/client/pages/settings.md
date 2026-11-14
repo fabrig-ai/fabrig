@@ -204,7 +204,9 @@
     thousands ("993,441"), SIZE its keys' and values' bytes together in
     megabytes as the fill's are, "under 0.1 MB" below that; then
     " · layout H" for its one head, or " · layouts H, H" for several, in
-    ascending order, "none" for no head. With no census, no such section. With no role, one line,
+    ascending order, "none" in place of H for the head of values with no
+    `u16` (" · layouts none, 3"), and nothing for a keyspace with no head.
+    With no census, no such section. With no role, one line,
     "Limits are seen by the deployment’s owners.", and no section; until the
     document is read, the title "Limits" alone. Read-only for everyone; the
     configuration's own limits and an owner's change of them are `../README.md`, section 5

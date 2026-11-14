@@ -236,7 +236,8 @@ digest: task 7c1e09a2b44f0d13
   `PREFIX NAME rows R keys K values V puts P erases E written W heads
   H:R,H:R`, PREFIX its bytes in lower-case hex with no space (`01010a`,
   `-` for the empty prefix), NAME `-` where it has none, a head with no
-  `u16` as `-`, every number in plain digits. Before the store's first
+  `u16` as `-`, `heads -` for a keyspace with no head, every number in
+  plain digits. Before the store's first
   report it prints `no census yet`, exit 0. A party with no deployment
   role is jig's refusal, exit 2 (3).
 - **A tree** prints `tree:`, then its root and each row its window

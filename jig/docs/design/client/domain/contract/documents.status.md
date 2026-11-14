@@ -2,7 +2,7 @@
 
 2026-11-13. Where the tree's code lags or departs from [documents.md](documents.md).
 
-- **Not yet:** 1: the deployment's `census`, in the core's vocabulary, its `Event::Census`, the document, the client wire and the client's contract [in flight: change 2663].
+- **Not yet:** 1: the deployment's `census`, in the core's vocabulary, its `Event::Census`, the document, the client wire and the client's contract [in flight: change 2665].
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
 
