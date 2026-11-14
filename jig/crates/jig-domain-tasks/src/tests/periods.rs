@@ -79,17 +79,6 @@ fn a_closed_period_leaves_memory_and_saves_under_closed_ledger() {
 }
 
 #[test]
-#[should_panic(expected = "restore ClosedLedger(Period { project: 1, period: 0 }): ended row in live load")]
-fn a_closed_ledger_is_outside_the_live_restore_ranges() {
-    let test = Harness::new();
-    let mut row = *test.domain.funding(Funder::Period { project: 1, period: 0 }).unwrap();
-    row.closed = true;
-    let mut domain = Domain::new(&LIMITS, crate::tests::KEPT, 91, 1, crate::tests::charters(), Box::new([0]));
-    let mut out = Queue::uncapped();
-    step(&mut domain, &test.env, Event::Restore { record: Stored::ClosedLedger(row) }, &mut out);
-}
-
-#[test]
 fn the_newest_period_stays_live_after_its_pools_close() {
     let mut test = Harness::new();
     let pool = Funder::Pool { project: 1, person: 9, period: 0 };

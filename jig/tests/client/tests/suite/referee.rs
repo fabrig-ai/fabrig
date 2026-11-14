@@ -239,7 +239,7 @@ impl<const BAD: u8> Front<Broken<BAD>> for FrontOf<BAD> {
     fn sign_in(&mut self, _: ClientId, _: Time, _: Wall) {}
     fn sign_out(&mut self, _: ClientId, _: Time, _: Wall) {}
 }
-fn run<const BAD: u8>() {
+fn run<const BAD: u8>() -> Result<Outcome, String> {
     let settings = Settings {
         memory: BAD == 7,
         heap_ceiling: if BAD == 7 { Some(0) } else { None },
@@ -252,7 +252,7 @@ fn run<const BAD: u8>() {
         settings,
         FrontOf::<BAD> { client: None, progress: Progress::Quiet, truth: vec![] },
     );
-    let c = w.client(7, ());
+    let c = w.try_client(7, ())?;
     if BAD != 6 && BAD != 9 {
         w.person(
             c,
@@ -262,57 +262,59 @@ fn run<const BAD: u8>() {
             ],
         );
     }
-    let result = w.run(Until::Done);
-    assert_eq!(result.verdict, skein_world::domain::Verdict::Passed);
+    w.try_run(Until::Done)
 }
 #[test]
 fn correct_boundaries_meet_the_request_and_keep_the_words() {
-    run::<0>();
+    assert_eq!(run::<0>().unwrap().verdict, skein_world::domain::Verdict::Passed);
 }
 #[test]
-#[should_panic(expected = "nothing shown done before durable")]
 fn an_answer_before_the_write_is_caught() {
-    run::<1>();
+    let finding = run::<1>().unwrap_err();
+    assert!(finding.contains("nothing shown done before durable"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "made once")]
 fn two_makes_for_one_party_key_are_caught() {
-    run::<2>();
+    let finding = run::<2>().unwrap_err();
+    assert!(finding.contains("made once"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "nothing sent lost")]
 fn sent_words_missing_from_committed_activity_are_caught() {
-    run::<3>();
+    let finding = run::<3>().unwrap_err();
+    assert!(finding.contains("nothing sent lost"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "what they saw is what they decided")]
 fn an_act_with_a_different_revision_is_caught() {
-    run::<4>();
+    let finding = run::<4>().unwrap_err();
+    assert!(finding.contains("what they saw is what they decided"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "a card leaves for a reason")]
 fn a_card_removed_without_a_visible_reason_is_caught() {
-    run::<5>();
+    let finding = run::<5>().unwrap_err();
+    assert!(finding.contains("a card leaves for a reason"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "Offline")]
 fn unreachable_truth_without_offline_is_caught() {
-    run::<6>();
+    let finding = run::<6>().unwrap_err();
+    assert!(finding.contains("Offline"), "{finding}");
+    assert!(finding.contains("was not met by"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "bounded")]
 fn a_client_exceeding_its_heap_envelope_is_caught() {
-    run::<7>();
+    let finding = run::<7>().unwrap_err();
+    assert!(finding.contains("bounded"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "Request")]
 fn a_request_without_a_final_answer_misses_its_deadline() {
-    run::<8>();
+    let finding = run::<8>().unwrap_err();
+    assert!(finding.contains("Request"), "{finding}");
+    assert!(finding.contains("was not met by"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "Online")]
 fn recovered_truth_without_an_online_view_misses_its_deadline() {
-    run::<9>();
+    let finding = run::<9>().unwrap_err();
+    assert!(finding.contains("Online"), "{finding}");
+    assert!(finding.contains("was not met by"), "{finding}");
 }
 
 #[test]
@@ -417,18 +419,18 @@ fn the_test_clients_sent_words_are_found_in_committed_activity() {
 }
 
 #[test]
-#[should_panic(expected = "explanation absent")]
 fn a_departure_after_a_write_still_needs_an_explanation() {
-    run::<10>();
+    let finding = run::<10>().unwrap_err();
+    assert!(finding.contains("explanation absent"), "{finding}");
 }
 #[test]
-#[should_panic(expected = "nothing sent lost")]
 fn previously_sent_words_cannot_leave_later_activity() {
-    run::<11>();
+    let finding = run::<11>().unwrap_err();
+    assert!(finding.contains("nothing sent lost"), "{finding}");
 }
 #[test]
 fn ending_the_task_discharges_word_retention() {
-    run::<12>();
+    assert_eq!(run::<12>().unwrap().verdict, skein_world::domain::Verdict::Passed);
 }
 
 #[test]

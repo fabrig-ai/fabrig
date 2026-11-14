@@ -11,12 +11,12 @@ const RELEASE_ATTEMPT: skein_lib::Token = skein_lib::Token::new(9000);
 const RELEASE_KEY: [u8; 16] = [91; 16];
 const DELIVERED_HOLD: jig_client::contract::Revision = jig_client::contract::Revision { value: 4 };
 const UNDELIVERED_HOLD: jig_client::contract::Revision = jig_client::contract::Revision { value: 99 };
-fn raw_release(revision: jig_client::contract::Revision) {
+fn raw_release(revision: jig_client::contract::Revision) -> Result<jig_client_world::Outcome, String> {
     let mut world = stories::held_chat(11);
     let client = world.client(CHECK_PARTY, stories::chat());
     world.person(client, vec![Step::See { find: Find::named(Role::Button, b"Release"), within: WITHIN }]);
-    world.run(Until::Done);
-    world.send_raw(
+    world.try_run(Until::Done)?;
+    world.try_send_raw(
         client,
         jig_client_test_domain::Request::Unlinked {
             request: jig_client::UnlinkedRequest::Down {
@@ -33,17 +33,17 @@ fn raw_release(revision: jig_client::contract::Revision) {
                 },
             },
         },
-    );
-    assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
+    )?;
+    world.try_run(Until::Done)
 }
 #[test]
-#[should_panic(expected = "jig's check: a decision names a revision never delivered")]
 fn jig_s_check_fails_a_release_naming_a_revision_never_delivered() {
-    raw_release(UNDELIVERED_HOLD);
+    let finding = raw_release(UNDELIVERED_HOLD).unwrap_err();
+    assert!(finding.contains("jig's check: a decision names a revision never delivered"), "{finding}");
 }
 #[test]
 fn jig_s_check_passes_a_release_naming_the_delivered_revision() {
-    raw_release(DELIVERED_HOLD);
+    assert_eq!(raw_release(DELIVERED_HOLD).unwrap().verdict, skein_world::domain::Verdict::Passed);
 }
 
 fn plan() -> Target {
@@ -138,7 +138,6 @@ fn the_test_application_s_own_proposal_view_is_held_to_jig_s_check() {
     assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
 }
 #[test]
-#[should_panic(expected = "jig's check: a deciding act did not show its facts")]
 fn an_own_proposal_view_hiding_its_effect_fails_jig_s_check() {
     let mut world = stories::own_proposal::world(31);
     let client = world.client_with(
@@ -148,7 +147,8 @@ fn an_own_proposal_view_hiding_its_effect_fails_jig_s_check() {
         stories::own_proposal::hidden,
     );
     world.person(client, stories::own_proposal::person());
-    world.run(Until::Done);
+    let finding = world.try_run(Until::Done).unwrap_err();
+    assert!(finding.contains("jig's check: a deciding act did not show its facts"), "{finding}");
 }
 
 #[path = "../stories/projects.rs"]
