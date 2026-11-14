@@ -1,4 +1,5 @@
 //! Parties' reads through the memory component (protocol/store/loads.md, 3).
+mod summaries;
 use super::fixtures::{self, ALICE, CHILD, GOAL, GRANDCHILD};
 use crate::{Arrived, Below, Event, Io, Request, Store};
 use alloc::boxed::Box;

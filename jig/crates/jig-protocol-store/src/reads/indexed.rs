@@ -242,6 +242,9 @@ fn joined(
         }
     }
     let Some(owner) = joins::owner(store, number, spent)? else {
+        if selection.is_none() {
+            return joins::ended_row(store, value, number, spent);
+        }
         spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Cut)?;
         return Ok(None);
     };

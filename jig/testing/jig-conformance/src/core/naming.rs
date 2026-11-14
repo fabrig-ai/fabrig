@@ -36,7 +36,6 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
         core::Key::Tasks(key) => match key {
             tasks::Key::Live(task)
             | tasks::Key::Ended(task)
-            | tasks::Key::Summary(task)
             | tasks::Key::Stub(task)
             | tasks::Key::History { task, .. }
             | tasks::Key::Milestone { task, .. }
@@ -60,8 +59,8 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
                     name.outlives = Some(r::Outlives::Spend);
                 }
             }
-            // Retention's detached schedule rows are collected when due (retention.md, 4).
-            tasks::Key::Retention { .. }
+            tasks::Key::Summary(_)
+            | tasks::Key::Retention { .. }
             | tasks::Key::Result { .. }
             | tasks::Key::Writer(_)
             | tasks::Key::Pool(_)
@@ -135,7 +134,6 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
         },
         core::Record::Tasks(record) => match record {
             tasks::Stored::Live(row) | tasks::Stored::Ended(row) => name.project = Some(row.project),
-            tasks::Stored::Summary(row) => name.project = Some(row.project),
             tasks::Stored::PlacedHold(row) => name.project = Some(row.project),
             tasks::Stored::PersonProposal(row) | tasks::Stored::DecidedProposal(row) => {
                 name.project = Some(row.project);
@@ -145,7 +143,8 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
                 tasks::Writer::Run { task, .. } => name.task = Some(task),
                 tasks::Writer::Effect { .. } => {}
             },
-            tasks::Stored::Retention(_)
+            tasks::Stored::Summary(_)
+            | tasks::Stored::Retention(_)
             | tasks::Stored::Update(_)
             | tasks::Stored::EndedByParty(_)
             | tasks::Stored::EndedByProject(_)

@@ -41,9 +41,9 @@ mod decision_reads;
 mod hold_origin;
 mod kept;
 mod keys;
-mod summary;
 mod refusals;
 pub(crate) mod revisions;
+mod summary;
 mod waiting;
 
 mod close_project;

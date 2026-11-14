@@ -18,12 +18,7 @@ pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, M
     let number = row.number;
     let first = skein_lib::bytes::find(&row.spec.words, b"\n").unwrap_or(row.spec.words.len());
     let title = text(row.spec.words.get(..first).expect("first line prefix"), limits.documents.text_bytes);
-    let executor = match row.executor {
-        tasks::Executor::Agent { .. } => ExecutorKind::Agent,
-        tasks::Executor::Procedure { .. } => ExecutorKind::Procedure,
-        tasks::Executor::Person(_) => ExecutorKind::Person,
-        tasks::Executor::Job { .. } => ExecutorKind::Job,
-    };
+    let executor = executor_kind(row.executor);
     let phase = match &row.phase {
         tasks::Phase::Waiting => {
             let mut dependencies = List::with_capacity(limits.documents.lines);
@@ -54,6 +49,33 @@ pub fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<Chip, M
         tasks::Phase::Ended(_) => PhaseLine::Ended,
     };
     Ok(Chip { number, title, executor, phase, details: Box::new(super::chip_phase::from_row(limits, row)?) })
+}
+
+/// Kept title and terminal chip facts only (protocol/store/retention.md, 7).
+#[must_use]
+pub fn chip_from_summary(limits: &Limits, summary: &tasks::TaskSummary) -> Chip {
+    Chip {
+        number: summary.number,
+        title: kept_text(limits, &summary.title, summary.title_cut),
+        executor: executor_kind(summary.executor),
+        phase: PhaseLine::Ended,
+        details: Box::new(super::chip_phase::from_summary(limits, summary)),
+    }
+}
+
+pub(super) fn kept_text(limits: &Limits, bytes: &[u8], cut: bool) -> Text {
+    let mut value = text(bytes, limits.documents.text_bytes);
+    value.cut |= cut;
+    value
+}
+
+pub(super) fn executor_kind(executor: tasks::Executor) -> ExecutorKind {
+    match executor {
+        tasks::Executor::Agent { .. } => ExecutorKind::Agent,
+        tasks::Executor::Procedure { .. } => ExecutorKind::Procedure,
+        tasks::Executor::Person(_) => ExecutorKind::Person,
+        tasks::Executor::Job { .. } => ExecutorKind::Job,
+    }
 }
 
 #[cfg(test)]

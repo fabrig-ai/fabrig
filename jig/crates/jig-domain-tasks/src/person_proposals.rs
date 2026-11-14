@@ -115,9 +115,13 @@ pub(crate) fn withdraw(
             object: crate::UpdateObject::Proposal { proposal: crate::Newest::of(proposal.number) },
         }),
     });
-    out.push(Request::Save { record: Stored::Retention(crate::RetentionRow {
-        stage: crate::RetentionStage::Proposal, since: env.wall, number,
-    }) });
+    out.push(Request::Save {
+        record: Stored::Retention(crate::RetentionRow {
+            stage: crate::RetentionStage::Proposal,
+            since: env.wall,
+            number,
+        }),
+    });
     out.push(Request::Save { record: Stored::DecidedProposal(Box::new(proposal)) });
     if !settings {
         crate::closing::prune_stubs(domain, env, out);

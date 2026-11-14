@@ -55,7 +55,7 @@ pub use objects::{
 };
 pub use project_note::note_from_entry;
 pub use settings::inventory as settings_inventory;
-pub use task_lines::task_line;
+pub use task_lines::{task_line, task_line_from_summary};
 pub use task_query::lines;
 pub use task_tree::task_from_row;
 

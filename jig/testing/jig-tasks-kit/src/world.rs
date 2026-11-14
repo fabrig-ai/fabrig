@@ -1103,6 +1103,8 @@ impl World {
                 | Stored::History(_)
                 | Stored::Live(_)
                 | Stored::Ended(_)
+                | Stored::Summary(_)
+                | Stored::Retention(_)
                 | Stored::Stub(_)
                 | Stored::Ledger(_)
                 | Stored::Writer(_)
@@ -1127,6 +1129,8 @@ impl World {
                 Stored::Pool(row) => pools.push(row.clone()),
                 Stored::Writer(row) => writers.push(row.clone()),
                 Stored::Ended(_)
+                | Stored::Summary(_)
+                | Stored::Retention(_)
                 | Stored::Stub(_)
                 | Stored::Ledger(_)
                 | Stored::ClosedLedger(_)
@@ -1199,6 +1203,8 @@ impl World {
             | Stored::Pool(_)
             | Stored::ClosedLedger(_)
             | Stored::DecidedProposal(_)
+            | Stored::Summary(_)
+            | Stored::Retention(_)
             | Stored::Stub(_)
             | Stored::Ledger(_)
             | Stored::Activity(_)
@@ -1229,6 +1235,8 @@ impl World {
                 | Key::ClosedLedger(_)
                 | Key::DecidedProposal(_)
                 | Key::Ended(_)
+                | Key::Summary(_)
+                | Key::Retention { .. }
                 | Key::Stub(_)
                 | Key::Ledger(_)
                 | Key::Milestone { .. }
@@ -1331,6 +1339,8 @@ impl World {
                 | Stored::Pool(_)
                 | Stored::ClosedLedger(_)
                 | Stored::DecidedProposal(_)
+                | Stored::Summary(_)
+                | Stored::Retention(_)
                 | Stored::Stub(_)
                 | Stored::Activity(_)
                 | Stored::Milestone(_)
@@ -1658,6 +1668,8 @@ fn live_row(record: &Stored) -> Option<&jig_domain_tasks::TaskRecord> {
     match record {
         Stored::Live(record) => Some(record),
         Stored::Ended(_)
+        | Stored::Summary(_)
+        | Stored::Retention(_)
         | Stored::Stub(_)
         | Stored::Ledger(_)
         | Stored::Writer(_)

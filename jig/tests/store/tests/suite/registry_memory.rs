@@ -28,10 +28,31 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
             let families = set
                 .families
                 .iter()
-                .map(|family| KeptFamily {
-                    current: if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current },
-                    types: if registered { family.types } else { &[] },
-                    ..*family
+                .map(|family| {
+                    let current =
+                        if kept { family.texts.last().copied().unwrap_or(family.current) } else { family.current };
+                    let types = if !registered {
+                        &[][..]
+                    } else if kept {
+                        // A kept binary declares only the value types its text held.
+                        let schema = skein_codec::schema::parse(current.as_bytes()).expect("kept schema");
+                        let mut types: Vec<jig_protocol_store::ValueType> = Vec::new();
+                        for ty in family.types {
+                            if schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_some() {
+                                types.push(*ty);
+                            } else {
+                                let previous = types.last_mut().expect("new types follow kept types");
+                                let mut ranges = previous.keys.to_vec();
+                                ranges.last_mut().expect("kept type's last range").to =
+                                    ty.keys.last().expect("added type's last range").to;
+                                previous.keys = Box::leak(ranges.into_boxed_slice());
+                            }
+                        }
+                        Box::leak(types.into_boxed_slice())
+                    } else {
+                        family.types
+                    };
+                    KeptFamily { current, types, ..*family }
                 })
                 .collect::<Vec<_>>();
             PatchSet {
@@ -47,7 +68,7 @@ fn sets(kept: bool, registered: bool) -> PatchSets {
 fn seeded(sets: PatchSets) -> Vec<Item> {
     let mut world = World::unopened(7);
     world.patch_sets(sets);
-    assert_eq!(world.open(), Some(0));
+    assert_eq!(world.open(), Some(0), "{:?}", world.refusal());
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
     world
         .contents()

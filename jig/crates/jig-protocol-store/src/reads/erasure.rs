@@ -55,6 +55,7 @@ pub(super) fn read(
         let row = reads::Row {
             value,
             owner: None,
+            summary: None,
             ancestors: Box::new([]),
             related: None,
             unjoined: None,

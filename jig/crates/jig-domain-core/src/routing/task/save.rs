@@ -90,7 +90,8 @@ fn prepare_record(
             tasks::Stored::Ended(task)
         }
         tasks::Stored::Summary(mut summary) => {
-            summary.result_position = *core.ending_positions.get(&summary.number).expect("summary follows its ended row");
+            summary.result_position =
+                *core.ending_positions.get(&summary.number).expect("summary follows its ended row");
             tasks::Stored::Summary(summary)
         }
         tasks::Stored::History(ref row) => {
@@ -139,7 +140,7 @@ fn prepare_record(
         | tasks::Stored::Ledger(_)
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::Retention(_)
- | tasks::Stored::Stub(_)
+        | tasks::Stored::Stub(_)
         | tasks::Stored::PersonProposal(_) => record,
     }
 }
@@ -177,8 +178,8 @@ fn task_saved(
                 | tasks::Stored::History(_)
                 | tasks::Stored::PlacedHold(_)
                 | tasks::Stored::Summary(_)
- | tasks::Stored::Retention(_)
- | tasks::Stored::Stub(_)
+                | tasks::Stored::Retention(_)
+                | tasks::Stored::Stub(_)
                 | tasks::Stored::Ledger(_)
                 | tasks::Stored::Writer(_)
                 | tasks::Stored::Result(_)
@@ -254,8 +255,8 @@ fn touch_record(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored) {
         | tasks::Stored::Activity(_)
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::Summary(_)
- | tasks::Stored::Retention(_)
- | tasks::Stored::Stub(_) => {}
+        | tasks::Stored::Retention(_)
+        | tasks::Stored::Stub(_) => {}
     }
 }
 
@@ -286,8 +287,8 @@ fn waiting(core: &Core, env: &Env<Limits>, record: &tasks::Stored) -> Option<(u6
         | tasks::Stored::Activity(_)
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::Summary(_)
- | tasks::Stored::Retention(_)
- | tasks::Stored::Stub(_) => None,
+        | tasks::Stored::Retention(_)
+        | tasks::Stored::Stub(_) => None,
     }
 }
 
@@ -334,8 +335,8 @@ fn history(core: &mut Core, env: &Env<Limits>, record: &tasks::Stored, out: &mut
         | tasks::Stored::DecidedProposal(_)
         | tasks::Stored::PlacedHold(_)
         | tasks::Stored::Summary(_)
- | tasks::Stored::Retention(_)
- | tasks::Stored::Stub(_) => {}
+        | tasks::Stored::Retention(_)
+        | tasks::Stored::Stub(_) => {}
     }
 }
 
