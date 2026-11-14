@@ -11,7 +11,7 @@ Counted by script from git at both endpoints, and from the goal's and every chan
 - **Guidance:** the implementers started from 33,937 characters of the lasting design their specs cite, a contracts document of 3,228 and `## Steps` of 549 in all. No detail was added on demand: no change asked a question, and none had a delivery refused.
 - **Quality:** the code is shorter and less repetitive, but its largest cut breaks the programming model in step code (`skein/docs/foundation/programming-model.md`, 10.3), as the goal's contracts asked: generic types, function pointers and closures. Section 5.4 lists the review's findings by kind.
 - **Cost:** 274 minutes. The goal agent spent 1,083.22 and its changes 323.56, in the record's unit. The design took 86 minutes and 72% of the goal agent's spend before its first change was cut. The changes took 26 minutes side by side, and the landing 157, held three times by a failed effect.
-- **The figure:** in this area, fewer concepts shortened the design and narrowed the crate's edge, but bought few lines, because the records between the pipeline's stages differ in rules the code reads (position, provenance, ownership), as the survey warned (`temper/docs/design/draft/design-economy.md`, 7.1). The repair of the subset's breaches runs as goal 3045, which keeps the programming model whole, by the user's decision.
+- **The figure:** in this area, fewer concepts shortened the design and narrowed the crate's edge, but bought few lines, because the records between the pipeline's stages differ in rules the code reads (position, provenance, ownership), as the survey warned (`temper/docs/design/draft/design-economy.md`, 7.1). Goal 3045 then repaired the subset's breaches, keeping the programming model whole by the user's decision: it gave back 244 of the 407 lines, and the crate now holds none of the constructs it counts (section 8).
 
 ## 2. Size
 
@@ -110,3 +110,23 @@ Which figures count as success is the user's (`temper/docs/design/draft/design-e
 - **Fewer concepts bought little code here.** The survey proved 16 to 19 lines; the goal cut 407, most of it by folding copies, and the largest part of that by the generics the model rules out. Kept inside the model, as goal 3045 does, some of it comes back as concrete records.
 - **The designer is where the subset slipped.** A lean design's contracts name the shared shapes, and they named generic ones. The charters gain a line for it (`temper/docs/design/draft/design-economy.md`, 8).
 - **The design did not cost less to write.** Most of the goal agent's spend went into reading the area before it wrote anything.
+
+## 8. The repair
+
+Goal 3045, on template 4, landed at `87e0e3e777`: the user kept the programming model whole, so the mechanisms E2 wrote as generics went into skein's lib (`skein/docs/design/runtime/lib.md`, 5.2 and 5.3), and render calls them in plain loops.
+
+| | E2's landing `355f28a06a` | The repair `87e0e3e777` | From E2's start |
+|---|---:|---:|---:|
+| Production lines, `hearth-domain-render` | 17,259 | 17,503 | -163 (-0.9%) |
+| Production lines, `skein-lib` | 3,688 | 3,779 | +91 |
+| Test lines, render's crate | 13,423 | 13,823 | +468 |
+| Struct and enum definitions | 309 | 327 | -5 |
+| Public type aliases | 21 | 1 | +1 |
+| All type names | 338 | 336 | -5 |
+| Generic items, function pointers, closures in render | 10, 5, 39 | 0, 0, 0 | from 4, 3, 15 |
+| `#[expect(clippy::disallowed_methods)]` in render | 4 | 0 | from 2 |
+
+- **What lib gained:** `Map::join`, each key of two maps once in key order as `First`, `Second` or `Both`, with no allocation; and `Bisection`, a search of a sorted slice that the caller drives one probe at a time, bounded by a constant. Render calls the join 14 times and the bisection 13, for its keyed changes and sorted lookups.
+- **What came back:** concrete records where the generic types' aliases stood, at their paths, so nothing has two names but `diff::Listed`, which outside sources still name. The new tests cover the reshaped walks and lookups; the existing cases stay as they were.
+- **Of section 5.4's findings,** the repair settled the keyed walk left in `parts/secrets.rs`, the aliases and the two pieces in the wrong place it was asked about. It left `target.prepared.installation.plans`, `entry.value.value.path` and the functions behind `#[cfg(test)]`, which were not its request.
+- **Together,** E2 and its repair took 163 lines from render and gave lib 91 that any other table comparing two versions, or any sorted lookup, can use in place of its own copy.
