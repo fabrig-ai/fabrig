@@ -1,49 +1,38 @@
-//! Evaluation messages and undeclared-setting diagnostics (hearth/docs/design/domain/render/errors.md, 3).
+use hearth_domain_render_vocabulary::{evaluate::FaultKind, errors::Required};
+//! FaultKind messages and undeclared-setting diagnostics (hearth/docs/design/domain/render/errors.md, 3).
 use super::{Encoder, Lines};
 use alloc::boxed::Box;
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Evaluation {
-    Unknown,
-    NoKey,
-    NoIndex,
-    Undefined,
-    Type,
-    Overflow,
-    Empty,
-    Path,
-    Output,
-    Limit,
-}
-impl Evaluation {
-    pub(super) fn message(self) -> &'static [u8] {
-        match self {
-            Self::Unknown => b"an unknown name",
-            Self::NoKey => b"a missing key",
-            Self::NoIndex => b"an index outside the list",
-            Self::Undefined => b"an undefined value used",
-            Self::Type => b"a value of the wrong type",
-            Self::Overflow => b"an integer overflow",
-            Self::Empty => b"an empty list or pattern",
-            Self::Path => b"a path systemd_escape_path refuses",
-            Self::Output => b"a list or a map output",
-            Self::Limit => b"a limit exceeded",
-        }
-    }
-    pub(super) fn name(self) -> &'static [u8] {
-        match self {
-            Self::Unknown => b"unknown",
-            Self::NoKey => b"no_key",
-            Self::NoIndex => b"no_index",
-            Self::Undefined => b"undefined",
-            Self::Type => b"type",
-            Self::Overflow => b"overflow",
-            Self::Empty => b"empty",
-            Self::Path => b"path",
-            Self::Output => b"output",
-            Self::Limit => b"limit",
-        }
+
+
+pub(super) fn evaluation_message(item: FaultKind) -> &'static [u8] {
+    match item {
+        FaultKind::Unknown => b"an unknown name",
+        FaultKind::NoKey => b"a missing key",
+        FaultKind::NoIndex => b"an index outside the list",
+        FaultKind::Undefined => b"an undefined value used",
+        FaultKind::Type => b"a value of the wrong type",
+        FaultKind::Overflow => b"an integer overflow",
+        FaultKind::Empty => b"an empty list or pattern",
+        FaultKind::Path => b"a path systemd_escape_path refuses",
+        FaultKind::Output => b"a list or a map output",
+        FaultKind::Limit => b"a limit exceeded",
     }
 }
+pub(super) fn evaluation_name(item: FaultKind) -> &'static [u8] {
+    match item {
+        FaultKind::Unknown => b"unknown",
+        FaultKind::NoKey => b"no_key",
+        FaultKind::NoIndex => b"no_index",
+        FaultKind::Undefined => b"undefined",
+        FaultKind::Type => b"type",
+        FaultKind::Overflow => b"overflow",
+        FaultKind::Empty => b"empty",
+        FaultKind::Path => b"path",
+        FaultKind::Output => b"output",
+        FaultKind::Limit => b"limit",
+    }
+}
+
 pub(super) fn undeclared(lines: &mut Lines, task: &[u8], setting: &[u8], declared: &[Box<[u8]>]) {
     lines.put(b"undeclared setting ");
     lines.quote(setting);
@@ -79,14 +68,14 @@ pub(super) fn json_names(json: &mut Encoder, names: &[Box<[u8]>]) {
     json.array_end();
 }
 
-impl super::Required {
-    pub(super) fn name(self) -> &'static [u8] {
-        match self {
-            Self::If => b"if",
-            Self::Message => b"message",
-            Self::Type => b"type",
-            Self::Doc => b"doc",
-            Self::Value => b"value",
-        }
+
+pub(super) fn required_name(item: Required) -> &'static [u8] {
+    match item {
+        Required::If => b"if",
+        Required::Message => b"message",
+        Required::Type => b"type",
+        Required::Doc => b"doc",
+        Required::Value => b"value",
     }
 }
+
