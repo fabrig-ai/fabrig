@@ -277,7 +277,14 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
     `World::try_spawn_restartable_startup(roots, appends, make) -> Result<usize, String>`,
     which `spawn_restartable_startup` panics on.
   - The real loop fails with a finding only after its forced cleanup,
-    as above. A binary keeps an expected end's finding, a process group
+    as above. `real::World::try_run(self, clock: &Clock, patience: Duration)
+    -> Result<Outcome<P>, String>` and `real::try_run(procs, referee,
+    clock, patience)`, its unhosted form, return that finding: a
+    referee's `watch`, an overdue expectation, the patience verdict with
+    its figures, the teardown policy check and a binary's kept finding,
+    each in the text `run` fails with now. `real::run` and the real
+    `World::run` call them and panic on the `Err`. A starved run is no
+    finding: it passes as `Starved::pass` does, below. A binary keeps an expected end's finding, a process group
     or tree process still running at its exit (../examples.md, 6), as a
     value the loop reads, and the tree keeper's report of what it left
     running and its cgroup's removal error are values too, which the
@@ -288,9 +295,9 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
     verdict as a value (`verdict()`). `check_holding(seed)` and
     `check_passed(seed)`, each `-> Result<(), String>`, give the text
     `assert_holding` and `assert_passed` panic with. `Ledger::check_settled()
-    -> Result<(), String>` and `check_replays(seed, other, run) -> Result<R, String>`
-    are the returning forms of `Ledger::assert_settled` and
-    `assert_replays`, which panic on them.
+    -> Result<(), String>` and `domain::check_replays(seed, other, run)
+    -> Result<R, String>` are the returning forms of `Ledger::assert_settled`
+    and `domain::assert_replays`, which panic on them.
   - A harness that adds context to a failure writes it before it runs
     what may fail: conformance's simulated driver names each seed and
     configuration on stderr before running it, and catches nothing.
