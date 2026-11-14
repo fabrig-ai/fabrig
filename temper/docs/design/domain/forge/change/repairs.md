@@ -318,6 +318,20 @@
   resolution's, a repair's and a review's pull section, a reviews section
   and a CI section. A charter's document has no cutoff: it is optional,
   and the brief's settle point drops it unanswered.
+- **A section the forge answers later has a read of its own,** in flight
+  or waiting for the client's room, from the moment it is gathered to its
+  answer; one that would have none is answered at once. Its cutoff and
+  deadline time its reads, so a section waiting on no read would meet
+  neither and fail its brief `SECTION: not gathered by its deadline` at
+  every attempt, however long the deadline. A landing's repair's CI
+  section (`../../landing.md`, 7.3; `../../landing-search.md`, 7) reads no
+  forge: it is the failure the landing pinned, the round's failure while
+  the landing keeps its row and then the gate's failed receipt, which
+  outlives the row. Where the landing keeps neither, its row retired and
+  its receipt past `receipts_per_gate`, the section is a read that fails,
+  REASON `the landing no longer keeps its failure` (below), at once: words
+  where its pull section stands (`[the failed checks could not be read:
+  the landing no longer keeps its failure]`), its brief failed where not.
 - **A pull section is pinned at the change's head,** its last head as
   the change records it: each push or save of a delegate's, reported or
   read afresh after a lost attempt, records it (`../../agent/README.md`, 5).
@@ -402,6 +416,7 @@
   | any other error | permanent | `the forge refused this read` |
   | no change for the pull, its identity past the section's bytes, or a title that fills them; no repository for a home-access reason | permanent | `the change cannot be named in its section` |
   | failed checks whose heads do not fit their section | permanent | `the failed checks do not fit their section` |
+  | a landing's repair whose landing keeps neither its row's failure nor the gate's failed receipt | permanent | `the landing no longer keeps its failure` |
   | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
 
 - **A bound's words.** A `TooLarge` is named by its `Excess` (skein's
