@@ -99,7 +99,9 @@ impl Workers {
             };
             workers.push(Worker { name: worker.name.clone(), digest }).or(Err(invalid(What::Bound)))?;
         }
-        let component = Component::new(limits, workers.into_boxed(), jig_protocol_worker_wire::spoken(), application)
+        let codec = jig_protocol_worker_wire::sizes::limits(&limits.sizes).ok_or(invalid(What::Bound))?;
+        let (schema, spoken) = jig_protocol_worker_wire::schema_and_spoken(&codec).or(Err(invalid(What::Bound)))?;
+        let component = Component::with_schema(limits, workers.into_boxed(), spoken, application, schema)
             .or(Err(invalid(What::Bound)))?;
         let count = u32::try_from(config.hosts.listener.len()).or(Err(invalid(What::Bound)))?;
         if count == 0 || count > config.limits.io.sockets {

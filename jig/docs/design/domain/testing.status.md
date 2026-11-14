@@ -30,7 +30,9 @@ observation and world-cost work.
   and together they fell 181, but D035's own tasks rose 34, where that plan's
   story has about 200 down: the client's sweep rose 158 and the people's 61, and
   the core's fell 139; no reason is recorded.
-  9: the focused suite's fit within 30 CPU s is unproved. The
+  9: the focused suite's CPU budget is 215 s (`tools/tiers/budgets.toml`),
+  1.5 times its 143 in the development machine's focused run of main at
+  11-14 11:42Z, by the user's word of 11-14. The
   `jig-world-cost` and `jig-world-cost-2` requests leave further cost repairs;
   their whole-suite effect, and fuzzy's fit with the moved core and store
   sweeps and `Standard` drive, await the queue's after-landing record. The

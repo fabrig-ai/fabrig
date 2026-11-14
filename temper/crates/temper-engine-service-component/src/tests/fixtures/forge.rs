@@ -56,7 +56,31 @@ impl ForgeFace {
         self.peers.get_mut(&owner.expect("selected forge connected")).unwrap().wire.write(bytes);
         for _ in 0_u32..512 {
             self.turn(service);
+            if !self.work_pending(service) {
+                return;
+            }
         }
+        panic!("the forge answer settles within 512 turns");
+    }
+    /// Work this face can complete; another actor supplies setup's outstanding IO.
+    pub fn work_pending(&self, service: &crate::Service) -> bool {
+        let engine = service.engine.as_ref().expect("engine");
+        if engine.forge.work_pending(self.now)
+            || !engine.forge.above.is_empty()
+            || engine.store.work_pending(self.now)
+            || !engine.domain.quiescent()
+            || !engine.events.is_empty()
+            || !engine.requests.is_empty()
+            || engine.pending.is_some()
+        {
+            return true;
+        }
+        for (_, peer) in &self.peers {
+            if peer.wire.work_pending() {
+                return true;
+            }
+        }
+        false
     }
     pub fn select(&mut self, number: u16) {
         self.selected = number;

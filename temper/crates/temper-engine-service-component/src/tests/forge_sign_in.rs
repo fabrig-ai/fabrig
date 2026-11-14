@@ -147,13 +147,15 @@ fn an_entry_that_does_not_serve_is_named_once_and_the_others_serve() {
     // The second meta fits exactly; the first client is one byte longer, putting its meta one past the bound.
     let room = u32::try_from(PAGE.len().checked_add(FILE_BYTES.len()).unwrap().checked_add(SECOND_META.len()).unwrap())
         .unwrap();
+    let mut service = world();
     for (name, first, limit, why) in [
         ("absent", None, LIMIT, Unserved::NotKept),
         ("github", Some(github), LIMIT, Unserved::NotForgejo),
         ("origin", Some(elsewhere), LIMIT, Unserved::Origin { origin: b"http://127.0.0.1:3000".as_slice().into() }),
         ("room", Some(record(1)), room, Unserved::NoRoom),
     ] {
-        let mut service = world();
+        // Replacing a forge must not refresh the preceding row's sign-in entries.
+        entries(&mut service, &[], None, LIMIT);
         if let Some(first) = first {
             fixtures::keep_forge(&mut service, first);
         }

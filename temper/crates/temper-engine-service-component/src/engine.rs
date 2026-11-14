@@ -374,10 +374,17 @@ impl Engine {
         self.pending_with_room(now, self.note_bound.saturating_sub(held).saturating_sub(self.notes.len()))
     }
     fn pending_with_room(&self, now: Time, notes_room: u32) -> bool {
-        let effects = self.store.host.mark_durable() || self.end.is_some();
         let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
-        let components = (self.store.opened || self.end.is_some())
-            && self.clients.work_pending_with_secrets(now, secrets_ready)
+        self.pending_with_clients(now, notes_room, self.clients.work_pending_with_secrets(now, secrets_ready))
+    }
+    /// HTTP fragments alone need only the clients pass; queued root and other-child work still runs.
+    #[cfg(test)]
+    pub(crate) fn work_pending_without_clients(&self, now: Time) -> bool {
+        self.pending_with_clients(now, self.notes.room(), self.clients.root_outputs_pending())
+    }
+    fn pending_with_clients(&self, now: Time, notes_room: u32, clients_pending: bool) -> bool {
+        let effects = self.store.host.mark_durable() || self.end.is_some();
+        let components = (self.store.opened || self.end.is_some()) && clients_pending
             || effects && self.setup.work_pending(now)
             || effects && self.setup.lifecycle_ready(self) && self.events.room() >= 4
             || self.store.work_pending(now)

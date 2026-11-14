@@ -119,9 +119,9 @@ with the turn's marker, counting nothing (`domain/engine/executors.md`, 2;
 `protocol/store/transcripts.md`, 3). The note-range departure remains `domain/engine/README.status.md`, 10. The repeated fixture names remain `domain/testing.status.md`, 7. The core's
 observer updates keyed evidence from durable commit rows and keeps complete
 ordered snapshots, with whole rebuilding for cold reads and bulk changes.
-Views are made only for readers; further observation-cost work and proof
-that the focused suite fits 30 CPU s remain
-(`domain/testing.md`, sections 5, 9 and 10). Typed core row names and shared
+Views are made only for readers; further observation-cost work remains
+(`domain/testing.md`, sections 5, 9 and 10), and the focused suite's CPU
+budget is 215 s by the user's word of 11-14 (`domain/testing.status.md`, 9). Typed core row names and shared
 setup avoid repeated formatting and construction; protocol wires skip idle
 polls and parse only new bytes, and due agents check holds and credentials
 before joint account and host selection. The seven store sweeps run in fuzzy

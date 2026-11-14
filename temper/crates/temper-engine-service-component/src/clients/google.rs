@@ -299,7 +299,12 @@ impl Google {
         next
     }
     pub(super) fn work_pending(&self) -> bool {
-        if !self.http.is_empty() && self.fetches.len() < self.limits.fetches {
+        // Scripted fetch records wait for the test's issuer, not another service turn.
+        #[cfg(test)]
+        let scripted = self.scripted;
+        #[cfg(not(test))]
+        let scripted = false;
+        if !scripted && !self.http.is_empty() && self.fetches.len() < self.limits.fetches {
             return true;
         }
         for (_, pending) in &self.pending {

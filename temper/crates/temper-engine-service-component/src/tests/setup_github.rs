@@ -21,18 +21,17 @@ const ADOPTION_SEGMENTS: u32 = 7;
 const LIVE: &[u8] = br#"[{"id":22,"account":{"id":122,"login":"account-fixture","type":"Organization"},"created_at":"1970-01-01T00:00:00Z","suspended_at":null}]"#;
 const MINT: &[u8] = br#"{"token":"artificial-installation-token","expires_at":"1970-01-01T01:00:00Z"}"#;
 
-// Keep both complete service fixtures off the owner's HTTP story's stack.
-fn boxed_bootstrap() -> Box<crate::Service> {
-    Box::new(fixtures::ready())
-}
 fn boxed_owner(config: fixtures::ConfiguredEngine, store: crate::store::Store) -> Box<crate::Service> {
     Box::new(local_service(config, store))
 }
 fn owner_service() -> Box<crate::Service> {
-    let mut bootstrap = boxed_bootstrap();
-    let mut header = bootstrap.engine.as_ref().unwrap().domain.deployment();
+    let mut store = fixtures::completed_store();
+    let Some(root::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(mut header)))) =
+        fixtures::load(&mut store, root::Range::Core(root::CoreRange::Deployment)).into_iter().next()
+    else {
+        panic!("completed deployment header")
+    };
     header.commits = header.commits.checked_add(1).unwrap();
-    let mut store = bootstrap.engine.take().unwrap().store;
     assert!(store.down(root::StoreRequest::Commit {
         number: header.commits,
         writes: Box::new([
