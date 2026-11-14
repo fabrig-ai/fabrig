@@ -173,6 +173,18 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+    // A procedure remains due through its asynchronous forge read. Settle all
+    // changes woken together before sealing this train (domain/landing.md, 9).
+    for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
+        let Some(row) = domain.forge.change(task) else { continue };
+        if row.base.as_ref() == branch
+            && row.change.way == forge_change::Way::Turn
+            && row.change.landing.is_none()
+            && domain.core.tasks.procedure_due(task).is_some()
+        {
+            return false;
+        }
+    }
     let Some(repo) = domain.forge.repository(repository) else { return false };
     let project = repo.project;
     let mut excluded = List::with_capacity(env.limits.forge.changes);

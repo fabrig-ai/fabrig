@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 
 mod reds;
 mod room;
+mod settling;
 
 const SHA1: [u8; 32] = [
     0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
@@ -2251,6 +2252,10 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
 }
 
 fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
+    procedure_root_with_limits(crate::tests::resume_fixture::limits())
+}
+
+fn procedure_root_with_limits(mut limits: super::Limits) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{authority, forge};
     let mut config = crate::tests::resume_fixture::config(7);
     let kinds = Box::new([
@@ -2263,7 +2268,6 @@ fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
     config.core.defaults.rules.maximum_run_spend = 1000;
     config.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
     config.core.seed_projects[0].policy.policy.ceiling.delegation.kinds = kinds;
-    let mut limits = crate::tests::resume_fixture::limits();
     // The closer procedure and close job add two executor places.
     limits.authority.executors = 5;
     // The closer procedure and close job add two executor places.
@@ -4921,7 +4925,17 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
                 flags: tasks::Flags::PLAIN,
                 executor: tasks::Executor::Procedure { connector: 0, code: 2 },
                 llm: None,
-                spec: template.spec.clone(),
+                spec: tasks::Spec {
+                    parameters: Box::new([
+                        tasks::Parameter::Resource {
+                            name: 1,
+                            connector: 0,
+                            resource: forge::tag(1, if joined && number == 8 { 2 } else { 1 }),
+                        },
+                        tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+                    ]),
+                    ..template.spec.clone()
+                },
                 contract: template.contract.clone(),
                 deadline: tasks::Deadline::Named,
                 authority: template.authority.clone(),
@@ -4982,21 +4996,40 @@ fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
             &mut Queue::uncapped(),
         );
     }
+    // These restored ready rows have already completed their procedure steps.
+    for task in [7, 8] {
+        let (_, _, step) = domain.core.tasks.procedure_due(task).unwrap();
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Procedure {
+                reply_to: super::super::internal(u64::MAX),
+                task,
+                step,
+                read: None,
+                decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
+            },
+            &mut Queue::uncapped(),
+        );
+    }
+    turn_project(&mut domain);
+    (domain, env)
+}
+fn turn_project(domain: &mut super::Domain) {
     assert!(domain.forge.project_landing(
         1,
-        c::Way::Turn,
+        super::forge_change::Way::Turn,
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
-        forge::AfterLanding {
+        super::forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
-                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
             },
             bound: skein_lib::Duration::from_secs(7200),
         }
     ));
     domain.opened = true;
-    (domain, env)
 }
 fn judge_trains(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
     let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);

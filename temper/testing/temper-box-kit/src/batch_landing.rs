@@ -257,6 +257,11 @@ pub mod tests {
         let owner = scripts.iter().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
         let super::Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
         let delegate: serde_json::Value = serde_json::from_slice(arguments).expect("delegate JSON");
+        let tracked = delegate["batch"].as_array().expect("batch").iter().filter(|task| !task["tracked"].is_null()).count();
+        assert!(
+            u32::try_from(tracked).expect("tracked changes") <= engine.limits.core.tasks.project_goals,
+            "the independent changes fit the project's goal limit"
+        );
         let spend: u64 = delegate["batch"]
             .as_array()
             .expect("batch")
@@ -894,7 +899,11 @@ impl Referee<Process> for Judge<'_> {
                 self.poll = now.saturating_add(Duration::from_millis(250));
                 let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("person")) };
                 if person.finished {
+                    let before = core::mem::discriminant(&self.phase);
                     self.sample(procs)?;
+                    if before != core::mem::discriminant(&self.phase) {
+                        eprintln!("batch phase {:?}", self.phase);
+                    }
                 }
             }
 
