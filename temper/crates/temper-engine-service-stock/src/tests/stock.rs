@@ -143,9 +143,9 @@ fn configure_reference_authority_allows_coordinator_tools() {
             .collect();
     }
     widen_reference(&mut configured.roles[0].authority, &required);
-    assert_eq!(rules.ceiling.delegation.kinds.len(), 18);
-    assert_eq!(configured.ceiling.delegation.kinds.len(), 18);
-    assert_eq!(configured.roles[0].authority.delegation.kinds.len(), 16);
+    assert_eq!(rules.ceiling.delegation.kinds.len(), 19);
+    assert_eq!(configured.ceiling.delegation.kinds.len(), 19);
+    assert_eq!(configured.roles[0].authority.delegation.kinds.len(), 17);
     for (old, new) in [
         (&stock.rules.ceiling, &rules.ceiling),
         (&policy.ceiling, &configured.ceiling),
@@ -1169,6 +1169,118 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
             assert_eq!(authority.delegation.kinds.as_ref(), executors.as_ref());
         }
     }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "stock startup precedes the zero-budget landing's prepare step")]
+fn a_stock_landing_can_start_its_prepare_job() {
+    use jig_domain_core::{Core, Delegate, Event, ProcedureStep, StepEnd, step};
+    use jig_domain_tasks as tasks;
+    use skein_lib::{Env, Time, Wall};
+
+    let mut engine = fixtures::engine().jig;
+    let prepare = crate::limits::prepare_bound();
+    engine.limits.core.tasks.spec_bytes = prepare.spec;
+    engine.limits.core.tasks.result_bytes = prepare.result;
+    engine.limits.core.tasks.message_bytes = prepare.result;
+    engine.limits.core.tasks.authority_bytes = 512;
+    engine.limits.core.tasks.authority_grants = 16;
+    let mut config = config::core(&engine, [1; 16], 7);
+    config.jobs = Box::new([prepare]);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: engine.limits.core };
+    let mut core = Core::new(config, &env.limits).expect("stock core");
+    let mut action = core.start_begin(false, env.wall);
+    loop {
+        use jig_domain_core::start::{Action, Phase, SweepInput};
+        let mut out = skein_lib::Queue::uncapped();
+        action = match action {
+            Action::Step(Phase::Sweep) => core.start_sweep(&env, SweepInput::Finished, &mut out),
+            Action::Step(phase) => core.start_done(&env, phase, &mut out),
+            Action::Commit(continuation) => core.start_resume(&env, continuation, &mut out),
+            Action::Idle => break,
+            Action::Refused(why) => panic!("stock start: {why:?}"),
+        };
+    }
+    drop(step(&mut core, &env, Event::Period { project: 1, period: 1, budget: 1000, next: None }));
+    let seed = core.procedure_seed(1).expect("landing seed");
+    let task = seed.number();
+    drop(step(
+        &mut core,
+        &env,
+        Event::ConnectorRepair {
+            seed: Box::new(seed),
+            executor: tasks::Executor::Procedure { connector: 1, code: 3 },
+            spec: tasks::Spec {
+                job: None,
+                asks: false,
+                words: b"Land Update README".as_slice().into(),
+                parameters: Box::new([]),
+                inputs: Box::new([]),
+            },
+            contract: tasks::Contract::Report { words: prepare.result },
+            holdings: Box::new([]),
+        },
+    ));
+    // The landing has reached prepare with no task budget and no delegate.
+    let mut authority = core.tasks.delegation(task).expect("landing authority").authority;
+    assert_eq!(authority.budget.spend, 0);
+    authority.tools.0 = 0;
+    authority.delegation.kinds = Box::new([]);
+    authority.delegation.tasks = 0;
+    authority.delegation.depth = 0;
+    let delegate = Delegate {
+        executor: tasks::Executor::Job { kind: prepare.kind.0 },
+        spec: tasks::Spec {
+            job: Some(Box::new(tasks::JobSpec { bytes: Box::new([]), deadline: prepare.deadline })),
+            asks: false,
+            words: Box::new([]),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
+        contract: tasks::Contract::Job { bytes: prepare.result },
+        authority,
+        deadline: tasks::Deadline::Named,
+        tracked: None,
+        label: 0,
+        flags: tasks::Flags::PLAIN,
+        budget: jig_domain_people::Budget::Named,
+        symbolic_grants: Box::new([]),
+        dependencies: Box::new([]),
+        wake: Some(tasks::WakePolicy::DEFAULT),
+        llm: None,
+    };
+    let (_, _, number) = core.tasks.procedure_due(task).expect("prepare step due");
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::ProcedureStep {
+            task,
+            step: number,
+            connector: 1,
+            code: 3,
+            decision: ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
+        },
+    );
+    let mut refused = None;
+    while let Some(request) = out.pop() {
+        if let jig_domain_core::Request::Ask { ask: jig_domain_core::Ask::StepRefused { why, .. }, .. } = request {
+            refused = Some(why);
+        }
+    }
+    assert!(refused.is_none(), "prepare delegation refused: {refused:?}");
+    drop(step(
+        &mut core,
+        &env,
+        Event::ProcedureHoldings {
+            task,
+            step: number,
+            connector: 1,
+            holdings: Some(Box::new([Box::new([])])),
+            refused: None,
+        },
+    ));
+    let child = *core.tasks.task(task).expect("landing").delegates.first().expect("prepare delegate");
+    assert_eq!(core.tasks.task(child).expect("prepare task").executor, tasks::Executor::Job { kind: prepare.kind.0 });
 }
 
 #[test]
