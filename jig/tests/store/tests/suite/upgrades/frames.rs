@@ -522,6 +522,7 @@ fn a_party_turn_uses_patched_bytes() {
 fn foreign(sets: PatchSets, frames: Option<&'static str>) -> PatchSets {
     let mut sets = sets.sets.to_vec();
     sets.push(PatchSet {
+        jobs: &[],
         owner: Owner::Application,
         name: "fixture-foreign",
         patches: &[],

@@ -3,6 +3,7 @@ use super::sets::{KeptFamily, KeptMap, Owner, PatchSet};
 
 /// OAuth records are held inside the secrets family's Source, never direct map rows.
 pub const SKEIN_PATCH_SET: PatchSet = PatchSet {
+    jobs: &[],
     owner: Owner::Skein,
     name: "skein",
     patches: skein_oauth::patches::PATCHES,
@@ -19,6 +20,7 @@ pub const SKEIN_PATCH_SET: PatchSet = PatchSet {
 
 /// Turns are held in the core's transcript frames, never direct map rows.
 pub const SMITH_PATCH_SET: PatchSet = PatchSet {
+    jobs: &[],
     owner: Owner::Smith,
     name: smith_transcript::OWNER,
     patches: smith_transcript::patches::PATCHES,

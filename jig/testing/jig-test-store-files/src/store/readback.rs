@@ -154,6 +154,10 @@ impl Store {
                         )
                         .expect("wires row");
                     }
+                    keys::Own::Job { .. } => {
+                        protocol::registry_v1::Job::decode(&protocol::registry_v1::CEILINGS, &mut Reader::new(value))
+                            .expect("job row");
+                    }
                     keys::Own::Opening(worker) => {
                         let opening = protocol::openings_v1::WorkerOpening::decode(
                             &protocol::openings_v1::CEILINGS,

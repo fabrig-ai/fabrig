@@ -574,9 +574,18 @@ impl World {
             for event in events {
                 match event {
                     // This store world has no census consumer (protocol/store/README.md, 6.3).
-                    Event::Census { .. } => {}
+                    Event::Census { .. } | Event::Ran { .. } => {}
                     Event::Page { .. } | Event::PageRefused { .. } => {
                         unreachable!("a start's pages need a start-mode store")
+                    }
+                    Event::Job { owner, .. } => {
+                        answer = Some(Request::Job {
+                            owner,
+                            answer: Err(jig_protocol_store::JobRefusal {
+                                key: None,
+                                why: "no such fixture job".into(),
+                            }),
+                        });
                     }
                     Event::Site { owner, of, key, site, at, patcher } => {
                         answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));

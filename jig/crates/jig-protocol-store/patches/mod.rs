@@ -11038,6 +11038,43 @@ versioned record Row { value: Value }
             pub use super::v17 as new;
         }
     }
+    pub mod jig_store_registry {
+        pub const TEXTS: &[&str] = &[r"family jig-store-registry 1
+
+# A layout of a value type, by its id within the value type.
+versioned record Layout {
+    root: text 256
+    variant: option text 256
+    layout: fixed 32
+    text: fixed 32
+    held: list 16 fixed 32
+}
+
+# A schema text a layout names.
+versioned record Text { text: bytes 262144 }
+
+# A job done: the commit that ended it.
+versioned record Job { ended: u64 }
+"];
+        pub mod v1 {
+            pub mod layout {
+                use skein_codec::schema::FieldIx;
+                pub const ROOT: FieldIx = FieldIx::new(0);
+                pub const VARIANT: FieldIx = FieldIx::new(1);
+                pub const LAYOUT: FieldIx = FieldIx::new(2);
+                pub const TEXT: FieldIx = FieldIx::new(3);
+                pub const HELD: FieldIx = FieldIx::new(4);
+            }
+            pub mod text {
+                use skein_codec::schema::FieldIx;
+                pub const TEXT: FieldIx = FieldIx::new(5);
+            }
+            pub mod job {
+                use skein_codec::schema::FieldIx;
+                pub const ENDED: FieldIx = FieldIx::new(6);
+            }
+        }
+    }
     pub mod jig_store_secrets {
         pub const TEXTS: &[&str] = &[r"family jig-store-secrets 1
 

@@ -240,6 +240,7 @@ fn a_family_past_the_manifests_bounds_refuses_set_before_any_write() {
 
 const MOVED_JIG: PatchSets = PatchSets {
     sets: &[PatchSet {
+        jobs: &[],
         owner: Owner::Jig,
         name: "jig",
         patches: &[

@@ -16,6 +16,7 @@ use skein_lib::{Token, Wall, length::len_u64};
 pub(super) const SETS: PatchSets = PatchSets {
     sets: &[
         PatchSet {
+            jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
             patches: jig::PATCHES,
@@ -30,6 +31,7 @@ pub(super) const SETS: PatchSets = PatchSets {
             }],
         },
         PatchSet {
+            jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
             patches: smith::PATCHES,
@@ -212,6 +214,8 @@ fn answer_frame(disk: &mut Disk, store: &mut Store, events: Box<[Event]>, refuse
             | Event::Back { .. }
             | Event::BackRefused { .. }
             | Event::Closed { .. }
+            | Event::Job { .. }
+            | Event::Ran { .. }
             | Event::Patched { .. }) => result.push(other),
         }
     }

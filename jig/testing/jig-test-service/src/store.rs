@@ -230,6 +230,8 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             }
             // This shell never hands patch sets; routing answers Site with NoSite.
             other @ (protocol::Event::Page { .. }
+            | protocol::Event::Job { .. }
+            | protocol::Event::Ran { .. }
             | protocol::Event::Site { .. }
             | protocol::Event::Committed { .. }
             | protocol::Event::Failed { .. }

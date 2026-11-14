@@ -805,6 +805,8 @@ impl Component {
             | store::Event::Switched { .. }
             | store::Event::Opened { .. }
             | store::Event::OpenRefused { .. }
+            | store::Event::Job { .. }
+            | store::Event::Ran { .. }
             | store::Event::Site { .. }
             | store::Event::Decoded { .. }
             | store::Event::Undecodable { .. }
@@ -1072,6 +1074,8 @@ impl Component {
                 | store::Event::Switched { .. }
                 | store::Event::Opened { .. }
                 | store::Event::OpenRefused { .. }
+                | store::Event::Job { .. }
+                | store::Event::Ran { .. }
                 | store::Event::Site { .. }
                 | store::Event::Decoded { .. }
                 | store::Event::Undecodable { .. }
