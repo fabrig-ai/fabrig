@@ -17,12 +17,9 @@ or the round or milestone that removes it (temper's, the milestones C2 to C6 of
     this repository doesn't hold: whether that step has it awaits the user (8).
     `.config/gate/README.md`, 8 also names `tools/lints/test_lints.py`, which no test here runs, so
     a break of the check itself shows only where someone runs it.
-  - 4: no `clippy.toml` bans catching a panic: "Catching a panic"'s two entries in every variant,
-    smith's eight files and the root's `tests/clippy.toml`, and `fabrig-boundary`'s test that
-    every tracked `clippy.toml` holds them. [in flight: change 2953]
-  - 7.2, 7.3, 7.4: `panics.py` has no `REFUSED`: a list line naming `catch_unwind` or
-    `resume_unwind` is read as any other, and the list's header lacks its third line.
-    [in flight: change 2954]
+  - 7.2, 7.4: `REFUSED` holds `catch_unwind` and `resume_unwind` but not `should_panic`, the
+    list's third header line names two patterns, and `panics.txt` still counts `#[should_panic]`
+    in the files P10's conversions have yet to reach. [in flight: change 3267]
 - **Departs:**
   - 1, 2.4: four profiles, where the request and its debt items name three, because `binary` held
     two regimes and one block for both would loosen the ring's shell or raise twelve crates. The
