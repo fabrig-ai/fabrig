@@ -48,3 +48,5 @@ A projection a copy carried moves into the printer, where it prints: typed sourc
 ## 4. Printed-form pins
 
 A pin is a test in `hearth-client-protocol-records`' `src/tests/` that prints one record, or one variant of one, through the printer, as text and as a JSON line, and compares the bytes with literal expectations. The pins changes write them against the records crate's current types; the printers' changes rebuild their fixtures from the vocabulary's values and leave every expectation's bytes as they are.
+
+A pin whose fixture only a copy's looser type could hold, a value render never makes (a free string where render holds a typed name, an arity its filter doesn't take), takes the nearest value render does make that prints the same form: the same wording, plural or prefix. Only the bytes that value prints move (the name, the number); the rest of the expectation stays as it was, and the change's report lists each such row.
