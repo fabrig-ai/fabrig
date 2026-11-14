@@ -11,11 +11,6 @@
   them as unavailable, and the client exits 69. The remaining commands
   include capture, revision and slot operations, retarget and the
   development loop; the milestone marks defer their later variants.
-- **Not yet:** 3.2: `hearth-client-protocol-records` prints copies of
-  a spec's parts and a diff's changes, not render's values.
-  [in flight: change 3329]
-- **Not yet:** 3.2: `hearth-client-protocol-records` prints copies of
-  render's errors, not render's values. [in flight: change 3330]
 - **Not yet:** 3.2, 3.3: the remaining commands' records and outcomes,
   including slot tables, identity rows, journal entries and the
   permission outcome (77). Render, diff, store progress, startup errors
