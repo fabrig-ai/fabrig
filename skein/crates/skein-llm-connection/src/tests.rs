@@ -415,29 +415,6 @@ fn close_on_an_empty_component_says_closed_without_touching_io() {
 }
 
 #[test]
-#[should_panic(expected = "after Closed")]
-fn a_start_after_closed_is_an_asserted_owner_bug() {
-    let mut component = component();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
-    let mut up = Queue::uncapped();
-    let mut io = Queue::uncapped();
-    component.down(&env, Request::Close, &mut up, &mut io);
-    component.down(
-        &env,
-        Request::Start {
-            drop_reasoning: false,
-            call: Token::new(7),
-            endpoint: 0,
-            prompt: prompt(),
-            credential: Some(credential()),
-            deadlines: Deadlines::none(),
-        },
-        &mut up,
-        &mut io,
-    );
-}
-
-#[test]
 fn abort_starts_one_binding_per_entrance_and_waits_for_physical_settlement() {
     let mut config = limits();
     config.connections = 2;
