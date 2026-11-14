@@ -3,7 +3,7 @@ use super::{
     catch_up::{kept_golden, kept_schema, kept_value, patched},
     fixtures,
 };
-use crate::{keys, records, v22};
+use crate::{keys, records, v23};
 use skein_lib::{Reader, Wall};
 use temper_engine_domain_forge_vocabulary::{Stored, history::*};
 
@@ -161,8 +161,8 @@ fn history_records_round_trip_every_kind_and_interval() {
     check(Stored::HistoryLanding(LandingIndex { project: 3, landing: 29, number: 7, change: 9 }));
     check(Stored::HistoryLast(Last { project: 3, number: 7, change: 9, at: Wall::from_nanos(31) }));
     check_change_history_rows();
-    assert_eq!(v22::CEILINGS.history_project_marks, MARKS);
-    assert_eq!(v22::CEILINGS.history_hold_reason, REASON_BYTES);
+    assert_eq!(v23::CEILINGS.history_project_marks, MARKS);
+    assert_eq!(v23::CEILINGS.history_hold_reason, REASON_BYTES);
     assert_eq!(
         crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap().limits().history_formed_members,
         fixtures::LIMITS.landing_members
@@ -177,7 +177,7 @@ fn the_v20_change_patch_adds_no_backdated_history() {
     let (job, rest) = bytes.as_ref().split_first().unwrap();
     assert_eq!(*job, 0, "no pending job");
     assert_eq!(rest.split_last(), Some((&0, before.as_ref())), "no backdated history");
-    let after = v22::ChangeRow::decode(&v22::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let after = v23::ChangeRow::decode(&v23::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.history().is_none());
     assert!(after.job().is_none());
     let schema = kept_schema(20);
@@ -188,8 +188,8 @@ fn the_v20_change_patch_adds_no_backdated_history() {
         u64::from(after.repository().forge()),
         value.uint(value.field(repository, kept::repository::FORGE).unwrap()).unwrap()
     );
-    assert_eq!(crate::STORE_VERSION, 22);
-    assert_eq!(crate::patches::PATCHES.len(), 11);
+    assert_eq!(crate::STORE_VERSION, 23);
+    assert_eq!(crate::patches::PATCHES.len(), 12);
 }
 
 fn check_change_history_rows() {

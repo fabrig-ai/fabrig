@@ -171,6 +171,7 @@ impl Reconciliation {
                 | crate::ApplicationOutcome::MakeRefused(_) => Ok(()),
             },
             Stored::Red(row) => self.task(RecordKind::Red, row.goal, None),
+            Stored::RedPass(row) => self.task(RecordKind::RedPass, row.change, None),
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
             // Landing history outlives tasks (domain/forge/README.md, 5.2).
             // Bindings outlive members. End acts retry until the saved answer,
@@ -298,6 +299,7 @@ impl Domain {
             | RecordKind::Device
             | RecordKind::LandedDraft
             | RecordKind::Red
+            | RecordKind::RedPass
             | RecordKind::RedNumber
             | RecordKind::Away
             | RecordKind::Decided

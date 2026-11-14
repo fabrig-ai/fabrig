@@ -89,6 +89,7 @@ pub(super) fn drop_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mu
         return;
     }
     let row = d.changes.remove(&task).expect("droppable row exists");
+    super::reds::erase_passes(d, task, out);
     emit(out, Request::Erase { key: Key::Change(task) });
     d.panel_ci.remove(&task);
     d.settling.remove(&task);

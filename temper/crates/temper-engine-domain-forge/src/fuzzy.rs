@@ -248,6 +248,7 @@ fn goal_reds_remain_bounded_unique_ordered_and_live_under_random_writes_and_rele
         tests::outputs(&mut d, Event::Restore { record: Stored::Repository(tests::adopted()) });
         let mut live = Set::with_capacity(3);
         let mut model: Map<(u64, Box<[u8]>), Red> = Map::with_capacity(6);
+        let mut proofs: Map<(u64, Box<[u8]>), u64> = Map::with_capacity(6);
         let mut last = 0_u64;
         for goal in 7..10 {
             tests::reds::take(&mut d, &env.limits, goal);
@@ -258,7 +259,7 @@ fn goal_reds_remain_bounded_unique_ordered_and_live_under_random_writes_and_rele
             let key = skein_lib::Decimal::of(rng.below(4)).as_bytes().into();
             let address = (goal, key);
             let mut out = Queue::uncapped();
-            match rng.below(4) {
+            match rng.below(7) {
                 0 | 1 => {
                     let mut held = 0_u32;
                     for ((owner, _), _) in &model {
@@ -333,7 +334,52 @@ fn goal_reds_remain_bounded_unique_ordered_and_live_under_random_writes_and_rele
                         live.insert(goal).unwrap();
                     }
                 }
-                _ => unreachable!("four acts"),
+                4 => {
+                    let change = goal + 100;
+                    let mut passed = List::with_capacity(4);
+                    let mut failed = List::with_capacity(4);
+                    for key in 0..4 {
+                        let key: Box<[u8]> = skein_lib::Decimal::of(key).as_bytes().into();
+                        let observed = rng.below(4);
+                        if observed == 1 || observed == 3 {
+                            passed.push(key.clone()).unwrap();
+                        }
+                        if observed == 2 || observed == 3 {
+                            failed.push(key.clone()).unwrap();
+                        }
+                        if !model.contains_key(&(goal, key.clone())) || observed == 2 || observed == 3 {
+                            proofs.remove(&(change, key));
+                        }
+                    }
+                    for key in &passed {
+                        if model.contains_key(&(goal, key.clone())) && !failed.as_slice().contains(key) {
+                            proofs.insert((change, key.clone()), last).unwrap();
+                        }
+                    }
+                    d.observe_reds(change, goal, passed.as_slice(), failed.as_slice(), &mut out);
+                }
+                act @ (5 | 6) => {
+                    let change = goal + 100;
+                    if act == 5 {
+                        let mut row = tests::fixtures::opening_row();
+                        row.task = change;
+                        row.base = format!("temper/7/g{goal}").into_bytes().into();
+                        crate::domain::reds::landed(&mut d, &env.limits, &row, &mut out);
+                    } else {
+                        crate::domain::reds::erase_passes(&mut d, change, &mut out);
+                    }
+                    for key in 0..4 {
+                        let key: Box<[u8]> = skein_lib::Decimal::of(key).as_bytes().into();
+                        if let Some(pass) = proofs.remove(&(change, key.clone()))
+                            && let Some(red) = model.get(&(goal, key.clone()))
+                            && act == 5
+                            && red.generation <= pass
+                        {
+                            model.remove(&(goal, key));
+                        }
+                    }
+                }
+                _ => unreachable!("seven acts"),
             }
             for goal in 7..10 {
                 let mut previous: Option<&[u8]> = None;
@@ -357,6 +403,29 @@ fn goal_reds_remain_bounded_unique_ordered_and_live_under_random_writes_and_rele
                 }
                 assert_eq!(count, expected, "seed {seed}: complete read");
                 assert!(count <= 2, "seed {seed}: per-goal bound");
+                let change = goal + 100;
+                let mut count = 0_u32;
+                let mut previous: Option<&[u8]> = None;
+                for (_, pass) in d.red_passes(change) {
+                    assert_eq!(
+                        Some(&pass.generation),
+                        proofs.get(&(change, pass.key.clone())),
+                        "seed {seed}: latest pass"
+                    );
+                    if let Some(previous) = previous {
+                        assert!(previous < pass.key.as_ref(), "seed {seed}: unique pass keys");
+                    }
+                    previous = Some(&pass.key);
+                    count += 1;
+                }
+                let mut expected = 0_u32;
+                for ((owner, _), _) in &proofs {
+                    if *owner == change {
+                        expected += 1;
+                    }
+                }
+                assert_eq!(count, expected, "seed {seed}: complete proofs");
+                assert!(count <= 2, "seed {seed}: per-change bound");
             }
         }
     }
