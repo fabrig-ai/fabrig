@@ -122,9 +122,9 @@ mod red_findings;
 mod tiers;
 mod triager_prover;
 
+mod brief_deadline;
 #[path = "forge_routes/brief_failure.rs"]
 mod brief_failure;
-mod brief_deadline;
 
 #[path = "forge_routes/repairs.rs"]
 mod repairs;

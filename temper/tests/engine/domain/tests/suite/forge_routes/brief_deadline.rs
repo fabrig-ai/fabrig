@@ -93,9 +93,15 @@ fn a_resolution_with_slow_files_starts_with_deadline_notices() {
     let words = pull_words(&resolver);
     assert!(words.contains("[files cut at the brief's deadline: 0 of 12 files read; read_pull_files from page 1 lists the rest, and read_file reads a path at the head or the base]"), "{words}");
     assert!(words.contains("[comparison cut at the brief's deadline: not read; read it in your checkout]"), "{words}");
-    let files_reads: Vec<_> = world.forge_reads.as_ref().expect("recorded reads").iter().filter_map(|(_, read)| {
-        if let skein_forge::api::Read::PullFiles { page, skip, .. } = read { Some((*page, *skip)) } else { None }
-    }).collect();
+    let files_reads: Vec<_> = world
+        .forge_reads
+        .as_ref()
+        .expect("recorded reads")
+        .iter()
+        .filter_map(|(_, read)| {
+            if let skein_forge::api::Read::PullFiles { page, skip, .. } = read { Some((*page, *skip)) } else { None }
+        })
+        .collect();
     assert_eq!(files_reads, [(1, 0)], "only the first files page was started");
     world.close();
 }
@@ -103,7 +109,8 @@ fn a_resolution_with_slow_files_starts_with_deadline_notices() {
 #[test]
 fn a_ci_repair_with_slow_job_logs_starts_with_the_logs_it_read() {
     let (mut world, producer, branch) = world(0, Some(&[b"build", b"lint", b"test"]));
-    world.job_read_delay = Some(Duration::from_secs(10));
+    world.job_read_delay = Some(Duration::from_secs(12));
+    world.forge_reads = Some(Vec::new());
     start_failed_ci(&mut world, &producer, &branch, &[b"build", b"lint", b"test"]);
     let repair = assigned(&mut world);
     repair_started(&repair, &branch);
@@ -123,6 +130,17 @@ fn a_ci_repair_with_slow_job_logs_starts_with_the_logs_it_read() {
         assert!(!check.contains("End of its log:"), "{check}");
     }
     assert_eq!(words.matches(JOB_CUT).count(), 2, "{words}");
+    assert_eq!(
+        world
+            .forge_reads
+            .as_ref()
+            .expect("recorded reads")
+            .iter()
+            .filter(|(_, read)| matches!(read, skein_forge::api::Read::Job { .. }))
+            .count(),
+        2,
+        "the second job was left reading, and the third was never started"
+    );
     world.close();
 }
 
@@ -133,13 +151,14 @@ fn a_ci_repair_with_checks_past_the_cutoff_starts_on_its_whole_pull() {
     start_failed_ci(&mut world, &producer, &branch, &[b"build"]);
     let repair = assigned(&mut world);
     repair_started(&repair, &branch);
-    assert_eq!(ci_words(&repair), b"[the failed checks could not be read: not read by the brief's deadline]\n");
+    assert_eq!(
+        std::str::from_utf8(ci_words(&repair)).expect("CI text is UTF-8"),
+        "[the failed checks could not be read: not read by the brief's deadline]\n"
+    );
     let words = pull_words(&repair);
     assert!(words.contains("Pull request: #"), "{words}");
     assert!(words.contains("Title: Small fix"), "{words}");
-    assert!(words.contains("file"), "{words}");
-    assert!(words.contains("first"), "{words}");
-    assert!(words.contains("What landed in the base"), "{words}");
+    assert!(words.ends_with("Files and diff:\nFile: file\nBefore:\n\nAfter:\nfirst\nAgainst base:\nfile\n"), "{words}");
     assert!(!words.contains("cut at the brief's deadline"), "{words}");
     assert!(!words.contains("could not be read"), "{words}");
     world.close();
