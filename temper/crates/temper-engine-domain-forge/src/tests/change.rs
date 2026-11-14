@@ -2446,6 +2446,100 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
     }
 }
 
+/// A landing branch's move wakes the change's own merge states (change/README.md, 2).
+#[test]
+fn a_moved_base_wakes_a_change_from_its_turn() {
+    use skein_forge::api::Answer;
+    use temper_engine_domain_forge_change as change;
+    for state in [
+        change::State::First { head: fixtures::HEAD, ready_since: env().wall },
+        change::State::Landing { head: fixtures::HEAD },
+    ] {
+        let mut d = fixtures::connected_domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.change.state = state;
+        outputs(&mut d, Event::Change { row });
+        seen_base(&mut d, fixtures::BASE);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+        d.procedure_wakes.remove(&fixtures::CHANGE);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit([5; 32])));
+        assert_eq!(d.procedure_wakes.get(&fixtures::CHANGE), Some(&true));
+    }
+}
+
+/// Withdrawal retires the client's pending write before its answer can hold the landed change (change/README.md, 2).
+#[test]
+fn a_containment_landing_withdraws_its_pending_merge() {
+    use skein_forge::api::{Answer, CommitMessage, Write};
+    use temper_engine_domain_forge_change as change;
+    let (mut d, mut entry) = updating_entry(false);
+    entry.effect.write = Write::Merge { number: 1, head: fixtures::HEAD, how: skein_forge::api::MergeHow::Style };
+    entry.effect.condition = skein_forge_client::Condition::Merge { base: b"main".as_slice().into() };
+    d.entries.get_mut(&entry.number).expect("pending entry").entry = entry.clone();
+    let row = d.changes.get_mut(&fixtures::CHANGE).expect("change");
+    row.change.state = change::State::Landing { head: fixtures::HEAD };
+    row.change.owns_turn = true;
+    seen_base(&mut d, fixtures::BASE);
+    fixtures::step_change(&mut d);
+    for answer in [
+        Answer::Commit(fixtures::HEAD),
+        Answer::Commit(fixtures::BASE),
+        Answer::Pull(fixtures::open_pull()),
+        fixtures::checks(skein_forge::api::Check::Passed),
+        Answer::Commits {
+            commits: Box::new([CommitMessage {
+                id: fixtures::BASE,
+                parents: Box::new([fixtures::HEAD]),
+                message: Box::new([]),
+            }]),
+            more: false,
+        },
+        Answer::Commits { commits: Box::new([]), more: false },
+    ] {
+        fixtures::answer_next(&mut d, Ok(answer));
+    }
+    let decided = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+    let landed = d.change(fixtures::CHANGE).expect("landed change").clone();
+    assert_eq!(landed.change.state, change::State::Landed { merge: fixtures::BASE, since: env().wall });
+    assert_eq!(landed.pending, None);
+    assert!(!d.entries.contains_key(&entry.number), "the unsent entry was withdrawn");
+    let mut withdrawn = false;
+    for request in &decided {
+        if let Request::Outcome { entry: number, outcome: skein_forge_client::Outcome::Withdrawn, .. } = request {
+            withdrawn |= *number == entry.number;
+        }
+    }
+    assert!(withdrawn, "the pending entry was answered withdrawn");
+    assert!(settled_change(&mut d, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Timeout)).is_empty());
+    assert_eq!(d.change(fixtures::CHANGE), Some(&landed));
+}
+
+/// Even a retained pending identity cannot apply a late outcome to a landed change (change/README.md, 2).
+#[test]
+fn a_late_merge_outcome_changes_nothing_after_landing() {
+    use skein_forge_client::{Made, Outcome};
+    use temper_engine_domain_forge_change::State;
+    for outcome in [
+        Outcome::Failed(skein_forge::api::Error::Timeout),
+        Outcome::Held,
+        Outcome::Withdrawn,
+        Outcome::Made { made: Made::Merged(fixtures::HEAD), found: true },
+    ] {
+        let (mut d, _) = updating_entry(false);
+        let row = d.changes.get_mut(&fixtures::CHANGE).expect("change");
+        row.change.state = State::Landed { merge: fixtures::BASE, since: env().wall };
+        let landed = row.clone();
+        assert!(settled_change(&mut d, outcome).is_empty());
+        assert_eq!(d.change(fixtures::CHANGE), Some(&landed));
+    }
+}
+
 #[test]
 fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
     use temper_engine_domain_forge_change as change;

@@ -5105,7 +5105,11 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
                 crate::landing::change_advanced(d, &mut row, &prior, decision, out);
+                let withdrawn = take_landed_merge(d, &mut row);
                 d.changes.insert(row.task, row.clone()).expect("replaces change");
+                if let Some(entry) = withdrawn {
+                    withdraw(d, env, entry, out);
+                }
                 if landed_commit(&prior.state).is_none()
                     && let Some(commit) = landed_commit(&row.change.state)
                 {
@@ -5638,6 +5642,20 @@ fn settled_account(d: &Domain, entry: u64, outcome: skein_forge_client::Outcome)
     Some(crate::EffectAccount { entry, words })
 }
 
+/// Detach the landed change before withdrawal can synchronously answer it.
+fn take_landed_merge(d: &Domain, row: &mut ChangeRow) -> Option<u64> {
+    landed_commit(&row.change.state)?;
+    let number = row.pending?;
+    let entry = d.entries.get(&number)?;
+    if let skein_forge::api::Write::Merge { .. } = entry.entry.effect.write {
+        row.pending = None;
+        row.effect = change::EffectResult::None;
+        row.effect_account = None;
+        return Some(number);
+    }
+    None
+}
+
 /// A lost update keeps its account and decides again (temper/docs/design/domain/forge/README.md, 6).
 #[expect(
     clippy::too_many_lines,
@@ -5657,6 +5675,9 @@ pub(crate) fn change_outcome(
         }
     }
     let Some(task) = task else { return };
+    if landed_commit(&d.changes.get(&task).expect("found change row").change.state).is_some() {
+        return;
+    }
     let update = match d.entries.get(&entry) {
         Some(row) => match &row.entry.effect.write {
             skein_forge::api::Write::Update { .. } => true,
@@ -7378,12 +7399,16 @@ fn wake_head_dependents(
         return;
     }
     for (task, row) in &d.changes {
-        if row.repository.forge == name.forge
-            && row.repository.repository == name.repository
-            && crate::items::branch_matches(name, &row.branch)
-            && !d.procedure_wakes.contains_key(task)
-        {
+        if row.repository.forge != name.forge || row.repository.repository != name.repository {
+            continue;
+        }
+        if crate::items::branch_matches(name, &row.branch) && !d.procedure_wakes.contains_key(task) {
             d.procedure_wakes.insert(*task, false).expect("one pending wake per change");
+        }
+        if crate::items::branch_matches(name, &row.base)
+            && let change::State::First { .. } | change::State::Landing { .. } = row.change.state
+        {
+            d.procedure_wakes.insert(*task, true).expect("one pending wake per change");
         }
     }
 }
