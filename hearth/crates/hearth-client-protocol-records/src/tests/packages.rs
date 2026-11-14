@@ -52,7 +52,7 @@ fn json_gives_the_packages_record_in_key_order() {
 #[test]
 fn a_component_error_names_the_package_and_the_component() {
     let mut error = fixtures::modules_guard();
-    error.kind = crate::errors::Kind::Schema(crate::errors::Schema::Component {
+    error.kind = render::errors::Kind::Schema(render::errors::Schema::Component {
         package: b"firmware-linux".as_slice().into(),
         component: b"non-free-firmware".as_slice().into(),
     });

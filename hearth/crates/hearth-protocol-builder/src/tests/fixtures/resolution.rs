@@ -1,4 +1,4 @@
-use crate::{render, tree};
+use crate::tree;
 use skein_lib::{Duration, Wall};
 
 #[must_use]
@@ -30,30 +30,6 @@ pub fn resolution_record(inputs: tree::resolution::Inputs) -> tree::resolution::
             costs: Costs { fetched: 7, took: Duration::from_secs(1) },
         },
     }
-}
-
-#[must_use]
-pub fn resolution_faults() -> [render::errors::Resolution; 9] {
-    use render::errors::Resolution;
-    [
-        Resolution::Unknown { package: b"apt".as_slice().into() },
-        Resolution::Unsatisfiable { package: Some(b"curl".as_slice().into()) },
-        Resolution::Unsatisfiable { package: None },
-        Resolution::Absent { uri: b"http://one/".as_slice().into(), suite: b"forky".as_slice().into() },
-        Resolution::Missing { package: b"apt".as_slice().into() },
-        Resolution::Unmatched {
-            name: b"apt".as_slice().into(),
-            version: b"3.3.3".as_slice().into(),
-            architecture: b"amd64".as_slice().into(),
-        },
-        Resolution::Disagree {
-            name: b"apt".as_slice().into(),
-            version: b"3.3.3".as_slice().into(),
-            architecture: b"amd64".as_slice().into(),
-        },
-        Resolution::TooLarge { max: u64::from(tree::limits::SHIPPED.resolution.body) },
-        Resolution::TooMany { max: super::CLOSURE_LIMIT },
-    ]
 }
 
 #[must_use]

@@ -39,7 +39,7 @@ pub struct Sources {
     pub updates: bool,
     pub security: Option<Box<[u8]>>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Component {
     Main,
     Contrib,

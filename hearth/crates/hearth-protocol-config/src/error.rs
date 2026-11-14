@@ -1,6 +1,7 @@
 //! A document's first fault, where the faulty thing starts (hearth/docs/design/domain/render/errors.md, 1).
 use crate::Position;
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::errors::{Declared, Expected, Field, Object, Required};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Error {
     pub at: Position,
@@ -20,55 +21,6 @@ pub enum Fault {
     Shape(Shape),
     Declaration(Declared),
 }
-/// Why a decoded task.json is no declaration (hearth/docs/design/protocol/format/tasks.md, 1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Declared {
-    Unknown { of: Object },
-    Later,
-    Wrong { expected: Expected },
-    Missing { key: Required },
-    Name,
-    Doc,
-    Order,
-    Optional,
-    Bound,
-    Above,
-    Enum,
-    Settings,
-    Secret,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Object {
-    Declaration,
-    Read,
-    Guard,
-    Script,
-    Bless,
-    Entry(crate::entries::Map),
-    Range,
-    Spec,
-    Export,
-    Type,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Expected {
-    Object,
-    String,
-    Strings,
-    Bool,
-    Int,
-    Field(crate::entries::Takes),
-    True,
-    Type,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Required {
-    If,
-    Message,
-    Type,
-    Doc,
-    Value,
-}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Shape {
     ListNull,
@@ -81,14 +33,4 @@ pub enum Shape {
     Wrong { field: Field },
     Missing { field: Field },
     Misplaced { field: Field },
-}
-
-/// Placement's M1 fields (hearth/docs/design/protocol/format/README.md, 3.4).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Field {
-    Kind,
-    Firmware,
-    Hardware,
-    On,
-    Mutable,
 }

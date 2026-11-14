@@ -156,7 +156,13 @@ fn render(lines: &mut Lines, record: &Record, after: Option<Type>) {
             if after.is_some() && after != Some(Type::Error) {
                 lines.put(b"\n");
             }
-            error.text(lines);
+            crate::errors::text(error, lines);
+        }
+        Record::StoreFull(full) => {
+            if after.is_some() && after != Some(Type::Error) {
+                lines.put(b"\n");
+            }
+            full.text(lines);
         }
         Record::Startup(startup) => startup.text(lines),
         Record::Terminal(terminal) => {

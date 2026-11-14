@@ -60,15 +60,15 @@ pub fn printed_exports(form: crate::form::Form) -> Box<[u8]> {
     )
     .expect("exports fit")
 }
-pub fn export_error(fault: crate::errors::ExportFault) -> crate::errors::Error {
+pub fn export_error(fault: render::errors::ExportFault) -> render::errors::Error {
     let mut error = duplicate();
     error.at = None;
     error.also = None;
-    error.kind = crate::errors::Kind::Schema(crate::errors::Schema::Export { fault });
+    error.kind = render::errors::Kind::Schema(render::errors::Schema::Export { fault });
     error
 }
-pub fn exported_error() -> crate::errors::Error {
-    use crate::errors::{Cause, Exported, Kind, Schema, TypeName};
+pub fn exported_error() -> render::errors::Error {
+    use render::errors::{Cause, Exported, Kind, Schema, TypeName};
     let mut error = super::modules_guard();
     error.kind = Kind::Exported(Exported {
         exporter: copy_of(b"west-prod"),

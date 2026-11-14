@@ -97,14 +97,6 @@ pub(crate) fn json(this: &Change, json: &mut Encoder) {
         }
     }
 }
-#[must_use]
-pub fn side(side: Side) -> &'static [u8] {
-    match side {
-        Side::From => b"from",
-        Side::To => b"to",
-        Side::Both => b"both",
-    }
-}
 pub(crate) fn rebuild_text(this: Rebuild) -> &'static [u8] {
     match this {
         Rebuild::FromPackages { resolution: Needs::Known } => b"rebuild from packages",
@@ -333,3 +325,13 @@ mod data;
 pub(crate) mod directives;
 
 pub(crate) mod placed;
+
+/// The client's side names (hearth/docs/design/domain/render/contracts.md, 2).
+#[must_use]
+pub fn side(side: Side) -> &'static [u8] {
+    match side {
+        Side::From => b"from",
+        Side::To => b"to",
+        Side::Both => b"both",
+    }
+}

@@ -1,8 +1,9 @@
 //! Printed units (hearth/docs/design/domain/render/README.md, 3.8, and hearth/docs/design/domain/render/spec.md, 1).
-use crate::{errors::Error, outcome::Outcome, startup::Startup};
+use crate::{outcome::Outcome, startup::Startup};
 use alloc::boxed::Box;
 use hearth_domain_render_vocabulary::{
     diff::{Change, Tally},
+    errors::Error,
     parts::Spec,
 };
 
@@ -17,6 +18,7 @@ pub enum Record {
     Terminal(Terminal),
     Change(Change),
     Error(Error),
+    StoreFull(crate::progress::StoreFull),
     Startup(Startup),
     Layer(crate::build::Layer),
     Failed(crate::build::Failed),
@@ -48,7 +50,7 @@ impl Record {
             Self::Spec(_) => Type::Spec,
             Self::Terminal(_) => Type::Terminal,
             Self::Change(_) => Type::Change,
-            Self::Error(_) => Type::Error,
+            Self::Error(_) | Self::StoreFull(_) => Type::Error,
             Self::Startup(_) => Type::Startup,
             Self::Layer(_) => Type::Layer,
             Self::Failed(_) => Type::Failed,

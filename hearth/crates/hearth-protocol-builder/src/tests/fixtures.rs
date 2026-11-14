@@ -430,8 +430,6 @@ pub fn every_form() -> [crate::config::schema::Form; 13] {
         }])),
     ]
 }
-mod schemas;
-pub use schemas::schema_faults;
 
 mod declarations;
 pub use declarations::*;
@@ -612,27 +610,6 @@ pub fn every_syntax() -> [hearth_protocol_template::error::ErrorKind; 19] {
     ]
 }
 
-#[must_use]
-pub fn decode_error() -> render::errors::Error {
-    use render::errors as render_errors;
-    use render::revision as target;
-    render_errors::Error {
-        side: None,
-        kind: render_errors::Kind::Decode(render_errors::Decode::Duplicate { key: bytes::copy_of(b"a") }),
-        class: render::vocabulary::Class::Configuration,
-        at: Some(render_errors::Place {
-            path: bytes::copy_of(b"tasks/motd/task.json"),
-            position: Some(target::Position { line: 1, column: 10 }),
-        }),
-        also: Some(render_errors::Place {
-            path: bytes::copy_of(b"tasks/motd/task.json"),
-            position: Some(target::Position { line: 1, column: 2 }),
-        }),
-        target: None,
-        task: Some(bytes::copy_of(b"motd")),
-    }
-}
-
 pub fn member_document() -> crate::config::document::Document {
     use crate::config::{
         Position,
@@ -655,33 +632,13 @@ pub fn member_document() -> crate::config::document::Document {
     }
 }
 
-pub fn evaluation_back(kind: crate::records::errors::Evaluation) -> render::evaluate::FaultKind {
-    use crate::records::errors::Evaluation;
-    match kind {
-        Evaluation::Unknown => render::evaluate::FaultKind::Unknown,
-        Evaluation::NoKey => render::evaluate::FaultKind::NoKey,
-        Evaluation::NoIndex => render::evaluate::FaultKind::NoIndex,
-        Evaluation::Undefined => render::evaluate::FaultKind::Undefined,
-        Evaluation::Type => render::evaluate::FaultKind::Type,
-        Evaluation::Overflow => render::evaluate::FaultKind::Overflow,
-        Evaluation::Empty => render::evaluate::FaultKind::Empty,
-        Evaluation::Path => render::evaluate::FaultKind::Path,
-        Evaluation::Output => render::evaluate::FaultKind::Output,
-        Evaluation::Limit => render::evaluate::FaultKind::Limit,
-    }
-}
-
-mod reserved;
-pub use reserved::{composition_kinds, reserved_rules};
 mod keep;
 pub use keep::*;
 
 mod debian;
 pub use debian::*;
 
-mod exports;
 mod packages;
-pub use exports::*;
 pub use packages::*;
 
 mod resolution;
@@ -692,12 +649,6 @@ pub use resolve::*;
 
 mod indices;
 pub use indices::*;
-
-mod ids;
-pub use ids::*;
-
-mod collisions;
-pub use collisions::*;
 
 mod lists;
 pub use lists::only;

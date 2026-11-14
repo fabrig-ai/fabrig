@@ -1,6 +1,9 @@
 use super::assert_prints;
 use super::plain;
-use crate::errors::{Declared, Decode, Error, Expected, Kind, Map, Object, Place, Position, Required, Takes};
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Declared, Decode, Error, Expected, Kind, Object, Place, Required, Takes};
+use render::revision::Position;
+use render::revision::declaration::Map;
 use skein_lib::bytes::copy_of;
 fn declaration(declared: Declared) -> Error {
     let mut error = plain(Kind::Decode(Decode::Declaration(declared)));

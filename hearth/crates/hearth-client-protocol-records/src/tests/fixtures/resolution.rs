@@ -1,4 +1,5 @@
-use crate::errors::{Class, Command, Ended, Error, Kind, Resolution};
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Class, Command, Ended, Error, Kind, Resolution};
 #[derive(Clone, Copy, Debug)]
 pub enum ResolutionInput {
     Unknown,

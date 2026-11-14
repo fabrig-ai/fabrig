@@ -74,7 +74,7 @@ fn an_export_change_32_deep_prints_in_both_forms() {
     }
 }
 
-use crate::errors::{ExportFault, Root};
+use render::errors::{ExportFault, Root};
 const FAULTS: &[(ExportFault, &[u8])] = &[
     (ExportFault::Form, b"an export's value must be one {{ }} tag\n"),
     (ExportFault::Root { root: Root::Tasks }, b"an export reads settings and target alone, not tasks\n"),

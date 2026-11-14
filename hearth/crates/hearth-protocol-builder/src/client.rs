@@ -167,10 +167,23 @@ impl Client {
         let record = match answer {
             Answer::Spec(spec) => Record::Spec(Box::new(spec)),
             Answer::Error(mut error) => {
-                if let crate::render::errors::Kind::Store(fault) = &mut error.kind {
-                    fault.store = skein_lib::bytes::copy_of(store);
+                use crate::render::errors::Kind;
+                match &mut error.kind {
+                    Kind::Store(fault) => fault.store = skein_lib::bytes::copy_of(store),
+                    Kind::Reserved(_)
+                    | Kind::Exported(_)
+                    | Kind::Ids(_)
+                    | Kind::Resolution(_)
+                    | Kind::Evaluation(_)
+                    | Kind::Schema(_)
+                    | Kind::Guard(_)
+                    | Kind::Collision(_)
+                    | Kind::Decode(_)
+                    | Kind::Repository(_)
+                    | Kind::Tool(_)
+                    | Kind::Composition(_) => {}
                 }
-                Record::Error(crate::translate::errors::error(error))
+                Record::Error(error)
             }
             Answer::Change(change) => Record::Change(change),
             Answer::Layer { layer, key, state } => Record::Layer(answers::layer(layer, key, state)),
@@ -179,7 +192,7 @@ impl Client {
                 self.failed = Some(failed.why);
                 Record::Failed(failed)
             }
-            Answer::Full { limit, most } => Record::Error(answers::full(limit, most, store)),
+            Answer::Full { limit, most } => Record::StoreFull(answers::full(limit, most, store)),
         };
         self.print(env, record);
     }

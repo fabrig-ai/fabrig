@@ -1,165 +1,121 @@
-use super::{Box, Encoder, Lines, field};
+use super::{Encoder, Lines, field};
+use hearth_domain_render_vocabulary::errors::{Command, Ended, Repository, Tool};
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Repository {
-    NoTree,
-    NoTemplate,
-    NoScript,
-    Unused,
-    LinkTarget,
-    Stray,
-    Environment { env: Box<[u8]> },
-    Name,
-    Declaration,
-    Static,
-    Destination,
-    Submodule,
-    Link,
+pub(super) fn repository_text(item: &Repository, lines: &mut Lines) {
+    match item {
+        Repository::NoScript => lines.put(b"no script at this path"),
+        Repository::NoTemplate => lines.put(b"no template at this path"),
+        Repository::Unused => lines.put(b"a template no entry names"),
+        Repository::NoTree => lines.put(b"no tree entry at this path"),
+        Repository::LinkTarget => lines.put(b"a symbolic link target out of form"),
+        Repository::Stray => lines.put(b"a path protocol/format/README.md 2.1 does not allow"),
+        Repository::Name => lines.put(b"a name protocol/format/README.md 2.4 does not allow"),
+        Repository::Declaration => lines.put(b"a task directory without task.json"),
+        Repository::Static => lines.put(b"a template without a destination name"),
+        Repository::Destination => lines.put(b"two sources of one destination"),
+        Repository::Submodule => lines.put(b"a submodule under a path render reads"),
+        Repository::Link => lines.put(b"a document or template listed as a symbolic link"),
+        Repository::Environment { env } => {
+            lines.put(b"no environment ");
+            lines.put(env);
+            lines.put(b" under envs/");
+        }
+    }
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Tool {
-    pub command: Command,
-    pub ended: Ended,
-    pub tail: Box<[Box<[u8]>]>,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Command {
-    Mmdebstrap,
-    RevParse,
-    LsTree,
-    CatFile,
-    Diff,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Ended {
-    Timeout,
-    Start,
-    Exit(u8),
-    Signal(u32),
-    Output,
-    Missing { oid: Box<[u8]> },
-    Stream,
+pub(super) fn repository_json(item: &Repository, json: &mut Encoder) {
+    match item {
+        Repository::Environment { env } => {
+            json.object_start();
+            field(json, b"kind", b"environment");
+            field(json, b"env", env);
+            json.object_end();
+        }
+        Repository::NoScript => json.string(b"no_script"),
+        Repository::NoTemplate => json.string(b"no_template"),
+        Repository::Unused => json.string(b"unused"),
+        Repository::NoTree => json.string(b"no_tree"),
+        Repository::LinkTarget => json.string(b"link_target"),
+        Repository::Stray => json.string(b"stray"),
+        Repository::Name => json.string(b"name"),
+        Repository::Declaration => json.string(b"declaration"),
+        Repository::Static => json.string(b"static"),
+        Repository::Destination => json.string(b"destination"),
+        Repository::Submodule => json.string(b"submodule"),
+        Repository::Link => json.string(b"link"),
+    }
 }
 
-impl Repository {
-    pub(super) fn text(&self, lines: &mut Lines) {
-        match self {
-            Self::NoScript => lines.put(b"no script at this path"),
-            Self::NoTemplate => lines.put(b"no template at this path"),
-            Self::Unused => lines.put(b"a template no entry names"),
-            Self::NoTree => lines.put(b"no tree entry at this path"),
-            Self::LinkTarget => lines.put(b"a symbolic link target out of form"),
-            Self::Stray => lines.put(b"a path protocol/format/README.md 2.1 does not allow"),
-            Self::Name => lines.put(b"a name protocol/format/README.md 2.4 does not allow"),
-            Self::Declaration => lines.put(b"a task directory without task.json"),
-            Self::Static => lines.put(b"a template without a destination name"),
-            Self::Destination => lines.put(b"two sources of one destination"),
-            Self::Submodule => lines.put(b"a submodule under a path render reads"),
-            Self::Link => lines.put(b"a document or template listed as a symbolic link"),
-            Self::Environment { env } => {
-                lines.put(b"no environment ");
-                lines.put(env);
-                lines.put(b" under envs/");
-            }
-        }
-    }
-    pub(super) fn json(&self, json: &mut Encoder) {
-        match self {
-            Self::Environment { env } => {
-                json.object_start();
-                field(json, b"kind", b"environment");
-                field(json, b"env", env);
-                json.object_end();
-            }
-            Self::NoScript => json.string(b"no_script"),
-            Self::NoTemplate => json.string(b"no_template"),
-            Self::Unused => json.string(b"unused"),
-            Self::NoTree => json.string(b"no_tree"),
-            Self::LinkTarget => json.string(b"link_target"),
-            Self::Stray => json.string(b"stray"),
-            Self::Name => json.string(b"name"),
-            Self::Declaration => json.string(b"declaration"),
-            Self::Static => json.string(b"static"),
-            Self::Destination => json.string(b"destination"),
-            Self::Submodule => json.string(b"submodule"),
-            Self::Link => json.string(b"link"),
-        }
+pub(super) fn command_name(item: Command) -> &'static [u8] {
+    match item {
+        Command::Mmdebstrap => b"mmdebstrap",
+        Command::RevParse => b"rev_parse",
+        Command::LsTree => b"ls_tree",
+        Command::CatFile => b"cat_file",
+        Command::Diff => b"diff",
     }
 }
-impl Command {
-    fn name(self) -> &'static [u8] {
-        match self {
-            Self::Mmdebstrap => b"mmdebstrap",
-            Self::RevParse => b"rev_parse",
-            Self::LsTree => b"ls_tree",
-            Self::CatFile => b"cat_file",
-            Self::Diff => b"diff",
-        }
-    }
-    pub(super) fn text(self) -> &'static [u8] {
-        match self {
-            Self::Mmdebstrap => b"mmdebstrap",
-            Self::RevParse => b"git rev-parse",
-            Self::LsTree => b"git ls-tree",
-            Self::CatFile => b"git cat-file",
-            Self::Diff => b"git diff",
-        }
+pub(super) fn command_text(item: Command) -> &'static [u8] {
+    match item {
+        Command::Mmdebstrap => b"mmdebstrap",
+        Command::RevParse => b"git rev-parse",
+        Command::LsTree => b"git ls-tree",
+        Command::CatFile => b"git cat-file",
+        Command::Diff => b"git diff",
     }
 }
-impl Tool {
-    pub(super) fn text(&self, lines: &mut Lines) {
-        lines.put(self.command.text());
-        match &self.ended {
-            Ended::Timeout => lines.put(b" timed out"),
-            Ended::Start => lines.put(b" could not start"),
-            Ended::Exit(code) => {
-                lines.put(b" exited ");
-                lines.decimal(u64::from(*code));
-            }
-            Ended::Signal(signal) => {
-                lines.put(b" was killed by signal ");
-                lines.decimal(u64::from(*signal));
-            }
-            Ended::Output => lines.put(b" gave invalid output"),
-            Ended::Missing { oid } => {
-                lines.put(b" is missing object ");
-                lines.put(oid);
-            }
-            Ended::Stream => lines.put(b" failed to read or write a pipe"),
+
+pub(super) fn tool_text(item: &Tool, lines: &mut Lines) {
+    lines.put(command_text(item.command));
+    match &item.ended {
+        Ended::Timeout => lines.put(b" timed out"),
+        Ended::Start => lines.put(b" could not start"),
+        Ended::Exit(code) => {
+            lines.put(b" exited ");
+            lines.decimal(u64::from(*code));
         }
+        Ended::Signal(signal) => {
+            lines.put(b" was killed by signal ");
+            lines.decimal(u64::from(*signal));
+        }
+        Ended::Output => lines.put(b" gave invalid output"),
+        Ended::Missing { oid } => {
+            lines.put(b" is missing object ");
+            lines.put(&oid.0);
+        }
+        Ended::Stream => lines.put(b" failed to read or write a pipe"),
     }
-    pub(super) fn json(&self, json: &mut Encoder) {
-        json.object_start();
-        field(json, b"command", self.command.name());
-        json.key(b"ended");
-        json.object_start();
-        match &self.ended {
-            Ended::Timeout => field(json, b"kind", b"timeout"),
-            Ended::Start => field(json, b"kind", b"start"),
-            Ended::Exit(code) => {
-                json.key(b"code");
-                json.unsigned(u64::from(*code));
-                field(json, b"kind", b"exit");
-            }
-            Ended::Signal(signal) => {
-                json.key(b"signal");
-                json.unsigned(u64::from(*signal));
-                field(json, b"kind", b"signal");
-            }
-            Ended::Output => field(json, b"kind", b"output"),
-            Ended::Missing { oid } => {
-                field(json, b"kind", b"missing");
-                field(json, b"oid", oid);
-            }
-            Ended::Stream => field(json, b"kind", b"stream"),
+}
+pub(super) fn tool_json(item: &Tool, json: &mut Encoder) {
+    json.object_start();
+    field(json, b"command", command_name(item.command));
+    json.key(b"ended");
+    json.object_start();
+    match &item.ended {
+        Ended::Timeout => field(json, b"kind", b"timeout"),
+        Ended::Start => field(json, b"kind", b"start"),
+        Ended::Exit(code) => {
+            json.key(b"code");
+            json.unsigned(u64::from(*code));
+            field(json, b"kind", b"exit");
         }
-        json.object_end();
-        json.key(b"tail");
-        json.array_start();
-        for line in &self.tail {
-            json.string(line);
+        Ended::Signal(signal) => {
+            json.key(b"signal");
+            json.unsigned(u64::from(*signal));
+            field(json, b"kind", b"signal");
         }
-        json.array_end();
-        json.object_end();
+        Ended::Output => field(json, b"kind", b"output"),
+        Ended::Missing { oid } => {
+            field(json, b"kind", b"missing");
+            field(json, b"oid", &oid.0);
+        }
+        Ended::Stream => field(json, b"kind", b"stream"),
     }
+    json.object_end();
+    json.key(b"tail");
+    json.array_start();
+    for line in &item.tail {
+        json.string(line);
+    }
+    json.array_end();
+    json.object_end();
 }
