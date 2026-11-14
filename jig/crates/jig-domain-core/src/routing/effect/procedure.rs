@@ -141,7 +141,7 @@ pub(crate) fn apply(
         match request {
             Request::Now(now) => later.push(Request::Now(now)),
             Request::Write(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
-                out.push(request)
+                out.push(request);
             }
         }
     }
