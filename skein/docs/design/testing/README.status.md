@@ -41,6 +41,9 @@ counted around each reused pass, never by an address.
   and `supervise-grandchild` descendants spinning. [in flight: change 1551]
   5: no fixture outlives its test: an unwinding test's walk can leave a
   descendant running, unreported. [in flight: change 1552]
+  5: `temper-client-world`'s public path sweep writes each case's whole
+  input before it runs it, not the case and its length.
+  [in flight: change 3078]
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: the focused cost repairs' at-least-6 CPU s saving is unproved.
