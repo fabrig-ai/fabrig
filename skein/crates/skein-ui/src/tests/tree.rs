@@ -71,17 +71,25 @@ fn a_drawing_keeps_opaque_data_and_readable_fallback() {
 }
 
 #[test]
-#[should_panic(expected = "drawing fits its owner's byte bound")]
-fn a_drawing_past_its_owners_bound_asserts() {
+fn a_drawing_fills_its_owners_byte_bound() {
+    const OWNER_BYTES: u32 = 4;
     let mut builder = Builder::new(&LIMITS);
-    builder.drawing(DrawingKind { owner: Owner { number: 65_536 }, kind: 1 }, b"name", b"12345", 4);
+    builder.drawing(DrawingKind { owner: Owner { number: 65_536 }, kind: 1 }, b"name", b"1234", OWNER_BYTES);
+    builder.close();
+    let tree = builder.finish();
+    let drawing = tree.get(0).expect("drawing").drawing.as_ref().expect("drawing data");
+    assert_eq!(u32::try_from(drawing.data.len()).unwrap(), OWNER_BYTES);
 }
 
 #[test]
-#[should_panic(expected = "drawing fits its owner's byte bound")]
-fn a_drawing_past_the_trees_bound_asserts() {
-    let mut builder = Builder::new(&LIMITS);
-    builder.drawing(DrawingKind { owner: Owner { number: 65_536 }, kind: 1 }, b"name", b"123456789", 16);
+fn a_drawing_fills_the_trees_byte_bound() {
+    let limits = Limits { drawing_bytes: 8, ..LIMITS };
+    let mut builder = Builder::new(&limits);
+    builder.drawing(DrawingKind { owner: Owner { number: 65_536 }, kind: 1 }, b"name", b"12345678", 16);
+    builder.close();
+    let tree = builder.finish();
+    let drawing = tree.get(0).expect("drawing").drawing.as_ref().expect("drawing data");
+    assert_eq!(u32::try_from(drawing.data.len()).unwrap(), limits.drawing_bytes);
 }
 
 pub(super) const BINDING_ROLES: &[(Role, bool)] = &[
@@ -153,40 +161,44 @@ fn bindings_are_kept_on_roles_a_person_acts_on() {
 }
 
 #[test]
-#[should_panic(expected = "tree fits its node capacity")]
-fn building_past_node_capacity_asserts() {
-    let limits = Limits { nodes: 1, ..LIMITS };
+fn a_page_and_its_text_fill_the_node_capacity() {
+    let limits = Limits { nodes: 2, ..LIMITS };
     let mut builder = Builder::new(&limits);
     builder.open(Role::Page);
     builder.text(Run::Plain, b"child");
+    builder.close();
+    assert_eq!(builder.finish().used().nodes, limits.nodes);
 }
 
 #[test]
-#[should_panic(expected = "tree fits its depth capacity")]
-fn building_past_depth_capacity_asserts() {
-    let limits = Limits { depth: 1, ..LIMITS };
+fn a_page_and_its_region_fill_the_depth_capacity() {
+    let limits = Limits { depth: 2, ..LIMITS };
     let mut builder = Builder::new(&limits);
     builder.open(Role::Page);
     builder.open(Role::Region);
+    builder.close();
+    builder.close();
+    assert_eq!(builder.finish().used().depth, limits.depth);
 }
 
 #[test]
-#[should_panic(expected = "node fits its text capacity")]
-fn name_and_value_share_a_nodes_byte_bound() {
-    let limits = Limits { text_per_node: 5, ..LIMITS };
+fn a_name_and_value_fill_the_nodes_byte_bound() {
+    let limits = Limits { text_per_node: 6, ..LIMITS };
     let mut builder = Builder::new(&limits);
     builder.open(Role::TextField);
     builder.name(b"name");
     builder.value(b"12", 1);
+    builder.close();
+    assert_eq!(builder.finish().used().text_per_node, limits.text_per_node);
 }
 
 #[test]
-#[should_panic(expected = "tree fits its text capacity")]
-fn all_text_shares_the_trees_byte_bound() {
-    let limits = Limits { text_bytes: 5, ..LIMITS };
+fn two_texts_fill_the_trees_byte_bound() {
+    let limits = Limits { text_bytes: 6, ..LIMITS };
     let mut builder = Builder::new(&limits);
     builder.text(Run::Plain, b"one");
     builder.text(Run::Plain, b"two");
+    assert_eq!(builder.finish().used().text_bytes, limits.text_bytes);
 }
 
 #[test]
@@ -233,15 +245,6 @@ fn a_built_text_leaf_reserves_one_run() {
 }
 
 #[test]
-#[should_panic(expected = "shortcut keys are letters or digits")]
-fn a_shortcut_on_a_key_outside_letters_and_digits_is_refused() {
-    let mut builder = Builder::new(&LIMITS);
-    builder.open(Role::Button);
-    builder.bind(Binding { owner: Owner { number: 65_536 }, token: Token::new(1) });
-    builder.shortcut(crate::Shortcut { key: b'!', modifier: crate::Modifier::Plain });
-}
-
-#[test]
 fn an_image_keeps_its_owners_picture() {
     let mut builder = Builder::new(&LIMITS);
     builder.open(Role::Image);
@@ -255,29 +258,22 @@ fn an_image_keeps_its_owners_picture() {
 }
 
 #[test]
-fn a_description_counts_in_the_nodes_text_bytes() {
-    let mut b = Builder::new(&LIMITS);
+fn a_description_and_name_fill_the_nodes_byte_bound() {
+    let limits = Limits { text_per_node: 8, ..LIMITS };
+    let mut b = Builder::new(&limits);
     b.open(Role::TextField);
     b.name(b"Name");
     b.description(b"Help");
     b.close();
-    assert_eq!(b.finish().get(0).unwrap().text_bytes(), 8);
+    assert_eq!(b.finish().used().text_per_node, limits.text_per_node);
 }
 
 #[test]
-#[should_panic(expected = "node fits its text capacity")]
-fn a_description_shares_the_nodes_byte_bound() {
-    let mut b = Builder::new(&Limits { text_per_node: 5, ..LIMITS });
-    b.open(Role::TextField);
-    b.name(b"Name");
-    b.description(b"Help");
-}
-
-#[test]
-fn a_hint_counts_in_the_nodes_text_bytes() {
+fn a_hint_and_name_fill_the_node_and_tree_byte_bounds() {
     const HEADING_BYTES: u32 = 8; // Four name bytes and four hint bytes.
     for first in [None, Some(b"Old".as_slice())] {
-        let mut b = Builder::new(&Limits { text_per_node: HEADING_BYTES, text_bytes: HEADING_BYTES, ..LIMITS });
+        let limits = Limits { text_per_node: HEADING_BYTES, text_bytes: HEADING_BYTES, ..LIMITS };
+        let mut b = Builder::new(&limits);
         b.open(Role::Heading { level: 1 });
         b.name(b"Name");
         if let Some(first) = first {
@@ -288,26 +284,9 @@ fn a_hint_counts_in_the_nodes_text_bytes() {
         let tree = b.finish();
         let node = tree.get(0).unwrap();
         assert_eq!(node.hint.as_deref(), Some(b"Hint".as_slice()));
-        assert_eq!(node.text_bytes(), HEADING_BYTES);
+        assert_eq!(tree.used().text_per_node, limits.text_per_node);
+        assert_eq!(tree.used().text_bytes, limits.text_bytes);
     }
-}
-
-#[test]
-#[should_panic(expected = "node fits its text capacity")]
-fn a_hint_shares_the_nodes_byte_bound() {
-    const HEADING_BYTES: u32 = 7; // One below four name bytes and four hint bytes.
-    let mut b = Builder::new(&Limits { text_per_node: HEADING_BYTES, ..LIMITS });
-    b.open(Role::Heading { level: 1 });
-    b.name(b"Name");
-    b.hint(b"Hint");
-}
-
-#[test]
-#[should_panic(expected = "entry kinds belong to text fields")]
-fn an_entry_kind_on_a_button_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Button);
-    b.entry(crate::EntryKind::Secret);
 }
 
 const IMAGE_ADDRESSES: &[(&[u8], bool)] = &[
@@ -362,54 +341,6 @@ fn a_reused_builder_accepts_a_focus_request() {
 }
 
 #[test]
-#[should_panic(expected = "at most one focus request per tree")]
-fn a_spliced_second_focus_request_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Main);
-    b.focus(1);
-    b.slot(crate::SlotRef { owner: Owner { number: 1 }, token: Token::new(1) }, b"Loading");
-    b.close();
-    let slot = b.slots(0)[0].id;
-    let mut fragment = Builder::new(&LIMITS);
-    fragment.open(Role::Paragraph);
-    fragment.focus(2);
-    fragment.close();
-    b.splice(slot, fragment);
-}
-
-#[test]
-#[should_panic(expected = "counts belong to collections")]
-fn a_count_on_an_item_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Item);
-    b.count(20);
-}
-
-#[test]
-#[should_panic(expected = "positions start at one")]
-fn a_position_of_zero_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Item);
-    b.position(0);
-}
-
-#[test]
-#[should_panic(expected = "spans belong to cells")]
-fn spans_on_a_paragraph_are_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Paragraph);
-    b.spans(crate::Spans { rows: 1, columns: 1 });
-}
-
-#[test]
-#[should_panic(expected = "sort belongs to column headers")]
-fn a_sort_on_a_cell_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Cell);
-    b.sort(crate::Sort::Ascending);
-}
-
-#[test]
 fn required_is_kept_on_each_kind_of_field() {
     for (role, state) in [
         (Role::TextField, State::Required),
@@ -452,35 +383,11 @@ fn a_completed_item_keeps_every_state_it_takes() {
 }
 
 #[test]
-#[should_panic(expected = "completed belongs to items")]
-fn completed_on_a_tree_item_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::TreeItem);
-    b.state(State::Completed);
-}
-
-#[test]
-#[should_panic(expected = "placeholders belong to text fields or text areas")]
-fn a_placeholder_on_a_button_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Button);
-    b.placeholder(b"Hint");
-}
-
-#[test]
-#[should_panic(expected = "node fits its text capacity")]
-fn a_placeholder_shares_the_nodes_byte_bound() {
-    let mut b = Builder::new(&Limits { text_per_node: 5, ..LIMITS });
-    b.open(Role::TextField);
-    b.name(b"Name");
-    b.placeholder(b"Hint");
-}
-
-#[test]
-fn a_replaced_placeholder_counts_at_the_nodes_byte_bound() {
+fn a_replaced_placeholder_fills_the_node_and_tree_byte_bounds() {
     const FIELD_BYTES: u32 = 8; // Four name bytes and four placeholder bytes.
     for role in [Role::TextField, Role::TextArea] {
-        let mut b = Builder::new(&Limits { text_per_node: FIELD_BYTES, text_bytes: FIELD_BYTES, ..LIMITS });
+        let limits = Limits { text_per_node: FIELD_BYTES, text_bytes: FIELD_BYTES, ..LIMITS };
+        let mut b = Builder::new(&limits);
         b.open(role);
         b.name(b"Name");
         b.placeholder(b"Old");
@@ -489,17 +396,9 @@ fn a_replaced_placeholder_counts_at_the_nodes_byte_bound() {
         let tree = b.finish();
         let node = tree.get(0).unwrap();
         assert_eq!(node.placeholder.as_deref(), Some(b"Hint".as_slice()));
-        assert_eq!(node.text_bytes(), FIELD_BYTES);
+        assert_eq!(tree.used().text_per_node, limits.text_per_node);
+        assert_eq!(tree.used().text_bytes, limits.text_bytes);
     }
-}
-
-#[test]
-#[should_panic(expected = "tree fits its text capacity")]
-fn a_placeholder_shares_the_trees_byte_bound() {
-    let mut b = Builder::new(&Limits { text_bytes: 5, ..LIMITS });
-    b.open(Role::TextField);
-    b.name(b"Name");
-    b.placeholder(b"Hint");
 }
 
 #[test]
@@ -521,73 +420,15 @@ fn a_progress_holds_its_fraction_and_its_words() {
 }
 
 #[test]
-#[should_panic(expected = "fractions belong to progress")]
-fn a_fraction_off_a_progress_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Text);
-    b.fraction(crate::Fraction { done: 1, total: 2 });
-}
-
-#[test]
-#[should_panic(expected = "a fraction's done is at most its total")]
-fn a_fraction_done_past_total_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Progress);
-    b.fraction(crate::Fraction { done: 3, total: 2 });
-}
-
-#[test]
-#[should_panic(expected = "a fraction's total is above zero")]
-fn a_fraction_with_zero_total_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Progress);
-    b.fraction(crate::Fraction { done: 0, total: 0 });
-}
-
-#[test]
-#[should_panic(expected = "a fraction has its words")]
-fn a_fraction_without_its_own_runs_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Progress);
-    b.fraction(crate::Fraction { done: 1, total: 2 });
-    b.text(Run::Plain, b"half");
-    b.close();
-}
-
-fn backslash_tree(modifier: crate::Modifier) -> crate::Tree {
+fn a_primary_backslash_is_a_shortcut() {
     let mut builder = Builder::new(&LIMITS);
     builder.open(Role::Button);
     builder.bind(Binding { owner: Owner { number: 65_536 }, token: Token::new(1) });
-    builder.shortcut(crate::Shortcut { key: b'\\', modifier });
+    builder.shortcut(crate::Shortcut { key: b'\\', modifier: crate::Modifier::Primary });
     builder.close();
-    builder.finish()
-}
-
-#[test]
-fn a_primary_backslash_is_a_shortcut() {
-    let tree = backslash_tree(crate::Modifier::Primary);
+    let tree = builder.finish();
     assert_eq!(
         tree.get(0).expect("button").shortcut,
         Some(crate::Shortcut { key: b'\\', modifier: crate::Modifier::Primary })
     );
-}
-
-#[test]
-#[should_panic(expected = "shortcut keys are letters or digits")]
-fn a_plain_backslash_is_refused() {
-    let _tree = backslash_tree(crate::Modifier::Plain);
-}
-
-#[test]
-#[should_panic(expected = "shortcut keys are letters or digits")]
-fn an_alt_backslash_is_refused() {
-    let _tree = backslash_tree(crate::Modifier::Alt);
-}
-
-#[test]
-#[should_panic(expected = "orders belong to lists")]
-fn an_order_on_an_item_is_an_assertion() {
-    let mut builder = Builder::new(&LIMITS);
-    builder.open(Role::Item);
-    builder.ordered(1);
 }

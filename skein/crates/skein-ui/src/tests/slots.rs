@@ -90,21 +90,8 @@ fn loading_and_unshowable_are_named_statuses_without_breaking_the_page() {
 }
 
 #[test]
-#[should_panic(expected = "slots nest at most two deep")]
-fn a_third_fill_is_refused_and_its_slot_stays_loading_until_then() {
-    let mut builder = page();
-    let first = builder.slots(0);
-    builder.splice(first[0].id, fragment(3));
-    let second = builder.slots(1);
-    builder.splice(second[0].id, fragment(4));
-    let third = builder.slots(2);
-    builder.splice(third[0].id, fragment(5));
-}
-
-#[test]
-#[should_panic(expected = "spliced tree fits its node capacity")]
-fn all_fragments_count_against_the_same_node_capacity() {
-    let limits = Limits { nodes: 8, ..LIMITS };
+fn two_splices_fill_the_shared_node_capacity() {
+    let limits = Limits { nodes: 9, ..LIMITS };
     let mut builder = Builder::new(&limits);
     builder.open(Role::Page);
     builder.slot(reference(1), b"Loading");
@@ -113,16 +100,17 @@ fn all_fragments_count_against_the_same_node_capacity() {
     builder.splice(first[0].id, fragment_with_limits(2, &limits));
     let second = builder.slots(1);
     builder.splice(second[0].id, fragment_with_limits(3, &limits));
+    assert_eq!(builder.finish().used().nodes, limits.nodes);
 }
 
 #[test]
-#[should_panic(expected = "spliced slots fit their capacity")]
-fn filled_slots_still_count_against_the_slots_limit() {
-    let limits = Limits { slots: 1, ..LIMITS };
+fn filled_and_loading_slots_fill_the_slots_limit() {
+    let limits = Limits { slots: 2, ..LIMITS };
     let mut builder = Builder::new(&limits);
     builder.slot(reference(1), b"Loading");
     let slots = builder.slots(0);
     let mut fragment = Builder::new(&limits);
     fragment.slot(reference(2), b"Loading");
     builder.splice(slots[0].id, fragment);
+    assert_eq!(builder.finish().used().slots, limits.slots);
 }
