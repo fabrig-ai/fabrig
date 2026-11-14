@@ -47,6 +47,8 @@ pub(crate) fn stepped(
     live.record.attempt = step;
     crate::inbox::take(&mut live.record, read, None);
     live.procedure_offered = None;
+    let woken = live.procedure_woken;
+    live.procedure_woken = false;
     task_mut(domain, number).expect("procedure task live").record.phase = Phase::Active(Active::Idle);
     let numbers = if decision.batch.is_empty() {
         None
@@ -58,6 +60,13 @@ pub(crate) fn stepped(
     }
     end_step(domain, env, number, decision.end, out);
     crate::wake::after_step(domain, env, number, out);
+    let idle = match record(domain, number) {
+        Some(row) => row.phase == Phase::Active(Active::Idle),
+        None => false,
+    };
+    if woken && idle {
+        crate::domain::wake_procedure(domain, env, number, out);
+    }
     match numbers {
         Some(tasks) => out.push(Request::Made { reply_to: to, tasks }),
         None => out.push(Request::Done { reply_to: to }),
