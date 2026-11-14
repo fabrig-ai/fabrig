@@ -5,15 +5,6 @@
 - **Not yet:** 4.2: the diff's rebuild time from each layer's last
   recorded cost. The domain's and printer's typed changes carry the
   rebuild layer, with no time or lookup of those costs.
-- **Not yet:** 5.1: `hearth-domain-render-vocabulary`: render defines
-  its values itself. [in flight: change 3320]
-- **Not yet:** 5.1: the client's printer prints copies of the spec, its
-  parts and the diff's changes, which the protocol layer translates from
-  render's. [in flight: change 3329]
-- **Not yet:** 5.1: the client's printer prints copies of render's
-  errors, which the protocol layer translates from render's. [in flight: change 3330]
-- **Not yet:** 5.1: the config, git and mmdebstrap machines decode into
-  copies of render's values, which the protocol layer translates. [in flight: change 3331]
 - **Not yet:** 5.5: resumed work's order, for a file event.
   `hearth-service-builder/src/tests.rs`,
   `resumed_cache_work_goes_before_a_child_s_exit`, holds `protocol_up`'s guard
