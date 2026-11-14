@@ -4,13 +4,14 @@
 
 
 - **Departs:** 1: temper's measured focused request-world sum is
-  81.892959 CPU s against 30, and the real-loop focused median
+  81.892959 CPU s, and the real-loop focused median
   is 31.769481 CPU s against its standing 15 s ceiling.
   The focused measurements, their load and accounting limits, retained
   causes and next decisions are in
   [`limits-worlds.md`](../../development/limits-worlds.md). The whole-temper
-  focused suite total remains unknown; package sums include warm nextest
-  overhead. Neither the focused 30 nor the 15 s ceiling has been raised.
+  focused suite was 832 CPU s on the development machine at main of 11-14
+  11:42Z, within section 1's 1250; package sums include warm nextest
+  overhead. The 15 s ceiling has not been raised.
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
