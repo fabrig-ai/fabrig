@@ -12,6 +12,7 @@ use temper_engine_domain_forge_landing as keys;
 use temper_engine_domain_forge_tiers as p;
 mod goals;
 mod red;
+mod post;
 
 const TIER: &[u8] = b"browser";
 const TIER_TASK: u64 = 61;

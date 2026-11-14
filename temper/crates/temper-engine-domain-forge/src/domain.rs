@@ -272,7 +272,7 @@ pub struct Domain {
     pub(crate) issues: Map<u64, IssueRow>,
     releases: Map<u64, ReleaseRow>,
     pub(crate) kept: Map<u64, Box<[Name]>>,
-    namespace: Box<[u8]>,
+    pub(crate) namespace: Box<[u8]>,
     pub(crate) adoptions: Map<Token, adoption::PendingAdoption>,
     pub(crate) application: adoption::State,
     pub(crate) writers: Map<u16, u64>,

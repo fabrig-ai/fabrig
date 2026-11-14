@@ -12,6 +12,7 @@ use temper_engine_domain_forge_tiers as p;
 pub use temper_engine_domain_forge_vocabulary::tiers::*;
 mod goals;
 pub(crate) mod parts;
+mod post;
 pub(crate) mod red;
 pub(crate) mod words;
 use parts::{
@@ -27,6 +28,7 @@ pub(crate) struct State {
     pub(crate) reads: Map<Token, Read>,
     pub(crate) follows: Map<(Repository, Box<[u8]>), crate::runs::Follow>,
     reds: Map<(Repository, Box<[u8]>), red::Fetch>,
+    postings: Map<(Repository, Box<[u8]>), post::Posting>,
 }
 impl State {
     pub(crate) fn new(l: &Limits) -> Self {
@@ -39,6 +41,7 @@ impl State {
             reads: Map::with_capacity(count.checked_mul(2).expect("tier reads")),
             follows: Map::with_capacity(count),
             reds: Map::with_capacity(count),
+            postings: Map::with_capacity(count),
         }
     }
 }
@@ -789,6 +792,10 @@ fn advance(
             row.received = false;
         }
     }
+    if row.held.is_some() && row.goal.is_none() {
+        let posting = post::pending(d, row, follow);
+        d.tier_ops.postings.insert((row.repository, row.tier.clone()), posting).expect("one posting per tier");
+    }
     remember(row, follow);
     if row.held.is_some()
         && let Some(flight) = &mut row.flight
@@ -829,19 +836,20 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
         Write::Dispatch { .. } => dispatch_operation(&row.record.run.as_ref().expect("live run").part),
         Write::Rerun { .. } => 2,
         Write::DeleteBranch { .. } => 5,
+        Write::Status { .. } => 6,
+        Write::Post { .. } => 7,
         Write::CreateIssue { .. }
         | Write::OpenPull { .. }
-        | Write::Post { .. }
         | Write::Review { .. }
         | Write::Edit { .. }
         | Write::SetReviewers { .. }
         | Write::Close { .. }
         | Write::Reopen { .. }
         | Write::Merge { .. }
-        | Write::Update { .. }
-        | Write::Status { .. } => unreachable!("tier run operations"),
+        | Write::Update { .. } => unreachable!("tier run operations"),
     };
     let part = match &write {
+        Write::Status { .. } | Write::Post { .. } => u32::from(post::identity(d, row).1),
         Write::DeleteBranch { branch: name }
             if *name == branch(&row.tier, row.record.run.as_ref().expect("live run").number) =>
         {
@@ -855,15 +863,13 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
         | Write::Rerun { .. }
         | Write::CreateIssue { .. }
         | Write::OpenPull { .. }
-        | Write::Post { .. }
         | Write::Review { .. }
         | Write::Edit { .. }
         | Write::SetReviewers { .. }
         | Write::Close { .. }
         | Write::Reopen { .. }
         | Write::Merge { .. }
-        | Write::Update { .. }
-        | Write::Status { .. } => u32::from(part_number(&row.record.run.as_ref().expect("live run").part)),
+        | Write::Update { .. } => u32::from(part_number(&row.record.run.as_ref().expect("live run").part)),
     };
     row.purpose = Some(purpose(d, row, operation, u16::try_from(part).expect("bounded part")));
     let kept = skein_forge_client::Entry {
@@ -927,11 +933,29 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u
         let run = row.record.run.as_ref().expect("judged range");
         crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
     }
+    let run = row.record.run.clone();
+    if row.goal.is_none() {
+        let posting = post::compose(d, row, &verdict, words.clone());
+        d.tier_ops.postings.insert((row.repository, row.tier.clone()), posting).expect("one posting per tier");
+    }
     row.record = p::judged(
         &row.record,
         &verdict,
         &p::Limits { failing_tests: env.limits.tiers.failing_tests, test_id_bytes: env.limits.tiers.test_id_bytes },
     );
+    if row.goal.is_none() {
+        row.record.run = run;
+        row.flight = None;
+        row.result = None;
+        row.received = false;
+        save(row, out);
+        wait(row.task.expect("posting task"), out);
+    } else {
+        done(d, row, words, out);
+    }
+}
+fn done(d: &mut Domain, row: &mut TierRow, words: Box<[u8]>, out: &mut Queue<Request>) {
+    row.record.run = None;
     let task = row.task.take().expect("tier task");
     d.offered_tier(task);
     row.flight = None;
@@ -1066,7 +1090,9 @@ pub(crate) fn step(
         observed_part(d, env, &mut row, &mut follow, out);
         d.tier_ops.follows.insert(key.clone(), follow).expect("bounded follower");
     }
-    if row.held.is_some() {
+    if d.tier_ops.postings.contains_key(&key) {
+        post::step(d, env, &mut row, entry, out);
+    } else if row.held.is_some() {
         held(d, &row, out);
     } else if cleanup_probe(d, env, &mut row, entry, out) {
         // A completed probe releases its branch before the next part starts.
@@ -1140,7 +1166,7 @@ pub(crate) fn step(
             TierBranch::Absent | TierBranch::Pending { .. } => wait(task, out),
         }
     }
-    let done = row.record.run.is_none();
+    let done = row.task.is_none();
     d.tiers.insert(key.clone(), row).expect("replaces tier");
     if done {
         start_due(d, env, key.0, out);
@@ -1364,6 +1390,9 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
         | Outcome::Uncertain
         | Outcome::Queued => None,
     };
+    if outcome != Outcome::Queued && outcome != Outcome::Uncertain && post::settled(d, entry, out) {
+        return;
+    }
     if let Some(commit) = made_branch
         && let Some(kept) = d.entries.get(&entry)
         && let Some((branch, false)) = branch_write(&kept.entry.effect.write)
@@ -1482,6 +1511,12 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
     if kept.entry.task != task {
         return;
     }
+    if post::settled(d, entry, out) {
+        d.entries.remove(&entry);
+        out.push(Request::Erase { key: crate::Key::Entry(entry) });
+        return;
+    }
+    let kept = d.entries.get(&entry).expect("vetoed entry");
     let deleting = match &kept.entry.effect.write {
         Write::DeleteBranch { .. } => true,
         Write::CreateBranch { .. }
@@ -1614,6 +1649,12 @@ impl Domain {
     #[must_use]
     pub fn describe_tier_effect(&self, task: u64, entry: u64) -> Option<(Repository, What, crate::AgentEffect)> {
         let row = self.tier_task(task)?;
+        if let Some((kind, what, state)) = post::describe(self, row, entry) {
+            let (form, recovery) = crate::effect_shape(kind)?;
+            let kept = &self.entries.get(&entry)?.entry;
+            if kept.task != task || kept.repository != row.repository { return None; }
+            return Some((row.repository, what, crate::AgentEffect { effect: kept.effect.clone(), kind, state, form, recovery }));
+        }
         let run = row.record.run.as_ref()?;
         let (commit, key, tests) = candidate(run);
         let kept = &self.entries.get(&entry)?.entry;
@@ -1879,6 +1920,7 @@ fn drop_run(d: &mut Domain, row: &mut TierRow, limits: &Limits) {
     let key = (row.repository, row.tier.clone());
     d.tier_ops.follows.remove(&key);
     d.tier_ops.walks.remove(&key);
+    d.tier_ops.postings.remove(&key);
     let mut reads = List::with_capacity(d.tier_ops.reads.capacity());
     for (owner, reading) in &d.tier_ops.reads {
         if reading.tier == key {
