@@ -1,6 +1,6 @@
 # connectors: status
 
-2026-11-11. Where jig's code lags or departs from [connectors.md](connectors.md).
+2026-11-14. Where jig's code lags or departs from [connectors.md](connectors.md).
 
 Section 11's procedure beside its requester's own writing run is present
 in temper's forge connector. Its held-branch step tests and engine domain
@@ -20,3 +20,4 @@ the test connector no longer reports one as a default of size 0
   4.2: a projection's or a release's failure for good, kept
   durably as news. 6.3: every effect of a step within its one decision.
   6.7: a procedure told to drain. 13: request budgets. 17: the deleted-project restore story remains `engine/settings.status.md`, 10.
+- **Not yet:** 8: a goal's projection is fed every milestone of its subtree's tasks, wakes' phases among them. [in flight: change 3370]
