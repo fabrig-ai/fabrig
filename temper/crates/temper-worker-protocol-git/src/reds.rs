@@ -71,7 +71,7 @@ pub(crate) fn after(op: &git::Op, command: &CheckCommand, code: u8, stdout: &[u8
             }
             match action {
                 git::Reds::Write { .. } => run(CheckCommand::Merge),
-                git::Reds::Prepare { .. } | git::Reds::Clear => path(Box::new([])),
+                git::Reds::Prepare { .. } | git::Reds::Clear | git::Reds::Read { .. } => path(Box::new([])),
             }
         }
         CheckCommand::Merge => {
@@ -123,8 +123,9 @@ pub(crate) fn after(op: &git::Op, command: &CheckCommand, code: u8, stdout: &[u8
                 invocation::joined(&[&invocation::place(at), b"/", directory])
             };
             let (content, marker) = match action {
+                git::Reds::Read { .. } => return Next::Results { directory },
                 git::Reds::Clear => (None, false),
-                git::Reds::Prepare { wait_ms } => (
+                git::Reds::Prepare { wait_ms, .. } => (
                     Some(invocation::joined(&[
                         b"temper-reds-wait 1 ",
                         Decimal::of(u64::from(*wait_ms)).as_bytes(),
@@ -134,7 +135,11 @@ pub(crate) fn after(op: &git::Op, command: &CheckCommand, code: u8, stdout: &[u8
                 ),
                 git::Reds::Write { reds } => (Some(contents(reds, kept)), false),
             };
-            Next::Reds { directory, content, marker }
+            let rerun = match action {
+                git::Reds::Prepare { rerun_processes, .. } => Some(*rerun_processes),
+                git::Reds::Clear | git::Reds::Read { .. } | git::Reds::Write { .. } => None,
+            };
+            Next::Reds { directory, content, marker, rerun }
         }
     }
 }

@@ -1,0 +1,9 @@
+patch 1
+owner temper 12
+
+family temper-store 22 to 23
+add RedPass
+add FindingSignature
+add Finding.signature option FindingSignature none
+add Finding.seen option u32 none
+add Value.red_pass

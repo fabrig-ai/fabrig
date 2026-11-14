@@ -30,6 +30,8 @@ pub struct Checkout {
     pub local_timeout: Duration,
     /// Milliseconds to wait for a goal’s reds.
     pub reds_read_ms: u32,
+    /// Failing test processes a check may run again (domain/forge/reds.md, 5.2).
+    pub rerun_processes: u32,
     /// Facts kept until the parent drains them. Beyond them, facts are dropped
     /// and counted.
     pub facts: u32,
@@ -100,6 +102,7 @@ const CHECKOUT: Checkout = Checkout {
     // Time for a local checkout operation, from the checkout world fixture.
     local_timeout: Duration::from_secs(10),
     reds_read_ms: 5_000,
+    rerun_processes: 4,
     // Facts awaiting drain, from the checkout world fixture.
     facts: 256,
 };
@@ -293,6 +296,7 @@ pub const NAMES: &[&str] = &[
     "checkout.remote_timeout_ms",
     "checkout.local_timeout_ms",
     "checkout.reds_read_ms",
+    "checkout.rerun_processes",
     "checkout.facts",
     "git_component.operations",
     "git_component.stdout_bytes",
@@ -370,6 +374,7 @@ pub const SHARED_NAMES: &[&str] = &[
     "checkout.remote_timeout_ms",
     "checkout.local_timeout_ms",
     "checkout.reds_read_ms",
+    "checkout.rerun_processes",
     "checkout.facts",
     "git_component.operations",
     "git_component.stdout_bytes",
@@ -405,6 +410,12 @@ pub fn apply(limits: &mut Shared, name: &[u8], value: u64) -> Result<(), Refused
                 return Err(Refused::Range);
             }
             limits.checkout.reds_read_ms = u32::try_from(value).or(Err(Refused::Range))?;
+        }
+        b"checkout.rerun_processes" => {
+            if value > 16 {
+                return Err(Refused::Range);
+            }
+            limits.checkout.rerun_processes = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"checkout.local_timeout_ms" => limits.checkout.local_timeout = duration(value)?,
         b"checkout.facts" => limits.checkout.facts = u32::try_from(value).or(Err(Refused::Range))?,

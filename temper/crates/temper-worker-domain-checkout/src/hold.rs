@@ -563,7 +563,11 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
         State::Preparing { step, asked } => State::Preparing { step, asked: cancelling(id, asked, now, out) },
         State::Reds(mut running) => {
             running.asked = outranking(running.asked, now);
-            running.clear = true;
+            reds::interrupted(&hold.holding, &running.action, out);
+            if let Some(next) = &running.next {
+                reds::interrupted(&hold.holding, next, out);
+            }
+            running.next = Some(crate::git::Reds::Clear);
             running.write = None;
             out.push(Request::Cancel { owner: id.token() });
             State::Reds(running)
@@ -667,7 +671,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             if hold.cut {
                 reds::stopped(holding, running, out)
             } else {
-                reds::done(holding, id, running, env, out)
+                reds::done(holding, id, running, done, env, out)
             }
         }
         State::Pushing { mut push, step, asked } if hold.cut => {
@@ -761,7 +765,7 @@ fn tell(facts: &mut Facts, client: Token, out: &Queue<Request>, mark: u32) {
     let made = usize::try_from(mark).expect("a u32 fits in a usize");
     for request in out.iter().skip(made) {
         let fact = match request {
-            Request::Held { .. } => continue,
+            Request::Held { .. } | Request::Results { .. } | Request::ResultsEnd { .. } => continue,
             Request::Prepared { client, prepared } => {
                 Fact::Prepared { client: *client, prepared: preparation(prepared) }
             }
@@ -788,7 +792,7 @@ fn ending(done: &Done) -> Ending {
         Done::Looked { holds } => Ending::Looked { holds: *holds },
         Done::IsAncestor { contains } => Ending::IsAncestor { contains: *contains },
         Done::Brings { brings } => Ending::Brings { brings: *brings },
-        Done::Succeeded => Ending::Succeeded,
+        Done::Results { .. } | Done::Succeeded => Ending::Succeeded,
         Done::Fetched { commit } => Ending::Fetched { commit: *commit },
         Done::Committed { commit } => Ending::Committed { commit: *commit },
         Done::Unchanged => Ending::Unchanged,
@@ -857,7 +861,8 @@ fn bounded_done(done: Done, limits: &Limits) -> Done {
                 Done::Failed { fault: Fault::Broken }
             }
         }
-        other @ (Done::Succeeded
+        other @ (Done::Results { .. }
+        | Done::Succeeded
         | Done::Fetched { .. }
         | Done::Committed { .. }
         | Done::Unchanged
@@ -916,6 +921,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         | Done::Unchanged
         | Done::Exists
         | Done::Rejected
+        | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
@@ -930,7 +936,8 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         PrepareStep::Store { repository, look } => match done {
             Done::Succeeded => Next::Stores { from: after(repository), look },
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
-            Done::Paths { .. }
+            Done::Results { .. }
+            | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -943,7 +950,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected => unreachable!("store terminals"),
         },
         PrepareStep::Look { repository } => match done {
-            Done::Paths { .. } => unreachable!("a look has its own terminals"),
+            Done::Results { .. } | Done::Paths { .. } => unreachable!("a look has its own terminals"),
             Done::Looked { holds: true } if repository < last => {
                 Next::Step(PrepareStep::Look { repository: after(repository) })
             }
@@ -972,6 +979,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -993,6 +1001,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1016,6 +1025,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1033,6 +1043,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1050,6 +1061,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Committed { .. }
             | Done::Unchanged
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1070,6 +1082,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1086,6 +1099,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             },
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Succeeded
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1104,6 +1118,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             },
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Fetched { .. }
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1119,6 +1134,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             Done::Succeeded => after_replaced_pin(holding, repository, ours, pushed),
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Fetched { .. }
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1140,6 +1156,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             }
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Succeeded
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1181,6 +1198,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1218,6 +1236,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1229,6 +1248,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             Done::Succeeded => fetched_merge_base(holding, repository, ours, base, head),
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Fetched { .. }
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1248,6 +1268,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1277,6 +1298,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Committed { .. }
             | Done::Unchanged
             | Done::Exists
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1300,6 +1322,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Exists
             | Done::Rejected
             | Done::Merged
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1320,6 +1343,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Exists
             | Done::Rejected
             | Done::Merged
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1339,6 +1363,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1360,6 +1385,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1374,6 +1400,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1389,6 +1416,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Unchanged
             | Done::Exists
             | Done::Rejected
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1726,6 +1754,7 @@ fn preparation_detail(holding: &Holding, step: PrepareStep, done: &Done) -> Box<
         | Done::Unchanged
         | Done::Exists
         | Done::Rejected
+        | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
@@ -1856,6 +1885,7 @@ fn prepare_step(
             at: place(workspace, nth(holding, repository)),
             action: crate::git::Reds::Prepare {
                 wait_ms: env.limits.reds_read_ms.checked_add(1_000).expect("bounded wait"),
+                rerun_processes: env.limits.rerun_processes,
             },
         },
         PrepareStep::Candidate { repository, step } => candidate::op(holding, repository, step),
@@ -2210,6 +2240,7 @@ fn pushed(
                 | Done::Exists
                 | Done::Rejected
                 | Done::Merged
+                | Done::Results { .. }
                 | Done::Paths { .. }
                 | Done::Looked { .. }
                 | Done::Brings { .. }
@@ -2270,6 +2301,7 @@ fn committed(holding: &mut Holding, repository: u32, done: Done, to: &To) -> Res
         | Done::Fetched { .. }
         | Done::Exists
         | Done::Rejected
+        | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
@@ -2360,6 +2392,7 @@ fn pushed_to(holding: &mut Holding, to: &To, repository: u32, done: Done) -> Res
         Done::Fetched { .. }
         | Done::Committed { .. }
         | Done::Unchanged
+        | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
@@ -2418,6 +2451,7 @@ fn verified(holding: &mut Holding, to: &To, repository: u32, done: Done, failure
         | Done::Unchanged
         | Done::Exists
         | Done::Rejected
+        | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
@@ -2516,6 +2550,7 @@ const fn damages(done: &Done) -> bool {
         | Done::Unchanged
         | Done::Exists
         | Done::Rejected
+        | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
@@ -2547,6 +2582,7 @@ fn failed_landing(done: Done) -> Landing {
         | Done::Unchanged
         | Done::Exists
         | Done::Rejected
+        | Done::Results { .. }
         | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
@@ -2789,6 +2825,7 @@ pub(crate) fn reds(
     let Some(id) = addressed(&domain.holds, token) else { return };
     let hold = domain.holds.get_mut(id).expect("addressed hold");
     if hold.cut {
+        reds::interrupted(&hold.holding, &action, out);
         return;
     }
     let state = mem::replace(&mut hold.state, State::Closed);

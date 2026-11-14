@@ -1,4 +1,4 @@
-family temper-worker-wire 8
+family temper-worker-wire 9
 
 # Down: the workspace items (protocol/channel.md, 4). Names, branches and
 # the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;
@@ -45,7 +45,12 @@ record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }
 
 # A run's goal-local reds (domain/forge/reds.md, 5.4). Head lengths are checked
 # by the application's translation: SHA-1 or SHA-256.
-enum Ask { reds }
+# Check reports (domain/forge/reds.md, 5.6). Passed and failed keys take
+# Bounds.reds and Bounds.red_key_bytes; flakes take the ceilings on both sides.
+record Flake { key: bytes 512 log: bytes 2048 }
+enum Verdict { passed, refused }
+record CheckResults { tag: u64 check_number: u64 tree: bytes 32 base: option bytes 32 verdict: Verdict passed: list 256 bytes 512 failed: list 256 bytes 512 flakes: list 16 Flake }
+enum Ask { reds, results: CheckResults }
 record Red { key: bytes 512 head: bytes 32 }
 record Reds { reds: list 256 Red }
-enum Answer { reds: Reds }
+enum Answer { reds: Reds, kept }

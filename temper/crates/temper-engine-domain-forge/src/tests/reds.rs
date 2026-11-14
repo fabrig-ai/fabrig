@@ -203,3 +203,55 @@ fn restore_refuses_per_goal_total_and_counter_overflows() {
     assert_eq!(d.restore_fit_failure().unwrap().family, Some(RecordKind::RedNumber));
     assert_eq!(d.red_number, Some(4));
 }
+
+#[test]
+fn observations_keep_latest_named_passes_and_prune_keys_the_goal_no_longer_holds() {
+    let mut d = fresh(&LIMITS);
+    for record in [
+        Stored::Red(red(7, b"X", 3)),
+        Stored::Red(red(7, b"Y", 4)),
+        Stored::RedNumber { last: 5 },
+        Stored::RedPass(RedPass { change: 51, key: b"Y".as_slice().into(), generation: 4 }),
+    ] {
+        outputs(&mut d, Event::Restore { record });
+    }
+    let x = RedPass { change: 51, key: b"X".as_slice().into(), generation: 5 };
+    let mut out = Queue::uncapped();
+    d.observe_reds(51, 7, &[b"X".as_slice().into(), b"Z".as_slice().into()], &[b"Y".as_slice().into()], &mut out);
+    assert_eq!(out.pop(), Some(Request::Save { record: Stored::RedPass(x.clone()), release: None, read_afresh: None }));
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::RedPass { change: 51, key: b"Y".as_slice().into() } }));
+    assert!(out.is_empty());
+    d.observe_reds(51, 7, &[], &[], &mut out);
+    assert!(out.is_empty());
+    assert_eq!(d.red_passes.get(&(51, x.key.clone())), Some(&x));
+    d.observe_reds(51, 7, &[b"Y".as_slice().into()], &[], &mut Queue::uncapped());
+    d.end_red(7, b"Y", &mut Queue::uncapped()).unwrap();
+    d.observe_reds(51, 7, &[], &[], &mut out);
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::RedPass { change: 51, key: b"Y".as_slice().into() } }));
+    assert!(out.is_empty());
+    assert_eq!(d.red_passes(51).count(), 1);
+    d.observe_reds(51, 7, core::slice::from_ref(&x.key), core::slice::from_ref(&x.key), &mut Queue::uncapped());
+    assert_eq!(d.red_passes(51).count(), 0, "a failure wins when both lists name the key");
+}
+#[test]
+fn red_pass_restore_keeps_rows_and_refuses_per_change_and_total_overflows() {
+    for same_change in [true, false] {
+        let limits = Limits { branch_reds: 2, changes: if same_change { 2 } else { 1 }, ..LIMITS };
+        let mut d = domain_with_limits(&limits);
+        d.restore_begin(Wall::EPOCH);
+        let first = RedPass { change: u64::MAX, key: b"a".as_slice().into(), generation: 5 };
+        for row in [first.clone(), first.clone(), RedPass { key: b"b".as_slice().into(), ..first.clone() }] {
+            step(&mut d, &env().with(limits), Event::Restore { record: Stored::RedPass(row) }, &mut Queue::uncapped());
+        }
+        assert_eq!(d.restore_fit_failure(), None);
+        assert_eq!(d.red_passes(u64::MAX).count(), 2);
+        assert_eq!(d.red_passes.get(&(first.change, first.key.clone())), Some(&first));
+        let third =
+            RedPass { change: if same_change { u64::MAX } else { 50 }, key: b"c".as_slice().into(), generation: 6 };
+        step(&mut d, &env().with(limits), Event::Restore { record: Stored::RedPass(third) }, &mut Queue::uncapped());
+        let failure = d.restore_fit_failure().unwrap();
+        assert_eq!(failure.family, Some(RecordKind::RedPass));
+        assert_eq!((failure.held, failure.additional, failure.limit), (2, 1, 2));
+        assert_eq!(d.red_passes.len(), 2);
+    }
+}

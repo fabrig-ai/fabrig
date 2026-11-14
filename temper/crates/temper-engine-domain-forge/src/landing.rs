@@ -4003,6 +4003,11 @@ pub(crate) fn closing(
                     change.change.state = change::State::Ready { head, ready_since };
                 }
                 let mut changed = change.clone();
+                if crate::domain::landed_commit(&prior.state).is_none()
+                    && crate::domain::landed_commit(&changed.change.state).is_some()
+                {
+                    crate::domain::reds::landed(d, &env.limits, &changed, out);
+                }
                 crate::change_history::advanced(d, env.wall, &mut changed, &prior, out);
                 d.changes.insert(member.change, changed.clone()).expect("retained member");
                 emit(

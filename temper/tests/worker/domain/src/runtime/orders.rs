@@ -132,6 +132,7 @@ impl Driver {
                     request @ (Request::ReadList { .. }
                     | Request::CancelRead { .. }
                     | Request::Source { .. }
+                    | Request::ResultsIgnored { .. }
                     | Request::RedsAsk { .. }
                     | Request::RedsAnswer { .. }
                     | Request::SourceFault

@@ -277,6 +277,7 @@ pub(crate) struct Workspace {
     roots: Box<[Root]>,
     conflicts: Box<[checkout::Conflicts]>,
     state: State,
+    report_write: Option<(Token, Write)>,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -345,6 +346,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, owner: Token, work
         roots: roots.into_boxed(),
         conflicts: Box::new([]),
         state: preparing,
+        report_write: None,
     };
     let id = domain.workspaces.insert(record).expect("a workspace for every slot");
     let fresh = domain.preparing.insert(owner, id).expect("a prepare for every slot");
@@ -394,6 +396,13 @@ pub(crate) fn cut(domain: &mut Domain, env: &Env<Limits>, owner: Token) {
 /// The host's push or save, the host's `owner`, of `workspace`.
 pub(crate) fn write(domain: &mut Domain, env: &Env<Limits>, owner: Token, workspace: Token, write: Write) {
     let id = Id::<Workspace>::from_token(workspace);
+    let run = domain.workspaces.get(id).expect("prepared workspace").run;
+    if crate::reds::busy(domain, run) {
+        let record = domain.workspaces.get_mut(id).expect("prepared workspace");
+        assert!(record.report_write.is_none(), "one write at a time");
+        record.report_write = Some((owner, write));
+        return;
+    }
     let record = domain.workspaces.get_mut(id).expect("a workspace lives until it is released");
     let mut then = Then::NOTHING;
     let state = mem::replace(&mut record.state, State::Closed);
@@ -817,8 +826,32 @@ pub(crate) fn job_run(domain: &Domain, workspace: Token) -> (Token, Token) {
     (hosting.run, hosting.attempt)
 }
 
+/// Resume a delivery once the check's reports have been sent.
+pub(crate) fn reports_sent(domain: &mut Domain, env: &Env<Limits>, owner: Token) {
+    let mut workspace = None;
+    for (id, record) in &domain.workspaces {
+        if record.run == owner {
+            workspace = Some(id);
+            break;
+        }
+    }
+    if let Some(id) = workspace
+        && let Some((writer, request)) = domain.workspaces.get_mut(id).expect("live workspace").report_write.take()
+    {
+        write(domain, env, writer, id.token(), request);
+    }
+}
+pub(crate) fn report_repository(domain: &Domain, client: Token, repository: u32) -> Option<(Token, u64)> {
+    let workspace = domain.workspaces.get(Id::from_token(client))?;
+    let items = domain.items.get(&workspace.items)?;
+    Some((workspace.run, *items.tags.get(usize::try_from(repository).ok()?)?))
+}
+pub(crate) fn report_owner(domain: &Domain, client: Token) -> Option<Token> {
+    Some(domain.workspaces.get(Id::from_token(client))?.run)
+}
+
 /// A check covers every writable repository of its prepared hold.
-pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, owner: Token, action: checkout::git::Reds) {
+pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, owner: Token, action: checkout::git::Reds) -> bool {
     let mut hold = None;
     for (_, workspace) in &domain.workspaces {
         if workspace.run == owner {
@@ -830,6 +863,9 @@ pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, owner: Token, action:
     }
     if let Some(hold) = hold {
         route::checkout_step(domain, env, checkout::Event::Reds { hold, action });
+        true
+    } else {
+        false
     }
 }
 
