@@ -11,7 +11,7 @@ const AT: Position = Position { line: 1, column: 1 };
 const COMPONENTS: &[&[u8]] = &[b"contrib", b"main", b"non-free", b"non-free-firmware"];
 /// Check a composed Debian object. Its components have already been merged
 /// over `{"main": true}`, so a deleted main is distinguishable from omission.
-pub fn debian(debian: Option<&Composed>, document: u32, faults: &mut List<Fault>) -> Option<Evaluated> {
+pub(crate) fn debian(debian: Option<&Composed>, document: u32, faults: &mut List<Fault>) -> Option<Evaluated> {
     let Some(debian) = debian else {
         fault(
             faults,

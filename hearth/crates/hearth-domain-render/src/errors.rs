@@ -565,3 +565,19 @@ pub enum Why {
 
 mod reserved;
 pub use reserved::{Reserved, Rule};
+
+pub(crate) fn target_limit(target: &[u8], task: Option<&[u8]>) -> Error {
+    let mut scope = None;
+    if let Some(task) = task {
+        scope = Some(skein_lib::bytes::copy_of(task));
+    }
+    Error {
+        side: None,
+        kind: Kind::Evaluation(crate::evaluate::FaultKind::Limit),
+        class: Class::Configuration,
+        at: None,
+        also: None,
+        target: Some(skein_lib::bytes::copy_of(target)),
+        task: scope,
+    }
+}

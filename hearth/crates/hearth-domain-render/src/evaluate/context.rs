@@ -92,7 +92,7 @@ fn placement(value: &Placement) -> Value {
     Value::Map(placement.into_boxed())
 }
 #[must_use]
-pub fn target(meta: &Meta, containers: &[crate::compose::Container]) -> Value {
+pub(crate) fn target(meta: &Meta, containers: &[crate::compose::Container]) -> Value {
     let mut entries = List::with_capacity(u32::try_from(containers.len()).expect("target count"));
     for container in containers {
         entries.push(entry(&container.name, Some(placement(&container.placement)))).expect("target count");
@@ -114,7 +114,7 @@ use alloc::boxed::Box;
 
 /// One task's owned context roots (hearth/docs/design/protocol/format/templates.md, 7).
 #[derive(Debug, Hash)]
-pub struct Roots {
+pub(crate) struct Roots {
     pub target: Value,
     pub debian: Value,
     pub settings: Value,
