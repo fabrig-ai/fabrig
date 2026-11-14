@@ -523,9 +523,7 @@ class BinaryProcess:
             if not words:
                 continue
             output = segment[:words[-1].start()].decode('utf-8', 'backslashreplace')
-            lines = output.rstrip().splitlines()
-            starved = bool(lines and lines[-1].startswith('skein-world: starved:'))
-            outcome = 'starved' if starved else 'passed' if result == b'ok' else 'failed'
+            outcome = 'passed' if result == b'ok' else 'failed'
             self.finish(name, outcome, max(0.0, ended_at - announced_at), output,
                         [entry[0] for entry in self.announcements[:offset]])
 
@@ -558,9 +556,11 @@ class BinaryProcess:
                 continue
             if name not in self.done:
                 end = self.announcements[offset + 1][1] if offset + 1 < len(self.announcements) else len(self.output)
-                self.finish(name, 'cancelled' if self.cancelled_at is not None else 'crashed',
-                            max(0.0, self.reaped_at - announced_at),
-                            bytes(self.output[start:end]).decode('utf-8', 'backslashreplace'), announced[:offset])
+                output = bytes(self.output[start:end]).decode('utf-8', 'backslashreplace')
+                lines = output.rstrip().splitlines()
+                starved = code == 0 and name not in self.logs and bool(lines and lines[-1].startswith('skein-world: starved:'))
+                outcome = 'cancelled' if self.cancelled_at is not None else 'starved' if starved else 'crashed'
+                self.finish(name, outcome, max(0.0, self.reaped_at - announced_at), output, announced[:offset])
         unannounced = [test for test in self.job['tests'] if test['name'] not in announced]
         fresh = []
         if self.cancelled_at is None:
@@ -568,13 +568,13 @@ class BinaryProcess:
                 for test in unannounced:
                     self.finish(test['name'], 'crashed', self.reaped_at - self.start,
                                 bytes(self.output).decode('utf-8', 'backslashreplace'), [])
-            elif unannounced and any(t['outcome'] == 'crashed' for t in self.done.values()):
+            elif unannounced and any(t['outcome'] in ('crashed', 'starved') for t in self.done.values()):
                 fresh = unannounced
             else:
                 for test in unannounced:
                     self.finish(test['name'], 'crashed', 0.0, 'not run by its binary', [])
             expected = 101 if any(value[0] == b'failed' for value in self.logs.values()) else 0
-            if announced and not fresh and code != expected and all(t['outcome'] not in ('crashed', 'cancelled') for t in self.done.values()):
+            if announced and not fresh and code != expected and all(t['outcome'] not in ('crashed', 'cancelled', 'starved') for t in self.done.values()):
                 last = self.done[announced[-1]]
                 self.finish(last['test_name'], 'crashed', last['wall_s'],
                             (last['output'] or '') + f'\nprocess ended with status {code}', announced[:-1])
