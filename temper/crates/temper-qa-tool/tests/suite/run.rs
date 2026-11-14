@@ -3,7 +3,7 @@ use super::world::{Agent, Agents, Clock, Git, World, baseline, id, land};
 use std::fs;
 use temper_qa_tool::{
     Answer, BuildState, Exit, Ledger,
-    faces::{Commit, Signal, parse_commits, trailers},
+    faces::{Changed, Commit, Signal, parse_commits, trailers},
     runner::{Run, parse_tokens},
     watch::{parse_landing, watch},
 };
@@ -143,7 +143,12 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     ] {
         run.git.file_at(2, path, bytes);
     }
-    run.git.nodes.get_mut(&id(2)).expect("merge").paths.push("temper/docs/design/draft/other.status.md".into());
+    let node = run.git.nodes.get_mut(&id(2)).expect("merge");
+    node.paths.push("temper/docs/design/draft/other.status.md".into());
+    node.stat = [("x/golden/3", 10, 0), ("a/src/lib.rs", 3, 1), ("x/golden/1", 10, 0), ("x/golden/2", 10, 0)]
+        .into_iter()
+        .map(|(path, added, deleted)| Changed { path: path.into(), added: Some(added), deleted: Some(deleted) })
+        .collect();
     run.tick();
     let ledger = world.ledger();
     assert_eq!(ledger.sessions.len(), 1);
@@ -189,7 +194,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
         "goal 7",
         "Goal 7's title",
         "temper/docs/design/draft/x.md",
-        "1 insertion(+)",
+        "## Diff\n\na/src/lib.rs | +3 -1\nx/golden/ | 3 files, +30 -0\n4 files changed, +33 -1\n\nWhole diff:",
         "sessions/1/diff.patch",
         "QA: Work lists drafts",
         "web: chat",

@@ -10,7 +10,7 @@ use std::{
 use temper_qa_tool::{
     Exit, Home, Ledger, Refusal,
     faces::{
-        ClockFace, CommandAnswer, Commit, Entry, Environment, GitFace, Moment, ProcessCommand, Processes,
+        Changed, ClockFace, CommandAnswer, Commit, Entry, Environment, GitFace, Moment, ProcessCommand, Processes,
         RealProcesses, Signal,
     },
     runner::Run,
@@ -25,6 +25,7 @@ pub struct Node {
     pub message: String,
     pub files: BTreeMap<String, Vec<u8>>,
     pub paths: Vec<String>,
+    pub stat: Vec<Changed>,
 }
 #[derive(Default)]
 pub struct Git {
@@ -130,9 +131,9 @@ impl GitFace for Git {
         assert_eq!(parent, format!("{commit}^1"));
         Ok(b"diff --git a/page b/page\n+new page\n".into())
     }
-    fn stat(&mut self, parent: &str, commit: &str) -> Result<String, Refusal> {
+    fn stat(&mut self, parent: &str, commit: &str) -> Result<Vec<Changed>, Refusal> {
         assert_eq!(parent, format!("{commit}^1"));
-        Ok(" page | 1 +\n 1 file changed, 1 insertion(+)\n".into())
+        Ok(self.node(commit).stat.clone())
     }
     fn changed_paths(&mut self, parent: &str, commit: &str) -> Result<Vec<String>, Refusal> {
         assert_eq!(parent, format!("{commit}^1"));
