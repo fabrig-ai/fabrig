@@ -44,6 +44,7 @@ pub enum RecordKind {
     LandedDraft,
     Red,
     RedNumber,
+    RedPass,
     HistoryProject,
 }
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
@@ -64,6 +65,7 @@ pub struct MissingLink {
 pub fn capacity(l: &Limits) -> Option<u32> {
     l.branch_reds
         .checked_mul(l.holds)? // Red: goal.
+        .checked_add(l.branch_reds.checked_mul(l.changes)?)? // RedPass: change task.
         .checked_add(l.named_calls)? // Call: task.
         .checked_add(l.tasks.checked_mul(2)?)? // ProposedEffect: repository and task.
         .checked_add(l.repositories)? // Repository: forge.

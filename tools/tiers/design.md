@@ -1262,6 +1262,24 @@ Under `.temper/pre-pr`, which takes the hold itself and removes the setting,
 it takes none. `run` (11.1) and `execute_one_process` (10.2), called as a
 library, take none: the hold is the outermost entry point's.
 
+**A process again.** `tools/tiers/one-process --again RUN_DIR [--out DIR]
+BINARY_ID NAME...` runs one process of a finished run's binary again, for a
+caller telling a failure under load from a real one
+(`tools/pre-pr/design.md`, 4). It reads `RUN_DIR/plan.json` (11.4), takes
+the binary whose `binary_id` is `BINARY_ID`, with its path, `cwd` and
+environment as the plan holds them, and runs the names, each one of that
+binary's selected tests, in one process as 11.4 starts one: one lane, no
+split, no alone diagnostic, the plan's `global-timeout`, behind
+`TIERS_WRAPPER` as above. It lists and builds nothing: the executable is
+the one the run used, so it must still be there, which a caller's hold
+keeps. It writes `DIR`'s `plan.json`, `run.json`, `results.json`,
+`junit.xml` and `command-output.txt` as a run does (11.8), and no kept
+times; `DIR` defaults as above and is printed first. It exits 0 when every
+name passed, 100 when one did not, and 2 for an invalid invocation or run:
+no `plan.json` in `RUN_DIR`, no such binary, a name not among its selected
+tests or given twice, no names, or a `DIR` not fresh. The hold is as
+above: taken with `TIERS_HOLD` set, none under `.temper/pre-pr`.
+
 ### 11.10 Offline proof
 
 `python3 -I -B tools/tiers/test_one_process.py`, run directly as 7.4's suite
@@ -1283,6 +1301,10 @@ hold among them records when it starts and when its stdin ends, beside the
 fake `cargo`'s calls: one hold, started before the first cargo command and
 ended after the last test's process; none with the setting unset or empty;
 and a hold that exits before its line leaves the warning and a run that
-goes on.
+goes on. `--again`, from a fixture run's directory: its names run in one
+process, in order, with the plan's environment and no cargo command; a
+pass exits 0 and a failure 100, with the run directory's files and no kept
+times; a binary or a name the plan doesn't select, no names and no plan
+exit 2.
 `test_cpu.py` covers `summary`'s reading of a one-process directory, a forced
 kill's included, and the exit statuses.

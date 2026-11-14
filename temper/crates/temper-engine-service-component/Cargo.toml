@@ -50,6 +50,7 @@ temper-protocol-worker-wire.workspace = true
 temper-service-core.workspace = true
 
 [dev-dependencies]
+temper-engine-domain-forge-change.workspace = true
 jig-protocol-worker-link.workspace = true
 temper-worker-service.workspace = true
 temper-worker-domain.workspace = true

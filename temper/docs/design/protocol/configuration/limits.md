@@ -83,10 +83,16 @@
   `forge.branch_reds` keys of `forge.red_key_bytes` with their heads,
   stays far within the channel's frame (`../../domain/forge/reds.md`,
   5.4). The forge's families hold `forge.branch_reds` times
-  `forge.holds`. `checkout.reds_read_ms`, how long the worker waits for
-  the engine's answer at a check's start, 5,000 in both, from 100 to
-  60,000 (`../../domain/forge/reds.md`, 5.3): the worker's, since the
-  worker waits, though the draft names it among the forge's.
+  `forge.holds` reds and `forge.branch_reds` times `forge.changes` passes
+  (`../../domain/forge/reds.md`, 6). `checkout.reds_read_ms`, how long
+  the worker waits for the engine's answer at a check's start, 5,000 in
+  both, from 100 to 60,000 (`../../domain/forge/reds.md`, 5.3): the
+  worker's, since the worker waits, though the draft names it among the
+  forge's. `checkout.rerun_processes`, the most failing tests' processes
+  a check runs again after its run, which the worker writes to
+  `temper/rerun`, 4 in both, from 0 to 16, 16 a report's most flakes
+  (`../../domain/forge/reds.md`, 5.2 and 5.6): the worker's too, for the
+  same reason.
 - **A project's landing history:** `forge.history_days`, 14 in both
   profiles, from 1 to 3,650, the days a change's events stay after its
   last; and `forge.history_events`, 131,072 in both, at least 1, the

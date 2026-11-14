@@ -91,6 +91,7 @@ fn collect(
             other @ (Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
+            | Request::ResultsIgnored { .. }
             | Request::RedsAsk { .. }
             | Request::RedsAnswer { .. }
             | Request::SourceFault

@@ -17,7 +17,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path)
     parser.add_argument('--budgets', type=Path)
-    parser.add_argument('profile')
+    parser.add_argument('--again', type=Path, metavar='RUN_DIR')
+    parser.add_argument('profile', help='profile, or BINARY_ID with --again')
     parser.add_argument('arguments', nargs=argparse.REMAINDER)
     args = parser.parse_args()
     runner = runpy.run_path(str(Path(__file__).with_name('run')))
@@ -30,6 +31,20 @@ def main():
 
         signal.signal(signal.SIGTERM, interrupt)
         signal.signal(signal.SIGHUP, interrupt)
+        if args.again is not None:
+            if args.budgets is not None:
+                raise ValueError('--budgets is not supported with --again')
+            one = runpy.run_path(str(Path(__file__).with_name('one_process.py')))
+            plan = one['again_plan'](args.again, args.profile, args.arguments)
+            directory = args.out
+            if directory is None:
+                stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
+                directory = Path(plan['times_path']).parent / 'runs' / f'{stamp}-{os.getpid()}'
+            if directory.exists():
+                raise ValueError('again run directory must be fresh')
+            print(directory, flush=True)
+            with runner['hold'](prefix, 'one-process', Path.cwd(), env):
+                return one['again'](plan, runner['command_prefix'](env), env, directory)
         with runner['hold'](prefix, 'one-process', Path.cwd(), env):
             limits = cpu['budgets'](args.budgets) if args.budgets else {}
             directory = args.out

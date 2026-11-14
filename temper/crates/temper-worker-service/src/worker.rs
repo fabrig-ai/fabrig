@@ -772,6 +772,9 @@ impl Worker {
     }
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::ResultsIgnored { owner, tag, reason } => {
+                self.notes.push(crate::worker_alone::Note::ResultsIgnored { owner: owner.raw(), tag, reason });
+            }
             root::Request::RedsAsk { owner, check, ask } => {
                 let bytes = translate::ask(ask);
                 root::step(&mut self.root, &self.env, root::Event::RedsAsk { owner, check, bytes }, &mut self.out);

@@ -125,7 +125,8 @@ impl Harness {
             Request::Io { owner, .. } => {
                 return self.owed.push(Event::Done { owner: *owner, done: Done::Failed { fault: Fault::Unreachable } });
             }
-            Request::RedsAsk { .. }
+            Request::ResultsIgnored { .. }
+            | Request::RedsAsk { .. }
             | Request::RedsAnswer { .. }
             | Request::Source { .. }
             | Request::ReadList { .. }

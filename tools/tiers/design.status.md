@@ -4,6 +4,7 @@
 
 - **Not yet:** 10.2, 11.5, 11.6, 11.10: a starved pass in a one-process run unwinds (`skein_world::pass_starved`), libtest reports it failed, and the lanes read it starved by its last line whatever libtest's result, so a failure whose output ends with the line reads starved; a process a starved pass ends with exit 0 reads as a crash, and only a crash starts a fresh process; the fixture's starved case unwinds with `resume_unwind` [in flight: change 2711].
 - **Not yet:** 3, 11.9, 11.10: no entry point reads `TIERS_HOLD`: one-process by hand takes no hold, so the executables its listing built run after cargo has exited with nothing holding their build directory, and its suite has no fake hold [in flight: change 1023].
+- **Not yet:** 11.9, *A process again*, and 11.10's `--again` cases: `tools/tiers/one-process` takes no `--again` [in flight: change 2815].
 
 Section 7.3 has no known gap in the gate entries: Skein's `default` is
 `cpu_suite_s` alone at 40, with the header's Skein line naming the user's
