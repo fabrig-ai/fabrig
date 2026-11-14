@@ -38,6 +38,10 @@ const EXCEPTIONS: &[Exception] = &[
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1); G2 moves only generated record code",
     },
     Exception {
+        what: "temper-protocol-store",
+        until: "the store change that moves its generated patches/mod.rs out of the library, not yet planned",
+    },
+    Exception {
         what: "temper-client-tools",
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",
     },
