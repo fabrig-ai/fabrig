@@ -185,7 +185,6 @@ temper/crates/temper-docs/src/tests/paging_search.rs should_panic 1
 temper/crates/temper-engine-domain-forge/src/tests/restore_fit.rs should_panic 1
 temper/crates/temper-engine-domain/src/tests/resume.rs should_panic 1
 temper/crates/temper-engine-service-vocabulary/src/tests/store_route.rs should_panic 2
-temper/crates/temper-fake-git/src/tests.rs catch_unwind 1
 temper/crates/temper-service/src/tests/members.rs should_panic 1
 temper/testing/temper-box-kit/src/forge_land.rs catch_unwind 2
 temper/testing/temper-box-kit/src/github.rs catch_unwind 2
@@ -193,8 +192,6 @@ temper/testing/temper-box-kit/src/lib.rs catch_unwind 1
 temper/testing/temper-box-kit/src/live_github.rs catch_unwind 3
 temper/testing/temper-box-kit/src/live_github.rs resume_unwind 2
 temper/testing/temper-fixtures/src/ports/tests.rs should_panic 1
-temper/tests/client-browser/src/story.rs catch_unwind 1
-temper/tests/client-browser/src/story.rs should_panic 2
 temper/tests/client/tests/suite/fuzzy/density.rs catch_unwind 2
 temper/tests/client/tests/suite/fuzzy/how.rs catch_unwind 3
 temper/tests/client/tests/suite/fuzzy/public_address.rs catch_unwind 3
@@ -205,8 +202,6 @@ temper/tests/codecs/tests/suite/fuzzy/public_wire.rs catch_unwind 4
 temper/tests/engine/domain/src/oracle.rs should_panic 2
 temper/tests/engine/domain/src/walking.rs should_panic 1
 temper/tests/engine/domain/tests/suite/oracle.rs should_panic 2
-temper/tests/engine/domain/tests/suite/preparation.rs catch_unwind 1
-temper/tests/engine/domain/tests/suite/walking.rs catch_unwind 1
 temper/tests/one-process/src/m15/observer.rs should_panic 1
 temper/tests/one-process/src/public.rs catch_unwind 1
 temper/tests/one-process/src/referee/durable/tests.rs catch_unwind 1
