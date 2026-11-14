@@ -9,6 +9,3 @@ are present, including `ENOTTY` on descriptors without a window.
   `HardLink`, and of the filesystem (../runtime/kernel.md, 6.4 and 6.5),
   their disk faults, and what a power loss keeps of them. 3.4: cgroups,
   contained spawn and their faults.
-- **Not yet:** 5, 6: the checks' returning forms; the simulator panics
-  where each check finds what broke, and its tests of each broken
-  invariant trigger that panic, `#[should_panic]`. [in flight: change 3125]
