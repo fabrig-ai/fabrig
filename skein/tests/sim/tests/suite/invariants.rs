@@ -221,15 +221,13 @@ fn quiescence_with_a_descriptor_open() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_failure_names_the_seed_and_the_trace() {
-    let result = std::panic::catch_unwind(|| {
-        let mut world = World::new(77, skein_sim::Config::calm());
-        let pid = world.spawn();
-        world.submit(pid, Op::Close { fd: Fd::new(3) });
-    });
-    let payload = result.unwrap_err();
-    let message = payload.downcast_ref::<String>().unwrap();
+fn a_report_names_the_time_finding_seed_and_trace() {
+    let mut world = World::new(77, skein_sim::Config::calm());
+    let pid = world.spawn();
+    let fd = world.socket(pid);
+    world.close(pid, fd);
+    let message = world.sim.report("a finding");
+    assert!(message.contains(&format!("skein-sim at {} ns, a finding", world.sim.now().as_nanos())), "{message}");
     assert!(message.contains("seed 77"), "{message}");
     assert!(message.contains("Close"), "{message}");
 }

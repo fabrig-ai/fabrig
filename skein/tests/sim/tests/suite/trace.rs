@@ -75,16 +75,10 @@ fn the_trace_setting_changes_no_completion() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_failure_with_its_trace_off_says_so_and_names_the_seed() {
-    let result = std::panic::catch_unwind(|| {
-        let mut world = World::new(SEED, Config { trace: Trace::Off, ..Config::calm() });
-        let pid = world.spawn();
-        world.socket(pid);
-        world.sim.assert_no_open_fds(pid);
-    });
-    let payload = result.expect_err("an open descriptor fails the invariant");
-    let message = payload.downcast_ref::<String>().expect("the simulator's failure message");
-    assert!(message.contains("seed 77"), "{message}");
-    assert!(message.contains("trace is off"), "{message}");
+fn a_report_with_its_trace_off_says_so_and_names_the_seed() {
+    let mut world = World::new(SEED, Config { trace: Trace::Off, ..Config::calm() });
+    let pid = world.spawn();
+    world.socket(pid);
+    let message = world.sim.report("a finding");
+    assert!(message.contains("skein-sim seed 77: trace is off"), "{message}");
 }
