@@ -29,4 +29,6 @@ disallowed-methods = [
     { path = "std::env::remove_var", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)" },
     { path = "skein_shell::arguments", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)", allow-invalid = true },
     { path = "skein_shell::environment", reason = "a binary's crate reads its process's arguments and environment once, through its table (skein/docs/foundation/cli.md, 6)", allow-invalid = true },
+    { path = "std::panic::catch_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
+    { path = "std::panic::resume_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
 ]
