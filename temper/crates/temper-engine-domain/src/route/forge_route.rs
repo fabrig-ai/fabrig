@@ -5035,9 +5035,9 @@ pub(crate) fn outputs(
                         domain.work.push(Work::Forge(step));
                     }
                 }
-                // Due connector procedures refresh their own pending work.
-                // Landings also need a wake after the offered decision settles.
-                if domain.core.tasks.procedure_due(task).is_none() || domain.forge.landing(task).is_some() {
+                // A due change refreshes its own coherent gather. Other
+                // procedures retain changed facts through their pending step.
+                if domain.forge.change(task).is_none() || domain.core.tasks.procedure_due(task).is_none() {
                     domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
                 }
             }
