@@ -1795,3 +1795,107 @@ fn a_busy_landing_read_retries_before_the_hearing_fallback() {
     }
     assert_eq!(until, Some(expected), "client room can return before the repository fallback");
 }
+
+/// A successor reads the key's run even after its dispatcher ends (domain/landing.md, 6 and 7).
+#[test]
+fn a_waiting_landing_reads_and_takes_a_departed_landings_run() {
+    use skein_forge::api::{Answer, Op, Read};
+    const KEY: policy::Key = [7; 32];
+    let mut d = connected_member_landing();
+    let after = d.after_landing(5).expect("project");
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([RepositoryGates {
+            repository: REPO,
+            gates: Box::new([policy::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+            }]),
+            tiers: Box::new([])
+        }]),
+        policy::Project::DEFAULT,
+        after
+    ));
+    d.landing.rows.get_mut(&61).expect("dispatcher").landing.members[0].gates = Box::new([policy::GateProof {
+        proof: policy::Proof::Keyed { key: KEY },
+        posted: policy::Posted::Nothing,
+        faults: 0,
+    }]);
+    let mut successor = d.landing.rows.get(&61).expect("dispatcher").clone();
+    successor.landing.task = 62;
+    d.landing.rows.insert(62, successor).expect("successor row");
+    d.landing.rows.get_mut(&61).expect("dispatcher").landing.phase = policy::Phase::Landed;
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    let key = ReceiptKey { project: 5, repository: REPO, check: Check::Gate(b"gate".as_slice().into()), key: KEY };
+    d.landing.main_keys.insert((REPO, b"gate".as_slice().into()), (fixtures::BASE, KEY)).expect("main key");
+    let mut flight = runs::follow();
+    flight.commit = fixtures::HEAD;
+    d.landing.flights.insert(key.clone(), flight).expect("shared flight");
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 62,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+    );
+    let run = skein_forge::api::Run {
+        id: 7,
+        number: 8,
+        workflow: b"gate.yml".as_slice().into(),
+        commit: fixtures::HEAD,
+        event: skein_forge::api::Event::Dispatch,
+        actor: *d.writers.get(&REPO.forge).expect("writer"),
+        state: skein_forge::api::RunState::Completed,
+        conclusion: Some(skein_forge::api::Conclusion::Success),
+        url: b"https://forge/run/7".as_slice().into(),
+        created: Time::from_nanos(20),
+        jobs: Box::new([]),
+    };
+    let mut taken = false;
+    for _ in 0..7_u32 {
+        let (call, op) = fixtures::next_call(&mut d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) => {
+                Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { fixtures::HEAD })
+            }
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Pull { .. }) => Answer::Pull(fixtures::open_pull()),
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Runs { commit, .. }) => {
+                assert_eq!(commit, fixtures::HEAD);
+                Answer::Runs { runs: Box::new([run.clone()]), more: false }
+            }
+            Op::Read(Read::Run { run: id }) => {
+                assert_eq!(id, run.id);
+                taken = true;
+                Answer::Run(run.clone())
+            }
+            Op::Read(_) | Op::Write(_) => panic!("unexpected read {op:?}"),
+        };
+        fixtures::answer(&mut d, call, Ok(answer));
+        if taken {
+            break;
+        }
+    }
+    assert!(taken, "a waiter follows the shared flight");
+    let receipt = d.receipt(&key).expect("receipt shared by key");
+    assert!(receipt.passed);
+    assert_eq!((receipt.candidate, receipt.run.id), (fixtures::HEAD, run.id));
+    assert!(!d.landing.flights.contains_key(&key));
+}

@@ -1322,7 +1322,12 @@ fn advance(
         }
         Stage::Run { key, pages } => {
             let writer = d.writers.get(&key.repository.forge).copied().unwrap_or(0);
-            let flight = d.landing.flights.get_mut(&key).expect("in-flight read");
+            // Another landing can have completed this key while this read was in flight.
+            let Some(flight) = d.landing.flights.get_mut(&key) else {
+                p.stage = Stage::Collect;
+                collect(d, env, owner, p, out);
+                return;
+            };
             let previous_run = match &flight.run {
                 Some(run) => Some(run.id),
                 None => None,
@@ -1345,8 +1350,9 @@ fn advance(
                 },
                 None => None,
             };
-            for entry in &row.entries {
-                if entry.entry == flight.entry {
+            let dispatching = d.landing.rows.get(&flight.task).expect("dispatching landing").clone();
+            for entry in &dispatching.entries {
+                if flight.task == p.task && entry.entry == flight.entry {
                     let member = row.landing.members.get(usize::from(entry.member)).expect("flight member");
                     let fresh = p.facts.get(usize::from(entry.member)).expect("fresh flight member");
                     if member.head != Some(fresh.head) {
@@ -1354,9 +1360,9 @@ fn advance(
                     }
                 }
             }
-            let mut observed = row.clone();
+            let mut observed = dispatching.clone();
             crate::landing_proofs::run(d, env, &mut observed, &flight, verdict, out);
-            if observed.entries != row.entries {
+            if observed.entries != dispatching.entries {
                 save(d, observed, out);
             }
             if previous_run != current_run {
@@ -1386,11 +1392,11 @@ fn advance(
                         let mut position = None;
                         if let Some(crate::purpose::EffectPurpose::Landing { member, gate, preparation, .. }) =
                             crate::purpose::EffectPurpose::decode(&purpose)
-                            && preparation == row.landing.preparation
-                            && row.landing.members.get(usize::from(member)).expect("flight member").candidate
+                            && preparation == dispatching.landing.preparation
+                            && dispatching.landing.members.get(usize::from(member)).expect("flight member").candidate
                                 == Some(candidate)
                         {
-                            position = Some((p.task, member, gate));
+                            position = Some((flight.task, member, gate));
                         }
                         if let Some(position) = position {
                             if let Some(flight) = d.landing.flights.remove(&key) {
@@ -1399,6 +1405,7 @@ fn advance(
                         } else {
                             finish_flight(d, &key, out);
                         }
+                        mark_key(d, &key, out);
                     }
                     policy::Verdict::Running => {}
                 }
@@ -1977,6 +1984,28 @@ fn squash_head(message: &[u8], head: api::Commit) -> bool {
     crate::member_message::names_head(message, head)
 }
 
+/// A receipt is shared by project, repository, gate and filtered tree, independent
+/// of the landing that dispatched it (domain/landing.md, 6 and 7).
+fn reads_key(d: &Domain, row: &LandingRow, key: &ReceiptKey) -> bool {
+    if row.landing.project != key.project {
+        return false;
+    }
+    for member in &row.landing.members {
+        if repository(member) != key.repository {
+            continue;
+        }
+        for (index, proof) in member.gates.iter().enumerate() {
+            if proof_key(proof.proof) == Some(key.key)
+                && let Some(gate) = d.train_gates(row, key.repository).get(index)
+                && key.check == Check::Gate(gate.name.clone())
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {
     let row = d.landing.rows.get(&p.task).expect("pending landing");
     for (index, member) in row.landing.members.iter().enumerate() {
@@ -2002,7 +2031,7 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
         }
     }
     for (key, flight) in &d.landing.flights {
-        if flight.task != p.task || p.polled.as_slice().contains(key) {
+        if (flight.task != p.task && !reads_key(d, row, key)) || p.polled.as_slice().contains(key) {
             continue;
         }
         let mut pending_status = false;
