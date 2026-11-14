@@ -1,7 +1,7 @@
 //! The written job reads both roots of the kept settings text (protocol/store/jobs.md, 4).
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust codec contract tests")]
 use super::{fixtures, settings};
-use crate::{JobLayout, JobPage, JobRow, JobWrite, codec, jobs, settings_v3 as wire};
+use crate::{JobEdge, JobLayout, JobPage, JobRow, JobWrite, codec, jobs, settings_v3 as wire};
 use jig_domain_core_vocabulary::{self as core, settings as s};
 use skein_lib::{Reader, Writer};
 
@@ -53,6 +53,7 @@ fn charter_versions_job_puts_both_kept_forms_as_one_root_on_every_page() {
             rows: records.iter().map(|r| JobRow { key: key(r), value: old(r) }).collect(),
             end: false,
             layout: Some(layout()),
+            edge: JobEdge { writes: 2, bytes: fixtures::store_limits().store.commit },
         };
         // Layout heads are not family versions.
         page.rows[0].value[..2].copy_from_slice(&99_u16.to_be_bytes());
@@ -78,6 +79,7 @@ fn charter_versions_job_refuses_neither_form_naming_the_key() {
             rows: Box::new([JobRow { key: key.clone(), value: bytes.into() }]),
             end: false,
             layout: Some(layout()),
+            edge: JobEdge { writes: 2, bytes: fixtures::store_limits().store.commit },
         };
         let refused = jobs::page("charter-versions", &page).unwrap_err();
         assert_eq!(refused.key, Some(key));
@@ -86,7 +88,7 @@ fn charter_versions_job_refuses_neither_form_naming_the_key() {
 }
 #[test]
 fn charter_versions_end_is_empty_and_unknown_jobs_are_refused() {
-    let page = JobPage { rows: Box::new([]), end: true, layout: None };
+    let page = JobPage { rows: Box::new([]), end: true, layout: None, edge: JobEdge { writes: 0, bytes: 0 } };
     let answer = jobs::page("charter-versions", &page).unwrap();
     assert!(answer.writes.is_empty());
     assert_eq!(answer.through, None);
