@@ -227,11 +227,11 @@ impl Core {
                 Some(through)
             }
             Some((task, party, _)) => {
-                unreachable!(
-                    "{:?} links mismatched {:?}",
-                    crate::Key::People(people::Key::EndedRead { task, party }),
-                    record.key()
-                );
+                self.refuse_restore(crate::start::Failure::Link {
+                    record: crate::Key::People(people::Key::EndedRead { task, party }),
+                    linked: crate::start::Linked::Record(record.key()),
+                });
+                return false;
             }
             None => None,
         };
