@@ -6,6 +6,49 @@ use temper_engine_domain_forge_landing::Phase;
 
 use crate::{ChangeRow, Domain, Limits, Request, history as h};
 
+/// A project's way is taken before first readiness (domain/landing.md, 1).
+pub(crate) fn way(d: &Domain, row: &mut ChangeRow) {
+    if row.change.ready_since.is_some() || row.change.owns_turn || row.change.landing.is_some() {
+        return;
+    }
+    match row.change.state {
+        c::State::Producing { .. }
+        | c::State::Opening { .. }
+        | c::State::Recreating { .. }
+        | c::State::Reopening { .. }
+        | c::State::Checking { .. }
+        | c::State::Gating { .. }
+        | c::State::CancellingGates { .. }
+        | c::State::WaitingProducer { .. }
+        | c::State::Resolving { .. }
+        | c::State::Repairing { .. } => {}
+        c::State::Ready { .. }
+        | c::State::Preparing { .. }
+        | c::State::Judging { .. }
+        | c::State::Queued { .. }
+        | c::State::First { .. }
+        | c::State::Updating { .. }
+        | c::State::Landing { .. }
+        | c::State::Landed { .. }
+        | c::State::NoChange { .. }
+        | c::State::Ended
+        | c::State::Held { .. }
+        | c::State::Red { .. }
+        | c::State::Cleared { .. }
+        | c::State::Uncleared { .. } => return,
+    }
+    let Some(repository) = d.repositories.get(&row.repository) else { return };
+    let way = d.landing.way(repository.project);
+    if row.change.way != way {
+        row.change.way = way;
+        if way == c::Way::Turn
+            && let c::State::Checking { head } = row.change.state
+        {
+            row.change.state = c::State::Gating { head, asked: Box::new([]) };
+        }
+    }
+}
+
 fn landing(d: &Domain, row: &ChangeRow) -> Option<h::InLanding> {
     let task = row.change.landing?;
     let landing = &d.landing.rows.get(&task)?.landing;

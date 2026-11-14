@@ -5309,6 +5309,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     crate::job_history::merged(d, env.wall, &mut row, pending.branch, out);
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
+    crate::readiness::way(d, &mut row);
     // Producing without a head uses no base facts except early starts and catch-ups.
     let base_tip = pending.base_tip.unwrap_or([0; 32]);
     row.pull = match &pending.pull {
