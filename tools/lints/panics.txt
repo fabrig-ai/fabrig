@@ -13,7 +13,6 @@ hearth/testing/hearth-fake-machine/src/tests/processes.rs should_panic 1
 hearth/testing/hearth-fake-machine/src/tests/universe.rs should_panic 1
 hearth/testing/hearth-fake-mmdebstrap/src/tests/face.rs should_panic 1
 hearth/tests/builder/tests/real/main.rs should_panic 1
-jig/crates/jig-domain-fleet/src/tests/needs.rs should_panic 1
 jig/crates/jig-protocol-config/src/tests/members.rs should_panic 1
 jig/crates/jig-protocol-engine-clients/src/tests/catalogue.rs should_panic 1
 jig/crates/jig-protocol-store/src/tests.rs should_panic 1

@@ -48,6 +48,10 @@ pub enum Failure {
         held: u32,
         limit: u32,
     },
+    NeedsPastLimit {
+        held: u64,
+        limit: u64,
+    },
     AccountsPastLimit {
         failure: accounts::RestoreLimit,
     },
