@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 
 use crate::btree::price;
 use crate::growth::grown;
-use crate::{Buffer, Intake, List, Lru, Map, Queue, Set, Stack, state_digest};
+use crate::{Bisection, Buffer, Intake, Joined, List, Lru, Map, Queue, Rng, Set, Stack, state_digest};
 
 #[test]
 fn a_full_buffer_doubles_from_the_floor_to_what_it_needs_under_its_cap() {
@@ -473,4 +473,195 @@ fn a_lru_hash_covers_values_and_use_order_without_its_history() {
         assert_eq!(state_digest(&table) == original, alike);
     }
     assert_ne!(state_digest(&Lru::<u8, u8>::with_capacity(2)), original);
+}
+
+#[test]
+fn a_join_gives_each_key_once_with_values_in_map_order() {
+    struct NotClone;
+    fn needs_copy<T: Copy>() {}
+
+    let mut first = Map::with_capacity(3);
+    let mut second = Map::with_capacity(3);
+    for (key, value) in [(1_u8, 1_u8), (3, 3), (4, 4)] {
+        first.insert(key, value).expect("room");
+    }
+    for (key, value) in [(2, 2), (3, 30), (5, 5)] {
+        second.insert(key, value).expect("room");
+    }
+    let mut join = first.join(&second);
+    assert_eq!(join.next(), Some((&1, Joined::First(&1))));
+    assert_eq!(join.next(), Some((&2, Joined::Second(&2))));
+    let (key, values) = join.next().expect("shared key");
+    assert_eq!((key, values), (&3, Joined::Both(&3, &30)));
+    let (first_key, _) = first.iter().nth(1).expect("shared key");
+    assert!(core::ptr::eq(key, first_key), "the first map supplies a shared key");
+    assert_eq!(join.next(), Some((&4, Joined::First(&4))));
+    assert_eq!(join.next(), Some((&5, Joined::Second(&5))));
+    assert_eq!(join.next(), None);
+    assert_eq!(join.next(), None);
+
+    needs_copy::<Joined<'_, NotClone>>();
+}
+
+#[test]
+fn joins_cover_empty_sides_and_all_shared_keys() {
+    let empty = Map::<u8, u8>::with_capacity(0);
+    let mut first = Map::with_capacity(2);
+    let mut second = Map::with_capacity(2);
+    for (key, value) in [(1_u8, 10_u8), (3, 30)] {
+        first.insert(key, value).expect("room");
+        second.insert(key, value.checked_add(1).expect("small value")).expect("room");
+    }
+    assert_eq!(empty.join(&empty).next(), None);
+    let mut second_only = empty.join(&first);
+    let mut first_only = first.join(&empty);
+    for (key, value) in &first {
+        assert_eq!(second_only.next(), Some((key, Joined::Second(value))));
+        assert_eq!(first_only.next(), Some((key, Joined::First(value))));
+    }
+    assert_eq!(second_only.next(), None);
+    assert_eq!(first_only.next(), None);
+    let mut shared = first.join(&second);
+    assert_eq!(shared.next(), Some((&1, Joined::Both(&10, &11))));
+    assert_eq!(shared.next(), Some((&3, Joined::Both(&30, &31))));
+    assert_eq!(shared.next(), None);
+}
+
+// These generators and references also run long in tests/lib/src/containers.rs.
+fn random_maps(rng: &mut Rng, round: u32) -> (Map<u8, u8>, Map<u8, u8>) {
+    let mut first = Map::with_capacity(32);
+    let mut second = Map::with_capacity(32);
+    for key in 0_u8..32 {
+        let in_first = rng.chance(500);
+        let in_second = match round % 3 {
+            0 => in_first,        // All shared.
+            1 => !in_first,       // Disjoint and interleaved.
+            _ => rng.chance(500), // A mixture of all three variants.
+        };
+        let value = u8::try_from(rng.below(8)).expect("small value");
+        let other = if rng.chance(500) { value } else { value.checked_add(1).expect("small value") };
+        if in_first {
+            first.insert(key, value).expect("room for every key");
+        }
+        if in_second {
+            second.insert(key, other).expect("room for every key");
+        }
+    }
+    (first, second)
+}
+
+fn naive_join<'a>(first: &'a Map<u8, u8>, second: &'a Map<u8, u8>) -> alloc::collections::BTreeMap<u8, Joined<'a, u8>> {
+    let mut keys = alloc::collections::BTreeSet::new();
+    for (key, _) in first.iter().chain(second) {
+        let _: bool = keys.insert(*key);
+    }
+    let mut entries = alloc::collections::BTreeMap::new();
+    for key in keys {
+        let joined = match (first.get(&key), second.get(&key)) {
+            (Some(a), Some(b)) => Joined::Both(a, b),
+            (Some(a), None) => Joined::First(a),
+            (None, Some(b)) => Joined::Second(b),
+            (None, None) => unreachable!("key from either map"),
+        };
+        assert!(entries.insert(key, joined).is_none());
+    }
+    entries
+}
+
+#[test]
+fn seeded_joins_agree_with_key_union_and_lookups() {
+    let mut rng = Rng::new(0xA01A_5EED);
+    for round in 0..256 {
+        let (first, second) = random_maps(&mut rng, round);
+        let expected = naive_join(&first, &second);
+        let mut joined = first.join(&second);
+        for (key, values) in &expected {
+            assert_eq!(joined.next(), Some((key, *values)), "round {round}");
+        }
+        assert_eq!(joined.next(), None, "round {round}");
+    }
+}
+
+fn bisect(values: &[i16], key: i16) -> usize {
+    let mut search = Bisection::over(values.len());
+    for _ in 0..Bisection::PROBES {
+        let Some(probe) = search.probe() else { break };
+        let value = values.get(probe).expect("probe within the slice");
+        search.narrow(value.cmp(&key));
+    }
+    assert_eq!(search.probe(), None, "within PROBES, length {}, key {key}", values.len());
+    search.end()
+}
+
+#[test]
+fn bisection_finds_the_first_equal_or_insertion_index() {
+    for (key, expected) in [(3, 1), (4, 3), (0, 0), (6, 4)] {
+        assert_eq!(bisect(&[1, 3, 3, 5], key), expected, "key {key}");
+    }
+}
+
+fn linear_bound(values: &[i16], key: i16) -> usize {
+    for (index, value) in values.iter().enumerate() {
+        if *value >= key {
+            return index;
+        }
+    }
+    values.len()
+}
+
+fn check_bisections(values: &[i16]) {
+    // Values are even and in 0..=42: every held key, every gap and both ends.
+    for key in -1..=43 {
+        let expected = linear_bound(values, key);
+        assert_eq!(bisect(values, key), expected, "slice {values:?}, key {key}");
+    }
+}
+
+#[test]
+fn bisection_matches_a_scan_for_every_short_length() {
+    let mut buffer = [0_i16; 64];
+    for (index, value) in buffer.iter_mut().enumerate() {
+        *value = i16::try_from((index / 3).checked_mul(2).expect("small index")).expect("small key");
+    }
+    for len in 0..=64 {
+        check_bisections(&buffer[..len]);
+    }
+}
+
+fn random_sorted_slice<'a>(rng: &mut Rng, buffer: &'a mut [i16; 64]) -> &'a [i16] {
+    let len = usize::try_from(rng.between(0, 64)).expect("short slice");
+    let values = &mut buffer[..len];
+    for value in values.iter_mut() {
+        *value = i16::try_from(rng.below(22)).expect("small key").checked_mul(2).expect("small key");
+    }
+    values.sort_unstable();
+    values
+}
+
+#[test]
+fn seeded_bisections_agree_with_a_linear_scan() {
+    let mut rng = Rng::new(0xB15E_5EED);
+    let mut buffer = [0_i16; 64];
+    for _ in 0_u32..256 {
+        let values = random_sorted_slice(&mut rng, &mut buffer);
+        check_bisections(values);
+    }
+}
+
+#[test]
+fn bisection_covers_the_full_index_range_within_its_probe_bound() {
+    use core::cmp::Ordering::{Greater, Less};
+    for (order, expected) in [(Less, usize::MAX), (Greater, 0)] {
+        let mut search = Bisection::over(usize::MAX);
+        let mut probes = 0_u32;
+        for _ in 0..Bisection::PROBES {
+            let Some(probe) = search.probe() else { break };
+            assert!(probe < usize::MAX);
+            probes = probes.checked_add(1).expect("at most PROBES");
+            search.narrow(order);
+        }
+        assert_eq!(search.probe(), None);
+        assert_eq!(search.end(), expected);
+        assert_eq!(probes, Bisection::PROBES);
+    }
 }

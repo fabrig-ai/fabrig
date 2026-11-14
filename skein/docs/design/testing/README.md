@@ -344,6 +344,11 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   - A harness that adds context to a failure writes it before it runs
     what may fail: conformance's simulated driver names each seed and
     configuration on stderr before running it, and catches nothing.
+    What it writes names the case, never its input: a seeded sweep's
+    line gives the seed, the case (its kind, number or mutation) and the
+    input's length, and the assertion that fails names the input in its
+    message, which the runner prints. A sweep runs thousands of cases,
+    and their inputs written whole would outweigh the cases themselves.
 - **It tells a starved run from a slow one** in the real loop
   by `Deadline`, the same real-clock deadline every harness uses
   (../../foundation/testing-strategy.md, 2.10). `skein_world::{Deadline, Expired, Starved,

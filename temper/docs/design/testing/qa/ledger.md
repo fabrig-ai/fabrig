@@ -35,7 +35,9 @@ from 1 in the order they are recorded and are never reused. Before
 v0.1.0 it changes in place, as every stored format does: a later
 milestone adds records and fields, and a document a newer build cannot
 read is refused by name. Every field Q3 adds is absent or empty in a
-document Q1 wrote, so such a document reads as it is.
+document Q1 wrote, so such a document reads as it is; so is every field
+Q6 adds, a case's and a pass's `kind` and a session's `deployments`,
+each absent for a box's.
 
 ### 2.1 The head
 
@@ -60,8 +62,11 @@ absent before its first read.
 
 `cases`. Each:
 
-- `number`; `surface`, `web` or `tui`; `page`, a page of that surface
-  (`triage.md`, 3);
+- `number`; `surface`, `ctl`, `web` or `tui`; `page`, a page of that
+  surface, or for `ctl` a group of ctl's tools (`triage.md`, 3);
+- `kind`: `deployment` where its setup is a deployment's, absent for a
+  box's (`places.md`, 2), so that a pass at a place takes it only at a
+  place of that kind (4.8);
 - `asks`, at least one, in the order recorded: each the `landing` that
   asked, its `setup`, what it `adds` to the setup (possibly empty), and
   its `steps`, each a `do` with its `expect` and, where the page shows it
@@ -107,8 +112,9 @@ copy's build stay known (`places.md`, 7).
   6; `passes.md`, 3 and 6); `tokens`, where its command reported them
   (`triage.md`, 5);
 - for triage, what its commands check against, given at its start:
-  `pages`, the pages of each surface, and `setups`, the catalogue's
-  names (`triage.md`, 3);
+  `pages`, the pages of each surface, `ctl`'s groups among them,
+  `setups`, the catalogue's names, and `deployments`, those of them of a
+  deployment's kind, absent for none (`triage.md`, 3);
 - for a pass, `before`, what its start or resume changed, so that an
   unstarted end undoes it exactly (4.12): the pass's `state`, `place`
   and `build` before it, absent for a start, and each case it took or
@@ -127,9 +133,10 @@ given to `notify` (`README.md`, 5).
 `passes`. Each:
 
 - `number`; `place`, the place's directory as `qa.json` writes it
-  (`places.md`, 2); `build`, the commit of the build it holds or last
-  held; `state`, `running`, `waiting` or `ended`; `started`; `ended`,
-  the time it ended;
+  (`places.md`, 2); `kind`, `deployment` for a pass started at a
+  deployment's place, absent for a box's; `build`, the commit of the
+  build it holds or last held; `state`, `running`, `waiting` or `ended`;
+  `started`; `ended`, the time it ended;
 - `cases`: the numbers of every case it took, in the order taken, at its
   start, at a resume, by a join (4.15) or moved to it (4.12);
 - `sessions`: its sessions' numbers, in order; its first is its start's,
@@ -212,13 +219,15 @@ ended, absent while it lasts. Absent in a document Q3 wrote, as none.
 
 ### 4.3 A case and its merge
 
-- **Checked** against the session's `pages` and `setups` (2.5): its
-  surface `web` or `tui`; its page one of that surface's; its setup one
-  of the catalogue's; at least one step, every step a nonempty `do` and
-  a nonempty `expect`.
+- **Checked** against the session's `pages`, `setups` and
+  `deployments` (2.5): its surface `ctl`, `web` or `tui`; its page one
+  of that surface's; its setup one of the catalogue's, and, where it is
+  one of `deployments`, its surface `ctl`, since a deployment takes ctl
+  cases alone until Q7 (`deployment.md`, 10); at least one step, every
+  step a nonempty `do` and a nonempty `expect`. Its kind is its setup's.
 - **Joined to a waiting pass** where 4.15 says, before any merge.
-- **Merged:** where a case in state `queued` has the same surface and
-  page, the new ask joins it, and the case keeps every landing that
+- **Merged:** where a case in state `queued` has the same surface, page
+  and kind, the new ask joins it, and the case keeps every landing that
   asked for it (`../../draft/landed-qa.md`, 4). Otherwise it is a new
   case, `queued`, at the ask's time.
 - **Its answer:** the command prints `case N queued`, `case N joined:
@@ -266,14 +275,16 @@ holding its landings`, S the bound.
 ### 4.8 A pass's start
 
 The loop's third step (`passes.md`, 3), for a free place, once no
-waiting pass resumes there (4.13), with `qa.json`'s `surfaces`:
+waiting pass resumes there (4.13), with `qa.json`'s `surfaces` and the
+place's kind (`places.md`, 2); a case is the place's when it is of a
+surface in `surfaces` and of the place's kind:
 
 - **A build it may take:** kept, reached by triage (4.5), held by no
-  pass, and holding every landing of at least one `queued` case of a
-  surface in `surfaces`.
+  pass, and holding every landing of at least one `queued` case that is
+  the place's.
 - **It takes,** in one write: the one with the greatest `order`; a new
-  pass, `running` at the place, its build that one, which it holds
-  (`held`); every `queued` case of a surface in `surfaces` whose
+  pass, `running` at the place, of its kind, its build that one, which it holds
+  (`held`); every `queued` case that is the place's whose
   landings the build holds, `assigned` to the pass, in case order; and
   its first session, `running`. So no case is in two passes
   (`../../draft/landed-qa.md`, 9).
@@ -366,8 +377,8 @@ Nothing else of this section applies.
 ### 4.13 A waiting pass's resume
 
 The loop's third step (`passes.md`, 7), for a free place, before any
-start, waiting passes oldest first. A `waiting` pass whose last request
-is filed may resume when:
+start, waiting passes of the place's kind oldest first. A `waiting` pass
+whose last request is filed may resume when:
 
 - **its goal has landed:** a landing whose `goal` is the request's
   goal, held by a kept build that triage has reached: it resumes on the
@@ -380,7 +391,7 @@ is filed may resume when:
 Resuming, in one write: the pass `running` at the place; the new build
 held and the old one released, unless they are one; its `failed` cases
 `assigned` again; its cases joined while it waited (4.15) still
-`assigned`; every `queued` case of a surface in `surfaces` whose
+`assigned`; every `queued` case that is the place's (4.8) whose
 landings the new build holds `assigned` to it; and a new session. A case
 queued after this write is not the pass's ("none later",
 `../../draft/landed-qa.md`, 9).
@@ -445,7 +456,8 @@ Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
 | no QA without why | `no QA needs a line saying why` |
 | a case file unread | `case refused: FILE: WHY` |
 | no surface | `case refused: no surface` |
-| another surface | `case refused: surface S is neither web nor tui` |
+| another surface | `case refused: surface S is none of ctl, web, tui` |
+| a web or tui case on a deployment's setup | `case refused: setup S is a deployment's, which takes ctl cases alone` |
 | no page | `case refused: no page` |
 | a page not the surface's | `case refused: P is no SURFACE page; pages: P1, P2, ...` |
 | no setup | `case refused: no setup` |

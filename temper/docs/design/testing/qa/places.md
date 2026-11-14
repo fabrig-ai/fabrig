@@ -1,19 +1,22 @@
 # Places and copies
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 2, 5
-and 7, milestones Q3 and Q4 of `../../draft/landed-qa.execution.md`. Where a
-pass's boxes run, and what each case starts from: a place, a fixed
-directory with its own `bin/`; a setup's copy restored there, or made
-again from its recipe; and the drive session, held open between the
-agent's one-shot commands. The recipes, their walk and the drive
-session are Q2's (`../../client/recipe.md`, `../../client/drive.md`);
-this document is how a pass uses them.
+Provisional, 2026-11-12, revised 2026-11-14, from
+`../../draft/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4 and
+Q6 of `../../draft/landed-qa.execution.md`. Where a pass's boxes and
+deployments run, and what each case starts from: a place, a fixed
+directory with its own `bin/`, of one kind; a setup's copy restored
+there, or made again from its recipe; and the drive session, held open
+between the agent's one-shot commands. The recipes, their walk and the
+drive session are Q2's (`../../client/recipe.md`,
+`../../client/drive.md`), a deployment's processes Q6's
+(`deployment.md`); this document is how a pass uses them.
 
 ## 1. In one page
 
-- **A place** (section 2) is a directory `qa.json` names, with its own
-  `bin/`, its bundle, the box's directories, its copies and its holder's
-  files. One pass runs at a place at a time.
+- **A place** (section 2) is a directory `qa.json` names, of a box's
+  kind or a deployment's, with its own `bin/`, its bundle, its scratch
+  directory, its copies and its holder's files. One pass runs at a place
+  at a time, on setups of the place's kind.
 - **A build installed** (section 3) into the place's `bin/` and
   `bundle/` from its manifest, at a pass's start and resume, before any
   box starts, so a copy made there names the place's programs.
@@ -39,8 +42,9 @@ this document is how a pass uses them.
   ```
   PLACE/
     bin/          the pass's build's executables (section 3)
-    bundle/       the pass's build's loopback bundle (section 3)
-    box/          the drive session's scratch directory (../../client/drive.md, 2.2): config/, data/, cache/, session/
+    bundle/       the pass's build's web bundle (section 3)
+    box/          a box's place: the drive session's scratch directory (../../client/drive.md, 2.2): config/, data/, cache/, session/
+    deployment/   a deployment's place, in box/'s stead: its scratch directory (deployment.md, 3): config/, data/, cache/, session/
     copies/NAME/  the copy of recipe NAME, one file, HASH-COMMIT.tar (section 4)
     setup         the setup last restored: its name and hash, one line (section 4)
     walk.log      the last walk's output (section 4)
@@ -49,6 +53,29 @@ this document is how a pass uses them.
     drive.log     the holder's own output (section 5)
   ```
 
+- **Its kind,** `qa.json`'s `kind` for it (`README.md`, 3.2), a box's
+  when absent (`../../draft/landed-qa.md`, 2): a box's place runs
+  `temper-box` on its fake backends, as Q3 to Q5 have it; a
+  deployment's runs the deployment's processes (`deployment.md`), needs
+  its `ports`, and holds `deployment/` where a box's holds `box/`. Its
+  scratch directory below is the one its kind holds. A place runs
+  setups of its kind alone: a recipe's kind is its chain's root's
+  (`../../client/recipe.md`, 2), and `fresh` is a box's.
+- **Private, whatever the umask** the tool runs under
+  (`../../draft/landed-qa.md`, 5): every directory the tool makes at a
+  place, `PLACE/` itself, its scratch directory, `copies/` and each
+  `copies/NAME/`, and `bin/` and `bundle/` with what they hold, is
+  0o700, and every file it writes there, `setup`, `walk.log`,
+  `drive.log`, `drive.lock`, a copy and the temporary files before
+  their renames, 0o600, but the build's files installed in `bin/` and
+  `bundle/`, which keep their build's modes (section 3) under their
+  0o700 directories. Each mode is set once the directory or file is
+  made, never asked of the umask, which can only take bits away; and
+  wherever the tool reaches a place, it sets `PLACE/`, its scratch
+  directory and `copies/` to 0o700 when they are not already, since a
+  place is the tool's own. So the drive session's check that its
+  scratch directory is the user's own and open to no one
+  (`../../client/drive.md`, 2.1) holds at every place.
 - **One pass at a time:** the ledger records the pass running at a place
   (`ledger.md`, 2.7). A place is **free** when no `running` pass is
   recorded at it and its `drive.lock` can be taken at once, so a
@@ -105,7 +132,12 @@ the place's `bin/`, never a kept build's directory
   open at PLACE; close it first: temper-qa pass close`.
 - **NAME** is `fresh` or a recipe of the pass's setups,
   `passes/P/setups/` (`passes.md`, 2): `setup S is not in pass P's
-  setups; setups: S1, S2, ...`.
+  setups; setups: S1, S2, ...`. It is of the place's kind, its chain's
+  root holding `config/` at a deployment's place and none at a box's:
+  `setup S is a deployment's; PLACE is a box's place`, or `setup S is a
+  box's; PLACE is a deployment's place`; `fresh` at a deployment's
+  place, `a deployment's place has no fresh setup: its setups start
+  from their root's config/`, exit 1.
 - **`fresh`:** the box's `config/` and `data/` removed, `setup` written
   `fresh`; it prints `setup fresh: an empty box`, exit 0. The drive
   session then prepares a new sandbox (`../../client/drive.md`, 2.2).
@@ -129,10 +161,13 @@ the place's `bin/`, never a kept build's directory
      --bundle bundle --scratch box --setups S --strict` at the place,
      with `--ports P` where the place has ports, P its nine joined by
      commas (`../../client/recipe.md`, 5.1); its output appended to
-     `walk.log`.
+     `walk.log`. At a deployment's place, `--scratch deployment`, with
+     its ports and no `--bundle`: the walk starts the deployment from
+     the chain's root's `config/` (`deployment.md`, 4).
   3. **Each walk's exit:**
      - **0:** walked; for each Ri walked past a copy, its copy saved:
-       `tar --create` of `box/config` and `box/data` into a temporary
+       `tar --create` of the scratch directory's `config` and `data`
+       (`box/` or `deployment/`) into a temporary
        file in `copies/Ri/`, renamed to `HASH-COMMIT.tar`, and every
        other file in `copies/Ri/` removed. A copy whose check walks is
        kept as it is: one copy per recipe, the newest that restored
@@ -161,9 +196,13 @@ A drive session (`../../client/drive.md`, 2) reads lines on its stdin
 and answers each; an agent's shell runs one command at a time. A
 holder keeps the session between them.
 
-- **`temper-qa pass open`:** refused without `setup` (`no setup is
+- **`temper-qa pass open [--ctl]`:** refused without `setup` (`no setup is
   restored at PLACE: temper-qa pass setup NAME first`) or while a holder
-  lives. It starts `temper-qa pass hold` in a session and process group
+  lives. `--ctl` opens a ctl session (`../../client/drive.md`, 2.6), no
+  browser started, for a pass's ctl cases, which run first
+  (`passes.md`, 4); at a deployment's place every session is one, with
+  or without it. It starts `temper-qa pass hold` (with `--ctl` where
+  given) in a session and process group
   of its own, its stdin closed and its output to `drive.log`, with the
   command's own environment, then asks the holder for the session's
   start and prints it: `ready`, exit 0; or the session's last lines and
@@ -176,9 +215,15 @@ holder keeps the session between them.
   `scripts.json` of the setup's chain, root first, from the pass's
   setups, none for `fresh`, `--strict` (`../../draft/landed-qa.md`,
   6), `--files` the pass's `files/` (`passes.md`, 2), which its `forge
-  commit` lines read (`../../client/drive.md`, 3.5), and `--ports P`
+  commit` lines read (`../../client/drive.md`, 3.5), `--ports P`
   where the place has ports, as a walk is given
-  them (section 4); and listens on `drive.sock`, a Unix stream socket,
+  them (section 4), and `--ctl` where `pass open` was given it. At a
+  deployment's place it is `bin/temper-client-journeys drive
+  --deployment S/ROOT/config --bin bin --scratch deployment`, ROOT the
+  setup's chain's root in the pass's setups S, with the same scripts,
+  `--strict`, `--files` and `--ports`, and no `--bundle`: the restored
+  deployment is held, so its documents are its copy's
+  (`deployment.md`, 4). It listens on `drive.sock`, a Unix stream socket,
   0o600, any old one removed first, since the lock is its.
   - **One request per connection:** one line, the start's, a drive line,
     or the end; the holder writes a drive line or `end` to the
@@ -214,10 +259,13 @@ holder keeps the session between them.
 reached has run (`../../draft/landed-qa.md`, 5):
 
 - **FILE,** a path or `-`, one JSON object: `after`, the setup the case
-  started from, `fresh` or a recipe of the pass's setups; `lines`, the
+  started from, `fresh` or a recipe of the pass's setups, of the place's
+  kind (section 4); `lines`, the
   steps from there and then the state's check, `web see` or `tui see`
-  lines last, drive lines with no look (the case's kept lines, cut where
-  the state is reached); `readme`, the paragraph of its `README.md`;
+  lines last, or a `check` line and the ctl lines after it
+  (`../../client/recipe.md`, 3.1), drive lines with no look (the case's
+  kept lines, cut where the state is reached); `readme`, the paragraph
+  of its `README.md`;
   `scripts`, optional, the object of its `scripts.json` in the box's
   `--scripts` form (`../../protocol/setup/box.md`, 5).
 - **Refused while a holder lives;** NAME a recipe name
@@ -225,7 +273,8 @@ reached has run (`../../draft/landed-qa.md`, 5):
   the pass itself added may be written again.
 - **Written** to `passes/P/setups/NAME/`: `recipe`, `recipe 1`, then
   `after PARENT` unless `fresh`, then the lines; `README.md`;
-  `scripts.json` where given; and `files/`, where its `forge commit`
+  `scripts.json` where given; never `config/`, a root's alone; and
+  `files/`, where its `forge commit` or `deployment patch`
   lines name any, each PATH they name copied from the pass's `files/`
   (`passes.md`, 2) to `files/PATH`, so that the recipe holds all it
   gives (`../../client/recipe.md`, 2). A PATH the pass's `files/` lacks
@@ -285,7 +334,12 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
     with;
   - a holder giving lines and answers through the socket, `pass line`'s
     exits, `pass close`'s kept lines, and the holder ending its session
-    once the ledger ends the pass session.
+    once the ledger ends the pass session;
+  - `pass open --ctl` starting `drive --ctl`; at a deployment's place,
+    a restore walking with `--scratch deployment`, its ports and no
+    `--bundle`, its copy saved from that directory, and the holder
+    starting `drive --deployment` with the chain's root's `config/`;
+    `fresh`, and a setup of the other kind, refused in their words.
 
 ## 9. Open questions
 

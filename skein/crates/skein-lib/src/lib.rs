@@ -17,6 +17,7 @@
 extern crate alloc;
 
 pub mod base64;
+mod bisection;
 mod btree;
 mod buffer;
 pub mod bytes;
@@ -53,6 +54,7 @@ mod time;
 mod token;
 mod writer;
 
+pub use bisection::Bisection;
 pub use buffer::Buffer;
 pub use crypto_rng::CryptoRng;
 pub use deadlines::Deadlines;
@@ -67,7 +69,7 @@ pub use lifecycle::Lifecycle;
 pub use list::List;
 pub use lossy::Lossy;
 pub use lru::Lru;
-pub use map::Map;
+pub use map::{Join, Joined, Map};
 pub use name::{Grammar, Name};
 pub use queue::Queue;
 pub use reader::Reader;

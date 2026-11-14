@@ -6,8 +6,9 @@ Milestone B1 is designed, by goal 2476. `../domain/forge/reds.md` covers a goal'
 
 Milestone B2 is designed, by goal 2811. `../domain/forge/reds.md`, 5.5 to 5.8 covers the check's results file, the worker's report at each check's end, refused checks included, a change's passes kept and the reds they end when it lands, and flakes filed or counted as findings (`../domain/findings.md`, 4). The reference's check runs a failing test's process again, through one-process's `--again`, and writes the results (`../../../../tools/pre-pr/design.md`, 4 to 7; `../../../../tools/tiers/design.md`, 11.9).
 
-- **Design lags:**
-  - 8: `.temper/known-reds.md`, its cap and the merge job's rule for it stay (`../../../../tools/pre-pr/design.md`, 5; `known-reds-merge.md`), and `delivery-checks.status.md` defines inheritance by that list.
+Milestone B3 is designed, by goal 3050. The reference's check counts the goal's reds alone, the tree keeping no list of its own (`../../../../tools/pre-pr/design.md`, 5 and 6), the merge job leaves any conflicted file it doesn't know to the resolution (`../protocol/tooling.md`, 4.1), and `delivery-checks.status.md` defines inheritance by the records.
+
+- **Design lags:** none.
 - **Design departs:**
   - 3: a red's generation is the deployment's count of records, kept in one row, `RedNumber`, not the goal's (`../domain/forge/reds.md`, 2 and 6). It still orders a goal's records as the draft asks, with no counter per goal to keep and erase (goal 2476's designer, 2026-11-13).
   - 3: a red ended by its change's landing leaves nothing in the goal's activity: no call ends it, and telling the goal would wake its coordinator at each such landing; its `red list` no longer names it (`../domain/forge/reds.md`, 5.7 and 9; goal 2811's designer, 2026-11-14).

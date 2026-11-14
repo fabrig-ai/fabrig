@@ -16,6 +16,7 @@ mod pass_end;
 mod pass_files;
 mod passes;
 pub mod place;
+mod private;
 mod recording;
 mod report;
 mod requests;
@@ -24,6 +25,7 @@ mod text;
 mod tune;
 pub mod watch;
 
+pub use brief::stat_text;
 pub use case::{CaseInput, Step};
 pub use cli::{AREA, HOME, SESSION, TABLE, main};
 pub use config::{Agent, Bounds, Configuration, Git, RequestConfiguration};
