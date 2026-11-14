@@ -10,7 +10,7 @@ use hearth_lib::{
     encode::{Digest, Encoder},
     hash::H,
 };
-use skein_lib::{List, bytes::copy_of};
+use skein_lib::{Joined, List, Map as Ordered, bytes::copy_of};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Secrets {
     pub files: Box<[SecretFile]>,
@@ -181,16 +181,59 @@ pub enum Named {
 
 #[must_use]
 pub(crate) fn change(before: &Secrets, after: &Secrets) -> Change {
-    Change {
-        files: named(&before.files, &after.files, |row| &row.name),
-        passwords: named(&before.passwords, &after.passwords, |row| &row.user),
-        identity: named(&before.identity, &after.identity, |row| &row.name),
+    let mut old: Ordered<&[u8], &SecretFile> = Ordered::uncapped();
+    let mut new: Ordered<&[u8], &SecretFile> = Ordered::uncapped();
+    for row in &before.files {
+        old.insert(row.name.as_ref(), row).expect("an uncapped map");
     }
-}
-fn named<T: PartialEq + core::fmt::Debug>(before: &[T], after: &[T], key: fn(&T) -> &[u8]) -> Box<[Named]> {
-    crate::diff::keyed(before, after, key, |change| match change {
-        crate::diff::Keyed::Added { key, .. } => Named::Added(key),
-        crate::diff::Keyed::Removed { key, .. } => Named::Removed(key),
-        crate::diff::Keyed::Changed { key, .. } => Named::Changed(key),
-    })
+    for row in &after.files {
+        new.insert(row.name.as_ref(), row).expect("an uncapped map");
+    }
+    let mut files = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(_) => Named::Removed(copy_of(key)),
+            Joined::Second(_) => Named::Added(copy_of(key)),
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(_, _) => Named::Changed(copy_of(key)),
+        };
+        files.push(change).expect("an uncapped list");
+    }
+    let mut old: Ordered<&[u8], &Password> = Ordered::uncapped();
+    let mut new: Ordered<&[u8], &Password> = Ordered::uncapped();
+    for row in &before.passwords {
+        old.insert(row.user.as_ref(), row).expect("an uncapped map");
+    }
+    for row in &after.passwords {
+        new.insert(row.user.as_ref(), row).expect("an uncapped map");
+    }
+    let mut passwords = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(_) => Named::Removed(copy_of(key)),
+            Joined::Second(_) => Named::Added(copy_of(key)),
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(_, _) => Named::Changed(copy_of(key)),
+        };
+        passwords.push(change).expect("an uncapped list");
+    }
+    let mut old: Ordered<&[u8], &Identity> = Ordered::uncapped();
+    let mut new: Ordered<&[u8], &Identity> = Ordered::uncapped();
+    for row in &before.identity {
+        old.insert(row.name.as_ref(), row).expect("an uncapped map");
+    }
+    for row in &after.identity {
+        new.insert(row.name.as_ref(), row).expect("an uncapped map");
+    }
+    let mut identity = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(_) => Named::Removed(copy_of(key)),
+            Joined::Second(_) => Named::Added(copy_of(key)),
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(_, _) => Named::Changed(copy_of(key)),
+        };
+        identity.push(change).expect("an uncapped list");
+    }
+    Change { files: files.into_boxed(), passwords: passwords.into_boxed(), identity: identity.into_boxed() }
 }
