@@ -394,4 +394,5 @@ mod packages;
 
 mod resolution;
 
+mod config_lists;
 mod part_changes;
