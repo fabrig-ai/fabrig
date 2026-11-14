@@ -23,3 +23,4 @@ mod data;
 mod directives;
 
 mod build;
+mod pins;
