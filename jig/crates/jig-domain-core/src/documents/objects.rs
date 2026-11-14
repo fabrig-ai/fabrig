@@ -737,35 +737,38 @@ pub fn retained_action(limits: &Limits, number: u64, value: &tasks::ProposalActi
         }
     })
 }
-/// Convert a retained lifecycle milestone without inventing missing actor/time.
-pub fn milestone_from_row(limits: &Limits, value: &tasks::Milestone) -> Result<MilestoneLine, Missing> {
-    Ok(MilestoneLine {
+/// Convert a held phase (domain/tasks/lifecycle.md, 12.2).
+pub fn hold_from_row(limits: &Limits, value: &tasks::HoldRow) -> Result<HoldLine, Missing> {
+    let tasks::Held { was, why, source } = &value.held;
+    Ok(HoldLine {
         task: value.task,
         position: value.position,
-        at: Some(value.at),
-        phase: match &value.phase {
-            tasks::Phase::Waiting => MilestonePhase::Waiting,
-            tasks::Phase::Active(active) => MilestonePhase::Active(*active),
-            tasks::Phase::Closing(closing) => MilestonePhase::Closing {
-                stage: closing.stage,
-                ending: super::task_tree::ending(limits, &closing.ending)?,
-            },
-            tasks::Phase::Held { was, why, source } => MilestonePhase::Held {
-                why: *why,
-                source: super::task_tree::hold_source(limits, source.as_deref())?,
-                ending: match was {
-                    tasks::Was::Closing(closing) => Some(super::task_tree::ending(limits, &closing.ending)?),
-                    tasks::Was::Waiting | tasks::Was::Active(_) => None,
-                },
-                before: match was {
-                    tasks::Was::Waiting => PriorPhase::Waiting,
-                    tasks::Was::Active(active) => PriorPhase::Active(*active),
-                    tasks::Was::Closing(closing) => PriorPhase::Closing(closing.stage),
-                },
-            },
-            tasks::Phase::Ended(ending) => MilestonePhase::Ended(super::task_tree::ending(limits, ending)?),
+        at: value.at,
+        why: *why,
+        source: super::task_tree::hold_source(limits, source.as_deref())?,
+        ending: match was {
+            tasks::Was::Closing(closing) => Some(super::task_tree::ending(limits, &closing.ending)?),
+            tasks::Was::Waiting | tasks::Was::Active(_) => None,
+        },
+        before: match was {
+            tasks::Was::Waiting => PriorPhase::Waiting,
+            tasks::Was::Active(active) => PriorPhase::Active(*active),
+            tasks::Was::Closing(closing) => PriorPhase::Closing(closing.stage),
         },
     })
+}
+
+#[must_use]
+pub fn attempt_from_row(value: &tasks::AttemptRow) -> AttemptLine {
+    AttemptLine {
+        task: value.task,
+        attempt: value.attempt,
+        claimed: value.claimed,
+        started: value.started,
+        ended: value.ended,
+        end: value.end,
+        phases: value.phases,
+    }
 }
 
 fn settings(limits: &Limits, row: &tasks::Settings) -> Result<AmendmentState, Missing> {

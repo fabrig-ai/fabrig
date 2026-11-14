@@ -147,6 +147,8 @@ fn ended(row: Option<Record>) -> Option<Box<tasks::TaskRecord>> {
             | tasks::Stored::DecidedProposal(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::Activity(_)
             | tasks::Stored::Update(_)
             | tasks::Stored::Result(_)

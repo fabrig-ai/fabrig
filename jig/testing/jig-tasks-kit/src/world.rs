@@ -1097,6 +1097,8 @@ impl World {
                 | Stored::Delegate(_)
                 | Stored::Activity(_)
                 | Stored::Milestone(_)
+                | Stored::Attempt(_)
+                | Stored::Hold(_)
                 | Stored::PersonProposal(_)
                 | Stored::DecidedProposal(_)
                 | Stored::ClosedLedger(_)
@@ -1133,6 +1135,8 @@ impl World {
                 | Stored::DecidedProposal(_)
                 | Stored::Activity(_)
                 | Stored::Milestone(_)
+                | Stored::Attempt(_)
+                | Stored::Hold(_)
                 | Stored::History(_)
                 | Stored::Result(_)
                 | Stored::EndedByParty(_)
@@ -1203,6 +1207,8 @@ impl World {
             | Stored::Ledger(_)
             | Stored::Activity(_)
             | Stored::Milestone(_)
+            | Stored::Attempt(_)
+            | Stored::Hold(_)
             | Stored::History(_)
             | Stored::PlacedHold(_)
             | Stored::PersonProposal(_) => {
@@ -1232,6 +1238,8 @@ impl World {
                 | Key::Stub(_)
                 | Key::Ledger(_)
                 | Key::Milestone { .. }
+                | Key::Attempt { .. }
+                | Key::Hold { .. }
                 | Key::Activity { .. }
                 | Key::History { .. }
                 | Key::Result { .. }
@@ -1334,6 +1342,8 @@ impl World {
                 | Stored::Stub(_)
                 | Stored::Activity(_)
                 | Stored::Milestone(_)
+                | Stored::Attempt(_)
+                | Stored::Hold(_)
                 | Stored::History(_)
                 | Stored::PlacedHold(_)
                 | Stored::PersonProposal(_) => None,
@@ -1666,6 +1676,8 @@ fn live_row(record: &Stored) -> Option<&jig_domain_tasks::TaskRecord> {
         | Stored::PersonProposal(_)
         | Stored::History(_)
         | Stored::Milestone(_)
+        | Stored::Attempt(_)
+        | Stored::Hold(_)
         | Stored::Activity(_)
         | Stored::Result(_)
         | Stored::EndedByParty(_)

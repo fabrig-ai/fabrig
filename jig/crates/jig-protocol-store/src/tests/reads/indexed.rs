@@ -76,11 +76,13 @@ fn subtree_store() -> Store {
     let rows = [
         fixtures::ended_of(GOAL, tasks::Party::Person(ALICE)),
         fixtures::history(GOAL, 1),
-        fixtures::hold_milestone(GOAL, 1),
+        fixtures::attempt_row(GOAL, 1),
+        fixtures::hold_row(GOAL, 1),
         fixtures::delegate(GOAL, CHILD),
         fixtures::ended_of(CHILD, tasks::Party::Task(GOAL)),
         fixtures::history(CHILD, 2),
-        fixtures::hold_milestone(CHILD, 2),
+        fixtures::attempt_row(CHILD, 2),
+        fixtures::hold_row(CHILD, 2),
         fixtures::history(GRANDCHILD, 3),
     ];
     for chunk in rows.chunks(3) {
@@ -120,12 +122,14 @@ fn subtree_history_walks_each_delegates_history_in_turn() {
         values(&rows).as_ref(),
         [
             fixtures::history(GOAL, 1),
-            fixtures::hold_milestone(GOAL, 1),
+            fixtures::attempt_row(GOAL, 1),
+            fixtures::hold_row(GOAL, 1),
             fixtures::history(CHILD, 2),
-            fixtures::hold_milestone(CHILD, 2)
+            fixtures::attempt_row(CHILD, 2),
+            fixtures::hold_row(CHILD, 2)
         ]
     );
-    assert_eq!(owner_numbers(&rows).as_ref(), [GOAL, GOAL, CHILD, CHILD]);
+    assert_eq!(owner_numbers(&rows).as_ref(), [GOAL, GOAL, GOAL, CHILD, CHILD, CHILD]);
     assert_eq!(next, None);
 }
 
@@ -133,9 +137,9 @@ fn subtree_history_walks_each_delegates_history_in_turn() {
 fn a_subtree_cursor_resumes_at_its_delegates_index_row() {
     let mut store = subtree_store();
     let mut range = subtree_range();
-    range.after = Some(position(fixtures::history(CHILD, 2)));
+    range.after = Some(position(fixtures::attempt_row(CHILD, 2)));
     let (rows, next) = page(load(&mut store, range));
-    assert_eq!(values(&rows).as_ref(), [fixtures::hold_milestone(CHILD, 2)]);
+    assert_eq!(values(&rows).as_ref(), [fixtures::hold_row(CHILD, 2)]);
     assert_eq!(owner_numbers(&rows).as_ref(), [CHILD]);
     assert_eq!(next, None);
 }
@@ -272,13 +276,19 @@ fn a_page_that_returned_none_within_its_bound_is_cut_not_ended() {
 fn a_subtree_history_page_moves_from_one_task_to_the_next() {
     let mut store = subtree_store();
     let mut range = subtree_range();
-    range.rows = 2;
+    range.rows = 3;
     let (rows, next) = page(load(&mut store, range.clone()));
-    assert_eq!(values(&rows).as_ref(), [fixtures::history(GOAL, 1), fixtures::hold_milestone(GOAL, 1)]);
-    assert_eq!(next, Some(position(fixtures::hold_milestone(GOAL, 1))));
+    assert_eq!(
+        values(&rows).as_ref(),
+        [fixtures::history(GOAL, 1), fixtures::attempt_row(GOAL, 1), fixtures::hold_row(GOAL, 1)]
+    );
+    assert_eq!(next, Some(position(fixtures::hold_row(GOAL, 1))));
     range.after = next;
     let (rows, next) = page(load(&mut store, range));
-    assert_eq!(values(&rows).as_ref(), [fixtures::history(CHILD, 2), fixtures::hold_milestone(CHILD, 2)]);
+    assert_eq!(
+        values(&rows).as_ref(),
+        [fixtures::history(CHILD, 2), fixtures::attempt_row(CHILD, 2), fixtures::hold_row(CHILD, 2)]
+    );
     assert_eq!(next, None);
 }
 
@@ -353,10 +363,14 @@ fn a_subtree_cursor_advances_past_rows_whose_owner_is_gone() {
     );
     let mut range = subtree_range();
     range.rows = 1;
-    range.after = Some(position(fixtures::hold_milestone(GOAL, 1)));
+    range.after = Some(position(fixtures::hold_row(GOAL, 1)));
     let (rows, next) = page(load(&mut store, range.clone()));
     assert!(rows.is_empty());
     assert_eq!(next, Some(position(fixtures::history(CHILD, 2))));
+    range.after = next;
+    let (rows, next) = page(load(&mut store, range.clone()));
+    assert!(rows.is_empty());
+    assert_eq!(next, Some(position(fixtures::attempt_row(CHILD, 2))));
     range.after = next;
     let (rows, next) = page(load(&mut store, range));
     assert!(rows.is_empty());

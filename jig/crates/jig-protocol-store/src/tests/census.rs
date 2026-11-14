@@ -69,7 +69,8 @@ fn reports_copy_named_keyspaces_and_leave_secrets_uncounted() {
             1,
             Box::new([
                 fixtures::header(1),
-                fixtures::save(fixtures::hold_milestone(21, 1)),
+                fixtures::save(fixtures::hold_row(21, 1)),
+                fixtures::save(fixtures::attempt_row(21, 1)),
                 Write::Put { key: Box::new([12, 9]), value: Box::new([0, 7, 42]) },
                 Write::Put { key: Box::new([99]), value: Box::new([1]) },
             ]),
@@ -90,10 +91,13 @@ fn reports_copy_named_keyspaces_and_leave_secrets_uncounted() {
         }
     }
     assert_eq!(census.keyspaces.len(), u32::try_from(store.stores.store.census().keyspaces().len()).unwrap());
-    let milestone = space(census, &[1, 1, 10]);
-    assert_eq!(&*milestone.name, "tasks.milestones");
-    assert_eq!(milestone.rows, 1);
-    assert_eq!(milestone.puts, 1);
+    let hold = space(census, &[1, 1, 23]);
+    assert_eq!(&*hold.name, "tasks.holds");
+    assert_eq!(hold.rows, 1);
+    assert_eq!(hold.puts, 1);
+    let attempt = space(census, &[1, 1, 22]);
+    assert_eq!(&*attempt.name, "tasks.attempts");
+    assert_eq!(attempt.rows, 1);
     let application = space(census, &[2, 12]);
     assert_eq!(&*application.name, "example.changes");
     assert_eq!((application.rows, application.keys, application.values, application.written), (1, 3, 3, 6));

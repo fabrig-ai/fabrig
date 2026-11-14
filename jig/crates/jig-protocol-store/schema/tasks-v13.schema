@@ -173,6 +173,7 @@ enum PersonProposalState { pending: PendingPersonProposal, accepted: AcceptedPro
 enum PersonAction { batch: ProposedBatch, amend: boxed ProposedAmendment, settings: ProposedSettings }
 record PersonProposal { number: u64 proposer: u64 project: u32 action: PersonAction reason: bytes 524288 state: PersonProposalState }
 record Milestone { task: u64 position: u64 phase: Phase at: u64 }
+record HoldRow { task: u64 position: u64 held: Held at: u64 }
 record Grace { by: Party until: u64 reason: bytes 524288 message: u64 }
 record SettingsRevision { task: u32 run: option u32 }
 record Revisions { hold: u64 spec: u64 person: u64 }
@@ -210,6 +211,8 @@ record Word { number: u64 from: Party kind: MessageKind words: bytes 524288 at: 
 enum InvalidResult { form, verdict, words, change, followups }
 record FailedEnd { class: Class invalid_result: option InvalidResult }
 enum EndKind { parked, finished, cancelled, failed: FailedEnd, refused }
+record AttemptRow { task: u64 attempt: u64 claimed: option u64 started: option u64 ended: option u64 end: option EndKind phases: option u32 }
+record OpenAttempt { attempt: u64 claimed: option u64 started: option u64 from: u64 end: option EndKind }
 record ActivityWords { message: u64 by: Party kind: MessageKind words: bytes 524288 }
 record HeardMessage { word: Word }
 record NotifiedMessage { recipient: Party word: Word }
@@ -301,6 +304,7 @@ record TaskRun {
     requester: Party
     run_spent: u64
     run_reserved: u64
+    open_attempt: option OpenAttempt = none
 }
 record Added { task: u64 at: u64 by: Party }
 record TaskDefinition {
@@ -365,7 +369,7 @@ enum HoldMode { stop, drain }
 record SubtreeScope { task: u64 }
 enum HoldScope { subtree: SubtreeScope, project }
 record PlacedHold { number: u64 project: u32 owner: HoldOwner mode: HoldMode scope: HoldScope reason: bytes 524288 placed_at: u64 revision: u64 exempt: list 4096 u64 lifted: bool }
-enum Value { ledger: FundingRecord, closed_ledger: FundingRecord, writer: WriterSlot, pool: PoolSlots, history: boxed History, milestone: Milestone, person_proposal: PersonProposal, decided_proposal: PersonProposal, activity: ActivityLine, live: BeforeTalk, ended: BeforeTalk, stub: Stub, update: Update, result: ResultRow, ended_delegate: Edge, delegate: Edge, ended_by_party: EndedByParty, ended_by_project: EndedByProject, placed_hold: PlacedHold, live_talk: TaskRecord, ended_talk: TaskRecord }
+enum Value { ledger: FundingRecord, closed_ledger: FundingRecord, writer: WriterSlot, pool: PoolSlots, history: boxed History, milestone: Milestone, person_proposal: PersonProposal, decided_proposal: PersonProposal, activity: ActivityLine, live: BeforeTalk, ended: BeforeTalk, stub: Stub, update: Update, result: ResultRow, ended_delegate: Edge, delegate: Edge, ended_by_party: EndedByParty, ended_by_project: EndedByProject, placed_hold: PlacedHold, live_talk: TaskRecord, ended_talk: TaskRecord, attempt: AttemptRow, hold: HoldRow }
 record ModelName { value: text 4096 }
 versioned record Row { value: Value models: list 64 ModelName }
 record CapacityActionBatch { first: option u64 members: u32 }

@@ -281,8 +281,8 @@ fn escalation_store() -> Store {
         Box::new([
             fixtures::header(2),
             fixtures::save(fixtures::escalation_decision(CHILD, 5)),
-            fixtures::save(fixtures::hold_milestone(CHILD, HOLD_POSITION)),
-            fixtures::save(fixtures::hold_milestone(CHILD, OTHER_HOLD_POSITION)),
+            fixtures::save(fixtures::hold_row(CHILD, HOLD_POSITION)),
+            fixtures::save(fixtures::hold_row(CHILD, OTHER_HOLD_POSITION)),
         ]),
     );
     store
@@ -360,10 +360,10 @@ fn an_escalation_reads_the_decision_its_task_names() {
 }
 
 #[test]
-fn an_escalation_joins_its_hold_milestone_by_position() {
+fn an_escalation_joins_its_hold_row_by_position() {
     let mut store = escalation_store();
     let result = load(&mut store, escalation_range());
-    assert_eq!(one_row(&result).related, Some(fixtures::hold_milestone(CHILD, 13)));
+    assert_eq!(one_row(&result).related, Some(fixtures::hold_row(CHILD, 13)));
 }
 
 #[test]
@@ -675,19 +675,23 @@ fn an_activity_cursor_continues_below_its_position() {
 }
 
 #[test]
-fn a_tasks_history_joins_history_then_milestones() {
+fn a_tasks_history_joins_changes_then_attempts_then_holds() {
     let mut store = child_store();
     fixtures::committed(
         &mut store,
         Box::new([
             fixtures::header(2),
             fixtures::save(fixtures::history(CHILD, 3)),
-            fixtures::save(fixtures::hold_milestone(CHILD, 1)),
+            fixtures::save(fixtures::attempt_row(CHILD, 2)),
+            fixtures::save(fixtures::hold_row(CHILD, 1)),
         ]),
     );
     let range = fixtures::read(ALICE, reads::Scope::History { task: CHILD, subtree: false });
     let (rows, next) = page(load(&mut store, range));
-    assert_eq!(values(&rows).as_ref(), [fixtures::history(CHILD, 3), fixtures::hold_milestone(CHILD, 1)]);
+    assert_eq!(
+        values(&rows).as_ref(),
+        [fixtures::history(CHILD, 3), fixtures::attempt_row(CHILD, 2), fixtures::hold_row(CHILD, 1)]
+    );
     for row in &rows {
         assert_eq!(row.owner.as_ref().expect("joined owner").number, CHILD);
     }
