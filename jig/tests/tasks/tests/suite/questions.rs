@@ -775,13 +775,96 @@ fn a_question_hold_keeps_only_the_first_line_at_a_utf8_edge() {
     }
 }
 
+/// Two questions read in the claimed run wake once; a second park waits, and
+/// a newer question earns one more wake. Restore keeps the consumed watermark.
+fn questions_while_awaiting(kind: SubscriptionKind) -> World {
+    const SECOND: u64 = 2;
+    const THIRD: u64 = 3;
+    let limits = Limits {
+        inbox_bytes: 2048,
+        retries: Retries { run: Retry { retries: 0, ..LIMITS.retries.run }, ..LIMITS.retries },
+        ..LIMITS
+    };
+    let mut world = pair_with_limits(false, &limits);
+    assert_eq!(world.record(REQUESTER).question_woken, 0);
+    assert_eq!(
+        response(&mut world, |reply_to| Event::Subscribe {
+            reply_to,
+            task: REQUESTER,
+            subscription: Subscription { number: 1, kind },
+        }),
+        Reply::Done
+    );
+    world.claim(REQUESTER, ATTEMPT);
+    let tries = world.record(REQUESTER).tries;
+    for number in [QUESTION, SECOND] {
+        assert_eq!(message(&mut world, Party::Task(ASKER), REQUESTER, number, MessageKind::Question), Reply::Done);
+    }
+    read_inbox(&mut world, REQUESTER, ATTEMPT);
+    world.terminal(REQUESTER, End::Parked);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
+    assert_eq!(world.record(REQUESTER).tries, tries);
+    assert_eq!(world.record(REQUESTER).question_woken, SECOND);
+    assert!(world.record(REQUESTER).inbox.is_empty());
+    assert!(world.contexts[&REQUESTER].reasons.contains(Reasons::QUESTION));
+
+    // No new read or event: the open questions must not become a poll.
+    world.claim(REQUESTER, SECOND);
+    world.terminal(REQUESTER, End::Parked);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Idle));
+    assert_eq!(world.record(REQUESTER).tries, tries);
+    assert_eq!(world.record(REQUESTER).question_woken, SECOND);
+
+    assert_eq!(message(&mut world, Party::Task(ASKER), REQUESTER, THIRD, MessageKind::Question), Reply::Done);
+    world.claim(REQUESTER, THIRD);
+    read_inbox(&mut world, REQUESTER, THIRD);
+    world.terminal(REQUESTER, End::Parked);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
+    assert_eq!(world.record(REQUESTER).tries, tries);
+    assert_eq!(world.record(REQUESTER).question_woken, THIRD);
+    assert_eq!(world.record(REQUESTER).question_lines.len(), 3);
+    assert!(world.record(REQUESTER).question_lines.iter().all(|line| line.answer.is_none()));
+
+    world.restart();
+    assert_eq!(world.record(REQUESTER).question_woken, THIRD);
+    world.claim(REQUESTER, 4);
+    world.terminal(REQUESTER, End::Parked);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Idle));
+    assert_eq!(world.record(REQUESTER).tries, tries);
+    assert_eq!(world.record(REQUESTER).question_woken, THIRD);
+    world
+}
+
+#[test]
+fn open_questions_wake_a_goal_with_a_live_task_watch_once_then_wait_for_its_result() {
+    let mut world = questions_while_awaiting(SubscriptionKind::Task { target: ASKER, held: true, result: true });
+    for (question, number) in [(1, 4), (2, 5), (3, 6)] {
+        assert_eq!(
+            message(&mut world, Party::Task(REQUESTER), ASKER, number, MessageKind::Answer { question }),
+            Reply::Done
+        );
+    }
+    world.finish(ASKER);
+    world.settle(ASKER);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
+    assert_eq!(world.record(REQUESTER).tries, Tries::NONE);
+    assert_eq!(world.record(REQUESTER).question_woken, 3);
+}
+
+#[test]
+fn open_questions_wake_a_goal_with_a_taken_timer_once_then_wait_for_a_message() {
+    let mut world = questions_while_awaiting(SubscriptionKind::Timer { at: Wall::from_nanos(1_000_000), period: None });
+    assert_eq!(message(&mut world, Party::Task(ASKER), REQUESTER, 4, MessageKind::Words), Reply::Done);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Due));
+    assert_eq!(world.record(REQUESTER).tries, Tries::NONE);
+    assert_eq!(world.record(REQUESTER).question_woken, 3);
+}
+
 #[derive(Clone, Copy, Debug)]
 enum AwaitingAnswer {
     Kept,
     Proposal,
     Person,
-    Timer,
-    Watch,
     Quiet,
     Conversation,
     RequesterEnded,
@@ -827,8 +910,6 @@ fn an_open_question_does_not_poll_while_something_can_bring_the_answer() {
         AwaitingAnswer::Kept,
         AwaitingAnswer::Proposal,
         AwaitingAnswer::Person,
-        AwaitingAnswer::Timer,
-        AwaitingAnswer::Watch,
         AwaitingAnswer::Quiet,
         AwaitingAnswer::Conversation,
         AwaitingAnswer::RequesterEnded,
@@ -883,21 +964,6 @@ fn an_open_question_does_not_poll_while_something_can_bring_the_answer() {
                 person.authority.budget.spend = 20;
                 person.funder = Funder::Task(REQUESTER);
                 assert_eq!(world.make(Party::Task(REQUESTER), vec![person]), Reply::Made(vec![PERSON_TASK]));
-            }
-            AwaitingAnswer::Timer | AwaitingAnswer::Watch => {
-                let kind = if matches!(exemption, AwaitingAnswer::Timer) {
-                    SubscriptionKind::Timer { at: Wall::from_nanos(1_000_000), period: None }
-                } else {
-                    SubscriptionKind::Task { target: ASKER, held: true, result: true }
-                };
-                assert_eq!(
-                    response(&mut world, |reply_to| Event::Subscribe {
-                        reply_to,
-                        task: REQUESTER,
-                        subscription: Subscription { number: 1, kind },
-                    }),
-                    Reply::Done
-                );
             }
             _ => {}
         }

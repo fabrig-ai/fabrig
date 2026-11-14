@@ -740,6 +740,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     crate::closer::take_available(domain, env, number, out);
     publish(domain, env, number, out);
     if let Some(question) = question {
+        let (QuestionWake::Awaits(question) | QuestionWake::Alone(question)) = question;
         out.push(Request::QuestionParked { task: number, question });
     }
     if nothing_awaited && record(domain, number).expect("idle task live").phase == Phase::Active(Active::Idle) {
@@ -949,10 +950,16 @@ fn exceeded(domain: &mut Domain, number: u64, exceeded: crate::Exceeded) -> Phas
     Phase::Held { was: Was::Active(Active::Due), why, source: None }
 }
 
-/// An idle fresh-brief task polls only when nothing can bring its answer
-/// (domain/tasks/lifecycle.md, 2). The received positions and the asker's credits
-/// are the same predicate used by reasons and briefs.
-fn question_left_open(domain: &Domain, row: &crate::TaskRecord) -> Option<crate::OpenQuestion> {
+/// A timer or live task watch permits one wake per question; alone, each park
+/// polls again (domain/tasks/lifecycle.md, 2).
+enum QuestionWake {
+    Awaits(crate::OpenQuestion),
+    Alone(crate::OpenQuestion),
+}
+
+/// The received positions and the asker's credits are the same predicate used
+/// by reasons and briefs (domain/tasks/lifecycle.md, 2).
+fn question_left_open(domain: &Domain, row: &crate::TaskRecord) -> Option<QuestionWake> {
     if row.phase != Phase::Active(Active::Idle)
         || !row.wake.questions
         || row.flags.conversation
@@ -991,18 +998,34 @@ fn question_left_open(domain: &Domain, row: &crate::TaskRecord) -> Option<crate:
             }
         }
     }
+    let mut awaits = false;
     for subscription in &row.subscriptions {
         match subscription.kind {
-            crate::SubscriptionKind::Timer { .. } => return None,
+            crate::SubscriptionKind::Timer { .. } => awaits = true,
             crate::SubscriptionKind::Task { target, .. } => {
-                if record(domain, target).is_some() {
-                    return None;
-                }
+                awaits |= record(domain, target).is_some();
             }
             crate::SubscriptionKind::Topic { .. } => {}
         }
     }
-    domain.open_questions(row.number).get(0).copied()
+    let questions = domain.open_questions(row.number);
+    if awaits {
+        let mut newest = None;
+        for question in &questions {
+            if question.number > row.question_woken {
+                newest = Some(*question);
+            }
+        }
+        match newest {
+            Some(question) => Some(QuestionWake::Awaits(question)),
+            None => None,
+        }
+    } else {
+        match questions.get(0) {
+            Some(question) => Some(QuestionWake::Alone(*question)),
+            None => None,
+        }
+    }
 }
 
 pub(crate) fn question_parked(
@@ -1014,9 +1037,21 @@ pub(crate) fn question_parked(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = record(domain, number) else { return };
-    let Some(open) = question_left_open(domain, row) else { return };
+    let Some(wake) = question_left_open(domain, row) else { return };
+    let (QuestionWake::Awaits(open) | QuestionWake::Alone(open)) = &wake;
     if open.number != question {
         return;
+    }
+    match wake {
+        QuestionWake::Awaits(open) => {
+            let task = task_mut(domain, number).expect("idle question task");
+            task.record.question_woken = open.number;
+            task.record.phase = Phase::Active(Active::Due);
+            publish(domain, env, number, out);
+            crate::domain::activate(domain, number, out);
+            return;
+        }
+        QuestionWake::Alone(_) => {}
     }
     if row.tries.of(Class::Run) >= env.limits.retries.run.retries {
         let phase = failure(domain, env, number, Class::Run, Some(preparation_reason(reason)));

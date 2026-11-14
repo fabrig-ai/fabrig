@@ -1505,6 +1505,7 @@ pub(crate) fn make_admitted(
             reasons: crate::Reasons::FIRST,
             offered: crate::Reasons::ALL,
             asked_requester: false,
+            question_woken: 0,
             placed: None,
             settings: crate::SettingsRevision { task: domain.newest, run: None },
             label: new.label,
