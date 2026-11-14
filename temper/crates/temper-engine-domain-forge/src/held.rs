@@ -302,15 +302,23 @@ fn marker(lost: u64, leading: bool) -> usize {
         .saturating_add(b" bytes cut]\n".len())
 }
 
-/// A section may stand on its partner once; both unread sections fail the brief.
-pub(crate) fn stand_on_partner(domain: &mut Domain, section: Token) -> bool {
+/// A section may stand on its partner once; at the cutoff a reason needs a pull
+/// past its identity (domain/forge/change/repairs.md, A forge section is sized by its cutoff).
+pub(crate) fn stand_on_partner(domain: &mut Domain, section: Token, at_cutoff: bool) -> bool {
     let Some(pending) = domain.brief_pending.get(&section) else { return false };
     let Some(partner) = pending.partner else { return false };
+    let needs_identity = at_cutoff
+        && match pending.source {
+            BriefSource::Ci { .. } | BriefSource::Reviews { .. } | BriefSource::Request { .. } => true,
+            BriefSource::Pull { .. } | BriefSource::Document | BriefSource::Home { .. } => false,
+        };
     let readable = match domain.brief_pending.get(&partner) {
-        Some(partner) => !partner.unread && !partner.dropped,
+        Some(pending) => {
+            !pending.unread && !pending.dropped && (!needs_identity || brief::past_identity(domain, partner))
+        }
         None => match domain.brief_held.get(&partner) {
             Some(partner) => !partner.unread,
-            None => domain.brief_planned.contains_key(&partner),
+            None => !needs_identity && domain.brief_planned.contains_key(&partner),
         },
     };
     if readable {
