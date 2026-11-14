@@ -55,7 +55,8 @@ fn decode(kind: Kind, bytes: &[u8], refuse: bool) -> Option<Box<[u8]>> {
 }
 
 fn check(kind: Kind, bytes: &[u8], context: &str, case: &str, valid: bool, refuse: bool) {
-    eprintln!("{context}{kind:?}, {case}, input {bytes:?}");
+    // Seed, kind and case replay the input without dumping the full bound fixture.
+    eprintln!("{context}{kind:?}, {case}, input length {}", bytes.len());
     let encoded = decode(kind, bytes, refuse);
     if valid {
         assert!(encoded.is_some(), "{context}{kind:?}, {case}: bound fixture must decode");
