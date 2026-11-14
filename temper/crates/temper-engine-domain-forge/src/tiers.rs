@@ -235,6 +235,7 @@ fn word(out: &mut skein_lib::Writer, value: usize) {
 
 fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
     TierRow {
+        hold: None,
         observations: Box::new([]),
         repository,
         tier,

@@ -333,6 +333,9 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         1 => p::Part::Rerun { failed: tests.clone() },
         _ => p::Part::Probe {
             landing: 0,
+            low: 0,
+            high: 0,
+            waiting: Box::new([]),
             tests: if rng.below(2) == 0 { p::Selection::All } else { p::Selection::Tests(tests.clone()) },
             finding: p::Finding { failing: failures.clone(), flakes: tests, blamed: Box::new([blame.clone()]) },
         },
@@ -350,6 +353,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         })
     };
     let row = forge::Stored::Tier(forge::TierRow {
+        hold: None,
         observations: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
         requested: false,
         cancelled: false,

@@ -123,7 +123,14 @@ pub enum Part {
     /// The failed tests alone, again at the tip (5.2, 1).
     Rerun { failed: Box<[TestId]> },
     /// A probe: `tests` alone at landing `landing`'s commit (5.2, 4).
-    Probe { landing: u32, tests: Selection, finding: Finding },
+    Probe { landing: u32, low: u32, high: u32, tests: Selection, waiting: Box<[Group]>, finding: Finding },
+}
+/// Failures whose owner lies between `low` and `high`, inclusive (5.2, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Group {
+    pub low: u32,
+    pub high: u32,
+    pub tests: Selection,
 }
 /// What a probe runs: these tests alone, or, after many, the whole tier.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

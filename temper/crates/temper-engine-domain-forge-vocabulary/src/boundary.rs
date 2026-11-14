@@ -2687,12 +2687,21 @@ pub struct TierRow {
     pub probe: Option<TierProbeBranch>,
     pub flight: Option<TierFlight>,
     pub held: Option<landing::Fault>,
+    pub hold: Option<TierHold>,
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
     pub received: bool,
     pub goals: Box<[TierGoal]>,
     pub goal: Option<u64>,
     pub started: Option<skein_lib::Time>,
+}
+/// A person's independent hold of a tier (domain/after-landing.md, sections 3 and 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierHold {
+    pub party: u64,
+    pub at: skein_lib::Wall,
+    /// At most 1024 bytes.
+    pub reason: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierLanding {
