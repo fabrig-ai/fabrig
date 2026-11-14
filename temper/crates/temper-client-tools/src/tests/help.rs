@@ -158,16 +158,13 @@ fn help_names_how_to_read_a_runs_brief() {
 fn chat_start_explains_subagent_choices() {
     let help = fixtures::help(Some(jig::rows::CHAT_CREATE_AT));
     for explanation in [
-        "each model named once, with one effort",
-        "effort is required when the model declares efforts",
+        "each model once, its effort optional as --model's",
+        "it takes the model's default effort",
         "--sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B",
-        "distinct model names offered by `model list`",
-        "Available choices only: this list neither starts children nor assigns",
-        "choices by child order",
-        "The parent's `sub_agent` call selects a model with",
-        "optional `llm`; omitted, it uses main's model and effort",
-        "One model cannot be offered at two child efforts",
-        "multiple children may use the same choice",
+        "distinct models from model list",
+        "Available choices only: they neither start children nor assign by order",
+        "The parent's sub_agent selects optional llm; omitted, main's model/effort",
+        "Each model has one child effort; multiple children may use that choice",
     ] {
         assert!(
             skein_lib::bytes::find(&help, explanation.as_bytes()).is_some(),
@@ -178,7 +175,7 @@ fn chat_start_explains_subagent_choices() {
 #[test]
 fn chat_start_points_to_model_list_and_models_print_readably() {
     let help = fixtures::help(Some(jig::rows::CHAT_CREATE_AT));
-    for reference in ["as model list shows it", "distinct model names offered by `model list`"] {
+    for reference in ["as model list shows it", "distinct models from model list"] {
         assert!(skein_lib::bytes::find(&help, reference.as_bytes()).is_some(), "{reference}");
     }
     let mut root = fixtures::account_root(false);

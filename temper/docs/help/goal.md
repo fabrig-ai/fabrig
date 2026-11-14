@@ -82,9 +82,13 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   A template with budget given needs `--budget AMOUNT` or `--as-allowed`;
   one with deadline given needs `--deadline TIME`, UTC to the minute,
   as `2026-10-24T17:00Z`. `--priority` overrides its tracked priority.
-  `--model MODEL --effort EFFORT` changes its main choice and keeps
-  its sub-agents; explicit `--sub-agent MODEL[:EFFORT]` replaces them
-  and requires `--model`. Read `temper help ctl-goal` for the controls.
+  `--model MODEL [--effort EFFORT]` replaces the template's model choice,
+  its later choice included, for every run, keeping its first choice's
+  sub-agents unless `--sub-agent MODEL[:EFFORT]` replaces them.
+  `--effort` and `--sub-agent` need `--model`; omitted efforts take each
+  model's default. Without `--model` the template's choice holds whole.
+  A model flag a bound refuses is named with its value and the bound,
+  and nothing is made. Read `temper help ctl-goal` for the controls.
   Within your creating bounds the goal is made; beyond them, when
   offered, a proposal asks the named recipient first. An executor not
   offered or a goal past the project's ceilings sends nothing.
