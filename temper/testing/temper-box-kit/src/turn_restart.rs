@@ -382,8 +382,10 @@ impl Judge<'_> {
             .map(|run| json!({"id":run["id"],"workflow":run["workflow_id"],"status":run["status"]}))
             .collect();
         eprintln!("stalled runs: {runs:?}");
+        let sitting = if self.previous.is_none() { "first" } else if self.retry { "retry" } else { "final" };
         Err(format!(
-            "turn restart stalled: native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
+            "turn restart stalled ({sitting}, main advanced={}): native step {}, finished={}, setup={setup:?}, forge={}; {figures}",
+            self.advanced.is_some(),
             person.steps_seen(),
             person.finished,
             self.chat.forge.ok_or(String::from("forge"))?.failure_state()
