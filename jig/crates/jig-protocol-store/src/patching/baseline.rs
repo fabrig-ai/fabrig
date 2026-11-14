@@ -9,6 +9,8 @@ pub const SKEIN_PATCH_SET: PatchSet = PatchSet {
     patches: skein_oauth::patches::PATCHES,
     fresh: None,
     families: &[KeptFamily {
+        current: skein_oauth::patches::kept::skein_oauth::TEXTS.last().expect("kept text"),
+        types: &[],
         name: "skein-oauth",
         texts: skein_oauth::patches::kept::skein_oauth::TEXTS,
         map: KeptMap::Secrets,
@@ -26,6 +28,8 @@ pub const SMITH_PATCH_SET: PatchSet = PatchSet {
     patches: smith_transcript::patches::PATCHES,
     fresh: Some(smith_transcript::FRESH_WINDOWS),
     families: &[KeptFamily {
+        current: smith_transcript::patches::kept::smith_transcript::TEXTS.last().expect("kept text"),
+        types: &[],
         name: smith_transcript::FAMILY,
         texts: smith_transcript::patches::kept::smith_transcript::TEXTS,
         map: KeptMap::Store,

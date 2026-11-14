@@ -69,7 +69,23 @@ fn converts(set: &PatchSet, job: &Job) -> bool {
     let Some(converts) = job.converts else { return true };
     for family in set.families {
         if family.name == converts.family {
-            return family.map == KeptMap::Store && !family.texts.is_empty();
+            if family.map != KeptMap::Store {
+                return false;
+            }
+            for ty in family.types {
+                if ty.number == converts.value_type {
+                    if ty.keys.len() != job.keys.len() {
+                        return false;
+                    }
+                    for (range, written) in ty.keys.iter().zip(job.keys) {
+                        if range.from != written.from || range.to != written.to {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+            return false;
         }
     }
     false

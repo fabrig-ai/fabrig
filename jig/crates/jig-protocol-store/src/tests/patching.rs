@@ -12,6 +12,8 @@ use skein_codec::value::{Node, Value};
 use skein_lib::{Writer, bytes};
 
 const LABEL: KeptFamily = KeptFamily {
+    current: app::kept::fixture_label::TEXTS.last().expect("kept text"),
+    types: &[],
     flights: &[],
     frames: None,
     name: "fixture-label",
@@ -20,6 +22,8 @@ const LABEL: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::LABELS_FROM, to: fixture::keys::LABELS_TO, root: fixture::keys::LABELS_ROOT }],
 };
 const SHELF: KeptFamily = KeptFamily {
+    current: app::kept::fixture_shelf::TEXTS.last().expect("kept text"),
+    types: &[],
     flights: &[],
     frames: None,
     name: "fixture-shelf",
@@ -32,6 +36,8 @@ const SHELF: KeptFamily = KeptFamily {
     }],
 };
 const TOKEN: KeptFamily = KeptFamily {
+    current: app::kept::fixture_token::TEXTS.last().expect("kept text"),
+    types: &[],
     flights: &[],
     frames: None,
     name: "fixture-token",
@@ -40,6 +46,8 @@ const TOKEN: KeptFamily = KeptFamily {
     keys: &[Keys { from: fixture::keys::TOKENS_FROM, to: fixture::keys::TOKENS_TO, root: fixture::keys::TOKENS_ROOT }],
 };
 const NOTE: KeptFamily = KeptFamily {
+    current: jig::kept::fixture_note::TEXTS.last().expect("kept text"),
+    types: &[],
     flights: &[],
     frames: None,
     name: "fixture-note",
@@ -68,15 +76,31 @@ pub(super) const BASE: PatchSets = PatchSets {
     sets: &[
         PatchSet {
             families: &[
-                KeptFamily { texts: &[app::kept::fixture_label::TEXTS[0]], ..LABEL },
-                KeptFamily { texts: &[app::kept::fixture_shelf::TEXTS[0]], ..SHELF },
-                KeptFamily { texts: &[app::kept::fixture_token::TEXTS[0]], ..TOKEN },
+                KeptFamily {
+                    current: app::kept::fixture_label::TEXTS[0],
+                    texts: &[app::kept::fixture_label::TEXTS[0]],
+                    ..LABEL
+                },
+                KeptFamily {
+                    current: app::kept::fixture_shelf::TEXTS[0],
+                    texts: &[app::kept::fixture_shelf::TEXTS[0]],
+                    ..SHELF
+                },
+                KeptFamily {
+                    current: app::kept::fixture_token::TEXTS[0],
+                    texts: &[app::kept::fixture_token::TEXTS[0]],
+                    ..TOKEN
+                },
             ],
             patches: &[],
             ..APPLICATION
         },
         PatchSet {
-            families: &[KeptFamily { texts: &[jig::kept::fixture_note::TEXTS[0]], ..NOTE }],
+            families: &[KeptFamily {
+                current: jig::kept::fixture_note::TEXTS[0],
+                texts: &[jig::kept::fixture_note::TEXTS[0]],
+                ..NOTE
+            }],
             patches: &[],
             ..JIG
         },
@@ -101,7 +125,9 @@ fn the_binary_is_before_baseline_only_without_any_kept_text() {
             Levels { skein: None, smith: None, jig: None, application: None },
         ),
         (
-            PatchSets { sets: &[PatchSet { families: &[KeptFamily { texts: &[], ..LABEL }], ..APPLICATION }] },
+            PatchSets {
+                sets: &[PatchSet { families: &[KeptFamily { current: "", texts: &[], ..LABEL }], ..APPLICATION }],
+            },
             Levels { skein: None, smith: None, jig: None, application: None },
         ),
         (BASE, levels(0, 0)),
@@ -195,7 +221,13 @@ fn an_unkept_text_is_refused_beside_a_valid_kept_text() {
     for (sets, expected) in [
         (
             PatchSets {
-                sets: &[PatchSet { families: &[KeptFamily { texts: &["not a schema"], ..LABEL }], ..APPLICATION }, JIG],
+                sets: &[
+                    PatchSet {
+                        families: &[KeptFamily { current: "not a schema", texts: &["not a schema"], ..LABEL }],
+                        ..APPLICATION
+                    },
+                    JIG,
+                ],
             },
             Err(Unplanned { owner: Owner::Application, patch: 0 }),
         ),
@@ -536,6 +568,7 @@ fn a_held_record_two_versions_behind_runs_each_pass() {
             PatchSet {
                 families: &[
                     KeptFamily {
+                        current: app::kept::fixture_label::TEXTS[1],
                         texts: &[LABEL_ZERO, app::kept::fixture_label::TEXTS[0], app::kept::fixture_label::TEXTS[1]],
                         ..LABEL
                     },
@@ -587,6 +620,8 @@ fn an_identity_walk_of_another_owners_holder_is_allowed() {
         name: "holder",
         patches: &[],
         families: &[KeptFamily {
+            current: HOLDER,
+            types: &[],
             flights: &[],
             frames: None,
             map: KeptMap::Store,
@@ -596,8 +631,10 @@ fn an_identity_walk_of_another_owners_holder_is_allowed() {
         }],
     };
     const SECRET: &str = "family holder 1\nversioned record Holder { note: secret 64 holds fixture-note Note }\n";
-    const SECRET_SET: PatchSet =
-        PatchSet { families: &[KeptFamily { texts: &[SECRET], ..HOLDER_SET.families[0] }], ..HOLDER_SET };
+    const SECRET_SET: PatchSet = PatchSet {
+        families: &[KeptFamily { current: SECRET, texts: &[SECRET], ..HOLDER_SET.families[0] }],
+        ..HOLDER_SET
+    };
     for holder in [PatchSets { sets: &[HOLDER_SET, JIG] }, PatchSets { sets: &[SECRET_SET, JIG] }] {
         let sets = holder;
         let found = Levels { skein: None, smith: None, jig: Some(0), application: Some(0) };
@@ -630,8 +667,19 @@ fn two_families_holding_each_other_refuse_the_plan() {
             name: "cycle",
             patches: &[PATCH],
             families: &[
-                KeptFamily { flights: &[], frames: None, map: KeptMap::Store, name: "cycle-a", texts: &[A], keys: &[] },
                 KeptFamily {
+                    current: A,
+                    types: &[],
+                    flights: &[],
+                    frames: None,
+                    map: KeptMap::Store,
+                    name: "cycle-a",
+                    texts: &[A],
+                    keys: &[],
+                },
+                KeptFamily {
+                    current: B2,
+                    types: &[],
                     flights: &[],
                     frames: None,
                     map: KeptMap::Store,
@@ -656,6 +704,8 @@ pub(super) const SMITH: PatchSet = PatchSet {
     fresh: Some(jig_test_patches_smith::FRESH),
     patches: jig_test_patches_smith::patches::PATCHES,
     families: &[KeptFamily {
+        current: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS.last().expect("kept text"),
+        types: &[],
         flights: &[],
         name: "fixture-turn",
         texts: jig_test_patches_smith::patches::kept::fixture_turn::TEXTS,

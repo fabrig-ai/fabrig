@@ -22,6 +22,8 @@ pub(crate) const SETS: PatchSets = PatchSets {
             patches: jig::PATCHES,
             fresh: None,
             families: &[KeptFamily {
+                current: jig::kept::fixture_frame::TEXTS.last().expect("kept text"),
+                types: &[],
                 flights: &[],
                 name: "fixture-frame",
                 texts: jig::kept::fixture_frame::TEXTS,
@@ -37,6 +39,8 @@ pub(crate) const SETS: PatchSets = PatchSets {
             patches: smith::PATCHES,
             fresh: Some(jig_test_patches_smith::FRESH),
             families: &[KeptFamily {
+                current: smith::kept::fixture_turn::TEXTS.last().expect("kept text"),
+                types: &[],
                 flights: &[],
                 name: "fixture-turn",
                 texts: smith::kept::fixture_turn::TEXTS,
