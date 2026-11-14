@@ -223,6 +223,7 @@ pub struct StoryLimits {
     pub questions: Option<u32>,
     pub merge_kind: bool,
     pub resolutions: Option<u32>,
+    pub repairs: Option<u32>,
     pub merge_authority: bool,
 }
 
@@ -399,6 +400,7 @@ impl World {
             merge_kind,
             merge_authority,
             resolutions,
+            repairs,
             turn,
             dispatch_passes: _,
             landing_members,
@@ -904,6 +906,9 @@ impl World {
                     policy.ceiling.delegation.kinds.clone_from(kinds);
                     policy.roles[0].authority.delegation.kinds.clone_from(kinds);
                 }
+            }
+            if let Some(repairs) = repairs {
+                limits.forge.change_policy.repairs = repairs;
             }
             if let Some(resolutions) = resolutions {
                 limits.forge.change_policy.resolutions = resolutions;

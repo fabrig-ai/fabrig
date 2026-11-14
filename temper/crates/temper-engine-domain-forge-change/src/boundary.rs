@@ -359,6 +359,8 @@ pub enum Verification {
 pub struct Facts {
     /// The failed checks at `ci.head`, or Change when CI did not fail or its runs could not be read.
     pub fault: Fault,
+    /// A failed check at `ci.head` names a job read at that head, and the change's forge writes a re-run.
+    pub rerun: bool,
     /// Pending dependencies in the order of the change's dependencies.
     pub pending: Box<[Pending]>,
     /// Its landing's current request; absent under queue.
@@ -493,7 +495,7 @@ pub enum Delegate {
 pub enum Effect {
     /// Dispatch or retry the follow check at this head.
     FollowCheck { head: Commit },
-    /// Run the next failed runner job again without moving the head.
+    /// Run a failed job again without moving the head.
     Rerun { head: Commit },
     /// Open a pull request for the pushed branch.
     Open,
