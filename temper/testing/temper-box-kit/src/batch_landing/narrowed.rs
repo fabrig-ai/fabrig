@@ -246,6 +246,12 @@ impl Judge<'_> {
         if gate_runs(self.forge)?.len() != 4 {
             return Err(String::from("top, two probes and the next round only"));
         }
+        // The held branch still names the pull before Forgejo archives its ref.
+        let number = panel["round"]["pull"]["number"].as_u64().ok_or(String::from("round pull"))?;
+        let pull = get(self.forge, &format!("pulls/{number}"));
+        if pull["head"]["ref"] != branch || pull["head"]["sha"] != prefix {
+            return Err(String::from("the next round's pull uses its held branch and proved prefix"));
+        }
         self.barrier.release(run);
         self.second = Some(Proof { panel, run });
         self.phase = Phase::Search(Step::Remainder);
@@ -285,11 +291,11 @@ impl Judge<'_> {
                     return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
                 }
             }
+            // A deleted branch is retained by Forgejo as the pull's archive ref.
+            if pull["head"]["ref"] != second.panel["round"]["branch"]
+                && pull["head"]["ref"] != format!("refs/pull/{number}/head")
             {
-                let (left, right) = (&(pull["head"]["ref"]), &(second.panel["round"]["branch"]));
-                if left != right {
-                    return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
-                }
+                return Err(String::from("the merged pull keeps its branch or its archive ref"));
             }
             {
                 let (left, right) = (&(pull["head"]["sha"]), &(prefix));
