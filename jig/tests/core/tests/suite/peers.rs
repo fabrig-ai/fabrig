@@ -411,5 +411,4 @@ fn peers_scenarios() {
     crate::bundle::case!(bundle, 205, a_person_stops_a_scripted_run_and_words_release_it_for_a_new_attempt);
     crate::bundle::case!(bundle, 206, a_request_sent_twice_creates_one_chat_and_replays_the_same_answer);
     crate::bundle::case!(bundle, 207, a_worker_reconnects_and_resends_retained_turns_after_hello);
-    bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }

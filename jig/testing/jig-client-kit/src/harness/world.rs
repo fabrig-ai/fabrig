@@ -642,7 +642,9 @@ impl<A: App, F: Front<A>> World<A, F> {
             // The model is still the old platform tree after the view has built.
             let old_nodes: Vec<_> = c.model.ids().collect();
             while let Some(patch) = c.patches.pop() {
-                c.model.apply(patch);
+                if let Err(why) = c.model.check_apply(patch) {
+                    panic!("seed {} client {}: {why}; trace {:?}", self.settings.seed, id.0, self.trace.lines());
+                }
             }
             c.model.check(A::tree(&c.view));
             let mut current: Vec<_> = A::tree(&c.view).nodes().iter().map(|node| node.id).collect();

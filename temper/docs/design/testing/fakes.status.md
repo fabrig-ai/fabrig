@@ -1,6 +1,6 @@
 # fakes: status
 
-2026-11-11. Where the tree's code lags or departs from [fakes.md](fakes.md).
+2026-11-14. Where the tree's code lags or departs from [fakes.md](fakes.md).
 
 - **Not yet:** 6: a fake mail sink, as mail itself (`../domain/forge/attention.md`, 7.4).
 
@@ -24,3 +24,6 @@
   `Feed`, and the user's request of 11-04 asked that no crate under
   `temper/crates` do so. No reason is recorded, and no debt item holds
   them.
+
+- **Not yet:** 3: the fake git program asserts its replay's order as it
+  is asked, and its test catches. [in flight: change 2867]
