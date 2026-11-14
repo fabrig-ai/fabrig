@@ -213,7 +213,7 @@ fn a_commit_numbered_behind_the_next_fails() {
 #[test]
 fn a_refused_skein_commit_is_answered_failed() {
     const BUDGET: u64 = 4096;
-    // Each application's tagged one-byte key and payload adds 1026 map bytes.
+    // Each application's tagged one-byte key and payload adds 1026 bytes, plus 128 entry bytes.
     const PAYLOAD: usize = 1024;
     const ROW_BYTES: u64 = 1026;
     let mut store = fixtures::opened_with_budget(BUDGET);
@@ -227,7 +227,15 @@ fn a_refused_skein_commit_is_answered_failed() {
         if number < 4 {
             assert_committed(&events, number);
         } else {
-            assert_failed(&events, number, CommitFailure::Refused(skein_kv::Refusal::Full));
+            assert_failed(
+                &events,
+                number,
+                CommitFailure::Refused(skein_kv::Refusal::Full(skein_kv::Exhausted::Budget {
+                    used,
+                    budget: BUDGET,
+                    projected: used + 128 + ROW_BYTES,
+                })),
+            );
             assert!(used <= BUDGET && used + ROW_BYTES > BUDGET);
             assert_eq!(store.stores.store.used(), used);
             assert_eq!(store.stores.store.last(), number - 1);
