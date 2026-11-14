@@ -30,8 +30,8 @@ pub struct Projection {
 }
 
 fn header(state: &Projection) -> ProjectionRecord {
-    ProjectionRecord::Goal {
-        goal: state.goal.clone(),
+    ProjectionRecord::GoalHot {
+        goal: state.goal.hot(),
         pending: state.pending.clone(),
         changed: state.changed,
         fed_at: state.fed_at,
@@ -53,7 +53,8 @@ fn goal(row: &tasks::TaskRecord) -> ProjectionGoal {
 }
 
 pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, out: &mut Queue<Request>) {
-    if row.tracked.is_some() && !core.projections.contains_key(&row.number) {
+    let fresh = row.tracked.is_some() && !core.projections.contains_key(&row.number);
+    if fresh {
         core.projections
             .insert(
                 row.number,
@@ -75,6 +76,7 @@ pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, ou
         number
     };
     let Some(state) = core.projections.get_mut(&number) else { return };
+    let before = header(state);
     if row.number == number {
         let mut next = state.goal.clone();
         next.words.clone_from(&row.spec.words);
@@ -83,6 +85,9 @@ pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, ou
             next.priority = priority;
         }
         state.changed |= state.goal != next;
+        if fresh || state.goal.words != next.words {
+            write(out, ProjectionRecord::GoalWords { goal: number, task: number, words: next.words.clone() });
+        }
         state.goal = next;
     }
     let next = ProjectionTask {
@@ -95,12 +100,20 @@ pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, ou
     for old in &mut state.plan {
         if old.number == row.number {
             state.changed |= *old != next;
+            if old.hot() != next.hot() {
+                write(out, ProjectionRecord::TaskHot { goal: number, task: next.hot() });
+            }
+            if old.words != next.words {
+                write(out, ProjectionRecord::TaskWords { goal: number, task: row.number, words: next.words.clone() });
+            }
             *old = next.clone();
             found = true;
             break;
         }
     }
     if !found {
+        write(out, ProjectionRecord::TaskHot { goal: number, task: next.hot() });
+        write(out, ProjectionRecord::TaskWords { goal: number, task: row.number, words: next.words.clone() });
         let mut plan = List::with_capacity(limits.tasks.tree_tasks);
         for old in core::mem::replace(&mut state.plan, Box::new([])) {
             plan.push(old).expect("bounded tree plan");
@@ -109,19 +122,10 @@ pub(crate) fn save(core: &mut Core, limits: &Limits, row: &tasks::TaskRecord, ou
         state.plan = plan.into_boxed();
         state.changed = true;
     }
-    write(
-        out,
-        ProjectionRecord::Task {
-            goal: number,
-            task: ProjectionTask {
-                number: row.number,
-                requester: row.requester,
-                words: row.spec.words.clone(),
-                phase: row.phase.clone(),
-            },
-        },
-    );
-    write(out, header(state));
+    let after = header(state);
+    if fresh || before != after {
+        write(out, after);
+    }
 }
 
 pub(crate) fn history(
@@ -169,9 +173,11 @@ pub(crate) fn history(
     assert!(count < core.routes, "pending history bounded by decision");
     milestones.push(milestone).expect("decision history room");
     state.milestones = milestones.into_boxed();
-    state.changed = true;
     write(out, ProjectionRecord::Milestone { goal: root, milestone: saved });
-    write(out, header(state));
+    if !state.changed {
+        state.changed = true;
+        write(out, header(state));
+    }
 }
 
 fn eligible(core: &Core, number: u64, state: &Projection) -> bool {
@@ -296,6 +302,10 @@ pub(crate) fn settled(core: &mut Core, goal: u64, connector: u16, out: &mut Queu
 fn forget(core: &mut Core, goal: u64, out: &mut Queue<Request>) {
     let state = core.projections.remove(&goal).expect("closing feed state retained");
     for row in &state.plan {
+        out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(ProjectionKey::TaskWords {
+            goal,
+            task: row.number,
+        })))));
         out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(ProjectionKey::Task {
             goal,
             task: row.number,
@@ -307,6 +317,7 @@ fn forget(core: &mut Core, goal: u64, out: &mut Queue<Request>) {
             milestone.identity,
         ))))));
     }
+    out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(ProjectionKey::GoalWords(goal))))));
     out.push(Request::Write(Write::Erase(crate::Key::Core(CoreKey::Projection(ProjectionKey::Goal(goal))))));
     for &connector in core.connectors.as_ref() {
         out.push(Request::Ask { connector, ask: Ask::ForgetProjection { goal } });
