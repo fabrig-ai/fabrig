@@ -378,7 +378,7 @@ def build_test_binaries(binaries, root, env):
     return 0, []
 
 
-def one_process(packages, root, env, entries=(), reds=(), rerun=0, outcomes=None):
+def one_process(packages, root, env, reds=(), rerun=0, outcomes=None):
     """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         directory = Path(directory) / 'tests'
@@ -445,7 +445,7 @@ def one_process(packages, root, env, entries=(), reds=(), rerun=0, outcomes=None
             return code or 1, [failure('check one-process', f'{source}: {error}\n' + log)], starved
         if not errors:
             errors.append(failure('check one-process', 'exit 100 without JUnit failures\n' + log))
-        inherited(entries, reds, errors)
+        inherited(reds, errors)
         tests_again(errors, observed, rerun, directory, root, env)
         return code, errors, starved
 
@@ -501,33 +501,6 @@ def rerun_bound(root, env):
                 return value
     print('pre-pr: rerun: ignored temper/rerun (malformed)', flush=True)
     return 0
-
-
-def known_reds(tree_id, root, env):
-    """Read the checked snapshot's bounded entries once (section 5)."""
-    path = '.temper/known-reds.md'
-    entry = git(['ls-tree', tree_id, '--', path], root, env)
-    if not entry.stdout.startswith((b'100644 blob ', b'100755 blob ')):
-        return set(), []
-    result = git(['cat-file', 'blob', f'{tree_id}:{path}'], root, env)
-    if result.returncode:
-        return set(), []
-    entries = []
-    for line in result.stdout.decode(errors='replace').splitlines():
-        line = line.rstrip()
-        match = re.fullmatch(r'- test (\S+) (.+)', line)
-        if match:
-            entries.append(('test', *match.groups()))
-        match = re.fullmatch(r'- lint (\S+) (\S+) (.+)', line)
-        if match:
-            entries.append(('lint', *match.groups()))
-    print(f'pre-pr: known reds: {len(entries)} entries ({path})', flush=True)
-    size = len(result.stdout)
-    if len(entries) > 64 or size > 8192:
-        log = (f'{path}: {len(entries):,} entries, {size:,} bytes; '
-               'the cap is 64 entries and 8,192 bytes')
-        return set(), [failure('known-reds', log)]
-    return set(entries), []
 
 
 def goal_reds(root, env):
@@ -592,8 +565,8 @@ def goal_reds(root, env):
     return entries, digest, milliseconds is not None
 
 
-def inherited(entries, reds, errors):
-    """Only listed tests and coded lints inherit, without their messages (section 5)."""
+def inherited(reds, errors):
+    """Only the goal's tests and coded lints inherit, without their messages (section 5)."""
     for error in errors:
         key = error['key']
         if key is None:
@@ -604,9 +577,8 @@ def inherited(entries, reds, errors):
             entry = ('lint', *key[:3])
         else:
             continue
-        if entry in entries or entry in reds:
+        if entry in reds:
             error['inherited'] = True
-            error['red_source'] = 'reds' if entry in reds else 'list'
 
 
 def judge_base(base_id, git_dir, count_errors, root, env):
@@ -713,8 +685,8 @@ def summary(base_id, lints, tests, errors, reason, starved=None):
     entries += [f'flake: {e["name"]} (failed under load; passed when its process ran again: '
                 f'{e["flake"][0]} tests, {e["flake"][1]:.3f} s)\n' + e['log']
                 for e in sorted((e for e in errors if 'flake' in e), key=lambda e: e['key'])]
-    sources = {'list': ' (known red, .temper/known-reds.md)', 'reds': ' (red, temper/reds)'}
-    entries += ['inherited: ' + e['name'] + sources.get(e.get('red_source'), '') + '\n'
+    entries += ['inherited: ' + e['name'] +
+                (' (red, temper/reds)' if e['name'].startswith(('test ', 'clippy ')) else '') + '\n'
                 for e in errors if e['inherited']]
     # Even large package sets must leave room for the first failure and the count.
     header = header.encode()[:4096].decode('utf-8', errors='ignore') + '\n'
@@ -759,8 +731,6 @@ def main():
             return 0
         runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
         with runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout):
-            entries, found = known_reds(tree_id, root, env)
-            errors += found
             data = None
             paths, selected = [], []
             docs = False
@@ -834,12 +804,12 @@ def main():
                         build_code, found = timed('test binaries', lambda: build_test_binaries(binaries, root, env), pending)
                         errors += found
                     if tests and not build_code:
-                        _, found, starved = timed('tests', lambda: one_process(tests, root, env, entries, reds, rerun, outcomes), pending)
+                        _, found, starved = timed('tests', lambda: one_process(tests, root, env, reds, rerun, outcomes), pending)
                         errors += found
             if docs:
                 _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
                 errors += found
-            inherited(entries, reds, errors)
+            inherited(reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
             if base_id and count_errors:
                 why = judge_base(base_id, git_dir, count_errors, root, env)

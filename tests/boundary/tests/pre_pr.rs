@@ -655,13 +655,13 @@ fn changed_field(mut value: Value, field: &str, replacement: Value) -> Value {
 #[test]
 #[expect(clippy::too_many_lines, reason = "One ledger table compares failure and starvation verdicts")]
 fn only_what_the_delivery_broke_refuses() {
-    for (row, head, known_reds, accepted, named) in [
+    for (row, head, reds, accepted, named) in [
         (
             "inherited test",
             json!({"tests": [test_failure("rule", "head junit tail")]}),
             Some("- test A::rules rule\n"),
             true,
-            "inherited: test A::rules rule (known red, .temper/known-reds.md)",
+            "inherited: test A::rules rule (red, temper/reds)",
         ),
         (
             "different test",
@@ -671,6 +671,13 @@ fn only_what_the_delivery_broke_refuses() {
             "test A::rules rule",
         ),
         ("no file", json!({"tests": [test_failure("rule", "head junit tail")]}), None, false, "test A::rules rule"),
+        (
+            "old list alone",
+            json!({"tests": [test_failure("listed", "listed junit tail")]}),
+            None,
+            false,
+            "test A::rules listed\n\nlisted junit tail",
+        ),
         (
             "different binary",
             json!({"tests": [test_failure("rule", "head junit tail")]}),
@@ -683,7 +690,7 @@ fn only_what_the_delivery_broke_refuses() {
             json!({"clippy": [lint_failure(20, "any lint message")]}),
             Some("- lint A clippy::rule a/src/lib.rs\n"),
             true,
-            "inherited: clippy A clippy::rule a/src/lib.rs (known red, .temper/known-reds.md)",
+            "inherited: clippy A clippy::rule a/src/lib.rs (red, temper/reds)",
         ),
         (
             "different lint code",
@@ -734,10 +741,15 @@ fn only_what_the_delivery_broke_refuses() {
     ] {
         let scratch = fixture();
         let root = scratch.path();
+        if row == "old list alone" {
+            write(root, ".temper/known-reds.md", "- test A::rules listed\n");
+            git(root, &["add", "."]);
+            git(root, &["commit", "-qm", "tree with a list"]);
+        }
         pin(root);
         write(root, "a/src/lib.rs", "fn changed() {}\n");
-        if let Some(entries) = known_reds {
-            write(root, ".temper/known-reds.md", entries);
+        if let Some(entries) = reds {
+            write(root, ".git/temper/reds", &format!("temper-reds 1\n{entries}"));
         }
         ledger(root, &json!({"head": head}));
         let output = deliver(root);
@@ -756,6 +768,10 @@ fn only_what_the_delivery_broke_refuses() {
             assert_ne!(side, "base", "no base cargo: {row}: {event}");
         }
         assert!(!root.join(".git/temper-pre-pr/base").exists(), "no base worktree: {row}");
+        assert!(!log.contains("pre-pr: known reds"), "no tree list read: {row}: {log}");
+        if row == "old list alone" {
+            assert!(!log.contains("inherited:"), "list counts nothing: {log}");
+        }
         assert!(!log.contains("inherited: build"), "build always refuses: {row}: {log}");
         if row == "different test" || row == "no file" {
             assert!(log.contains("head junit tail"), "JUnit output in summary: {log}");
