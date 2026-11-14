@@ -48,4 +48,6 @@ disallowed-methods = [
     { path = "std::collections::HashMap::with_capacity", reason = "a random seed: BTreeMap, or a fixed hasher" },
     { path = "std::collections::HashSet::new", reason = "a random seed: BTreeSet, or a fixed hasher" },
     { path = "std::collections::HashSet::with_capacity", reason = "a random seed: BTreeSet, or a fixed hasher" },
+    { path = "std::panic::catch_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
+    { path = "std::panic::resume_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
 ]
