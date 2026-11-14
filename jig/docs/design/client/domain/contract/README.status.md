@@ -1,6 +1,6 @@
 # contract: status
 
-2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+2026-11-14. Where jig's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 3: the refusal *live tasks*, absent from the contract's `Refusal`, the client wire and jig's words [in flight: change 628].
 - **Not yet:** 4: a deleted project's read answers unknown, not gone [in flight: change 629].
@@ -79,3 +79,4 @@ both proposers with and without a running-work choice.
 Section 2's browser-approved sign-in is present on the client wire and
 in the clients' component. Only a take with the secret makes the ordinary
 sign-in of the browser's party; a bearer's decision is refused.
+- **Not yet:** 4: a history page's attempts and holds, and client wire 23; wire 22 carries milestones. [in flight: change 3376]
