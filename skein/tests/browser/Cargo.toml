@@ -13,6 +13,7 @@ skein-lib.workspace = true
 
 [dev-dependencies]
 skein-browser-rig.workspace = true
+skein-scratch.workspace = true
 skein-fake-person-browser.workspace = true
 skein-ui.workspace = true
 skein-ui-web.workspace = true

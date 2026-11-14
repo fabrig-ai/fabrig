@@ -126,32 +126,33 @@ fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags
     let mut engine_paused = false;
     let data = &paths[1];
     eprintln!("start-over {cut:?}: cut");
-    let first = boxed::run_ctl_with_cut(
-        scratch.path(),
-        flags.to_vec(),
-        vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "setup"]))],
-        |binary, _| {
-            let stage = match cut {
-                Cut::Fetch => child(binary, &[b"forge", b"fetch"]),
-                Cut::Prepare => child(binary, &[b"forge", b"prepare"]),
-                Cut::Run | Cut::Started => child(binary, &[b"forge", b"run"]).or_else(|| child(binary, &[b"web"])),
-            };
-            if stage.is_none() {
-                return false;
+    // The client keeps its sign-in across cuts (client/ctl/README.md, 6.1).
+    let mut steps = Vec::new();
+    if matches!(cut, Cut::Fetch) {
+        steps.push(Step::Run(Call::sign_in()));
+    }
+    steps.push(Step::Run(Call::new(&["forge", "setup"])));
+    let first = boxed::run_ctl_with_cut(scratch.path(), flags.to_vec(), steps, |binary, _| {
+        let stage = match cut {
+            Cut::Fetch => child(binary, &[b"forge", b"fetch"]),
+            Cut::Prepare => child(binary, &[b"forge", b"prepare"]),
+            Cut::Run | Cut::Started => child(binary, &[b"forge", b"run"]).or_else(|| child(binary, &[b"web"])),
+        };
+        if stage.is_none() {
+            return false;
+        }
+        if matches!(cut, Cut::Started) {
+            // Hold the engine before it can receive `started N` and adopt.
+            if !engine_paused {
+                signal(child(binary, &[b"serve"]).expect("engine under this box"), "-STOP");
+                engine_paused = true;
             }
-            if matches!(cut, Cut::Started) {
-                // Hold the engine before it can receive `started N` and adopt.
-                if !engine_paused {
-                    signal(child(binary, &[b"serve"]).expect("engine under this box"), "-STOP");
-                    engine_paused = true;
-                }
-                let started = format!("Forge {number} (Forgejo): started\n");
-                return data.join(format!("box/started/{number}")).exists() && boxed::box_log(data).contains(&started);
-            }
-            assert!(!data.join(format!("box/started/{number}")).exists(), "the cut precedes started");
-            true
-        },
-    );
+            let started = format!("Forge {number} (Forgejo): started\n");
+            return data.join(format!("box/started/{number}")).exists() && boxed::box_log(data).contains(&started);
+        }
+        assert!(!data.join(format!("box/started/{number}")).exists(), "the cut precedes started");
+        true
+    });
     assert!(first.checked.is_some(), "cut at {cut:?}: {}", String::from_utf8_lossy(&first.stderr));
     assert_eq!(first.exit, Some(Exit::Signal(9)));
     eprintln!("start-over {cut:?}: remove after restart");

@@ -12,6 +12,7 @@ mod drive;
 mod end_to_end;
 mod hosted;
 mod interrupt;
+mod nested_real;
 mod real;
 mod real_conformance;
 #[cfg(target_os = "linux")]
