@@ -79,6 +79,7 @@ pub fn restart() {
     members.up(&["forge", "llm"]);
     let mut world = real::World::new(Judge {
         members,
+        finding: None,
         deadline: clock.now().now.saturating_add(WITHIN),
         stage: Stage::Fakes,
         scratch: scratch.path().to_path_buf(),
@@ -128,6 +129,7 @@ enum Stage {
 }
 struct Judge {
     members: cluster::Members,
+    finding: Option<String>,
     deadline: Time,
     stage: Stage,
     scratch: PathBuf,
@@ -148,32 +150,136 @@ struct Judge {
     call_marks: usize,
 }
 impl Judge {
+    fn advance(&mut self, now: Time, hosts: &mut [cluster::Root]) -> Result<(), String> {
+        self.members.act(now, hosts);
+        if self.members.failed() {
+            self.stage = Stage::Stopping;
+            return Ok(());
+        }
+        let host = hosts.last_mut().ok_or_else(|| "client root".to_owned())?;
+        if matches!(self.stage, Stage::Fakes) && self.members.is_up() {
+            self.mark("fakes ready");
+            let api = self
+                .members
+                .capture("forge", "address")
+                .ok_or_else(|| "forge address".to_owned())?
+                .parse()
+                .map_err(|_| "API socket".to_owned())?;
+            self.app = Some(make_app(api, self.clients, &self.scratch)?);
+            self.mark("App made by manifest and conversion");
+            if self.members.dir("engine").join("data/state").exists() {
+                return Err("Must: no seeded forge records".to_owned());
+            }
+            self.members.prepare("engine");
+            let mut document: Value =
+                serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine configuration".to_owned())?)
+                    .map_err(|_| "engine JSON".to_owned())?;
+            // Restart retains the worker's files. Reserve its engine endpoint,
+            // as the clients' endpoint is reserved for the App's setup URL.
+            document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
+            fs::write(&self.engine, serde_json::to_vec(&document).map_err(|_| "engine JSON".to_owned())?)
+                .map_err(|_| "fixed workers listener".to_owned())?;
+            self.members.up(&["w1"]);
+            self.stage = Stage::Worker;
+            self.members.act(now, hosts);
+        } else if matches!(self.stage, Stage::Worker) && self.members.is_up() {
+            self.mark("engine and worker ready");
+            self.begin(host)?;
+        } else if matches!(self.stage, Stage::StopWorker) && self.members.ended("w1") {
+            self.members.stop_one("engine");
+            self.stage = Stage::StopEngine;
+        } else if matches!(self.stage, Stage::StopEngine) && self.members.ended("engine") {
+            self.members.restart("engine");
+            self.stage = Stage::RestartEngine;
+        } else if matches!(self.stage, Stage::RestartEngine) && self.members.capture("engine", "link").is_some() {
+            self.members.restart("w1");
+            self.stage = Stage::RestartWorker;
+        } else if matches!(self.stage, Stage::RestartWorker) && self.members.is_up() {
+            self.mark("engine and worker restarted on ready lines");
+            eprintln!(
+                "github restart: ready {:?}",
+                now.saturating_since(self.restart_began.ok_or_else(|| "restart began".to_owned())?)
+            );
+            if self.members.linked("w1") != 2 {
+                return Err("Must: worker linked in both lives".to_owned());
+            }
+            self.queue(
+                host,
+                vec![
+                    ctl::Call::new(&["forge", "list", "--until", "connected:1"]),
+                    ctl::Call::new(&["forge", "list", "--json"]),
+                ],
+            )?;
+            self.stage = Stage::Restored;
+        } else if host.is_empty()
+            && matches!(
+                self.stage,
+                Stage::Install
+                    | Stage::Adopt
+                    | Stage::Chat
+                    | Stage::Tree
+                    | Stage::Coder
+                    | Stage::BeforeRestart
+                    | Stage::Restored
+                    | Stage::AdoptionRestored
+            )
+        {
+            let cluster::Root::Client { calls, .. } = host else { return Err("client root".to_owned()) };
+            let calls = calls.take().ok_or_else(|| "completed calls".to_owned())?;
+            self.called(now, host, &calls)?;
+        }
+
+        Ok(())
+    }
+
     fn mark(&self, step: &str) {
         eprintln!("github git: {step} {:?}", Clock::new().now().now.saturating_since(self.began));
     }
-    fn queue(&mut self, host: &mut cluster::Root, calls: Vec<ctl::Call>) {
-        self.queue_steps(host, calls.into_iter().map(ctl::Step::Run).collect());
+    fn queue(&mut self, host: &mut cluster::Root, calls: Vec<ctl::Call>) -> Result<(), String> {
+        self.queue_steps(host, calls.into_iter().map(ctl::Step::Run).collect())?;
+
+        Ok(())
     }
-    fn queue_steps(&mut self, host: &mut cluster::Root, steps: Vec<ctl::Step>) {
+    fn queue_steps(&mut self, host: &mut cluster::Root, steps: Vec<ctl::Step>) -> Result<(), String> {
         self.call_marks = 0;
-        let link = format!("http://{}", self.members.capture("engine", "link").expect("engine link"));
+        let link =
+            format!("http://{}", self.members.capture("engine", "link").ok_or_else(|| "engine link".to_owned())?);
         let mut batch = ctl::Calls::linked(&link, &self.client);
         for step in steps {
             batch.push(step);
         }
-        let cluster::Root::Client { calls, .. } = host else { panic!("client root") };
+        let cluster::Root::Client { calls, .. } = host else { return Err("client root".to_owned()) };
         *calls = Some(Box::new(batch));
+
+        Ok(())
     }
-    fn begin(&mut self, host: &mut cluster::Root) {
+    fn begin(&mut self, host: &mut cluster::Root) -> Result<(), String> {
         use ctl::Call;
-        let engine: Value =
-            serde_json::from_slice(&fs::read(&self.engine).expect("engine document")).expect("engine JSON");
-        assert_eq!(engine["workers"], serde_json::json!([]), "engine alone");
-        assert_eq!(engine["application"]["workers"], serde_json::json!([]));
-        let workers = engine["engine"]["hosts"]["workers"].as_array().expect("worker positions");
-        assert_eq!(workers.len(), 1);
-        assert_eq!(workers[0]["name"], "w1");
-        assert_eq!(self.members.linked("w1"), 1, "the sole worker linked");
+        let engine: Value = serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine document".to_owned())?)
+            .map_err(|_| "engine JSON".to_owned())?;
+        if engine["workers"] != serde_json::json!([]) {
+            return Err("engine alone".to_owned());
+        }
+        if engine["application"]["workers"] != serde_json::json!([]) {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                engine["application"]["workers"],
+                serde_json::json!([])
+            ));
+        }
+        let workers = engine["engine"]["hosts"]["workers"].as_array().ok_or_else(|| "worker positions".to_owned())?;
+        if workers.len() != 1 {
+            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", workers.len(), 1));
+        }
+        if workers[0]["name"] != "w1" {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                workers[0]["name"], "w1"
+            ));
+        }
+        if self.members.linked("w1") != 1 {
+            return Err("the sole worker linked".to_owned());
+        }
         self.queue_steps(
             host,
             super::github::settings_setup(
@@ -183,7 +289,7 @@ impl Judge {
                         "account",
                         "add-key",
                         "1",
-                        self.key.to_str().expect("key path"),
+                        self.key.to_str().ok_or_else(|| "key path".to_owned())?,
                         "--deployment",
                         "--key",
                         "github-llm",
@@ -193,8 +299,8 @@ impl Judge {
                         "forge",
                         "connect",
                         "github-app",
-                        &self.app.as_ref().expect("made App").id.to_string(),
-                        self.scratch.join("github-app.pem").to_str().expect("PEM path"),
+                        &self.app.as_ref().ok_or_else(|| "made App".to_owned())?.id.to_string(),
+                        self.scratch.join("github-app.pem").to_str().ok_or_else(|| "PEM path".to_owned())?,
                         "--key",
                         "github-app",
                     ]),
@@ -202,8 +308,10 @@ impl Judge {
                     Call::new(&["forge", "install", "1", "--key", "github-install"]),
                 ],
             ),
-        );
+        )?;
         self.stage = Stage::Install;
+
+        Ok(())
     }
     fn adoption() -> ctl::Call {
         ctl::Call::new(&[
@@ -224,72 +332,89 @@ impl Judge {
             "--json",
         ])
     }
-    fn row(packet: &Value) -> Value {
-        packet["forges"]
+    fn row(packet: &Value) -> Result<Value, String> {
+        Ok(packet["forges"]
             .as_array()
-            .expect("forges rows")
+            .ok_or_else(|| "forges rows".to_owned())?
             .iter()
             .find(|row| row["number"] == 1)
-            .expect("Must: forge 1 is present")
-            .clone()
+            .ok_or_else(|| "Must: forge 1 is present".to_owned())?
+            .clone())
     }
-    fn restored(&mut self, host: &mut cluster::Root, packet: &Value) {
-        let row = Self::row(packet);
+    fn restored(&mut self, host: &mut cluster::Root, packet: &Value) -> Result<(), String> {
+        let row = Self::row(packet)?;
         // The account is learned from the token minted after startup. Wait on
         // the document's digest when T1 exposes a row still learning it.
         if row["installations"]
             .as_array()
             .is_some_and(|rows| !rows.is_empty() && rows.iter().any(|row| row["account"].is_null()))
         {
-            let digest = packet["digest"].as_str().expect("forges digest");
-            self.queue(host, vec![ctl::Call::new(&["forge", "list", "--since", digest, "--json"])]);
-            return;
+            let digest = packet["digest"].as_str().ok_or_else(|| "forges digest".to_owned())?;
+            self.queue(host, vec![ctl::Call::new(&["forge", "list", "--since", digest, "--json"])])?;
+            return Ok(());
         }
         self.restored = Some(row);
-        self.queue(host, vec![Self::adoption()]);
+        self.queue(host, vec![Self::adoption()])?;
         self.stage = Stage::AdoptionRestored;
+
+        Ok(())
     }
-    fn install(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) {
-        let output = std::str::from_utf8(&calls.ends().last().expect("install link").stdout).expect("install output");
-        let url = output.lines().find(|line| line.starts_with("http://")).expect("printed install link");
-        let address = self.members.capture("forge", "address").expect("forge address").parse().expect("socket");
-        let page = request_url(address, "GET", url, "", b"");
-        assert_eq!(page.status, 302, "Must: fake install redirects to setup");
-        let location = page.location.expect("setup redirect");
-        assert!(location.starts_with(&format!("http://{}/forges/1/github/setup?", self.clients)), "setup URL");
-        assert!(
-            location.contains(&format!("installation_id={INSTALLATION}")),
-            "Must: accepted visited installation id"
-        );
-        let accepted = request_url(self.clients, "GET", &location, "", b"");
-        assert_eq!(accepted.status, 200, "Must: setup accepted installation");
-        assert!(
-            skein_lib::bytes::find(&accepted.body, b"temper has the installation; you may close this tab.").is_some(),
-            "the setup page says so"
-        );
+    fn install(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
+        let output = std::str::from_utf8(&calls.ends().last().ok_or_else(|| "install link".to_owned())?.stdout)
+            .map_err(|_| "install output".to_owned())?;
+        let url =
+            output.lines().find(|line| line.starts_with("http://")).ok_or_else(|| "printed install link".to_owned())?;
+        let address = self
+            .members
+            .capture("forge", "address")
+            .ok_or_else(|| "forge address".to_owned())?
+            .parse()
+            .map_err(|_| "socket".to_owned())?;
+        let page = request_url(address, "GET", url, "", b"")?;
+        if page.status != 302 {
+            return Err("Must: fake install redirects to setup".to_owned());
+        }
+        let location = page.location.ok_or_else(|| "setup redirect".to_owned())?;
+        if !location.starts_with(&format!("http://{}/forges/1/github/setup?", self.clients)) {
+            return Err("setup URL".to_owned());
+        }
+        if !location.contains(&format!("installation_id={INSTALLATION}")) {
+            return Err("Must: accepted visited installation id".to_owned());
+        }
+        let accepted = request_url(self.clients, "GET", &location, "", b"")?;
+        if accepted.status != 200 {
+            return Err("Must: setup accepted installation".to_owned());
+        }
+        if skein_lib::bytes::find(&accepted.body, b"temper has the installation; you may close this tab.").is_none() {
+            return Err("the setup page says so".to_owned());
+        }
         self.outputs.push(accepted.body);
-        self.queue(host, vec![ctl::Call::new(&["forge", "list", "--until", "settled"]), Self::adoption()]);
+        self.queue(host, vec![ctl::Call::new(&["forge", "list", "--until", "settled"]), Self::adoption()])?;
         self.stage = Stage::Adopt;
+
+        Ok(())
     }
-    fn called(&mut self, now: Time, host: &mut cluster::Root, calls: &ctl::Calls) {
+    fn called(&mut self, now: Time, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
         for ended in calls.ends() {
             self.outputs.push(ended.stdout.clone());
             self.outputs.push(ended.stderr.clone());
-            assert_eq!(
-                ended.exit,
-                Some(Exit::Code(0)),
-                "ctl: {} {}",
-                String::from_utf8_lossy(&ended.stderr),
-                String::from_utf8_lossy(&ended.stdout)
-            );
+            if ended.exit != Some(Exit::Code(0)) {
+                return Err(format!(
+                    "ctl: {} {}",
+                    String::from_utf8_lossy(&ended.stderr),
+                    String::from_utf8_lossy(&ended.stdout)
+                ));
+            }
         }
         match self.stage {
             Stage::Install => {
-                self.install(host, calls);
+                self.install(host, calls)?;
             }
             Stage::Adopt => {
-                let packet = ctl::json(calls.ends().last().expect("adoption"));
-                assert!(packet["adopted"].is_object(), "Must: first life adopts acme/app: {packet}");
+                let packet = json_call(calls.ends().last().ok_or_else(|| "adoption".to_owned())?)?;
+                if !packet["adopted"].is_object() {
+                    return Err(format!("Must: first life adopts acme/app: {packet}"));
+                }
                 self.adoption = Some(packet["adopted"].clone());
                 self.queue(
                     host,
@@ -303,47 +428,55 @@ impl Judge {
                         "@forge_chat Update README",
                         "--json",
                     ])],
-                );
+                )?;
                 self.stage = Stage::Chat;
             }
             Stage::Chat => {
                 self.mark("signed in, key usable, adopted, chat created");
-                let packet = ctl::json(calls.ends().last().expect("chat creation"));
-                assert_eq!(packet["outcome"]["done"]["document"]["created"]["first"], 1, "{packet}");
-                self.queue(host, vec![ctl::Call::new(&["task", "show", "1", "--tree", "--json"])]);
+                let packet = json_call(calls.ends().last().ok_or_else(|| "chat creation".to_owned())?)?;
+                if packet["outcome"]["done"]["document"]["created"]["first"] != 1 {
+                    return Err(format!("{packet}"));
+                }
+                self.queue(host, vec![ctl::Call::new(&["task", "show", "1", "--tree", "--json"])])?;
                 self.stage = Stage::Tree;
             }
-            Stage::Tree => self.tree(host, &ctl::json(&calls.ends()[0])),
+            Stage::Tree => self.tree(host, &json_call(calls.ends().first().ok_or("completed ctl call")?)?)?,
             Stage::Coder => {
-                Self::coder(&ctl::json(&calls.ends()[0]));
+                Self::coder(&json_call(calls.ends().first().ok_or("completed ctl call")?)?)?;
                 self.mark("coder delivered");
-                self.queue(host, vec![ctl::Call::new(&["forge", "list", "--json"])]);
+                self.queue(host, vec![ctl::Call::new(&["forge", "list", "--json"])])?;
                 self.stage = Stage::BeforeRestart;
             }
             Stage::BeforeRestart => {
-                let row = Self::row(&ctl::json(&calls.ends()[0]));
-                assert_eq!(row["state"], "connected", "Must: connected before restart");
-                assert_eq!(row["login"], "temper-person[bot]", "Must: connected as the person's App");
-                assert!(row["id"].as_u64().is_some(), "Must: connected bot id");
+                let row = Self::row(&json_call(calls.ends().first().ok_or("completed ctl call")?)?)?;
+                if row["state"] != "connected" {
+                    return Err("Must: connected before restart".to_owned());
+                }
+                if row["login"] != "temper-person[bot]" {
+                    return Err("Must: connected as the person's App".to_owned());
+                }
+                if row["id"].as_u64().is_none() {
+                    return Err("Must: connected bot id".to_owned());
+                }
                 self.identity = Some(row);
-                self.forge(true);
+                self.forge(true)?;
                 self.mark("first life delivered; restarting");
                 self.restart_began = Some(now);
                 self.members.stop_one("w1");
                 self.stage = Stage::StopWorker;
             }
-            Stage::Restored => self.restored(host, &ctl::json(calls.ends().last().expect("restored forges"))),
+            Stage::Restored => {
+                self.restored(host, &json_call(calls.ends().last().ok_or_else(|| "restored forges".to_owned())?)?)?;
+            }
             Stage::AdoptionRestored => {
-                let packet = ctl::json(&calls.ends()[0]);
-                assert_eq!(
-                    packet["adopted"],
-                    *self.adoption.as_ref().expect("first adoption"),
-                    "Must: same adoption key answers its kept adopted outcome after restart"
-                );
+                let packet = json_call(calls.ends().first().ok_or("completed ctl call")?)?;
+                if packet["adopted"] != *self.adoption.as_ref().ok_or_else(|| "first adoption".to_owned())? {
+                    return Err("Must: same adoption key answers its kept adopted outcome after restart".to_owned());
+                }
                 self.mark("adoption found after restart");
                 eprintln!(
                     "github restart: restored {:?}",
-                    now.saturating_since(self.restart_began.expect("restart began"))
+                    now.saturating_since(self.restart_began.ok_or_else(|| "restart began".to_owned())?)
                 );
                 self.members.stop();
                 self.stage = Stage::Stopping;
@@ -354,179 +487,201 @@ impl Judge {
             | Stage::StopEngine
             | Stage::RestartEngine
             | Stage::RestartWorker
-            | Stage::Stopping => unreachable!("active calls"),
+            | Stage::Stopping => return Err("active calls".to_owned()),
         }
+
+        Ok(())
     }
-    fn tree(&mut self, host: &mut cluster::Root, packet: &Value) {
+    fn tree(&mut self, host: &mut cluster::Root, packet: &Value) -> Result<(), String> {
         let tree = &packet["tree"];
         // Watches carry their last digest forward, so discovering a new child never polls.
-        if tree["rows"].as_array().expect("tree rows").iter().any(|row| row["chip"]["task"] == CODER) {
+        if tree["rows"].as_array().ok_or_else(|| "tree rows".to_owned())?.iter().any(|row| row["chip"]["task"] == CODER)
+        {
             self.mark("coder created");
-            self.queue(host, vec![ctl::Call::new(&["task", "show", &CODER.to_string(), "--until", "ended", "--json"])]);
+            self.queue(
+                host,
+                vec![ctl::Call::new(&["task", "show", &CODER.to_string(), "--until", "ended", "--json"])],
+            )?;
             self.stage = Stage::Coder;
         } else {
-            let digest = tree["digest"].as_str().unwrap_or_else(|| panic!("tree digest: {packet}"));
-            self.queue(host, vec![ctl::Call::new(&["task", "tree", "1", "--since", digest, "--json"])]);
+            let digest = tree["digest"].as_str().ok_or_else(|| format!("tree digest: {packet}"))?;
+            self.queue(host, vec![ctl::Call::new(&["task", "tree", "1", "--since", digest, "--json"])])?;
         }
+
+        Ok(())
     }
-    fn coder(task: &Value) {
+    fn coder(task: &Value) -> Result<(), String> {
         let task = &task["task"];
-        assert_eq!(task["chip"]["task"], CODER, "{task}");
+        if task["chip"]["task"] != CODER {
+            return Err(format!("{task}"));
+        }
         let owner = &task["chip"]["details"]["owner"];
-        assert!(owner["details"]["ending"]["done"].is_object(), "coder delivered: {task}");
-        assert!(owner["details"]["ending"]["done"]["change"].is_object(), "change delivered: {task}");
+        if !owner["details"]["ending"]["done"].is_object() {
+            return Err(format!("coder delivered: {task}"));
+        }
+        if !owner["details"]["ending"]["done"]["change"].is_object() {
+            return Err(format!("change delivered: {task}"));
+        }
         // begin() checks that this engine alone has exactly one worker position,
         // w1, and its linked line. Only that worker can have executed this coder.
+
+        Ok(())
     }
-    fn forge(&self, read_objects: bool) {
-        let bytes = fs::read(&self.observations).expect("forge observations");
-        let bytes = if read_objects { certified_prefix(&bytes) } else { &bytes };
-        let lines = std::str::from_utf8(bytes).expect("observation UTF-8");
-        let rows: Vec<Value> =
-            lines.lines().map(|line| serde_json::from_str(line).expect("observation JSON")).collect();
-        assert_eq!(rows.last().expect("checkpoint")["observations_lost"], 0);
+    #[expect(clippy::too_many_lines, reason = "the forge observations keep their returning Musts in order")]
+    fn forge(&self, read_objects: bool) -> Result<(), String> {
+        let bytes = fs::read(&self.observations).map_err(|_| "forge observations".to_owned())?;
+        let bytes = if read_objects { certified_prefix(&bytes)? } else { &bytes };
+        let lines = std::str::from_utf8(bytes).map_err(|_| "observation UTF-8".to_owned())?;
+        let rows: Vec<Value> = lines
+            .lines()
+            .map(|line| serde_json::from_str(line).map_err(|_| "observation JSON".to_owned()))
+            .collect::<Result<_, _>>()?;
+        if rows.last().ok_or_else(|| "checkpoint".to_owned())?["observations_lost"] != 0 {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                rows.last().ok_or_else(|| "checkpoint".to_owned())?["observations_lost"],
+                0
+            ));
+        }
         let calls: Vec<_> = rows.iter().filter(|row| row["observation"] == "git_call").collect();
-        assert!(calls.iter().any(|row| row["writes"] == false && row["status"] == 200), "clone/read observed");
-        assert_eq!(
-            calls.iter().filter(|row| row["writes"] == true).count(),
-            1,
-            "Must: exactly one push across both lives"
-        );
+        if !calls.iter().any(|row| row["writes"] == false && row["status"] == 200) {
+            return Err("clone/read observed".to_owned());
+        }
+        if calls.iter().filter(|row| row["writes"] == true).count() != 1 {
+            return Err("Must: exactly one push across both lives".to_owned());
+        }
         for call in calls {
             // The record's closed schema is the token-secrecy proof: no string/value field.
-            let decoded =
-                temper_fake::forge::observations::decode(call.to_string().as_bytes()).expect("closed git record");
-            assert!(matches!(decoded, Some(temper_fake::forge::observations::Observation::GitCall(_))));
-            assert_eq!(call["installation"], INSTALLATION);
-            assert!(call["mint"].as_u64().is_some_and(|mint| mint > 0));
+            let decoded = temper_fake::forge::observations::decode(call.to_string().as_bytes())
+                .map_err(|_| "closed git record".to_owned())?;
+            if !matches!(decoded, Some(temper_fake::forge::observations::Observation::GitCall(_))) {
+                return Err("assertion failed: matches!(decoded, Some(temper_fake::forge::observations::Observation::GitCall(_)))".to_owned());
+            }
+            if call["installation"] != INSTALLATION {
+                return Err(format!(
+                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                    call["installation"], INSTALLATION
+                ));
+            }
+            if call["mint"].as_u64().is_none_or(|mint| mint == 0) {
+                return Err("assertion failed: call[\"mint\"].as_u64().is_some_and(|mint| mint > 0)".to_owned());
+            }
             if call["writes"] == true {
-                assert_eq!(call["status"], 200, "push succeeds");
+                if call["status"] != 200 {
+                    return Err("push succeeds".to_owned());
+                }
             } else {
                 // Before its first push git checks whether the new branch exists.
-                assert!(call["status"] == 200 || call["status"] == 404, "git read: {call}");
+                if call["status"] != 200 && call["status"] != 404 {
+                    return Err(format!("git read: {call}"));
+                }
             }
         }
-        assert!(
-            !rows
-                .iter()
-                .any(|row| row["observation"] == "git_calls_full" || row["observation"] == "installations_full"),
-            "Must: observation stream complete"
-        );
+        if rows.iter().any(|row| row["observation"] == "git_calls_full" || row["observation"] == "installations_full") {
+            return Err("Must: observation stream complete".to_owned());
+        }
         let created: Vec<_> = rows.iter().filter(|row| row["observation"] == "installation_created").collect();
-        assert_eq!(created.len(), 1, "Must: one installation creation across both lives, no second acceptance");
-        assert_eq!(created[0]["installation"], INSTALLATION, "Must: the visited installation was created");
-        assert!(
-            !rows.iter().any(|row| row["observation"] == "installation_deleted"),
-            "Must: no uninstall across both lives"
-        );
+        if created.len() != 1 {
+            return Err("Must: one installation creation across both lives, no second acceptance".to_owned());
+        }
+        if created[0]["installation"] != INSTALLATION {
+            return Err("Must: the visited installation was created".to_owned());
+        }
+        if rows.iter().any(|row| row["observation"] == "installation_deleted") {
+            return Err("Must: no uninstall across both lives".to_owned());
+        }
         for row in rows
             .iter()
             .filter(|row| matches!(row["observation"].as_str(), Some("installation_created" | "installation_deleted")))
         {
             temper_fake::forge::observations::decode(row.to_string().as_bytes())
-                .expect("closed installation record")
-                .expect("installation observation");
+                .map_err(|_| "closed installation record".to_owned())?
+                .ok_or_else(|| "installation observation".to_owned())?;
         }
         // Only the push's branch: once CI passes, the change may merge and move
         // main in either life; the landing's Musts are not this story's.
         let moved: Vec<_> =
             rows.iter().filter(|row| row["observation"] == "moved" && row["branch"] != "main").collect();
-        assert_eq!(moved.len(), 1, "Must: one pushed branch across both lives");
-        let identity = &self.identity.as_ref().expect("first identity")["id"];
+        if moved.len() != 1 {
+            return Err("Must: one pushed branch across both lives".to_owned());
+        }
+        let identity = &self.identity.as_ref().ok_or_else(|| "first identity".to_owned())?["id"];
         for row in rows.iter().filter(|row| row["observation"] == "moved" && row["branch"] == "main") {
-            assert_eq!(&row["by"], identity, "Must: the base branch moves only by temper's own App");
+            if &row["by"] != identity {
+                return Err("Must: the base branch moves only by temper's own App".to_owned());
+            }
         }
-        assert_eq!(moved[0]["repository"], "acme/app");
-        assert_ne!(moved[0]["branch"], "main");
-        assert!(moved[0]["from"].is_null(), "push creates its branch");
-        assert_eq!(moved[0]["by"], self.identity.as_ref().expect("first identity")["id"]);
-        let commit = moved[0]["to"].as_u64().expect("pushed head");
+        if moved[0]["repository"] != "acme/app" {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                moved[0]["repository"], "acme/app"
+            ));
+        }
+        if moved[0]["branch"] == "main" {
+            return Err(format!(
+                "assertion `left != right` failed\n  left: {:?}\n right: {:?}",
+                moved[0]["branch"], "main"
+            ));
+        }
+        if !moved[0]["from"].is_null() {
+            return Err("push creates its branch".to_owned());
+        }
+        if moved[0]["by"] != self.identity.as_ref().ok_or_else(|| "first identity".to_owned())?["id"] {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                moved[0]["by"],
+                self.identity.as_ref().ok_or_else(|| "first identity".to_owned())?["id"]
+            ));
+        }
+        let commit = moved[0]["to"].as_u64().ok_or_else(|| "pushed head".to_owned())?;
         if !read_objects {
-            return;
+            return Ok(());
         }
-        let address = self.members.capture("forge", "address").expect("forge address").parse().expect("socket");
-        let objects = objects(address, commit);
+        let address = self
+            .members
+            .capture("forge", "address")
+            .ok_or_else(|| "forge address".to_owned())?
+            .parse()
+            .map_err(|_| "socket".to_owned())?;
+        let objects = try_objects(address, commit)?;
         let object = objects["objects"]
             .as_array()
-            .expect("objects")
+            .ok_or_else(|| "objects".to_owned())?
             .iter()
             .find(|object| object["commit"] == commit)
-            .expect("pushed commit");
-        let tree = object["tree"].as_array().expect("pushed tree");
-        let file = tree.iter().find(|file| decode(&file["path"]).as_ref() == b"README.md").expect("README");
+            .ok_or_else(|| "pushed commit".to_owned())?;
+        let tree = object["tree"].as_array().ok_or_else(|| "pushed tree".to_owned())?;
+        let mut file = None;
+        for candidate in tree {
+            if decode(&candidate["path"])?.as_ref() == b"README.md" {
+                file = Some(candidate);
+                break;
+            }
+        }
+        let file = file.ok_or("README")?;
         let expected = [temper_fake::forge::FILES[0].1, EDIT].concat();
-        assert_eq!(decode(&file["content"]).as_ref(), expected, "the branch holds the coder's edit");
+        if decode(&file["content"])?.as_ref() != expected {
+            return Err("the branch holds the coder's edit".to_owned());
+        }
+
+        Ok(())
     }
 }
 impl Referee<cluster::Root> for Judge {
     fn act(&mut self, now: Time, hosts: &mut [cluster::Root]) {
-        self.members.act(now, hosts);
-        if self.members.failed() {
-            self.stage = Stage::Stopping;
+        if self.finding.is_some() {
             return;
         }
-        let host = hosts.last_mut().expect("client root");
-        if matches!(self.stage, Stage::Fakes) && self.members.is_up() {
-            self.mark("fakes ready");
-            let api = self.members.capture("forge", "address").expect("forge address").parse().expect("API socket");
-            self.app = Some(make_app(api, self.clients, &self.scratch));
-            self.mark("App made by manifest and conversion");
-            assert!(!self.members.dir("engine").join("data/state").exists(), "Must: no seeded forge records");
-            self.members.prepare("engine");
-            let mut document: Value =
-                serde_json::from_slice(&fs::read(&self.engine).expect("engine configuration")).expect("engine JSON");
-            // Restart retains the worker's files. Reserve its engine endpoint,
-            // as the clients' endpoint is reserved for the App's setup URL.
-            document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
-            fs::write(&self.engine, serde_json::to_vec(&document).expect("engine JSON"))
-                .expect("fixed workers listener");
-            self.members.up(&["w1"]);
-            self.stage = Stage::Worker;
-            self.members.act(now, hosts);
-        } else if matches!(self.stage, Stage::Worker) && self.members.is_up() {
-            self.mark("engine and worker ready");
-            self.begin(host);
-        } else if matches!(self.stage, Stage::StopWorker) && self.members.ended("w1") {
-            self.members.stop_one("engine");
-            self.stage = Stage::StopEngine;
-        } else if matches!(self.stage, Stage::StopEngine) && self.members.ended("engine") {
-            self.members.restart("engine");
-            self.stage = Stage::RestartEngine;
-        } else if matches!(self.stage, Stage::RestartEngine) && self.members.capture("engine", "link").is_some() {
-            self.members.restart("w1");
-            self.stage = Stage::RestartWorker;
-        } else if matches!(self.stage, Stage::RestartWorker) && self.members.is_up() {
-            self.mark("engine and worker restarted on ready lines");
-            eprintln!("github restart: ready {:?}", now.saturating_since(self.restart_began.expect("restart began")));
-            assert_eq!(self.members.linked("w1"), 2, "Must: worker linked in both lives");
-            self.queue(
-                host,
-                vec![
-                    ctl::Call::new(&["forge", "list", "--until", "connected:1"]),
-                    ctl::Call::new(&["forge", "list", "--json"]),
-                ],
-            );
-            self.stage = Stage::Restored;
-        } else if host.is_empty()
-            && matches!(
-                self.stage,
-                Stage::Install
-                    | Stage::Adopt
-                    | Stage::Chat
-                    | Stage::Tree
-                    | Stage::Coder
-                    | Stage::BeforeRestart
-                    | Stage::Restored
-                    | Stage::AdoptionRestored
-            )
-        {
-            let cluster::Root::Client { calls, .. } = host else { panic!("client root") };
-            let calls = calls.take().expect("completed calls");
-            self.called(now, host, &calls);
+        if let Err(why) = self.advance(now, hosts) {
+            self.finding = Some(why);
         }
     }
-    fn observe(&mut self, now: Time, hosts: &[cluster::Root]) {
-        self.members.observe(now, &hosts[..hosts.len() - 1]);
+    fn watch(&mut self, now: Time, hosts: &[cluster::Root]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        self.members.observe(now, hosts.split_last().ok_or("client root")?.1);
+        self.members.verdict()?;
         for (process, capture) in [("forge", "address"), ("llm", "address"), ("engine", "link"), ("w1", "engine")] {
             if self.members.capture(process, capture).is_some() && self.ready.insert(process) {
                 self.mark(&format!("{process} ready"));
@@ -539,53 +694,74 @@ impl Referee<cluster::Root> for Judge {
             self.call_marks = calls.ends().len();
         }
         if let Some(stopped) = self.members.stopped() {
-            assert!(hosts.iter().all(Host::is_empty), "Must: no process or ctl client outlives the story");
-            assert_eq!(
-                stopped.iter().map(|member| member.name.as_str()).collect::<Vec<_>>(),
-                ["w1", "engine", "w1", "engine", "llm", "forge"],
-                "{}",
-                stopped_members_details(stopped)
-            );
-            for (index, member) in stopped.iter().enumerate() {
-                assert_eq!(
-                    member.exit,
-                    Some(Exit::Code(0)),
-                    "{}: {}",
-                    member.name,
-                    String::from_utf8_lossy(&member.stderr)
-                );
-                assert_eq!(member.ending, if index < 2 { cluster::Ending::Alone } else { cluster::Ending::Cluster });
-                assert!(!member.killed && member.survivors.is_empty(), "no surviving process");
+            if !hosts.iter().all(Host::is_empty) {
+                return Err("Must: no process or ctl client outlives the story".to_owned());
             }
-            self.forge(false);
-            let app = self.app.as_ref().expect("made App");
-            let scan = Scan::new(app.pem.expose());
-            scan.files(&self.scratch, &secrets(&self.members.dir("engine")), &self.scratch.join("github-app.pem"));
+            if stopped.iter().map(|member| member.name.as_str()).collect::<Vec<_>>()
+                != ["w1", "engine", "w1", "engine", "llm", "forge"]
+            {
+                return Err(stopped_members_details(stopped)?);
+            }
+            for (index, member) in stopped.iter().enumerate() {
+                if member.exit != Some(Exit::Code(0)) {
+                    return Err(format!("{}: {}", member.name, String::from_utf8_lossy(&member.stderr)));
+                }
+                if member.ending != if index < 2 { cluster::Ending::Alone } else { cluster::Ending::Cluster } {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        member.ending,
+                        if index < 2 { cluster::Ending::Alone } else { cluster::Ending::Cluster }
+                    ));
+                }
+                if member.killed || !member.survivors.is_empty() {
+                    return Err("no surviving process".to_owned());
+                }
+            }
+            self.forge(false)?;
+            let app = self.app.as_ref().ok_or_else(|| "made App".to_owned())?;
+            let scan = Scan::new(app.pem.expose())?;
+            scan.files(&self.scratch, &secrets(&self.members.dir("engine"))?, &self.scratch.join("github-app.pem"))?;
             for member in stopped {
-                scan.clean(&member.stdout);
-                scan.clean(&member.stderr);
+                scan.clean(&member.stdout)?;
+                scan.clean(&member.stderr)?;
             }
             for output in &self.outputs {
-                scan.clean(output);
+                scan.clean(output)?;
             }
             self.mark("Musts: adoption, one creation, no uninstall, one push, secrecy and teardown passed");
-            let row = self.restored.as_ref().expect("restored forges row");
-            let prior = self.identity.as_ref().expect("first life identity");
-            assert_eq!(row["state"], "connected", "Must: forge 1 connected after restart");
-            assert_eq!(row["id"], prior["id"], "Must: same bot id after restart");
-            assert_eq!(row["login"], prior["login"], "Must: same SLUG[bot] after restart");
-            let installations =
-                row["installations"].as_array().expect("Must (T1): restored forge row exposes installations");
-            assert_eq!(installations.len(), 1, "Must (T1): exactly one accepted installation after restart");
+            let row = self.restored.as_ref().ok_or_else(|| "restored forges row".to_owned())?;
+            let prior = self.identity.as_ref().ok_or_else(|| "first life identity".to_owned())?;
+            if row["state"] != "connected" {
+                return Err("Must: forge 1 connected after restart".to_owned());
+            }
+            if row["id"] != prior["id"] {
+                return Err("Must: same bot id after restart".to_owned());
+            }
+            if row["login"] != prior["login"] {
+                return Err("Must: same SLUG[bot] after restart".to_owned());
+            }
+            let installations = row["installations"]
+                .as_array()
+                .ok_or_else(|| "Must (T1): restored forge row exposes installations".to_owned())?;
+            if installations.len() != 1 {
+                return Err("Must (T1): exactly one accepted installation after restart".to_owned());
+            }
             let installation = &installations[0];
-            assert_eq!(installation["id"], INSTALLATION, "Must (T1): same visited installation after restart");
-            assert_eq!(
-                installation["account"]["login"], "acme",
-                "Must (T1): installation account filled after startup mint"
-            );
-            assert_eq!(installation["stray"], false, "Must (T1): accepted installation is not stray");
-            assert_eq!(installation["suspended"], false, "Must (T1): installation is not suspended");
+            if installation["id"] != INSTALLATION {
+                return Err("Must (T1): same visited installation after restart".to_owned());
+            }
+            if installation["account"]["login"] != "acme" {
+                return Err("Must (T1): installation account filled after startup mint".to_owned());
+            }
+            if installation["stray"] != false {
+                return Err("Must (T1): accepted installation is not stray".to_owned());
+            }
+            if installation["suspended"] != false {
+                return Err("Must (T1): installation is not suspended".to_owned());
+            }
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         Some(self.members.next_deadline().map_or(self.deadline, |at| at.min(self.deadline)))
@@ -594,10 +770,10 @@ impl Referee<cluster::Root> for Judge {
         (now >= self.deadline).then(|| format!("GitHub process story waited in {:?}", self.stage))
     }
     fn passed(&self) -> bool {
-        self.members.passed()
+        self.finding.is_none() && self.members.verdict() == Ok(true)
     }
 }
-fn stopped_members_details(stopped: &[cluster::Stopped]) -> String {
+fn stopped_members_details(stopped: &[cluster::Stopped]) -> Result<String, String> {
     use std::fmt::Write as _;
     const STDERR_TAIL_BYTES: usize = 2048;
     let mut details = String::new();
@@ -608,9 +784,9 @@ fn stopped_members_details(stopped: &[cluster::Stopped]) -> String {
             start += 1;
         }
         writeln!(details, "{} exit={:?}\nstderr tail:\n{}", member.name, member.exit, &stderr[start..])
-            .expect("member diagnostic");
+            .map_err(|_| "member diagnostic".to_owned())?;
     }
-    details
+    Ok(details)
 }
 
 pub fn stopped_members_details_include_exits_and_bounded_stderr() {
@@ -637,7 +813,7 @@ pub fn stopped_members_details_include_exits_and_bounded_stderr() {
             stderr: vec![0xff],
         },
     ];
-    let details = stopped_members_details(&stopped);
+    let details = stopped_members_details(&stopped).expect("member diagnostic");
     assert!(details.contains("engine exit=Some(Code(1))"));
     assert!(details.contains("forge exit=Some(Code(0))"));
     assert!(!details.contains("discard old output"));
@@ -654,37 +830,46 @@ pub fn stopped_members_details_include_exits_and_bounded_stderr() {
 }
 
 /// The live observations prefix through its last complete checkpoint (protocol/setup/playground.md).
-fn certified_prefix(bytes: &[u8]) -> &[u8] {
+fn certified_prefix(bytes: &[u8]) -> Result<&[u8], String> {
     let mut end = bytes.len();
     for line in bytes.split_inclusive(|byte| *byte == b'\n').rev() {
         if line.ends_with(b"\n")
             && serde_json::from_slice::<Value>(line).is_ok_and(|row| row["observations_lost"].is_u64())
         {
-            return &bytes[..end];
+            return Ok(&bytes[..end]);
         }
         end -= line.len();
     }
-    panic!("forge observations have a complete checkpoint");
+    Err("forge observations have a complete checkpoint".into())
 }
-fn decode(value: &Value) -> Box<[u8]> {
-    base64::decode(base64::Alphabet::Standard, value.as_str().expect("base64 text").as_bytes(), 8192)
-        .expect("file bytes")
+fn decode(value: &Value) -> Result<Box<[u8]>, String> {
+    base64::decode(base64::Alphabet::Standard, value.as_str().ok_or_else(|| "base64 text".to_owned())?.as_bytes(), 8192)
+        .map_err(|_| "file bytes".to_owned())
 }
 // The fake's object route is credential-free and does not add a repository git call.
 // Like webhooks.rs, the referee makes one bounded request to a separate process.
 pub(super) fn objects(address: SocketAddr, commit: u64) -> Value {
+    try_objects(address, commit).unwrap_or_else(|why| panic!("{why}"))
+}
+pub(super) fn try_objects(address: SocketAddr, commit: u64) -> Result<Value, String> {
     let within = skein_lib::Duration::from_secs(10);
-    let mut socket = Socket::connect("the GitHub object route", within, address, Scope::World).expect("object route");
+    let mut socket = Socket::connect("the GitHub object route", within, address, Scope::World)
+        .map_err(|_| "object route".to_owned())?;
     let body = format!("{{\"commits\":[{commit}]}}");
     let request = format!(
         "POST /.fake/git/objects HTTP/1.1\r\nHost: {address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
         body.len()
     );
-    socket.write_all("the GitHub objects request", within, request.as_bytes()).expect("object request");
-    let response = socket.read_to_end("the GitHub objects reply", within, 65_536).expect("object response");
-    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
-    let at = response.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP head");
-    serde_json::from_slice(&response[at + 4..]).expect("objects JSON")
+    socket
+        .write_all("the GitHub objects request", within, request.as_bytes())
+        .map_err(|_| "object request".to_owned())?;
+    let response =
+        socket.read_to_end("the GitHub objects reply", within, 65_536).map_err(|_| "object response".to_owned())?;
+    if !response.starts_with(b"HTTP/1.1 200") {
+        return Err(format!("{}", String::from_utf8_lossy(&response)));
+    }
+    let at = response.windows(4).position(|bytes| bytes == b"\r\n\r\n").ok_or("HTTP head")?;
+    serde_json::from_slice(&response[at + 4..]).map_err(|_| "objects JSON".to_owned())
 }
 
 pub(crate) struct App {
@@ -698,44 +883,55 @@ pub(crate) struct Response {
     pub(crate) location: Option<String>,
     pub(crate) body: Vec<u8>,
 }
-pub(crate) fn request_url(address: SocketAddr, method: &str, url: &str, media: &str, body: &[u8]) -> Response {
+pub(crate) fn request_url(
+    address: SocketAddr,
+    method: &str,
+    url: &str,
+    media: &str,
+    body: &[u8],
+) -> Result<Response, String> {
     let origin = format!("http://{address}");
-    let target = url.strip_prefix(&origin).expect("only the expected fake or engine origin");
-    assert!(target.starts_with('/'), "local HTTP target");
+    let target = url.strip_prefix(&origin).ok_or_else(|| "only the expected fake or engine origin".to_owned())?;
+    if !target.starts_with('/') {
+        return Err("local HTTP target".to_owned());
+    }
     request(address, method, target, media, body)
 }
-fn request(address: SocketAddr, method: &str, target: &str, media: &str, body: &[u8]) -> Response {
+fn request(address: SocketAddr, method: &str, target: &str, media: &str, body: &[u8]) -> Result<Response, String> {
     let within = skein_lib::Duration::from_secs(10);
-    let mut socket =
-        Socket::connect("the GitHub local HTTP listener", within, address, Scope::World).expect("local HTTP listener");
+    let mut socket = Socket::connect("the GitHub local HTTP listener", within, address, Scope::World)
+        .map_err(|_| "local HTTP listener".to_owned())?;
     let version = skein_forge::github::pin::API_VERSION;
     let request = format!(
         "{method} {target} HTTP/1.1\r\nHost: {address}\r\nUser-Agent: temper-test\r\nX-GitHub-Api-Version: {version}\r\nContent-Type: {media}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
         body.len()
     );
-    socket.write_all("the GitHub HTTP request", within, request.as_bytes()).expect("HTTP head");
-    socket.write_all("the GitHub HTTP body", within, body).expect("HTTP body");
-    let bytes = socket.read_to_end("the GitHub HTTP reply", within, 65_537).expect("bounded HTTP response");
-    assert!(bytes.len() <= 65_536, "HTTP response bound");
-    let at = bytes.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP head");
-    let head = std::str::from_utf8(&bytes[..at]).expect("HTTP header text");
+    socket.write_all("the GitHub HTTP request", within, request.as_bytes()).map_err(|_| "HTTP head".to_owned())?;
+    socket.write_all("the GitHub HTTP body", within, body).map_err(|_| "HTTP body".to_owned())?;
+    let bytes =
+        socket.read_to_end("the GitHub HTTP reply", within, 65_537).map_err(|_| "bounded HTTP response".to_owned())?;
+    if bytes.len() > 65_536 {
+        return Err("HTTP response bound".to_owned());
+    }
+    let at = bytes.windows(4).position(|bytes| bytes == b"\r\n\r\n").ok_or("HTTP head")?;
+    let head = std::str::from_utf8(&bytes[..at]).map_err(|_| "HTTP header text".to_owned())?;
     let status = head
         .lines()
         .next()
-        .expect("status line")
+        .ok_or_else(|| "status line".to_owned())?
         .split_whitespace()
         .nth(1)
-        .expect("status")
+        .ok_or_else(|| "status".to_owned())?
         .parse()
-        .expect("HTTP status");
+        .map_err(|_| "HTTP status".to_owned())?;
     let location = head
         .lines()
         .filter_map(|line| line.split_once(':'))
         .find(|(name, _)| name.eq_ignore_ascii_case("location"))
         .map(|(_, value)| value.trim().to_owned());
-    Response { status, location, body: bytes[at + 4..].to_vec() }
+    Ok(Response { status, location, body: bytes[at + 4..].to_vec() })
 }
-pub(crate) fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path) -> App {
+pub(crate) fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path) -> Result<App, String> {
     use skein_forge::github::setup;
     use std::fmt::Write as _;
     let origin = format!("http://{clients}");
@@ -751,10 +947,10 @@ pub(crate) fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path)
         },
         &temper_fake::forge::git_limits().documents.writer,
     )
-    .expect("temper manifest");
+    .map_err(|_| "temper manifest".to_owned())?;
     let mut form = String::from("manifest=");
     for byte in &manifest {
-        write!(form, "%{byte:02X}").expect("form byte");
+        write!(form, "%{byte:02X}").map_err(|_| "form byte".to_owned())?;
     }
     let page = request(
         address,
@@ -762,29 +958,51 @@ pub(crate) fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path)
         "/settings/apps/new?state=person",
         "application/x-www-form-urlencoded",
         form.as_bytes(),
-    );
-    assert_eq!(page.status, 200, "Must: manifest form makes the person's App");
-    let html = std::str::from_utf8(&page.body).expect("App creation page");
-    let code = html.split_once("?code=").expect("conversion link").1.split('&').next().expect("code");
-    let converted = request(address, "POST", &format!("/app-manifests/{code}/conversions"), "application/json", b"");
-    assert_eq!(converted.status, 201, "Must: manifest conversion over HTTP");
-    let value: Value = serde_json::from_slice(&converted.body).expect("conversion JSON");
+    )?;
+    if page.status != 200 {
+        return Err("Must: manifest form makes the person's App".to_owned());
+    }
+    let html = std::str::from_utf8(&page.body).map_err(|_| "App creation page".to_owned())?;
+    let code = html
+        .split_once("?code=")
+        .ok_or_else(|| "conversion link".to_owned())?
+        .1
+        .split('&')
+        .next()
+        .ok_or_else(|| "code".to_owned())?;
+    let converted = request(address, "POST", &format!("/app-manifests/{code}/conversions"), "application/json", b"")?;
+    if converted.status != 201 {
+        return Err("Must: manifest conversion over HTTP".to_owned());
+    }
+    let value: Value = serde_json::from_slice(&converted.body).map_err(|_| "conversion JSON".to_owned())?;
     let app = App {
-        id: value["id"].as_u64().expect("converted App id"),
-        pem: Secret::new(value["pem"].as_str().expect("converted PEM").as_bytes().into()),
+        id: value["id"].as_u64().ok_or_else(|| "converted App id".to_owned())?,
+        pem: Secret::new(value["pem"].as_str().ok_or_else(|| "converted PEM".to_owned())?.as_bytes().into()),
     };
     let path = scratch.join("github-app.pem");
-    let mut file =
-        fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path).expect("private App key");
-    file.write_all(app.pem.expose()).expect("downloaded PEM");
-    assert_eq!(fs::metadata(path).expect("PEM metadata").permissions().mode() & 0o777, 0o600);
-    app
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&path)
+        .map_err(|_| "private App key".to_owned())?;
+    file.write_all(app.pem.expose()).map_err(|_| "downloaded PEM".to_owned())?;
+    if fs::metadata(&path).map_err(|_| "PEM metadata".to_owned())?.permissions().mode() & 0o777 != 0o600 {
+        return Err(format!(
+            "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+            fs::metadata(&path).map_err(|_| "PEM metadata".to_owned())?.permissions().mode() & 0o777,
+            0o600
+        ));
+    }
+    Ok(app)
 }
 
-pub(crate) fn secrets(engine: &Path) -> PathBuf {
+pub(crate) fn secrets(engine: &Path) -> Result<PathBuf, String> {
     let path = engine.join("data/state/generations/1/secrets");
-    assert!(path.is_dir(), "excluded directory is jig's secrets store");
-    path
+    if !path.is_dir() {
+        return Err("excluded directory is jig's secrets store".into());
+    }
+    Ok(path)
 }
 
 pub(crate) struct Scan {
@@ -794,42 +1012,48 @@ pub(crate) struct Scan {
 }
 
 impl Scan {
-    pub(crate) fn new(pem: &[u8]) -> Self {
-        let compact: String =
-            std::str::from_utf8(pem).expect("PEM text").lines().filter(|line| !line.starts_with("-----")).collect();
-        let der = base64::decode(base64::Alphabet::Standard, compact.as_bytes(), 4096).expect("App DER");
-        Self { pem: pem.to_vec(), der, encoded: compact.into_bytes() }
+    pub(crate) fn new(pem: &[u8]) -> Result<Self, String> {
+        let compact: String = std::str::from_utf8(pem)
+            .map_err(|_| "PEM text")?
+            .lines()
+            .filter(|line| !line.starts_with("-----"))
+            .collect();
+        let der = base64::decode(base64::Alphabet::Standard, compact.as_bytes(), 4096).map_err(|_| "App DER")?;
+        Ok(Self { pem: pem.to_vec(), der, encoded: compact.into_bytes() })
     }
-    pub(crate) fn clean(&self, bytes: &[u8]) {
-        assert!(
-            !bytes.windows(40).any(|part| part.starts_with(b"ghs_") && part[4..].iter().all(u8::is_ascii_alphanumeric)),
-            "Must: no installation token outside jig's secrets store"
-        );
+    pub(crate) fn clean(&self, bytes: &[u8]) -> Result<(), String> {
+        if bytes.windows(40).any(|part| part.starts_with(b"ghs_") && part[4..].iter().all(u8::is_ascii_alphanumeric)) {
+            return Err("Must: no installation token outside jig's secrets store".into());
+        }
         for (name, key) in
             [("PEM", self.pem.as_slice()), ("DER", self.der.as_ref()), ("base64 DER", self.encoded.as_slice())]
         {
-            assert!(
-                skein_lib::bytes::find(bytes, key).is_none(),
-                "Must: no App {name} outside jig's secrets store and downloaded PEM"
-            );
+            if skein_lib::bytes::find(bytes, key).is_some() {
+                return Err(format!("Must: no App {name} outside jig's secrets store and downloaded PEM"));
+            }
         }
+        Ok(())
     }
-    pub(crate) fn files(&self, root: &Path, secrets: &Path, downloaded: &Path) {
-        assert!(secrets.is_dir(), "excluded directory is jig's secrets store");
+    pub(crate) fn files(&self, root: &Path, secrets: &Path, downloaded: &Path) -> Result<(), String> {
+        if !secrets.is_dir() {
+            return Err("excluded directory is jig's secrets store".into());
+        }
         let mut pending = vec![root.to_path_buf()];
         while let Some(path) = pending.pop() {
             if path == secrets || path == downloaded {
                 continue;
             }
-            let metadata = fs::symlink_metadata(&path).expect("scratch metadata");
+            let metadata = fs::symlink_metadata(&path).map_err(|_| format!("scratch metadata: {}", path.display()))?;
             if metadata.is_dir() {
-                pending.extend(
-                    fs::read_dir(path).expect("scratch directory").map(|entry| entry.expect("scratch entry").path()),
-                );
+                for entry in fs::read_dir(&path).map_err(|_| format!("scratch directory: {}", path.display()))? {
+                    pending.push(entry.map_err(|_| "scratch entry")?.path());
+                }
             } else if metadata.is_file() {
-                self.clean(&fs::read(path).expect("scratch file"));
+                let bytes = fs::read(&path).map_err(|_| format!("scratch file: {}", path.display()))?;
+                self.clean(&bytes).map_err(|why| format!("{}: {why}", path.display()))?;
             }
         }
+        Ok(())
     }
 }
 
@@ -837,18 +1061,26 @@ pub fn file_scan_excludes_only_jigs_generation_secrets_store() {
     let scratch = Scratch::new(&format!("github_file_scan-{}", std::process::id()));
     let engine = scratch.path().join("engine");
     let store = engine.join("data/state/generations/1/secrets");
-    assert!(std::panic::catch_unwind(|| secrets(&engine)).is_err());
+    assert_eq!(secrets(&engine), Err("excluded directory is jig's secrets store".into()));
     fs::create_dir_all(&store).expect("generation secrets store");
     let pem = b"-----BEGIN PRIVATE KEY-----\nZmFrZS1hcHAta2V5LWJ5dGVz\n-----END PRIVATE KEY-----\n";
-    let scan = Scan::new(pem);
+    let scan = Scan::new(pem).expect("synthetic PEM");
     fs::write(store.join("log-1"), &scan.der).expect("key in secrets store");
     let downloaded = scratch.path().join("github-app.pem");
     fs::write(&downloaded, pem).expect("downloaded PEM");
-    let excluded = secrets(&engine);
-    scan.files(scratch.path(), &excluded, &downloaded);
+    let excluded = secrets(&engine).expect("generation secrets store");
+    assert_eq!(scan.files(scratch.path(), &excluded, &downloaded), Ok(()));
 
     fs::write(engine.join("ordinary"), &scan.der).expect("key outside secrets store");
-    assert!(std::panic::catch_unwind(|| scan.files(scratch.path(), &excluded, &downloaded)).is_err());
+    let finding = scan.files(scratch.path(), &excluded, &downloaded).expect_err("ordinary file leaks DER");
+    assert_eq!(
+        finding,
+        format!(
+            "{}: Must: no App DER outside jig's secrets store and downloaded PEM",
+            engine.join("ordinary").display()
+        )
+    );
+    assert!(!finding.contains("fake-app-key-bytes"), "finding never includes matched bytes");
     scratch.remove();
 }
 
@@ -860,4 +1092,10 @@ fn client_landing_items(file: &Path) -> Vec<Value> {
     let items: Value =
         serde_json::from_slice(&fs::read(path).expect("landing settings")).expect("landing settings JSON");
     items.as_array().expect("landing items").clone()
+}
+
+fn json_call(ended: &super::Ended) -> Result<Value, String> {
+    serde_json::from_slice(&ended.stdout).map_err(|error| {
+        format!("ctl JSON: {error}; exit {:?}; stderr: {}", ended.exit, String::from_utf8_lossy(&ended.stderr))
+    })
 }
