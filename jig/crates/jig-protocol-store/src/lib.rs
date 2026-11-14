@@ -21,7 +21,9 @@ mod generations;
 mod gets;
 pub mod host;
 pub mod intervals;
+pub mod jobs;
 mod loads;
+pub use jobs::{Converts, Job, JobAnswer, JobLayout, JobPage, JobRefusal, JobRow, JobWrite, KeyRange};
 mod open;
 mod pages;
 mod patching;
@@ -175,8 +177,18 @@ impl Store {
         rows: u32,
     ) -> Result<PatchPage, OpenRefusal> {
         let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
-        let patching::phase::Patching::Walking(walking) = &**phase else { return Err(OpenRefusal::Failed) };
-        if !walking.at_site() || rows == 0 || rows > self.limits.store.ops {
+        let out = match &**phase {
+            patching::phase::Patching::Walking(walking) => walking.at_site(),
+            patching::phase::Patching::Jobs(running) => running.at_page(),
+            patching::phase::Patching::Closing { .. }
+            | patching::phase::Patching::Dropping(_)
+            | patching::phase::Patching::Copying(_)
+            | patching::phase::Patching::Mapping { .. }
+            | patching::phase::Patching::Recovering { .. }
+            | patching::phase::Patching::Sealing { .. }
+            | patching::phase::Patching::Checking(_) => false,
+        };
+        if !out || rows == 0 || rows > self.limits.store.ops {
             return Err(OpenRefusal::Failed);
         }
         let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
@@ -422,6 +434,7 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
             Phase::Ready { .. } => transcripts::read::site(store, env, owner, patcher, result, above, below),
             Phase::Closed | Phase::Stopped => patching::phase::site(store, env, owner, patcher, result, above, below),
         },
+        Request::Job { owner, answer } => patching::phase::job(store, env, owner, answer, above, below),
         Request::Commit { number, writes } => transcripts::write::begin(store, env, number, writes, above, below),
         Request::Restore { owner, range, after, rows, bytes } => {
             restore::restore(store, env, owner, restore::Page { range, after, rows, bytes }, above, below);
@@ -512,4 +525,4 @@ mod layouts;
 
 pub use jig_protocol_store_families::secrets_v1;
 
-pub use jig_protocol_store_families::openings_v1;
+pub use jig_protocol_store_families::{openings_v1, registry_v1};

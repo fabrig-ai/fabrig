@@ -4,6 +4,7 @@ use jig_protocol_store::{KeptFamily, KeptMap, Keys, Owner, PatchSet};
 
 /// Application key ranges are relative to jig's application tag or secrets prefix.
 pub const PATCH_SET: PatchSet = PatchSet {
+    jobs: &[],
     owner: Owner::Application,
     name: "temper",
     patches: crate::patches::PATCHES,

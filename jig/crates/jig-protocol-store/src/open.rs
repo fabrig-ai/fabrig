@@ -12,6 +12,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         return;
     }
     crate::rehearsal::announce(store, above);
+    if let Err(why) = crate::jobs::admission::check(&store.patch_sets) {
+        return refuse(store, owner, OpenRefusal::Set { owner: why.owner, patch: why.patch }, above);
+    }
     let format_key = keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits");
     let header_key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
     let Ok(found) = get_open(store, owner, format_key) else {
@@ -55,7 +58,11 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     if !crate::rehearsal::records(store, owner, found_levels, above) {
         return;
     }
-    if compared == format::Compared::Behind
+    let jobs = match crate::jobs::kept::pending(store) {
+        Ok(pending) => pending,
+        Err(why) => return refuse(store, owner, why, above),
+    };
+    if (compared == format::Compared::Behind || jobs)
         && let Err(why) = pending(store, found_levels, binary)
     {
         return refuse(store, owner, why, above);

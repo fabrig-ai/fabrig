@@ -68,6 +68,27 @@ fn render(lines: &mut Lines, why: &OpenRefusal, deployment: &[u8]) {
         lines.put(words.as_bytes());
     }
     lines.put(b"\n");
+    if let OpenRefusal::Job { owner, job, key, why } = why {
+        let owner = match owner {
+            jig_protocol_store::Owner::Skein => "skein",
+            jig_protocol_store::Owner::Smith => "smith",
+            jig_protocol_store::Owner::Jig => "jig",
+            jig_protocol_store::Owner::Application => "temper",
+        };
+        lines.put(b"temper serve: job ");
+        lines.put(owner.as_bytes());
+        lines.put(b" ");
+        lines.put(job.as_bytes());
+        if let Some(key) = key {
+            lines.put(b" key 0x");
+            for byte in key {
+                lines.put(&[hex(byte >> 4), hex(byte & 15)]);
+            }
+        }
+        lines.put(b": ");
+        lines.put(why.as_bytes());
+        lines.put(b"\n");
+    }
     if let OpenRefusal::InFlight { count, keys, .. } = why {
         let shown = keys.len().min(KEYS);
         for key in keys.iter().take(KEYS) {

@@ -26,6 +26,8 @@ pub enum Request {
     /// Activate the copy opened pending, once every earlier commit is durable
     /// (protocol/store/opening.md 2, step 7). Once, after `Opened`; terminal `Switched` or `OpenRefused`.
     Switch { owner: Token },
+    /// The owner's answer to one page handed out at open (protocol/store/jobs.md, 3).
+    Job { owner: Token, answer: Result<crate::JobAnswer, crate::JobRefusal> },
     /// Commit `number` (protocol/store/README.md 5): its writes, in order, one skein-kv
     /// commit with the same number. Terminal: `Committed`, `Failed` or
     /// `FrameTooLarge`; a refusal stops the engine.
@@ -326,6 +328,8 @@ pub enum OpenRefusal {
     Patch { owner: crate::Owner, patch: u32, key: Box<[u8]>, halt: skein_codec::patch::Halt },
     /// The binary's sets do not plan (10.3).
     Set { owner: crate::Owner, patch: u32 },
+    /// A job refused its page or answered outside its bounds (protocol/store/jobs.md, 3).
+    Job { owner: crate::Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },
     /// The check before the switch failed (10.2, step 5); the generation
     /// patched from stays active, unchanged.
     Check { why: Check },
@@ -458,6 +462,10 @@ impl OpenRefusal {
                 "",
                 " holds a store from an older build, in the layout before generations (`store/`, `secrets/` or `transcripts/` at its top), and this start has changed nothing in it. Before the first release a store is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `store/`, `secrets/` and `transcripts/` out of ",
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
+            ],
+            Self::Job { .. } => &[
+                "A job this build runs at open refused a record while this start upgraded the store in ",
+                ", and the generation it upgraded from stays active, unchanged. Every start of this build refuses the same record: start the build before it again, which opens that generation as it was.",
             ],
             Self::Generations { why: Generations::Busy } => &[
                 "Another process has ",
@@ -674,6 +682,21 @@ pub enum Event {
         site: skein_codec::patch::Site,
         at: skein_codec::value::Node,
         patcher: Box<skein_codec::patch::Patcher>,
+    },
+    /// A job page, routed to its owner (protocol/store/jobs.md, 3).
+    Job {
+        owner: Token,
+        of: crate::Owner,
+        job: Box<str>,
+        page: crate::JobPage,
+    },
+    /// A job's last answer and done row are durable.
+    Ran {
+        owner: Token,
+        of: crate::Owner,
+        job: Box<str>,
+        rows: u64,
+        commits: u64,
     },
     /// A patch's walk is done and committed (protocol/store/opening.md 2, step 4).
     Patched {

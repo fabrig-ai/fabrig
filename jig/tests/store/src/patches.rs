@@ -42,14 +42,21 @@ const NOTE: KeptFamily = KeptFamily {
     keys: &[Keys { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO, root: upstream::keys::NOTES_ROOT }],
 };
 const APPLICATION: PatchSet = PatchSet {
+    jobs: &[],
     fresh: None,
     owner: Owner::Application,
     name: fixture::NAME,
     families: &[LABEL, SHELF, TOKEN],
     patches: app::PATCHES,
 };
-const JIG: PatchSet =
-    PatchSet { fresh: None, owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], patches: jig::PATCHES };
+const JIG: PatchSet = PatchSet {
+    jobs: &[],
+    fresh: None,
+    owner: Owner::Jig,
+    name: upstream::NAME,
+    families: &[NOTE],
+    patches: jig::PATCHES,
+};
 pub const SETS: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
 pub const BASE: PatchSets = PatchSets {
     sets: &[
@@ -367,6 +374,7 @@ pub fn counts(world: &mut World) -> Vec<(Vec<u8>, u64, u64)> {
 pub const FRESH_AFTER: PatchSets = PatchSets {
     sets: &[
         PatchSet {
+            jobs: &[],
             owner: Owner::Jig,
             name: jig_test_patches_jig::NAME,
             patches: jig::PATCHES,
@@ -381,6 +389,7 @@ pub const FRESH_AFTER: PatchSets = PatchSets {
             }],
         },
         PatchSet {
+            jobs: &[],
             owner: Owner::Smith,
             name: jig_test_patches_smith::NAME,
             patches: jig_test_patches_smith::patches::PATCHES,

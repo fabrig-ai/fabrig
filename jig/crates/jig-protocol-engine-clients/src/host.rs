@@ -77,6 +77,8 @@ impl Bridge {
             | Event::Switched { .. }
             | Event::Opened { .. }
             | Event::OpenRefused { .. }
+            | Event::Job { .. }
+            | Event::Ran { .. }
             | Event::Site { .. }
             | Event::Decoded { .. }
             | Event::Undecodable { .. }

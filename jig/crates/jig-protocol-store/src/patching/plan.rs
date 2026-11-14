@@ -118,6 +118,7 @@ pub(crate) fn bounds(sets: &PatchSets) -> Result<(), Unplanned> {
             }
         }
     }
+    crate::jobs::admission::check(sets)?;
     frames(sets)?;
     holds(sets)
 }

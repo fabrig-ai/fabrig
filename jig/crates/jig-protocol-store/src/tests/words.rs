@@ -120,6 +120,15 @@ fn a_layout_refusal_names_its_family_and_says_to_move_the_generations() {
 }
 
 #[test]
+fn a_job_refusal_says_the_designs_words() {
+    says(
+        OpenRefusal::Job { owner: crate::Owner::Jig, job: "fixture".into(), key: None, why: "refused".into() },
+        "- `Job`: \"",
+        "\"",
+    );
+}
+
+#[test]
 fn level_and_patch_refusals_say_the_designs_words() {
     for (refusal, start) in [
         (OpenRefusal::OlderBuild { why: Older::Unleveled }, "- `OlderBuild { why: Unleveled }`: \""),
