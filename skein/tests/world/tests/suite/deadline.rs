@@ -10,12 +10,11 @@ use skein_world::{Deadline, Expired};
     clippy::disallowed_methods,
     reason = "skein's round: reads the child marker for the isolated starvation verdict test"
 )]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn a_starved_pass_ends_only_its_test_in_one_process() {
-    use skein_world::{StarvedPass, pass_starved};
+fn a_starved_pass_ends_its_process() {
+    use skein_world::pass_starved;
 
+    const FOLLOWING: &str = "deadline::remaining_reaches_zero_and_until_uses_the_shells_clock";
     const CHILD: &str = "SKEIN_STARVED_PASS_CHILD";
-    const MARKER: &str = "continued after the starved pass";
     const FORWARDED: &str = "skein-world: starved: the helper's unanswered wait";
     if let Some(end) = std::env::var_os(CHILD) {
         // A context switch publishes the new thread's scheduler accounting.
@@ -26,50 +25,43 @@ fn a_starved_pass_ends_only_its_test_in_one_process() {
             Expired::Failed(figures) => panic!("zero patience needs scheduler accounting: {figures}"),
         };
         match end.to_str().expect("child end") {
-            "caught" | "forward_caught" => {
-                let failure = std::panic::catch_unwind(|| {
-                    if end == "forward_caught" {
-                        pass_starved(FORWARDED);
-                    }
-                    starved.pass();
-                })
-                .expect_err("a starved pass unwinds");
-                assert!(failure.downcast_ref::<StarvedPass>().is_some(), "the unwind carries StarvedPass");
-            }
             "pass" => starved.pass(),
             "exit" => starved.exit(),
             "forward" => pass_starved(FORWARDED),
             other => panic!("unknown child end: {other}"),
         }
-        eprintln!("{MARKER}");
-        return;
     }
 
-    let mut failures = Vec::new();
-    for (end, one_process, nextest, code, continued) in [
-        ("caught", Some("1"), None, 0, true),
-        ("pass", Some("1"), None, 101, false),
-        ("caught", Some(""), Some(""), 0, true),
-        ("pass", None, Some("1"), 0, false),
-        ("pass", None, None, 101, false),
-        ("exit", Some("1"), None, 0, false),
-        ("exit", None, None, 101, false),
-        ("forward_caught", Some("1"), None, 0, true),
-        ("forward", Some("1"), None, 101, false),
-        ("forward", None, Some(""), 0, false),
-        ("forward", None, None, 101, false),
-    ] {
+    let failures: Vec<_> = [
+        ("pass", Some("1"), None, false),
+        ("pass", Some(""), None, false),
+        ("pass", None, Some("1"), false),
+        ("pass", None, Some(""), false),
+        ("pass", Some(""), Some(""), false),
+        ("pass", None, None, false),
+        ("exit", Some("1"), None, false),
+        ("exit", Some(""), None, false),
+        ("exit", None, Some("1"), false),
+        ("exit", None, Some(""), false),
+        ("exit", None, None, false),
+        ("forward", Some("1"), None, false),
+        ("forward", Some(""), None, false),
+        ("forward", None, Some("1"), false),
+        ("forward", None, Some(""), false),
+        ("forward", None, None, false),
+        ("pass", Some("1"), None, true),
+    ]
+    .into_iter()
+    .filter_map(|(end, one_process, nextest, following)| {
         let mut command = std::process::Command::new(std::env::current_exe().expect("test binary"));
         command
-            .args([
-                "--exact",
-                "deadline::a_starved_pass_ends_only_its_test_in_one_process",
-                "--nocapture",
-                "--test-threads=1",
-            ])
+            .args(["--exact", "deadline::a_starved_pass_ends_its_process", "--nocapture", "--test-threads=1"])
             .env(CHILD, end)
             .env_remove("TIERS_ONE_PROCESS")
             .env_remove("NEXTEST");
+        if following {
+            command.arg(FOLLOWING);
+        }
         if let Some(value) = one_process {
             command.env("TIERS_ONE_PROCESS", value);
         }
@@ -79,39 +71,34 @@ fn a_starved_pass_ends_only_its_test_in_one_process() {
         let output = command.output().expect("run the isolated starved-pass check");
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let checked = std::panic::catch_unwind(|| {
-            assert_eq!(output.status.code(), Some(code), "{stdout}{stderr}");
-            assert_eq!(stderr.contains(MARKER), continued, "{stderr}");
-            if one_process.is_some() || nextest.is_some() {
-                let forwarded = end.starts_with("forward");
-                let line = stderr
-                    .lines()
-                    .find(|line| line.starts_with(if forwarded { FORWARDED } else { "skein-world: starved: waited " }))
-                    .expect("the starved verdict is a line on stderr");
-                if !forwarded {
-                    assert!(line.ends_with(", by the zero-patience answer"), "{stderr}");
-                }
-                assert!(!stderr.contains("panicked at"), "resume_unwind skips the panic hook: {stderr}");
-                assert_eq!(stderr.lines().last(), Some(if continued { MARKER } else { line }), "{stderr}");
-                if continued {
-                    assert!(stdout.contains("1 passed"), "the child continued and returned: {stdout}");
-                } else if code == 101 {
-                    assert!(stdout.contains("1 failed"), "libtest caught the starved unwind: {stdout}");
-                }
-            } else if end == "forward" {
-                assert!(stderr.contains(FORWARDED), "{stderr}");
+        let finding = if one_process.is_some() || nextest.is_some() {
+            let last = stderr.lines().last().unwrap_or_default();
+            let line_matches = if end == "forward" {
+                last == FORWARDED
             } else {
-                assert!(
-                    stderr.contains("skein-world: starved: the zero-patience answer: patience 0 ns; elapsed "),
-                    "{stderr}"
-                );
-                assert!(stderr.contains("thread runnable wait ") && stderr.contains("thread CPU "), "{stderr}");
+                last.starts_with("skein-world: starved: waited ") && last.ends_with(", by the zero-patience answer")
+            };
+            if output.status.code() != Some(0) {
+                Some("the starved child did not exit 0")
+            } else if !line_matches || stderr.contains("panicked at") {
+                Some("the starved line must be last, without a panic")
+            } else if stdout.contains("test result:") || stdout.contains(FOLLOWING) {
+                Some("libtest continued after the starved pass")
+            } else {
+                None
             }
-        });
-        if checked.is_err() {
-            failures.push(format!("{end}, one-process={one_process:?}, nextest={nextest:?}: {stdout}{stderr}"));
-        }
-    }
+        } else if output.status.success() {
+            Some("outside the runners the child must fail")
+        } else if end == "forward" {
+            (!stderr.contains(FORWARDED)).then_some("the failure lost the forwarded line")
+        } else {
+            (!(stderr.contains("skein-world: starved: the zero-patience answer: patience 0 ns; elapsed ")
+                && stderr.contains("thread runnable wait ") && stderr.contains("thread CPU ")))
+                .then_some("the failure lost its figures")
+        };
+        finding.map(|why| format!("{end}, one-process={one_process:?}, nextest={nextest:?}, following={following}: {why}: {stdout}{stderr}"))
+    })
+    .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 

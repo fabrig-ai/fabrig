@@ -142,7 +142,6 @@ skein/examples/echo/domain/src/tests.rs should_panic 2
 skein/examples/echo/protocol/src/tests/conn.rs should_panic 1
 skein/testing/skein-echo-client/src/tests.rs should_panic 4
 skein/testing/skein-fake-person-browser/src/harness/deadline_tests.rs should_panic 1
-skein/testing/skein-world/src/deadline.rs resume_unwind 1
 skein/testing/skein-world/src/end_to_end.rs should_panic 1
 skein/tests/heap/tests/suite/meter.rs should_panic 6
 skein/tests/lib/tests/suite/journal.rs should_panic 1
@@ -156,12 +155,9 @@ skein/tests/sim/tests/suite/processes.rs should_panic 7
 skein/tests/tls/tests/suite/handshake.rs should_panic 1
 skein/tests/tls/tests/suite/native_output.rs should_panic 3
 skein/tests/ui-text/tests/suite/terminal.rs should_panic 1
-skein/tests/world/tests/suite/deadline.rs catch_unwind 2
-skein/tests/world/tests/suite/deadline.rs resume_unwind 1
 skein/tests/world/tests/suite/domain_referee.rs should_panic 3
 skein/tests/world/tests/suite/domain_utilities.rs should_panic 1
 skein/tests/world/tests/suite/hosted.rs should_panic 5
-skein/tests/world/tests/suite/real.rs catch_unwind 1
 skein/tests/world/tests/suite/steps.rs should_panic 3
 skein/tests/world/tests/suite/world.rs should_panic 6
 skein/tests/world/tests/system_alloc/main.rs should_panic 1
@@ -222,5 +218,4 @@ temper/tests/real-loop/src/world/diagnostics/tests.rs catch_unwind 1
 temper/tests/real-loop/src/world/teardown.rs catch_unwind 1
 temper/tests/worker/domain/src/runtime.rs should_panic 2
 temper/tests/worker/domain/tests/suite/fuzzy/runtime.rs catch_unwind 1
-tools/tiers/fixtures/one-process/tests.rs resume_unwind 1
 tools/tiers/fixtures/one-process/tests.rs should_panic 1

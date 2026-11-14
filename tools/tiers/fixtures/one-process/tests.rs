@@ -62,14 +62,26 @@ fn a() {
     if scenario() == "leak" {
         std::process::Command::new("sleep").arg("30").spawn().unwrap();
     }
-    if scenario() == "starved" || scenario() == "starved-panic" {
+    if matches!(
+        scenario().as_str(),
+        "starved" | "starved-panic" | "starved-nonzero" | "starved-return" | "starved-not-last" | "starved-blanks"
+    ) {
         eprintln!("skein-world: starved: waited 1 ms runnable, fixture patience");
         if scenario() == "starved-panic" {
             panic!("output after starvation");
         }
-        std::panic::resume_unwind(Box::new(()));
+        if scenario() == "starved-return" {
+            return;
+        }
+        if scenario() == "starved-not-last" {
+            eprintln!("output after starvation");
+        }
+        if scenario() == "starved-blanks" {
+            eprintln!("\n   ");
+        }
+        std::process::exit(if scenario() == "starved-nonzero" { 3 } else { 0 });
     }
-    if scenario() == "first-failure" || scenario() == "term-ignore" {
+    if matches!(scenario().as_str(), "first-failure" | "term-ignore" | "failure-then-starved") {
         panic!("first failure");
     }
     if scenario() == "slow" {
@@ -106,6 +118,10 @@ fn b() {
 
 #[test]
 fn c() {
+    if scenario() == "failure-then-starved" {
+        eprintln!("skein-world: starved: waited 1 ms runnable, fixture patience");
+        std::process::exit(0);
+    }
     if scenario() == "slow" {
         std::thread::sleep(Duration::from_millis(80));
     }

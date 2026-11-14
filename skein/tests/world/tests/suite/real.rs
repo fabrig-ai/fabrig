@@ -185,6 +185,7 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
             .args([
                 "--exact",
                 "real::a_zero_patience_deadline_reports_the_failing_iteration",
+                "--include-ignored",
                 "--nocapture",
                 "--test-threads=1",
             ])
@@ -230,23 +231,55 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
 
 #[test]
 #[cfg(target_os = "linux")]
-#[expect(clippy::too_many_lines, reason = "the child checks host drop order for both failure and starved unwind")]
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the isolated starved real-loop child marker")]
+fn a_zero_patience_starved_real_loop_ends_its_process() {
+    // Both zero-patience checks select only themselves with --exact.
+    const CHILD: &str = "SKEIN_ZERO_PATIENCE_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        std::thread::sleep(core::time::Duration::from_millis(1));
+        let mut world = real::World::new(Judge);
+        world.spawn(|| Script::new(&[]));
+        let _outcome = world.run(&Clock::new(), Duration::ZERO);
+        panic!("the starved real loop must end its process");
+    }
+    let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
+        .args([
+            "--exact",
+            "real::a_zero_patience_starved_real_loop_ends_its_process",
+            "--nocapture",
+            "--test-threads=1",
+        ])
+        .env(CHILD, "1")
+        .env("TIERS_ONE_PROCESS", "1")
+        .env_remove("NEXTEST")
+        .output()
+        .expect("run the isolated starved real-loop check");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(output.status.code(), Some(0), "{stdout}{stderr}");
+    assert!(
+        stderr.lines().last().is_some_and(
+            |line| line.starts_with("skein-world: starved: waited ") && line.ends_with(", by the real loop")
+        ),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("panicked at"), "{stderr}");
+    assert!(!stdout.contains("test result:"), "{stdout}");
+}
+
+#[test]
+#[cfg(target_os = "linux")]
+#[expect(clippy::too_many_lines, reason = "the child checks host drop order for both failure and starved exit")]
 #[expect(
     clippy::disallowed_methods,
     reason = "skein's round: reads the child marker and TIERS_ONE_PROCESS for the isolated referee teardown test"
 )]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     use skein_io::kernel::{Complete, Submit};
     use skein_lib::{Queue, Time, Wall};
     use skein_world::{Deadline, Expired, Host, Referee, Starved};
-    use std::sync::OnceLock;
-    use std::sync::atomic::{AtomicBool, Ordering};
 
     const CHILD: &str = "SKEIN_STARVED_REFEREE_CHILD";
-    static DROPPED: AtomicBool = AtomicBool::new(false);
-    static DROPPED_AT_FAILURE: AtomicBool = AtomicBool::new(false);
-    static EXPECTED: OnceLock<String> = OnceLock::new();
 
     #[derive(Debug)]
     struct DroppedHost {
@@ -255,7 +288,6 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     }
     impl Drop for DroppedHost {
         fn drop(&mut self) {
-            DROPPED.store(true, Ordering::SeqCst);
             eprintln!("the starved referee's host was dropped");
         }
     }
@@ -293,7 +325,9 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
                     return Err(format!("zero patience needs usable scheduler accounting: {figures}"));
                 }
             };
-            EXPECTED.set(format!("skein-world: starved: {}", starved.figures())).expect("one observation");
+            if !skein_world::starved_passes() {
+                eprintln!("observed figures: skein-world: starved: {}", starved.figures());
+            }
             self.0 = Some(starved);
             Ok(())
         }
@@ -312,7 +346,6 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
                 .args([
                     "--exact",
                     "real::a_starved_referee_drops_hosts_before_reporting_its_figures",
-                    "--include-ignored",
                     "--nocapture",
                     "--test-threads=1",
                 ])
@@ -326,8 +359,9 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
             if one_process {
-                assert_eq!(output.status.code(), Some(101), "{stdout}{stderr}");
-                assert!(stdout.contains("1 failed"), "libtest caught the starved unwind: {stdout}");
+                assert_eq!(output.status.code(), Some(0), "{stdout}{stderr}");
+                assert!(!stdout.contains("test result:"), "{stdout}");
+                assert!(!stderr.contains("panicked at"), "{stderr}");
                 let mut lines = stderr.lines();
                 assert_eq!(lines.next(), Some("the starved referee's host was dropped"), "{stderr}");
                 let line = lines.next().expect("the starved line follows the host's drop");
@@ -335,13 +369,12 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
                 assert!(line.ends_with(", by the referee's own answer"), "{stderr}");
                 assert_eq!(lines.next(), None, "the starved line is last: {stderr}");
             } else {
-                assert!(
-                    output.status.success(),
-                    "{}{}",
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr),
-                );
-                assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"), "the child ran its assertions");
+                assert!(!output.status.success(), "{stdout}{stderr}");
+                let (observed, report) = stderr.split_once('\n').expect("observed figures precede the report");
+                let figures = observed.strip_prefix("observed figures: ").expect("the referee observed figures");
+                let (dropped, panic) = report.split_once("panicked at").expect("the child failed with a panic report");
+                assert!(dropped.contains("the starved referee's host was dropped"), "{stderr}");
+                assert!(panic.contains(figures), "the report carries the observed figures: {stderr}");
             }
         }
         return;
@@ -350,25 +383,8 @@ fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     // Linux publishes a new thread's runtime at a context switch; zero
     // runtime makes scheduler accounting unavailable to Deadline.
     std::thread::sleep(core::time::Duration::from_millis(1));
-    if std::env::var_os("TIERS_ONE_PROCESS").is_some() {
-        let mut world = real::World::new(StarvedJudge(None));
-        world.spawn(|| DroppedHost { completions: Queue::uncapped(), submissions: Queue::uncapped() });
-        let _outcome = world.run(&Clock::new(), Duration::from_secs(2));
-        panic!("the starved referee must unwind");
-    }
-    let hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {
-        // Sample before unwinding could drop the world's hosts.
-        DROPPED_AT_FAILURE.store(DROPPED.load(Ordering::SeqCst), Ordering::SeqCst);
-    }));
-    let failure = std::panic::catch_unwind(|| {
-        let mut world = real::World::new(StarvedJudge(None));
-        world.spawn(|| DroppedHost { completions: Queue::uncapped(), submissions: Queue::uncapped() });
-        world.run(&Clock::new(), Duration::from_secs(2))
-    });
-    std::panic::set_hook(hook);
-    let failure = failure.expect_err("the referee's starved verdict fails outside the runners");
-    let text = failure.downcast_ref::<String>().expect("the referee's figures");
-    assert_eq!(Some(text), EXPECTED.get(), "the referee's observed figures: {text}");
-    assert!(DROPPED_AT_FAILURE.load(Ordering::SeqCst), "the host was dropped before failure reporting");
+    let mut world = real::World::new(StarvedJudge(None));
+    world.spawn(|| DroppedHost { completions: Queue::uncapped(), submissions: Queue::uncapped() });
+    let _outcome = world.run(&Clock::new(), Duration::from_secs(2));
+    panic!("the starved referee must end its process");
 }
