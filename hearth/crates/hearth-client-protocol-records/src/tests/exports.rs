@@ -4,6 +4,8 @@ use crate::{
     limits,
     records::Record,
 };
+use hearth_domain_render_vocabulary as render;
+
 #[test]
 fn exports_print_as_task_dot_name_and_a_json_value() {
     assert!(skein_lib::bytes::find(&fixtures::printed_exports(Form::Text), b"  vpn.port   51820\n").is_some());
@@ -24,7 +26,7 @@ fn an_export_nested_32_lists_deep_prints_as_json() {
     assert!(fixtures::has_run(&printed, expected));
 }
 
-use crate::errors::{ExportFault, Root};
+use render::errors::{ExportFault, Root};
 const FAULTS: &[(ExportFault, &[u8])] = &[
     (ExportFault::Form, b"an export's value must be one {{ }} tag\n"),
     (ExportFault::Root { root: Root::Tasks }, b"an export reads settings and target alone, not tasks\n"),

@@ -1,11 +1,13 @@
-use super::assert_prints;
+use super::assert_record_prints;
 use super::plain;
-use crate::errors::{Class, Error, Kind, Step, StoreError, StoreFault, StoreLimit};
+use crate::records::Record;
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Class, Kind, Step, StoreError, StoreFault, StoreLimit};
 use skein_lib::bytes::copy_of;
-fn store(fault: StoreFault) -> Error {
+fn store(fault: StoreFault) -> Record {
     let mut error = plain(Kind::Store(StoreError { store: copy_of(b"/store"), fault }));
     error.class = Class::Operational;
-    error
+    Record::Error(error)
 }
 
 #[test]
@@ -53,7 +55,11 @@ fn store_bytes() {
             ),
         ),
         (
-            store(StoreFault::Full { limit: StoreLimit::Layers, most: 4 }),
+            Record::StoreFull(crate::progress::StoreFull {
+                store: copy_of(b"/store"),
+                limit: crate::progress::StoreLimit::Layers,
+                most: 4,
+            }),
             "the store /store is full: 4 layers\n",
             concat!(
                 r#"{"record":"error","kind":"store","store":"/store","limit":"layers","most":4,"class":"operational"}"#,
@@ -62,6 +68,6 @@ fn store_bytes() {
         ),
     ];
     for (error, text, json) in cases {
-        assert_prints(&error, text, json);
+        assert_record_prints(&error, text, json);
     }
 }

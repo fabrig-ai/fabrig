@@ -1,5 +1,7 @@
 use super::assert_prints;
-use crate::{errors::Rule, tests::fixtures};
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::errors::Rule;
 
 #[test]
 fn reserved_bytes() {

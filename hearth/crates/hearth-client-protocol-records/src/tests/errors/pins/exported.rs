@@ -1,10 +1,11 @@
 use super::assert_prints;
-use crate::{
-    errors::{
-        Cause, Composition, Decode, Error, Evaluation, ExportFault, Format, Kind, Repository, Root, Schema, TypeName,
-    },
-    tests::fixtures,
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::errors::{
+    Cause, Composition, Decode, Error, ExportFault, Format, Kind, Repository, Root, Schema, TypeName,
 };
+use render::evaluate::FaultKind as Evaluation;
+
 use skein_lib::bytes::copy_of;
 fn exported(cause: Cause) -> Error {
     let mut error = fixtures::exported_error();
@@ -50,10 +51,13 @@ fn exported_bytes() {
             ),
         ),
         (
-            exported(Cause::Schema(Schema::Source { first: copy_of(b"one"), second: copy_of(b"two") })),
-            "tasks/boot/task.json:22:7: carbon-prod: vpn: exports.vpn of west-prod: two sources one and two\n",
+            exported(Cause::Schema(Schema::Source {
+                first: render::revision::declaration::Name::Copy,
+                second: render::revision::declaration::Name::Template,
+            })),
+            "tasks/boot/task.json:22:7: carbon-prod: vpn: exports.vpn of west-prod: two sources copy and template\n",
             concat!(
-                r#"{"record":"error","kind":"exported","exported":{"cause":{"schema":{"first":"one","kind":"source","second":"two"}},"exporter":"west-prod","task":"vpn"},"class":"configuration","at":{"column":7,"line":22,"path":"tasks/boot/task.json"},"target":"carbon-prod","task":"vpn"}"#,
+                r#"{"record":"error","kind":"exported","exported":{"cause":{"schema":{"first":"copy","kind":"source","second":"template"}},"exporter":"west-prod","task":"vpn"},"class":"configuration","at":{"column":7,"line":22,"path":"tasks/boot/task.json"},"target":"carbon-prod","task":"vpn"}"#,
                 "\n"
             ),
         ),

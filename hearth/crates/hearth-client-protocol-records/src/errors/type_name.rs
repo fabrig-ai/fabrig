@@ -1,6 +1,4 @@
-use hearth_domain_render_vocabulary::errors::{TypeName};
-
-
+use hearth_domain_render_vocabulary::errors::TypeName;
 
 pub(super) fn type_name_article(item: &TypeName) -> &'static [u8] {
     match item {
@@ -34,4 +32,3 @@ pub(super) fn type_name_name(item: &TypeName) -> &'static [u8] {
         TypeName::File => b"file",
     }
 }
-

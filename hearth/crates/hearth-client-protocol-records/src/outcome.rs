@@ -24,9 +24,9 @@ pub fn code(outcome: Outcome) -> u8 {
 
 /// An error class's terminal outcome (hearth/docs/design/client/README.md, 3.3).
 #[must_use]
-pub fn of(class: crate::errors::Class) -> Outcome {
+pub fn of(class: hearth_domain_render_vocabulary::vocabulary::Class) -> Outcome {
     match class {
-        crate::errors::Class::Configuration => Outcome::Failed,
-        crate::errors::Class::Operational => Outcome::TryAgain,
+        hearth_domain_render_vocabulary::vocabulary::Class::Configuration => Outcome::Failed,
+        hearth_domain_render_vocabulary::vocabulary::Class::Operational => Outcome::TryAgain,
     }
 }

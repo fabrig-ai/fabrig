@@ -1,5 +1,8 @@
 use super::assert_prints;
-use crate::{diff::Side, errors::Error, tests::fixtures};
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::{diff::Side, errors::Error};
+
 fn sided(side: Side) -> Error {
     let mut error = fixtures::duplicate();
     error.side = Some(side);

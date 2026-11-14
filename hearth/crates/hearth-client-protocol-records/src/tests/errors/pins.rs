@@ -1,9 +1,7 @@
 //! Literal printed-form pins (hearth/docs/design/domain/render/contracts.md, 4).
-use crate::{
-    errors::{Error, Kind},
-    form::Form,
-    tests::fixtures,
-};
+use crate::{form::Form, tests::fixtures};
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Error, Kind};
 
 fn plain(kind: Kind) -> Error {
     let mut error = fixtures::duplicate();
@@ -14,11 +12,14 @@ fn plain(kind: Kind) -> Error {
 }
 
 fn assert_prints(error: &Error, text: &str, json: &str) {
+    assert_record_prints(&crate::records::Record::Error(error.clone()), text, json);
+}
+fn assert_record_prints(record: &crate::records::Record, text: &str, json: &str) {
     for (form, expected) in [(Form::Text, text), (Form::JsonLines, json)] {
         assert_eq!(
-            fixtures::print_error(form, error.clone()).as_deref(),
+            crate::form::print(form, record, Some(crate::records::Type::Error), &crate::limits::SHIPPED).as_deref(),
             Ok(expected.as_bytes()),
-            "{form:?}: {error:?}"
+            "{form:?}: {record:?}"
         );
     }
 }

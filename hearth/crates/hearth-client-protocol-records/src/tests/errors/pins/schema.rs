@@ -1,6 +1,7 @@
 use super::assert_prints;
 use super::plain;
-use crate::errors::{ExportFault, Format, Kind, Root, Schema, TypeName};
+use hearth_domain_render_vocabulary as render;
+use render::errors::{ExportFault, Format, Kind, Root, Schema, TypeName};
 use skein_lib::bytes::copy_of;
 
 #[expect(clippy::too_many_lines, reason = "literal text and JSON pins keep each error beside its bytes")]
@@ -8,10 +9,13 @@ use skein_lib::bytes::copy_of;
 fn schema_bytes() {
     let cases = [
         (
-            plain(Kind::Schema(Schema::Source { first: copy_of(b"one"), second: copy_of(b"two") })),
-            "two sources one and two\n",
+            plain(Kind::Schema(Schema::Source {
+                first: render::revision::declaration::Name::Copy,
+                second: render::revision::declaration::Name::Template,
+            })),
+            "two sources copy and template\n",
             concat!(
-                r#"{"record":"error","kind":"schema","schema":{"first":"one","kind":"source","second":"two"},"class":"configuration"}"#,
+                r#"{"record":"error","kind":"schema","schema":{"first":"copy","kind":"source","second":"template"},"class":"configuration"}"#,
                 "\n"
             ),
         ),
@@ -337,4 +341,18 @@ fn schema_bytes() {
     for (error, text, json) in cases {
         assert_prints(&error, text, json);
     }
+}
+
+#[test]
+fn a_source_fault_names_both_fields_in_the_record() {
+    use render::revision::declaration::Name;
+    let error = plain(Kind::Schema(Schema::Source { first: Name::Link, second: Name::Directory }));
+    assert_prints(
+        &error,
+        "two sources link and directory\n",
+        concat!(
+            r#"{"record":"error","kind":"schema","schema":{"first":"link","kind":"source","second":"directory"},"class":"configuration"}"#,
+            "\n"
+        ),
+    );
 }

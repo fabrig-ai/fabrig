@@ -1,9 +1,8 @@
 use super::assert_prints;
 use super::plain;
-use crate::{
-    errors::{Kind, Resolution},
-    tests::fixtures::{self, ResolutionInput},
-};
+use crate::tests::fixtures::{self, ResolutionInput};
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Kind, Resolution};
 
 #[test]
 fn resolution_bytes() {

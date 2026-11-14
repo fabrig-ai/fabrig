@@ -1,5 +1,8 @@
 use super::assert_prints;
-use crate::{errors::Repository, tests::fixtures};
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::errors::Repository;
+
 use skein_lib::bytes::copy_of;
 
 #[test]

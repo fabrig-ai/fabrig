@@ -72,11 +72,15 @@ impl StoreFull {
         field(json, b"record", b"error");
         field(json, b"kind", b"store");
         field(json, b"store", &self.store);
-        field(json, b"limit", match self.limit {
-            StoreLimit::Resolutions => b"resolutions",
-            StoreLimit::Layers => b"layers",
-            StoreLimit::CacheFiles => b"cache_files",
-        });
+        field(
+            json,
+            b"limit",
+            match self.limit {
+                StoreLimit::Resolutions => b"resolutions",
+                StoreLimit::Layers => b"layers",
+                StoreLimit::CacheFiles => b"cache_files",
+            },
+        );
         json.key(b"most");
         json.unsigned(u64::from(self.most));
         field(json, b"class", b"operational");

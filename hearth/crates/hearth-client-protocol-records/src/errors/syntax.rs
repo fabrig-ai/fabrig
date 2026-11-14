@@ -1,9 +1,8 @@
-use hearth_domain_render_vocabulary::{errors::syntax::Expected, evaluate::Filter};
-use hearth_domain_render_vocabulary::errors::{Syntax};
 //! Template syntax faults (hearth/docs/design/protocol/format/templates.md, 2 to 5).
+use hearth_domain_render_vocabulary::errors::Syntax;
+use hearth_domain_render_vocabulary::{errors::syntax::Expected, evaluate::Filter};
 
-
-use super::{Box, Encoder, Lines, field};
+use super::{Encoder, Lines, field};
 
 pub(super) fn syntax_text(item: &Syntax, lines: &mut Lines) {
     match item {
@@ -74,7 +73,6 @@ pub(super) fn syntax_json(item: &Syntax, json: &mut Encoder) {
     json.object_end();
 }
 
-
 pub(super) fn expected_name(item: Expected) -> &'static [u8] {
     match item {
         Expected::Operand => b"operand",
@@ -90,8 +88,7 @@ pub(super) fn expected_name(item: Expected) -> &'static [u8] {
     }
 }
 
-
-fn filter_name(value: hearth_domain_render_vocabulary::evaluate::Filter) -> &'static [u8] {
+fn filter_name(value: Filter) -> &'static [u8] {
     match value {
         Filter::Default => b"default",
         Filter::Join => b"join",

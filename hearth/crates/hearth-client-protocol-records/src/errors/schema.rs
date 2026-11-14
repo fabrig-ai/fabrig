@@ -1,7 +1,6 @@
 use super::type_name::{type_name_article, type_name_name};
-use hearth_domain_render_vocabulary::errors::{Format, TypeName};
 use super::{Box, Encoder, Lines, Schema, field, json_names, names, signed, validation};
-
+use hearth_domain_render_vocabulary::errors::{Format, Root};
 
 pub(super) fn format_name(item: Format) -> &'static [u8] {
     match item {
@@ -21,7 +20,6 @@ pub(super) fn format_name(item: Format) -> &'static [u8] {
         Format::Sha256 => b"sha256",
     }
 }
-
 
 pub(super) fn schema_text(item: &Schema, lines: &mut Lines, task: Option<&[u8]>) {
     match item {
@@ -216,8 +214,6 @@ pub(super) fn schema_json(item: &Schema, json: &mut Encoder) {
     json.object_end();
 }
 
-
-
 pub(super) fn root_name(item: Root) -> &'static [u8] {
     match item {
         Root::Tasks => b"tasks",
@@ -226,7 +222,7 @@ pub(super) fn root_name(item: Root) -> &'static [u8] {
     }
 }
 
-fn unlisted_text(lines: &mut Lines, reader: &[u8], root: super::Root, task: &[u8], setting: Option<&[u8]>) {
+fn unlisted_text(lines: &mut Lines, reader: &[u8], root: Root, task: &[u8], setting: Option<&[u8]>) {
     lines.put(root_name(root));
     lines.put(b".");
     lines.put(task);
@@ -234,7 +230,7 @@ fn unlisted_text(lines: &mut Lines, reader: &[u8], root: super::Root, task: &[u8
         lines.put(b".");
         lines.put(setting);
     }
-    if root == super::Root::Tasks && setting.is_none() {
+    if root == Root::Tasks && setting.is_none() {
         lines.put(b" is not an optional read of ");
         lines.put(reader);
     } else {
@@ -243,7 +239,7 @@ fn unlisted_text(lines: &mut Lines, reader: &[u8], root: super::Root, task: &[u8
         lines.put(b"'s reads");
     }
 }
-fn unlisted_json(json: &mut Encoder, reader: &[u8], root: super::Root, task: &[u8], setting: Option<&[u8]>) {
+fn unlisted_json(json: &mut Encoder, reader: &[u8], root: Root, task: &[u8], setting: Option<&[u8]>) {
     field(json, b"kind", b"unlisted");
     field(json, b"reader", reader);
     field(json, b"root", root_name(root));
@@ -256,12 +252,12 @@ fn unlisted_json(json: &mut Encoder, reader: &[u8], root: super::Root, task: &[u
     field(json, b"task", task);
 }
 
-fn dynamic_text(lines: &mut Lines, root: super::Root) {
+fn dynamic_text(lines: &mut Lines, root: Root) {
     lines.put(root_name(root));
     lines.put(b" takes only literal names");
 }
 
-fn dynamic_json(json: &mut Encoder, root: super::Root) {
+fn dynamic_json(json: &mut Encoder, root: Root) {
     field(json, b"kind", b"dynamic");
     field(json, b"root", root_name(root));
 }

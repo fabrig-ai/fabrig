@@ -751,16 +751,10 @@ fn each_retained_hunk_line_translates_to_records_and_back() {
 
 mod composition;
 mod declarations;
-mod repository;
 mod store_arrivals;
 
-mod evaluation;
 mod instructions;
 mod meta;
-
-mod forms;
-
-mod guards;
 
 mod expansion;
 
@@ -780,7 +774,6 @@ mod packages;
 mod resolution;
 mod specs;
 
-mod exported;
 mod package_changes;
 
 mod accounts;
@@ -793,8 +786,5 @@ pub(super) mod directives;
 mod record_store;
 
 mod diff_resolution;
-mod ids;
 
 mod part_changes;
-
-mod reserved;

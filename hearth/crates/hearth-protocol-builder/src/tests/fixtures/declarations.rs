@@ -38,13 +38,6 @@ pub fn guard_conditions() -> [(config::declaration::Guard, hearth_protocol_templ
     })
 }
 
-pub fn guard_faults() -> [render::errors::Guard; 2] {
-    [
-        render::errors::Guard { name: bytes::copy_of(b"ssh"), message: bytes::copy_of(b"port needed") },
-        render::errors::Guard { name: bytes::copy_of(b"web"), message: bytes::copy_of(b"web needed") },
-    ]
-}
-
 #[must_use]
 pub fn every_entry_condition() -> [(config::entries::Entry, hearth_protocol_template::Expression); 2] {
     guard_conditions().map(|(guard, expression)| {

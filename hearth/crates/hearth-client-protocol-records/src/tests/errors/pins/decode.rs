@@ -1,8 +1,8 @@
 use super::assert_prints;
-use crate::{
-    errors::{Decode, Error, Field, Kind, Limit},
-    tests::fixtures,
-};
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Decode, Error, Field, Kind, Limit};
+
 use skein_lib::bytes::copy_of;
 fn decode(decode: Decode) -> Error {
     let mut error = fixtures::duplicate();
