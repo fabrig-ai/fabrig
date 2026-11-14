@@ -174,7 +174,7 @@ enum Prepared {
 
 /// The operations the ring adapter submits, which the kernel's ring must
 /// have: all of them at the floor, 6.12.
-const OPERATIONS: [(u8, &str); 20] = [
+const OPERATIONS: [(u8, &str); 21] = [
     (opcode::Socket::CODE, "IORING_OP_SOCKET"),
     (opcode::Bind::CODE, "IORING_OP_BIND"),
     (opcode::Listen::CODE, "IORING_OP_LISTEN"),
@@ -190,6 +190,7 @@ const OPERATIONS: [(u8, &str); 20] = [
     (opcode::Ftruncate::CODE, "IORING_OP_FTRUNCATE"),
     (opcode::Fsync::CODE, "IORING_OP_FSYNC"),
     (opcode::Statx::CODE, "IORING_OP_STATX"),
+    (opcode::LinkAt::CODE, "IORING_OP_LINKAT"),
     (opcode::RenameAt::CODE, "IORING_OP_RENAMEAT"),
     (opcode::UnlinkAt::CODE, "IORING_OP_UNLINKAT"),
     (opcode::MkDirAt::CODE, "IORING_OP_MKDIRAT"),
@@ -649,6 +650,17 @@ fn prepare(
             let flags = if *no_replace { libc::RENAME_NOREPLACE } else { 0 };
             opcode::RenameAt::new(from_dir, path.as_ptr().cast(), to_dir, to_path.as_ptr().cast()).flags(flags).build()
         }
+        Op::HardLink { from_dir, from, to_dir, to } => {
+            *path = c_path(from);
+            *to_path = c_path(to);
+            opcode::LinkAt::new(
+                types::Fd(from_dir.raw()),
+                path.as_ptr().cast(),
+                types::Fd(to_dir.raw()),
+                to_path.as_ptr().cast(),
+            )
+            .build()
+        }
         Op::Remove { dir, name, directory } => {
             *path = c_path(name);
             let flags = if *directory { libc::AT_REMOVEDIR } else { 0 };
@@ -763,6 +775,7 @@ fn decode(flight: &mut Flight, res: i32, cancelled: bool) -> Result<Done, Error>
         | Op::Truncate { .. }
         | Op::Sync { .. }
         | Op::Rename { .. }
+        | Op::HardLink { .. }
         | Op::Remove { .. }
         | Op::MakeDirectory { .. }
         | Op::Cancel { .. } => Ok(Done::Nothing),
@@ -804,6 +817,14 @@ mod tests {
     use super::{Config, Ring, Wait};
     use crate::Clock;
     use crate::open_termination_signals;
+
+    #[test]
+    fn the_startup_probe_requires_linkat() {
+        assert!(
+            super::OPERATIONS.contains(&(io_uring::opcode::LinkAt::CODE, "IORING_OP_LINKAT")),
+            "a ring without LINKAT cannot implement HardLink"
+        );
+    }
 
     mod guards;
     mod open_retries;

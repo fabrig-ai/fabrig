@@ -204,13 +204,43 @@ generation `A` to `A + 1`:
    exists going back is to `A`, which nothing here changes: renamed out
    of the numbers (`generations/dropped`), `generations/` synced, then
    removed as 1 removes a stray, so that a cut never leaves part of
-   a generation where the previous stands.
-2. **Copy** `A`'s `store/` and `secrets/` into `generations/A + 1/`,
-   file by file, each read and written in bounded chunks through the
-   file driver (io has no copy), each file synced and each directory
-   made durable as io makes it, then `generations/` synced. The copy's
-   `secrets/` is opened private (`OpenPrivate`: 0o700) and its files
-   made 0o600, as `secrets.md`'s are. `A` is only read.
+   a generation where the previous stands. Removing a name removes no
+   file another generation names: a file `A - 1` shares with `A` stays
+   `A`'s.
+2. **Link and copy** `A`'s `store/` and `secrets/` into
+   `generations/A + 1/` (temper's `draft/store-shape.md`, section 5),
+   its `store/` and `secrets/` made 0o700, each directory made durable
+   as io makes it. `A` is only read, and the two generations may share
+   a file because neither writes one again once a later open has
+   started: skein-kv replaces its `snapshot` by a rename and starts a
+   new segment at every open, never appending to an older one, cutting
+   it or writing it in place (skein's `data/kv.md`, sections 3 and 5), so a shared
+   file stays as `A` left it, whatever `A + 1` commits, snapshots or
+   removes.
+   - **Linked:** `A`'s `snapshot` and each of its log segments but the
+     newest (`log-<20 digits>`, the newest the one whose number is
+     largest), each given a second name in `A + 1`'s `store/` by io's
+     `HardLink` (skein's `runtime/io/files.md`; `runtime/kernel.md`,
+     6.4). The newest is found over every page of `A`'s `store/`
+     before the first link is made.
+   - **Copied,** file by file, each read and written in bounded chunks
+     through the file driver (io has no copy), each file created
+     exclusively 0o600 and synced: the newest segment, which the draft
+     keeps unshared (its section 5) though skein-kv writes it no more
+     than the others; any other file of `A`'s `store/`; and the whole
+     of `secrets/`, small, whose files step 5 requires private with
+     one link. The copy's `secrets/` is opened private (`OpenPrivate`:
+     0o700) and its files made 0o600, as `secrets.md`'s are.
+   - **A link the file system refuses,** answered `Permission` (a file
+     system with no hard links, or Linux's `protected_hardlinks`),
+     `TooManyLinks` or `Other` (`EXDEV` among them), is that file
+     copied instead, and the start goes on: a deployment on a file
+     system without hard links upgrades as before, its maps twice on
+     disk. Any other failure is a file's fault, as a copy's is.
+   - Then `A + 1`'s `store/` and `secrets/` are synced, which makes
+     their links and new names durable (skein's `runtime/kernel.md`,
+     6.4), then `generations/`. This document calls `A + 1` the copy,
+     however its files were made.
 3. **Open the copy:** both its stores recovered, and its format row,
    layouts and header read and checked at the copy's own levels, as
    1 (step 4) reads `A`'s; no transcript is cut.
@@ -325,13 +355,19 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
   copy. A switch answered `Failed` with its rename made (`committed`:
   skein's `runtime/io/files.md`, 2) may leave `A + 1` active, whole and checked,
   which the next start opens.
-- **Room.** On disk, the maps twice (temper's `draft/upgrades.md`,
-  6.1): `A` and `A + 1`, never the transcripts; `A + 1` is `A`'s maps and,
-  beside them until skein-kv's next snapshot, the log of the patch
-  commits, each record a walk rewrites once. A disk that cannot hold
-  them fails the copy with a file's fault, and every start fails again
-  until there is room: checking the free space before the copy is open
-  (`README.md`, section 11). In memory: one map at a time (`A`'s closed before the
+- **Room.** On disk, what the two generations do not share, never the
+  transcripts (temper's `draft/store-shape.md`, section 5): at the
+  switch, `A + 1`'s newest segment and secrets' store, copied, and the
+  log of the patch commits, each record a walk rewrites once. As
+  `A + 1` moves on, what it writes is its own: once its snapshot has
+  replaced the linked one and dropped the linked segments, the maps
+  are on disk twice, `A`'s as they were and `A + 1`'s, until the next
+  upgrade drops `A`, as they were before generations shared files
+  (temper's `draft/upgrades.md`, 6.1). A file system that refuses
+  links copies, and needs the maps twice from the start. A disk that
+  cannot hold them fails the copy with a file's fault, and every start
+  fails again until there is room: checking the free space before the
+  copy is open (`README.md`, section 11). In memory: one map at a time (`A`'s closed before the
   copy's opens) and one machine per kept family (3), each
   `Patcher::workspace_bound` of its capacity. `README.md`, section 8's worst case
   counts the larger of patching's peak and serving's, never both. A
@@ -592,12 +628,14 @@ partial one removed, or the new.
 | removing strays | part of a stray | removes the rest |
 | the drop of `A - 1`, before its rename | `active` is `A`; `A - 1` whole | patches again, its plan dropping `A - 1` |
 | the drop, after its rename | `active` is `A`; part of `generations/dropped` | removes the rest as a stray; patches again |
-| the copy, a patch commit, a closing commit, the check, the manifest, the restore before the switch | `active` is `A`; `A + 1` partial or whole | removes `A + 1`; patches again from a fresh copy |
+| a link or a file copied, a patch commit, a closing commit, the check, the manifest, the restore before the switch | `active` is `A`; `A + 1` partial or whole | removes `A + 1`, whose names alone go, every file it shares staying `A`'s as `A` left it; patches again from a fresh copy |
 | the switch, before its rename | `active` is `A` | as above |
 | the switch, after its rename | `active` is `A`, or `A + 1` whole | as above, or opens `A + 1` |
 
-- **A cut per write, sync and rename,** each run from its own start in
-  the store's world (`README.md`, section 9), not their product.
+- **A cut per write, sync, link and rename,** each run from its own start in
+  the store's world (`README.md`, section 9), not their product. A link
+  is kept past a cut once its directory is synced, as a new file's name
+  is (skein's `runtime/kernel.md`, 6.4).
 - **No `active` names a generation before it is whole:** its maps,
   their directories and its manifest are synced before the rename that
   names it, and nothing writes a generation once a later one is
@@ -621,7 +659,9 @@ deployment's lock as a start does (1, step 1).
   never writes the directory it is given, a copy of a stopped
   deployment's such as a backup: it reads `active` and that
   generation's maps, copies them into a scratch deployment as that
-  generation, and opens the
+  generation, file by file and never by links (the directory it is
+  given may be a backup on another file system, and a link would
+  change its files' links), and opens the
   scratch as any start does (1 and 2), with its patch sets, the
   transcripts read where they are and never cut, and no generation
   dropped. The plan, the copy, the patches and the restores (loaded and
@@ -666,7 +706,10 @@ deployment's lock as a start does (1, step 1).
   position. Equal, it replaces `active` by io's durable replace,
   expecting the digest it read, to name `A`, and answers `Back`; `A + 1`
   is then a stray the next start removes, and that start opens `A` as it
-  was, cutting the transcripts to `A`'s lengths (`transcripts.md`, 4). Past it, or with
+  was, cutting the transcripts to `A`'s lengths (`transcripts.md`, 4):
+  `A`'s files are as `A` left them, those it shares with `A + 1`
+  included, since nothing `A + 1` did (patching, snapshotting, this
+  recovery, the stray's removal) writes a shared file (2, step 2). Past it, or with
   no previous generation or no manifest, it refuses, `Back { why }`,
   changing nothing: the patched generation has made commits of its own,
   which may have acted beyond the store, and going back is restoring a

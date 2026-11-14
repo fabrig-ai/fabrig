@@ -107,6 +107,7 @@ pub fn read_indices(names: &[&[u8]], release: &[u8], packages: &[u8]) -> ReadInd
             | file::Request::WriteAt { .. }
             | file::Request::Cut { .. }
             | file::Request::SyncDirectory { .. }
+            | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
             | file::Request::List { .. } => panic!("index read operation"),

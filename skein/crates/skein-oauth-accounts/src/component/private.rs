@@ -200,6 +200,7 @@ impl Component {
                 | file::Event::Cut { .. }
                 | file::Event::Synced { .. }
                 | file::Event::Closed { .. }
+                | file::Event::Linked { .. }
                 | file::Event::Renamed { .. }
                 | file::Event::Removed { .. }
                 | file::Event::Listed { .. }
@@ -244,6 +245,7 @@ impl Component {
                     | file::Event::Cut { .. }
                     | file::Event::Synced { .. }
                     | file::Event::Closed { .. }
+                    | file::Event::Linked { .. }
                     | file::Event::Renamed { .. }
                     | file::Event::Removed { .. }
                     | file::Event::Listed { .. }
@@ -298,6 +300,7 @@ impl Component {
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
             | file::Event::Closed { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. }
             | file::Event::Removed { .. }
             | file::Event::Listed { .. }
@@ -435,6 +438,7 @@ fn unloaded(event: file::Event) -> Unloaded {
         | file::Event::Cut { .. }
         | file::Event::Synced { .. }
         | file::Event::Closed { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Removed { .. }
         | file::Event::Listed { .. } => Unloaded::Failed(kernel::Error::InvalidArgument),

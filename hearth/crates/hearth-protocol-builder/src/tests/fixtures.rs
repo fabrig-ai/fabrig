@@ -533,6 +533,7 @@ pub fn arriving() -> Layer {
                 | Request::ReadAt { .. }
                 | Request::Cut { .. }
                 | Request::SyncDirectory { .. }
+                | Request::HardLink { .. }
                 | Request::Rename { .. }
                 | Request::Remove { .. }
                 | Request::List { .. }

@@ -294,6 +294,7 @@ impl Sim {
                     | Op::Lock { .. }
                     | Op::Stat { .. }
                     | Op::Rename { .. }
+                    | Op::HardLink { .. }
                     | Op::Remove { .. }
                     | Op::MakeDirectory { .. }
                     | Op::List { .. }
@@ -630,6 +631,7 @@ impl Sim {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::Rename { .. }
+            | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
             | Op::List { .. } => self.bug("an operation on files is the machine's"),
@@ -751,6 +753,7 @@ impl Sim {
             | Summary::Lock { .. }
             | Summary::Stat { .. }
             | Summary::Rename { .. }
+            | Summary::HardLink { .. }
             | Summary::Remove { .. }
             | Summary::MakeDirectory { .. }
             | Summary::List { .. }
@@ -1153,6 +1156,7 @@ impl Sim {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::Rename { .. }
+            | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
             | Op::List { .. }
