@@ -108,10 +108,6 @@ pub struct Starved {
     tree_kind: &'static str,
 }
 
-/// The unwind payload of a starved pass in a one-process run.
-#[derive(Debug)]
-pub struct StarvedPass;
-
 /// Whether a starved wait ends its test as a pass here: `TIERS_ONE_PROCESS` or
 /// `NEXTEST` is set.
 #[must_use]
@@ -124,19 +120,12 @@ pub fn starved_passes() -> bool {
 }
 
 /// Ends the running test with a `skein-world: starved:` line a helper wrote,
-/// as `Starved::pass` ends it; elsewhere fails with the line.
-#[expect(clippy::exit, reason = "testing/README.md, 5 ends a nextest starved pass with exit 0")]
+/// as `Starved::pass` ends it; elsewhere fails with the line. The exit skips
+/// every drop, so the caller ends what it owns first.
+#[expect(clippy::exit, reason = "testing/README.md, 5 ends a starved pass with exit 0")]
 #[expect(clippy::print_stderr, reason = "testing/README.md, 5 requires one starvation verdict on stderr")]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "skein's round: reads TIERS_ONE_PROCESS and NEXTEST to report a starved test pass"
-)]
 pub fn pass_starved(line: &str) -> ! {
-    if std::env::var_os("TIERS_ONE_PROCESS").is_some() {
-        eprintln!("{line}");
-        std::panic::resume_unwind(Box::new(StarvedPass));
-    }
-    if std::env::var_os("NEXTEST").is_some() {
+    if starved_passes() {
         eprintln!("{line}");
         std::process::exit(0);
     }
@@ -149,9 +138,9 @@ impl Starved {
         &self.figures
     }
 
-    /// Ends a test as a starved pass: unwinds in a one-process run, exits 0
-    /// under nextest, and elsewhere fails with the figures. The caller ends
-    /// what it owns first; the unwind drops what remains, the exit skips it.
+    /// Ends a test as a starved pass: exits 0 in a one-process run or under
+    /// nextest, and elsewhere fails with the figures. The exit skips every
+    /// drop, so the caller ends what it owns first.
     pub fn pass(self) -> ! {
         if !starved_passes() {
             crate::fail(&format!("skein-world: starved: {}", self.figures));
@@ -161,13 +150,8 @@ impl Starved {
 
     /// Ends a helper process whose test reads its stderr: the line and exit 0
     /// where `starved_passes()`; elsewhere fails with the figures.
-    #[expect(clippy::print_stderr, reason = "testing/README.md, 5 requires one starvation verdict on stderr")]
     pub fn exit(self) -> ! {
-        if !starved_passes() {
-            crate::fail(&format!("skein-world: starved: {}", self.figures));
-        }
-        eprintln!("{}", self.line());
-        std::process::exit(0);
+        self.pass();
     }
 
     fn line(&self) -> String {
