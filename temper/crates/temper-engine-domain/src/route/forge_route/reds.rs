@@ -42,3 +42,14 @@ fn goal_for_run(domain: &Domain, task: u64) -> Option<u64> {
     }
     None
 }
+
+/// Report decisions belong to domain/forge/reds.md, 5.7 and 5.8.
+pub(crate) fn check_results(
+    _domain: &mut Domain,
+    _env: &skein_lib::Env<crate::Limits>,
+    _decision: &mut crate::Decision,
+    _task: u64,
+    _attempt: u64,
+    _results: crate::wire::CheckResults,
+) {
+}

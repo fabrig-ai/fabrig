@@ -1,9 +1,9 @@
-//! The engine owns its answer's limits; the worker admits the schema's ceiling (protocol/channel.md, 8).
+//! Both peers admit the worker's ask envelope; answers take each side's bounds (protocol/channel.md, 8).
 use super::fixtures;
 use temper_protocol_worker_wire as payload;
 
 #[test]
-fn reds_sizes_follow_the_forge_on_the_engine_and_the_schema_on_the_worker() {
+fn ask_sizes_take_the_worker_ceiling_and_reds_answers_take_each_sides_bounds() {
     let mut settings = fixtures::engine();
     let worker = fixtures::worker_settings();
     let agent = fixtures::worker_agent();
@@ -11,13 +11,13 @@ fn reds_sizes_follow_the_forge_on_the_engine_and_the_schema_on_the_worker() {
         settings.limits.forge.branch_reds = count;
         settings.limits.forge.red_key_bytes = key;
         let engine = crate::workers::limits(&settings).unwrap();
-        assert_eq!((engine.sizes.application_ask, engine.sizes.application_answer), (1, answer));
+        assert_eq!((engine.sizes.application_ask, engine.sizes.application_answer), (305_383, answer));
         let limits = crate::worker_settings::payload_limits(&crate::limits::worker(&settings.limits)).unwrap();
         assert_eq!((limits.reds_reds, limits.red_key), (256, 512));
         let link = crate::worker_settings::link_limits(&worker.jig, &limits, settings.limits.forge.forges).unwrap();
-        assert_eq!((link.sizes.application_ask, link.sizes.application_answer), (1, 141_317));
+        assert_eq!((link.sizes.application_ask, link.sizes.application_answer), (305_383, 141_317));
         let root = crate::worker_settings::root_limits(&worker, &agent, &crate::limits::worker(&settings.limits));
-        assert_eq!((root.host.application_ask_bytes, root.host.application_answer_bytes), (1, 141_317));
+        assert_eq!((root.host.application_ask_bytes, root.host.application_answer_bytes), (305_383, 141_317));
     }
 }
 

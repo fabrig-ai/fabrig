@@ -317,6 +317,9 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             close(domain, env, decision, out);
             return;
         }
+        Event::Worker(crate::WorkerInput::CheckResults { run, attempt, results }) => {
+            domain.work.push(Work::CheckResults { task: run.raw(), attempt: attempt.raw(), results });
+        }
         Event::Worker(crate::WorkerInput::Asked { channel, run, attempt, number, answer }) => {
             crate::wire::asked(domain, channel, run, attempt, number, answer);
         }
@@ -480,6 +483,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 domain.work.push(Work::Start(action));
             }
             Work::Start(action) => start_action(domain, env, decision, action),
+            Work::CheckResults { task, attempt, results } => {
+                forge_route::reds::check_results(domain, env, decision, task, attempt, results);
+            }
             Work::Decoded { to, body } => host_route::decoded(domain, env, decision, to, body),
             Work::ForgeRead { reply, sign_in, scope, query } => {
                 kinds::read(domain, env, decision, reply, sign_in, scope, query);

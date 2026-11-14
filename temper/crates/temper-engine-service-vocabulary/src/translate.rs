@@ -33,12 +33,44 @@ pub fn ask(bytes: &[u8], limits: &v1::Limits) -> Option<engine::wire::Ask> {
     }
     Some(match ask {
         v1::Ask::Reds => engine::wire::Ask::Reds,
+        v1::Ask::Results(value) => engine::wire::Ask::Results(results(value)?),
+    })
+}
+
+fn results(value: v1::CheckResults) -> Option<engine::wire::CheckResults> {
+    let parts = value.into_parts();
+    if !wire::red_head(&parts.tree) {
+        return None;
+    }
+    if let Some(base) = &parts.base
+        && !wire::red_head(base)
+    {
+        return None;
+    }
+    let mut flakes = List::with_capacity(parts.flakes.len());
+    for flake in parts.flakes.into_boxed() {
+        let flake = flake.into_parts();
+        flakes.push(engine::wire::Flake { key: flake.key, log: flake.log }).expect("one row per decoded flake");
+    }
+    Some(engine::wire::CheckResults {
+        tag: parts.tag,
+        check: parts.check_number,
+        tree: parts.tree,
+        base: parts.base,
+        verdict: match parts.verdict {
+            v1::Verdict::Passed => engine::wire::Verdict::Passed,
+            v1::Verdict::Refused => engine::wire::Verdict::Refused,
+        },
+        passed: parts.passed.into_boxed(),
+        failed: parts.failed.into_boxed(),
+        flakes: flakes.into_boxed(),
     })
 }
 
 /// Encode the root's goal-local snapshot within the engine's bounds.
 pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[u8]>, v1::Problem> {
     let value = match answer {
+        engine::wire::Answer::Kept => v1::Answer::Kept,
         engine::wire::Answer::Reds { reds } => {
             let mut rows = List::with_capacity(limits.reds_reds);
             for red in reds {

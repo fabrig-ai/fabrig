@@ -121,7 +121,10 @@ fn an_admitted_reds_ask_reads_the_goal_in_key_order_without_a_commit() {
         panic!("snapshot")
     };
     let v1::Answer::Reds(reds) =
-        v1::Answer::decode(&fixtures::wire_limits(), &mut skein_lib::Reader::new(&bytes)).unwrap();
+        v1::Answer::decode(&fixtures::wire_limits(), &mut skein_lib::Reader::new(&bytes)).unwrap()
+    else {
+        panic!("reds answer")
+    };
     let rows = reds.reds();
     assert_eq!(rows.len(), 2);
     assert_eq!(
