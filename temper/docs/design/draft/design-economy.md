@@ -5,8 +5,8 @@ The code follows the design, so the design sets its size. This draft asks a desi
 ## 1. In one page
 
 - **The design sets the code's breadth.** Hand-written production holds about 2.9 characters for each of the design's (section 2). With the design as it is, a survey of the code's size found under 5% of production to cut without weakening a check. What remains is breadth: the concepts the design names, and the layers each one crosses. Smaller code needs a design that names fewer concepts.
-- **The design is detailed partly because of how goals run.** A goal's designer writes the shapes its changes share into documents that outlast the goal, so that implementers working side by side agree (section 3). Once the code holds those shapes, the documents still repeat them.
-- **What a design says:** concepts, rules, formats, failures, and why. It leaves to the code the types, fields and steps that no other area reads (section 4). A change to a design counts the concepts it adds and removes, and removes those with no behaviour of their own (section 5). An implementer says where a design makes it write the same thing twice (section 6).
+- **The design is detailed partly because of how goals run.** A goal's designer writes the shapes its changes share into documents that outlast the goal, so that implementers working side by side agree (section 3). Once the code holds those shapes, the documents still repeat them. Here they go in a document of the goal's own, deleted once the goal lands (4.3).
+- **What a design says:** concepts, rules, formats, failures, and why. It leaves to the code the types, fields and steps that no other area reads (section 4). A change to a design counts the concepts it adds and removes, and removes those with no behaviour of their own (section 5). An implementer starts from lean specs, gets more detail only on demand, and says where a design makes it write the same thing twice (section 6).
 - **A pilot first,** in one area, run as temper goals into main from a template of their own, so that every other goal runs as today (sections 7 and 8). It measures what fewer concepts save, and how much detail the implementer needs before its code gets worse.
 - **Adoption is the user's,** area by area, once the pilot's figures are in (section 9).
 - **Unchanged:** `skein/docs/foundation/programming-model.md`, `skein/docs/foundation/testing-strategy.md`, `DESIGN.md`, template 4 and its charters.
@@ -50,7 +50,7 @@ Characters other than whitespace, at main `2267794d41`:
 
 ### 4.3 Contracts between a goal's changes
 
-The shapes that two changes of one goal share go in their specs, word for word the same, and bind for the goal. Once the changes land, the code holds them. The lasting design binds only what 4.1 keeps. This departs from the stock designer charter (section 8).
+The shapes that a goal's changes share and no other area reads (types, fields, signatures) are written, while the goal runs, in a document of the goal's own beside the area's design, named `contracts`, with its status file. They bind as any delivered design section does, and are revised the same way. The lasting documents keep only what 4.1 keeps and don't cite it. Once the goal's changes have landed, the code holds those shapes, and the goal's last change deletes the document.
 
 ### 4.4 Documents
 
@@ -76,7 +76,8 @@ The programming model, whole. Each layer has its own entities (`skein/docs/found
 
 - **The implementer says so:** where the design or its spec makes it write the same thing twice, or a type with no behaviour of its own, it says so. When the simpler form crosses its change's edge, it asks. Otherwise it writes it under `## Simpler` in its report, naming the place and the simpler form.
 - **The designer takes it:** among options that keep the design's shape, the designer, or the coordinator once the designer has parked, prefers the one with fewer concepts. It accepts a simplification that keeps the behaviour and leaves the lasting design true.
-- **Detail on demand:** when a change's question, failure or result shows that the lean design left out something the change needed, the designer adds it, to the design if 4.1 keeps it and to the spec if not. The goal's note lists each addition: what was missing, what showed it, and what was added. That list measures how much the implementer needs.
+- **Lean specs:** a spec gives, under `## Steps`, only what crosses the change's boundary and the order where order matters. It sketches no code and gives no example until a change needs one. Its acceptance and the shape of its tests stay as the charters ask.
+- **Detail on demand:** when a change's question, failure or result shows that the design or its spec left out something the change needed, the designer adds it: to the lasting design if 4.1 keeps it, to the contracts document if changes share it (4.3), to the spec if not. The goal's note lists each addition: what was missing, what showed it, and where it was added. With the guidance given at the start, that list measures how much the implementer needs (7.3).
 
 ## 7. The pilot
 
@@ -94,28 +95,30 @@ The programming model, whole. Each layer has its own entities (`skein/docs/found
 
 - **The design:** the area's design is rewritten under sections 4 and 5, with fewer concepts and the same behaviour. The designer writes the leanest design section 4 allows, and adds detail only on demand (6).
 - **The code:** refactored to the new design.
-- **Unchanged:** what other crates use of it, the behaviour its tests expect, its golden and expected files, and its status files' gaps. A type no other crate uses may go. A test of a type that goes is rewritten to check the same behaviour through what stays.
+- **Unchanged:** what production outside the crate uses of it; its observable behaviour; its tests' cases, expectations, independent oracles and bounds; its golden and expected files, byte for byte, with nothing blessed; its status files' gaps. A type that only tests use outside the crate may go: the test worlds and harnesses that build or inspect it, `hearth/tests/render/` among them, are adapted to what stays and check the same behaviour.
 
 ### 7.3 What is measured
 
-Read from main before the goal (7.1) and after it lands:
+At two endpoints, counted the same way: the commit E2's goal starts from, and E2's landing on main, before any later change to the area. 7.1's figures are the survey's, for scale.
 
-- the area's hand-written production lines, with its tests and generated code apart;
-- its public types;
-- the characters of its design documents;
-- the detail added on demand (6), with the changes' questions and refused deliveries;
-- the goal's minutes and spend, from its record.
+- **Size:** the area's hand-written production, tests and generated lines, and its design documents' characters, the contracts document apart. E2's whole diff is counted by kind as well, so that code moved to another crate or document counts where it lands, not as a cut.
+- **Concepts:** the area's public types, those that only lost `pub` apart from those removed, and the concepts the goal's note lists as added and removed.
+- **Guidance:** the characters the implementers were given at the start, in three parts: the lasting design their specs cite, the contracts document at its fullest, and the specs' `## Steps`. Then what detail on demand added to each.
+- **Quality:** the changes' questions and refused deliveries, their reports' `## Simpler` sections, and one code review of E2's diff, its findings counted by kind: repetition, a concept with no behaviour of its own, a layer crossed for nothing, a piece in the wrong place, an unclear name.
+- **Cost:** the goal's minutes and spend, from its record.
 
 ## 8. The pilot's charters
 
-- **A template of its own:** a copy of template 4, "goal for a draft", with its models and bounds. Its goal agent and implementer are copies of charters 5 and 2 carrying the changes below over the stock's text and fabrig's lines (`temper/docs/charters/`). In fabrig's lines for the goal agent, a coding change names the pilot's implementer as its producer. Template 4 and charters 5 and 2 stay as they are.
-- **The goal agent's `designer` part:**
+- **A template of its own:** a copy of template 4, "goal for a draft", with its models and bounds, run by copies of charters 5 and 2. The copies carry the changes below over the text 5 and 2 resolve to on the deployment: the stock's set, fabrig's lines (`temper/docs/charters/`) and the deployment's own (`temper/docs/design/draft/stock-charters.md`, 5). In the goal agent's lines, a coding change names the copy of charter 2 as its producer. Template 4 and charters 5 and 2 stay as they are.
+- **The goal agent's instructions,** `goal`'s "A spec": the `## Steps` bullet reads "`## Steps`: exactly what crosses the change's boundary (the public names, types and signatures other changes or the design rely on, cited by the design's section) and the order where order matters. No sketch of the code's shape and no example until detail on demand calls for one (`temper/docs/design/draft/design-economy.md`, 6). The rest is the implementer's. No estimate and no test commands: the implementer runs only its new tests and repairs, and delivery runs the checks."
+- **Its `designer` part:**
   - "Your goal", item 1, reads: "**A lean design, eventually.** Every part of the request designed, in documents that outlast the goal, keeping what `temper/docs/design/draft/design-economy.md`, 4.1 keeps and leaving to the code what 4.2 leaves."
-  - "Your design's rules", the wave's bullet, reads: "**A wave's design** comes before its changes: the sections the request asks for, as that draft's 4.1 keeps them, by path and section, with wire and stored forms. The shapes the wave's changes share (types, fields, signatures) go in their specs, word for word the same, binding for the goal (4.3)."
-  - Two bullets join it: "**Fewer concepts:** your note lists the concepts the goal adds and removes, with the area's public types before and after (5.2)." And: "**Detail on demand:** add what a change showed the design lacked, and list each addition in your note (6)."
-- **The goal agent's `coordinator` part,** for a question: "Decide" gains "Among options that keep the design's shape, prefer the one with fewer concepts. Accept an implementer's simplification that keeps the behaviour and leaves the lasting design true. List detail added on demand in your note (6)."
+  - "Your design's rules", the wave's bullet, reads: "**A wave's design** comes before its changes: the sections the request asks for, as that draft's 4.1 keeps them, with wire and stored forms; the shapes that cross changes and no other area reads (types, fields, signatures) as binding contracts in the goal's contracts document (4.3); both by path and section; and the status the project keeps, as it will stand once the goal lands. Never edit the draft's text. `deliver` it before you cut the changes that cite it, by path and section."
+  - Three bullets join it: "**Fewer concepts:** your note lists the concepts the goal adds and removes, with the area's public types before and after (5.2)." "**Detail on demand:** add what a change showed the design or its spec lacked, where 6 says, and list each addition in your note." "**The contracts document goes:** before you park, cut a last change, after every other, that deletes it and its status (4.3)."
+  - "Contracts in the design", under "What usually pays", holds as written: while the goal runs, the contracts document is part of the design.
+- **Its `coordinator` part,** for a question: "Decide" gains "Among options that keep the design's shape, prefer the one with fewer concepts, and accept an implementer's simplification that keeps the behaviour and leaves the lasting design true. A missing shared shape goes in the goal's contracts document. A detail a change lacked is added where `temper/docs/design/draft/design-economy.md`, 6 says, and listed in your note. A change you cut while the contracts document's deletion waits joins that deletion's `after`."
 - **The implementer,** after "Not yours": "Where the design or your spec makes you write the same thing twice, or a type with no behaviour of its own, say so: as a question when the simpler form crosses your change's edge, otherwise under `## Simpler` in your report, naming the place and the simpler form."
-- **How the template carries them is temper/dev's.** Today a set of charter files overlays only charters 5 and 2 (`temper/docs/design/client/ctl/overlays.md`, 2). So the copies are either literal text assembled from the stock's set, fabrig's lines and these changes, or a set that `settings apply` lets serve another charter.
+- **How the template carries them is temper/dev's (E1).** Today a set of charter files overlays only charters 5 and 2 (`temper/docs/design/client/ctl/overlays.md`, 2). So the copies are either literal text or a set that `settings apply` lets serve another charter. Either way, they come with the rules, policy and delegation that let the goal run under the first copy and hand its coding changes to the second: a charter the run may not delegate to refuses the change (`temper/docs/design/domain/agent/tools.md`).
 
 ## 9. Adoption
 
