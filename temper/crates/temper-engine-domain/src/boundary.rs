@@ -744,6 +744,8 @@ pub enum Fact {
 
 #[derive(Hash, Debug)]
 pub enum WorkerInput {
+    /// A decoded check report from a fenced worker ask (domain/forge/reds.md, 5.6).
+    CheckResults { run: Token, attempt: Token, results: crate::wire::CheckResults },
     /// The protocol encoded the root's application answer, sent through the fleet's fence.
     Asked { channel: Token, run: Token, attempt: Token, number: u64, answer: jig_domain_link::AskAnswer },
     /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 10.1).
@@ -1190,6 +1192,7 @@ pub enum PartyRequest {
 #[derive(Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "events stay inline in the bounded route queue priced at startup")]
 pub(crate) enum Work {
+    CheckResults { task: u64, attempt: u64, results: crate::wire::CheckResults },
     StartDone(jig_domain_core::start::Phase),
     Start(jig_domain_core::start::Action),
     Decoded { to: ReplyTo, body: Call },

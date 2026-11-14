@@ -2,6 +2,7 @@
 mod application;
 mod fixtures;
 mod reds;
+mod results;
 use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -68,6 +69,15 @@ fn limits_take_each_bound_from_its_source_field() {
             identity_login: 16,
             identity_name: 16,
             identity_email: 16,
+            flake_key: 512,
+            flake_log: 2048,
+            check_results_tree: 32,
+            check_results_base_some: 32,
+            check_results_passed: 2,
+            check_results_passed_item: 12,
+            check_results_failed: 2,
+            check_results_failed_item: 12,
+            check_results_flakes: 16,
             reds_reds: 2,
             red_key: 12,
             red_head: 32,

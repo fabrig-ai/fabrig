@@ -395,7 +395,17 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
             let limits = &engine.workers.encoding.limits;
             let answer = match crate::translate::ask(&bytes, limits) {
                 Some(ask) => {
-                    let answer = root::wire::answer(&engine.domain, run.raw(), attempt.raw(), ask);
+                    let answer = match ask {
+                        root::wire::Ask::Reds => root::wire::answer(
+                            &engine.domain, run.raw(), attempt.raw(), root::wire::Ask::Reds,
+                        ),
+                        root::wire::Ask::Results(results) => {
+                            engine.events.push(root::Event::Worker(root::WorkerInput::CheckResults {
+                                run, attempt, results,
+                            }));
+                            root::wire::Answer::Kept
+                        }
+                    };
                     match crate::translate::answer(answer, limits) {
                         Ok(bytes) => jig_domain_host::AskAnswer::Bytes(bytes),
                         Err(_) => jig_domain_host::AskAnswer::Refused,
