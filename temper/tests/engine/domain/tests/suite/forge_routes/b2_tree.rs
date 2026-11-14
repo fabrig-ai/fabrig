@@ -782,7 +782,8 @@ fn every_row_of_b2s_tree_reads_whole_on_standard() {
         for row in &page.rows {
             let task = match row {
                 reads::PageRow::History(line) => line.task,
-                reads::PageRow::Milestone(line) => line.task,
+                reads::PageRow::Attempt(line) => line.task,
+                reads::PageRow::Hold(line) => line.task,
                 other => panic!("history row: {other:?}"),
             };
             assert_eq!(task, expected.task);

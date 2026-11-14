@@ -169,53 +169,29 @@ pub fn proposal_history(
         },
     )
 }
-pub fn milestone(value: &d::MilestoneLine, limits: &w::Limits) -> Result<w::MilestoneLine, w::Problem> {
+/// The v22 bridge carries held phases as milestone lines; attempts have no v22 row.
+pub fn milestone(value: &d::HoldLine, limits: &w::Limits) -> Result<w::MilestoneLine, w::Problem> {
     w::MilestoneLine::new(
         limits,
         w::MilestoneLineParts {
             task: value.task,
             position: value.position,
-            at: match value.at {
-                Some(item) => Some(item.as_nanos()),
-                None => None,
-            },
-            phase: match &value.phase {
-                d::MilestonePhase::Waiting => w::MilestonePhase::Waiting,
-                d::MilestonePhase::Active(value) => w::MilestonePhase::Active(w::MilestonePhaseActive::new(
-                    limits,
-                    w::MilestonePhaseActiveParts { value: chips::active(*value, limits)? },
-                )?),
-                d::MilestonePhase::Closing { stage, ending } => {
-                    w::MilestonePhase::Closing(w::MilestonePhaseClosing::new(
-                        limits,
-                        w::MilestonePhaseClosingParts {
-                            stage: chips::stage(*stage, limits)?,
-                            ending: chips::ending(ending, limits)?,
-                        },
-                    )?)
-                }
-                d::MilestonePhase::Held { before, why, source, ending } => {
-                    w::MilestonePhase::Held(w::MilestonePhaseHeld::new(
-                        limits,
-                        w::MilestonePhaseHeldParts {
-                            before: chips::prior(*before, limits)?,
-                            why: chips::hold(*why, limits)?,
-                            source: match source {
-                                Some(item) => Some(owner::part(item, limits)?),
-                                None => None,
-                            },
-                            ending: match ending {
-                                Some(item) => Some(chips::ending(item, limits)?),
-                                None => None,
-                            },
-                        },
-                    )?)
-                }
-                d::MilestonePhase::Ended(value) => w::MilestonePhase::Ended(w::MilestonePhaseEnded::new(
-                    limits,
-                    w::MilestonePhaseEndedParts { value: chips::ending(value, limits)? },
-                )?),
-            },
+            at: Some(value.at.as_nanos()),
+            phase: w::MilestonePhase::Held(w::MilestonePhaseHeld::new(
+                limits,
+                w::MilestonePhaseHeldParts {
+                    before: chips::prior(value.before, limits)?,
+                    why: chips::hold(value.why, limits)?,
+                    source: match &value.source {
+                        Some(item) => Some(owner::part(item, limits)?),
+                        None => None,
+                    },
+                    ending: match &value.ending {
+                        Some(item) => Some(chips::ending(item, limits)?),
+                        None => None,
+                    },
+                },
+            )?),
         },
     )
 }

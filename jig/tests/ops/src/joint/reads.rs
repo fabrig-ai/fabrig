@@ -166,7 +166,7 @@ fn point(store: &Store, scope: &reads::Scope) -> Option<reads::Row> {
                     task: *task,
                     revision: task_row.escalation.revision(),
                 }),
-                Some(core::Key::Tasks(tasks::Key::Milestone { task: *task, position: task_row.hold })),
+                Some(core::Key::Tasks(tasks::Key::Hold { task: *task, position: task_row.hold })),
             )
         }
         reads::Scope::Proposal { proposer: documents::Proposer::Task(task), proposal } => {

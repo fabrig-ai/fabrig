@@ -860,6 +860,7 @@ fn a_people_row_of_another_version_does_not_decode() {
     );
 }
 
+mod lifecycle;
 mod record;
 fn call_limits() -> crate::codec::View {
     crate::codec::limits(&core_limits()).expect("within core ceilings")

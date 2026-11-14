@@ -129,6 +129,14 @@ pub enum Key {
     },
     /// One durable placed hold, after the existing key families.
     PlacedHold(u64),
+    Attempt {
+        task: u64,
+        attempt: u64,
+    },
+    Hold {
+        task: u64,
+        position: u64,
+    },
 }
 
 impl Key {
@@ -148,6 +156,8 @@ impl Key {
             | Self::DecidedProposal(_)
             | Self::History { .. }
             | Self::Milestone { .. }
+            | Self::Attempt { .. }
+            | Self::Hold { .. }
             | Self::Activity { .. }
             | Self::Update { .. }
             | Self::Result { .. }

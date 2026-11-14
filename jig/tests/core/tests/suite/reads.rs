@@ -608,7 +608,8 @@ fn subtree_history(world: &mut jig_core_world::world::World, task: u64) -> Vec<(
         for row in &page.rows {
             match row {
                 reads::PageRow::History(line) => rows.push((0, line.task, line.revision)),
-                reads::PageRow::Milestone(line) => rows.push((1, line.task, line.position)),
+                reads::PageRow::Attempt(line) => rows.push((1, line.task, line.attempt)),
+                reads::PageRow::Hold(line) => rows.push((2, line.task, line.position)),
                 reads::PageRow::EndedDelegate(_)
                 | reads::PageRow::Activity { .. }
                 | reads::PageRow::Inbox(_)

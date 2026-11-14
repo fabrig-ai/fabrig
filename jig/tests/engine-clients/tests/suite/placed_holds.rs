@@ -97,7 +97,7 @@ fn placed_hold_documents_preserve_the_smallest_and_full_owner_facts() {
             lifted: full,
             may_lift: full,
         };
-        let line = d::HoldLine {
+        let line = d::HoldPhaseLine {
             words: None,
             placed: Some(placed.clone()),
             circle: None,
