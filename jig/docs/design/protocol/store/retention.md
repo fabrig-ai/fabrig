@@ -169,7 +169,10 @@ fields and nothing more.
 
 - **Loads** the task's ended record. With none, the row is erased alone.
 - **Deferred,** the row put again with `since` now, while:
-  - live work names the task (its stub); or
+  - live work names the task (its stub);
+  - its requester is a live task: a live task's document lists its
+    ended delegates, and a connector recovering a live task's work
+    reads its delegates' records (temper's change recovery does); or
   - its requester is a person who has not read it: its result's position
     is past the party's read results, or, for a task flagged
     conversation, its last reply is past its ended read position. This
