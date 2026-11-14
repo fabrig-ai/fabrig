@@ -254,7 +254,7 @@ fn reconcile_app(service: &mut crate::Service) -> Token {
     run
 }
 fn connected_github() -> (Box<crate::Service>, fixtures::ForgeFace, Token) {
-    let store = fixtures::ready().engine.unwrap().store;
+    let store = fixtures::records_store();
     let mut service = Box::new(local_service(github_config(8, Duration::from_secs(3600), None), store));
     load_routing(&mut service);
     restore_local(&mut service);

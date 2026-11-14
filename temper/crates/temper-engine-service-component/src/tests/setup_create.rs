@@ -261,8 +261,9 @@ fn configured(forge: &Forge) -> crate::Service {
     let mut store = fixtures::records_store();
     keep_access(&mut store, forge);
     let endpoints = fixtures::configured_endpoints(&config, fixtures::forge_runtime()).unwrap();
-    let mut service = fixtures::configured_prepared(config, &fixtures::seeds(), None, endpoints, Some(256)).unwrap();
-    fixtures::replace_store(&mut service, store);
+    let mut service =
+        fixtures::configured_prepared_with_store(config, &fixtures::seeds(), None, endpoints, Some(256), Some(store))
+            .unwrap();
     service.engine.as_mut().unwrap().box_link = crate::route::box_link::Link::new(256, true);
     service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).unwrap().pending = false;
     // Bind is covered independently by setup_bound_webhook; use the checked
@@ -571,8 +572,17 @@ fn owner_reply(service: &mut crate::Service, input: root::PartyInput) -> jig_dom
         engine.store.iterate();
         crate::engine::answer(engine);
         engine.domain.reclaim();
+        if engine.domain.quiescent()
+            && engine.events.is_empty()
+            && engine.requests.is_empty()
+            && engine.store.host.above.is_empty()
+            && engine.store.routed.is_empty()
+            && let Some(answer) = answer.take()
+        {
+            return answer;
+        }
     }
-    answer.expect("owner request answered after durability")
+    panic!("owner request did not settle after durability")
 }
 
 fn sign_owner(service: &mut crate::Service) {
@@ -611,7 +621,18 @@ fn start_owned(service: &mut crate::Service, forge: &Forge) {
     })));
     for _ in 0_u32..256 {
         root_turn(engine);
+        if engine.box_link.write.is_some()
+            && engine.domain.quiescent()
+            && engine.events.is_empty()
+            && engine.store.host.above.is_empty()
+        {
+            break;
+        }
     }
+    assert!(
+        engine.domain.quiescent() && engine.events.is_empty() && engine.store.host.above.is_empty(),
+        "box start decision settled"
+    );
     engine.box_link.write.take().expect("box start");
     let mut out = Queue::with_capacity(3);
     engine.box_link.read(b"started 1\n", &mut out);
@@ -702,6 +723,7 @@ fn adopt_first(forge: &mut Forge, service: &mut crate::Service) {
         }
     }
     assert!(probing, "adoption probes current access");
+    assert!(service.engine.as_ref().unwrap().setup.runs.is_empty() && forge.socket.is_none(), "adoption probe settled");
     (forge.socket, forge.server, forge.pipe) = parked;
     forge.only_setup = false;
     for _ in 0_u32..2000 {
