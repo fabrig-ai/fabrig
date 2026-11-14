@@ -223,7 +223,12 @@ real key in that restored form.
   6; the cap stays. The tests are 6's.
 - **A test of several stories** says which failed: it marks where each
   story's steps begin (the tier's `Stories`), and a failed step's report, and
-  each measure read after the run, name its story. Each story's assertions
+  each measure read after the run, name its story. The harness's outcome
+  is a value, and `Stories` turns a failed one into its finding, naming
+  the story, or only the person and the step where no story of that
+  person had begun; the test fails with it once the harness has
+  returned, and a test of the attribution reads it
+  (`../../testing/README.md`, 4.2). Each story's assertions
   stay as its steps, in its order. It reruns whole on a flake, and a failure
   hides the steps after it: taken, for the cap. It stands on the same forty
   seconds as any run of the harness (skein's `ui/web/testing.md`, 2): a test that

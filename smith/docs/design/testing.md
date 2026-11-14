@@ -315,7 +315,11 @@ patch and drift tests check the generated `encoded_bound` and
       ChatGPT run that meets an expired record, which cannot run
       without them;
     - with a remote named, the push lands, and the test removes the
-      branch afterwards.
+      branch once it has seen it land. Nothing in the test catches a
+      panic to remove it (`temper/docs/design/draft/panics.md`, 5): a
+      failed run leaves its `smith-live-` branch, and the next run
+      removes every `smith-live-` branch the remote holds before it
+      pushes its own, live runs on one remote being one at a time.
   - **Outcomes, not words.** An LLM's words vary, so a story asks for a
     precise outcome, such as a file with given content, and the referee
     checks that outcome and the typed events, read through `smith-events`
@@ -557,6 +561,16 @@ Every component's files and processes go through it:
   world and the real loop share theirs. End to end, the referee checks
   the same outcomes from outside (2.3). A domain world's referee is its
   own, as its scenarios stay in its tier.
+- **Its checks return their findings** (`skein/docs/design/testing/README.md`, 5;
+  `skein/docs/foundation/programming-model.md`, 10.4): every referee and
+  judge of smith's worlds implements `watch`, in every tier, and keeps
+  what its `act` or `idle` finds for its next `watch`. The event
+  checks, a world's event conformance and the program referee's
+  comparison of the messages a program sent with those the fake saw,
+  with the transport's own check beneath them, return the first
+  difference as their finding, naming the record or the message by
+  position; the world or the story panics on it at its top, and their
+  own tests read it. Nothing in smith's tests catches a panic.
 
 ## 6. What the worlds check
 
