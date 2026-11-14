@@ -184,6 +184,7 @@ fn interval(store: &Store, walking: &Walking) -> Option<skein_kv::Range> {
 /// Crossing additionally consumes at most all map rows and one load per row
 /// plus the final empty page. Three turns per row/page/commit cover that walk;
 /// commits yield and resume after `through`, including unchanged proofs.
+#[expect(clippy::too_many_lines, reason = "one bounded page drive including heads-alone puts (opening.md 2, step 4)")]
 fn drive(store: &mut Store, walking: &mut Walking, above: &mut Queue<Event>) -> Option<bool> {
     match walking.waiting {
         Waiting::Site(_) | Waiting::Commit { .. } => return Some(false),
@@ -257,9 +258,14 @@ fn drive(store: &mut Store, walking: &mut Walking, above: &mut Queue<Event>) -> 
         if !append(store, walking)? {
             return Some(false);
         }
-        if let Some(row) = walking.page.pop() {
+        if let Some(mut row) = walking.page.pop() {
             let family = FamilyIx(walking.family);
             let root = walking.pending.machines.keys(family).get(walking.range)?.root;
+            // Heads alone use the same paged puts and counts (opening.md 2, step 4).
+            if walk::rehead(&walking.pending.machines, step, family, root, &mut row.row.value) {
+                walking.deferred = Some(Put { key: row.row.key, value: row.row.value, cursor: row.cursor });
+                continue;
+            }
             start(walking, family, root, row)?;
             continue;
         }
