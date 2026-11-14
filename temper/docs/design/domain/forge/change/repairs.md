@@ -304,7 +304,11 @@
     read of it that fails does (below), REASON `not read by the brief's
     deadline`: `[the pull request could not be read: not read by the
     brief's deadline]`, and the same for the reviews and the failed
-    checks. Any other, a lone section or a half whose partner has already
+    checks. Where both halves are short of their identities, the pull
+    section becomes words and the reason waits on, whichever meets its
+    cutoff first, since the reason is what the repair is for: a reason
+    half stands on its pull section only once that is past its identity.
+    Any other, a lone section or a half whose partner has already
     become words, waits on to the brief's deadline: its identity answered
     before then completes it at once, with the notices for all it left,
     and one still unanswered fails the brief `SECTION: not gathered by its
