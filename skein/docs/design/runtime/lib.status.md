@@ -2,9 +2,6 @@
 
 2026-11-14. Where skein's code lags or departs from [lib.md](lib.md).
 
-- **Not yet:** 11: a writing decision accepted past number `u64::MAX`
-  panics rather than stopping the journal, and a test triggers it,
-  `#[should_panic]`. [in flight: change 3133]
 
 - **Not yet:** 3: `Slab::get2_mut`. 6: a carrier's lengths, beyond
   skein-http's heads, skein-channel's frames and the oauth crates' bodies
