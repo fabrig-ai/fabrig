@@ -1092,7 +1092,10 @@ fn heads_alone_put_kept_kinds_without_decode_and_count_every_paged_record() {
             continue;
         }
         assert_eq!(patched(&events), [(crate::Owner::Application, 1, crate::Counts { records: 2, commits })]);
-        assert_opened(events.get(events.len().checked_sub(1).expect("last")..).expect("opened"), 2 + commits);
+        assert_opened(
+            events.get(events.len().checked_sub(2).expect("opened and census")..).expect("opened"),
+            2 + commits,
+        );
         assert_eq!(disk.bytes(b"active").as_ref(), b"2\n", "walk and switch completed");
         let (mut patcher, plan, root) = head_machine();
         for tag in 0..2 {

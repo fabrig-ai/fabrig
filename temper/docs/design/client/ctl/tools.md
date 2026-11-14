@@ -98,7 +98,7 @@ watch's subject, its digest (4). It needs no key.
 | `proposal show PROPOSAL` | a proposal of any kind, including its settings review: current values, origins, proposed values and the newest revision, each value whole: one past the review document's bound is read whole with `setting{…, proposal}` (jig's `domain/engine/settings.md`, 10) and the current one with `setting{…}`, so a review never shows a value as too large; a retained decided or withdrawn proposal keeps its state; an automatically replaced task proposal is unknown (7) | `proposal{proposer, number}`, `settings`, `setting{…}` |
 | `revision list [--before REVISION]` | the history a page, newest first: each revision's record and its items without values, cut at the page's bound with how many more; the last page says whether older ones were forgotten | `revisions` |
 | `push list` | the party's devices that pushes go to: each its number, label, when it was added and its push service's origin, never its endpoint whole or its keys (`../../domain/forge/attention.md`, 7.1) | the forge's `devices` |
-| `deployment census` | the store's census in the deployment's document (jig's `client/domain/contract/documents.md`, 1), as `results.md`, 1 and 2 print it | `deployment` |
+| `deployment census` | deployment document's store census (jig's `client/domain/contract/documents.md`, 1), printed by `results.md`, 1 and 2 | `deployment` |
 
 - **A settings proposal's review** derives its groups from the delivered
   settings values, independently of the proposer's reason: *temper
@@ -131,15 +131,13 @@ watch's subject, its digest (4). It needs no key.
   show KIND [NUMBER]` for a template, policy or rules. Among these jig kinds, only a charter
   takes `--revision`; the other reads serve the current value, including
   when the hint appears in a historical revision.
-- **`task list` reads one group a call.** jig answers a task query in
+- **`task list` reads one group a call.** jig answers task queries in
   two groups, live then ended, each with its own cursor (jig's
-  `client/domain/contract/README.md`, 4.1), and a printed cursor is one
-  group's. Without `--ended`, `task list` reads the live group, `--after
-  CURSOR` its cursor; with `--ended`, the ended group alone, as jig's
-  view reads it, `--after CURSOR` the ended group's. The call that reads
-  on keeps `--ended`, whose help reads "Only ended tasks". An agent that
-  wants both groups makes two calls; the printed cursor is jig's, with
-  nothing added.
+  `client/domain/contract/README.md`, 4.1). Without `--ended`, the call
+  reads live tasks; with it, ended tasks alone, as jig's view does.
+  `--after CURSOR` takes that group's cursor, printed unchanged from jig.
+  Reading on keeps `--ended`, whose help reads "Only ended tasks".
+  To read both groups, an agent makes two calls.
 - **`task list`'s order:** by number, ascending, without `--order`, with
   `--ended` or without; by activity or priority with it. The tools never
   send jig's other orders, `Changed` and `Ended`: no command line makes
