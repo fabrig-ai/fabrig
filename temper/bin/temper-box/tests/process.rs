@@ -193,8 +193,6 @@ fn conflicting_goals_depart_and_resolve_in_batch_four() {
     support::turn_drills::run(support::turn_drills::Drill::Conflict);
 }
 
-
-
 /// temper/docs/design/testing/process-tier.md: a queue that lands green.
 #[test]
 fn a_batch_of_three_lands_by_one_fast_forward() {
@@ -225,6 +223,11 @@ fn two_conflicting_changes_resolve_and_land_by_turn() {
 #[test]
 fn a_goal_delivering_mid_proof_leaves_and_lands_its_new_head() {
     deployment_turn("deployment-midproof", support::batch_landing::deployment::run_midproof);
+}
+
+#[test]
+fn a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run() {
+    deployment_turn("deployment-shared-midproof", support::batch_landing::deployment::run_midproof_shared);
 }
 
 #[test]

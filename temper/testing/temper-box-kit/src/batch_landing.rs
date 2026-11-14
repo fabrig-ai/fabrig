@@ -424,6 +424,27 @@ impl Judge<'_> {
         for (arguments, value) in &self.reads.borrow().last {
             eprintln!("batch ctl {arguments:?}: {value:?}");
         }
+        for proc in procs {
+            if let Process::Peer(peer) = proc {
+                for event in peer.observations() {
+                    if let skein_fake_peers::llm::Observation::Query { query, .. } = event {
+                        let tools: Vec<_> = query
+                            .messages
+                            .iter()
+                            .flat_map(|message| message.parts.iter())
+                            .filter_map(|part| {
+                                if let skein_fake_llm_domain::api::Part::ToolCall { name, .. } = part {
+                                    Some(String::from_utf8_lossy(name))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        eprintln!("batch model query: tools {tools:?}");
+                    }
+                }
+            }
+        }
         for proof in [self.first.as_ref(), self.second.as_ref()].into_iter().flatten() {
             eprintln!("batch retained landing: {}", proof.panel);
         }
@@ -446,7 +467,11 @@ impl Judge<'_> {
         self.read(&["landing", "show", &task.to_string()])
     }
     fn landings(&self) -> Result<Value, String> {
-        self.read(&["landing", "list", "--project", "1", "--ended"])
+        let mut list = self.read(&["landing", "list", "--project", "1", "--ended"])?;
+        if matches!(self.story, Story::MidProof) {
+            list["landings"].as_array_mut().ok_or("landings")?.retain(|row| row["train"]["branch"] == "main");
+        }
+        Ok(list)
     }
     fn drive_reads(&self, procs: &mut [Process]) -> Result<bool, String> {
         let mut reads = self.reads.borrow_mut();
@@ -526,8 +551,30 @@ impl Judge<'_> {
 
         Ok(())
     }
+    fn proof_changes(&self, expected: &[u64]) -> Result<Vec<u64>, String> {
+        if !matches!(self.story, Story::MidProof) {
+            return Ok(expected.to_vec());
+        }
+        let list = self.landings()?;
+        let Some(row) = list["landings"].as_array().ok_or("landings")?.last() else { return Ok(Vec::new()) };
+        let changes = row["changes"]
+            .as_array()
+            .ok_or("changes")?
+            .iter()
+            .map(|task| task.as_u64().ok_or("change"))
+            .collect::<Result<Vec<_>, _>>()?;
+        if changes.len() != 1 {
+            return Err("one goal landing change".into());
+        }
+        Ok(changes)
+    }
     fn proof(&self, previous: Option<u64>, expected: &[u64]) -> Result<Option<Proof>, String> {
         Ok({
+            let main_changes = self.proof_changes(expected)?;
+            if main_changes.is_empty() {
+                return Ok(None);
+            }
+            let expected = main_changes.as_slice();
             let count = if previous.is_none() {
                 1
             } else if matches!(self.story, Story::Conflict) {
@@ -861,6 +908,9 @@ impl Judge<'_> {
             }
             Phase::Batch => {
                 release(procs, b"batch-ready")?;
+                if matches!(self.story, Story::MidProof) {
+                    release(procs, b"batch-reviews")?;
+                }
                 if let Some(proof) =
                     self.proof(None, if let Story::Conflict = self.story { &[3] } else { self.story.ready() })?
                 {

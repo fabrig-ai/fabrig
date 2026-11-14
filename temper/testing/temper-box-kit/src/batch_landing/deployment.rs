@@ -202,7 +202,7 @@ impl Judge<'_> {
                     "1",
                     "--template",
                     "4",
-                    "@moving-goal Write the design",
+                    "@moving-goal Edit two lines through changes",
                     "--budget",
                     "1000000",
                     "--deadline",
@@ -227,7 +227,8 @@ impl Judge<'_> {
                 Err(why) => return Err(why),
             };
             release(procs, b"batch-reviews")?;
-            if change["gates"][0]["verdict"] == "approved" {
+            if change["step"] == "landed" {
+                release(procs, b"goal-first")?;
                 self.phase = Phase::Batch;
             }
             let goal = self.read(&["task", "show", "3"])?;
@@ -237,6 +238,38 @@ impl Judge<'_> {
             return Ok(true);
         }
         Ok(false)
+    }
+    fn midproof_departed(&self, procs: &mut [Process], panel: &Value, change: &Value) -> Result<bool, String> {
+        let first = self.first.as_ref().ok_or("first proof")?;
+
+        release(procs, b"goal-midproof")?;
+        release(procs, b"batch-reviews")?;
+        if change["head"] == super::sha(&members(&first.panel)?[0]["head"])? {
+            return Ok(false);
+        }
+        if panel["phase"] != "landed" {
+            return Ok(false);
+        }
+        let left = &members(panel)?[0]["left"];
+        if left["head_moved"].is_null() || !members(panel)?[0]["landed"].is_null() {
+            return Err("the superseded member left because its head moved".into());
+        }
+        if super::sha(&left["head_moved"])? != change["head"].as_str().ok_or("new head")? {
+            return Err("the leave records the delivered head".into());
+        }
+        if super::main(self.forge)? != self.base {
+            return Err("superseded prefix never lands".into());
+        }
+        self.barrier.release(first.run);
+
+        Ok(true)
+    }
+    fn deployment_change(&self, first: &super::Proof) -> Result<u64, String> {
+        if matches!(self.story, Story::MidProof) {
+            members(&first.panel)?[0]["change"].as_u64().ok_or("goal landing change".into())
+        } else {
+            Ok(if matches!(self.story, Story::Conflict) { 4 } else { 3 })
+        }
     }
     pub(super) fn deployment_step(&mut self, procs: &mut [Process]) -> Result<(), String> {
         if self.goal_starting(procs)? {
@@ -249,7 +282,7 @@ impl Judge<'_> {
         if !owner["hold"].is_null() {
             return Err(format!("landing {task} held: {}", owner["hold"]));
         }
-        let change_task = if matches!(self.story, Story::Conflict | Story::MidProof) { 4 } else { 3 };
+        let change_task = self.deployment_change(first)?;
         let change = self.change(change_task)?;
         self.observe(0, json!({"landing":panel,"change":change}));
         if let Phase::SingleLanded = self.phase {
@@ -259,23 +292,8 @@ impl Judge<'_> {
             return Ok(());
         }
         if let Phase::Moved = self.phase {
-            release(procs, b"goal-midproof")?;
-            if change["head"] == super::sha(&members(&first.panel)?[0]["head"])? {
+            if !self.midproof_departed(procs, &panel, &change)? {
                 return Ok(());
-            }
-            self.barrier.release(first.run);
-            if owner["chip"]["phase"] != "ended" {
-                return Ok(());
-            }
-            let left = &members(&panel)?[0]["left"];
-            if left["head_moved"].is_null() || !members(&panel)?[0]["landed"].is_null() {
-                return Err("the superseded member left because its head moved".into());
-            }
-            if super::sha(&left["head_moved"])? != change["head"].as_str().ok_or("new head")? {
-                return Err("the leave records the delivered head".into());
-            }
-            if super::main(self.forge)? != self.base {
-                return Err("superseded prefix never lands".into());
             }
             self.phase = Phase::Repaired;
         }
@@ -308,6 +326,9 @@ impl Judge<'_> {
             self.phase = Phase::Repaired;
         }
         if matches!(self.phase, Phase::Repaired | Phase::Resolved) {
+            if matches!(self.story, Story::MidProof) && self.root.join("shared-midproof").exists() {
+                return self.shared_midproof(procs);
+            }
             release(procs, b"deployment-resolution")?;
             release(procs, b"deployment-repair")?;
             release(procs, b"batch-reviews")?;
@@ -317,6 +338,11 @@ impl Judge<'_> {
                         && members(&proof.panel)?[0]["head"] == members(&first.panel)?[0]["head"]
                     {
                         return Err("repair delivers a new head".into());
+                    }
+                    if matches!(self.story, Story::MidProof)
+                        && members(&proof.panel)?[0]["gates"][0]["key"] == members(&first.panel)?[0]["gates"][0]["key"]
+                    {
+                        return Err("the visible line 6 edit changes the key".into());
                     }
                     self.barrier.release(proof.run);
                     self.second = Some(proof);
@@ -330,8 +356,64 @@ impl Judge<'_> {
                 {
                     return Ok(());
                 }
+                if matches!(self.story, Story::MidProof) {
+                    self.check_midproof_lines()?;
+                }
                 self.phase = Phase::Ending;
             }
+        }
+        Ok(())
+    }
+    fn shared_midproof(&mut self, procs: &mut [Process]) -> Result<(), String> {
+        release(procs, b"batch-reviews")?;
+        let first = self.first.as_ref().ok_or("first proof")?;
+        if self.second.is_none() {
+            let list = self.landings()?;
+            let rows = list["landings"].as_array().ok_or("landings")?;
+            if rows.len() != 2 {
+                return Ok(());
+            }
+            let next = rows.iter().find(|row| row["task"] != first.panel["task"]).ok_or("successor")?;
+            let panel = self.landing(next["task"].as_u64().ok_or("successor task")?)?;
+            if members(&panel)?[0]["candidate"].is_null() {
+                return Ok(());
+            }
+            if candidate(&panel)? == candidate(&first.panel)? {
+                return Err("different candidates".into());
+            }
+            let gate = &members(&panel)?[0]["gates"][0];
+            if gate["key"].is_null() {
+                return Ok(());
+            }
+            if gate["key"] != members(&first.panel)?[0]["gates"][0]["key"] {
+                return Err("walk is ignored by this gate".into());
+            }
+            self.stack(&panel)?;
+            self.second = Some(super::Proof { panel, run: first.run });
+        }
+        let second = self.second.as_ref().ok_or("successor proof")?;
+        let panel = self.landing(second.panel["task"].as_u64().ok_or("successor task")?)?;
+        self.observe(1, panel.clone());
+        if !panel["hold"].is_null() {
+            return Err(format!("shared gate held: {panel}"));
+        }
+        if self.landed(second)? {
+            if super::gate_runs(self.forge)?.len() != 1 {
+                return Err("one shared dispatch".into());
+            }
+            self.check_midproof_lines()?;
+            self.phase = Phase::Ending;
+        }
+        Ok(())
+    }
+    fn check_midproof_lines(&self) -> Result<(), String> {
+        let file = super::get(self.forge, "contents/walk/lines.txt?ref=main");
+        let encoded: Vec<_> =
+            file["content"].as_str().ok_or("landed file")?.bytes().filter(|byte| !byte.is_ascii_whitespace()).collect();
+        let content = skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, &encoded, 1024)
+            .map_err(|why| format!("landed file: {why:?}"))?;
+        if content.as_ref() != b"line 1\nline 2\nline 3\nline 4: first delivery\nline 5\nline 6: second delivery\n" {
+            return Err("both line edits reach main".into());
         }
         Ok(())
     }
@@ -385,9 +467,11 @@ pub(super) fn goal_scripts(forge: &Throwaway) -> Box<[Script]> {
         .find(|script| script.cue.as_ref() == b"Review this change at the named head")
         .expect("review");
     review.turns[0].lines = [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
-    let mut moved = call(b"write", &json!({"path":"design.md","content":"# Design\nSecond delivery\n"}));
+    let mut land = call(b"change", &json!({"words":"Land the moving goal","branch":"mine"}));
+    land.lines = [vec![hold(b"goal-first")], land.lines.into_vec()].concat().into_boxed_slice();
+    let mut moved = call(b"change", &json!({"words":"@midproof-edit-2 Edit line 6"}));
     moved.lines = [vec![hold(b"goal-midproof")], moved.lines.into_vec()].concat().into_boxed_slice();
-    let finish = call(b"finish", &json!({"form":"report","text":"Design landed.","fields":{}}));
+    let finish = call(b"finish", &json!({"form":"report","text":"Both line edits landed.","fields":{}}));
     let held_finish = Turn {
         lines: [vec![hold(b"goal-finish")], finish.lines.into_vec()].concat().into_boxed_slice(),
         finish: Finish::ToolCalls,
@@ -395,20 +479,37 @@ pub(super) fn goal_scripts(forge: &Throwaway) -> Box<[Script]> {
     };
     scripts.push(Script {
         cue: b"## Task\n\n@moving-goal".as_slice().into(),
-        turns: vec![
-            call(b"read", &json!({"path":"design.md"})),
-            call(b"write", &json!({"path":"design.md","content":"# Design\nFirst delivery\n"})),
-            call(b"deliver", &json!({"fields":{"title":"First design","body":"Initial design."}})),
-            call(b"change", &json!({"words":"Land the moving design","branch":"mine"})),
-            moved,
-            call(b"deliver", &json!({"fields":{"title":"Second design","body":"Updated while proving."}})),
-            held_finish,
-        ]
-        .into_boxed_slice(),
+        turns: vec![call(b"change", &json!({"words":"@midproof-edit-1 Edit line 4"})), land, moved, held_finish]
+            .into_boxed_slice(),
     });
+    for (number, content) in [
+        (1, "line 1\nline 2\nline 3\nline 4: first delivery\nline 5\nline 6\n"),
+        (2, "line 1\nline 2\nline 3\nline 4: first delivery\nline 5\nline 6: second delivery\n"),
+    ] {
+        scripts.push(Script {
+            cue: format!("## Task\n\n@midproof-edit-{number}").into_bytes().into(),
+            turns: vec![
+                call(b"read", &json!({"path":"walk/lines.txt"})),
+                call(b"write", &json!({"path":"walk/lines.txt","content":content})),
+                call(b"finish", &json!({"form":"change","fields":{"title":format!("Edit {number}"),"body":"Deliver a line edit into the goal."}})),
+            ].into_boxed_slice(),
+        });
+    }
     scripts.into_boxed_slice()
 }
 
 pub fn run_midproof(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    forge.add_file("walk/lines.txt", b"line 1\nline 2\nline 3\nline 4\nline 5\nline 6\n");
     super::run_story(root, forge, barrier, Story::MidProof);
+}
+
+/// Equal filtered trees take the departed landing's receipt (domain/landing.md, 6 and 7).
+pub fn run_midproof_shared(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    let path = root.join("temper.json");
+    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    value["application"]["landing"]["projects"][0]["gates"][0]["gates"][0]["ignored"] = json!(["docs", "walk"]);
+    value["application"]["landing"]["projects"][0]["gate_timeout_ms"] = 60_000.into();
+    write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    write_private(&root.join("shared-midproof"), b"");
+    run_midproof(root, forge, barrier);
 }

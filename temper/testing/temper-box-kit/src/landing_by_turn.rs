@@ -205,7 +205,10 @@ pub(super) fn check_history(root: &Path, project: u64, panel: &Value, client: Op
     for member in members {
         let change = member["change"].as_u64().ok_or(String::from("member change"))?;
         has_event(&events, change, "formed")?;
-        if !member["landed"].is_null() || !member["left"]["failed"].is_null() || !member["left"]["blamed"].is_null() {
+        if (!member["landed"].is_null() && !receipt_proof(&events, change, &panel["round"]["number"]))
+            || !member["left"]["failed"].is_null()
+            || !member["left"]["blamed"].is_null()
+        {
             has_event(&events, change, "gate-ended")?;
         }
         if !member["landed"].is_null() {
@@ -234,6 +237,17 @@ pub(super) fn check_history(root: &Path, project: u64, panel: &Value, client: Op
     }
 
     Ok(())
+}
+// A proof carried by receipts has no local run end (domain/landing-history.md, 2.2).
+fn receipt_proof(events: &[Value], change: u64, round: &Value) -> bool {
+    events.iter().any(|event| {
+        event["change"] == change
+            && event["landing"]["round"] == *round
+            && event["what"]["kind"] == "proved"
+            && event["what"]["proofs"]
+                .as_array()
+                .is_some_and(|proofs| !proofs.is_empty() && proofs.iter().all(|proof| proof["run"].is_null()))
+    })
 }
 fn has_event(events: &[Value], change: u64, kind: &str) -> Result<(), String> {
     if !events.iter().any(|event| event["change"] == change && event["what"]["kind"] == kind) {
