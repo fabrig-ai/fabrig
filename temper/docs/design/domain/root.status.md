@@ -1,6 +1,11 @@
 # root: status
 
-2026-11-13. Where temper's code lags or departs from [root.md](root.md).
+2026-11-14. Where temper's code lags or departs from [root.md](root.md).
+
+- **Departs:** 9: the store's fill mark is jig's standard profile's, not small's,
+  because standard's map budget is that mark and temper's boxes take standard: under
+  small's mark, sign-ins would be refused once the map passed small's budget
+  (`temper/crates/temper-engine-domain/src/limits.rs`, `FILL_MARK`).
 
 
 
@@ -123,15 +128,6 @@ LINKED`, as for every link jig's start cannot make
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
   `BriefSource`), and a merge-queue ejection's reason.
-- **Not yet:** 8.1: the forge's link of its restored records panics at
-  the first it cannot make, `forge link KIND -> NEED for KEY`, where
-  step 3 refuses the start naming the record and what it links to, as
-  jig's children's do
-  (`temper-engine-domain-forge/src/reconcile.rs`, `reconcile`;
-  `missing_link` already finds the link). Serve retains its fail-stop report and backtrace. The request
-  `store-crash-safe` of 2026-11-09 asks that a store failing a link
-  check at start stop with a reason, not a panic; its plan built that
-  in jig alone.
 - **Not yet:** 9: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while

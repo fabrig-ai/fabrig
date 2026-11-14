@@ -202,7 +202,8 @@ use crate::{
 use core::mem::size_of;
 use skein_forge::api;
 use skein_json::{tokenizer, writer};
-const APP_DEADLINE: Duration = Duration::from_secs(270);
+/// A GitHub call's cap, half a JWT's life (skein/docs/design/forge/connection.md, 7.4).
+pub const APP_DEADLINE: Duration = Duration::from_secs(270);
 const MAX_RENEW_BEFORE: Duration = Duration::from_secs(1800);
 
 /// Checks neighbours' agreements, stacked demands, then every configured forge.

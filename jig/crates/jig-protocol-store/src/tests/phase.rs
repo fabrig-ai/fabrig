@@ -1005,6 +1005,126 @@ fn secrets_pages_use_their_own_byte_and_operation_limits() {
         assert_tokens(&mut store);
     }
 }
+// Heads-alone fixture is local: the store world's counted patch levels stay fixed.
+const HEAD_OLD: &str =
+    "family heads 1\nrecord A { x: u8 } record B { x: u8 } enum K { a: A b: B } versioned record R { kind: K n: u32 }";
+const HEAD_NEW: &str = "family heads 2\nrecord A { x: u8 } record B { x: u8 y: bool } enum K { a: A b: B } versioned record R { kind: K n: u32 }";
+const HEAD_PATCH: &str = "patch 1\nowner heads 1\nfamily heads 1 to 2\nadd B.y bool true\n";
+const HEAD_FAMILY: crate::KeptFamily = crate::KeptFamily {
+    name: "heads",
+    texts: &[HEAD_OLD, HEAD_NEW],
+    map: crate::KeptMap::Store,
+    keys: &[crate::Keys { from: b"h/", to: b"i/", root: "R" }],
+    flights: &[],
+    frames: None,
+};
+const HEAD_SET: crate::PatchSet = crate::PatchSet {
+    name: "heads",
+    owner: crate::Owner::Application,
+    families: &[HEAD_FAMILY],
+    patches: &[HEAD_PATCH],
+    fresh: None,
+};
+const HEAD_BASE: crate::PatchSets = crate::PatchSets {
+    sets: &[crate::PatchSet {
+        families: &[crate::KeptFamily { texts: &[HEAD_OLD], ..HEAD_FAMILY }],
+        patches: &[],
+        ..HEAD_SET
+    }],
+};
+const HEAD_SETS: crate::PatchSets = crate::PatchSets { sets: &[HEAD_SET] };
+
+fn head_record(tag: u8) -> Box<[u8]> {
+    let mut writer = skein_lib::Writer::new(8);
+    writer.put(&1_u16.to_be_bytes()).expect("old head");
+    writer.put(&[tag]).expect("kind");
+    writer.put(&[7]).expect("payload");
+    writer.put(&9_u32.to_be_bytes()).expect("n");
+    writer.finish()
+}
+fn head_baseline(flaw: Option<u8>) -> Vec<Item> {
+    let mut disk = Disk::new(&[]);
+    let mut store = disk.store_with_chunk(CHUNK);
+    store.patch_sets(HEAD_BASE);
+    assert_opened(&disk.open(&mut store), 0);
+    let mut writes = vec![fixtures::header(1), Write::Wires];
+    for tag in 0..2 {
+        let mut value = head_record(tag).into_vec();
+        if flaw == Some(tag) {
+            value.push(99);
+        }
+        writes.push(Write::Put { key: fixture_key(b'h', u32::from(tag)), value: value.into_boxed_slice() });
+    }
+    let events = disk.request(&mut store, fixtures::commit(1, writes.into_boxed_slice()));
+    let [Event::Committed { number: 1, .. }] = events.as_ref() else { panic!("committed: {events:?}") };
+    disk.items()
+}
+fn head_machine() -> (skein_codec::patch::Patcher, skein_codec::patch::PlanIx, skein_codec::schema::DeclIx) {
+    use skein_codec::patch::{Capacity, Patcher};
+    let mut patcher = Patcher::new(Capacity { versions: 2, patches: 1, text: 4096, bytes: 64, nodes: 16 });
+    patcher.keep(HEAD_OLD.as_bytes()).expect("old");
+    patcher.keep(HEAD_NEW.as_bytes()).expect("new");
+    let plan = patcher.plan(HEAD_PATCH.as_bytes()).expect("plan").expect("family");
+    let root = patcher.schema(1).expect("old").find(b"R").expect("root");
+    (patcher, plan, root)
+}
+
+#[test]
+fn heads_alone_put_kept_kinds_without_decode_and_count_every_paged_record() {
+    use skein_codec::patch::{Halt, Step};
+    use skein_codec::value::Value;
+    for (flaw, writes, commits) in [(None, 8, 1), (None, 1, 2), (Some(0), 1, 2), (Some(1), 8, 0)] {
+        let mut disk = Harness::new(&head_baseline(flaw));
+        let mut store = disk.store(false);
+        store.limits.commits.writes = writes;
+        store.patch_sets(HEAD_SETS);
+        let events = disk.open(&mut store);
+        if flaw == Some(1) {
+            let Some(Event::OpenRefused {
+                why: OpenRefusal::Patch { owner, patch, key, halt: Halt::Decode(_) }, ..
+            }) = events.last()
+            else {
+                panic!("changed kind must decode and refuse: {events:?}");
+            };
+            assert_eq!((*owner, *patch, key.as_ref()), (crate::Owner::Application, 1, b"h/1".as_slice()));
+            assert_eq!(patched(&events), []);
+            assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+            continue;
+        }
+        assert_eq!(patched(&events), [(crate::Owner::Application, 1, crate::Counts { records: 2, commits })]);
+        assert_opened(events.get(events.len().checked_sub(1).expect("last")..).expect("opened"), 2 + commits);
+        assert_eq!(disk.bytes(b"active").as_ref(), b"2\n", "walk and switch completed");
+        let (mut patcher, plan, root) = head_machine();
+        for tag in 0..2 {
+            let key =
+                crate::keys::application(&fixture_key(b'h', u32::from(tag)), store.limits.store.key).expect("key");
+            let actual = fixtures::get_kv(&mut store, &key).expect("patched record");
+            let original = head_record(tag);
+            patcher.start(plan, root, original.clone()).expect("valid old record");
+            assert_eq!(patcher.next(), Ok(Step::Done));
+            let mut expected = patcher.finish().expect("machine").to_vec();
+            if flaw == Some(tag) {
+                let mut malformed = original.into_vec();
+                malformed.push(99);
+                Value::with_room(16)
+                    .decode(patcher.schema(1).expect("old"), root, malformed.into_boxed_slice())
+                    .expect_err("old text refuses the trailing byte");
+                expected.push(99);
+            } else {
+                let new_root = patcher.schema(2).expect("new").find(b"R").expect("root");
+                Value::with_room(16)
+                    .decode(patcher.schema(2).expect("new"), new_root, actual.clone())
+                    .expect("new value");
+            }
+            assert_eq!(actual.as_ref(), expected);
+            if tag == 0 {
+                assert_eq!(actual.get(..2), Some(&[0, 2][..]));
+                assert_eq!(actual.get(2..8), head_record(tag).get(2..8));
+            }
+        }
+    }
+}
+
 // A binary with only the first application patch landed.
 const ONE: crate::PatchSets = crate::PatchSets {
     sets: &[

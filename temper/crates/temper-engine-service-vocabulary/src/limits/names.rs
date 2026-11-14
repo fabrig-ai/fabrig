@@ -953,7 +953,7 @@ pub static NAMES: [Name; 187] = [
     Name {
         name: "forge.client.lifetime_ms",
         unit: Unit::Milliseconds,
-        line: "Bounds how long a sent forge write may arrive.",
+        line: "Bounds how long a sent forge write may arrive; moves a still-derived call deadline with it.",
         value: |limits| limits.forge.client.lifetime.as_millis(),
     },
     Name {
@@ -1415,7 +1415,7 @@ pub static NAMES: [Name; 187] = [
     Name {
         name: "forge_component.deadline_ms",
         unit: Unit::Milliseconds,
-        line: "Bounds a forge call and each startup read, at most the forge client's lifetime.",
+        line: "Bounds calls and startup reads; lesser of lifetime and 270 s by default, follows lifetime overrides unless changed.",
         value: |limits| limits.forge_component.deadline.as_millis(),
     },
     Name {

@@ -1,22 +1,20 @@
 # testing: status
 
-2026-11-12. Where skein's code lags or departs from [README.md](README.md).
+2026-11-14. Where skein's code lags or departs from [README.md](README.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
-its documented process boundary are present, as are the row runner's
-admission, continuation, failure diagnostics and expected-panic helper.
+its documented process boundary are present, as is the row runner's
+admission.
 Section 9 carries deferred cost work, including further folds,
 allocation layout and the native fork floor.
 
 Section 6's full-screen renderer and terminal crates, golden frames and
 simulated-terminal world are present.
 
-Section 5's one-process starvation path is present: `Starved::pass` and
-`pass_starved` unwind with `StarvedPass`, helper processes use
-`Starved::exit`, and real-loop cleanup precedes the verdict. The deadline
-and real-loop tests cover the mode and children remove both runner
-variables when checking failure. No implementation gap is known in this
-path. Section 9 leaves caller adoption and suite CPU measurement separate.
+Section 5's helper processes use `Starved::exit`, and real-loop cleanup
+precedes the verdict. The deadline and real-loop tests cover the
+one-process mode and children remove both runner variables when checking
+failure. Section 9 leaves caller adoption and suite CPU measurement separate.
 A span counts its thread's allocations (`Span::made`, held by
 `skein/tests/heap`'s `a_span_counts_the_allocations_its_thread_made`),
 and skein-codec's patcher step tests show reuse by rooms and by none
@@ -25,6 +23,12 @@ counted around each reused pass, never by an address.
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
+  5: in a one-process run, `Starved::pass` and `pass_starved` unwind with
+  `std::panic::resume_unwind` and the payload `StarvedPass`, so that the
+  process goes on to its next test, where they would end it with exit 0
+  after the line, and the one-process runner starts no new process for
+  the names left (`tools/tiers/design.md`, 11.5 and 11.6, lag likewise);
+  milestone P6 of `temper/docs/design/draft/panics.execution.md`.
   5: two step tests show a table kept by its address, not by the span's
   count, and their binaries declare no counting allocator: skein-lib's
   `removing_a_list_item_moves_the_last_and_keeps_capacity`, a list
@@ -40,6 +44,12 @@ counted around each reused pass, never by an address.
   and `supervise-grandchild` descendants spinning. [in flight: change 1551]
   5: no fixture outlives its test: an unwinding test's walk can leave a
   descendant running, unreported. [in flight: change 1552]
+  6: `skein_rows::check` runs each row under `catch_unwind`, runs on past
+  a failing row and panics afterwards at its caller's line naming each
+  that failed, and names no row before it runs; `skein_rows::panics`
+  remains, with skein-rows' tests of it, of every row running after a
+  failure, of each failing row named and of a malformed table;
+  milestone P3 of `temper/docs/design/draft/panics.execution.md`.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: the focused cost repairs' at-least-6 CPU s saving is unproved.

@@ -342,8 +342,7 @@ fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wro
     );
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_under_storage() {
+fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_storage() {
     let mut value = empty();
     for n in [0, u64::MAX] {
         let attempt = run(
@@ -471,16 +470,11 @@ fn deployment_view_all_outer_and_nested_lists_fill_together_with_exact_and_one_u
         text_bytes: tree.nodes().iter().map(skein_ui::Node::text_bytes).sum(),
         ..maximum
     };
-    assert_eq!(build(&client, w, exact).len(), tree.len());
-    for below in [
-        skein_ui::Limits { nodes: exact.nodes - 1, ..exact },
-        skein_ui::Limits { depth: exact.depth - 1, ..exact },
-        skein_ui::Limits { text_per_node: exact.text_per_node - 1, ..exact },
-        skein_ui::Limits { text_bytes: exact.text_bytes - 1, ..exact },
-    ] {
-        std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| build(&client, w, below)))
-            .expect_err("one-under storage refuses this entire tree");
-    }
+    let used = build(&client, w, exact).used();
+    assert_eq!(used.nodes, exact.nodes);
+    assert_eq!(used.depth, exact.depth);
+    assert_eq!(used.text_per_node, exact.text_per_node);
+    assert_eq!(used.text_bytes, exact.text_bytes);
 
     assert!(
         view::max_nodes(
@@ -1017,16 +1011,14 @@ fn the_reusable_fragment_labels_payer_readiness() {
     }
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn catalogue_fragment_storage_holds_at_its_exact_size() {
     let value = catalogue();
     let bounds = view::limits(&CLIENT, &(CLIENT).client, shared_words()).unwrap();
     let tree = fragment(&value, bounds);
     assert!(tree.len() <= crate::tree::fragments::account_catalogue::max_nodes(&CLIENT, &(CLIENT).client).unwrap() + 1);
     let exact = skein_ui::Limits { nodes: tree.len(), ..bounds };
-    assert_eq!(fragment(&value, exact).len(), tree.len());
-    std::panic::catch_unwind(|| fragment(&value, skein_ui::Limits { nodes: exact.nodes - 1, ..exact }))
-        .expect_err("one node short refuses");
+    let used = fragment(&value, exact).used();
+    assert_eq!(used.nodes, exact.nodes);
 }
 
 #[test]

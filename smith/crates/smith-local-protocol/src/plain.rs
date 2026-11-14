@@ -119,6 +119,7 @@ impl Plain {
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
             | file::Event::Closed { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. }
             | file::Event::Removed { .. }
             | file::Event::Listed { .. }

@@ -445,6 +445,7 @@ pub(crate) fn route_core_requests(
     crate::assemble::retire_document_titles(domain);
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive internal work dispatch, including startup refusals")]
 pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     loop {
         if domain.start_stop().is_some() {
@@ -522,7 +523,10 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     refuse_forge_fit(domain);
                     return;
                 }
-                domain.forge.reconcile(&domain.core.tasks);
+                if let Some(link) = domain.forge.missing_link(&domain.core.tasks) {
+                    domain.stop_start(crate::StartStop::ForgeLink { phase: domain.start_phase(), link });
+                    return;
+                }
                 let party = domain.core.people.sole_owner();
                 forge_event(domain, env, decision, forge::Event::Owner { party });
                 forge_event(

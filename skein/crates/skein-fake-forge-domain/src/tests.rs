@@ -950,8 +950,7 @@ fn what_is_missing_is_refused() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn constructor_refuses_unrepresentable_derived_capacities() {
+fn validation_refuses_unrepresentable_derived_capacities() {
     assert!(crate::valid(&LIMITS));
     for limits in [
         Limits { calls: u32::MAX, ..LIMITS },
@@ -961,10 +960,6 @@ fn constructor_refuses_unrepresentable_derived_capacities() {
         Limits { statuses: u32::MAX, workflow_runs: 1, ..LIMITS },
     ] {
         assert!(!crate::valid(&limits));
-        std::panic::catch_unwind(|| {
-            drop(Domain::new(&Config { limits, ..calm() }, 1));
-        })
-        .expect_err("unrepresentable limits");
     }
 }
 

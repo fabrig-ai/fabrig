@@ -40,6 +40,7 @@ pub struct World {
     patched: Vec<(Owner, u32, Counts)>,
     refusal: Option<OpenRefusal>,
     kernel_cuts: bool,
+    link_error: Option<skein_io::kernel::Error>,
     changes: Vec<(u32, Change)>,
     written: Vec<(u32, Box<[u8]>)>,
     halted: bool,
@@ -83,6 +84,7 @@ pub enum Change {
     Write,
     Sync,
     Rename,
+    Link,
     Remove,
     Truncate,
     Make,
@@ -98,6 +100,7 @@ fn change(ask: &Ask) -> Option<Change> {
         Ask::Remove { .. } => Some(Change::Remove),
         Ask::Truncate { .. } => Some(Change::Truncate),
         Ask::MakeDirectory { .. } => Some(Change::Make),
+        Ask::HardLink { .. } => Some(Change::Link),
         Ask::Lock { .. }
         | Ask::Spawn { .. }
         | Ask::Open { .. }
@@ -129,6 +132,7 @@ fn file_heap(event: &file::Event) -> u64 {
         | file::Event::Cut { .. }
         | file::Event::Synced { .. }
         | file::Event::Closed { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Removed { .. }
         | file::Event::Failed { .. }
@@ -206,6 +210,7 @@ impl World {
             patched: Vec::new(),
             refusal: None,
             kernel_cuts: false,
+            link_error: None,
             changes: Vec::new(),
             written: Vec::new(),
             halted: false,
@@ -257,6 +262,11 @@ impl World {
     #[must_use]
     pub const fn refusal(&self) -> Option<&OpenRefusal> {
         self.refusal.as_ref()
+    }
+
+    /// Answer every hard link with this error before the machine sees it.
+    pub fn refuse_links(&mut self, error: Option<skein_io::kernel::Error>) {
+        self.link_error = error;
     }
 
     /// Count and cut kernel calls, exposing writes inside durable replace.
@@ -721,6 +731,27 @@ impl World {
         self.contents_at(index)
     }
 
+    /// A source deployment path's live names, including names in another generation.
+    #[must_use]
+    pub fn links(&mut self, path: &[u8]) -> u32 {
+        self.links_at(0, path)
+    }
+
+    /// A rehearsal scratch path's live names.
+    #[must_use]
+    pub fn scratch_links(&mut self, path: &[u8]) -> u32 {
+        self.links_at(self.scratch_disk.expect("scratch stands"), path)
+    }
+
+    fn links_at(&mut self, number: u32, path: &[u8]) -> u32 {
+        let root = self.machine.reopen_root(number);
+        let file = self.machine.open(root, path, skein_fake_machine::How::PathNoFollow).expect("path stands");
+        let links = self.machine.stat(file).links;
+        self.machine.close(file);
+        self.machine.close(root);
+        links
+    }
+
     /// All paths, with file bytes, for byte-for-byte refusal checks.
     #[must_use]
     pub fn contents(&mut self) -> BTreeMap<Vec<u8>, Option<Vec<u8>>> {
@@ -892,23 +923,29 @@ impl World {
         for _ in 0..100 {
             if !self.subs.is_empty() {
                 self.sim.submit(self.pid, &mut self.subs);
-                if self.kernel_cuts {
+                if self.kernel_cuts || self.link_error.is_some() {
                     let mut calls = Queue::with_capacity(QUEUE);
                     let mut answers = Queue::with_capacity(QUEUE);
                     self.sim.calls(&mut calls);
                     while let Some(call) = calls.pop() {
-                        if let Ask::Write { bytes, .. } | Ask::Append { bytes, .. } = &call.ask {
-                            self.written.push((self.operations, bytes.clone()));
+                        if self.kernel_cuts {
+                            if let Ask::Write { bytes, .. } | Ask::Append { bytes, .. } = &call.ask {
+                                self.written.push((self.operations, bytes.clone()));
+                            }
+                            if let Some(change) = change(&call.ask) {
+                                self.changes.push((self.operations, change));
+                            }
+                            if self.cut == Some(self.operations) {
+                                self.halted = true;
+                                return;
+                            }
+                            self.operations += 1;
                         }
-                        if let Some(change) = change(&call.ask) {
-                            self.changes.push((self.operations, change));
+                        if let Some(error) = self.link_error.filter(|_| matches!(&call.ask, Ask::HardLink { .. })) {
+                            answers.push(skein_sim::Answer { ticket: call.ticket, result: Err(error) });
+                        } else {
+                            skein_fake_machine::step(&mut self.machine, call, &mut answers);
                         }
-                        if self.cut == Some(self.operations) {
-                            self.halted = true;
-                            return;
-                        }
-                        self.operations += 1;
-                        skein_fake_machine::step(&mut self.machine, call, &mut answers);
                     }
                     self.sim.answer(&mut answers);
                 } else {

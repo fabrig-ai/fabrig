@@ -2,6 +2,7 @@
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
+    clippy::disallowed_macros,
     clippy::match_like_matches_macro,
     reason = "disk step tests use ordinary Rust (programming-model.md 10.2)"
 )]
@@ -162,6 +163,149 @@ fn a_copy_holds_the_same_files_and_bytes() {
         assert_eq!(*mode, if *kind == Kind::Directory { 0o700 } else { 0o600 });
     }
 }
+fn copy_items() -> Vec<Item> {
+    vec![
+        Item::directory(b"generations").mode(0o700),
+        Item::directory(b"generations/1").mode(0o700),
+        Item::directory(b"generations/1/store").mode(0o700),
+        Item::directory(b"generations/1/secrets").mode(0o700),
+    ]
+}
+
+#[test]
+fn a_copy_links_only_snapshot_and_sealed_fixed_width_segments() {
+    let mut items = copy_items();
+    for (map, name) in [
+        ("store", "snapshot"),
+        ("store", "log-00000000000000000001"),
+        ("store", "log-00000000000000000002"),
+        ("store", "snapshot.tmp"),
+        ("store", "log-1"),
+        ("store", "log-0000000000000000000x"),
+        ("store", "log-99999999999999999999"),
+        ("secrets", "snapshot"),
+        ("secrets", "log-00000000000000000001"),
+    ] {
+        items.push(Item::file(format!("generations/1/{map}/{name}").as_bytes(), name.as_bytes()).mode(0o600));
+    }
+    let mut disk = Disk::new(&items);
+    assert_eq!(copy(&mut disk, 1, CHUNK), Progress::Done);
+    for item in items.iter().filter(|item| if let skein_fake_machine::Made::File(_) = item.made { true } else { false })
+    {
+        let suffix = item.path.strip_prefix(b"generations/1/").expect("source prefix");
+        let linked = suffix == b"store/snapshot" || suffix == b"store/log-00000000000000000001";
+        let target = [b"generations/2/", suffix].concat();
+        assert_eq!(disk.links(&item.path), if linked { 2 } else { 1 }, "source {suffix:?}");
+        assert_eq!(disk.links(&target), if linked { 2 } else { 1 }, "target {suffix:?}");
+        assert_eq!(disk.bytes(&item.path), disk.bytes(&target));
+    }
+    let linked: Vec<_> = disk
+        .requests()
+        .iter()
+        .filter_map(|(_, seen)| match seen {
+            Seen::Link { from, to } => {
+                assert_eq!(from, to);
+                Some(from.as_ref())
+            }
+            Seen::Create { .. }
+            | Seen::Read { .. }
+            | Seen::Write { .. }
+            | Seen::SyncFile
+            | Seen::Rename { .. }
+            | Seen::Lock
+            | Seen::Load
+            | Seen::Make(_)
+            | Seen::Private(_)
+            | Seen::Open
+            | Seen::Store { .. }
+            | Seen::Remove { .. }
+            | Seen::Sync
+            | Seen::Close
+            | Seen::Other => None,
+        })
+        .collect();
+    assert_eq!(linked, [b"log-00000000000000000001".as_slice(), b"snapshot"]);
+}
+
+#[test]
+fn a_copy_finds_the_newest_segment_beyond_the_first_listing_page() {
+    let mut items = copy_items();
+    let newest = generations::PAGE + 1;
+    for number in 1..=newest {
+        items.push(Item::file(format!("generations/1/store/log-{number:020}").as_bytes(), &number.to_be_bytes()));
+    }
+    let mut disk = Disk::new(&items);
+    assert_eq!(copy(&mut disk, 1, CHUNK), Progress::Done);
+    for number in 1..=newest {
+        let source = format!("generations/1/store/log-{number:020}");
+        let target = format!("generations/2/store/log-{number:020}");
+        let links = if number == newest { 1 } else { 2 };
+        assert_eq!(disk.links(source.as_bytes()), links, "source {number}");
+        assert_eq!(disk.links(target.as_bytes()), links, "target {number}");
+        assert_eq!(disk.bytes(target.as_bytes()).as_ref(), &number.to_be_bytes());
+    }
+}
+
+#[test]
+fn a_refused_link_copies_but_every_other_error_fails() {
+    use skein_io::kernel::Error;
+    for (error, copies) in [
+        (Error::Permission, true),
+        (Error::TooManyLinks, true),
+        (Error::Other(18), true),
+        (Error::Busy, false),
+        (Error::Refused, false),
+        (Error::Reset, false),
+        (Error::BrokenPipe, false),
+        (Error::NotConnected, false),
+        (Error::AddressInUse, false),
+        (Error::AddressNotAvailable, false),
+        (Error::Unreachable, false),
+        (Error::TimedOut, false),
+        (Error::TooManyOpenFiles, false),
+        (Error::NoBufferSpace, false),
+        (Error::Cancelled, false),
+        (Error::TooLate, false),
+        (Error::NotFound, false),
+        (Error::Exists, false),
+        (Error::NotADirectory, false),
+        (Error::IsADirectory, false),
+        (Error::NotEmpty, false),
+        (Error::NoSpace, false),
+        (Error::ReadOnly, false),
+        (Error::NameTooLong, false),
+        (Error::Escape, false),
+        (Error::NotAFile, false),
+        (Error::InvalidArgument, false),
+    ] {
+        let mut items = copy_items();
+        items.push(Item::file(b"generations/1/store/snapshot", b"snapshot bytes").mode(0o600));
+        let mut disk = Disk::new(&items);
+        disk.refuse_links(error);
+        assert_eq!(copy(&mut disk, 1, 4), if copies { Progress::Done } else { Progress::Failed }, "{error:?}");
+        assert!(
+            disk.requests().iter().any(|(_, seen)| if let Seen::Link { .. } = seen { true } else { false }),
+            "{error:?}: attempted link"
+        );
+        assert_eq!(disk.links(b"generations/1/store/snapshot"), 1);
+        assert_eq!(disk.bytes(b"generations/1/store/snapshot").as_ref(), b"snapshot bytes");
+        if copies {
+            assert_eq!(disk.links(b"generations/2/store/snapshot"), 1);
+            assert_eq!(disk.bytes(b"generations/2/store/snapshot").as_ref(), b"snapshot bytes");
+            assert!(disk.requests().iter().any(|(_, seen)| *seen == Seen::SyncFile));
+            assert!(disk.requests().iter().any(|(_, seen)| *seen == Seen::Read { max: 4 }));
+            assert!(
+                disk.tree().iter().any(|(p, _, mode)| p.as_ref() == b"generations/2/store/snapshot" && *mode == 0o600)
+            );
+        } else {
+            assert!(
+                !disk.requests().iter().any(|(_, seen)| if let Seen::Create { .. } = seen { true } else { false }),
+                "{error:?}: no fallback"
+            );
+        }
+    }
+}
+
 #[test]
 fn a_copy_reads_and_writes_in_chunks_of_at_most_its_bound() {
     const BOUND: u32 = 4;
@@ -198,6 +342,7 @@ fn a_copy_reads_and_writes_in_chunks_of_at_most_its_bound() {
         Seen::Create { .. }
         | Seen::SyncFile
         | Seen::Rename { .. }
+        | Seen::Link { .. }
         | Seen::Lock
         | Seen::Load
         | Seen::Make(_)
@@ -327,6 +472,7 @@ fn changes_disk(seen: &Seen) -> bool {
         | Seen::SyncFile
         | Seen::Sync
         | Seen::Rename { .. }
+        | Seen::Link { .. }
         | Seen::Remove { .. }
         | Seen::Store { .. } => true,
         Seen::Read { .. } | Seen::Lock | Seen::Load | Seen::Open | Seen::Close | Seen::Other => false,

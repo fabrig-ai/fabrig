@@ -186,8 +186,9 @@ to call `start_resume` once that decision is released; a cold restart
 drops a held continuation with the rest of the volatile state, and a
 stale one is an assertion. `Wires` always answers a commit, so nothing
 leaves the process before the start's mark is durable. A row whose owner
-is missing reaches the core as `start_missing(record, target)`, a
-panic at the link naming both keys. `Action::Refused(failure)` stops
+is missing reaches the core as `start_missing(record, target)`, which
+the link refuses as `Failure::Link` naming both keys, as any link it
+cannot make (above). `Action::Refused(failure)` stops
 the start, `start_phase()` naming the phase: a `start::Failure` is the
 store against the configuration, never a record judged: `Settings`,
 `ProjectPolicy { project }` (a saved policy past `limits.policy_bytes`

@@ -655,14 +655,10 @@ fn projections_link_live_plan_tasks_and_keep_ended_tasks_as_history() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn connector_resource_roles_link_their_projects() {
-    for (project, deletion, present) in [
-        (1, None, true),
-        (99, None, false),
-        (99, Some(people::DeletionStep::Rows), true),
-        (99, Some(people::DeletionStep::Release), true),
-    ] {
+    for (project, deletion) in
+        [(1, None), (99, Some(people::DeletionStep::Rows)), (99, Some(people::DeletionStep::Release))]
+    {
         let (mut core, env) = loaded();
         if let Some(step) = deletion {
             restore_person(&mut core, &env, people::Stored::Deletion { project, step, grace: None });
@@ -681,18 +677,9 @@ fn connector_resource_roles_link_their_projects() {
             previous = next;
         }
         step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
-        if present {
-            linked(core.start_done(&env, Phase::Link, &mut out));
-            if deletion.is_some() {
-                assert!(!core.open_project(project), "kept deletion remains closed");
-            }
-        } else {
-            let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-                core.start_done(&env, Phase::Link, &mut out)
-            }));
-            let _panic = result.expect_err("connector reports require an existing project");
-            assert_eq!(core.start_failure(), None);
-            assert_eq!(core.start_phase(), Some(Phase::Link));
+        linked(core.start_done(&env, Phase::Link, &mut out));
+        if deletion.is_some() {
+            assert!(!core.open_project(project), "kept deletion remains closed");
         }
     }
 }

@@ -453,6 +453,7 @@ pub fn written(store: &mut Store, mut below: Below, turns: &[jig_domain_core_voc
             | file::Request::Cut { .. }
             | file::Request::Close { .. }
             | file::Request::SyncDirectory { .. }
+            | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
             | file::Request::ListPage { .. }

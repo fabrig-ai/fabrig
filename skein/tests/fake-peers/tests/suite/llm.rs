@@ -691,32 +691,42 @@ fn the_public_route_takes_its_scope_from_the_cache_key_alone() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn without_records_serves_past_a_zero_cap() {
-    for recording in [true, false] {
-        let endpoint = Endpoint::openai();
-        let mut peer = make_scripted_with_limits(
-            endpoint.clone(),
-            key(),
-            (Ipv4Addr::LOCALHOST, 0).into(),
-            Transport::Plaintext,
-            Box::new([]),
-            Limits { observations: 0, observation_bytes: 0, ..limits() },
-        )
-        .unwrap();
-        if !recording {
-            peer = peer.without_records();
-        }
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            send_request(&mut peer, &endpoint, b"authorization: Bearer k0\r\n", &body(""))
-        }));
-        if recording {
-            support::assert_panic(result, "the world's referee observation count fits its configured cap");
-        } else {
-            assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert_eq!((peer.observations()).len(), 0);
+    let endpoint = Endpoint::openai();
+    let mut peer = make_scripted_with_limits(
+        endpoint.clone(),
+        key(),
+        (Ipv4Addr::LOCALHOST, 0).into(),
+        Transport::Plaintext,
+        Box::new([]),
+        Limits { observations: 0, observation_bytes: 0, ..limits() },
+    )
+    .unwrap()
+    .without_records();
+    let mut sim = skein_sim::Sim::new(23, skein_sim::Config::calm());
+    let (server, client) = (sim.spawn_process(), sim.spawn_process());
+    let response = request::request(
+        &mut sim,
+        server,
+        client,
+        &mut peer,
+        &endpoint.target,
+        b"authorization: Bearer k0\r\n",
+        &body(""),
+    );
+    assert!(response.starts_with(b"HTTP/1.1 200"));
+    assert_eq!(peer.observations(), []);
+    peer.shutdown();
+    for _ in 0..1000 {
+        request::pass(&mut sim, server, &mut peer);
+        if peer.is_empty() {
+            break;
         }
     }
+    assert!(peer.is_empty());
+    sim.assert_quiescent(server);
+    sim.assert_no_open_fds(server);
+    sim.assert_no_open_fds(client);
 }
 
 #[test]

@@ -413,7 +413,7 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
     // One chat's more in the period, which no pool reserves, for what the deployment
     // itself starts (protocol/configuration/stock.md).
     let period_spend = chat_spend.checked_mul(81)?;
-    for charter in &mut charters {
+    for charter in charters.as_mut_slice() {
         charter.spend = run;
     }
     let templates = Box::new([

@@ -105,6 +105,7 @@ impl Behind {
 /// Answer one seam request without requiring a simulator ticket.
 pub fn answer(behind: &mut Behind, ask: Ask) -> Result<Reply, Error> {
     let op = match ask {
+        Ask::HardLink { .. } => unreachable!("hearth does not ask for a second name"),
         Ask::Open { root, path, how } => {
             return behind.open(At::Beneath(behind.handle(root)), &path, open_how(how)).map(Reply::Opened);
         }

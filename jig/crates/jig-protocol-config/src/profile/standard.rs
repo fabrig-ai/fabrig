@@ -224,13 +224,19 @@ const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 1
 // Page bytes are key + value = 2,079 + 100,881,496 = 100,883,575, above the 33,554,496-byte
 // TurnRecord frame for smith's 33,554,432-byte turn (protocol/store/transcripts.md, 1).
 // Chunk bytes are skein_kv::chunk_bytes(key, value) = 100,883,595, including framing.
+// The map's budget is the core's fill mark, 1 GiB: a project of fabrig's scale fills a team's
+// 256 MiB, since its tasks keep every milestone in the map, and past its budget the map refuses
+// every commit that grows it, before the fill mark refuses new party work.
 const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     value: 100_881_496,
     ops: 303_350,
-    commit: 901_830_282,
-    queued_bytes: 2_705_490_846,
-    segment: 1_803_660_564,
-    snapshot_after: 901_830_282,
+    // 1 GiB values + 303,350 operations * (2,079 key + 9 framing) + 26 frame bytes.
+    commit: 1_707_136_650,
+    // Three queued commits; segment holds two, snapshot follows one.
+    queued_bytes: 5_121_409_950,
+    budget: CORE.fill_mark,
+    segment: 3_414_273_300,
+    snapshot_after: 1_707_136_650,
     chunk: 100_883_595,
     page: skein_kv::Page { rows: 2, bytes: 100_883_575 },
     ..small::STORE_KV

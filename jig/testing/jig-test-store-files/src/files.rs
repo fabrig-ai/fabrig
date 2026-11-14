@@ -112,6 +112,7 @@ impl Files {
             | file::Request::Stat { .. }
             | file::Request::ListPage { .. }
             | file::Request::Lock { .. }
+            | file::Request::HardLink { .. }
             | file::Request::List { .. } => {
                 panic!("the store uses positioned operations and derived paths")
             }

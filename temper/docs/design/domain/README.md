@@ -41,6 +41,10 @@ all. Then temper's:
    - `landing-history.md`: each change's and landing's steps kept as
      events after their rows go, swept by age and count, and read by
      `temper ctl landing history`.
+   - `landing-times.md`: where each change's time went, from ready to
+     landed or ended, split by code from those events into states that
+     don't overlap, with each landing's rounds, read by `temper ctl
+     landing times`.
 7. **after-landing.md:** tiers on the newest main, verdicts by test,
    and a change that lives until its landing is cleared, by queue or by
    turn.

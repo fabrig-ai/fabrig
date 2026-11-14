@@ -181,13 +181,15 @@ fn walk_keys_are_terminal_bytes() {
 
 #[test]
 fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
-    let scratch = Path::new("/tmp/journey-environment");
+    let scratch = std::env::temp_dir().join("temper-journey-environment");
+    let runtime = scratch.join("runtime");
+    let mut path = scratch.join("bin").into_os_string();
+    path.push(":/usr/bin:/bin");
     for display in [None, Some(":7")] {
         let mut given: Vec<crate::EnvironmentEntry> = [
             ("PATH", "/usr/bin:/bin"),
             ("HOME", "/old-home"),
             ("XDG_STATE_HOME", "/old-state"),
-            ("XDG_RUNTIME_DIR", "/tmp/journey-environment/runtime"),
             ("COLORFGBG", "0;15"),
             ("TERM", "dumb"),
             ("TEMPER_INTERNAL_RECORD", ""),
@@ -199,22 +201,23 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
         .into_iter()
         .map(|(name, value)| (Box::from(name.as_bytes()), Box::from(value.as_bytes())))
         .collect();
+        given.push((Box::from(b"XDG_RUNTIME_DIR".as_slice()), Box::from(runtime.as_os_str().as_bytes())));
         if let Some(display) = display {
             given.push((Box::from(b"DISPLAY".as_slice()), Box::from(display.as_bytes())));
         }
-        let environment = environment(&given, scratch).expect("scratch PATH");
+        let environment = environment(&given, &scratch).expect("scratch PATH");
         let lookup = |name: &str| environment.iter().find(|(key, _)| key == name).map(|(_, value)| value.as_os_str());
         for (name, value) in [
-            ("PATH", "/tmp/journey-environment/bin:/usr/bin:/bin"),
-            ("HOME", "/tmp/journey-environment/home"),
-            ("XDG_STATE_HOME", "/tmp/journey-environment/state"),
-            ("XDG_RUNTIME_DIR", "/tmp/journey-environment/tui-runtime"),
-            ("TERM", "xterm-256color"),
-            ("TEMPER_INTERNAL_RECORD", "1"),
-            ("DISPLAY", display.unwrap_or(":0")),
-            ("LANG", "C.UTF-8"),
+            ("PATH", path.clone()),
+            ("HOME", scratch.join("home").into_os_string()),
+            ("XDG_STATE_HOME", scratch.join("state").into_os_string()),
+            ("XDG_RUNTIME_DIR", scratch.join("tui-runtime").into_os_string()),
+            ("TERM", "xterm-256color".into()),
+            ("TEMPER_INTERNAL_RECORD", "1".into()),
+            ("DISPLAY", display.unwrap_or(":0").into()),
+            ("LANG", "C.UTF-8".into()),
         ] {
-            assert_eq!(lookup(name), Some(std::ffi::OsStr::new(value)), "{name}");
+            assert_eq!(lookup(name), Some(value.as_os_str()), "{name}");
         }
         assert!(environment.iter().all(|(name, _)| !name.as_bytes().starts_with(b"SSH_")));
         assert_eq!(lookup("COLORFGBG"), None);
@@ -237,7 +240,8 @@ fn a_save_is_a_replacement_even_when_its_bytes_are_unchanged() {
 
 #[test]
 fn a_step_has_thirty_seconds_and_names_its_position() {
-    let paths = walker_paths(Path::new("/tmp/journey"));
+    let scratch = std::env::temp_dir().join("temper-journey-step-deadline");
+    let paths = walker_paths(&scratch);
     let mut walker = Walker {
         name: "first".into(),
         paths: &paths,

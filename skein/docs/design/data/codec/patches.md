@@ -55,6 +55,12 @@
   of its own family, an identity plan, reaches held fields alone.
 - **Versions inside:** every versioned record a patch reaches,
   root or nested, has its version rewritten.
+- **Heads alone:** where a plan leaves a record's old bytes valid at
+  its new version (its kind's layout unchanged, or changed only by
+  appended variants, widened bounds and declarations its value can't
+  hold), `rehead` writes the new version into the record's head and
+  nothing else: no decode, no walk, no encode. Its caller runs the
+  machine only on the records it refuses (3.1).
 - **Bounded:** a machine's heap is a worst case over its capacity (its
   versions, patches, texts, a record's bytes and nodes). A value made
   with `with_room` grows within its entry cap; a patch's machine grows its own
@@ -231,6 +237,63 @@ against the two kept texts its versions name.
   declaration its own, nothing written, a versioned record's version
   unchanged. It copies a record but stops at its held fields, and
   refuses pieces whose type reaches one (`Pieces`).
+
+### 3.1 Bytes kept, and heads alone
+
+A plan also keeps, per old declaration and per old variant, whether
+every old value of it is already, byte for byte, a value of its new
+counterpart: whether it **keeps**. These are `diff.md`, 3's changes
+none needed, met in the reach of the value at hand.
+
+- **A record keeps** when it is matched to a record, with no site
+  (`written D`, nor `written D.f` on any field), its fields matched in
+  place (none added, dropped or moved), and each field's type equal, or
+  a `widen` with no integer wider (`diff.md`, 3), level by level, each
+  named type at its levels keeping. A versioned record keeps only in an
+  identity plan, since a moved version is a byte changed.
+- **An enumeration keeps** when it is matched to an enumeration with no
+  site, each old variant matched to the new variant at its own index,
+  any others added after every kept one, and each variant keeping.
+- **An old variant keeps** when its enumeration has no site, it is
+  matched to the new variant at its own index (its tag unchanged), and
+  its record, if it has one, is its payload's match (`payload`) and
+  keeps. So a variant keeps while a sibling's record changes.
+- **Never kept:** a held field, a `bytes` or `secret` that holds a record
+  in either text, since the held family may move and its bytes with it;
+  and a `pieces` field keeps only when its items' declaration does.
+- **Unlike `copies`** (3), which the walk reads to copy a range as it
+  converts, `keeps` takes appended variants and judges a variant apart
+  from its siblings. `copies` keeps its meaning.
+
+**`rehead`** judges one record of a root `R`, at the plan's old
+version, and reads at most its head and one tag:
+
+- **R's head:** where `R` is a versioned record, its first two bytes
+  must be the plan's `from`; where `R` is not versioned, it has no head.
+- **R's leading enumeration:** `R` itself where `R` is an enumeration,
+  or `R`'s first field where `R` is a record and that field's type is an
+  enumeration, with no `list` or `option` level. Its tag is the first
+  byte after the head, and names the record's kind: the tasks family's
+  `Row` holds a milestone as its `value`'s `milestone` variant.
+- **The record keeps** when either holds:
+  - `R` keeps, its own version aside: a versioned root's head is the
+    one part that moves;
+  - the old variant its leading enumeration's tag names keeps, and the
+    rest of `R` does: nothing more where `R` is the enumeration; where
+    `R` is a record, `R` matched to a record with no site, its fields
+    matched in place, and every field but the first keeping.
+- **Then** `rehead` writes the plan's `to` into the head, big-endian
+  as a version is (`README.md`, 3), writing nothing for a root with no
+  head, and answers true; the record's bytes are its new value. In an
+  identity plan the head is written unchanged.
+- **Otherwise** it answers false and leaves the record untouched, for
+  `start`: a record that doesn't keep, a head other than `from`, a tag
+  naming no old variant, a record too short for its head or its tag.
+  `start` then refuses what it refuses today.
+- **It decodes nothing:** bytes past the head and the tag are not read,
+  so a record malformed there is put as it is, and its reader refuses it
+  as it would any. Its bound is the record's head and tag, whatever its
+  size.
 
 `PatchError` names the line and the token (`at`, a span of the patch's
 text) and what is wrong:
@@ -537,6 +600,7 @@ impl Patcher {
     pub fn counterpart(&self, plan: PlanIx, old: DeclIx) -> Option<DeclIx>;
     pub fn source(&self, plan: PlanIx, new: DeclIx) -> Option<DeclIx>;
     pub fn copies(&self, plan: PlanIx, old: DeclIx) -> bool; // its conversion copies (5)
+    pub fn rehead(&self, plan: PlanIx, root: DeclIx, record: &mut [u8]) -> bool; // 3.1
 
     pub fn start(&mut self, plan: PlanIx, root: DeclIx, record: Box<[u8]>) -> Result<(), Halt>;
     pub fn next(&mut self) -> Result<Step, Halt>;
@@ -588,6 +652,12 @@ impl Build {                         // the new value, in preorder
   one the walk reads to copy pieces or open them: a reader that must
   tell opened pieces from copied ones (the patch goldens, `skein-codegen`)
   asks it rather than repeat the planning.
+- **`rehead`** takes `root` in the plan's old text, as `start` does, and
+  the record its caller owns, written in place: it needs no run, leaves
+  any run between records as it was, and allocates nothing. True, the
+  record is the plan's result, for a record its old text decodes the
+  bytes `start`, `next` and `finish` would give; false, the record is
+  untouched (3.1).
 - **A machine per family.** `keep` refuses another family's text
   (`Family`), a version kept already (`Twice`), and past the
   capacity's versions or text (`Room`). Plans name kept versions, so
@@ -659,11 +729,24 @@ Step tests, in skein-lib and skein-codec, and the story in
   answered both ways; an identity plan; a record two versions behind;
   each `Halt`. Every result decodes by the new schema as a generic
   value and equals its expected bytes; numbers are carried as they are.
+- **Bytes kept and heads alone** (3.1): each rule from both sides, the
+  change that keeps beside the nearest that does not: an appended
+  variant and a widened bound kept, an added field, a moved tag and a
+  widened integer not; a nested versioned record kept in an identity
+  plan and not in a patch; a held field and a site in reach never; a
+  variant kept while its sibling's record changes, judged by the tag;
+  a head other than `from`, an unknown tag and a short record answered
+  false with the record untouched; a root with no head.
 - **A property,** in the fuzzy suite: values drawn from the `every`
   fixture's old schema (`README.md`, 8.3's seeded generator) through a derived patch
   decode by the new schema, each carried field equal to its old one;
   an identity plan, and a patch without lines between layouts equal but
-  for the version, give back the bytes, but for the versions.
+  for the version, give back the bytes, but for the versions. Wherever
+  `rehead` answers true for a drawn value, under each of those plans,
+  its bytes equal the machine's; and under the patch without lines it
+  answers true for every drawn value whose kind (the variant its tag
+  names, or else its root) reaches no nested versioned record and no
+  held field.
 - **The story:** a fixture patch under `tests/codec` with every derived
   operation and a written site, run over the `every` fixture's goldens,
   its results kept as goldens beside it, the shape of `patches/golden/`,

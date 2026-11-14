@@ -219,6 +219,7 @@ pub(crate) fn decode(
             | file::Request::Sync { .. }
             | file::Request::Close { .. }
             | file::Request::SyncDirectory { .. }
+            | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
             | file::Request::List { .. }
