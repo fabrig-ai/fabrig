@@ -112,7 +112,7 @@ fn group_story(story: skein_io_world::processes::Story) {
     let mut world = skein_world::real::World::new(Judge::default());
     world.spawn_with_fds(vec![root], || process);
     let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    outcome.procs[0].check();
+    outcome.procs[0].check().expect("the process story settled");
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn a_childs_cpu_and_peak_join_the_reaped_childrens_usage_at_close() {
     let mut world = skein_world::real::World::new(Judge { simulated: false });
     world.spawn_with_fds(vec![root], || Process::new(root, program.as_os_str().as_bytes()));
     let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    outcome.procs[0].check(false);
+    outcome.procs[0].check(false).expect("the real usage story settled");
 }
 
 #[test]
