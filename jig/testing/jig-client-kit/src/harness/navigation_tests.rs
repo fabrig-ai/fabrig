@@ -59,9 +59,9 @@ fn drain(world: &mut World<Test, Receipts>) -> super::Outcome {
 fn the_current_show_is_delivered_after_latency_once_despite_repeated_shows() {
     let (mut world, client) = world();
     let address = project(ProjectSection::Settings);
-    world.platform_show(client, address, false);
-    world.platform_show(client, address, false);
-    world.platform_show(client, address, true);
+    world.platform_show(client, address, false).unwrap();
+    world.platform_show(client, address, false).unwrap();
+    world.platform_show(client, address, true).unwrap();
     let outcome = world.run(Until::Steps(1));
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert!(world.front().went.is_empty(), "Went is not delivered synchronously");
@@ -80,8 +80,8 @@ fn a_newer_show_supersedes_an_older_callback_in_the_same_reload_epoch() {
     let (mut world, client) = world();
     let overview = project(ProjectSection::Overview);
     let settings = project(ProjectSection::Settings);
-    world.platform_show(client, overview, false);
-    world.platform_show(client, settings, false);
+    world.platform_show(client, overview, false).unwrap();
+    world.platform_show(client, settings, false).unwrap();
     let outcome = drain(&mut world);
     assert_eq!(outcome.dropped, 1);
     assert_eq!(world.front().went, [(client, settings)]);
@@ -94,9 +94,9 @@ fn returning_to_an_address_does_not_revive_its_older_callback() {
     let (mut world, client) = world();
     let overview = project(ProjectSection::Overview);
     let settings = project(ProjectSection::Settings);
-    world.platform_show(client, overview, false);
-    world.platform_show(client, settings, false);
-    world.platform_show(client, overview, false);
+    world.platform_show(client, overview, false).unwrap();
+    world.platform_show(client, settings, false).unwrap();
+    world.platform_show(client, overview, false).unwrap();
     let outcome = drain(&mut world);
     assert_eq!(outcome.dropped, 2);
     assert_eq!(world.front().went, [(client, overview)]);
@@ -109,7 +109,7 @@ fn direct_navigation_invalidates_a_pending_show_without_losing_the_new_history_e
     let (mut world, client) = world();
     let overview = project(ProjectSection::Overview);
     let settings = project(ProjectSection::Settings);
-    world.platform_show(client, overview, false);
+    world.platform_show(client, overview, false).unwrap();
     let before = world.callbacks;
     world.go(client, settings);
     assert_eq!(world.callbacks, before + 1, "direct Go reaches the root immediately");
@@ -125,8 +125,8 @@ fn back_and_forward_keep_history_and_supersede_pending_shows() {
     let (mut world, client) = world();
     let overview = project(ProjectSection::Overview);
     let settings = project(ProjectSection::Settings);
-    world.platform_show(client, overview, false);
-    world.platform_show(client, settings, false);
+    world.platform_show(client, overview, false).unwrap();
+    world.platform_show(client, settings, false).unwrap();
     let before = world.callbacks;
     world.back(client);
     assert_eq!(world.callbacks, before + 1, "Back reaches the root immediately");
@@ -144,7 +144,7 @@ fn back_and_forward_keep_history_and_supersede_pending_shows() {
 fn a_reload_still_discards_its_old_epoch_navigation_callback() {
     let (mut world, client) = world();
     let settings = project(ProjectSection::Settings);
-    world.platform_show(client, settings, false);
+    world.platform_show(client, settings, false).unwrap();
     world.reload(client);
     let outcome = drain(&mut world);
     assert_eq!(outcome.dropped, 1);
@@ -160,9 +160,9 @@ fn one_tabs_new_show_does_not_supersede_another_tabs_callback() {
     let second = world.tab(first);
     let overview = project(ProjectSection::Overview);
     let settings = project(ProjectSection::Settings);
-    world.platform_show(first, overview, false);
-    world.platform_show(second, settings, false);
-    world.platform_show(first, settings, false);
+    world.platform_show(first, overview, false).unwrap();
+    world.platform_show(second, settings, false).unwrap();
+    world.platform_show(first, settings, false).unwrap();
     let outcome = drain(&mut world);
     assert_eq!(outcome.dropped, 1);
     assert_eq!(world.front().went, [(second, settings), (first, settings)]);
@@ -173,9 +173,9 @@ fn an_older_show_arriving_after_the_current_one_cannot_reenter_the_old_page() {
     let (mut world, client) = world();
     let overview = project(ProjectSection::Overview);
     let settings = project(ProjectSection::Settings);
-    world.platform_show(client, overview, false);
+    world.platform_show(client, overview, false).unwrap();
     world.settings.latency = Span::millis(1, 1);
-    world.platform_show(client, settings, false);
+    world.platform_show(client, settings, false).unwrap();
     let outcome = world.run(Until::Steps(3));
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert!(world.schedule.is_empty());
@@ -190,8 +190,8 @@ fn replacing_a_changed_address_keeps_the_history_slot_and_supersedes_its_callbac
     let (mut world, client) = world();
     let overview = project(ProjectSection::Overview);
     let settings = project(ProjectSection::Settings);
-    world.platform_show(client, overview, false);
-    world.platform_show(client, settings, true);
+    world.platform_show(client, overview, false).unwrap();
+    world.platform_show(client, settings, true).unwrap();
     let outcome = drain(&mut world);
     assert_eq!(outcome.dropped, 1);
     assert_eq!(world.front().went, [(client, settings)]);
@@ -214,7 +214,7 @@ fn a_new_navigation_does_not_discard_a_current_epoch_engine_callback() {
             navigation: None,
         },
     );
-    world.platform_show(client, settings, false);
+    world.platform_show(client, settings, false).unwrap();
     let outcome = drain(&mut world);
     assert_eq!(outcome.dropped, 0);
     assert_eq!(world.front().hello, 1, "the engine event retains only its reload epoch fence");
