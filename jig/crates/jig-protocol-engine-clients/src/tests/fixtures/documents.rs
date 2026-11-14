@@ -1,5 +1,5 @@
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{Duration, List, Wall};
@@ -201,7 +201,7 @@ pub fn task_with_hold() -> d::Task {
 }
 
 /// The shared v21 fixture with each engine-supplied project's required name.
-pub fn frame_two_projects_record() -> jig_client_protocol_wire::v21::Me {
+pub fn frame_two_projects_record() -> jig_client_protocol_wire::v22::Me {
     let limits = w::CEILINGS;
     let mut parts = jig_client_test_records::frame_two_projects_record().into_parts();
     let mut reader = skein_lib::Reader::new(&parts.projects);

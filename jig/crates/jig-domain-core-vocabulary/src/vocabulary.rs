@@ -673,6 +673,8 @@ pub enum Event {
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<people::Act>, carried: Option<Carried> },
     /// Store map bytes from each commit answer; needs no commit (protocol/store/README.md, 6.2).
     Fill { bytes: u64 },
+    /// Last store report; refresh the deployment document (protocol/store/README.md, 6.3).
+    Census(Box<crate::documents::deployment::StoreCensus>),
     /// Refuse new decisions while the service drains (domain/engine/restart.md, 1).
     Stopping,
     /// Place nothing while taking every commit (domain/engine/restart.md, 1).
@@ -1159,6 +1161,7 @@ impl Event {
             | Self::NamedAction { .. } => true,
             Self::SettingsCommit { .. }
             | Self::Fill { .. }
+            | Self::Census(..)
             | Self::Settling
             | Self::Stopping
             | Self::Marked { .. }
@@ -1510,6 +1513,14 @@ mod admission_tests {
         for (event, new) in [
             (Event::Stopping, false),
             (Event::Fill { bytes: 0 }, false),
+            (
+                Event::Census(Box::new(crate::documents::StoreCensus {
+                    commit: 0,
+                    since: 0,
+                    keyspaces: skein_lib::List::with_capacity(0),
+                })),
+                false,
+            ),
             (Event::Unwatch { watcher: Token::new(1) }, false),
             (Event::Fleet(fleet::Event::Lost { channel: Token::new(1) }), false),
             (

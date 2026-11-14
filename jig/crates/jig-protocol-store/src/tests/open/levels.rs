@@ -228,7 +228,9 @@ fn a_family_past_the_manifests_bounds_refuses_set_before_any_write() {
     let mut first = disk.store();
     first.patch_sets(AT_BOUND);
     let events = disk.open(&mut first);
-    let [Event::Opened { .. }] = &*events else { panic!("a first start at the bound opens: {events:?}") };
+    let [Event::Opened { .. }, Event::Census { .. }] = &*events else {
+        panic!("a first start at the bound opens: {events:?}")
+    };
     let manifest = crate::codec::component::Manifest::decode(&disk.bytes(b"generations/1/manifest"));
     assert_eq!(
         manifest.expect("first manifest").counts,

@@ -8,6 +8,7 @@
   (`temper/crates/temper-engine-domain/src/limits.rs`, `FILL_MARK`).
 
 
+
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
 the store's write edge and an exhausted commit counter.

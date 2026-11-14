@@ -493,3 +493,49 @@ fn history_keys_have_their_assigned_families_and_jig_fields() {
         assert_eq!(temper_engine_domain::Range::Forge.contains(&temper_engine_domain::Key::Forge(key)), family < 128);
     }
 }
+
+#[test]
+fn every_written_family_has_one_unique_temper_census_name() {
+    for (index, &(tag, name)) in crate::KEYSPACES.families.iter().enumerate() {
+        assert!(name.starts_with("temper.") && name.len() <= 48, "{name}");
+        if tag == 12 {
+            assert_eq!(name, "temper.changes");
+        }
+        if tag == keys::HISTORY_EVENT {
+            assert_eq!(name, "temper.landing-history");
+        }
+        for byte in name.bytes() {
+            assert!(byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'.' || byte == b'-');
+        }
+        for &(other, other_name) in crate::KEYSPACES.families.get(..index).expect("earlier names") {
+            assert_ne!(tag, other);
+            assert_ne!(name, other_name);
+        }
+    }
+    let mut random = Rng::new(0x6301);
+    for _ in 0_u32..10_000 {
+        let key = fixtures::key(&mut random);
+        assert_census_name(&key);
+    }
+    // The shared ordering generator does not draw these families.
+    for key in [
+        Key::Device { party: 1, number: 1 },
+        Key::LandedDraft {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            path: Box::from(b"draft".as_slice()),
+        },
+    ] {
+        assert_census_name(&key);
+    }
+}
+
+fn assert_census_name(key: &Key) {
+    let bytes = keys::encode(key, u32::MAX).unwrap();
+    let mut names = 0_u32;
+    for &(tag, _) in crate::KEYSPACES.families {
+        if Some(&tag) == bytes.first() {
+            names = names.checked_add(1).expect("bounded names");
+        }
+    }
+    assert_eq!(names, 1, "one name for the writer's family {key:?}");
+}

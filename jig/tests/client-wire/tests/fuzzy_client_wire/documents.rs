@@ -106,6 +106,9 @@ fn records_3(bytes: &[u8]) {
 fn records_4(bytes: &[u8]) {
     check!(Subject, bytes);
     check!(StoreFill, bytes);
+    check!(StoreCensus, bytes);
+    check!(CensusKeyspace, bytes);
+    check!(CensusHead, bytes);
     check!(Capacity, bytes);
     check!(ProjectCapacity, bytes);
     check!(HostKind, bytes);
@@ -197,6 +200,84 @@ fn records_6(bytes: &[u8]) {
     check!(Delivery, bytes);
     check!(Ended, bytes);
     check!(StreamEvent, bytes);
+}
+
+/// Valid reports exercise the bounds that arbitrary bytes almost never reach.
+fn generated_census(rng: &mut Rng, rows: u32) -> StoreCensus {
+    let mut keyspaces = skein_lib::List::with_capacity(rows);
+    for _ in 0..rows {
+        let full = rows == 129;
+        let prefix_len = if full { 8 } else { usize::try_from(rng.below(9)).expect("prefix bound") };
+        let name_len = if full { 48 } else { usize::try_from(rng.below(49)).expect("name bound") };
+        let mut prefix = vec![0; prefix_len];
+        for byte in &mut prefix {
+            *byte = u8::try_from(rng.below(256)).expect("byte");
+        }
+        let name = vec![b'n'; name_len].into_boxed_slice();
+        let head_count = if full { 8 } else { u32::try_from(rng.below(9)).expect("head bound") };
+        let mut heads = skein_lib::List::with_capacity(head_count);
+        for h in 0..head_count {
+            heads
+                .push(
+                    CensusHead::new(
+                        &CEILINGS,
+                        CensusHeadParts {
+                            head: if h == 0 { None } else { Some(u16::try_from(h).expect("head")) },
+                            rows: rng.next_u64(),
+                        },
+                    )
+                    .expect("bounded head"),
+                )
+                .expect("head capacity");
+        }
+        keyspaces
+            .push(
+                CensusKeyspace::new(
+                    &CEILINGS,
+                    CensusKeyspaceParts {
+                        prefix: prefix.into_boxed_slice(),
+                        name,
+                        rows: rng.next_u64(),
+                        keys: rng.next_u64(),
+                        values: rng.next_u64(),
+                        heads,
+                        puts: rng.next_u64(),
+                        erases: rng.next_u64(),
+                        written: rng.next_u64(),
+                    },
+                )
+                .expect("bounded keyspace"),
+            )
+            .expect("row capacity");
+    }
+    StoreCensus::new(&CEILINGS, StoreCensusParts { commit: rng.next_u64(), since: rng.next_u64(), keyspaces })
+        .expect("bounded report")
+}
+
+#[test]
+fn generated_deployment_censuses_round_trip_through_all_row_counts_and_full_fields() {
+    let mut rng = Rng::new(0xc11e_ce22);
+    let mut empty = jig_client_test_records::deployment_rows_record().into_parts();
+    empty.census = None;
+    let empty = Deployment::new(&CEILINGS, empty).expect("absent report");
+    let mut writer = Writer::new(usize::try_from(empty.measure()).expect("measure"));
+    empty.encode(&mut writer).expect("measured room");
+    let bytes = writer.finish();
+    assert_eq!(Deployment::decode(&CEILINGS, &mut Reader::new(&bytes)), Ok(empty.clone()));
+    for rows in 0..=129 {
+        let census = generated_census(&mut rng, rows);
+        let mut writer = Writer::new(usize::try_from(census.measure()).expect("measure"));
+        census.encode(&mut writer).expect("measured room");
+        let bytes = writer.finish();
+        assert_eq!(StoreCensus::decode(&CEILINGS, &mut Reader::new(&bytes)), Ok(census.clone()));
+        let mut parts = empty.clone().into_parts();
+        parts.census = Some(census);
+        let deployment = Deployment::new(&CEILINGS, parts).expect("present report");
+        let mut writer = Writer::new(usize::try_from(deployment.measure()).expect("measure"));
+        deployment.encode(&mut writer).expect("measured room");
+        let bytes = writer.finish();
+        assert_eq!(Deployment::decode(&CEILINGS, &mut Reader::new(&bytes)), Ok(deployment));
+    }
 }
 
 pub fn decoders(bytes: &[u8]) {

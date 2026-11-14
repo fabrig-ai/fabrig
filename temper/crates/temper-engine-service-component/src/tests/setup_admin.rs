@@ -476,6 +476,8 @@ fn admin_record_files_and_directories_are_owner_only() {
         }
     }
     assert!(opened);
+    // This permissions fixture does not consume the census (jig protocol/store/README.md, 6.3).
+    let Some(StoreEvent::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
     fixtures::commit(&mut store, 1, Box::new([root::Write::Wires]));
     for _ in 0_u32..4096 {
         disk_turn(&mut store, &mut kernel);

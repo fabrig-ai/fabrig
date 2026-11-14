@@ -201,6 +201,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                 root(into, engine::StoreInput::Unloaded { owner: flight.root });
             }
         }
+        store::Event::Census { census } => root(into, engine::StoreInput::Census(census)),
         store::Event::Committed { number, fill } => root(into, engine::StoreInput::Committed { number, fill }),
         store::Event::Failed { number } => root(into, engine::StoreInput::Uncommitted { number }),
         store::Event::FrameTooLarge { number, task, bytes, limit } => {
