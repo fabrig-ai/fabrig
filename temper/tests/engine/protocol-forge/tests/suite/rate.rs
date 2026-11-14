@@ -128,7 +128,7 @@ impl Scheduler {
                             spend: None,
                             delegate: change::Status::Unknown,
                             effect: change::EffectResult::None,
-                            released: self.iterating,
+                            released: false,
                             cancelled: false,
                         },
                         gates: Box::new([]),

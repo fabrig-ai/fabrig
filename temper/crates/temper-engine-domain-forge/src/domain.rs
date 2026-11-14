@@ -28,8 +28,8 @@ mod landed;
 pub(crate) mod make;
 #[path = "outage.rs"]
 mod outage;
-mod rebase;
 pub(crate) mod read_session;
+mod rebase;
 #[path = "restore.rs"]
 mod restore;
 mod room;
@@ -1612,7 +1612,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 | crate::Connection::Stopped { .. } => None,
             };
             d.connections.insert(forge, (state, failed)).expect("configured forge connections");
-            if was_connected != connected { read_session::connection(d, env, forge, connected); }
+            if was_connected != connected {
+                read_session::connection(d, env, forge, connected);
+            }
             match d.connection(forge) {
                 crate::Connection::Connected { .. } => connection_wait::connected(d, env, forge, out),
                 crate::Connection::NotConnected
@@ -3641,7 +3643,9 @@ fn delegate_result(
     out: &mut Queue<Request>,
 ) {
     let exempt = read_session::until(d, task).is_none() && d.read_sessions.contains_key(&task);
-    if exempt { read_session::ended(d, env, task, ended_at.unwrap_or(env.wall)); }
+    if exempt {
+        read_session::ended(d, env, task, ended_at.unwrap_or(env.wall));
+    }
     let Some(row) = d.changes.get_mut(&task) else { return };
     // A pushing child can end after a gate has replaced the delegate slot.
     // Its terminal still releases the procedure's conflict wait.
@@ -3716,7 +3720,9 @@ fn delegate_result(
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     }
     let saved = row.clone();
-    if agent { read_session::ended(d, env, task, saved.change.since); }
+    if agent {
+        read_session::ended(d, env, task, saved.change.since);
+    }
     wake_after_turn(d, &saved, owned);
     save_change(d, out, saved);
     if ended {
@@ -3922,7 +3928,10 @@ fn retry_deadline(d: &Domain) -> Option<skein_lib::Time> {
     let mut next: Option<skein_lib::Time> = None;
     for (_, pending) in &d.steps {
         if let Some(at) = pending.retry_at {
-            next = Some(match next { Some(before) => before.min(at), None => at });
+            next = Some(match next {
+                Some(before) => before.min(at),
+                None => at,
+            });
         }
     }
     next
@@ -3945,11 +3954,21 @@ fn retry_gathers(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 fn restart_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
-    step_change(d, env, StepInput {
-        task: pending.task, entry: pending.entry, heard: pending.heard, gates: pending.gates,
-        queue_repair_active: pending.queue_repair_active, kept: pending.kept, merge_job: pending.merge_job,
-        pending: pending.pending,
-    }, out);
+    step_change(
+        d,
+        env,
+        StepInput {
+            task: pending.task,
+            entry: pending.entry,
+            heard: pending.heard,
+            gates: pending.gates,
+            queue_repair_active: pending.queue_repair_active,
+            kept: pending.kept,
+            merge_job: pending.merge_job,
+            pending: pending.pending,
+        },
+        out,
+    );
 }
 
 fn step_owner(d: &Domain, task: u64) -> Option<Token> {
@@ -4876,8 +4895,12 @@ fn wake_after_turn(d: &mut Domain, row: &ChangeRow, owned: bool) {
 
 fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get(&pending.task) else { return };
-    let until = if let change::State::Held { .. } = row.change.state { None } else { read_session::until(d, pending.task) };
-    let expired = match until { Some(until) => env.wall >= until, None => false };
+    let until =
+        if let change::State::Held { .. } = row.change.state { None } else { read_session::until(d, pending.task) };
+    let expired = match until {
+        Some(until) => env.wall >= until,
+        None => false,
+    };
     if pending.woken && expired {
         wait_for_forge(d, env, &pending, None, out);
         return;
@@ -4896,8 +4919,11 @@ fn waits_for_dependencies(row: &ChangeRow, pending: &PendingStep) -> bool {
 
 /// Missing bases and uncertain reads count a stall except while producing waits for dependencies.
 fn wait_for_forge(
-    d: &mut Domain, env: &Env<Limits>, pending: &PendingStep,
-    retry: Option<skein_lib::Wall>, out: &mut Queue<Request>,
+    d: &mut Domain,
+    env: &Env<Limits>,
+    pending: &PendingStep,
+    retry: Option<skein_lib::Wall>,
+    out: &mut Queue<Request>,
 ) {
     let Some(row) = d.changes.get(&pending.task) else { return };
     if row.terminal() {
@@ -4907,7 +4933,15 @@ fn wait_for_forge(
     }
     if let change::State::Held { .. } = row.change.state {
         d.read_sessions.remove(&pending.task);
-        emit(out, Request::ChangeDecision { task: pending.task, decision: change::Decision::None, entry: None, evidence: None });
+        emit(
+            out,
+            Request::ChangeDecision {
+                task: pending.task,
+                decision: change::Decision::None,
+                entry: None,
+                evidence: None,
+            },
+        );
         return;
     }
     if connection_wait::waiting(d, row.task, row.repository.forge) {
@@ -4920,13 +4954,30 @@ fn wait_for_forge(
             hold_read_session(d, env, pending.task, Some(pending), out);
             return;
         }
-        Some(until) => Some(match retry { Some(retry) => retry.min(until), None => until }),
+        Some(until) => Some(match retry {
+            Some(retry) => retry.min(until),
+            None => until,
+        }),
         None => retry,
     };
-    emit(out, Request::ChangeDecision { task: pending.task, decision: change::Decision::Wait { until }, entry: None, evidence: None });
+    emit(
+        out,
+        Request::ChangeDecision {
+            task: pending.task,
+            decision: change::Decision::Wait { until },
+            entry: None,
+            evidence: None,
+        },
+    );
 }
 
-fn hold_read_session(d: &mut Domain, env: &Env<Limits>, task: u64, pending: Option<&PendingStep>, out: &mut Queue<Request>) {
+fn hold_read_session(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    pending: Option<&PendingStep>,
+    out: &mut Queue<Request>,
+) {
     let Some(mut row) = d.changes.get(&task).cloned() else { return };
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
@@ -4936,16 +4987,31 @@ fn hold_read_session(d: &mut Domain, env: &Env<Limits>, task: u64, pending: Opti
     let evidence = match pending {
         Some(pending) => step_evidence(d, &row, pending, prior),
         None => crate::ChangeEvidence {
-            touched: crate::Touched::UNKNOWN, prior, head: row.change.last_head, base_tip: [0; 32],
-            contains_base: change::Status::Unknown, ci: change::Status::Unknown, gates: Box::new([]),
-            reviews: Box::new([]), reviews_complete: false, size: None,
+            touched: crate::Touched::UNKNOWN,
+            prior,
+            head: row.change.last_head,
+            base_tip: [0; 32],
+            contains_base: change::Status::Unknown,
+            ci: change::Status::Unknown,
+            gates: Box::new([]),
+            reviews: Box::new([]),
+            reviews_complete: false,
+            size: None,
         },
     };
     d.read_sessions.remove(&task);
     d.changes.insert(task, row.clone()).expect("held read's change");
     wake_after_turn(d, &row, owned);
     save_queue_change(d, env, before, row, out);
-    emit(out, Request::ChangeDecision { task, decision: change::Decision::Hold(change::Hold::Stalled), entry: None, evidence: Some(evidence) });
+    emit(
+        out,
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::Hold(change::Hold::Stalled),
+            entry: None,
+            evidence: Some(evidence),
+        },
+    );
 }
 
 fn titled_change(

@@ -145,6 +145,7 @@ pub struct World {
     pub comparison_delay: Option<Duration>,
     /// A branch whose reads take twenty seconds, each decided when it is sent.
     pub slow_branch: Option<Box<[u8]>>,
+    pub slow_branch_latency: Duration,
     /// Delay the review diff independently of the change's fresh checks.
     pub review_files_delay: Option<Duration>,
     gate: paths::Gate,
@@ -1252,6 +1253,7 @@ impl World {
             files_too_large: false,
             comparison_delay: None,
             slow_branch: None,
+            slow_branch_latency: Duration::from_secs(20),
             review_files_delay: None,
             gate,
             held_reads: None,
@@ -2249,8 +2251,8 @@ impl World {
                     self.pending_repositories.insert(call, Box::from(name));
                     let mut limits = self.fake_env.limits.clone();
                     if slow {
-                        limits.latency_min = Duration::from_secs(20);
-                        limits.latency_max = Duration::from_secs(20);
+                        limits.latency_min = self.slow_branch_latency;
+                        limits.latency_max = self.slow_branch_latency;
                     }
                     if let Some(delay) = review_delay.or(comparison_delay) {
                         limits.latency_min = delay;

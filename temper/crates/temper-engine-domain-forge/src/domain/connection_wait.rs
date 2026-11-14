@@ -47,8 +47,11 @@ pub(super) fn waiting(d: &Domain, task: u64, forge: u16) -> bool {
 pub(super) fn disconnected(connection: &Connection) -> bool {
     match connection {
         Connection::Connected { .. } | Connection::Connecting => false,
-        Connection::NotConnected | Connection::NotSetUp | Connection::SettingUp { .. }
-        | Connection::SetUpFailed { .. } | Connection::Stopped { .. } => true,
+        Connection::NotConnected
+        | Connection::NotSetUp
+        | Connection::SettingUp { .. }
+        | Connection::SetUpFailed { .. }
+        | Connection::Stopped { .. } => true,
     }
 }
 

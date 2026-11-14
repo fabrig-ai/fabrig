@@ -2747,7 +2747,11 @@ fn an_unanswered_gather_keeps_live_agent_and_dependency_exemptions() {
             !matches!(d.change(fixtures::CHANGE).unwrap().change.state, change::State::Held { .. }),
             "exemption={dependency}: {out:?}"
         );
-        assert_eq!(d.change(fixtures::CHANGE).unwrap().change.since, since, "the gather cannot move the policy's clock");
+        assert_eq!(
+            d.change(fixtures::CHANGE).unwrap().change.since,
+            since,
+            "the gather cannot move the policy's clock"
+        );
     }
 }
 
@@ -2757,15 +2761,22 @@ fn capacity_retries_keep_the_offered_gather_without_parking_its_procedure() {
     use temper_engine_domain_forge_change as change;
     let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
     for owner in 0_u64..u64::from(CLIENT.pending) {
-        outputs(&mut d, Event::Client(skein_forge_client::Event::Read {
-            owner: Token::new(8000_u64.saturating_add(owner)), repository: REPO,
-            read: skein_forge::api::Read::Settings,
-        }));
+        outputs(
+            &mut d,
+            Event::Client(skein_forge_client::Event::Read {
+                owner: Token::new(8000_u64.saturating_add(owner)),
+                repository: REPO,
+                read: skein_forge::api::Read::Settings,
+            }),
+        );
     }
     assert_eq!(client_refusals(&mut d), 0);
     let first = outputs(&mut d, waiting_step(false, false));
     for request in &first {
-        assert!(!matches!(request, Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. }), "a live gather cannot park: {first:?}");
+        assert!(
+            !matches!(request, Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. }),
+            "a live gather cannot park: {first:?}"
+        );
     }
     assert_eq!(client_refusals(&mut d), 1);
     let mut clock = env();
@@ -2773,7 +2784,10 @@ fn capacity_retries_keep_the_offered_gather_without_parking_its_procedure() {
         let retried = fixtures::advance(&mut d, &mut clock, Duration::from_secs(1));
         assert_eq!(client_refusals(&mut d), 1, "the client is asked again");
         for request in &retried {
-            assert!(!matches!(request, Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. }), "a retry retains the offered step: {retried:?}");
+            assert!(
+                !matches!(request, Request::ChangeDecision { decision: change::Decision::Wait { .. }, .. }),
+                "a retry retains the offered step: {retried:?}"
+            );
         }
         assert_eq!(d.steps.len(), 1);
     }

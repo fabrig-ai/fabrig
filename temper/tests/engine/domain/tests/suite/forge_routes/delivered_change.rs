@@ -18,7 +18,8 @@ fn held_reads(ci: bool) -> (World, u64) {
     }
     let branch = row(&world, task).branch.clone();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1).expect("producer pushed");
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
+        .expect("producer pushed");
     world.hold_reads_at_any_step = true;
     world.held_reads = Some(Vec::new());
     super::ci_poll::finish(&mut world, &producer);
@@ -94,7 +95,9 @@ fn a_busy_client_retries_then_holds_at_producing() {
     assert_eq!(live_task(&world, task).attempt, before, "read retries cannot park the offered procedure step");
     let bound = world.env.limits.forge.change_policy.stall;
     let past = world.env.now.saturating_add(bound.saturating_add(Duration::from_secs(1)));
-    while world.env.now <= past { world.tick(); }
+    while world.env.now <= past {
+        world.tick();
+    }
     stalled_words(&world, task, "producing", "the forge to answer its reads");
 }
 
@@ -316,7 +319,9 @@ fn a_stored_question_of_an_ended_asker_no_longer_exempts_the_stall() {
     assert!(!matches!(row(&world, task).change.state, State::Held { .. }));
     jump(&mut world, half.saturating_add(Duration::from_secs(1)));
     for _ in 0..STEPS {
-        if matches!(row(&world, task).change.state, State::Held { .. }) { break; }
+        if matches!(row(&world, task).change.state, State::Held { .. }) {
+            break;
+        }
         world.tick();
     }
     assert_stalled(&world, task);

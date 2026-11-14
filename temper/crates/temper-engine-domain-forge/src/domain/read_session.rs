@@ -1,8 +1,8 @@
 //! The gather's volatile clock is separate from policy wait and settling
 //! origins (temper/docs/design/domain/forge/change/repairs.md, Stalls).
 use super::{
-    Domain, Env, Limits, PendingStep, Request, change, connection_wait, outage, step_owner,
-    wait_for_forge, waits_for_dependencies,
+    Domain, Env, Limits, PendingStep, Request, change, connection_wait, outage, step_owner, wait_for_forge,
+    waits_for_dependencies,
 };
 use skein_lib::{List, Queue, Wall};
 
@@ -54,7 +54,8 @@ pub(crate) fn pause(d: &mut Domain, task: u64) {
 
 pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
     let Some(row) = d.changes.get(&pending.task) else { return };
-    let mut exempt = pending.heard.delegate_live || waits_for_dependencies(row, pending)
+    let mut exempt = pending.heard.delegate_live
+        || waits_for_dependencies(row, pending)
         || connection_wait::waiting(d, row.task, row.repository.forge);
     if let Some(owner) = step_owner(d, row.task) {
         exempt |= outage::reading(d, owner);
