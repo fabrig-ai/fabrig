@@ -312,7 +312,11 @@ fn a_failed_commit_releases_nothing_after_it() {
     let first = engine.domain.deployment().commits.checked_add(1).unwrap();
     root::try_step(&mut engine.domain, &engine.env, fixtures::period(2)).unwrap();
     root::try_step(&mut engine.domain, &engine.env, fixtures::period(3)).unwrap();
-    engine.store.host.above.push(jig_protocol_store::Event::Failed { number: first });
+    engine
+        .store
+        .host
+        .above
+        .push(jig_protocol_store::Event::Failed { number: first, why: jig_protocol_store::CommitFailure::Failed });
     engine
         .store
         .host

@@ -1,6 +1,8 @@
 //! Ordered frames synced before their accepting commit (protocol/store/README.md, 5, and protocol/store/transcripts.md, 2).
 use super::{File, Stage};
-use crate::{Arrived, Below, Event, Limits, Phase, Root, Store, Write, commits, transcripts};
+use crate::{
+    Arrived, Below, CommitCheck, CommitFailure, Event, Limits, Phase, Root, Store, Write, commits, transcripts,
+};
 use alloc::boxed::Box;
 use skein_io::{file, kernel::Error};
 use skein_lib::{Env, Queue, Token};
@@ -16,32 +18,32 @@ pub(crate) fn begin(
     let due = match store.phase {
         Phase::Ready { next, format_due } => {
             if number != next || number <= store.stores.store.last() {
-                transcripts::failed(store, Some(number), above);
+                transcripts::failed(store, Some(number), CommitFailure::Check(CommitCheck::Number), above);
                 return;
             }
             format_due
         }
         Phase::Closed => {
-            transcripts::failed(store, Some(number), above);
+            transcripts::failed(store, Some(number), CommitFailure::Check(CommitCheck::Closed), above);
             return;
         }
         Phase::Stopped => return,
     };
     if store.transcripts.current.is_some() && store.transcripts.queue.room() == 0 {
-        transcripts::failed(store, Some(number), above);
+        transcripts::failed(store, Some(number), CommitFailure::Check(CommitCheck::Queue), above);
         return;
     }
     let pending = match commits::operations(store, number, writes, due) {
         Ok(pending) => pending,
-        Err(commits::Refusal::Failed) => {
-            transcripts::failed(store, Some(number), above);
+        Err(commits::Refusal::Check(check)) => {
+            transcripts::failed(store, Some(number), CommitFailure::Check(check), above);
             return;
         }
         Err(commits::Refusal::FrameTooLarge { task, bytes, limit }) => {
             // Match ordinary failure ordering: this terminal first, then all
             // earlier pending commits. Never also fail this number generically.
             above.push(Event::FrameTooLarge { number, task, bytes, limit });
-            transcripts::failed(store, None, above);
+            transcripts::failed(store, None, CommitFailure::Stopped, above);
             return;
         }
     };
@@ -141,7 +143,7 @@ fn open(store: &mut Store, below: &mut Below) {
 }
 fn write(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {
     let Some(touch) = store.transcripts.touch.checked_add(1) else {
-        transcripts::failed(store, None, above);
+        transcripts::failed(store, None, CommitFailure::Transcript, above);
         return;
     };
     store.transcripts.touch = touch;
@@ -160,7 +162,7 @@ fn file_opened(store: &mut Store, file: Token, readable: bool, above: &mut Queue
         .insert(task, File { token: file, touched: store.transcripts.touch, writable: true, readable })
         .is_err()
     {
-        transcripts::failed(store, None, above);
+        transcripts::failed(store, None, CommitFailure::Transcript, above);
         return;
     }
     write(store, above, below);
@@ -241,7 +243,7 @@ pub(crate) fn arrived(
     below: &mut Below,
 ) {
     let Some(arrived) = arrival(arrived) else {
-        transcripts::failed(store, None, above);
+        transcripts::failed(store, None, CommitFailure::Transcript, above);
         return;
     };
     let stage = core::mem::replace(&mut store.transcripts.stage, Stage::Idle);
@@ -249,7 +251,7 @@ pub(crate) fn arrived(
         Stage::Opening => opening(store, arrived, above, below),
         Stage::Evicting { task } => {
             if arrived.kind != Kind::Closed {
-                transcripts::failed(store, None, above);
+                transcripts::failed(store, None, CommitFailure::Transcript, above);
                 return;
             }
             let _: Option<File> = store.transcripts.files.remove(&task);
@@ -262,12 +264,12 @@ pub(crate) fn arrived(
             } else if arrived.kind == Kind::Exists {
                 directory_open(store, below);
             } else {
-                transcripts::failed(store, None, above);
+                transcripts::failed(store, None, CommitFailure::Transcript, above);
             }
         }
         Stage::RootSync => {
             if arrived.kind != Kind::Synced {
-                transcripts::failed(store, None, above);
+                transcripts::failed(store, None, CommitFailure::Transcript, above);
                 return;
             }
             directory_open(store, below);
@@ -275,14 +277,14 @@ pub(crate) fn arrived(
         Stage::DirectoryOpen => created_directory(store, arrived, above, below),
         Stage::Creating => {
             if arrived.kind != Kind::Opened {
-                transcripts::failed(store, None, above);
+                transcripts::failed(store, None, CommitFailure::Transcript, above);
                 return;
             }
             file_opened(store, arrived.file.expect("file opened token"), false, above, below);
         }
         Stage::Writing => {
             if arrived.kind != Kind::Written {
-                transcripts::failed(store, None, above);
+                transcripts::failed(store, None, CommitFailure::Transcript, above);
                 return;
             }
             store.transcripts.stage = Stage::Syncing;
@@ -291,7 +293,7 @@ pub(crate) fn arrived(
         }
         Stage::Syncing => {
             if arrived.kind != Kind::Synced {
-                transcripts::failed(store, None, above);
+                transcripts::failed(store, None, CommitFailure::Transcript, above);
                 return;
             }
             match store.transcripts.directory {
@@ -304,7 +306,7 @@ pub(crate) fn arrived(
         }
         Stage::DirectorySync => {
             if arrived.kind != Kind::Synced {
-                transcripts::failed(store, None, above);
+                transcripts::failed(store, None, CommitFailure::Transcript, above);
                 return;
             }
             let directory = store.transcripts.directory.expect("created file directory");
@@ -313,13 +315,13 @@ pub(crate) fn arrived(
         }
         Stage::DirectoryClose => {
             if arrived.kind != Kind::Closed {
-                transcripts::failed(store, None, above);
+                transcripts::failed(store, None, CommitFailure::Transcript, above);
                 return;
             }
             store.transcripts.directory = None;
             finish(store, env, above, below);
         }
-        Stage::Idle | Stage::Dropping => transcripts::failed(store, None, above),
+        Stage::Idle | Stage::Dropping => transcripts::failed(store, None, CommitFailure::Transcript, above),
     }
 }
 
@@ -335,17 +337,17 @@ fn opening(store: &mut Store, arrived: Arrival, above: &mut Queue<Event>, below:
             mode: 0o700,
         });
     } else {
-        transcripts::failed(store, None, above);
+        transcripts::failed(store, None, CommitFailure::Transcript, above);
     }
 }
 
 fn created_directory(store: &mut Store, arrived: Arrival, above: &mut Queue<Event>, below: &mut Below) {
     if arrived.kind != Kind::Opened {
-        transcripts::failed(store, None, above);
+        transcripts::failed(store, None, CommitFailure::Transcript, above);
         return;
     }
     let Some(fd) = arrived.fd else {
-        transcripts::failed(store, None, above);
+        transcripts::failed(store, None, CommitFailure::Transcript, above);
         return;
     };
     let file = arrived.file.expect("directory opened token");
