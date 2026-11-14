@@ -176,6 +176,11 @@ fn a_red_batch_is_narrowed_before_the_remaining_change_lands() {
 }
 
 #[test]
+fn a_copied_projects_red_member_repairs_and_lands_later() {
+    deployment_turn("copied-red-repaired", support::batch_landing::deployment::run_repaired);
+}
+
+#[test]
 fn a_deployment_sized_repository_root_lands_by_turn() {
     deployment_turn("deployment-root", support::batch_landing::deployment::run_green);
 }

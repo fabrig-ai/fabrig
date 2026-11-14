@@ -13,13 +13,23 @@ use std::{fs, path::Path};
 /// Use the shipped document's standard profiles and declared-message sizing.
 /// A copied project retains its grants when its prepare executor is added.
 pub fn configure(root: &Path, repository: u64) {
-    turn_restart::configure_batch(root, repository, 1);
+    configure_standard(root, repository, 1);
+    write_private(&root.join("copied-project.json"), b"{}");
+}
+
+/// Shipped capacities, with the explicit member and branch bounds a larger batch needs.
+pub fn configure_standard(root: &Path, repository: u64, batch: u16) {
+    turn_restart::configure_batch(root, repository, batch);
     let path = root.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     let shipped: Value = serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/temper.json"))
         .expect("shipped deployment");
     for part in ["engine", "application"] {
         value[part]["limits"] = shipped[part]["limits"].clone();
+    }
+    if batch > 2 {
+        value["application"]["limits"]["overrides"]["forge.landing_members"] = batch.into();
+        value["application"]["limits"]["overrides"]["forge.resources_per_task"] = (u32::from(batch) + 1).into();
     }
     value["workers"][0]["limits"] = shipped["workers"][0]["limits"].clone();
     value["workers"][0]["slots"] = shipped["workers"][0]["slots"].clone();
@@ -32,7 +42,6 @@ pub fn configure(root: &Path, repository: u64) {
     crate::configuration::turn_bounds::apply(&mut value, crate::configuration::turn_bounds::turn_body(&agent));
     write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
-    write_private(&root.join("copied-project.json"), b"{}");
 }
 
 pub(super) fn setup_count(root: &Path) -> usize {
@@ -119,7 +128,7 @@ pub(super) fn repair_script(scripts: &mut Vec<Script>) {
 }
 
 impl Judge<'_> {
-    pub(super) fn deployment_step(&mut self, procs: &mut [Process]) -> Result<(), String> {
+    fn goal_starting(&mut self, procs: &mut [Process]) -> Result<bool, String> {
         if let Phase::StartGoal = self.phase {
             self.amends = super::calls(procs)?.ends().len();
             super::calls(procs)?.push(ctl::Step::Run(
@@ -139,35 +148,41 @@ impl Judge<'_> {
                 .in_directory("private"),
             ));
             self.phase = Phase::GoalGates;
-            return Ok(());
+            return Ok(true);
         }
         if let Phase::GoalGates = self.phase {
             let calls = super::calls(procs)?;
-            let Some(ended) = calls.ends().get(self.amends) else { return Ok(()) };
+            let Some(ended) = calls.ends().get(self.amends) else { return Ok(true) };
             if ended.exit != Some(skein_io::kernel::Exit::Code(0)) {
                 return Err(format!("goal start: {}", String::from_utf8_lossy(&ended.stderr)));
             }
             let change = match self.change(4) {
                 Ok(change) => change,
-                Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(()),
+                Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(true),
                 Err(why) => return Err(why),
             };
             if change["step"] == "gating" {
                 release(procs, b"batch-reviews")?;
                 self.phase = Phase::Batch;
             }
-            return Ok(());
+            return Ok(true);
         }
         if let Phase::GoalEnding = self.phase {
             release(procs, b"goal-finish")?;
             if self.read(&["task", "show", "3"])?["chip"]["phase"] == "ended" {
                 self.phase = Phase::Ending;
             }
-            return Ok(());
+            return Ok(true);
         }
+        Ok(false)
+    }
+    pub(super) fn deployment_step(&mut self, procs: &mut [Process]) -> Result<(), String> {
+        if self.goal_starting(procs)? { return Ok(()); }
         let first = self.first.as_ref().ok_or("first proof")?;
         let task = first.panel["task"].as_u64().ok_or("landing task")?;
         let panel = self.landing(task)?;
+        let owner = self.read(&["task", "show", &task.to_string()])?;
+        if !owner["hold"].is_null() { return Err(format!("landing {task} held: {}", owner["hold"])); }
         let change_task = if matches!(self.story, Story::Conflict | Story::MidProof) { 4 } else { 3 };
         let change = self.change(change_task)?;
         self.observe(0, json!({"landing":panel,"change":change}));
@@ -207,9 +222,9 @@ impl Judge<'_> {
             self.phase = Phase::Resolved;
         }
         if let Phase::Repair = self.phase {
-            if change["step"] != "repairing" || panel["phase"] != "ended" {
-                return Ok(());
-            }
+            if change["step"] != "repairing" { return Ok(()); }
+            release(procs, b"deployment-repair")?;
+            if panel["phase"] != "ended" { return Ok(()); }
             if members(&panel)?[0]["left"].is_null() || !members(&panel)?[0]["landed"].is_null() {
                 return Err("the failed member left without landing".into());
             }
