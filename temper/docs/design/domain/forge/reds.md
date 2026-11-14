@@ -217,8 +217,8 @@ section 9.
 - **Its versions:** `jig-worker-wire` and `temper-worker-wire` each move
   by one, with their kept texts and bridges (jig's
   `protocol/channel/bridges.md`). A worker of the previous versions
-  never asks, so its checks have no reds file, as a tree without the
-  list has none (`../../draft/branch-reds.md`, 10). A worker of these
+  never asks, so its checks have no reds file, and judge every lint or
+  test failure as the delivery's (`../../draft/branch-reds.md`, 10). A worker of these
   versions meeting an engine of the previous ones can't send `ask` down,
   so it closes its channel at the statement and the engine goes first
   (jig's `protocol/channel/bridges.md`, 6.3).
