@@ -157,3 +157,51 @@ fn cutting_a_waiting_receive_closes_its_socket_and_wakes_the_peer() {
     world.settled(cut);
     world.settled(peer);
 }
+
+#[test]
+fn a_cut_at_each_hard_link_and_directory_sync_keeps_only_synced_names() {
+    for seed in [0, 1, 17] {
+        for before in 0..=2 {
+            let mut world = World::calm();
+            let pid = world.spawn();
+            let root = world.root(pid, &[Item::file(b"a", OLD), Item::directory(b"target")]);
+            let target = world.open(pid, root, b"target", OpenHow::Directory).expect("target directory");
+            for operation in 0..before {
+                let op = match operation {
+                    0 => Op::HardLink {
+                        from_dir: root,
+                        from: Box::from(b"a".as_slice()),
+                        to_dir: target,
+                        to: Box::from(b"b".as_slice()),
+                    },
+                    1 => Op::Sync { fd: target },
+                    _ => panic!("two sequence operations"),
+                };
+                assert_eq!(world.call(pid, op).result, Ok(Done::Nothing));
+            }
+            let handles = world.sim.cut(pid);
+            close_handles(&mut world, &handles);
+            world.machine.crash(seed);
+            world.settled(pid);
+            let opened = world.machine.reopen_root(0);
+            let restarted = world.spawn();
+            let root = world.sim.root(restarted, Handle::new(opened.raw()));
+            let a = world.open(restarted, root, b"a", OpenHow::Read).expect("source survives");
+            assert_eq!(world.stat(restarted, a).expect("source stat").links, if before == 2 { 2 } else { 1 });
+            assert_eq!(world.read(restarted, a, 0, 64), Ok(OLD.to_vec()), "source bytes whole");
+            let b = world.open(restarted, root, b"target/b", OpenHow::Read);
+            if before == 2 {
+                let b = b.expect("synced second name survives");
+                assert_eq!(world.stat(restarted, b).expect("target stat").links, 2);
+                assert_eq!(world.read(restarted, b, 0, 64), Ok(OLD.to_vec()), "target bytes whole");
+                world.close(restarted, b);
+            } else {
+                assert_eq!(b, Err(skein_io::kernel::Error::NotFound), "unsynced second name is gone");
+            }
+            world.close(restarted, a);
+            world.close(restarted, root);
+            world.settled(restarted);
+            assert_eq!(world.machine.open_handles(), 0);
+        }
+    }
+}

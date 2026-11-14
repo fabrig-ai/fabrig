@@ -1,6 +1,6 @@
 # store: status
 
-2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+2026-11-13. Where jig's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 4.4: the people child keeps no deleted project's mark [in flight: change 629].
 

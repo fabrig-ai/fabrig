@@ -2,7 +2,7 @@
 //!
 //! # The `unsafe`, and why it is sound
 //!
-//! Open, rename, unlink, mkdir and access borrow NUL-terminated local paths
+//! Open, rename, link, unlink, mkdir and access borrow NUL-terminated local paths
 //! only until return. Stat output is an initialized exclusive C record.
 //! Pread/pwrite/read/write borrow slices of exactly their supplied lengths;
 //! io validates offsets before submission. Fcntl, flock and truncate take
@@ -144,6 +144,14 @@ pub(crate) fn rename(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8], no_replac
         status(unsafe { libc::renameat(from_dir.raw(), from.as_ptr(), to_dir.raw(), to.as_ptr()) })
     }
 }
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
+pub(crate) fn hard_link(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8]) -> Result<(), i32> {
+    let from = c_path(from)?;
+    let to = c_path(to)?;
+    // SAFETY: both names are terminated locals borrowed only during linkat.
+    status(unsafe { libc::linkat(from_dir.raw(), from.as_ptr().cast(), to_dir.raw(), to.as_ptr().cast(), 0) })
+}
+
 /// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn remove(dir: Fd, name: &[u8], directory: bool) -> Result<(), i32> {
     let name = c_path(name)?;

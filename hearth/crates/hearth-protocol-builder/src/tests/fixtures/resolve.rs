@@ -136,6 +136,7 @@ impl Layer {
             | file::Request::WriteAt { .. }
             | file::Request::ReadAt { .. }
             | file::Request::Cut { .. }
+            | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::List { .. } => panic!("resolve scratch operation"),
         };

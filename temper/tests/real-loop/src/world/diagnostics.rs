@@ -184,6 +184,7 @@ fn kind(op: &Op) -> &'static str {
         Op::Lock { .. } => "lock",
         Op::Stat { .. } => "stat",
         Op::Rename { .. } => "rename",
+        Op::HardLink { .. } => "hard-link",
         Op::Remove { .. } => "remove",
         Op::MakeDirectory { .. } => "make-directory",
         Op::List { .. } => "list",

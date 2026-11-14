@@ -368,6 +368,7 @@ impl Store {
             | file::Event::Written { .. }
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. } => unreachable!("store request terminal"),
         };
         Some(event)

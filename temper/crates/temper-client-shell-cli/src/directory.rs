@@ -389,6 +389,7 @@ impl Directory {
             | file::Event::Written { .. }
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. }
             | file::Event::Removed { .. }
             | file::Event::Listed { .. }
@@ -708,6 +709,7 @@ fn answer_words(event: &file::Event) -> String {
         | file::Event::Cut { .. }
         | file::Event::Synced { .. }
         | file::Event::Closed { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Removed { .. }
         | file::Event::Listed { .. }

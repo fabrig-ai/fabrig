@@ -26,6 +26,7 @@ pub enum Seen {
     Write { bytes: u32 },
     SyncFile,
     Rename { from: Box<[u8]>, to: Box<[u8]> },
+    Link { from: Box<[u8]>, to: Box<[u8]> },
     Lock,
     Load,
     Make(Box<[u8]>),
@@ -46,6 +47,7 @@ fn seen(request: &file::Request) -> Seen {
         }
         file::Request::Sync { .. } => Seen::SyncFile,
         file::Request::Rename { from, to, .. } => Seen::Rename { from: from.clone(), to: to.clone() },
+        file::Request::HardLink { from, to, .. } => Seen::Link { from: from.clone(), to: to.clone() },
         file::Request::Lock { .. } => Seen::Lock,
         file::Request::Load { .. } => Seen::Load,
         file::Request::MakeDirectory { path, .. } => Seen::Make(path.clone()),
@@ -82,6 +84,7 @@ pub struct Disk {
     operations: u32,
     starts: u64,
     requests: Vec<(usize, Seen)>,
+    link_error: Option<skein_io::kernel::Error>,
 }
 pub fn file_limits() -> FileLimits {
     let skein_kv::Limits { chunk: read, deadline: timeout, .. } = store_limits().store;
@@ -117,6 +120,7 @@ impl Disk {
             operations: 0,
             starts: 0,
             requests: Vec::new(),
+            link_error: None,
         }
     }
     pub fn root(&self) -> Root {
@@ -193,6 +197,12 @@ impl Disk {
     }
     pub fn file(&mut self, driver: usize, request: file::Request) -> Arrived {
         self.requests.push((driver, seen(&request)));
+        if let (Some(error), file::Request::HardLink { owner, .. }) = (self.link_error, &request) {
+            return Arrived {
+                event: file::Event::Failed { owner: *owner, error, committed: false, residue: None },
+                fd: None,
+            };
+        }
         let io = &mut self.io[driver];
         assert!(io.takes());
         let mut events = Queue::with_capacity(QUEUE);
@@ -250,6 +260,15 @@ impl Disk {
         self.cut = None;
         self.operations = 0;
         self.requests.clear();
+    }
+    pub fn refuse_links(&mut self, error: skein_io::kernel::Error) {
+        self.link_error = Some(error);
+    }
+    pub fn links(&mut self, path: &[u8]) -> u32 {
+        let file = self.machine.open(self.handle, path, How::PathNoFollow).expect("path stands");
+        let links = self.machine.stat(file).links;
+        self.machine.close(file);
+        links
     }
     pub fn bytes(&mut self, path: &[u8]) -> Box<[u8]> {
         let file = self.machine.open(self.handle, path, How::ReadNoFollow).expect("file stands");

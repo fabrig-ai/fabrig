@@ -56,7 +56,9 @@ pub struct Call {
 #[derive(PartialEq, Eq)]
 pub enum Ask {
     /// An exclusive lock through this handle, or Busy while another holds it.
-    Lock { file: Handle },
+    Lock {
+        file: Handle,
+    },
     /// Identify a program beneath `root`, in `dir`, and start its modeled
     /// behavior with exactly the requested child descriptors.
     Spawn {
@@ -70,34 +72,82 @@ pub enum Ask {
     /// `path`, resolved beneath the directory `root` names as `openat2`
     /// resolves with `RESOLVE_BENEATH | RESOLVE_NO_MAGICLINKS`, opened as
     /// `how` says: [`Reply::Opened`], a handle never issued before.
-    Open { root: Handle, path: Box<[u8]>, how: OpenHow },
+    Open {
+        root: Handle,
+        path: Box<[u8]>,
+        how: OpenHow,
+    },
     /// The file's bytes from `at`, `len` of them or as many as there are:
     /// [`Reply::Read`], empty at or past its end.
-    Read { file: Handle, at: u64, len: u32 },
+    Read {
+        file: Handle,
+        at: u64,
+        len: u32,
+    },
     /// `bytes`, every one, written at `at`: [`Reply::Done`].
-    Write { file: Handle, at: u64, bytes: Box<[u8]> },
+    Write {
+        file: Handle,
+        at: u64,
+        bytes: Box<[u8]>,
+    },
     /// `bytes` written whole at the file's end when this call is delivered: [`Reply::Done`].
-    Append { file: Handle, bytes: Box<[u8]> },
+    Append {
+        file: Handle,
+        bytes: Box<[u8]>,
+    },
     /// Sets an existing writable file's length: [`Reply::Done`].
-    Truncate { file: Handle, length: u64 },
+    Truncate {
+        file: Handle,
+        length: u64,
+    },
     /// [`Reply::Done`].
-    Sync { file: Handle },
+    Sync {
+        file: Handle,
+    },
     /// [`Reply::Stat`].
-    Stat { file: Handle },
+    Stat {
+        file: Handle,
+    },
     /// Moves the entry atomically; with `no_replace`, a taken target
     /// answers `Exists`, otherwise it replaces it: [`Reply::Done`].
-    Rename { from_dir: Handle, from: Box<[u8]>, to_dir: Handle, to: Box<[u8]>, no_replace: bool },
+    HardLink {
+        from_dir: Handle,
+        from: Box<[u8]>,
+        to_dir: Handle,
+        to: Box<[u8]>,
+    },
+    Rename {
+        from_dir: Handle,
+        from: Box<[u8]>,
+        to_dir: Handle,
+        to: Box<[u8]>,
+        no_replace: bool,
+    },
     /// [`Reply::Done`].
-    Remove { dir: Handle, name: Box<[u8]>, directory: bool },
+    Remove {
+        dir: Handle,
+        name: Box<[u8]>,
+        directory: bool,
+    },
     /// [`Reply::Done`].
-    MakeDirectory { dir: Handle, name: Box<[u8]>, mode: u32 },
+    MakeDirectory {
+        dir: Handle,
+        name: Box<[u8]>,
+        mode: u32,
+    },
     /// The next entries of the directory, from where the last `List` of
     /// this handle stopped: at most `most`, their names `room` bytes
     /// together at most, and at least one while any is left. `room` is at
     /// least the longest name: [`Reply::Listed`].
-    List { dir: Handle, most: u32, room: u32 },
+    List {
+        dir: Handle,
+        most: u32,
+        room: u32,
+    },
     /// The handle is closed, and forgotten: [`Reply::Done`].
-    Close { file: Handle },
+    Close {
+        file: Handle,
+    },
 }
 
 impl core::fmt::Debug for Ask {
@@ -135,6 +185,13 @@ impl core::fmt::Debug for Ask {
                 .field("to_dir", to_dir)
                 .field("to", to)
                 .field("no_replace", no_replace)
+                .finish(),
+            Self::HardLink { from_dir, from, to_dir, to } => f
+                .debug_struct("HardLink")
+                .field("from_dir", from_dir)
+                .field("from", from)
+                .field("to_dir", to_dir)
+                .field("to", to)
                 .finish(),
             Self::Remove { dir, name, directory } => {
                 f.debug_struct("Remove").field("dir", dir).field("name", name).field("directory", directory).finish()
