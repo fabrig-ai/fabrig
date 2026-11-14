@@ -115,6 +115,9 @@ pub(super) fn effect(words: &mut List<u8>, description: &EffectDescription) {
             13 => b"edit issue",
             14 => b"set reviewers",
             15 => b"delete branch",
+            16 => b"dispatch workflow",
+            17 => b"rerun job",
+            19 => b"fast-forward branch",
             _ => b"forge effect",
         },
     );
