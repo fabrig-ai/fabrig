@@ -10,6 +10,8 @@ use crate::{
 };
 
 const LIMITS: Limits = Limits {
+    application_ask_bytes: 4,
+    application_answer_bytes: 4,
     slots: 2,
     accounts: 2,
     program_sources: 12,
@@ -1244,3 +1246,5 @@ fn a_save_is_an_unchecked_delivery_and_shares_the_delivery_slot() {
         })]
     );
 }
+
+mod asks;

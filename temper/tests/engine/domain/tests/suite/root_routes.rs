@@ -117,6 +117,7 @@ fn messages_to(driver: &Driver, run: &engine::Assignment) -> Vec<(u64, Box<[u8]>
             | host::LinkDown::Acknowledge { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::AssignJob { .. }
+            | host::LinkDown::Asked { .. }
             | host::LinkDown::Grant { .. } => None,
         })
         .collect()

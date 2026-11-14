@@ -47,6 +47,7 @@ pub const LIMITS: Limits = Limits {
     conflicts: 0,
     path_bytes: 0,
     remote_timeout: Duration::from_secs(60),
+    reds_read_ms: 5_000,
     local_timeout: Duration::from_secs(10),
     facts: 256,
 };
@@ -76,6 +77,8 @@ pub struct Settings {
     /// The chance, per mille, that io carries out an operation and then
     /// reports that it ran out of time, which leaves what it did in doubt.
     pub ambiguous: u32,
+    /// Minimum ambiguity rate on push IO alone, without risking preparation.
+    pub ambiguous_pushes: u32,
     /// The chance, per mille, that a directory the worker's first workspaces
     /// will have was left on the disk by an earlier worker.
     pub leftovers: u32,
@@ -121,6 +124,7 @@ impl Settings {
             network: Span::millis(1, 20),
             broken: 0,
             ambiguous: 0,
+            ambiguous_pushes: 0,
             leftovers: 0,
             unreachable: 0,
             refusing: 0,
@@ -187,6 +191,8 @@ pub struct Stats {
     /// whose landing a verification found; workspaces made over something
     /// already there.
     pub ambiguous: u32,
+    /// Minimum ambiguity rate on push IO alone, without risking preparation.
+    pub ambiguous_pushes: u32,
     pub verified: u32,
     pub made_over: u32,
     /// Base branches created, and found created meanwhile.
@@ -1117,7 +1123,11 @@ impl World {
         let mut work = if self.rng.chance(self.settings.broken) {
             self.stats.op_broken += 1;
             Work::Ending(Done::Failed { fault: Fault::Broken })
-        } else if self.rng.chance(self.settings.ambiguous) {
+        } else if self.rng.chance(self.settings.ambiguous.max(if op.kind() == Kind::Push {
+            self.settings.ambiguous_pushes
+        } else {
+            0
+        })) {
             self.stats.ambiguous += 1;
             Work::Ambiguous(op)
         } else {
@@ -1156,6 +1166,7 @@ impl World {
                 Some(remote.to_vec())
             }
             Op::Store { .. }
+            | Op::Reds { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Make { .. }
@@ -1277,6 +1288,7 @@ impl World {
             Op::Store { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
+            | Op::Reds { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Create { .. }
@@ -1394,7 +1406,8 @@ impl World {
                 match op {
                     Kind::Make => told.makes += 1,
                     Kind::Clone => told.clones += 1,
-                    Kind::Point
+                    Kind::Reds
+                    | Kind::Point
                     | Kind::Store
                     | Kind::Fetch
                     | Kind::Create
@@ -1523,6 +1536,7 @@ fn describe_event(event: &Event) -> String {
         Event::Cut { hold } => format!("cut {}", hold.raw()),
         Event::Release { hold } => format!("release {}", hold.raw()),
         Event::PushUnchecked { hold } => format!("save unchecked {}", hold.raw()),
+        Event::Reds { hold, action } => format!("reds {} {action:?}", hold.raw()),
         Event::Done { owner, done } => format!("done {} {done:?}", owner.raw()),
     }
 }

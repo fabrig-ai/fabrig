@@ -1267,6 +1267,7 @@ pub enum CallPayload {
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
+    Red(Box<crate::RedReply>),
 }
 
 /// The connector's durable records, wrapped by the root store.
@@ -1369,6 +1370,10 @@ pub enum Stored {
     Device(crate::Device),
     Finding(crate::Finding),
     LandedDraft(crate::LandedDraft),
+    Red(crate::Red),
+    RedNumber {
+        last: u64,
+    },
     HistoryProject(crate::history::Project),
     HistoryEvent(crate::history::Event),
     HistoryChange(crate::history::ChangeIndex),
@@ -1426,6 +1431,8 @@ pub enum Key {
     Device { party: u64, number: u32 },
     LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
     Follow { project: u32, follow: u32 },
+    Red { goal: u64, key: Box<[u8]> },
+    RedNumber,
     HistoryProject { project: u32 },
     HistoryEvent { project: u32, number: u64 },
     HistoryChange { project: u32, change: u64, number: u64 },

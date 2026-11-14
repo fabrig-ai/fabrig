@@ -1,4 +1,4 @@
-family temper-worker-wire 7
+family temper-worker-wire 8
 
 # Down: the workspace items (protocol/channel.md, 4). Names, branches and
 # the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;
@@ -42,3 +42,10 @@ record Entry { account: u64 account_login: text 256 token: secret 4096 }
 record Entries { entries: list 256 Entry }
 enum Kind { forgejo: Token, github: Entries }
 record Identity { kind: Kind login: text 256 name: text 256 email: text 256 }
+
+# A run's goal-local reds (domain/forge/reds.md, 5.4). Head lengths are checked
+# by the application's translation: SHA-1 or SHA-256.
+enum Ask { reds }
+record Red { key: bytes 512 head: bytes 32 }
+record Reds { reds: list 256 Red }
+enum Answer { reds: Reds }

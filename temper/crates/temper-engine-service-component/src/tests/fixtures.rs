@@ -990,6 +990,9 @@ fn restored_key() -> crate::Service {
 }
 
 pub fn signed_worker() -> crate::Service {
+    signed_worker_on(Token::new(7))
+}
+fn signed_worker_on(channel: Token) -> crate::Service {
     use temper_engine_domain as root;
     let mut service = restored_key();
     service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::SignedIn {
@@ -1024,7 +1027,7 @@ pub fn signed_worker() -> crate::Service {
     }));
     settle_root(&mut service, &mut skein_lib::Queue::with_capacity(32));
     service.engine.as_mut().expect("engine").step(root::Event::Worker(root::WorkerInput::Link {
-        channel: Token::new(7),
+        channel,
         link: root::Link::Hello {
             worker: 0,
             hello: jig_domain_link::Hello {
@@ -1051,15 +1054,18 @@ pub fn signed_worker() -> crate::Service {
     }));
     settle_root(&mut service, &mut skein_lib::Queue::with_capacity(32));
     service.engine.as_mut().expect("engine").step(root::Event::Worker(root::WorkerInput::Link {
-        channel: Token::new(7),
+        channel,
         link: root::Link::Up { up: host::LinkUp::Logins { logins: Box::new([]) }, parts: root::Parts::none() },
     }));
     settle_root(&mut service, &mut skein_lib::Queue::with_capacity(32));
     service
 }
 pub fn claimed_chat() -> (crate::Service, temper_engine_domain::Assignment) {
+    claimed_chat_on(Token::new(7))
+}
+pub fn claimed_chat_on(channel: Token) -> (crate::Service, temper_engine_domain::Assignment) {
     use temper_engine_domain as root;
-    let mut service = signed_worker();
+    let mut service = signed_worker_on(channel);
     service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::Ask {
         models: Box::new([]),
         reply_to: skein_lib::ReplyTo::new(Token::new(101)),

@@ -772,6 +772,14 @@ impl Worker {
     }
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::RedsAsk { owner, check, ask } => {
+                let bytes = translate::ask(ask);
+                root::step(&mut self.root, &self.env, root::Event::RedsAsk { owner, check, bytes }, &mut self.out);
+            }
+            root::Request::RedsAnswer { owner, check, bytes } => {
+                let answer = translate::answer(&bytes, &self.payload);
+                root::step(&mut self.root, &self.env, root::Event::RedsAnswer { owner, check, answer }, &mut self.out);
+            }
             root::Request::ReadList { read, endpoint, grant } => self.read_list(read, endpoint, grant),
             root::Request::CancelRead { read } => {
                 let settled = self.sources.cancel_read(read, &mut self.io);

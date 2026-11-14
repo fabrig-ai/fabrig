@@ -1,9 +1,11 @@
 # The playground world's native heap
 
 These are native counting-allocator bytes, not browser memory or resident size.
-The playground binary's test holds the service's 2026-11-13 figures below
-with a quarter's margin rounded up to two significant digits. Other
-regression bounds retain their 2026-11-12 figures plus a quarter
+The playground binary's test holds the service's first-step held bytes from
+the 2026-11-14 worker-wire v8 table below and its first-step peak from the
+2026-11-13 worker-wire v7 table, each with a quarter's margin rounded up to
+two significant digits. The other service ceilings retain the earlier
+2026-11-13 table; nonservice regression bounds retain their 2026-11-12 figures plus a quarter
 ([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
 the memory's bar itself to the user.
 
@@ -105,7 +107,7 @@ and implementer charters, up from 11,451 bytes. Service held growth is
 21,734-byte text growth: this points to multiple owned copies of the text,
 not one copy. These snapshots do not attribute each allocation to a copy.
 
-Measured 2026-11-13 (`date -u`), on a builder, from source commit
+The earlier service table was measured 2026-11-13 (`date -u`), on a builder, from source commit
 `157d31cc0c709e45cd720859f78706992c613e6c` on `temper62287/c2316`.
 Every figure below came from one run of
 `story_as_world_at_its_first_step_and_start`, with comparisons suspended
@@ -133,6 +135,79 @@ changes and is identical in that control: LLM +136, forge +264, shared forge
 move: each measured figure plus a quarter, rounded up to two significant
 digits, giving 340,000/530,000 bytes at the first step and 600,000/760,000
 at start (held/peak). Every nonservice ceiling stays unchanged.
+
+### Earlier service table: worker-wire v7
+
+Measured 2026-11-13 (`date -u`), on `temper62476/c2513`, with
+`temper-worker-wire` 7, keeping versions 5 and 6 and their bridges. Every
+figure in this table came from one run of
+`story_as_world_at_its_first_step_and_start`, with only the service's
+regression comparisons suspended for measurement and restored afterwards.
+First step takes one world step; start takes 159 world steps.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 335,856 | 551,403 | 552,917 | 676,965 |
+| 1: fake LLM | 27,585 | 27,585 | 28,321 | 28,321 |
+| 2: fake forge HTTP | 30,394 | 30,394 | 31,135 | 31,179 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,450 | 5,991 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,393 | 250,419 |
+| Shared forge before start | 7,229 | not separately measured at start |
+
+The same opaque-Application control, with temper's parsed bridge and roots
+removed but its wire statement unchanged, measures service held/peak at
+245,460/461,007 bytes at the first step and 462,521/586,569 at start. Parsed
+bridges and roots account for 90,396 bytes in each figure. Against the
+earlier control's 20,518 first-step held bytes, that is 69,878 more bytes
+for the additional kept version, forward/reverse plans and roots. The
+remaining 1,293 bytes of first-step held growth also occur in the opaque
+control. The measurement control is removed after the comparison.
+
+Only the exceeded service first-step peak ceiling moves: 551,403 plus a
+quarter is 689,253.75, rounded up to two significant digits gives 690,000
+bytes, replacing 530,000. The service's first-step held and start held/peak
+ceilings remain 340,000 and 600,000/760,000. Nonservice figures are identical
+in the opaque control. Against the earlier table, git's start peak is one
+byte higher and the fake disk's start retained heap is 802 bytes higher;
+both remain within their unchanged ceilings. No runtime limit changes.
+
+### Current service table: worker-wire v8
+
+Measured 2026-11-14 (`date -u`), on `temper62476/g2476` after main's
+landing-history H1 merged into it, with `temper-worker-wire` 8, keeping
+versions 5, 6 and 7 and their bridges, where main keeps 5 and 6 under 7.
+Every figure in this table came from one run of
+`story_as_world_at_its_first_step_and_start`, with comparisons suspended
+only for measurement and restored afterwards. First step takes one world
+step; start takes 159 world steps.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 368,044 | 583,291 | 586,129 | 710,081 |
+| 1: fake LLM | 27,585 | 27,585 | 28,321 | 28,321 |
+| 2: fake forge HTTP | 30,394 | 30,394 | 31,135 | 31,179 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,450 | 5,991 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,393 | 250,451 |
+| Shared forge before start | 7,229 | not separately measured at start |
+
+Against the v7 table, the service grows 32,188 held and 31,888 peak bytes at
+the first step and 33,212/33,116 at start; this run isolated no control, so
+the growth is attributed to the further kept version and its bridge and
+roots by the version count alone. Nonservice figures are unchanged but the
+fake disk's start retained heap, 32 bytes higher.
+
+Only the exceeded service first-step held ceiling moves: 368,044 plus a
+quarter is 460,055, rounded up to two significant digits gives 470,000
+bytes, replacing 340,000. The service's first-step peak stays 690,000 and
+its start held/peak 600,000/760,000. No runtime limit changes.
 
 The following one-process observation is the unbound 2026-11-08 measurement;
 its ignored test has no active figures to repin. The one-process binary takes the same entry as

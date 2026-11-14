@@ -142,3 +142,36 @@ fn shared_limits_grammar_checks_names_and_integer_representations() {
         }
     }
 }
+
+#[test]
+fn reds_wait_is_stock_in_both_profiles_and_outside_its_range_names_the_override() {
+    use crate::startup::{
+        configured_limits,
+        problems::{SharedProblems, render_problem},
+    };
+    use jig_protocol_config::{self as config, Path};
+    use skein_lib::Writer;
+    for profile in [Profile::Small, Profile::Standard] {
+        assert_eq!(limits::profile(profile).checkout.reds_read_ms, 5_000);
+    }
+    for value in [100, 60_000] {
+        let mut shared = limits::profile(Profile::Small);
+        limits::apply(&mut shared, b"checkout.reds_read_ms", value).unwrap();
+        assert_eq!(u64::from(shared.checkout.reds_read_ms), value);
+    }
+    for input in [
+        br#"{"profile":"small","overrides":{"checkout.reds_read_ms":99}}"#.as_slice(),
+        br#"{"profile":"small","overrides":{"checkout.reds_read_ms":60001}}"#,
+    ] {
+        let document = config::document(input, &config::DocumentLimits { bytes: 1024, tokens: 128, depth: 8 }).unwrap();
+        let mut problems = SharedProblems::empty();
+        let path = Path::root().member(b"limits");
+        let _limits = configured_limits(&document, 0, &path, &mut problems);
+        assert!(!problems.is_empty());
+        let problem = problems.problems.get(0).unwrap();
+        let size = render_problem(problem, &mut Writer::new(0), true);
+        let mut out = Writer::new(size);
+        render_problem(problem, &mut out, false);
+        assert!(skein_lib::bytes::find(&out.finish(), b"checkout.reds_read_ms").is_some());
+    }
+}

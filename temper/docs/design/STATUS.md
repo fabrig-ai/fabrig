@@ -147,7 +147,17 @@ and printed by `temper ctl follow list`, "dependency 1: fabrig depends
 on vsr-rs"; nothing acts on it, and Home on All projects' What follows
 what draws it beside the follows, from the first four projects'
 `follows` documents (`client/pages/home.md`, 1), within a shipped
-client's 26 watches (`protocol/configuration/limits.md`).
+client's 26 watches (`protocol/configuration/limits.md`). A goal's reds
+are temper's records, milestone B1 of `draft/branch-reds.md`
+(`domain/forge/reds.md`). A goal's coordinator records and ends them with
+the `red` tool, at most `forge.branch_reds` a goal. At each check's start
+the worker asks the engine for them through an application's ask on
+jig's channel (jig's `domain/hosts/hub.md`, 10), and writes those whose
+commit the check's base contains to `temper/reds`, which fabrig's
+delivery check reads beside `.temper/known-reds.md`, its cache keyed on
+the file. Reds end by the tool or with their goal; ending by what lands,
+flakes and the list's removal are B2 and B3
+(`draft/branch-reds.status.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need
@@ -332,6 +342,7 @@ Design documents:
 - [`domain/forge/issues.md`](domain/forge/issues.status.md)
 - [`domain/forge/keeping-up.md`](domain/forge/keeping-up.status.md)
 - [`domain/forge/queues.md`](domain/forge/queues.status.md)
+- [`domain/forge/reds.md`](domain/forge/reds.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/landing-history.md`](domain/landing-history.status.md)
@@ -401,6 +412,7 @@ Drafts:
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
+- [`draft/branch-reds.md`](draft/branch-reds.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)

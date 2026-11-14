@@ -185,7 +185,7 @@ pub(super) fn after(holding: &mut Holding, repository: u32, step: Step, done: Do
             Step::MainCheckout => next(repository, Step::MainMerge),
             Step::Advance | Step::Restore => {
                 if skein_lib::usize_of(stack(holding).outcomes.len()) == count {
-                    Next::Ready
+                    super::reds_prepare(holding, 0)
                 } else {
                     next(repository, Step::Head)
                 }

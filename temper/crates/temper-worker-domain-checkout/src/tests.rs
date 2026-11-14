@@ -20,6 +20,7 @@ const LIMITS: Limits = Limits {
     conflicts: 0,
     path_bytes: 0,
     remote_timeout: Duration::from_secs(60),
+    reds_read_ms: 5_000,
     local_timeout: Duration::from_secs(10),
     facts: 64,
 };
@@ -37,6 +38,7 @@ fn merge_spec() -> Spec {
 
 /// The domain, its environment and its output queue.
 struct Harness {
+    observe_reds: bool,
     domain: Domain,
     env: Env<Limits>,
     out: Queue<Request>,
@@ -46,6 +48,7 @@ impl Harness {
     fn new(limits: Limits) -> Harness {
         assert!(valid(&limits), "the test limits are valid");
         Harness {
+            observe_reds: false,
             domain: Domain::new(&limits),
             env: Env { now: NOW, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
@@ -62,6 +65,7 @@ impl Harness {
     /// as the loop would at the end of the iteration.
     fn step(&mut self, event: Event) -> List<Request> {
         step(&mut self.domain, &self.env, event, &mut self.out);
+        self.prepare_files();
         let mut requests = List::uncapped();
         while let Some(request) = self.out.pop() {
             requests.push(request).expect("the request collection can grow");
@@ -73,6 +77,7 @@ impl Harness {
     /// Steps the domain with `event`, which emits exactly one request.
     fn one(&mut self, event: Event) -> Request {
         step(&mut self.domain, &self.env, event, &mut self.out);
+        self.prepare_files();
         let request = self.out.pop().expect("one request");
         assert!(self.out.is_empty(), "only one: {:?} after {request:?}", self.out);
         self.domain.reclaim();
@@ -132,7 +137,8 @@ impl Harness {
                 Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
                 Op::Merge { .. } => Done::Merged,
-                Op::Store { .. }
+                Op::Reds { .. }
+                | Op::Store { .. }
                 | Op::Point { .. }
                 | Op::Make { .. }
                 | Op::Clone { .. }
@@ -161,6 +167,22 @@ impl Harness {
             }
         }
         panic!("the prepare ends");
+    }
+
+    /// Unrelated stories settle the optional prepare files immediately; the reds story observes them.
+    fn prepare_files(&mut self) {
+        if self.observe_reds {
+            return;
+        }
+        let mut kept = Queue::uncapped();
+        while let Some(request) = self.out.pop() {
+            if let Request::Io { owner, op: Op::Reds { action: crate::git::Reds::Prepare { .. }, .. }, .. } = request {
+                step(&mut self.domain, &self.env, Event::Done { owner, done: Done::Succeeded }, &mut self.out);
+            } else {
+                kept.push(request);
+            }
+        }
+        self.out = kept;
     }
 
     /// The facts told so far.
@@ -317,7 +339,8 @@ fn workspace_of(op: &Op) -> Token {
     match op {
         Op::Store { .. } => panic!("a store has no workspace"),
         Op::Make { workspace, .. } => *workspace,
-        Op::Clone { at, .. }
+        Op::Reds { at, .. }
+        | Op::Clone { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
@@ -895,7 +918,8 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
             Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
             Op::Merge { .. } => Done::Merged,
             Op::Commit { .. } => Done::Committed { commit: commit(3) },
-            Op::Point { .. }
+            Op::Reds { .. }
+            | Op::Point { .. }
             | Op::Store { .. }
             | Op::Make { .. }
             | Op::Look { .. }
@@ -1076,7 +1100,8 @@ fn pin_count(ops: &List<Op>) -> usize {
                 assert!(fetched, "start before pin");
                 count = count.checked_add(1).expect("bounded prepare");
             }
-            Op::Make { .. }
+            Op::Reds { .. }
+            | Op::Make { .. }
             | Op::Store { .. }
             | Op::Look { .. }
             | Op::Clone { .. }
@@ -1193,7 +1218,8 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                     Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
                     Op::Brings { .. } => Done::Brings { brings: false },
                     Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
-                    other @ (Op::Point { .. }
+                    other @ (Op::Reds { .. }
+                    | Op::Point { .. }
                     | Op::Store { .. }
                     | Op::Make { .. }
                     | Op::Look { .. }
@@ -1457,6 +1483,14 @@ fn a_stop_bound_cut_cancels_a_push_without_verifying_and_never_starts_another_sa
         assert_eq!(&*landings(end), &[Landing::Aborted, Landing::Aborted]);
         assert_eq!(h.one(Event::Release { hold }), Request::Released { client: Token::new(1) });
     }
+    let mut h = Harness::new(LIMITS);
+    let hold = h.ready(1, one(b"reds-cut"));
+    let _write = h.one(Event::Reds { hold, action: crate::git::Reds::Write { reds: Box::new([]) } });
+    h.none(Event::Reds { hold, action: crate::git::Reds::Write { reds: Box::new([]) } });
+    assert_eq!(h.one(Event::Cut { hold }), Request::Cancel { owner: hold });
+    h.none(Event::Done { owner: hold, done: failed(Fault::Cancelled) });
+    h.none(Event::Reds { hold, action: crate::git::Reds::Clear });
+    h.none(Event::Reds { hold, action: crate::git::Reds::Write { reds: Box::new([]) } });
 }
 
 #[test]
@@ -1895,7 +1929,8 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         Op::Fetch { account, .. } | Op::Create { account, .. } | Op::Push { account, .. } => {
             assert_eq!(account, expected);
         }
-        Op::Point { .. }
+        Op::Reds { .. }
+        | Op::Point { .. }
         | Op::Store { .. }
         | Op::Clone { .. }
         | Op::Look { .. }
@@ -2502,10 +2537,19 @@ fn queued_prepare_starts_when_ready_with_a_fresh_deadline_and_its_own_facts() {
         );
         let Some(Request::Io { owner, op, deadline }) = requests.get(1) else { panic!("the queued prepare starts") };
         assert_eq!((*owner, op.kind(), *deadline), (second, kind, h.env.now.saturating_add(timeout)));
+        let mut facts = List::uncapped();
+        for fact in h.facts().into_boxed() {
+            if let Fact::Prepared { .. } = fact {
+                facts.push(fact).expect("relevant facts");
+            } else if let Fact::Started { client: who, .. } = fact
+                && who == client
+            {
+                facts.push(fact).expect("queued client's facts");
+            }
+        }
         assert_eq!(
-            h.facts().as_slice(),
+            facts.as_slice(),
             &[
-                Fact::Ended { client: Token::new(1), done: crate::Ending::Succeeded },
                 Fact::Prepared {
                     client: Token::new(1),
                     prepared: crate::Preparation::Ready { workspace, conflicts: 0 }
@@ -2788,7 +2832,9 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
             let done = match &op {
                 Op::Store { .. } => panic!("exactly one Store per remote"),
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
-                Op::Make { .. } | Op::Point { .. } | Op::Clone { .. } | Op::CheckOut { .. } => Done::Succeeded,
+                Op::Reds { .. } | Op::Make { .. } | Op::Point { .. } | Op::Clone { .. } | Op::CheckOut { .. } => {
+                    Done::Succeeded
+                }
                 Op::Look { .. }
                 | Op::Create { .. }
                 | Op::IsAncestor { .. }
@@ -2951,3 +2997,6 @@ fn prepares_and_design_deliveries_authenticate_lazy_fetches_as_the_repository() 
         assert_eq!((identity, owner), (7, account));
     }
 }
+
+#[path = "tests/reds.rs"]
+mod reds;

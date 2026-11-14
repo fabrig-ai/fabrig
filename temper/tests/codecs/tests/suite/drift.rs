@@ -95,10 +95,10 @@ fn store_schema_matches_generated_code_and_goldens() {
         "temper-protocol-store",
         "temper-protocol-store-codec",
         "store",
-        "v21",
-        "temper_protocol_store_codec::v21",
-        "v21",
-        &["v21"],
+        "v22",
+        "temper_protocol_store_codec::v22",
+        "v22",
+        &["v22"],
     );
 }
 

@@ -64,6 +64,16 @@ pub fn settings_note(
 }
 fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
     let (body, member): (&[u8], Option<&[u8]>) = match problem {
+        Problem::ActMember { tool, member } => {
+            let mut writer = Writer::new(tool.len().saturating_add(member.len()).saturating_add(b": member ".len()).saturating_add(b" does not belong to this act".len()));
+            writer.put(tool).expect("measured tool");
+            writer.put(b": member ").expect("measured separator");
+            writer.put(&member).expect("measured member");
+            writer.put(b" does not belong to this act").expect("measured refusal");
+            return engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
+                to, answer: core::SettledAnswer::Host { error: true, body: writer.finish() },
+            });
+        }
         Problem::Malformed => (b"malformed host call", None),
         Problem::TooLarge => (b"host call too large", None),
         Problem::Missing(member) => (b"host call member missing", Some(member)),

@@ -2,6 +2,9 @@
 /// step read-only.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
+    /// Application read payload bounds (domain/hosts/hub.md, 10).
+    pub application_ask_bytes: u32,
+    pub application_answer_bytes: u32,
     /// The most bytes of one piece of live content (domain/hosts/hub.md, 5).
     pub piece_bytes: u32,
     /// Local program sources; their command lifecycle does not consume run slots.

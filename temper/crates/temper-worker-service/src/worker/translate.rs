@@ -3,6 +3,39 @@ use alloc::boxed::Box;
 use skein_lib::List;
 use temper_protocol_worker_wire::{self as wire, v1};
 
+/// Encode the worker's typed read, with the run identity supplied by jig.
+#[must_use]
+pub fn ask(ask: temper_worker_domain::wire::Ask) -> Box<[u8]> {
+    let value = match ask {
+        temper_worker_domain::wire::Ask::Reds => v1::Ask::Reds,
+    };
+    wire::ask(&value)
+}
+
+/// Decode a whole answer before handing its typed snapshot to the worker.
+#[must_use]
+pub fn answer(bytes: &[u8], limits: &v1::Limits) -> Option<temper_worker_domain::wire::Answer> {
+    use temper_worker_domain::wire as worker;
+    let mut reader = skein_lib::Reader::new(bytes);
+    let answer = v1::Answer::decode(limits, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    Some(match answer {
+        v1::Answer::Reds(value) => {
+            let mut reds = List::with_capacity(value.reds().len());
+            for red in value.into_parts().reds.into_boxed() {
+                if !wire::red_head(red.head()) {
+                    return None;
+                }
+                let parts = red.into_parts();
+                reds.push(worker::Red { key: parts.key, head: parts.head }).expect("one row per decoded red");
+            }
+            worker::Answer::Reds { reds: reds.into_boxed() }
+        }
+    })
+}
+
 /// The worker's decoded workspace with per-repository saved-work branches (protocol/channel.md, 7).
 pub type Assigned = temper_worker_domain::wire::Workspace;
 

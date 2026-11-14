@@ -486,6 +486,8 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     repositories: 2,
     tasks: 8,
     holds: 8,
+    branch_reds: 64,
+    red_key_bytes: 256,
     subscriptions: 8,
     entries: 8,
     named_calls: 16,

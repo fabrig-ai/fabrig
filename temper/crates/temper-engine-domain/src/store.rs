@@ -113,6 +113,7 @@ pub enum CallAnswer {
     },
     /// Finding snapshots for the agent tool (domain/agent/tools.md).
     Finding(Box<crate::FindingToolAnswer>),
+    Red(Box<crate::RedToolAnswer>),
     Follow(Box<crate::FollowToolAnswer>),
     /// One fresh bounded forge read, retained for named-call replay.
     ForgeRead(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
@@ -358,6 +359,7 @@ impl CallAnswer {
             }
             CallAnswer::Follow(_)
             | CallAnswer::Finding(_)
+            | CallAnswer::Red(_)
             | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::ForgeEffectRefused(_)
@@ -1203,6 +1205,14 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
             }
             crate::FollowToolAnswer::List(_) | crate::FollowToolAnswer::Show { .. } => {
                 unreachable!("follow reads have no retained answer")
+            }
+        },
+        CallAnswer::Red(answer) => match answer.as_ref() {
+            crate::RedToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref()))
+                .ok()?
+                .checked_add(temper_engine_domain_forge::reds::reply_bytes(reply)?),
+            crate::RedToolAnswer::List { .. } | crate::RedToolAnswer::NoGoal { .. } => {
+                unreachable!("red reads have no retained answer")
             }
         },
         CallAnswer::Finding(answer) => match answer.as_ref() {

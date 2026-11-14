@@ -63,6 +63,10 @@ use temper_worker_domain_tooling as tooling;
 #[derive(PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "an assignment crosses whole, as jig's reference root takes it")]
 pub enum Event {
+    /// Encoded check ask, fenced by its generation.
+    RedsAsk { owner: Token, check: u64, bytes: Box<[u8]> },
+    /// A whole answer decoded below the root.
+    RedsAnswer { owner: Token, check: u64, answer: Option<wire::Answer> },
     /// Terminal of one source command, correlated by its request owner.
     SourceAnswered { owner: Token, answer: host::sources::Answer },
     /// One endpoint list read settled below the worker root.
@@ -120,6 +124,10 @@ pub enum Event {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Encode temper’s check read before asking the hub.
+    RedsAsk { owner: Token, check: u64, ask: wire::Ask },
+    /// Decode the hub’s answer before the check uses it.
+    RedsAnswer { owner: Token, check: u64, bytes: Box<[u8]> },
     /// Read an endpoint without taking a run slot or workspace (jig's domain/hosts/README.md, 5.1).
     ReadList { read: u64, endpoint: u32, grant: jig_domain_link::Grant },
     /// Cancel a list read and settle its child before the source queue is reused.

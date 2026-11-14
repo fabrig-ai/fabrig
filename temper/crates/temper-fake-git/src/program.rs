@@ -102,7 +102,8 @@ impl<T: Transport> Git<T> {
                 Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.at, directory)));
                 }
-                Command::Format
+                Command::Reds(_)
+                | Command::Format
                 | Command::Remote { .. }
                 | Command::UpdateRef { .. }
                 | Command::SnapshotHead

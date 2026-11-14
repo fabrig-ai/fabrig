@@ -57,6 +57,8 @@ impl Settings {
         Settings {
             seed,
             host: Limits {
+                application_ask_bytes: 64,
+                application_answer_bytes: 64,
                 accounts: 4,
                 slots: 4,
                 program_sources: 12,
@@ -660,6 +662,8 @@ impl World {
             }
             Event::ListRead { .. }
             | Event::SourceAnswered { .. }
+            | Event::Ask { .. }
+            | Event::LinkLost
             | Event::SourceLost
             | Event::Down(
                 LinkDown::ReadList { .. }
@@ -669,6 +673,7 @@ impl World {
                 | LinkDown::Message { .. }
                 | LinkDown::Grant { .. }
                 | LinkDown::Cancel { .. }
+                | LinkDown::Asked { .. }
                 | LinkDown::Relayed { .. }
                 | LinkDown::TurnKept { .. },
             )
@@ -795,6 +800,7 @@ impl World {
                 | LinkUp::Unauthorized { .. }
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
+                | LinkUp::Ask { .. }
                 | LinkUp::Call { .. }
                 | LinkUp::Turn { .. }
                 | LinkUp::JobAnswer { .. },
@@ -809,6 +815,7 @@ impl World {
                 | ToAgent::Cancel { .. }
                 | ToAgent::Acknowledge { .. },
             )
+            | Request::Asked { .. }
             | Request::Job(_)
             | Request::DeliverJob { .. }
             | Request::Hello { .. }
@@ -843,6 +850,9 @@ impl World {
         self.refusals.request(&request);
         self.trace.log(self.now, format_args!("host -> {request:?}"));
         match request {
+            Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
+                unreachable!("the script does not make application asks")
+            }
             Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }

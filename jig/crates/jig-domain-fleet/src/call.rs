@@ -200,3 +200,34 @@ pub(crate) fn credential_notice(
         domain.facts.push(Fact::Dropped);
     }
 }
+
+/// Application asks keep no pending table: the root supplies their full address.
+pub(crate) fn ask(
+    domain: &mut Domain,
+    channel: Token,
+    run: Token,
+    attempt: Token,
+    number: u64,
+    bytes: Box<[u8]>,
+    out: &mut Queue<Request>,
+) {
+    if owned(domain, channel, run, attempt).is_some() {
+        out.push(Request::Ask { channel, run, attempt, number, bytes });
+    } else {
+        out.push(Request::Asked { channel, run, attempt, number, answer: jig_domain_link::AskAnswer::Refused });
+    }
+}
+
+pub(crate) fn asked(
+    domain: &mut Domain,
+    channel: Token,
+    run: Token,
+    attempt: Token,
+    number: u64,
+    answer: jig_domain_link::AskAnswer,
+    out: &mut Queue<Request>,
+) {
+    if owned(domain, channel, run, attempt).is_some() {
+        out.push(Request::Asked { channel, run, attempt, number, answer });
+    }
+}
