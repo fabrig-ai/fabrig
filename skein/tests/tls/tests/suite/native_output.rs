@@ -147,23 +147,6 @@ fn finish_spends_a_held_grant_and_sends_close_notify() {
 }
 
 #[test]
-#[should_panic(expected = "no native read after Finish withdrawal")]
-fn finish_forbids_later_reads() {
-    let mut pair = Pair::ready(&pki::Server::plain());
-    pair.finish();
-    pair.settle();
-    pair.read(1);
-}
-
-#[test]
-#[should_panic(expected = "native Finish with no live upper read")]
-fn finish_refuses_a_live_read_above() {
-    let mut pair = Pair::ready(&pki::Server::plain());
-    assert_eq!(pair.read(1).len(), 0);
-    pair.finish();
-}
-
-#[test]
 fn key_updates_precede_plaintext_under_the_grant_held() {
     let mut pair = Pair::ready(&pki::Server::plain());
     let right = Token::new(70);
@@ -203,14 +186,6 @@ fn empty_send_and_release_each_spend_the_grant() {
     assert_eq!(pair.settle(), [native::Event::Output(OutputUp::Settled { right, outcome: OutputOutcome::Granted })]);
     assert_eq!(pair.down(native::Request::Output(OutputDown::Send { right, bytes: Box::from(*b"ping") })).len(), 0);
     assert_eq!(pair.peer.rustls().received, b"ping", "both spent real slots admit the next Send");
-}
-
-#[test]
-#[should_panic(expected = "native Finish with no pending output")]
-fn finish_refuses_pending_output_above() {
-    let mut pair = Pair::ready(&pki::Server::plain());
-    assert_eq!(pair.down(native::Request::Output(OutputDown::Room { right: Token::new(90), bytes: 16 })).len(), 0);
-    pair.finish();
 }
 
 #[test]

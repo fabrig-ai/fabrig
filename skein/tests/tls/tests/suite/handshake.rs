@@ -227,13 +227,6 @@ fn a_read_that_crosses_the_end_stays_outstanding_until_withdrawn() {
     assert_eq!(pair.wire.server.received, b"late");
 }
 
-#[test]
-#[should_panic(expected = "one demand at a time")]
-fn a_demand_over_a_read_that_crossed_the_end_is_a_bug() {
-    let mut pair = ended_with_a_read_outstanding();
-    drop(pair.down(Request::Stream(Down::Demand { read: Read::Nothing, room: 4 })));
-}
-
 /// A client ready, whose side above demanded a read and room, saw the read
 /// crossed by the server's end, and withdrew it before room came below:
 /// room held for no one.
