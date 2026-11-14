@@ -10,9 +10,7 @@ smith/crates/smith-local-protocol/src/tests/store.rs should_panic 3
 smith/crates/smith-protocol-machine/src/tests/routing.rs should_panic 1
 smith/tests/end-to-end/fake_lookup.rs should_panic 2
 smith/tests/host/tests/suite/referee.rs should_panic 10
-smith/tests/local-process/tests/suite/terminal.rs should_panic 1
 smith/tests/protocol-llm/tests/suite/referee.rs should_panic 7
-smith/tests/session/tests/suite/referee.rs should_panic 5
 temper/bin/temper-box/tests/suite/fake.rs should_panic 1
 temper/bin/temper-box/tests/suite/support_tests.rs should_panic 3
 temper/crates/temper-box-machine/src/tests/machine.rs should_panic 4

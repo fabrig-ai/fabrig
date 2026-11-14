@@ -32,7 +32,7 @@ pub use fixture::{bytes, said};
 pub use noisy::{noisy, submit_noisily};
 pub use skein_world::domain::Span;
 pub use world::{
-    BUDGET, Count, Ended, Reclaim, Session, Settings, Stats, TOOLS, Told, World, assert_prompt_bound,
-    assert_prompt_boundary, assert_prompt_extends, reservation_envelope, spec,
+    BUDGET, Count, Ended, Reclaim, Session, Settings, Stats, TOOLS, Told, World, check_prompt_bound,
+    check_prompt_boundary, check_prompt_extends, reservation_envelope, spec,
 };
 pub mod recorded;
