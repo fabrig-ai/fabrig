@@ -636,6 +636,11 @@ impl Judge<'_> {
         calls(procs)?.release();
         let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("serve")) };
         binary.signal(Signal::Terminate);
+        for proc in procs {
+            if let Process::Peer(peer) = proc {
+                peer.shutdown();
+            }
+        }
         self.chat.phase = ChatPhase::Stopping;
 
         Ok(())
@@ -960,15 +965,26 @@ impl Referee<Process> for Judge<'_> {
         }
         let result = (|| -> Result<(), String> {
             if self.chat.stopping() {
-                if procs.first().is_some_and(Host::is_empty) {
-                    // The repair's client is gone before its held fake terminal
-                    // retires; no repair result reaches the deployment.
-                    for proc in procs {
-                        if let Process::Peer(peer) = proc
-                            && !peer.is_empty()
-                        {
+                self.poll = now.saturating_add(Duration::from_millis(10));
+                // Retire the held terminal only after the peer has observed
+                // every client socket closed; it can reach no repair delegate.
+                for proc in procs {
+                    if let Process::Peer(peer) = proc
+                        && !peer.is_empty()
+                    {
+                        let closed = peer.observations().iter().all(|event| {
+                            use skein_fake_peers::llm::Observation;
+                            let Observation::Accepted { connection } = event else { return true };
+                            peer.observations().iter().any(|event| {
+                                if let Observation::Closed { connection: ended } = event {
+                                    ended == connection
+                                } else {
+                                    false
+                                }
+                            })
+                        });
+                        if closed {
                             peer.release(b"batch-repair").map_err(|error| format!("retire repair call: {error:?}"))?;
-                            peer.shutdown();
                         }
                     }
                 }
@@ -1020,7 +1036,7 @@ impl Referee<Process> for Judge<'_> {
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.chat.stopping() {
-            self.chat.next_deadline()
+            self.chat.next_deadline().map(|until| until.min(self.poll))
         } else {
             Some(self.chat.deadline.until().map_or(self.poll, |until| until.min(self.poll)))
         }
