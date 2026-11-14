@@ -131,26 +131,19 @@ pub fn failed(
 }
 /// The store full at a limit, as an operational error of kind store (hearth/docs/design/domain/store/README.md, 6.1).
 #[must_use]
-pub fn full(limit: crate::builder::store::vocabulary::Limit, most: u32, store: &[u8]) -> crate::records::errors::Error {
+pub fn full(
+    limit: crate::builder::store::vocabulary::Limit,
+    most: u32,
+    store: &[u8],
+) -> crate::records::progress::StoreFull {
     use crate::{
         builder::store::vocabulary::Limit,
-        records::errors::{Class, Error, Kind, StoreError, StoreFault, StoreLimit},
+        records::progress::{StoreFull, StoreLimit},
     };
     let limit = match limit {
         Limit::Resolutions => StoreLimit::Resolutions,
         Limit::Layers => StoreLimit::Layers,
         Limit::CacheFiles => StoreLimit::CacheFiles,
     };
-    Error {
-        side: None,
-        kind: Kind::Store(StoreError {
-            store: skein_lib::bytes::copy_of(store),
-            fault: StoreFault::Full { limit, most },
-        }),
-        class: Class::Operational,
-        at: None,
-        also: None,
-        target: None,
-        task: None,
-    }
+    StoreFull { store: skein_lib::bytes::copy_of(store), limit, most }
 }

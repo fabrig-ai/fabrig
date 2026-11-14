@@ -1,13 +1,7 @@
-use hearth_domain_render_vocabulary::errors::{Collision, Subject, Id};
 //! Both claimants and their namespace (hearth/docs/design/domain/render/README.md, 3.7, and hearth/docs/design/domain/render/errors.md, 3).
 use crate::form::{json::field, text::Lines};
-use alloc::boxed::Box;
+use hearth_domain_render_vocabulary::errors::{Collision, Id, Subject};
 use skein_json::writer::Encoder;
-
-
-
-
-
 
 pub(super) fn collision_text(item: &Collision, lines: &mut Lines) {
     match item {
@@ -112,7 +106,6 @@ pub(super) fn collision_json(item: &Collision, json: &mut Encoder) {
     json.object_end();
 }
 
-
 pub(super) fn subject_name(item: Subject) -> &'static [u8] {
     match item {
         Subject::Tree => b"tree",
@@ -148,12 +141,9 @@ pub(super) fn subject_prefix(item: Subject, lines: &mut Lines) {
     });
 }
 
-
-
 pub(super) const fn id_name(item: Id) -> &'static [u8] {
     match item {
         Id::Uid => b"uid",
         Id::Gid => b"gid",
     }
 }
-

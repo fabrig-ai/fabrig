@@ -1,7 +1,7 @@
 //! A document's first fault, where the faulty thing starts (hearth/docs/design/domain/render/errors.md, 1).
 use crate::Position;
 use alloc::boxed::Box;
-pub use hearth_domain_render_vocabulary::errors::{Declared, Object, Expected, Required, Field};
+pub use hearth_domain_render_vocabulary::errors::{Declared, Expected, Field, Object, Required};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Error {
     pub at: Position,
@@ -34,4 +34,3 @@ pub enum Shape {
     Missing { field: Field },
     Misplaced { field: Field },
 }
-

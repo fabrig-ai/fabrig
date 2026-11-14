@@ -1,8 +1,8 @@
 use super::assert_prints;
-use crate::{
-    errors::{Collision, Error, Id, Kind, Subject},
-    tests::fixtures,
-};
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Collision, Error, Id, Kind, Subject};
+
 use skein_lib::bytes::copy_of;
 fn collision(collision: Collision) -> Error {
     let mut error = fixtures::path_collision();

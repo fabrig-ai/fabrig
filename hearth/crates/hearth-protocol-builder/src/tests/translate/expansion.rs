@@ -1,4 +1,4 @@
-use crate::{records, render, tests::fixtures, translate};
+use crate::{render, tests::fixtures, translate};
 #[test]
 fn each_entry_and_condition_translates_to_render_and_back() {
     for (row, (entry, input)) in fixtures::every_entry_condition().into_iter().enumerate() {
@@ -48,19 +48,4 @@ fn an_entrys_interpolated_key_reaches_render_compiled() {
             }
         }]
     );
-}
-#[test]
-fn each_collision_translates_to_records_and_back() {
-    for (row, input) in fixtures::collision_faults().into_iter().enumerate() {
-        let records::errors::Kind::Collision(collision) = translate::errors::error(render::errors::Error {
-            kind: render::errors::Kind::Collision(input.clone()),
-            ..fixtures::decode_error()
-        })
-        .kind
-        else {
-            panic!("collision")
-        };
-        let back = fixtures::collision_back(collision);
-        assert_eq!(back, input, "row {row}: collision");
-    }
 }

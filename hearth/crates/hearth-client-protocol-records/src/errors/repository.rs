@@ -1,11 +1,5 @@
-use hearth_domain_render_vocabulary::errors::{Repository, Tool, Command, Ended};
-use super::{Box, Encoder, Lines, field};
-
-
-
-
-
-
+use super::{Encoder, Lines, field};
+use hearth_domain_render_vocabulary::errors::{Command, Ended, Repository, Tool};
 
 pub(super) fn repository_text(item: &Repository, lines: &mut Lines) {
     match item {
@@ -51,7 +45,6 @@ pub(super) fn repository_json(item: &Repository, json: &mut Encoder) {
     }
 }
 
-
 pub(super) fn command_name(item: Command) -> &'static [u8] {
     match item {
         Command::Mmdebstrap => b"mmdebstrap",
@@ -70,7 +63,6 @@ pub(super) fn command_text(item: Command) -> &'static [u8] {
         Command::Diff => b"git diff",
     }
 }
-
 
 pub(super) fn tool_text(item: &Tool, lines: &mut Lines) {
     lines.put(command_text(item.command));
@@ -127,4 +119,3 @@ pub(super) fn tool_json(item: &Tool, json: &mut Encoder) {
     json.array_end();
     json.object_end();
 }
-

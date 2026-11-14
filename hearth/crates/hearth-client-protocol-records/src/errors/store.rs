@@ -1,9 +1,5 @@
-use hearth_domain_render_vocabulary::errors::{StoreError, StoreFault, StoreLimit, Step};
-use super::{Lines, Encoder, field};
-
-
-
-
+use super::{Encoder, Lines, field};
+use hearth_domain_render_vocabulary::errors::{Step, StoreError, StoreFault, StoreLimit};
 
 pub(super) fn step_name(item: Step) -> &'static [u8] {
     match item {
@@ -15,7 +11,6 @@ pub(super) fn step_name(item: Step) -> &'static [u8] {
         Step::Write => b"write",
     }
 }
-
 
 pub(super) fn store_error_text(item: &StoreError, lines: &mut Lines) {
     lines.put(b"the store ");
@@ -56,5 +51,3 @@ pub(super) fn store_error_json(item: &StoreError, json: &mut Encoder) {
         StoreFault::Failed { step } => field(json, b"step", step_name(step)),
     }
 }
-
-

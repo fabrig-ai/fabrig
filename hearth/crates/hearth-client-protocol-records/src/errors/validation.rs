@@ -1,10 +1,9 @@
-use hearth_domain_render_vocabulary::{evaluate::FaultKind, errors::Required};
-//! FaultKind messages and undeclared-setting diagnostics (hearth/docs/design/domain/render/errors.md, 3).
+//! Evaluation messages and undeclared-setting diagnostics (hearth/docs/design/domain/render/errors.md, 3).
 use super::{Encoder, Lines};
 use alloc::boxed::Box;
+use hearth_domain_render_vocabulary::{errors::Required, evaluate::FaultKind};
 
-
-pub(super) fn evaluation_message(item: FaultKind) -> &'static [u8] {
+pub(super) fn fault_kind_message(item: FaultKind) -> &'static [u8] {
     match item {
         FaultKind::Unknown => b"an unknown name",
         FaultKind::NoKey => b"a missing key",
@@ -18,7 +17,7 @@ pub(super) fn evaluation_message(item: FaultKind) -> &'static [u8] {
         FaultKind::Limit => b"a limit exceeded",
     }
 }
-pub(super) fn evaluation_name(item: FaultKind) -> &'static [u8] {
+pub(super) fn fault_kind_name(item: FaultKind) -> &'static [u8] {
     match item {
         FaultKind::Unknown => b"unknown",
         FaultKind::NoKey => b"no_key",
@@ -68,7 +67,6 @@ pub(super) fn json_names(json: &mut Encoder, names: &[Box<[u8]>]) {
     json.array_end();
 }
 
-
 pub(super) fn required_name(item: Required) -> &'static [u8] {
     match item {
         Required::If => b"if",
@@ -78,4 +76,3 @@ pub(super) fn required_name(item: Required) -> &'static [u8] {
         Required::Value => b"value",
     }
 }
-

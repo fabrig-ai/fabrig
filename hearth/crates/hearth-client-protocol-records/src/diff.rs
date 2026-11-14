@@ -684,3 +684,14 @@ pub struct Moved {
 }
 
 pub(crate) mod placed;
+
+/// The client's side names (hearth/docs/design/domain/render/contracts.md, 2).
+#[must_use]
+pub fn side(side: hearth_domain_render_vocabulary::diff::Side) -> &'static [u8] {
+    use hearth_domain_render_vocabulary::diff::Side;
+    match side {
+        Side::From => b"from",
+        Side::To => b"to",
+        Side::Both => b"both",
+    }
+}

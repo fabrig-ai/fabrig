@@ -230,8 +230,6 @@ pub fn causes() -> [hearth_protocol_mmdebstrap::tail::Cause; 8] {
     ]
 }
 
-pub const CLOSURE_LIMIT: u32 = 8_192;
-
 pub struct ResolvedRun {
     pub events: List<builder::vocabulary::Event>,
     pub trace: List<&'static str>,

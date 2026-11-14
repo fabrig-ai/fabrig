@@ -1,7 +1,6 @@
-use hearth_domain_render_vocabulary::errors::{Resolution};
 //! Apt's configuration verdict and the bounded closure (hearth/docs/design/domain/render/spec.md, 2.5, hearth/docs/design/domain/render/errors.md, 2).
-use super::{Box, Encoder, Lines, field};
-
+use super::{Encoder, Lines, field};
+use hearth_domain_render_vocabulary::errors::Resolution;
 
 pub(super) fn resolution_text(item: &Resolution, lines: &mut Lines) {
     match item {
@@ -90,7 +89,6 @@ pub(super) fn resolution_json(item: &Resolution, json: &mut Encoder) {
     }
     json.object_end();
 }
-
 
 fn triple(lines: &mut Lines, name: &[u8], version: &[u8], architecture: &[u8]) {
     lines.put(name);

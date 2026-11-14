@@ -1,9 +1,7 @@
 use super::assert_prints;
-use crate::{
-    errors::{Syntax, syntax::Expected},
-    tests::fixtures,
-};
-use skein_lib::bytes::copy_of;
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Syntax, syntax::Expected};
 
 #[expect(clippy::too_many_lines, reason = "literal text and JSON pins keep each error beside its bytes")]
 #[test]
@@ -218,7 +216,7 @@ fn syntax_bytes() {
             ),
         ),
         (
-            fixtures::syntax_error(Syntax::Arity { filter: copy_of(b"join"), expected: 1, given: 2 }),
+            fixtures::syntax_error(Syntax::Arity { filter: render::evaluate::Filter::Join, given: 2 }),
             "tasks/motd/tree/etc/issue.j2:2:1: motd: \"join\" takes 1 argument, given 2\n",
             concat!(
                 r#"{"record":"error","kind":"decode","decode":{"kind":"syntax","fault":"arity","filter":"join","expected":1,"given":2},"class":"configuration","at":{"column":1,"line":2,"path":"tasks/motd/tree/etc/issue.j2"},"task":"motd"}"#,
@@ -226,10 +224,10 @@ fn syntax_bytes() {
             ),
         ),
         (
-            fixtures::syntax_error(Syntax::Arity { filter: copy_of(b"join"), expected: 2, given: 1 }),
-            "tasks/motd/tree/etc/issue.j2:2:1: motd: \"join\" takes 2 arguments, given 1\n",
+            fixtures::syntax_error(Syntax::Arity { filter: render::evaluate::Filter::Replace, given: 1 }),
+            "tasks/motd/tree/etc/issue.j2:2:1: motd: \"replace\" takes 2 arguments, given 1\n",
             concat!(
-                r#"{"record":"error","kind":"decode","decode":{"kind":"syntax","fault":"arity","filter":"join","expected":2,"given":1},"class":"configuration","at":{"column":1,"line":2,"path":"tasks/motd/tree/etc/issue.j2"},"task":"motd"}"#,
+                r#"{"record":"error","kind":"decode","decode":{"kind":"syntax","fault":"arity","filter":"replace","expected":2,"given":1},"class":"configuration","at":{"column":1,"line":2,"path":"tasks/motd/tree/etc/issue.j2"},"task":"motd"}"#,
                 "\n"
             ),
         ),
@@ -237,4 +235,17 @@ fn syntax_bytes() {
     for (error, text, json) in cases {
         assert_prints(&error, text, json);
     }
+}
+
+#[test]
+fn an_arity_fault_reaches_its_record_with_its_filters_name() {
+    let error = fixtures::syntax_error(Syntax::Arity { filter: render::evaluate::Filter::Join, given: 3 });
+    assert_prints(
+        &error,
+        "tasks/motd/tree/etc/issue.j2:2:1: motd: \"join\" takes 1 argument, given 3\n",
+        concat!(
+            r#"{"record":"error","kind":"decode","decode":{"kind":"syntax","fault":"arity","filter":"join","expected":1,"given":3},"class":"configuration","at":{"column":1,"line":2,"path":"tasks/motd/tree/etc/issue.j2"},"task":"motd"}"#,
+            "\n"
+        ),
+    );
 }

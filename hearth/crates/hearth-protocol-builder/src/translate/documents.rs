@@ -37,14 +37,7 @@ fn layer(layer: source::Layer) -> target::Layer {
 #[must_use]
 pub fn placement_to_render(placement: source::Placement) -> target::Placement {
     let source::Placement { at, kind, firmware, hardware, on, mutable } = placement;
-    target::Placement {
-        at: position(at),
-        kind,
-        firmware,
-        hardware,
-        on: host(on),
-        mutable,
-    }
+    target::Placement { at: position(at), kind, firmware, hardware, on: host(on), mutable }
 }
 fn optional_placement(placement: Option<source::Placement>) -> Option<target::Placement> {
     Some(placement_to_render(placement?))

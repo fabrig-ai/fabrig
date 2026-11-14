@@ -17,6 +17,7 @@ pub(crate) fn print(record: &Record, after: Option<Type>, most: u32) -> Result<B
         | Record::Layer(_)
         | Record::Failed(_)
         | Record::Change(_)
+        | Record::StoreFull(_)
         | Record::Error(_)
         | Record::Startup(_)
         | Record::Waiting(_)
@@ -79,7 +80,8 @@ fn line(json: &mut Encoder, record: &Record, index: usize) {
             Record::Change(change) => change.json(json),
             Record::Layer(layer) => layer.json(json),
             Record::Failed(failed) => (*failed).json(json),
-            Record::Error(error) => error.json(json),
+            Record::Error(error) => crate::errors::json(error, json),
+            Record::StoreFull(full) => full.json(json),
             Record::Startup(startup) => startup.json(json),
             Record::Terminal(terminal) => {
                 field(json, b"record", b"outcome");

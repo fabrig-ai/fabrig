@@ -19,15 +19,14 @@ pub fn simulate(
     for name in names {
         request.push(vector::Name::new(name, limits)?).ok()?;
     }
-    let mut components = List::with_capacity(4);
-    for component in &sources.components {
-        components.push(*component).ok()?;
+    if sources.components.len() > target::Component::ALL.len() {
+        return None;
     }
     Some(vector::Simulate {
         sources: vector::Sources {
             suite: vector::Name::new(&sources.suite, limits)?,
             architecture: vector::Name::new(&sources.architecture, limits)?,
-            components: components.into_boxed(),
+            components: sources.components.clone(),
             archive: vector::Timestamp::new(&sources.archive)?,
             updates: sources.updates,
             security: match &sources.security {
@@ -96,14 +95,7 @@ pub fn stanza(stanza: hearth_protocol_mmdebstrap::packages::Stanza) -> resolutio
 pub fn line(line: &vector::Line, indices: Box<[resolution::Index]>) -> resolution::Line {
     let mut components = List::with_capacity(4);
     for component in &line.components {
-        components
-            .push(bytes::copy_of(match component {
-                vector::Component::Main => b"main",
-                vector::Component::Contrib => b"contrib",
-                vector::Component::NonFree => b"non-free",
-                vector::Component::NonFreeFirmware => b"non-free-firmware",
-            }))
-            .expect("bounded components");
+        components.push(bytes::copy_of(component.name())).expect("bounded components");
     }
     resolution::Line { uri: line.uri.clone(), suite: line.suite.clone(), components: components.into_boxed(), indices }
 }

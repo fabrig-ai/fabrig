@@ -1,5 +1,6 @@
 use super::{Part, PartRecord, Spec, copy_of, duplicate, x1_prod};
 use crate::parts::exports::{Exports, Named, TaskExports, Value};
+use hearth_domain_render_vocabulary as render;
 use skein_lib::List;
 pub const EXPORT_PRINT_DEPTH: u32 = 32;
 pub const EXPORT_PRINT_BRACKETS: usize = 32;
@@ -43,15 +44,15 @@ pub fn printed_exports(form: crate::form::Form) -> Box<[u8]> {
     )
     .expect("exports fit")
 }
-pub fn export_error(fault: crate::errors::ExportFault) -> crate::errors::Error {
+pub fn export_error(fault: render::errors::ExportFault) -> render::errors::Error {
     let mut error = duplicate();
     error.at = None;
     error.also = None;
-    error.kind = crate::errors::Kind::Schema(crate::errors::Schema::Export { fault });
+    error.kind = render::errors::Kind::Schema(render::errors::Schema::Export { fault });
     error
 }
-pub fn exported_error() -> crate::errors::Error {
-    use crate::errors::{Cause, Exported, Kind, Schema, TypeName};
+pub fn exported_error() -> render::errors::Error {
+    use render::errors::{Cause, Exported, Kind, Schema, TypeName};
     let mut error = super::modules_guard();
     error.kind = Kind::Exported(Exported {
         exporter: copy_of(b"west-prod"),

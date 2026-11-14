@@ -1,7 +1,5 @@
-use hearth_domain_render_vocabulary::errors::{Reserved, Rule};
 //! Closed reserved rules (hearth/docs/design/protocol/format/tasks.md, 11; hearth/docs/design/domain/machine/boot.md, 3.2).
-use alloc::boxed::Box;
-
+use hearth_domain_render_vocabulary::errors::{Reserved, Rule};
 
 use crate::form::{json::field, text::Lines};
 use skein_json::writer::Encoder;
@@ -40,7 +38,6 @@ pub(super) const fn rule_name(item: Rule) -> &'static [u8] {
         Rule::HearthNull => b"hearth_null",
     }
 }
-
 
 pub(super) fn reserved_text(item: &Reserved, lines: &mut Lines) {
     if item.rule == Rule::SecretPath {
@@ -98,12 +95,42 @@ pub(super) fn reserved_text(item: &Reserved, lines: &mut Lines) {
 }
 pub(super) fn reserved_json(item: &Reserved, json: &mut Encoder) {
     json.object_start();
-    if let Rule::CmdlineLength { bytes } = item.rule {
-        json.key(b"bytes");
-        json.unsigned(u64::from(bytes));
+    match item.rule {
+        Rule::CmdlineLength { bytes } => {
+            json.key(b"bytes");
+            json.unsigned(u64::from(bytes));
+        }
+        Rule::ActivatorKey
+        | Rule::RootKey
+        | Rule::RootWait
+        | Rule::PasswordPreseed
+        | Rule::TrialName
+        | Rule::Overlay
+        | Rule::TmpfilesSubvolume
+        | Rule::TmpfilesWrite
+        | Rule::TmpfilesPath
+        | Rule::ContainerModule
+        | Rule::ContainerParam
+        | Rule::ActivatorFile
+        | Rule::Dropin
+        | Rule::Accounts
+        | Rule::SecretPath
+        | Rule::HearthState
+        | Rule::PackagesLayer
+        | Rule::ClassMount
+        | Rule::DataRoot
+        | Rule::Runtime
+        | Rule::LogFile
+        | Rule::InitramfsConf
+        | Rule::SecretMode
+        | Rule::HearthOwner
+        | Rule::LiveNone
+        | Rule::NeverLiveUnit
+        | Rule::NeverLivePath
+        | Rule::HearthContainer
+        | Rule::HearthNull => {}
     }
     field(json, b"rule", rule_name(item.rule));
     field(json, b"what", &item.what);
     json.object_end();
 }
-

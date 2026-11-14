@@ -3,27 +3,27 @@ mod ids;
 mod validation;
 use crate::form::{json::field, text::Lines};
 use alloc::boxed::Box;
-use hearth_domain_render_vocabulary::{errors::{Error, Place, Kind, Class, Decode, Field, Limit, Declared, Object, Expected, Required, Takes, Schema, Format, TypeName, Repository, Tool, Command, Ended, Syntax, Composition, Host, Collision, Id, Subject, Root, ExportFault, Exported, Cause, Resolution, Reserved, Rule, Ids, Owns, Why}, revision::declaration::Map};
-use collisions::collision_text;
 use collisions::collision_json;
-use composition::{composition_text, composition_json};
-use ids::{ids_text, ids_json};
-use repository::{repository_text, repository_json, tool_text, tool_json};
-use reserved::{reserved_text, reserved_json};
-use resolution::{resolution_text, resolution_json};
-use schema::{schema_text, schema_json};
-use syntax::{syntax_text, syntax_json};
+use collisions::collision_text;
+use composition::{composition_json, composition_text};
+use hearth_domain_render_vocabulary::{
+    errors::{
+        Cause, Class, Composition, Declared, Decode, Error, Expected, ExportFault, Exported, Field, Kind, Limit,
+        Object, Place, Schema, Takes,
+    },
+    revision::declaration::Map,
+};
+use ids::{ids_json, ids_text};
+use repository::{repository_json, repository_text, tool_json, tool_text};
+use reserved::{reserved_json, reserved_text};
+use resolution::{resolution_json, resolution_text};
+use schema::{schema_json, schema_text};
+use syntax::{syntax_json, syntax_text};
 use validation::{fault_kind_message, fault_kind_name, required_name};
 mod store;
-use store::{store_error_text, store_error_json};
 use skein_json::writer::Encoder;
+use store::{store_error_json, store_error_text};
 use validation::{json_names, names, signed};
-
-
-
-
-
-
 
 pub(crate) fn text(item: &Error, lines: &mut Lines) {
     if let Some(side) = item.side {
@@ -70,12 +70,26 @@ pub(crate) fn text(item: &Error, lines: &mut Lines) {
         lines.put(b")");
     }
     lines.put(b"\n");
-    if let Kind::Tool(tool) = &item.kind {
-        for line in &tool.tail {
-            lines.put(b"  ");
-            lines.put(line);
-            lines.put(b"\n");
+    match &item.kind {
+        Kind::Tool(tool) => {
+            for line in &tool.tail {
+                lines.put(b"  ");
+                lines.put(line);
+                lines.put(b"\n");
+            }
         }
+        Kind::Reserved(_)
+        | Kind::Exported(_)
+        | Kind::Ids(_)
+        | Kind::Resolution(_)
+        | Kind::Store(_)
+        | Kind::Evaluation(_)
+        | Kind::Schema(_)
+        | Kind::Guard(_)
+        | Kind::Collision(_)
+        | Kind::Decode(_)
+        | Kind::Repository(_)
+        | Kind::Composition(_) => {}
     }
 }
 pub(crate) fn json(item: &Error, json: &mut Encoder) {
@@ -175,7 +189,6 @@ pub(crate) fn json(item: &Error, json: &mut Encoder) {
     }
 }
 
-
 pub(super) fn place_text(item: &Place, lines: &mut Lines) {
     lines.put(&item.path);
     if let Some(position) = item.position {
@@ -196,12 +209,6 @@ pub(super) fn place_json(item: &Place, json: &mut Encoder) {
     field(json, b"path", &item.path);
     json.object_end();
 }
-
-
-
-
-
-
 
 pub(super) fn decode_text(item: &Decode, lines: &mut Lines) {
     match item {
@@ -368,7 +375,6 @@ pub(super) fn decode_json(item: &Decode, json: &mut Encoder) {
     }
 }
 
-
 pub(super) fn field_name(item: Field) -> &'static [u8] {
     match item {
         Field::Kind => b"kind",
@@ -378,17 +384,6 @@ pub(super) fn field_name(item: Field) -> &'static [u8] {
         Field::Mutable => b"mutable",
     }
 }
-
-
-
-
-
-
-
-
-
-
-
 
 pub(super) fn declared_text(item: Declared, lines: &mut Lines) {
     match item {
@@ -445,7 +440,6 @@ pub(super) fn declared_json(item: Declared, json: &mut Encoder) {
     json.object_end();
 }
 
-
 pub(super) fn object_name(item: Object) -> &'static [u8] {
     match item {
         Object::Declaration => b"declaration",
@@ -460,7 +454,6 @@ pub(super) fn object_name(item: Object) -> &'static [u8] {
         Object::Entry(map) => map_name(map),
     }
 }
-
 
 pub(super) fn map_name(item: Map) -> &'static [u8] {
     match item {
@@ -481,7 +474,6 @@ pub(super) fn map_name(item: Map) -> &'static [u8] {
     }
 }
 
-
 pub(super) fn expected_name(item: Expected) -> &'static [u8] {
     match item {
         Expected::Object => b"an object",
@@ -495,7 +487,6 @@ pub(super) fn expected_name(item: Expected) -> &'static [u8] {
     }
 }
 
-
 pub(super) fn takes_name(item: Takes) -> &'static [u8] {
     match item {
         Takes::Text => b"a string",
@@ -506,27 +497,16 @@ pub(super) fn takes_name(item: Takes) -> &'static [u8] {
     }
 }
 
-
-
-
 mod schema;
 
 mod type_name;
 
 mod repository;
 
-mod syntax;
 mod composition;
+mod syntax;
 
 mod collisions;
-
-
-
-
-
-
-
-
 
 pub(super) fn exported_text(item: &Exported, lines: &mut Lines) {
     lines.put(b"exports.");
@@ -570,7 +550,6 @@ pub(super) fn exported_json(item: &Exported, json: &mut Encoder) {
     field(json, b"task", &item.task);
     json.object_end();
 }
-
 
 mod resolution;
 

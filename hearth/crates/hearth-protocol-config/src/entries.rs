@@ -6,7 +6,10 @@ use crate::{
     json::{Kind, Value},
 };
 use alloc::boxed::Box;
-pub use hearth_domain_render_vocabulary::{errors::Takes, revision::declaration::{Map, Name}};
+pub use hearth_domain_render_vocabulary::{
+    errors::Takes,
+    revision::declaration::{Map, Name},
+};
 use skein_lib::List;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Entries {

@@ -1,11 +1,11 @@
 //! Unified hunks with bounded lines and retained text (hearth/docs/design/domain/render/README.md, 2.2 and 4.1).
 use crate::limits::Limits;
 use core::mem;
+pub use hearth_domain_render_vocabulary::diff::{Hunks, Line, LineKind as Kind};
 use skein_lib::{
     Env, List, Queue, bytes,
     stream::{Delimiter, Down, Fault, Read, Up},
 };
-pub use hearth_domain_render_vocabulary::diff::{Hunks, Line, LineKind as Kind};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     Read,

@@ -1,8 +1,4 @@
-use crate::{
-    config::document as source,
-    render::revision as target,
-    translate::documents,
-};
+use crate::{config::document as source, render::revision as target, translate::documents};
 
 #[test]
 fn a_containers_placement_keeps_its_host_position_and_mutability() {
@@ -659,16 +655,10 @@ fn each_retained_hunk_line_translates_to_records_and_back() {
 
 mod composition;
 mod declarations;
-mod repository;
 mod store_arrivals;
 
-mod evaluation;
 mod instructions;
 mod meta;
-
-mod forms;
-
-mod guards;
 
 mod expansion;
 
@@ -688,7 +678,6 @@ mod packages;
 mod resolution;
 mod specs;
 
-mod exported;
 mod package_changes;
 
 mod accounts;
@@ -701,8 +690,5 @@ pub(super) mod directives;
 mod record_store;
 
 mod diff_resolution;
-mod ids;
 
 mod part_changes;
-
-mod reserved;

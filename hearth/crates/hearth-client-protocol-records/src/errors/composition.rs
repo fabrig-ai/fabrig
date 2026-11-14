@@ -1,7 +1,5 @@
+use super::{Encoder, Lines, field};
 use hearth_domain_render_vocabulary::errors::{Composition, Host};
-use super::{Box, Encoder, Lines, field};
-
-
 
 pub(super) fn composition_text(item: &Composition, lines: &mut Lines, target: Option<&[u8]>, task: Option<&[u8]>) {
     match item {
@@ -39,25 +37,32 @@ pub(super) fn composition_text(item: &Composition, lines: &mut Lines, target: Op
     }
 }
 pub(super) fn composition_json(item: &Composition, json: &mut Encoder) {
-    if let Composition::On { on, host } = item {
-        json.object_start();
-        field(json, b"kind", b"on");
-        field(json, b"on", on);
-        json.key(b"host");
-        match host {
-            Host::Unplaced => json.string(b"unplaced"),
-            Host::Unknown => json.string(b"unknown"),
-            Host::Container => json.string(b"container"),
-            Host::Elsewhere { environment } => {
-                json.object_start();
-                field(json, b"kind", b"elsewhere");
-                field(json, b"environment", environment);
-                json.object_end();
+    match item {
+        Composition::On { on, host } => {
+            json.object_start();
+            field(json, b"kind", b"on");
+            field(json, b"on", on);
+            json.key(b"host");
+            match host {
+                Host::Unplaced => json.string(b"unplaced"),
+                Host::Unknown => json.string(b"unknown"),
+                Host::Container => json.string(b"container"),
+                Host::Elsewhere { environment } => {
+                    json.object_start();
+                    field(json, b"kind", b"elsewhere");
+                    field(json, b"environment", environment);
+                    json.object_end();
+                }
             }
+            json.object_end();
         }
-        json.object_end();
-    } else {
-        json.string(composition_name(item));
+        Composition::Duplicate
+        | Composition::Long
+        | Composition::Placement
+        | Composition::Members
+        | Composition::Unplaced
+        | Composition::Null
+        | Composition::Task => json.string(composition_name(item)),
     }
 }
 pub(super) fn composition_name(item: &Composition) -> &'static [u8] {
@@ -72,4 +77,3 @@ pub(super) fn composition_name(item: &Composition) -> &'static [u8] {
         Composition::Task => b"task",
     }
 }
-
