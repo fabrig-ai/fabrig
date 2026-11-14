@@ -128,8 +128,8 @@ pub fn authority() -> d::AuthorityLine {
         note_resources: List::with_capacity(0),
     }
 }
-pub fn hold() -> d::HoldLine {
-    d::HoldLine {
+pub fn hold() -> d::HoldPhaseLine {
+    d::HoldPhaseLine {
         words: None,
         placed: None,
         circle: None,

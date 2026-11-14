@@ -28,6 +28,8 @@ fn owner_number(key: &core::Key) -> Result<u64, Failure> {
             | tasks::Key::DecidedProposal(_)
             | tasks::Key::History { .. }
             | tasks::Key::Milestone { .. }
+            | tasks::Key::Attempt { .. }
+            | tasks::Key::Hold { .. }
             | tasks::Key::Activity { .. }
             | tasks::Key::Result { .. }
             | tasks::Key::Delegate { .. },
@@ -106,6 +108,8 @@ fn update(value: &core::Record) -> Option<tasks::Update> {
             | tasks::Stored::DecidedProposal(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::Activity(_)
             | tasks::Stored::Result(_)
             | tasks::Stored::EndedByParty(_)
@@ -136,6 +140,8 @@ fn delegate(value: &core::Record) -> Option<tasks::Edge> {
             | tasks::Stored::DecidedProposal(_)
             | tasks::Stored::History(_)
             | tasks::Stored::Milestone(_)
+            | tasks::Stored::Attempt(_)
+            | tasks::Stored::Hold(_)
             | tasks::Stored::Activity(_)
             | tasks::Stored::Result(_)
             | tasks::Stored::EndedByParty(_)
@@ -404,7 +410,7 @@ fn resume(
 ) -> Result<usize, Failure> {
     let task = match &range.after {
         Some(reads::Position::Owner(core::Key::Tasks(
-            tasks::Key::History { task, .. } | tasks::Key::Milestone { task, .. },
+            tasks::Key::History { task, .. } | tasks::Key::Attempt { task, .. } | tasks::Key::Hold { task, .. },
         ))) => *task,
         Some(reads::Position::Owner(_) | reads::Position::Inbox { .. }) => return Err(Failure::Corrupt),
         None => return Ok(0),

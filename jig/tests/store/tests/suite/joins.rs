@@ -132,11 +132,14 @@ fn task_writes(task: &tasks::TaskRecord, writes: &mut Vec<Write>) {
     let stored =
         if ended { tasks::Stored::Ended(Box::new(task.clone())) } else { tasks::Stored::Live(Box::new(task.clone())) };
     writes.push(Write::Save(core::Record::Tasks(stored)));
-    writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Milestone(tasks::Milestone {
+    writes.push(Write::Save(core::Record::Tasks(tasks::Stored::Attempt(tasks::AttemptRow {
         task: task.number,
-        position: 1,
-        phase: task.phase.clone(),
-        at: Wall::EPOCH,
+        attempt: 1,
+        claimed: Some(Wall::EPOCH),
+        started: None,
+        ended: task.ended_at,
+        end: None,
+        phases: None,
     }))));
     if ended {
         writes.push(Write::Save(core::Record::Tasks(tasks::Stored::EndedByProject(tasks::EndedByProject {

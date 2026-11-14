@@ -818,7 +818,7 @@ fn read_optional_result(
         None => Ok(None),
     }
 }
-fn optional_source(
+pub(super) fn optional_source(
     source: Option<&domain::HoldSource>,
     limits: &wire::Limits,
 ) -> Result<Option<wire::HoldSource>, wire::Problem> {
@@ -827,7 +827,7 @@ fn optional_source(
         None => Ok(None),
     }
 }
-fn read_optional_source(
+pub(super) fn read_optional_source(
     source: Option<wire::HoldSource>,
     limits: &wire::Limits,
 ) -> Result<Option<Box<domain::HoldSource>>, wire::Problem> {
