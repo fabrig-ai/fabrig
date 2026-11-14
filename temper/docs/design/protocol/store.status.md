@@ -9,7 +9,7 @@
 
 - **Not yet:** 2: the `Change` row's `follows` [in flight: change 99].
 
-- **Not yet:** 2: families 47 and 48, a change's two parts: each change is one row of family 12, written whole on every save; 4: `jobs::page` names no job `change-parts`.
+- **Not yet:** 2: families 47 and 48, a change's two parts: each change is one row of family 12, written whole on every save; 4: `jobs::page` names no job `change-parts` [in flight: change 3384].
 
 
 Section 2 has no known implementation gap in provider 0's subject.

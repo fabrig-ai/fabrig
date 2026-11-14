@@ -5,7 +5,7 @@ rows of their own, so that the log carries what changed and not each
 record whole again (temper's `draft/store-shape.md`, section 7). On
 dev.fabrig.ai three kinds of record were over 90% of what the log
 wrote, each about 3 to 9 KB put again for a change of a few bytes
-(temper's `development/store-assessment-2026-11-13.md`, 2): live tasks,
+(the store's assessment of 2026-11-13, which that draft cites): live tasks,
 goals' projections, and temper's change records. Each is kept as a cold
 part, put when the record is made and again only when an act changes
 it, and a hot part holding the rest.
