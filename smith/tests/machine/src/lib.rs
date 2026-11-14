@@ -433,6 +433,7 @@ impl skein_world::Machine for Adapter {
             | Ask::Truncate { .. }
             | Ask::Sync { .. }
             | Ask::Stat { .. }
+            | Ask::HardLink { .. }
             | Ask::Rename { .. }
             | Ask::Remove { .. }
             | Ask::MakeDirectory { .. }

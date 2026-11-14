@@ -101,6 +101,7 @@ impl Store {
             | file::Event::Read { .. }
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. }
             | file::Event::Listed { .. } => {
                 unreachable!("private cleanup only removes and closes")

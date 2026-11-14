@@ -280,6 +280,7 @@ fn kind(request: &file::Request) -> Kind {
         | file::Request::ReadAt { .. }
         | file::Request::Cut { .. }
         | file::Request::Sync { .. }
+        | file::Request::HardLink { .. }
         | file::Request::Rename { .. }
         | file::Request::List { .. }
         | file::Request::ListPage { .. } => panic!("unexpected Store request {request:?}"),

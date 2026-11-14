@@ -119,6 +119,7 @@ impl Sim {
             | Op::Lock { .. }
             | Op::Stat { .. }
             | Op::Rename { .. }
+            | Op::HardLink { .. }
             | Op::Remove { .. }
             | Op::MakeDirectory { .. }
             | Op::List { .. }
@@ -160,6 +161,7 @@ impl Sim {
             | Ask::Lock { .. }
             | Ask::Stat { .. }
             | Ask::Rename { .. }
+            | Ask::HardLink { .. }
             | Ask::Remove { .. }
             | Ask::MakeDirectory { .. }
             | Ask::List { .. } => None,
@@ -178,6 +180,7 @@ impl Sim {
             | Op::Open { how: OpenHow::Write | OpenHow::WriteNoFollow, .. }
             | Op::Open { how: OpenHow::Create { .. } | OpenHow::CreateNoFollow { .. }, .. }
             | Op::Rename { .. }
+            | Op::HardLink { .. }
             | Op::MakeDirectory { .. } => (true, true, false),
             Op::Open {
                 how:
@@ -273,6 +276,10 @@ impl Sim {
             Op::Rename { from_dir, from, to_dir, to, no_replace } => {
                 let (from_dir, to_dir) = (self.handle(pid, *from_dir), self.handle(pid, *to_dir));
                 (Ask::Rename { from_dir, from: from.clone(), to_dir, to: to.clone(), no_replace: *no_replace }, 0)
+            }
+            Op::HardLink { from_dir, from, to_dir, to } => {
+                let (from_dir, to_dir) = (self.handle(pid, *from_dir), self.handle(pid, *to_dir));
+                (Ask::HardLink { from_dir, from: from.clone(), to_dir, to: to.clone() }, 0)
             }
             Op::Remove { dir, name, directory } => {
                 (Ask::Remove { dir: self.handle(pid, *dir), name: name.clone(), directory: *directory }, 0)
@@ -372,6 +379,7 @@ impl Sim {
                 | Op::Truncate { .. }
                 | Op::Sync { .. }
                 | Op::Rename { .. }
+                | Op::HardLink { .. }
                 | Op::Remove { .. }
                 | Op::MakeDirectory { .. }
                 | Op::Close { .. },

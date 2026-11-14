@@ -112,6 +112,7 @@ impl FileStage {
             | file::Request::Cut { .. }
             | file::Request::Sync { .. }
             | file::Request::SyncDirectory { .. }
+            | file::Request::HardLink { .. }
             | file::Request::Rename { .. }
             | file::Request::Remove { .. }
             | file::Request::List { .. }
@@ -173,6 +174,7 @@ fn cancel_target(kind: &mut kernel::Op, prefix: u64, tagging: bool) {
         | kernel::Op::Sync { .. }
         | kernel::Op::Lock { .. }
         | kernel::Op::Stat { .. }
+        | kernel::Op::HardLink { .. }
         | kernel::Op::Rename { .. }
         | kernel::Op::Remove { .. }
         | kernel::Op::MakeDirectory { .. }

@@ -623,6 +623,7 @@ pub(super) fn file_event(service: &mut Stages, event: file::Event) -> Option<fil
         | file::Event::Cut { .. }
         | file::Event::Synced { .. }
         | file::Event::Closed { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Removed { .. }
         | file::Event::Listed { .. }
@@ -664,6 +665,7 @@ pub(super) fn file_event(service: &mut Stages, event: file::Event) -> Option<fil
                 | file::Event::Cut { .. }
                 | file::Event::Synced { .. }
                 | file::Event::Closed { .. }
+                | file::Event::Linked { .. }
                 | file::Event::Renamed { .. }
                 | file::Event::Removed { .. }
                 | file::Event::Listed { .. }

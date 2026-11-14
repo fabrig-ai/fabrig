@@ -134,3 +134,8 @@ fn a_directory_lock_is_busy_through_a_second_open_until_the_first_closes() {
 fn a_no_replace_rename_refuses_a_taken_target_in_system_order() {
     on(BACKEND, |backend| skein_conformance::no_replace(backend, PathLimits::HOST));
 }
+
+#[test]
+fn a_hard_link_shares_bytes_counts_names_and_links_the_link_itself() {
+    on(BACKEND, skein_conformance::hard_link);
+}

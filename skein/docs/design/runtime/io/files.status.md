@@ -1,9 +1,9 @@
 # files: status
 
-2026-11-11. Where the tree's code lags or departs from [files.md](files.md).
+2026-11-13. Where the tree's code lags or departs from [files.md](files.md).
 
 - **Not yet:** the whole document: a tree's metadata, the filesystem's status and sync, and
-  btrfs's subvolumes (`StatEntry` to `SubvolumePath`). 
+  btrfs's subvolumes (`StatEntry` to `SubvolumePath`), but `HardLink`. 
   contained trees remain `processes.status.md` (Not yet, the whole document).
 - **Departs:**  the io-validity gap remains `README.status.md`, 2. the whole document:
   `skein-io/src/file_layer.rs` holds its read and directory buffers in `Vec`,

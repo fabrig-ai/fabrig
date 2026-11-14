@@ -227,6 +227,7 @@ impl Disk {
                 | Op::Append { .. }
                 | Op::Sync { .. }
                 | Op::Stat { .. }
+                | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Spawn { .. }
                 | Op::Wait { .. }
@@ -309,6 +310,7 @@ impl Disk {
             | Op::Append { .. }
             | Op::Sync { .. }
             | Op::Stat { .. }
+            | Op::HardLink { .. }
             | Op::Rename { .. }
             | Op::Spawn { .. }
             | Op::Wait { .. }
