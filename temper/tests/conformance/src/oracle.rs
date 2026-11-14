@@ -1,6 +1,9 @@
 //! Public readback through the conformance harness (temper testing/README.md, 2).
 use crate::{Event, Temper};
-use jig_conformance::{Harness, referee::Violation};
+use jig_conformance::{
+    Harness,
+    referee::{Promise, Violation},
+};
 use jig_domain_core::{documents, reads};
 use skein_lib::{ReplyTo, Token};
 use std::collections::BTreeMap;
@@ -103,9 +106,12 @@ pub(super) fn close(world: &mut Harness<Temper>) -> Result<(), Violation> {
     // Cold startup can drain immediate work while a fresh forge read awaits its
     // timer. Wait for decisions to open before issuing the oracle's reads.
     crate::stories::wait(world, |_| true)?;
-    oracle::compare_forges(forges, world.domain.root.forges());
+    oracle::compare_forges(forges, world.domain.root.forges())
+        .map_err(|why| Violation { promise: Promise::Lost, why })?;
     for (index, (sign_in, query)) in snapshot.queries.iter().enumerate() {
-        snapshot.compare_answer(index, read(world, *sign_in, query.clone())?);
+        snapshot
+            .compare_answer(index, read(world, *sign_in, query.clone())?)
+            .map_err(|why| Violation { promise: Promise::Lost, why })?;
     }
     for ((sign_in, project, subject), before) in subjects.into_iter().zip(documents) {
         oracle::compare_forge(
@@ -113,7 +119,8 @@ pub(super) fn close(world: &mut Harness<Temper>) -> Result<(), Violation> {
             subject,
             before,
             document(world, sign_in, project, subject, watch.expect("document subjects have watch parameters"))?,
-        );
+        )
+        .map_err(|why| Violation { promise: Promise::Lost, why })?;
     }
     Ok(())
 }
