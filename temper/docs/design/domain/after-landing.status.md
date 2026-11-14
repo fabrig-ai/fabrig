@@ -9,10 +9,6 @@ in section 14. The log's other gaps and the retained change rows remain below.
 - **Not yet:** 7, *A goal that has ended*: a red of no goal's is not filed as a finding of its project, once per landing, so no triager hears it [in flight: change 751].
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
-- **Not yet:** 3, *Faults*, and 9: no `temper/verdict/<tier>` status,
-  pending before a hold or a verdict's, and no comment on a member's
-  pull request; purpose tag 8's operations 6 and 7 are unused; the
-  tier's record keeps no posting (section 10) [in flight: change 2961].
 - **Not yet:** 5.2, 11: the suspects' rule and a
   red's pause, kind 4's alone (`landing.md`, 13.1, and its status):
   every red range is probed (`temper-engine-domain/src/translate.rs`),
@@ -39,7 +35,3 @@ in section 14. The log's other gaps and the retained change rows remain below.
   because the answer of 2026-11-05 kept it for a closed change's panel. The log
   holds its titles without it: `a_landed_change_keeps_its_title_after_its_close`
   reads them after a restoration of the log and its repository alone.
-- **Not yet:** 3, *A person's hold*: no person holds a tier; nothing gates a tier's start but its run in flight [in flight: change 2957].
-- **Not yet:** 5.2, step 4: probes visit changed-key landings linearly,
-  oldest first, rather than halving groups; the tier's record keeps no
-  groups (section 10) [in flight: change 2943].
