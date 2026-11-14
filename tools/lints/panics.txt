@@ -18,15 +18,6 @@ jig/crates/jig-client-domain/src/tests/requests.rs should_panic 4
 jig/crates/jig-client-protocol-link/src/tests/documents.rs catch_unwind 1
 jig/crates/jig-client-protocol-link/src/tests/pages.rs catch_unwind 1
 jig/crates/jig-client-protocol-wire/src/tests.rs catch_unwind 1
-jig/crates/jig-client-view/src/tests/tree/cards_objects/owner_escalation.rs catch_unwind 1
-jig/crates/jig-client-view/src/tests/tree/fragments/deployment.rs catch_unwind 2
-jig/crates/jig-client-view/src/tests/tree/fragments/ended_pages.rs catch_unwind 2
-jig/crates/jig-client-view/src/tests/tree/fragments/history/proposal_fragment.rs catch_unwind 1
-jig/crates/jig-client-view/src/tests/tree/fragments/person_task.rs catch_unwind 1
-jig/crates/jig-client-view/src/tests/tree/fragments/proposal.rs catch_unwind 1
-jig/crates/jig-client-view/src/tests/tree/fragments/result.rs catch_unwind 2
-jig/crates/jig-client-view/src/tests/tree/fragments/tree.rs catch_unwind 2
-jig/crates/jig-client-view/src/tests/tree/sections/project/owner.rs catch_unwind 3
 jig/crates/jig-client/src/tests/unlinked.rs should_panic 5
 jig/crates/jig-domain-core/src/tests/acts/proposals.rs should_panic 1
 jig/crates/jig-domain-core/src/tests/admission/named_people.rs catch_unwind 1

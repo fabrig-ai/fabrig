@@ -67,7 +67,8 @@ fn one_pass_prices_match_exact_builder_charges() {
     // Six nodes, deepest at the link; field bytes 4+4+4+3+5 = 20,
     // plus five bytes each on the link and text. The link's two tokens
     // share one builder binding charge; the field carries the other.
-    const PRICE: Limits = Limits { nodes: 6, depth: 3, text_per_node: 20, text_bytes: 30, bindings: 2, ..Limits::EMPTY };
+    const PRICE: Limits =
+        Limits { nodes: 6, depth: 3, text_per_node: 20, text_bytes: 30, bindings: 2, ..Limits::EMPTY };
     let tree = one_pass(&super::fixtures::LIMITS);
     assert_eq!(tree.used(), PRICE);
     assert_eq!(one_pass(&tree.used()).used(), PRICE);
