@@ -237,8 +237,21 @@ pub enum DeploymentPhrase {
     ConnectorsEmpty,
     StoreBytes,
     StoreMark,
+    Census,
+    CensusCommit,
+    CensusSince,
+    CensusKeyspaces,
+    CensusRows,
+    CensusKeys,
+    CensusValues,
+    CensusHeads,
+    CensusHead,
+    CensusHeadNone,
+    CensusPuts,
+    CensusErases,
+    CensusWritten,
 }
-pub const ALL: [DeploymentPhrase; 292] = [
+pub const ALL: [DeploymentPhrase; 305] = [
     DeploymentPhrase::Agent(AgentPhrase::Model),
     DeploymentPhrase::Agent(AgentPhrase::Window),
     DeploymentPhrase::Agent(AgentPhrase::Output),
@@ -510,6 +523,19 @@ pub const ALL: [DeploymentPhrase; 292] = [
     DeploymentPhrase::ConnectorsEmpty,
     DeploymentPhrase::StoreBytes,
     DeploymentPhrase::StoreMark,
+    DeploymentPhrase::Census,
+    DeploymentPhrase::CensusCommit,
+    DeploymentPhrase::CensusSince,
+    DeploymentPhrase::CensusKeyspaces,
+    DeploymentPhrase::CensusRows,
+    DeploymentPhrase::CensusKeys,
+    DeploymentPhrase::CensusValues,
+    DeploymentPhrase::CensusHeads,
+    DeploymentPhrase::CensusHead,
+    DeploymentPhrase::CensusHeadNone,
+    DeploymentPhrase::CensusPuts,
+    DeploymentPhrase::CensusErases,
+    DeploymentPhrase::CensusWritten,
     DeploymentPhrase::ProgramDetail(ProgramPhrase::Programs),
     DeploymentPhrase::ProgramDetail(ProgramPhrase::Awaiting),
     DeploymentPhrase::ProgramDetail(ProgramPhrase::Received),
@@ -761,6 +787,19 @@ impl DeploymentPhrase {
                 Self::ConnectorsEmpty => 9398,
                 Self::StoreBytes => 9399,
                 Self::StoreMark => 9420,
+                Self::Census => 9518,
+                Self::CensusCommit => 9519,
+                Self::CensusSince => 9520,
+                Self::CensusKeyspaces => 9521,
+                Self::CensusRows => 9522,
+                Self::CensusKeys => 9523,
+                Self::CensusValues => 9524,
+                Self::CensusHeads => 9525,
+                Self::CensusHead => 9526,
+                Self::CensusHeadNone => 9527,
+                Self::CensusPuts => 9528,
+                Self::CensusErases => 9529,
+                Self::CensusWritten => 9530,
             },
         }
     }
@@ -771,7 +810,11 @@ impl DeploymentPhrase {
             Self::ProgramDetail(phrase) => phrase.hole(),
             Self::AccountDetail(phrase) => phrase.hole(),
             Self::At | Self::GraceUntil | Self::SpentUntil => Some(HoleKind::Wall),
-            Self::Deployment
+            Self::Census
+            | Self::CensusKeyspaces
+            | Self::CensusHeads
+            | Self::CensusHeadNone
+            | Self::Deployment
             | Self::Hosts
             | Self::Attempts
             | Self::Accounts
@@ -943,7 +986,16 @@ impl DeploymentPhrase {
             | Self::Connectors
             | Self::ConnectorsCut
             | Self::ConnectorsEmpty => None,
-            Self::TaskProposer
+            Self::CensusCommit
+            | Self::CensusSince
+            | Self::CensusRows
+            | Self::CensusKeys
+            | Self::CensusValues
+            | Self::CensusHead
+            | Self::CensusPuts
+            | Self::CensusErases
+            | Self::CensusWritten
+            | Self::TaskProposer
             | Self::PartyProposer
             | Self::Host
             | Self::Account
@@ -1212,6 +1264,19 @@ impl DeploymentPhrase {
             Self::ConnectorsEmpty => b"No configured connectors",
             Self::StoreBytes => b"Store map bytes: ",
             Self::StoreMark => b"Store high-water mark in bytes: ",
+            Self::Census => b"Store census",
+            Self::CensusCommit => b"Counted to commit: ",
+            Self::CensusSince => b"Writes since commit: ",
+            Self::CensusKeyspaces => b"Keyspaces",
+            Self::CensusRows => b"Rows: ",
+            Self::CensusKeys => b"Keys bytes: ",
+            Self::CensusValues => b"Values bytes: ",
+            Self::CensusHeads => b"Heads",
+            Self::CensusHead => b"Head: ",
+            Self::CensusHeadNone => b"Head: none",
+            Self::CensusPuts => b"Puts: ",
+            Self::CensusErases => b"Erases: ",
+            Self::CensusWritten => b"Written bytes: ",
         }
     }
 }

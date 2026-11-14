@@ -212,7 +212,7 @@ pub fn line_fixture(
     (root, me_watch, watch, accounts_watch.unwrap())
 }
 
-pub const NAME_BYTES: u32 = jig_client_protocol_wire::v21::CEILINGS.me_model_name;
+pub const NAME_BYTES: u32 = jig_client_protocol_wire::v22::CEILINGS.me_model_name;
 
 pub fn wait_pointers(text: &[u8]) {
     let text = core::str::from_utf8(text).unwrap();

@@ -45,7 +45,7 @@ fn with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::Service {
     service
 }
 
-fn sign_in_with_link(engine: &mut crate::engine::Engine, link: &[u8]) -> jig_client_protocol_wire::v21::SignInAnswer {
+fn sign_in_with_link(engine: &mut crate::engine::Engine, link: &[u8]) -> jig_client_protocol_wire::v22::SignInAnswer {
     let body = peer::link_body(engine, link);
     let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(engine, true);
@@ -74,7 +74,7 @@ fn a_given_secret_prints_no_first_link_and_signs_in() {
     assert!(service.local_links().is_empty(), "one local link");
     assert!(service.links().is_empty(), "the box already holds the first link");
     let engine = service.engine.as_mut().expect("engine");
-    let jig_client_protocol_wire::v21::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
+    let jig_client_protocol_wire::v22::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
         panic!("the given secret signs in")
     };
     assert_eq!(answer.party(), OWNER_PARTY, "the link signs in the owner");
@@ -96,7 +96,7 @@ fn a_given_local_link_signs_in_and_is_never_kept_or_printed() {
         &skein_lib::Secret::new(Box::new([37; crate::clients::LINK_SECRET_BYTES])),
     );
     let engine = service.engine.as_mut().expect("engine");
-    let jig_client_protocol_wire::v21::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &local) else {
+    let jig_client_protocol_wire::v22::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &local) else {
         panic!("the given local link signs in")
     };
     assert_eq!(answer.party(), OWNER_PARTY, "the local link signs in the owner");
@@ -107,7 +107,7 @@ fn a_given_local_link_signs_in_and_is_never_kept_or_printed() {
     assert!(service.local_links().is_empty(), "one successor is kept");
     assert!(service.links().is_empty(), "a local sign-in prints nothing");
     let engine = service.engine.as_mut().expect("engine");
-    let jig_client_protocol_wire::v21::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
+    let jig_client_protocol_wire::v22::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
         panic!("the given printed link still signs in")
     };
     assert_eq!(answer.party(), OWNER_PARTY);
@@ -125,7 +125,7 @@ fn a_spent_given_secret_prints_a_fresh_link() {
     let link = given_link();
     let _signed_in = sign_in_with_link(engine, &link);
     let answer = sign_in_with_link(engine, &link);
-    assert!(answer == jig_client_protocol_wire::v21::SignInAnswer::LinkUsed, "a spent secret is used");
+    assert!(answer == jig_client_protocol_wire::v22::SignInAnswer::LinkUsed, "a spent secret is used");
     super::fixtures::turn(&mut service);
     let fresh = service.links().pop().expect("a fresh link is printed");
     assert!(local != link && local != fresh, "the file never holds a printed link");
@@ -133,7 +133,7 @@ fn a_spent_given_secret_prints_a_fresh_link() {
     assert!(fresh != link, "a later link has a fresh secret");
     assert!(service.links().is_empty(), "one fresh link is printed");
     let engine = service.engine.as_mut().expect("engine");
-    let jig_client_protocol_wire::v21::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &fresh) else {
+    let jig_client_protocol_wire::v22::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &fresh) else {
         panic!("the fresh printed link signs in")
     };
     assert_eq!(answer.party(), OWNER_PARTY);
@@ -154,7 +154,7 @@ fn the_local_link_is_kept_apart_and_signs_in_in_either_order() {
         let order = if local_first { [(&local, true), (&given, false)] } else { [(&given, false), (&local, true)] };
         for (link, is_local) in order {
             let engine = service.engine.as_mut().expect("engine");
-            let jig_client_protocol_wire::v21::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, link) else {
+            let jig_client_protocol_wire::v22::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, link) else {
                 panic!("{row}: either link signs in after the other")
             };
             assert_eq!(answer.party(), OWNER_PARTY, "{row}: the link signs in the owner");
@@ -451,7 +451,7 @@ fn the_next_clients_stream_opens_once_a_peer_ends_its_own() {
     let mut sign_in =
         peer::Peer::new(service.engine.as_mut().expect("engine"), b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(service.engine.as_mut().expect("engine"), true);
-    let jig_client_protocol_wire::v21::SignInAnswer::SignedIn(answer) =
+    let jig_client_protocol_wire::v22::SignInAnswer::SignedIn(answer) =
         sign_in.sign_in_answer(service.engine.as_ref().expect("engine"))
     else {
         panic!("signed in")
@@ -483,7 +483,7 @@ fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
     let mut peer =
         peer::Peer::new(service.engine.as_mut().expect("engine"), b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(service.engine.as_mut().expect("engine"), true);
-    let jig_client_protocol_wire::v21::SignInAnswer::SignedIn(answer) =
+    let jig_client_protocol_wire::v22::SignInAnswer::SignedIn(answer) =
         peer.sign_in_answer(service.engine.as_ref().expect("engine"))
     else {
         panic!("signed in")
@@ -534,7 +534,7 @@ fn a_request_before_decisions_open_is_answered_not_ready() {
     assert_eq!(engine.clients.early.len(), 1, "request staged during restoration");
     crate::engine::iterate(engine, skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
     peer.pump(engine, false);
-    assert_eq!(peer.sign_in_answer(engine), jig_client_protocol_wire::v21::SignInAnswer::NotReady);
+    assert_eq!(peer.sign_in_answer(engine), jig_client_protocol_wire::v22::SignInAnswer::NotReady);
     assert!(!engine.domain.ready());
 }
 #[test]
@@ -668,7 +668,7 @@ fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_ho
 
 #[test]
 fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
-    use jig_client_protocol_wire::v21 as w;
+    use jig_client_protocol_wire::v22 as w;
     use skein_lib::{Reader, Secret, Writer, bytes};
 
     let mut service = super::fixtures::ready();
@@ -708,7 +708,7 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
             w::KeyedParts {
                 key: [extra; 16],
                 owner: w::Owner::Jig,
-                version: 21,
+                version: 22,
                 request: bytes.finish(),
                 value: Some(value),
             },
