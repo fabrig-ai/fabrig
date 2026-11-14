@@ -193,15 +193,24 @@ const ANSWERED: [(bool, &[u8]); 8] = [
 ];
 #[test]
 fn each_answer_carries_the_policys_five_fields() {
-    for (bundled, bytes) in ANSWERED {
-        let mut service = fixtures::started();
+    let mut service = fixtures::started();
+    // Serve the unbundled rows first, then adopt the bundle for the other rows.
+    for bundled in [false, true] {
         if bundled {
             service.adopt_bundle(fixtures::bundle::bundle());
         }
-        let mut peer = fixtures::request(&mut service, bytes);
-        let (_, headers) = fixtures::answered(&mut service, &mut peer);
-        for (name, value) in fixtures::bundle::POLICY {
-            assert_eq!(fixtures::header(&headers, name), Some(value), "{name:?} on {bytes:?}");
+        for (with_bundle, bytes) in ANSWERED {
+            if with_bundle != bundled {
+                continue;
+            }
+            let mut peer = fixtures::request(&mut service, bytes);
+            let (_, headers) = fixtures::answered(&mut service, &mut peer);
+            for (name, value) in fixtures::bundle::POLICY {
+                assert_eq!(fixtures::header(&headers, name), Some(value), "{name:?} on {bytes:?}");
+            }
+            if !peer.is_closed() {
+                peer.close(service.engine.as_mut().expect("engine"));
+            }
         }
     }
 }

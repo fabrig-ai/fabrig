@@ -363,6 +363,10 @@ impl Clients {
     // The service holds secret work until its startup mark is durable;
     // listener and transport work can run before that mark.
     pub(crate) fn work_pending_with_secrets(&self, now: Time, secrets_ready: bool) -> bool {
+        !self.closed && self.starting.is_none() && !self.links.is_empty() || self.transport_pending(now, secrets_ready)
+    }
+    /// Transport work excludes printed links waiting for the enclosing service to read them.
+    pub(crate) fn transport_pending(&self, now: Time, secrets_ready: bool) -> bool {
         !self.closed
             && ((match &self.google {
                 Some(google) => google.work_pending(),
@@ -378,7 +382,6 @@ impl Clients {
                 || !self.early.is_empty()
                 || !self.github_calls.is_empty()
                 || !self.io.is_empty()
-                || self.starting.is_none() && !self.links.is_empty()
                 || match self.next_deadline() {
                     Some(at) => at <= now,
                     None => false,
@@ -471,6 +474,7 @@ impl Clients {
             | skein_http::server::Request::Close) => request,
         };
         self.server.answer(call, request, &mut self.server_out);
+        self.pending = true;
     }
     fn server_requests(&mut self) {
         for _ in 0..self.server_out.len() {
@@ -703,6 +707,7 @@ impl Clients {
         if self.closed {
             return;
         }
+        self.pending = false;
         self.pushes.advance(now, wall, self.stopping.is_some(), events, &mut self.io);
         self.server.fire(&mut self.server_out);
         let server_pending = self.server.advance(&mut self.server_out);
@@ -718,7 +723,7 @@ impl Clients {
             self.component.fire(&self.env);
         }
         self.advance(events, forges, demo, accounts);
-        self.pending = server_pending || admitted || !self.server_out.is_empty();
+        self.pending |= server_pending || admitted || !self.server_out.is_empty();
         let mount_pending = self.mount.up(&self.mount_env, &mut self.mount_out);
         self.pending |= mount_pending;
         if self.component_closed && !mount_pending && self.mount_out.is_empty() && self.out.is_empty() {

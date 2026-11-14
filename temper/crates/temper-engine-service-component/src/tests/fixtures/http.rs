@@ -77,11 +77,11 @@ impl Peer {
     }
     /// Stop once the held request head has caused a demand for its withheld body.
     pub fn hold_body(&mut self, engine: &mut Engine) {
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, |peer, _| peer.body_demand);
+        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, 256, |peer, _| peer.body_demand);
         assert!(self.body_demand, "the mounted call asks for its withheld body");
     }
     pub fn handoff(&mut self, engine: &mut Engine) {
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, |_, engine| !engine.clients.early.is_empty());
+        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, 256, |_, engine| !engine.clients.early.is_empty());
     }
     pub fn is_closed(&self) -> bool {
         self.closed > 0
@@ -90,7 +90,11 @@ impl Peer {
         self.pump_at(engine, decide, REQUEST_AT, REQUEST_WALL);
     }
     pub fn pump_at(&mut self, engine: &mut Engine, decide: bool, now: Time, wall: Wall) {
-        self.pump_until(engine, decide, now, wall, |peer, _| peer.streaming());
+        self.pump_until(engine, decide, now, wall, 256, |peer, _| peer.streaming());
+    }
+    /// One request with the caller's aggregate turn bound, including all fragments.
+    pub fn pump_bounded(&mut self, engine: &mut Engine, decide: bool, turns: u32) {
+        self.pump_until(engine, decide, REQUEST_AT, REQUEST_WALL, turns, |peer, _| peer.streaming());
     }
     fn pump_until(
         &mut self,
@@ -98,10 +102,11 @@ impl Peer {
         decide: bool,
         now: Time,
         wall: Wall,
+        turns: u32,
         ready: fn(&Self, &Engine) -> bool,
     ) {
-        for _ in 0_u32..256 {
-            if decide {
+        for _ in 0..turns {
+            if decide && engine.work_pending_without_clients(now) {
                 crate::engine::iterate(engine, now, wall);
             } else {
                 engine.clients.iterate(
@@ -148,18 +153,27 @@ impl Peer {
                 }
             }
             if self.closed > 0 || ready(self, engine) {
-                break;
+                return;
             }
             if let Some(owner) = self.owner
                 && let Some(up) = self.wire.answer()
             {
                 assert!(engine.clients.up(io::Event::Stream { owner, up }));
             }
+            // A withheld body, an external OAuth answer and an idle keep-alive
+            // connection wait for their caller, not another identical turn.
+            if !self.wire.work_pending()
+                && !engine.clients.transport_pending(now, engine.store.host.mark_durable())
+                && (!decide || !engine.work_pending_without_links(now))
+            {
+                return;
+            }
         }
+        panic!("the HTTP peer reaches its condition or waits for input within its turn bound");
     }
     pub fn read_hello(&mut self, engine: &mut Engine) -> bool {
         // Keep the clock at REQUEST_AT: no predecessor waits out a heartbeat.
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, |peer, _| peer.event_data().is_some());
+        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, 256, |peer, _| peer.event_data().is_some());
         let Some(data) = self.event_data() else { return false };
         let record =
             skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, data, u32::try_from(data.len()).unwrap())
@@ -179,7 +193,7 @@ impl Peer {
     }
     pub fn end(&mut self, engine: &mut Engine) {
         engine.clients.up(io::Event::Stream { owner: self.owner.expect("bound peer"), up: skein_lib::stream::Up::End });
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, |_, _| false);
+        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, 256, |_, _| false);
     }
     pub fn close(&mut self, engine: &mut Engine) {
         assert!(engine.clients.up(io::Event::Closed { owner: self.owner.expect("bound peer") }));

@@ -13,10 +13,6 @@ use skein_lib::{
     base64::{self, Alphabet},
     bytes,
 };
-use std::{
-    os::unix::fs::PermissionsExt,
-    process::{Command, Stdio},
-};
 const CALLBACK: &str = "https://forge.example/user/oauth2/temper/callback";
 pub(super) const VERIFIER: &str = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG";
 
@@ -25,30 +21,11 @@ pub(super) struct Configuration {
     pub(super) files: [(Box<[u8]>, Secret); 2],
 }
 pub(super) fn configuration() -> Configuration {
-    let scratch =
-        skein_scratch::paths::package().join("../../target").join(format!("provider-world-{}", std::process::id()));
-    std::fs::create_dir_all(&scratch).unwrap();
-    std::fs::set_permissions(&scratch, std::fs::Permissions::from_mode(0o700)).unwrap();
-    let key = scratch.join("provider.key");
-    assert!(
-        Command::new("openssl")
-            .args(["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:3072", "-out"])
-            .arg(&key)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .unwrap()
-            .success()
-    );
-    std::fs::set_permissions(&key, std::fs::Permissions::from_mode(0o600)).unwrap();
-    let secret = scratch.join("forgejo.secret");
-    std::fs::write(&secret, b"throwaway-provider-secret").unwrap();
-    std::fs::set_permissions(&secret, std::fs::Permissions::from_mode(0o600)).unwrap();
+    // Public, offline-generated 3072-bit RSA test key, never a deployment credential.
     let files = [
-        (b"provider.key".as_slice().into(), Secret::new(std::fs::read(&key).unwrap().into())),
-        (b"forgejo.secret".as_slice().into(), Secret::new(std::fs::read(&secret).unwrap().into())),
+        (b"provider.key".as_slice().into(), Secret::new(include_bytes!("fixtures/provider.pem").as_slice().into())),
+        (b"forgejo.secret".as_slice().into(), Secret::new(b"throwaway-provider-secret".as_slice().into())),
     ];
-    std::fs::remove_dir_all(&scratch).unwrap();
     Configuration {
         provider: Provider {
             key: b"provider.key".as_slice().into(),
@@ -125,7 +102,6 @@ pub(super) fn authorize(service: &mut crate::Service, cookie: &[u8]) -> Box<[u8]
     text.split_once("code=").unwrap().1.split('&').next().unwrap().as_bytes().into()
 }
 #[test]
-#[expect(clippy::print_stderr, reason = "report each world story’s elapsed time without any secret bytes")]
 fn a_google_member_redeems_by_basic_and_by_body_and_reads_the_same_claims() {
     let Configuration { provider, files } = configuration();
     let (mut service, mut google) = sign_in::world_settings(2, Duration::from_secs(600), true, Some(provider), &files);
@@ -135,7 +111,6 @@ fn a_google_member_redeems_by_basic_and_by_body_and_reads_the_same_claims() {
     let cookie = sign_in::header(&signed, "set-cookie").split(|byte| *byte == b';').next().unwrap().to_vec();
     assert!(cookie.starts_with(b"jig-sign-in="));
     for basic in [true, false] {
-        let started = std::time::Instant::now();
         let code = authorize(&mut service, &cookie);
         let mut form = format!(
             "grant_type=authorization_code&code={}&redirect_uri=https%3A%2F%2Fforge.example%2Fuser%2Foauth2%2Ftemper%2Fcallback&code_verifier={VERIFIER}",
@@ -181,11 +156,6 @@ fn a_google_member_redeems_by_basic_and_by_body_and_reads_the_same_claims() {
         assert_eq!(text(&user, b"email").as_ref(), b"sam@example.com");
         let mut object = jig_protocol_config::read::Object::new(&user, 0).unwrap();
         assert!(jig_protocol_config::read::boolean(&user, object.member(&user, b"email_verified").unwrap()).unwrap());
-        std::eprintln!(
-            "provider {} story: {} s",
-            if basic { "Basic" } else { "body" },
-            started.elapsed().as_secs_f64()
-        );
     }
     refused_authorizations(&mut service, &cookie);
     document_routes(&mut service);

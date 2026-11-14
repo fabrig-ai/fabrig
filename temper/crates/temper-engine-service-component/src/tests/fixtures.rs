@@ -941,19 +941,14 @@ pub fn settle_root(
     }
     panic!("chat settled");
 }
-// A restored deployment key, with the first-start people and periods kept by the
-// service itself. Ordinary cold-start fixtures stay empty for startup proofs.
+// A restored deployment key over the completed record fixture. Ordinary
+// cold-start fixtures stay empty for startup proofs.
 fn restored_key() -> crate::Service {
     use jig_domain_accounts::{Holder, Kind, Stored};
     use jig_protocol_store::{SecretOwner, Secrets};
-    use temper_engine_domain::{Record, StoreRequest, Write};
-    let mut bootstrap = ready();
-    let mut header = bootstrap.engine.as_mut().expect("engine").domain.deployment();
-    header.commits = header.commits.checked_add(1).unwrap();
-    let mut writes = skein_lib::List::with_capacity(4);
-    writes
-        .push(Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header)))))
-        .unwrap();
+    use temper_engine_domain::{Record, Write};
+    let mut store = records_store();
+    let mut writes = skein_lib::List::with_capacity(3);
     for row in [
         Stored::Account {
             list: None,
@@ -970,15 +965,8 @@ fn restored_key() -> crate::Service {
     ] {
         writes.push(Write::Save(Record::Core(jig_domain_core::Record::Accounts(row)))).unwrap();
     }
-    assert!(
-        bootstrap
-            .engine
-            .as_mut()
-            .expect("engine")
-            .store
-            .down(StoreRequest::Commit { number: header.commits, writes: writes.into_boxed() })
-    );
-    let _later = bootstrap.engine.as_mut().expect("engine").store.secrets(
+    commit(&mut store, 1, writes.into_boxed());
+    let _later = store.secrets(
         Token::new(crate::tokens::ACCOUNTS),
         Secrets::Replace {
             owner: SecretOwner::Source,
@@ -987,8 +975,8 @@ fn restored_key() -> crate::Service {
             replaces: None,
         },
     );
-    while bootstrap.engine.as_mut().expect("engine").store.host.above.pop().is_some() {}
-    let mut service = start_with_store(&[(1, 100)], Some(bootstrap.engine.expect("engine").store));
+    while store.host.above.pop().is_some() {}
+    let mut service = start_with_store(&[(1, 100)], Some(store));
     restart(&mut service);
     service
 }
