@@ -4,7 +4,9 @@ The files crossing the summary boundary follow
  temper/docs/plan/inproc-runner/notes/contracts.md, 2 and
  temper/docs/plan/inproc-fixes/notes/contracts.md, 1.
 """
+import contextlib
 import fnmatch
+import io
 import json
 import math
 import os
@@ -381,6 +383,9 @@ def split_jobs(plan, lanes):
     mean = sum(known) / len(known) if known else 1.0
     for test in tests:
         test['estimate'] = test['kept_s'] if test['kept_s'] is not None else mean
+    if plan.get('single_process', False):
+        return [dict(binary=binary, tests=binary['tests'], kind='tests', diagnostic=None)
+                for binary in plan['binaries']]
     share = sum(test['estimate'] for test in tests) / lanes
     jobs = []
     for binary in plan['binaries']:
@@ -654,13 +659,13 @@ def lanes(plan):
                              test_name=child.job['tests'][0]['name'], outcome='failed' if failed else 'passed',
                              output=''.join(t['output'] or '' for t in child.done.values()) if failed else None)
                     else:
-                        if fresh:
+                        if fresh and not plan.get('single_process', False):
                             job = dict(child.job, tests=fresh, kind='fresh')
                             position = next((index for index, waiting in enumerate(jobs)
                                              if waiting['kind'] != 'alone' and job_order(waiting) > job_order(job)), len(jobs))
                             jobs.insert(position, job)
                         for item in reversed(list(child.done.values())):
-                            if item['outcome'] in ('failed', 'crashed') and item['before']:
+                            if plan.get('alone_diagnostics', True) and item['outcome'] in ('failed', 'crashed') and item['before']:
                                 test = next(t for t in child.job['tests'] if t['name'] == item['test_name'])
                                 jobs.insert(0, dict(child.job, tests=[test], kind='alone'))
             emit('end')
@@ -738,13 +743,63 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     metadata = json.loads(subprocess.check_output([cargo, 'metadata', '--format-version', '1', '--no-deps'],
                                                 env=env, stdin=subprocess.DEVNULL, text=True))
     plan = make_plan(listing, metadata, env, cargo, profile, overrides, default_filter, caller_filter, groups, settings)
+    execute_plan(plan, prefix, env, directory, limits, no_tests=no_tests, output=output)
+
+
+def again_plan(run_directory, binary_id, names):
+    """Select one finished run's process without listing or building (design.md, 11.9)."""
+    plan = json.loads((Path(run_directory) / 'plan.json').read_text())
+    binary = next((b for b in plan['binaries'] if b['binary_id'] == binary_id), None)
+    if binary is None:
+        raise ValueError(f'no binary in plan: {binary_id}')
+    if not names:
+        raise ValueError('again requires test names')
+    if len(set(names)) != len(names):
+        raise ValueError('a test name was given twice')
+    selected = {test['name']: test for test in binary['tests']}
+    for name in names:
+        if name not in selected:
+            raise ValueError(f'test not selected in plan: {binary_id} {name}')
+    return dict(plan, binaries=[dict(binary, tests=[selected[name] for name in sorted(names)])],
+                lanes=1, single_process=True, alone_diagnostics=False)
+
+
+def again(plan, prefix, env, directory):
+    """Run an again plan, keeping its results but not its times (design.md, 11.9)."""
+    directory = Path(directory).resolve()
+    if directory.exists():
+        raise ValueError('again run directory must be fresh')
+    directory.mkdir(mode=0o700, parents=True)
+    results = execute_plan(plan, prefix, env, directory, {}, keep_times=False)
+    summary = CPU['summary'](directory)
+    # The ordinary entry point reports through cpu.execute_one_process; again's
+    # verdict also treats starvation and unobserved names as non-passes.
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        CPU['print_summary'](summary)
+    text = output.getvalue()
+    print(text, end='', flush=True)
+    with (directory / 'command-output.txt').open('a') as log:
+        log.write(text)
+    return 100 if results['unobserved'] or any(t['outcome'] != 'passed' for t in results['tests']) else 0
+
+
+def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', output=None, keep_times=True):
+    """Collect the lanes' events into the run directory (design.md, 11.8)."""
+    profile = plan['profile']
+    output = bytearray() if output is None else output
+
+    def forward(text):
+        print(text, end='', flush=True)
+        output.extend(text.encode('utf-8', 'backslashreplace'))
+
     save(directory / 'plan.json', plan)
     selected = sum(len(binary['tests']) for binary in plan['binaries'])
     results = dict(profile=profile, selected=selected, no_tests=no_tests, cancelled=None,
                    processes=[], tests=[], unobserved=[])
     tests = {}
     starts, active = {}, set()
-    lane_count = LANES or len(os.sched_getaffinity(0))
+    lane_count = plan['lanes'] or len(os.sched_getaffinity(0))
     code, kill_at, process = None, None, None
     wall_starved = False
     forced_at = None
@@ -859,7 +914,7 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     save(directory / 'run.json', dict(profile=profile, mode='one-process', finished=True,
                                      starved=results['cancelled'] is not None, wall_s=end - first,
                                      returncode=code, cancel_code=None, lanes=lane_count))
-    if results['tests']:
+    if keep_times and results['tests']:
         path = Path(plan['times_path'])
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -869,6 +924,7 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
         for test in results['tests']:
             kept.setdefault(profile, {}).setdefault(test['binary_id'], {})[test['test_name']] = test['wall_s']
         save(path, kept)
+    return results
 
 
 if __name__ == '__main__':

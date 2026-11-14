@@ -465,9 +465,11 @@ among the forge's; 16 is the report's ceiling of flakes (5.6).
   the check's number; no file, a malformed one and an oversized one
   reporting nothing; two repositories reported one after the other; the
   report going up before a `finish`'s run answer.
-- **A story across both,** in the service's world: a red recorded, a
-  change's fake check passing it, the change landing into the goal's
-  branch and the red gone; a fake check's flake filed as a finding.
+- **A story across both,** in the engine service's channel world, its
+  scripted worker root asking through its real hub: a goal's red, a
+  change's producer reporting a passed check that passed it, the pass
+  kept, and a flake of the same report filed as a finding; then the
+  change's landing ending the red.
 
 ## 9. Open questions
 
