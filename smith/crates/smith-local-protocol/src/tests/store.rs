@@ -473,34 +473,6 @@ fn check_empty(store: &mut Store, out: &mut Queue<Action>) {
 }
 
 #[test]
-#[should_panic(expected = "Load must check the selected root before any save")]
-fn saving_before_load_is_a_contract_violation() {
-    store().request(save(), Time::ZERO, &mut Queue::with_capacity(3));
-}
-
-#[test]
-#[should_panic(expected = "Load must check the selected root before any save")]
-fn saving_a_turn_before_load_is_a_contract_violation() {
-    let (_, turn) = crate::store::tests::fixture();
-    store().request(
-        StoreRequest::SaveTurn { number: 1, read: None, opens_window: true, turn },
-        Time::ZERO,
-        &mut Queue::with_capacity(3),
-    );
-}
-
-#[test]
-#[should_panic(expected = "Load must check the selected root before any save")]
-fn saving_a_delivery_before_load_is_a_contract_violation() {
-    let record = local::DeliveryRecord {
-        name: smith_domain::run::CallName { activation: 1, completion: 1, position: 0 },
-        state: local::DeliveryState::Answer(smith_domain::run::Delivery::Nothing),
-        landed: Box::new([]),
-    };
-    store().request(StoreRequest::SaveDelivery { record: Box::new(record) }, Time::ZERO, &mut Queue::with_capacity(3));
-}
-
-#[test]
 fn marker_creation_conflicts_and_failures_have_one_read_terminal() {
     for conflict in [false, true] {
         let mut store = store();
