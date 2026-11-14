@@ -5,6 +5,10 @@ use core::mem::size_of;
 use skein_forge::api;
 use temper_engine_domain_forge_tiers as p;
 
+/// Logged members plus live changes whose landing rotated out of the ring.
+pub fn posting_comments(limits: &crate::Limits) -> Option<u32> {
+    limits.landings_kept.checked_mul(limits.landing_members)?.checked_add(limits.changes)
+}
 pub(crate) fn tests_bytes(tests: &[Box<[u8]>]) -> Option<u64> {
     let mut held = skein_lib::len_u64(tests.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
     for test in tests {
@@ -59,6 +63,26 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
             held = held.checked_add(failures_bytes(failures)?)?;
         }
     }
+    if let Some(posting) = &row.posting {
+        held = held
+            .checked_add(u64::try_from(size_of::<crate::TierPosting>()).ok()?)?
+            .checked_add(skein_lib::len_u64(posting.link.len()))?
+            .checked_add(skein_lib::len_u64(posting.description.len()))?
+            .checked_add(
+                skein_lib::len_u64(posting.landings.len())
+                    .checked_mul(u64::try_from(size_of::<crate::TierPostedLanding>()).ok()?)?,
+            )?
+            .checked_add(
+                skein_lib::len_u64(posting.comments.len())
+                    .checked_mul(u64::try_from(size_of::<crate::TierComment>()).ok()?)?,
+            )?;
+        for landing in &posting.landings {
+            held = held.checked_add(blame_bytes(&landing.blame)?)?;
+        }
+    }
+    if let Some(hold) = &row.hold {
+        held = held.checked_add(skein_lib::len_u64(hold.reason.len()))?;
+    }
     if let Some(run) = &row.record.run {
         held = held.checked_add(
             skein_lib::len_u64(run.landings.len()).checked_mul(u64::try_from(size_of::<p::Landing>()).ok()?)?,
@@ -66,7 +90,15 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         match &run.part {
             p::Part::Whole => {}
             p::Part::Rerun { failed } => held = held.checked_add(tests_bytes(failed)?)?,
-            p::Part::Probe { tests, finding, .. } => {
+            p::Part::Probe { tests, waiting, finding, .. } => {
+                held = held.checked_add(
+                    skein_lib::len_u64(waiting.len()).checked_mul(u64::try_from(size_of::<p::Group>()).ok()?)?,
+                )?;
+                for group in waiting {
+                    held = held.checked_add(
+                        skein_lib::len_u64(group.tests.len()).checked_mul(u64::try_from(size_of::<u16>()).ok()?)?,
+                    )?;
+                }
                 match tests {
                     p::Selection::All => {}
                     p::Selection::Tests(tests) => held = held.checked_add(tests_bytes(tests)?)?,
@@ -85,4 +117,26 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         }
     }
     Some(held)
+}
+
+/// A person's tier control (temper/docs/design/domain/after-landing.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierActRequest {
+    pub project: u32,
+    pub repository: Option<crate::DraftRepository>,
+    pub tier: Box<[u8]>,
+    pub act: TierAct,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum TierAct {
+    Hold { reason: Box<[u8]> },
+    Release,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum TierRefusal {
+    NoRepository,
+    NoTier,
+    Held { party: u64, reason: Box<[u8]> },
+    NotHeld,
+    Words,
 }

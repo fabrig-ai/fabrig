@@ -244,6 +244,7 @@ fn made_repositories_keep_workflows_and_merge_settings_across_an_image() {
                     flaky: Box::new([]),
                     report: None,
                     select: None,
+                    requirements: Box::new([]),
                 }]);
                 config.made_manual_merges =
                     crate::api::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true };

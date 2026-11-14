@@ -15,8 +15,9 @@ is:
 This document is the kit as a whole and its first crate, `skein-forge`:
 the vocabulary, the dialects, keys' markers, deliveries and credentials.
 The others are connection.md (the component), client.md (the
-client), setup/README.md (the setup) and ../testing/fakes/forge.md (the fakes, the
-throwaway Forgejo and the conformance).
+client), setup/README.md (the setup), job-state.md (a job's state, read
+when a wait on CI passes its bound) and ../testing/fakes/forge.md (the
+fakes, the throwaway Forgejo and the conformance).
 
 ## 1. In one page
 
@@ -195,7 +196,7 @@ and no policy. Every type is a plain value.
 
 ### 3.2 The calls
 
-25 reads and 18 writes, in families. Each call has one answer.
+26 reads and 18 writes, in families. Each call has one answer.
 
 | Family | Calls | Answer |
 |---|---|---|
@@ -203,7 +204,7 @@ and no policy. Every type is a plain value.
 | The change feed | `Items` | `Items` |
 | One item | `Item`, `Pull`, `PullFor` | `Item`; `Pull`; `Pull` |
 | Review | `Reviews`, `Remarks` | `Reviews`; `Remarks` |
-| CI | `Statuses`, `Checks`, `Job` | `Statuses`; `Checks`; `Job` |
+| CI | `Statuses`, `Checks`, `Job`, `JobState` (job-state.md) | `Statuses`; `Checks`; `Job`; `JobState` |
 | Actions | `Runs`, `Run`, `Artifact`; `Dispatch`, `Rerun` | `Runs`; `Run`; `File`; `Done`; `Done` |
 | Branches | `Branch`, `Branches`, `Commits` | `Commit`; `Branches`; `Commits` |
 | Contents | `PullFiles`, `Compare`, `Range`, `File`, `Tree` | `PullFiles`; `Compare`; `Range`; `File`; `Tree` |
@@ -325,9 +326,9 @@ and no policy. Every type is a plain value.
 
 ### 3.3 The answers
 
-30 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
+31 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
 `Remarks`, `Commit`, `Branches`, `Commits`, `PullFiles`, `Compare`, `Range`,
-`Checks`, `Job`, `File`, `Tree`, `Runs`, `Run`, `Protection`, `Settings`,
+`Checks`, `Job`, `JobState`, `File`, `Tree`, `Runs`, `Run`, `Protection`, `Settings`,
 `Collaborators`, `Permission`, `Created`, `Commented`, `Reviewed`,
 `Merged`, `Queued`, `Branch`, `Done`.
 

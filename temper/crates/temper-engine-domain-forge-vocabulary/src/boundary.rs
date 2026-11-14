@@ -285,6 +285,7 @@ pub enum AppWay {
 /// A retained application answer; adoption and making outcomes are durable.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answered {
+    Tier(Result<(), crate::TierRefusal>),
     Follow(Option<Box<[u8]>>),
     Make(MakeAnswer),
     Adopt(ApplicationOutcome),
@@ -1643,6 +1644,12 @@ pub enum Event {
         follows: ChangeFollows,
         words: Box<[u8]>,
     },
+    TierAct {
+        request: Token,
+        token: Token,
+        party: u64,
+        call: crate::TierActRequest,
+    },
     FollowAct {
         request: Token,
         token: Token,
@@ -2698,12 +2705,58 @@ pub struct TierRow {
     pub probe: Option<TierProbeBranch>,
     pub flight: Option<TierFlight>,
     pub held: Option<landing::Fault>,
+    pub hold: Option<TierHold>,
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
+    pub posting: Option<Box<TierPosting>>,
     pub received: bool,
     pub goals: Box<[TierGoal]>,
     pub goal: Option<u64>,
     pub started: Option<skein_lib::Time>,
+}
+/// Kept verdict projections (temper/docs/design/domain/after-landing.md, sections 9 and 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierPosting {
+    pub number: u64,
+    pub tip: skein_forge::api::Commit,
+    pub link: Box<[u8]>,
+    pub check: skein_forge::api::Check,
+    pub description: Box<[u8]>,
+    pub landings: Box<[TierPostedLanding]>,
+    pub comments: Box<[TierComment]>,
+    /// Status is 0; comment i is i + 1.
+    pub next: u32,
+    pub entry: Option<u64>,
+    /// Zero for a verdict, a distinct positive status part at each fault hold.
+    pub part: u16,
+    /// Retains the rendering bound across restart and settings changes.
+    pub op_bytes: u32,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierPostedLanding {
+    pub commit: skein_forge::api::Commit,
+    pub blame: temper_engine_domain_forge_tiers::Blame,
+    /// The report's retained change read, composed before verification can be released.
+    pub change: Option<u64>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierComment {
+    pub pull: u64,
+    pub landing: skein_forge::api::Commit,
+    pub kind: TierCommentKind,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum TierCommentKind {
+    Verdict { at: u16 },
+    Repaired { by: Option<u64> },
+}
+/// A person's independent hold of a tier (domain/after-landing.md, sections 3 and 10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierHold {
+    pub party: u64,
+    pub at: skein_lib::Wall,
+    /// At most 1024 bytes.
+    pub reason: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierLanding {

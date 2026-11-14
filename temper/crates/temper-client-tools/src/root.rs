@@ -31,6 +31,7 @@ pub struct Root {
     devices: crate::push::Devices,
     findings: crate::finding::Findings,
     follows: crate::follow::Follows,
+    tiers: crate::tier::Tiers,
     next: Option<u32>,
     recovery: crate::recovery::Recovery,
     deadline: Option<Time>,
@@ -97,6 +98,7 @@ impl Root {
             devices: crate::push::Devices::new(),
             findings: crate::finding::Findings::new(),
             follows: crate::follow::Follows::new(),
+            tiers: crate::tier::Tiers::new(),
             next: Some(1),
             recovery: crate::recovery::Recovery::new(),
             deadline: None,
@@ -163,6 +165,7 @@ impl Root {
         self.maker.kept_json(json);
         self.findings.json = json;
         self.follows.kept_json(json);
+        self.tiers.json = json;
         self.forges.kept_json(json);
         self.devices.kept_json(json);
         self.changed();
@@ -204,7 +207,7 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 .expect("bounded calls")
                 .checked_add(root.changes.calls())
                 .expect("bounded calls");
-            let active = active.saturating_add(root.devices.calls());
+            let active = active.saturating_add(root.devices.calls()).saturating_add(root.tiers.calls());
             if active >= usize::try_from(env.limits.tools.rows).expect("rows fit") {
                 let mut printed = jig::render::failure(b"call limit", json, 1);
                 if call.tool == jig::rows::EXPORT_AT {
@@ -223,6 +226,8 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                     crate::finding::call(&mut root.findings, &root.client, env, called, &mut child);
                 } else if crate::making::owns(&called.call) {
                     crate::making::call(&mut root.maker, &root.client, env, called, &mut child);
+                } else if crate::tier::owns(&called.call) {
+                    crate::tier::call(&mut root.tiers, &root.client, env, called, &mut child);
                 } else if crate::follow::owns(&called.call) {
                     crate::follow::call(&mut root.follows, &root.client, env, called, &mut child);
                 } else if crate::landing::owns(&called.call) {
@@ -487,6 +492,7 @@ fn route_owner(
             crate::push::told(&mut root.devices, &root.client, env, &told, child);
             crate::finding::told(&mut root.findings, &root.client, env, &told, child);
             crate::making::told(&mut root.maker, &root.client, env, &told, child);
+            crate::tier::told(&mut root.tiers, env, &told, child);
             crate::follow::told(&mut root.follows, &root.client, env, &told, child);
             crate::landing::told(&mut root.landings, &root.client, env, &told, child);
             crate::change::told(&mut root.changes, &root.client, env, &told, child);
@@ -501,6 +507,7 @@ fn route_owner(
         crate::finding::ready(&mut root.findings, &root.client, env, child);
         crate::drafts::ready(&mut root.drafts, &root.client, env, child);
         crate::making::ready(&mut root.maker, &root.client, env, child);
+        crate::tier::ready(&mut root.tiers, &root.client, env, child);
         crate::follow::ready(&mut root.follows, &root.client, env, child);
         crate::landing::ready(&mut root.landings, &root.client, env, child);
         crate::change::ready(&mut root.changes, &root.client, env, child);

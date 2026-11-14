@@ -491,7 +491,9 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
                     run_id: value.run,
                     attempt: value.attempt,
                     name: value.name.clone(),
-                    status: action_status(value.state, value.conclusion),
+                    status: job_status(value),
+                    labels: value.labels.clone(),
+                    cut: false,
                 })
                 .expect("sized jobs");
             }
@@ -671,6 +673,7 @@ fn collaborators(
 #[must_use]
 pub fn step(status: a::StepStatus) -> d::StepStatus {
     match status {
+        a::StepStatus::Running => d::StepStatus::Running,
         a::StepStatus::Success => d::StepStatus::Success,
         a::StepStatus::Failure => d::StepStatus::Failure,
         a::StepStatus::Cancelled => d::StepStatus::Cancelled,
@@ -689,7 +692,9 @@ fn job_answer(job: &a::Job, steps: &[a::Step]) -> Answer {
             run_id: job.run,
             attempt: job.attempt,
             name: job.name.clone(),
-            status: action_status(job.state, job.conclusion),
+            status: job_status(job),
+            labels: job.labels.clone(),
+            cut: false,
         },
         steps: out.into_boxed(),
     }
@@ -733,5 +738,13 @@ fn action_status(state: a::RunState, conclusion: Option<a::Conclusion>) -> d::St
             Some(a::Conclusion::Failure) => d::StepStatus::Failure,
             None => unreachable!("completed domain run or job has a conclusion"),
         },
+    }
+}
+
+fn job_status(job: &a::Job) -> d::StepStatus {
+    match job.wait {
+        Some(a::JobWait::Runner) => d::StepStatus::Waiting,
+        Some(a::JobWait::Needs) => d::StepStatus::Blocked,
+        None => action_status(job.state, job.conclusion),
     }
 }

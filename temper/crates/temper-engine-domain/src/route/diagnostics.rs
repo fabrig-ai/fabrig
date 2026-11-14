@@ -17,7 +17,7 @@ pub(super) fn tool(domain: &Domain, key: CallKey) -> Box<[u8]> {
 pub(super) fn job_attempt(read: &skein_forge::api::Read) -> Option<skein_forge::api::JobAttempt> {
     use skein_forge::api::Read;
     match read {
-        Read::Job { attempt, .. } => Some(*attempt),
+        Read::JobState { attempt } | Read::Job { attempt, .. } => Some(*attempt),
         Read::Locate { .. }
         | Read::Items { .. }
         | Read::Item { .. }

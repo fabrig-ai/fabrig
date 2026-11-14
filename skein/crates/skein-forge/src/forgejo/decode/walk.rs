@@ -323,6 +323,11 @@ impl Walk {
                     self.end()
                 } else {
                     let kind = element(self.parent().expect("array element")).expect("array kind");
+                    if kind == Kind::Action(ActionKind::Labels) {
+                        let value = scalar(field(b"runs_on", Read::Body), event)?;
+                        self.want = Want::Element;
+                        return Ok(Move::Scalar { kind, key: b"runs_on", value });
+                    }
                     if kind == Kind::Setup(crate::forgejo::client::setup::SetupKind::Event)
                         || kind == Kind::Setup(crate::forgejo::client::setup::SetupKind::Scope)
                         || kind == Kind::Write(crate::forgejo::server::writes::WriteKind::Scope)

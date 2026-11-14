@@ -92,6 +92,7 @@ pub fn read(
         | Read::PullFiles { .. }
         | Read::Compare { .. }
         | Read::Checks { .. }
+        | Read::JobState { .. }
         | Read::Job { .. }
         | Read::File { .. }
         | Read::Protection { .. }

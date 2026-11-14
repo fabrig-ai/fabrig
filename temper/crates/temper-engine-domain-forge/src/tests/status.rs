@@ -77,6 +77,7 @@ fn observe_pull(d: &mut Domain) {
     };
     let pending = PendingStep {
         failed: change_ci::Failed::new(Box::new([])),
+        stall: None,
         pull_ci: false,
         task: CHANGE,
         entry: OPEN,

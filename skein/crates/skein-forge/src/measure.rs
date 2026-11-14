@@ -89,6 +89,7 @@ fn read(value: &Read) -> Option<u64> {
         | Read::Remarks { .. }
         | Read::PullFiles { .. }
         | Read::Collaborators { .. }
+        | Read::JobState { .. }
         | Read::Job { .. }
         | Read::Item { .. }
         | Read::Pull { .. }
@@ -201,6 +202,16 @@ pub fn answer(value: &Answer) -> Option<u64> {
                     .checked_add(bytes(&status.url)?)?;
             }
             Some(held)
+        }
+        Answer::JobState { labels, step, .. } => {
+            let mut held = rows(labels.len(), STRING_BYTES)?;
+            for label in labels {
+                held = held.checked_add(bytes(label)?)?;
+            }
+            held.checked_add(match step {
+                Some(step) => bytes(&step.name)?,
+                None => 0,
+            })
         }
         Answer::Job { step, log, .. } => bytes(log)?.checked_add(match step {
             Some(step) => bytes(&step.name)?,
@@ -320,6 +331,7 @@ pub fn answer_list_rows(value: &Answer) -> usize {
             }
             rows
         }
+        Answer::JobState { labels, .. } => labels.len(),
         Answer::Tree { entries, .. } => entries.len(),
         Answer::Items { items, .. } => {
             let mut rows = items.len();

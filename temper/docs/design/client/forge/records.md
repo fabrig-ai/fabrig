@@ -233,6 +233,19 @@
   `backlog`, no fields; or `drop`, its reason, 1 to 400 bytes
   (`../../domain/findings.md`, section 6). Its outcome: *triaged*,
   `triaged`, no fields, once committed; *finding refused*; or *unknown*.
+- **`TierActRequest`,** `tier_act`, appended after `TriageFinding`: of
+  the project it names, from a project owner or the deployment's owner,
+  as `FollowActRequest` (`../../domain/after-landing.md`, section 3, *A
+  person's hold*): `project`, u32; `repository`, an option of
+  `DraftRepository`, none for the project's home; `tier`, at most 32
+  bytes; `act`, `TierAct`: `hold`, `TierHoldAct`, its `reason`, 1 to
+  1024 bytes, or `release`, no fields. Its outcome, `tier`, appended
+  after the family's last, `TierOutcome`: `refusal`, an option of
+  `TierRefusal`: `no_repository`; `no_tier`; `held`, `TierHeldBy`, the
+  holding `party` (u64) and its `reason`, for a hold of a held tier;
+  `not_held`, for a release of a tier not held; or `words`, the reason
+  past its bounds or not UTF-8. None once the hold or the release has
+  committed.
 - **`FindingRefusal`:** `no_area`, the project's areas' names, at most
   16; `full`, how many are `new`; `not_yours`, its holder, a `Holder`,
   `task`, `party` or `role` with its number; `no_finding`; `no_goal`, a

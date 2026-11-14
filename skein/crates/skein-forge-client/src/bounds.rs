@@ -42,6 +42,7 @@ pub(crate) fn read(value: &Read) -> Option<u64> {
         | Read::Branch { .. }
         | Read::Protection { .. }
         | Read::Run { .. }
+        | Read::JobState { .. }
         | Read::Job { .. }
         | Read::Item { .. }
         | Read::Pull { .. }

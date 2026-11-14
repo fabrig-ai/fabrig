@@ -228,6 +228,7 @@ fn dispatch_world() -> World {
     World::with_workflows(
         Settings::calm(47),
         Box::new([raw::Workflow {
+            requirements: Box::new([]),
             fails: Box::new([]),
             flaky: Box::new([]),
             report: None,

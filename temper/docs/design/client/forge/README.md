@@ -107,7 +107,7 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | recreating, reopening | after drift released (5.2): its branch made again at the head temper last knew, or its pull request reopened or retargeted back |
 | landing | merging at its head |
 | landed | its merge commit, and when |
-| verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any (`../../domain/after-landing.md`, section 6) |
+| verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any, or, with none and the tier held by a person, `NAME held by party N: REASON` (`../../domain/after-landing.md`, sections 3 and 6) |
 | red | landed, its merge commit, and each tier whose verdict blames it, with the run and the failing tests blamed on it, counted, or "many" (`../../domain/after-landing.md`, 5.3) |
 | cleared | landed and cleared by every tier following its landing branch, and the run that cleared it in each; or, past the project's verification bound with no verdict or cancelled while verifying, "landed, uncleared": the change ended there (`../../domain/after-landing.md`, section 6) |
 

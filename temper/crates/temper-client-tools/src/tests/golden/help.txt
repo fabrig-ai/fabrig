@@ -13,6 +13,7 @@ hold  Placed holds: lift one you may lift
 change  Changes: read a change's way to landing
 finding  Findings: file, read, hand on and triage them
 need  Needs: ask a person with choices and why
+tier  Tiers: hold or release a repository's after-landing tier
 follow  Follows: read a project's follows and their lag and parity
 landing  Landings: read one or a project's landings
 draft  Landed drafts: say ready or not ready, list them

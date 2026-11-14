@@ -70,6 +70,7 @@ fn refusal(result: &Result<Answer, Error>) -> (BriefFate, &'static str) {
             | Answer::PullFiles { .. }
             | Answer::Compare { .. }
             | Answer::Checks(_)
+            | Answer::JobState { .. }
             | Answer::Job { .. }
             | Answer::File { .. }
             | Answer::Directory { .. }

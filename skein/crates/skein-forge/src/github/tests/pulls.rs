@@ -241,6 +241,7 @@ fn github_pull_resolves_absent_repository() {
             | api::Read::Tree { .. }
             | api::Read::Artifact { .. }
             | api::Read::Commits { .. }
+            | api::Read::JobState { .. }
             | api::Read::Job { .. }
             | api::Read::File { .. }
             | api::Read::Protection { .. }

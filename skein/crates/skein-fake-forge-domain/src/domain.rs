@@ -76,6 +76,8 @@ pub struct Config {
     pub setup_faults: u32,
     /// Per mille per job: its run loses the job, with no failed step.
     pub lost: u32,
+    /// Labels served by runners; None serves every label.
+    pub runner_labels: Option<Box<[Box<[u8]>]>>,
     /// The time to deliver a webhook is drawn from `hook_min..=hook_max`, or,
     /// for the `hooks_late` chance of them, from `late_min..=late_max`; and
     /// the `hooks_lost` chance of them is never delivered.
@@ -132,6 +134,7 @@ impl Config {
             made_manual_merges: crate::api::ManualMerges::OFF,
             setup_faults: 0,
             lost: 0,
+            runner_labels: None,
             hook_min: Duration::ZERO,
             hook_max: Duration::ZERO,
             hooks_late: 0,

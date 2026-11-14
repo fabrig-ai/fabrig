@@ -142,15 +142,36 @@ pub(super) fn job(answer: a::Answer, repository: &[u8], limits: &Limits, domain:
         return answers::missing(limits);
     };
     let mut step = None;
+    let mut running_step = None;
     for row in steps {
         if row.status == a::StepStatus::Failure {
-            step = Some(api::Step { number: row.number, name: row.name });
-            break;
+            if step.is_none() {
+                step = Some(api::Step { number: row.number, name: row.name });
+            }
+        } else if row.status == a::StepStatus::Running && running_step.is_none() {
+            running_step = Some(api::Step { number: row.number, name: row.name });
         }
     }
     answers::response(
         200,
-        &Body::Job(&d::Job { id: job.id, run: job.run, attempt: job.attempt, head: commit(count), step }),
+        &Body::Job(&d::Job {
+            id: job.id,
+            run: job.run,
+            attempt: job.attempt,
+            head: commit(count),
+            step,
+            running_step,
+            labels: job.labels,
+            cut: false,
+            state: match job.wait {
+                Some(a::JobWait::Runner) => api::JobState::Waiting,
+                Some(a::JobWait::Needs) => api::JobState::Blocked,
+                None => match job.state {
+                    a::RunState::Running => api::JobState::Running,
+                    a::RunState::Completed => api::JobState::Completed,
+                },
+            },
+        }),
         limits,
     )
 }

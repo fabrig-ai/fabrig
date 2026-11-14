@@ -224,6 +224,7 @@ fn restored(request: &Ask) -> bool {
         | w::Request::RemoveDevice(_)
         | w::Request::FileFinding(_)
         | w::Request::HandFinding(_)
+        | w::Request::TierAct(_)
         | w::Request::TriageFinding(_)
         | w::Request::TryAccount(_) => false,
     }

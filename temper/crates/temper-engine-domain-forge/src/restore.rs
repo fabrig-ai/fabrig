@@ -104,6 +104,7 @@ fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
         | Answer::Protection(None)
         | Answer::Located { .. }
         | Answer::Commit(_)
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Directory { .. }
         | Answer::File { .. }

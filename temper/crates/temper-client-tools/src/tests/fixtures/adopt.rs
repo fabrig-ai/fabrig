@@ -59,6 +59,7 @@ impl Harness {
         self.next
     }
     pub(crate) fn adoption_answer(&mut self, call: u32, outcome: w::Outcome) {
+        let previous = self.serving.replace(call);
         let (attempt, _, _) = self.sends.get(&call).expect("adopt sent");
         self.client(client::Event::Up {
             up: client::Up::Answer {
@@ -68,6 +69,7 @@ impl Harness {
                 why: None,
             },
         });
+        self.serving = previous;
     }
     pub(crate) fn sent_adoption(&self, call: u32) -> w::AdoptParts {
         let (_, _, client::Ask::Family { record, .. }) = self.sends.get(&call).expect("adopt sent") else {
@@ -94,6 +96,7 @@ impl Harness {
             | w::Request::HandFinding(_)
             | w::Request::TriageFinding(_)
             | w::Request::SetDraft(_)
+            | w::Request::TierAct(_)
             | w::Request::FollowAct(_)
             | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)

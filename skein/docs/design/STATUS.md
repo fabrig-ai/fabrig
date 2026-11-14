@@ -107,6 +107,7 @@ Design documents:
 - [`forge/client.md`](forge/client.status.md)
 - [`forge/connection.md`](forge/connection.status.md)
 - [`forge/github.md`](forge/github.status.md)
+- [`forge/job-state.md`](forge/job-state.status.md)
 - [`forge/setup/README.md`](forge/setup/README.status.md)
 - [`testing/fakes/forge.md`](testing/fakes/forge.status.md)
 - [`testing/fakes/github.md`](testing/fakes/github.status.md)
