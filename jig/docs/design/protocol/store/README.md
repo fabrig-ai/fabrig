@@ -428,10 +428,10 @@ secrets' store (`secrets.md`).
   | `Failed` | skein-kv answered it failed: a write or a sync of its log failed or stalled, and its outcome is uncertain |
   | `Owner { owner }` | skein-kv answered `Committed` for `number` under `owner`, the root's commit it was submitted for, which isn't `number` |
   | `Transcript` | a file step of its transcripts failed: a frame's file opened, made, written or synced, its directory's sync or close, a dropped transcript's removal, or the writer's own bookkeeping (its table of open files, its counter) |
-  | `Check(Check)` | the store's own checks refused it before skein-kv saw it, naming the check |
+  | `Check(CommitCheck)` | the store's own checks refused it before skein-kv saw it, naming the check |
   | `Stopped` | it was queued, or waiting on its frames, when another commit's failure stopped the store |
 
-  `Check` names the check: `Number` (its number isn't the store's next,
+  `CommitCheck` names the check: `Number` (its number isn't the store's next,
   or is at or before the last durable one), `Closed` (the store isn't
   open), `Queue` (the queue behind transcripts' syncs is full), `Writes`
   (more writes than the root's bound, `Commits::writes`), `Switching`
@@ -443,7 +443,7 @@ secrets' store (`secrets.md`).
   attempts or the openings it erases, failing or not decoding),
   `Capacity` (more operations, places or keys than the commit's bounds
   hold), `Bytes` (its operations past the store's commit bytes,
-  `Limits::commit` of its skein-kv limits). `CommitFailure` and `Check`
+  `Limits::commit` of its skein-kv limits). `CommitFailure` and `CommitCheck`
   are `Copy`.
 
   The commit whose failure it is carries its cause, and each commit
