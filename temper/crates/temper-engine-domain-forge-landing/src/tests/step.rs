@@ -115,6 +115,9 @@ fn close_round(landing: &Landing, f: &Facts) -> Stepped {
     let mut f = f.clone();
     f.closed = Status::Passed;
     let delete = decide(&close.landing, &f);
+    if delete.decision == Decision::Finish {
+        return delete;
+    }
     assert_eq!(delete.decision, Decision::Delete { member: 0 });
     f.members[0].deleted = Status::Passed;
     decide(&delete.landing, &f)

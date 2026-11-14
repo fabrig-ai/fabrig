@@ -520,8 +520,13 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
         crate::RoundEnd::Stale => 0,
         crate::RoundEnd::Leave | crate::RoundEnd::Conflict | crate::RoundEnd::Cut => landing.round.changed.unwrap_or(0),
     };
+    let mut remaining = false;
+    for member in &landing.members {
+        remaining |= active(member);
+    }
+    // With no next round, task closure releases the held branches (domain/landing.md, 5.1).
     for (index, (member, fresh)) in landing.members.iter().zip(&facts.members).enumerate() {
-        if index < usize::from(first) || member.candidate.is_none() {
+        if !remaining || index < usize::from(first) || member.candidate.is_none() {
             continue;
         }
         if fresh.deleted != Status::Passed {
@@ -557,11 +562,9 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
             done(landing, Decision::Stale)
         }
         crate::RoundEnd::Leave | crate::RoundEnd::Conflict | crate::RoundEnd::Cut => {
-            let mut remaining = false;
             let mut missing = false;
             for member in &landing.members {
                 if active(member) {
-                    remaining = true;
                     missing |= member.base.is_none();
                 }
             }

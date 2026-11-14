@@ -131,6 +131,45 @@ pub(super) fn effect(words: &mut List<u8>, description: &EffectDescription) {
     }
 }
 
+/// Keep the operation and admission refusal together on the task's account.
+pub(super) fn effect_refusal(
+    domain: &Domain,
+    task: u64,
+    description: &EffectDescription,
+    why: jig_domain_core::effects::connector::EffectRefusal,
+    findings_: &[authority::Finding],
+) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    effect(&mut words, description);
+    append(
+        &mut words,
+        match why {
+            jig_domain_core::effects::connector::EffectRefusal::Authority => b" was vetoed by authority",
+            jig_domain_core::effects::connector::EffectRefusal::Obsolete => {
+                b" was refused: its procedure step or entry is no longer valid"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Description => {
+                b" was refused: its connector description is invalid"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Capacity => {
+                b" was refused: effect admission has no room"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Dependencies => {
+                b" was refused: its dependency is still pending"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Proposal => {
+                b" was refused: its proposal could not be admitted or addressed"
+            }
+            jig_domain_core::effects::connector::EffectRefusal::Unavailable => {
+                b" was refused: effect admission is unavailable"
+            }
+        },
+    );
+    findings(&mut words, findings_);
+    recovery(domain, task, &mut words);
+    words.into_boxed()
+}
+
 pub(super) fn recovery(domain: &Domain, task: u64, words: &mut List<u8>) {
     let revision = domain.core.tasks.task(task).expect("held procedure").revisions.hold.saturating_add(1);
     append_recovery(task, revision, words);

@@ -1111,3 +1111,92 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a, b]);
 }
+
+fn red_round_without_grant(kind: u16) -> (World, u64) {
+    let (mut world, _) = produced_turn_change_with(&StoryLimits {
+        turn: true,
+        dispatch_passes: Some(0),
+        omit_landing_grant: Some(kind),
+        ..StoryLimits::default()
+    });
+    let mut landing = None;
+    for _ in 0..1200 {
+        world.prepare_tick();
+        if let Some(row) = landing_rows(&world).into_iter().next() {
+            landing = Some(row.landing.task);
+            if task_row(&world, row.landing.task)
+                .is_some_and(|task| matches!(task.phase, tasks::Phase::Held { .. } | tasks::Phase::Ended(_)))
+            {
+                break;
+            }
+        }
+    }
+    (world, landing.expect("red round formed"))
+}
+
+#[test]
+fn a_red_only_member_frees_its_round_branch_without_a_delete_grant() {
+    let (world, landing) = red_round_without_grant(15);
+    let row = landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("round");
+    assert!(matches!(row.landing.members[0].left, Some(forge_top::LandingLeave::Failed { .. })));
+    let task = task_row(&world, landing).expect("landing task");
+    assert!(matches!(task.phase, tasks::Phase::Ended(tasks::Ending::Done(_))), "{:?}", task.phase);
+    assert_eq!(world.fake.branch(b"org/repo", &row.landing.round.branch), None);
+    for holding in &task.holdings {
+        let tasks::Holding::Write { resource, .. } = holding else { panic!("round branch holding") };
+        assert_eq!(world.root.tasks().holder(resource), None, "round branch freed");
+    }
+    assert_eq!(
+        world
+            .writes
+            .iter()
+            .filter(|write| matches!(write, api::Write::DeleteBranch { branch } if *branch == row.landing.round.branch))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn a_refused_round_effect_holds_the_landing_with_its_operation_and_cause() {
+    let (world, landing) = red_round_without_grant(12);
+    let task = task_row(&world, landing).expect("landing task");
+    let tasks::Phase::Held { why: tasks::Hold::Effects, source: Some(source), .. } = &task.phase else {
+        panic!("landing must retain its effect refusal: {:?}", task.phase)
+    };
+    let tasks::HoldSource::Account { entry: Some(_), words, .. } = source.as_ref() else { panic!("effect account") };
+    let words = std::str::from_utf8(words).expect("account words");
+    for expected in ["close or reopen pull request", "authority", "operation has no authority grant", "task release"] {
+        assert!(words.contains(expected), "{words}");
+    }
+}
+
+#[test]
+fn a_failed_round_write_holds_the_landing_with_the_forge_answer() {
+    let (mut world, _) = produced_turn_change(None);
+    for _ in 0..600 {
+        world.tick();
+        if !landing_rows(&world).is_empty() {
+            break;
+        }
+    }
+    assert!(!landing_rows(&world).is_empty(), "landing formed before refusing its pull request");
+    world.fail_open_writes = true;
+    for _ in 0..600 {
+        world.prepare_tick();
+        if landing_rows(&world).iter().any(|row| {
+            task_row(&world, row.landing.task).is_some_and(|task| matches!(task.phase, tasks::Phase::Held { .. }))
+        }) {
+            break;
+        }
+    }
+    let row = landing_rows(&world).into_iter().next().expect("round");
+    let task = task_row(&world, row.landing.task).expect("landing task");
+    let tasks::Phase::Held { why: tasks::Hold::EffectFailed, source: Some(source), .. } = &task.phase else {
+        panic!("landing retains its failed write: {:?}", task.phase)
+    };
+    let tasks::HoldSource::Account { entry: Some(_), words, .. } = source.as_ref() else { panic!("effect account") };
+    let words = std::str::from_utf8(words).expect("account words");
+    for expected in ["open pull request", "permission", "org/repo", "task release"] {
+        assert!(words.contains(expected), "{words}");
+    }
+}
