@@ -1,7 +1,10 @@
 # render: status
 
-2026-11-06. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-14. Where hearth's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 5.1: composition's, validation's, exports' and evaluation's items that no outside code reads are public. [in flight: change 2922]
+- **Not yet:** 5.1: `additions` and `reserved` are public. [in flight: change 2923]
+- **Not yet:** 5.1: `kinds`, `collisions`, `ids` and the entries' items no outside code reads are public. [in flight: change 2924]
 - **Not yet:** 4.2: the diff's rebuild time from each layer's last
   recorded cost. The domain's and printer's typed changes carry the
   rebuild layer, with no time or lookup of those costs.
