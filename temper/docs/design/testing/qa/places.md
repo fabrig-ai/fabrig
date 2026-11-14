@@ -49,6 +49,21 @@ this document is how a pass uses them.
     drive.log     the holder's own output (section 5)
   ```
 
+- **Private, whatever the umask** the tool runs under
+  (`../../draft/landed-qa.md`, 5): every directory the tool makes at a
+  place, `PLACE/` itself, its scratch directory, `copies/` and each
+  `copies/NAME/`, and `bin/` and `bundle/` with what they hold, is
+  0o700, and every file it writes there, `setup`, `walk.log`,
+  `drive.log`, `drive.lock`, a copy and the temporary files before
+  their renames, 0o600, but the build's files installed in `bin/` and
+  `bundle/`, which keep their build's modes (section 3) under their
+  0o700 directories. Each mode is set once the directory or file is
+  made, never asked of the umask, which can only take bits away; and
+  wherever the tool reaches a place, it sets `PLACE/`, its scratch
+  directory and `copies/` to 0o700 when they are not already, since a
+  place is the tool's own. So the drive session's check that its
+  scratch directory is the user's own and open to no one
+  (`../../client/drive.md`, 2.1) holds at every place.
 - **One pass at a time:** the ledger records the pass running at a place
   (`ledger.md`, 2.7). A place is **free** when no `running` pass is
   recorded at it and its `drive.lock` can be taken at once, so a

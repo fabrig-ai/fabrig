@@ -269,6 +269,39 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   they report none, as before. So the box's fake forges let a person's
   commit decide a head's checks by what it holds
   (`../protocol/setup/box.md`, 5; `../draft/landed-qa.md`, 6).
+- **Its gates and its merges, as a process:** the document of `temper-box
+  fake forge --document FILE` may name, beside its repositories:
+  - **`workflows`,** dispatch-only workflows (skein's
+    `testing/fakes/forge.md`, 2.3), `[{"file", "jobs", "cue"}]`: `file`
+    the workflow's file name as a landing's gate names it (`gate.yml`;
+    `../protocol/configuration/engine.md`, `landing`), 1 to 64 bytes
+    with no `/`; `jobs`, one to eight job names, each a word, distinct;
+    and `cue`, of a repository's `ci` form: `null`, every job passing;
+    `{"path", "green"}`, the domain's `Cue::File`; or `{"declared":
+    PATH}`, the domain's `Cue::Declared`, each run judged by the rule
+    the dispatched commit's tree holds at PATH. Files distinct, at most
+    the domain's workflows per repository. Every repository of the
+    forge holds them: those the document seeds, and those the forge
+    makes later, through its setup routes and an admin's
+    `CreateRepository`, as `made_ci` reaches those (skein's
+    `testing/fakes/forge.md`, 4). Each dispatch makes a run at the
+    branch's head, its jobs' statuses `FILE / JOB` on that commit, as
+    the domain does. Absent, no repository holds a workflow, as before,
+    and a dispatch finds none.
+  - **`manual_merges`,** `{"allow": bool, "autodetect": bool}`, each
+    false when absent: the domain's manual-merge settings (skein's
+    `testing/fakes/forge.md`, 2.3), for every repository the document
+    seeds and the forge makes, so that a landing's fast-forward marks
+    each member's pull request merged (`autodetect`), as Forgejo's
+    detection reads it, and a recorded merge is admitted (`allow`).
+
+  Their limits are the domain's, raised from none to its defaults for a
+  document that names `workflows`. A restored state keeps each
+  repository's workflows and settings in its image (below); the
+  document's reach the repositories the forge makes after. So a setup
+  declares its gate in its place's forge document, its verdict decided
+  by what a member holds at PATH, and a batch proves green or red by its
+  members' content (`../draft/landed-qa.md`, 6 and 10).
 - **Its state kept, as a process:** `temper-box fake forge --document
   FILE [--state STATE]`. With `--state`, the forge's state lasts across
   its restarts in STATE (skein's `testing/fakes/forge.md`, 2.7 and 5;

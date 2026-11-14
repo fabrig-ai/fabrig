@@ -68,8 +68,26 @@ this order:
   whose file, status file or execution file the diff touches, but the
   drafts' notes and `archive/`; with none either, a line saying no
   draft is named and the request was the title's words.
-- **Its diff:** `git diff --stat MERGE^1 MERGE` in the brief, and the
-  whole diff's path, `sessions/N/diff.patch`.
+- **Its diff:** its stat in the brief (below), and the whole diff's
+  path, `sessions/N/diff.patch`.
+- **Its stat,** written by the tool from the paths `git diff --numstat
+  MERGE^1 MERGE` gives with their added and deleted lines, so that a
+  landing of goldens stays cheap to read (`../../draft/landed-qa.md`, 4):
+  - **a generated directory** is a path's leading part up to and
+    including its first segment named `generated` or `golden`
+    (`crates/X/src/generated/`, `crates/X/golden/`), or
+    `temper/docs/help/reference/`, whose pages are rendered from the
+    tools' tables (`../../protocol/documentation.md`, 8);
+  - **one line per changed path outside them,** in path order,
+    `PATH | +A -D`, or `PATH | binary` where git counts no lines;
+  - **one line per generated directory** for every changed path under
+    it, at the place of its first path in path order, `DIR | N files, +A
+    -D`, DIR ending in `/`, its binary files counting no lines;
+  - **then the total,** `N files changed, +A -D`, every path counted
+    once.
+
+  So a landing that rewrites a thousand goldens takes a line for their
+  directory, never a thousand.
 - **Its commits' `QA:` trailers:** each value of a `QA:` trailer among
   `git log MERGE^1..MERGE`, each once, in order; none, said.
 - **The surfaces:**
