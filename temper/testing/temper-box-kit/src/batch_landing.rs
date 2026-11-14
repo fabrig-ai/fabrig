@@ -155,31 +155,47 @@ pub fn configure(root: &Path, repository: u64) {
     value["engine"]["limits"]["overrides"]["fleet.attempts"] = 8.into();
     value["engine"]["limits"]["overrides"]["brief.briefs"] = 8.into();
     value["workers"][0]["slots"] = 8.into();
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 8.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 8192.into();
     value["workers"][0]["limits"]["overrides"]["hub.slots"] = 8.into();
+    value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = 8192.into();
     for name in ["checkout.workspaces", "git_component.operations"] {
         value["application"]["limits"]["overrides"][name] = 8.into();
     }
+    message_room(root, &mut value);
+    super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+}
+
+/// Hand run (2026-11-14): room for 8 KiB messages and the prepare job's 4096-byte result.
+pub(super) fn message_room(root: &Path, value: &mut Value) {
     // The one model call carries four independent change authorities and a latch.
     let agent_path = root.join("agent.json");
     let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
     agent["profile"]["declared"]["tool_payload"] = 8192.into();
-    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 8192.into();
+    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 8190.into();
+    // The landing prepare job (kind 1) is declared only with 16384-byte specs and 4096-byte results,
+    // past the small profile store's sizing: the engine takes the standard profile.
+    value["engine"]["limits"]["profile"] = "standard".into();
     value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 8192.into();
     value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 8192.into();
+    value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = 8192.into();
     let limits = &mut value["workers"][0]["limits"]["overrides"];
-    limits["tasks.message_bytes"] = 8192.into();
+    limits["tasks.message_bytes"] = 8190.into();
     limits["tasks.inbox_bytes"] = 8192.into();
     limits["core.call_answer_bytes"] = 8192.into();
     limits["hub.event_bytes"] = 8190.into();
     value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 8192.into();
-    super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
+    super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
-    super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 
 fn read(root: &Path, arguments: &[&str]) -> Result<Value, String> {
     Ok({
-        let ended = ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json());
+        // Hand run (2026-11-14): its own thread, as one real loop per thread asks.
+        let ended = std::thread::scope(|scope| {
+            scope.spawn(|| ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json())).join().expect("ctl read")
+        });
         if ended.exit != Some(Exit::Code(0)) {
             return Err(format!("{}", String::from_utf8_lossy(&ended.stderr)));
         }
@@ -330,7 +346,12 @@ impl Judge<'_> {
                 if !all {
                     return Ok(false);
                 }
-                let change = change(self.root, task)?;
+                // Hand run (2026-11-14): a change not made yet is not pending yet.
+                let change = match change(self.root, task) {
+                    Ok(change) => change,
+                    Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(false),
+                    Err(why) => return Err(why),
+                };
                 Ok::<_, String>(change["step"] == "gating" && change["gates"][0]["verdict"] == "pending")
             })?
         })

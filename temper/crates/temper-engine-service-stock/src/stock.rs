@@ -734,6 +734,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
                 authority::Executor::Procedure(6),
+                authority::Executor::Job(1),
                 authority::Executor::Job(3),
                 authority::Executor::Job(4),
                 authority::Executor::Role(0),

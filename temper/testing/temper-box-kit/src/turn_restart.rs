@@ -23,7 +23,10 @@ pub struct Reads {
 
 fn read(root: &Path, arguments: &[&str]) -> Result<Value, String> {
     Ok({
-        let call = ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json());
+        // Hand run (2026-11-14): its own thread, as one real loop per thread asks.
+        let call = std::thread::scope(|scope| {
+            scope.spawn(|| ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json())).join().expect("ctl read")
+        });
         if call.exit != Some(Exit::Code(0)) {
             return Err(format!("{}", String::from_utf8_lossy(&call.stderr)));
         }
@@ -54,6 +57,11 @@ pub fn start(scratch: &super::Scratch) -> Throwaway {
 /// Select turn landing for the seeded project, whose policy names stock policy 1.
 pub fn configure(root: &Path, repository: u64) {
     configure_batch(root, repository, 1);
+    // Hand run (2026-11-14): the prepare job's result needs messages of at least 4096 bytes.
+    let path = root.join("temper.json");
+    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    super::batch_landing::message_room(root, &mut value);
+    write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 
 /// Share the owned turn setup while selecting the story's batch bound.
