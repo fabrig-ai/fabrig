@@ -28,7 +28,7 @@ fn start(goal: bool) -> World {
 }
 fn register(world: &mut World) {
     let row = landings::landing_row(world.change(CHANGE));
-    world.event(top::Event::Landing { row });
+    landings::register(world, row);
     assert_eq!(landings::step_landing_raw(world, LANDING, 100), landing::Decision::None);
     assert!(matches!(landings::step_landing_raw(world, LANDING, 101), landing::Decision::Prepare { .. }));
 }
@@ -289,6 +289,7 @@ fn a_head_moved_at_the_turn_closes_the_round_and_returns_to_gating() {
     world.run_for(1);
     landings::drive_landing(&mut world, LANDING);
     assert!(world.landing(LANDING).landing.members[0].landed.is_none());
+    landings::close_landing(&mut world, LANDING);
     assert_eq!(world.branch(b"main"), base);
     assert!(
         matches!(world.change(CHANGE).change.state, change::State::Ready { head: latest, .. } if latest == head),
