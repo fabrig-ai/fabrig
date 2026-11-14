@@ -10,6 +10,7 @@ use temper_engine_domain_forge_issues as issues;
 use temper_engine_protocol_forge_world::{fixtures, protocol::Protocol};
 fn change_row() -> top::ChangeRow {
     top::ChangeRow {
+        task_release: None,
         signed: Box::new([]),
         task: 51,
         repository: REPO,
@@ -381,7 +382,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         event,
         top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
     )));
-    world.event(top::Event::ReleaseChange { task: 51 });
+    world.event(top::Event::ReleaseChange { task: 51, release: None });
     world.take_seen();
     step_change(&mut world, 11, change::Status::Passed, true);
     world.run_for(1);
@@ -1233,6 +1234,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                             };
                             world.event(top::Event::Delegated { task: 51, child, kind });
                             world.event(top::Event::DelegateResult {
+                                ended_at: None,
                                 task: 51,
                                 child,
                                 status: change::Status::Passed,

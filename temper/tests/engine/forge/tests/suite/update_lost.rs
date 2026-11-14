@@ -189,7 +189,7 @@ fn an_update_lost_for_good_holds_at_its_count_and_a_release_lands_it() {
     let account = &world.change(CHANGE).effect_account.as_ref().expect("last update's account").words;
     assert!(String::from_utf8_lossy(account).contains("update pull request: forge timed out"));
     world.answer_writes();
-    world.event(top::Event::ReleaseChange { task: CHANGE });
+    world.event(top::Event::ReleaseChange { task: CHANGE, release: None });
     let decision = change_step_with_release(&mut world, 100, change::Status::Passed, Box::new([]), true);
     assert!(!matches!(decision, change::Decision::Hold(_)));
     finish(&mut world, 101);
@@ -337,7 +337,7 @@ fn a_copy_landing_after_the_change_moved_on_holds_and_lands_nothing_unchecked() 
             "no unchecked head is merged"
         );
         assert_eq!(world.branch(b"main"), main, "the copy lands nothing into main");
-        world.event(top::Event::ReleaseChange { task: CHANGE });
+        world.event(top::Event::ReleaseChange { task: CHANGE, release: None });
         if style == api::UpdateStyle::Merge {
             world.status(BRANCH, raw::Check::Pending);
         }

@@ -862,7 +862,7 @@ fn a_pull_closed_by_someone_else_is_held_then_reopened_on_release() {
     let Some(top::Stored::Hold(hold)) = world.stored().get(&top::Key::Hold(name)) else { panic!("held change") };
     assert_eq!(hold.drift.as_ref().expect("closed pull details").change, top::DriftChange::PullClosed { number: pull });
     assert!(hold.drift.as_ref().expect("drift timestamp").at > Wall::EPOCH);
-    world.event(top::Event::ReleaseChange { task: 51 });
+    world.event(top::Event::ReleaseChange { task: 51, release: None });
     assert_eq!(
         change_step_with_release(&mut world, 2, change::Status::Passed, Box::new([]), true),
         change::Decision::Effect(change::Effect::Reopen)
@@ -1207,6 +1207,7 @@ fn runner_faults_run_again_before_repair_and_keep_their_gates() {
             world.status(b"temper/51", raw::Check::Passed);
         } else {
             world.event(top::Event::DelegateResult {
+                ended_at: None,
                 task: 51,
                 child: 52,
                 status: change::Status::Passed,
@@ -1264,6 +1265,7 @@ fn failed_ci_repair_world() -> World {
     );
     world.event(top::Event::Delegated { task: 51, child: 52, kind: change::Delegate::Repair(change::Repair::Ci) });
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: 52,
         status: change::Status::Failed,
@@ -1296,6 +1298,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
     world.run_for(1);
     world.restart();
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: 52,
         status: change::Status::Failed,
@@ -1312,6 +1315,7 @@ fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
     world.push(b"temper/51", b"repaired");
     world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: 53,
         status: change::Status::Passed,
@@ -2675,7 +2679,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         event,
         top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
     )));
-    world.event(top::Event::ReleaseChange { task: 51 });
+    world.event(top::Event::ReleaseChange { task: 51, release: None });
     world.take_seen();
     world.event(top::Event::StepChange {
         merge_job: false,
@@ -2746,7 +2750,7 @@ fn a_released_opening_move_on_a_requesters_branch_opens_before_ci() {
     );
     assert_eq!(world.change(51).pull, None);
     world.status(BRANCH, skein_fake_forge_domain::api::Check::Pending);
-    world.event(top::Event::ReleaseChange { task: 51 });
+    world.event(top::Event::ReleaseChange { task: 51, release: None });
     world.take_calls();
     assert_eq!(
         change_step_with_release(&mut world, 2, change::Status::Passed, Box::new([]), true),
@@ -3342,6 +3346,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
     row.delegate = Some((PRODUCER, change::Delegate::Produce));
     world.event(top::Event::Change { row });
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: 51,
         child: PRODUCER,
         status: change::Status::Failed,

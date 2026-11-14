@@ -69,6 +69,7 @@ pub(crate) fn call(
                 | Read::Transcript { .. }
                 | Read::InputCheck(_)
                 | Read::GoalWords(_)
+                | Read::ChangeDelegate { .. }
                 | Read::Notes { .. }
                 | Read::SettingsNote { .. }
                 | Read::Document(_),

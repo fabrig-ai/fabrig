@@ -50,6 +50,7 @@ pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
 mod close;
+pub(crate) mod delegate_record;
 pub(crate) use close::{made as close_made, saved as close_saved};
 mod merge;
 pub(crate) mod prepare;
@@ -2397,8 +2398,17 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
+    start_recovered_change(domain, env, context, None)
+}
+
+#[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
+pub(super) fn start_recovered_change(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    context: &tasks::RunContext,
+    recovered: Option<(u64, Option<skein_lib::Wall>)>,
+) -> bool {
     let task = context.task;
     if close::refusal(domain, context).is_some() {
         return false;
@@ -2528,6 +2538,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         drop_settled_change(domain, env, &mut out);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                task_release: None,
                 signed: Box::new([]),
                 task,
                 repository: provider,
@@ -2627,7 +2638,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             subscribe_goal(domain, env, goal, forge::Topic::Landings { repository: provider, branch: base.clone() });
         }
     } else {
-        change_results(domain, context);
+        change_results(domain, context, recovered);
     }
     step_dependents(domain, env, task);
     retry_change_names(domain, env, task);
@@ -2658,7 +2669,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     true
 }
 
-fn change_results(domain: &mut Domain, context: &tasks::RunContext) {
+fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: Option<(u64, Option<skein_lib::Wall>)>) {
     let task = context.task;
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
@@ -2669,6 +2680,10 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext) {
             if held { Some((forge_change::Status::Failed, true, false)) } else { change_delegate_status(&word.kind) };
         if let Some((status, failed, cancelled)) = status {
             domain.work.push(Work::Forge(forge::Event::DelegateResult {
+                ended_at: match recovered {
+                    Some((recovered, at)) if recovered == child => at,
+                    Some(_) | None => None,
+                },
                 task,
                 child,
                 status,
@@ -2695,6 +2710,7 @@ fn change_step(
     base: &[u8],
     held_read: bool,
 ) -> forge::Event {
+    let released = !held_read && delegate_record::is_release(domain, task);
     forge::Event::StepChange {
         merge_job: match domain.core.tasks.delegation(task) {
             Some(context) => {
@@ -2717,39 +2733,7 @@ fn change_step(
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
             // The forge consumes a person's release before starting asynchronous reads.
-            released: !held_read
-                && match (domain.forge.change(task), domain.core.tasks.task(task)) {
-                    (Some(change), Some(task)) => {
-                        let held = match &change.change.state {
-                            forge_change::State::Held { .. } => true,
-                            forge_change::State::Producing { .. }
-                            | forge_change::State::Opening { .. }
-                            | forge_change::State::Recreating { .. }
-                            | forge_change::State::Reopening { .. }
-                            | forge_change::State::Checking { .. }
-                            | forge_change::State::Judging { .. }
-                            | forge_change::State::Gating { .. }
-                            | forge_change::State::CancellingGates { .. }
-                            | forge_change::State::Ready { .. }
-                            | forge_change::State::Preparing { .. }
-                            | forge_change::State::Queued { .. }
-                            | forge_change::State::First { .. }
-                            | forge_change::State::Updating { .. }
-                            | forge_change::State::WaitingProducer { .. }
-                            | forge_change::State::Resolving { .. }
-                            | forge_change::State::Repairing { .. }
-                            | forge_change::State::Landing { .. }
-                            | forge_change::State::Landed { .. }
-                            | forge_change::State::Red { .. }
-                            | forge_change::State::Cleared { .. }
-                            | forge_change::State::Uncleared { .. }
-                            | forge_change::State::NoChange { .. }
-                            | forge_change::State::Ended => false,
-                        };
-                        held && task.due_reason == tasks::Why::Released
-                    }
-                    _ => false,
-                },
+            released,
             cancelled: false,
         },
         gates: Box::new([]),

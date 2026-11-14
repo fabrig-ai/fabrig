@@ -157,7 +157,7 @@ fn a_catch_up_with_uncertain_ancestry_stalls_and_a_release_retries_it() {
             change::Decision::Hold(change::Hold::Stalled)
         );
         world.script_ancestry(None);
-        world.event(top::Event::ReleaseChange { task: CHANGE });
+        world.event(top::Event::ReleaseChange { task: CHANGE, release: None });
         assert_eq!(
             changes::change_step(&mut world, 3, change::Status::Unknown, Box::new([])),
             change::Decision::Delegate(change::Delegate::Merge { base: commit, from: None }),

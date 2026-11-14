@@ -89,6 +89,7 @@ fn pending(task: u64) -> PendingStep {
         paths: Box::new([]),
         paths_whole: false,
         woken: false,
+        retry_at: None,
     }
 }
 fn follower_facts(d: &Domain) -> change::Facts {
@@ -193,6 +194,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                 Event::DelegateRefused { task: OWNER, child: REVIEWER }
             } else {
                 Event::DelegateResult {
+                    ended_at: None,
                     task: OWNER,
                     child: REVIEWER,
                     status: change::Status::Failed,

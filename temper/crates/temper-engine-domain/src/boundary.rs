@@ -1268,6 +1268,7 @@ pub(crate) enum EndedRead {
 
 #[derive(Hash, Debug)]
 pub(crate) enum Read {
+    ChangeDelegate { task: u64, child: u64, step: u64, revision: u64 },
     Escalation(escalation::Query),
     Proposal(proposals::Query),
     TaskProposal { to: ReplyTo, key: CallKey, proposal: u64 },

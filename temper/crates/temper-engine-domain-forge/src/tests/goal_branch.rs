@@ -693,18 +693,25 @@ fn a_change_waiting_for_its_base_to_be_made_is_bounded_by_its_stall() {
     let mut later = env();
     let wake = fixtures::advance(&mut d, &mut later, LIMITS.change_policy.stall);
     let mut signalled = false;
+    let mut held = false;
     for request in &wake {
         signalled |= *request == Request::WakeProcedure { task: fixtures::CHANGE };
+        if let Request::ChangeDecision {
+            task: fixtures::CHANGE,
+            decision: change::Decision::Hold(change::Hold::Stalled),
+            evidence: Some(_),
+            ..
+        } = request
+        {
+            held = true;
+        }
     }
     assert!(signalled);
-    at_step(&mut d, &later, fixtures::change_step());
-    let held = at_answer(&mut d, &later, Ok(Answer::Commit(fixtures::HEAD)));
-    assert!(held.contains(&Request::ChangeDecision {
-        task: fixtures::CHANGE,
-        decision: change::Decision::Hold(change::Hold::Stalled),
-        entry: None,
-        evidence: None
-    }));
+    assert!(held, "the read session expires without another forge answer: {wake:?}");
+    assert!(matches!(
+        d.change(fixtures::CHANGE).expect("change").change.state,
+        change::State::Held { why: change::Hold::Stalled, .. }
+    ));
 }
 
 #[test]

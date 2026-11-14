@@ -110,6 +110,15 @@ pub(super) fn deadline(d: &Domain) -> Option<Time> {
         None => None,
     }
 }
+/// An explicit unavailable answer exempts this read until it answers again.
+pub(super) fn reading(d: &Domain, owner: Token) -> bool {
+    let Some(state) = &d.outage else { return false };
+    match state.reads.get(&owner) {
+        Some(reading) => reading.outage,
+        None => false,
+    }
+}
+
 pub(super) fn recommitted(d: &Domain, entry: u64) -> bool {
     match &d.outage {
         Some(state) => state.recommitted(entry),
@@ -235,10 +244,18 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
     }
     let capacity = *result == Err(Error::Busy) && (reading.outage || d.pending_ci.contains_key(&owner));
     if !d.stopping && reading.retry && riding(d, owner) && (outage || capacity) {
+        if let Some(pending) = d.steps.get(&owner) {
+            super::read_session::pause(d, pending.task);
+        }
         reading.outage |= outage;
         reading.wait.again(env, outage);
         state(d).reads.insert(owner, reading).expect("retains its pending read");
         return true;
+    }
+    if reading.outage
+        && let Some(pending) = d.steps.get(&owner)
+    {
+        super::read_session::ended(d, env, pending.task, env.wall);
     }
     if reading.outage
         && let Some(pending) = d.steps.get(&owner)

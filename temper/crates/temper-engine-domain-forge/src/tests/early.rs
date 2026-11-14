@@ -186,6 +186,7 @@ fn a_start_conflict_is_kept_only_for_the_live_producing_delegate() {
     outputs(
         &mut d,
         Event::DelegateResult {
+            ended_at: None,
             task: fixtures::CHANGE,
             child: CHILD,
             status: change::Status::Failed,

@@ -758,6 +758,14 @@ impl Domain {
             && !self.forge.is_ready()
     }
 
+    /// Whether the forge has immediate internal work ready for the next routing
+    /// turn. Test shells may drain it before a restart snapshot; this query
+    /// never cancels work or advances a timer.
+    #[must_use]
+    pub fn forge_work_ready(&self) -> bool {
+        self.forge.is_ready()
+    }
+
     /// Pure snapshot query for the latest allocated deployment counters; these may run ahead of
     /// store durability. Exposes neither children nor owned handoff bodies and emits no effect.
     #[must_use]
@@ -1416,6 +1424,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::Document(_)
         | Read::Remember(_)
         | Read::SettingsNote { .. }
+        | Read::ChangeDelegate { .. }
         | Read::Notes { .. }
         | Read::Proposal(_)
         | Read::TaskProposal { .. } => {
