@@ -341,6 +341,9 @@ fn connected_holds_one_reconcile_until_the_writing_run_ends() {
     assert_eq!(service.engine.as_ref().expect("engine").setup.runs.len(), 1, "Install still reading");
     for _ in 0_u32..8 {
         advance(service.engine.as_mut().expect("engine"));
+        if !service.engine.as_ref().expect("engine").setup.runs.is_empty() {
+            break;
+        }
     }
     assert_eq!(service.engine.as_ref().expect("engine").setup.runs.len(), 1);
     assert!(service.engine.as_ref().expect("engine").setup.runs.first().unwrap().1.internal);
@@ -552,6 +555,17 @@ fn connection_turn(service: &mut crate::Service, face: &mut Face) {
         service.engine.as_mut().expect("engine").forge.up(skein_io::Event::Stream { owner, up });
     }
 }
+fn connection_settle(service: &mut crate::Service, face: &mut Face) {
+    for _ in 0_u32..1024 {
+        connection_turn(service, face);
+        let engine = service.engine.as_ref().expect("engine");
+        let due = engine.forge.component.next_deadline().is_some_and(|at| at <= Time::ZERO);
+        if engine.forge.io.is_empty() && !due && (face.owner.is_none() || !face.wire.work_pending()) {
+            return;
+        }
+    }
+    panic!("connection did not settle");
+}
 fn locate(service: &mut crate::Service, call: u64) {
     service.engine.as_mut().expect("engine").forge.down(connection::Request::Call {
         call: Token::new(call),
@@ -578,14 +592,10 @@ fn calls_are_not_connected_before_connect_then_wait_until_connected() {
         "a call after Connect waits for the start"
     );
     let mut face = Face::new();
-    for _ in 0_u32..1024 {
-        connection_turn(&mut service, &mut face);
-    }
+    connection_settle(&mut service, &mut face);
     assert!(contains(&face.wire.received, b"GET /app/installations"));
     face.wire.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n[]");
-    for _ in 0_u32..1024 {
-        connection_turn(&mut service, &mut face);
-    }
+    connection_settle(&mut service, &mut face);
     let mut connected = false;
     let mut answered = false;
     for _ in 0..service.engine.as_mut().expect("engine").forge.above.len() {
@@ -670,9 +680,7 @@ fn connection_reply(service: &mut crate::Service, face: &mut Face, body: &[u8]) 
     writer.put(b"\r\n\r\n").unwrap();
     writer.put(body).unwrap();
     face.wire.write(&writer.finish());
-    for _ in 0_u32..1024 {
-        connection_turn(service, face);
-    }
+    connection_settle(service, face);
 }
 #[test]
 fn the_components_first_listing_routes_gone_suspended_and_stray_installations() {
@@ -705,9 +713,7 @@ fn the_components_first_listing_routes_gone_suspended_and_stray_installations() 
         .forge
         .down(connection::Request::Installations { forge: 1, accepted: start.accepted });
     let mut face = Face::new();
-    for _ in 0_u32..1024 {
-        connection_turn(&mut service, &mut face);
-    }
+    connection_settle(&mut service, &mut face);
     connection_reply(&mut service, &mut face, br#"[{"id":22,"account":{"id":122,"login":"suspended-account","type":"Organization"},"created_at":"1970-01-01T00:00:00Z","suspended_at":"2026-01-01T00:00:00Z"},{"id":33,"account":{"id":133,"login":"stray-account","type":"User"},"created_at":"1970-01-01T00:00:00Z","suspended_at":null}]"#);
     crate::engine::forge_pass(service.engine.as_mut().expect("engine"));
     assert!(service.engine.as_ref().expect("engine").setup.lifecycle.installations.get(&(1, 22)).unwrap().suspended);
@@ -1119,12 +1125,19 @@ fn a_carried_bundle_of_the_wrong_item_is_not_a_key() {
     assert!(service.engine.as_ref().unwrap().setup.writes.is_empty());
 }
 
+fn finish_public(service: &mut crate::Service) {
+    for _ in 0_u32..8 {
+        advance(service.engine.as_mut().expect("engine"));
+        if service.engine.as_ref().expect("engine").setup.public.is_empty() {
+            return;
+        }
+    }
+    panic!("setup public caller did not finish");
+}
 fn install_link(service: &mut crate::Service, back: Option<&[u8]>) -> Box<[u8]> {
     public::install(service.engine.as_mut().unwrap(), 1, Token::new(91), back.map(Box::from));
     assert!(service.engine.as_ref().unwrap().events.is_empty(), "the link waits for Done");
-    for _ in 0_u32..8 {
-        advance(service.engine.as_mut().unwrap());
-    }
+    finish_public(service);
     let engine = service.engine.as_mut().unwrap();
     let mut link = None;
     while let Some(event) = engine.events.pop() {
@@ -1201,9 +1214,7 @@ fn install_stop_answers_connecting_without_a_link() {
     let mut service = service(8, Duration::from_secs(3600));
     public::install(service.engine.as_mut().unwrap(), 1, Token::new(91), None);
     assert!(service.engine.as_ref().unwrap().events.is_empty());
-    for _ in 0_u32..8 {
-        advance(service.engine.as_mut().unwrap());
-    }
+    finish_public(&mut service);
     let Some(root::Event::Forge(event)) = service.engine.as_mut().unwrap().events.pop() else {
         panic!("Install stop answer")
     };
@@ -1423,9 +1434,7 @@ fn git_token_fills_a_restored_installations_account_without_exposing_its_value()
 
 fn manifest_link(service: &mut crate::Service, back: Option<&[u8]>) -> Box<[u8]> {
     public::manifest(service.engine.as_mut().unwrap(), 1, Token::new(92), back.map(Box::from));
-    for _ in 0_u32..8 {
-        advance(service.engine.as_mut().unwrap());
-    }
+    finish_public(service);
     let mut link = None;
     while let Some(event) = service.engine.as_mut().unwrap().events.pop() {
         if let root::Event::Forge(event) = event {
@@ -1680,9 +1689,7 @@ fn an_install_during_the_engines_own_run_answers_its_link_once_the_run_ends() {
     assert!(!service.engine.as_ref().unwrap().setup.work_pending(Time::ZERO));
     service.engine.as_mut().unwrap().setup.runs.remove(&reconcile).unwrap();
     assert!(service.engine.as_ref().unwrap().setup.work_pending(Time::ZERO));
-    for _ in 0_u32..8 {
-        advance(service.engine.as_mut().unwrap());
-    }
+    finish_public(&mut service);
     let Some((domain::InstallAnswer::Link(_), None)) = install_answer(&mut service) else { panic!("install link") };
     assert!(service.engine.as_ref().unwrap().setup.held.is_empty());
 }
@@ -1822,9 +1829,7 @@ fn restore(store: crate::store::Store) -> (Box<crate::Service>, Face) {
     load_routing(&mut service);
     let mut face = Face::new();
     // Hold the connection's fake socket before the shell restores the root.
-    for _ in 0_u32..1024 {
-        connection_turn(&mut service, &mut face);
-    }
+    connection_settle(&mut service, &mut face);
     restore_local(&mut service);
     (service, face)
 }
@@ -1860,9 +1865,6 @@ fn restart_before_acceptance_restores_connecting_then_install_accept_and_reachab
         domain::Connection::Connected { id: 9, login: Box::from(b"app-fixture[bot]".as_slice()) }
     );
     // Let the restart's ordinary App reconcile finish before following Install.
-    for _ in 0_u32..8 {
-        advance(after.engine.as_mut().unwrap());
-    }
     let mut reconcile = Face::new();
     reconcile.sent(&mut after);
     assert!(contains(&reconcile.wire.received, b"GET /app "));
@@ -1876,7 +1878,11 @@ fn restart_before_acceptance_restores_connecting_then_install_accept_and_reachab
     }
     for _ in 0_u32..8 {
         advance(after.engine.as_mut().unwrap());
+        if after.engine.as_ref().unwrap().setup.runs.is_empty() {
+            break;
+        }
     }
+    assert!(after.engine.as_ref().unwrap().setup.runs.is_empty(), "restart reconcile finished");
     run_events(&mut after);
     let state = install_link(&mut after, Some(b"/welcome?at=forge&forge=1"));
     let mut peer = visit(&mut after, b"GET", &setup_target(&state));
@@ -2027,9 +2033,7 @@ fn a_stateless_accept_with_an_unsigned_app_key_answers_no_access() {
     // A valid DER envelope whose contents cannot sign: the host answers Unsigned.
     row(&mut service, Item::AppKey, &[0x30, 0]);
     public::accept(service.engine.as_mut().unwrap(), 1, Token::new(91), core::num::NonZeroU64::new(22).unwrap());
-    for _ in 0_u32..8 {
-        advance(service.engine.as_mut().unwrap());
-    }
+    finish_public(&mut service);
     assert_accept_stop(&mut service, domain::AdoptionRefusal::NoAccess, &[11]);
 }
 #[test]
@@ -2043,7 +2047,11 @@ fn a_stateless_accept_past_its_deadline_answers_unreachable() {
     service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(3600));
     for _ in 0_u32..8 {
         face.turn(&mut service);
+        if service.engine.as_ref().unwrap().setup.public.is_empty() {
+            break;
+        }
     }
+    assert!(service.engine.as_ref().unwrap().setup.public.is_empty(), "timed-out caller finished");
     assert_accept_stop(&mut service, domain::AdoptionRefusal::Unreachable, &[11]);
 }
 #[test]

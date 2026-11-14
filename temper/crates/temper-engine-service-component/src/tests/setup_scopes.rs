@@ -3,7 +3,7 @@ use crate::tests::fixtures;
 use skein_fake_forge_forgejo as fake;
 use skein_lib::List;
 use temper_forge_setup::{place::Place, setup::Mode, spec};
-use tests::{Face, start, terminal};
+use tests::{Face, load_records, start, terminal};
 
 // The existing setup stream face also speaks to the scope-enforcing peer.
 impl Face {
@@ -105,9 +105,7 @@ fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_
         let mut service =
             fixtures::configured_service(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
         fixtures::replace_store(&mut service, fixtures::records_store());
-        for _ in 0_u32..8 {
-            crate::forge::records::advance(service.engine.as_mut().expect("engine"));
-        }
+        load_records(service.engine.as_mut().expect("engine"));
         advance(service.engine.as_mut().expect("engine"));
         let limits = service.engine.as_ref().expect("engine").setup.env.limits;
         let env = Env {

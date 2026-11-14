@@ -280,30 +280,33 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
         super::forget(engine, record.number);
         return;
     }
-    if engine.setup.closing || engine.setup.closed {
+    let Some(source) = engine.workers.forges.get(record.number) else { return };
+    keep_layer(&mut engine.setup, source, record);
+}
+pub(super) fn keep_layer(layer: &mut super::Layer, source: &crate::settings::Forge, record: &ForgeRecord) {
+    if layer.closing || layer.closed {
         return;
     }
-    let Some(runtime) = &engine.setup.runtime else { return };
-    let Some(source) = engine.workers.forges.get(record.number) else { return };
+    let Some(runtime) = &layer.runtime else { return };
     let document = runtime.endpoints.contains_key(&record.number);
     let entry = runtime.entry(record);
     let Some(forge) = runtime.forge(record, source, entry.as_ref()) else { return };
     match &forge.kind {
-        host::Kind::GitHub(given) => engine.setup.listener.clone_from(&given.url),
+        host::Kind::GitHub(given) => layer.listener.clone_from(&given.url),
         host::Kind::Forgejo(_) => {}
     }
     let local = match entry {
         Some(entry) if !document => {
-            Some(runtime.local(record, &entry, forge.address, engine.setup.lifecycle.startup_restored()))
+            Some(runtime.local(record, &entry, forge.address, layer.lifecycle.startup_restored()))
         }
         Some(_) | None => None,
     };
-    if let Some(served) = engine.setup.served.get(&record.number)
+    if let Some(served) = layer.served.get(&record.number)
         && let (host::Kind::GitHub(old), host::Kind::GitHub(new)) = (&served.kind, &forge.kind)
         && old.repair_hook != new.repair_hook
     {
         let served = forge.clone();
-        if let Some((settings, _)) = &mut engine.setup.pending {
+        if let Some((settings, _)) = &mut layer.pending {
             for index in 0..settings.forges.len() {
                 let configured = settings.forges.get_mut(index).expect("pending setup forge");
                 if configured.number() == record.number {
@@ -312,45 +315,45 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
                 }
             }
         } else {
-            engine.setup.down(host::Request::Remove { forge: record.number });
-            engine.setup.down(host::Request::Add(forge.clone()));
+            layer.down(host::Request::Remove { forge: record.number });
+            layer.down(host::Request::Add(forge.clone()));
         }
-        engine.setup.served.insert(record.number, served).expect("held setup forge");
+        layer.served.insert(record.number, served).expect("held setup forge");
     }
-    if !engine.setup.served.contains_key(&record.number) {
+    if !layer.served.contains_key(&record.number) {
         let served = forge.clone();
-        if let Some((settings, _)) = &mut engine.setup.pending {
+        if let Some((settings, _)) = &mut layer.pending {
             if let host::Kind::Forgejo(given) = &forge.kind
                 && let Some(listener) = given.listener
                 && listener.port() == 0
             {
-                engine.setup.waiting_for_webhooks = true;
+                layer.waiting_for_webhooks = true;
             }
             settings.forges.push(forge).expect("admitted setup forge");
-            if let Some(runtime) = &mut engine.setup.runtime {
+            if let Some(runtime) = &mut layer.runtime {
                 runtime.initial.push(record.clone()).expect("pending kept forges");
             }
-        } else if engine.setup.component.is_some() {
-            engine.setup.down(host::Request::Add(forge));
+        } else if layer.component.is_some() {
+            layer.down(host::Request::Add(forge));
         } else {
             return;
         }
-        engine.setup.served.insert(record.number, served).expect("admitted setup forge");
-        engine.setup.unserved.remove(&record.number);
+        layer.served.insert(record.number, served).expect("admitted setup forge");
+        layer.unserved.remove(&record.number);
     }
-    if let Some(local) = engine.setup.lifecycle.local_mut(record.number)
+    if let Some(local) = layer.lifecycle.local_mut(record.number)
         && local.first_source == lifecycle::IntentSource::Request
         && record.first.is_some()
     {
         local.first = intent(record.first.as_ref());
         local.first_source = lifecycle::IntentSource::Record;
     }
-    if !engine.setup.lifecycle.reconcile.contains_key(&record.number) {
+    if !layer.lifecycle.reconcile.contains_key(&record.number) {
         let pending = match local {
             Some(local) => lifecycle::Reconcile::Local(local),
             None if record.kind == domain::Kind::GitHub && !document => lifecycle::Reconcile::GitHub,
             None => return,
         };
-        engine.setup.lifecycle.reconcile.insert(record.number, pending).expect("one lifecycle per forge");
+        layer.lifecycle.reconcile.insert(record.number, pending).expect("one lifecycle per forge");
     }
 }

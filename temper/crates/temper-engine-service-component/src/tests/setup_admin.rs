@@ -131,8 +131,21 @@ fn turn(service: &mut crate::Service, forge: &mut Forge, tick: u64) {
     for _ in 0_u32..4 {
         scan(engine);
         crate::engine::iterate(engine, engine.env.now, Wall::EPOCH);
+        if root_idle(engine) {
+            scan(engine);
+            forge.service.reclaim();
+            return;
+        }
     }
-    forge.service.reclaim();
+    panic!("admin turn did not drain the root's immediate work");
+}
+fn root_idle(engine: &crate::engine::Engine) -> bool {
+    engine.events.is_empty()
+        && engine.requests.is_empty()
+        && engine.store.host.above.is_empty()
+        && engine.store.routed.is_empty()
+        && engine.domain.commits_in_flight() == 0
+        && engine.domain.backlog() == 0
 }
 fn settle(service: &mut crate::Service, forge: &mut Forge) {
     for tick in 1..20_000 {
@@ -643,7 +656,12 @@ fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
     // Run the real root's end and erase decision; the fake host still has no HTTP reply.
     for _ in 0_u32..64 {
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+        scan(engine);
+        if engine.store.erases > 0 && engine.domain.quiescent() {
+            break;
+        }
     }
+    assert!(engine.domain.quiescent(), "end and erase decision settled");
     erased(&mut service, false);
 }
 #[test]
