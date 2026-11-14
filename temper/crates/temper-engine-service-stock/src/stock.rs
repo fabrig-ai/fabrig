@@ -320,6 +320,12 @@ pub fn floors(defaults: &Defaults, limits: &jig_protocol_config::Limits) -> Resu
         }
     }
     authority_floors(&defaults.rules.ceiling, &core.authority, Setting::Rules)?;
+    floor(
+        b"tasks.executor_kinds",
+        u64::from(core.tasks.executor_kinds),
+        count(defaults.rules.ceiling.delegation.kinds.len()),
+        Setting::Rules,
+    )?;
     for (&number, policy) in &defaults.policies {
         let setting = Setting::Policy(number);
         let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates)

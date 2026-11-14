@@ -75,11 +75,11 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
-        (b"core.policy_bytes", 6423, Setting::Policy(1), "the stock's policy 1 needs 6423 bytes"),
+        (b"core.policy_bytes", 6455, Setting::Policy(1), "the stock's policy 1 needs 6455 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 15, Setting::Rules, "the stock's rules need 15 grants"),
         // The standing charters, closer procedure and close job are delegation targets.
-        (b"authority.executors", 20, Setting::Rules, "the stock's rules need 20 executors"),
+        (b"authority.executors", 21, Setting::Rules, "the stock's rules need 21 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
@@ -176,7 +176,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     // Two executor places in four authorities add 64 bytes to the policy.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6423 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6455 bytes; raise it in engine.limits.overrides\n"
     );
 }
 
@@ -447,7 +447,7 @@ fn a_standard_document_seeds_project_one_from_stock_policy_one() {
     let policy = defaults.policies.get(&1).unwrap();
     let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates).unwrap();
     let bytes = jig_domain_people::policy_bytes(&snapshot).unwrap();
-    assert_eq!(bytes, 6423);
+    assert_eq!(bytes, 6455);
     assert_eq!(policy.policy.ceiling.delegation.kinds.len(), 20);
     assert!(bytes <= engine.limits.core.policy_bytes, "snapshot {bytes}, limit {}", engine.limits.core.policy_bytes);
     assert_eq!(

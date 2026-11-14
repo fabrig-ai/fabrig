@@ -97,7 +97,7 @@
     },
     "limits": {
       "overrides": {
-        "authority.executors": 21,
+        "authority.executors": 22,
         "authority.grants": 16,
         "authority.projects": 2,
         "authority.segments": 8,
@@ -141,7 +141,7 @@
         "tasks.charters": 16,
         "tasks.delegates": 1,
         "tasks.dependencies": 2,
-        "tasks.executor_kinds": 21,
+        "tasks.executor_kinds": 22,
         "tasks.exemptions": 2,
         "tasks.funders": 4,
         "tasks.hold_bytes": 256,

@@ -76,8 +76,8 @@ fn the_box_has_room_for_reference_creating_executors() {
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
     let limits = parsed.limits.core;
     jig_protocol_config::check_effective_limits(&limits).expect("deployment receiving limits fit the codecs");
-    assert_eq!(limits.authority.executors, 21);
-    assert_eq!(limits.tasks.executor_kinds, 21);
+    assert_eq!(limits.authority.executors, 22);
+    assert_eq!(limits.tasks.executor_kinds, 22);
     assert_eq!(limits.documents.lines, 16);
     assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
     assert!(limits.documents.lines >= limits.tasks.charters);
