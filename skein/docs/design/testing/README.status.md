@@ -30,6 +30,7 @@ counted around each reused pass, never by an address.
   the names left (`tools/tiers/design.md`, 11.5 and 11.6); skein-world's
   tests of the starved pass and of a starved referee's teardown catch it;
   milestone P6 of `temper/docs/design/draft/panics.execution.md`.
+  [in flight: change 2711]
   5: two step tests show a table kept by its address, not by the span's
   count, and their binaries declare no counting allocator: skein-lib's
   `removing_a_list_item_moves_the_last_and_keeps_capacity`, a list
