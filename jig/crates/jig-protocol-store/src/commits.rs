@@ -111,6 +111,7 @@ pub(crate) fn operations(
         }
     }
     if format_due {
+        store.registry.first(&mut ops).ok_or(Refusal::Failed)?;
         crate::jobs::kept::first(store, &mut ops, number).ok_or(Refusal::Failed)?;
         let id = deployment.expect("the first root commit saves its deployment header");
         let mut row = format::current(store.application.version, id);

@@ -18,4 +18,5 @@ mod batches;
 
 mod history;
 mod reds;
+mod registered_layouts;
 mod value_types;

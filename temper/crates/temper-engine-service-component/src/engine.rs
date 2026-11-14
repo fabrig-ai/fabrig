@@ -921,6 +921,7 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
         why @ OpenRefusal::Generations { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Ahead { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Job { .. } => stop::open(engine, &why),
+        why @ OpenRefusal::Layout { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Patch { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Set { .. } => stop::open(engine, &why),
         why @ OpenRefusal::InFlight { .. } => stop::open(engine, &why),

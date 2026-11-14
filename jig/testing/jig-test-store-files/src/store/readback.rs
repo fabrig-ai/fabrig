@@ -154,6 +154,17 @@ impl Store {
                         )
                         .expect("wires row");
                     }
+                    keys::Own::Layout { .. } => {
+                        protocol::registry_v1::Layout::decode(
+                            &protocol::registry_v1::CEILINGS,
+                            &mut Reader::new(value),
+                        )
+                        .expect("layout row");
+                    }
+                    keys::Own::Text(_) => {
+                        protocol::registry_v1::Text::decode(&protocol::registry_v1::CEILINGS, &mut Reader::new(value))
+                            .expect("text row");
+                    }
                     keys::Own::Job { .. } => {
                         protocol::registry_v1::Job::decode(&protocol::registry_v1::CEILINGS, &mut Reader::new(value))
                             .expect("job row");

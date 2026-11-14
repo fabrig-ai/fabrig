@@ -32,6 +32,7 @@ pub use patching::Counts;
 pub use patching::baseline::{SKEIN_PATCH_SET, SMITH_PATCH_SET};
 pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, ValueType};
 mod reads;
+mod registry;
 pub mod restore;
 pub mod retained;
 mod secrets;
@@ -94,6 +95,8 @@ pub struct Store {
     application: sizes::Application,
     codec_limits: codec::View,
     layouts: codec::component::Layouts,
+    registry: Box<registry::Layouts>,
+    layout_work: Box<skein_codec::layout::Workspace>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
     names: Box<[jig_domain_core_vocabulary::settings::ModelName]>,
     stores: Stores,
@@ -225,6 +228,8 @@ impl Store {
             application,
             codec_limits,
             layouts: format::layouts(),
+            registry: Box::new(registry::Layouts::new()),
+            layout_work: Box::new(skein_codec::layout::Workspace::new()),
             names: codec::names(models),
             opening_keys: skein_lib::Map::uncapped(),
             stores,
@@ -511,7 +516,7 @@ mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
     KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root, Row, SecretOwner, SecretRow,
-    SecretValue, Secrets, TranscriptRead, Undecoded, WorkerOpening, Write,
+    SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, WorkerOpening, Write,
 };
 
 #[cfg(test)]
