@@ -45,13 +45,17 @@ impl Walk {
     fn landing_complete(&self) -> bool {
         self.landed()
             && (!super::TRACKED.with(Cell::get)
-                || self.store.borrow().rows.values().any(|record| {
+                || self.store.borrow().rows.values().all(|record| {
                     if let temper_engine_domain::Record::Forge { row } = record
                         && let temper_engine_domain_forge::Stored::Landing(row) = row.as_ref()
                     {
-                        row.landing.phase == temper_engine_domain_forge::LandingPhase::Landed
+                        matches!(
+                            row.landing.phase,
+                            temper_engine_domain_forge::LandingPhase::Landed
+                                | temper_engine_domain_forge::LandingPhase::Cancelled
+                        )
                     } else {
-                        false
+                        true
                     }
                 }))
     }
