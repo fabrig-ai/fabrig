@@ -100,6 +100,44 @@ fn seed_groups_change_by_name_in_byte_order() {
     );
 }
 #[test]
+fn the_last_seed_row_for_a_name_wins_on_each_side() {
+    use packages::{SeedGroup, SeedGroupKeyed, SeedIds, SeedUser, SeedUserKeyed, Seeds, SeedsChange};
+    let mut before = fixtures::thin_packages();
+    before.seeds = Seeds {
+        users: Box::new([
+            SeedUser { name: copy_of(b"user"), uid: 100, gid: None },
+            SeedUser { name: copy_of(b"user"), uid: 101, gid: Some(101) },
+        ]),
+        groups: Box::new([
+            SeedGroup { name: copy_of(b"group"), gid: 100 },
+            SeedGroup { name: copy_of(b"group"), gid: 101 },
+        ]),
+    };
+    let mut after = before.clone();
+    after.seeds = Seeds {
+        users: Box::new([
+            SeedUser { name: copy_of(b"user"), uid: 102, gid: None },
+            SeedUser { name: copy_of(b"user"), uid: 103, gid: Some(103) },
+        ]),
+        groups: Box::new([
+            SeedGroup { name: copy_of(b"group"), gid: 102 },
+            SeedGroup { name: copy_of(b"group"), gid: 103 },
+        ]),
+    };
+    assert_eq!(
+        packages::change(&before, &after).seeds,
+        SeedsChange {
+            users: Box::new([SeedUserKeyed::Changed {
+                key: copy_of(b"user"),
+                before: SeedIds { uid: 101, gid: Some(101) },
+                after: SeedIds { uid: 103, gid: Some(103) },
+            }]),
+            groups: Box::new([SeedGroupKeyed::Changed { key: copy_of(b"group"), before: 101, after: 103 }]),
+        }
+    );
+}
+
+#[test]
 fn the_three_layers_are_slot_software_other() {
     use crate::parts::PartRecord;
     let (secrets, _) = fixtures::changed_secrets();

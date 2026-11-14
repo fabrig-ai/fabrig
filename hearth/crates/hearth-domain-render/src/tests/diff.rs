@@ -245,6 +245,12 @@ fn a_failed_hunks_request_ends_the_call_try_again() {
 }
 
 #[test]
+fn unchanged_meta_has_no_change() {
+    let meta = fixtures::meta();
+    assert_eq!(crate::parts::meta::change(&meta, &meta), None);
+}
+
+#[test]
 fn a_meta_change_holds_each_moved_field_before_and_after_and_no_other() {
     use crate::parts::meta::{self, NamePair};
     let before = fixtures::meta();
