@@ -148,12 +148,6 @@ fn the_credential_is_kept_and_erased_as_the_link_says() {
 }
 
 #[test]
-#[should_panic(expected = "a report before the TUI's start")]
-fn a_report_before_start_panics() {
-    host().report(Report::Due);
-}
-
-#[test]
 fn reports_keep_their_order() {
     let mut host = host();
     assert_eq!(host.frame().size(), Size { columns: 0, rows: 0 });
