@@ -114,7 +114,10 @@ record Connector { value: u16 }
 record ProjectionGoalRow { goal: ProjectionGoal pending: list 1024 Connector changed: bool fed_at: option u64 }
 record ProjectionTaskRow { goal: u64 task: ProjectionTask }
 record ProjectionMilestoneRow { goal: u64 milestone: ProjectionMilestone }
-enum ProjectionRecord { goal: ProjectionGoalRow, task: ProjectionTaskRow, milestone: ProjectionMilestoneRow }
+record ProjectionGoalHot { number: u64 project: u32 priority: u32 phase: PhaseBytes pending: list 1024 Connector changed: bool fed_at: option u64 }
+record ProjectionTaskHot { goal: u64 number: u64 requester: Party phase: PhaseBytes }
+record ProjectionWords { goal: u64 task: u64 words: bytes 262144 }
+enum ProjectionRecord { goal: ProjectionGoalRow, task: ProjectionTaskRow, milestone: ProjectionMilestoneRow, goal_hot: ProjectionGoalHot, task_hot: ProjectionTaskHot, goal_words: ProjectionWords, task_words: ProjectionWords }
 record TerminalRecord { task: u64 attempt: u64 cumulative: u64 end: EndBytes }
 record TurnProof { turn: u32 cumulative: u64 read: option u64 }
 record Window { attempt: u64 turn: u32 closed: bool }

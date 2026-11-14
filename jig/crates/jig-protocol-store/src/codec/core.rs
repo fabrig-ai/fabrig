@@ -9,7 +9,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Reader, Wall, Writer};
 mod calls;
-mod projections;
+pub(crate) mod projections;
 mod runs;
 use super::View;
 
@@ -28,6 +28,8 @@ pub(super) fn limits(
         projection_task_words: domain.tasks.spec_bytes,
         projection_milestone_words: domain.tasks.message_bytes.max(domain.tasks.result_bytes),
         projection_goal_row_pending: domain.connectors,
+        projection_goal_hot_pending: domain.connectors,
+        projection_words_words: domain.tasks.spec_bytes,
         run_proof_accounts: tasks::MODELS,
         run_proof_credentials: domain.accounts.credentials,
         run_proof_outstanding: domain.tasks.run_inbox,
