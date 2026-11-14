@@ -10,7 +10,6 @@ hearth/testing/hearth-fake-machine/src/tests/files.rs should_panic 2
 hearth/testing/hearth-fake-machine/src/tests/ledger.rs should_panic 1
 hearth/testing/hearth-fake-machine/src/tests/processes.rs should_panic 1
 hearth/testing/hearth-fake-machine/src/tests/universe.rs should_panic 1
-hearth/testing/hearth-fake-machine/src/tests/usage.rs catch_unwind 1
 hearth/testing/hearth-fake-mmdebstrap/src/tests/face.rs should_panic 1
 hearth/tests/builder/tests/real/main.rs should_panic 1
 jig/crates/jig-client-domain/src/tests/carried.rs should_panic 3
@@ -94,7 +93,6 @@ jig/tests/host/src/world.rs catch_unwind 1
 jig/tests/notes/tests/suite/referee.rs should_panic 3
 jig/tests/views/tests/suite/referee.rs catch_unwind 5
 skein/crates/skein-codec/src/tests/piece.rs should_panic 2
-skein/crates/skein-fake-forge-domain/src/tests/actions.rs catch_unwind 1
 skein/crates/skein-fake-forge-domain/src/tests/cues.rs should_panic 1
 skein/crates/skein-fake-forge-domain/src/tests/protection.rs should_panic 1
 skein/crates/skein-fake-forge-domain/src/tests/reports.rs should_panic 1
@@ -152,7 +150,6 @@ skein/testing/skein-rows/src/tests.rs catch_unwind 3
 skein/testing/skein-world/src/deadline.rs resume_unwind 1
 skein/testing/skein-world/src/end_to_end.rs catch_unwind 2
 skein/testing/skein-world/src/end_to_end.rs should_panic 1
-skein/testing/skein-world/src/ring.rs catch_unwind 1
 skein/testing/skein-world/src/tree.rs catch_unwind 1
 skein/testing/skein-world/src/tree.rs should_panic 3
 skein/tests/browser/src/referee.rs should_panic 4
@@ -160,14 +157,10 @@ skein/tests/browser/tests/browser_real.rs catch_unwind 1
 skein/tests/codec/tests/suite/fuzzy/generic.rs catch_unwind 1
 skein/tests/conformance/real/tests/suite/deadline.rs catch_unwind 2
 skein/tests/conformance/sim/src/lib.rs catch_unwind 2
-skein/tests/fake-peers/tests/suite/forge.rs catch_unwind 3
-skein/tests/fake-peers/tests/suite/llm.rs catch_unwind 1
-skein/tests/fake-peers/tests/suite/oauth.rs catch_unwind 1
 skein/tests/heap/tests/suite/meter.rs should_panic 6
 skein/tests/io/src/processes.rs catch_unwind 2
 skein/tests/lib/tests/suite/journal.rs should_panic 1
 skein/tests/llm-connection/tests/suite/close.rs should_panic 5
-skein/tests/llm/tests/suite/bounded_peer_memory.rs catch_unwind 2
 skein/tests/llm/tests/suite/bounded_peer_memory.rs should_panic 2
 skein/tests/oauth-accounts/tests/suite/referee.rs should_panic 11
 skein/tests/playground/tests/suite/slices.rs should_panic 2

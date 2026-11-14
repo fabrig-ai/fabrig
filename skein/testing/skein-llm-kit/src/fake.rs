@@ -82,7 +82,10 @@ fn reserve<T>(items: &mut Vec<T>, count: u32) {
     }
 }
 
-fn query_bytes(query: &api::Query) -> Option<u64> {
+/// Counts the owned arrays and payload bytes retained in a decoded query.
+/// Returns `None` when the ownership cannot be represented.
+#[must_use]
+pub fn query_bytes(query: &api::Query) -> Option<u64> {
     let mut owned = bytes(&query.model)?
         .checked_add(bytes(&query.system)?)?
         .checked_add(cells::<api::ToolSpec>(u32::try_from(query.tools.len()).ok()?)?)?
