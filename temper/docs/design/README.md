@@ -181,7 +181,8 @@ forge, temper adds:
     tool, home and loop; its ledger (`testing/qa/ledger.md`), the
     watcher on main (`testing/qa/landings.md`), kept builds
     (`testing/qa/builds.md`), triage (`testing/qa/triage.md`), places
-    and copies (`testing/qa/places.md`), passes (`testing/qa/passes.md`),
+    and copies (`testing/qa/places.md`), a deployment at its place
+    (`testing/qa/deployment.md`), passes (`testing/qa/passes.md`),
     findings (`testing/qa/findings.md`) and the setups' catalogue with
     its twins (`testing/qa/setups.md`).
 - **`protocol/`:** temper's protocol layer on jig's: the processes and

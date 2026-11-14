@@ -1,6 +1,70 @@
 //! Inputs at the merge and the brief's ordered sections (qa/triage.md, 3).
-use crate::{Home, Landing, Ledger, Pages, Refusal, faces::GitFace};
-use std::fmt::Write;
+use crate::{
+    Home, Landing, Ledger, Pages, Refusal,
+    faces::{Changed, GitFace},
+};
+use std::{collections::BTreeMap, fmt::Write};
+
+const GENERATED_SEGMENTS: &[&str] = &["generated", "golden"];
+const REFERENCE_DIRECTORY: &str = "temper/docs/help/reference/";
+
+fn generated_directory(path: &str) -> Option<&str> {
+    if path.starts_with(REFERENCE_DIRECTORY) {
+        return Some(REFERENCE_DIRECTORY);
+    }
+    let mut remaining = path;
+    while let Some((segment, rest)) = remaining.split_once('/') {
+        if GENERATED_SEGMENTS.contains(&segment) {
+            return path.strip_suffix(rest);
+        }
+        remaining = rest;
+    }
+    None
+}
+
+#[derive(Default)]
+struct Counts {
+    files: usize,
+    added: u64,
+    deleted: u64,
+}
+impl Counts {
+    fn include(&mut self, path: &Changed) {
+        self.files += 1;
+        self.added += path.added.unwrap_or(0);
+        self.deleted += path.deleted.unwrap_or(0);
+    }
+}
+
+/// Fold generated directories at their first path, then total every path (qa/triage.md, 3).
+#[must_use]
+pub fn stat_text(paths: &[Changed]) -> String {
+    let mut paths: Vec<_> = paths.iter().collect();
+    paths.sort_by(|left, right| left.path.cmp(&right.path));
+    let mut directories: BTreeMap<&str, Counts> = BTreeMap::new();
+    let mut total = Counts::default();
+    for path in &paths {
+        total.include(path);
+        if let Some(directory) = generated_directory(&path.path) {
+            directories.entry(directory).or_default().include(path);
+        }
+    }
+    let mut text = String::new();
+    for path in paths {
+        if let Some(directory) = generated_directory(&path.path) {
+            if let Some(counts) = directories.remove(directory) {
+                writeln!(text, "{directory} | {} files, +{} -{}", counts.files, counts.added, counts.deleted)
+                    .expect("string");
+            }
+        } else if let (Some(added), Some(deleted)) = (path.added, path.deleted) {
+            writeln!(text, "{} | +{added} -{deleted}", path.path).expect("string");
+        } else {
+            writeln!(text, "{} | binary", path.path).expect("string");
+        }
+    }
+    writeln!(text, "{} files changed, +{} -{}", total.files, total.added, total.deleted).expect("string");
+    text
+}
 
 pub(crate) struct Inputs {
     pub pages: Pages,
@@ -62,7 +126,7 @@ impl Inputs {
             surfaces,
             catalogue,
             patch: git.diff(&parent, commit)?,
-            stat: git.stat(&parent, commit)?,
+            stat: stat_text(&git.stat(&parent, commit)?),
         })
     }
     pub fn render(&self, home: &Home, number: u64, landing: &Landing, ledger: &Ledger) -> String {

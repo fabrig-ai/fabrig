@@ -1,7 +1,8 @@
 # Triage
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, section 4,
-milestone Q1 of `../../draft/landed-qa.execution.md`. How each landing
+Provisional, 2026-11-12, revised 2026-11-14, from
+`../../draft/landed-qa.md`, section 4, milestones Q1 and Q6 of
+`../../draft/landed-qa.execution.md`. How each landing
 is judged for what a person now meets: an agent session per landing, in
 main's order, answering no QA or cases through the ledger's commands.
 
@@ -50,7 +51,11 @@ found) ends the session `unstarted`: it counts for no landing's
 this order:
 
 - **What triage is,** from `../../draft/landed-qa.md`, 4: what a person
-  now sees or does on the web client or the TUI, the green path only, as
+  now sees or does through ctl, the web client or the TUI, ctl first:
+  a landing's ctl cases written before its web and TUI ones, the
+  person's acts and temper's account as `temper ctl` gives them, each
+  case on a setup of a kind that takes its surface (a deployment's setup
+  takes ctl cases alone, in Q6); the green path only, as
   `../../draft/v0.1.0.md`, 4 weighs it; each case's expectations from the
   draft's promises, written before anything is tried; no QA, with a line
   why, when the landing changes nothing a person meets there; the fakes
@@ -68,11 +73,35 @@ this order:
   whose file, status file or execution file the diff touches, but the
   drafts' notes and `archive/`; with none either, a line saying no
   draft is named and the request was the title's words.
-- **Its diff:** `git diff --stat MERGE^1 MERGE` in the brief, and the
-  whole diff's path, `sessions/N/diff.patch`.
+- **Its diff:** its stat in the brief (below), and the whole diff's
+  path, `sessions/N/diff.patch`.
+- **Its stat,** written by the tool from the paths `git diff --numstat
+  MERGE^1 MERGE` gives with their added and deleted lines, so that a
+  landing of goldens stays cheap to read (`../../draft/landed-qa.md`, 4):
+  - **a generated directory** is a path's leading part up to and
+    including its first segment named `generated` or `golden`
+    (`crates/X/src/generated/`, `crates/X/golden/`), or
+    `temper/docs/help/reference/`, whose pages are rendered from the
+    tools' tables (`../../protocol/documentation.md`, 8);
+  - **one line per changed path outside them,** in path order,
+    `PATH | +A -D`, or `PATH | binary` where git counts no lines;
+  - **one line per generated directory** for every changed path under
+    it, at the place of its first path in path order, `DIR | N files, +A
+    -D`, DIR ending in `/`, its binary files counting no lines;
+  - **then the total,** `N files changed, +A -D`, every path counted
+    once.
+
+  So a landing that rewrites a thousand goldens takes a line for their
+  directory, never a thousand.
 - **Its commits' `QA:` trailers:** each value of a `QA:` trailer among
   `git log MERGE^1..MERGE`, each once, in order; none, said.
-- **The surfaces:**
+- **The surfaces,** ctl's first:
+  - `ctl`: each group of ctl's tools, from the pages of
+    `temper/docs/help/reference/` at MERGE whose names start `ctl-`,
+    each group named by the rest of its page's stem
+    (`temper/docs/help/reference/ctl-task.md` is `task`), with that
+    page's path; and ctl's design,
+    `temper/docs/design/client/ctl/README.md` and `tools.md`;
   - `web`: each page of `temper/docs/design/client/pages/` at MERGE, its
     name the stem of each Markdown file there but the README and the status files,
     and each subdirectory's name (`chat`), with its design's path; and
@@ -81,12 +110,18 @@ this order:
     `temper/docs/design/client/tui/journeys.md`.
 
   These names are the session's `pages`.
-- **The setups' catalogue,** a line each: `fresh`, a fresh box at its
+- **The setups' catalogue,** a line each, with its kind
+  (`../../draft/landed-qa.md`, 4): `fresh (box)`, a fresh box at its
   welcome with nothing set up; then each directory under
-  `temper/docs/development/qa/setups/` at MERGE, its name and its
-  `README.md`'s first paragraph (`../../draft/landed-qa.md`, 5). These
-  names are the session's `setups`; with no recipe yet, `fresh` alone,
-  and a case says in `adds` what it needs.
+  `temper/docs/development/qa/setups/` at MERGE, its name, its kind in
+  parentheses, `(box)` or `(deployment)`, and its `README.md`'s first
+  paragraph (`../../draft/landed-qa.md`, 5). A recipe's kind is its
+  chain's root's (`../../client/recipe.md`, 2): the tool follows each
+  `recipe`'s `after` line to the root, through at most eight parents,
+  and the root holding `config/` is a deployment's; a chain it cannot
+  follow is a box's. These names are the session's `setups`, those of
+  a deployment's kind its `deployments` (`ledger.md`, 2.5); with no
+  recipe yet, `fresh` alone, and a case says in `adds` what it needs.
 - **The cases queued:** each case's number, surface, page and landings,
   and each ask's setup, adds and steps with their expectations; a case
   for one of their pages joins it.
@@ -99,6 +134,10 @@ this order:
   (`ledger.md`, 4.2); prints `landing L: no QA`.
 - **`temper-qa triage case FILE`:** FILE a path, or `-` for stdin, holding
   one JSON object:
+
+  `surface` is `ctl`, `web` or `tui`; for `ctl`, `page` is a group of
+  ctl's tools (`landing`), each step's `do` a ctl act or wait as the
+  person types it, and `see` words ctl prints:
 
   ```json
   {

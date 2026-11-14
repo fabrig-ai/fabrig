@@ -11,13 +11,15 @@ use temper_qa_tool::{BuildState, Home, build::keep};
 
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 const SHORT: &str = "0123456789ab";
-const REQUIRED: [&str; 6] = [
+const REQUIRED: [&str; 8] = [
     "bin/temper-box",
     "bin/fake-claude",
     "bin/temper",
     "bin/temper-client-journeys",
+    "bin/temper-engine",
+    "bin/temper-worker",
+    "bin/temper-agent",
     "bundle/index.html",
-    "bundle-record/index.html",
 ];
 
 fn stage() -> (Scratch, Home, PathBuf) {
@@ -29,15 +31,14 @@ fn stage() -> (Scratch, Home, PathBuf) {
     .expect("config");
     let home = Home::open(scratch.path()).expect("home");
     let stage = scratch.path().join("stage");
-    for directory in ["bin", "bundle", "bundle-record"] {
+    for directory in ["bin", "bundle"] {
         fs::create_dir_all(stage.join(directory)).expect("stage directory");
     }
-    for binary in ["temper-box", "temper", "temper-client-journeys"] {
+    for binary in ["temper-box", "temper", "temper-client-journeys", "temper-engine", "temper-worker", "temper-agent"] {
         script(&stage.join("bin").join(binary), &format!("{binary} 0.1.0 ({SHORT})"));
     }
     script(&stage.join("bin/fake-claude"), "2.1.312 (Claude Code)");
     fs::write(stage.join("bundle/index.html"), b"web\n").expect("bundle");
-    fs::write(stage.join("bundle-record/index.html"), b"record\n").expect("record bundle");
     (scratch, home, stage)
 }
 
@@ -56,25 +57,20 @@ fn refusal(home: &Home, stage: &Path, words: &str) {
 }
 
 #[test]
-fn all_six_required_files_are_named_when_missing_before_anything_moves() {
-    let (_scratch, home, stage) = stage();
-    for path in REQUIRED {
-        let full = stage.join(path);
-        let contents = fs::read(&full).expect("staged file");
-        fs::remove_file(&full).expect("remove required file");
-        refusal(&home, &stage, &format!("{} lacks {path}", stage.display()));
-        fs::write(&full, contents).expect("restore required file");
-        fs::set_permissions(&full, fs::Permissions::from_mode(0o700)).expect("restore executable");
+fn missing_deployment_binaries_are_named_before_anything_moves() {
+    for missing in [vec!["bin/temper-worker"], vec!["bin/temper-engine", "bin/temper-agent"]] {
+        let (_scratch, home, stage) = stage();
+        for path in &missing {
+            fs::remove_file(stage.join(path)).expect("remove required file");
+        }
+        let words =
+            missing.iter().map(|path| format!("{} lacks {path}", stage.display())).collect::<Vec<_>>().join("; ");
+        refusal(&home, &stage, &words);
     }
-    for path in REQUIRED {
-        fs::remove_file(stage.join(path)).expect("remove required file");
-    }
-    let words = REQUIRED.map(|path| format!("{} lacks {path}", stage.display())).join("; ");
-    refusal(&home, &stage, &words);
 }
 
 #[test]
-fn a_full_stage_keeps_the_coding_agent_version_and_checksums_all_six_files() {
+fn a_deployment_stage_keeps_the_coding_agent_version_and_checksums_all_eight_files() {
     let (_scratch, home, stage) = stage();
     let mut paths = REQUIRED;
     paths.sort_unstable();
@@ -83,10 +79,11 @@ fn a_full_stage_keeps_the_coding_agent_version_and_checksums_all_six_files() {
         let bytes = fs::read(stage.join(path)).expect("staged bytes");
         writeln!(expected, "{:x}  {path}", Sha256::digest(&bytes)).expect("manifest row");
     }
-    assert_eq!(keep(&home, COMMIT, &stage, &[]).expect("kept"), format!("build {SHORT} kept: 6 files\n"));
+    assert_eq!(keep(&home, COMMIT, &stage, &[]).expect("kept"), format!("build {SHORT} kept: 8 files\n"));
     assert!(!stage.exists());
     let kept = home.builds.join(COMMIT);
     assert_eq!(fs::read_to_string(kept.join("manifest")).expect("manifest"), expected);
+    assert!(!kept.join("bundle-record").exists());
     home.read(|ledger| {
         assert_eq!(ledger.builds.len(), 1);
         assert_eq!(ledger.builds[0].commit, COMMIT);
@@ -94,6 +91,27 @@ fn a_full_stage_keeps_the_coding_agent_version_and_checksums_all_six_files() {
         Ok(())
     })
     .expect("ledger");
+}
+
+#[test]
+fn an_older_recording_bundle_is_kept_in_the_manifest() {
+    let (_scratch, home, stage) = stage();
+    fs::create_dir(stage.join("bundle-record")).expect("recording directory");
+    fs::write(stage.join("bundle-record/index.html"), b"record\n").expect("recording bundle");
+    assert_eq!(keep(&home, COMMIT, &stage, &[]).expect("kept"), format!("build {SHORT} kept: 9 files\n"));
+    let kept = home.builds.join(COMMIT);
+    assert_eq!(fs::read(kept.join("bundle-record/index.html")).expect("kept recording"), b"record\n");
+    let manifest = fs::read_to_string(kept.join("manifest")).expect("manifest");
+    assert!(
+        manifest.lines().any(|line| line == format!("{:x}  bundle-record/index.html", Sha256::digest(b"record\n")))
+    );
+}
+
+#[test]
+fn the_engine_must_print_the_kept_commit() {
+    let (_scratch, home, stage) = stage();
+    script(&stage.join("bin/temper-engine"), "temper-engine 0.1.0 (abcdef012345)");
+    refusal(&home, &stage, &format!("bin/temper-engine prints temper-engine 0.1.0 (abcdef012345), not {SHORT}"));
 }
 
 #[test]

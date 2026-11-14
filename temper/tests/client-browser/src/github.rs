@@ -263,6 +263,8 @@ fn domain_config() -> domain::Config {
         rate_window: Duration::ZERO,
         ci: 12,
         made_checks: domain::Config::test().made_checks,
+        made_workflows: domain::Config::test().made_workflows,
+        made_manual_merges: domain::Config::test().made_manual_merges,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,
