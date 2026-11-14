@@ -45,7 +45,7 @@ The browser boundary check remains later work (section 11).
 
 - **Not yet:** 6.2: the resume-refusal walk proof remains `testing.status.md`, 2.
 
-- **Not yet:** 6.1: `party` is never written or read; the link's `sign-in` offers a held token beside the link, *signed in* is never refused, and the engine's spent, expired and unknown refusals all print `the sign-in link was refused`; a `sign-out` whose token the engine refuses keeps `token` and ends at its deadline, exit 1 (`temper-client-shell-cli`, `host.rs` and `host/sign_in.rs`).
+- **Not yet:** 6.1: `party` is never written or read; the link's `sign-in` offers a held token beside the link, *signed in* is never refused, and the engine's spent, expired and unknown refusals all print `the sign-in link was refused`; a `sign-out` whose token the engine refuses keeps `token` and ends at its deadline, exit 1 (`temper-client-shell-cli`, `host.rs` and `host/sign_in.rs`) [in flight: change 2706].
 
 - **Not yet:**  the absent command groups remain `tools.status.md`, 1.
    the absent read commands remain `tools.status.md`, 2.  the absent deciding commands remain `tools.status.md`, 3.
