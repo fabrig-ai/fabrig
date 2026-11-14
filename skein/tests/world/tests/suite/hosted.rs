@@ -19,7 +19,7 @@ fn a_spawn_hosts_the_child_with_its_arguments_environment_and_pipes() {
     world.spawn_root(Handle::new(1), |root| {
         Script::parent(root, &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait])
     });
-    let outcome = world.run();
+    let outcome = world.try_run().expect("the hosted exchange settles cleanly");
     assert_eq!(outcome.procs.len(), 2);
     assert_eq!(outcome.procs[0].received, b"reply");
     assert_eq!(outcome.procs[1].received, b"hello");
@@ -119,9 +119,10 @@ fn a_hosted_child_without_a_terminal_does_not_settle() {
 }
 
 #[test]
-#[should_panic(expected = "read to its end")]
 fn closing_a_hosted_childs_output_without_reading_its_end_does_not_settle() {
-    let _outcome = simple(leaky_child, &[Act::Spawn, Act::Wait], Memory::Checked);
+    let finding =
+        try_simple(leaky_child, &[Act::Spawn, Act::Wait], Memory::Checked).expect_err("the world returns its finding");
+    assert!(finding.contains("read to its end"), "{finding}");
 }
 
 #[test]

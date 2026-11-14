@@ -259,7 +259,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
         }
         let peaks = self.inner.meter().0.as_ref().map(Heap::report);
         let held = self.inner.meter().0.as_ref().map(Heap::held);
-        let finished = self.inner.finish();
+        let finished = self.inner.try_finish()?;
         Ok(Outcome {
             machine: finished.machine,
             killed: finished.killed,
