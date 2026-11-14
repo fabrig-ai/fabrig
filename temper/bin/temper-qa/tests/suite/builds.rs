@@ -19,15 +19,14 @@ fn home() -> (Scratch, Home) {
 }
 fn stage(home: &Home, name: &str) -> std::path::PathBuf {
     let path = home.directory.join(name);
-    for directory in ["bin", "bundle", "bundle-record"] {
+    for directory in ["bin", "bundle"] {
         fs::create_dir_all(path.join(directory)).expect("stage directory");
     }
-    for binary in ["temper-box", "temper", "temper-client-journeys"] {
+    for binary in ["temper-box", "temper", "temper-client-journeys", "temper-engine", "temper-worker", "temper-agent"] {
         script(&path.join("bin").join(binary), &format!("printf '{binary} 0.1.0 (0123456789ab)\\n'"));
     }
     script(&path.join("bin/fake-claude"), "printf '2.1.312 (Claude Code)\\n'");
     fs::write(path.join("bundle/index.html"), b"a\n").expect("bundle");
-    fs::write(path.join("bundle-record/index.html"), b"record\n").expect("record bundle");
     path
 }
 fn script(path: &Path, body: &str) {
@@ -78,7 +77,7 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
     fs::write(stage.join("manifest"), b"stale manifest").expect("old manifest");
     fs::write(stage.join("bundle/a\\b\nc\r"), b"a\n").expect("escaped filename");
     let original = fs::read(stage.join("bin/temper-box")).expect("original script");
-    success(&keep(&home, COMMIT, &stage), 9);
+    success(&keep(&home, COMMIT, &stage), 11);
     assert!(!stage.exists());
     let kept = home.builds.join(COMMIT);
     assert_eq!(fs::read(kept.join("bin/temper-box")).expect("kept script"), original);
@@ -86,7 +85,7 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
     let mut lines = manifest.lines();
     assert_eq!(lines.next(), Some(format!("commit {COMMIT}").as_str()));
     let rows: Vec<_> = lines.collect();
-    assert_eq!(rows.len(), 9);
+    assert_eq!(rows.len(), 11);
     let paths: Vec<_> = rows.iter().map(|line| line.split_once("  ").expect("checksum row").1).collect();
     assert_eq!(
         paths,
@@ -95,9 +94,11 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
             "bin/directory/data",
             "bin/fake-claude",
             "bin/temper",
+            "bin/temper-agent",
             "bin/temper-box",
             "bin/temper-client-journeys",
-            "bundle-record/index.html",
+            "bin/temper-engine",
+            "bin/temper-worker",
             "bundle/a\\\\b\\nc\\r",
             "bundle/index.html"
         ]
@@ -120,6 +121,58 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
 }
 
 #[test]
+fn a_deployment_stage_is_kept_without_a_recording_bundle() {
+    let (_scratch, home) = home();
+    let stage = stage(&home, "stage");
+    success(&keep(&home, COMMIT, &stage), 8);
+    let kept = home.builds.join(COMMIT);
+    assert!(!kept.join("bundle-record").exists());
+    let manifest = fs::read_to_string(kept.join("manifest")).expect("manifest");
+    let paths: Vec<_> = manifest.lines().skip(1).map(|line| line.split_once("  ").expect("checksum row").1).collect();
+    assert_eq!(
+        paths,
+        [
+            "bin/fake-claude",
+            "bin/temper",
+            "bin/temper-agent",
+            "bin/temper-box",
+            "bin/temper-client-journeys",
+            "bin/temper-engine",
+            "bin/temper-worker",
+            "bundle/index.html",
+        ]
+    );
+}
+
+#[test]
+fn an_older_recording_bundle_is_kept_in_the_manifest() {
+    let (_scratch, home) = home();
+    let stage = stage(&home, "stage");
+    fs::create_dir(stage.join("bundle-record")).expect("recording directory");
+    fs::write(stage.join("bundle-record/index.html"), b"a\n").expect("recording bundle");
+    success(&keep(&home, COMMIT, &stage), 9);
+    let kept = home.builds.join(COMMIT);
+    assert_eq!(fs::read(kept.join("bundle-record/index.html")).expect("kept recording"), b"a\n");
+    let manifest = fs::read_to_string(kept.join("manifest")).expect("manifest");
+    assert!(manifest.lines().any(
+        |line| line == "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7  bundle-record/index.html"
+    ));
+}
+
+#[test]
+fn the_engine_must_print_the_kept_commit() {
+    let (_scratch, home) = home();
+    let stage = stage(&home, "stage");
+    script(&stage.join("bin/temper-engine"), "printf 'temper-engine 0.1.0 (abcdef012345)\\n'");
+    refusal(
+        &home,
+        COMMIT,
+        &stage,
+        &format!("bin/temper-engine prints temper-engine 0.1.0 (abcdef012345), not {SHORT}"),
+    );
+}
+
+#[test]
 fn commit_form_refuses_before_build_checks_and_accepts_sha256_ids() {
     let (_scratch, home) = home();
     let stage = stage(&home, "stage");
@@ -133,7 +186,7 @@ fn commit_form_refuses_before_build_checks_and_accepts_sha256_ids() {
         refusal(&home, commit, &stage, &format!("{commit} is no commit id"));
     }
     let long = format!("{COMMIT}0123456789abcdef01234567");
-    success(&keep(&home, &long, &stage), 6);
+    success(&keep(&home, &long, &stage), 8);
     assert!(home.builds.join(long).join("manifest").exists());
 }
 
@@ -152,8 +205,8 @@ fn every_missing_required_path_is_named_before_versions_are_run() {
     for missing in [
         vec!["bin/temper-box"],
         vec!["bundle/index.html"],
-        vec!["bundle-record/index.html"],
-        vec!["bin/temper-box", "bundle/index.html", "bundle-record/index.html"],
+        vec!["bin/temper-worker"],
+        vec!["bin/temper-engine", "bin/temper-agent"],
     ] {
         let stage = stage(&home, "stage");
         for path in &missing {
@@ -211,7 +264,7 @@ fn a_deleted_build_is_kept_anew_and_an_abandoned_partial_is_removed() {
     fs::create_dir_all(&partial).expect("abandoned partial");
     fs::write(partial.join("abandoned"), b"old").expect("abandoned file");
     let stage = stage(&home, "stage");
-    success(&keep(&home, COMMIT, &stage), 6);
+    success(&keep(&home, COMMIT, &stage), 8);
     assert!(!partial.exists());
     assert!(!home.builds.join(COMMIT).join("abandoned").exists());
     assert!(!stage.exists());

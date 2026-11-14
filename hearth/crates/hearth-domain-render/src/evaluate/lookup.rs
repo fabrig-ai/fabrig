@@ -3,6 +3,7 @@ use super::{
     FaultKind, Missing,
     value::{Entry, Operand, Value},
 };
+use skein_lib::Bisection;
 pub(super) fn absent<'c>(missing: Missing, kind: FaultKind) -> Result<Operand<'c>, FaultKind> {
     match missing {
         Missing::Undefined => Ok(Operand::Undefined),
@@ -34,10 +35,15 @@ pub(super) fn key<'c>(value: Operand<'c>, name: &[u8], missing: Missing) -> Resu
         | Operand::List { .. } => Err(FaultKind::Type),
     }
 }
-#[expect(clippy::disallowed_methods, reason = "library bisection compares sorted value keys")]
 pub(super) fn find<'v>(entries: &'v [Entry], name: &[u8]) -> Option<&'v Entry> {
-    let index = entries.binary_search_by(|entry| entry.key.as_ref().cmp(name)).ok()?;
-    entries.get(index)
+    let mut search = Bisection::over(entries.len());
+    for _ in 0..Bisection::PROBES {
+        let Some(probe) = search.probe() else { break };
+        let entry = entries.get(probe).expect("a probe within the slice");
+        search.narrow(entry.key.as_ref().cmp(name));
+    }
+    let entry = entries.get(search.end())?;
+    if entry.key.as_ref() == name { Some(entry) } else { None }
 }
 pub(super) fn item<'c>(value: Operand<'c>, index: Operand<'c>, missing: Missing) -> Result<Operand<'c>, FaultKind> {
     if value.undefined() {

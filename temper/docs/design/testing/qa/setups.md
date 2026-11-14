@@ -24,6 +24,10 @@ and adds to them is `places.md`.
   scripts its twin's with takes, so that its numbers and heads are the
   box's own: `widget`, `b0-plan` and `b0-landed`; B1's, its gate
   committed by `forge` lines, `b1-plan` and `b1-landed` (section 4.4).
+- **A deployment's** (section 5): `turn-landing`, a project landing by
+  `turn` at a `batch` of two with a gate the fake Forgejo dispatches,
+  at a deployment's place, with scripts that carry two goals' changes
+  to ready together.
 - **Grown by passes** (`places.md`, 6): a recipe a pass adds lands with
   its request; this document names the catalogue's roots, not every
   recipe.
@@ -174,7 +178,58 @@ From `temper/tests/real-loop/tests/fixtures/b1/`, the rung's walk
 - **Their pages:** as B0's, and the change's failed CI, its repair and
   the repaired head on the same pull request between the two.
 
-## 5. Their tests
+## 5. A deployment's
+
+The catalogue's first deployment setup, `turn-landing`
+(`../../draft/landed-qa.md`, 5 and 10): a project on the place's fake
+Forgejo landing by `turn` at a `batch` of two, its gate a workflow the
+fake Forgejo dispatches, so that landing by turn, which no box can be
+set to, is judged first, and landing by turn's cases (merge-queue M2's
+and M3's, `../../draft/merge-queue.execution.md`) run through the
+machinery alone. A root recipe, at a deployment's place
+(`deployment.md`).
+
+- **Its `config/`** (`deployment.md`, 2): the engine alone, one worker
+  of two slots at least, its agent on the fake model, as the cluster's
+  fixture writes them (`../../protocol/cluster.md`, 5), each address,
+  directory and program a `{place.NAME}`; the fake Forgejo's document
+  with no seeded repository, its admin token under `{place.data}`, its
+  made repositories' CI `{"declared": ".fake-forge/ci"}`, its
+  `workflows` the gate, `[{"file": "gate.yml", "jobs": ["gate"],
+  "cue": {"declared": ".fake-forge/gate"}}]`, and its `manual_merges`
+  `{"allow": true, "autodetect": true}` (`../fakes.md`, 2); the fake
+  model's document, its outputs under `{place.data}`.
+- **Its lines,** ctl's and the deployment's alone: the fake model's key
+  added as the deployment's account (`ctl account add-key ... {model.key}
+  --deployment`) and the charters' models set to the fake model's, as
+  the cluster's story does; the project Hello and the fake Forgejo
+  connected as its admin with its first repository `work/hello`, by the
+  same ctl line as `project-landing`'s (section 2), waited until it is
+  adopted; then `deployment patch engine landing.json`, whose file sets
+  Hello's landing by `turn`, `batch` 2, its repository's gate `gate`,
+  workflow `gate.yml`, blocking, on the forge and repository numbers
+  those lines made (`deployment.md`, 6.2; `../../domain/landing.md`,
+  13.1); its check, after `check`, ctl's reads of the project, its
+  forge and its repository.
+- **Its gate by content:** a dispatched `gate.yml` at a landing's top
+  passes unless the top's tree holds `.fake-forge/gate` reading `fail`,
+  so a case makes a batch red by a member that writes that file, and
+  green by members that leave it (`../../draft/landed-qa.md`, 6 and 10).
+- **Its `scripts.json`:** the fake model's scripts for its cases' goals,
+  matched by their cues and taking their numbers and heads from the
+  conversation (skein's `testing/fakes/llm.md`, 2.4 to 2.6): two goals
+  started on Hello whose changes into `main` are ready at one forming
+  decision, so that they land in one landing of two
+  (`../../domain/landing.md`, 9), by a latch the person releases
+  through ctl, as the merge queue's batch story keeps its changes
+  together (`../process-tier.md`, a queue that lands green), and their
+  reviews; each change's content its own file, a member made red by its
+  `.fake-forge/gate`. The same scripts are the real loop's fixture for
+  the story that proves them (section 6).
+- **Its README** says the state and the ctl groups it serves: `landing`,
+  `change`, `goal`, `task` and `repository`.
+
+## 6. Their tests
 
 Focused, with no box: every recipe of the catalogue reads, its chain
 and hash, as `recipe list` gives them (`../../client/recipe.md`, 7); no
@@ -184,10 +239,20 @@ Forgejo through the box's values; a twin setup's `scripts.json` reads in
 the box's `--scripts` form and equals its fixture's `cued` and `asked`;
 `widget`'s files equal the B0 fixture's tree; `b1-plan`'s `forge commit`
 names the B1 fixture's gate files, its files equal to theirs, and its
-`.fake-forge/ci` reads `pull-file changes/{pull}.md`. The walks are the
-walk's after landing (`../../draft/landed-qa.execution.md`, 1).
+`.fake-forge/ci` reads `pull-file changes/{pull}.md`. `turn-landing`'s
+`config/` holds its five documents, each rendered with a place's names
+(`deployment.md`, 2) refusing none and parsing as its JSON shape; its
+forge document declares the gate and the manual merges; its patch file
+sets `turn`, `batch` 2 and the gate; its `scripts.json` reads in the
+fake model's `--scripts` form and equals its real-loop fixture's. In
+the real loop's world, those scripts carry two goals' changes to ready
+together and land them in one landing of two, by `turn` at `batch` 2,
+the gate dispatched on the fake Forgejo and green, and a member holding
+`.fake-forge/gate` reading `fail` turns it red
+(`../../draft/landed-qa.md`, 11). The walks are the walk's after
+landing (`../../draft/landed-qa.execution.md`, 1).
 
-## 6. Open questions
+## 7. Open questions
 
 - **A twin's later states:** B0's plan and landing are its setups. A
   state between, CI running or a review under way, is a stopped box mid-run.
