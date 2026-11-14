@@ -643,6 +643,7 @@ fn a_busy_landing_gather_keeps_its_prefix_until_the_read_can_be_admitted() {
         if ended {
             break;
         }
+        d.reclaim();
         if !d.is_ready() && let Some(at) = d.next_deadline() {
             environment.now = at;
             environment.wall = Wall::from_nanos(at.as_nanos());
@@ -651,6 +652,16 @@ fn a_busy_landing_gather_keeps_its_prefix_until_the_read_can_be_admitted() {
     }
     assert!(ended, "the gather finishes through a one-call client");
     assert!(d.landing.pending.is_empty());
+}
+
+#[test]
+fn a_busy_landing_retry_yields_until_the_next_reclamation() {
+    let (mut d, environment) = busy_landing_gather();
+    assert!(landing::read_waiting(&d));
+    landing::retry(&mut d, &environment, &mut Queue::uncapped());
+    assert!(!landing::read_waiting(&d), "another rejection must not keep the same ready pass spinning");
+    d.reclaim();
+    assert!(landing::read_waiting(&d), "the next pass retries after reaping IO and reclaiming slots");
 }
 
 #[test]

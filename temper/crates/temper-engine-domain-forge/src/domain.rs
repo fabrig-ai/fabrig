@@ -1132,6 +1132,7 @@ impl Domain {
     /// Reclaim transient child buffers after the current decision.
     pub fn reclaim(&mut self) {
         self.client.reclaim();
+        crate::landing::reclaim(self);
         self.brief_reclaim = self.brief_reclaim.wrapping_add(1);
     }
 

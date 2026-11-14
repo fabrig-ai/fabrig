@@ -923,7 +923,11 @@ impl Referee<Process> for Judge<'_> {
             Ok(())
         })();
         if let Err(why) = result {
-            self.failed = Some(why);
+            self.failed = Some(if let Some(Process::Binary(binary)) = procs.first() {
+                format!("{why}; serve stderr: {}", String::from_utf8_lossy(binary.stderr()))
+            } else {
+                why
+            });
         }
     }
     fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {

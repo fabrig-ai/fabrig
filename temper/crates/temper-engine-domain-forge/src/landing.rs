@@ -43,7 +43,7 @@ pub(crate) struct Pending {
     repository: api::Repository,
     resource: Option<GatherRead>,
     read: api::Read,
-    retry: bool,
+    retry: Retry,
     cached: bool,
     pub(crate) entry: u64,
     heard: LandingHeard,
@@ -60,6 +60,13 @@ pub(crate) struct Pending {
     paths: Box<[Paths]>,
     reads: Map<(api::Repository, GatherRead), Result<api::Answer, api::Error>>,
 }
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum Retry {
+    None,
+    Waiting,
+    Ready,
+}
+
 #[derive(Hash, Debug)]
 struct Paths {
     files: Box<[Box<[u8]>]>,
@@ -938,7 +945,7 @@ pub(crate) fn step(
                 repository: repo,
                 resource: gather_resource(&read),
                 read: read.clone(),
-                retry: false,
+                retry: Retry::None,
                 cached: false,
                 entry,
                 heard,
@@ -971,7 +978,7 @@ fn ask(
     pending.repository = repository;
     pending.resource = gather_resource(&read);
     pending.read = read.clone();
-    pending.retry = false;
+    pending.retry = Retry::None;
     pending.cached = match pending.resource.clone() {
         Some(resource) => pending.reads.contains_key(&(repository, resource)),
         None => false,
@@ -984,7 +991,7 @@ fn ask(
 }
 pub(crate) fn read_waiting(d: &Domain) -> bool {
     for (_, pending) in &d.landing.pending {
-        if pending.retry {
+        if pending.retry == Retry::Ready {
             return true;
         }
     }
@@ -997,20 +1004,35 @@ pub(crate) fn retry(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     }
     let mut next = None;
     for (owner, pending) in &d.landing.pending {
-        if pending.retry {
+        if pending.retry == Retry::Ready {
             next = Some((*owner, pending.repository, pending.read.clone()));
             break;
         }
     }
     let Some((owner, repository, read)) = next else { return };
-    d.landing.pending.get_mut(&owner).expect("waiting gather").retry = false;
+    d.landing.pending.get_mut(&owner).expect("waiting gather").retry = Retry::None;
     child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+}
+
+pub(crate) fn reclaim(d: &mut Domain) {
+    // A rejected read yields the current ready pass before another attempt.
+    for _ in 0..d.landing.pending.len() {
+        let mut next = None;
+        for (owner, pending) in &d.landing.pending {
+            if pending.retry == Retry::Waiting {
+                next = Some(*owner);
+                break;
+            }
+        }
+        let Some(owner) = next else { break };
+        d.landing.pending.get_mut(&owner).expect("waiting gather").retry = Retry::Ready;
+    }
 }
 
 pub(crate) fn settle(d: &mut Domain) {
     let mut waiting = List::with_capacity(d.landing.pending.len());
     for (owner, pending) in &d.landing.pending {
-        if pending.retry {
+        if pending.retry != Retry::None {
             waiting.push(*owner).expect("one retry per landing");
         }
     }
@@ -1088,7 +1110,7 @@ fn advance(
     if answer == Err(api::Error::Busy) {
         // Admission made no API call. Keep the coherent prefix and retry only
         // this read after the client's background work gets its turn.
-        p.retry = true;
+        p.retry = Retry::Waiting;
         d.landing.pending.insert(owner, p).expect("keeps the gather's slot");
         return;
     }
