@@ -60,7 +60,6 @@ jig/crates/jig-protocol-store/src/tests/start_pages.rs should_panic 1
 jig/crates/jig-protocol-store/src/tests/transcripts.rs should_panic 1
 jig/testing/jig-client-kit/src/harness/world/words_tests.rs should_panic 1
 jig/testing/jig-client-kit/src/joint/stories/referee_stories.rs should_panic 1
-jig/testing/jig-client-kit/src/model.rs catch_unwind 1
 jig/testing/jig-client-test-view/src/tests/world_limits.rs should_panic 2
 jig/testing/jig-conformance/src/harness.rs catch_unwind 1
 jig/testing/jig-core-kit/src/conformance.rs catch_unwind 1
@@ -91,7 +90,6 @@ jig/tests/host/src/refusals.rs should_panic 1
 jig/tests/host/src/turn_world.rs should_panic 2
 jig/tests/host/src/world.rs catch_unwind 1
 jig/tests/notes/tests/suite/referee.rs should_panic 3
-jig/tests/views/tests/suite/referee.rs catch_unwind 5
 skein/crates/skein-codec/src/tests/piece.rs should_panic 2
 skein/crates/skein-fake-forge-domain/src/tests/cues.rs should_panic 1
 skein/crates/skein-fake-forge-domain/src/tests/protection.rs should_panic 1
