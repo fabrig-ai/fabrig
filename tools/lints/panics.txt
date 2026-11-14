@@ -55,7 +55,6 @@ skein/crates/skein-fake-forge-domain/src/tests/cues.rs should_panic 1
 skein/crates/skein-fake-forge-domain/src/tests/protection.rs should_panic 1
 skein/crates/skein-fake-forge-domain/src/tests/reports.rs should_panic 1
 skein/crates/skein-fake-forge-domain/src/tests/settle.rs should_panic 1
-skein/crates/skein-fake-machine/src/tests.rs should_panic 1
 skein/crates/skein-forge-connection/src/component/tests.rs should_panic 1
 skein/crates/skein-forge-connection/src/connection/tests.rs should_panic 1
 skein/crates/skein-forge-setup/src/tests/host.rs should_panic 1
@@ -95,9 +94,6 @@ skein/crates/skein-ui/src/builder.rs should_panic 1
 skein/crates/skein-ui/src/tests/log.rs should_panic 2
 skein/crates/skein-ui/src/tests/slots.rs should_panic 3
 skein/crates/skein-ui/src/tests/tree.rs should_panic 26
-skein/examples/echo/domain/src/tests.rs should_panic 2
-skein/examples/echo/protocol/src/tests/conn.rs should_panic 1
-skein/testing/skein-echo-client/src/tests.rs should_panic 4
 skein/testing/skein-fake-person-browser/src/harness/deadline_tests.rs should_panic 1
 skein/testing/skein-world/src/end_to_end.rs should_panic 1
 skein/tests/lib/tests/suite/journal.rs should_panic 1
