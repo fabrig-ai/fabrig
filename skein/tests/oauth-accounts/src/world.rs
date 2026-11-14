@@ -881,6 +881,10 @@ impl Referee<Process> for Judge {
             }
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the referee returns each refresh story's finding before advancing the scenario"
+    )]
     fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let client = processes.iter().find_map(Process::client).expect("client");
         self.wake = ((client.component.is_none()

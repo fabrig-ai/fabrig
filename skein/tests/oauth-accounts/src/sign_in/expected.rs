@@ -15,6 +15,7 @@ const RESTARTED: &[Fact] = &[
 ];
 
 impl Judge {
+    #[expect(clippy::too_many_lines, reason = "each sign-in story returns the first broken outside outcome's finding")]
     pub(super) fn client_closed(&self, client: &Client, issuer: &peer::Peer) -> Result<(), String> {
         let client = super::owner(client);
         if client.facts.last() != Some(&Fact::Closed) {

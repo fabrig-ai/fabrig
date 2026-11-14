@@ -328,6 +328,10 @@ impl Referee<Process> for Judge {
             }
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the referee returns each owner and peer finding before advancing the scenario"
+    )]
     fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let mut completed = 0;
         let mut client_closed = false;
