@@ -442,6 +442,7 @@ Drafts:
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/panics.md`](draft/panics.status.md)
 - [`draft/per-wake.md`](draft/per-wake.status.md)
 - [`draft/queue-smooth.md`](draft/queue-smooth.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
