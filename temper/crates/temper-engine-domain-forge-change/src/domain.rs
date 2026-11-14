@@ -1325,7 +1325,10 @@ fn repairing(
     if ci_reason(why)
         && let Some(head) = green_head(facts)
     {
-        if !requested || standing.delegate == Status::Failed {
+        if !requested
+            || standing.delegate == Status::Failed
+            || (standing.delegate == Status::Passed && facts.branch == change.last_head)
+        {
             return repair_ended(change, head, now);
         }
         // Passed stands as a delivery below. An unmade task has nothing to cancel.
@@ -1338,6 +1341,26 @@ fn repairing(
     }
     if !requested {
         return repair_due(change, why, facts, now, limits);
+    }
+    if ci_reason(why)
+        && standing.delegate == Status::Passed
+        && let Some(head) = facts.branch
+        && Some(head) == change.last_head
+        && facts.ci.head == head
+        && facts.ci.status == Status::Failed
+    {
+        if facts.rerun {
+            let owned = change.owns_turn;
+            let mut next = take_pushed_head(change, head, now).change;
+            next.state = State::Checking { head };
+            next.owns_turn = owned;
+            return rerun(next, head, now);
+        }
+        if facts.contains_base == Status::Failed {
+            let ready_since = change.ready_since.unwrap_or(now);
+            return update_due(change, head, facts.base_tip, ready_since, now, limits);
+        }
+        return take_pushed_head(change, head, now);
     }
     delegated(change, requested, Delegate::Repair(why), facts, standing, now, limits)
 }
