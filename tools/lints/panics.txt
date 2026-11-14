@@ -39,8 +39,6 @@ jig/crates/jig-protocol-store/src/tests/transcripts.rs should_panic 1
 jig/testing/jig-client-kit/src/harness/world/words_tests.rs should_panic 1
 jig/testing/jig-client-kit/src/joint/stories/referee_stories.rs should_panic 1
 jig/testing/jig-client-test-view/src/tests/world_limits.rs should_panic 2
-jig/testing/jig-conformance/src/harness.rs catch_unwind 1
-jig/testing/jig-core-kit/src/conformance.rs catch_unwind 1
 jig/testing/jig-test-store-files/src/store/tests.rs should_panic 5
 jig/testing/jig-test-store-files/src/tests/routes.rs should_panic 1
 jig/testing/jig-test/tests/live.rs catch_unwind 1
@@ -49,9 +47,6 @@ jig/tests/accounts/tests/suite/simulation.rs should_panic 1
 jig/tests/client/tests/suite/memory.rs should_panic 2
 jig/tests/client/tests/suite/referee.rs should_panic 11
 jig/tests/client/tests/suite/stories.rs should_panic 2
-jig/tests/conformance/src/replay.rs catch_unwind 1
-jig/tests/core/tests/suite/forgetting.rs catch_unwind 2
-jig/tests/core/tests/suite/forgetting.rs should_panic 1
 jig/tests/core/tests/suite/oracle.rs should_panic 3
 jig/tests/host/src/refusals.rs should_panic 1
 jig/tests/host/src/turn_world.rs should_panic 2

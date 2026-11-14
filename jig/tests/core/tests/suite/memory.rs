@@ -49,9 +49,13 @@ fn core_children_routes_and_an_in_flight_decision_stay_under_the_scenario_ceilin
         let measured = meter.end();
         drop(requests);
         let held = meter.check(measured, bound, &limits.core);
-        observer.observe(0, jig_core_world::referee::Observed::Heap { held, maximum: bound });
+        observer
+            .observe(0, jig_core_world::referee::Observed::Heap { held, maximum: bound })
+            .expect("heap within bound");
     }
-    observer.observe(0, jig_core_world::referee::Observed::Heap { held: meter.held(), maximum: bound });
+    observer
+        .observe(0, jig_core_world::referee::Observed::Heap { held: meter.held(), maximum: bound })
+        .expect("heap within bound");
 }
 
 fn invalid_limits_are_refused() {

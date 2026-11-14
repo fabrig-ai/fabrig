@@ -53,7 +53,7 @@ fn a_worker_reports_its_unchanged_push_head_after_an_engine_restart() {
     let config = Config::new(71, Some(jig_conformance::scenarios::Scenario::Grace));
     let mut peers = Temper::peers(&config, 71);
     peers.reported.insert(TASK, HEAD);
-    Temper::cold(&mut peers, &Store::new(), RESTART);
+    Temper::cold(&mut peers, &Store::new(), RESTART).expect("cold peer evidence");
     let event = link::worker_event(
         &mut peers,
         workers::Up::Answer {

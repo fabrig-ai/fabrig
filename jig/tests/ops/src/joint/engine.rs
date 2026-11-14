@@ -200,11 +200,12 @@ impl Application for OpsApplication {
     fn start(config: &Config, store: &mut Rows) -> Vec<root::Event> {
         Ops::start(config, store)
     }
-    fn cold(peers: &mut Peers, store: &Rows, clock: Clock) {
+    fn cold(peers: &mut Peers, store: &Rows, clock: Clock) -> Result<(), referee::Violation> {
         peers.packets.clear();
         peers.protocol.restarted();
         peers.replay_news = true;
-        Ops::cold(&mut peers.conformance, store, clock);
+        Ops::cold(&mut peers.conformance, store, clock)?;
+        Ok(())
     }
     fn timers(config: &Config) -> Vec<root::Event> {
         Ops::timers(config)
@@ -215,7 +216,12 @@ impl Application for OpsApplication {
     fn release(domain: &mut root::Domain, config: &Config, clock: Clock) -> Vec<Output<root::Write, Delivery>> {
         Ops::release(domain, config, clock)
     }
-    fn inbound(peers: &mut Peers, store: &Rows, clock: Clock, event: &mut root::Event) {
+    fn inbound(
+        peers: &mut Peers,
+        store: &Rows,
+        clock: Clock,
+        event: &mut root::Event,
+    ) -> Result<(), referee::Violation> {
         if let root::Event::Core(core::Event::People(people::Event::Ask { sign_in, key, ask, .. })) = event {
             peers.keyed_asks.push((*sign_in, *key, ask.clone()));
         }
@@ -225,7 +231,8 @@ impl Application for OpsApplication {
         if let root::Event::Core(core::Event::Delivered { watcher }) = event {
             peers.protocol.acknowledged(*watcher);
         }
-        Ops::inbound(&mut peers.conformance, store, clock, event);
+        Ops::inbound(&mut peers.conformance, store, clock, event)?;
+        Ok(())
     }
     #[expect(clippy::too_many_lines, reason = "held root outputs retain their original exhaustive owner routes")]
     fn deliver(
@@ -234,7 +241,7 @@ impl Application for OpsApplication {
         store: &mut Rows,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<root::Event>> {
+    ) -> Result<Vec<Input<root::Event>>, referee::Violation> {
         let delivery = match delivery {
             Delivery::Root(value) => *value,
             other @ Delivery::Results { .. } => {
@@ -248,15 +255,15 @@ impl Application for OpsApplication {
                 }
                 root::Record::Core(_) | root::Record::Infrastructure(_) | root::Record::Observability(_) => None,
             });
-            return vec![Input::Event(root::Event::Core(core::Event::SeenConversationLoaded {
+            return Ok(vec![Input::Event(root::Event::Core(core::Event::SeenConversationLoaded {
                 request,
                 row,
                 busy: false,
-            }))];
+            }))]);
         }
         if let root::Output::Core(core::Held::ReadLoad { load, range }) = delivery {
             let loaded = read_page(store, &range, peers.tree_tasks);
-            return vec![Input::Event(root::Event::Core(core::Event::ReadLoaded { load, result: loaded }))];
+            return Ok(vec![Input::Event(root::Event::Core(core::Event::ReadLoaded { load, result: loaded }))]);
         }
         match &delivery {
             root::Output::ApplicationDocument { document, .. }
@@ -287,7 +294,7 @@ impl Application for OpsApplication {
             peers
                 .delayed_infrastructure
                 .push((clock.now.checked_add(1_000_000_000).expect("finite system response"), delivery));
-            return Vec::new();
+            return Ok(Vec::new());
         }
         let client_owned = match &delivery {
             root::Output::Core(
@@ -394,7 +401,7 @@ impl Application for OpsApplication {
         };
         if client_owned {
             peers.packets.push(delivery);
-            Vec::new()
+            Ok(Vec::new())
         } else {
             Ops::deliver(&mut peers.conformance, systems, store, clock, Delivery::Root(Box::new(delivery)))
         }
@@ -405,8 +412,8 @@ impl Application for OpsApplication {
         store: &mut Rows,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<root::Event>> {
-        let mut events = Ops::poll(&mut peers.conformance, systems, store, clock, ready);
+    ) -> Result<Vec<Input<root::Event>>, referee::Violation> {
+        let mut events = Ops::poll(&mut peers.conformance, systems, store, clock, ready)?;
         if ready && peers.replay_news {
             peers.replay_news = false;
             for (own, alert) in &peers.alert_news {
@@ -424,17 +431,23 @@ impl Application for OpsApplication {
                     store,
                     clock,
                     Delivery::Root(Box::new(delivery)),
-                ));
+                )?);
             } else {
                 peers.delayed_infrastructure.push((due, delivery));
             }
         }
-        events
+        Ok(events)
     }
-    fn submitted(peers: &mut Peers, store: &Rows, clock: Clock) {
-        Ops::submitted(&mut peers.conformance, store, clock);
+    fn submitted(peers: &mut Peers, store: &Rows, clock: Clock) -> Result<(), referee::Violation> {
+        Ops::submitted(&mut peers.conformance, store, clock)?;
+        Ok(())
     }
-    fn observed(peers: &mut Peers, systems: &Systems, store: &Rows, clock: Clock) -> Vec<referee::Observed> {
+    fn observed(
+        peers: &mut Peers,
+        systems: &Systems,
+        store: &Rows,
+        clock: Clock,
+    ) -> Result<Vec<referee::Observed>, referee::Violation> {
         if peers.applied != store.applied {
             for row in store.rows.values() {
                 let milestone = match row {

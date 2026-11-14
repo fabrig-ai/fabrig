@@ -148,7 +148,10 @@ impl Driver {
     pub fn withhold_completion(&mut self) -> Result<Option<u64>, u64> {
         let result = self.world.store.tick(true);
         let now = self.world.clocks().0;
-        self.world.observer.durable(now.as_nanos(), &self.world.store);
+        self.world
+            .observer
+            .durable(now.as_nanos(), &self.world.store)
+            .unwrap_or_else(|finding| panic!("{}", self.world.diagnostic(&finding)));
         self.world.store_peer.as_mut().expect("actual durable store peer").capture(now, &self.world.store);
         result
     }
