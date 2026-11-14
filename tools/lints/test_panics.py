@@ -17,6 +17,7 @@ class Panics(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
         shutil.copytree(HERE, self.root / "tools/lints")
+        self.copy_check()
         self.write(LIST, "# fixture list\n")
         self.git("init", "-q")
         self.git("add", ".")
@@ -25,6 +26,14 @@ class Panics(unittest.TestCase):
         path = self.root / path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
+
+    def copy_check(self, *, falling=True):
+        """Keep a non-refused pattern for the falling list's mechanism tests."""
+        text = (HERE / "panics.py").read_text(encoding="utf-8")
+        if falling:
+            text = text.replace('REFUSED = ("catch_unwind", "resume_unwind", "should_panic")\n',
+                                'REFUSED = ("catch_unwind", "resume_unwind")\n')
+        self.write("tools/lints/panics.py", text)
 
     def track(self, path, text):
         self.write(path, text)
@@ -89,15 +98,21 @@ class Panics(unittest.TestCase):
         self.assertIn("a.rs: should_panic count 1 exceeds list 0\n", self.run_check(status=1))
 
     def test_a_refused_count_is_a_finding_without_a_list_line(self):
-        for pattern in ("catch_unwind", "resume_unwind"):
+        self.copy_check(falling=False)
+        for pattern, source in (("catch_unwind", "catch_unwind(f);\n"),
+                                ("resume_unwind", "resume_unwind(f);\n"),
+                                ("should_panic", "#[should_panic]\n")):
             with self.subTest(pattern=pattern):
-                self.track("a.rs", f"{pattern}(f);\n")
+                self.track("a.rs", source)
                 self.assertEqual(self.run_check(status=1), f"a.rs: {pattern} count 1, refused\n"
                                  "1 findings (skein/docs/foundation/programming-model.md, 10.4)\n")
 
     def test_a_refused_list_line_sets_no_limit(self):
-        for pattern in ("catch_unwind", "resume_unwind"):
-            for source in (f"{pattern}(x);\n", ""):
+        self.copy_check(falling=False)
+        for pattern, counted_source in (("catch_unwind", "catch_unwind(x);\n"),
+                                        ("resume_unwind", "resume_unwind(x);\n"),
+                                        ("should_panic", "#[should_panic]\n")):
+            for source in (counted_source, ""):
                 with self.subTest(pattern=pattern, source=source):
                     self.track("a.rs", source)
                     self.write(LIST, f"a.rs {pattern} 1\n")
@@ -209,7 +224,7 @@ class Panics(unittest.TestCase):
         lines = (self.root / LIST).read_text().splitlines()
         self.assertEqual(lines, ["# tools/lints/design.md, 7: the count of catches.",
                                  "# --write lowers this list; nothing raises it.",
-                                 "# Refused, so no line names them: catch_unwind, resume_unwind.",
+                                 "# Refused, so no line names them: catch_unwind, resume_unwind, should_panic.",
                                  "a space.rs should_panic 1", "z.rs should_panic 2"])
         self.assertEqual(self.run_check(), SUMMARY)
 
