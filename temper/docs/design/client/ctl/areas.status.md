@@ -4,6 +4,14 @@
 
 
 - **Not yet:** area 7: no `draft` group or tool [in flight: change 665].
+- **Not yet:** area 5: given `--model`, a start keeps its template's
+  `later` choice, so every run after the task's first activation takes
+  the template's models; a model flag refused before anything is sent
+  prints `model not offered: MODEL`, naming neither its flag nor its
+  bound; `help goal start` doesn't say which wins [in flight: change 53].
+- **Not yet:** area 5: a start prints jig's `Llm` refusal as `This model
+  cannot be chosen: MODEL`, naming neither the flag nor the bound
+  [in flight: change 54].
 - **Not yet:** the whole document: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract/documents.md`, 3). Its diagnostic names
