@@ -77,16 +77,16 @@ fn condition<'c>(
     bindings: &Bindings<'c>,
     limits: &Limits,
 ) -> Result<Operand<'c>, Fault> {
-    located(
-        evaluate::expression(
-            &mut Evaluator::new(limits),
-            &when.expression,
-            context,
-            bindings,
-            &mut Budget::new(limits),
-        ),
-        when.at,
-    )
+    match evaluate::expression(
+        &mut Evaluator::new(limits),
+        &when.expression,
+        context,
+        bindings,
+        &mut Budget::new(limits),
+    ) {
+        Ok(value) => Ok(value),
+        Err(fault) => Err(failure(fault.kind, when.at)),
+    }
 }
 /// Expand keys once per selected element, checking collisions per map and counting across maps.
 pub fn expand(
@@ -151,12 +151,6 @@ pub fn expand(
         groups.push(Group { map: map.map, entries: entries.into_boxed() }).expect("map count");
     }
     Ok(Expanded { task: Box::new([]), groups: groups.into_boxed() })
-}
-fn located<T>(value: Result<T, evaluate::Fault>, at: Position) -> Result<T, Fault> {
-    match value {
-        Ok(value) => Ok(value),
-        Err(fault) => Err(failure(fault.kind, at)),
-    }
 }
 #[derive(Debug)]
 enum Selected<'c> {
@@ -284,7 +278,10 @@ pub(crate) fn interpolate<'c>(
                 let value = match &part.does {
                     Does::Text(text) => Operand::String(bytes::copy_of(text)),
                     Does::Output(expression) => {
-                        located(evaluate::expression(&mut evaluator, expression, context, bindings, &mut budget), at)?
+                        match evaluate::expression(&mut evaluator, expression, context, bindings, &mut budget) {
+                            Ok(value) => value,
+                            Err(fault) => return Err(failure(fault.kind, at)),
+                        }
                     }
                     Does::Branch { .. }
                     | Does::Jump { .. }
@@ -704,9 +701,15 @@ fn optional<'c>(
     bindings: &Bindings<'c>,
     limits: &Limits,
 ) -> Result<Option<Operand<'c>>, Fault> {
-    let value = located(
-        evaluate::expression(&mut Evaluator::new(limits), expression, context, bindings, &mut Budget::new(limits)),
-        at,
-    )?;
+    let value = match evaluate::expression(
+        &mut Evaluator::new(limits),
+        expression,
+        context,
+        bindings,
+        &mut Budget::new(limits),
+    ) {
+        Ok(value) => value,
+        Err(fault) => return Err(failure(fault.kind, at)),
+    };
     if value.undefined() { Ok(None) } else { Ok(Some(value)) }
 }

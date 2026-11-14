@@ -4,7 +4,7 @@ use crate::{
     errors::{Format, Schema},
     revision::{Entry, Mode, declaration::Form},
 };
-use skein_lib::bytes;
+use skein_lib::{Bisection, bytes};
 #[must_use]
 pub fn check(format: Format, value: &[u8]) -> bool {
     match format {
@@ -154,8 +154,13 @@ pub(crate) fn fault(value: &Composed, form: &Form, check: &Check<'_>, listing: &
     }
     None
 }
-#[expect(clippy::disallowed_methods, reason = "library bisection compares sorted listing paths")]
 fn file<'a>(listing: &'a [Entry], path: &[u8]) -> Option<&'a Entry> {
-    let index = listing.binary_search_by(|entry| entry.path.as_ref().cmp(path)).ok()?;
-    listing.get(index)
+    let mut search = Bisection::over(listing.len());
+    for _ in 0..Bisection::PROBES {
+        let Some(probe) = search.probe() else { break };
+        let entry = listing.get(probe).expect("a probe within the slice");
+        search.narrow(entry.path.as_ref().cmp(path));
+    }
+    let entry = listing.get(search.end())?;
+    if entry.path.as_ref() == path { Some(entry) } else { None }
 }

@@ -62,6 +62,34 @@ fn document_lookups_agree_with_a_scan_across_task_name_boundaries() {
 }
 
 #[test]
+fn document_paths_are_found_at_both_edges_and_absent_outside_them() {
+    use crate::revision::{Documents, Entry, Oid};
+    use skein_lib::bytes::copy_of;
+
+    let paths: [&[u8]; 2] = [b"fleet.json", b"tasks/b/task.json"];
+    let entries = paths.map(|path| Entry { path: copy_of(path), oid: Oid(copy_of(path)), mode: Mode::File, size: 2 });
+    let documents = Documents::new(&entries);
+    for (path, expected) in
+        [(b"fleet.json".as_slice(), Some(0)), (b"tasks/b/task.json", Some(1)), (b"a", None), (b"z", None)]
+    {
+        assert_eq!(documents.find(path), expected, "path {path:?}");
+    }
+    assert_eq!(Documents::new(&[]).find(b"fleet.json"), None);
+}
+
+#[test]
+fn declarations_are_absent_past_the_last_task_and_without_tasks() {
+    use crate::revision::{Documents, Entry, Oid};
+    use skein_lib::bytes::copy_of;
+
+    let entries = [Entry { path: copy_of(b"tasks/b/task.json"), oid: Oid(copy_of(b"b")), mode: Mode::File, size: 2 }];
+    assert_eq!(Documents::new(&entries).declaration(b"z"), None);
+    let entries = [Entry { path: copy_of(b"fleet.json"), oid: Oid(copy_of(b"fleet")), mode: Mode::File, size: 2 }];
+    assert_eq!(Documents::new(&entries).declaration(b"b"), None);
+    assert_eq!(Documents::new(&[]).declaration(b"b"), None);
+}
+
+#[test]
 fn the_first_read_asks_every_listed_task_json_once() {
     let call = fixtures::declaration_call();
     assert_eq!(
