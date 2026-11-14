@@ -4,4 +4,3 @@
 
 
 - **Not yet:** 6.5: the policy section shows no template overrides. 7: connectors' request budgets. 12.1: `pages::owed` is no function of its own: `after_page` builds the owed cards inline (`jig/crates/jig-client-view/src/tree/pages.rs`), so an application cannot place them apart.
-- **Not yet:** 5.2: the history shows a task's milestones, not its attempts. [in flight: change 3376]

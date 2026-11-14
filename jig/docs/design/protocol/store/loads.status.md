@@ -4,4 +4,3 @@
 
 - **Not yet:** 1: a page whose first row passes the asker's decoded bytes trips the progress assertion rather than refusing as `Cause::RowPastPage`. [in flight: change 3113]
   3: the retention gap remains `README.status.md`, 6.1.  the rehearsal and back gap remains `opening.status.md`, 5.  the reference-binary crash and fake-store gaps remain `README.status.md`, 9.
-- **Not yet:** 3: an escalation joins its hold's milestone, and a task's history reads the history and milestone families. [in flight: change 3370]

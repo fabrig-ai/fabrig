@@ -79,4 +79,3 @@ both proposers with and without a running-work choice.
 Section 2's browser-approved sign-in is present on the client wire and
 in the clients' component. Only a take with the secret makes the ordinary
 sign-in of the browser's party; a bearer's decision is refused.
-- **Not yet:** 4: a history page's attempts and holds, and client wire 23; wire 22 carries milestones. [in flight: change 3376]
