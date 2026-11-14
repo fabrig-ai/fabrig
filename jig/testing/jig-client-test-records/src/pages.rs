@@ -183,13 +183,42 @@ pub fn mixed_history_page() -> w::HistoryPage {
         )
         .expect("literal"),
     ));
-    let milestone = w::HistoryRow::Milestone(
-        w::HistoryRowMilestone::new(
+    let attempt = w::HistoryRow::Attempt(
+        w::HistoryRowAttempt::new(
             &l,
-            w::HistoryRowMilestoneParts {
-                value: w::MilestoneLine::new(
+            w::HistoryRowAttemptParts {
+                value: w::AttemptLine::new(
                     &l,
-                    w::MilestoneLineParts { task: 7, position: 31, phase: w::MilestonePhase::Waiting, at: Some(37) },
+                    w::AttemptLineParts {
+                        task: 7,
+                        attempt: 2,
+                        claimed: Some(14),
+                        started: Some(15),
+                        ended: Some(19),
+                        end: Some(w::RunEnd::Finished),
+                        phases: Some(3),
+                    },
+                )
+                .expect("literal"),
+            },
+        )
+        .expect("literal"),
+    );
+    let hold = w::HistoryRow::Hold(
+        w::HistoryRowHold::new(
+            &l,
+            w::HistoryRowHoldParts {
+                value: w::HoldLine::new(
+                    &l,
+                    w::HoldLineParts {
+                        task: 7,
+                        position: 31,
+                        at: 37,
+                        before: w::PriorPhase::Waiting,
+                        why: w::HoldCategory::Deadline,
+                        source: None,
+                        ending: None,
+                    },
                 )
                 .expect("literal"),
             },
@@ -202,7 +231,8 @@ pub fn mixed_history_page() -> w::HistoryPage {
             cut: true,
             rows: pieces([
                 encoded(change.measure(), |w| change.encode(w)),
-                encoded(milestone.measure(), |w| milestone.encode(w)),
+                encoded(attempt.measure(), |w| attempt.encode(w)),
+                encoded(hold.measure(), |w| hold.encode(w)),
             ]),
             before: None,
             after: None,

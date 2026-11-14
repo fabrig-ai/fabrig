@@ -82,8 +82,8 @@ pub use kind_order::*;
 pub mod phase_counts;
 pub use phase_counts::*;
 
-pub mod milestone;
-pub use milestone::*;
+pub mod lifecycle;
+pub use lifecycle::*;
 
 pub mod tree;
 pub use tree::*;
