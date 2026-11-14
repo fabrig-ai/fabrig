@@ -2,10 +2,7 @@
 //! A page's parts; temper/docs/design/draft/surfaces.md, 12 and 14).
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{Duration, Env, List, Queue, RequestEnvelope, Rng, Time, Token, Wall, Writer};
-use std::{
-    collections::BTreeSet,
-    panic::{AssertUnwindSafe, catch_unwind},
-};
+use std::collections::BTreeSet;
 use temper_client_domain::{
     self as client, Action, Address, Domain, Event, Limits, Place, Request,
     address::{Filter, Kind},
@@ -1063,9 +1060,8 @@ fn random_facts_and_settings_keep_each_part_and_card() {
             .expect("density words");
     let mut observed = BTreeSet::new();
     for seed in REPLAY.map_or(1..=SEEDS, |seed| seed..=seed) {
-        let outcome = catch_unwind(AssertUnwindSafe(|| sweep(seed, &words)));
-        assert!(outcome.is_ok(), "density seed {seed}; replay with REPLAY = Some({seed})");
-        observed.extend(outcome.expect("seed completed"));
+        eprintln!("density seed {seed}; replay with REPLAY = Some({seed})");
+        observed.extend(sweep(seed, &words));
     }
     if REPLAY.is_none() {
         for state in [

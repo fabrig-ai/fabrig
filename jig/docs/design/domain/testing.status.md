@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-11. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-14. Where jig's code lags or departs from [testing.md](testing.md).
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 7's core row names retain typed keys until a failure
@@ -63,3 +63,18 @@ observation and world-cost work.
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle.
+
+- **Not yet:**
+  7: the step crates' case tables and the two named-people tables run
+  each case under `catch_unwind` and collect the failing ones.
+  [in flight: change 2853]
+  7: the fuzzy sweeps, the core's scenarios and bundle of cases, the
+  tasks kit's story and the host world catch a panic to add the seed,
+  the choices or the trace's tail. [in flight: change 2854]
+  7: the conformance observer panics on its referee's error and asserts
+  in its own checks, and the conformance harness and world catch to add
+  context. [in flight: change 2855]
+  7: the views' referee asserts in its expectations, and the client's
+  model panics on a patch that breaks it. [in flight: change 2856]
+  7: jig's world referees implement `observe`, not `watch`.
+  [in flight: change 2857]

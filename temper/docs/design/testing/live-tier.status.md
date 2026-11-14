@@ -91,3 +91,11 @@
   sitting, so whether the driver's `fake` run, and its `live` run's
   engine, still reach the adoption is unknown until the owner's next
   dry run (11).
+- **Not yet:**
+  the whole document: the live stories catch a sitting's panic to write
+  their summary, and the forge landing's judge catches its drive and a
+  diagnostic read. [in flight: change 2877]
+  the whole document: the GitHub story catches its own panic and its
+  teardown's, its Musts and secrets scan panic, and
+  `scripts/proof-live-github.sh` stops no runner on a signal.
+  [in flight: change 2875]
