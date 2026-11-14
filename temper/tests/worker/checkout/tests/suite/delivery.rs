@@ -44,7 +44,12 @@ fn deliver(scenario: &mut Scenario, unchecked: bool, saved: Option<u64>) -> git:
                 Next::Run(if merging.is_some() { Command::Unmerged } else { Command::Add })
             }
             Next::End(done) => return done,
-            Next::Make | Next::Store | Next::InstallStore { .. } | Next::Alternates | Next::Scan { .. } => {
+            Next::Reds { .. }
+            | Next::Make
+            | Next::Store
+            | Next::InstallStore { .. }
+            | Next::Alternates
+            | Next::Scan { .. } => {
                 panic!("these resolutions are staged")
             }
         };

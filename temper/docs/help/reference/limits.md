@@ -80,6 +80,8 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
 - `forge.landings_kept`: count, 16. Bounds retained landings per repository.
 - `forge.landings`: count, 2. Bounds live landing procedure rows.
+- `forge.branch_reds`: count, 64. Bounds the reds held by a goal.
+- `forge.red_key_bytes`: bytes, 256. Bounds a goal red's key.
 - `forge.history_days`: count, 14. Days a change's history stays after its last event, from 1 to 3,650.
 - `forge.history_events`: count, 131,072. Events retained per project, at least 1; oldest last-event changes swept whole past it.
 - `forge.findings_per_project`: count, 256. Bounds retained findings per project.
@@ -156,6 +158,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `checkout.path_bytes`: bytes, 255. Bounds one full relative conflicted path.
 - `checkout.remote_timeout_ms`: milliseconds, 60,000. Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing.
 - `checkout.local_timeout_ms`: milliseconds, 10,000. Bounds an operation on the worker's disk, including checking out, merging and committing.
+- `checkout.reds_read_ms`: milliseconds, 5,000. Waits for the goal’s reds at each check; 100 to 60,000 milliseconds.
 - `checkout.facts`: count, 256. Bounds facts kept until the parent drains them; later facts are dropped and counted.
 
 ## git_component

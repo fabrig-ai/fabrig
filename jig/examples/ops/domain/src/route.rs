@@ -1284,6 +1284,15 @@ fn core_now(
     work: &mut Queue<Work>,
 ) {
     match value {
+        core::Now::Ask { channel, run, attempt, number, bytes: _ } => {
+            work.push(Work::Core(core::Event::Fleet(jig_domain_fleet::Event::Asked {
+                channel,
+                run,
+                attempt,
+                number,
+                answer: jig_domain_link::AskAnswer::Refused,
+            })));
+        }
         core::Now::Link(value) => {
             crate::link::route(domain, env, decision, jig_domain_hub_link::now(value), false, work);
         }

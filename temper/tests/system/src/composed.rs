@@ -882,6 +882,9 @@ impl World {
                     )]);
                 }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
+                ask @ engine::HostRequest::Ask { .. } => {
+                    return Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(ask)))));
+                }
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
                 engine::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
@@ -1310,6 +1313,19 @@ impl World {
 
     fn worker_request(&mut self, request: worker::Request) {
         match request {
+            worker::Request::RedsAsk { owner, check, ask } => {
+                let bytes = temper_worker_service::translate::ask(ask);
+                self.worker_events.push_back(worker::Event::RedsAsk { owner, check, bytes });
+            }
+            worker::Request::RedsAnswer { owner, check, bytes } => {
+                let own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
+                let limits = temper_worker_service::worker_settings::payload_limits(
+                    &temper_worker_service::worker_settings::Limits::shared(own),
+                )
+                .expect("worker payload limits");
+                let answer = temper_worker_service::translate::answer(&bytes, &limits);
+                self.worker_events.push_back(worker::Event::RedsAnswer { owner, check, answer });
+            }
             worker::Request::ReadList { .. }
             | worker::Request::CancelRead { .. }
             | worker::Request::Source { .. }
@@ -1339,6 +1355,7 @@ impl World {
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
                     | host::LinkUp::JobAnswer { .. }
+                    | host::LinkUp::Ask { .. }
                     | host::LinkUp::Answer { .. } => {}
                 }
                 self.up(engine::Link::Up { up, parts: engine::Parts::none() });
@@ -1609,7 +1626,8 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::Create { remote, .. }
         | Op::Push { remote, .. } => remote,
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,
-        Op::Point { .. }
+        Op::Reds { .. }
+        | Op::Point { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }

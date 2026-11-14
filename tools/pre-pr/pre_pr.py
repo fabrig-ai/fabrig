@@ -4,6 +4,7 @@ The private snapshot leaves the caller's index alone; only exceeded counts need 
 base worktree. Every tool streams before the bounded, final verdict.
 """
 import fnmatch
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -472,7 +473,69 @@ def known_reds(tree_id, root, env):
     return set(entries), []
 
 
-def inherited(entries, errors):
+def goal_reds(root, env):
+    """Wait for and read the goal's whole reds, before the cache (sections 5, 7)."""
+    paths = [root / os.fsdecode(git(['rev-parse', '--git-path', 'temper/' + name], root, env).stdout).strip()
+             for name in ('reds', 'reds-wait')]
+    path, marker = paths
+    milliseconds = None
+    try:
+        match = re.fullmatch(rb'temper-reds-wait 1 ([0-9]+)\n?', marker.read_bytes())
+        if match:
+            digits = match[1].lstrip(b'0')
+            if len(digits) <= 6:
+                value = int(digits or b'0')
+                if 1 <= value <= 600000:
+                    milliseconds = value
+        if milliseconds is None:
+            print('pre-pr: reds: ignored temper/reds-wait (malformed)', flush=True)
+    except FileNotFoundError:
+        pass
+    if milliseconds is not None:
+        deadline = time.monotonic() + milliseconds / 1000
+        while not path.exists():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(0.05, remaining))
+    try:
+        with path.open('rb') as source:
+            size = os.fstat(source.fileno()).st_size
+            if size > 2097152:
+                print(f'pre-pr: reds: none (temper/reds oversized: {size} bytes)', flush=True)
+                return set(), None
+            content = source.read()
+    except FileNotFoundError:
+        if milliseconds is not None:
+            print(f'pre-pr: reds: none (temper/reds not written within {milliseconds} ms)', flush=True)
+        return set(), None
+    digest = hashlib.sha256(content).hexdigest()
+    lines = content.split(b'\n')
+    if lines[-1] == b'':
+        lines.pop()
+    entries = set()
+    malformed = 1 if not lines or lines[0] != b'temper-reds 1' else None
+    if malformed is None:
+        for number, raw in enumerate(lines[1:], 2):
+            try:
+                line = raw.decode('utf-8')
+            except UnicodeDecodeError:
+                malformed = number
+                break
+            test = re.fullmatch(r'- test (\S+) (.+)', line)
+            lint = re.fullmatch(r'- lint (\S+) (\S+) (.+)', line)
+            if not (test or lint) or line[-1].isspace():
+                malformed = number
+                break
+            entries.add(('test', *test.groups()) if test else ('lint', *lint.groups()))
+    if malformed is not None:
+        print(f'pre-pr: reds: none (temper/reds malformed at line {malformed})', flush=True)
+        return set(), digest
+    print(f'pre-pr: reds: {len(entries)} entries (temper/reds)', flush=True)
+    return entries, digest
+
+
+def inherited(entries, reds, errors):
     """Only listed tests and coded lints inherit, without their messages (section 5)."""
     for error in errors:
         key = error['key']
@@ -484,9 +547,9 @@ def inherited(entries, errors):
             entry = ('lint', *key[:3])
         else:
             continue
-        if entry in entries:
+        if entry in entries or entry in reds:
             error['inherited'] = True
-            error['known_red'] = True
+            error['red_source'] = 'reds' if entry in reds else 'list'
 
 
 def judge_base(base_id, git_dir, count_errors, root, env):
@@ -555,7 +618,8 @@ def summary(base_id, lints, tests, errors, reason, starved=None):
     if reason:
         header += tail(reason)
     entries = [e['name'] + '\n' + e['log'] for e in errors if not e['inherited']]
-    entries += ['inherited: ' + e['name'] + (' (known red, .temper/known-reds.md)' if e.get('known_red') else '') + '\n'
+    sources = {'list': ' (known red, .temper/known-reds.md)', 'reds': ' (red, temper/reds)'}
+    entries += ['inherited: ' + e['name'] + sources.get(e.get('red_source'), '') + '\n'
                 for e in errors if e['inherited']]
     # Even large package sets must leave room for the first failure and the count.
     header = header.encode()[:4096].decode('utf-8', errors='ignore') + '\n'
@@ -577,6 +641,7 @@ def main():
     prefix = env.pop('TIERS_HOLD', '').split()
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     git_dir = Path(git(['rev-parse', '--absolute-git-dir'], root, env).stdout.decode().strip())
+    reds, digest = goal_reds(root, env)
     base_id, why = base(root, env)
     errors = []
     lints, tests = [], []
@@ -584,9 +649,9 @@ def main():
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         tree_id, private = tree(root, git_dir, Path(directory) / 'index', env)
         cache = git_dir / 'pre-pr-passed'
-        record = f'{tree_id} {base_id or "-"}'
+        record = f'{tree_id} {base_id or "-"} {digest or "-"}'
         if cache.exists() and cache.read_text().strip() == record:
-            print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"})', flush=True)
+            print(f'pre-pr: passed before (tree {tree_id}, base {base_id or "-"}, reds {digest or "-"})', flush=True)
             return 0
         runner = runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))
         with runner['hold'](prefix, 'pre-pr', root, env, output=sys.stdout):
@@ -670,7 +735,7 @@ def main():
             if docs:
                 _, found = timed('citations', lambda: citations(base_id, tree_id, root, env), pending)
                 errors += found
-            inherited(entries, errors)
+            inherited(entries, reds, errors)
             count_errors = [e for e in errors if e['name'].startswith('old-forms ') and e['key']]
             if base_id and count_errors:
                 why = judge_base(base_id, git_dir, count_errors, root, env)

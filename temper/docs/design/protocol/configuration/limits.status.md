@@ -21,3 +21,5 @@
 - **Not yet:** "Limits checked against each other at start", the store's tier rows': nothing checks `forge.changes` against them, so a value past 128 is refused as the store's map sizing past its codec or arithmetic bounds, naming no limit.
 
 - **Not yet:** "`forge.changes` bounds the changes kept at once": its bound is 128, not 1024, while the store schema's tier-row ceilings stay 257 (`../store.md`, 4).
+
+

@@ -38,6 +38,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
     transport.authenticate(checked.credential.as_ref());
     let at = checked.at.as_ref();
     match &checked.command {
+        Command::Reds(command) => reds(command, checkout, at, transport),
         Command::SnapshotHead => {
             let Some(head) = checkout.content(&path(at, b".git/temper-head")).map(count_bytes) else {
                 return Answer::local_failure();
@@ -533,4 +534,57 @@ fn ancestors(transport: &mut impl Transport, tip: u64) -> std::collections::BTre
         pending.extend(transport.merge_parent(commit));
     }
     seen
+}
+
+fn reds(
+    command: &temper_worker_protocol_git::reds::CheckCommand,
+    checkout: &Checkout,
+    at: &[u8],
+    transport: &mut impl Transport,
+) -> Answer {
+    use temper_worker_protocol_git::reds::CheckCommand;
+    let read = |name: &[u8]| checkout.content(&path(at, name)).map(count_bytes);
+    match command {
+        CheckCommand::Pin => match read(b".git/refs/temper/landing") {
+            Some(head) => Answer::success([id(head).as_slice(), b"\n"].concat()),
+            None => Answer { exit: 1, stdout: Vec::new(), stderr: Vec::new() },
+        },
+        CheckCommand::Path { .. } => Answer::success(b".git/temper\n".to_vec()),
+        CheckCommand::Merge => match read(b".git/MERGE_HEAD") {
+            Some(head) => Answer::success([id(head).as_slice(), b"\n"].concat()),
+            None => Answer { exit: 1, stdout: Vec::new(), stderr: Vec::new() },
+        },
+        CheckCommand::Ancestor { expected, base, .. } => {
+            let mut raw = [0; 32];
+            for (to, from) in raw.iter_mut().zip(expected.iter()) {
+                *to = *from;
+            }
+            let expected = Commit::new(raw);
+            let found = git::object_present(checkout, at, count(expected));
+            Answer {
+                exit: if found { u8::from(!transport.is_ancestor(count(expected), count(*base))) } else { 128 },
+                stdout: Vec::new(),
+                stderr: Vec::new(),
+            }
+        }
+        CheckCommand::Base { merging } => {
+            let (Some(landing), Some(head)) = (read(b".git/refs/temper/landing"), read(b".git/temper-head")) else {
+                return Answer::local_failure();
+            };
+            let mut ours = ancestors(transport, head);
+            if *merging && let Some(second) = read(b".git/MERGE_HEAD") {
+                ours.extend(ancestors(transport, second));
+            }
+            let landing = ancestors(transport, landing);
+            let shared: Vec<_> = ours.intersection(&landing).copied().collect();
+            let mut bytes = Vec::new();
+            for base in &shared {
+                if !shared.iter().any(|other| base != other && transport.is_ancestor(*base, *other)) {
+                    bytes.extend(id(*base));
+                    bytes.push(b'\n');
+                }
+            }
+            Answer { exit: u8::from(bytes.is_empty()), stdout: bytes, stderr: Vec::new() }
+        }
+    }
 }

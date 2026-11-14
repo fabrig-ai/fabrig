@@ -132,7 +132,8 @@ pub(crate) fn host_out(
                 domain.hub_link.forget_call(&call);
                 work.push(Work::Host(host::Event::RelayCancelled { run, attempt, call }));
             }
-            host::Request::Hello { .. } => {}
+            // This root never asks and configures its engine host directly.
+            host::Request::Asked { .. } | host::Request::Hello { .. } => {}
             host::Request::Prepare { owner, .. } => work.push(Work::Host(host::Event::Unprepared {
                 owner,
                 failure: host::Preparation::Permanent { resource: None },

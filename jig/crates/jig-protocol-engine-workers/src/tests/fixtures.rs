@@ -52,6 +52,8 @@ pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire
     wires
 }
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
+    application_ask: 64,
+    application_answer: 64,
     program_sources: 2,
     piece: 16,
     charter: 16,
@@ -317,7 +319,7 @@ pub fn refused_account() -> jig_protocol_worker_wire::RunFailure {
     wire::RunFailure::Refused(refused)
 }
 
-fn codec() -> jig_protocol_worker_wire::v13::Limits {
+fn codec() -> jig_protocol_worker_wire::v14::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {

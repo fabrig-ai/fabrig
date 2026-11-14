@@ -146,7 +146,7 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert_eq!(charter.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(charter.brief.sections[0].text.as_ref(), b"Say hello");
     assert_eq!(charter.budget.spend, 40);
-    assert_eq!(charter.grants.host_tools.len(), 39);
+    assert_eq!(charter.grants.host_tools.len(), 40);
     assert_eq!(grants[0].name.generation, 2);
     assert!(transcript.is_none());
 }
@@ -198,6 +198,7 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
                 && tool.name.as_ref() != b"change"
                 && tool.name.as_ref() != b"delegate"
                 && tool.name.as_ref() != b"finding"
+                && tool.name.as_ref() != b"red"
                 && tool.name.as_ref() != b"follow"
             {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
@@ -223,6 +224,7 @@ fn settings_and_delegate_tools_need_the_charters_family() {
             && tool.name.as_ref() != b"change"
             && tool.name.as_ref() != b"delegate"
             && tool.name.as_ref() != b"finding"
+            && tool.name.as_ref() != b"red"
             && tool.name.as_ref() != b"follow"
         {
             assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
@@ -298,6 +300,7 @@ fn settings_and_delegate_tools_need_the_charters_family() {
                         || tool.name.as_ref() == b"change"
                         || tool.name.as_ref() == b"delegate"
                         || tool.name.as_ref() == b"finding"
+                        || tool.name.as_ref() == b"red"
                         || tool.name.as_ref() == b"follow")
                 {
                     continue;
@@ -632,6 +635,8 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
 mod finding;
 #[path = "follow/tests.rs"]
 mod follow;
+#[path = "red/tests.rs"]
+mod red;
 
 fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[
@@ -662,6 +667,7 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
         (b"effect_forge", br#"{"repository":{"forge":1,"repository":2},"resource":{"kind":"repository"},"write":{"kind":"close","number":3}}"#, br#"{"repository":{"forge":1,"repository":2},"resource":{},"write":{"kind":"close","number":3}}"#),
         (b"subscribe_forge", br#"{"topic":{"repository":{"forge":1,"repository":2},"kind":"pull","number":3}}"#, br#"{"topic":{}}"#),
         (b"change", br#"{"words":"edit README"}"#, br#"{"words":""}"#),
+        (b"red", br#"{"act":"list"}"#, br#"{"act":"end"}"#),
         (b"finding", br#"{"act":"file","kind":"red","severity":"high","title":"boot flake","body":"..."}"#, br#"{"act":"file"}"#),
         (b"follow", br#"{"act":"list"}"#, br#"{"act":"start","follow":1}"#),
         (b"decided", br#"{"question":"Q","options":["A","B"],"took":0,"why":"W","kind":"retry"}"#, br"{}"),
@@ -2099,7 +2105,7 @@ fn change_refuses_a_branch_other_than_mine() {
         (br#"{"changes":[{"words":"a","branch":1}]}"#, Problem::Type(b"branch")),
     ];
     for (input, expected) in cases {
-        assert_eq!(decided(b"change", input), Err(*expected), "{input:?}");
+        assert_eq!(decided(b"change", input), Err(expected.clone()), "{input:?}");
     }
 }
 
@@ -2138,7 +2144,7 @@ fn change_refuses_unknown_questions() {
     ] {
         let member = format!(r#"{{"words":"a","questions":{questions}}}"#);
         for input in [member.clone(), format!(r#"{{"changes":[{member}]}}"#)] {
-            assert_eq!(decided(b"change", input.as_bytes()), Err(expected), "{input}");
+            assert_eq!(decided(b"change", input.as_bytes()), Err(expected.clone()), "{input}");
         }
     }
 }
@@ -2303,7 +2309,7 @@ fn change_refuses_a_producer_or_llm_out_of_range() {
     ];
     for (member, expected) in cases {
         for input in [format!(r#"{{"words":"a",{member}}}"#), format!(r#"{{"changes":[{{"words":"a",{member}}}]}}"#)] {
-            assert_eq!(configured_change(input.as_bytes()), Err(*expected), "{input}");
+            assert_eq!(configured_change(input.as_bytes()), Err(expected.clone()), "{input}");
         }
     }
     // Repeated models reach the root's fit check; decode checks the list's bound.
@@ -2458,7 +2464,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
         (br#"{"words":"a","after":[null]}"#, Problem::Type(b"after")),
     ];
     for (input, expected) in cases {
-        assert_eq!(decided(b"change", input), Err(*expected), "{input:?}");
+        assert_eq!(decided(b"change", input), Err(expected.clone()), "{input:?}");
     }
     let name = "x".repeat(65);
     let input = format!(r#"{{"words":"a","name":"{name}"}}"#);

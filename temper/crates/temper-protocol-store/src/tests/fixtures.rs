@@ -34,6 +34,8 @@ pub const LIMITS: top::Limits = top::Limits {
     repositories: 2,
     tasks: 8,
     holds: 8,
+    branch_reds: 64,
+    red_key_bytes: 256,
     subscriptions: 8,
     entries: 8,
     named_calls: 16,
@@ -681,7 +683,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v21::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v22::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -739,13 +741,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v21::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v22::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v21::Row {
-    use crate::v21 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v22::Row {
+    use crate::v22 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),

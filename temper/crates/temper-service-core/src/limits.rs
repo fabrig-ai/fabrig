@@ -28,6 +28,8 @@ pub struct Checkout {
     /// How long one on the worker's disk may take: making a workspace,
     /// checking out, merging, committing.
     pub local_timeout: Duration,
+    /// Milliseconds to wait for a goal’s reds.
+    pub reds_read_ms: u32,
     /// Facts kept until the parent drains them. Beyond them, facts are dropped
     /// and counted.
     pub facts: u32,
@@ -97,6 +99,7 @@ const CHECKOUT: Checkout = Checkout {
     remote_timeout: Duration::from_secs(60),
     // Time for a local checkout operation, from the checkout world fixture.
     local_timeout: Duration::from_secs(10),
+    reds_read_ms: 5_000,
     // Facts awaiting drain, from the checkout world fixture.
     facts: 256,
 };
@@ -225,6 +228,8 @@ pub const NAMES: &[&str] = &[
     "forge.landings_kept",
     "forge.landings",
     "forge.decided_per_project",
+    "forge.branch_reds",
+    "forge.red_key_bytes",
     "forge.history_days",
     "forge.history_events",
     "forge.findings_per_project",
@@ -287,6 +292,7 @@ pub const NAMES: &[&str] = &[
     "checkout.path_bytes",
     "checkout.remote_timeout_ms",
     "checkout.local_timeout_ms",
+    "checkout.reds_read_ms",
     "checkout.facts",
     "git_component.operations",
     "git_component.stdout_bytes",
@@ -363,6 +369,7 @@ pub const SHARED_NAMES: &[&str] = &[
     "checkout.path_bytes",
     "checkout.remote_timeout_ms",
     "checkout.local_timeout_ms",
+    "checkout.reds_read_ms",
     "checkout.facts",
     "git_component.operations",
     "git_component.stdout_bytes",
@@ -393,6 +400,12 @@ pub fn apply(limits: &mut Shared, name: &[u8], value: u64) -> Result<(), Refused
         b"checkout.conflicts" => limits.checkout.conflicts = u32::try_from(value).or(Err(Refused::Range))?,
         b"checkout.path_bytes" => limits.checkout.path_bytes = u32::try_from(value).or(Err(Refused::Range))?,
         b"checkout.remote_timeout_ms" => limits.checkout.remote_timeout = duration(value)?,
+        b"checkout.reds_read_ms" => {
+            if !(100..=60_000).contains(&value) {
+                return Err(Refused::Range);
+            }
+            limits.checkout.reds_read_ms = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"checkout.local_timeout_ms" => limits.checkout.local_timeout = duration(value)?,
         b"checkout.facts" => limits.checkout.facts = u32::try_from(value).or(Err(Refused::Range))?,
         b"git_component.operations" => {

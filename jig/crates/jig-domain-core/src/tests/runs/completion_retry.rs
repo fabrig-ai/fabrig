@@ -27,6 +27,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::SettingsAnswer { .. }
                 | Now::PersonAnswer { .. }
                 | Now::SettledCallRefused { .. }
+                | Now::Ask { .. }
                 | Now::Call { .. }
                 | Now::RelayBusy { .. }
                 | Now::CallBusy { .. }

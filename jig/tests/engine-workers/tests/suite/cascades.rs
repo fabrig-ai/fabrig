@@ -84,6 +84,7 @@ fn jobs_mixed_with_runs_keep_their_order() {
                         | host::LinkUp::Call { .. }
                         | host::LinkUp::Unauthorized { .. }
                         | host::LinkUp::Limited { .. }
+                        | host::LinkUp::Ask { .. }
                         | host::LinkUp::AccountRefused { .. } => panic!("load record"),
                     })
                 } else {

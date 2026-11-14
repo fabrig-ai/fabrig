@@ -37,6 +37,8 @@ pub(crate) fn agent_env(env: &Env<Limits>) -> Env<agent::Limits> {
 /// Hands one of the protocol's events to the child domain it is for.
 pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::RedsAsk { owner, check, bytes } => crate::reds::encoded(domain, env, owner, check, bytes),
+        Event::RedsAnswer { owner, check, answer } => crate::reds::decoded(domain, env, owner, check, answer),
         Event::ListRead { read, outcome } => host_step(domain, env, host::Event::ListRead { read, outcome }),
         Event::SourceAnswered { owner, answer } => {
             host_step(domain, env, host::Event::SourceAnswered { owner, answer });
@@ -70,7 +72,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             };
             host_step(domain, env, opened);
         }
-        Event::Lost => host_step(domain, env, host::Event::SourceLost),
+        Event::Lost => host_step(domain, env, host::Event::LinkLost),
         Event::GracePassed => {
             domain.past = true;
             crate::stopping::contact(domain, env);
@@ -241,6 +243,13 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 /// One of the host's requests: to the engine, or to a capability.
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
+        host::Request::Asked { run, attempt, number, answer } => {
+            crate::reds::asked(domain, env, run, attempt, number, answer, out);
+        }
+        host::Request::Up(up @ host::LinkUp::Ask { run, attempt, number, .. }) => {
+            crate::reds::numbered(domain, run, attempt, number);
+            out.push(Request::Link(up));
+        }
         host::Request::ReadList { read, endpoint, grant } => out.push(Request::ReadList { read, endpoint, grant }),
         host::Request::CancelRead { read } => out.push(Request::CancelRead { read }),
         host::Request::Source { owner, name, operation, deadline } => {
@@ -277,6 +286,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
                         | host::LinkUp::Turn { .. }
+                        | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. }) => out.push(Request::Link(up)),
                     }
                 }

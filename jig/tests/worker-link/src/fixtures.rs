@@ -11,6 +11,8 @@ pub fn application() -> skein_lib::List<wire::Spoken> {
 }
 pub const SEED_ONE: u64 = 1;
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
+    application_ask: 64,
+    application_answer: 64,
     program_sources: 2,
     piece: 16,
     charter: 16,
@@ -121,7 +123,7 @@ pub fn agreement() -> skein_channel::Frame {
 }
 #[must_use]
 pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
-    let record = wire::v13::Agreed::new(&codec(), wire::v13::AgreedParts { wires }).expect("agreement");
+    let record = wire::v14::Agreed::new(&codec(), wire::v14::AgreedParts { wires }).expect("agreement");
     let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut body).expect("measured agreement");
     let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("frame");
@@ -175,7 +177,7 @@ pub const TOKEN_TWO: &[u8] = b"app-access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
 #[must_use]
-pub fn codec() -> wire::v13::Limits {
+pub fn codec() -> wire::v14::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 #[must_use]

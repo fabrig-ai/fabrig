@@ -13,6 +13,8 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 
 const LIMITS: Limits = Limits {
+    application_ask_bytes: 64,
+    application_answer_bytes: 64,
     accounts: 4,
     slots: 2,
     program_sources: 12,
@@ -134,7 +136,8 @@ impl Measured {
                     cancelled.push(Event::RelayCancelled { run, attempt, call });
                     continue;
                 }
-                Request::Abort { .. }
+                Request::Asked { .. }
+                | Request::Abort { .. }
                 | Request::Agent(
                     ToAgent::Message { .. }
                     | ToAgent::Answer { .. }
@@ -143,7 +146,7 @@ impl Measured {
                     | ToAgent::Grant { .. }
                     | ToAgent::Acknowledge { .. },
                 )
-                | Request::Up(LinkUp::JobAnswer { .. })
+                | Request::Up(LinkUp::Ask { .. } | LinkUp::JobAnswer { .. })
                 | Request::Job(_)
                 | Request::DeliverJob { .. }
                 | Request::Release { .. } => Asked::Other,
@@ -506,6 +509,7 @@ fn source_replacement_at_capacity_completes_every_check() {
                 | Request::CancelRead { .. }
                 | Request::SourceFault
                 | Request::Up(_)
+                | Request::Asked { .. }
                 | Request::Hello { .. }
                 | Request::Agent(
                     ToAgent::Message { .. }
@@ -582,6 +586,7 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             | LinkUp::Turn { .. }
             | LinkUp::Call { .. }
             | LinkUp::JobAnswer { .. }
+            | LinkUp::Ask { .. }
             | LinkUp::Answer { .. }) => panic!("unexpected queued record: {other:?}"),
         }
     }

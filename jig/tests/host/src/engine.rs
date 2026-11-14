@@ -190,6 +190,9 @@ impl Engine {
     /// Takes the host's request `request`, which is for the engine.
     pub fn take(&mut self, request: Request) -> Vec<Act> {
         match request {
+            Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
+                unreachable!("the script does not make application asks")
+            }
             Request::Up(LinkUp::JobAnswer { run, attempt, answer: _ }) => {
                 vec![Self::host(Event::Down(LinkDown::Acknowledge { run, attempt }), false)]
             }
