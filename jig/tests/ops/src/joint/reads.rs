@@ -133,6 +133,11 @@ fn candidate(store: &Store, range: &reads::Range, value: &core::Record) -> Optio
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::Spend { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Tasks { .. } => None,
     }
@@ -190,6 +195,11 @@ fn point(store: &Store, scope: &reads::Scope) -> Option<reads::Row> {
         | reads::Scope::ScopedNotes { .. }
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Spend { .. } => return None,
     };
@@ -342,6 +352,11 @@ fn index_bounds(range: &reads::Range) -> Option<(root::Key, root::Key)> {
         | reads::Scope::SettingsHistory { .. }
         | reads::Scope::Spend { .. }
         | reads::Scope::EndedTasks
+        | reads::Scope::TaskSummaries
+        | reads::Scope::Retention { .. }
+        | reads::Scope::ErasureKeys { .. }
+        | reads::Scope::ProposalRemains { .. }
+        | reads::Scope::TaskOwnRows { .. }
         | reads::Scope::TaskRows { .. }
         | reads::Scope::Tasks { .. } => None,
     }

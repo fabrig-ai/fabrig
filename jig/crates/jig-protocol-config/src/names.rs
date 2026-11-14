@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 243] = [
+pub static NAMES: [Name; 246] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -561,6 +561,24 @@ pub static NAMES: [Name; 243] = [
         unit: Unit::Milliseconds,
         line: "Bounds time for which completed person keys replay their durable answers.",
         value: |limits| limits.core.people.request_retention.as_millis(),
+    },
+    Name {
+        name: "retention.turns_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how long ended tasks keep their transcripts.",
+        value: |limits| limits.core.retention.turns.as_millis(),
+    },
+    Name {
+        name: "retention.records_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how long ended tasks keep their full records and decided person proposals.",
+        value: |limits| limits.core.retention.records.as_millis(),
+    },
+    Name {
+        name: "retention.summaries_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how long ended tasks keep their summaries.",
+        value: |limits| limits.core.retention.summaries.as_millis(),
     },
     Name {
         name: "people.facts",

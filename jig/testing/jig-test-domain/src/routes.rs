@@ -905,7 +905,7 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connec
                 state: u64::from_be_bytes(bytes),
             }
         }
-        core::effects::connector::Ask::Unname { .. } => return,
+        core::effects::connector::Ask::Unname { task } => connector::Event::Unnamed { task },
         core::effects::connector::Ask::Names { .. }
         | core::effects::connector::Ask::Hold { .. }
         | core::effects::connector::Ask::ReleaseHold { .. }

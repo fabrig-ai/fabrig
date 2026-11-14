@@ -337,7 +337,8 @@ fn core_write(write: &root::Write) -> conformance::Write<'_> {
         root::Write::Save(root::Record::Connector { .. })
         | root::Write::Erase(root::Key::Connector { .. })
         | root::Write::Wires => conformance::Write::Other,
-        root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => conformance::Write::Refresh,
+        root::Write::CopySettingsRevision(_) => conformance::Write::Refresh,
+        root::Write::DropTranscript { task } => conformance::Write::DropTranscript { task: *task },
     }
 }
 

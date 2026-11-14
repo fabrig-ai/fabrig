@@ -296,6 +296,8 @@ pub struct Snapshot {
     pub placed_holds: BTreeMap<u64, PlacedHold>,
     /// Committed conversation positions, live or ended, keyed by party then task.
     pub read_positions: BTreeMap<(u64, u64), u64>,
+    /// Explicit ended-read erasures in this durable retention page (retention.md, 6.2).
+    pub retiring_reads: BTreeSet<u64>,
     pub receipts: BTreeSet<Receipt>,
     pub writers: Vec<(Name, u64, u64)>,
     pub pools: BTreeMap<Name, u32>,
@@ -407,6 +409,8 @@ pub enum Observed {
     Drained { at: u64 },
     /// A durable retention transaction erased an ended owner and its read marker.
     Forgotten { task: u64 },
+    /// A durable retention page explicitly removed this prerequisite (retention.md, 6).
+    Retired { receipt: Receipt },
     /// A deletion's answer reached its asker: the project is closed.
     ProjectRemoved { project: u32 },
     /// A delivery reached a host, party, or system.
@@ -1062,6 +1066,10 @@ impl Referee {
                 self.drained_receipts = Some(self.last.receipts.clone());
             }
             Observed::ProjectRemoved { project } => self.deletions.removed(project),
+            Observed::Retired { receipt } => {
+                require(!self.last.receipts.contains(&receipt), Promise::Commit, "retired receipt remains durable")?;
+                self.seen.remove(&receipt);
+            }
             Observed::Forgotten { task } => {
                 require(!self.last.tasks.contains_key(&task), Promise::Commit, "forgotten owner remains durable")?;
                 self.seen.remove(&Receipt::Task(task));

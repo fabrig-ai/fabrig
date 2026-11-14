@@ -121,6 +121,9 @@ fn facts(rows: &BTreeMap<root::Key, root::Record>) -> (BTreeSet<CardKey>, WordIm
                 tasks::Stored::Ended(task) => {
                     ended.insert(task.number);
                 }
+                tasks::Stored::Summary(task) => {
+                    ended.insert(task.number);
+                }
                 tasks::Stored::PersonProposal(proposal) | tasks::Stored::DecidedProposal(proposal) => {
                     if matches!(proposal.state, tasks::PersonProposalState::Pending { .. }) {
                         waiting.insert(crate::observe::key(ObjectKey::Proposal(ProposalKey {
@@ -139,7 +142,8 @@ fn facts(rows: &BTreeMap<root::Key, root::Record>) -> (BTreeSet<CardKey>, WordIm
                         );
                     }
                 }
-                tasks::Stored::Milestone(_)
+                tasks::Stored::Retention(_)
+                | tasks::Stored::Milestone(_)
                 | tasks::Stored::History(_)
                 | tasks::Stored::PlacedHold(_)
                 | tasks::Stored::Stub(_)

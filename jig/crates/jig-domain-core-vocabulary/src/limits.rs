@@ -256,7 +256,13 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 fn checked_valid(limits: &Limits) -> Option<()> {
-    if limits.tasks.circle > people::NAMED_TASKS {
+    if limits.retention.turns == skein_lib::Duration::ZERO
+        || limits.retention.records == skein_lib::Duration::ZERO
+        || limits.retention.summaries == skein_lib::Duration::ZERO
+        || limits.retention.turns > limits.retention.records
+        || limits.retention.records > limits.retention.summaries
+        || limits.tasks.circle > people::NAMED_TASKS
+    {
         return None;
     }
     if limits.people.program_hosts < limits.fleet.configured_workers.checked_add(1)?

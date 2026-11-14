@@ -116,7 +116,7 @@ impl Projection {
                     keys.insert(key.clone());
                 }
                 Write::Other => {}
-                Write::Refresh => {
+                Write::Refresh | Write::DropTranscript { .. } => {
                     self.pending.insert(commit.number, None);
                     return;
                 }
