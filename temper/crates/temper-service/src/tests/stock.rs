@@ -478,7 +478,7 @@ fn a_seeded_stock_document_names_the_executor_limit() {
     document["engine"]["limits"]["overrides"]["authority.executors"] = 18_i32.into();
     let document = serde_json::to_vec(&document).unwrap();
     let problems = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(crate::startup::lines(&problems).as_ref(), b"engine.projects[0].policy.ceiling.delegation.kinds: policy has 20 executor kinds; authority.executors limit is 18.\n");
+    assert_eq!(crate::startup::lines(&problems).as_ref(), b"engine.projects[0].policy.ceiling.delegation.kinds: policy has 21 executor kinds; authority.executors limit is 18.\nengine.projects[0].policy.roles[0].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\nengine.projects[0].policy.roles[1].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\nengine.projects[0].policy.roles[2].authority.delegation.kinds: policy has 19 executor kinds; authority.executors limit is 18.\n");
 }
 
 #[test]

@@ -314,8 +314,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                // The deep task row's 22,467,664 bytes plus 21 eight-byte executors and its question wake watermark.
-                transcript_bytes: 22_467_840,
+                // The deep task row's 22,467,664 bytes plus 22 eight-byte executors and its question wake watermark.
+                transcript_bytes: 22_467_848,
                 result_bytes: 335_619,
                 ..small.root.journal
             },

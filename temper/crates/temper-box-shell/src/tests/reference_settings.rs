@@ -534,7 +534,7 @@ fn the_stock_settings_document_decodes_in_every_client() {
         "authority.executors":22,"tasks.executor_kinds":22,"tasks.charters":16
     }}));
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 20);
+    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 21);
     let source = reads::SettingDocument {
         overlay: None,
         setting: settings::Setting::Rules,
@@ -560,11 +560,11 @@ fn the_stock_settings_document_decodes_in_every_client() {
         let restored = jig_client_protocol_link::translate::settings::restore_setting_document(&decoded, &link)
             .unwrap_or_else(|why| panic!("{name} restores stock settings: {why:?}"));
         let Some(jig_client::contract::SettingValue::Rules(rules)) = restored.value else { panic!("stock rules") };
-        assert_eq!(rules.ceiling.delegation.kinds.len(), 20, "{name}");
+        assert_eq!(rules.ceiling.delegation.kinds.len(), 21, "{name}");
         for form in [temper_client_tools::limits::form(), settings_form::Limits::standard()] {
             let restored = settings_form::wire::restore_setting_document(&decoded, &form).expect("settings form");
             let Some(SettingValue::Rules(rules)) = restored.value else { panic!("form rules") };
-            assert_eq!(rules.ceiling.delegation.kinds.len(), 20);
+            assert_eq!(rules.ceiling.delegation.kinds.len(), 21);
         }
     }
 }
