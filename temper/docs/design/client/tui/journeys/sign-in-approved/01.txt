@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:44565                                     │
+│ Sign in this terminal to 127.0.0.1:42153                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ LXHK-RQKG, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:44565/terminal?code=LXHK-RQKG                  │
+│ LXFM-MPSV, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:42153/terminal?code=LXFM-MPSV                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:44565/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:42153/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

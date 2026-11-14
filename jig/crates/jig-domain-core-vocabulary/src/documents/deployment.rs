@@ -200,6 +200,10 @@ pub fn census_bound() -> Option<u64> {
 }
 
 pub fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
+    other_fields_bound(limits)?.checked_add(census_bound()?)
+}
+
+fn other_fields_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let carriers = u64::from(limits.lines)
         .checked_mul(u64::from(limits.lines))?
         .checked_add(u64::from(limits.rows).checked_mul(2)?)?
@@ -229,8 +233,7 @@ pub fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(List::<u16>::price(limits.lines)?)?
         .checked_add(u64::try_from(size_of::<Deployment>()).ok()?)?
         .checked_add(super::catalogue::offers_bound(limits)?)?
-        .checked_add(super::catalogue::rows_bound(limits)?)?
-        .checked_add(census_bound()?)
+        .checked_add(super::catalogue::rows_bound(limits)?)
 }
 
 #[cfg(test)]
@@ -245,17 +248,19 @@ mod tests {
             for head in 0..8 {
                 heads.push(CensusHead { head: Some(head), rows: u64::MAX }).unwrap();
             }
-            keyspaces.push(CensusKeyspace {
-                prefix: Box::new([255; 8]),
-                name: "n".repeat(48).into_boxed_str(),
-                rows: u64::MAX,
-                keys: u64::MAX,
-                values: u64::MAX,
-                heads,
-                puts: u64::MAX,
-                erases: u64::MAX,
-                written: u64::MAX,
-            }).unwrap();
+            keyspaces
+                .push(CensusKeyspace {
+                    prefix: Box::new([255; 8]),
+                    name: "n".repeat(48).into_boxed_str(),
+                    rows: u64::MAX,
+                    keys: u64::MAX,
+                    values: u64::MAX,
+                    heads,
+                    puts: u64::MAX,
+                    erases: u64::MAX,
+                    written: u64::MAX,
+                })
+                .unwrap();
         }
         let census = Box::new(StoreCensus { commit: u64::MAX, since: 1, keyspaces });
         let mut heap = u64::try_from(size_of_val(census.as_ref())).unwrap()
@@ -266,10 +271,21 @@ mod tests {
         }
         assert_eq!(census_bound(), Some(heap));
         let limits = super::super::DocumentLimits {
-            roles: 0, segments: 0, grants: 0, executors: 0, implications: 0,
-            rows: 0, text_bytes: 0, chips: 0, lines: 0,
+            roles: 0,
+            segments: 0,
+            grants: 0,
+            executors: 0,
+            implications: 0,
+            rows: 0,
+            text_bytes: 0,
+            chips: 0,
+            lines: 0,
             versions: super::super::Versions { minimum: 1, maximum: 1 },
         };
-        assert!(document_bound(&limits).unwrap() >= heap, "a census fits even with no configured document rows");
+        assert_eq!(
+            document_bound(&limits).unwrap() - other_fields_bound(&limits).unwrap(),
+            heap,
+            "the census has its own room even with no configured document rows"
+        );
     }
 }

@@ -290,7 +290,7 @@ fn deployment_view_opaque_history_keys_source_order_and_full_width_requester_pro
 }
 #[test]
 fn deployment_view_normal_words_select_second_language_and_reject_missing_or_wrong_checked_shapes() {
-    const DEPLOYMENT_PHRASES: usize = 292;
+    const DEPLOYMENT_PHRASES: usize = 305;
     let mut goldens = Goldens::new("tree/fragments/deployment/deployment_view_normal"); // Pending settings and placed-hold capacity facts.
     let english = crate::words::phrases::english::language();
     let mut second = english.clone();
