@@ -1029,7 +1029,7 @@ fn a_new_round_blames_its_own_boundary_not_a_previous_rounds_unit() {
 #[test]
 fn a_merged_member_waits_for_its_pull_before_its_change_is_told() {
     let (mut landing, mut f) = stacked(3);
-    landing.phase = Phase::Turn { at: at(4) };
+    landing.phase = Phase::Turn { at: at(10) };
     for fresh in &mut f.members {
         fresh.main = prefix(2);
     }
@@ -1041,4 +1041,25 @@ fn a_merged_member_waits_for_its_pull_before_its_change_is_told() {
     let told = decide(&waiting.landing, &f);
     assert_eq!(told.decision, Decision::Landed { member: 0, prefix: prefix(0) });
     assert_eq!(decide(&told.landing, &f).decision, Decision::Wait { until: Some(at(15)) });
+}
+
+#[test]
+fn a_forges_missing_merge_mark_cannot_keep_the_turn_past_its_poll() {
+    let (mut landing, mut f) = stacked(3);
+    landing.phase = Phase::Turn { at: at(10) };
+    for fresh in &mut f.members {
+        fresh.main = prefix(2);
+    }
+    let waiting = decide(&landing, &f);
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(15)) });
+    let told = step(&waiting.landing, &f, &PROJECT, &LIMITS, at(15));
+    assert_eq!(told.decision, Decision::Landed { member: 0, prefix: prefix(0) });
+    let restored = told.landing.clone();
+    let told = step(&restored, &f, &PROJECT, &LIMITS, at(16));
+    assert_eq!(told.decision, Decision::Landed { member: 1, prefix: prefix(1) });
+    let told = step(&told.landing, &f, &PROJECT, &LIMITS, at(16));
+    assert_eq!(told.decision, Decision::Landed { member: 2, prefix: prefix(2) });
+    let finished = step(&told.landing, &f, &PROJECT, &LIMITS, at(16));
+    assert_eq!(finished.decision, Decision::Finish);
+    assert_eq!(finished.landing.phase, Phase::Landed);
 }

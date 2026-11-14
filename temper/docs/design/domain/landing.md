@@ -630,8 +630,10 @@ The default, for a project with no prepare command:
   a pull request (`forge/adoption.md`, 4).
 - **Every member lands** once the branch's tip, read back, is the
   candidate: in the stack's order, the landing's state records each
-  landed at its prefix, then its pull request reads merged, then its
-  change is told it landed, at its prefix. The merge is the landing
+  landed at its prefix, then waits for its pull request's merge mark
+  until one configured poll after the turn began, then its change is
+  told it landed, at its prefix. The branch readback is authoritative:
+  a forge whose detection is absent or delayed cannot strand the turn. The merge is the landing
   task's effect, but each landed commit is its member change's: the
   change lands, and its goal hears its own change's landing, as under
   `queue`. With members left in the landing, above a blamed unit, the

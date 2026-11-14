@@ -871,11 +871,23 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
                 }
             }
             if !member.told {
-                // The change releases its branch when told; wait for the forge's
-                // manual-merge detection before that release (landing.md, 8).
+                // Give manual-merge detection one poll from the turn's start;
+                // the branch readback remains authoritative (landing.md, 8).
                 if member.combined == Some(crate::Combine::Merge) && fresh.merged != Some(prefix) {
-                    let until = Wall::from_nanos(now.as_nanos().saturating_add(limits.poll.as_nanos()));
-                    return wait(landing, Some(until));
+                    let at = match &landing.phase {
+                        Phase::Turn { at } => *at,
+                        Phase::Waiting
+                        | Phase::Preparing
+                        | Phase::Proving
+                        | Phase::Proved { .. }
+                        | Phase::Landed
+                        | Phase::Cancelled
+                        | Phase::Held { .. } => unreachable!("the turn owns landed notifications"),
+                    };
+                    let until = Wall::from_nanos(at.as_nanos().saturating_add(limits.poll.as_nanos()));
+                    if now < until {
+                        return wait(landing, Some(until));
+                    }
                 }
                 member.told = true;
                 return done(landing, Decision::Landed { member: position(index), prefix });
