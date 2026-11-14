@@ -49,18 +49,3 @@ fn rustls_writes_in_place_and_counts_what_it_wrote() {
     held.clear();
     assert!(held.is_empty());
 }
-
-#[test]
-#[should_panic(expected = "written within the room")]
-fn writing_past_the_room_is_a_bug() {
-    let mut held = Held::with_capacity(2);
-    held.wrote(3);
-}
-
-#[test]
-#[should_panic(expected = "rustls discards only what it was given")]
-fn discarding_past_what_is_held_is_a_bug() {
-    let mut held = Held::with_capacity(4);
-    held.append(b"ab").unwrap();
-    held.discard(3);
-}

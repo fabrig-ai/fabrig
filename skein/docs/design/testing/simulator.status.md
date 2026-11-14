@@ -11,4 +11,4 @@ are present, including `ENOTTY` on descriptors without a window.
   contained spawn and their faults.
 - **Not yet:** 5, 6: the checks' returning forms; the simulator panics
   where each check finds what broke, and its tests of each broken
-  invariant trigger that panic, `#[should_panic]`.
+  invariant trigger that panic, `#[should_panic]`. [in flight: change 3125]

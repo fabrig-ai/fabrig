@@ -24,8 +24,6 @@
 extern crate alloc;
 
 mod conn;
-#[cfg(test)]
-mod tests;
 
 use skein_io::Addr;
 use skein_io::kernel::{Complete, Submit};

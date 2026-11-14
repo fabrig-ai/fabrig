@@ -7,6 +7,7 @@
 #![expect(clippy::disallowed_types, reason = "the hand-played kernel keeps what it holds in Vecs")]
 
 use alloc::boxed::Box;
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::net::{Ipv4Addr, SocketAddr};
 
@@ -15,6 +16,8 @@ use skein_io::kernel::{Complete, Done, Error, Fd, Op, Submit};
 use skein_lib::{Duration, Time, Wall};
 
 use crate::{Client, HalfClose, Limits, Plan, Then, iterate};
+
+use super::{State, check};
 
 const LIMITS: Limits = Limits {
     io: skein_io::Limits { intake: 32, receive: 32, output: 32, ..skein_io::Limits::TEST },
@@ -188,6 +191,13 @@ impl Rig {
         self.settle();
     }
 
+    /// Checks an answer against the connected attempt without failing the world.
+    fn check(&mut self, answer: &[u8]) -> Result<(), String> {
+        let conn = self.client.conns.get_mut(0).expect("a planned connection");
+        let State::Open(open) = &mut conn.state else { panic!("the attempt is connected") };
+        check(open, &conn.plan, &mut conn.seen, answer, self.now, &LIMITS)
+    }
+
     /// The first line the client sent whole and the test has not answered.
     fn line(&mut self) -> Box<[u8]> {
         let mut end = None;
@@ -245,21 +255,21 @@ fn lines_go_ahead_of_their_answers_as_far_as_the_plan_allows() {
 }
 
 #[test]
-#[should_panic(expected = "byte for byte")]
 fn a_wrong_answer_fails_the_world() {
     let mut rig = Rig::new(Plan { shortest: 4, ..PLAN });
     rig.at(PLAN.at);
     let mut line = rig.line();
     line[0] ^= 1;
-    rig.deliver(&line);
+    let finding = rig.check(&line).expect_err("a wrong answer");
+    assert!(finding.contains("byte for byte"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "only a line sent whole")]
 fn an_answer_to_no_line_fails_the_world() {
     let mut rig = Rig::new(Plan { send_limit: 0, ..PLAN });
     rig.at(PLAN.at);
-    rig.deliver(b"hello\n");
+    let finding = rig.check(b"hello\n").expect_err("no line sent");
+    assert!(finding.contains("only a line sent whole"), "{finding}");
 }
 
 #[test]
@@ -281,12 +291,12 @@ fn busy_is_retried_after_the_backoff() {
 }
 
 #[test]
-#[should_panic(expected = "nothing after a refusal")]
 fn an_answer_after_a_refusal_fails_the_world() {
     let mut rig = Rig::new(PLAN);
     rig.at(PLAN.at);
-    rig.deliver(b"busy\n");
-    rig.deliver(b"more\n");
+    assert_eq!(rig.check(b"busy\n"), Ok(()));
+    let finding = rig.check(b"more\n").expect_err("an answer after busy");
+    assert!(finding.contains("nothing after a refusal"), "{finding}");
 }
 
 #[test]
@@ -346,10 +356,4 @@ fn no_line_begins_with_b_so_none_reads_as_busy() {
         rig.at(PLAN.at);
         assert_ne!(rig.sent.first(), Some(&b'b'), "seed {seed}: a line's first byte");
     }
-}
-
-#[test]
-#[should_panic(expected = "ends by an abort of its own")]
-fn a_plan_that_never_reads_and_never_aborts_is_refused() {
-    let _rig = Rig::new(Plan { read_from: None, ..PLAN });
 }

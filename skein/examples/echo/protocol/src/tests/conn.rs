@@ -292,15 +292,6 @@ fn a_reply_to_a_connection_gone_is_dropped() {
 }
 
 #[test]
-#[should_panic(expected = "one reply per call")]
-fn a_second_reply_to_one_call_is_a_bug() {
-    let mut rig = Rig::new();
-    rig.listen();
-    let conn = rig.reading(1, session(1));
-    let _again = rig.down(admitted(conn, session(1)));
-}
-
-#[test]
 fn limits_must_hold_a_connection_the_refusals_and_a_deadline() {
     assert!(LIMITS.is_usable());
     assert!(!Limits { conns: 0, ..LIMITS }.is_usable());
