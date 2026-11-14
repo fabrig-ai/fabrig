@@ -60,8 +60,8 @@ fn seed(mut value: Value) -> Value {
     for projection in value["projections"].as_array_mut().expect("projections") {
         grant(projection);
     }
-    assert_eq!(value["requirements"].as_array().expect("requirements").as_slice(), []);
-    assert_eq!(value["templates"].as_array().expect("templates").as_slice(), []);
+    assert_eq!(value["requirements"], json!([]));
+    assert_eq!(value["templates"], json!([]));
     json!({"number":1,"roles":permissions,"policy":value})
 }
 pub(super) fn setup(root: &Path, steps: &mut Vec<ctl::Step>) {
@@ -78,6 +78,14 @@ pub(super) fn setup(root: &Path, steps: &mut Vec<ctl::Step>) {
         let policy = ctl::json(&calls[calls.len() - 2])["value"].clone();
         let mut own = policy.clone();
         own["permissions"][0]["role"] = 2.into();
+        let period = own["period_spend"].as_u64().expect("project period");
+        let role = own["roles"]
+            .as_array_mut()
+            .expect("roles")
+            .iter_mut()
+            .find(|role| role["number"] == 0)
+            .expect("owner role");
+        role["period_spend"] = (period / 48 * super::super::landing_by_turn::ROLE_PERIOD_IN_K).into();
         assert_ne!(own["permissions"], policy["permissions"], "project roles differ from policy 1");
         let after = json!({"items":[
             {"setting":{"kind":"rules"},"set":rules},
@@ -111,7 +119,7 @@ pub(super) fn setup(root: &Path, steps: &mut Vec<ctl::Step>) {
     })));
 }
 pub(super) fn scripts(scripts: &mut [Script]) {
-    for script in scripts.iter_mut().filter(|script| script.cue.starts_with(b"@drill-goal-")) {
+    for script in scripts.iter_mut().filter(|script| script.cue.starts_with(b"## Task\n\n@drill-goal-")) {
         let Line::Call { arguments, .. } = &mut script.turns[0].lines[0] else { panic!("delegate") };
         let mut delegate: Value = serde_json::from_slice(arguments).expect("delegate");
         narrow(&mut delegate);

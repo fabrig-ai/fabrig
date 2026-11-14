@@ -150,8 +150,15 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
             child["tracked"] = json!({"priority":number});
         }
         let mut goal = owner.clone();
-        goal.cue = format!("@drill-goal-{number}").into_bytes().into();
+        goal.cue = format!("## Task\n\n@drill-goal-{number}").into_bytes().into();
         goal.turns[0] = call(b"delegate", &json!({"batch":[child]}));
+        let mut turns = goal.turns.into_vec();
+        turns.push(skein_fake_llm_domain::api::Turn {
+            lines: Box::new([Line::Text { text: b"Read the arrived results before waiting again.".as_slice().into() }]),
+            finish: skein_fake_llm_domain::api::Finish::Stop,
+            tokens: 20,
+        });
+        goal.turns = turns.into();
         scripts.push(goal);
         scripts.push(Script { cue: format!("## Task\n\n{words}").into_bytes().into(), turns: Box::new([
             call(b"read", &json!({"path":format!("walk/line-{number}")})),
@@ -177,8 +184,9 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
             .cued
             .iter()
             .map(|script| -> Box<[Rule]> {
-                if script.cue.starts_with(b"@drill-goal-") {
+                if script.cue.starts_with(b"## Task\n\n@drill-goal-") {
                     Box::new([
+                        Rule { cue: b"Messages arrived. Read them before continuing.".as_slice().into(), turn: 3 },
                         Rule { cue: b"Nothing more will come:".as_slice().into(), turn: 2 },
                         Rule { cue: b"Begin the work your brief describes.".as_slice().into(), turn: 0 },
                         Rule { cue: Box::new([]), turn: 1 },
@@ -194,6 +202,7 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
     recipe.limits.connections = 16;
     recipe.limits.io.sockets = 32;
     recipe.domain_limits.calls = 16;
+    recipe.domain_limits.strict = true;
     recipe.limits.observations *= 8;
     recipe.limits.observation_bytes *= 8;
     recipe.domain = skein_fake_llm_domain::Domain::played_by_input(
@@ -281,6 +290,7 @@ struct Judge<'a> {
     reads: BTreeMap<Vec<String>, Value>,
     setup_count: usize,
     checked: usize,
+    models_checked: usize,
     restarts: u32,
 }
 fn calls(procs: &mut [Process]) -> &mut ctl::Calls {
@@ -349,7 +359,7 @@ impl Judge<'_> {
         ));
         self.panel = None;
         self.run = None;
-        eprintln!("drill 5: started goal {}", self.number);
+        eprintln!("drill {:?}: started goal {}", self.drill, self.number);
         self.stage = Stage::Observe;
     }
     fn observe(&mut self, procs: &mut [Process]) -> Result<(), String> {
@@ -433,7 +443,29 @@ impl Judge<'_> {
         }
         for proc in procs.iter() {
             if let Process::Peer(peer) = proc {
-                for event in peer.observations() {
+                for event in peer.observations().iter().skip(self.models_checked) {
+                    if let skein_fake_peers::llm::Observation::Answered { result: Err(why), .. } = event {
+                        for event in peer.observations().iter().rev().take(12) {
+                            if let skein_fake_peers::llm::Observation::Query { query, .. } = event {
+                                let cues: Vec<_> = [
+                                    "Resolve the merge conflict",
+                                    "Repair the failed landing gate",
+                                    "Review this change at the named head",
+                                    "@drill-goal-1",
+                                    "@drill-goal-2",
+                                    "@drill-code-2",
+                                    "@drill-latch",
+                                ]
+                                .iter()
+                                .filter_map(|cue| {
+                                    skein_lib::bytes::find(&query.system, cue.as_bytes()).map(|at| (*cue, at))
+                                })
+                                .collect();
+                                eprintln!("model query: cues {cues:?}, {} messages", query.messages.len());
+                            }
+                        }
+                        return Err(format!("fake model refused a scripted query: {why:?}"));
+                    }
                     if let skein_fake_peers::llm::Observation::Query { query, .. } = event {
                         for part in query.messages.iter().flat_map(|message| message.parts.iter()) {
                             if let skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: true, .. } = part {
@@ -442,6 +474,7 @@ impl Judge<'_> {
                         }
                     }
                 }
+                self.models_checked = peer.observations().len();
             }
         }
         self.drive(procs)?;
@@ -568,19 +601,28 @@ impl Judge<'_> {
                 if change["step"] != "landed" {
                     return Ok(());
                 }
-                let pulls = self.forge.repository_observation("acme", "widget", "pulls?state=closed&limit=100");
-                if !pulls
+                let pulls = self.forge.repository_observation("acme", "widget", "pulls?state=all&limit=100");
+                let pulls: Vec<_> = pulls
                     .as_array()
                     .ok_or("pulls")?
                     .iter()
-                    .any(|pull| pull["title"] == format!("Drill change {}", self.number) && pull["merged"] == true)
-                {
+                    .filter(|pull| pull["title"] == format!("Drill change {}", self.number))
+                    .collect();
+                if pulls.len() != 1 {
+                    return Err(format!("one member pull for goal {}: {pulls:?}", self.number));
+                }
+                if pulls[0]["merged"] != true {
                     return Ok(());
                 }
-                if change["repairs"]["used"] != 0 {
-                    return Err(format!("restart spends no repair: {change}"));
+                if change["repairs"]["used"] != 0
+                    || change["resolutions"]["used"] != 0
+                    || !change["hold"].is_null()
+                    || !panel["hold"].is_null()
+                    || panel["preparation"] != 1
+                {
+                    return Err(format!("one preparation and no restart tries or hold: {panel}; {change}"));
                 }
-                eprintln!("drill 5: resumed and landed: {panel}; {change}");
+                eprintln!("drill {:?}: resumed and landed goal {}, landing {}", self.drill, self.number, panel["task"]);
                 if self.drill == Drill::GoLive {
                     self.stage = Stage::Verify;
                 } else if self.drill == Drill::Delivery {
@@ -610,7 +652,7 @@ impl Judge<'_> {
                     2
                 };
                 if rows.len() != expected || rows.iter().any(|row| row["phase"] != "landed") {
-                    return Err(format!("exactly three landings: {list}"));
+                    return Err(format!("exactly {expected} landings: {list}"));
                 }
                 let runs = self.forge.repository_observation("acme", "widget", "actions/runs?limit=100");
                 if runs["workflow_runs"]
@@ -752,7 +794,7 @@ impl Referee<Process> for Judge<'_> {
     }
 }
 
-/// Run drill 5 on one owned Forgejo, with the worker surviving all three engine lives.
+/// Run a staging drill on an owned Forgejo, with separate engine and worker processes.
 pub fn run(drill: Drill) {
     let scratch = Scratch::new(&format!("turn-drill-{drill:?}"));
     let root = scratch.path();
@@ -797,6 +839,7 @@ pub fn run(drill: Drill) {
         reads: BTreeMap::new(),
         setup_count,
         checked: 0,
+        models_checked: 0,
         restarts: 0,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));

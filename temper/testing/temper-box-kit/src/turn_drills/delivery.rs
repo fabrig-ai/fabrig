@@ -3,7 +3,7 @@ use super::{Exit, Host, Judge, Line, Process, Script, Signal, Stage, Value, bina
 use skein_fake_llm_domain::api::Part;
 
 pub(super) fn scripts(scripts: &mut [Script]) {
-    let goal = scripts.iter_mut().find(|script| script.cue.as_ref() == b"@drill-goal-1").expect("goal");
+    let goal = scripts.iter_mut().find(|script| script.cue.as_ref() == b"## Task\n\n@drill-goal-1").expect("goal");
     let Line::Call { arguments, .. } = &goal.turns[0].lines[0] else { panic!("delegate") };
     let mut batch: Value = serde_json::from_slice(arguments).expect("batch");
     let mut second = batch["batch"][0].clone();
