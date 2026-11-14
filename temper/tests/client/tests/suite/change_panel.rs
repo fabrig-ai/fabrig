@@ -116,7 +116,7 @@ fn order(step: &w::Step) -> u8 {
 fn pull_opened(front: &Joint, goal: u64) -> bool {
     front.engine.store.rows.values().any(|record| {
         matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(),
-            temper_engine_domain_forge::Stored::Change(change) if change.task == goal && change.pull.is_some()))
+            temper_engine_domain_forge::Stored::ChangeHot(change) if change.task == goal && change.pull.is_some()))
     })
 }
 
@@ -583,7 +583,7 @@ fn a_forge_procedure_without_a_change_has_an_unknown_panel() {
     assert!(
         !world.front().engine.store.rows.values().any(|record| {
             matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(),
-            temper_engine_domain_forge::Stored::Change(change) if change.task == task))
+            temper_engine_domain_forge::Stored::ChangeHot(change) if change.task == task))
         }),
         "the existing procedure fixture has no connector change"
     );
@@ -671,7 +671,7 @@ fn facts_after_open(world: &mut World<Temper, Joint>) -> Facts {
 
     for _ in 0..STEPS {
         if world.front().engine.store.rows.values().any(|record| matches!(record,
-            engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(change) if change.pull.is_some()))) {
+            engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::ChangeHot(change) if change.pull.is_some()))) {
             return facts(world.front());
         }
         let outcome = world.run(Until::Time(world.now().saturating_add(Duration::from_millis(10))));
@@ -789,7 +789,7 @@ fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
         .values()
         .find_map(|record| {
             if let engine::Record::Forge { row } = record
-                && let forge::Stored::Change(row) = row.as_ref()
+                && let forge::Stored::ChangeHot(row) = row.as_ref()
                 && row.task == change
             {
                 Some(row.clone())

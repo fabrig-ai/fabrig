@@ -25,6 +25,8 @@ pub enum StartStop {
     Room(crate::room::Short),
     /// A startup page could not be read.
     Load(loads::RestoreFailure),
+    /// A stored change is missing one part.
+    ForgeRow(forge::Key),
     /// The forge's restored records do not fit its limits.
     ForgeFit { phase: Option<jig_domain_core::start::Phase>, failure: forge::RestoreFit },
     /// A restored forge record links to a target the start does not hold.

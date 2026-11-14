@@ -254,11 +254,11 @@ fn the_129th_change_replaces_the_oldest_ended_verifying_panel_in_one_decision() 
     else {
         panic!("one root decision")
     };
-    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Change(5)))));
+    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeHot(5)))));
     let mut registered = false;
     for write in &writes {
         if let Write::Save(Record::Forge { row }) = write
-            && let forge::Stored::Change(row) = row.as_ref()
+            && let forge::Stored::ChangeHot(row) = row.as_ref()
         {
             registered |= row.task == context.task;
         }
@@ -282,11 +282,11 @@ fn the_129th_change_replaces_the_oldest_settled_panel_in_one_decision() {
     else {
         panic!("one root decision")
     };
-    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::Change(FIRST)))));
+    assert!(writes.contains(&Write::Erase(Key::Forge(forge::Key::ChangeHot(FIRST)))));
     let mut registered = false;
     for write in &writes {
         if let Write::Save(Record::Forge { row }) = write
-            && let forge::Stored::Change(row) = row.as_ref()
+            && let forge::Stored::ChangeHot(row) = row.as_ref()
         {
             registered |= row.task == context.task;
         }

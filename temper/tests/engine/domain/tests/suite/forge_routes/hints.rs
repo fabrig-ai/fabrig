@@ -16,9 +16,7 @@ fn hint(world: &mut World, change: Change) -> Vec<u64> {
 }
 
 fn reads_for(world: &World, task: u64) -> Vec<Op> {
-    let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(task)) else {
-        panic!("live change {task}")
-    };
+    let row = world.change(task);
     let base = translate::commit(world.branch(&row.base));
     let head = translate::commit(world.branch(&row.branch));
     vec![
@@ -204,16 +202,14 @@ fn subscribed_ci_and_unknown_change_facts_keep_their_wakes() {
         "only the subscriber wakes before unchanged head CI answers"
     );
 
-    let Some(forge::Stored::Change(mut row)) = world.stored().get(&forge::Key::Change(51)).cloned() else {
-        panic!("first live change")
-    };
+    let mut row = world.change(51).clone();
     row.task = 53;
     row.change.task = 53;
     row.branch = b"temper/not-yet-pushed".as_slice().into();
     row.pull = None;
     row.change.last_head = None;
     row.change.state = temper_engine_domain_forge_change::State::Producing { requested: false };
-    world.event(forge::Event::Change { row: *row });
+    world.event(forge::Event::Change { row });
     assert_eq!(hint(&mut world, Change::Item(2)), [52], "an unpushed change has no pull");
     assert_eq!(hint(&mut world, Change::Commit(head)), [51], "only the subscriber wakes; an unpushed change has no CI");
     assert_eq!(hint(&mut world, Change::Item(0)), [51, 52], "unnamed item concerns only changes with heads");
@@ -361,7 +357,7 @@ fn two_change_hint_request_profile() {
     let mut world = hint_world();
     let mut landing_requests = [0; 2];
     for (at, task) in [51, 52].into_iter().enumerate() {
-        let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(task)) else {
+        let Some(forge::Stored::ChangeHot(row)) = world.stored().get(&forge::Key::ChangeHot(task)) else {
             panic!("change {task}")
         };
         let gates = Box::new([change::GateReport {

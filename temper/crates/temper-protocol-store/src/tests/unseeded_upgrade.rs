@@ -101,7 +101,8 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     format.tasks = 12;
     format.levels =
         store::codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(5), application: Some(12) };
-    let change_key = crate::keys::encode(&temper_engine_domain_forge_vocabulary::Key::Change(1), 1024).unwrap();
+    // The smallest golden change names task zero.
+    let change_key = crate::keys::encode(&temper_engine_domain_forge_vocabulary::Key::Change(0), 1024).unwrap();
     let tagged_change = store::keys::application(&change_key, disk.limits().store.key).unwrap();
     let task_key = store::keys::encode(
         &jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Live(0)),
@@ -142,8 +143,14 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     while let Some(event) = events.pop_front() {
         match event {
             Event::Patched { of, patch, .. } => patched.push((of, patch)),
-            Event::Job { owner, job, page, .. } => events
-                .extend(disk.request(&mut current, Request::Job { owner, answer: store::jobs::page(&job, &page) })),
+            Event::Job { owner, of, job, page } => {
+                let answer = match of {
+                    store::Owner::Application => crate::jobs::page(&job, &page),
+                    store::Owner::Jig => store::jobs::page(&job, &page),
+                    store::Owner::Skein | store::Owner::Smith => panic!("no upstream jobs"),
+                };
+                events.extend(disk.request(&mut current, Request::Job { owner, answer }));
+            }
             Event::Opened { pending: true, .. } => opened = true,
             Event::Census { .. } | Event::Ran { .. } => {}
             other => panic!("upgrade: {other:?}; {:?}", current.start_open_failure()),
@@ -152,11 +159,15 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     assert!(opened);
     assert_eq!(patched, [(store::Owner::Application, 13), (store::Owner::Jig, 6), (store::Owner::Application, 14)]);
     let events = disk.request(&mut current, Request::Get { owner: Token::new(1), key: Get::Application(change_key) });
+    let [Event::Got { row: None, .. }] = events.as_slice() else { panic!("legacy change erased: {events:?}") };
+    let hot_key = crate::keys::encode(&temper_engine_domain_forge_vocabulary::Key::ChangeHot(0), 1024).unwrap();
+    let tagged_hot = store::keys::application(&hot_key, disk.limits().store.key).unwrap();
+    let events = disk.request(&mut current, Request::Get { owner: Token::new(1), key: Get::Application(hot_key) });
     let [Event::Got { row: Some(Row::Application { value, .. }), .. }] = events.as_slice() else {
         panic!("change: {events:?}")
     };
     let change = crate::v25::Row::decode(&crate::v25::CEILINGS, &mut Reader::new(value)).unwrap();
-    let crate::v25::Value::Change(change) = change.into_parts().value else { panic!("change row") };
+    let crate::v25::Value::ChangeHot(change) = change.into_parts().value else { panic!("change row") };
     assert_eq!(change.task_release(), &None);
     let events = disk.request(
         &mut current,
@@ -177,7 +188,7 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     disk.restart();
 
     let mut map = disk.map(2);
-    for (family, number, id, key) in [("temper-store", 12, 25, tagged_change), ("jig-store-tasks", 0, 13, task_key)] {
+    for (family, number, id, key) in [("temper-store", 48, 25, tagged_hot), ("jig-store-tasks", 0, 13, task_key)] {
         let bytes = kv_get(&mut disk, &mut map, layout_key(family, number, id)).unwrap();
         let layout =
             store::registry_v1::Layout::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();

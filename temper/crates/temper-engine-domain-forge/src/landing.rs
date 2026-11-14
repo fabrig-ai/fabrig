@@ -4051,10 +4051,7 @@ pub(crate) fn closing(
                 }
                 crate::change_history::advanced(d, env.wall, &mut changed, &prior, out);
                 d.changes.insert(member.change, changed.clone()).expect("retained member");
-                emit(
-                    out,
-                    Request::Save { record: Stored::Change(Box::new(changed)), release: None, read_afresh: None },
-                );
+                crate::domain::save_change_parts(d, out, changed);
                 emit(out, Request::WakeProcedure { task: member.change });
             }
         }
@@ -4078,7 +4075,8 @@ pub(crate) fn closing(
         remap_members(d, &mut row, &prior);
         let change = d.changes.get_mut(&task).expect("cancelled member");
         change.change.landing = None;
-        emit(out, Request::Save { record: Stored::Change(Box::new(change.clone())), release: None, read_afresh: None });
+        let changed = change.clone();
+        crate::domain::save_change_parts(d, out, changed);
         save(d, row, out);
         emit(out, Request::WakeProcedure { task: landing });
     }

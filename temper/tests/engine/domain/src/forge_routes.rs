@@ -2086,7 +2086,7 @@ impl World {
                     if let Some(reads) = &mut self.held_reads
                         && matches!(op, skein_forge::api::Op::Read(_))
                         && (self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
-                            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
+                            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
                                 if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))))
                     {
                         reads.push(engine::Request::Forge { call, repository, op });

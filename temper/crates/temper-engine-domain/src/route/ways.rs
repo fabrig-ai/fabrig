@@ -418,6 +418,8 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::Red { .. }
         | forge::Key::RedPass { .. }
         | forge::Key::RedNumber
+        | forge::Key::ChangeCold(_)
+        | forge::Key::ChangeHot(_)
         | forge::Key::HistoryProject { .. }
         | forge::Key::HistoryEvent { .. }
         | forge::Key::HistoryChange { .. }

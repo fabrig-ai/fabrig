@@ -126,6 +126,21 @@ impl jig_conformance::Durable for Store {
     }
 }
 impl Store {
+    /// Read a durable change as the whole record the domain keeps in memory.
+    #[must_use]
+    pub fn change(&self, task: u64) -> Option<temper_engine_domain_forge::ChangeRow> {
+        use temper_engine_domain_forge::{ChangeRow, Key, Stored};
+        let engine::Record::Forge { row: cold } = self.rows.get(&engine::Key::Forge(Key::ChangeCold(task)))? else {
+            return None;
+        };
+        let Stored::ChangeCold(cold) = cold.as_ref() else { return None };
+        let engine::Record::Forge { row: hot } = self.rows.get(&engine::Key::Forge(Key::ChangeHot(task)))? else {
+            return None;
+        };
+        let Stored::ChangeHot(hot) = hot.as_ref() else { return None };
+        Some(ChangeRow::join(*cold.clone(), *hot.clone()))
+    }
+
     #[must_use]
     pub fn new() -> Store {
         Self::with_limits(&widest())
@@ -305,8 +320,25 @@ impl Store {
             header = *saved;
         }
         header.commits = number;
-        let mut writes: Vec<_> =
-            saves.into_vec().into_iter().filter(|row| row.key() != header_key).map(Write::Save).collect();
+        let mut writes = Vec::new();
+        for row in saves {
+            if row.key() == header_key {
+                continue;
+            }
+            if let Record::Forge { row } = &row
+                && let temper_engine_domain_forge::Stored::Change(change) = row.as_ref()
+            {
+                let (cold, hot) = change.clone().split();
+                writes.push(Write::Save(Record::Forge {
+                    row: Box::new(temper_engine_domain_forge::Stored::ChangeCold(Box::new(cold))),
+                }));
+                writes.push(Write::Save(Record::Forge {
+                    row: Box::new(temper_engine_domain_forge::Stored::ChangeHot(Box::new(hot))),
+                }));
+            } else {
+                writes.push(Write::Save(row));
+            }
+        }
         writes.extend(erases.into_vec().into_iter().map(Write::Erase));
         writes.push(Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
             header,

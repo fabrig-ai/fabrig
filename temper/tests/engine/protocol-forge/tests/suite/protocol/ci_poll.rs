@@ -43,7 +43,7 @@ pub(super) fn pending_github_change(passes: u32) -> (Protocol, Wall, Wall, u64) 
 
 /// Register a discovered pull once, as the root does when saving its number.
 pub(super) fn name_pull(world: &mut Protocol) -> bool {
-    let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(51)) else { return false };
+    let Some(top::Stored::ChangeHot(row)) = world.stored().get(&top::Key::ChangeHot(51)) else { return false };
     let Some(number) = row.pull else { return false };
     world.event(top::Event::Rename {
         task: 51,
