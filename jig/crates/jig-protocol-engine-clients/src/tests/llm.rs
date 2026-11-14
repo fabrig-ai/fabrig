@@ -3,7 +3,7 @@ use super::fixtures;
 use crate::{Component, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{Queue, Reader, Writer};

@@ -154,7 +154,9 @@ simulator.md; a world run in a browser is ../playground.md.
   machine's, or a process's own panic, each fail-stop.
 - **The harness's verdicts are its run's:** a world that has not
   settled within its steps (a million), or that is idle,
-  unsettled, with nothing due, fails the test. A playground's
+  unsettled, with nothing due, fails the test: the harness's
+  `World::try_run*` return each as a finding, and its `run*` panic on it
+  (README.md, 5). A playground's
   loop takes neither as a failure: its world idles waiting for its
   visitor, and runs as long as the page does.
 

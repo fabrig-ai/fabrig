@@ -102,7 +102,7 @@ The table grows area by area, each with its stories (`testing.md`).
      `--dependency` alone may repeat.
 3. **Several parties:** `party make --project PROJECT --role ROLE --out
    FILE` (jig's `MakeService`, keyed; `README.md`, section 7), `sign-in --service
-   FILE`, `deployment show`, `task move TASK REASON`, a person task's
+   FILE`, `deployment show`, `deployment census` (`tools.md`, 2), `task move TASK REASON`, a person task's
    `task take`, `task hand-back` and `task answer TASK --rev REV`, and
    the project's own operations, `policy`, `role`, `pool` (jig's
    `domain/people/acts.md`, 2), past the spend per period that `project

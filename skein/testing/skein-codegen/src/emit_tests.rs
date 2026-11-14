@@ -279,7 +279,8 @@ fn tables(name: &str, cases: &[String], out: &mut String) {
             out.push_str(case);
         }
         out.push_str(&format!(
-            "    ];\n\n    #[test]\n    fn {name}_{index}() {{\n        table(&{item}_{index});\n    }}\n\n"
+            "    ];\n\n    #[test]\n    fn {name}_{index}() {{\n        let failures = table(&{item}_{index});\n        assert!(failures == [None; {}], \"{{failures:?}}\");\n    }}\n\n",
+            chunk.len()
         ));
     }
 }

@@ -881,7 +881,11 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, processes: &[Process]) {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the referee returns each refresh story's finding before advancing the scenario"
+    )]
+    fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let client = processes.iter().find_map(Process::client).expect("client");
         self.wake = ((client.component.is_none()
             && processes.iter().any(|process| process.issuer().is_some_and(|peer| peer.address().is_some())))
@@ -893,34 +897,86 @@ impl Referee<Process> for Judge {
             .flat_map(peer::Peer::observations)
             .filter(|event| matches!(event, peer::Observation::Post { .. }))
             .count();
-        assert!(posts <= if self.story == Story::Retry { 2 } else { 1 }, "bounded refresh attempts per generation");
+        if posts > if self.story == Story::Retry { 2 } else { 1 } {
+            return Err(String::from("bounded refresh attempts per generation"));
+        }
         if client.closed {
-            assert_eq!(client.facts.last(), Some(&Fact::Closed));
+            if client.facts.last() != Some(&Fact::Closed) {
+                return Err(format!(
+                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                    client.facts.last(),
+                    Some(&Fact::Closed)
+                ));
+            }
             match self.story {
                 Story::HandedIn => {
-                    assert_eq!(posts, 0);
-                    assert_eq!(client.facts, vec![Fact::Granted(0), Fact::Expiring, Fact::Granted(1), Fact::Closed]);
+                    if posts != 0 {
+                        return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", posts, 0));
+                    }
+                    if client.facts != vec![Fact::Granted(0), Fact::Expiring, Fact::Granted(1), Fact::Closed] {
+                        return Err(format!(
+                            "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                            client.facts,
+                            vec![Fact::Granted(0), Fact::Expiring, Fact::Granted(1), Fact::Closed]
+                        ));
+                    }
                 }
-                Story::SignInAgain => assert_eq!(posts, 1),
+                Story::SignInAgain => {
+                    if posts != 1 {
+                        return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", posts, 1));
+                    }
+                }
                 Story::Repeated => {
-                    assert!(client.facts.contains(&Fact::Failed(accounts::Failure::Expired)));
-                    assert_eq!(posts, 0);
+                    if !client.facts.contains(&Fact::Failed(accounts::Failure::Expired)) {
+                        return Err(String::from(
+                            "assertion failed: client.facts.contains(&Fact::Failed(accounts::Failure::Expired))",
+                        ));
+                    }
+                    if posts != 0 {
+                        return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", posts, 0));
+                    }
                 }
                 Story::Released => {
-                    assert_eq!(posts, 0);
-                    assert_eq!(client.facts, vec![Fact::Granted(0), Fact::Closed]);
+                    if posts != 0 {
+                        return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", posts, 0));
+                    }
+                    if client.facts != vec![Fact::Granted(0), Fact::Closed] {
+                        return Err(format!(
+                            "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                            client.facts,
+                            vec![Fact::Granted(0), Fact::Closed]
+                        ));
+                    }
                 }
-                Story::Abort => assert!(
-                    client.facts.contains(&Fact::Failed(accounts::Failure::Exchange(oauth::Failure::Cancelled)))
-                ),
+                Story::Abort => {
+                    if !client.facts.contains(&Fact::Failed(accounts::Failure::Exchange(oauth::Failure::Cancelled))) {
+                        return Err(String::from(
+                            "assertion failed: client.facts.contains(&Fact::Failed(accounts::Failure::Exchange(oauth::Failure::Cancelled)))",
+                        ));
+                    }
+                }
                 Story::NotKept => {
-                    assert_eq!(posts, 1);
-                    assert_eq!(client.facts, vec![Fact::Keep(1), Fact::Granted(0), Fact::Closed]);
+                    if posts != 1 {
+                        return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", posts, 1));
+                    }
+                    if client.facts != vec![Fact::Keep(1), Fact::Granted(0), Fact::Closed] {
+                        return Err(format!(
+                            "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                            client.facts,
+                            vec![Fact::Keep(1), Fact::Granted(0), Fact::Closed]
+                        ));
+                    }
                 }
                 Story::Retry => {
-                    assert_eq!(posts, 2);
-                    assert!(client.facts.contains(&Fact::Granted(1)), "owner facts: {:?}", client.facts);
-                    assert!(client.facts.contains(&Fact::Keep(1)));
+                    if posts != 2 {
+                        return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", posts, 2));
+                    }
+                    if !client.facts.contains(&Fact::Granted(1)) {
+                        return Err(format!("owner facts: {:?}", client.facts));
+                    }
+                    if !client.facts.contains(&Fact::Keep(1)) {
+                        return Err(String::from("assertion failed: client.facts.contains(&Fact::Keep(1))"));
+                    }
                 }
                 Story::Lead
                 | Story::Rejected
@@ -929,13 +985,20 @@ impl Referee<Process> for Judge {
                 | Story::CloseConnecting
                 | Story::CloseSending
                 | Story::CloseKeeping => {
-                    assert_eq!(posts, 1);
-                    assert!(client.facts.contains(&Fact::Granted(1)), "owner facts: {:?}", client.facts);
-                    assert!(client.facts.contains(&Fact::Keep(1)));
+                    if posts != 1 {
+                        return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", posts, 1));
+                    }
+                    if !client.facts.contains(&Fact::Granted(1)) {
+                        return Err(format!("owner facts: {:?}", client.facts));
+                    }
+                    if !client.facts.contains(&Fact::Keep(1)) {
+                        return Err(String::from("assertion failed: client.facts.contains(&Fact::Keep(1))"));
+                    }
                 }
             }
         }
         self.passed = self.shutdown && processes.iter().all(Host::is_empty);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake.or(self.deadline)

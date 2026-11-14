@@ -158,6 +158,8 @@ impl StoreHost {
     }
     fn answer(&mut self, event: Event) {
         match event {
+            // This fixture writer does not consume the census (jig protocol/store/README.md, 6.3).
+            Event::Census { .. } => {}
             Event::Opened { last, pending, .. } => {
                 self.last = last;
                 if pending {

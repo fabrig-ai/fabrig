@@ -245,6 +245,14 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Party(crate::PartyInput::StreamDelivered { watcher }) => {
             domain.work.push(Work::Core(core::Event::StreamDelivered { watcher }));
         }
+        Event::Store(crate::StoreInput::Census(census)) => {
+            if domain.start_runtime() {
+                domain.work.push(Work::Core(core::Event::Census(census)));
+            } else {
+                domain.startup_census = Some(census);
+                return;
+            }
+        }
         Event::Store(crate::StoreInput::Committed { number, fill }) => {
             crate::committed(&mut domain.journal, number);
             if domain.journal.stopped() {
@@ -739,6 +747,7 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
         | Event::Store(
             crate::StoreInput::MissingLink { .. }
             | crate::StoreInput::Switched
+            | crate::StoreInput::Census(..)
             | crate::StoreInput::Committed { .. }
             | crate::StoreInput::Uncommitted { .. }
             | crate::StoreInput::ReadLoaded { .. },

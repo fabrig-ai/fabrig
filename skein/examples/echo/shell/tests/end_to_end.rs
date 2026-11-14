@@ -108,7 +108,7 @@ impl Referee<Process> for Judge {
         }
     }
 
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         self.now = now;
         let Process::Echo(binary) = procs.first().expect("the binary observer") else { panic!("the binary observer") };
         for line in binary.stderr().split_inclusive(|byte| *byte == b'\n') {
@@ -116,18 +116,26 @@ impl Referee<Process> for Judge {
                 && let Some(address) = line.strip_prefix(b"skein-echo: listening at ")
             {
                 self.listening = Some(Addr::Ip(
-                    std::str::from_utf8(address).expect("printed address").trim().parse().expect("socket address"),
+                    std::str::from_utf8(address)
+                        .map_err(|_| String::from("printed address"))?
+                        .trim()
+                        .parse()
+                        .map_err(|_| String::from("socket address"))?,
                 ));
             }
         }
         if let Some(exit) = binary.exit_status() {
-            assert_eq!(
-                exit,
-                Exit::Code(0),
-                "echo startup/shutdown failed: {}",
-                String::from_utf8_lossy(binary.stderr())
-            );
-            assert!(self.signalled, "the echo stays alive until the referee's termination signal");
+            if exit != Exit::Code(0) {
+                return Err(format!(
+                    "assertion `left == right` failed: echo startup/shutdown failed: {}\n  left: {:?}\n right: {:?}",
+                    String::from_utf8_lossy(binary.stderr()),
+                    exit,
+                    Exit::Code(0)
+                ));
+            }
+            if !self.signalled {
+                return Err(String::from("the echo stays alive until the referee's termination signal"));
+            }
             self.exit = Some(exit);
         }
         let mut done = true;
@@ -136,9 +144,14 @@ impl Referee<Process> for Judge {
             let Process::Client(client) = process else { panic!("a fake client") };
             let client = &client.client;
             let seen = client.seen(0);
-            assert_eq!(seen.broken, 0, "loopback did not break");
-            if seen.done.is_some() {
-                assert!(seen.complete, "every line was answered before the fake ended");
+            if seen.broken != 0 {
+                return Err(format!(
+                    "assertion `left == right` failed: loopback did not break\n  left: {:?}\n right: {:?}",
+                    seen.broken, 0
+                ));
+            }
+            if seen.done.is_some() && !seen.complete {
+                return Err(String::from("every line was answered before the fake ended"));
             }
             done &= seen.done.is_some();
             ready &= seen.complete;
@@ -150,6 +163,7 @@ impl Referee<Process> for Judge {
         } else {
             Clients::Waiting
         };
+        Ok(())
     }
 
     fn next_deadline(&self) -> Option<Time> {

@@ -183,7 +183,8 @@ fn each_page_bound_keeps_its_value_at_the_client_limits() {
     // Added-dependency words and provenance, circle chips and their fallbacks
     // enlarge the shared chip envelope and the standalone owner metadata.
     // Pin the resulting page totals so that later bound changes stay visible.
-    const DEPLOYMENT_NODES: u32 = 10_937;
+    // The census adds 129 rows of eight heads and four enclosing nodes.
+    const DEPLOYMENT_NODES: u32 = 15_198;
     assert_eq!(
         [
             crate::inbox_nodes(&CLIENT, &(CLIENT).client, 0),

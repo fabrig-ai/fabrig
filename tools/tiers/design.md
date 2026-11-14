@@ -876,8 +876,8 @@ only processes have it (section 11). In a one-process run:
 - `failures` names each failed and crashed test; `unobserved` each test the
   run never reached, `attempt` 1; `warnings` holds each `may depend on an
   earlier test` label, each leaked process and each unobserved test;
-- a process's `kind` is `"tests"`, `"fresh"` (after a crash) or `"alone"`
-  (a diagnostic), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
+- a process's `kind` is `"tests"`, `"fresh"` (after a process that ended
+  before its names did, 11.6) or `"alone"` (a diagnostic), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
   process's CPU is in the suite's: every process with a record is counted.
   A forced kill can leave a started process without a record; its CPU is
   unknown and excluded, so the sum is a lower bound (11.7).
@@ -1111,10 +1111,12 @@ What nextest gives a test today, resolved per binary from the listing and
   base output directories, the listing's `linked-paths` and the host's
   `libdir`, then the inherited value;
 - `NEXTEST_PROFILE`, the profile, which tests read for a profile's patience;
-  never `NEXTEST` itself, by which a starved pass would exit the process
-  (`skein/docs/design/testing/README.md`, 5);
-- `TIERS_ONE_PROCESS=1`, the mode's own: under it a starved pass ends only its
-  test.
+  never `NEXTEST` itself, which says that nextest runs the test;
+- `TIERS_ONE_PROCESS=1`, the mode's own: under it a starved pass passes as
+  under `NEXTEST`, ending its process with exit 0 after its line, so that
+  nothing follows it and nothing unwinds
+  (`skein/docs/design/testing/README.md`, 5), and the lanes start a fresh
+  process for the names it had left (11.6).
 
 ### 11.6 A test's outcome
 
@@ -1122,23 +1124,23 @@ Libtest announces each test on the output pipe (`test NAME ... `) before it
 runs, with one thread, and writes its result to the log pipe as it ends
 (`ok NAME`, `failed NAME`). A test's output is what the process wrote between
 its announcement and its result word; its wall time runs from its
-announcement's arrival to its result's. Its outcome is one of:
+announcement's arrival to its result's. A test with no result has the output
+since its announcement, and its wall time ends where its process was reaped.
+Its outcome is one of:
 
-- **passed:** `ok`, not starved;
-- **starved:** the last line of its output, the result word aside, begins with
-  `skein-world: starved:`, whatever libtest's result: a starved pass unwound
-  (`skein/docs/design/testing/README.md`, 5). A warning, never failed and never
-  passed. Output after the line leaves the test as libtest reported it;
-- **failed:** `failed`, not starved;
+- **passed:** `ok`;
+- **failed:** `failed`;
+- **starved:** the process ended with exit status 0 and no result for the
+  test it had announced, and the last line of that test's output begins with
+  `skein-world: starved:`: a starved pass ended its process after its line
+  (`skein/docs/design/testing/README.md`, 5). A warning, never failed and
+  never passed. A test with a result keeps libtest's word, whatever its output
+  ends with, so that a failure stays red: a panic after the line is the
+  failure libtest reports;
 - **crashed:** the process ended with no result for the test it had
-  announced. The test fails, with the process's exit status or signal and its
-  output since the announcement, and a **fresh** process starts on the tests
-  of that process not yet announced. A process that ended before announcing any
-  test fails all its tests so, and none starts again: the binary does not run.
-  A process that ends otherwise than libtest ends (0 with every test passed,
-  101 with one failed) after reporting every test fails the last test it ran,
-  with its status. A name libtest never announced in a process that ended as
-  libtest ends fails as not run by its binary;
+  announced, and not as a starved pass ends: any other exit status or a
+  signal, or 0 without the line last. The test fails, with the process's
+  exit status or signal and its output since the announcement;
 - **cancelled:** running when its process was marked cancelled (11.7),
   whatever libtest reports after: a result read after the mark counts for
   nothing, and a test announced after it is unobserved. A known timeout
@@ -1146,6 +1148,17 @@ announcement's arrival to its result's. Its outcome is one of:
   tests are (7.3).
 
 A test the run never reached is **unobserved**, never passed.
+
+**A process that ends before its names do,** its running test starved or
+crashed, leaves them to a **fresh** process: one starts on the tests of that
+process not yet announced, outside the cancellation (11.7). A process that
+ended before announcing any test fails all its tests as crashed, and none
+starts again: the binary does not run. A process whose running test starved
+ended as a starved pass ends, with 0, whatever its earlier tests reported. A
+process that ends otherwise than libtest ends (0 with every test passed, 101
+with one failed) after reporting every test fails the last test it ran, with
+its status. A name libtest never announced in a process that ended as libtest
+ends fails as not run by its binary.
 
 **A failure stays red.** Each failed or crashed test that had others run
 before it in its process runs once more **alone**, in a fresh process, as a
@@ -1278,7 +1291,10 @@ the listing and `cargo metadata` for them, over a fixture checkout's
 `.config/nextest.toml`. Its fixtures cover a crash and the fresh process after
 it, a hang past the global timeout with processes still waiting, a test that
 handles `SIGTERM` and reports a result, one that ignores it until the forced
-kill, a starved pass, a failure that passes alone and one that fails alone, a
+kill, a starved pass that ends its process and the fresh process after it,
+one that ends its process last after an earlier failure, a starved line
+followed by a panic or by another exit status, a failure that passes alone
+and one that fails alone, a
 split binary, test groups and priorities, the environment, the refusals, the
 caller's filters and configuration, and the run directory's files. A fake
 hold among them records when it starts and when its stdin ends, beside the

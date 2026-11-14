@@ -300,8 +300,9 @@ impl Host for Driver {
 
 struct Settled(bool);
 impl Referee<Driver> for Settled {
-    fn observe(&mut self, _now: Time, procs: &[Driver]) {
+    fn watch(&mut self, _now: Time, procs: &[Driver]) -> Result<(), String> {
         self.0 = procs.iter().all(Host::is_empty);
+        Ok(())
     }
     fn passed(&self) -> bool {
         self.0

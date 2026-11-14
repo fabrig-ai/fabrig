@@ -328,7 +328,11 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, processes: &[Process]) {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the referee returns each owner and peer finding before advancing the scenario"
+    )]
+    fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let mut completed = 0;
         let mut client_closed = false;
         let mut queries = 0;
@@ -340,18 +344,36 @@ impl Referee<Process> for Judge {
                     if client.closed
                         && let Some(at) = self.release_at
                     {
-                        assert!(client.first_delta.expect("first piece reached the owner") < at);
-                        assert!(client.completion_time.expect("released call completed") > at);
+                        if client.first_delta.ok_or("first piece reached the owner")? >= at {
+                            return Err(String::from(
+                                "assertion failed: client.first_delta.expect(\"first piece reached the owner\") < at",
+                            ));
+                        }
+                        if client.completion_time.ok_or("released call completed")? <= at {
+                            return Err(String::from(
+                                "assertion failed: client.completion_time.expect(\"released call completed\") > at",
+                            ));
+                        }
                     }
                     for event in &client.received {
                         if let Event::Completed { completion, .. } = event {
-                            assert_eq!(completion.content.len(), 1, "one literal scripted block");
+                            if completion.content.len() != 1 {
+                                return Err(format!(
+                                    "assertion `left == right` failed: one literal scripted block\n  left: {:?}\n right: {:?}",
+                                    completion.content.len(),
+                                    1
+                                ));
+                            }
                             match &completion.content[0] {
-                                skein_llm::Block::Text { text, .. } => assert_eq!(
-                                    text.as_ref(),
-                                    self.answer,
-                                    "the client's actual terminal is the literal script"
-                                ),
+                                skein_llm::Block::Text { text, .. } => {
+                                    if text.as_ref() != self.answer {
+                                        return Err(format!(
+                                            "assertion `left == right` failed: the client's actual terminal is the literal script\n  left: {:?}\n right: {:?}",
+                                            text.as_ref(),
+                                            self.answer
+                                        ));
+                                    }
+                                }
                                 block @ (skein_llm::Block::Refusal { .. }
                                 | skein_llm::Block::ToolCall { .. }
                                 | skein_llm::Block::ToolResult { .. }
@@ -359,7 +381,7 @@ impl Referee<Process> for Judge {
                                 | skein_llm::Block::Oversize { .. }
                                 | skein_llm::Block::Cut { .. }
                                 | skein_llm::Block::Dropped { .. }) => {
-                                    panic!("expected scripted text, got {block:?}")
+                                    return Err(format!("expected scripted text, got {block:?}"));
                                 }
                             }
                             completed += 1;
@@ -370,48 +392,96 @@ impl Referee<Process> for Judge {
                     for observation in held.peer.observations() {
                         match observation {
                             llm::Observation::Query { connection, query } => {
-                                assert_eq!(query.system.as_ref(), CUE);
+                                if query.system.as_ref() != CUE {
+                                    return Err(format!(
+                                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                                        query.system.as_ref(),
+                                        CUE
+                                    ));
+                                }
                                 self.query_times.entry(*connection).or_insert(now);
                                 if self.input > 0 {
-                                    assert_eq!(query.messages.len(), 1);
-                                    assert_eq!(query.messages[0].parts.len(), 1);
+                                    if query.messages.len() != 1 {
+                                        return Err(format!(
+                                            "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                                            query.messages.len(),
+                                            1
+                                        ));
+                                    }
+                                    if query.messages[0].parts.len() != 1 {
+                                        return Err(format!(
+                                            "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                                            query.messages[0].parts.len(),
+                                            1
+                                        ));
+                                    }
                                     match &query.messages[0].parts[0] {
                                         api::Part::Text { text } => {
-                                            assert_eq!(text.len(), self.input);
-                                            assert!(text.iter().all(|byte| *byte == b'x'));
+                                            if text.len() != self.input {
+                                                return Err(format!(
+                                                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                                                    text.len(),
+                                                    self.input
+                                                ));
+                                            }
+                                            if !text.iter().all(|byte| *byte == b'x') {
+                                                return Err(String::from(
+                                                    "assertion failed: text.iter().all(|byte| *byte == b'x')",
+                                                ));
+                                            }
                                         }
                                         part @ (api::Part::Opaque { .. }
                                         | api::Part::ToolCall { .. }
                                         | api::Part::ToolOutput { .. }) => {
-                                            panic!("expected literal user text, got {part:?}")
+                                            return Err(format!("expected literal user text, got {part:?}"));
                                         }
                                     }
                                 }
                                 queries += 1;
                             }
                             llm::Observation::Answered { connection, result } => {
-                                assert_eq!(*result, Ok(()));
-                                let started = self.query_times[&connection.expect("live call route")];
-                                assert!(
-                                    now >= started.checked_add(Duration::from_millis(5)).expect("bounded script delay"),
-                                    "batching must not shortcut the actual script latency"
-                                );
+                                if *result != Ok(()) {
+                                    return Err(format!(
+                                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                                        *result,
+                                        Ok::<(), api::Error>(())
+                                    ));
+                                }
+                                let connection = connection.ok_or("live call route")?;
+                                let started = self.query_times[&connection];
+                                if now < started.checked_add(Duration::from_millis(5)).expect("bounded script delay") {
+                                    return Err(String::from("batching must not shortcut the actual script latency"));
+                                }
                                 answers += 1;
                             }
                             llm::Observation::Head { headers, .. } => {
-                                assert!(
-                                    headers.iter().any(|field| field.is(b"content-type")
-                                        && field.value.as_ref() == b"application/json")
-                                );
-                                assert!(!headers.iter().any(|field| field.is(b"authorization")
-                                    || field.is(b"x-api-key")
-                                    || field.is(b"chatgpt-account-id")));
+                                if !(headers.iter().any(|field| {
+                                    field.is(b"content-type") && field.value.as_ref() == b"application/json"
+                                })) {
+                                    return Err(String::from(
+                                        "assertion failed: headers.iter().any(|field| field.is(b\"content-type\") && field.value.as_ref() == b\"application/json\")",
+                                    ));
+                                }
+                                if headers.iter().any(|field| {
+                                    field.is(b"authorization")
+                                        || field.is(b"x-api-key")
+                                        || field.is(b"chatgpt-account-id")
+                                }) {
+                                    return Err(String::from(
+                                        "assertion failed: !headers.iter().any(|field| field.is(b\"authorization\") || field.is(b\"x-api-key\") || field.is(b\"chatgpt-account-id\"))",
+                                    ));
+                                }
                             }
                             llm::Observation::Credential { route, scheme, index, .. } => {
-                                assert_eq!(
-                                    (*route, *scheme, *index),
-                                    (skein_llm::Provider::OpenAi, Some(skein_llm::Scheme::Bearer), Some(0))
-                                );
+                                if (*route, *scheme, *index)
+                                    != (skein_llm::Provider::OpenAi, Some(skein_llm::Scheme::Bearer), Some(0))
+                                {
+                                    return Err(format!(
+                                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                                        (*route, *scheme, *index),
+                                        (skein_llm::Provider::OpenAi, Some(skein_llm::Scheme::Bearer), Some(0))
+                                    ));
+                                }
                             }
                             llm::Observation::Accepted { .. }
                             | llm::Observation::List { .. }
@@ -421,11 +491,11 @@ impl Referee<Process> for Judge {
                 }
             }
         }
-        assert!(
-            completed <= self.calls && queries <= self.calls && answers <= self.calls,
-            "unique calls and terminals"
-        );
+        if completed > self.calls || queries > self.calls || answers > self.calls {
+            return Err(String::from("unique calls and terminals"));
+        }
         self.passed = client_closed && completed == self.calls && queries == self.calls && answers == self.calls;
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if !self.activated || (self.passed && !self.teardown_started) {
@@ -648,5 +718,36 @@ pub fn assert_replay(first: &Outcome<Process>, second: &Outcome<Process>) {
                 panic!("process order replays")
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn watch_returns_a_completion_before_its_release() {
+        let mut judge = Judge {
+            activated: true,
+            calls: 1,
+            answer: Vec::new(),
+            passed: false,
+            teardown_started: false,
+            query_times: std::collections::BTreeMap::new(),
+            input: 0,
+            release_at: Some(Time::from_nanos(3)),
+        };
+        let mut client = Client::new(Transport::Plaintext, 1, 0);
+        client.closed = true;
+        client.first_delta = Some(Time::from_nanos(1));
+        client.completion_time = Some(Time::from_nanos(2));
+        let mut procs = [Process::Client(Box::new(client))];
+        assert_eq!(
+            judge.watch(Time::from_nanos(4), &procs),
+            Err(String::from("assertion failed: client.completion_time.expect(\"released call completed\") > at"))
+        );
+        let Process::Client(client) = &mut procs[0] else { unreachable!("the client fixture") };
+        client.completion_time = Some(Time::from_nanos(4));
+        assert_eq!(judge.watch(Time::from_nanos(4), &procs), Ok(()));
     }
 }

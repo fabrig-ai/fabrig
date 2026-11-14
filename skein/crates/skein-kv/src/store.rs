@@ -12,11 +12,11 @@ use skein_io::file;
 use skein_io::kernel::{Error, Fd};
 use skein_lib::{Env, Queue, Token, usize_of};
 
-use crate::Limits;
 use crate::boundary::{Event, Failure, Op, Page, Range, Refusal, Request};
 use crate::frame;
 use crate::map::{KvMap, Queued};
 use crate::snapshot;
+use crate::{Census, CensusRule, Limits};
 
 mod compaction;
 
@@ -99,6 +99,7 @@ pub struct Store {
     repair: Repair,
     last: u64,
     map: KvMap,
+    rule: Option<Box<CensusRule>>,
     queue: Queue<Pending>,
     queued_bytes: u64,
     admitted: Queued,
@@ -222,6 +223,7 @@ impl Store {
             repair: Repair::Clean,
             last: 0,
             map: KvMap::new(limits),
+            rule: None,
             queue: Queue::with_capacity(limits.queued),
             queued_bytes: 0,
             admitted: Queued::new(),
@@ -239,6 +241,18 @@ impl Store {
         let mut store = Store::new(limits);
         store.state = State::Memory;
         store
+    }
+
+    /// Enable the census before opening, or before the first in-memory commit
+    /// (skein/docs/design/data/kv.md, 2.2). Prefix lengths are clamped to `1..=CENSUS_PREFIX`.
+    pub fn count(&mut self, rule: CensusRule) {
+        assert!(self.last == 0 && self.map.len() == 0, "counting starts before the map is loaded");
+        self.rule = Some(Box::new(rule));
+    }
+
+    #[must_use]
+    pub fn census(&self) -> &Census {
+        &self.map.census
     }
 
     #[must_use]
@@ -378,6 +392,7 @@ impl Store {
                 snapshot::Part::NeedMore => break,
                 snapshot::Part::Start { start } => {
                     self.last = start.checked_sub(1).expect("the checked snapshot starts past zero");
+                    self.map.census.restart(start);
                 }
                 snapshot::Part::Rows { rows } => {
                     for row in rows {
@@ -385,7 +400,7 @@ impl Store {
                         let Ok(used) = self.map.check(core::slice::from_ref(&op), limits) else {
                             return Err(Failure::Full);
                         };
-                        self.map.apply(core::slice::from_ref(&op), used);
+                        self.map.apply(core::slice::from_ref(&op), used, self.rule.as_deref(), false);
                     }
                 }
                 snapshot::Part::End => {}
@@ -427,7 +442,7 @@ impl Store {
             let Ok(used) = self.map.check(&decoded.ops, limits) else {
                 return Err(Failure::Full);
             };
-            self.map.apply(&decoded.ops, used);
+            self.map.apply(&decoded.ops, used, self.rule.as_deref(), true);
             self.last = decoded.number;
             dir.log_bytes = dir.log_bytes.checked_add(skein_lib::len_u64(length)).expect("log bytes fit u64");
             at = end;
@@ -723,7 +738,7 @@ fn commit_memory(store: &mut Store, limits: &Limits, owner: Token, ops: Box<[Op]
     }
     match store.map.check(&ops, limits) {
         Ok(used) => {
-            store.map.apply(&ops, used);
+            store.map.apply(&ops, used, store.rule.as_deref(), true);
             store.last = number;
             above.push(Event::Committed { owner, number });
         }
@@ -1017,7 +1032,7 @@ fn segment_created(mut dir: Dir, name: Box<[u8]>, file: Token, below: &mut Queue
 }
 
 fn segment_announced(store: &mut Store, mut dir: Dir, file: Token, step: &mut Step<'_>) -> State {
-    dir.compaction = dir.compaction.announced(&mut dir.log_bytes);
+    dir.compaction = dir.compaction.announced(&mut dir.log_bytes, &mut store.map.census);
     match store.repair {
         Repair::Clean => announce_recovered(&mut dir, store.last, step.above),
         Repair::Required => {}
@@ -1041,7 +1056,7 @@ fn batch_synced(
     for _ in 0..batch.len() {
         let pending = batch.pop().expect("the batch has its initial length");
         let used = store.map.check(&pending.ops, &step.env.limits).expect("a queued commit passed admission");
-        store.map.apply(&pending.ops, used);
+        store.map.apply(&pending.ops, used, store.rule.as_deref(), true);
         store.admitted.applied(&pending.ops, pending.number);
         store.last = pending.number;
         bytes = bytes.checked_add(skein_lib::len_u64(pending.frame.len())).expect("batch size fits u64");

@@ -1,6 +1,6 @@
 use super::fixtures::{self, Client, STOP, TASK};
 use crate::*;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{Duration, Reader, Time, Writer};
 
 fn starting() -> Client {

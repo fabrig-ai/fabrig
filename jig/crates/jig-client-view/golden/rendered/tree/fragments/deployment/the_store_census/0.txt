@@ -1,0 +1,60 @@
+== jig == 
+Deployment owner facts:
+  Store map bytes: 0
+  Store high-water mark in bytes: 0
+  Store census:
+    Counted to commit: 680058
+    Writes since commit: 679000
+    Keyspaces:
+      - `tasks.milestones`
+        Rows: 993441
+        Keys bytes: 19868820
+        Values bytes: 39737640
+        Heads:
+          - Head: 12
+            Rows: 993441
+        Puts: 120
+        Erases: 0
+        Written bytes: 6480
+      - `02 ff`
+        Rows: 3
+        Keys bytes: 6
+        Values bytes: 9
+        Heads:
+          - Head: none
+            Rows: 3
+        Puts: 5
+        Erases: 2
+        Written bytes: 15
+  Hosts:
+    Hosts forgotten: 18446744073709551615
+  Tracked attempts:
+  LLM accounts:
+    LLM provider offers
+    Maximum key bytes 256
+  Resource capacities:
+    Tasks Capacity:
+      Used: 0
+      Limit: 4294967295
+    Workers Capacity:
+      Used: 4294967295
+      Limit: 1
+    Attempts Capacity:
+      Used: 7
+      Limit: 11
+    Proposals Capacity:
+      Used: 3
+      Limit: 17
+    Waiting attempts: 19
+    Deployment grace bound: 18446744073709551615
+  Project capacities:
+  Refused hellos:
+  Hellos forgotten: 1
+  Person room refusals:
+  Person refusals forgotten: 2
+  Person answer retention: 5
+  Task room refusals:
+  Task refusals forgotten: 3
+  Configured connectors:
+    No configured connectors
+  Some rows were omitted

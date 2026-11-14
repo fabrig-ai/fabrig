@@ -27,8 +27,10 @@ counted around each reused pass, never by an address.
   `std::panic::resume_unwind` and the payload `StarvedPass`, so that the
   process goes on to its next test, where they would end it with exit 0
   after the line, and the one-process runner starts no new process for
-  the names left (`tools/tiers/design.md`, 11.5 and 11.6, lag likewise);
+  the names left (`tools/tiers/design.md`, 11.5 and 11.6); skein-world's
+  tests of the starved pass and of a starved referee's teardown catch it;
   milestone P6 of `temper/docs/design/draft/panics.execution.md`.
+  [in flight: change 2711]
   5: two step tests show a table kept by its address, not by the span's
   count, and their binaries declare no counting allocator: skein-lib's
   `removing_a_list_item_moves_the_last_and_keeps_capacity`, a list
@@ -44,12 +46,14 @@ counted around each reused pass, never by an address.
   and `supervise-grandchild` descendants spinning. [in flight: change 1551]
   5: no fixture outlives its test: an unwinding test's walk can leave a
   descendant running, unreported. [in flight: change 1552]
-  6: `skein_rows::check` runs each row under `catch_unwind`, runs on past
-  a failing row and panics afterwards at its caller's line naming each
-  that failed, and names no row before it runs; `skein_rows::panics`
-  remains, with skein-rows' tests of it, of every row running after a
-  failure, of each failing row named and of a malformed table;
-  milestone P3 of `temper/docs/design/draft/panics.execution.md`.
+  5: a binary's expected end and the tree keeper fail the test where
+  they find a process still running or a cgroup's removal error, not as
+  values the real loop and the kit's teardown read, and
+  `skein/tests/world`'s end-to-end judges implement `observe`.
+  [in flight: change 2752]
+  5: the referees of the echo, llm-connection, oauth-accounts,
+  playground, protocol and tls worlds implement `observe`, not `watch`.
+  [in flight: change 2755]
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: the focused cost repairs' at-least-6 CPU s saving is unproved.

@@ -74,6 +74,37 @@ fn a_owner_deployment_keeps_every_supplied_field() {
     assert_eq!(documents::deployment(fixtures::deployment_record(), &fixtures::limits()), Ok(fixtures::deployment()));
 }
 
+#[test]
+fn a_deployment_census_keeps_its_independent_bounds_and_absence() {
+    for census in [None, Some(jig_client_test_records::bounded_store_census_record())] {
+        let mut parts = fixtures::deployment_record().into_parts();
+        parts.census = census.clone();
+        let record = w::Deployment::new(&w::CEILINGS, parts).unwrap();
+        let limits = fixtures::limits_for_document(65_536);
+        let client = documents::deployment(record, &limits).unwrap();
+        match (census, client.census) {
+            (None, None) => (),
+            (Some(wire), Some(actual)) => {
+                assert_eq!((actual.commit, actual.since), (wire.commit(), wire.since()));
+                assert_eq!(actual.keyspaces.len(), 129);
+                for (actual, wire) in actual.keyspaces.iter().zip(wire.keyspaces().iter()) {
+                    assert_eq!(actual.prefix.as_ref(), wire.prefix());
+                    assert_eq!(actual.name.as_bytes(), wire.name());
+                    assert_eq!(
+                        (actual.rows, actual.keys, actual.values, actual.puts, actual.erases, actual.written),
+                        (wire.rows(), wire.keys(), wire.values(), wire.puts(), wire.erases(), wire.written())
+                    );
+                    assert_eq!(actual.heads.len(), 8);
+                    for (actual, wire) in actual.heads.iter().zip(wire.heads().iter()) {
+                        assert_eq!((actual.head, actual.rows), (*wire.head(), wire.rows()));
+                    }
+                }
+            }
+            _ => panic!("census presence preserved"),
+        }
+    }
+}
+
 fn a_owner_project_keeps_every_supplied_field() {
     assert_eq!(documents::project(fixtures::project_record(), &fixtures::limits()), Ok(fixtures::project()));
 }

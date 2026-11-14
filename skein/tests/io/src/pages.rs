@@ -177,7 +177,9 @@ impl Machine for FileSystem {
 #[derive(Debug)]
 pub struct Judge;
 impl Referee<Owner> for Judge {
-    fn observe(&mut self, _now: Time, _procs: &[Owner]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Owner]) -> Result<(), String> {
+        Ok(())
+    }
     fn passed(&self) -> bool {
         true
     }

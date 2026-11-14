@@ -16,14 +16,24 @@ impl<P: Host, M: Machine, H: crate::Meter> World<P, M, H> {
         appends: Vec<StartupAppend>,
         make: fn(&Inherited) -> P,
     ) -> usize {
+        self.try_spawn_restartable_startup(roots, appends, make).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// Adds a restartable process, closing opened startup handles on refusal.
+    pub fn try_spawn_restartable_startup(
+        &mut self,
+        roots: Vec<StartupRoot>,
+        appends: Vec<StartupAppend>,
+        make: fn(&Inherited) -> P,
+    ) -> Result<usize, String> {
         crate::program::check_roots(&roots);
         crate::program::check_appends(&appends);
         let pid = self.sim.spawn_process();
-        let inherited = self.restart_inherited(pid, &roots, &appends);
+        let inherited = self.try_restart_inherited(pid, &roots, &appends)?;
         self.signals.insert(self.next_host, (pid, inherited.signal));
         let at = self.admit(pid, None, || make(&inherited));
         *self.restart.get_mut(at).expect("a slot per process") = Some(Restart { roots, appends, make });
-        at
+        Ok(at)
     }
 
     pub(super) fn restart_inherited(
@@ -32,12 +42,21 @@ impl<P: Host, M: Machine, H: crate::Meter> World<P, M, H> {
         roots: &[StartupRoot],
         appends: &[StartupAppend],
     ) -> Inherited {
-        let prepared = self.open_startup(roots, appends).unwrap_or_else(|(what, error)| {
-            crate::fail(&format!("a restartable {what} opens: {error:?}"));
-        });
+        self.try_restart_inherited(pid, roots, appends).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    fn try_restart_inherited(
+        &mut self,
+        pid: Pid,
+        roots: &[StartupRoot],
+        appends: &[StartupAppend],
+    ) -> Result<Inherited, String> {
+        let prepared = self
+            .open_startup(roots, appends)
+            .map_err(|(what, error)| format!("a restartable {what} opens: {error:?}"))?;
         let roots = prepared.roots.into_iter().map(|(name, handle)| (name, self.sim.root(pid, handle))).collect();
         let appends = prepared.appends.into_iter().map(|(name, handle)| (name, self.sim.append(pid, handle))).collect();
-        Inherited { roots, pipes: Vec::new(), appends, signal: self.sim.open_signal_source(pid) }
+        Ok(Inherited { roots, pipes: Vec::new(), appends, signal: self.sim.open_signal_source(pid) })
     }
 
     pub(super) fn open_startup(

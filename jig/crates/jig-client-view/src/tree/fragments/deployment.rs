@@ -596,11 +596,59 @@ fn render_accounts(
     }
     b.close();
 }
+fn census(b: &mut Builder, words: &Words, value: &jig_client::contract::StoreCensus) {
+    region(b, words, P::Census, &[], None);
+    field_number(b, words, P::CensusCommit, value.commit);
+    field_number(b, words, P::CensusSince, value.since);
+    list(b, words, P::CensusKeyspaces);
+    for row in &value.keyspaces {
+        b.open(Role::Item);
+        if row.name.is_empty() {
+            let mut hex = skein_lib::List::with_capacity(24);
+            let digits = b"0123456789abcdef";
+            for byte in &row.prefix {
+                if !hex.is_empty() {
+                    hex.push(b' ').expect("bounded prefix");
+                }
+                hex.push(*digits.get(usize::from(byte / 16)).expect("high nibble")).expect("bounded prefix");
+                hex.push(*digits.get(usize::from(byte % 16)).expect("low nibble")).expect("bounded prefix");
+            }
+            b.text(Run::Code, hex.as_slice());
+        } else {
+            b.text(Run::Code, row.name.as_bytes());
+        }
+        field_number(b, words, P::CensusRows, row.rows);
+        field_number(b, words, P::CensusKeys, row.keys);
+        field_number(b, words, P::CensusValues, row.values);
+        list(b, words, P::CensusHeads);
+        for head in &row.heads {
+            b.open(Role::Item);
+            match head.head {
+                Some(head) => field_number(b, words, P::CensusHead, u64::from(head)),
+                None => text(b, words, P::CensusHeadNone, &[]),
+            }
+            field_number(b, words, P::CensusRows, head.rows);
+            b.close();
+        }
+        b.close();
+        field_number(b, words, P::CensusPuts, row.puts);
+        field_number(b, words, P::CensusErases, row.erases);
+        field_number(b, words, P::CensusWritten, row.written);
+        b.close();
+    }
+    b.close();
+    b.close();
+}
+
 /// Render every supplied deployment scalar and ordered row without decoding keys or deriving authority.
+#[expect(clippy::too_many_lines, reason = "the deployment orders its independent supplied sections together")]
 pub fn render(b: &mut Builder, client: &Borrowed<'_>, value: &Deployment, words: &Words, bindings: &mut JigBindings) {
     region(b, words, P::Deployment, &[], None);
     field_number(b, words, P::StoreBytes, value.store.bytes);
     field_number(b, words, P::StoreMark, value.store.mark);
+    if let Some(value) = &value.census {
+        census(b, words, value);
+    }
     region(b, words, P::Hosts, &[], None);
     b.region(crate::regions::JigRegion::Hosts.region());
     render_hosts(b, client, value, words, bindings);
@@ -715,7 +763,14 @@ pub fn max_nodes(l: &Config, client: &jig_client::DomainLimits) -> Option<u32> {
         .checked_add(client.accounts.sources.checked_mul(13)?)?
         .checked_add(68)?
         .checked_mul(client.accounts.accounts)?;
+    let census = u32::try_from(jig_client::contract::CENSUS_HEADS)
+        .ok()?
+        .checked_mul(3)?
+        .checked_add(9)?
+        .checked_mul(u32::try_from(jig_client::contract::CENSUS_ROWS).ok()?)?
+        .checked_add(4)?;
     hosts
+        .checked_add(census)?
         .checked_add(attempts)?
         .checked_add(accounts)?
         .checked_add(crate::tree::fragments::account_catalogue::max_nodes(l, client)?)?

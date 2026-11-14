@@ -238,22 +238,33 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, processes: &[Process]) {
+    fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         self.now = now;
         for process in processes {
             if let Process::Peer(peer) = process {
                 for observation in peer.observations() {
                     if let llm::Observation::Query { query, .. } = observation {
-                        assert_eq!(query.messages.len(), 1);
-                        assert_eq!(
-                            query.messages[0].parts.as_ref(),
-                            [api::Part::Text { text: self.text.clone() }].as_slice()
-                        );
+                        if query.messages.len() != 1 {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                                query.messages.len(),
+                                1
+                            ));
+                        }
+                        if query.messages[0].parts.as_ref() != [api::Part::Text { text: self.text.clone() }].as_slice()
+                        {
+                            return Err(format!(
+                                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                                query.messages[0].parts.as_ref(),
+                                [api::Part::Text { text: self.text.clone() }].as_slice()
+                            ));
+                        }
                         self.queried = true;
                     }
                 }
             }
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         Some(self.now.saturating_add(Duration::from_millis(1)).min(Time::from_nanos(3_000_000_000)))

@@ -94,16 +94,17 @@ const RELOAD_SOURCES: &[(&str, &str)] = &[
     ),
 ];
 #[test]
+#[expect(clippy::print_stderr, reason = "name each reload case before the browser runs it")]
 fn chromium_survives_a_page_that_reloads_itself() {
     for (name, source) in RELOAD_SOURCES {
+        eprintln!("reload case {name}");
         let page = format!(
             "<!doctype html><html><body><h1>Reloaded</h1><script>if (!sessionStorage.getItem('reload-fact')) {{ sessionStorage.setItem('reload-fact', '1'); document.querySelector('h1').textContent='Before'; {source} }}</script></body></html>"
         );
         let profile = Profile::fresh();
         let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Reduction);
         rig.fixed_page(page.into_bytes());
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| rig.run()));
-        assert!(result.is_ok(), "reload case {name} failed: {result:?}");
+        rig.run();
     }
 }
 

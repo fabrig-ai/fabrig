@@ -4,6 +4,60 @@ use skein_kv::{KeyReader, KeyWriter};
 use skein_lib::List;
 use temper_engine_domain_forge_vocabulary as forge;
 
+/// Application names for jig's census (protocol/store.md, 3).
+pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspaces {
+    owner: "temper",
+    families: &[
+        (0, "temper.calls"),
+        (1, "temper.proposed-effects"),
+        (2, "temper.repositories"),
+        (3, "temper.holds"),
+        (4, "temper.names"),
+        (5, "temper.subscriptions"),
+        (6, "temper.branch-heads"),
+        (7, "temper.pull-states"),
+        (8, "temper.ci"),
+        (9, "temper.landed"),
+        (10, "temper.entries"),
+        (11, "temper.clients"),
+        (12, "temper.changes"),
+        (13, "temper.issues"),
+        (14, "temper.releases"),
+        (15, "temper.applications"),
+        (16, "temper.writers"),
+        (18, "temper.bindings"),
+        (20, "temper.settings"),
+        (21, "temper.flights"),
+        (22, "temper.deliveries"),
+        (23, "temper.landings"),
+        (24, "temper.receipts"),
+        (25, "temper.forges"),
+        (26, "temper.forge-number"),
+        (27, "temper.playground"),
+        (28, "temper.tiers"),
+        (29, "temper.verifications"),
+        (30, "temper.landing-log"),
+        (31, "temper.findings"),
+        (32, "temper.marks"),
+        (33, "temper.qa-passes"),
+        (34, "temper.dismissed"),
+        (35, "temper.making"),
+        (36, "temper.project-facts"),
+        (37, "temper.looked"),
+        (38, "temper.away"),
+        (39, "temper.decided"),
+        (40, "temper.closers"),
+        (41, "temper.landed-drafts"),
+        (42, "temper.follows"),
+        (43, "temper.devices"),
+        (127, "temper.history-project"),
+        (128, "temper.landing-history"),
+        (129, "temper.history-change"),
+        (130, "temper.history-landing"),
+        (131, "temper.history-last"),
+    ],
+};
+
 /// The `Binding` family's byte, taken at landing as a version is (protocol/store.md, 2).
 pub const BINDING: u8 = 18;
 /// The forge's settings of kinds 1 to 3 (temper/docs/design/protocol/store.md, 2).

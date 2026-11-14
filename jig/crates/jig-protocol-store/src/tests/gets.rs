@@ -258,7 +258,7 @@ fn planted_note(value: Box<[u8]>) -> Store {
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
     );
-    let [Event::Opened { .. }] = &*events else { panic!("fixture opens: {events:?}") };
+    let [Event::Opened { .. }, Event::Census { .. }] = &*events else { panic!("fixture opens: {events:?}") };
     store
 }
 

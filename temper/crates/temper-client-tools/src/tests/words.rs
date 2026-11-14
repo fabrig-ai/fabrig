@@ -158,6 +158,33 @@ fn argv_takes_a_group_and_a_verb() {
 }
 
 #[test]
+fn deployment_census_parses_and_help_lists_it() {
+    let call = fixtures::call(&["deployment", "census"]);
+    assert_eq!(call.tool, jig::rows::DEPLOYMENT_CENSUS_AT);
+    assert_eq!(call.form, 0);
+    assert!(call.values.is_empty());
+    assert_eq!(call, fixtures::from_json(br#"{"tool":"deployment census","arguments":{}}"#));
+    let row = table::TOOLS[usize::from(call.tool)];
+    assert_eq!(row.result, b"census");
+    assert_eq!(row.keyed, jig::table::Keyed::Never);
+    assert_eq!(row.area, 3);
+    let line = b"Read the store's census in the deployment's document";
+    for words in [&["help"][..], &["help", "deployment"], &["help", "deployment", "census"]] {
+        let call = fixtures::call(words);
+        let selected = help::selection(&call).expect("census help selection");
+        let text = fixtures::selected_help(selected);
+        assert!(skein_lib::bytes::find(&text, b"deployment").is_some());
+        assert!(skein_lib::bytes::find(&text, line).is_some());
+        let json = help::json(selected, &crate::limits::tools()).expect("JSON help");
+        assert!(skein_lib::bytes::find(&json, line).is_some());
+        if words.len() > 1 {
+            assert!(skein_lib::bytes::find(&text, b"deployment census").is_some());
+            assert!(skein_lib::bytes::find(&json, b"deployment census").is_some());
+        }
+    }
+}
+
+#[test]
 fn call_json_names_the_words() {
     let call = fixtures::from_json(br#"{"tool":"task show","arguments":{"task":41}}"#);
     assert_eq!(call, fixtures::call(&["task", "show", "41"]));

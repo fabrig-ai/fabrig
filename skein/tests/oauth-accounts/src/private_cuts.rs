@@ -50,11 +50,12 @@ impl Referee<Process> for Judge {
             procs[0].inner.issuer_mut().expect("issuer").shutdown();
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         let address_ready = procs[0].inner.issuer().is_some_and(|peer| peer.address().is_some());
         let client = procs[1].inner.client().expect("client process");
         self.wake = ((client.unstarted() && address_ready) || (procs[1].is_empty() && !self.shutdown)).then_some(now);
         self.passed = self.shutdown && procs.iter().all(Host::is_empty);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake.or(Some(Time::from_nanos(Duration::from_secs(180).as_nanos())))
