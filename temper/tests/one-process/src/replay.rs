@@ -9,11 +9,14 @@ use temper_playground::{programs, programs::Process, stories, story};
 /// The one-process world's forge referee over the playground's composition, observing every turn.
 pub struct Refereed {
     forge: Forge,
+    finding: Option<String>,
 }
 
 impl Turns<Process<()>> for Refereed {
     fn turned(&mut self, _now: Time, processes: &[Process<()>]) {
-        self.forge.observe(processes);
+        if self.finding.is_none() {
+            self.finding = self.forge.observe(processes).err();
+        }
     }
 }
 
@@ -36,14 +39,16 @@ pub fn replay(story: &stories::Story, log: &[u8]) -> Replayed {
         Err(why) => return Replayed::Incomplete { why: format!("session log refused: {why:?}") },
     };
     let start = story.start(read.seed, read.start);
-    let mut turns = Refereed { forge: Forge::new(start.fakes.forge.clone(), Story::PlaygroundA) };
+    let mut turns = Refereed { finding: None, forge: Forge::new(start.fakes.forge.clone(), Story::PlaygroundA) };
     let world = temper_playground::world(start);
     let parameters = story::parameters(&world);
     match programs::with(parameters, || skein_playground::replay::replay(world, story::reach(), &read, &mut turns)) {
         Err(differs) => Replayed::Differs(differs),
         Ok(world) => {
             eprintln!("refereed replay: world {} ns, {} world steps", world.now().as_nanos(), world.steps());
-            if turns.forge.forge_complete() {
+            if let Some(why) = turns.finding {
+                Replayed::Incomplete { why }
+            } else if turns.forge.forge_complete() {
                 Replayed::Complete
             } else {
                 Replayed::Incomplete {

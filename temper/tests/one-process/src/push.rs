@@ -84,6 +84,7 @@ enum Stage {
     Done,
 }
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     stage: Stage,
@@ -101,19 +102,22 @@ impl Judge {
         )).count()
     }
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
+impl Judge {
+    #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+    fn act_checked(&mut self, _now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (first, others) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
         let (callers, peers) = others.split_at_mut(1);
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut callers[0] else { panic!("native caller second") };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut callers[0] else {
+            return Err(String::from("native caller second"));
+        };
         let push = peers
             .iter_mut()
             .find_map(|proc| match proc {
                 Proc::Other(HarnessProcess::Push(peer)) => Some(peer),
                 _ => None,
             })
-            .expect("fake push peer");
+            .ok_or_else(|| String::from("fake push peer"))?;
         if !self.handed
             && push.address().is_some()
             && let Some(link) = service.service.links().pop()
@@ -144,44 +148,98 @@ impl skein_world::Referee<Proc> for Judge {
             self.stage = Stage::First;
         }
         for answer in &caller.answers {
-            assert_eq!(
-                answer.exit,
-                Exit::Code(0),
-                "push {:?}: {} {}",
-                self.stage,
-                String::from_utf8_lossy(&answer.output),
-                String::from_utf8_lossy(&answer.error)
-            );
-            assert_eq!(answer.error.len(), 0);
+            match (&(answer.exit), &(Exit::Code(0))) {
+                (left, right) if left != right => {
+                    let finding = format!(
+                        "push {:?}: {} {}",
+                        self.stage,
+                        String::from_utf8_lossy(&answer.output),
+                        String::from_utf8_lossy(&answer.error)
+                    );
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(answer.error.len()), &(0)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
         }
         match self.stage {
             Stage::First if caller.answers.len() == 4 && push.received().len() == 1 => {
                 let received = &push.received()[0];
-                assert_eq!(received.target.as_ref(), b"/push/alice");
-                assert_eq!(received.topic.as_deref(), Some(b"p1".as_slice()));
-                assert_eq!(received.ttl, 86_400);
-                assert_eq!(received.urgency.as_ref(), b"high");
-                assert_eq!(self.devices(), 1);
+                match (&(received.target.as_ref()), &(b"/push/alice")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(received.topic.as_deref()), &(Some(b"p1".as_slice()))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(received.ttl), &(86_400)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(received.urgency.as_ref()), &(b"high")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(self.devices()), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 caller.commands.push_back(Command::new(&[b"push", b"list", b"--json"]));
                 self.stage = Stage::Devices;
             }
             Stage::Devices if caller.answers.len() == 5 => {
-                let document: serde_json::Value =
-                    serde_json::from_slice(&caller.answers[4].output).expect("devices JSON");
-                assert_eq!(document["devices"].as_array().expect("devices").len(), 1);
+                let document: serde_json::Value = serde_json::from_slice(&caller.answers[4].output)
+                    .map_err(|why| format!("devices JSON: {why:?}"))?;
+                match (&(document["devices"].as_array().ok_or_else(|| String::from("devices"))?.len()), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 push.script(b"/push/alice".as_slice().into(), skein_fake_push::Script::Gone);
                 Self::chat(caller, b"push-second");
                 self.stage = Stage::Gone;
             }
             Stage::Gone if caller.answers.len() == 6 && self.devices() == 0 => {
-                assert_eq!(push.received().len(), 1, "Gone records no accepted push");
+                match (&(push.received().len()), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("Gone records no accepted push");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 caller.commands.push_back(Command::new(&[b"push", b"list", b"--json"]));
                 self.stage = Stage::Empty;
             }
             Stage::Empty if caller.answers.len() == 7 => {
-                let document: serde_json::Value =
-                    serde_json::from_slice(&caller.answers[6].output).expect("devices JSON");
-                assert!(document["devices"].as_array().expect("devices").is_empty(), "Gone marks the devices document");
+                let document: serde_json::Value = serde_json::from_slice(&caller.answers[6].output)
+                    .map_err(|why| format!("devices JSON: {why:?}"))?;
+                if !(document["devices"].as_array().ok_or_else(|| String::from("devices"))?.is_empty()) {
+                    return Err(String::from("Gone marks the devices document"));
+                }
                 caller.closed = true;
                 push.shutdown();
                 self.controls.signal(0, ServiceSignal::Terminate);
@@ -197,13 +255,35 @@ impl skein_world::Referee<Proc> for Judge {
                 }
             }
         }
+
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, procs: &[Proc]) {
-        let Proc::Service(service) = &procs[0] else { panic!("service") };
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        let Proc::Service(service) = &procs[0] else { return Err(String::from("service")) };
         let applied = self.store.borrow().applied;
         if self.checked.replace(applied) != applied {
-            referee::Referee::check_roots(&service.service);
+            referee::Referee::check_roots(&service.service)?;
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.drained).then_some(DEADLINE)
@@ -230,7 +310,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.drained
+        self.finding.is_none() && (self.drained)
     }
 }
 /// One wire path: the fake checks the token before recording the push, then answers Gone.
@@ -261,6 +341,7 @@ pub fn run() {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store,
                 stage: Stage::Setup,

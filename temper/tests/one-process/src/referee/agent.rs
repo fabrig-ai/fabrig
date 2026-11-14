@@ -56,53 +56,64 @@ impl Wire {
     pub(crate) fn keep_starts(&mut self) {
         self.keep_starts = true;
     }
-    pub fn complete(&mut self, complete: &Complete) {
+    pub fn complete(&mut self, complete: &Complete) -> Result<(), String> {
         match (&complete.kind, &complete.result) {
             (Op::Spawn { spawn }, Ok(Done::Spawned { .. }))
                 if spawn.program.as_ref() == temper_playground::documents::PINNED_AGENT_PROGRAM =>
             {
                 for entry in &spawn.env {
-                    super::secrets::require(entry, "agent environment");
+                    super::secrets::check(entry, "agent environment")?;
                 }
                 // A list uses one unframed codec record in each direction, not run frames
                 // (smith/docs/design/protocol/agent.md, 6.1).
                 if spawn.args.iter().any(|arg| arg.as_ref() == b"--list") {
-                    return;
+                    return Ok(());
                 }
                 let identity = spawn
                     .pipes
                     .iter()
                     .find(|pipe| pipe.child == 0)
-                    .expect("agent input pipe")
+                    .ok_or_else(|| String::from("agent input pipe"))?
                     .parent
-                    .expect("real agent input pipe")
+                    .ok_or_else(|| String::from("real agent input pipe"))?
                     .raw();
                 self.runs.remove(&identity);
                 for pipe in spawn.pipes.iter().filter(|pipe| pipe.child < 2) {
-                    self.pipes
-                        .insert(pipe.parent.expect("real agent pipe").raw(), (pipe.child == 0, identity, Vec::new()));
+                    self.pipes.insert(
+                        pipe.parent.ok_or_else(|| String::from("real agent pipe"))?.raw(),
+                        (pipe.child == 0, identity, Vec::new()),
+                    );
                 }
             }
             (Op::Write { fd, bytes, from, .. } | Op::PipeWrite { fd, bytes, from }, Ok(Done::Count(count))) => {
-                self.bytes(fd.raw(), &bytes[*from as usize..(*from + *count) as usize]);
+                self.bytes(fd.raw(), &bytes[*from as usize..(*from + *count) as usize])?;
             }
             (Op::Read { fd, buf, .. } | Op::PipeRead { fd, buf }, Ok(Done::Count(count))) => {
-                self.bytes(fd.raw(), &buf[..*count as usize]);
+                self.bytes(fd.raw(), &buf[..*count as usize])?;
             }
             (Op::Close { fd }, _) => {
                 self.pipes.remove(&fd.raw());
             }
             _ => {}
         }
+
+        Ok(())
     }
-    fn bytes(&mut self, fd: i32, bytes: &[u8]) {
-        let Some((down, identity, buffer)) = self.pipes.get_mut(&fd) else { return };
+    fn bytes(&mut self, fd: i32, bytes: &[u8]) -> Result<(), String> {
+        let Some((down, identity, buffer)) = self.pipes.get_mut(&fd) else { return Ok(()) };
         buffer.extend_from_slice(bytes);
         let mut frames = Vec::new();
         while buffer.len() >= 8 {
-            let kind = u16::from_be_bytes(buffer[..2].try_into().expect("frame kind"));
-            assert_eq!(&buffer[2..4], &[0, 0], "agent frame flags");
-            let length = u32::from_be_bytes(buffer[4..8].try_into().expect("frame length")) as usize;
+            let kind = u16::from_be_bytes(buffer[..2].try_into().map_err(|why| format!("frame kind: {why:?}"))?);
+            match (&(&buffer[2..4]), &(&[0, 0])) {
+                (left, right) if left != right => {
+                    let finding = String::from("agent frame flags");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            let length =
+                u32::from_be_bytes(buffer[4..8].try_into().map_err(|why| format!("frame length: {why:?}"))?) as usize;
             if buffer.len() < 8 + length {
                 break;
             }
@@ -110,13 +121,16 @@ impl Wire {
             buffer.drain(..8 + length);
         }
         for (down, identity, kind, body) in frames {
-            self.frame(down, identity, kind, &body);
+            self.frame(down, identity, kind, &body)?;
         }
+
+        Ok(())
     }
-    fn frame(&mut self, down: bool, identity_fd: i32, kind: u16, bytes: &[u8]) {
+    fn frame(&mut self, down: bool, identity_fd: i32, kind: u16, bytes: &[u8]) -> Result<(), String> {
         let limits = &self.limits;
         if down && kind == 0x0100 {
-            let start = smith_channel::Start::decode(limits, &mut Reader::new(bytes)).expect("agent Start bytes");
+            let start = smith_channel::Start::decode(limits, &mut Reader::new(bytes))
+                .map_err(|why| format!("agent Start bytes: {why:?}"))?;
             let store = self.store.borrow();
             let proof = store
                 .rows
@@ -131,10 +145,10 @@ impl Wire {
                     }
                     temper_engine_domain::Record::Core(_) | temper_engine_domain::Record::Forge { .. } => None,
                 })
-                .expect("agent identity names a durable claim");
+                .ok_or_else(|| String::from("agent identity names a durable claim"))?;
             self.runs.insert(identity_fd, (proof.task, start.activation()));
             let charter = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(start.charter()))
-                .expect("agent charter bytes");
+                .map_err(|why| format!("agent charter bytes: {why:?}"))?;
             self.events.push(Observed::Assigned {
                 task: proof.task,
                 attempt: start.activation(),
@@ -157,13 +171,16 @@ impl Wire {
                 input: self.keep_starts.then(|| Box::new(start)),
             });
         } else if !down && kind == 0x0109 {
-            let (task, attempt) = *self.runs.get(&identity_fd).expect("turn after agent Start");
-            let turn = smith_channel::Turn::decode(limits, &mut Reader::new(bytes)).expect("agent Turn bytes");
+            let (task, attempt) = *self.runs.get(&identity_fd).ok_or_else(|| String::from("turn after agent Start"))?;
+            let turn = smith_channel::Turn::decode(limits, &mut Reader::new(bytes))
+                .map_err(|why| format!("agent Turn bytes: {why:?}"))?;
             self.events.push(Observed::Completion { task, attempt, cumulative: turn.spent() });
         } else if !down && kind == 0x0110 {
-            let answer = smith_channel::Answer::decode(limits, &mut Reader::new(bytes)).expect("agent Answer bytes");
+            let answer = smith_channel::Answer::decode(limits, &mut Reader::new(bytes))
+                .map_err(|why| format!("agent Answer bytes: {why:?}"))?;
             if matches!(answer.result(), smith_channel::RunResult::Failed(_) | smith_channel::RunResult::Refused(_)) {
-                let (task, attempt) = *self.runs.get(&identity_fd).expect("answer after agent Start");
+                let (task, attempt) =
+                    *self.runs.get(&identity_fd).ok_or_else(|| String::from("answer after agent Start"))?;
                 self.store.borrow_mut().agent_records.push(Record::Answer {
                     task,
                     attempt,
@@ -173,6 +190,8 @@ impl Wire {
         }
         // The worker's agent ACK grants retention credit, not durable engine commitment.
         // Commit prerequisites are checked on the client's actual released documents.
+
+        Ok(())
     }
 }
 

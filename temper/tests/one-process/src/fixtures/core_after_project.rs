@@ -210,6 +210,7 @@ pub struct Outcome {
 }
 #[expect(clippy::struct_excessive_bools, reason = "the story records each independent client and shutdown handoff")]
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     disk: Rc<RefCell<skein_fake_machine::Machine>>,
@@ -254,9 +255,11 @@ impl Judge {
             Stage::Calls,
         );
     }
-    fn after_prior(&mut self, caller: &mut Caller) {
-        let account = self.account();
+    fn after_prior(&mut self, caller: &mut Caller) -> Result<(), String> {
+        let account = self.account()?;
         self.queue(caller, &[&["account", "forget", &account, "--key", "forget-program"]], Stage::Forget);
+
+        Ok(())
     }
     fn after_forget(&mut self, caller: &mut Caller) {
         self.readings = caller.answers.len();
@@ -290,47 +293,62 @@ impl Judge {
         commands.push(["project", "make", PROJECT, "--key", "incident-project"].as_slice());
         self.queue(caller, &commands, Stage::Make);
     }
-    fn account(&self) -> String {
-        self.store
-            .borrow()
-            .rows
-            .values()
-            .find_map(|row| match row {
-                root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Source {
-                    account,
-                    name,
-                    ..
-                })) if name.as_ref() == LOGIN.as_bytes() => Some(account.to_string()),
-                _ => None,
-            })
-            .expect("declared program account")
+    fn account(&self) -> Result<String, String> {
+        Ok({
+            self.store
+                .borrow()
+                .rows
+                .values()
+                .find_map(|row| match row {
+                    root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Source {
+                        account,
+                        name,
+                        ..
+                    })) if name.as_ref() == LOGIN.as_bytes() => Some(account.to_string()),
+                    _ => None,
+                })
+                .ok_or_else(|| String::from("declared program account"))?
+        })
     }
     fn ended_goal(&self) -> bool {
         self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(task))) if task.tracked.is_some() && matches!(task.phase, tasks::Phase::Ended(tasks::Ending::Done(_)))))
     }
-    fn check_answers(&mut self, caller: &Caller, now: Time) {
+    fn check_answers(&mut self, caller: &Caller, now: Time) -> Result<(), String> {
         while self.answered < caller.answers.len() {
             let answer = &caller.answers[self.answered];
-            assert_eq!(
-                answer.exit,
-                Exit::Code(0),
-                "stage {:?}, call {}: {} {}",
-                self.stage,
-                self.answered,
-                String::from_utf8_lossy(&answer.output),
-                String::from_utf8_lossy(&answer.error)
-            );
+            match (&(answer.exit), &(Exit::Code(0))) {
+                (left, right) if left != right => {
+                    let finding = format!(
+                        "stage {:?}, call {}: {} {}",
+                        self.stage,
+                        self.answered,
+                        String::from_utf8_lossy(&answer.output),
+                        String::from_utf8_lossy(&answer.error)
+                    );
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             self.answered += 1;
             self.deadline = now.saturating_add(ANSWER_BOUND);
         }
+
+        Ok(())
     }
-    fn prepare_settings(&mut self, caller: &Caller) {
+    fn prepare_settings(&mut self, caller: &Caller) -> Result<(), String> {
         let mut items = Vec::new();
         for answer in caller.answers.iter().skip(self.readings).take(ITEMS) {
-            let value: Value = serde_json::from_slice(&answer.output).expect("whole setting JSON");
+            let value: Value =
+                serde_json::from_slice(&answer.output).map_err(|why| format!("whole setting JSON: {why:?}"))?;
             items.push(json!({"setting":value["setting"],"set":value["value"]}));
         }
-        assert_eq!(items.len(), ITEMS, "all incident settings read");
+        match (&(items.len()), &(ITEMS)) {
+            (left, right) if left != right => {
+                let finding = String::from("all incident settings read");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
         for item in &mut items {
             if item["setting"]["kind"] == "charter" && item["setting"]["number"] == 1 {
                 item["set"]["instructions"] = "Complete the earlier work carefully.".into();
@@ -339,21 +357,30 @@ impl Judge {
                 item["set"]["name"]["bytes"] = "Conversation".into();
             }
         }
-        let bytes = serde_json::to_vec(&json!({"items":items})).expect("incident settings file");
+        let bytes =
+            serde_json::to_vec(&json!({"items":items})).map_err(|why| format!("incident settings file: {why:?}"))?;
         temper_playground::machine::lay_handover(&mut self.disk.borrow_mut(), b"/setup/incident.json", &bytes);
+
+        Ok(())
     }
 }
-impl skein_world::Referee<Proc> for Judge {
+impl Judge {
     #[expect(clippy::too_many_lines, reason = "the referee keeps the incident acts in their required order")]
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (services, rest) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut services[0] else { panic!("service first") };
+        let Proc::Service(service) = &mut services[0] else { return Err(String::from("service first")) };
         let (callers, rest) = rest.split_at_mut(1);
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut callers[0] else { panic!("caller second") };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut callers[0] else {
+            return Err(String::from("caller second"));
+        };
         let (people, rest) = rest.split_at_mut(1);
-        let Proc::Other(HarnessProcess::Client(person)) = &mut people[0] else { panic!("native person third") };
+        let Proc::Other(HarnessProcess::Client(person)) = &mut people[0] else {
+            return Err(String::from("native person third"));
+        };
         let (fresh_callers, peers) = rest.split_at_mut(1);
-        let Proc::Other(HarnessProcess::Calls(fresh)) = &mut fresh_callers[0] else { panic!("fresh caller fourth") };
+        let Proc::Other(HarnessProcess::Calls(fresh)) = &mut fresh_callers[0] else {
+            return Err(String::from("fresh caller fourth"));
+        };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -427,7 +454,7 @@ impl skein_world::Referee<Proc> for Judge {
             self.handed = true;
         }
         if self.stage == Stage::Make {
-            let domain = service.service.engine_domain().expect("engine root");
+            let domain = service.service.engine_domain().ok_or_else(|| String::from("engine root"))?;
             self.seen.borrow_mut().gate = format!(
                 "ready={}, start={:?}, projects={}; {:?}",
                 domain.ready(),
@@ -462,24 +489,27 @@ impl skein_world::Referee<Proc> for Judge {
                 self.messaged = Some((task, attempt));
             }
         }
-        self.check_answers(caller, now);
+        self.check_answers(caller, now)?;
         if self.handed && caller.answers.len() >= self.target {
             match self.stage {
                 Stage::Goal if !self.whole || self.ended_goal() => {
                     if crate::across_versions::active() {
-                        let (number, attempt) = self.messaged.expect("a message was sent to the goal's running change");
-                        assert!(self.store.borrow().rows.values().any(|row| matches!(row,
+                        let (number, attempt) = self
+                            .messaged
+                            .ok_or_else(|| String::from("a message was sent to the goal's running change"))?;
+                        if !(self.store.borrow().rows.values().any(|row| matches!(row,
                             root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(task)))
                             if task.number == number && task.attempt == attempt && matches!(task.phase, tasks::Phase::Ended(tasks::Ending::Done(_)))
-                        )), "the engine read that running attempt's successful result");
-                        bridged_readback(peers);
-                        crate::across_versions::tasks(&self.store.borrow());
-                        assert!(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))), "the bridged goal's change landed");
+                        ))) { return Err(String::from("the engine read that running attempt's successful result")); }
+                        bridged_readback(peers)?;
+                        crate::across_versions::tasks(&self.store.borrow())?;
+                        if !(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))))) { return Err(String::from("the bridged goal's change landed")); }
                         self.stage = Stage::Done;
                     } else if self.whole {
-                        let saved: Value =
-                            serde_json::from_slice(&caller.answers.last().expect("initial charter answer").output)
-                                .expect("initial charter");
+                        let saved: Value = serde_json::from_slice(
+                            &caller.answers.last().ok_or_else(|| String::from("initial charter answer"))?.output,
+                        )
+                        .map_err(|why| format!("initial charter: {why:?}"))?;
                         for (file, instructions) in [
                             (b"/setup/prior-two.json".as_slice(), "Complete the earlier work."),
                             (b"/setup/prior-three.json".as_slice(), "Complete the earlier work fully."),
@@ -489,10 +519,10 @@ impl skein_world::Referee<Proc> for Judge {
                             let prior = serde_json::to_vec(
                                 &json!({"items":[{"setting":{"kind":"charter","number":1},"set":charter}]}),
                             )
-                            .expect("prior settings");
+                            .map_err(|why| format!("prior settings: {why:?}"))?;
                             temper_playground::machine::lay_handover(&mut self.disk.borrow_mut(), file, &prior);
                         }
-                        assert!(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))), "earlier change landed");
+                        if !(self.store.borrow().rows.values().any(|row| matches!(row, root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))))) { return Err(String::from("earlier change landed")); }
                         self.queue(
                             caller,
                             &[
@@ -521,19 +551,20 @@ impl skein_world::Referee<Proc> for Judge {
                         self.make(caller);
                     }
                 }
-                Stage::PriorRevisions => self.after_prior(caller),
+                Stage::PriorRevisions => self.after_prior(caller)?,
                 Stage::Forget => {
-                    let forgotten = caller.answers.last().expect("forget terminal");
-                    assert!(
-                        String::from_utf8_lossy(&forgotten.output).contains("Signed out on every machine"),
-                        "program forget: {} {}",
-                        String::from_utf8_lossy(&forgotten.output),
-                        String::from_utf8_lossy(&forgotten.error)
-                    );
+                    let forgotten = caller.answers.last().ok_or_else(|| String::from("forget terminal"))?;
+                    if !(String::from_utf8_lossy(&forgotten.output).contains("Signed out on every machine")) {
+                        return Err(format!(
+                            "program forget: {} {}",
+                            String::from_utf8_lossy(&forgotten.output),
+                            String::from_utf8_lossy(&forgotten.error)
+                        ));
+                    }
                     self.after_forget(caller);
                 }
                 Stage::ReadSettings => {
-                    self.prepare_settings(caller);
+                    self.prepare_settings(caller)?;
                     self.queue(
                         caller,
                         &[&["settings", "apply", "/setup/incident.json", "--against", "3", "--key", "revision-four"]],
@@ -543,13 +574,14 @@ impl skein_world::Referee<Proc> for Judge {
                 Stage::Apply => self.after_apply(caller),
                 Stage::Declare => self.make(caller),
                 Stage::Make => {
-                    let domain = service.service.engine_domain().expect("engine root");
-                    assert!(
-                        domain.ready(),
-                        "gate after act 6: ready={}, start={:?}, root={domain:?}",
-                        domain.ready(),
-                        domain.start_phase()
-                    );
+                    let domain = service.service.engine_domain().ok_or_else(|| String::from("engine root"))?;
+                    if !(domain.ready()) {
+                        return Err(format!(
+                            "gate after act 6: ready={}, start={:?}, root={domain:?}",
+                            domain.ready(),
+                            domain.start_phase()
+                        ));
+                    }
                     self.seen.borrow_mut().gate = format!(
                         "ready={}, start={:?}; {:?}",
                         domain.ready(),
@@ -559,8 +591,10 @@ impl skein_world::Referee<Proc> for Judge {
                     self.calls(caller);
                 }
                 Stage::Calls => {
-                    let domain = service.service.engine_domain().expect("engine root");
-                    assert!(domain.ready(), "root ready after answering the calls");
+                    let domain = service.service.engine_domain().ok_or_else(|| String::from("engine root"))?;
+                    if !(domain.ready()) {
+                        return Err(String::from("root ready after answering the calls"));
+                    }
                     self.seen.borrow_mut().gate = format!(
                         "ready={}, start={:?}; {:?}",
                         domain.ready(),
@@ -589,14 +623,18 @@ impl skein_world::Referee<Proc> for Judge {
                     }
                     let expected = 2;
                     if fresh.answers.len() >= expected {
-                        let last = fresh.answers.last().expect("fresh sign-in answer");
-                        assert_eq!(
-                            last.exit,
-                            Exit::Code(0),
-                            "fresh sign-in: {} {}",
-                            String::from_utf8_lossy(&last.output),
-                            String::from_utf8_lossy(&last.error)
-                        );
+                        let last = fresh.answers.last().ok_or_else(|| String::from("fresh sign-in answer"))?;
+                        match (&(last.exit), &(Exit::Code(0))) {
+                            (left, right) if left != right => {
+                                let finding = format!(
+                                    "fresh sign-in: {} {}",
+                                    String::from_utf8_lossy(&last.output),
+                                    String::from_utf8_lossy(&last.error)
+                                );
+                                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                            }
+                            _ => {}
+                        }
                         self.seen.borrow_mut().fresh = 1;
                         if !self.native_started {
                             if self.legacy {
@@ -610,8 +648,21 @@ impl skein_world::Referee<Proc> for Judge {
                             self.deadline = now.saturating_add(ANSWER_BOUND);
                         }
                         if self.legacy && now >= self.deadline {
-                            assert!(!person.finished, "two memberships cannot decode the mandatory me");
-                            assert!(service.service.engine_domain().expect("engine root").ready());
+                            if person.finished {
+                                return Err(String::from("two memberships cannot decode the mandatory me"));
+                            }
+                            if !(service.service.engine_domain().ok_or_else(|| String::from("engine root"))?.ready()) {
+                                return Err(format!(
+                                    "assertion failed: {}",
+                                    stringify!(
+                                        service
+                                            .service
+                                            .engine_domain()
+                                            .ok_or_else(|| String::from("engine root"))?
+                                            .ready()
+                                    )
+                                ));
+                            }
                             self.seen.borrow_mut().legacy_rejected = true;
                             self.stage = Stage::Done;
                         } else if person.finished {
@@ -641,8 +692,30 @@ impl skein_world::Referee<Proc> for Judge {
             self.stopping = true;
         }
         self.store.borrow_mut().pending.clear();
+
+        Ok(())
     }
-    fn observe(&mut self, _: Time, _: &[Proc]) {}
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopping).then_some(self.deadline)
     }
@@ -660,7 +733,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopping
+        self.finding.is_none() && (self.stopping)
     }
 }
 
@@ -690,6 +763,7 @@ fn phase(
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store,
                 disk: machine.0.clone(),
@@ -811,7 +885,7 @@ pub(crate) fn bridged_goal() {
     phase(false, true, false, disk, store, &transport);
 }
 
-fn bridged_readback(procs: &[Proc]) {
+fn bridged_readback(procs: &[Proc]) -> Result<(), String> {
     use skein_fake_llm_domain::api::Part;
     let queries: Vec<_> =
         procs
@@ -822,8 +896,8 @@ fn bridged_readback(procs: &[Proc]) {
                 if let skein_fake_peers::llm::Observation::Query { query, .. } = seen { Some(query) } else { None }
             })
             .collect();
-    assert!(
-        queries.iter().any(|query| query.messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
+    if !(queries.iter().any(|query| {
+        query.messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
             let bytes = match part {
                 Part::Text { text } => text,
                 Part::Opaque { bytes } => bytes,
@@ -833,15 +907,18 @@ fn bridged_readback(procs: &[Proc]) {
             bytes
                 .windows(crate::across_versions::MESSAGE.len())
                 .any(|part| part == crate::across_versions::MESSAGE.as_bytes())
-        })),
-        "the run read its message across the bridge"
-    );
-    assert!(queries.iter().any(|query| {
+        })
+    })) {
+        return Err(String::from("the run read its message across the bridge"));
+    }
+    if !(queries.iter().any(|query| {
         let parts: Vec<_> = query.messages.iter().flat_map(|message| message.parts.iter()).collect();
         parts.iter().any(|part| if let Part::ToolCall { id, name, .. } = part {
             name.as_ref() == b"read_task" && parts.iter().any(|answer| matches!(answer, Part::ToolOutput { id: answered, is_error: false, output } if answered == id && !output.starts_with(b"Error:")))
         } else { false })
-    }), "the run read its host call's answer across the bridge");
+    })) { return Err(String::from("the run read its host call's answer across the bridge")); }
+
+    Ok(())
 }
 
 fn forge() -> temper_fake_git_hosted::Typed {

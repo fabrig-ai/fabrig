@@ -276,6 +276,7 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, scenario: Scenario) -> usize {
 }
 #[expect(clippy::struct_excessive_bools, reason = "stop, service end, handoff and read observations are independent")]
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     scenario: Scenario,
     store: Rc<RefCell<Store>>,
@@ -289,11 +290,14 @@ struct Judge {
     read: bool,
     moves: usize,
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
+impl Judge {
+    #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+    fn act_checked(&mut self, _now: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (first, other) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { panic!("caller second") };
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
+            return Err(String::from("caller second"));
+        };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -303,39 +307,54 @@ impl skein_world::Referee<Proc> for Judge {
         let peer = other
             .iter()
             .find_map(|proc| if let Proc::Forge(peer) = proc { Some(peer) } else { None })
-            .expect("GitHub peer");
-        let git = peer.git_calls().expect("git observer");
-        assert!(
-            git.iter().all(|call| call.status == 200 || (!call.writes && call.status == 404)),
-            "authenticated git calls: {git:?}"
-        );
-        let installed = peer.github_layer().expect("GitHub").installations();
-        let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { unreachable!() };
+            .ok_or_else(|| String::from("GitHub peer"))?;
+        let git = peer.git_calls().ok_or_else(|| String::from("git observer"))?;
+        if !(git.iter().all(|call| call.status == 200 || (!call.writes && call.status == 404))) {
+            return Err(format!("authenticated git calls: {git:?}"));
+        }
+        let installed = peer.github_layer().ok_or_else(|| String::from("GitHub"))?.installations();
+        let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { return Err(String::from("unreachable")) };
         for (index, answer) in caller.answers.iter().enumerate().skip(self.answers) {
             let refused = index == 3 || index == 8;
-            assert!(
-                answer.exit == Exit::Code(if refused { 2 } else { 0 }),
-                "GitHub call {index} accepted/refused as scripted"
-            );
+            if answer.exit != Exit::Code(if refused { 2 } else { 0 }) {
+                return Err(format!("GitHub call {index} accepted/refused as scripted"));
+            }
             if refused {
                 let public = [&answer.output[..], &answer.error].concat();
-                assert!(
-                    String::from_utf8_lossy(&public).to_ascii_lowercase().replace('_', "").contains("noaccess"),
-                    "installation refusal"
-                );
-                assert!(git.is_empty(), "adoption refusal starts no git request");
-                assert!(self.changed.is_empty(), "adoption refusal moves no branch");
-                assert!(!installed.iter().any(|row| row.account == UMBRA), "no other-account installation");
+                if !(String::from_utf8_lossy(&public).to_ascii_lowercase().replace('_', "").contains("noaccess")) {
+                    return Err(String::from("installation refusal"));
+                }
+                if !(git.is_empty()) {
+                    return Err(String::from("adoption refusal starts no git request"));
+                }
+                if !(self.changed.is_empty()) {
+                    return Err(String::from("adoption refusal moves no branch"));
+                }
+                if installed.iter().any(|row| row.account == UMBRA) {
+                    return Err(String::from("no other-account installation"));
+                }
             }
         }
         self.answers = caller.answers.len();
         if !self.handed || self.answers != self.calls {
-            return;
+            return Ok(());
         }
         let complete = match self.scenario {
             Scenario::Uninstalled => {
-                assert_eq!(installed.minted(), 0, "uninstalled adoption mints no token");
-                assert_eq!(installed.iter().count(), 0);
+                match (&(installed.minted()), &(0)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("uninstalled adoption mints no token");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(installed.iter().count()), &(0)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 true
             }
             Scenario::ReadOnly => referee::chat_waited(&self.store.borrow()),
@@ -343,28 +362,64 @@ impl skein_world::Referee<Proc> for Judge {
         };
         if complete && !self.stopping {
             if !matches!(self.scenario, Scenario::Uninstalled) {
-                assert_eq!(installed.iter().map(|row| (row.id, row.account)).collect::<Vec<_>>(), [(1, ACME)]);
-                assert!(!git.is_empty(), "authenticated checkout was exercised");
+                match (&(installed.iter().map(|row| (row.id, row.account)).collect::<Vec<_>>()), &([(1, ACME)])) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                if git.is_empty() {
+                    return Err(String::from("authenticated checkout was exercised"));
+                }
                 if matches!(self.scenario, Scenario::ReadOnly) {
-                    assert!(self.read, "the agent read the installed README");
-                    assert_eq!(self.moves, 0);
-                }
-                if matches!(self.scenario, Scenario::Delivered) {
-                    assert_eq!(self.changed.len(), 1, "one branch holds the delivered edit");
-                }
-                for request in git {
-                    let minted = request.minted.expect("every git request has an installation token");
-                    assert_eq!(minted.installation, 1);
-                    assert!(request.status == 200 || (!request.writes && request.status == 404));
-                    if matches!(self.scenario, Scenario::ReadOnly) {
-                        assert!(!request.writes);
+                    if !(self.read) {
+                        return Err(String::from("the agent read the installed README"));
+                    }
+                    match (&(self.moves), &(0)) {
+                        (left, right) if left != right => {
+                            let finding = String::from("assertion `left == right` failed");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
                     }
                 }
                 if matches!(self.scenario, Scenario::Delivered) {
-                    assert!(git.iter().any(|request| request.writes));
+                    match (&(self.changed.len()), &(1)) {
+                        (left, right) if left != right => {
+                            let finding = String::from("one branch holds the delivered edit");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                }
+                for request in git {
+                    let minted =
+                        request.minted.ok_or_else(|| String::from("every git request has an installation token"))?;
+                    match (&(minted.installation), &(1)) {
+                        (left, right) if left != right => {
+                            let finding = String::from("assertion `left == right` failed");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    if (request.status != 200) && (request.writes && request.status == 404) {
+                        return Err(format!(
+                            "assertion failed: {}",
+                            stringify!(request.status == 200 || (!request.writes && request.status == 404))
+                        ));
+                    }
+                    if (matches!(self.scenario, Scenario::ReadOnly)) && (request.writes) {
+                        return Err(format!("assertion failed: {}", stringify!(!request.writes)));
+                    }
+                }
+                if (matches!(self.scenario, Scenario::Delivered)) && (!(git.iter().any(|request| request.writes))) {
+                    return Err(format!("assertion failed: {}", stringify!(git.iter().any(|request| request.writes))));
                 }
             }
-            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
+            let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
+                return Err(String::from("unreachable"));
+            };
             caller.closed = true;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             for proc in other {
@@ -372,8 +427,28 @@ impl skein_world::Referee<Proc> for Judge {
             }
             self.stopping = true;
         }
+
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, procs: &[Proc]) {
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
         self.ended = procs.iter().any(|proc| matches!(proc, Proc::Service(service) if service.service.end().is_some()));
         for proc in procs {
             if let Proc::Peer(peer) = proc {
@@ -388,18 +463,32 @@ impl skein_world::Referee<Proc> for Judge {
         while let Some(observed) = forge.domain.pop_observation() {
             if let domain::Observation::Moved { repository, branch, to, .. } = observed {
                 self.moves += 1;
-                assert_ne!(branch.as_ref(), b"main");
-                let object = forge.domain.object(to).expect("pushed object");
+                match (&(branch.as_ref()), &(b"main")) {
+                    (left, right) if left == right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                let object = forge.domain.object(to).ok_or_else(|| String::from("pushed object"))?;
                 if object
                     .tree
                     .iter()
                     .any(|(path, content)| path.as_ref() == b"conflict.txt" && content.as_ref() == b"fixed\n")
                 {
-                    assert_eq!(repository.as_ref(), b"acme/app");
+                    match (&(repository.as_ref()), &(b"acme/app")) {
+                        (left, right) if left != right => {
+                            let finding = String::from("assertion `left == right` failed");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
                     self.changed.push(to);
                 }
             }
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopping).then_some(Time::from_nanos(10_000_000_000))
@@ -428,7 +517,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopping && self.ended
+        self.finding.is_none() && (self.stopping && self.ended)
     }
 }
 /// Exercise installation scope, checkout and the authenticated git route on simulated sockets/files.
@@ -457,6 +546,7 @@ pub fn run(scenario: Scenario) {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 scenario,
                 store,

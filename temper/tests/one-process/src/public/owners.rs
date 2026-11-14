@@ -84,8 +84,12 @@ impl Walk {
     pub fn wake(&self) -> Option<Time> {
         self.wake
     }
-    fn last<'a>(&self, visitor: &'a Visitor) -> &'a Answer {
-        visitor.answers[self.calls.last().expect("call")].as_ref().expect("answer")
+    fn last<'a>(&self, visitor: &'a Visitor) -> Result<&'a Answer, String> {
+        Ok({
+            visitor.answers[self.calls.last().ok_or_else(|| String::from("call"))?]
+                .as_ref()
+                .ok_or_else(|| String::from("answer"))?
+        })
     }
     #[expect(clippy::too_many_lines, reason = "the merge prerequisites and per-kind assertions form one state machine")]
     pub fn act(
@@ -96,9 +100,9 @@ impl Walk {
         visitor: &mut Visitor,
         project: u64,
         transport: &temper_fake_git_hosted::Typed,
-    ) -> bool {
+    ) -> Result<bool, String> {
         if self.wake.is_some_and(|wake| now < wake) || self.calls.iter().any(|id| !visitor.answers.contains_key(id)) {
-            return false;
+            return Ok(false);
         }
         self.wake = None;
         match self.stage {
@@ -139,16 +143,20 @@ impl Walk {
             }
             1 => {
                 if caller.answers.len() != 6 {
-                    return false;
+                    return Ok(false);
                 }
                 for answer in &caller.answers {
-                    assert_eq!(
-                        answer.exit,
-                        skein_io::kernel::Exit::Code(0),
-                        "adopt before merge: {} {}",
-                        String::from_utf8_lossy(&answer.output),
-                        String::from_utf8_lossy(&answer.error)
-                    );
+                    match (&(answer.exit), &(skein_io::kernel::Exit::Code(0))) {
+                        (left, right) if left != right => {
+                            let finding = format!(
+                                "adopt before merge: {} {}",
+                                String::from_utf8_lossy(&answer.output),
+                                String::from_utf8_lossy(&answer.error)
+                            );
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
                 }
                 crate::stories::prepare_merge_branch(transport);
                 service::command(
@@ -167,19 +175,23 @@ impl Walk {
             }
             2 => {
                 if caller.answers.len() != 7 {
-                    return false;
+                    return Ok(false);
                 }
                 for answer in &caller.answers {
-                    assert_eq!(
-                        answer.exit,
-                        skein_io::kernel::Exit::Code(0),
-                        "public merge setup: {} {}",
-                        String::from_utf8_lossy(&answer.output),
-                        String::from_utf8_lossy(&answer.error)
-                    );
+                    match (&(answer.exit), &(skein_io::kernel::Exit::Code(0))) {
+                        (left, right) if left != right => {
+                            let finding = format!(
+                                "public merge setup: {} {}",
+                                String::from_utf8_lossy(&answer.output),
+                                String::from_utf8_lossy(&answer.error)
+                            );
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
                 }
                 if !self.landing_complete() {
-                    return false;
+                    return Ok(false);
                 }
                 self.calls.push(visitor.send(
                     fixtures::CLIENTS,
@@ -190,12 +202,21 @@ impl Walk {
                 self.stage = 3;
             }
             3 => {
-                let answer = self.last(visitor);
-                assert_eq!(answer.status, 200);
-                let board = p::PublicBoard::decode(&p::CEILINGS, &mut Reader::new(&answer.body)).expect("board");
+                let answer = self.last(visitor)?;
+                match (&(answer.status), &(200)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                let board = p::PublicBoard::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
+                    .map_err(|why| format!("board: {why:?}"))?;
                 let goals: Vec<_> = board.live().iter().chain(board.ended().iter()).collect();
                 if !super::TRACKED.with(core::cell::Cell::get) {
-                    assert!(goals.is_empty(), "untracked change and its conversation delegates leave no goal");
+                    if !(goals.is_empty()) {
+                        return Err(String::from("untracked change and its conversation delegates leave no goal"));
+                    }
                     self.calls.push(visitor.send(
                         fixtures::CLIENTS,
                         Method::Get,
@@ -203,48 +224,108 @@ impl Walk {
                         &[(b"Host", b"one.example")],
                     ));
                     self.stage = 100;
-                    return false;
+                    return Ok(false);
                 }
-                assert_eq!(goals.len(), 1, "one tracked goal, conversation excluded: {}", self.diagnostic());
+                match (&(goals.len()), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = format!("one tracked goal, conversation excluded: {}", self.diagnostic());
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 let goal = goals[0];
                 super::identifiers::remember(
                     project,
                     goal.line().task(),
                     goal.tree().iter().map(p::PublicLine::task).collect(),
                 );
-                assert!(goal.line().goal());
-                assert_eq!(goal.line().parent(), &None, "conversation ancestry never crosses");
-                assert_eq!(goal.line().title(), b"@edit Public change title");
-                assert_eq!(
-                    goal.line().delegates().working()
+                if !(goal.line().goal()) {
+                    return Err(format!("assertion failed: {}", stringify!(goal.line().goal())));
+                }
+                match (&(goal.line().parent()), &(&None)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("conversation ancestry never crosses");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(goal.line().title()), &(b"@edit Public change title")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (
+                    &(goal.line().delegates().working()
                         + goal.line().delegates().waiting()
                         + goal.line().delegates().held()
                         + goal.line().delegates().closing()
-                        + goal.line().delegates().ended(),
-                    goal.tree().len()
-                );
+                        + goal.line().delegates().ended()),
+                    &(goal.tree().len()),
+                ) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.task = Some(goal.line().task());
                 self.stage = 4;
             }
             100 => {
-                let answer = self.last(visitor);
-                assert_eq!(answer.status, 200);
-                service_checks::policy(answer, false);
+                let answer = self.last(visitor)?;
+                match (&(answer.status), &(200)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                service_checks::policy(answer, false)?;
                 let app = p::PublicApplication::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
-                    .expect("untracked forge envelope");
-                assert!(app.tasks().is_empty(), "no excluded task enters the envelope");
+                    .map_err(|why| format!("untracked forge envelope: {why:?}"))?;
+                if !(app.tasks().is_empty()) {
+                    return Err(String::from("no excluded task enters the envelope"));
+                }
                 let mut fields = Reader::new(app.record());
-                assert_eq!(fields.u16(), Some(2));
-                assert_eq!(fields.u8(), Some(0), "no excluded turn holder");
-                assert_eq!(fields.u32(), Some(0), "no excluded landing counted");
-                assert_eq!(fields.u32(), Some(0), "no excluded queue counted or ordered");
-                assert!(fields.is_empty());
-                return true;
+                match (&(fields.u16()), &(Some(2))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(fields.u8()), &(Some(0))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("no excluded turn holder");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(fields.u32()), &(Some(0))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("no excluded landing counted");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(fields.u32()), &(Some(0))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("no excluded queue counted or ordered");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                if !(fields.is_empty()) {
+                    return Err(format!("assertion failed: {}", stringify!(fields.is_empty())));
+                }
+                return Ok(true);
             }
             200..=205 => return self.cross_project(visitor, project),
             _ => {
                 let row = (self.stage - 4) / 2;
-                let task = self.task.expect("public change");
+                let task = self.task.ok_or_else(|| String::from("public change"))?;
                 let paths = [
                     "/jig/v1/public/0/1/1".to_owned(),
                     format!("/jig/v1/public/0/1/2/{project:016x}"),
@@ -259,7 +340,7 @@ impl Walk {
                 ];
                 if row == paths.len() {
                     self.stage = 200;
-                    return false;
+                    return Ok(false);
                 }
                 if (self.stage - 4).is_multiple_of(2) {
                     self.calls.push(visitor.send(
@@ -269,15 +350,16 @@ impl Walk {
                         &[(b"Host", b"one.example")],
                     ));
                 } else {
-                    let answer = self.last(visitor);
-                    assert_eq!(
-                        answer.status,
-                        if row < 8 { 200 } else { 404 },
-                        "owner/version/kind row {row}: {}",
-                        paths[row]
-                    );
-                    service_checks::policy(answer, true);
-                    declared(row, answer, project, task);
+                    let answer = self.last(visitor)?;
+                    match (&(answer.status), &(if row < 8 { 200 } else { 404 })) {
+                        (left, right) if left != right => {
+                            let finding = format!("owner/version/kind row {row}: {}", paths[row]);
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    service_checks::policy(answer, true)?;
+                    declared(row, answer, project, task)?;
                     for marker in [
                         b"PRIVATE_SPEC_BODY".as_slice(),
                         b"PRIVATE_WORDS",
@@ -288,13 +370,18 @@ impl Walk {
                         b"owner-a",
                         b"fake-provider",
                     ] {
-                        assert!(
-                            !answer.body.windows(marker.len()).any(|bytes| bytes == marker),
-                            "private source in row {row}: {marker:?}"
-                        );
+                        if answer.body.windows(marker.len()).any(|bytes| bytes == marker) {
+                            return Err(format!("private source in row {row}: {marker:?}"));
+                        }
                     }
                     if (6..8).contains(&row) {
-                        assert_eq!(answer.header(b"cache-control"), Some(b"no-store".as_slice()));
+                        match (&(answer.header(b"cache-control")), &(Some(b"no-store".as_slice()))) {
+                            (left, right) if left != right => {
+                                let finding = String::from("assertion `left == right` failed");
+                                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                            }
+                            _ => {}
+                        }
                     }
                     // Two read tokens refill between independently priced kinds.
                     self.wake = Some(Time::from_nanos(now.as_nanos() + 250_000_000));
@@ -302,24 +389,34 @@ impl Walk {
                 self.stage += 1;
             }
         }
-        false
+        Ok(false)
     }
-    fn cross_project(&mut self, visitor: &mut Visitor, project: u64) -> bool {
+    #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+    fn cross_project(&mut self, visitor: &mut Visitor, project: u64) -> Result<bool, String> {
         use jig_client::contract as c;
         match self.stage {
             200 => self.calls.push(super::requests::ask(
                 visitor,
                 &c::Ask::MakeProject {
-                    name: c::Text::new(b"Other public project".as_slice().into(), 64).expect("name"),
+                    name: c::Text::new(b"Other public project".as_slice().into(), 64)
+                        .map_err(|why| format!("name: {why:?}"))?,
                     policy: 1,
                 },
                 171,
             )),
             201 => {
-                assert!(matches!(
-                    super::requests::answer(&self.last(visitor).body),
+                if !(matches!(
+                    super::requests::answer(&self.last(visitor)?.body)?,
                     c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 2 }))
-                ));
+                )) {
+                    return Err(format!(
+                        "assertion failed: {}",
+                        stringify!(matches!(
+                            super::requests::answer(&self.last(visitor)?.body)?,
+                            c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 2 }))
+                        ))
+                    ));
+                }
                 self.calls.push(super::requests::ask(
                     visitor,
                     &c::Ask::SetVisibility { project: 2, public: true },
@@ -327,7 +424,12 @@ impl Walk {
                 ));
             }
             202 => {
-                assert!(matches!(super::requests::answer(&self.last(visitor).body), c::Answer::Done(_)));
+                if !(matches!(super::requests::answer(&self.last(visitor)?.body)?, c::Answer::Done(_))) {
+                    return Err(format!(
+                        "assertion failed: {}",
+                        stringify!(matches!(super::requests::answer(&self.last(visitor)?.body)?, c::Answer::Done(_)))
+                    ));
+                }
                 self.calls.push(visitor.send(
                     crate::fixtures::CLIENTS,
                     Method::Get,
@@ -336,13 +438,29 @@ impl Walk {
                 ));
             }
             203 => {
-                let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&self.last(visitor).body))
-                    .expect("public projects");
-                assert_eq!(projects.projects().len(), 2);
-                let other_row = projects.projects().iter().find(|row| row.project() != project).expect("other project");
-                assert_eq!(other_row.name(), b"Other public project", "the public record carries the project's name");
+                let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&self.last(visitor)?.body))
+                    .map_err(|why| format!("public projects: {why:?}"))?;
+                match (&(projects.projects().len()), &(2)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                let other_row = projects
+                    .projects()
+                    .iter()
+                    .find(|row| row.project() != project)
+                    .ok_or_else(|| String::from("other project"))?;
+                match (&(other_row.name()), &(b"Other public project")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("the public record carries the project's name");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 let other = other_row.project();
-                let task = self.task.expect("a genuinely public task of project one");
+                let task = self.task.ok_or_else(|| String::from("a genuinely public task of project one"))?;
                 for (address, task) in [(crate::fixtures::CLIENTS, task), (PROXY, task), (crate::fixtures::CLIENTS, 0)]
                 {
                     self.calls.push(visitor.send(
@@ -354,16 +472,29 @@ impl Walk {
                 }
             }
             204 => {
-                let baseline = self.last(visitor);
+                let baseline = self.last(visitor)?;
                 for id in self.calls.iter().rev().take(3) {
-                    let answer = visitor.answers[id].as_ref().expect("cross-project answer");
-                    assert_eq!(answer.status, 404, "a public task is still excluded from another public project");
-                    assert!(answer.body.is_empty());
-                    service_checks::policy(answer, false);
-                    assert_eq!(
-                        answer, baseline,
-                        "a foreign public task is the same unknown directly and through the proxy"
-                    );
+                    let answer = visitor.answers[id].as_ref().ok_or_else(|| String::from("cross-project answer"))?;
+                    match (&(answer.status), &(404)) {
+                        (left, right) if left != right => {
+                            let finding = String::from("a public task is still excluded from another public project");
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
+                    if !(answer.body.is_empty()) {
+                        return Err(format!("assertion failed: {}", stringify!(answer.body.is_empty())));
+                    }
+                    service_checks::policy(answer, false)?;
+                    match (&(answer), &(baseline)) {
+                        (left, right) if left != right => {
+                            let finding = String::from(
+                                "a foreign public task is the same unknown directly and through the proxy",
+                            );
+                            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                        }
+                        _ => {}
+                    }
                 }
                 self.calls.push(super::requests::ask(
                     visitor,
@@ -372,95 +503,248 @@ impl Walk {
                 ));
             }
             205 => {
-                assert!(matches!(super::requests::answer(&self.last(visitor).body), c::Answer::Done(_)));
-                return true;
+                if !(matches!(super::requests::answer(&self.last(visitor)?.body)?, c::Answer::Done(_))) {
+                    return Err(format!(
+                        "assertion failed: {}",
+                        stringify!(matches!(super::requests::answer(&self.last(visitor)?.body)?, c::Answer::Done(_)))
+                    ));
+                }
+                return Ok(true);
             }
-            _ => unreachable!("cross-project stages"),
+            _ => return Err(String::from("cross-project stages")),
         }
         self.stage += 1;
-        false
+        Ok(false)
     }
 }
 
-fn declared(row: usize, answer: &Answer, project: u64, task: u64) {
+#[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+fn declared(row: usize, answer: &Answer, project: u64, task: u64) -> Result<(), String> {
     let mut reader = Reader::new(&answer.body);
     if !(6..8).contains(&row) {
-        service_checks::cacheable(answer);
+        service_checks::cacheable(answer)?;
     }
     if row < 6 {
-        assert_eq!(answer.header(b"content-type"), Some(b"application/octet-stream".as_slice()));
+        match (&(answer.header(b"content-type")), &(Some(b"application/octet-stream".as_slice()))) {
+            (left, right) if left != right => {
+                let finding = String::from("assertion `left == right` failed");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        }
     }
     match row {
         0 => {
-            let projects = p::PublicProjects::decode(&p::CEILINGS, &mut reader).expect("projects record");
-            assert_eq!(projects.projects().iter().map(p::PublicProject::project).collect::<Vec<_>>(), [project]);
+            let projects = p::PublicProjects::decode(&p::CEILINGS, &mut reader)
+                .map_err(|why| format!("projects record: {why:?}"))?;
+            match (&(projects.projects().iter().map(p::PublicProject::project).collect::<Vec<_>>()), &([project])) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
         }
         1 => {
-            let board = p::PublicBoard::decode(&p::CEILINGS, &mut reader).expect("board record");
-            assert_eq!(board.project(), project);
-            assert_eq!(board.live().len() + board.ended().len(), 1);
+            let board =
+                p::PublicBoard::decode(&p::CEILINGS, &mut reader).map_err(|why| format!("board record: {why:?}"))?;
+            match (&(board.project()), &(project)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(board.live().len() + board.ended().len()), &(1)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
         }
         2 => {
-            let card = p::PublicCard::decode(&p::CEILINGS, &mut reader).expect("card record");
-            assert_eq!(card.line().task(), task);
-            assert_eq!(card.line().title(), b"@edit Public change title");
+            let card =
+                p::PublicCard::decode(&p::CEILINGS, &mut reader).map_err(|why| format!("card record: {why:?}"))?;
+            match (&(card.line().task()), &(task)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(card.line().title()), &(b"@edit Public change title")) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
         }
         3..=5 => {
-            let application =
-                p::PublicApplication::decode(&p::CEILINGS, &mut reader).expect("forge record in its public envelope");
-            assert_eq!(
-                application.tasks().iter().copied().collect::<Vec<_>>(),
-                [task],
-                "only the public member is named; the landing's task stays private"
-            );
-            forge_references(row, application.record());
+            let application = p::PublicApplication::decode(&p::CEILINGS, &mut reader)
+                .map_err(|why| format!("forge record in its public envelope: {why:?}"))?;
+            match (&(application.tasks().iter().copied().collect::<Vec<_>>()), &([task])) {
+                (left, right) if left != right => {
+                    let finding = String::from("only the public member is named; the landing's task stays private");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            forge_references(row, application.record())?;
         }
         6 | 7 => {
             use jig_client_protocol_wire::v22 as w;
-            let versions = w::NotServed::decode(&w::CEILINGS, &mut reader).expect("not-served record");
-            assert_eq!(versions.served().len(), 1);
-            let version = versions.served().iter().next().expect("served version");
-            assert_eq!((version.first(), version.last()), if row == 6 { (1, 1) } else { (2, 2) });
+            let versions =
+                w::NotServed::decode(&w::CEILINGS, &mut reader).map_err(|why| format!("not-served record: {why:?}"))?;
+            match (&(versions.served().len()), &(1)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            let version = versions.served().iter().next().ok_or_else(|| String::from("served version"))?;
+            match (&(version.first(), version.last()), &(if row == 6 { (1, 1) } else { (2, 2) })) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
         }
-        _ => assert!(answer.body.is_empty(), "unknown carries no body"),
+        _ => {
+            if !(answer.body.is_empty()) {
+                return Err(String::from("unknown carries no body"));
+            }
+        }
     }
-    assert!(reader.is_empty(), "the declared record consumes every byte");
+    if !(reader.is_empty()) {
+        return Err(String::from("the declared record consumes every byte"));
+    }
+
+    Ok(())
 }
 
 // The public wire's leading fields bind task references to envelope places (temper/docs/design/client/forge/README.md, 9.4).
-fn forge_references(row: usize, record: &[u8]) {
+#[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+fn forge_references(row: usize, record: &[u8]) -> Result<(), String> {
     let mut fields = Reader::new(record);
-    assert_eq!(fields.u16(), Some(2), "the declared public record version");
+    match (&(fields.u16()), &(Some(2))) {
+        (left, right) if left != right => {
+            let finding = String::from("the declared public record version");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
     match row {
-        3 => assert_eq!(fields.u16(), Some(0), "a change names its envelope place, never its internal task number"),
+        3 => match (&(fields.u16()), &(Some(0))) {
+            (left, right) if left != right => {
+                let finding = String::from("a change names its envelope place, never its internal task number");
+                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+            }
+            _ => {}
+        },
         4 => {
-            assert_eq!(fields.u8(), Some(0), "the ended landing holds no turn");
-            assert_eq!(fields.u32(), Some(2), "the conflicted landing and the later landed one");
+            match (&(fields.u8()), &(Some(0))) {
+                (left, right) if left != right => {
+                    let finding = String::from("the ended landing holds no turn");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(fields.u32()), &(Some(2))) {
+                (left, right) if left != right => {
+                    let finding = String::from("the conflicted landing and the later landed one");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             let mut landed = 0;
             for _ in 0..2 {
-                assert_eq!(fields.u32(), Some(1), "one public member");
-                assert_eq!(fields.u16(), Some(0), "member is the envelope's task");
-                assert_eq!(fields.u8(), Some(5), "ended phase");
-                let commits = fields.u32().expect("landed commits");
-                assert!(commits <= 1);
+                match (&(fields.u32()), &(Some(1))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("one public member");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(fields.u16()), &(Some(0))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("member is the envelope's task");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(fields.u8()), &(Some(5))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("ended phase");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                let commits = fields.u32().ok_or_else(|| String::from("landed commits"))?;
+                if commits > 1 {
+                    return Err(format!("assertion failed: {}", stringify!(commits <= 1)));
+                }
                 landed += commits;
                 if commits == 1 {
-                    fields.bytes(32).expect("public merge commit");
+                    fields.bytes(32).ok_or_else(|| String::from("public merge commit"))?;
                 }
             }
-            assert_eq!(landed, 1, "only the later landing brought the member");
-            assert_eq!(fields.u32(), Some(0), "ended changes occupy no queue");
-            assert!(fields.is_empty());
+            match (&(landed), &(1)) {
+                (left, right) if left != right => {
+                    let finding = String::from("only the later landing brought the member");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(fields.u32()), &(Some(0))) {
+                (left, right) if left != right => {
+                    let finding = String::from("ended changes occupy no queue");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            if !(fields.is_empty()) {
+                return Err(format!("assertion failed: {}", stringify!(fields.is_empty())));
+            }
         }
         5 => {
-            assert_eq!(fields.u8(), Some(5), "landed phase");
-            assert_eq!(fields.u8(), Some(0), "no landing hold");
-            fields.u32().expect("preparation count");
-            assert_eq!(fields.u32(), Some(1), "one public member");
-            assert_eq!(fields.u16(), Some(0), "member is the envelope's task");
+            match (&(fields.u8()), &(Some(5))) {
+                (left, right) if left != right => {
+                    let finding = String::from("landed phase");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(fields.u8()), &(Some(0))) {
+                (left, right) if left != right => {
+                    let finding = String::from("no landing hold");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            fields.u32().ok_or_else(|| String::from("preparation count"))?;
+            match (&(fields.u32()), &(Some(1))) {
+                (left, right) if left != right => {
+                    let finding = String::from("one public member");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(fields.u16()), &(Some(0))) {
+                (left, right) if left != right => {
+                    let finding = String::from("member is the envelope's task");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
         }
-        _ => unreachable!("forge kinds"),
+        _ => return Err(String::from("forge kinds")),
     }
+
+    Ok(())
 }
 
 #[cfg(test)]
