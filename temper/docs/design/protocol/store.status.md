@@ -66,5 +66,3 @@ Section 4's `CompareAnswer` changed in place, by goal 64: the deployment's store
 
 - **Not yet:** 4, the tier rows' ceilings of 2049: the schema still holds 257, so `forge.changes` is at most 128.
 
-- **Not yet:** 4: `temper-store` declares no value types and no current text [in flight: change 2845].
-- **Not yet:** 4: no `temper_protocol_store::jobs::page`, and the service routes no job [in flight: change 2842].
