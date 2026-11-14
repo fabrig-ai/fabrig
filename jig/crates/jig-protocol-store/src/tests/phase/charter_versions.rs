@@ -1,8 +1,8 @@
 //! A settings-v3 store is seeded and converted once (protocol/store/layouts.md, 6).
 use super::*;
-use crate::{Owner, PatchSet, PatchSets};
-use crate::tests::charter_versions::{key, old, record};
 use crate::tests::charter_versions::jig_set;
+use crate::tests::charter_versions::{key, old, record};
+use crate::{Owner, PatchSet, PatchSets};
 use alloc::collections::VecDeque;
 
 fn store(disk: &Disk, set: PatchSet) -> Store {
@@ -29,17 +29,27 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
     let set = jig_set();
     let old_set = PatchSet {
         jobs: &[],
-        families: Box::leak(set.families.iter().map(|family| crate::KeptFamily {
-            types: &[], current: family.texts.last().unwrap(), ..*family
-        }).collect::<Vec<_>>().into_boxed_slice()),
+        families: Box::leak(
+            set.families
+                .iter()
+                .map(|family| crate::KeptFamily { types: &[], current: family.texts.last().unwrap(), ..*family })
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
         ..set
     };
     let mut before = store(&disk, old_set);
     assert_opened(&disk.open(&mut before), 0);
     let committed = disk.request(&mut before, fixtures::commit(1, Box::new([fixtures::header(1)])));
-    assert!(matches!(committed.as_ref(), [Event::Committed { number: 1, .. }]));
-    registry::raw(&mut disk, &mut before, [record(false, true), record(true, true)].iter()
-        .map(|r| skein_kv::Op::Put { key: key(r), value: old(r) }).collect());
+    let [Event::Committed { number: 1, .. }] = committed.as_ref() else { panic!("commit: {committed:?}") };
+    registry::raw(
+        &mut disk,
+        &mut before,
+        [record(false, true), record(true, true)]
+            .iter()
+            .map(|r| skein_kv::Op::Put { key: key(r), value: old(r) })
+            .collect(),
+    );
     let seed = crate::keys::Own::Layout { family: "jig-store-settings".into(), number: 4, id: 3 };
     let seed = crate::keys::encode_own(&seed, before.limits.store.key).unwrap();
     assert!(fixtures::get_kv(&mut before, &seed).is_none());
@@ -47,8 +57,8 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
     let mut disk = Disk::new(&disk.items());
     let mut current = store(&disk, jig_set());
     let mut events = VecDeque::from(disk.open(&mut current).into_vec());
-    let mut ran = 0;
-    let mut pages = 0;
+    let mut ran = 0_u32;
+    let mut pages = 0_u32;
     let mut last = None;
     while let Some(event) = events.pop_front() {
         match event {
@@ -83,17 +93,20 @@ fn charter_versions_open_seeds_runs_two_rows_marks_done_and_reopens_without_writ
     assert_eq!((ran, pages), (1, 2));
     assert!(jobs::done(&mut current, Owner::Jig, "charter-versions").is_some());
     check_values(&mut disk, &mut current);
-    assert!(matches!(disk.request(&mut current, Request::Switch { owner: Token::new(1) }).as_ref(), [Event::Switched { .. }]));
+    let switched = disk.request(&mut current, Request::Switch { owner: Token::new(1) });
+    let [Event::Switched { .. }] = switched.as_ref() else { panic!("switch: {switched:?}") };
     let contents = disk.contents();
     let mut again = store(&disk, jig_set());
     let opened = disk.open(&mut again);
     assert_opened(&opened, last.unwrap());
-    assert!(matches!(opened.first(), Some(Event::Opened { pending: false, .. })));
+    let Some(Event::Opened { pending: false, .. }) = opened.first() else { panic!("reopen: {opened:?}") };
     check_values(&mut disk, &mut again);
     // Recovery may create an empty segment, but adds no committed writes.
-    let committed_bytes = |contents: Vec<(Box<[u8]>, Kind, u32, Box<[u8]>)>| contents.into_iter()
-        .filter(|(_, kind, _, bytes)| *kind == Kind::File && !bytes.is_empty()).collect::<Vec<_>>();
     assert_eq!(committed_bytes(disk.contents()), committed_bytes(contents));
+}
+type Contents = Vec<(Box<[u8]>, Kind, u32, Box<[u8]>)>;
+fn committed_bytes(contents: Contents) -> Contents {
+    contents.into_iter().filter(|(_, kind, _, bytes)| *kind == Kind::File && !bytes.is_empty()).collect()
 }
 #[test]
 fn an_empty_stores_first_commit_marks_charter_versions_done_without_running_it() {
@@ -101,7 +114,7 @@ fn an_empty_stores_first_commit_marks_charter_versions_done_without_running_it()
     let mut current = store(&disk, jig_set());
     assert_opened(&disk.open(&mut current), 0);
     let committed = disk.request(&mut current, fixtures::commit(1, Box::new([fixtures::header(1)])));
-    assert!(matches!(committed.as_ref(), [Event::Committed { number: 1, .. }]));
+    let [Event::Committed { number: 1, .. }] = committed.as_ref() else { panic!("commit: {committed:?}") };
     assert_eq!(jobs::done(&mut current, Owner::Jig, "charter-versions"), Some(1));
     let mut again = store(&disk, jig_set());
     assert_opened(&disk.open(&mut again), 1);

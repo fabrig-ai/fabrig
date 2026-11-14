@@ -1,10 +1,11 @@
 //! The written job reads both roots of the kept settings text (protocol/store/jobs.md, 4).
-#![expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "ordinary Rust codec contract tests")]
+#![expect(clippy::disallowed_methods, reason = "ordinary Rust codec contract tests")]
 use super::{fixtures, settings};
 use crate::{JobLayout, JobPage, JobRow, JobWrite, codec, jobs, settings_v3 as wire};
 use jig_domain_core_vocabulary::{self as core, settings as s};
 use skein_lib::{Reader, Writer};
 
+#[expect(clippy::disallowed_macros, reason = "the contract pins the immutable kept v3 schema text")]
 pub(crate) const KEPT: &str = include_str!("../../schema/kept/jig-store-settings-v3.schema");
 pub(crate) fn layout() -> JobLayout {
     JobLayout { root: "CharterVersion".into(), variant: None, text: KEPT.as_bytes().into(), held: Box::new([]) }
@@ -71,11 +72,12 @@ fn charter_versions_job_puts_both_kept_forms_as_one_root_on_every_page() {
 }
 #[test]
 fn charter_versions_job_refuses_neither_form_naming_the_key() {
-    for bytes in [vec![], vec![0, 3, 2], vec![0, 3, 0, 255], vec![0, 3, 0, 0, 0]] {
+    for bytes in [b"".as_slice(), &[0, 3, 2], &[0, 3, 0, 255], &[0, 3, 0, 0, 0]] {
         let key = key(&record(false, false));
         let page = JobPage {
             rows: Box::new([JobRow { key: key.clone(), value: bytes.into() }]),
-            end: false, layout: Some(layout()),
+            end: false,
+            layout: Some(layout()),
         };
         let refused = jobs::page("charter-versions", &page).unwrap_err();
         assert_eq!(refused.key, Some(key));
@@ -105,7 +107,7 @@ fn charter_versions_from_is_the_kept_v3_root_layout_and_the_job_is_admitted() {
     assert_eq!(schema.version(), 3);
     let expected = schema.layout(schema.root(ty.root.as_bytes(), None).unwrap(), &[]).unwrap().digest();
     assert_eq!(converts.from, expected);
-    assert!(jobs::admission::check(&crate::PatchSets { sets: Box::leak(Box::new([jig_set()])) }).is_ok());
+    jobs::admission::check(&crate::PatchSets { sets: Box::leak(Box::new([jig_set()])) }).unwrap();
 }
 
 /// The dev dependency links the non-test store library. Copy metadata into the
@@ -114,20 +116,54 @@ pub(crate) fn jig_set() -> crate::PatchSet {
     let set = jig_protocol_accounts::JIG_PATCH_SET;
     let store_map = set.families.iter().find(|f| f.name == "jig-store-settings").unwrap().map;
     crate::PatchSet {
-        owner: crate::Owner::Jig, name: set.name, patches: set.patches, fresh: set.fresh,
-        jobs: Box::leak(set.jobs.iter().map(|job| crate::Job {
-            name: job.name, keys: Box::leak(job.keys.iter().map(|r| crate::KeyRange { from: r.from, to: r.to }).collect()), converts: job.converts.map(|c| crate::Converts {
-                family: c.family, value_type: c.value_type, from: c.from,
-            }),
-        }).collect()),
-        families: Box::leak(set.families.iter().map(|f| crate::KeptFamily {
-            name: f.name, texts: f.texts, current: f.current, frames: f.frames,
-            map: if f.map == store_map { crate::KeptMap::Store } else { crate::KeptMap::Secrets },
-            keys: Box::leak(f.keys.iter().map(|k| crate::Keys { from: k.from, to: k.to, root: k.root }).collect()),
-            flights: Box::leak(f.flights.iter().map(|k| crate::Keys { from: k.from, to: k.to, root: k.root }).collect()),
-            types: Box::leak(f.types.iter().map(|t| crate::ValueType {
-                number: t.number, root: t.root, variant: t.variant, keys: Box::leak(t.keys.iter().map(|r| crate::KeyRange { from: r.from, to: r.to }).collect()),
-            }).collect()),
-        }).collect()),
+        owner: crate::Owner::Jig,
+        name: set.name,
+        patches: set.patches,
+        fresh: set.fresh,
+        jobs: Box::leak(
+            set.jobs
+                .iter()
+                .map(|job| crate::Job {
+                    name: job.name,
+                    keys: Box::leak(job.keys.iter().map(|r| crate::KeyRange { from: r.from, to: r.to }).collect()),
+                    converts: job.converts.map(|c| crate::Converts {
+                        family: c.family,
+                        value_type: c.value_type,
+                        from: c.from,
+                    }),
+                })
+                .collect(),
+        ),
+        families: Box::leak(
+            set.families
+                .iter()
+                .map(|f| crate::KeptFamily {
+                    name: f.name,
+                    texts: f.texts,
+                    current: f.current,
+                    frames: f.frames,
+                    map: if f.map == store_map { crate::KeptMap::Store } else { crate::KeptMap::Secrets },
+                    keys: Box::leak(
+                        f.keys.iter().map(|k| crate::Keys { from: k.from, to: k.to, root: k.root }).collect(),
+                    ),
+                    flights: Box::leak(
+                        f.flights.iter().map(|k| crate::Keys { from: k.from, to: k.to, root: k.root }).collect(),
+                    ),
+                    types: Box::leak(
+                        f.types
+                            .iter()
+                            .map(|t| crate::ValueType {
+                                number: t.number,
+                                root: t.root,
+                                variant: t.variant,
+                                keys: Box::leak(
+                                    t.keys.iter().map(|r| crate::KeyRange { from: r.from, to: r.to }).collect(),
+                                ),
+                            })
+                            .collect(),
+                    ),
+                })
+                .collect(),
+        ),
     }
 }

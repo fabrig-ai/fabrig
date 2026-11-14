@@ -892,12 +892,14 @@ fn charter_versions_use_one_root_with_an_optional_overlay() {
         for charter in [None, Some(Box::new(charter()))] {
             let value = s::CharterVersion { overlay: overlay.clone(), charter };
             let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Charter {
-                charter: 1, revision: 2, value: value.clone(),
+                charter: 1,
+                revision: 2,
+                value: value.clone(),
             }));
             let bytes = codec::encode(&row, &limits, &[]).unwrap();
-            let wire = crate::settings_v3::CharterVersion::decode(
-                &limits.settings, &mut skein_lib::Reader::new(&bytes),
-            ).unwrap();
+            let wire =
+                crate::settings_v3::CharterVersion::decode(&limits.settings, &mut skein_lib::Reader::new(&bytes))
+                    .unwrap();
             assert_eq!(wire.charter().is_some(), value.charter.is_some());
             assert_eq!(wire.overlay().is_some(), value.overlay.is_some());
             assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]), Some(row));

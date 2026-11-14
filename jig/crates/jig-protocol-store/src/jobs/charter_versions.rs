@@ -2,7 +2,10 @@
 use super::{JobAnswer, JobPage, JobRefusal, JobWrite};
 use crate::settings_v3 as wire;
 use alloc::boxed::Box;
-use skein_codec::{schema::{self, DeclIx, FieldIx, Schema, Shape}, value::{Node, Value}};
+use skein_codec::{
+    schema::{self, DeclIx, FieldIx, Schema, Shape},
+    value::{Node, Value},
+};
 use skein_lib::{List, Reader, Writer, length::usize_of};
 
 pub(super) fn page(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
@@ -42,7 +45,11 @@ fn convert(schema: &Schema, bytes: &[u8]) -> Option<Box<[u8]>> {
         Err(_) => {
             let root = value.decode(schema, overlaid, headed(schema, bytes)?).ok()?;
             let overlay = value.field(root, field(schema, overlaid, b"overlay")?).ok()?;
-            (root, overlaid, Some(wire::Overlay::decode(&wire::CEILINGS, &mut Reader::new(span(&value, overlay)?)).ok()?))
+            (
+                root,
+                overlaid,
+                Some(wire::Overlay::decode(&wire::CEILINGS, &mut Reader::new(span(&value, overlay)?)).ok()?),
+            )
         }
     };
     let charter = value.field(root, field(schema, decl, b"charter")?).ok()?;

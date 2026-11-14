@@ -310,8 +310,15 @@ impl Store {
         let mut wires = false;
         for op in ops {
             match op {
-                skein_kv::Op::Put { key, value } => {
+                skein_kv::Op::Put { key, mut value } => {
                     if let Some(key) = keys::decode(&key) {
+                        // The charter-version job stores layout 4; the domain
+                        // referee reads its unchanged family-version head.
+                        if matches!(key, core::Key::Core(core::CoreKey::Settings(core::settings::Key::Charter { .. })))
+                            && value.starts_with(&[0, 4])
+                        {
+                            value[..2].copy_from_slice(&3_u16.to_be_bytes());
+                        }
                         let row = codec::decode(&key, &value, limits, names).expect("real stored row decodes");
                         if let core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
                             history: true,
