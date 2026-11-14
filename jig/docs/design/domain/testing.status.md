@@ -78,3 +78,12 @@ observation and world-cost work.
   model panics on a patch that breaks it. [in flight: change 2856]
   7: jig's world referees implement `observe`, not `watch`.
   [in flight: change 2857]
+- **Not yet:**
+  7: the client's world asserts its referee's findings at once, with no
+  returning entry points. [in flight: change 3115]
+  7: the restart oracle asserts its comparisons, and the store files'
+  readback panics on what it finds. [in flight: change 3114]
+  7: the host's refusal referee and turn engine, and the notes' referee,
+  assert. [in flight: change 3116]
+  7: jig's domain step tests trigger assertions of start order, routing
+  and their constructors' limits. [in flight: change 3110]

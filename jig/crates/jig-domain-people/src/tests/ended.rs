@@ -42,21 +42,6 @@ fn an_ended_conversation_moves_its_position_to_the_ended_family() {
 }
 
 #[test]
-#[should_panic(expected = "wrong people family")]
-fn an_ended_read_position_panics_at_restore() {
-    let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    domain.start_restore(env.wall);
-    let mut out = Queue::uncapped();
-    step(
-        &mut domain,
-        &env,
-        Event::Restore { record: Stored::EndedRead { task: TASK, party: PARTY, through: 1 } },
-        &mut out,
-    );
-}
-
-#[test]
 fn a_mark_on_an_ended_conversation_saves_its_ended_position() {
     let mut test = world();
     test.send(Event::ChatState {
