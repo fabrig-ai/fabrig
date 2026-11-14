@@ -1,5 +1,5 @@
 //! Root commits, numbered with skein-kv's (protocol/store/README.md, 5 and 6.2).
-use crate::{Event, Store, Write, codec, format, keys};
+use crate::{CommitCheck, Event, Store, Write, codec, format, keys};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{CoreRecord, Record};
 use skein_lib::{List, Map, Queue, Token};
@@ -25,7 +25,7 @@ pub(crate) fn submit(
 }
 #[derive(Debug)]
 pub(crate) enum Refusal {
-    Failed,
+    Check(CommitCheck),
     FrameTooLarge { task: u64, bytes: u32, limit: u32 },
 }
 
@@ -36,12 +36,13 @@ pub(crate) fn operations(
     writes: Box<[Write]>,
     format_due: bool,
 ) -> Result<crate::transcripts::Pending, Refusal> {
-    if writes.len() > usize::try_from(store.limits.commits.writes).ok().ok_or(Refusal::Failed)? {
-        return Err(Refusal::Failed);
+    if writes.len() > usize::try_from(store.limits.commits.writes).ok().ok_or(Refusal::Check(CommitCheck::Writes))? {
+        return Err(Refusal::Check(CommitCheck::Writes));
     }
     // Wires can erase every opening as well as the root's writes.
-    let base = most_ops(store.limits.commits.writes, store.limits.orphan_erases).ok_or(Refusal::Failed)?;
-    let capacity = base.checked_add(store.limits.store.ops).ok_or(Refusal::Failed)?;
+    let base = most_ops(store.limits.commits.writes, store.limits.orphan_erases)
+        .ok_or(Refusal::Check(CommitCheck::Capacity))?;
+    let capacity = base.checked_add(store.limits.store.ops).ok_or(Refusal::Check(CommitCheck::Capacity))?;
     let mut ops = List::with_capacity(capacity);
     let mut frames = Queue::uncapped();
     let mut drops = Queue::uncapped();
@@ -52,34 +53,47 @@ pub(crate) fn operations(
         match write {
             Write::Wires => {
                 if crate::patching::switch::pending(store) {
-                    return Err(Refusal::Failed);
+                    return Err(Refusal::Check(CommitCheck::Switching));
                 }
-                crate::openings::clear(store, &mut ops).ok_or(Refusal::Failed)?;
+                if let Err(check) = crate::openings::clear(store, &mut ops) {
+                    return Err(Refusal::Check(check));
+                }
                 wires = true;
-                ops.push(operation(store, Write::Wires).ok_or(Refusal::Failed)?).ok().ok_or(Refusal::Failed)?;
+                let op = match operation(store, Write::Wires) {
+                    Ok(op) => op,
+                    Err(check) => return Err(Refusal::Check(check)),
+                };
+                ops.push(op).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
             }
             Write::DropTranscript { task } => {
                 if crate::patching::switch::pending(store) {
-                    return Err(Refusal::Failed);
+                    return Err(Refusal::Check(CommitCheck::Switching));
                 }
-                crate::transcripts::drop::queue(store, task, number).ok_or(Refusal::Failed)?;
-                ops.push(operation(store, Write::DropTranscript { task }).ok_or(Refusal::Failed)?)
-                    .ok()
-                    .ok_or(Refusal::Failed)?;
+                if let Err(check) = crate::transcripts::drop::queue(store, task, number) {
+                    return Err(Refusal::Check(check));
+                }
+                let op = match operation(store, Write::DropTranscript { task }) {
+                    Ok(op) => op,
+                    Err(check) => return Err(Refusal::Check(check)),
+                };
+                ops.push(op).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
                 drops.push(task);
             }
             Write::Save(Record::Core(CoreRecord::Turn(turn))) => {
                 if crate::patching::switch::pending(store) {
-                    return Err(Refusal::Failed);
+                    return Err(Refusal::Check(CommitCheck::Switching));
                 }
-                let body = crate::transcripts::frame::encode(&turn, &store.codec_limits).ok_or(Refusal::Failed)?;
-                let bytes = u32::try_from(body.len()).ok().ok_or(Refusal::Failed)?;
+                let body = crate::transcripts::frame::encode(&turn, &store.codec_limits)
+                    .ok_or(Refusal::Check(CommitCheck::Encoding))?;
+                let bytes = u32::try_from(body.len()).ok().ok_or(Refusal::Check(CommitCheck::Encoding))?;
                 let limit = store.limits.store.page.bytes;
                 if bytes > limit {
                     return Err(Refusal::FrameTooLarge { task: turn.task, bytes, limit });
                 }
-                let offset = crate::transcripts::place(store, number, &turn, u64::from(bytes), &mut ops)
-                    .ok_or(Refusal::Failed)?;
+                let offset = match crate::transcripts::place(store, number, &turn, u64::from(bytes), &mut ops) {
+                    Ok(value) => value,
+                    Err(check) => return Err(Refusal::Check(check)),
+                };
                 frames.push(crate::transcripts::Frame { task: turn.task, offset, bytes: body });
             }
             write @ (Write::Save(
@@ -106,7 +120,11 @@ pub(crate) fn operations(
                 if let Some(id) = header_id(&write) {
                     deployment = Some(id);
                 }
-                ops.push(operation(store, write).ok_or(Refusal::Failed)?).ok().ok_or(Refusal::Failed)?;
+                let op = match operation(store, write) {
+                    Ok(op) => op,
+                    Err(check) => return Err(Refusal::Check(check)),
+                };
+                ops.push(op).ok().ok_or(Refusal::Check(CommitCheck::Capacity))?;
             }
         }
     }
@@ -115,56 +133,67 @@ pub(crate) fn operations(
         let mut row = format::current(store.application.version, id);
         row.levels = crate::patching::plan::binary(&store.patch_sets);
         ops.push(skein_kv::Op::Put {
-            key: keys::encode_own(&keys::Own::Format, store.limits.store.key).ok_or(Refusal::Failed)?,
-            value: row.encode().ok().ok_or(Refusal::Failed)?,
+            key: keys::encode_own(&keys::Own::Format, store.limits.store.key)
+                .ok_or(Refusal::Check(CommitCheck::Encoding))?,
+            value: row.encode().ok().ok_or(Refusal::Check(CommitCheck::Encoding))?,
         })
         .ok()
-        .ok_or(Refusal::Failed)?;
+        .ok_or(Refusal::Check(CommitCheck::Capacity))?;
         ops.push(skein_kv::Op::Put {
-            key: keys::encode_own(&keys::Own::Layouts, store.limits.store.key).ok_or(Refusal::Failed)?,
+            key: keys::encode_own(&keys::Own::Layouts, store.limits.store.key)
+                .ok_or(Refusal::Check(CommitCheck::Encoding))?,
             value: store.layouts.encode(),
         })
         .ok()
-        .ok_or(Refusal::Failed)?;
+        .ok_or(Refusal::Check(CommitCheck::Capacity))?;
         ops.push(skein_kv::Op::Put {
-            key: keys::installation(store.limits.store.key).ok_or(Refusal::Failed)?,
+            key: keys::installation(store.limits.store.key).ok_or(Refusal::Check(CommitCheck::Encoding))?,
             value: codec::accounts::Installation { id: store.installation }.encode(),
         })
         .ok()
-        .ok_or(Refusal::Failed)?;
+        .ok_or(Refusal::Check(CommitCheck::Capacity))?;
     }
-    crate::transcripts::drop::erases(store, &mut ops).ok_or(Refusal::Failed)?;
+    if let Err(check) = crate::transcripts::drop::erases(store, &mut ops) {
+        return Err(Refusal::Check(check));
+    }
     let mut bounded = List::with_capacity(capacity);
-    for op in unique(ops.into_boxed(), capacity).ok_or(Refusal::Failed)? {
-        append(&mut bounded, op, &mut bytes, store.limits.store.commit).ok_or(Refusal::Failed)?;
+    for op in unique(ops.into_boxed(), capacity).ok_or(Refusal::Check(CommitCheck::Capacity))? {
+        if let Err(check) = append(&mut bounded, op, &mut bytes, store.limits.store.commit) {
+            return Err(Refusal::Check(check));
+        }
     }
     store.mark.accept(wires, number);
     Ok(crate::transcripts::Pending { number, frames, ops: bounded.into_boxed(), drops })
 }
-fn operation(store: &mut Store, write: Write) -> Option<skein_kv::Op> {
+fn operation(store: &mut Store, write: Write) -> Result<skein_kv::Op, CommitCheck> {
     let limit = store.limits.store.key;
     match write {
-        Write::Wires => Some(skein_kv::Op::Put {
-            key: keys::encode_own(&keys::Own::Wires, limit)?,
+        Write::Wires => Ok(skein_kv::Op::Put {
+            key: keys::encode_own(&keys::Own::Wires, limit).ok_or(CommitCheck::Encoding)?,
             value: codec::component::wires(store.wires),
         }),
         Write::Opening(opening) => {
-            let key = keys::encode_own(&keys::Own::Opening(opening.worker.clone()), limit)?;
-            let value = codec::openings::encode(opening)?;
-            store.opening_keys.insert(key.clone(), ()).ok()?;
-            Some(skein_kv::Op::Put { key, value })
+            let key =
+                keys::encode_own(&keys::Own::Opening(opening.worker.clone()), limit).ok_or(CommitCheck::Encoding)?;
+            let value = codec::openings::encode(opening).ok_or(CommitCheck::Encoding)?;
+            store.opening_keys.insert(key.clone(), ()).or(Err(CommitCheck::Capacity))?;
+            Ok(skein_kv::Op::Put { key, value })
         }
         Write::Copy { from, to } => copy(store, from, to),
-        Write::Save(record) => Some(skein_kv::Op::Put {
-            key: keys::encode(&record.key(), limit)?,
-            value: codec::encode(&record, &store.codec_limits, &store.names)?,
+        Write::Save(record) => Ok(skein_kv::Op::Put {
+            key: keys::encode(&record.key(), limit).ok_or(CommitCheck::Encoding)?,
+            value: codec::encode(&record, &store.codec_limits, &store.names).ok_or(CommitCheck::Encoding)?,
         }),
-        Write::Erase(key) => Some(skein_kv::Op::Erase { key: keys::encode(&key, limit)? }),
-        Write::Put { key, value } => Some(skein_kv::Op::Put { key: keys::application(&key, limit)?, value }),
-        Write::Remove { key } => Some(skein_kv::Op::Erase { key: keys::application(&key, limit)? }),
-        Write::DropTranscript { task } => {
-            Some(skein_kv::Op::Erase { key: keys::encode_own(&keys::Own::Transcript { task }, limit)? })
+        Write::Erase(key) => Ok(skein_kv::Op::Erase { key: keys::encode(&key, limit).ok_or(CommitCheck::Encoding)? }),
+        Write::Put { key, value } => {
+            Ok(skein_kv::Op::Put { key: keys::application(&key, limit).ok_or(CommitCheck::Encoding)?, value })
         }
+        Write::Remove { key } => {
+            Ok(skein_kv::Op::Erase { key: keys::application(&key, limit).ok_or(CommitCheck::Encoding)? })
+        }
+        Write::DropTranscript { task } => Ok(skein_kv::Op::Erase {
+            key: keys::encode_own(&keys::Own::Transcript { task }, limit).ok_or(CommitCheck::Encoding)?,
+        }),
     }
 }
 
@@ -197,19 +226,22 @@ fn header_id(write: &Write) -> Option<[u8; 16]> {
     }
 }
 
-fn append(ops: &mut List<skein_kv::Op>, op: skein_kv::Op, bytes: &mut u64, limit: u32) -> Option<()> {
-    let key = u32::try_from(op.key().len()).ok()?;
+fn append(ops: &mut List<skein_kv::Op>, op: skein_kv::Op, bytes: &mut u64, limit: u32) -> Result<(), CommitCheck> {
+    let key = u32::try_from(op.key().len()).ok().ok_or(CommitCheck::Bytes)?;
     let size = match &op {
-        skein_kv::Op::Put { key: _, value } => skein_kv::put_bytes(key, u32::try_from(value.len()).ok()?)?,
-        skein_kv::Op::Erase { key: _ } => skein_kv::erase_bytes(key)?,
+        skein_kv::Op::Put { key: _, value } => {
+            skein_kv::put_bytes(key, u32::try_from(value.len()).ok().ok_or(CommitCheck::Bytes)?)
+                .ok_or(CommitCheck::Bytes)?
+        }
+        skein_kv::Op::Erase { key: _ } => skein_kv::erase_bytes(key).ok_or(CommitCheck::Bytes)?,
     };
-    let total = bytes.checked_add(u64::from(size))?;
+    let total = bytes.checked_add(u64::from(size)).ok_or(CommitCheck::Bytes)?;
     if total > u64::from(limit) {
-        return None;
+        return Err(CommitCheck::Bytes);
     }
-    ops.push(op).ok()?;
+    ops.push(op).or(Err(CommitCheck::Capacity))?;
     *bytes = total;
-    Some(())
+    Ok(())
 }
 
 /// Last writes replace their first slot; encoded keys are the map's identity.
@@ -238,8 +270,8 @@ fn copy(
     store: &mut Store,
     from: jig_domain_core_vocabulary::Key,
     to: jig_domain_core_vocabulary::Key,
-) -> Option<skein_kv::Op> {
-    let from = keys::encode(&from, store.limits.store.key)?;
-    let value = crate::open::get(store, Token::new(0), from).ok()??;
-    Some(skein_kv::Op::Put { key: keys::encode(&to, store.limits.store.key)?, value })
+) -> Result<skein_kv::Op, CommitCheck> {
+    let from = keys::encode(&from, store.limits.store.key).ok_or(CommitCheck::Encoding)?;
+    let value = crate::open::get(store, Token::new(0), from).or(Err(CommitCheck::Copy))?.ok_or(CommitCheck::Copy)?;
+    Ok(skein_kv::Op::Put { key: keys::encode(&to, store.limits.store.key).ok_or(CommitCheck::Encoding)?, value })
 }

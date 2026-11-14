@@ -496,9 +496,9 @@ pub use jig_protocol_store_tasks::tasks_v12;
 pub mod keys;
 mod openings;
 pub use boundary::{
-    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
-    KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root, Row, SecretOwner, SecretRow,
-    SecretValue, Secrets, TranscriptRead, Undecoded, WorkerOpening, Write,
+    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CommitCheck, CommitFailure, Cursor, Event, Family,
+    Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root,
+    Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, WorkerOpening, Write,
 };
 
 #[cfg(test)]

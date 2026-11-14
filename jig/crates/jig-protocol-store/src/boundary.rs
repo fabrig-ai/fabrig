@@ -513,6 +513,48 @@ pub enum Undecoded {
     Frame { transcript: Box<str>, offset: u64 },
 }
 
+/// Why a commit failed (protocol/store/README.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CommitFailure {
+    /// skein-kv refused it at its entrance, carrying its refusal whole.
+    Refused(skein_kv::Refusal),
+    /// skein-kv's log write or sync failed or stalled; the outcome is uncertain.
+    Failed,
+    /// skein-kv answered under another root commit's owner.
+    Owner { owner: u64 },
+    /// A transcript's file step or the writer's bookkeeping failed.
+    Transcript,
+    /// The store's own checks refused it before skein-kv saw it.
+    Check(CommitCheck),
+    /// Another commit's failure stopped it while queued or waiting on frames.
+    Stopped,
+}
+
+/// The store's check that refused a commit (protocol/store/README.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CommitCheck {
+    /// Not the store's next number, or at or before its last durable one.
+    Number,
+    /// The store isn't open.
+    Closed,
+    /// The queue behind transcripts' syncs is full.
+    Queue,
+    /// More writes than the root's bound, `Commits::writes`.
+    Writes,
+    /// Wires, a dropped transcript or a turn while a patch switch is pending.
+    Switching,
+    /// A key, record, turn frame or first commit's own rows past codec limits.
+    Encoding,
+    /// A copy's first key is missing, or its read failed.
+    Copy,
+    /// A map read needed by the commit failed or did not decode.
+    Reads,
+    /// More operations, places or keys than the commit's bounds hold.
+    Capacity,
+    /// Operations past the store's commit bytes, `Limits::commit`.
+    Bytes,
+}
+
 /// What the component answers.
 #[derive(Debug)]
 pub enum Event {
@@ -574,6 +616,7 @@ pub enum Event {
     /// Commit `number` failed or was refused; the engine stops (protocol/store/README.md 5).
     Failed {
         number: u64,
+        why: CommitFailure,
     },
     /// Commit refused before any of its data IO: this turn's complete encoded
     /// frame exceeds the page byte bound (protocol/store/README.md, 5, and protocol/store/transcripts.md, 2). In-process only.

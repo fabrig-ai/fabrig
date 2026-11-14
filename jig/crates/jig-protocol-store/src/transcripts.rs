@@ -5,7 +5,7 @@ pub mod frame;
 pub(crate) mod patches;
 pub(crate) mod read;
 pub(crate) mod write;
-use crate::{Event, Limits, Phase, Store, codec, keys, open};
+use crate::{CommitCheck, CommitFailure, Event, Limits, Phase, Store, codec, keys, open};
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Queue, Token};
 #[derive(Debug)]
@@ -95,33 +95,36 @@ pub(crate) fn place(
     turn: &jig_domain_core_vocabulary::TurnRecord,
     length: u64,
     ops: &mut List<skein_kv::Op>,
-) -> Option<u64> {
+) -> Result<u64, CommitCheck> {
     let task = turn.task;
-    let key = keys::encode_own(&keys::Own::Transcript { task }, store.limits.store.key)?;
+    let key = keys::encode_own(&keys::Own::Transcript { task }, store.limits.store.key).ok_or(CommitCheck::Encoding)?;
     let mut row = match store.transcripts.places.get(&task) {
         Some(place) => place.row,
-        None => match open::get(store, Token::new(0), key.clone()).ok()? {
-            Some(bytes) => codec::component::Transcript::decode(&bytes).ok()?,
+        None => match open::get(store, Token::new(0), key.clone()).or(Err(CommitCheck::Reads))? {
+            Some(bytes) => codec::component::Transcript::decode(&bytes).or(Err(CommitCheck::Reads))?,
             None => codec::component::Transcript { length: 0, window: 0 },
         },
     };
     let offset = row.length;
-    row.length = row.length.checked_add(length)?;
+    row.length = row.length.checked_add(length).ok_or(CommitCheck::Capacity)?;
     if turn.opens_window {
         row.window = offset;
     }
-    let _: Option<Place> = store.transcripts.places.insert(task, Place { number, row }).ok()?;
-    ops.push(skein_kv::Op::Put { key, value: row.encode().ok()? }).ok()?;
+    let _: Option<Place> =
+        store.transcripts.places.insert(task, Place { number, row }).or(Err(CommitCheck::Capacity))?;
+    ops.push(skein_kv::Op::Put { key, value: row.encode().or(Err(CommitCheck::Encoding))? })
+        .or(Err(CommitCheck::Capacity))?;
     let attempt = (task, turn.attempt);
     if !store.transcripts.attempts.contains_key(&attempt) {
-        let key = keys::encode_own(&keys::Own::Attempt { task, attempt: turn.attempt }, store.limits.store.key)?;
-        if open::get(store, Token::new(0), key.clone()).ok()?.is_none() {
-            let value = codec::component::Attempt { first: offset }.encode().ok()?;
-            ops.push(skein_kv::Op::Put { key, value }).ok()?;
-            let _: Option<u64> = store.transcripts.attempts.insert(attempt, number).ok()?;
+        let key = keys::encode_own(&keys::Own::Attempt { task, attempt: turn.attempt }, store.limits.store.key)
+            .ok_or(CommitCheck::Encoding)?;
+        if open::get(store, Token::new(0), key.clone()).or(Err(CommitCheck::Reads))?.is_none() {
+            let value = codec::component::Attempt { first: offset }.encode().or(Err(CommitCheck::Encoding))?;
+            ops.push(skein_kv::Op::Put { key, value }).or(Err(CommitCheck::Capacity))?;
+            let _: Option<u64> = store.transcripts.attempts.insert(attempt, number).or(Err(CommitCheck::Capacity))?;
         }
     }
-    Some(offset)
+    Ok(offset)
 }
 pub(crate) fn committed(store: &mut Store, number: u64) {
     let mut tasks = List::with_capacity(store.transcripts.places.len());
@@ -143,17 +146,20 @@ pub(crate) fn committed(store: &mut Store, number: u64) {
         let _: Option<u64> = store.transcripts.attempts.remove(&attempt);
     }
 }
-pub(crate) fn failed(store: &mut Store, number: Option<u64>, above: &mut Queue<Event>) {
+pub(crate) fn failed(store: &mut Store, number: Option<u64>, why: CommitFailure, above: &mut Queue<Event>) {
     store.phase = Phase::Stopped;
     if let Some(number) = number {
-        above.push(Event::Failed { number });
+        above.push(Event::Failed { number, why });
     }
     if let Some(current) = store.transcripts.current.take() {
-        above.push(Event::Failed { number: current.number });
+        above.push(Event::Failed {
+            number: current.number,
+            why: if number.is_some() { CommitFailure::Stopped } else { why },
+        });
     }
     for _ in 0..store.limits.queue {
         if let Some(pending) = store.transcripts.queue.pop() {
-            above.push(Event::Failed { number: pending.number });
+            above.push(Event::Failed { number: pending.number, why: CommitFailure::Stopped });
         }
     }
 }

@@ -1,6 +1,6 @@
 //! Commits answered only after the same skein-kv number (protocol/store/README.md, 5).
 use super::fixtures;
-use crate::{Event, Phase, Request, Store, Write, codec, keys};
+use crate::{CommitCheck, CommitFailure, Event, Phase, Request, Store, Write, codec, keys};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record};
 use skein_lib::Token;
@@ -13,11 +13,12 @@ fn assert_committed(events: &[Event], number: u64) -> u64 {
     *fill
 }
 
-fn assert_failed(events: &[Event], number: u64) {
-    let [Event::Failed { number: found }] = events else {
+fn assert_failed(events: &[Event], number: u64, expected: CommitFailure) {
+    let [Event::Failed { number: found, why }] = events else {
         panic!("one failed terminal: {events:?}");
     };
     assert_eq!(*found, number);
+    assert_eq!(*why, expected);
 }
 
 fn commit(store: &mut Store, number: u64, writes: Box<[Write]>) -> Box<[Event]> {
@@ -60,7 +61,11 @@ fn save_note(store: &mut Store) -> Box<[Event]> {
 
 fn failed_number() -> Store {
     let mut store = fixtures::opened();
-    assert_failed(&commit(&mut store, 2, Box::new([fixtures::header(2)])), 2);
+    assert_failed(
+        &commit(&mut store, 2, Box::new([fixtures::header(2)])),
+        2,
+        CommitFailure::Check(CommitCheck::Number),
+    );
     store
 }
 
@@ -153,7 +158,7 @@ fn a_copy_of_a_missing_source_fails_its_commit() {
     let mut store = committed_note();
     let writes =
         Box::new([fixtures::header(2), Write::Copy { from: fixtures::notes_entry(18).key(), to: note().key() }]);
-    assert_failed(&commit(&mut store, 2, writes), 2);
+    assert_failed(&commit(&mut store, 2, writes), 2, CommitFailure::Check(CommitCheck::Copy));
 }
 
 #[test]
@@ -197,16 +202,62 @@ fn a_commit_numbered_past_the_next_fails() {
 #[test]
 fn a_commit_numbered_behind_the_next_fails() {
     let mut store = committed_header();
-    assert_failed(&commit(&mut store, 1, Box::new([fixtures::header(1)])), 1);
+    assert_failed(
+        &commit(&mut store, 1, Box::new([fixtures::header(1)])),
+        1,
+        CommitFailure::Check(CommitCheck::Number),
+    );
     assert_eq!(store.stores.store.last(), 1);
 }
 
 #[test]
 fn a_refused_skein_commit_is_answered_failed() {
-    let mut store = fixtures::opened_with_budget(1);
-    assert_failed(&commit(&mut store, 1, Box::new([fixtures::header(1)])), 1);
-    assert_eq!(store.stores.store.last(), 0);
-    assert!(store.stores.store.is_empty());
+    const BUDGET: u64 = 4096;
+    // Each application's tagged one-byte key and payload adds 1026 map bytes.
+    const PAYLOAD: usize = 1024;
+    const ROW_BYTES: u64 = 1026;
+    let mut store = fixtures::opened_with_budget(BUDGET);
+    assert_committed(&commit(&mut store, 1, Box::new([fixtures::header(1)])), 1);
+    for number in 2..=4 {
+        let used = store.stores.store.used();
+        let key = u8::try_from(number).expect("small commit number");
+        let writes =
+            Box::new([fixtures::header(number), Write::Put { key: Box::new([key]), value: Box::new([0; PAYLOAD]) }]);
+        let events = commit(&mut store, number, writes);
+        if number < 4 {
+            assert_committed(&events, number);
+        } else {
+            assert_failed(&events, number, CommitFailure::Refused(skein_kv::Refusal::Full));
+            assert!(used <= BUDGET && used + ROW_BYTES > BUDGET);
+            assert_eq!(store.stores.store.used(), used);
+            assert_eq!(store.stores.store.last(), number - 1);
+        }
+    }
+}
+
+#[test]
+fn a_commit_on_a_closed_store_names_its_check() {
+    let mut store = fixtures::over(fixtures::stores());
+    let events = commit(&mut store, 1, Box::new([fixtures::header(1)]));
+    assert_failed(&events, 1, CommitFailure::Check(CommitCheck::Closed));
+}
+
+#[test]
+fn too_many_writes_names_the_writes_check() {
+    const WRITES: u32 = 1;
+    let mut store = committed_header();
+    store.limits.commits.writes = WRITES;
+    let events = commit(&mut store, 2, Box::new([fixtures::header(2), application_put()]));
+    assert_failed(&events, 2, CommitFailure::Check(CommitCheck::Writes));
+}
+
+#[test]
+fn operations_past_commit_bytes_name_the_bytes_check() {
+    let mut store = committed_header();
+    // Even an empty commit's frame takes FRAME_BYTES, before its operations.
+    store.limits.store.commit = skein_kv::FRAME_BYTES;
+    let events = commit(&mut store, 2, Box::new([fixtures::header(2)]));
+    assert_failed(&events, 2, CommitFailure::Check(CommitCheck::Bytes));
 }
 
 #[test]
