@@ -109,22 +109,32 @@ pub fn review(observations: &[Observation]) -> Referee<Meeting> {
 
 /// Compare the host's Gone tail with the shipped agent's diagnostic
 /// writer (testing.md, section 2.1).
-pub fn review_agent_errors(errors: &[u8], tail: &[u8], answered: bool) {
-    assert_eq!(tail, errors, "Gone retains exactly the agent's written diagnostic bytes");
-    let text = core::str::from_utf8(errors).expect("agent diagnostic UTF-8");
-    assert!(
-        text.starts_with("smith: commands run in process groups and are not contained\nsmith: agent started\n"),
-        "the shipped adapter supplied startup"
-    );
-    if answered {
-        assert!(!text.contains("could not answer"), "the answer and observed writer agree on success");
+pub fn check_agent_errors(errors: &[u8], tail: &[u8], answered: bool) -> Result<(), String> {
+    if tail != errors {
+        return Err(format!(
+            "Gone retains exactly the agent's written diagnostic bytes\nleft: {tail:?}\nright: {errors:?}"
+        ));
     }
-    assert!(
-        text.lines().all(|line| line == "smith: commands run in process groups and are not contained"
+    let text = core::str::from_utf8(errors).map_err(|_| String::from("agent diagnostic UTF-8"))?;
+    if !text.starts_with("smith: commands run in process groups and are not contained\nsmith: agent started\n") {
+        return Err(String::from("the shipped adapter supplied startup"));
+    }
+    if answered && text.contains("could not answer") {
+        return Err(String::from("the answer and observed writer agree on success"));
+    }
+    if !(text.lines().all(|line| {
+        line == "smith: commands run in process groups and are not contained"
             || line == "smith: agent started"
             || line.starts_with("smith: the run could not answer: ")
             || line.starts_with("smith: run failed: ")
-            || line.ends_with(" observations were dropped")),
-        "only the shipped agent's words are observed"
-    );
+            || line.ends_with(" observations were dropped")
+    })) {
+        return Err(String::from("only the shipped agent's words are observed"));
+    }
+    Ok(())
+}
+
+/// Panics on an agent diagnostic finding at a test's top.
+pub fn review_agent_errors(errors: &[u8], tail: &[u8], answered: bool) {
+    check_agent_errors(errors, tail, answered).expect("agent diagnostic conformance");
 }

@@ -583,6 +583,7 @@ impl skein_world::Machine for Machine {
 }
 
 struct Judge {
+    finding: Option<String>,
     cancel: Option<Time>,
     wait_for_exit: bool,
     ended: bool,
@@ -590,9 +591,9 @@ struct Judge {
     cancel_with_child: bool,
 }
 
-impl Referee<Proc> for Judge {
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        self.waiting.act(now, procs);
+impl Judge {
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
+        self.waiting.act(now, procs)?;
         let exited = procs.iter().any(|process| matches!(process, Proc::Parent(parent) if parent.status.is_some()));
         if exited {
             for process in procs.iter_mut() {
@@ -608,13 +609,13 @@ impl Referee<Proc> for Judge {
                 .count()
                 == 2
         {
-            if let Proc::Parent(parent) = &mut procs[0] {
+            if let Proc::Parent(parent) = procs.first_mut().ok_or("parent first")? {
                 parent.cancel_pending = true;
             }
             self.cancel_with_child = false;
         }
         if self.cancel.is_some_and(|at| now >= at) {
-            if let Proc::Parent(parent) = &mut procs[0]
+            if let Proc::Parent(parent) = procs.first_mut().ok_or("parent first")?
                 && !parent.peer.observed().iter().any(|frame| frame.kind == 0x0110)
                 && parent.status.is_none()
             {
@@ -622,9 +623,21 @@ impl Referee<Proc> for Judge {
             }
             self.cancel = None;
         }
+        Ok(())
     }
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        self.waiting.observe(now, procs);
+}
+
+impl Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        self.waiting.watch(now, procs)?;
         for (main_index, process) in procs.iter().enumerate() {
             if let Proc::Fake(main) = process
                 && main.active_turn() == Some(2)
@@ -633,32 +646,40 @@ impl Referee<Proc> for Judge {
                 for (index, child) in procs.iter().enumerate() {
                     if index != main_index
                         && let Proc::Fake(child) = child
+                        && child.exit().is_none()
                     {
-                        assert!(child.exit().is_some(), "child program exit precedes main's second turn");
+                        return Err(String::from("child program exit precedes main's second turn"));
                     }
                 }
             }
         }
 
-        if let Proc::Parent(parent) = &procs[0] {
+        if let Proc::Parent(parent) = procs.first().ok_or("parent first")? {
             self.ended = parent.peer.observed().iter().any(|frame| frame.kind == 0x0110);
         }
         if self.wait_for_exit
-            && let Proc::Parent(parent) = &procs[0]
+            && let Proc::Parent(parent) = procs.first().ok_or("parent first")?
             && parent.peer.observed().iter().any(|frame| frame.kind == 0x0110)
         {
             for process in procs {
-                if let Proc::Fake(program) = process {
-                    assert!(program.exit().is_some(), "program exit precedes the host answer");
+                if let Proc::Fake(program) = process
+                    && program.exit().is_none()
+                {
+                    return Err(String::from("program exit precedes the host answer"));
                 }
             }
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.cancel.or(self.waiting.deadline())
     }
     fn passed(&self) -> bool {
-        self.cancel.is_none() && !self.cancel_with_child && self.waiting.passed() && (!self.wait_for_exit || self.ended)
+        self.finding.is_none()
+            && (self.cancel.is_none()
+                && !self.cancel_with_child
+                && self.waiting.passed()
+                && (!self.wait_for_exit || self.ended))
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::LastExpectation
@@ -823,6 +844,7 @@ fn run_scenario(
     };
     let mut world =
         skein_world::World::new_controlled(7, skein_sim::Config::calm(), skein_world::Memory::Checked, |_| Judge {
+            finding: None,
             wait_for_exit: case.completes(),
             ended: false,
             waiting: options

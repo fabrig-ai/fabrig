@@ -345,19 +345,27 @@ struct Judge {
 }
 
 impl Referee<Process> for Judge {
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
-        if procs.get(1).is_some_and(|process| process.exit().is_some()) {
-            assert_eq!(
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if procs.get(1).is_some_and(|process| process.exit().is_some())
+            && procs.get(2).and_then(Host::exit) != Some(Exit::Code(u8::from(self.wrong_secret)))
+        {
+            return Err(format!(
+                "relay settles before the fake\nleft: {:?}\nright: {:?}",
                 procs.get(2).and_then(Host::exit),
-                Some(Exit::Code(u8::from(self.wrong_secret))),
-                "relay settles before the fake"
-            );
+                Some(Exit::Code(u8::from(self.wrong_secret)))
+            ));
         }
         for (index, process) in procs.iter().enumerate() {
-            if let Some(exit) = process.exit() {
-                assert_eq!(exit, Exit::Code(if index == 2 { u8::from(self.wrong_secret) } else { 0 }));
+            let expected = Exit::Code(if index == 2 { u8::from(self.wrong_secret) } else { 0 });
+            if let Some(exit) = process.exit()
+                && exit != expected
+            {
+                return Err(format!(
+                    "exit, Exit::Code(if index == 2 {{ u8::from(self.wrong_secret) }} else {{ 0 }})\nleft: {exit:?}\nright: {expected:?}"
+                ));
             }
         }
+        Ok(())
     }
     fn passed(&self) -> bool {
         true
