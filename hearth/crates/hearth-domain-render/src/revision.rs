@@ -1,11 +1,11 @@
 //! The listing and typed documents (hearth/docs/design/protocol/format/README.md, 2.1 and 3.4).
 use crate::errors::Repository;
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::revision::{Firmware, Oid, Position, Runs};
 pub mod declaration;
 pub(crate) mod held;
 use skein_lib::{Bisection, bytes};
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Oid(pub Box<[u8]>);
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Mode {
     File,
@@ -20,11 +20,7 @@ pub struct Entry {
     pub oid: Oid,
     pub size: u64,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Position {
-    pub line: u32,
-    pub column: u32,
-}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Class<'a> {
     Fleet,
@@ -188,17 +184,7 @@ pub struct Placement {
     pub on: Option<On>,
     pub mutable: bool,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Runs {
-    Metal,
-    Vm,
-    Container,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Firmware {
-    Efi,
-    Bios,
-}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct On {
     pub target: Box<[u8]>,

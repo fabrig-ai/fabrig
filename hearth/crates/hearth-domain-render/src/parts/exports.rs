@@ -4,26 +4,13 @@ use crate::{
     exports::Exported,
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::parts::exports::{Change, ExportChange, Exports};
 use hearth_lib::{
     encode::{DEPTH, Digest, Item},
     hash::H,
 };
 use skein_lib::{Joined, List, Map, Stack, bytes};
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Exports {
-    pub tasks: Box<[Exported]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Change {
-    pub entries: Box<[ExportChange]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ExportChange {
-    pub task: Box<[u8]>,
-    pub name: Box<[u8]>,
-    pub before: Option<Value>,
-    pub after: Option<Value>,
-}
+
 /// Pair published values by task and name, comparing their canonical records.
 #[must_use]
 pub fn change(before: Option<&Exports>, after: Option<&Exports>) -> Change {

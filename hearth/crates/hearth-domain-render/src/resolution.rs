@@ -1,14 +1,9 @@
 //! A resolution run's decoded install lines and classified cause (hearth/docs/design/domain/render/spec.md, 2.5).
 use crate::{errors::Resolution, limits::Limits, vocabulary::Class};
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::resolution::Inst;
 use skein_lib::Map;
-/// A package's identity, ordered by name, architecture, then version (hearth/docs/design/domain/render/spec.md, 2.3).
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Inst {
-    pub name: Box<[u8]>,
-    pub architecture: Box<[u8]>,
-    pub version: Box<[u8]>,
-}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Index {
     pub path: Box<[u8]>,
