@@ -3,8 +3,6 @@
 2026-11-14. Where skein's code lags or departs from [kv.md](kv.md).
 
 
-- **Not yet:** 2: a refusal says which: `Refusal::TooLarge(Large)`,
-  `Refusal::Full(Exhausted)` and the full map's figures [in flight: change 57].
 - **Not yet:** 9: the model-map referee across simulated-disk commits,
   loads, snapshots and crash recovery, commits racing every snapshot
   chunk, and the recovered value check over the real ring. In
