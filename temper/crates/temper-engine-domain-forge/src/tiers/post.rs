@@ -185,6 +185,8 @@ pub(super) fn compose(d: &Domain, row: &TierRow, verdict: &p::Verdict) -> Postin
 
 pub(super) fn pending(d: &Domain, row: &TierRow, follow: &crate::runs::Follow) -> Posting {
     let run = row.record.run.as_ref().expect("held run");
+    let previous = match &row.posting { Some(posting) => posting.part, None => 0 };
+    let exhausted = previous == u16::MAX;
     let description = description(&joined(&[
         b"held after ", &decimal(run.faults), b" runner faults, last: ",
         &super::fault_words(run, &super::configured(d, row).expect("configured tier").workflow, row.held.expect("fault")),
@@ -197,13 +199,10 @@ pub(super) fn pending(d: &Domain, row: &TierRow, follow: &crate::runs::Follow) -
         description,
         landings: Box::new([]),
         comments: Box::new([]),
-        next: 0,
+        next: u32::from(exhausted),
         entry: None,
         // Completed pending progress stays until the verdict, so another hold has a fresh purpose.
-        part: match &row.posting {
-            Some(posting) => posting.part,
-            None => 0,
-        }.checked_add(1).expect("pending status sequence"),
+        part: previous.saturating_add(1),
         op_bytes: d.landing.limits.client.op_bytes,
     }
 }

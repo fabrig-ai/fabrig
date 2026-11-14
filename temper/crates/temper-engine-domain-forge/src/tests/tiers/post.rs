@@ -83,12 +83,40 @@ fn goal_and_dropped_runs_post_nothing() {
             row.goals = Box::new([TierGoal { goal: 7, branch: b"temper/1/g7".as_slice().into(), tip: Some(BASE), ran: None,
                 failing: p::Failures::Tests(Box::new([])), started: None }]);
             completed(&mut d, api::Conclusion::Success, None);
-            finish(&mut d)
+            tier_step(&mut d, RELEASE, false);
+            made(&mut d, RELEASE, skein_forge_client::Made::Set);
+            tier_step(&mut d, RELEASE + 1, false)
         } else { close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled) };
         assert!(row(&d).posting.is_none());
         assert!(out.iter().all(|request| !matches!(request,
             Request::Save { record: Stored::Entry { entry, .. }, .. } if matches!(entry.effect.write, api::Write::Status { .. } | api::Write::Post { .. }))));
         assert!(row(&d).task.is_none());
+    }
+}
+
+#[test]
+fn fault_hold_parts_survive_releases_and_saturate_without_reposting() {
+    for previous in [0, 1, u16::MAX - 1, u16::MAX] {
+        let mut d = dispatched();
+        let kept = d.tiers.get_mut(&(REPO, TIER.into())).unwrap();
+        kept.record.run.as_mut().unwrap().faults = RETRIES;
+        if previous > 0 {
+            kept.posting = Some(Box::new(TierPosting { number: 1, tip: BASE, link: Box::new([]),
+                check: api::Check::Pending, description: Box::new([]), landings: Box::new([]), comments: Box::new([]),
+                next: 1, entry: None, part: previous, op_bytes: LIMITS.client.op_bytes }));
+        }
+        completed(&mut d, api::Conclusion::Cancelled, None);
+        let mut out = tier_step(&mut d, STATUS, false);
+        if previous == u16::MAX {
+            assert!(!d.entries.contains_key(&STATUS), "an exhausted part is skipped, never reused");
+        } else {
+            assert_eq!(row(&d).purpose, Some(purpose::EffectPurpose::Tier { repository: REPO, tier: 0, run: 1,
+                operation: 6, part: previous + 1 }));
+            made(&mut d, STATUS, skein_forge_client::Made::Set);
+            out = tier_step(&mut d, STATUS + 1, false);
+        }
+        assert!(matches!(choice(&out), Some(TierDecision::Held { .. })));
+        assert_eq!(row(&d).posting.as_ref().unwrap().part, previous.saturating_add(1));
     }
 }
 
