@@ -78,6 +78,77 @@ pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
     fixtures::settle_root(service, &mut Queue::uncapped());
 }
 
+pub(super) fn seed_check_change(service: &mut crate::Service, task: u64) {
+    use temper_engine_domain_forge_change as change;
+    seed_reds(service, 77);
+    let row = forge::ChangeRow {
+        job: None,
+        signed: Box::new([]),
+        task,
+        repository: skein_forge::api::Repository { forge: 1, repository: 41 },
+        branch: b"temper/1/c1".as_slice().into(),
+        base: b"temper/1/g7".as_slice().into(),
+        title: b"Change".as_slice().into(),
+        body: Box::new([]),
+        priority: 0,
+        ci: None,
+        change: change::Change {
+            ended_held: None,
+            early: change::Early::None,
+            way: change::Way::Queue,
+            landing: None,
+            task,
+            state: change::State::Producing { requested: false },
+            gates: Box::new([]),
+            clean: Box::new([]),
+            gate_failures: Box::new([]),
+            released: None,
+            repairs: 0,
+            resolutions: 0,
+            updates: 0,
+            since: skein_lib::Wall::EPOCH,
+            ready_since: None,
+            owns_turn: false,
+            last_head: None,
+        },
+        pull: None,
+        pending: None,
+        effect: change::EffectResult::None,
+        delegate: None,
+        delegate_status: change::Status::Unknown,
+        verdicts: Box::new([]),
+        goal: None,
+        ending: None,
+        repair_tasks: Box::new([]),
+        resolution_tasks: Box::new([]),
+        result: forge::ChangeResult::empty(),
+        gate_remarks: Box::new([]),
+        drift: None,
+        base_repair: false,
+        queue_repair: None,
+        queue_repairs: 0,
+        producing_charter: 2,
+        review_charter: 4,
+        producing_llm: None,
+        review_llm: None,
+        questions: change::Questions::default(),
+        effect_account: None,
+        producer_failure: None,
+        report: Box::new([]),
+        repairs: None,
+        follows: None,
+        catch_up: None,
+        close: None,
+        merge_result: None,
+        history: None,
+        follow_check: None,
+    };
+    for record in [forge::Stored::Change(Box::new(row)), forge::Stored::RedNumber { last: 2 }] {
+        service.engine.as_mut().unwrap().step(root::Event::Forge(Box::new(forge::Event::Restore { record })));
+    }
+    fixtures::settle_root(service, &mut Queue::uncapped());
+}
+
 pub(super) fn answer(
     service: &mut crate::Service,
     run: &root::Assignment,

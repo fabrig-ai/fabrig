@@ -217,9 +217,21 @@ impl Channel {
     }
 }
 
-fn exchange(ask: temper_worker_domain::wire::Ask, expected: temper_worker_domain::wire::Answer) {
+fn exchange(
+    ask: temper_worker_domain::wire::Ask,
+    expected: temper_worker_domain::wire::Answer,
+) -> (crate::Service, u64) {
     let (mut service, run) = fixtures::claimed_chat_on(CONNECTION);
-    reds::seed_reds(&mut service, run.task);
+    let results = match &ask {
+        temper_worker_domain::wire::Ask::Reds => {
+            reds::seed_reds(&mut service, run.task);
+            false
+        }
+        temper_worker_domain::wire::Ask::Results(_) => {
+            reds::seed_check_change(&mut service, run.task);
+            true
+        }
+    };
     let commits = service.engine.as_ref().unwrap().domain.deployment().commits;
     let mut channel = Channel::new();
     let mut limits = fixtures::engine().jig.limits.hub;
@@ -281,7 +293,12 @@ fn exchange(ask: temper_worker_domain::wire::Ask, expected: temper_worker_domain
     let answer = temper_worker_service::translate::answer(&bytes, &v1::CEILINGS);
     assert_eq!(answer, Some(expected));
     assert!(out.is_empty());
-    assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, commits);
+    if results {
+        assert!(service.engine.as_ref().unwrap().domain.deployment().commits > commits);
+    } else {
+        assert_eq!(service.engine.as_ref().unwrap().domain.deployment().commits, commits);
+    }
+    (service, run.task)
 }
 
 #[test]
@@ -300,10 +317,36 @@ fn a_hosted_run_gets_its_goals_reds_through_jigs_channel() {
 
 #[test]
 fn a_hosted_runs_results_are_kept_through_jigs_channel() {
-    exchange(
-        temper_worker_domain::wire::Ask::Results(super::results::report()),
-        temper_worker_domain::wire::Answer::Kept,
+    use temper_engine_domain_forge as forge;
+    let mut report = super::results::report();
+    report.tag = forge::tag(1, 41);
+    report.passed = Box::new([b"test a::t x".as_slice().into()]);
+    let (mut service, task) =
+        exchange(temper_worker_domain::wire::Ask::Results(report), temper_worker_domain::wire::Answer::Kept);
+    let rows = fixtures::load(&mut service.engine.as_mut().unwrap().store, root::Range::Forge);
+    let mut pass = None;
+    let mut finding = None;
+    for record in &rows {
+        if let root::Record::Forge { row } = record {
+            if let forge::Stored::RedPass(row) = row.as_ref() {
+                assert!(pass.replace(row).is_none());
+            }
+            if let forge::Stored::Finding(row) = row.as_ref() {
+                assert!(finding.replace(row).is_none());
+            }
+        }
+    }
+    assert_eq!(
+        pass.expect("the report's pass is durable"),
+        &forge::RedPass { change: task, key: b"test a::t x".as_slice().into(), generation: 2 }
     );
+    let finding = finding.expect("the report's flake is durable");
+    assert_eq!(
+        (finding.project, finding.filer, finding.kind, finding.seen),
+        (1, forge::Filer::Task(task), forge::FindingKind::Flake, Some(1))
+    );
+    assert_eq!(finding.title.as_ref(), b"Flake in a delivery's check: test fabrig-x::t b");
+    assert!(finding.body.ends_with(b"Its log under load:\nboom"));
 }
 
 #[test]

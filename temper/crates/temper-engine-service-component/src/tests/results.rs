@@ -74,7 +74,7 @@ fn a_results_ask_queues_the_report_with_run_and_attempt_and_answers_kept_at_once
         Some(worker::Answer::Kept)
     );
     assert!(engine.events.is_empty());
-    // The domain's report decision is an empty route in this change.
+    // Without an adopted repository for this tag the domain keeps nothing.
     let before = engine.domain.deployment().commits;
     engine.step(event);
     assert_eq!(engine.domain.deployment().commits, before);
