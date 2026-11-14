@@ -215,6 +215,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
         { if let Some(Event::Opened { pending: true, .. }) = events.first() { true } else { false } },
         "{events:?}"
     );
+    store.registry.assert_settled();
     let mut value = [0, 1, 0, 0, 0, 0, 3, 0, 1, 42];
     let mut out = Buffer::with_capacity(32);
     assert_eq!(
@@ -281,6 +282,9 @@ fn mappings_resolve_keys_rehead_kept_plans_convert_and_preserve_unreadable_value
     let mut disk = Disk::new(&base(false, true));
     let mut store = store(&disk, SET);
     assert_opened(&disk.open(&mut store), 4);
+    // The open has ended and shed its rows and texts; the default-adding
+    // plan at the old id below must still convert without either of them.
+    store.registry.assert_settled();
     let key = b"\x02a/0";
     let mut out = Buffer::with_capacity(64);
     for (key, input, expected) in [

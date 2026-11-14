@@ -26,6 +26,7 @@ mod pending_switch;
 mod readers;
 mod records;
 mod refused_after_switch;
+mod registry_memory;
 mod transcript_golden;
 mod upgrades;
 

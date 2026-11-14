@@ -25,9 +25,7 @@ impl ReadWork {
     fn fit(layouts: &Layouts, workspace: Workspace, bound: u32) -> Self {
         let mut converts = false;
         for ty in &layouts.types {
-            for (_, plan) in &ty.plans {
-                converts |= !plan.keeps();
-            }
+            converts |= !ty.plans.is_empty();
         }
         Self { workspace, buffer: Buffer::with_capacity(if converts { bound } else { 0 }) }
     }
@@ -49,10 +47,9 @@ struct Row {
 }
 #[derive(Debug)]
 struct Type {
-    family: &'static str,
-    number: u16,
     version: u16,
     binary: u16,
+    keeping: List<u16>,
     plans: Map<u16, Plan>,
 }
 #[derive(Debug)]
@@ -122,17 +119,49 @@ impl Layouts {
             rehead(value, ty.version);
             return value;
         }
-        let Some(plan) = ty.plans.get(&id) else {
-            return value;
-        };
-        if plan.keeps() {
+        if ty.keeping.as_slice().contains(&id) {
             rehead(value, ty.version);
             return value;
         }
+        let Some(plan) = ty.plans.get(&id) else {
+            return value;
+        };
         if plan.convert(value, out, work).is_ok() { out.as_slice() } else { value }
     }
     pub(crate) fn activate(&mut self) {
         self.active = true;
+    }
+    /// Once registry writes and written jobs are durable, only the read and
+    /// write edges' tables survive. Activation itself precedes written jobs.
+    pub(crate) fn settle(&mut self) {
+        if !self.active {
+            return;
+        }
+        assert!(self.pending.is_empty(), "registry writes finished before settling");
+        self.rows = Map::uncapped();
+        self.texts = Map::uncapped();
+        self.pending = Queue::uncapped();
+        for ty in self.types.iter_mut() {
+            let keeping = core::mem::replace(&mut ty.keeping, List::uncapped());
+            ty.keeping = List::from_boxed(keeping.into_boxed());
+        }
+        let types = core::mem::replace(&mut self.types, List::uncapped());
+        self.types = List::from_boxed(types.into_boxed());
+    }
+    #[cfg(test)]
+    pub(crate) fn assert_settled(&self) {
+        assert!(self.active);
+        assert!(self.rows.is_empty());
+        assert!(self.texts.is_empty());
+        assert!(self.pending.is_empty());
+        assert_eq!(self.types.len(), self.types.capacity());
+        for ty in &self.types {
+            assert_eq!(ty.keeping.len(), ty.keeping.capacity());
+            assert!(!ty.plans.contains_key(&ty.binary));
+            for (_, plan) in &ty.plans {
+                assert!(!plan.keeps());
+            }
+        }
     }
     pub(crate) fn first(&mut self, ops: &mut List<skein_kv::Op>) -> Option<()> {
         for _ in 0..self.pending.len() {
@@ -229,7 +258,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
         }
     }
     if !seeded && !registered {
-        *store.registry = layouts;
+        *store.registry = Layouts::new();
         *store.layout_work = ReadWork::new();
         return Ok(false);
     }
@@ -248,6 +277,10 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     check::plans(store, &mut layouts, &binary, &mut work)?;
     let writing = changed || (!seeded && !layouts.types.is_empty());
     rows::operations(store, &mut layouts)?;
+    if !writing && store.directory.patch.is_none() {
+        // Retirement alone does not write: these erases wait for a writing open.
+        layouts.pending = Queue::uncapped();
+    }
     layouts.active = seeded && !changed;
     *store.layout_work = ReadWork::fit(&layouts, work, store.limits.store.value);
     *store.registry = layouts;

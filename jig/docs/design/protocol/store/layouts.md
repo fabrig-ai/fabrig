@@ -290,11 +290,15 @@ plan (`jobs.md`, 4).
 
 ## 7. Bounds
 
-- **In memory, at open:** the registry's rows, each text parsed once
-  (skein's `MAX_TEXT` each), and a plan per held layout (skein's
-  `data/codec/layouts.md`, 5); kept while the store serves, counted in
-  `README.md`, section 8's worst case beside the patch machines, which
-  no serving open holds.
+- **In memory, at open:** the registry's rows and texts, a text parsed
+  while its family (or a family holding it) is planned, and one plan
+  derived at a time (skein's `data/codec/layouts.md`, 5). While serving:
+  per value type its key ranges, version, binary id, the ids whose plan
+  keeps, and a plan per held layout that converts. Rows, texts and parsed
+  schemas are dropped when the open ends, after its registry writes and
+  written jobs; the drained pending queue keeps no spare capacity.
+  Counted in `README.md`, section 8's worst case beside the patch
+  machines, which no serving open holds.
 - **Per read:** a converted value is built in a `Buffer` at the store's
   value bound (`records.md`, 4), with one skein `layout::Workspace`
   beside it fitted at open to every plan the store holds, so a read

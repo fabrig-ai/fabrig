@@ -238,6 +238,12 @@ impl World {
         }
     }
 
+    /// Drop the simulator and drivers, retaining only the component for heap observations.
+    #[must_use]
+    pub fn into_component(self) -> Store {
+        self.store
+    }
+
     /// Consume a settled world to inspect the component's durable rows.
     #[must_use]
     pub fn into_stores(self) -> jig_protocol_store::Stores {

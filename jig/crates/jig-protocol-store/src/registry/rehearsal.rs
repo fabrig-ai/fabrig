@@ -1,6 +1,6 @@
 //! Decode stored heads by their own texts before the open plans any change
 //! (protocol/store/opening.md, 5, and protocol/store/layouts.md, 4).
-use super::{Layouts, head, rehead, rows};
+use super::{Layouts, head, rehead, rows, texts};
 use crate::{OpenRefusal, Store};
 use alloc::boxed::Box;
 use skein_codec::{schema::Shape, value::Value};
@@ -19,13 +19,30 @@ impl Decoder {
         !self.layouts.rows.is_empty()
     }
 
-    pub(crate) fn decode(&self, family: &str, number: u16, value: &mut Value, mut bytes: Box<[u8]>) -> Result<(), u16> {
+    pub(crate) fn family(&mut self) {
+        texts::clear(&mut self.layouts);
+    }
+
+    pub(crate) fn decode(
+        &mut self,
+        family: &str,
+        number: u16,
+        value: &mut Value,
+        mut bytes: Box<[u8]>,
+    ) -> Result<(), u16> {
         let id = head(&bytes).ok_or(0_u16)?;
+        let mut found = None;
         for ((name, ty, layout), row) in &self.layouts.rows {
             if name.as_ref() != family || *ty != number || *layout != id {
                 continue;
             }
-            let text = self.layouts.texts.get(row.value.text()).ok_or(id)?;
+            found = Some(((name.clone(), *ty, *layout), *row.value.text()));
+            break;
+        }
+        if let Some((key, digest)) = found {
+            texts::parse(&mut self.layouts, digest).ok_or(id)?;
+            let row = self.layouts.rows.get(&key).ok_or(id)?;
+            let text = self.layouts.texts.get(&digest).ok_or(id)?;
             let schema = text.schema.as_ref().ok_or(id)?;
             let root = schema.root(row.value.root(), row.value.variant().as_deref()).ok_or(id)?;
             // Generic decoders, like generated ones, read the family's version,
