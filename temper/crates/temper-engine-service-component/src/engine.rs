@@ -831,7 +831,8 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.pending_generation = false;
                 crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
             }
-            event @ (jig_protocol_store::Event::Committed { .. }
+            event @ (jig_protocol_store::Event::Census { .. }
+            | jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
             | jig_protocol_store::Event::FrameTooLarge { .. }
             | jig_protocol_store::Event::Page { .. }

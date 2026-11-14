@@ -362,6 +362,9 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                     domain.work.push(Work::StartDone(phase));
                 }
                 Phase::AdoptRuns => {
+                    if let Some(census) = domain.startup_census.take() {
+                        domain.work.push(Work::Core(jig_domain_core::Event::Census(census)));
+                    }
                     if let Some(bytes) = domain.startup_fill.take() {
                         domain.work.push(Work::Core(jig_domain_core::Event::Fill { bytes }));
                     }

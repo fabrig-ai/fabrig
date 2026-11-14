@@ -125,7 +125,9 @@ fn a_store_without_public_rows_reads_every_project_private() {
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
     );
-    let [Event::Opened { last: 3, pending: false, .. }] = &*events else { panic!("private projects reopen") };
+    let [Event::Opened { last: 3, pending: false, .. }, Event::Census { .. }] = &*events else {
+        panic!("private projects reopen")
+    };
     let (rows, next) = page(restore(&mut store, Restore::Jig(Box::new([RestoreRange::People])), None, 16, 65_536));
     assert_eq!(next, None);
     for row in jig_rows(rows) {
@@ -351,7 +353,7 @@ fn corrupt_people_store() -> Store {
         &mut store,
         Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
     );
-    let [Event::Opened { .. }] = &*events else { panic!("fixture store opens: {events:?}") };
+    let [Event::Opened { .. }, Event::Census { .. }] = &*events else { panic!("fixture store opens: {events:?}") };
     store
 }
 

@@ -38,7 +38,7 @@ fn empty_pending() -> Pending {
     Pending { plan, machines, found }
 }
 fn assert_opened(events: &[Event], expected: u64) {
-    let [Event::Opened { owner, last, .. }] = events else { panic!("one opened: {events:?}") };
+    let [Event::Opened { owner, last, .. }, Event::Census { .. }] = events else { panic!("one opened: {events:?}") };
     assert_eq!(*owner, Token::new(1));
     assert_eq!(*last, expected);
 }
@@ -71,7 +71,7 @@ fn baseline_with_sets(proof: bool, sets: crate::PatchSets) -> Vec<Item> {
     let mut store = disk.store_with_chunk(CHUNK);
     store.patch_sets(sets);
     let events = disk.open(&mut store);
-    assert!({ if let [Event::Opened { last: 0, .. }] = events.as_ref() { true } else { false } });
+    assert!({ if let [Event::Opened { last: 0, .. }, Event::Census { .. }] = events.as_ref() { true } else { false } });
     let mut writes = vec![fixtures::header(1), Write::Put { key: Box::from(KEY), value: Box::from(VALUE) }];
     if proof {
         writes.push(fixtures::save(fixtures::run_proof(1)));
@@ -654,12 +654,14 @@ fn cuts_at_the_manifests_write_syncs_and_rename_and_copy_recovery_keep_a_whole_g
             disk.cut = Some((cut, after));
             let mut store = disk.store(true);
             let events = disk.open(&mut store);
-            assert_eq!(events.len(), usize::from(target.0 == Stage::Manifest), "cut {cut} {target:?}");
-            assert!(
-                events
-                    .iter()
-                    .all(|event| { if let Event::Opened { pending: true, .. } = event { true } else { false } })
+            assert_eq!(
+                events.len(),
+                usize::from(target.0 == Stage::Manifest).checked_mul(2).expect("opening and census"),
+                "cut {cut} {target:?}"
             );
+            assert!(events.iter().all(|event| {
+                if let Event::Opened { pending: true, .. } | Event::Census { .. } = event { true } else { false }
+            }));
             assert!(disk.halted, "cut reached");
             disk.assert_source_unchanged(1);
             let mut disk = disk.crash(u64::try_from(cut).expect("seed"));
@@ -681,8 +683,11 @@ fn a_manifest_write_fault_refuses_failed_and_the_next_start_removes_the_copy() {
     let mut store = disk.store(true);
     let events = disk.open(&mut store);
     assert!({
-        if let [Event::Opened { pending: true, .. }, Event::OpenRefused { why: OpenRefusal::Failed, .. }] =
-            events.as_ref()
+        if let [
+            Event::Opened { pending: true, .. },
+            Event::Census { .. },
+            Event::OpenRefused { why: OpenRefusal::Failed, .. },
+        ] = events.as_ref()
         {
             true
         } else {
@@ -940,7 +945,7 @@ fn secret_tokens_patch_in_their_own_commits() {
     assert_eq!(fixtures::get_kv(&mut store, &key).expect("accounts counter"), before.accounts);
     assert_eq!(store.stores.secrets.last(), before.secrets_last.checked_add(2).expect("token pages"));
     let last = before.store_last.checked_add(9).expect("eight store pages and seal");
-    assert_opened(events.get(events.len().checked_sub(1).expect("opened")..).expect("last event"), last);
+    assert_opened(events.get(events.len().checked_sub(2).expect("opened and census")..).expect("last event"), last);
     assert_eq!(
         crate::codec::component::Manifest::decode(&disk.bytes(b"generations/2/manifest")),
         Ok(crate::codec::component::Manifest {
@@ -993,7 +998,9 @@ fn secrets_pages_use_their_own_byte_and_operation_limits() {
         store.limits.secrets.page.bytes = page_bytes;
         store.limits.secrets.commit = commit_bytes;
         let events = disk.open(&mut store);
-        let Some(Event::Opened { .. }) = events.last() else { panic!("patched open: {events:?}") };
+        let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
+            panic!("patched open: {events:?}")
+        };
         assert_eq!(store.stores.secrets.last().checked_sub(before.secrets_last), Some(commits));
         assert_tokens(&mut store);
     }
@@ -1020,14 +1027,14 @@ fn patched(events: &[Event]) -> Vec<(crate::Owner, u32, crate::Counts)> {
                 assert_eq!(*owner, Token::new(1));
                 Some((*of, *patch, *counts))
             }
-            Event::Opened { .. } | Event::OpenRefused { .. } => None,
+            Event::Opened { .. } | Event::Census { .. } | Event::OpenRefused { .. } => None,
             _ => panic!("unexpected open answer: {event:?}"),
         })
         .collect()
 }
 fn assert_fixture_opened(events: &[Event], page_commits: u64) {
     assert_opened(
-        events.get(events.len().checked_sub(1).expect("opened")..).expect("last event"),
+        events.get(events.len().checked_sub(2).expect("opened and census")..).expect("last event"),
         FIXTURE_LAST.checked_add(page_commits).expect("pages").checked_add(1).expect("seal"),
     );
 }
@@ -1636,7 +1643,9 @@ fn a_restart_row_at_the_deployments_lowered_limit_loads() {
     store.limits.core.tasks.dependencies = 1;
     store.codec_limits = crate::codec::limits(&store.limits.core).expect("lower deployment limits");
     let events = disk.open(&mut store);
-    let Some(Event::Opened { .. }) = events.last() else { panic!("row within its bound loads: {events:?}") };
+    let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
+        panic!("row within its bound loads: {events:?}")
+    };
     assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
 }
 
@@ -1753,7 +1762,9 @@ fn a_closing_proof_at_its_decode_limit_keeps_its_credentials() {
     store.limits.core.accounts.credentials = 1;
     store.codec_limits = crate::codec::limits(&store.limits.core).expect("exact proof decode limit");
     let events = disk.open(&mut store);
-    let Some(Event::Opened { .. }) = events.last() else { panic!("valid closing proof: {events:?}") };
+    let [.., Event::Opened { .. }, Event::Census { .. }] = events.as_ref() else {
+        panic!("valid closing proof: {events:?}")
+    };
     let jig_domain_core_vocabulary::Record::Core(jig_domain_core_vocabulary::CoreRecord::RunProof(mut expected)) =
         bounded_fresh_proof()
     else {
@@ -1935,4 +1946,25 @@ fn selected_closing_failures_keep_decode_category_and_source() {
         assert_eq!(failure.row.as_ref().expect("proof site").key, key);
         disk.assert_source_unchanged(1);
     }
+}
+
+#[test]
+fn the_patched_copys_open_reports_its_recovered_and_patched_counts() {
+    let mut disk = Harness::new(&fixture_baseline(None));
+    let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
+    let events = disk.open(&mut store);
+    let [.., Event::Opened { last, pending: true, .. }, Event::Census { census }] = events.as_ref() else {
+        panic!("patched open then census: {events:?}");
+    };
+    assert_eq!(*last, FIXTURE_LAST.checked_add(5).unwrap());
+    assert_eq!(census.commit, *last);
+    assert_eq!(census.since, store.stores.store.census().since());
+    assert!(!census.keyspaces.is_empty());
+    assert_eq!(census.keyspaces.len(), u32::try_from(store.stores.store.census().keyspaces().len()).unwrap());
+    for (row, counted) in census.keyspaces.iter().zip(store.stores.store.census().keyspaces()) {
+        assert_eq!(&*row.prefix, counted.prefix());
+        assert_eq!((row.rows, row.puts, row.erases), (counted.rows, counted.puts, counted.erases));
+    }
+    assert!(census.keyspaces.iter().any(|row| *row.prefix == [2, b's'] && row.puts > 0), "patched shelves counted");
+    assert_eq!(store.stores.secrets.census().keyspaces(), []);
 }

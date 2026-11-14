@@ -64,10 +64,10 @@ fn build_component() -> Component {
     component
 }
 fn matches_opened(above: &mut skein_lib::Queue<jig_protocol_store::Event>) -> bool {
-    match above.pop() {
-        Some(jig_protocol_store::Event::Opened { last: 0, .. }) => above.is_empty(),
-        Some(_) | None => false,
-    }
+    let Some(jig_protocol_store::Event::Opened { last: 0, .. }) = above.pop() else { return false };
+    // These routing fixtures do not consume the census (protocol/store/README.md, 6.3).
+    let Some(jig_protocol_store::Event::Census { .. }) = above.pop() else { return false };
+    above.is_empty()
 }
 pub fn routes() -> jig_test_store::route::Routes {
     let mut routes = jig_test_store::route::Routes::new(8);

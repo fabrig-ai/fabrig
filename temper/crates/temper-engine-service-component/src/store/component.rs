@@ -56,6 +56,7 @@ impl Store {
         let mut host = Hosted::new(limits, application_sizes, models, seed, NotReady::Above);
         assert!(host.component.wires(&WIRES), "valid engine wires before open");
         host.component.patch_sets(PATCH_SETS);
+        host.component.keyspaces(temper_protocol_store::KEYSPACES);
         Self {
             #[cfg(test)]
             forge_loads: skein_lib::List::with_capacity(128),

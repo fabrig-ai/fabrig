@@ -14,6 +14,68 @@ pub use own::Own;
 pub const COMPONENT: u8 = 0;
 pub const JIG: u8 = 1;
 pub const APPLICATION: u8 = 2;
+/// Owner tags and their census prefix lengths (protocol/store/README.md, 4.2 and 6.3).
+pub(crate) const TAGS: &[(u8, u8)] = &[(COMPONENT, 2), (JIG, 3), (APPLICATION, 2)];
+
+/// Names beside the key writers, one per family prefix (6.3).
+pub const KEYSPACES: &[(&[u8], &str)] = &[
+    (&[0, 0], "component.format"),
+    (&[0, 1], "component.transcripts"),
+    (&[0, 2], "component.attempts"),
+    (&[0, 3], "component.layouts"),
+    (&[0, 4], "component.wires"),
+    (&[0, 5], "component.openings"),
+    (&[1, 0, 0], "core.deployment"),
+    (&[1, 0, 1], "core.projections"),
+    (&[1, 0, 2], "core.run-proofs"),
+    (&[1, 0, 3], "core.calls"),
+    (&[1, 0, 4], "core.turns"),
+    (&[1, 0, 5], "core.terminals"),
+    (&[1, 0, 6], "core.proposal-decisions"),
+    (&[1, 0, 7], "core.escalation-decisions"),
+    (&[1, 0, 8], "core.settings"),
+    (&[1, 0, 9], "core.settings-history"),
+    (&[1, 1, 0], "tasks.live"),
+    (&[1, 1, 1], "tasks.stubs"),
+    (&[1, 1, 2], "tasks.ledgers"),
+    (&[1, 1, 3], "tasks.writers"),
+    (&[1, 1, 4], "tasks.pools"),
+    (&[1, 1, 5], "tasks.person-proposals"),
+    (&[1, 1, 6], "tasks.ended"),
+    (&[1, 1, 7], "tasks.closed-ledgers"),
+    (&[1, 1, 8], "tasks.decided-proposals"),
+    (&[1, 1, 9], "tasks.history"),
+    (&[1, 1, 10], "tasks.milestones"),
+    (&[1, 1, 11], "tasks.activity"),
+    (&[1, 1, 12], "tasks.updates"),
+    (&[1, 1, 13], "tasks.results"),
+    (&[1, 1, 17], "tasks.ended-delegates"),
+    (&[1, 1, 18], "tasks.delegates"),
+    (&[1, 1, 19], "tasks.ended-by-party"),
+    (&[1, 1, 20], "tasks.ended-by-project"),
+    (&[1, 1, 21], "tasks.placed-holds"),
+    (&[1, 2, 0], "people.people"),
+    (&[1, 2, 1], "people.read-results"),
+    (&[1, 2, 2], "people.read-conversations"),
+    (&[1, 2, 3], "people.sign-ins"),
+    (&[1, 2, 4], "people.roles"),
+    (&[1, 2, 5], "people.policies"),
+    (&[1, 2, 6], "people.answers"),
+    (&[1, 2, 7], "people.ended-reads"),
+    (&[1, 2, 8], "people.acted"),
+    (&[1, 2, 9], "people.deletions"),
+    (&[1, 2, 10], "people.public"),
+    (&[1, 2, 11], "people.deleted"),
+    (&[1, 3, 0], "notes.entries"),
+    (&[1, 3, 1], "notes.lines"),
+    (&[1, 4, 0], "accounts.next"),
+    (&[1, 4, 1], "accounts.accounts"),
+    (&[1, 4, 2], "accounts.sources"),
+    (&[1, 4, 3], "component.installation"),
+    (&[1, 4, 4], "accounts.issued"),
+    (&[1, 4, 5], "accounts.facts"),
+];
+
 /// The accounts child's tag under jig's, after the core's own and the tasks',
 /// people's and notes' children (4.2).
 pub const ACCOUNTS: u8 = 4;
