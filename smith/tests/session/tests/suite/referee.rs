@@ -3,7 +3,7 @@
 use smith_session_world::bytes;
 
 use smith_domain_session::llm::{Block, Endpoint, Message, Prompt, Role};
-use smith_session_world::assert_prompt_extends;
+use smith_session_world::check_prompt_extends;
 
 fn prompt() -> Prompt {
     Prompt {
@@ -27,41 +27,42 @@ fn prompt() -> Prompt {
 }
 
 #[test]
-#[should_panic(expected = "a window keeps its system text")]
 fn changed_window_system_is_rejected() {
     let mut changed = prompt();
     changed.system = bytes(b"different");
-    assert_prompt_extends(&prompt(), &changed);
+    assert_eq!(check_prompt_extends(&prompt(), &changed), Err("a window keeps its system text".into()));
 }
 
 #[test]
-#[should_panic(expected = "a window extends its history")]
 fn edited_window_history_is_rejected() {
     let mut changed = prompt();
     changed.messages[0].content = Box::new([]);
-    assert_prompt_extends(&prompt(), &changed);
+    assert_eq!(check_prompt_extends(&prompt(), &changed), Err("a window extends its history".into()));
 }
 
 #[test]
-#[should_panic(expected = "a window keeps its affinity")]
 fn changed_window_affinity_is_rejected() {
     let previous = prompt();
     let mut changed = prompt();
     changed.affinity.thread = 1;
-    assert_prompt_extends(&previous, &changed);
+    assert_eq!(check_prompt_extends(&previous, &changed), Err("a window keeps its affinity".into()));
 }
 
 #[test]
-#[should_panic(expected = "a window extends its history")]
 fn a_window_boundary_without_a_compaction_is_rejected() {
     let previous = prompt();
     let mut changed = prompt();
     changed.messages[0].content = Box::new([Block::Text { text: bytes(b"summary"), replay: None }]);
-    smith_session_world::assert_prompt_boundary(&previous, &changed, None);
+    assert_eq!(
+        smith_session_world::check_prompt_boundary(&previous, &changed, None),
+        Err("a window extends its history".into()),
+    );
 }
 
 #[test]
-#[should_panic(expected = "no prompt whose bound exceeds its window")]
 fn a_prompt_past_its_window_is_rejected() {
-    smith_session_world::assert_prompt_bound(1_001, 1_000);
+    assert_eq!(
+        smith_session_world::check_prompt_bound(1_001, 1_000),
+        Err("no prompt whose bound exceeds its window".into()),
+    );
 }

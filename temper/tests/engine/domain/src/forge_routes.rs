@@ -3255,7 +3255,7 @@ impl World {
         }
         self.oracle_settle();
         self.store.crash(0);
-        snapshot.compare_rows(&self.store.rows);
+        snapshot.compare_rows(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
         let store = std::mem::take(&mut self.store);
         let mut fresh =
             crate::direct::Driver::cold(store, crate::oracle::config::copy(&self.restart_config), &self.env.limits);
@@ -3278,15 +3278,16 @@ impl World {
             ));
         }
         self.oracle_settle();
-        snapshot.compare_rows(&self.store.rows);
-        crate::oracle::compare_forges(forges, self.root.forges());
+        snapshot.compare_rows(&self.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
+        crate::oracle::compare_forges(forges, self.root.forges()).unwrap_or_else(|finding| panic!("{finding}"));
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read.clone());
-            snapshot.compare_answer(index, answer);
+            snapshot.compare_answer(index, answer).unwrap_or_else(|finding| panic!("{finding}"));
         }
         for ((sign_in, project, subject), before) in subjects.iter().zip(documents) {
             let after = self.oracle_document(*sign_in, *project, *subject);
-            crate::oracle::compare_forge(*project, *subject, before, after);
+            crate::oracle::compare_forge(*project, *subject, before, after)
+                .unwrap_or_else(|finding| panic!("{finding}"));
         }
         self.oracle_settle();
         self.oracle_running = false;

@@ -17,10 +17,9 @@ themselves are `skein/docs/foundation/programming-model.md`, 10 and
 - **A change of policy is one edit:** change the definition and run `lints.py --write` (section 5).
 - **A crate's real exception** is a scoped `#[expect(..., reason = "...")]` in its code, never a
   manifest of its own (section 6). No profile allows a `disallowed_*` lint.
-- **Catches only fall:** a count per file of `catch_unwind`, `resume_unwind` and `#[should_panic]`
-  in every Rust file git tracks, against a list that only falls, refuses any new one (section 7).
-  The first two count none: the count refuses them outright, and every `clippy.toml` the gate's
-  clippy reads bans them (sections 4 and 7.4).
+- **Catches refused:** a count per file of `catch_unwind`, `resume_unwind` and `#[should_panic]`
+  in every Rust file git tracks refuses any of them (section 7). Every `clippy.toml` the gate's
+  clippy reads bans the first two as well (sections 4 and 7.4).
 
 ## 2. The profiles
 
@@ -155,11 +154,11 @@ only sites are in its test modules, the root says `#![cfg_attr(test, expect(...)
 ## 7. The count of catches
 
 Nothing catches a panic, tests included, and no test triggers an assertion
-(`skein/docs/foundation/programming-model.md`, 10.4). `#[should_panic]` tests on main still do, and
-a count holds them where they stand until each is converted: it lets no new one in and lets none
-come back. It holds `#[should_panic]`, which no lint can ban, and its file holds `tools/`' fixtures,
-which clippy never compiles. `catch_unwind` and `resume_unwind` count none, and it refuses them
-(7.4).
+(`skein/docs/foundation/programming-model.md`, 10.4). A count holds it where no lint can: it refuses
+`#[should_panic]`, which clippy can't ban, beside `catch_unwind` and `resume_unwind`, which clippy
+bans too, and its files include `tools/`' fixtures, which clippy never compiles. Each pattern was
+held where it stood by a list that only fell, until it counted none and was refused (7.4); every
+pattern is refused now, and the list keeps its comment lines alone.
 
 ```sh
 python3 -I -B tools/lints/panics.py           # the gate: 0 findings
@@ -203,8 +202,11 @@ writes when there is no list:
 ```
 # tools/lints/design.md, 7: the count of catches.
 # --write lowers this list; nothing raises it.
-# Refused, so no line names them: catch_unwind, resume_unwind.
+# Refused, so no line names them: catch_unwind, resume_unwind, should_panic.
 ```
+
+With all three patterns refused, these three lines are the whole list: a line of any other form
+is malformed (7.3).
 
 ### 7.3 Findings
 
@@ -231,8 +233,9 @@ lowers its line in the same change; another branch that only removes catches nev
   and exits 1, so a refused pattern counted anywhere leaves the list as it is.
 - **Refused patterns:** once a pattern counts none, it has no line left, and the check refuses any,
   and keeps refusing: `panics.py` names it in its refused patterns, a constant, `REFUSED`, so that no
-  line added by hand lets one back (7.3). `REFUSED` holds `catch_unwind` and `resume_unwind`. A
-  pattern joins it in the change that brings it to none, or after, and none leaves it.
+  line added by hand lets one back (7.3). `REFUSED` holds `catch_unwind`, `resume_unwind` and
+  `should_panic`, all three of 7.1's patterns. A pattern joins it in the change that brings it to
+  none, or after, and none leaves it.
 - **A file that moves** takes its lines with it, in the same change: its old path's lines go and
   its new path's come, at the same counts. That is the one line added by hand; any other raise
   breaks the rule this count holds.
@@ -240,8 +243,8 @@ lowers its line in the same change; another branch that only removes catches nev
   it and `test_panics.py` in its focused tests, so that both run on every change
   (`.config/gate/always.txt`).
 - **Beside clippy's ban:** `disallowed-methods` lists `catch_unwind` and `resume_unwind` in every
-  `clippy.toml` the gate's clippy reads (section 4), and the list keeps `#[should_panic]` alone
-  (`temper/docs/design/draft/panics.md`, 7).
+  `clippy.toml` the gate's clippy reads (section 4), and the count alone refuses `#[should_panic]`,
+  which no lint can ban (`temper/docs/design/draft/panics.md`, 7).
 
 ## 8. Later
 

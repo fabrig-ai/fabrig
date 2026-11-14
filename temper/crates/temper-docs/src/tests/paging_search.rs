@@ -47,6 +47,12 @@ fn page_counts_quotes_backslashes_and_line_ends_twice() {
 }
 
 #[test]
+fn a_two_byte_page_fits_one_doubled_byte() {
+    static ENTRY: Page = fixture(Kind::Reference, "\"x");
+    assert_eq!(page(&ENTRY, 0, 2), Cut { text: "\"", next: Some(1) });
+}
+
+#[test]
 fn page_returns_the_whole_rest_when_it_fits_without_a_final_line_end() {
     static ENTRY: Page = fixture(Kind::Reference, "a\nb");
     assert_eq!(page(&ENTRY, 0, 4), Cut { text: "a\nb", next: None });
@@ -58,13 +64,6 @@ fn page_at_or_past_the_end_is_empty() {
     for from in [2, 3, u32::MAX] {
         assert_eq!(page(&ENTRY, from, 2), Cut { text: "", next: None });
     }
-}
-
-#[test]
-#[should_panic(expected = "a page must fit every rendered byte")]
-fn page_requires_room_for_every_rendered_byte() {
-    static ENTRY: Page = fixture(Kind::Reference, "x");
-    let _page = page(&ENTRY, 0, 1);
 }
 
 #[test]

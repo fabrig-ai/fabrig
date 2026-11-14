@@ -245,7 +245,7 @@ pub fn refused_replayed_pastes() -> Counts {
     let counts = observer::finish(&mut outcome.machine.0.borrow_mut());
     world::lower_store(None);
     github::set_active(false);
-    counts
+    counts.unwrap_or_else(|finding| panic!("{finding}"))
 }
 
 // The delivery story pushes, opens and merges; a change also holds its branch's re-run kind.

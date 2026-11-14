@@ -78,16 +78,3 @@ fn a_variant_by_its_name_matches_store_md() {
     let expected = digest("72653b9931df15f292b4f5f17e091263cd9fb738b0f2c06cce1cd74242b5b211");
     assert_eq!(h.finish(), expected, "hearth/docs/design/domain/store/README.md, 3.2: a variant is its name");
 }
-
-#[test]
-#[should_panic(expected = "an encoding is finished with its one value whole")]
-fn h_finished_before_its_values_is_a_bug() {
-    let h = H::new(b"test", 1);
-    let _digest = h.finish();
-}
-
-#[test]
-#[should_panic(expected = "H takes fewer than 2^64 - 2 values")]
-fn h_with_a_count_past_the_limit_is_a_bug() {
-    let _h = H::new(b"test", u64::MAX);
-}

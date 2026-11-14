@@ -34,6 +34,7 @@ pub struct Terminal {
     terminal_writing: bool,
     accept_failed_write: bool,
     failed_write: Option<kernel::Error>,
+    finding: Option<String>,
     terminal_ended: bool,
     terminal_closing: bool,
     io: io::Io,
@@ -125,6 +126,7 @@ impl Terminal {
             terminal_writing: false,
             accept_failed_write: false,
             failed_write: None,
+            finding: None,
             terminal_ended: false,
             terminal_closing: false,
             io: io::Io::new(&limits),
@@ -174,6 +176,12 @@ impl Terminal {
     #[must_use]
     pub fn failed_write(&self) -> Option<kernel::Error> {
         self.failed_write
+    }
+
+    /// The first unexpected terminal write failure, retained while output drains.
+    #[must_use]
+    pub fn finding(&self) -> Option<&str> {
+        self.finding.as_deref()
     }
 
     /// The same scripted person on a shipped binary's separate input and output pipes.
@@ -239,10 +247,16 @@ impl Terminal {
                             self.commands.clear();
                             self.sending = None;
                         }
-                        result => panic!(
-                            "terminal write failed: {:?}; exit: {:?}; terminal ended: {}",
-                            result, self.exit, self.terminal_ended
-                        ),
+                        result => {
+                            if self.finding.is_none() {
+                                self.finding = Some(format!(
+                                    "terminal write failed: {:?}; exit: {:?}; terminal ended: {}",
+                                    result, self.exit, self.terminal_ended
+                                ));
+                            }
+                            self.commands.clear();
+                            self.sending = None;
+                        }
                     }
                 }
                 kernel::Op::Close { .. } => {
@@ -268,7 +282,7 @@ impl Terminal {
                 kind: kernel::Op::PipeRead { fd: stream, buf: vec![0; 4096].into() },
             });
         }
-        if !self.terminal_writing && self.exit.is_none() && self.failed_write.is_none() {
+        if !self.terminal_writing && self.exit.is_none() && self.failed_write.is_none() && self.finding.is_none() {
             if self.sending.is_none() {
                 for _ in 0..16 {
                     let Some(action) = self.commands.front() else { break };

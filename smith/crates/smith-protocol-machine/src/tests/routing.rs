@@ -165,12 +165,3 @@ fn reused_io_slots_bind_their_new_generation_to_the_new_child() {
     listings.assert_listing(SECOND, b"b", b"b/other");
     listings.assert_closed();
 }
-
-#[test]
-#[should_panic(expected = "pipe event has a live route")]
-fn bytes_after_closed_cannot_use_a_colliding_process_owner() {
-    let mut listings = reused_slots();
-    // Closed is IO's last event for a pipe. A violation must fail at the
-    // missing binding, even when its value now names an admitted process.
-    listings.bytes(FIRST_PIPES[0], b"late\0");
-}
