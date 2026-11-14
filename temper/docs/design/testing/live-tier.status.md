@@ -1,6 +1,6 @@
 # live-tier: status
 
-2026-11-12. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
+2026-11-14. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
 
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
@@ -79,6 +79,8 @@
   a sitting can end its box; and a `stat` of the record's path settles
   it, where the draft has an explicit export, because a record back at
   its path owes nothing whichever return brought it.
+
+- **Not yet:** the whole document: the held record's return is the test process's, `Lent`'s `Drop` and `run_walk`'s catch, and the launcher runs `give-back` before it stops the runner [in flight: change 2678].
 
 - **Not yet:** the whole document: the managed sitting's driver lags its test.
   `scripts/proof-live-github-managed.py`'s `configure` still renders
