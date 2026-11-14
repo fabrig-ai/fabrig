@@ -22,14 +22,14 @@ pub(crate) fn turn_started(directory: &Path, name: &str) -> bool {
     !smith_fake_claude::selections(&bytes[..complete]).is_empty()
 }
 
-pub(crate) fn check_interrupted(directory: &Path, name: &str) {
+pub(crate) fn check_interrupted(directory: &Path, name: &str) -> Result<(), String> {
     let bytes = std::fs::read(directory.join("programs").join(name).join(smith_fake_claude::OBSERVATIONS_FILE))
-        .expect("fake observations at serve's end");
+        .map_err(|error| format!("fake observations at serve's end: {error:?}"))?;
     let seen = smith_fake_claude::seen(&bytes);
-    assert!(
-        seen.contains(&smith_fake_claude::Seen::Interrupted),
-        "agent's cancel must interrupt its program: {seen:?}"
-    );
+    if !seen.contains(&smith_fake_claude::Seen::Interrupted) {
+        return Err(format!("agent's cancel must interrupt its program: {seen:?}"));
+    }
+    Ok(())
 }
 
 /// Every hosted fake program has exited when the service's stop finishes.

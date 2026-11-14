@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-12. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-14. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
@@ -64,3 +64,6 @@
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a
   wait that plan located and did not split, and test 2 has since lost the step (`README.md`, section 3
   ).
+- **Not yet:** 3: `Stories` panics on a failed outcome rather than
+  returning its finding, and the attribution's test catches.
+  [in flight: change 2867]

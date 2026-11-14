@@ -2,7 +2,7 @@
 //! jig/docs/design/protocol/client/public-reads.md).
 use jig_client_protocol_wire::{PublicIndexBounds, public_limits, public_v1::*};
 use skein_lib::{Reader, Rng, Writer};
-use std::{fs, panic::catch_unwind};
+use std::fs;
 
 const FIRST_SEED: u64 = 0x7075_b11c;
 const SEEDS: u64 = 4;
@@ -20,20 +20,18 @@ macro_rules! check {
 }
 
 fn decoders(seed: u64, bytes: &[u8], limits: &Limits) {
-    let result = catch_unwind(|| {
-        check!(PublicProjects, limits, bytes);
-        check!(PublicProject, limits, bytes);
-        check!(PublicBoard, limits, bytes);
-        check!(PublicGoal, limits, bytes);
-        check!(PublicCard, limits, bytes);
-        check!(PublicLine, limits, bytes);
-        check!(PublicCounts, limits, bytes);
-        check!(PublicApplication, limits, bytes);
-        check!(PublicExecutor, limits, bytes);
-        check!(PublicPhase, limits, bytes);
-        check!(PublicHold, limits, bytes);
-    });
-    assert!(result.is_ok(), "seed {seed:#x}, limits {limits:?}, input {bytes:?}");
+    eprintln!("seed {seed:#x}, limits {limits:?}, input {bytes:?}");
+    check!(PublicProjects, limits, bytes);
+    check!(PublicProject, limits, bytes);
+    check!(PublicBoard, limits, bytes);
+    check!(PublicGoal, limits, bytes);
+    check!(PublicCard, limits, bytes);
+    check!(PublicLine, limits, bytes);
+    check!(PublicCounts, limits, bytes);
+    check!(PublicApplication, limits, bytes);
+    check!(PublicExecutor, limits, bytes);
+    check!(PublicPhase, limits, bytes);
+    check!(PublicHold, limits, bytes);
 }
 
 fn index(rng: &mut Rng, length: usize) -> usize {

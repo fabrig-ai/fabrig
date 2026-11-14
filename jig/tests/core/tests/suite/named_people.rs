@@ -750,31 +750,26 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
             field: NamedLink::ProposedFunder,
         },
     ];
-    let mut failures = Vec::new();
     for Route { name: route, setup, input, task, refusal, field } in routes {
         for (named, held) in [(PERSON, true), (PERSON_TASK, false)] {
-            let result = std::panic::catch_unwind(|| {
-                let mut world = setup();
-                let before = task_rows(&world);
-                let answer = input(&mut world, named);
-                let after = task_rows(&world);
-                world.restart_with(configuration().0);
-                assert_eq!(world.domain.start_failure(), None, "{route}, named {named}");
-                assert!(world.domain.ready(), "{route}, named {named}: {:?}", world.domain.start_phase());
-                assert_eq!(world.domain.start_phase(), None, "{route} completed Open, named {named}");
-                if held {
-                    assert_eq!(answer, None, "{route}");
-                    assert!(linked(&world, task, named, field), "{route}: named {named}");
-                } else {
-                    assert_eq!(answer, refusal, "{route}");
-                    assert_eq!(after, before, "{route} changes nothing");
-                }
-                assert!(!world.store.rows.values().any(names_absent), "{route} saves no absent person");
-            });
-            if result.is_err() {
-                failures.push((route, named));
+            let case = if held { "held" } else { "absent" };
+            eprintln!("route {route}, named person {named}, case {case}");
+            let mut world = setup();
+            let before = task_rows(&world);
+            let answer = input(&mut world, named);
+            let after = task_rows(&world);
+            world.restart_with(configuration().0);
+            assert_eq!(world.domain.start_failure(), None, "{route}, named {named}");
+            assert!(world.domain.ready(), "{route}, named {named}: {:?}", world.domain.start_phase());
+            assert_eq!(world.domain.start_phase(), None, "{route} completed Open, named {named}");
+            if held {
+                assert_eq!(answer, None, "{route}");
+                assert!(linked(&world, task, named, field), "{route}: named {named}");
+            } else {
+                assert_eq!(answer, refusal, "{route}");
+                assert_eq!(after, before, "{route} changes nothing");
             }
+            assert!(!world.store.rows.values().any(names_absent), "{route} saves no absent person");
         }
     }
-    assert!(failures.is_empty(), "failed rows: {failures:?}");
 }

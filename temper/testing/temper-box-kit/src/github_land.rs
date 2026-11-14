@@ -47,6 +47,7 @@ pub fn restart() {
     members.up(&["forge"]);
     let mut world = real::World::new(Judge {
         members,
+        finding: None,
         deadline: clock.now().now.saturating_add(WITHIN),
         stage: Stage::Forge,
         scratch: scratch.path().to_path_buf(),
@@ -106,6 +107,7 @@ enum Stage {
 }
 struct Judge {
     members: cluster::Members,
+    finding: Option<String>,
     deadline: Time,
     stage: Stage,
     scratch: PathBuf,
@@ -131,32 +133,176 @@ struct Judge {
     replied: bool,
 }
 impl Judge {
+    #[expect(clippy::too_many_lines, reason = "the cluster startup and restart share one ordered script")]
+    fn advance(&mut self, now: Time, hosts: &mut [cluster::Root]) -> Result<(), String> {
+        self.members.act(now, hosts);
+        if self.members.failed() {
+            self.stage = Stage::Stopping;
+            return Ok(());
+        }
+        let host = hosts.last_mut().ok_or_else(|| "client root".to_owned())?;
+        if matches!(self.stage, Stage::Forge) && self.members.is_up() {
+            self.members.prepare("llm");
+            let path = self.members.dir("llm").join("llm.json");
+            configure_llm(&path);
+            let mut value: Value = serde_json::from_slice(&fs::read(&path).map_err(|_| "LLM fixture".to_owned())?)
+                .map_err(|_| "LLM JSON".to_owned())?;
+            value["asked"][0]["turns"].as_array_mut().ok_or_else(|| "chat turns".to_owned())?.insert(
+                2,
+                serde_json::json!({"lines":[{"call":"read_pull_for","arguments":{"head":"temper/1/c2","base":"main"}}],"finish":"tool_calls","tokens":20}),
+            );
+            super::write_private(&path, &serde_json::to_vec(&value).map_err(|_| "LLM JSON".to_owned())?);
+            self.members.up(&["llm"]);
+            self.stage = Stage::Fakes;
+        } else if matches!(self.stage, Stage::Fakes) && self.members.is_up() {
+            self.mark("fakes ready");
+            let api = self
+                .members
+                .capture("forge", "address")
+                .ok_or_else(|| "forge address".to_owned())?
+                .parse()
+                .map_err(|_| "API socket".to_owned())?;
+            self.app = Some(make_app(api, self.clients, &self.scratch)?);
+            self.mark("App made by manifest and conversion");
+            if self.members.dir("engine").join("data/state").exists() {
+                return Err("Must: no seeded forge records".to_owned());
+            }
+            self.members.prepare("engine");
+            let mut document: Value =
+                serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine configuration".to_owned())?)
+                    .map_err(|_| "engine JSON".to_owned())?;
+            // Restart retains the worker's files. Reserve its engine endpoint,
+            // as the clients' endpoint is reserved for the App's setup URL.
+            document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
+            let address = self
+                .members
+                .capture("forge", "address")
+                .ok_or_else(|| "forge address".to_owned())?
+                .parse()
+                .map_err(|_| "socket".to_owned())?;
+            configure_engine(&mut document);
+            fs::create_dir_all(&self.client).map_err(|_| "client directory".to_owned())?;
+            super::write_private(
+                &self.client.join("landing-settings.json"),
+                &serde_json::to_vec(&landing_settings(address, "acme", "app"))
+                    .map_err(|_| "landing settings".to_owned())?,
+            );
+            fs::write(&self.engine, serde_json::to_vec(&document).map_err(|_| "engine JSON".to_owned())?)
+                .map_err(|_| "fixed workers listener".to_owned())?;
+            let directory = self.members.dir("engine");
+            super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
+            // temper/docs/design/protocol/setup/github.md, 7; temper/docs/design/protocol/forge/engine.md, 1.
+            let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
+            record.kind = temper_engine_domain_forge::Kind::GitHub;
+            record.place.web = Some(format!("http://{address}").into_bytes().into());
+            record.bot.login = b"x-access-token".as_slice().into();
+            record.read_only = true;
+            temper_real_loop_world::fixtures::seed_record(&directory.join("data/state"), record, &[]);
+            self.members.up(&["w1"]);
+            self.stage = Stage::Worker;
+            self.members.act(now, hosts);
+        } else if matches!(self.stage, Stage::Worker) && self.members.is_up() {
+            self.mark("engine and worker ready");
+            self.begin(host)?;
+        } else if matches!(self.stage, Stage::StopWorker) && self.members.ended("w1") {
+            self.members.stop_one("engine");
+            self.stage = Stage::StopEngine;
+        } else if matches!(self.stage, Stage::StopEngine) && self.members.ended("engine") {
+            self.members.restart("engine");
+            self.stage = Stage::RestartEngine;
+        } else if matches!(self.stage, Stage::RestartEngine) && self.members.capture("engine", "link").is_some() {
+            self.members.restart("w1");
+            self.stage = Stage::RestartWorker;
+        } else if matches!(self.stage, Stage::RestartWorker) && self.members.is_up() {
+            self.mark("engine and worker restarted on ready lines");
+            eprintln!(
+                "github land restart: ready {:?}",
+                now.saturating_since(self.restart_began.ok_or_else(|| "restart began".to_owned())?)
+            );
+            if self.members.linked("w1") != 2 {
+                return Err("Must: worker linked in both lives".to_owned());
+            }
+            self.queue(
+                host,
+                vec![
+                    ctl::Call::new(&["forge", "list", "--until", "connected:1"]),
+                    ctl::Call::new(&["forge", "list", "--json"]),
+                ],
+            )?;
+            self.stage = Stage::Restored;
+        } else if host.is_empty()
+            && matches!(
+                self.stage,
+                Stage::Install
+                    | Stage::Adopt
+                    | Stage::Chat
+                    | Stage::Change
+                    | Stage::ReplySnapshot
+                    | Stage::ReplyPages
+                    | Stage::ChatEnded
+                    | Stage::ChatEvidence
+                    | Stage::BeforeRestart
+                    | Stage::Restored
+                    | Stage::LandingRestored
+                    | Stage::TasksPage { .. }
+            )
+        {
+            let cluster::Root::Client { calls, .. } = host else { return Err("client root".to_owned()) };
+            let calls = calls.take().ok_or_else(|| "completed calls".to_owned())?;
+            self.called(now, host, &calls)?;
+        }
+
+        Ok(())
+    }
+
     fn mark(&self, step: &str) {
         eprintln!("github land: {step} {:?}", Clock::new().now().now.saturating_since(self.began));
     }
-    fn queue(&mut self, host: &mut cluster::Root, calls: Vec<ctl::Call>) {
-        self.queue_steps(host, calls.into_iter().map(ctl::Step::Run).collect());
+    fn queue(&mut self, host: &mut cluster::Root, calls: Vec<ctl::Call>) -> Result<(), String> {
+        self.queue_steps(host, calls.into_iter().map(ctl::Step::Run).collect())?;
+
+        Ok(())
     }
-    fn queue_steps(&mut self, host: &mut cluster::Root, steps: Vec<ctl::Step>) {
+    fn queue_steps(&mut self, host: &mut cluster::Root, steps: Vec<ctl::Step>) -> Result<(), String> {
         self.call_marks = 0;
-        let link = format!("http://{}", self.members.capture("engine", "link").expect("engine link"));
+        let link =
+            format!("http://{}", self.members.capture("engine", "link").ok_or_else(|| "engine link".to_owned())?);
         let mut batch = ctl::Calls::linked(&link, &self.client);
         for step in steps {
             batch.push(step);
         }
-        let cluster::Root::Client { calls, .. } = host else { panic!("client root") };
+        let cluster::Root::Client { calls, .. } = host else { return Err("client root".to_owned()) };
         *calls = Some(Box::new(batch));
+
+        Ok(())
     }
-    fn begin(&mut self, host: &mut cluster::Root) {
+    fn begin(&mut self, host: &mut cluster::Root) -> Result<(), String> {
         use ctl::Call;
-        let engine: Value =
-            serde_json::from_slice(&fs::read(&self.engine).expect("engine document")).expect("engine JSON");
-        assert_eq!(engine["workers"], serde_json::json!([]), "engine alone");
-        assert_eq!(engine["application"]["workers"], serde_json::json!([]));
-        let workers = engine["engine"]["hosts"]["workers"].as_array().expect("worker positions");
-        assert_eq!(workers.len(), 1);
-        assert_eq!(workers[0]["name"], "w1");
-        assert_eq!(self.members.linked("w1"), 1, "the sole worker linked");
+        let engine: Value = serde_json::from_slice(&fs::read(&self.engine).map_err(|_| "engine document".to_owned())?)
+            .map_err(|_| "engine JSON".to_owned())?;
+        if engine["workers"] != serde_json::json!([]) {
+            return Err("engine alone".to_owned());
+        }
+        if engine["application"]["workers"] != serde_json::json!([]) {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                engine["application"]["workers"],
+                serde_json::json!([])
+            ));
+        }
+        let workers = engine["engine"]["hosts"]["workers"].as_array().ok_or_else(|| "worker positions".to_owned())?;
+        if workers.len() != 1 {
+            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", workers.len(), 1));
+        }
+        if workers[0]["name"] != "w1" {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                workers[0]["name"], "w1"
+            ));
+        }
+        if self.members.linked("w1") != 1 {
+            return Err("the sole worker linked".to_owned());
+        }
         self.queue_steps(
             host,
             super::github::settings_setup(
@@ -166,7 +312,7 @@ impl Judge {
                         "account",
                         "add-key",
                         "1",
-                        self.key.to_str().expect("key path"),
+                        self.key.to_str().ok_or_else(|| "key path".to_owned())?,
                         "--deployment",
                         "--key",
                         "github-llm",
@@ -177,8 +323,8 @@ impl Judge {
                         "connect",
                         "1",
                         "github-app",
-                        &self.app.as_ref().expect("made App").id.to_string(),
-                        self.scratch.join("github-app.pem").to_str().expect("PEM path"),
+                        &self.app.as_ref().ok_or_else(|| "made App".to_owned())?.id.to_string(),
+                        self.scratch.join("github-app.pem").to_str().ok_or_else(|| "PEM path".to_owned())?,
                         "--key",
                         "github-app",
                     ]),
@@ -186,8 +332,10 @@ impl Judge {
                     Call::new(&["forge", "install", "1", "--key", "github-install"]),
                 ],
             ),
-        );
+        )?;
         self.stage = Stage::Install;
+
+        Ok(())
     }
     fn adoption() -> ctl::Call {
         ctl::Call::new(&[
@@ -208,80 +356,100 @@ impl Judge {
             "--json",
         ])
     }
-    fn row(packet: &Value) -> Value {
-        packet["forges"]
+    fn row(packet: &Value) -> Result<Value, String> {
+        Ok(packet["forges"]
             .as_array()
-            .expect("forges rows")
+            .ok_or_else(|| "forges rows".to_owned())?
             .iter()
             .find(|row| row["number"] == 1)
-            .expect("Must: forge 1 is present")
-            .clone()
+            .ok_or_else(|| "Must: forge 1 is present".to_owned())?
+            .clone())
     }
-    fn restored(&mut self, host: &mut cluster::Root, packet: &Value) {
-        let row = Self::row(packet);
+    fn restored(&mut self, host: &mut cluster::Root, packet: &Value) -> Result<(), String> {
+        let row = Self::row(packet)?;
         // The account is learned from the token minted after startup. Wait on
         // the document's digest when T1 exposes a row still learning it.
         if row["installations"]
             .as_array()
             .is_some_and(|rows| !rows.is_empty() && rows.iter().any(|row| row["account"].is_null()))
         {
-            let digest = packet["digest"].as_str().expect("forges digest");
-            self.queue(host, vec![ctl::Call::new(&["forge", "list", "--since", digest, "--json"])]);
-            return;
+            let digest = packet["digest"].as_str().ok_or_else(|| "forges digest".to_owned())?;
+            self.queue(host, vec![ctl::Call::new(&["forge", "list", "--since", digest, "--json"])])?;
+            return Ok(());
         }
         self.restored = Some(row);
-        self.queue(host, landing_reads());
+        self.queue(host, landing_reads())?;
         self.stage = Stage::LandingRestored;
+
+        Ok(())
     }
-    fn install(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) {
-        let output = std::str::from_utf8(&calls.ends().last().expect("install link").stdout).expect("install output");
-        let url = output.lines().find(|line| line.starts_with("http://")).expect("printed install link");
-        let address = self.members.capture("forge", "address").expect("forge address").parse().expect("socket");
-        let page = request_url(address, "GET", url, "", b"");
-        assert_eq!(page.status, 302, "Must: fake install redirects to setup");
-        let location = page.location.expect("setup redirect");
-        assert!(location.starts_with(&format!("http://{}/forges/1/github/setup?", self.clients)), "setup URL");
-        assert!(
-            location.contains(&format!("installation_id={INSTALLATION}")),
-            "Must: accepted visited installation id"
-        );
-        let accepted = request_url(self.clients, "GET", &location, "", b"");
-        assert_eq!(accepted.status, 200, "Must: setup accepted installation");
-        assert!(
-            skein_lib::bytes::find(&accepted.body, b"temper has the installation; you may close this tab.").is_some(),
-            "the setup page says so"
-        );
+    fn install(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
+        let output = std::str::from_utf8(&calls.ends().last().ok_or_else(|| "install link".to_owned())?.stdout)
+            .map_err(|_| "install output".to_owned())?;
+        let url =
+            output.lines().find(|line| line.starts_with("http://")).ok_or_else(|| "printed install link".to_owned())?;
+        let address = self
+            .members
+            .capture("forge", "address")
+            .ok_or_else(|| "forge address".to_owned())?
+            .parse()
+            .map_err(|_| "socket".to_owned())?;
+        let page = request_url(address, "GET", url, "", b"")?;
+        if page.status != 302 {
+            return Err("Must: fake install redirects to setup".to_owned());
+        }
+        let location = page.location.ok_or_else(|| "setup redirect".to_owned())?;
+        if !location.starts_with(&format!("http://{}/forges/1/github/setup?", self.clients)) {
+            return Err("setup URL".to_owned());
+        }
+        if !location.contains(&format!("installation_id={INSTALLATION}")) {
+            return Err("Must: accepted visited installation id".to_owned());
+        }
+        let accepted = request_url(self.clients, "GET", &location, "", b"")?;
+        if accepted.status != 200 {
+            return Err("Must: setup accepted installation".to_owned());
+        }
+        if skein_lib::bytes::find(&accepted.body, b"temper has the installation; you may close this tab.").is_none() {
+            return Err("the setup page says so".to_owned());
+        }
         self.outputs.push(accepted.body);
-        self.queue(host, vec![ctl::Call::new(&["forge", "list", "--until", "settled"]), Self::adoption()]);
+        self.queue(host, vec![ctl::Call::new(&["forge", "list", "--until", "settled"]), Self::adoption()])?;
         self.stage = Stage::Adopt;
+
+        Ok(())
     }
-    fn called(&mut self, now: Time, host: &mut cluster::Root, calls: &ctl::Calls) {
+    #[expect(clippy::too_many_lines, reason = "the client script keeps its returning Musts beside each stage")]
+    fn called(&mut self, now: Time, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
         for (index, ended) in calls.ends().iter().enumerate() {
             self.outputs.push(ended.stdout.clone());
             self.outputs.push(ended.stderr.clone());
-            assert_eq!(
-                ended.exit,
-                Some(Exit::Code(
+            if ended.exit
+                != Some(Exit::Code(
                     if index == 6 && matches!(self.stage, Stage::BeforeRestart | Stage::LandingRestored) {
                         2
                     } else {
                         0
-                    }
-                )),
-                "ctl: {} {}",
-                String::from_utf8_lossy(&ended.stderr),
-                String::from_utf8_lossy(&ended.stdout)
-            );
+                    },
+                ))
+            {
+                return Err(format!(
+                    "ctl: {} {}",
+                    String::from_utf8_lossy(&ended.stderr),
+                    String::from_utf8_lossy(&ended.stdout)
+                ));
+            }
         }
         match self.stage {
             Stage::Install => {
-                self.install(host, calls);
+                self.install(host, calls)?;
             }
-            Stage::Adopt => self.adopted(host, calls),
+            Stage::Adopt => self.adopted(host, calls)?,
             Stage::Chat => {
                 self.mark("signed in, key usable, adopted, chat created");
-                let packet = ctl::json(calls.ends().last().expect("chat creation"));
-                assert_eq!(packet["outcome"]["done"]["document"]["created"]["first"], 1, "{packet}");
+                let packet = json_call(calls.ends().last().ok_or_else(|| "chat creation".to_owned())?)?;
+                if packet["outcome"]["done"]["document"]["created"]["first"] != 1 {
+                    return Err(format!("{packet}"));
+                }
                 // The chat's first reply acknowledges its already committed change task.
                 self.queue(
                     host,
@@ -292,52 +460,112 @@ impl Judge {
                         ctl::Call::new(&["task", "show", "2"]),
                         ctl::Call::new(&["task", "show", "2", "--until", "ended", "--json"]),
                     ],
-                );
+                )?;
                 self.stage = Stage::Change;
             }
             Stage::Change => {
-                let waited = ctl::json(&calls.ends()[1]);
-                assert_eq!(waited["met"], true);
-                let panel = ctl::json(&calls.ends()[2]);
-                assert_eq!(panel["task"], CHANGE);
-                assert_eq!(panel["step"], "landed");
-                assert_eq!(waited["change"]["pull"], panel["pull"]);
-                assert_eq!(waited["change"]["merge"], panel["merge"]);
-                assert_eq!(panel["pull"]["number"], 1);
-                let forge = self.members.capture("forge", "address").expect("forge address");
-                assert_eq!(panel["pull"]["address"], format!("http://{forge}/acme/app/pull/1"));
+                let waited = json_call(calls.ends().get(1).ok_or("completed ctl call")?)?;
+                if waited["met"] != true {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        waited["met"], true
+                    ));
+                }
+                let panel = json_call(calls.ends().get(2).ok_or("completed ctl call")?)?;
+                if panel["task"] != CHANGE {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        panel["task"], CHANGE
+                    ));
+                }
+                if panel["step"] != "landed" {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        panel["step"], "landed"
+                    ));
+                }
+                if waited["change"]["pull"] != panel["pull"] {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        waited["change"]["pull"], panel["pull"]
+                    ));
+                }
+                if waited["change"]["merge"] != panel["merge"] {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        waited["change"]["merge"], panel["merge"]
+                    ));
+                }
+                if panel["pull"]["number"] != 1 {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        panel["pull"]["number"], 1
+                    ));
+                }
+                let forge = self.members.capture("forge", "address").ok_or_else(|| "forge address".to_owned())?;
+                if panel["pull"]["address"] != format!("http://{forge}/acme/app/pull/1") {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        panel["pull"]["address"],
+                        format!("http://{forge}/acme/app/pull/1")
+                    ));
+                }
                 self.panel = Some(panel);
-                let words = String::from_utf8_lossy(&calls.ends()[3].stdout);
-                assert!(words.contains("result: Landed · pull request #1 · merge commit "), "{words}");
-                assert!(words.contains("next: temper ctl DIR change show 2\n"), "{words}");
-                let packet = ctl::json(calls.ends().last().expect("landed change"));
-                assert_eq!(packet["task"]["chip"]["phase"], "ended");
-                assert_eq!(packet["task"]["result"]["value"]["change"]["kind"], 1);
+                let words = String::from_utf8_lossy(&calls.ends().get(3).ok_or("completed ctl call")?.stdout);
+                if !words.contains("result: Landed · pull request #1 · merge commit ") {
+                    return Err(format!("{words}"));
+                }
+                if !words.contains("next: temper ctl DIR change show 2\n") {
+                    return Err(format!("{words}"));
+                }
+                let packet = json_call(calls.ends().last().ok_or_else(|| "landed change".to_owned())?)?;
+                if packet["task"]["chip"]["phase"] != "ended" {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        packet["task"]["chip"]["phase"], "ended"
+                    ));
+                }
+                if packet["task"]["result"]["value"]["change"]["kind"] != 1 {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        packet["task"]["result"]["value"]["change"]["kind"], 1
+                    ));
+                }
                 self.landed = Some(packet["task"]["result"].clone());
                 self.mark("change landed");
-                self.queue(host, vec![ctl::Call::new(&["task", "show", "1", "--json"])]);
+                self.queue(host, vec![ctl::Call::new(&["task", "show", "1", "--json"])])?;
                 self.stage = Stage::ReplySnapshot;
             }
-            Stage::ReplySnapshot => self.reply_snapshot(host, calls),
-            Stage::ReplyPages => self.reply_page(host, calls),
+            Stage::ReplySnapshot => self.reply_snapshot(host, calls)?,
+            Stage::ReplyPages => self.reply_page(host, calls)?,
             Stage::ChatEnded => {
-                assert_eq!(ctl::json(calls.ends().last().expect("chat ended"))["task"]["chip"]["phase"], "ended");
-                self.queue(host, vec![ctl::Call::new(&["task", "activity", "1", "--limit", "32", "--json"])]);
+                if json_call(calls.ends().last().ok_or_else(|| "chat ended".to_owned())?)?["task"]["chip"]["phase"]
+                    != "ended"
+                {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        json_call(calls.ends().last().ok_or_else(|| "chat ended".to_owned())?)?["task"]["chip"]["phase"],
+                        "ended"
+                    ));
+                }
+                self.queue(host, vec![ctl::Call::new(&["task", "activity", "1", "--limit", "32", "--json"])])?;
                 self.stage = Stage::ChatEvidence;
             }
-            Stage::ChatEvidence => self.chat_evidence(host, calls),
-            Stage::BeforeRestart => self.before_restart(now, host, calls),
-            Stage::Restored => self.restored(host, &ctl::json(calls.ends().last().expect("restored forges"))),
+            Stage::ChatEvidence => self.chat_evidence(host, calls)?,
+            Stage::BeforeRestart => self.before_restart(now, host, calls)?,
+            Stage::Restored => {
+                self.restored(host, &json_call(calls.ends().last().ok_or_else(|| "restored forges".to_owned())?)?)?;
+            }
             Stage::LandingRestored => {
-                let cursor = self.check_landing(calls);
-                self.read_tasks(now, host, true, cursor);
+                let cursor = self.check_landing(calls)?;
+                self.read_tasks(now, host, true, cursor)?;
             }
             Stage::TasksPage { restored } => {
-                let packet = ctl::json(&calls.ends()[0]);
+                let packet = json_call(calls.ends().first().ok_or("completed ctl call")?)?;
                 let rows = &packet["ended"]["rows"];
-                self.collect_tasks(rows);
+                self.collect_tasks(rows)?;
                 let cursor = rows["after"]["value"].as_str().map(str::to_owned);
-                self.read_tasks(now, host, restored, cursor);
+                self.read_tasks(now, host, restored, cursor)?;
             }
             Stage::Forge
             | Stage::Fakes
@@ -346,36 +574,43 @@ impl Judge {
             | Stage::StopEngine
             | Stage::RestartEngine
             | Stage::RestartWorker
-            | Stage::Stopping => unreachable!("active calls"),
+            | Stage::Stopping => return Err("active calls".to_owned()),
         }
+
+        Ok(())
     }
-    fn reply_snapshot(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) {
-        let packet = ctl::json(calls.ends().last().expect("reply snapshot"));
+    fn reply_snapshot(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
+        let packet = json_call(calls.ends().last().ok_or_else(|| "reply snapshot".to_owned())?)?;
         let families = jig_domain_core::ToolFamilies::JIG;
-        assert_eq!(
-            packet["authority"]["authority"]["tools"],
-            families.delegate.0 | families.message.0 | families.read.0,
-            "the default chat inherits Delegate, Message and Read: {packet}"
-        );
-        self.reply_snapshot = Some(packet["digest"].as_str().expect("task digest").to_owned());
-        self.queue(host, vec![ctl::Call::new(&["chat", "show", "1", "--json"])]);
+        if packet["authority"]["authority"]["tools"] != families.delegate.0 | families.message.0 | families.read.0 {
+            return Err(format!("the default chat inherits Delegate, Message and Read: {packet}"));
+        }
+        self.reply_snapshot = Some(packet["digest"].as_str().ok_or_else(|| "task digest".to_owned())?.to_owned());
+        self.queue(host, vec![ctl::Call::new(&["chat", "show", "1", "--json"])])?;
         self.stage = Stage::ReplyPages;
+
+        Ok(())
     }
-    fn chat_evidence(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) {
-        let activity = ctl::json(calls.ends().last().expect("chat activity"));
+    fn chat_evidence(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
+        let activity = json_call(calls.ends().last().ok_or_else(|| "chat activity".to_owned())?)?;
         // The scripted reply says only “The change landed.” The PR's
         // words therefore come from the result the run was given.
-        assert!(activity["rows"].to_string().contains("pull request #1"), "chat heard the landed pull: {activity}");
-        assert!(
-            activity["rows"].to_string().contains("Pull 1 head "),
-            "chat received its read_pull_for answer: {activity}"
-        );
-        self.queue(host, landing_reads());
+        if !activity["rows"].to_string().contains("pull request #1") {
+            return Err(format!("chat heard the landed pull: {activity}"));
+        }
+        if !activity["rows"].to_string().contains("Pull 1 head ") {
+            return Err(format!("chat received its read_pull_for answer: {activity}"));
+        }
+        self.queue(host, landing_reads())?;
         self.stage = Stage::BeforeRestart;
+
+        Ok(())
     }
-    fn adopted(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) {
-        let packet = ctl::json(calls.ends().last().expect("adoption"));
-        assert!(packet["adopted"].is_object(), "Must: first life adopts acme/app: {packet}");
+    fn adopted(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
+        let packet = json_call(calls.ends().last().ok_or_else(|| "adoption".to_owned())?)?;
+        if !packet["adopted"].is_object() {
+            return Err(format!("Must: first life adopts acme/app: {packet}"));
+        }
         self.queue(
             host,
             vec![ctl::Call::new(&[
@@ -388,14 +623,16 @@ impl Judge {
                 "@forge_chat Update README",
                 "--json",
             ])],
-        );
+        )?;
         self.stage = Stage::Chat;
+
+        Ok(())
     }
-    fn reply_page(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) {
-        let page = ctl::json(&calls.ends()[0]);
+    fn reply_page(&mut self, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
+        let page = json_call(calls.ends().first().ok_or("completed ctl call")?)?;
         self.replied |= page["activity"]["rows"].to_string().contains("The change landed.");
         if let Some(before) = page["activity"]["before"]["value"].as_str() {
-            self.queue(host, vec![ctl::Call::new(&["chat", "show", "1", "--before", before, "--json"])]);
+            self.queue(host, vec![ctl::Call::new(&["chat", "show", "1", "--before", before, "--json"])])?;
         } else if !self.replied {
             self.queue(
                 host,
@@ -407,12 +644,12 @@ impl Judge {
                         "--until",
                         "replied",
                         "--since",
-                        self.reply_snapshot.as_deref().expect("reply snapshot"),
+                        self.reply_snapshot.as_deref().ok_or_else(|| "reply snapshot".to_owned())?,
                         "--json",
                     ]),
                     ctl::Call::new(&["task", "show", "1", "--json"]),
                 ],
-            );
+            )?;
             self.stage = Stage::ReplySnapshot;
         } else {
             self.queue(
@@ -421,28 +658,53 @@ impl Judge {
                     ctl::Call::new(&["chat", "close", "1", "--key", "close-land", "--json"]),
                     ctl::Call::new(&["task", "show", "1", "--until", "ended", "--json"]),
                 ],
-            );
+            )?;
             self.stage = Stage::ChatEnded;
         }
+
+        Ok(())
     }
-    fn before_restart(&mut self, now: Time, host: &mut cluster::Root, calls: &ctl::Calls) {
-        let cursor = self.check_landing(calls);
-        let row = Self::row(&ctl::json(&calls.ends()[4]));
-        assert_eq!(row["state"], "connected", "Must: connected before restart");
-        assert_eq!(row["login"], "temper-person[bot]", "Must: connected as the person's App");
-        assert!(row["id"].as_u64().is_some(), "Must: connected bot id");
+    fn before_restart(&mut self, now: Time, host: &mut cluster::Root, calls: &ctl::Calls) -> Result<(), String> {
+        let cursor = self.check_landing(calls)?;
+        let row = Self::row(&json_call(calls.ends().get(4).ok_or("completed ctl call")?)?)?;
+        if row["state"] != "connected" {
+            return Err("Must: connected before restart".to_owned());
+        }
+        if row["login"] != "temper-person[bot]" {
+            return Err("Must: connected as the person's App".to_owned());
+        }
+        if row["id"].as_u64().is_none() {
+            return Err("Must: connected bot id".to_owned());
+        }
         self.identity = Some(row);
-        self.forge(true);
-        self.read_tasks(now, host, false, cursor);
+        self.forge(true)?;
+        self.read_tasks(now, host, false, cursor)?;
+
+        Ok(())
     }
-    fn collect_tasks(&mut self, rows: &Value) {
-        assert_eq!(rows["cut"], false, "whole task page");
-        self.life_tasks.extend(rows["rows"].as_array().expect("ended rows").iter().map(|row| {
-            assert_eq!(row["chip"]["phase"], "ended");
-            row["chip"]["task"].as_u64().expect("task id")
-        }));
+    fn collect_tasks(&mut self, rows: &Value) -> Result<(), String> {
+        if rows["cut"] != false {
+            return Err("whole task page".to_owned());
+        }
+        for row in rows["rows"].as_array().ok_or("ended rows")? {
+            if row["chip"]["phase"] != "ended" {
+                return Err(format!(
+                    "assertion `left == right` failed: task phase {:?}, expected ended",
+                    row["chip"]["phase"]
+                ));
+            }
+            self.life_tasks.push(row["chip"]["task"].as_u64().ok_or("task id")?);
+        }
+
+        Ok(())
     }
-    fn read_tasks(&mut self, now: Time, host: &mut cluster::Root, restored: bool, cursor: Option<String>) {
+    fn read_tasks(
+        &mut self,
+        now: Time,
+        host: &mut cluster::Root,
+        restored: bool,
+        cursor: Option<String>,
+    ) -> Result<(), String> {
         if let Some(cursor) = cursor {
             self.queue(
                 host,
@@ -458,18 +720,22 @@ impl Judge {
                     &cursor,
                     "--json",
                 ])],
-            );
+            )?;
             self.stage = Stage::TasksPage { restored };
-            return;
+            return Ok(());
         }
         self.life_tasks.sort_unstable();
-        assert_eq!(self.life_tasks, [1, 2, 3, 4], "the complete task set");
+        if self.life_tasks != [1, 2, 3, 4] {
+            return Err("the complete task set".to_owned());
+        }
         if restored {
-            assert_eq!(Some(&self.life_tasks), self.tasks.as_ref(), "no task made after restart");
+            if Some(&self.life_tasks) != self.tasks.as_ref() {
+                return Err("no task made after restart".to_owned());
+            }
             self.mark("same landing and task set found after restart");
             eprintln!(
                 "github land restart: restored {:?}",
-                now.saturating_since(self.restart_began.expect("restart began"))
+                now.saturating_since(self.restart_began.ok_or_else(|| "restart began".to_owned())?)
             );
             self.members.stop();
             self.stage = Stage::Stopping;
@@ -480,242 +746,274 @@ impl Judge {
             self.members.stop_one("w1");
             self.stage = Stage::StopWorker;
         }
+
+        Ok(())
     }
-    fn check_landing(&mut self, calls: &ctl::Calls) -> Option<String> {
-        let task = ctl::json(&calls.ends()[0]);
-        assert_eq!(task["chip"]["phase"], "ended");
-        assert_eq!(task["result"], *self.landed.as_ref().expect("first landed result"), "same PR and merge commit");
-        assert_eq!(ctl::json(&calls.ends()[1])["chip"]["phase"], "ended", "the Open chat was closed before restart");
-        let unknown = &calls.ends()[6];
-        assert_eq!(unknown.exit, Some(Exit::Code(2)));
-        assert_eq!(
-            unknown.stderr.trim_ascii_end(),
-            br#"{"error":"unknown"}"#,
-            "no task beyond the four first-life tasks"
-        );
+    fn check_landing(&mut self, calls: &ctl::Calls) -> Result<Option<String>, String> {
+        let task = json_call(calls.ends().first().ok_or("completed ctl call")?)?;
+        if task["chip"]["phase"] != "ended" {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                task["chip"]["phase"], "ended"
+            ));
+        }
+        if task["result"] != *self.landed.as_ref().ok_or_else(|| "first landed result".to_owned())? {
+            return Err("same PR and merge commit".to_owned());
+        }
+        if json_call(calls.ends().get(1).ok_or("completed ctl call")?)?["chip"]["phase"] != "ended" {
+            return Err("the Open chat was closed before restart".to_owned());
+        }
+        let unknown = &calls.ends().get(6).ok_or("completed ctl call")?;
+        if unknown.exit != Some(Exit::Code(2)) {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                unknown.exit,
+                Some(Exit::Code(2))
+            ));
+        }
+        if unknown.stderr.trim_ascii_end() != br#"{"error":"unknown"}"# {
+            return Err("no task beyond the four first-life tasks".to_owned());
+        }
         self.life_tasks = vec![1];
         for index in [2, 3] {
-            let packet = ctl::json(&calls.ends()[index]);
-            super::forge_land::assert_no_live_tasks(&packet);
+            let packet = json_call(calls.ends().get(index).ok_or("completed ctl call")?)?;
+            no_live_tasks(&packet)?;
             let rows = &packet["ended"]["rows"];
             if index == 2 {
-                assert!(rows["after"].is_null(), "complete single change delegate");
-                assert_eq!(rows["rows"].as_array().expect("ended rows").len(), 1);
-                assert_eq!(rows["rows"][0]["chip"]["task"], CHANGE);
+                if !rows["after"].is_null() {
+                    return Err("complete single change delegate".to_owned());
+                }
+                if rows["rows"].as_array().ok_or_else(|| "ended rows".to_owned())?.len() != 1 {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        rows["rows"].as_array().ok_or_else(|| "ended rows".to_owned())?.len(),
+                        1
+                    ));
+                }
+                if rows["rows"][0]["chip"]["task"] != CHANGE {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        rows["rows"][0]["chip"]["task"], CHANGE
+                    ));
+                }
             }
-            self.collect_tasks(rows);
+            self.collect_tasks(rows)?;
         }
-        super::forge_land::assert_no_live_roots(&ctl::json(&calls.ends()[5]));
-        let packet = ctl::json(&calls.ends()[3]);
-        packet["ended"]["rows"]["after"]["value"].as_str().map(str::to_owned)
+        no_live_roots(&json_call(calls.ends().get(5).ok_or("completed ctl call")?)?)?;
+        let packet = json_call(calls.ends().get(3).ok_or("completed ctl call")?)?;
+        Ok(packet["ended"]["rows"]["after"]["value"].as_str().map(str::to_owned))
     }
-    fn forge(&self, read_objects: bool) {
-        let lines = fs::read_to_string(&self.observations).expect("forge observations");
-        let rows: Vec<Value> =
-            lines.lines().map(|line| serde_json::from_str(line).expect("observation JSON")).collect();
-        assert_eq!(rows.last().expect("checkpoint")["observations_lost"], 0);
+    #[expect(clippy::too_many_lines, reason = "the forge observations keep their returning Musts in order")]
+    fn forge(&self, read_objects: bool) -> Result<(), String> {
+        let lines = fs::read_to_string(&self.observations).map_err(|_| "forge observations".to_owned())?;
+        let rows: Vec<Value> = lines
+            .lines()
+            .map(|line| serde_json::from_str(line).map_err(|_| "observation JSON".to_owned()))
+            .collect::<Result<_, _>>()?;
+        if rows.last().ok_or_else(|| "checkpoint".to_owned())?["observations_lost"] != 0 {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                rows.last().ok_or_else(|| "checkpoint".to_owned())?["observations_lost"],
+                0
+            ));
+        }
         let calls: Vec<_> = rows.iter().filter(|row| row["observation"] == "git_call").collect();
-        assert!(calls.iter().any(|row| row["writes"] == false && row["status"] == 200), "clone/read observed");
-        assert_eq!(
-            calls.iter().filter(|row| row["writes"] == true).count(),
-            1,
-            "Must: exactly one push across both lives"
-        );
+        if !calls.iter().any(|row| row["writes"] == false && row["status"] == 200) {
+            return Err("clone/read observed".to_owned());
+        }
+        if calls.iter().filter(|row| row["writes"] == true).count() != 1 {
+            return Err("Must: exactly one push across both lives".to_owned());
+        }
         for call in calls {
             // The record's closed schema is the token-secrecy proof: no string/value field.
-            let decoded =
-                temper_fake::forge::observations::decode(call.to_string().as_bytes()).expect("closed git record");
-            assert!(matches!(decoded, Some(temper_fake::forge::observations::Observation::GitCall(_))));
-            assert_eq!(call["installation"], INSTALLATION);
-            assert!(call["mint"].as_u64().is_some_and(|mint| mint > 0));
+            let decoded = temper_fake::forge::observations::decode(call.to_string().as_bytes())
+                .map_err(|_| "closed git record".to_owned())?;
+            if !matches!(decoded, Some(temper_fake::forge::observations::Observation::GitCall(_))) {
+                return Err("assertion failed: matches!(decoded, Some(temper_fake::forge::observations::Observation::GitCall(_)))".to_owned());
+            }
+            if call["installation"] != INSTALLATION {
+                return Err(format!(
+                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                    call["installation"], INSTALLATION
+                ));
+            }
+            if call["mint"].as_u64().is_none_or(|mint| mint == 0) {
+                return Err("assertion failed: call[\"mint\"].as_u64().is_some_and(|mint| mint > 0)".to_owned());
+            }
             if call["writes"] == true {
-                assert_eq!(call["status"], 200, "push succeeds");
+                if call["status"] != 200 {
+                    return Err("push succeeds".to_owned());
+                }
             } else {
                 // Before its first push git checks whether the new branch exists.
-                assert!(call["status"] == 200 || call["status"] == 404, "git read: {call}");
+                if call["status"] != 200 && call["status"] != 404 {
+                    return Err(format!("git read: {call}"));
+                }
             }
         }
-        assert!(
-            !rows
-                .iter()
-                .any(|row| row["observation"] == "git_calls_full" || row["observation"] == "installations_full"),
-            "Must: observation stream complete"
-        );
+        if rows.iter().any(|row| row["observation"] == "git_calls_full" || row["observation"] == "installations_full") {
+            return Err("Must: observation stream complete".to_owned());
+        }
         let created: Vec<_> = rows.iter().filter(|row| row["observation"] == "installation_created").collect();
-        assert_eq!(created.len(), 1, "Must: one installation creation across both lives, no second acceptance");
-        assert_eq!(created[0]["installation"], INSTALLATION, "Must: the visited installation was created");
-        assert!(
-            !rows.iter().any(|row| row["observation"] == "installation_deleted"),
-            "Must: no uninstall across both lives"
-        );
+        if created.len() != 1 {
+            return Err("Must: one installation creation across both lives, no second acceptance".to_owned());
+        }
+        if created[0]["installation"] != INSTALLATION {
+            return Err("Must: the visited installation was created".to_owned());
+        }
+        if rows.iter().any(|row| row["observation"] == "installation_deleted") {
+            return Err("Must: no uninstall across both lives".to_owned());
+        }
         for row in rows
             .iter()
             .filter(|row| matches!(row["observation"].as_str(), Some("installation_created" | "installation_deleted")))
         {
             temper_fake::forge::observations::decode(row.to_string().as_bytes())
-                .expect("closed installation record")
-                .expect("installation observation");
+                .map_err(|_| "closed installation record".to_owned())?
+                .ok_or_else(|| "installation observation".to_owned())?;
         }
         let opened: Vec<_> =
             rows.iter().filter(|row| row["observation"] == "opened" && row["kind"] == "pull").collect();
         let merged: Vec<_> = rows.iter().filter(|row| row["observation"] == "merged").collect();
-        assert_eq!(opened.len(), 1, "one pull request across both lives");
-        assert_eq!(merged.len(), 1, "one merge across both lives");
+        if opened.len() != 1 {
+            return Err("one pull request across both lives".to_owned());
+        }
+        if merged.len() != 1 {
+            return Err("one merge across both lives".to_owned());
+        }
         let merge = merged[0];
-        assert_eq!(opened[0]["repository"], "acme/app");
-        assert_eq!(merge["repository"], "acme/app");
-        assert_eq!(merge["number"], opened[0]["number"]);
-        assert_eq!(merge["base"], "main");
-        let bot = &self.identity.as_ref().expect("first bot")["id"];
-        assert_eq!(merge["by"], *bot);
-        assert_eq!(opened[0]["by"], *bot);
+        if opened[0]["repository"] != "acme/app" {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                opened[0]["repository"], "acme/app"
+            ));
+        }
+        if merge["repository"] != "acme/app" {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                merge["repository"], "acme/app"
+            ));
+        }
+        if merge["number"] != opened[0]["number"] {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                merge["number"], opened[0]["number"]
+            ));
+        }
+        if merge["base"] != "main" {
+            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", merge["base"], "main"));
+        }
+        let bot = &self.identity.as_ref().ok_or_else(|| "first bot".to_owned())?["id"];
+        if merge["by"] != *bot {
+            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", merge["by"], *bot));
+        }
+        if opened[0]["by"] != *bot {
+            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", opened[0]["by"], *bot));
+        }
         let pushed: Vec<_> =
             rows.iter().filter(|row| row["observation"] == "moved" && row["branch"] != "main").collect();
-        assert_eq!(pushed.len(), 1);
-        assert_eq!(merge["head"], pushed[0]["to"], "merge at the coder's pushed head");
+        if pushed.len() != 1 {
+            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", pushed.len(), 1));
+        }
+        if merge["head"] != pushed[0]["to"] {
+            return Err("merge at the coder's pushed head".to_owned());
+        }
         let main: Vec<_> = rows.iter().filter(|row| row["observation"] == "moved" && row["branch"] == "main").collect();
-        assert_eq!(main.len(), 1);
-        assert_eq!(main[0]["to"], merge["commit"], "merge commit is main's tip");
-        let commit = merge["commit"].as_u64().expect("merge commit");
+        if main.len() != 1 {
+            return Err(format!("assertion `left == right` failed\n  left: {:?}\n right: {:?}", main.len(), 1));
+        }
+        if main[0]["to"] != merge["commit"] {
+            return Err("merge commit is main's tip".to_owned());
+        }
+        let commit = merge["commit"].as_u64().ok_or_else(|| "merge commit".to_owned())?;
         let mut hex = String::new();
         for byte in skein_fake_forge_domain::object_bytes(commit) {
-            write!(hex, "{byte:02x}").expect("commit hex");
+            write!(hex, "{byte:02x}").map_err(|_| "commit hex".to_owned())?;
         }
-        let result = &self.landed.as_ref().expect("landed result")["value"]["change"];
-        let words = result["words"]["bytes"].as_str().expect("landing words");
-        assert_eq!(words.lines().next(), Some(hex.as_str()));
-        let forge = self.members.capture("forge", "address").expect("forge address");
-        assert_eq!(
-            words.lines().nth(1),
-            Some(format!("pull request #1 of acme/app on {forge}: http://{forge}/acme/app/pull/1").as_str())
-        );
-        let panel = self.panel.as_ref().expect("ctl change panel");
-        assert_eq!(panel["merge"], hex, "ctl names the fake forge's merge");
-        assert_eq!(panel["pull"]["number"], merge["number"]);
-        assert_eq!(result["part"]["key"]["number"], merge["number"]);
+        let result = &self.landed.as_ref().ok_or_else(|| "landed result".to_owned())?["value"]["change"];
+        let words = result["words"]["bytes"].as_str().ok_or_else(|| "landing words".to_owned())?;
+        if words.lines().next() != Some(hex.as_str()) {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                words.lines().next(),
+                Some(hex.as_str())
+            ));
+        }
+        let forge = self.members.capture("forge", "address").ok_or_else(|| "forge address".to_owned())?;
+        if words.lines().nth(1)
+            != Some(format!("pull request #1 of acme/app on {forge}: http://{forge}/acme/app/pull/1").as_str())
+        {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                words.lines().nth(1),
+                Some(format!("pull request #1 of acme/app on {forge}: http://{forge}/acme/app/pull/1").as_str())
+            ));
+        }
+        let panel = self.panel.as_ref().ok_or_else(|| "ctl change panel".to_owned())?;
+        if panel["merge"] != hex {
+            return Err("ctl names the fake forge's merge".to_owned());
+        }
+        if panel["pull"]["number"] != merge["number"] {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                panel["pull"]["number"], merge["number"]
+            ));
+        }
+        if result["part"]["key"]["number"] != merge["number"] {
+            return Err(format!(
+                "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                result["part"]["key"]["number"], merge["number"]
+            ));
+        }
         if read_objects {
-            let address = self.members.capture("forge", "address").expect("forge address").parse().expect("socket");
-            let objects = github::objects(address, commit);
+            let address = self
+                .members
+                .capture("forge", "address")
+                .ok_or_else(|| "forge address".to_owned())?
+                .parse()
+                .map_err(|_| "socket".to_owned())?;
+            let objects = github::try_objects(address, commit)?;
             let object = objects["objects"]
                 .as_array()
-                .expect("objects")
+                .ok_or_else(|| "objects".to_owned())?
                 .iter()
                 .find(|object| object["commit"] == commit)
-                .expect("merge object");
-            let file = object["tree"]
-                .as_array()
-                .expect("tree")
-                .iter()
-                .find(|file| decode(&file["path"]).as_ref() == b"README.md")
-                .expect("README");
-            assert_eq!(decode(&file["content"]).as_ref(), [temper_fake::forge::FILES[0].1, EDIT].concat());
+                .ok_or_else(|| "merge object".to_owned())?;
+            let mut file = None;
+            for candidate in object["tree"].as_array().ok_or_else(|| "tree".to_owned())? {
+                if decode(&candidate["path"])?.as_ref() == b"README.md" {
+                    file = Some(candidate);
+                    break;
+                }
+            }
+            let file = file.ok_or("README")?;
+            if decode(&file["content"])?.as_ref() != [temper_fake::forge::FILES[0].1, EDIT].concat() {
+                return Err(format!(
+                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                    decode(&file["content"])?.as_ref(),
+                    [temper_fake::forge::FILES[0].1, EDIT].concat()
+                ));
+            }
         }
+
+        Ok(())
     }
 }
 impl Referee<cluster::Root> for Judge {
     fn act(&mut self, now: Time, hosts: &mut [cluster::Root]) {
-        self.members.act(now, hosts);
-        if self.members.failed() {
-            self.stage = Stage::Stopping;
+        if self.finding.is_some() {
             return;
         }
-        let host = hosts.last_mut().expect("client root");
-        if matches!(self.stage, Stage::Forge) && self.members.is_up() {
-            self.members.prepare("llm");
-            let path = self.members.dir("llm").join("llm.json");
-            configure_llm(&path);
-            let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("LLM fixture")).expect("LLM JSON");
-            value["asked"][0]["turns"].as_array_mut().expect("chat turns").insert(
-                2,
-                serde_json::json!({"lines":[{"call":"read_pull_for","arguments":{"head":"temper/1/c2","base":"main"}}],"finish":"tool_calls","tokens":20}),
-            );
-            super::write_private(&path, &serde_json::to_vec(&value).expect("LLM JSON"));
-            self.members.up(&["llm"]);
-            self.stage = Stage::Fakes;
-        } else if matches!(self.stage, Stage::Fakes) && self.members.is_up() {
-            self.mark("fakes ready");
-            let api = self.members.capture("forge", "address").expect("forge address").parse().expect("API socket");
-            self.app = Some(make_app(api, self.clients, &self.scratch));
-            self.mark("App made by manifest and conversion");
-            assert!(!self.members.dir("engine").join("data/state").exists(), "Must: no seeded forge records");
-            self.members.prepare("engine");
-            let mut document: Value =
-                serde_json::from_slice(&fs::read(&self.engine).expect("engine configuration")).expect("engine JSON");
-            // Restart retains the worker's files. Reserve its engine endpoint,
-            // as the clients' endpoint is reserved for the App's setup URL.
-            document["engine"]["hosts"]["listener"][0]["socket"] = self.workers.to_string().into();
-            let address = self.members.capture("forge", "address").expect("forge address").parse().expect("socket");
-            configure_engine(&mut document);
-            fs::create_dir_all(&self.client).expect("client directory");
-            super::write_private(
-                &self.client.join("landing-settings.json"),
-                &serde_json::to_vec(&landing_settings(address, "acme", "app")).expect("landing settings"),
-            );
-            fs::write(&self.engine, serde_json::to_vec(&document).expect("engine JSON"))
-                .expect("fixed workers listener");
-            let directory = self.members.dir("engine");
-            super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
-            // temper/docs/design/protocol/setup/github.md, 7; temper/docs/design/protocol/forge/engine.md, 1.
-            let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
-            record.kind = temper_engine_domain_forge::Kind::GitHub;
-            record.place.web = Some(format!("http://{address}").into_bytes().into());
-            record.bot.login = b"x-access-token".as_slice().into();
-            record.read_only = true;
-            temper_real_loop_world::fixtures::seed_record(&directory.join("data/state"), record, &[]);
-            self.members.up(&["w1"]);
-            self.stage = Stage::Worker;
-            self.members.act(now, hosts);
-        } else if matches!(self.stage, Stage::Worker) && self.members.is_up() {
-            self.mark("engine and worker ready");
-            self.begin(host);
-        } else if matches!(self.stage, Stage::StopWorker) && self.members.ended("w1") {
-            self.members.stop_one("engine");
-            self.stage = Stage::StopEngine;
-        } else if matches!(self.stage, Stage::StopEngine) && self.members.ended("engine") {
-            self.members.restart("engine");
-            self.stage = Stage::RestartEngine;
-        } else if matches!(self.stage, Stage::RestartEngine) && self.members.capture("engine", "link").is_some() {
-            self.members.restart("w1");
-            self.stage = Stage::RestartWorker;
-        } else if matches!(self.stage, Stage::RestartWorker) && self.members.is_up() {
-            self.mark("engine and worker restarted on ready lines");
-            eprintln!(
-                "github land restart: ready {:?}",
-                now.saturating_since(self.restart_began.expect("restart began"))
-            );
-            assert_eq!(self.members.linked("w1"), 2, "Must: worker linked in both lives");
-            self.queue(
-                host,
-                vec![
-                    ctl::Call::new(&["forge", "list", "--until", "connected:1"]),
-                    ctl::Call::new(&["forge", "list", "--json"]),
-                ],
-            );
-            self.stage = Stage::Restored;
-        } else if host.is_empty()
-            && matches!(
-                self.stage,
-                Stage::Install
-                    | Stage::Adopt
-                    | Stage::Chat
-                    | Stage::Change
-                    | Stage::ReplySnapshot
-                    | Stage::ReplyPages
-                    | Stage::ChatEnded
-                    | Stage::ChatEvidence
-                    | Stage::BeforeRestart
-                    | Stage::Restored
-                    | Stage::LandingRestored
-                    | Stage::TasksPage { .. }
-            )
-        {
-            let cluster::Root::Client { calls, .. } = host else { panic!("client root") };
-            let calls = calls.take().expect("completed calls");
-            self.called(now, host, &calls);
+        if let Err(why) = self.advance(now, hosts) {
+            self.finding = Some(why);
         }
     }
-    fn observe(&mut self, now: Time, hosts: &[cluster::Root]) {
-        self.members.observe(now, &hosts[..hosts.len() - 1]);
+    fn watch(&mut self, now: Time, hosts: &[cluster::Root]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        self.members.observe(now, hosts.split_last().ok_or("client root")?.1);
+        self.members.verdict()?;
         for (process, capture) in [("forge", "address"), ("llm", "address"), ("engine", "link"), ("w1", "engine")] {
             if self.members.capture(process, capture).is_some() && self.ready.insert(process) {
                 self.mark(&format!("{process} ready"));
@@ -728,57 +1026,84 @@ impl Referee<cluster::Root> for Judge {
             self.call_marks = calls.ends().len();
         }
         if let Some(stopped) = self.members.stopped() {
-            assert!(hosts.iter().all(Host::is_empty), "Must: no process or ctl client outlives the story");
+            if !hosts.iter().all(Host::is_empty) {
+                return Err("Must: no process or ctl client outlives the story".to_owned());
+            }
             for member in stopped {
-                assert_eq!(
-                    member.exit,
-                    Some(Exit::Code(0)),
-                    "{}: {}",
-                    member.name,
-                    String::from_utf8_lossy(&member.stderr)
-                );
-                assert!(!member.killed && member.survivors.is_empty(), "no surviving process");
+                if member.exit != Some(Exit::Code(0)) {
+                    return Err(format!("{}: {}", member.name, String::from_utf8_lossy(&member.stderr)));
+                }
+                if member.killed || !member.survivors.is_empty() {
+                    return Err("no surviving process".to_owned());
+                }
             }
-            assert_eq!(
-                stopped.iter().map(|member| member.name.as_str()).collect::<Vec<_>>(),
-                ["w1", "engine", "w1", "engine", "llm", "forge"]
-            );
+            if stopped.iter().map(|member| member.name.as_str()).collect::<Vec<_>>()
+                != ["w1", "engine", "w1", "engine", "llm", "forge"]
+            {
+                return Err(format!(
+                    "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                    stopped.iter().map(|member| member.name.as_str()).collect::<Vec<_>>(),
+                    ["w1", "engine", "w1", "engine", "llm", "forge"]
+                ));
+            }
             for (index, member) in stopped.iter().enumerate() {
-                assert_eq!(member.ending, if index < 2 { cluster::Ending::Alone } else { cluster::Ending::Cluster });
+                if member.ending != if index < 2 { cluster::Ending::Alone } else { cluster::Ending::Cluster } {
+                    return Err(format!(
+                        "assertion `left == right` failed\n  left: {:?}\n right: {:?}",
+                        member.ending,
+                        if index < 2 { cluster::Ending::Alone } else { cluster::Ending::Cluster }
+                    ));
+                }
             }
-            self.forge(false);
-            let app = self.app.as_ref().expect("made App");
-            let scan = Scan::new(app.pem.expose());
+            self.forge(false)?;
+            let app = self.app.as_ref().ok_or_else(|| "made App".to_owned())?;
+            let scan = Scan::new(app.pem.expose())?;
             scan.files(
                 &self.scratch,
-                &github::secrets(&self.members.dir("engine")),
+                &github::secrets(&self.members.dir("engine"))?,
                 &self.scratch.join("github-app.pem"),
-            );
+            )?;
             for member in stopped {
-                scan.clean(&member.stdout);
-                scan.clean(&member.stderr);
+                scan.clean(&member.stdout)?;
+                scan.clean(&member.stderr)?;
             }
             for output in &self.outputs {
-                scan.clean(output);
+                scan.clean(output)?;
             }
             self.mark("Musts: same landing, one PR, one merge, no new tasks, secrecy and teardown passed");
-            let row = self.restored.as_ref().expect("restored forges row");
-            let prior = self.identity.as_ref().expect("first life identity");
-            assert_eq!(row["state"], "connected", "Must: forge 1 connected after restart");
-            assert_eq!(row["id"], prior["id"], "Must: same bot id after restart");
-            assert_eq!(row["login"], prior["login"], "Must: same SLUG[bot] after restart");
-            let installations =
-                row["installations"].as_array().expect("Must (T1): restored forge row exposes installations");
-            assert_eq!(installations.len(), 1, "Must (T1): exactly one accepted installation after restart");
+            let row = self.restored.as_ref().ok_or_else(|| "restored forges row".to_owned())?;
+            let prior = self.identity.as_ref().ok_or_else(|| "first life identity".to_owned())?;
+            if row["state"] != "connected" {
+                return Err("Must: forge 1 connected after restart".to_owned());
+            }
+            if row["id"] != prior["id"] {
+                return Err("Must: same bot id after restart".to_owned());
+            }
+            if row["login"] != prior["login"] {
+                return Err("Must: same SLUG[bot] after restart".to_owned());
+            }
+            let installations = row["installations"]
+                .as_array()
+                .ok_or_else(|| "Must (T1): restored forge row exposes installations".to_owned())?;
+            if installations.len() != 1 {
+                return Err("Must (T1): exactly one accepted installation after restart".to_owned());
+            }
             let installation = &installations[0];
-            assert_eq!(installation["id"], INSTALLATION, "Must (T1): same visited installation after restart");
-            assert_eq!(
-                installation["account"]["login"], "acme",
-                "Must (T1): installation account filled after startup mint"
-            );
-            assert_eq!(installation["stray"], false, "Must (T1): accepted installation is not stray");
-            assert_eq!(installation["suspended"], false, "Must (T1): installation is not suspended");
+            if installation["id"] != INSTALLATION {
+                return Err("Must (T1): same visited installation after restart".to_owned());
+            }
+            if installation["account"]["login"] != "acme" {
+                return Err("Must (T1): installation account filled after startup mint".to_owned());
+            }
+            if installation["stray"] != false {
+                return Err("Must (T1): accepted installation is not stray".to_owned());
+            }
+            if installation["suspended"] != false {
+                return Err("Must (T1): installation is not suspended".to_owned());
+            }
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         Some(self.members.next_deadline().map_or(self.deadline, |at| at.min(self.deadline)))
@@ -787,17 +1112,17 @@ impl Referee<cluster::Root> for Judge {
         (now >= self.deadline).then(|| format!("GitHub process story waited in {:?}", self.stage))
     }
     fn passed(&self) -> bool {
-        self.members.passed()
+        self.finding.is_none() && self.members.verdict() == Ok(true)
     }
 }
 
-fn decode(value: &Value) -> Box<[u8]> {
+fn decode(value: &Value) -> Result<Box<[u8]>, String> {
     skein_lib::base64::decode(
         skein_lib::base64::Alphabet::Standard,
-        value.as_str().expect("base64 text").as_bytes(),
+        value.as_str().ok_or_else(|| "base64 text".to_owned())?.as_bytes(),
         8192,
     )
-    .expect("file bytes")
+    .map_err(|_| "file bytes".to_owned())
 }
 pub fn configure_llm(path: &Path) {
     use serde_json::json;
@@ -857,4 +1182,29 @@ pub(crate) fn landing_settings(forge: SocketAddr, owner: &str, repository: &str)
         .into_iter()
         .filter(|item| item["setting"]["kind"] == "landing-rule")
         .collect()
+}
+
+fn json_call(ended: &super::Ended) -> Result<Value, String> {
+    serde_json::from_slice(&ended.stdout).map_err(|error| {
+        format!("ctl JSON: {error}; exit {:?}; stderr: {}", ended.exit, String::from_utf8_lossy(&ended.stderr))
+    })
+}
+
+fn no_live_tasks(value: &Value) -> Result<(), String> {
+    if value["live"] != serde_json::json!([]) {
+        return Err(format!("no live tasks in this query: {value}"));
+    }
+    if !value["live_after"].is_null() {
+        return Err("all live tasks read".into());
+    }
+    Ok(())
+}
+fn no_live_roots(value: &Value) -> Result<(), String> {
+    if value["tasks"]["rows"] != serde_json::json!([]) {
+        return Err(format!("no live root tasks: {value}"));
+    }
+    if value["tasks"]["more"] != false {
+        return Err(format!("all live root tasks read: {value}"));
+    }
+    Ok(())
 }
