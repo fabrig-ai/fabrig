@@ -207,7 +207,15 @@ store keeps its row until the first patch it meets writes the levels.
   gives the values it asks, reviews the patch's goldens, and adds the
   golden store's line (6). A change every old value survives byte for
   byte needs none while its kept text is not frozen (skein's
-  `data/codec/command.md`, 2, step 3).
+  `data/codec/command.md`, 2, step 3). **A registered family** (jig's
+  `protocol/store/layouts.md`, 1: jig's map families and
+  `temper-store`) brings neither patch nor line: its version stays, an
+  added field takes its default and a renamed part its former name in
+  the schema (skein's `data/codec/README.md`, section 3), and a change
+  no plan derives is its owner's written job (jig's
+  `protocol/store/jobs.md`, 4). Its value types' layouts in the latest
+  kept text must derive to the current schema's, which its owner's
+  focused tests check (jig's `protocol/store/layouts.md`, 8).
 - **Patch 0005 carries v15 landing rows:** the stored adoption's
   `settings.default_branch` supplies their target, and their new round
   is `none` (`../domain/landing.md`, 12). The shell reads adoption rows
