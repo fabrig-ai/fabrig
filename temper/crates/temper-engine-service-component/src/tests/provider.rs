@@ -2,8 +2,7 @@
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "ordinary protocol world fixtures use scratch files and textual HTTP"
+    reason = "ordinary protocol world fixtures use textual HTTP"
 )]
 use super::{fixtures::http::Peer, sign_in};
 use jig_client_protocol_wire as wire;

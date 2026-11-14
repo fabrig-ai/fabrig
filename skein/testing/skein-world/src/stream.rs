@@ -126,6 +126,7 @@ pub struct Wire {
     demand: Option<(Read, u32)>,
     granted: Option<u32>,
     rng: Rng,
+    fragment: u64,
     idle: bool,
 }
 
@@ -144,8 +145,22 @@ impl Wire {
             demand: None,
             granted: None,
             rng: Rng::new(seed),
+            fragment: 31,
             idle: true,
         }
+    }
+
+    /// Draw seeded fragments between one byte and `most`, with the same byte and room delays.
+    /// The default is 31 bytes; larger fragments let size scenarios keep many boundaries
+    /// without spending a turn on each small piece of a large value.
+    ///
+    /// # Panics
+    /// If `most` is zero.
+    #[must_use]
+    pub fn fragments_up_to(mut self, most: usize) -> Wire {
+        assert!(most > 0, "a fragment holds at least one byte");
+        self.fragment = skein_lib::len_u64(most);
+        self
     }
 
     /// Put the peer's bytes on the wire for delivery in seeded fragments.
@@ -211,7 +226,9 @@ impl Wire {
     /// If the scripted peer exceeds the bounded response intake.
     pub fn answer(&mut self) -> Option<Up> {
         if !self.pending.is_empty() && self.rng.chance(700) {
-            let count = usize::try_from(self.rng.between(1, 31)).expect("small fragment").min(self.pending.len());
+            let count = usize::try_from(self.rng.between(1, self.fragment))
+                .expect("fragment fits usize")
+                .min(self.pending.len());
             let start = self.trace.bytes.len();
             let (front, back) = self.pending.as_slices();
             let first = count.min(front.len());
@@ -261,6 +278,37 @@ impl Wire {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[expect(clippy::panic, reason = "the stream test rejects unsolicited room, EOF or failure")]
+    fn configured_fragments_stay_within_the_bound_and_deliver_every_byte() {
+        const MOST: usize = 64;
+        let written = b"seeded fragments stay in order\n".repeat(128);
+        let mut wire = Wire::new(7).fragments_up_to(MOST);
+        wire.write(&written);
+        wire.take(Down::Demand { read: Read::Fill(u32::try_from(written.len()).expect("small input")), room: 0 });
+        let mut delivered = Vec::new();
+        for _ in 0_u32..4096 {
+            if !wire.work_pending() {
+                break;
+            }
+            match wire.answer() {
+                Some(Up::Bytes(bytes)) => delivered.extend_from_slice(&bytes),
+                Some(Up::Room | Up::End | Up::Failed(_)) => panic!("only input bytes were demanded"),
+                None => {}
+            }
+        }
+        assert!(!wire.work_pending(), "the finite input settles within the turn bound");
+        assert_eq!(delivered, written);
+        let mut largest = 0;
+        for step in &wire.trace.steps {
+            if let Step::Fragment(count) = step {
+                assert!(*count > 0 && *count <= MOST, "fragment {count} fits {MOST}");
+                largest = largest.max(*count);
+            }
+        }
+        assert!(largest > 31, "the opt-in also exercises fragments beyond the default");
+    }
 
     #[test]
     fn pending_work_keeps_delayed_room_bytes_and_end_but_settles_an_unmet_read() {

@@ -624,41 +624,41 @@ fn original_model_names_reach_the_root() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary test formats an HTTP request")]
 fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_host() {
+    let mut config = super::fixtures::engine();
+    config.clients.public = Some(crate::startup::application::Origin {
+        scheme: crate::startup::application::Scheme::Https,
+        host: Box::from(b"temper.example.com".as_slice()),
+        port: Some(8443),
+        name: Box::from(b"temper.example.com:8443".as_slice()),
+    });
+    let mut service = super::fixtures::started();
+    let engine = service.engine.as_mut().unwrap();
+    engine.clients = crate::clients::Clients::new(
+        &jig_protocol_config::Directories::working(),
+        &config.jig,
+        &config.clients,
+        &super::fixtures::seeds(),
+        &config.limits.root.journal,
+        None,
+        None,
+        &[],
+    )
+    .unwrap();
+    engine.clients.iterate(
+        skein_lib::Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        &mut engine.events,
+        &crate::tests::fixtures::forge_table(&[]),
+        None,
+        &mut engine.accounts,
+    );
+    let Some(skein_io::Request::Listen { owner, addr }) = engine.clients.io.pop() else { panic!("listen") };
+    assert!(engine.clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
     for (host, status) in [
         ("temper.example.com:8443", "HTTP/1.1 404"),
         ("127.0.0.1:7100", "HTTP/1.1 404"),
         ("unknown.example.com", "HTTP/1.1 421"),
     ] {
-        let mut config = super::fixtures::engine();
-        config.clients.public = Some(crate::startup::application::Origin {
-            scheme: crate::startup::application::Scheme::Https,
-            host: Box::from(b"temper.example.com".as_slice()),
-            port: Some(8443),
-            name: Box::from(b"temper.example.com:8443".as_slice()),
-        });
-        let mut service = super::fixtures::started();
-        let engine = service.engine.as_mut().unwrap();
-        engine.clients = crate::clients::Clients::new(
-            &jig_protocol_config::Directories::working(),
-            &config.jig,
-            &config.clients,
-            &super::fixtures::seeds(),
-            &config.limits.root.journal,
-            None,
-            None,
-            &[],
-        )
-        .unwrap();
-        engine.clients.iterate(
-            skein_lib::Time::ZERO,
-            skein_lib::Wall::EPOCH,
-            &mut engine.events,
-            &crate::tests::fixtures::forge_table(&[]),
-            None,
-            &mut engine.accounts,
-        );
-        let Some(skein_io::Request::Listen { owner, addr }) = engine.clients.io.pop() else { panic!("listen") };
-        assert!(engine.clients.up(skein_io::Event::Listening { owner, listener: LISTENER, addr }));
         let request = format!("GET /jig/unknown HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
         let mut peer = peer::Peer::raw(engine, request.as_bytes());
         peer.pump(engine, false);
@@ -716,7 +716,8 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
         .unwrap();
         let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
         keyed.encode(&mut bytes).unwrap();
-        let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer));
+        let mut call =
+            peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer)).fragments_up_to(1024);
         // Keep the aggregate bound of 128 batches of 256 turns for the
         // published-size value; a batch alone need not carry all its fragments.
         call.pump_bounded(engine, true, 128 * 256);

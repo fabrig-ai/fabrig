@@ -75,6 +75,11 @@ impl Peer {
         }));
         Self { wire, socket, owner: None, closed: 0, body_demand: false }
     }
+    /// Size scenarios still cross many seeded boundaries, with larger pieces of a large body.
+    pub fn fragments_up_to(mut self, most: usize) -> Self {
+        self.wire = self.wire.fragments_up_to(most);
+        self
+    }
     /// Stop once the held request head has caused a demand for its withheld body.
     pub fn hold_body(&mut self, engine: &mut Engine) {
         self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, 256, |peer, _| peer.body_demand);
@@ -160,11 +165,26 @@ impl Peer {
             {
                 assert!(engine.clients.up(io::Event::Stream { owner, up }));
             }
+            let accounts_pending = match &engine.accounts {
+                Some(accounts) => {
+                    accounts.effects() > 0
+                        || accounts.held()
+                        || accounts.io.is_empty() && accounts.work_pending(now, true)
+                }
+                None => false,
+            };
             // A withheld body, an external OAuth answer and an idle keep-alive
             // connection wait for their caller, not another identical turn.
             if !self.wire.work_pending()
                 && !engine.clients.transport_pending(now, engine.store.host.mark_durable())
-                && (!decide || !engine.work_pending_without_links(now))
+                && (!decide
+                    || !accounts_pending
+                        && !engine.clients.root_outputs_pending()
+                        && engine.domain.quiescent()
+                        && engine.events.is_empty()
+                        && engine.requests.is_empty()
+                        && engine.pending.is_none()
+                        && engine.store.idle())
             {
                 return;
             }
