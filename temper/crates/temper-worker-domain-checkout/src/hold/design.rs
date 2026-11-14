@@ -89,7 +89,8 @@ pub(super) fn pushed(
                     Err(failure) => super::verify(holding, id, push, repository, asked, failure, env, out),
                 };
             }
-            Done::Paths { .. }
+            Done::Results { .. }
+            | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -118,7 +119,8 @@ pub(super) fn pushed(
                 out,
             );
         }
-        other @ (Done::Paths { .. }
+        other @ (Done::Results { .. }
+        | Done::Paths { .. }
         | Done::Looked { .. }
         | Done::Brings { .. }
         | Done::IsAncestor { .. }
@@ -139,7 +141,8 @@ pub(super) fn pushed(
                 tips.head = commit;
                 tips.merging = None;
             }
-            Done::Paths { .. }
+            Done::Results { .. }
+            | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -164,7 +167,8 @@ pub(super) fn pushed(
                 super::tips_mut(holding, repository).expected = Some(commit);
                 Step::Compare
             }
-            Done::Paths { .. }
+            Done::Results { .. }
+            | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -186,7 +190,8 @@ pub(super) fn pushed(
                 tips.design_merged = delivery.tip;
                 Step::Merge
             }
-            Done::Paths { .. }
+            Done::Results { .. }
+            | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -202,7 +207,8 @@ pub(super) fn pushed(
         },
         Step::Merge => match done {
             Done::Merged => Step::Commit,
-            Done::Paths { .. }
+            Done::Results { .. }
+            | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -219,7 +225,8 @@ pub(super) fn pushed(
         Step::Commit => Step::CheckOut,
         Step::CheckOut => match done {
             Done::Succeeded => Step::Paths,
-            Done::Paths { .. }
+            Done::Results { .. }
+            | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
             | Done::IsAncestor { .. }
@@ -234,6 +241,7 @@ pub(super) fn pushed(
             | Done::FailedWithOutput { .. } => unreachable!("a checkout has its own terminals"),
         },
         Step::Paths => match done {
+            Done::Results { .. } => unreachable!("results terminal for a path query"),
             Done::Paths { files } => {
                 for path in files {
                     if !path.ends_with(b".md") {

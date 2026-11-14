@@ -257,8 +257,12 @@ impl Machine for AppendFiles {
 pub struct Judge;
 
 impl Referee<Writer> for Judge {
-    fn observe(&mut self, _now: Time, procs: &[Writer]) {
-        assert!(procs[0].failures() <= 1);
+    fn watch(&mut self, _now: Time, procs: &[Writer]) -> Result<(), String> {
+        let failures = procs[0].failures();
+        if failures > 1 {
+            return Err(format!("at most one append failure: {failures} failures"));
+        }
+        Ok(())
     }
     fn passed(&self) -> bool {
         true

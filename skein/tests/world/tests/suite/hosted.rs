@@ -250,7 +250,9 @@ impl Machine for CuttingMachine {
 struct CuttingJudge;
 
 impl Referee<CuttingScript> for CuttingJudge {
-    fn observe(&mut self, _now: Time, _procs: &[CuttingScript]) {}
+    fn watch(&mut self, _now: Time, _procs: &[CuttingScript]) -> Result<(), String> {
+        Ok(())
+    }
     fn passed(&self) -> bool {
         true
     }

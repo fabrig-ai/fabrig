@@ -15,20 +15,21 @@ use smith_local_process_world::terminal::Terminal;
 use smith_real_world::Scratch;
 
 struct Judge {
+    finding: Option<String>,
     deadline: Time,
     visited: bool,
     started: bool,
     arriving: Option<(std::path::PathBuf, Vec<u8>)>,
 }
-impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
+impl Judge {
+    fn act_checked(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
         let binary = procs
             .iter()
             .find_map(|proc| match proc {
                 Process::Binary(binary) => Some(binary),
                 Process::Script(_) | Process::Sample(_) => None,
             })
-            .expect("credential fixture");
+            .ok_or("credential fixture")?;
         let exit = binary.exit_status();
         let listening = procs
             .iter()
@@ -45,7 +46,7 @@ impl Referee<Process> for Judge {
         if url.is_some() {
             self.visited = true;
             if let Some((path, bytes)) = self.arriving.take() {
-                keep_record(&path, &bytes).expect("racing record fixture");
+                keep_record(&path, &bytes).map_err(|_| String::from("racing record fixture"))?;
             }
         }
         for proc in procs {
@@ -70,8 +71,22 @@ impl Referee<Process> for Judge {
                 Process::Binary(_) | Process::Script(_) | Process::Sample(_) => {}
             }
         }
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+}
+
+impl Referee<Process> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         Some(self.deadline)
     }
@@ -79,7 +94,7 @@ impl Referee<Process> for Judge {
         (now >= self.deadline).then(|| "provider command did not settle".into())
     }
     fn passed(&self) -> bool {
-        true
+        self.finding.is_none()
     }
 }
 
@@ -118,6 +133,7 @@ pub fn run_arriving(
     let descriptors = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { unreachable!("credential pipes") };
     let mut world = real::World::new(Judge {
+        finding: None,
         deadline: clock.now().now.saturating_add(Duration::from_secs(2)),
         visited: false,
         started: false,

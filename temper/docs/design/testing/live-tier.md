@@ -198,7 +198,11 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   own count; smith's `protocol/programs.md`, 5.7), the script stops the
   run at 30 minutes, and the test fails when the transcripts count more
   than 25. Each run's summary, a failed run's included, records its
-  completions and its wall time.
+  completions and its wall time. Nothing in the test catches a panic for
+  it: a sitting's checks return their findings, and the test writes the
+  summary before it fails with one (`../draft/panics.md`, 4). A panic
+  of our own code ends the test without it, and the launcher's lines
+  say what it returned and stopped.
 - **A chat's change lands on github.com, through a restart,** a test
   of its own, `bin/temper-box/tests/live_github.rs`, run by
   `scripts/proof-live-github.sh OWNER`, `OWNER` the org `fabrig-ai` and
@@ -283,13 +287,26 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     file under the processes' directories but jig's secrets store,
     holds the App's key (PEM, DER, DER as base64), a token the relay
     saw minted, or the person's token.
-  - **Its teardown,** whatever the story's end, through the relay: each
-    branch under the run's prefix deleted (temper deletes its own at a
-    task's release; one left is named), a pull of the run still open
-    closed, and each token the relay saw minted revoked. The landed
-    file stays on main, one a run. When the teardown did not finish,
-    the script does the same with the person's token, within what is
-    left of the 400.
+  - **Its teardown,** once the story returns, passed or with a finding,
+    through the relay: each branch under the run's prefix deleted
+    (temper deletes its own at a task's release; one left is named), a
+    pull of the run still open closed, and each token the relay saw
+    minted revoked. The story's Musts, its referee's and the secrets
+    scan return their findings, so that a failed one reaches the
+    teardown, and the teardown returns its own, a branch or a pull it
+    could not remove or a token it could not revoke, after trying
+    every one; the test fails with the story's finding first. Nothing
+    in the test catches a panic for it (`../draft/panics.md`, 5). The
+    landed file stays on main, one a run. When the teardown did not
+    finish, a panic of our own code or a signal having ended the test
+    first, the script, once the test process has ended (on a signal it
+    stops the runner with TERM and reaps it first, as
+    `scripts/proof-live.sh` does), deletes the
+    branches and closes the pulls with the cleanup token it mints from
+    the App's key and revokes afterwards (`../draft/github.md`, 17),
+    within what is left of the 400. The installation tokens the relay
+    minted, which only they revoke and which are never written, lapse
+    at GitHub's hour.
   - **Credentials:** the fixtures' directory is the script's argument
     or its default; the App's key file goes to `forge connect` by path,
     and the person's token is read by the test and the script into

@@ -14,3 +14,4 @@ temper 8 40 16
 temper 9 40 16
 temper 10 40 16
 temper 11 40 16
+temper 12 40 16

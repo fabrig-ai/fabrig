@@ -5,7 +5,7 @@ use skein_lib::{Time, Wall};
 use temper_playground::service::Observe;
 
 pub(super) struct Observer {
-    inner: world::ServiceObserver,
+    pub(super) inner: world::ServiceObserver,
     pub hold: bool,
     pub held: Vec<Complete>,
     pub public_heads: u32,

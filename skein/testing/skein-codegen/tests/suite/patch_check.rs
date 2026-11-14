@@ -3,12 +3,10 @@
 #[cfg(test)]
 mod tests {
 
-    use core::panic::AssertUnwindSafe;
     use skein_codegen::diff::Version;
     use skein_codegen::patch::{Error, Finding, Landed, check};
     use skein_scratch::Scratch;
     use std::fs;
-    use std::panic::catch_unwind;
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
@@ -32,10 +30,15 @@ mod tests {
         }
     }
 
-    fn findings(name: &str, files: &[(&str, &str)], landed: &Landed, expected: &[Finding]) {
+    fn checked(name: &str, files: &[(&str, &str)], landed: &Landed) -> Result<Vec<Finding>, Error> {
         let root = crate_files(name, files);
-        assert_eq!(check(root.path(), landed), Ok(expected.to_vec()));
+        let result = check(root.path(), landed);
         assert_files(root.path(), files);
+        result
+    }
+
+    fn findings(name: &str, files: &[(&str, &str)], landed: &Landed, expected: &[Finding]) {
+        assert_eq!(checked(name, files, landed), Ok(expected.to_vec()));
     }
 
     fn base(files: &[(&str, &str)]) -> Landed {
@@ -43,12 +46,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_failed_check_leaves_no_crate_behind() {
-        let result = catch_unwind(AssertUnwindSafe(|| {
-            findings("leak", &[("schema/shelf-v1.schema", V1)], &Landed::none(), &[]);
-        }));
-        assert!(result.is_err(), "the unexpected finding must fail the check");
+        let result = checked("leak", &[("schema/shelf-v1.schema", V1)], &Landed::none());
+        assert_eq!(result, Ok(vec![Finding::Unkept { family: "shelf".into() }]));
         let pid = format!("-{}-", std::process::id());
         for entry in fs::read_dir(std::env::temp_dir()).expect("temporary directory") {
             let name = entry.expect("temporary entry").file_name();

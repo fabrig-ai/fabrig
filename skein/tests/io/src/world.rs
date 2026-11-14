@@ -195,7 +195,7 @@ impl World {
         let mut world = skein_world::World::new(
             self.sim.seed(),
             *self.sim.config(),
-            crate::referee::Judge(self.referee),
+            crate::referee::Judge::new(self.referee),
             Memory::Unchecked,
         );
         for proc in self.procs {

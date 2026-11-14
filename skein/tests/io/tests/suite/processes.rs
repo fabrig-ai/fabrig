@@ -42,7 +42,7 @@ fn a_childs_usage_joins_the_childrens_only_at_its_close() {
     for seed in 0..4 {
         for config in [Config::calm(), chaos()] {
             let outcome = skein_io_world::usage::run(seed, config, Memory::Checked);
-            outcome.procs[0].check(true);
+            outcome.procs[0].check(true).expect("the simulated usage story settled");
             assert!(outcome.peaks().expect("memory checked").iter().all(|peak| *peak > 0 && *peak <= CEILING));
         }
     }

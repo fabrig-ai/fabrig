@@ -24,7 +24,7 @@ pub use ledger::Ledger;
 pub use referee::{Expectations, Failure, Judge, Referee, Verdict};
 pub use schedule::{Key, Schedule};
 pub use stage::Stage;
-pub use trace::{Trace, assert_replays};
+pub use trace::{Trace, assert_replays, check_replays};
 
 /// Counting allocator and handed-output-aware heap measurements already
 /// provided by skein (programming-model.md, section 6.3). Declare `Counting`

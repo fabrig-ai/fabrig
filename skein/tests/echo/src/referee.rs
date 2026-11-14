@@ -238,8 +238,8 @@ impl Referee<Proc> for EchoReferee {
         }
     }
 
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        self.expectations.observe(now, procs);
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        self.expectations.check(now, procs)?;
         self.now = now;
         let mut done = true;
         for proc in procs {
@@ -253,6 +253,7 @@ impl Referee<Proc> for EchoReferee {
             }
         }
         self.done = done;
+        Ok(())
     }
 
     fn next_deadline(&self) -> Option<Time> {

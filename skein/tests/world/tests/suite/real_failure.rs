@@ -14,7 +14,12 @@ struct Judge {
 }
 
 impl Referee<Binary> for Judge {
-    fn observe(&mut self, _now: Time, _procs: &[Binary]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Binary]) -> Result<(), String> {
+        if self.terminal {
+            return Err("the child never answered".into());
+        }
+        Ok(())
+    }
     fn passed(&self) -> bool {
         false
     }
@@ -22,7 +27,7 @@ impl Referee<Binary> for Judge {
         self.until
     }
     fn overdue(&self, now: Time) -> Option<String> {
-        (self.terminal || self.until.is_some_and(|until| until <= now)).then(|| "the child never answered".into())
+        self.until.is_some_and(|until| until <= now).then(|| "the child never answered".into())
     }
 }
 
@@ -77,7 +82,13 @@ fn failure(case: &str) {
     let referee = case.ends_with("referee");
     let terminal = case.ends_with("assertion") || case.ends_with("future");
     let until = (referee || case.ends_with("future")).then(|| now.saturating_add(Duration::from_millis(20)));
-    let expected = if referee || terminal { "the referee failed the real loop" } else { "the real loop settles" };
+    let expected = if terminal {
+        "the child never answered"
+    } else if referee {
+        "the referee failed the real loop"
+    } else {
+        "the real loop settles"
+    };
     let mut world = real::World::new(Judge { until, terminal });
     world.spawn_with_fds(binary.descriptors(), || binary);
     std::panic::set_hook(Box::new(move |panic| failure_hook(pidfd, expected, panic)));

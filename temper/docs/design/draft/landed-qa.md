@@ -2,19 +2,29 @@
 
 Draft, 2026-11-11, from a session with the user that day; amended
 2026-11-12 with the user, for QA on the fakes alone and for stores
-patched forward. Goals land on
+patched forward; amended 2026-11-14 with the user, for places of two
+kinds, a box and a deployment, and for ctl first. Goals land on
 the project's deployment faster than anyone can check them by hand. This
 draft makes QA after landing keep up: an agent beside the deployment,
 woken by landings, building nothing, starting each check from a saved
 setup rather than from a fresh box, and sending what it finds back as one
-goal. It covers what a person meets, the web client and the TUI, on the
-green path. The user's words: QA "builds nothing (no slot needed)", is
-"event driven (no coordinating agent)", and "a single run [covers] as much
-ground as possible and [collects] as many findings as possible, to reduce
-round trips".
+goal. It covers what a person meets through ctl, the web client and the
+TUI, ctl first, on the green path, at a box or a deployment. The user's
+words: QA "builds nothing (no slot needed)", is "event driven (no
+coordinating agent)", and "a single run [covers] as much ground as
+possible and [collects] as many findings as possible, to reduce round
+trips".
 
 ## 1. In one page
 
+- **Places of two kinds, one framework** (section 2): a box, temper-box
+  as a person runs it, which is a product to validate in its own right;
+  and a deployment, temper's engine, worker and agent as their own
+  processes, each from its configuration as a deployment writes it, on
+  the same fakes, for what no box can be set to. The builds, the ledger,
+  triage, the lines, findings and resuming are the same for both. The
+  deployment's kind comes first in the small, for ctl, then widens, and
+  the two are then made one (section 10).
 - **A pass judges a kept build of main, not a goal** (section 2): each
   landing queues cases, what it changed for a person; a pass takes the
   newest kept build that holds queued cases' landings and covers them all,
@@ -24,26 +34,28 @@ round trips".
   findings and deletes builds; an agent triages each landing and runs
   each pass. No agent coordinates, and none waits.
 - **The build is the deployment's** (section 3): its after-landing work
-  builds the box, the client and the web bundle at a landed tip and keeps
+  builds the box, the client, the engine, the worker, the agent and the
+  web bundle at a landed tip and keeps
   them with a manifest naming the commit. A build is deleted once no pass
   needs it, at once when triage finds nothing to check.
 - **Triage** (section 4), one landing at a time in main's order, reads the
   landing's draft and diff and answers no QA, or cases: what a person now
   sees or does, on which surface, from which setup, and what they expect,
-  written before anything is tried.
+  written before anything is tried. Its ctl cases come first, and a pass
+  runs them first, with no browser and no terminal.
 - **Setups** (section 5): a recipe, kept in the repository, and a copy of
-  the stopped box it reaches, kept as a cache. A copy is restored at its
-  place with the pass's build, which patches its store forward; one the
-  build refuses is a finding, and is made again from its recipe. The
-  catalogue grows as passes need new states.
+  the stopped place it reaches, box or deployment, kept as a cache. A
+  copy is restored at its place with the pass's build, which patches its
+  store forward; one the build refuses is a finding, and is made again
+  from its recipe. The catalogue grows as passes need new states.
 - **No real backend** (section 6): the fake forges, keeping their state
   across a restart, and the fake model on the setup's scripts, strict, so
   that a turn no script answers fails rather than drifts. No place runs a
   Forgejo, the box's own included.
 - **A pass covers all its cases** (section 7), each from its setup's
-  restored copy, through drivers that speak the setups' words to a
-  browser and a terminal and print what is shown as text, recording each
-  outcome as it goes. A finding never stops it.
+  restored copy, its ctl cases first, through drivers that speak the
+  setups' words to ctl, a browser and a terminal and print what is shown
+  as text, recording each outcome as it goes. A finding never stops it.
 - **Findings go back as one goal** (section 8): one request listing each
   finding with its setup and the lines that reproduce it from there, so
   that its fix carries a test.
@@ -54,7 +66,9 @@ round trips".
   box restored at its place with a newer build, the fake model's scripts
   given and strict, fake forges that keep their state, a recipe's format
   with its commits to a fake forge; for deeper states, scripts that read
-  values from the conversation.
+  values from the conversation; for deployments, a place of that kind,
+  ctl first, then the web client and the TUI there, then one framework
+  for both kinds.
 
 ## 2. The pass
 
@@ -63,11 +77,30 @@ round trips".
   landings that commit holds, so landings an hour apart are one pass when
   the first has not started.
 - **One at a time per place:** a place is a fixed directory, fixed ports
-  and a `bin/` where one box runs (section 5). The deployment configures
+  and a `bin/` where one box or one deployment runs (section 5). The
+  deployment configures
   how many, on a machine of their own, apart from those that gate
   landings and run the tiers after them; one to start. A pass waiting on
   its findings' goal (section 9) holds no place, and another pass may run
   meanwhile.
+- **Two kinds of place:**
+  - **a box:** `temper-box` from its document, as a person runs it on
+    their machine, the playground's fakes its backends
+    (`../protocol/setup/box.md`). Its setups reach what a person can do
+    from a fresh box, and it stays a place for QA of the box itself:
+    its welcome, its playground and `temper box`;
+  - **a deployment:** temper's engine, a worker and the agent, each its
+    own process from its own configuration, as the project's deployment
+    runs them (`../protocol/configuration/engine.md`), with the fake
+    forges and the fake model as processes of their own beside them.
+    Every setting a deployment's document takes is a setup's to give: a
+    project's landing by `turn`, its `batch` and its gates among them
+    (`../domain/landing.md`). It also passes through the wires between
+    engine, workers and agents, and restores a copy with a newer build of
+    each, as a redeploy does.
+
+  A place's kind is the deployment's choice when it configures the
+  place; a case runs at a place of its setup's kind.
 - **Beside the deployment, not in it:** a pass takes none of the
   deployment's worker slots and builds nothing. Its agent is a coding
   agent's command line, named with its effort by configuration, on the
@@ -112,8 +145,9 @@ round trips".
   temper's task states are no signal: a goal landed out of band may end
   cancelled, its landing said in words.
 - **The deployment keeps builds,** as part of its after-landing work: at a
-  landed tip it builds the box, the client, the web bundle and the
-  bundle's recording build (`../client/web/journeys.md`, 8.1), and keeps
+  landed tip it builds the box, the client, the engine, the worker and
+  the agent, and the web bundle as the journeys take it
+  (`../client/web/journeys.md`, 8.1), and keeps
   them in a directory named by the commit, with a manifest naming the
   commit, each file and its checksum. A build is published to the pass
   only once every executable prints that commit as its version. temper
@@ -136,33 +170,42 @@ round trips".
 - **One landing at a time, in main's order,** as the watcher sees them: an
   agent session given the goal's draft (named in its start), the
   landing's diff and its stat, its commits' `QA:` trailers if any, the
-  surfaces (the web client's pages and the TUI's screens, by their design
-  and journeys), the setups' catalogue, a line each (section 5), and the
-  cases queued. Triage has reached a commit once every landing it holds
-  is triaged.
+  surfaces (ctl's groups, the web client's pages and the TUI's screens,
+  by their design and journeys), the setups' catalogue, a line each, with
+  its kind (section 5), and the cases queued. A stat names each generated
+  directory once, with its count, rather than every file in it, so that a
+  landing of goldens stays cheap to read. Triage has reached a commit
+  once every landing it holds is triaged.
 - **It answers,** through the ledger's commands:
   - **no QA:** the landing changes nothing a person meets on the
     surfaces in scope, with a line saying why;
-  - **or cases,** each with its surface (`web` or `tui`), the page or
-    screen, the setup it starts from (or the nearest one, and what the
-    case must add to it), the steps from there in words, and what the
-    person expects at each, from the draft's promises, written before
-    anything is tried (`../domain/findings.md`, 8).
+  - **or cases,** each with its surface (`ctl`, `web` or `tui`), the
+    page or screen, or for ctl the group of tools, the setup it starts
+    from (or the nearest one, and what the case must add to it), the
+    steps from there in words, and what the person expects at each, from
+    the draft's promises, written before anything is tried
+    (`../domain/findings.md`, 8).
 - **The green path only:** a case is the draft's intended use, as
   v0.1.0's happy path weighs it (`v0.1.0.md`, 4). Edge cases, failures
   and recovery wait (section 12); a security hole or lost data seen on
   the way is a finding wherever it is.
-- **Surfaces in scope:** the web client and the TUI. ctl and the help
-  come next (section 12).
-- **Cases merge:** a case for a page or screen a queued case already
-  covers joins it, and the case keeps every landing that asked for it.
+- **Surfaces in scope:** ctl, the web client and the TUI, ctl first (the
+  user, 2026-11-14): triage writes a landing's ctl cases first, the
+  person's acts and temper's account as `temper ctl` gives them, and a
+  pass runs every ctl case it holds before its web and TUI ones, so that
+  what a landing changes is judged first where nothing but temper stands
+  between the person and it. The help comes next (section 12).
+- **Cases merge:** a case for a page, screen or ctl group a queued case
+  already covers joins it, and the case keeps every landing that asked
+  for it.
 - **Cheap:** triage reads and starts no box, within a bound of time and
   tokens the deployment sets.
 
 ## 5. Setups
 
-- **A setup is a recipe and a copy.** The recipe says how a fresh box
-  reaches a state; the copy is that box's data, stopped, ready to start
+- **A setup is a recipe and a copy,** of one kind of place (section 2).
+  The recipe says how a fresh place of its kind reaches a state; the copy
+  is that place's data, every process of it stopped, ready to start
   again. The recipe is the record, kept in the repository; the copy is a
   cache, kept beside the places.
 - **A recipe** is a directory, `temper/docs/development/qa/setups/NAME/`,
@@ -185,19 +228,32 @@ round trips".
     request in a file only it reads;
   - `scripts.json`, if it has its own: the fake model's scripts it adds
     to its parent's (section 6);
-  - `README.md`: one paragraph, the state it reaches and the pages and
-    screens it serves.
-- **A copy** is the box's whole data and configuration, stopped, as a
-  backup has it (jig's `protocol/store/README.md`, 2), its fake forges'
-  state with it, archived and named by the hash of the recipe, with its
-  files and its parents', and by the commit whose build made it.
+  - `README.md`: one paragraph, the state it reaches and the pages,
+    screens and ctl groups it serves;
+  - for a deployment's setup, `config/`: the documents its engine,
+    worker and agent start from, written as a deployment writes them,
+    with its fake forges and the fake model in place of real ones. A
+    root recipe starts its place from them, where a box's starts from a
+    fresh box; a child changes them only through its lines, as a person
+    or an owner would. No document names a credential: the place makes
+    them, as a box makes its own.
+- **A copy** is the place's whole data and configuration, every process
+  of it stopped, as a backup has it (jig's `protocol/store/README.md`,
+  2), its fake forges' state with it, the engine's, worker's and agent's
+  each for a deployment, archived together and named by the hash of the
+  recipe, with its files and its parents', and by the commit whose build
+  made it.
 - **At its place:** a place has a fixed directory, fixed ports and its own
-  `bin/`. A pass installs its build into the place's `bin/` before any box
-  starts, so the copies made there name the place's programs, never a
-  kept build's directory. A copy is unpacked where it was made, its box
-  started from `bin/` with the recipe's scripts. The box prints a new
-  sign-in link, which the drivers follow, so a copy holds no browser's
-  session. The recipe's closing check runs before any case starts.
+  `bin/`. A pass installs its build into the place's `bin/` before any
+  process starts, so the copies made there name the place's programs,
+  never a kept build's directory. A copy is unpacked where it was made,
+  its box or its deployment's processes started from `bin/` with the
+  recipe's scripts. The place prints a new sign-in link, which the
+  drivers follow, or writes it to a file ctl signs in from, never
+  printed, so a copy holds no browser's session. The place's directories
+  are private, whatever the umask its process runs under. The recipe's
+  closing check, `ctl` lines for a recipe with no web or TUI line, runs
+  before any case starts.
 - **Patched forward, or a finding:** a stored format's change moves its
   version and brings its patch (the user, 2026-11-12; `upgrades.md`, 4
   and 6), so a newer build patches an older copy's store as it starts,
@@ -223,22 +279,29 @@ round trips".
   build. A pass's new recipes and edits land with its findings' request,
   or alone when it found nothing (section 8).
 - **First recipes:** from the journeys' setups (`project-landing`,
-  `chat-draft` and the welcome's), for the web client and the TUI.
+  `chat-draft` and the welcome's), for the web client and the TUI. A
+  deployment's first setup is a project on the fake Forgejo landing by
+  `turn` with a `batch` above one and a gate the fake Forgejo dispatches,
+  so that landing by turn, which no box can be set to, is judged first.
 
 ## 6. The fakes
 
 - **No real backend:** no real model, no real account and no real forge,
   the box's own Forgejo included (the user, 2026-11-12: QA on the fakes
-  stays the rule). A pass's box runs on its fake backends: the person's
-  forges, GitHub and Forgejo alike, are fake forges
-  (`../protocol/setup/box.md`, 5) keeping their state in the box's data
+  stays the rule). A pass's box or deployment runs on its fake backends:
+  the person's forges, GitHub and Forgejo alike, are fake forges
+  (`../protocol/setup/box.md`, 5) keeping their state in the place's data
   across a restart (section 10), so that a copy keeps their repositories,
-  pull requests and checks. No place runs a Forgejo or a runner. What
-  only a real forge shows, the box's own Forgejo set up on the person's
-  machine among it, waits for real backends (section 12).
+  pull requests and checks. A deployment runs the same fakes as processes
+  of their own, as a box runs them as its steps. No place runs a Forgejo
+  or a runner. What only a real forge shows, the box's own Forgejo set up
+  on the person's machine among it, waits for real backends (section
+  12).
 - **CI is the fake forge's,** decided by a file's content
   (`../testing/fakes.md`, 2), so that a recipe makes a head pass or fail
-  by what its `forge` lines commit.
+  by what its `forge` lines commit; a landing's gate is a workflow the
+  fake forge runs when dispatched, decided the same way (skein's
+  `testing/fakes/forge.md`).
 - **The model is the fake model, on the setup's scripts:** the standalone
   document's scripts, matched by their cues
   (`../protocol/setup/playground.md`; skein's `testing/fakes/llm.md`,
@@ -284,8 +347,11 @@ round trips".
   the screen's rows. Each driver keeps the lines it was given, so a case's
   steps become a recipe's steps and a finding's reproduction; `look`
   lines are observations, kept in neither.
-- **ctl beside them,** as `../../development/qa.md` has it: the person's
-  acts and temper's account, and the forge read as its observer.
+- **ctl first, then beside them,** as `../../development/qa.md` has it:
+  the person's acts and temper's account, and the forge read as its
+  observer. A pass's ctl cases run first, in a session of ctl and
+  `forge` lines alone, which starts no browser and no terminal and needs
+  neither.
 - **Code compares where it can:** a page's text against the case's
   expectation, where the case gives it word for word. The agent judges
   the rest: whether the page does and says what the draft promised. Looks
@@ -397,6 +463,41 @@ For deeper states:
   from a tool's output by a pattern, so that a twin replays on a box whose
   numbers and heads differ (section 6).
 
+For deployments, in three steps, each usable as it lands:
+
+- **ctl on a deployment, first and small:** a place of the deployment's
+  kind, the kept build's engine, worker and agent started from a setup's
+  `config/` at the place's ports, the fake forges and the fake model as
+  processes of their own; a deployment's copy saved and restored, with a
+  newer build of each; a session of ctl and `forge` lines alone, signed
+  in from a file and starting no browser; the worker's git reaching the
+  fake forge's repositories, fetching, merging and pushing as on a real
+  forge, so that landing by turn's merges run there; the `ctl` surface
+  and its cases first. It reuses what the box's kind has: the builds,
+  the ledger, the recipes' lines, the place's commands and findings.
+  For landing by turn, the first use, it also needs (the user,
+  2026-11-14, so that its cases run through the machinery alone):
+  - **a gate the fake forge dispatches,** declared by the setup, in its
+    `config/` or in a file its `forge` lines commit, its verdict decided
+    by content as a head's CI is (section 6), so that a batch proves
+    green or red by what its members hold;
+  - **several goals at once:** the fake model's and the fake coding
+    agent's scripts carrying two or more goals of one setup to ready
+    changes together, each taking its numbers and heads from the
+    conversation (section 6), so that a batch forms;
+  - **a project's landing given to what the recipe made:** its `by`,
+    `batch` and gates name a project and repository by numbers made at
+    runtime (`../domain/landing.md`, 13.1), so a line changes the
+    place's configuration between two of its starts, or ctl changes
+    them once they are settings.
+- **The web client and the TUI on a deployment:** the drivers' browser
+  and terminal reach a deployment's engine rather than a box of their
+  own, once the drivers' browser starts at the places.
+- **One framework:** a place's kinds behind one interface (install,
+  start, save, restore, its values for the lines), setups' recipes of
+  either kind in one catalogue, and what the first two steps duplicated
+  removed. The box stays a kind of its own, for QA of the box.
+
 Nothing for the kept build: it is the deployment's (section 3).
 
 ## 11. Acceptance
@@ -407,7 +508,9 @@ Focused and fuzzy suites alone, each failing first:
   later merge is seen, once;
 - triage in main's order: a landing's cases recorded only after the one
   before it is triaged; a case refused with no surface or expectation; a
-  case for a covered page merged, keeping both landings;
+  case for a covered page or ctl group merged, keeping both landings; a
+  `ctl` case recorded and a pass running its ctl cases first, with no
+  browser started; a stat naming a generated directory once;
 - builds: deleted on no QA, when a newer triaged build is kept, on a
   pass's end and on its resume, and never while held or before triage
   reaches them; a case waiting for a build past its bound is a line;
@@ -429,17 +532,29 @@ Focused and fuzzy suites alone, each failing first:
 - a box at its place on its fake backends: its fake forges' repositories,
   pull requests and checks back after a restore with a newer build, and
   no Forgejo or runner started;
+- a deployment at its place: its engine, worker and agent started from a
+  setup's `config/` on the fakes, stopped, saved, and restored with a
+  newer build of each, its store patched forward and its fakes' state
+  back; a project there landing by `turn` at a `batch` of two, its gate
+  dispatched on the fake Forgejo and the turn merged by the worker's
+  git; ctl signed in with no link printed; the place's directories
+  private under any umask;
+- landing by turn through the machinery: a setup's gate declared and
+  dispatched on the fake Forgejo, green or red by what a member holds;
+  two goals' scripted changes ready together and landed in one landing;
+  a project's landing set to `turn` on a project and repository the
+  recipe made;
 - resuming: on a build holding the goal's landing at a later commit; open
   findings checked first, then failed cases, then cases that build holds,
   and none later; a finding open after two goals handed on.
 
-The process-tier story of a box at its place is written and compiled in
-its milestone, and runs in the process tier after it lands.
+The process-tier stories of a box and of a deployment at their places are
+written and compiled in their milestones, and run in the process tier
+after they land.
 
 ## 12. Later
 
-- **ctl and the help** as surfaces, then each part's own bar in
-  `v0.1.0.md`, 5.
+- **The help** as a surface, then each part's own bar in `v0.1.0.md`, 5.
 - **Edge cases, failures and recovery,** once the green path holds.
 - **A landed look request's render check** in a pass, once
   `look-requests.md`, 4's comparison is a command.
@@ -458,3 +573,7 @@ its milestone, and runs in the process tier after it lands.
 - **A pass's recipes landing unread:** they land with its request, with
   no person reading them first. Default: unread, since a recipe that no
   longer walks is the pass's to judge and repair (section 5).
+- **A box's setup that needs nothing of a box:** one whose cases a
+  deployment serves as well. Default: kept as the box's until the one
+  framework (section 10) weighs each, since the box is a product of its
+  own to judge.

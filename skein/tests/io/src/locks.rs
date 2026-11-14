@@ -274,12 +274,13 @@ impl Referee<Owner> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Owner]) {
+    fn watch(&mut self, now: Time, procs: &[Owner]) -> Result<(), String> {
         self.wake = (self.peers
             && ((procs[0].phase == Phase::Hold && procs[1].phase == Phase::Dormant)
                 || (matches!(procs[0].phase, Phase::Hold | Phase::Dormant)
                     && procs[1].heard.first() == Some(&Heard::Busy))))
         .then_some(now);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake

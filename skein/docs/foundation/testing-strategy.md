@@ -498,7 +498,8 @@ tier:
   test, listing what is still pending.
 - **It ends the test:** passed, once every expectation is met and nothing
   is in flight; or failed, with when, why, what was pending, and the
-  seed.
+  seed: a finding it returns, which the loop that drives it fails the
+  test with (programming-model.md, 10.4).
 - **It injects what belongs to no fake:** the network dropping, a
   component restarting, a shutdown.
 

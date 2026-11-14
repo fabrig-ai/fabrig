@@ -337,7 +337,9 @@ impl Machine for RootMachine {
 pub struct Judge;
 
 impl skein_world::Referee<Script> for Judge {
-    fn observe(&mut self, _now: Time, _procs: &[Script]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Script]) -> Result<(), String> {
+        Ok(())
+    }
     fn passed(&self) -> bool {
         true
     }

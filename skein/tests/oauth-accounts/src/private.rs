@@ -344,11 +344,12 @@ impl Referee<Process> for Judge {
             processes[0].issuer_mut().expect("issuer process").shutdown();
         }
     }
-    fn observe(&mut self, now: Time, processes: &[Process]) {
+    fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let client = processes[1].client().expect("client process");
         let address_ready = processes[0].issuer().is_some_and(|peer| peer.address().is_some());
         self.wake = ((!self.delivered && address_ready) || (client.is_empty() && !self.shutdown)).then_some(now);
         self.passed = self.shutdown && processes.iter().all(Host::is_empty);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake.or(Some(Time::from_nanos(180_000_000_000)))

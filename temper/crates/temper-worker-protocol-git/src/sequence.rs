@@ -11,7 +11,8 @@ use temper_worker_domain_checkout::{self as checkout, git};
 #[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline as in git::Done")]
 pub enum Next {
     Run(Command),
-    Reds { directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool },
+    Reds { directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32> },
+    Results { directory: Box<[u8]> },
     Snapshot { parent: git::Commit, merging: Option<git::Commit> },
     Make,
     Store,

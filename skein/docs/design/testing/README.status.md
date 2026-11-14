@@ -23,12 +23,9 @@ counted around each reused pass, never by an address.
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
-  5: in a one-process run, `Starved::pass` and `pass_starved` unwind with
-  `std::panic::resume_unwind` and the payload `StarvedPass`, so that the
-  process goes on to its next test, where they would end it with exit 0
-  after the line, and the one-process runner starts no new process for
-  the names left (`tools/tiers/design.md`, 11.5 and 11.6, lag likewise);
-  milestone P6 of `temper/docs/design/draft/panics.execution.md`.
+  5: `Referee` keeps `observe`, which panics on what it finds, and
+  `watch`'s default calls it; the referees of jig's, temper's, smith's
+  and hearth's worlds implement `observe`. [in flight: change 2882]
   5: two step tests show a table kept by its address, not by the span's
   count, and their binaries declare no counting allocator: skein-lib's
   `removing_a_list_item_moves_the_last_and_keeps_capacity`, a list
@@ -44,12 +41,6 @@ counted around each reused pass, never by an address.
   and `supervise-grandchild` descendants spinning. [in flight: change 1551]
   5: no fixture outlives its test: an unwinding test's walk can leave a
   descendant running, unreported. [in flight: change 1552]
-  6: `skein_rows::check` runs each row under `catch_unwind`, runs on past
-  a failing row and panics afterwards at its caller's line naming each
-  that failed, and names no row before it runs; `skein_rows::panics`
-  remains, with skein-rows' tests of it, of every row running after a
-  failure, of each failing row named and of a malformed table;
-  milestone P3 of `temper/docs/design/draft/panics.execution.md`.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: the focused cost repairs' at-least-6 CPU s saving is unproved.

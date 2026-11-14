@@ -1,6 +1,7 @@
 use jig_core_world::world::{Scenario, Setup, World};
 
 fn a_chats_run_answers_once_and_its_turn_is_acknowledged_after_its_commit() {
+    eprintln!("Chat scenario seed 41");
     let mut world = World::new(Setup {
         seed: 41,
         configuration: Some(jig_test_profile::config(41)),
@@ -8,14 +9,15 @@ fn a_chats_run_answers_once_and_its_turn_is_acknowledged_after_its_commit() {
         walking: Some(Scenario::Chat),
         ..Setup::default()
     });
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| world.drain()));
-    assert!(result.is_ok(), "{:?}", world.trace);
+    eprintln!("{:?}", world.trace);
+    world.drain();
     assert_eq!(world.walking.as_ref().expect("walking peer").turn_acks, 1);
     assert_eq!(world.walking.as_ref().expect("walking peer").answer_acks, 1);
     assert_eq!(world.walking.as_ref().expect("walking peer").results, 1);
 }
 
 fn a_person_sets_a_goal_a_procedure_carries_out_and_hears_its_result() {
+    eprintln!("Goal scenario seed 42");
     let mut world = World::new(Setup {
         seed: 42,
         configuration: Some(jig_test_profile::config(42)),
@@ -23,13 +25,14 @@ fn a_person_sets_a_goal_a_procedure_carries_out_and_hears_its_result() {
         walking: Some(Scenario::Goal),
         ..Setup::default()
     });
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| world.drain()));
-    assert!(result.is_ok(), "{:?}", world.trace);
+    eprintln!("{:?}", world.trace);
+    world.drain();
     assert_eq!(world.walking.as_ref().expect("walking peer").results, 1);
     assert!(world.walking.as_ref().expect("walking peer").procedure.is_some());
 }
 
 fn a_batch_beyond_the_limits_is_refused_whole_and_the_party_told_why() {
+    eprintln!("Batch scenario seed 43");
     let mut world = World::new(Setup {
         seed: 43,
         configuration: Some(jig_test_profile::config(43)),
@@ -37,8 +40,8 @@ fn a_batch_beyond_the_limits_is_refused_whole_and_the_party_told_why() {
         walking: Some(Scenario::Batch),
         ..Setup::default()
     });
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| world.drain()));
-    assert!(result.is_ok(), "{:?}", world.trace);
+    eprintln!("{:?}", world.trace);
+    world.drain();
     assert_eq!(world.walking.as_ref().expect("walking peer").batch_refusals, 1);
     assert!(
         world.walking.as_ref().expect("walking peer").procedure.is_none(),

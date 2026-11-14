@@ -287,7 +287,9 @@ small buffers so that sends are cut and stall.
 - **At every submit,** every broken invariant of the kernel boundary
   (../runtime/kernel.md, 7), and any operation on a descriptor the process does not
   hold, fails the world with a panic naming the seed and the end of the
-  trace.
+  trace, or that the trace is off. The text of that report is built by a
+  function of the simulator's that returns it, which its own tests call
+  to read the report without a panic (../../foundation/programming-model.md, 10.4).
 - **At every completion it makes:** a valid completion of the operation's
   shape, each token completed once, every record handed back.
 - **At every answer of the machine:** an answer to a call waiting, of its

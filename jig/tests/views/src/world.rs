@@ -18,6 +18,7 @@ pub struct World {
     source: BTreeMap<(Token, TurnName), u32>,
     trace: Trace,
     rng: Rng,
+    seed: u64,
 }
 impl Default for World {
     fn default() -> Self {
@@ -40,6 +41,7 @@ impl World {
             source: BTreeMap::new(),
             trace: Trace::default(),
             rng: Rng::new(seed),
+            seed,
         }
     }
     pub fn step(&mut self, event: Event) -> Vec<Request> {
@@ -70,6 +72,7 @@ impl World {
     }
     fn step_once(&mut self, event: Event) -> Vec<Request> {
         self.referee.before(&event);
+        self.check_referee();
         self.trace.log(self.now, format!("in {event:?}"));
         let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.limits };
         let mut out = Queue::uncapped();
@@ -80,6 +83,7 @@ impl World {
             requests.push(request);
         }
         self.referee.saw(&requests);
+        self.check_referee();
         requests
     }
     pub fn watch(&mut self, watcher: u64, subject: u64) -> Vec<Request> {
@@ -135,7 +139,15 @@ impl World {
                 self.stream_delivered(watcher.raw());
             }
         }
-        self.referee.assert_caught_up();
+        self.check_referee();
+        if let Err(why) = self.referee.check_caught_up() {
+            panic!("seed {}: {why}; trace {:?}", self.seed, self.trace.lines());
+        }
+    }
+    fn check_referee(&self) {
+        if let Err(why) = self.referee.check_holding(self.seed) {
+            panic!("{why}; trace {:?}", self.trace.lines());
+        }
     }
     pub fn restart(&mut self) -> Vec<(Token, End)> {
         let prior_ends = self.referee.ended().len();

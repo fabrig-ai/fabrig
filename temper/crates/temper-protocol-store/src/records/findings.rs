@@ -157,6 +157,35 @@ fn decode_filer(value: w::Filer) -> d::Filer {
         w::Filer::Party(value) => d::Filer::Party(value.number()),
     }
 }
+fn encode_signature(signature: &d::FindingSignature) -> w::FindingSignature {
+    let mut ids = skein_lib::List::with_capacity(64);
+    for id in &signature.ids {
+        ids.push(id.clone()).expect(FITS);
+    }
+    w::FindingSignature::new(
+        &w::CEILINGS,
+        w::FindingSignatureParts {
+            repository: super::names::encode_repository(signature.repository),
+            source: signature.source.clone(),
+            ids,
+            first: signature.first.clone(),
+        },
+    )
+    .expect(FITS)
+}
+fn decode_signature(signature: w::FindingSignature) -> Result<d::FindingSignature, Undecodable> {
+    let w::FindingSignatureParts { repository, source, ids, first } = signature.into_parts();
+    let signature = d::FindingSignature {
+        repository: super::names::decode_repository(repository),
+        source,
+        ids: ids.into_boxed(),
+        first,
+    };
+    if !signature.fits() {
+        return Err(Undecodable::Malformed);
+    }
+    Ok(signature)
+}
 pub(super) fn encode(row: &d::Finding) -> w::Finding {
     w::Finding::new(
         &w::CEILINGS,
@@ -178,6 +207,11 @@ pub(super) fn encode(row: &d::Finding) -> w::Finding {
             },
             goal: row.goal,
             reason: row.reason.clone(),
+            signature: match &row.signature {
+                Some(signature) => Some(encode_signature(signature)),
+                None => None,
+            },
+            seen: row.seen,
         },
     )
     .expect(FITS)
@@ -198,6 +232,8 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         hander,
         goal,
         reason,
+        signature,
+        seen,
     } = row.into_parts();
     if number == 0 || !d::settings::words_fit(&title, 200) || !d::findings::body_fits(&body) {
         return Err(Undecodable::Malformed);
@@ -213,6 +249,13 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         return Err(Undecodable::Malformed);
     }
     if why.is_some() != hander.is_some() {
+        return Err(Undecodable::Malformed);
+    }
+    let signature = match signature {
+        Some(signature) => Some(decode_signature(signature)?),
+        None => None,
+    };
+    if seen == Some(0) {
         return Err(Undecodable::Malformed);
     }
     Ok(d::Finding {
@@ -233,5 +276,7 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         },
         goal,
         reason,
+        signature,
+        seen,
     })
 }

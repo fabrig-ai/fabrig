@@ -46,6 +46,7 @@ fn registered_value_type_numbers_are_pinned() {
         (38, "Row", Some("device"), &[43]),
         (39, "Row", Some("red"), &[44]),
         (40, "Row", Some("red_number"), &[45]),
+        (46, "Row", Some("red_pass"), &[46]),
         (41, "Row", Some("history_project"), &[127]),
         (42, "Row", Some("history_event"), &[128]),
         (43, "Row", Some("history_change"), &[129]),

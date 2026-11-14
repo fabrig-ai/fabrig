@@ -9,10 +9,11 @@ fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_fa
     let mut marked = 0_u32;
     for _ in 0..32_u32 {
         let done = match &op {
-            Op::Reds { at, action: Reds::Prepare { wait_ms } } => {
+            Op::Reds { at, action: Reds::Prepare { wait_ms, rerun_processes } } => {
                 assert!(pinned);
                 assert_eq!(at.repository.as_ref(), b"a");
                 assert_eq!(*wait_ms, 6000);
+                assert_eq!(*rerun_processes, 4);
                 marked += 1;
                 Done::Failed { fault: Fault::Broken }
             }
@@ -39,7 +40,9 @@ fn prepare_marks_only_writable_repositories_after_their_pins_and_ignores_file_fa
                 assert_eq!(marked, 1);
                 return;
             }
-            other @ (Request::Held { .. }
+            other @ (Request::Results { .. }
+            | Request::ResultsEnd { .. }
+            | Request::Held { .. }
             | Request::Prepared { .. }
             | Request::Pushed { .. }
             | Request::Saved { .. }
@@ -91,5 +94,44 @@ fn a_new_check_discards_old_pending_reds_and_finishes_its_clear_before_writing()
     let Request::Io { op: Op::Reds { action: Reds::Clear, .. }, .. } = h.one(Event::Reds { hold, action: Reds::Clear })
     else {
         panic!("failure does not stop next check")
+    };
+}
+
+#[test]
+fn results_reads_report_each_repository_before_the_queued_delivery() {
+    let mut h = Harness::new(LIMITS);
+    let mut spec = two(b"results");
+    spec.repositories[1].push = Some(bytes(b"topic"));
+    let hold = h.ready(1, spec);
+    let Request::Io { op: Op::Reds { action: Reds::Write { .. }, .. }, .. } =
+        h.one(Event::Reds { hold, action: Reds::Write { reds: Box::new([]) } })
+    else {
+        panic!("write")
+    };
+    assert_eq!(h.one(Event::Reds { hold, action: Reds::Read { check: 7 } }), Request::Cancel { owner: hold });
+    h.none(Event::Push { hold, message: message() });
+    let Op::Reds { at, action: Reds::Read { check: 7 } } = h.next(hold, Done::Succeeded) else {
+        panic!("read before push")
+    };
+    assert_eq!(at.repository.as_ref(), b"a");
+    let rows = h.step(Event::Done { owner: hold, done: Done::Results { bytes: Some(bytes(b"a results")) } });
+    let [
+        Request::Results { client, check: 7, repository: 0, bytes: Some(file) },
+        Request::Io { op: Op::Reds { at, action: Reds::Read { check: 7 } }, .. },
+    ] = rows.as_slice()
+    else {
+        panic!("first file and next read: {rows:?}")
+    };
+    assert_eq!(*client, Token::new(1));
+    assert_eq!(file.as_ref(), b"a results");
+    assert_eq!(at.repository.as_ref(), b"b");
+    let rows = h.step(Event::Done { owner: hold, done: Done::Results { bytes: None } });
+    let [
+        Request::Results { check: 7, repository: 1, bytes: None, .. },
+        Request::ResultsEnd { check: 7, .. },
+        Request::Io { op: Op::Commit { .. }, .. },
+    ] = rows.as_slice()
+    else {
+        panic!("read ends before delivery: {rows:?}")
     };
 }

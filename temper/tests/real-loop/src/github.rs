@@ -209,30 +209,34 @@ impl Seen {
         &self.observations
     }
 
-    pub(crate) fn seed_unaccepted(&mut self, peer: &mut Peer) {
+    pub(crate) fn seed_unaccepted(&mut self, peer: &mut Peer) -> Result<(), String> {
         if self.unaccepted.is_some() {
-            return;
+            return Ok(());
         }
-        let layer = peer.github_layer_mut().expect("GitHub layer");
+        let layer = peer.github_layer_mut().ok_or("GitHub layer")?;
         if !layer.installations().iter().any(|row| row.account == ACME) {
-            return;
+            return Ok(());
         }
         let id = layer
             .installations_mut()
             .install(UMBRA, b"umbra", Kind::Organization, Reach::All, Wall::EPOCH)
-            .expect("unaccepted installation beside acme");
+            .map_err(|error| format!("unaccepted installation beside acme: {error:?}"))?;
         self.unaccepted = Some(id);
+        Ok(())
     }
 
-    pub(crate) fn checkpoint(&mut self, peer: &Peer, calls: &[crate::calls::Called]) {
-        let count = peer.git_calls().expect("GitHub git records").len();
-        assert!(count < GIT_RECORDS, "git record ring never filled");
-        while calls.get(self.git_after_call.len()).is_some_and(|call| call.exit.is_some()) {
-            self.git_after_call.push(usize::try_from(count).expect("git count"));
+    pub(crate) fn checkpoint(&mut self, peer: &Peer, calls: &[crate::calls::Called]) -> Result<(), String> {
+        let count = peer.git_calls().ok_or("GitHub git records")?.len();
+        if count >= GIT_RECORDS {
+            return Err("git record ring never filled".into());
         }
+        while calls.get(self.git_after_call.len()).is_some_and(|call| call.exit.is_some()) {
+            self.git_after_call.push(usize::try_from(count).map_err(|error| format!("git count: {error:?}"))?);
+        }
+        Ok(())
     }
-    pub(crate) fn collect(&mut self, peer: &Peer, handle: &Rc<RefCell<Forge>>) {
-        let layer = peer.github_layer().expect("GitHub layer");
+    pub(crate) fn collect(&mut self, peer: &Peer, handle: &Rc<RefCell<Forge>>) -> Result<(), String> {
+        let layer = peer.github_layer().ok_or("GitHub layer")?;
         self.git_calls = layer.git_calls().iter().copied().collect();
         self.minted = layer.installations().minted();
         self.installations =
@@ -262,7 +266,7 @@ impl Seen {
             {
                 // A landed topic branch may already be deleted. Its move records
                 // the pushed object, which remains available after that cleanup.
-                let object = forge.domain.object(head).expect("pushed object");
+                let object = forge.domain.object(head).ok_or("pushed object")?;
                 self.branches.insert(
                     branch.to_vec(),
                     Branch {
@@ -272,6 +276,7 @@ impl Seen {
                 );
             }
         }
+        Ok(())
     }
 }
 pub(crate) struct State {

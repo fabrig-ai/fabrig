@@ -60,11 +60,18 @@ impl Starts {
     }
 }
 
-pub(crate) fn advance(host: &mut ServiceHost) {
+pub(crate) fn advance(host: &mut ServiceHost) -> Result<(), String> {
     if !matches!(host.failed_starts.phase, Phase::Draining) || !host.service.is_empty() {
-        return;
+        return Ok(());
     }
-    assert_eq!(host.wire.admitted_hellos, 0, "failed starts send no admission record");
+    {
+        let (observed_value, wanted) = (&(host.wire.admitted_hellos), &(0));
+        if observed_value != wanted {
+            return Err(format!(
+                "failed starts send no admission record; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+            ));
+        }
+    }
     host.failed_starts.ended += 1;
     host.service = jig_test_service::startup(
         &fixtures::engine_document(),
@@ -74,11 +81,12 @@ pub(crate) fn advance(host: &mut ServiceHost) {
         None,
         None,
     )
-    .expect("next engine start");
-    let root = host.failed_starts.roots.pop().expect("independent root for next start");
-    host.service.adopt_store(root, 1000).expect("next start store");
+    .map_err(|why| format!("next engine start: {why:?}"))?;
+    let root = host.failed_starts.roots.pop().ok_or("independent root for next start")?;
+    host.service.adopt_store(root, 1000).map_err(|why| format!("next start store: {why:?}"))?;
     host.files.root(root);
     host.wire.restarted();
     host.revision.0 += 1_000_000;
     host.failed_starts.phase = if host.failed_starts.ended == 1 { Phase::Cutting } else { Phase::Normal };
+    Ok(())
 }

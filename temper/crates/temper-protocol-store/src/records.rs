@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v22 as w};
+use crate::{Bounds, Undecodable, v23 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge_vocabulary as d;
@@ -47,6 +47,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
         d::Stored::LandedDraft(row) => w::Value::LandedDraft(drafts::encode(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
+        d::Stored::RedPass(row) => w::Value::RedPass(reds::encode_pass(row)),
         d::Stored::Red(row) => w::Value::Red(reds::encode(row)),
         d::Stored::RedNumber { last } => {
             w::Value::RedNumber(w::RedNumber::new(&w::CEILINGS, w::RedNumberParts { last: *last }).expect(FITS))
@@ -129,6 +130,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?;
     Ok(match row.into_parts().value {
+        w::Value::RedPass(row) => d::Stored::RedPass(reds::decode_pass(row, bounds)?),
         w::Value::Red(row) => d::Stored::Red(reds::decode(row, bounds)?),
         w::Value::RedNumber(row) => d::Stored::RedNumber { last: row.last() },
         w::Value::HistoryProject(row) => d::Stored::HistoryProject(history::decode_project(row)),

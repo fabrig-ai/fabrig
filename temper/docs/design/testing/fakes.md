@@ -383,8 +383,12 @@ its own:
   (no commit, an empty tree or message, a refusal), and that run is
   thrown away; the program makes the call, then runs the command again
   from a fresh copy of the checkout it scanned. A run that replays must
-  ask the logged calls in the same order, and the program asserts it
-  does. A write (a push, a branch made, a commit, a merge or a commit's
+  ask the logged calls in the same order. The first call out of order is
+  the route's finding, naming the call asked and the call logged: the
+  route answers it as it answers a call it lacks, and the program reads
+  the finding after the run, before it makes another call or keeps
+  anything, and panics on it at its top (`README.md`, 4.2). A test of
+  the order reads the finding. A write (a push, a branch made, a commit, a merge or a commit's
   tree stored) is made once, never again by a replay. A command's calls
   share one connection.
 - **Its network is io's:** the core makes each call through skein's

@@ -374,12 +374,19 @@ pub fn assert_landed_chat_pull(run: &str, evidence: &super::first_repository::Ev
 
 #[must_use]
 pub fn landed_identity(task: &str, page: &str) -> (String, String) {
-    let (landed, _) = super::ctl::landed_result(task);
-    let pull = page.lines().find(|line| line.starts_with("PR #")).expect("pull identity on the change page");
-    assert!(pull.contains(" · work/hello · "), "pull belongs to the first repository: {pull}");
-    let number = pull.strip_prefix("PR #").expect("pull prefix").split(" · ").next().expect("pull number");
-    assert!(landed.starts_with(&format!("result: Landed · pull request #{number} · merge commit ")), "{landed}");
-    (landed.to_owned(), pull.to_owned())
+    check_landed_identity(task, page).unwrap_or_else(|why| panic!("{why}"))
+}
+pub fn check_landed_identity(task: &str, page: &str) -> Result<(String, String), String> {
+    let (landed, _) = super::ctl::check_landed_result(task)?;
+    let pull = page.lines().find(|line| line.starts_with("PR #")).ok_or("pull identity on the change page")?;
+    if !pull.contains(" · work/hello · ") {
+        return Err(format!("pull belongs to the first repository: {pull}"));
+    }
+    let number = pull.strip_prefix("PR #").ok_or("pull prefix")?.split(" · ").next().ok_or("pull number")?;
+    if !landed.starts_with(&format!("result: Landed · pull request #{number} · merge commit ")) {
+        return Err(landed.to_owned());
+    }
+    Ok((landed.to_owned(), pull.to_owned()))
 }
 
 #[must_use]
@@ -449,12 +456,15 @@ impl EndedDelegates {
 
     /// Both parents' ended delegates, each sorted; once `read` has answered `None`.
     #[must_use]
-    pub fn whole(mut self) -> [Vec<u64>; 2] {
-        assert_eq!(self.parent, self.parents.len(), "both ended delegate sets read whole");
+    pub fn whole(self) -> [Vec<u64>; 2] {
+        self.check_whole().unwrap_or_else(|why| panic!("{why}"))
+    }
+    pub fn check_whole(mut self) -> Result<[Vec<u64>; 2], String> {
+        require(self.parent == self.parents.len(), "both ended delegate sets read whole")?;
         for tasks in &mut self.tasks {
             tasks.sort_unstable();
         }
-        self.tasks
+        Ok(self.tasks)
     }
 
     fn page(&self, parent: u64, after: Option<&str>) -> Vec<String> {
@@ -716,14 +726,21 @@ pub fn assert_forgejo_setup(
     previous: Option<u64>,
     data: &std::path::Path,
 ) -> u64 {
-    let signed = &calls[0];
-    assert_eq!(
-        signed.exit,
-        Some(Exit::Code(0)),
-        "{run}: sign-in: {}; box: {stderr}",
-        String::from_utf8_lossy(&signed.stderr)
-    );
-    assert_forgejo_setup_after_sign_in(run, &calls[1..], stderr, previous, data)
+    check_forgejo_setup(run, calls, stderr, previous, data).unwrap_or_else(|why| panic!("{why}"))
+}
+
+pub fn check_forgejo_setup(
+    run: &str,
+    calls: &[super::Ended],
+    stderr: &str,
+    previous: Option<u64>,
+    data: &std::path::Path,
+) -> Result<u64, String> {
+    let signed = calls.first().ok_or("sign-in read")?;
+    if signed.exit != Some(Exit::Code(0)) {
+        return Err(format!("{run}: sign-in: {}; box: {stderr}", String::from_utf8_lossy(&signed.stderr)));
+    }
+    check_forgejo_setup_after_sign_in(run, &calls[1..], stderr, previous, data)
 }
 
 /// The setup reads also serve a box whose signed-in person first tried the demo.
@@ -735,29 +752,38 @@ pub fn assert_forgejo_setup_after_sign_in(
     previous: Option<u64>,
     data: &std::path::Path,
 ) -> u64 {
+    check_forgejo_setup_after_sign_in(run, calls, stderr, previous, data).unwrap_or_else(|why| panic!("{why}"))
+}
+
+pub fn check_forgejo_setup_after_sign_in(
+    run: &str,
+    calls: &[super::Ended],
+    stderr: &str,
+    previous: Option<u64>,
+    data: &std::path::Path,
+) -> Result<u64, String> {
     for call in calls {
-        assert_eq!(
-            call.exit,
-            Some(Exit::Code(0)),
-            "{run}: ctl stdout: {}; stderr: {}; box: {stderr}",
-            String::from_utf8_lossy(&call.stdout),
-            String::from_utf8_lossy(&call.stderr)
-        );
+        if call.exit != Some(Exit::Code(0)) {
+            return Err(format!(
+                "{run}: ctl stdout: {}; stderr: {}; box: {stderr}",
+                String::from_utf8_lossy(&call.stdout),
+                String::from_utf8_lossy(&call.stderr)
+            ));
+        }
     }
-    assert_eq!(calls.len(), if run == "first" { 6 } else { 3 }, "all setup calls ran: {stderr}");
-    let made = super::ctl::json(&calls[if run == "first" { 4 } else { 1 }]);
-    let row = super::first_repository::owned_row(&made);
-    let number = row["number"].as_u64().expect("forge number");
-    let host = row["host"].as_str().filter(|host| !host.is_empty()).expect("forge resource host");
+    if calls.len() != if run == "first" { 6 } else { 3 } {
+        return Err(format!("all setup calls ran: {stderr}"));
+    }
+    let made = super::ctl::try_json(&calls[if run == "first" { 4 } else { 1 }])?;
+    let row = super::first_repository::check_owned_row(&made)?;
+    let number = row["number"].as_u64().ok_or("forge number")?;
+    let host = row["host"].as_str().filter(|host| !host.is_empty()).ok_or("forge resource host")?;
     if run == "first" {
-        assert_first_setup(run, calls, stderr, row, number);
-    } else {
-        assert!(
-            !stderr.lines().any(|line| line.starts_with("fetch ") || line.contains("download")),
-            "the restarted group fetches nothing: {stderr}"
-        );
+        check_first_setup(run, calls, stderr, row, number)?;
+    } else if stderr.lines().any(|line| line.starts_with("fetch ") || line.contains("download")) {
+        return Err(format!("the restarted group fetches nothing: {stderr}"));
     }
-    let stdout = String::from_utf8_lossy(&calls.last().expect("forges read").stdout);
+    let stdout = String::from_utf8_lossy(&calls.last().ok_or("forges read")?.stdout);
     let user = stdout.lines().find_map(|line| {
         line.strip_prefix(&format!("forge {number} · host: {host} · Forgejo · owned · Connected as temper ("))?
             .split(')')
@@ -765,42 +791,84 @@ pub fn assert_forgejo_setup_after_sign_in(
             .parse::<u64>()
             .ok()
     });
-    assert!(user.is_some_and(|user| user != 0), "{run}: forges row: {stdout}; box: {stderr}");
-    let user = user.expect("connected bot's ID");
-    if let Some(previous) = previous {
-        assert_eq!(user, previous, "the second box connects as the same bot");
+    if user.is_none_or(|user| user == 0) {
+        return Err(format!("{run}: forges row: {stdout}; box: {stderr}"));
+    }
+    let user = user.ok_or("connected bot's ID")?;
+    if let Some(previous) = previous
+        && user != previous
+    {
+        return Err("the second box connects as the same bot".into());
     }
     for name in ["admin_token", "api_token", "git_token", "user", "webhook_secret"] {
-        assert!(!data.join(format!("forge-{number}")).join(name).exists(), "{run}: no forge-{number}/{name}");
+        if data.join(format!("forge-{number}")).join(name).exists() {
+            return Err(format!("{run}: no forge-{number}/{name}"));
+        }
     }
-    user
+    Ok(user)
 }
 
-fn assert_first_setup(run: &str, calls: &[super::Ended], stderr: &str, row: &serde_json::Value, number: u64) {
-    let offered = super::ctl::json(&calls[1]);
-    assert_eq!(offered["forges"], serde_json::json!([]), "a fresh store has no forge records");
-    assert!(!String::from_utf8_lossy(&calls[0].stdout).lines().any(|line| line.starts_with("forge ")));
-    assert_eq!(number, 1, "the first forge record is numbered one");
-    assert!(calls[2].stdout.starts_with(b"setting up\n"));
+fn check_first_setup(
+    run: &str,
+    calls: &[super::Ended],
+    stderr: &str,
+    row: &serde_json::Value,
+    number: u64,
+) -> Result<(), String> {
+    let offered = super::ctl::try_json(&calls[1])?;
+    if offered["forges"] != serde_json::json!([]) {
+        return Err("a fresh store has no forge records".into());
+    }
+    if String::from_utf8_lossy(&calls[0].stdout).lines().any(|line| line.starts_with("forge ")) {
+        return Err(format!(
+            "assertion failed: {}",
+            stringify!(!String::from_utf8_lossy(&calls[0].stdout).lines().any(|line| line.starts_with("forge ")))
+        ));
+    }
+    if number != 1 {
+        return Err("the first forge record is numbered one".into());
+    }
+    if !calls[2].stdout.starts_with(b"setting up\n") {
+        return Err(format!("assertion failed: {}", stringify!(calls[2].stdout.starts_with(b"setting up\n"))));
+    }
     let adoption = String::from_utf8_lossy(&calls[2].stdout);
-    assert!(
-        adoption.contains(&format!("Adopted work/hello on forge {number} as owned.")),
-        "ctl printed the first adoption: {adoption}"
-    );
+    if !adoption.contains(&format!("Adopted work/hello on forge {number} as owned.")) {
+        return Err(format!("ctl printed the first adoption: {adoption}"));
+    }
     eprintln!("{run} first repository adoption: {adoption}");
     eprintln!("{run} first repository read: {}", row["first"]);
-    assert_eq!(row["first"]["state"], "made");
-    assert!(adoption.lines().any(|line| line == "project: 1 · hello"), "{adoption}");
-    assert!(adoption.contains("It is the project's home."), "{adoption}");
-    assert_eq!(row["first"]["org"], "work");
-    assert_eq!(row["first"]["repository"], "hello");
-    assert_eq!(row["first"]["id"], 1, "the script tags the first forge and repository");
-    assert_eq!(row["state"], "connected");
+    if row["first"]["state"] != "made" {
+        return Err(format!("assertion failed: left == right; left: {:?}; right: {:?}", row["first"]["state"], "made"));
+    }
+    if !adoption.lines().any(|line| line == "project: 1 · hello") {
+        return Err(format!("{adoption}"));
+    }
+    if !adoption.contains("It is the project's home.") {
+        return Err(format!("{adoption}"));
+    }
+    if row["first"]["org"] != "work" {
+        return Err(format!("assertion failed: left == right; left: {:?}; right: {:?}", row["first"]["org"], "work"));
+    }
+    if row["first"]["repository"] != "hello" {
+        return Err(format!(
+            "assertion failed: left == right; left: {:?}; right: {:?}",
+            row["first"]["repository"], "hello"
+        ));
+    }
+    if row["first"]["id"] != 1 {
+        return Err("the script tags the first forge and repository".into());
+    }
+    if row["state"] != "connected" {
+        return Err(format!("assertion failed: left == right; left: {:?}; right: {:?}", row["state"], "connected"));
+    }
     // Preparation is silent on success; Forgejo's startup
     // and the runner's lines reach the box with their step prefixes.
     for step in [format!("forgejo-{number}: "), format!("runner-{number}: ")] {
-        assert!(stderr.lines().any(|line| line.starts_with(&step)), "group step {step}: {stderr}");
+        if !stderr.lines().any(|line| line.starts_with(&step)) {
+            return Err(format!("group step {step}: {stderr}"));
+        }
     }
+    Ok(())
 }
 
 /// The SUT's cached copy still contains every byte of its pinned source.
@@ -1063,10 +1131,10 @@ pub struct LiveEvidence {
     pub delegates: [Vec<u64>; 2],
 }
 
-fn pull_number(pull: &serde_json::Value) -> u64 {
-    pull["number"].as_u64().expect("pull number")
+fn pull_number(pull: &serde_json::Value) -> Result<u64, String> {
+    pull["number"].as_u64().ok_or_else(|| "pull number".into())
 }
-fn merged_pulls(address: std::net::SocketAddr, token: &str) -> Vec<serde_json::Value> {
+fn merged_pulls(address: std::net::SocketAddr, token: &str) -> Result<Vec<serde_json::Value>, String> {
     let mut merged = Vec::new();
     for page in 1..=100 {
         let pulls = super::owned::answer(
@@ -1074,19 +1142,25 @@ fn merged_pulls(address: std::net::SocketAddr, token: &str) -> Vec<serde_json::V
             &format!("/api/v1/repos/work/hello/pulls?state=closed&limit=100&page={page}"),
             Some(token),
         )
-        .expect("owned forge pulls");
-        let pulls = pulls.as_array().expect("pull list");
+        .map_err(|error| format!("owned forge pulls: {error}"))?;
+        let pulls = pulls.as_array().ok_or("pull list")?;
         if pulls.is_empty() {
-            return merged;
+            return Ok(merged);
         }
         merged.extend(pulls.iter().filter(|pull| pull["merged"] == true).cloned());
     }
-    panic!("merged pull pagination exceeded 100 pages")
+    Err("merged pull pagination exceeded 100 pages".into())
 }
 
 #[must_use]
 pub fn last_readme_line(readme: &[u8]) -> Option<&str> {
-    std::str::from_utf8(readme).expect("README UTF-8").lines().rfind(|line| !line.is_empty())
+    check_last_readme_line(readme).unwrap_or_else(|why| panic!("{why}"))
+}
+pub fn check_last_readme_line(readme: &[u8]) -> Result<Option<&str>, String> {
+    Ok(std::str::from_utf8(readme)
+        .map_err(|error| format!("README UTF-8: {error}"))?
+        .lines()
+        .rfind(|line| !line.is_empty()))
 }
 
 fn forge_identity(
@@ -1094,65 +1168,99 @@ fn forge_identity(
     line: &str,
     token: &str,
     baseline: &std::collections::BTreeSet<u64>,
-) -> ForgeIdentity {
+) -> Result<ForgeIdentity, String> {
     use skein_lib::base64::{self, Alphabet};
     let get = |suffix: &str| {
         super::owned::answer(address.port(), &format!("/api/v1/repos/work/hello/{suffix}"), Some(token))
-            .unwrap_or_else(|why| panic!("owned forge read {suffix}: {why}"))
+            .map_err(|why| format!("owned forge read {suffix}: {why}"))
     };
-    let pulls = merged_pulls(address, token);
-    let numbers: std::collections::BTreeSet<_> = pulls.iter().map(pull_number).collect();
-    assert!(baseline.is_subset(&numbers), "previous merged pulls survive");
-    assert_eq!(numbers.len(), baseline.len() + 1, "exactly one more merged pull");
-    let pull = pulls.iter().find(|pull| !baseline.contains(&pull_number(pull))).expect("new merged pull");
-    let head = pull["head"]["sha"].as_str().expect("pull head").to_owned();
-    let status = get(&format!("commits/{head}/status"));
-    assert_eq!(status["state"], "success", "CI at the merged head");
-    assert!(!status["statuses"].as_array().expect("CI jobs").is_empty(), "a CI job ran");
-    let readme = get(&format!("contents/README.md?ref={head}"));
-    assert_eq!(readme["encoding"], "base64");
+    let pulls = merged_pulls(address, token)?;
+    let numbers: std::collections::BTreeSet<_> = pulls.iter().map(pull_number).collect::<Result<_, _>>()?;
+    if !baseline.is_subset(&numbers) {
+        return Err("previous merged pulls survive".into());
+    }
+    if numbers.len() != baseline.len() + 1 {
+        return Err("exactly one more merged pull".into());
+    }
+    let pull = pulls
+        .iter()
+        .find(|pull| pull_number(pull).is_ok_and(|number| !baseline.contains(&number)))
+        .ok_or("new merged pull")?;
+    let head = pull["head"]["sha"].as_str().ok_or("pull head")?.to_owned();
+    let status = get(&format!("commits/{head}/status"))?;
+    if status["state"] != "success" {
+        return Err("CI at the merged head".into());
+    }
+    if status["statuses"].as_array().ok_or("CI jobs")?.is_empty() {
+        return Err("a CI job ran".into());
+    }
+    let readme = get(&format!("contents/README.md?ref={head}"))?;
+    if readme["encoding"] != "base64" {
+        return Err(format!("assertion failed: left == right; left: {:?}; right: {:?}", readme["encoding"], "base64"));
+    }
     let encoded: Vec<_> = readme["content"]
         .as_str()
-        .expect("README content")
+        .ok_or("README content")?
         .bytes()
         .filter(|byte| !byte.is_ascii_whitespace())
         .collect();
-    let readme = base64::decode(Alphabet::Standard, &encoded, 1 << 20).expect("README base64");
-    assert_eq!(last_readme_line(&readme), Some(line), "the merged pull head ends with the tagged line");
-    let branches = get("branches?limit=100&page=1");
-    assert_eq!(get("branches?limit=100&page=2"), serde_json::json!([]));
+    let readme =
+        base64::decode(Alphabet::Standard, &encoded, 1 << 20).map_err(|error| format!("README base64: {error:?}"))?;
+    if check_last_readme_line(&readme)? != Some(line) {
+        return Err("the merged pull head ends with the tagged line".into());
+    }
+    let branches = get("branches?limit=100&page=1")?;
+    let next_branches = get("branches?limit=100&page=2")?;
+    if next_branches != serde_json::json!([]) {
+        return Err(format!(
+            "assertion failed: left == right; left: {:?}; right: {:?}",
+            next_branches,
+            serde_json::json!([])
+        ));
+    }
     let mut branches: Vec<_> = branches
         .as_array()
-        .expect("branches")
+        .ok_or("branches")?
         .iter()
         .map(|branch| {
-            (
-                branch["name"].as_str().expect("branch name").to_owned(),
-                branch["commit"]["id"].as_str().expect("branch head").to_owned(),
-            )
+            Ok((
+                branch["name"].as_str().ok_or("branch name")?.to_owned(),
+                branch["commit"]["id"].as_str().ok_or("branch head")?.to_owned(),
+            ))
         })
-        .collect();
+        .collect::<Result<_, String>>()?;
     branches.sort();
-    let merge = pull["merge_commit_sha"].as_str().expect("merge hash").to_owned();
-    assert!(branches.iter().any(|(name, head)| name == "main" && head == &merge), "main is at the pull's merge commit");
-    ForgeIdentity {
-        number: pull["number"].as_u64().expect("pull number"),
-        url: pull["html_url"].as_str().expect("pull URL").to_owned(),
+    let merge = pull["merge_commit_sha"].as_str().ok_or("merge hash")?.to_owned();
+    if !branches.iter().any(|(name, head)| name == "main" && head == &merge) {
+        return Err("main is at the pull's merge commit".into());
+    }
+    Ok(ForgeIdentity {
+        number: pull["number"].as_u64().ok_or("pull number")?,
+        url: pull["html_url"].as_str().ok_or("pull URL")?.to_owned(),
         merge,
         head,
         branches,
-    }
+    })
 }
 
 /// The starter is private. Mint an independent, read-only oracle credential on
 /// this disposable forge, rather than reading temper's stored credentials.
-fn oracle_token(paths: &[PathBuf; 3], first: bool, forge: u64) -> String {
-    scoped_token(paths, first, forge, "temper", "read:repository,read:issue")
+fn oracle_token(paths: &[PathBuf; 3], first: bool, forge: u64) -> Result<String, String> {
+    check_scoped_token(paths, first, forge, "temper", "read:repository,read:issue")
 }
 
 /// A separate fixture credential, never one of temper's stored credentials.
 #[must_use]
 pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, number: u64, login: &str, scopes: &str) -> String {
+    check_scoped_token(paths, first, number, login, scopes).unwrap_or_else(|why| panic!("{why}"))
+}
+pub(super) fn check_scoped_token(
+    paths: &[PathBuf; 3],
+    first: bool,
+    number: u64,
+    login: &str,
+    scopes: &str,
+) -> Result<String, String> {
     use std::{
         io::Read,
         process::{Command, Stdio},
@@ -1190,16 +1298,28 @@ pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, number: u64, login
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .expect("oracle token command");
-    let status = child.wait().expect("oracle token exit");
-    assert!(status.success(), "read-only oracle token creation failed");
+        .map_err(|error| format!("oracle token command: {error}"))?;
+    let status = child.wait().map_err(|error| format!("oracle token exit: {error}"))?;
+    if !status.success() {
+        return Err("read-only oracle token creation failed".into());
+    }
     let mut bytes = Vec::new();
-    child.stdout.take().expect("oracle token output").take(1024).read_to_end(&mut bytes).expect("oracle token bytes");
-    let token = String::from_utf8(bytes).expect("oracle token encoding");
+    child
+        .stdout
+        .take()
+        .ok_or("oracle token output")?
+        .take(1024)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("oracle token bytes: {error}"))?;
+    let token = String::from_utf8(bytes).map_err(|error| format!("oracle token encoding: {error}"))?;
     let token = token.trim();
-    assert_eq!(token.len(), 40, "oracle token length");
-    assert!(token.bytes().all(|byte| byte.is_ascii_hexdigit()), "oracle token format");
-    token.to_owned()
+    if token.len() != 40 {
+        return Err("oracle token length".into());
+    }
+    if !token.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("oracle token format".into());
+    }
+    Ok(token.to_owned())
 }
 
 /// Commands are admitted one at a time so a failure cannot start the next act.
@@ -1823,6 +1943,7 @@ struct LiveJudge<'a> {
     conversation: conversation::Evidence,
     ended: Option<EndedDelegates>,
     evidence: &'a std::cell::Cell<Option<LiveEvidence>>,
+    completions: &'a std::cell::Cell<Option<Result<u32, String>>>,
     deadline: super::patience::Patience,
     poll: skein_lib::Time,
 }
@@ -1842,7 +1963,7 @@ impl LiveJudge<'_> {
         let project = self.tasks.project.to_string();
         match self.phase {
             LivePhase::ProgramDeclared => {
-                let LiveModel::ClaudeCode { login } = self.plan.model else { unreachable!("program model") };
+                let LiveModel::ClaudeCode { login } = self.plan.model else { return Err("program model".into()) };
                 let commands = program_verification(login, &last)?;
                 self.account_at = self.arguments.len() + commands.len() - 1;
                 self.pending.extend(commands);
@@ -1850,7 +1971,7 @@ impl LiveJudge<'_> {
             }
             LivePhase::Setup => self.setup(now, calls)?,
             LivePhase::Settings => self.settings(calls)?,
-            LivePhase::SettingsChanged => unreachable!("settings change handled before the JSON reads"),
+            LivePhase::SettingsChanged => return Err("settings change handled before the JSON reads".into()),
             LivePhase::Roots => {
                 self.roots = live_roots(&last)?;
                 let key = format!("live-chat-{}", now.as_nanos());
@@ -1946,9 +2067,9 @@ impl LiveJudge<'_> {
                 .map_err(|_| "forge socket invalid")?
         };
         self.address = Some(address);
-        let owned = super::first_repository::owned_forge(self.plan.client);
+        let owned = super::first_repository::check_owned_forge(self.plan.client)?;
         let number = owned["number"].as_u64().ok_or("forge number missing")?;
-        let token = oracle_token(self.plan.paths, self.plan.first, number);
+        let token = oracle_token(self.plan.paths, self.plan.first, number)?;
         self.setup_project(calls, address, &token, u16::try_from(number).map_err(|_| "forge number invalid")?)?;
         self.token = Some(token);
         if self.plan.first {
@@ -1980,14 +2101,14 @@ impl LiveJudge<'_> {
         forge: u16,
     ) -> Result<(), String> {
         if self.plan.first {
-            let pulls = merged_pulls(address, token);
-            self.baseline = pulls.iter().map(pull_number).collect();
+            let pulls = merged_pulls(address, token)?;
+            self.baseline = pulls.iter().map(pull_number).collect::<Result<_, _>>()?;
             if self.plan.kept {
                 let me = live_json(&calls.ends()[4])?;
                 self.tasks.project = read_kept_project(self.plan.client, &me, address, token, forge)?;
             } else {
                 let forges = live_json(&calls.ends()[5])?;
-                let forge = super::first_repository::owned_row(&forges);
+                let forge = super::first_repository::check_owned_row(&forges)?;
                 require(
                     forge["first"]["org"] == "work" && forge["first"]["repository"] == "hello",
                     "first repository is work/hello",
@@ -2138,9 +2259,9 @@ impl LiveJudge<'_> {
             require(live_json(&calls.ends()[calls.ends().len() - 2])?["met"] == true, "chat tree closed")?;
             require_closed_roots(&last, &self.roots)?;
         }
-        let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change);
+        let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change)?;
         require_chat_change(&self.conversation)?;
-        let delegates = self.ended.take().ok_or("ended delegate reader missing")?.whole();
+        let delegates = self.ended.take().ok_or("ended delegate reader missing")?.check_whole()?;
         require(delegates[0].contains(&self.tasks.change), "change task belongs to the chat that called change")?;
         require(!self.conversation.tools.contains("delegate"), "no raw delegate started the task")?;
         let mut tasks = vec![self.tasks.chat, self.tasks.change];
@@ -2148,6 +2269,7 @@ impl LiveJudge<'_> {
         tasks.sort_unstable();
         tasks.dedup();
         let completions = super::live::ctl_completions(self.plan.client, &tasks)?;
+        self.completions.set(Some(Ok(completions)));
         require((1..=25).contains(&completions), "live completion budget: 1–25")?;
         super::live::notice(&format!(
             "COMPLETIONS chat={} change={} count={completions}",
@@ -2158,7 +2280,7 @@ impl LiveJudge<'_> {
             self.plan.line,
             self.token.as_deref().ok_or("oracle credential missing")?,
             &self.baseline,
-        );
+        )?;
         self.evidence.set(Some(LiveEvidence {
             task: String::from_utf8_lossy(&calls.ends()[self.found_at + 1].stdout).into_owned(),
             page,
@@ -2263,6 +2385,7 @@ impl LiveJudge<'_> {
             message.to_owned()
         };
         self.failure.set(Some(super::live::redact(&message)));
+        self.completions.set(Some(self.count_completions()));
         super::live::notice(&format!("FAILURE {message}"));
         if let Some(index) = failing {
             self.dump(index, &calls.ends()[index]);
@@ -2302,10 +2425,44 @@ impl LiveJudge<'_> {
         self.pending.clear();
         self.phase = LivePhase::Done;
     }
+    fn count_completions(&self) -> Result<u32, String> {
+        let mut tasks = vec![];
+        for parent in [self.tasks.chat, self.tasks.change].into_iter().filter(|task| *task != 0) {
+            tasks.push(parent);
+            let read = super::ctl::try_alone(
+                self.plan.client,
+                super::ctl::Call::new(&[
+                    "task",
+                    "list",
+                    "--project",
+                    &self.tasks.project.to_string(),
+                    "--parent",
+                    &parent.to_string(),
+                    "--ended",
+                    "--json",
+                ]),
+            )?;
+            let rows = live_json(&read)?;
+            let ended = &rows["ended"]["rows"];
+            require(
+                rows["live_after"].is_null() && ended["after"].is_null() && ended["cut"] == false,
+                "completion task list incomplete",
+            )?;
+            for row in rows["live"]
+                .as_array()
+                .ok_or("live delegates missing")?
+                .iter()
+                .chain(ended["rows"].as_array().ok_or("ended delegates missing")?)
+            {
+                tasks.push(row["chip"]["task"].as_u64().ok_or("delegate task missing (chip.task)")?);
+            }
+        }
+        tasks.sort_unstable();
+        tasks.dedup();
+        super::live::ctl_completions(self.plan.client, &tasks)
+    }
     fn diagnostic(&self, args: &[&str]) -> Option<super::Ended> {
-        if let Ok(read) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            super::ctl::alone(self.plan.client, super::ctl::Call::new(args))
-        })) {
+        if let Ok(read) = super::ctl::try_alone(self.plan.client, super::ctl::Call::new(args)) {
             // Do not copy conversation prose or tool arguments into notices.
             let stdout = if args.first() == Some(&"chat") {
                 "(committed tools below)".into()
@@ -2404,7 +2561,7 @@ impl LiveJudge<'_> {
         now: skein_lib::Time,
         binary: &mut skein_world::end_to_end::Binary,
         calls: &mut super::ctl::Calls,
-    ) {
+    ) -> Result<(), String> {
         if matches!(self.phase, LivePhase::Done) {
             let failed = self.failure.take();
             self.ending = Some(super::held_login::Ending::new(
@@ -2417,7 +2574,7 @@ impl LiveJudge<'_> {
             self.phase = LivePhase::Returning;
         }
         let ended = self.return_at.and_then(|index| calls.ends().get(index));
-        match self.ending.as_mut().expect("return stage").next(now, calls.foreground_idle(), ended.map(|end| end.exit))
+        match self.ending.as_mut().ok_or("return stage")?.next(now, calls.foreground_idle(), ended.map(|end| end.exit))
         {
             super::held_login::End::Return => {
                 self.return_at = Some(calls.ends().len());
@@ -2435,6 +2592,7 @@ impl LiveJudge<'_> {
                 self.stop(binary, calls);
             }
         }
+        Ok(())
     }
     fn stop(&mut self, binary: &mut skein_world::end_to_end::Binary, calls: &mut super::ctl::Calls) {
         calls.release();
@@ -2448,7 +2606,7 @@ impl LiveJudge<'_> {
         now: skein_lib::Time,
         binary: &mut skein_world::end_to_end::Binary,
         calls: &mut super::ctl::Calls,
-    ) {
+    ) -> Result<(), String> {
         use skein_shell::Host;
         if self.stopping()
             && !self.survivors_noted
@@ -2465,7 +2623,7 @@ impl LiveJudge<'_> {
             self.linked = true;
         }
         if matches!(self.phase, LivePhase::Done | LivePhase::Returning) {
-            self.finish_story(now, binary, calls);
+            self.finish_story(now, binary, calls)?;
         }
         if !self.stopping() && !matches!(self.phase, LivePhase::Returning) {
             self.check_calls(now, calls);
@@ -2473,9 +2631,8 @@ impl LiveJudge<'_> {
         if !self.stopping()
             && !matches!(self.phase, LivePhase::Done | LivePhase::Returning)
             && binary.exit_status().is_none()
-            && let Err(message) = self.advance(now, calls)
         {
-            self.fail(&message, calls, calls.ends().len().checked_sub(1));
+            self.advance(now, calls)?;
         }
         self.watch_waits(binary);
         if !self.stopping() && !matches!(self.phase, LivePhase::Done | LivePhase::Returning) {
@@ -2530,7 +2687,7 @@ impl LiveJudge<'_> {
             self.arguments.push(printed_command(&args));
         }
         if matches!(self.phase, LivePhase::Done | LivePhase::Returning) {
-            self.finish_story(now, binary, calls);
+            self.finish_story(now, binary, calls)?;
         }
         self.watch_waits(binary);
         if self.stopping()
@@ -2542,6 +2699,7 @@ impl LiveJudge<'_> {
             binary.signal_tree(skein_io::kernel::Signal::Kill);
             self.cleanup = true;
         }
+        Ok(())
     }
 }
 impl Referee<Process> for LiveJudge<'_> {
@@ -2557,22 +2715,8 @@ impl Referee<Process> for LiveJudge<'_> {
         }
         let (drivers, peers) = procs.split_at_mut(2);
         let [Process::Binary(binary), Process::Calls(calls)] = drivers else { return };
-        // Legacy oracle assertions must never unwind through the world's Tree.
-        // Their recorded failure is raised by the caller after run_live returns.
-        if let Err(failed) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.drive(now, binary, calls))) {
-            let message = failed
-                .downcast_ref::<String>()
-                .map(String::as_str)
-                .or_else(|| failed.downcast_ref::<&str>().copied())
-                .unwrap_or("live referee validation failed");
-            self.fail(message, calls, calls.ends().len().checked_sub(1));
-            // A panic in failure diagnostics may have recorded the failure
-            // before reaching Done. It still enters the return-before-stop stage.
-            if !self.stopping() && !matches!(self.phase, LivePhase::Returning) {
-                self.pending.clear();
-                self.phase = LivePhase::Done;
-            }
-            self.finish_story(now, binary, calls);
+        if let Err(message) = self.drive(now, binary, calls) {
+            self.fail(&message, calls, calls.ends().len().checked_sub(1));
         }
         if self.stopping() {
             for peer in peers {
@@ -2588,11 +2732,16 @@ impl Referee<Process> for LiveJudge<'_> {
             }
         }
     }
-    fn observe(&mut self, _now: skein_lib::Time, procs: &[Process]) {
+    fn watch(&mut self, _now: skein_lib::Time, procs: &[Process]) -> Result<(), String> {
         use skein_shell::Host;
+        if let Some(why) = self.failure.take() {
+            self.failure.set(Some(why.clone()));
+            return Err(why);
+        }
         if self.stopping() && procs.iter().all(Host::is_empty) {
             self.phase = LivePhase::Settled;
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<skein_lib::Time> {
         if matches!(self.phase, LivePhase::Settled) || self.cleanup {
@@ -2606,7 +2755,10 @@ impl Referee<Process> for LiveJudge<'_> {
         }
     }
     fn passed(&self) -> bool {
-        matches!(self.phase, LivePhase::Settled)
+        let finding = self.failure.take();
+        let passed = finding.is_none() && matches!(self.phase, LivePhase::Settled);
+        self.failure.set(finding);
+        passed
     }
 }
 
@@ -2620,6 +2772,20 @@ pub fn run_live(
     plan: LivePlan<'_>,
     budget: Duration,
     face: Face,
+) -> Result<super::boxed::CtlOutcome<LiveEvidence>, String> {
+    run_live_counted(plan, budget, face, &mut Ok(0))
+}
+
+/// The sitting's completion count survives a returned finding, for the live summary.
+#[expect(
+    clippy::too_many_lines,
+    reason = "The sitting admits its hosts and retains their findings and completion count together."
+)]
+pub fn run_live_counted(
+    plan: LivePlan<'_>,
+    budget: Duration,
+    face: Face,
+    completions: &mut Result<u32, String>,
 ) -> Result<super::boxed::CtlOutcome<LiveEvidence>, String> {
     use skein_shell::{Clock, Host};
     use skein_world::end_to_end::{Binary, Command, Expectation, Mode};
@@ -2636,7 +2802,7 @@ pub fn run_live(
                 .map(Into::into)
                 .chain(["--echo".into(), "steps".into()])
                 .collect(),
-            directory: plan.paths[0].parent().expect("scratch root").into(),
+            directory: plan.paths[0].parent().ok_or("scratch root")?.into(),
             environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
         },
         Mode::Pipes,
@@ -2644,14 +2810,15 @@ pub fn run_live(
         Expectation::Supervise,
         false,
     )
-    .expect("live box starts");
-    let streams = binary.take_streams().expect("box pipes");
+    .map_err(|error| format!("live box starts: {error:?}"))?;
+    let streams = binary.take_streams().ok_or("box pipes")?;
     let mut fds = streams.descriptors();
-    let root = skein_shell::open_root(plan.client).expect("fresh client root");
+    let root = skein_shell::open_root(plan.client).map_err(|error| format!("fresh client root: {error}"))?;
     fds.push(root);
     let (commands, account_at) = live_commands(plan.first && !plan.kept, plan.model);
     let failure = std::cell::Cell::new(None);
     let evidence = std::cell::Cell::new(None);
+    let count = std::cell::Cell::new(None);
     let mut world = real::World::new(LiveJudge {
         tasks: plan.tasks.clone().unwrap_or_default(),
         baseline: plan.baseline.cloned().unwrap_or_default(),
@@ -2683,6 +2850,7 @@ pub fn run_live(
         conversation: conversation::Evidence::new(0, 0),
         ended: None,
         evidence: &evidence,
+        completions: &count,
         deadline: live_deadline(budget, &binary),
         poll: clock.now().now,
     });
@@ -2698,12 +2866,14 @@ pub fn run_live(
     // Failure diagnostics: at most 36 ctl reads (60s each), a 20s native
     // change-page read, a 60s return, and ten seconds to cancel, drain and reap afterwards.
     let drain_budget = Duration::from_secs(36 * 60 + 90);
-    let ended = world.run(&clock, Duration::from_nanos(budget.as_nanos().saturating_add(drain_budget.as_nanos())));
+    let ended = world.try_run(&clock, Duration::from_nanos(budget.as_nanos().saturating_add(drain_budget.as_nanos())));
+    *completions = count.take().unwrap_or_else(|| Err("completion count unavailable".into()));
+    let ended = ended?;
     if !ended.procs.iter().all(Host::is_empty) {
         return Err("live box, descendants and ctl did not drain".into());
     }
     let [Process::Binary(binary), Process::Calls(calls), ..] = ended.procs.as_slice() else {
-        panic!("live box and ctl")
+        return Err("live box and ctl".into());
     };
     if let Some(message) = failure.take() {
         super::live::notice(&format!("BOX stderr: {}", String::from_utf8_lossy(binary.stderr())));
@@ -2725,7 +2895,7 @@ pub fn run_live(
     })
 }
 
-fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task: u64) -> String {
+fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task: u64) -> Result<String, String> {
     use skein_shell::{Clock, Host};
     use skein_world::{Referee, real};
     use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
@@ -2764,7 +2934,9 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
                 self.closing = true;
             }
         }
-        fn observe(&mut self, _now: skein_lib::Time, _clients: &[NativeClient]) {}
+        fn watch(&mut self, _now: skein_lib::Time, _clients: &[NativeClient]) -> Result<(), String> {
+            Ok(())
+        }
         fn next_deadline(&self) -> Option<skein_lib::Time> {
             if self.closing { None } else { self.until.until() }
         }
@@ -2772,7 +2944,7 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
             self.closing
         }
     }
-    let root = skein_shell::open_root(client).expect("client's parent root");
+    let root = skein_shell::open_root(client).map_err(|error| format!("client's parent root: {error}"))?;
     let clock = Clock::new();
     let page = std::cell::Cell::new(String::new());
     let mut world = real::World::new(Judge {
@@ -2785,23 +2957,24 @@ fn live_change_page(engine: std::net::SocketAddr, client: &std::path::Path, task
             skein_lib::Duration::from_secs(10),
         ),
     });
-    world.spawn_with_fds(vec![root], || {
-        NativeClient::new(
-            Settings {
-                engine: skein_io::Addr::Ip(engine),
-                directory: b"client".as_slice().into(),
-                limits: temper_client_shell_terminal::limits::native(),
-            },
-            root,
-            skein_shell::effective_user(),
-            91,
-            Start::Token,
-        )
-        .expect("native reader")
-    });
-    let ended = world.run(&clock, skein_lib::Duration::from_secs(20));
-    assert!(ended.procs.iter().all(Host::is_empty), "native reader drained");
-    page.take()
+    let reader = NativeClient::new(
+        Settings {
+            engine: skein_io::Addr::Ip(engine),
+            directory: b"client".as_slice().into(),
+            limits: temper_client_shell_terminal::limits::native(),
+        },
+        root,
+        skein_shell::effective_user(),
+        91,
+        Start::Token,
+    )
+    .map_err(|error| format!("native reader: {error:?}"))?;
+    world.spawn_with_fds(vec![root], || reader);
+    let ended = world.try_run(&clock, skein_lib::Duration::from_secs(20))?;
+    if !ended.procs.iter().all(Host::is_empty) {
+        return Err("native reader drained".into());
+    }
+    Ok(page.take())
 }
 
 fn client_address(calls: &super::ctl::Calls) -> Result<std::net::SocketAddr, String> {
@@ -2833,7 +3006,7 @@ fn read_kept_project(
     let mut projects = Vec::new();
     for project in visible_projects(me)? {
         let read =
-            super::ctl::alone(client, super::ctl::Call::new(&["project", "show", &project.to_string(), "--json"]));
+            super::ctl::try_alone(client, super::ctl::Call::new(&["project", "show", &project.to_string(), "--json"]))?;
         require(read.exit == Some(Exit::Code(0)), "kept project read failed")?;
         let document = live_json(&read)?;
         require(document["number"] == project, "kept project read names another project")?;

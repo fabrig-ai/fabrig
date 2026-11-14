@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::store::route::{self, Up};
+use crate::store::route::{self, CommitStop, RouteStop, Up};
 use ::core::mem::size_of;
 use jig_domain_core as core;
 use jig_protocol_store as store;
@@ -21,6 +21,86 @@ fn a_frame_refusal_routes_one_named_terminal_with_all_bounds() {
     };
     assert!(out.is_empty(), "no duplicate generic uncommitted terminal");
 }
+#[test]
+fn a_failed_commit_routes_the_stores_cause_whole() {
+    let mut routes = fixtures::routes();
+    route::down(&mut routes, engine::StoreRequest::Commit { number: 9, writes: Box::new([]) }).unwrap();
+    let why = store::CommitFailure::Refused(skein_kv::Refusal::Full(skein_kv::Exhausted::Budget {
+        used: 100,
+        budget: 110,
+        projected: 120,
+    }));
+    let mut out = Queue::uncapped();
+    route::up(&mut routes, store::Event::Failed { number: 7, why }, &mut out);
+    failed_commit(&mut out, 7, CommitStop::Store(why));
+}
+
+#[test]
+fn open_and_secrets_refusals_name_their_route_stop_and_last_routed_commit() {
+    for (event, why) in [
+        (store::Event::OpenRefused { owner: fixtures::OWNER, why: store::OpenRefusal::Failed }, RouteStop::Open),
+        (store::Event::SecretsNotReady { owner: fixtures::OWNER }, RouteStop::Secrets),
+    ] {
+        let mut routes = fixtures::routes();
+        route::down(&mut routes, engine::StoreRequest::Commit { number: 7, writes: Box::new([]) }).unwrap();
+        route::down(&mut routes, engine::StoreRequest::Commit { number: 9, writes: Box::new([]) }).unwrap();
+        let mut out = Queue::uncapped();
+        route::up(&mut routes, event, &mut out);
+        failed_commit(&mut out, 9, CommitStop::Route(why));
+    }
+}
+
+#[test]
+fn a_page_past_the_start_that_cannot_be_cut_names_page_and_the_last_commit() {
+    let mut routes = fixtures::routes();
+    route::down(&mut routes, engine::StoreRequest::Commit { number: 9, writes: Box::new([]) }).unwrap();
+    let Some(store::Request::Transcript { owner, .. }) = route::down(
+        &mut routes,
+        load(engine::Range::Core(engine::CoreRange::Turns { task: 7, attempt: 1 }), None, 1, 1),
+    ) else {
+        panic!("archive load")
+    };
+    let mut out = Queue::uncapped();
+    route::up(
+        &mut routes,
+        store::Event::Turns { owner, turns: Box::new([window_turn(1, 0)]), next: None, cut: None },
+        &mut out,
+    );
+    failed_commit(&mut out, 9, CommitStop::Route(RouteStop::Page));
+    assert!(routes.idle());
+}
+
+#[test]
+fn a_filtered_load_that_repeats_its_cursor_names_cursor_and_the_last_commit() {
+    let mut routes = fixtures::routes();
+    route::down(&mut routes, engine::StoreRequest::Commit { number: 9, writes: Box::new([]) }).unwrap();
+    let Some(store::Request::Load { owner, .. }) = route::down(
+        &mut routes,
+        load(engine::Range::History(forge::HistoryRange::Events { project: 3 }), None, 1, 4096),
+    ) else {
+        panic!("history load")
+    };
+    let next = store::Cursor { interval: 0, after: Box::new([1]) };
+    let mut out = Queue::uncapped();
+    route::up(&mut routes, store::Event::Loaded { owner, rows: Box::new([]), next: Some(next.clone()) }, &mut out);
+    let Some(Up::Ask(store::Request::Load { owner: continued, after: Some(after), .. })) = out.pop() else {
+        panic!("the first empty page continues")
+    };
+    assert_eq!(continued, owner);
+    assert_eq!(after, next);
+    assert!(out.is_empty());
+    route::up(&mut routes, store::Event::Loaded { owner, rows: Box::new([]), next: Some(next) }, &mut out);
+    failed_commit(&mut out, 9, CommitStop::Route(RouteStop::Cursor));
+    assert!(routes.idle());
+}
+
+fn failed_commit(out: &mut Queue<Up>, expected_number: u64, expected_why: CommitStop) {
+    let Some(Up::Failed { number, why }) = out.pop() else { panic!("named failed commit") };
+    assert_eq!(number, expected_number);
+    assert_eq!(why, expected_why);
+    assert!(out.is_empty(), "no duplicate generic Uncommitted terminal");
+}
+
 fn forge_row(commit: u8) -> store::Row {
     let row = forge::Stored::Landed { commit: [commit; 32], task: 3 };
     store::Row::Application {

@@ -2,7 +2,9 @@
 //! when smith became temper's second harness consumer (testing-strategy.md, 6).
 
 use skein_lib::{Duration, Rng, Time};
-use skein_world::domain::{Ledger, Schedule, Span, Stage, Trace, assert_replays};
+use std::cell::Cell;
+
+use skein_world::domain::{Ledger, Schedule, Span, Stage, Trace, assert_replays, check_replays};
 
 fn at(milliseconds: u64) -> Time {
     Time::ZERO.saturating_add(Duration::from_millis(milliseconds))
@@ -59,6 +61,67 @@ fn replay_compares_boundary_order_and_the_scenario_outcome() {
     });
     assert_eq!(lines.len(), 1);
     assert!(lines[0].ends_with("reply"));
+}
+
+#[test]
+fn settlement_returns_open_keys_until_their_terminals_arrive() {
+    let mut ledger = Ledger::new("domain effect");
+    assert_eq!(ledger.check_settled(), Ok(()));
+    ledger.open(2_u64, ());
+    ledger.open(1_u64, ());
+    assert_eq!(ledger.check_settled(), Err("every domain effect has ended: [1, 2] have not".to_owned()));
+    ledger.end(1);
+    assert_eq!(ledger.check_settled(), Err("every domain effect has ended: [2] have not".to_owned()));
+    ledger.end(2);
+    assert_eq!(ledger.check_settled(), Ok(()));
+}
+
+#[test]
+fn replay_returns_the_trace_after_checking_both_seeds() {
+    // A trace need not implement Debug.
+    #[derive(PartialEq)]
+    struct Course(u64);
+
+    let seeds = std::cell::RefCell::new(Vec::new());
+    let trace = check_replays(7, 8, |seed| {
+        seeds.borrow_mut().push(seed);
+        (Course(seed), "settled")
+    })
+    .expect("a seed replays and another takes its own course");
+    assert_eq!(trace.0, 7);
+    assert_eq!(*seeds.borrow(), [7, 7, 8]);
+}
+
+#[test]
+fn replay_returns_a_trace_difference_with_its_seed() {
+    let calls = Cell::new(0);
+    let result = check_replays(7, 8, |_| {
+        let call = calls.get();
+        calls.set(call + 1);
+        (call, ())
+    });
+    assert_eq!(result, Err("seed 7 replays to the same trace".to_owned()));
+    assert_eq!(calls.get(), 2, "a replay failure does not run the other seed");
+}
+
+#[test]
+fn replay_returns_an_end_difference_with_both_debug_values() {
+    let calls = Cell::new(0);
+    let result = check_replays(7, 8, |seed| {
+        let call = calls.get();
+        calls.set(call + 1);
+        (seed, ("settled", call))
+    });
+    assert_eq!(
+        result,
+        Err("assertion `left == right` failed: seed 7 replays to the same end\n  left: (\"settled\", 1)\n right: (\"settled\", 0)".to_owned())
+    );
+    assert_eq!(calls.get(), 2, "a replay failure does not run the other seed");
+}
+
+#[test]
+fn replay_returns_the_two_seeds_when_their_courses_are_the_same() {
+    assert_eq!(check_replays(7, 8, |_| ("one course", ())), Err("seeds 7 and 8 take courses of their own".to_owned()));
 }
 
 #[test]

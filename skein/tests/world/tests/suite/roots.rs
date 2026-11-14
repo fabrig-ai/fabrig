@@ -143,16 +143,11 @@ fn a_restarted_process_appends_again_to_its_startup_file() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_failed_restartable_startup_append_closes_its_roots_and_fails() {
     let (mut world, handles) = restartable(59);
-    let refusal = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        world.spawn_restartable_startup(restart_roots(), restart_appends(b"missing/trace"), restart_child);
-    }))
-    .expect_err("missing append fails startup");
-    assert_eq!(
-        refusal.downcast_ref::<String>().expect("world failure text"),
-        "a restartable startup append trace opens: NotFound"
-    );
+    let refusal = world
+        .try_spawn_restartable_startup(restart_roots(), restart_appends(b"missing/trace"), restart_child)
+        .expect_err("missing append fails startup");
+    assert_eq!(refusal, "a restartable startup append trace opens: NotFound");
     assert_eq!(handles.get(), BASE_HANDLES);
 }

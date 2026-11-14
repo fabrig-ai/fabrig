@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 root = Path(__file__).resolve().parent
-assert Path.cwd() == root
+assert Path.cwd() == Path(os.environ.get('FIXTURE_HOLD_CWD', root))
 assert 'TIERS_HOLD' not in os.environ, 'hold setting leaked to hold'
 
 

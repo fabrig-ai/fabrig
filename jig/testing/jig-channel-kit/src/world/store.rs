@@ -147,6 +147,15 @@ impl Store {
         names: &[core::settings::ModelName],
         connector: &jig_test_connector::Limits,
     ) -> Vec<Commit> {
+        self.check(events, limits, names, connector).unwrap_or_else(|why| panic!("{why}"))
+    }
+    pub fn check(
+        &mut self,
+        events: &mut Vec<Observed>,
+        limits: &codec::View,
+        names: &[core::settings::ModelName],
+        connector: &jig_test_connector::Limits,
+    ) -> Result<Vec<Commit>, String> {
         let mut committed = Vec::new();
         for event in events.drain(..) {
             match event {
@@ -156,36 +165,36 @@ impl Store {
                     file[at..at + bytes.len()].copy_from_slice(&bytes);
                 }
                 Observed::Pending(bytes) => {
-                    self.pending = frames(&bytes, self.applied)
+                    self.pending = check_frames(&bytes, self.applied)?
                         .into_iter()
                         .filter(|(number, _)| *number > self.applied)
                         .map(|(number, ops)| self.commit(number, ops, limits, names, connector))
-                        .collect();
+                        .collect::<Result<_, _>>()?;
                 }
                 Observed::Recovered(path) if is_log(&path) => {
                     if let Some(bytes) = self.files.get(&path) {
-                        self.recovered.extend(frames(bytes, 0).into_iter().map(|(number, _)| number));
+                        self.recovered.extend(check_frames(bytes, 0)?.into_iter().map(|(number, _)| number));
                     }
-                    committed.extend(self.durable(&path, limits, names, connector));
+                    committed.extend(self.durable(&path, limits, names, connector)?);
                 }
                 Observed::Snapshot(path) => {
                     if let Some(bytes) = self.files.get(&path)
                         && let Some((number, ops)) = snapshots::read(bytes)
                         && self.applied < number
                     {
-                        let commit = self.commit(number, ops, limits, names, connector);
-                        self.apply(&commit, limits);
+                        let commit = self.commit(number, ops, limits, names, connector)?;
+                        self.apply(&commit, limits)?;
                         self.recovered.extend(1..=number);
                         committed.push(commit);
                     }
                 }
                 Observed::Sync(path) if is_log(&path) => {
-                    committed.extend(self.durable(&path, limits, names, connector));
+                    committed.extend(self.durable(&path, limits, names, connector)?);
                 }
                 Observed::Sync(_) | Observed::Recovered(_) => {}
             }
         }
-        committed
+        Ok(committed)
     }
     fn durable(
         &mut self,
@@ -193,22 +202,22 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &jig_test_connector::Limits,
-    ) -> Vec<Commit> {
+    ) -> Result<Vec<Commit>, String> {
         let mut committed = Vec::new();
-        let Some(bytes) = self.files.get(path) else { return committed };
-        let frames = frames(bytes, self.applied);
+        let Some(bytes) = self.files.get(path) else { return Ok(committed) };
+        let frames = check_frames(bytes, self.applied)?;
         for (number, ops) in frames {
             if number <= self.applied {
                 continue;
             }
-            let commit = self.commit(number, ops, limits, names, connector);
-            self.apply(&commit, limits);
+            let commit = self.commit(number, ops, limits, names, connector)?;
+            self.apply(&commit, limits)?;
             self.pending.retain(|pending| pending.number > number);
             committed.push(commit);
         }
-        committed
+        Ok(committed)
     }
-    fn apply(&mut self, commit: &Commit, limits: &codec::View) {
+    fn apply(&mut self, commit: &Commit, limits: &codec::View) -> Result<(), String> {
         for write in &commit.writes {
             match write {
                 root::Write::DropTranscript { task } => {
@@ -227,9 +236,9 @@ impl Store {
                         root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(*number))));
                     let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
                         core::settings::Record::Revision { revision, .. },
-                    ))) = self.rows.get(&key).expect("held settings revision").clone()
+                    ))) = self.rows.get(&key).ok_or("held settings revision")?.clone()
                     else {
-                        panic!("revision row")
+                        return Err(String::from("revision row"));
                     };
                     let row = root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
                         core::settings::Record::Revision { history: true, revision },
@@ -239,7 +248,7 @@ impl Store {
                 root::Write::Save(row) => {
                     self.rows.insert(row.key(), row.clone());
                     if let root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = row {
-                        let len = transcripts::frame::encode(turn, limits).expect("observed frame bounds").len() as u64;
+                        let len = transcripts::frame::encode(turn, limits).ok_or("observed frame bounds")?.len() as u64;
                         *self.lengths.entry(turn.task).or_default() += len;
                     }
                 }
@@ -249,6 +258,7 @@ impl Store {
             }
         }
         self.applied = commit.number;
+        Ok(())
     }
     fn commit(
         &self,
@@ -257,24 +267,30 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &jig_test_connector::Limits,
-    ) -> Commit {
+    ) -> Result<Commit, String> {
         let mut writes = Vec::new();
         for op in ops {
             match op {
                 skein_kv::Op::Put { key, value } => {
                     if let Some(key) = keys::decode(&key) {
-                        let row = codec::decode(&key, &value, limits, names).expect("real stored row decodes");
+                        let row = codec::decode(&key, &value, limits, names).ok_or("real stored row decodes")?;
                         writes.push(root::Write::Save(root::Record::Core(row)));
                     } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(&key) {
-                        let place = codec::component::Transcript::decode(&value).expect("real transcript place");
+                        let place = codec::component::Transcript::decode(&value)
+                            .map_err(|why| format!("real transcript place: {why:?}"))?;
                         let name = format!("transcripts/{:016x}/{task:016x}", task >> 12).into_bytes();
-                        let bytes = self.files.get(&name).expect("transcript write precedes map commit");
+                        let bytes = self.files.get(&name).ok_or("transcript write precedes map commit")?;
                         let mut at = usize::try_from(self.lengths.get(&task).copied().unwrap_or(0))
-                            .expect("fixture transcript offset");
-                        while at < usize::try_from(place.length).expect("fixture transcript length") {
-                            let len = u32::from_be_bytes(bytes[at..at + 4].try_into().expect("frame length")) as usize;
+                            .map_err(|why| format!("fixture transcript offset: {why:?}"))?;
+                        while at
+                            < usize::try_from(place.length)
+                                .map_err(|why| format!("fixture transcript length: {why:?}"))?
+                        {
+                            let len = u32::from_be_bytes(
+                                bytes[at..at + 4].try_into().map_err(|why| format!("frame length: {why:?}"))?,
+                            ) as usize;
                             let turn = transcripts::frame::decode(&bytes[at..at + len], limits)
-                                .expect("whole real transcript frame");
+                                .map_err(|why| format!("whole real transcript frame: {why:?}"))?;
                             writes.push(root::Write::Save(root::Record::Core(core::Record::Core(
                                 core::CoreRecord::Turn(turn),
                             ))));
@@ -282,8 +298,9 @@ impl Store {
                         }
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let (number, _) =
-                            jig_test_store::keys::decode(&key[1..], connector).expect("real application key");
-                        let record = jig_test_store::records::decode(&value, connector).expect("real application row");
+                            jig_test_store::keys::decode(&key[1..], connector).ok_or("real application key")?;
+                        let record = jig_test_store::records::decode(&value, connector)
+                            .map_err(|why| format!("real application row: {why:?}"))?;
                         writes.push(root::Write::Save(root::Record::Connector { number, record }));
                     }
                 }
@@ -294,54 +311,84 @@ impl Store {
                         writes.push(root::Write::DropTranscript { task });
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let (number, key) =
-                            jig_test_store::keys::decode(&key[1..], connector).expect("real application key");
+                            jig_test_store::keys::decode(&key[1..], connector).ok_or("real application key")?;
                         writes.push(root::Write::Erase(root::Key::Connector { number, key }));
                     }
                 }
             }
         }
-        Commit { number, writes }
+        Ok(Commit { number, writes })
     }
 }
+type Frames = Vec<(u64, Box<[skein_kv::Op]>)>;
+
 /// Applied frames have already been checked; skip their bodies and checksums.
-fn frames(bytes: &[u8], after: u64) -> Vec<(u64, Box<[skein_kv::Op]>)> {
+fn check_frames(bytes: &[u8], after: u64) -> Result<Frames, String> {
     let mut reader = Reader::new(bytes);
     let mut frames = Vec::new();
     while reader.remaining() >= 26 {
         let start = bytes.len() - reader.remaining() as usize;
-        assert_eq!(reader.bytes(4), Some(b"SKVC".as_slice()), "real KV frame magic");
-        assert_eq!(reader.u16(), Some(1), "real KV frame version");
-        let number = reader.u64().expect("frame number");
-        let count = reader.u32().expect("frame writes");
-        let body = reader.u32().expect("frame body length");
+        {
+            let (observed_value, wanted) = (&(reader.bytes(4)), &(Some(b"SKVC".as_slice())));
+            if observed_value != wanted {
+                return Err(format!(
+                    "real KV frame magic; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                ));
+            }
+        }
+        {
+            let (observed_value, wanted) = (&(reader.u16()), &(Some(1)));
+            if observed_value != wanted {
+                return Err(format!(
+                    "real KV frame version; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                ));
+            }
+        }
+        let number = reader.u64().ok_or("frame number")?;
+        let count = reader.u32().ok_or("frame writes")?;
+        let body = reader.u32().ok_or("frame body length")?;
         if reader.remaining() < body + 4 {
             break;
         }
         if number <= after {
-            reader.skip(body + 4).expect("applied frame body and checksum");
+            reader.skip(body + 4).ok_or("applied frame body and checksum")?;
             continue;
         }
         let end = (bytes.len() - reader.remaining() as usize) + body as usize;
         let mut ops = Vec::new();
         for _ in 0..count {
-            let kind = reader.u8().expect("write kind");
-            let len = reader.u32().expect("key length");
-            let key = reader.bytes(len).expect("key").into();
+            let kind = reader.u8().ok_or("write kind")?;
+            let len = reader.u32().ok_or("key length")?;
+            let key = reader.bytes(len).ok_or("key")?.into();
             ops.push(match kind {
                 1 => {
-                    let len = reader.u32().expect("value length");
-                    skein_kv::Op::Put { key, value: reader.bytes(len).expect("value").into() }
+                    let len = reader.u32().ok_or("value length")?;
+                    skein_kv::Op::Put { key, value: reader.bytes(len).ok_or("value")?.into() }
                 }
                 2 => skein_kv::Op::Erase { key },
-                _ => panic!("real KV write kind"),
+                _ => return Err(String::from("real KV write kind")),
             });
         }
-        assert_eq!((bytes.len() - reader.remaining() as usize), end, "whole frame operations");
+        {
+            let (observed_value, wanted) = (&(bytes.len() - reader.remaining() as usize), &(end));
+            if observed_value != wanted {
+                return Err(format!(
+                    "whole frame operations; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                ));
+            }
+        }
         let expected = transcripts::frame::crc32c(&bytes[start..end]);
-        assert_eq!(reader.u32(), Some(expected), "real KV frame checksum");
+        {
+            let (observed_value, wanted) = (&(reader.u32()), &(Some(expected)));
+            if observed_value != wanted {
+                return Err(format!(
+                    "real KV frame checksum; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                ));
+            }
+        }
         frames.push((number, ops.into_boxed_slice()));
     }
-    frames
+    Ok(frames)
 }
 
 fn is_log(path: &[u8]) -> bool {
@@ -361,4 +408,8 @@ fn store_file(path: &[u8]) -> Option<&[u8]> {
     }
     std::str::from_utf8(number).ok()?.parse::<u64>().ok()?;
     rest.strip_prefix(b"store/")
+}
+
+fn frames(bytes: &[u8], after: u64) -> Frames {
+    check_frames(bytes, after).unwrap_or_else(|why| panic!("{why}"))
 }

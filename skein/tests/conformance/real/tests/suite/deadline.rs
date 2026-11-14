@@ -21,7 +21,6 @@ fn idle_listener() -> (TcpListener, Real, usize) {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_idle_unanswered_operation_fails_with_its_figures() {
     let (listener, mut real, process) = idle_listener();
     let token = Token::new(1);
@@ -32,25 +31,22 @@ fn an_idle_unanswered_operation_fails_with_its_figures() {
     // An accept without a peer cannot answer; sleep is idle, not runnable wait.
     real.sleep(PATIENCE);
     real.wait_unanswered();
-    let figures = real.wait_figures().expect("an idle unanswered wait has scheduler figures");
-    let failure = std::panic::catch_unwind(|| panic!("no completion: {figures}"))
-        .expect_err("an idle unanswered operation fails");
-    let text = failure.downcast_ref::<String>().expect("failure includes its figures");
-    assert!(text.starts_with("no completion: the idle conformance accept: patience 20000000 ns; elapsed "), "{text}");
+    let text = real.wait_figures().expect("an idle unanswered wait has scheduler figures");
+    assert!(text.starts_with("the idle conformance accept: patience 20000000 ns; elapsed "), "{text}");
     assert!(text.contains("thread runnable wait ") && text.contains("thread CPU "), "{text}");
     assert!(text.contains("tree runnable wait "), "{text}");
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_idle_listener_wait_fails_with_its_figures() {
     let (listener, mut real, process) = idle_listener();
-    let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        real.wait_for_connection(process, Fd::new(listener.as_raw_fd()), PATIENCE);
-    }))
-    .expect_err("a listener without a connection fails");
-    let text = failure.downcast_ref::<String>().expect("failure includes its figures");
-    assert!(text.starts_with("no connection arrived on listener "), "{text}");
+    let fd = Fd::new(listener.as_raw_fd());
+    let text = real.try_wait_for_connection(process, fd, PATIENCE).expect_err("a listener without a connection fails");
+    let figures = real.wait_figures().expect("an idle listener wait has scheduler figures");
+    assert_eq!(
+        text,
+        format!("no connection arrived on listener {fd:?} of process {process} within {PATIENCE:?}: {figures}")
+    );
     assert!(text.contains("the conformance listener's queued connection: patience 20000000 ns; elapsed "), "{text}");
     assert!(text.contains("thread runnable wait ") && text.contains("thread CPU "), "{text}");
     assert!(text.contains("tree runnable wait "), "{text}");

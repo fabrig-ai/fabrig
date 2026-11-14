@@ -145,7 +145,11 @@ fn root_puts_store_the_binary_id_count_it_and_refuse_a_nonversion_head() {
             ]),
         ),
     );
-    let [Event::Failed { number: failed }] = events.as_ref() else { panic!("{events:?}") };
+    let [Event::Failed { number: failed, why: crate::CommitFailure::Check(crate::CommitCheck::Encoding) }] =
+        events.as_ref()
+    else {
+        panic!("{events:?}")
+    };
     assert_eq!(*failed, number + 1);
     assert_eq!(store.stores.store.last(), number);
     assert!(app(&mut store, b"a/2").is_none());

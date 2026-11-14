@@ -432,3 +432,321 @@ fn saved_reply(write: &crate::Write) -> Option<&forge::RedReply> {
 fn held(task: &tasks::TaskRecord) -> bool {
     if let tasks::Phase::Held { .. } = task.phase { true } else { false }
 }
+
+fn report() -> crate::wire::CheckResults {
+    crate::wire::CheckResults {
+        tag: forge::tag(1, 1),
+        check: 2,
+        tree: Box::new([0xab; 20]),
+        base: None,
+        verdict: crate::wire::Verdict::Passed,
+        passed: Box::new([b"a".as_slice().into()]),
+        failed: Box::new([]),
+        flakes: Box::new([]),
+    }
+}
+fn flake() -> crate::wire::Flake {
+    crate::wire::Flake { key: b"test fabrig-x::t b".as_slice().into(), log: b"boom".as_slice().into() }
+}
+fn decide_report(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    attempt: u64,
+    results: crate::wire::CheckResults,
+) -> Box<[crate::Write]> {
+    domain.limits = env.limits;
+    domain.work.push(crate::boundary::Work::CheckResults { task, attempt, results });
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    crate::route::route_into(domain, env, &mut decision);
+    assert!(domain.start_stop().is_none(), "{:?}", domain.start_stop());
+    assert!(domain.work.is_empty());
+    crate::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, false).unwrap();
+    if let Some(crate::JournalOutput::Commit { number, writes }) =
+        crate::commit(&mut domain.journal, &env.limits.journal)
+    {
+        crate::committed(&mut domain.journal, number);
+        let mut out = Queue::uncapped();
+        crate::resume(&mut domain.journal, &mut out);
+        writes
+    } else {
+        Box::default()
+    }
+}
+#[test]
+fn a_reported_pass_ends_its_red_when_the_changes_landing_is_read_back() {
+    use temper_engine_domain_forge_change as change;
+    use temper_engine_domain_forge_landing as landing;
+    let (mut domain, env) = fixture(b"temper/8/g7");
+    decide_report(&mut domain, &env, 20, 1, report());
+    let mut row = domain.forge.change(20).unwrap().clone();
+    row.change.way = change::Way::Turn;
+    row.change.landing = Some(61);
+    row.change.state = change::State::Landing { head: [1; 32] };
+    row.change.last_head = Some([1; 32]);
+    restore(&mut domain, &env, forge::Stored::Change(Box::new(row)));
+    restore(
+        &mut domain,
+        &env,
+        forge::Stored::Landing(forge::LandingRow {
+            job: None,
+            landing: landing::Landing {
+                task: 61,
+                project: 1,
+                phase: landing::Phase::Landed,
+                round: landing::Round::new(Box::new([])),
+                last_left: None,
+                branch: b"temper/8/g7".as_slice().into(),
+                preparation: 0,
+                stale_proofs: 0,
+                members: Box::new([landing::Member {
+                    round: None,
+                    change: 20,
+                    repository: landing::Repository { forge: 1, repository: 1 },
+                    pull: 1,
+                    head: Some([1; 32]),
+                    base: None,
+                    candidate: Some([2; 32]),
+                    gates: Box::new([]),
+                    asked: None,
+                    landed: Some([2; 32]),
+                    left: None,
+                    unit: 0,
+                    branch: b"temper/20".as_slice().into(),
+                    combined: None,
+                    recorded: true,
+                    told: false,
+                    judging: false,
+                    leave_told: false,
+                }]),
+            },
+            asks: Box::new([None]),
+            entries: Box::new([]),
+        }),
+    );
+    let event = super::super::change_step(&domain, &env, 20, 1, adopted(1).provider, b"temper/8/g7", false);
+    let mut out = Queue::uncapped();
+    forge::step(&mut domain.forge, &env.with(env.limits.forge), event, &mut out);
+    assert_eq!(domain.forge.reds(7).map(|(_, red)| red.key.as_ref()).collect::<Box<[_]>>().as_ref(), [b"z".as_slice()]);
+    assert!(out.iter().any(|request| *request
+        == forge::Request::Erase { key: forge::Key::RedPass { change: 20, key: b"a".as_slice().into() } }));
+}
+
+fn saved_pass(write: &crate::Write) -> Option<&forge::RedPass> {
+    if let crate::Write::Save(crate::Record::Forge { row }) = write
+        && let forge::Stored::RedPass(pass) = row.as_ref()
+    {
+        Some(pass)
+    } else {
+        None
+    }
+}
+#[test]
+fn passed_reports_keep_the_latest_red_number_and_failed_reports_erase_the_pass() {
+    let (mut domain, env) = fixture(b"temper/8/g7");
+    for task in [20, 24] {
+        let writes = decide_report(&mut domain, &env, task, 1, report());
+        assert_eq!(
+            writes.iter().filter_map(saved_pass).collect::<Box<[_]>>().as_ref(),
+            [&forge::RedPass { change: 20, key: b"a".as_slice().into(), generation: 3 }]
+        );
+    }
+    let mut refused = report();
+    refused.verdict = crate::wire::Verdict::Refused;
+    refused.failed = Box::new([b"a".as_slice().into()]);
+    assert!(decide_report(&mut domain, &env, 20, 1, refused).is_empty());
+    let mut results = report();
+    results.passed = Box::new([]);
+    results.failed = Box::new([b"a".as_slice().into()]);
+    let writes = decide_report(&mut domain, &env, 20, 1, results);
+    assert!(writes.iter().any(|write| *write
+        == crate::Write::Erase(crate::Key::Forge(forge::Key::RedPass { change: 20, key: b"a".as_slice().into() }))));
+    let writes = decide_report(&mut domain, &env, 20, 1, report());
+    assert_eq!(writes.iter().filter_map(saved_pass).count(), 1);
+}
+#[test]
+fn reports_without_a_passed_current_run_and_matching_changes_goal_keep_no_passes() {
+    for (base, task, attempt, refused, other) in [
+        (b"temper/8/g7".as_slice(), 20, 1, true, false),
+        (b"temper/8/g7", 8, 1, false, false),
+        (b"main", 20, 1, false, false),
+        (b"temper/8/g7", 999, 1, false, false),
+        (b"temper/8/g7", 23, 1, false, false),
+        (b"temper/8/g7", 20, 2, false, false),
+        (b"temper/8/g7", 20, 1, false, true),
+    ] {
+        let (mut domain, env) = fixture(base);
+        proof(&mut domain, 999);
+        let mut results = report();
+        if refused {
+            results.verdict = crate::wire::Verdict::Refused;
+        }
+        if task == 23 {
+            tasks::step(
+                &mut domain.core.tasks,
+                &env.with(env.limits.tasks),
+                tasks::Event::Cancel {
+                    reply_to: skein_lib::ReplyTo::new(Token::new(200)),
+                    by: tasks::Party::Deployment { project: 1 },
+                    operation: tasks::Cancel { task, reason: b"ended".as_slice().into(), grace: None, message: None },
+                },
+                &mut Queue::uncapped(),
+            );
+            assert!(match domain.core.tasks.task(task).unwrap().phase {
+                tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
+                tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => false,
+            });
+        }
+        if task == 999 || task == 23 || attempt == 2 {
+            results.flakes = Box::new([flake()]);
+        }
+        if other {
+            let mut repository = adopted(1);
+            repository.provider.repository = 2;
+            repository.project = domain.core.tasks.task(20).unwrap().project;
+            restore(&mut domain, &env, forge::Stored::Repository(repository));
+            results.tag = forge::tag(1, 2);
+        }
+        let writes = decide_report(&mut domain, &env, task, attempt, results);
+        assert!(writes.is_empty(), "task {task}, attempt {attempt}, refused {refused}, other {other}: {writes:?}");
+    }
+}
+fn triager(domain: &mut Domain, env: &Env<Limits>) {
+    let project = domain.core.tasks.task(20).unwrap().project;
+    domain.forge.keep_settings(
+        &crate::route::environment_forge(env),
+        1,
+        None,
+        &[forge::settings::Asked {
+            kind: 15,
+            scope: project,
+            number: 1,
+            edit: forge::settings::Edit::Set(forge::settings::SizedValue {
+                value: forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager {
+                    owner: forge::settings::AreaOwner::Task(8),
+                }),
+                size: 1,
+            }),
+        }],
+        &mut Queue::uncapped(),
+    );
+}
+#[test]
+fn check_flakes_file_with_the_triager_and_count_silently_even_when_refused() {
+    let (mut domain, mut env) = fixture(b"temper/8/g7");
+    env.limits.tasks.message_bytes = 512;
+    env.limits.tasks.inbox_bytes = 2048;
+    triager(&mut domain, &env);
+    let project = domain.core.tasks.task(20).unwrap().project;
+    let mut results = report();
+    results.flakes = Box::new([flake()]);
+    let writes = decide_report(&mut domain, &env, 20, 1, results);
+    let row = domain.forge.finding(project, 1).unwrap();
+    assert_eq!(
+        (row.kind, row.severity, row.area.as_deref(), row.filer, row.seen),
+        (forge::FindingKind::Flake, forge::Severity::Low, None, forge::Filer::Task(20), Some(1))
+    );
+    assert_eq!(row.title.as_ref(), b"Flake in a delivery's check: test fabrig-x::t b");
+    assert_eq!(row.body.as_ref(), b"A test failed in a delivery's check and passed when its process ran again, with nothing else of the check running.\nRepository: org/repo\nTest: test fabrig-x::t b\nSeen in task 20's check 2 (attempt 1): tree abababababababababababababababababababab, base none.\nIts log under load:\nboom");
+    assert_eq!(
+        row.signature,
+        Some(forge::FindingSignature {
+            repository: adopted(1).provider,
+            source: b"check".as_slice().into(),
+            ids: Box::new([flake().key]),
+            first: Box::new([]),
+        })
+    );
+    let subscription =
+        domain.forge.topic_subscriber(8, &forge::Topic::Findings { project }).expect("triager subscribed");
+    assert!(domain.core.tasks.task(8).unwrap().subscriptions.iter().any(|row| row.number == subscription.number));
+    let news = domain
+        .core
+        .tasks
+        .task(8)
+        .unwrap()
+        .inbox
+        .iter()
+        .find(|word| word.words.starts_with(b"Finding "))
+        .expect("triager hears filed flake");
+    assert_eq!(
+        news.kind,
+        tasks::MessageKind::News { subscription: subscription.number, class: tasks::NewsClass::Wakes }
+    );
+    assert!(
+        news.words.starts_with(
+            b"Finding 1/1 is yours: Flake in a delivery's check: test fabrig-x::t b\nflake, low, no area\n"
+        )
+    );
+    assert!(writes.iter().find_map(saved_pass).is_some(), "one decision also keeps passes");
+    let before = row.clone();
+    let mut results = report();
+    results.verdict = crate::wire::Verdict::Refused;
+    results.check = 3;
+    results.flakes = Box::new([flake()]);
+    let writes = decide_report(&mut domain, &env, 20, 1, results);
+    let mut counted = before;
+    counted.seen = Some(2);
+    assert_eq!(domain.forge.finding(project, 1), Some(&counted));
+    assert_eq!(domain.forge.findings(project).count(), 1);
+    assert!(
+        writes.iter().all(|write| if let crate::Write::Save(crate::Record::Forge { row }) = write {
+            if let forge::Stored::Finding(finding) = row.as_ref() { finding == &counted } else { false }
+        } else {
+            if let crate::Write::Save(crate::Record::Core(jig_domain_core::Record::Core(
+                jig_domain_core::CoreRecord::Deployment(_),
+            ))) = write
+            {
+                true
+            } else {
+                false
+            }
+        }),
+        "counting emits no task news: {writes:?}"
+    );
+    let mut results = report();
+    results.verdict = crate::wire::Verdict::Refused;
+    results.flakes = Box::new([crate::wire::Flake { key: b"another".as_slice().into(), log: Box::new([]) }]);
+    decide_report(&mut domain, &env, 20, 1, results);
+    assert_eq!(domain.forge.finding(project, 2).unwrap().seen, Some(1));
+}
+#[test]
+fn a_full_findings_project_drops_only_the_refused_flake() {
+    let (mut domain, mut env) = fixture(b"temper/8/g7");
+    env.limits.forge.findings_per_project = 1;
+    let project = domain.core.tasks.task(20).unwrap().project;
+    let mut results = report();
+    results.flakes = Box::new([flake()]);
+    decide_report(&mut domain, &env, 20, 1, results);
+    let mut results = report();
+    results.flakes = Box::new([crate::wire::Flake { key: b"new".as_slice().into(), log: Box::new([]) }, flake()]);
+    let writes = decide_report(&mut domain, &env, 20, 1, results);
+    assert_eq!(domain.forge.findings(project).count(), 1);
+    assert_eq!(domain.forge.finding(project, 1).unwrap().seen, Some(2));
+    assert!(writes.iter().find_map(saved_pass).is_some());
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "assertions construct expected UTF-8 words")]
+fn flake_words_cut_at_character_boundaries_and_name_unnamed_repositories_by_number() {
+    let (mut domain, env) = fixture(b"temper/8/g7");
+    let project = domain.core.tasks.task(20).unwrap().project;
+    let mut repository = domain.forge.repository_tag(project, forge::tag(1, 1)).unwrap();
+    repository.owner = Box::new([]);
+    restore(&mut domain, &env, forge::Stored::Repository(repository.clone()));
+    let mut results = report();
+    results.base = Some(Box::new([0xcd; 32]));
+    results.flakes = Box::new([crate::wire::Flake {
+        key: "é".repeat(100).into_bytes().into_boxed_slice(),
+        log: "é".repeat(2048).into_bytes().into_boxed_slice(),
+    }]);
+    decide_report(&mut domain, &env, 20, 1, results);
+    let row = domain.forge.finding(project, 1).unwrap();
+    let title = core::str::from_utf8(&row.title).unwrap();
+    assert_eq!(title, format!("Flake in a delivery's check: {}", "é".repeat(85)));
+    assert_eq!(row.title.len(), 199);
+    let body = core::str::from_utf8(&row.body).unwrap();
+    assert!(body.contains("Repository: forge 1, repository 1\n"));
+    assert!(body.contains(&format!("base {}.", "cd".repeat(32))));
+    assert!(body.ends_with("é[cut]"));
+    assert!((4095..=4096).contains(&row.body.len()));
+}

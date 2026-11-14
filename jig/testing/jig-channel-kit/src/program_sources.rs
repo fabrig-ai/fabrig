@@ -63,6 +63,7 @@ pub enum SignOutAnswer {
     Answered(SignOutResult),
 }
 struct Judge {
+    finding: Option<String>,
     shared: Rc<RefCell<Run>>,
     store: Store,
     rules: Rules,
@@ -76,91 +77,29 @@ struct Judge {
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        let hellos = self.observe_wire(procs);
-        for proc in procs {
-            if self.phase == Phase::Done {
-                match proc {
-                    Proc::Engine(host) | Proc::Worker(host) if !host.stopping => {
-                        host.stopping = true;
-                        host.service.shutdown();
-                    }
-                    Proc::Engine(_)
-                    | Proc::Worker(_)
-                    | Proc::Auth(_)
-                    | Proc::Client(_)
-                    | Proc::Agent { .. }
-                    | Proc::Peer(_)
-                    | Proc::Probe(_) => {}
-                }
-            }
-            match proc {
-                Proc::Engine(engine) => {
-                    world::answer_store(engine, &mut self.store, &mut self.rules, false, Story::Chat, now);
-                    let engine = engine.service.engine().expect("engine");
-                    if self.store.applied > 0 && self.phase == Phase::New {
-                        engine.parties_in().push(core::Event::Fleet(fleet::Event::Sources {
-                            sources: Box::new([SourceName::new(b"alice").expect("name")]),
-                        }));
-                        self.phase = Phase::Sources;
-                    }
-                    while let Some(output) = engine.parties_out().pop() {
-                        if let jig_test_service::PartyOutput::Held(jig_test_domain::Delivery::Core(
-                            core::Held::SourceSignedOut { to, result, .. },
-                        )) = output
-                        {
-                            assert_eq!(to.into_token(), Token::new(700));
-                            assert!(self.ended.is_none(), "sign-out ends once");
-                            self.ended = Some(result.map_or(SignOutAnswer::Unconfirmed, SignOutAnswer::Answered));
-                        }
-                    }
-                    if !self.states.is_empty() && self.phase == Phase::Sources {
-                        if self.sign_out {
-                            engine.parties_in().push(core::Event::Fleet(fleet::Event::SignOut {
-                                to: ReplyTo::new(Token::new(700)),
-                                channel: Token::new(1),
-                                name: SourceName::new(b"alice").expect("name"),
-                            }));
-                        }
-                        if let Some(login) = &self.login {
-                            login.set(LoginPhase::Start);
-                            self.phase = Phase::Login;
-                        } else {
-                            self.phase = Phase::Asked;
-                        }
-                    }
-                    if self.phase == Phase::Login && self.login.as_ref().expect("login story").get() == LoginPhase::Done
-                    {
-                        engine.parties_in().push(core::Event::Fleet(fleet::Event::Check {
-                            channel: Token::new(1),
-                            name: SourceName::new(b"alice").expect("name"),
-                        }));
-                        self.phase = Phase::Asked;
-                    }
-                }
-                Proc::Worker(_)
-                | Proc::Auth(_)
-                | Proc::Client(_)
-                | Proc::Agent { .. }
-                | Proc::Peer(_)
-                | Proc::Probe(_) => {}
-            }
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
-        self.record(hellos);
     }
 
-    fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn overdue(&self, now: Time) -> Option<String> {
         (now > Time::ZERO.saturating_add(Duration::from_secs(30))).then(|| "source exchange settles".into())
     }
     fn passed(&self) -> bool {
-        self.phase == Phase::Done
+        self.finding.is_none() && self.phase == Phase::Done
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::LastExpectation
     }
 }
 impl Judge {
-    fn observe_wire(&mut self, procs: &[Proc]) -> usize {
+    fn observe_wire(&mut self, procs: &[Proc]) -> Result<usize, String> {
         let mut snapshots = Vec::new();
         let mut hellos = 0;
         for proc in procs {
@@ -168,8 +107,8 @@ impl Judge {
                 hellos = worker.wire.frames.iter().filter(|(_, kind, _)| *kind == 0x0100).count();
                 for (_, kind, bytes) in worker.wire.frames.iter().skip(self.observed) {
                     if *kind == wire::Kind::Logins.number() {
-                        let record =
-                            wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("whole login bytes");
+                        let record = wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(bytes))
+                            .map_err(|why| format!("whole login bytes: {why:?}"))?;
                         if record.logins().len() == 1 {
                             snapshots.push(record);
                         }
@@ -179,17 +118,26 @@ impl Judge {
             }
         }
         for snapshot in snapshots {
-            let row = snapshot.into_parts().logins.into_boxed().into_iter().next().expect("one source").into_parts();
-            assert_eq!(row.name.as_ref(), b"alice");
+            let row = snapshot.into_parts().logins.into_boxed().into_iter().next().ok_or("one source")?.into_parts();
+            {
+                let (observed_value, wanted) = (&(row.name.as_ref()), &(b"alice"));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
             self.states.push(match row.state {
                 wire::LoginState::Usable => LoginState::Usable,
                 wire::LoginState::NotSignedIn => LoginState::NotSignedIn,
                 wire::LoginState::SignedInOtherwise(method) => {
-                    LoginState::SignedInOtherwise(LoginMethod::new(method.method()).expect("method"))
+                    LoginState::SignedInOtherwise(LoginMethod::new(method.method()).ok_or("method")?)
                 }
                 wire::LoginState::Failed(failure) => {
                     let failure = failure.into_parts();
-                    assert!(failure.detail.len() <= 4096);
+                    if failure.detail.len() > 4096 {
+                        return Err(String::from("assertion failed: failure.detail.len() <= 4096"));
+                    }
                     LoginState::Failed {
                         reason: match failure.reason {
                             wire::SourceFailure::Missing => SourceFailure::Missing,
@@ -205,7 +153,7 @@ impl Judge {
                 }
             });
         }
-        hellos
+        Ok(hellos)
     }
     fn record(&mut self, hellos: usize) {
         self.shared.borrow_mut().states.clone_from(&self.states);
@@ -262,6 +210,7 @@ fn run_inner(
     let login_driver = login_then_check.then(|| Rc::new(Cell::new(LoginPhase::Idle)));
     let login_root = login_then_check.then(|| files.open(base, b".", How::Directory).expect("login launcher root"));
     let judge = Judge {
+        finding: None,
         shared: shared.clone(),
         store: Store::default(),
         rules: Rules::default(),
@@ -476,5 +425,91 @@ fn start_worker(world: &mut skein_world::World<Proc, Judge, Files>, root: Option
             ],
             processes::worker_programs,
         );
+    }
+}
+
+impl Judge {
+    fn check_act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
+        let hellos = self.observe_wire(procs)?;
+        for proc in procs {
+            if self.phase == Phase::Done {
+                match proc {
+                    Proc::Engine(host) | Proc::Worker(host) if !host.stopping => {
+                        host.stopping = true;
+                        host.service.shutdown();
+                    }
+                    Proc::Engine(_)
+                    | Proc::Worker(_)
+                    | Proc::Auth(_)
+                    | Proc::Client(_)
+                    | Proc::Agent { .. }
+                    | Proc::Peer(_)
+                    | Proc::Probe(_) => {}
+                }
+            }
+            match proc {
+                Proc::Engine(engine) => {
+                    world::answer_store(engine, &mut self.store, &mut self.rules, false, Story::Chat, now)?;
+                    let engine = engine.service.engine().ok_or("engine")?;
+                    if self.store.applied > 0 && self.phase == Phase::New {
+                        engine.parties_in().push(core::Event::Fleet(fleet::Event::Sources {
+                            sources: Box::new([SourceName::new(b"alice").ok_or("name")?]),
+                        }));
+                        self.phase = Phase::Sources;
+                    }
+                    while let Some(output) = engine.parties_out().pop() {
+                        if let jig_test_service::PartyOutput::Held(jig_test_domain::Delivery::Core(
+                            core::Held::SourceSignedOut { to, result, .. },
+                        )) = output
+                        {
+                            {
+                                let (observed_value, wanted) = (&(to.into_token()), &(Token::new(700)));
+                                if observed_value != wanted {
+                                    return Err(format!(
+                                        "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                                    ));
+                                }
+                            }
+                            if self.ended.is_some() {
+                                return Err(String::from("sign-out ends once"));
+                            }
+                            self.ended = Some(result.map_or(SignOutAnswer::Unconfirmed, SignOutAnswer::Answered));
+                        }
+                    }
+                    if !self.states.is_empty() && self.phase == Phase::Sources {
+                        if self.sign_out {
+                            engine.parties_in().push(core::Event::Fleet(fleet::Event::SignOut {
+                                to: ReplyTo::new(Token::new(700)),
+                                channel: Token::new(1),
+                                name: SourceName::new(b"alice").ok_or("name")?,
+                            }));
+                        }
+                        if let Some(login) = &self.login {
+                            login.set(LoginPhase::Start);
+                            self.phase = Phase::Login;
+                        } else {
+                            self.phase = Phase::Asked;
+                        }
+                    }
+                    if self.phase == Phase::Login && self.login.as_ref().ok_or("login story")?.get() == LoginPhase::Done
+                    {
+                        engine.parties_in().push(core::Event::Fleet(fleet::Event::Check {
+                            channel: Token::new(1),
+                            name: SourceName::new(b"alice").ok_or("name")?,
+                        }));
+                        self.phase = Phase::Asked;
+                    }
+                }
+                Proc::Worker(_)
+                | Proc::Auth(_)
+                | Proc::Client(_)
+                | Proc::Agent { .. }
+                | Proc::Peer(_)
+                | Proc::Probe(_) => {}
+            }
+        }
+        self.record(hellos);
+
+        Ok(())
     }
 }

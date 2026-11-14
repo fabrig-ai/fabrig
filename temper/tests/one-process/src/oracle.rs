@@ -50,38 +50,49 @@ fn commands(caller: &mut Caller) {
     }
     caller.closed = true;
 }
-fn documents(caller: &Caller, phase: &str, skip: usize) -> Vec<Value> {
-    assert_eq!(caller.answers.len(), READS.len() + skip, "every oracle document answers");
+fn documents(caller: &Caller, phase: &str, skip: usize) -> Result<Vec<Value>, String> {
+    match (&(caller.answers.len()), &(READS.len() + skip)) {
+        (left, right) if left != right => {
+            let finding = String::from("every oracle document answers");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
     caller
         .answers
         .iter()
         .skip(skip)
         .zip(READS)
         .map(|(answer, read)| {
-            assert_eq!(
-                answer.exit,
-                Exit::Code(0),
-                "oracle {phase} read {read:?}: {}",
-                String::from_utf8_lossy(&answer.error)
-            );
-            assert!(answer.error.is_empty(), "oracle read has no diagnostic");
-            serde_json::from_slice(&answer.output).expect("public document JSON")
+            match (&(answer.exit), &(Exit::Code(0))) {
+                (left, right) if left != right => {
+                    let finding = format!("oracle {phase} read {read:?}: {}", String::from_utf8_lossy(&answer.error));
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            if !(answer.error.is_empty()) {
+                return Err(String::from("oracle read has no diagnostic"));
+            }
+            serde_json::from_slice(&answer.output).map_err(|why| format!("public document JSON: {why:?}"))
         })
         .collect()
 }
 /// Hold normal shutdown until the live service has answered every public read.
-pub(crate) fn readback(procs: &mut [Proc]) -> bool {
+pub(crate) fn readback(procs: &mut [Proc]) -> Result<bool, String> {
     STATE.with(|state| {
         let mut state = state.borrow_mut();
         if !state.active {
-            return true;
+            return Ok(true);
         }
         let caller = procs
             .iter_mut()
             .find_map(|proc| if let Proc::Other(HarnessProcess::Calls(caller)) = proc { Some(caller) } else { None })
-            .expect("crash world has an oracle caller");
+            .ok_or_else(|| String::from("crash world has an oracle caller"))?;
         if !state.sent {
-            assert!(!state.link.is_empty(), "oracle has the printed sign-in link");
+            if state.link.is_empty() {
+                return Err(String::from("oracle has the printed sign-in link"));
+            }
             let mut sign_in = Command::new(&[b"sign-in", b"-"]);
             sign_in.input.clone_from(&state.link);
             caller.commands.push_back(sign_in);
@@ -89,30 +100,39 @@ pub(crate) fn readback(procs: &mut [Proc]) -> bool {
             state.sent = true;
         }
         if !caller.is_empty() {
-            return false;
+            return Ok(false);
         }
-        state.before = documents(caller, "live", 1);
-        true
+        state.before = documents(caller, "live", 1)?;
+        Ok(true)
     })
 }
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     before: Vec<Value>,
     sent: bool,
     stopping: bool,
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _: Time, procs: &mut [Proc]) {
+impl Judge {
+    fn act_checked(&mut self, _: Time, procs: &mut [Proc]) -> Result<(), String> {
         let (first, other) = procs.split_at_mut(1);
-        let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { panic!("oracle caller second") };
+        let Proc::Service(service) = &mut first[0] else { return Err(String::from("service first")) };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else {
+            return Err(String::from("oracle caller second"));
+        };
         if !self.sent && !service.service.links().is_empty() {
             commands(caller);
             self.sent = true;
         }
         if self.sent && caller.is_empty() && !self.stopping {
-            for ((before, after), read) in self.before.iter().zip(documents(caller, "cold", 0)).zip(READS) {
-                assert_eq!(*before, after, "restart oracle public document {read:?}");
+            for ((before, after), read) in self.before.iter().zip(documents(caller, "cold", 0)?).zip(READS) {
+                match (before, &(after)) {
+                    (left, right) if left != right => {
+                        let finding = format!("restart oracle public document {read:?}");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
             }
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
             self.stopping = true;
@@ -122,10 +142,32 @@ impl skein_world::Referee<Proc> for Judge {
                 referee::shutdown_peer(proc);
             }
         }
+
+        Ok(())
     }
-    fn observe(&mut self, _: Time, _: &[Proc]) {}
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        Ok(())
+    }
     fn passed(&self) -> bool {
-        self.stopping
+        self.finding.is_none() && (self.stopping)
     }
 }
 
@@ -153,7 +195,7 @@ pub(crate) fn cold(
             settings.seed,
             settings.config,
             skein_world::Memory::Unchecked,
-            |controls| Judge { controls, before, sent: false, stopping: false },
+            |controls| Judge { finding: None, controls, before, sent: false, stopping: false },
         )
         .with_machine(machine);
         for (program, roots) in programs::programs::<OneProcess>() {

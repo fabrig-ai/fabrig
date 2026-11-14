@@ -549,6 +549,194 @@ sys.exit(int(count > 0))
                 self.assertFalse(any('cargo' in args and 'nextest' in args for args, _ in calls))
                 (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
+    def ledger_run(self, tests, again=None, **kwargs):
+        """Fake only the one-process boundary, including fresh again directories."""
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        self.again_calls = []
+        self.initial_run = None
+        again = {} if again is None else again
+
+        def fake(arguments, cwd, env, output, stdout):
+            self.assertEqual(cwd, self.root)
+            self.assertTrue(stdout)
+            self.assertIsNone(output)
+            self.assertNotIn('GIT_INDEX_FILE', env)
+            directory = Path(arguments[arguments.index('--out') + 1])
+            self.assertFalse(directory.exists())
+            if '--again' in arguments:
+                self.again_calls.append(arguments)
+                self.assertEqual(arguments[:8], ['python3', '-I', '-B', 'tools/tiers/one-process',
+                                                 '--again', str(self.initial_run), '--out', str(directory)])
+                self.assertTrue((self.initial_run / 'results.json').exists())
+                self.assertEqual(directory, self.initial_run.parent / f'again-{len(self.again_calls)}')
+                binary, *names = arguments[8:]
+                original = next(t for t in tests if t['binary_id'] == binary and t['test_name'] == names[-1])
+                self.assertEqual(names, original.get('before', []) + [original['test_name']])
+                answer = again.get((binary, names[-1]), {})
+                if answer.get('missing'):
+                    return 0, 'no directory\n'
+                directory.mkdir()
+                content = answer.get('content', json.dumps({'tests': [dict(original, outcome=answer.get('outcome', 'passed'))]}))
+                (directory / 'results.json').write_text(content)
+                return answer.get('code', 0), 'again output, not the failure log\n'
+            self.assertIsNone(self.initial_run)
+            self.initial_run = directory
+            directory.mkdir()
+            (directory / 'run.json').write_text('{"starved": false}')
+            (directory / 'results.json').write_text(json.dumps({'tests': tests, 'unobserved': []}))
+            document = PRE_PR.ET.Element('testsuites')
+            for test in tests:
+                suite = PRE_PR.ET.SubElement(document, 'testsuite', name=test['binary_id'])
+                case = PRE_PR.ET.SubElement(suite, 'testcase', name=test['test_name'])
+                if test['outcome'] in ('failed', 'crashed', 'cancelled'):
+                    PRE_PR.ET.SubElement(case, 'failure').text = 'under load\n\nfirst log tail'
+            (directory / 'junit.xml').write_bytes(PRE_PR.ET.tostring(document))
+            return (100 if any(t['outcome'] in ('failed', 'crashed') for t in tests) else 0), 'first run\n'
+
+        return self.deliver(one_process_answer=None, process_answer=fake, **kwargs)
+
+    def test_process_again_marks_only_a_passed_target_as_a_flake(self):
+        self.goal_file('rerun', b'temper-rerun 1 4\n')
+        test = dict(binary_id='api::rules', test_name='rule', outcome='failed',
+                    before=['first', 'second'], alone='passed')
+        key = ('api::rules', 'rule')
+        for answer, flake in (({}, True), ({'code': 100}, True), ({'outcome': 'failed'}, False),
+                              ({'outcome': 'cancelled'}, False), ({'outcome': 'crashed'}, False),
+                              ({'code': 2}, False), ({'missing': True}, False),
+                              ({'content': 'bad json'}, False), ({'content': '{"tests": []}'}, False)):
+            with self.subTest(answer=answer):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                result, log, _, _ = self.ledger_run([test], {key: answer})
+                self.assertEqual(result, int(not flake), log)
+                self.assertEqual(len(self.again_calls), 1)
+                self.assertFalse(self.initial_run.exists(), 'temporary run must be removed')
+                summary = log.rsplit('pre-pr: passed (' if flake else 'pre-pr: refused (', 1)[1]
+                if flake:
+                    self.assertRegex(summary, r'flake: test api::rules rule \(failed under load; passed when '
+                                     r'its process ran again: 3 tests, [0-9.]+ s\)')
+                    self.assertIn('pre-pr: tests: inherited,', log)
+                    self.assertNotIn('inherited: test', summary)
+                else:
+                    self.assertIn('\ntest api::rules rule\n', summary)
+                    self.assertIn('pre-pr: tests: failed,', log)
+                self.assertIn('under load\n\nfirst log tail\nmay depend on an earlier test: first, second', summary)
+                self.assertNotIn('again output', summary)
+
+    def test_process_again_excludes_reds_and_runs_in_key_order(self):
+        self.goal_file('rerun', b'temper-rerun 1 2\n')
+        self.goal_file('reds', b'temper-reds 1\n- test api::rules goal\n')
+        self.write('.temper/known-reds.md', '- test api::rules listed\n')
+        tests = [dict(binary_id='api::rules', test_name=name, outcome='crashed')
+                 for name in ('z', 'listed', 'goal', 'a')]
+        tests += [dict(binary_id='api::rules', test_name=outcome, outcome=outcome)
+                  for outcome in ('cancelled', 'starved', 'passed')]
+        result, log, _, _ = self.ledger_run(tests)
+        self.assertEqual(result, 0, log)
+        self.assertEqual([args[8:] for args in self.again_calls], [['api::rules', 'a'], ['api::rules', 'z']])
+        self.assertIn('pre-pr: tests again: api::rules a: no before recorded; running the test alone', log)
+        summary = log.rsplit('pre-pr: passed (', 1)[1]
+        self.assertLess(summary.index('flake: test api::rules a'), summary.index('flake: test api::rules z'))
+        self.assertLess(summary.index('flake: test api::rules z'), summary.index('inherited: test api::rules'))
+        self.assertIn('inherited: test api::rules goal (red, temper/reds)', summary)
+        self.assertIn('inherited: test api::rules listed (known red, .temper/known-reds.md)', summary)
+
+    def test_rerun_bound_is_strict_and_all_or_none(self):
+        test = dict(binary_id='api::rules', test_name='rule', outcome='failed')
+        rows = [(b'temper-rerun 1 4\n', 5, False), (b'temper-rerun 1 0\n', 1, False),
+                (None, 1, False), (b'temper-rerun 1 16', 1, True),
+                (b'temper-rerun 1 17\n', 1, False), (b'temper-rerun 2 4\n', 1, False),
+                (b'temper-rerun 1 -1\n', 1, False), (b'temper-rerun 1 4 \n', 1, False),
+                (b'temper-rerun 1 4\n\n', 1, False), (b'\xff', 1, False),
+                (b'temper-rerun 1 ' + b'9' * 5000, 1, False)]
+        for content, count, runs in rows:
+            with self.subTest(content=content, count=count):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                path = self.goal_file('rerun', content or b'')
+                if content is None:
+                    path.unlink()
+                tests = [dict(test, test_name=f'rule{i}') for i in range(count)]
+                result, log, _, _ = self.ledger_run(tests)
+                self.assertEqual(result, int(not runs), log)
+                self.assertEqual(len(self.again_calls), count if runs else 0)
+                malformed = content is not None and content not in (rows[0][0], rows[1][0], rows[3][0])
+                self.assertEqual('pre-pr: rerun: ignored temper/rerun (malformed)' in log, malformed)
+                if not runs:
+                    bound = 4 if count == 5 else 0
+                    self.assertIn(f'pre-pr: tests again: none ({count} failures, at most {bound} run again)', log)
+
+    def test_check_results_reports_observed_goal_reds_and_flakes_atomically(self):
+        self.goal_file('reds-wait', b'temper-reds-wait 1 1\n')
+        self.goal_file('rerun', b'temper-rerun 1 4\n')
+        names = ('passed', 'failed', 'crashed', 'starved', 'cancelled', 'ignored', 'unobserved')
+        test_keys = ['test api::rules ' + name for name in names]
+        lint_keys = ['lint api clippy::bad api/src/lib.rs', 'lint api clippy::good api/src/lib.rs',
+                     'lint other clippy::good other/src/lib.rs']
+        self.goal_file('reds', ('temper-reds 1\n' + ''.join('- ' + key + '\n' for key in test_keys + lint_keys)).encode())
+        self.write('.temper/known-reds.md', '- test api::rules listed\n')
+        tests = [dict(binary_id='api::rules', test_name=name, outcome=name) for name in names[:-1]]
+        tests += [dict(binary_id='api::rules', test_name=name, outcome='failed') for name in ('listed', 'flake')]
+        lint = PRE_PR.failure('clippy api clippy::bad api/src/lib.rs', 'lint output',
+                              ('api', 'clippy::bad', 'api/src/lib.rs', 'message'), 'api')
+        replacements = []
+        replace = Path.replace
+
+        def replacing(source, target):
+            if source.name == 'check-results.tmp':
+                replacements.append((source.name, target.name))
+                self.assertTrue(source.read_text().startswith('temper-check 1\ncheck '))
+            return replace(source, target)
+
+        with mock.patch.object(Path, 'replace', replacing):
+            result, log, _, _ = self.ledger_run(tests, clippy_answer=(101, [lint]))
+        self.assertEqual(result, 0, log)
+        path = self.root / '.git/temper/check-results'
+        lines = path.read_text().splitlines()
+        tree, base, _ = (self.root / '.git/pre-pr-passed').read_text().split()
+        self.assertEqual(lines[:2], ['temper-check 1', f'check {tree} {base} passed'])
+        self.assertEqual(lines[2:7], ['failed ' + lint_keys[0], 'passed ' + lint_keys[1],
+                                     'failed test api::rules crashed', 'failed test api::rules failed',
+                                     'passed test api::rules passed'])
+        self.assertEqual(lines[7:], ['flake test api::rules flake', '| under load', '|', '| first log tail'])
+        self.assertEqual(replacements, [('check-results.tmp', 'check-results')])
+        self.assertFalse(path.with_suffix('.tmp').exists())
+        # A cache hit leaves the prior result alone, rather than claiming new observations.
+        path.write_text('previous result\n')
+        self.goal_file('rerun', b'malformed\n')
+        result, log, _, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        self.assertIn('passed before', log)
+        self.assertLess(log.index('pre-pr: rerun: ignored'), log.index('passed before'))
+        self.assertEqual(path.read_text(), 'previous result\n')
+
+    def test_check_results_marker_refusal_and_uncoded_lints(self):
+        self.goal_file('reds', b'temper-reds 1\n- lint api clippy::rule api/src/lib.rs\n')
+        path = self.root / '.git/temper/check-results'
+        for marker, error, expected in (
+                (None, None, None), (b'temper-reds-wait 1 0\n', None, None),
+                (b'temper-reds-wait 1 1\n', None, 'passed lint api clippy::rule api/src/lib.rs\n'),
+                (b'temper-reds-wait 1 1\n', PRE_PR.failure('check clippy', 'tool error'), ''),
+                (b'temper-reds-wait 1 1\n', PRE_PR.failure('clippy api  api/src/lib.rs', 'compiler error',
+                 ('api', '', 'api/src/lib.rs', 'compiler error'), 'api'), '')):
+            with self.subTest(marker=marker, error=error):
+                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+                path.unlink(missing_ok=True)
+                mark = self.goal_file('reds-wait', marker or b'')
+                if marker is None:
+                    mark.unlink()
+                result, log, _, _ = self.ledger_run([], clippy_answer=(101, [error]) if error else (0, []))
+                self.assertEqual(result, int(error is not None), log)
+                if expected is None:
+                    self.assertFalse(path.exists())
+                else:
+                    lines = path.read_text().splitlines(keepends=True)
+                    self.assertTrue(lines[1].endswith(' refused\n' if error else ' passed\n'))
+                    self.assertEqual(''.join(lines[2:]), expected)
+        # A check without a pin still reports its tree, but no test or lint selections.
+        self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+        result, log, _, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        self.assertRegex(path.read_text(), r'\Atemper-check 1\ncheck [0-9a-f]{40} - passed\n\Z')
+
     def test_known_reds_are_bounded_snapshot_entries(self):
         for with_base in (True, False):
             if not with_base:

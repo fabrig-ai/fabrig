@@ -224,24 +224,23 @@ fn planted_golden_failure() -> bool {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn golden_tables_name_each_planted_failure() {
     let output = small_bound_family();
     assert!(output.rust.contains("fn golden_0()"), "one golden table is generated");
     assert!(output.rust.contains("static GOLDEN_0: [Case; 2]"));
-    let panic = std::panic::catch_unwind(|| {
-        crate::test_helpers::table(&[
-            ("record_value_smallest", planted_golden_failure),
-            ("record_value_full", planted_golden_failure),
-        ]);
-    })
-    .expect_err("planted failures refuse the table");
-    let message = panic.downcast_ref::<String>().expect("assertion message");
-    assert!(message.contains("record_value_smallest") && message.contains("record_value_full"), "{message}");
+    let failures = crate::test_helpers::table(&[
+        ("record_value_smallest", planted_golden_failure),
+        ("record_value_full", planted_golden_failure),
+    ]);
+    assert_eq!(failures, [Some("record_value_smallest"), Some("record_value_full")]);
+    let passed = crate::test_helpers::table(&[("record_value_smallest", || {
+        crate::test_helpers::golden(1_u8, &[1], Ok::<_, ()>(Box::from([1_u8])), Ok::<_, ()>(1_u8))
+    })]);
+    assert_eq!(passed, [None], "a passing table has no failures");
 }
 
 #[test]
-fn a_table_test_is_one_call_whatever_its_cases() {
+fn a_table_test_checks_returned_failures_whatever_its_cases() {
     let output = small_bound_family();
     for name in ["golden", "bounds"] {
         let item = name.to_uppercase();
@@ -250,8 +249,14 @@ fn a_table_test_is_one_call_whatever_its_cases() {
         for part in output.rust.split(&format!("fn {name}_")).skip(1) {
             let (index, body) = part.split_once("() {\n").expect("table function");
             let (body, _) = body.split_once("    }").expect("table function end");
-            assert!(output.rust.contains(&format!("static {item}_{index}: [Case;")));
-            assert_eq!(body.trim(), format!("table(&{item}_{index});"));
+            let (_, cases) = output.rust.split_once(&format!("static {item}_{index}: [Case; ")).expect("table item");
+            let (cases, _) = cases.split_once(']').expect("table length");
+            assert_eq!(
+                body.trim(),
+                format!(
+                    "let failures = table(&{item}_{index});\n        assert!(failures == [None; {cases}], \"{{failures:?}}\");"
+                )
+            );
             tables += 1;
         }
         assert_eq!(tables, 1, "the fixture has one {name} table");

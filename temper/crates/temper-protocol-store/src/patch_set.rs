@@ -15,7 +15,7 @@ pub const PATCH_SET: PatchSet = PatchSet {
     fresh: None,
     families: &[
         KeptFamily {
-            current: include_str!("../schema/store-v22.schema"),
+            current: include_str!("../schema/store-v23.schema"),
             types: &[
                 ValueType { number: 0, root: "Row", variant: Some("call"), keys: &[KeyRange { from: &[0], to: &[1] }] },
                 ValueType {
@@ -249,6 +249,12 @@ pub const PATCH_SET: PatchSet = PatchSet {
                     keys: &[KeyRange { from: &[45], to: &[46] }],
                 },
                 ValueType {
+                    number: 46,
+                    root: "Row",
+                    variant: Some("red_pass"),
+                    keys: &[KeyRange { from: &[crate::keys::RED_PASS], to: &[47] }],
+                },
+                ValueType {
                     number: 41,
                     root: "Row",
                     variant: Some("history_project"),
@@ -323,7 +329,8 @@ pub const PATCH_SET: PatchSet = PatchSet {
                 Keys { from: &[42], to: &[43], root: "Row" },
                 Keys { from: &[crate::keys::DEVICE], to: &[crate::keys::RED], root: "Row" },
                 Keys { from: &[crate::keys::RED], to: &[crate::keys::RED_NUMBER], root: "Row" },
-                Keys { from: &[crate::keys::RED_NUMBER], to: &[46], root: "Row" },
+                Keys { from: &[crate::keys::RED_NUMBER], to: &[crate::keys::RED_PASS], root: "Row" },
+                Keys { from: &[crate::keys::RED_PASS], to: &[47], root: "Row" },
                 Keys { from: &[127], to: &[128], root: "Row" },
                 Keys { from: &[128], to: &[129], root: "Row" },
                 Keys { from: &[129], to: &[130], root: "Row" },

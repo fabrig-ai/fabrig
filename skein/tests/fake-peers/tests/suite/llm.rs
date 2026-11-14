@@ -692,41 +692,56 @@ fn the_public_route_takes_its_scope_from_the_cache_key_alone() {
 
 #[test]
 fn without_records_serves_past_a_zero_cap() {
-    let endpoint = Endpoint::openai();
-    let mut peer = make_scripted_with_limits(
-        endpoint.clone(),
-        key(),
-        (Ipv4Addr::LOCALHOST, 0).into(),
-        Transport::Plaintext,
-        Box::new([]),
-        Limits { observations: 0, observation_bytes: 0, ..limits() },
-    )
-    .unwrap()
-    .without_records();
-    let mut sim = skein_sim::Sim::new(23, skein_sim::Config::calm());
-    let (server, client) = (sim.spawn_process(), sim.spawn_process());
-    let response = request::request(
-        &mut sim,
-        server,
-        client,
-        &mut peer,
-        &endpoint.target,
-        b"authorization: Bearer k0\r\n",
-        &body(""),
-    );
-    assert!(response.starts_with(b"HTTP/1.1 200"));
-    assert_eq!(peer.observations(), []);
-    peer.shutdown();
-    for _ in 0..1000 {
-        request::pass(&mut sim, server, &mut peer);
-        if peer.is_empty() {
-            break;
+    // Accepted, head, credential, query, answered and closed (llm.md, 3).
+    const EXCHANGE_RECORDS: u32 = 6;
+    // body("") has model "gpt", one message with one text part "hi", and no system or tools.
+    const QUERY_BYTES: usize = b"gpt".len() + size_of::<api::Message>() + size_of::<api::Part>() + b"hi".len();
+    // request::request's four non-credential headers retain their wrappers, names and values.
+    const HEAD_BYTES_WITHOUT_LENGTH: usize = 4 * size_of::<skein_http::Header>()
+        + b"hostlocalhostcontent-typeapplication/jsonconnectionclosecontent-length".len();
+    let body = body("");
+    let exchange_bytes = u32::try_from(QUERY_BYTES + HEAD_BYTES_WITHOUT_LENGTH + body.len().to_string().len())
+        .expect("exchange payload fits");
+    for (recording, records, bytes) in [(true, EXCHANGE_RECORDS, exchange_bytes), (false, 0, 0)] {
+        let endpoint = Endpoint::openai();
+        let mut peer = make_scripted_with_limits(
+            endpoint.clone(),
+            key(),
+            (Ipv4Addr::LOCALHOST, 0).into(),
+            Transport::Plaintext,
+            Box::new([]),
+            Limits { observations: records, observation_bytes: bytes, ..limits() },
+        )
+        .unwrap();
+        if !recording {
+            peer = peer.without_records();
         }
+        let mut sim = skein_sim::Sim::new(23, skein_sim::Config::calm());
+        let (server, client) = (sim.spawn_process(), sim.spawn_process());
+        let response = request::request(
+            &mut sim,
+            server,
+            client,
+            &mut peer,
+            &endpoint.target,
+            b"authorization: Bearer k0\r\n",
+            &body,
+        );
+        peer.shutdown();
+        for _ in 0..1000 {
+            request::pass(&mut sim, server, &mut peer);
+            if peer.is_empty() {
+                break;
+            }
+        }
+        assert!(peer.is_empty());
+        sim.assert_quiescent(server);
+        sim.assert_no_open_fds(server);
+        sim.assert_no_open_fds(client);
+        assert!(response.starts_with(b"HTTP/1.1 200"));
+        assert_eq!(peer.observations().len(), usize::try_from(records).unwrap());
+        assert_eq!(peer.observation_bytes(), u64::from(bytes));
     }
-    assert!(peer.is_empty());
-    sim.assert_quiescent(server);
-    sim.assert_no_open_fds(server);
-    sim.assert_no_open_fds(client);
 }
 
 #[test]

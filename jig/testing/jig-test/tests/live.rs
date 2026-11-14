@@ -25,11 +25,9 @@ fn a_person_signs_in_to_chatgpt_and_a_real_model_answers() {
     fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).expect("private live scratch");
     let clock = Clock::new();
     let started = clock.now().now;
-    let result = std::panic::catch_unwind(|| {
-        let limits = live_sign_in::configuration(directory.path());
-        let outcome = live_sign_in::run(directory.path(), started, live_sign_in::Peers::Real);
-        live_sign_in::check(directory.path(), &limits, outcome, live_sign_in::Peers::Real);
-    });
+    let limits = live_sign_in::configuration(directory.path());
+    let result = live_sign_in::run(directory.path(), started, live_sign_in::Peers::Real)
+        .and_then(|outcome| live_sign_in::check(directory.path(), &limits, outcome, live_sign_in::Peers::Real));
     let wall_ms = clock.now().now.saturating_since(started).as_nanos() / 1_000_000;
     eprintln!("live ChatGPT wall={wall_ms}ms");
     if let Err(failed) = result {
@@ -58,6 +56,6 @@ fn a_person_signs_in_to_chatgpt_and_a_real_model_answers() {
         eprintln!(
             "A sign-in that did not sign out may still be listed at the issuer. Disconnect it in ChatGPT's settings, under Apps."
         );
-        std::panic::resume_unwind(failed);
+        panic!("{failed}");
     }
 }

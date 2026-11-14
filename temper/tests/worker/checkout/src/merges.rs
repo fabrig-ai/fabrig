@@ -60,6 +60,7 @@ impl World {
             path_bytes: 128,
             remote_timeout: Duration::from_secs(10),
             reds_read_ms: 5_000,
+            rerun_processes: 4,
             local_timeout: Duration::from_secs(5),
             facts,
         };
@@ -166,7 +167,9 @@ impl World {
                     | Request::Released { .. }) => {
                         assert!(terminal.replace(answer).is_none(), "one terminal per caller operation");
                     }
-                    Request::Cancel { .. } => panic!("these scenarios have no outstanding cancellation"),
+                    Request::Results { .. } | Request::ResultsEnd { .. } | Request::Cancel { .. } => {
+                        panic!("these scenarios have no outstanding cancellation")
+                    }
                 }
             }
             assert_eq!(held, preparing, "only a prepare emits a new hold");
@@ -237,7 +240,9 @@ impl World {
         match self.finish(event, ambiguous) {
             Request::Pushed { outcome: Outcome::Pushed { landings }, .. } if !saved => landings,
             Request::Saved { outcome: Outcome::Pushed { landings }, .. } if saved => landings,
-            other @ (Request::Held { .. }
+            other @ (Request::Results { .. }
+            | Request::ResultsEnd { .. }
+            | Request::Held { .. }
             | Request::Prepared { .. }
             | Request::Pushed { .. }
             | Request::Saved { .. }

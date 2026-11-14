@@ -281,7 +281,7 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, _now: Time, processes: &[Process]) {
+    fn watch(&mut self, _now: Time, processes: &[Process]) -> Result<(), String> {
         self.activated = processes.iter().any(|process| match process {
             Process::Client(client) => client.exchange.is_some(),
             Process::Peer(_) => false,
@@ -290,6 +290,7 @@ impl Referee<Process> for Judge {
             Process::Client(client) => client.answer.is_some(),
             Process::Peer(_) => false,
         });
+        Ok(())
     }
     fn passed(&self) -> bool {
         self.done

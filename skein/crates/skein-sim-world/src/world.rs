@@ -288,6 +288,11 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
 
     /// One step with a loop's hooks inside it.
     pub fn step_with<T: Turns<P>>(&mut self, turns: &mut T) -> Step {
+        self.try_step_with(turns).unwrap_or_else(|why| crate::fail(&why))
+    }
+
+    /// One step, stopping at the first finding from the loop's hooks.
+    pub fn try_step_with<T: Turns<P>>(&mut self, turns: &mut T) -> Result<Step, String> {
         let now = self.now();
         let wall = self.wall();
         let mut at = 0;
@@ -308,13 +313,13 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
                 at = at.checked_add(1).expect("a bounded process count");
             }
             if ran {
-                turns.turned(now, &self.procs);
+                turns.try_turned(now, &self.procs)?;
                 observed = true;
             }
         }
         self.trace_machine_digest();
         self.steps = self.steps.checked_add(1).expect("world's step count fits u64");
-        Step { ran: observed }
+        Ok(Step { ran: observed })
     }
 
     /// Checks the settled world's contracts and returns what its steps left.

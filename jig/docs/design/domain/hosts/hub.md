@@ -582,9 +582,12 @@ with no agent:
 ## 10. An application's asks
 
 The application on a host may ask the engine's application something
-for a run the hub hosts, and hear the answer: a read, which decides
-nothing on either side. temper reads a goal's reds this way when a run's
-checks start (temper's `domain/forge/reds.md`, 5.4).
+for a run the hub hosts, and hear the answer. jig decides and commits
+nothing for it on either side: it is a read, or a report the engine's
+application may keep in a decision of its own before or after it
+answers. temper reads a goal's reds this way when a run's checks start,
+and reports a check's results when they end (temper's
+`domain/forge/reds.md`, 5.4 and 5.6).
 
 - **Asked by the root, for a hosted attempt:** the hub's link vocabulary
   gains `Ask { run, attempt, number, bytes }` up and `Asked { run,

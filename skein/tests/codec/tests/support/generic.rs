@@ -1,8 +1,67 @@
-//! The generic tree in the generated types' Debug form (data/codec/README.md, 8.3).
+//! Generic/generated agreement and the generic tree's Debug form (data/codec/README.md, 8.3).
 
 use skein_codec::schema::{DeclIx, FieldIx, Schema, Shape, Span, Type, TypeIx};
-use skein_codec::value::{Node, Part, Path, Value};
+use skein_codec::value::{Node, Part, Path, Refusal, Value};
+
+use crate::support::generated;
 use skein_codegen::{pascal, snake};
+
+#[derive(Debug)]
+pub struct Oracle<'a> {
+    pub schema: &'a Schema,
+    pub decl: DeclIx,
+    pub family: &'a generated::Family,
+    pub root: &'a generated::Root,
+    pub value: &'a mut Value,
+}
+
+impl Oracle<'_> {
+    #[expect(clippy::print_stderr, reason = "the captured case line precedes any decoder panic")]
+    pub fn compare(&mut self, seed: u64, bytes: &[u8], valid: bool) -> Result<(), String> {
+        eprintln!("{}.{}, seed {seed:#018x}", self.family.name, self.root.name);
+        let decoded = self.value.decode(self.schema, self.decl, bytes.into());
+        let generated = (self.root.decode)(bytes);
+        let context = format!("{}.{}, seed {seed:#018x}, bytes {bytes:?}", self.family.name, self.root.name);
+        self.compare_outcomes(&context, bytes, valid, decoded, generated)
+    }
+
+    fn compare_outcomes(
+        &self,
+        context: &str,
+        bytes: &[u8],
+        valid: bool,
+        decoded: Result<Node, Refusal>,
+        generated: generated::Decoded,
+    ) -> Result<(), String> {
+        let disagreement = || format!("{context}: generic {decoded:?}, generated {generated:?}");
+        match (&decoded, &generated) {
+            (Ok(node), generated::Decoded::Value { debug, bytes: encoded }) => {
+                if self.value.bytes() == bytes
+                    && self.value.bytes() == encoded
+                    && render(self.schema, self.value, *node, self.decl) == *debug
+                {
+                    Ok(())
+                } else {
+                    Err(disagreement())
+                }
+            }
+            (Err(Refusal::Problem(problem)), generated::Decoded::Problem { path, reason }) => {
+                if valid {
+                    return Err(format!("draw or golden refused: {context}: {problem:?}"));
+                }
+                if !self.value.bytes().is_empty() {
+                    return Err(format!("refusal empties the value: {context}"));
+                }
+                if path_name(self.schema, problem.path) == *path && problem.reason == *reason {
+                    Ok(())
+                } else {
+                    Err(disagreement())
+                }
+            }
+            (generic, generated) => Err(format!("{context}: generic {generic:?}, generated {generated:?}")),
+        }
+    }
+}
 
 fn spelling(schema: &Schema, span: Span) -> &str {
     core::str::from_utf8(schema.spelled(span)).expect("schema identifier")

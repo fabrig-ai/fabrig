@@ -25,7 +25,7 @@ pub(crate) struct Bound {
     pub(crate) agent: Token,
     /// smith admitted its run, and the hub was told it started.
     pub(crate) admitted: bool,
-    pub(crate) check: Option<crate::reds::Check>,
+    pub(crate) checks: crate::reds::State,
     pub(crate) check_number: u64,
     /// The charter's model-indexed call names (domain/worker/README.md, 4.3).
     models: Box<[crate::hand_out::ModelName]>,
@@ -117,7 +117,7 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
                     Bound {
                         agent,
                         admitted: false,
-                        check: None,
+                        checks: crate::reds::State::new(),
                         check_number: 0,
                         models,
                         detail: Box::new([]),
@@ -483,8 +483,13 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
 }
 
 /// The hub hears the agent has gone, unless its run has answered already.
-fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail: Box<[u8]>) {
+pub(crate) fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail: Box<[u8]>) {
     crate::reds::end(domain, env, owner);
+    if crate::reds::busy(domain, owner) {
+        let old = domain.gone.insert(owner, detail).expect("one pending end per agent");
+        assert!(old.is_none(), "agent end waits once");
+        return;
+    }
     let bound = domain.agents.remove(&owner);
     let (detail, refused) = match bound {
         Some(bound) => (diagnostic(&bound.detail, &detail, env.limits.host.detail_bytes), bound.refused),

@@ -314,12 +314,16 @@ impl Referee<Owner> for Judge {
             self.started = true;
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Owner]) {
+    fn watch(&mut self, _now: Time, procs: &[Owner]) -> Result<(), String> {
         for proc in procs {
-            if let Some(bytes) = &proc.recovered {
-                assert!(bytes.as_ref() == OLD || bytes.as_ref() == NEW);
+            if let Some(bytes) = &proc.recovered
+                && bytes.as_ref() != OLD
+                && bytes.as_ref() != NEW
+            {
+                return Err(format!("whole old or new recovered bytes: {bytes:?}"));
             }
         }
+        Ok(())
     }
     fn passed(&self) -> bool {
         true

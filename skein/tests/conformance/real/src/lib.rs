@@ -54,6 +54,23 @@ impl Real {
         fs::metadata(scratch.path()).expect("a scratch directory has metadata").uid() != 0
     }
 
+    /// Waits for a queued connection without entering any backend, returning
+    /// an unanswered wait's finding with its scheduler figures.
+    pub fn try_wait_for_connection(&mut self, process: usize, listener: Fd, bound: Duration) -> Result<(), String> {
+        self.arm_wait("the conformance listener's queued connection", bound);
+        let remaining = self.deadline.as_ref().expect("the listener wait began").remaining();
+        let readable = skein_shell::keeper::wait_readable(listener, remaining)
+            .map_err(|errno| format!("polling listener {listener:?} of process {process} failed: errno {errno}"))?;
+        if readable {
+            return Ok(());
+        }
+        self.wait_unanswered();
+        Err(format!(
+            "no connection arrived on listener {listener:?} of process {process} within {bound:?}: {}",
+            self.wait_figures().unwrap_or_default()
+        ))
+    }
+
     fn kernel(&mut self, process: usize) -> &mut OwnedKernel {
         self.kernels.get_mut(process).expect("a process of this backend")
     }
@@ -165,19 +182,9 @@ impl ConformanceBackend for Real {
     }
 
     fn wait_for_connection(&mut self, process: usize, listener: Fd, bound: Duration) {
-        // A listener wait must not enter any backend while its peer connects.
-        self.arm_wait("the conformance listener's queued connection", bound);
-        let remaining = self.deadline.as_ref().expect("the listener wait began").remaining();
-        let readable = skein_shell::keeper::wait_readable(listener, remaining)
-            .unwrap_or_else(|errno| panic!("polling listener {listener:?} of process {process} failed: errno {errno}"));
-        if !readable {
-            self.wait_unanswered();
+        if let Err(finding) = self.try_wait_for_connection(process, listener, bound) {
+            panic!("{finding}");
         }
-        assert!(
-            readable,
-            "no connection arrived on listener {listener:?} of process {process} within {bound:?}: {}",
-            self.wait_figures().unwrap_or_default()
-        );
     }
 
     fn assert_settled(&self, process: usize) {

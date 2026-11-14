@@ -4,7 +4,7 @@ use super::{
     fixtures,
 };
 use crate::patches::kept::temper_store::v17 as kept;
-use crate::{records, v22};
+use crate::{records, v23};
 use skein_codec::{
     schema::{FieldIx, Schema},
     value::{Node, Value},
@@ -51,14 +51,14 @@ fn v17_landing(schema: &Schema) -> Box<[u8]> {
     }
     bytes
 }
-fn upgraded(before: &[u8]) -> v22::LandingRow {
+fn upgraded(before: &[u8]) -> v23::LandingRow {
     let bytes =
         patched(19, 8, b"LandingRow", patched(18, 7, b"LandingRow", patched(17, 6, b"LandingRow", before.into())));
     let bytes = patched(20, 9, b"LandingRow", bytes);
-    v22::LandingRow::decode(&v22::CEILINGS, &mut Reader::new(&bytes)).unwrap()
+    v23::LandingRow::decode(&v23::CEILINGS, &mut Reader::new(&bytes)).unwrap()
 }
-fn stored(row: v22::LandingRow) -> forge::Stored {
-    let row = v22::Row::new(&v22::CEILINGS, v22::RowParts { value: v22::Value::Landing(row) }).unwrap();
+fn stored(row: v23::LandingRow) -> forge::Stored {
+    let row = v23::Row::new(&v23::CEILINGS, v23::RowParts { value: v23::Value::Landing(row) }).unwrap();
     let mut writer = Writer::new(usize::try_from(row.measure()).unwrap());
     row.encode(&mut writer).unwrap();
     let bytes = writer.finish();
@@ -84,7 +84,7 @@ fn a_v17_member_keeps_its_round_values_through_the_batch_patch() {
     let member = after.landing().members().as_slice().first().unwrap();
     assert_eq!(member.unit(), 0);
     assert_eq!(member.branch(), value.content(value.field(round, kept::landing_round::BRANCH).unwrap()).unwrap());
-    assert_eq!(member.combined(), &Some(v22::LandingCombine::Squash));
+    assert_eq!(member.combined(), &Some(v23::LandingCombine::Squash));
     assert!(member.recorded() && member.told() && member.judging());
     assert!(member.leave_told(), "v17 already emitted its leave");
     assert_eq!(*member.head(), fixed_option(&value, prior, kept::landing_member::HEAD));
@@ -190,13 +190,13 @@ fn landing_repair_context_round_trips_and_old_rows_have_none() {
     assert_eq!(value.uint(value.field(row, old::landing_repair_at::GATE).unwrap()).unwrap(), 1);
     assert_eq!(value.content(value.field(row, old::landing_repair_at::CANDIDATE).unwrap()).unwrap(), [0xaa; 32]);
     let bytes = patched(19, 8, b"LandingRepairAt", before.clone());
-    let after = v22::LandingRepairAt::decode(&v22::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let after = v23::LandingRepairAt::decode(&v23::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert_eq!((after.gate(), after.candidate(), after.below()), (1, &[0xaa; 32], &None));
     let (value, row) = kept_value(&schema, b"LandingRepairAsk", before.clone());
     assert_eq!(value.uint(value.field(row, old::landing_repair_ask::GATE).unwrap()).unwrap(), 1);
     assert_eq!(value.content(value.field(row, old::landing_repair_ask::CANDIDATE).unwrap()).unwrap(), [0xaa; 32]);
     let bytes = patched(19, 8, b"LandingRepairAsk", before);
-    let after = v22::LandingRepairAsk::decode(&v22::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let after = v23::LandingRepairAsk::decode(&v23::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert_eq!((after.gate(), after.candidate(), after.below()), (1, &[0xaa; 32], &None));
 }
 
@@ -209,7 +209,7 @@ fn a_stored_fallback_leaves_as_held_and_the_alone_mark_is_dropped() {
     assert!(value.boolean(value.field(row, old::change::ALONE).unwrap()).unwrap());
     let bytes = patched(19, 8, b"Change", patched(18, 7, b"Change", value.bytes().into()));
     let bytes = patched(20, 9, b"Change", bytes);
-    let after = v22::Change::decode(&v22::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let after = v23::Change::decode(&v23::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert_eq!(after.task(), value.uint(value.field(row, old::change::TASK).unwrap()).unwrap());
     assert_eq!(*after.landing(), uint_option(&value, row, old::change::LANDING));
     let schema = kept_schema(17);
@@ -217,12 +217,12 @@ fn a_stored_fallback_leaves_as_held_and_the_alone_mark_is_dropped() {
     let mut state = row.landing.into_parts();
     let member = state.members.get_mut(0).unwrap();
     let mut parts = member.clone().into_parts();
-    parts.left = Some(v22::LandingLeave::Fallback(
-        v22::LandingFallback::new(&v22::CEILINGS, v22::LandingFallbackParts { units: 3, top: [7; 32] }).unwrap(),
+    parts.left = Some(v23::LandingLeave::Fallback(
+        v23::LandingFallback::new(&v23::CEILINGS, v23::LandingFallbackParts { units: 3, top: [7; 32] }).unwrap(),
     ));
-    *member = v22::LandingMember::new(&v22::CEILINGS, parts).unwrap();
-    row.landing = v22::LandingState::new(&v22::CEILINGS, state).unwrap();
-    let forge::Stored::Landing(after) = stored(v22::LandingRow::new(&v22::CEILINGS, row).unwrap()) else {
+    *member = v23::LandingMember::new(&v23::CEILINGS, parts).unwrap();
+    row.landing = v23::LandingState::new(&v23::CEILINGS, state).unwrap();
+    let forge::Stored::Landing(after) = stored(v23::LandingRow::new(&v23::CEILINGS, row).unwrap()) else {
         panic!("landing")
     };
     assert_eq!(after.landing.members[0].left, Some(landing::Leave::Held));

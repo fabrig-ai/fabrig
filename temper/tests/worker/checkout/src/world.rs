@@ -48,6 +48,7 @@ pub const LIMITS: Limits = Limits {
     path_bytes: 0,
     remote_timeout: Duration::from_secs(60),
     reds_read_ms: 5_000,
+    rerun_processes: 4,
     local_timeout: Duration::from_secs(10),
     facts: 256,
 };
@@ -868,6 +869,7 @@ impl World {
     fn request(&mut self, request: Request) {
         self.log(&format!("checkout -> {}", describe_request(&request)));
         match request {
+            Request::Results { .. } | Request::ResultsEnd { .. } => {}
             Request::Held { client, hold } => {
                 let name = client.raw();
                 let client = self.clients.get_mut(&name).expect("the domain answers a client that asked");
@@ -1237,6 +1239,7 @@ impl World {
                 | Done::Rejected
                 | Done::Failed { .. }
                 | Done::FailedWithOutput { .. }
+                | Done::Results { .. }
                 | Done::Paths { .. }
                 | Done::Looked { .. }
                 | Done::Brings { .. }
@@ -1362,6 +1365,7 @@ impl World {
             | Done::Rejected
             | Done::Failed { .. }
             | Done::FailedWithOutput { .. }
+            | Done::Results { .. }
             | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::Brings { .. }
@@ -1543,6 +1547,10 @@ fn describe_event(event: &Event) -> String {
 
 fn describe_request(request: &Request) -> String {
     match request {
+        Request::Results { client, check, repository, .. } => {
+            format!("results {} {check} repository {repository}", client.raw())
+        }
+        Request::ResultsEnd { client, check } => format!("results end {} {check}", client.raw()),
         Request::Held { client, hold } => format!("held {} {}", client.raw(), hold.raw()),
         Request::Prepared { client, prepared } => format!("prepared {} {prepared:?}", client.raw()),
         Request::Pushed { client, outcome } => format!("pushed {} {outcome:?}", client.raw()),

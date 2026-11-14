@@ -18,17 +18,6 @@ pub fn call(sim: &mut Sim, pid: Pid, token: u64, kind: Op) -> Done {
     panic!("the client operation did not settle");
 }
 
-/// The named observation cap, rather than another failure, ended this exchange.
-pub fn assert_panic<T: std::fmt::Debug>(result: std::thread::Result<T>, expected: &str) {
-    let panic = result.expect_err("recording at cap zero panics");
-    let message = panic
-        .downcast_ref::<String>()
-        .map(String::as_str)
-        .or_else(|| panic.downcast_ref::<&str>().copied())
-        .expect("assertion message");
-    assert!(message.contains(expected), "{message}");
-}
-
 /// Open and listen before the peer's first pass, retaining the chosen address.
 pub fn held_listener(sim: &mut Sim, pid: Pid) -> (skein_io::kernel::Fd, std::net::SocketAddr) {
     use skein_io::kernel::Family;

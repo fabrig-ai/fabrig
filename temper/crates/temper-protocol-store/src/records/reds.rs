@@ -65,6 +65,20 @@ pub(super) fn decode_reply(reply: w::RedReply, bounds: &Bounds) -> Result<d::Red
     Ok(d::RedReply { goal, key, result })
 }
 
+pub(super) fn encode_pass(row: &d::RedPass) -> w::RedPass {
+    w::RedPass::new(
+        &w::CEILINGS,
+        w::RedPassParts { change: row.change, key: row.key.clone(), generation: row.generation },
+    )
+    .expect(FITS)
+}
+pub(super) fn decode_pass(row: w::RedPass, bounds: &Bounds) -> Result<d::RedPass, Undecodable> {
+    let w::RedPassParts { change, key, generation } = row.into_parts();
+    if !d::reds::key_fits(&key, bounds.forge().red_key_bytes) {
+        return Err(Undecodable::Malformed);
+    }
+    Ok(d::RedPass { change, key, generation })
+}
 pub(super) fn encode(row: &d::Red) -> w::Red {
     let by = match row.by {
         d::Recorder::Task(number) => {

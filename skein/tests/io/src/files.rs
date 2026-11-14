@@ -363,21 +363,22 @@ impl Machine for FileSystem {
 pub struct Judge;
 
 impl Referee<Owner> for Judge {
-    fn observe(&mut self, _now: Time, procs: &[Owner]) {
+    fn watch(&mut self, _now: Time, procs: &[Owner]) -> Result<(), String> {
         for proc in procs {
             for event in &proc.events {
                 if let Event::Loaded { bytes, .. } = event {
-                    assert!(
-                        bytes.as_ref() == OLD
-                            || bytes.as_ref() == NEW
-                            || (bytes.as_ref() == OTHER && matches!(proc.story, Story::Conflict | Story::Absent))
-                            || (bytes.len() == usize::try_from(proc.limits.whole).expect("bounded file")
-                                && bytes.iter().all(|byte| *byte == b'n')),
-                        "whole old or new file"
-                    );
+                    let whole = bytes.as_ref() == OLD
+                        || bytes.as_ref() == NEW
+                        || (bytes.as_ref() == OTHER && matches!(proc.story, Story::Conflict | Story::Absent))
+                        || (bytes.len() == usize::try_from(proc.limits.whole).expect("bounded file")
+                            && bytes.iter().all(|byte| *byte == b'n'));
+                    if !whole {
+                        return Err(format!("whole old or new file: {bytes:?}"));
+                    }
                 }
             }
         }
+        Ok(())
     }
     fn passed(&self) -> bool {
         true

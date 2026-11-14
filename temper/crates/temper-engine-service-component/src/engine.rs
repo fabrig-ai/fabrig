@@ -14,7 +14,8 @@ const RELEASE_CYCLES: u32 = 22;
 )]
 #[expect(missing_debug_implementations, reason = "the engine owns account token records")]
 pub struct Engine {
-    pub(crate) domain: root::Domain,
+    // Keep the root's state out of service construction and movement frames.
+    pub(crate) domain: Box<root::Domain>,
     pub(crate) upgrade: Option<crate::upgrade::State>,
     pub(crate) env: Env<root::Limits>,
     pub(crate) store: crate::store::Store,
@@ -137,7 +138,7 @@ impl Engine {
         let credentials = values.identities.numbers();
         store.routes.patch_context().executors.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
         let mut domain = match root::Domain::new(config, limits) {
-            Ok(domain) => domain,
+            Ok(domain) => Box::new(domain),
             Err(problem) => {
                 let (path, what) = crate::startup::checks::membership(problem);
                 let mut problems = jig_protocol_config::Problems::empty();
@@ -891,14 +892,11 @@ fn answer_routed(engine: &mut Engine) {
                         }
                     }
                 }
-                if let root::Event::Store(root::StoreInput::Uncommitted { number }) = *event {
-                    stop::failed(engine, number);
-                } else {
-                    engine.blocked = false;
-                    engine.step(*event);
-                }
+                engine.blocked = false;
+                engine.step(*event);
             }
             Up::Ask(request) => engine.store.host.ask(request),
+            Up::Failed { number, why } => stop::failed(engine, number, why),
             Up::FrameTooLarge { number, task, bytes, limit } => {
                 stop::frame_too_large(engine, number, task, bytes, limit);
             }

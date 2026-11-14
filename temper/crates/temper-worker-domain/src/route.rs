@@ -37,8 +37,8 @@ pub(crate) fn agent_env(env: &Env<Limits>) -> Env<agent::Limits> {
 /// Hands one of the protocol's events to the child domain it is for.
 pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
-        Event::RedsAsk { owner, check, bytes } => crate::reds::encoded(domain, env, owner, check, bytes),
-        Event::RedsAnswer { owner, check, answer } => crate::reds::decoded(domain, env, owner, check, answer),
+        Event::RedsAsk { owner, check, bytes } => crate::reds::encoded(domain, env, owner, check, bytes, out),
+        Event::RedsAnswer { owner, check, answer } => crate::reds::decoded(domain, env, owner, check, answer, out),
         Event::ListRead { read, outcome } => host_step(domain, env, host::Event::ListRead { read, outcome }),
         Event::SourceAnswered { owner, answer } => {
             host_step(domain, env, host::Event::SourceAnswered { owner, answer });
@@ -333,6 +333,10 @@ fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::RunAn
 /// One of the checkout's requests: out to io, or to the host.
 fn from_checkout(domain: &mut Domain, env: &Env<Limits>, request: checkout::Request, out: &mut Queue<Request>) {
     match request {
+        checkout::Request::Results { client, check, repository, bytes } => {
+            crate::reds::read(domain, client, check, repository, bytes, out);
+        }
+        checkout::Request::ResultsEnd { client, check } => crate::reds::read_end(domain, env, client, check, out),
         checkout::Request::Held { client, hold } => workspace::held(domain, env, client, hold),
         checkout::Request::Prepared { client, prepared } => workspace::prepared(domain, env, client, prepared),
         checkout::Request::Pushed { client, outcome } => workspace::wrote(domain, env, client, outcome, true),

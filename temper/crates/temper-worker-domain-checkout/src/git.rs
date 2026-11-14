@@ -138,8 +138,9 @@ pub enum Op {
 /// Check files resolved by git rev-parse --git-path (domain/forge/reds.md, 5.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Reds {
-    Prepare { wait_ms: u32 },
+    Prepare { wait_ms: u32, rerun_processes: u32 },
     Clear,
+    Read { check: u64 },
     Write { reds: Box<[Red]> },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -182,6 +183,8 @@ pub enum Want {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Done {
+    /// A bounded results file, removed after reading; one extra byte marks oversize.
+    Results { bytes: Option<Box<[u8]>> },
     /// Complete changed-path list, bounded by the checkout's conflict/path limits.
     Paths { files: Box<[Box<[u8]>]> },
     /// The directory holds the requested remote.

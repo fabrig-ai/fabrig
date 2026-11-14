@@ -207,10 +207,7 @@ impl Harness {
     }
     pub fn run_lending(&mut self, people: &mut [&mut dyn Play], peers: &mut [Lent<'_>]) -> Outcome {
         self.kept.clear();
-        let mut peers = match peers::Peers::new(peers) {
-            Ok(peers) => peers,
-            Err(report) => return Outcome::Failed { person: 0, step: 0, report },
-        };
+        let mut peers = peers::Peers::new(peers);
         let profile = skein_scratch::Scratch::new("ui-browser");
         let (outcome, kept, starved) =
             Runtime::new(self, profile.path(), people, &peers.limits).run(self, people, &mut peers);
@@ -1023,7 +1020,6 @@ impl Runtime {
             }
         }
     }
-    #[expect(clippy::too_many_lines, reason = "ui/web/testing.md, 2 keeps the run and its close window in one loop")]
     fn run(
         mut self,
         setup: &Harness,
@@ -1056,9 +1052,7 @@ impl Runtime {
                 && self.io.is_empty()
                 && self.requests.is_empty()
                 && self.origins.iter().all(crate::origins::Pages::is_closed);
-            for report in peers.drive(&mut self.ring, time.now, time.wall, stop_peers) {
-                self.fail(0, 0, report);
-            }
+            peers.drive(&mut self.ring, time.now, time.wall, stop_peers);
             if !started && peers.ready() && self.outcome.is_none() {
                 started = true;
                 startup = None;

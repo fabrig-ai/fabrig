@@ -17,12 +17,7 @@ impl Referee<Binary> for Judge {
         let signal = match self.stage {
             0 if child.stderr() == b"ready\n" => Some(Signal::Stop),
             1 if !child.tree_status().stopped_pids.is_empty() => Some(Signal::Continue),
-            2 if !child.tree_status().continued_pids.is_empty() => {
-                assert_eq!(child.tree_status().stopped_pids, child.tree_status().continued_pids);
-                assert_eq!(child.tree_status().cleanup(), Cleanup::None);
-                assert_eq!(child.exit_status(), None);
-                Some(Signal::Terminate)
-            }
+            3 => Some(Signal::Terminate),
             _ => None,
         };
         if let Some(signal) = signal {
@@ -31,8 +26,29 @@ impl Referee<Binary> for Judge {
         }
     }
 
-    fn observe(&mut self, now: Time, _procs: &[Binary]) {
-        self.next = (self.stage < 3).then_some(now);
+    fn watch(&mut self, now: Time, procs: &[Binary]) -> Result<(), String> {
+        let child = &procs[0];
+        let status = child.tree_status();
+        if self.stage == 2 && !status.continued_pids.is_empty() {
+            if status.stopped_pids != status.continued_pids {
+                return Err(format!(
+                    "assertion `left == right` failed: stopped and continued pids: {:?} != {:?}",
+                    status.stopped_pids, status.continued_pids
+                ));
+            }
+            if status.cleanup() != Cleanup::None {
+                return Err(format!("assertion `left == right` failed: cleanup: {:?} != None", status.cleanup()));
+            }
+            if child.exit_status().is_some() {
+                return Err(format!(
+                    "assertion `left == right` failed: exit status: {:?} != None",
+                    child.exit_status()
+                ));
+            }
+            self.stage = 3;
+        }
+        self.next = (self.stage < 4).then_some(now);
+        Ok(())
     }
 
     fn next_deadline(&self) -> Option<Time> {
@@ -40,7 +56,7 @@ impl Referee<Binary> for Judge {
     }
 
     fn passed(&self) -> bool {
-        self.stage == 3
+        self.stage == 4
     }
 }
 

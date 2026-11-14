@@ -564,6 +564,18 @@ impl Sim {
         &self.trace
     }
 
+    /// A failure report naming the time, finding, seed and end of the trace,
+    /// or that the trace is off (testing/simulator.md, 5).
+    #[must_use]
+    pub fn report(&self, what: &str) -> String {
+        let from = self.trace.len().saturating_sub(TAIL);
+        let tail = match self.config.trace {
+            Trace::Whole => trace::render(self.seed, self.trace.get(from..).unwrap_or_default()),
+            Trace::Off => format!("skein-sim seed {}: trace is off", self.seed),
+        };
+        format!("skein-sim at {} ns, {what}\n{tail}", self.now.as_nanos())
+    }
+
     /// The trace as text, under the seed that replays it.
     #[must_use]
     pub fn render_trace(&self) -> String {
@@ -1695,12 +1707,7 @@ impl Sim {
 
     #[expect(clippy::panic, reason = "the simulator fails the world on a broken invariant (testing/simulator.md, 5)")]
     fn die(&self, what: &str) -> ! {
-        let from = self.trace.len().saturating_sub(TAIL);
-        let tail = match self.config.trace {
-            Trace::Whole => trace::render(self.seed, self.trace.get(from..).unwrap_or_default()),
-            Trace::Off => format!("skein-sim seed {}: trace is off", self.seed),
-        };
-        panic!("skein-sim at {} ns, {what}\n{tail}", self.now.as_nanos());
+        panic!("{}", self.report(what));
     }
 }
 

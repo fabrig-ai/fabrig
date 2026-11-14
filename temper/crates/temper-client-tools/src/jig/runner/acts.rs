@@ -166,9 +166,6 @@ fn act_read(call: &Call) -> c::Read {
 pub(crate) enum Failed {
     Refused(&'static [u8]),
     Fixed(&'static [u8]),
-    Unknown { what: &'static [u8], name: Box<[u8]> },
-    NotOffered { name: Box<[u8]> },
-    SubAgentNamedTwice { name: Box<[u8]> },
     Detail(Box<[u8]>),
 }
 pub(crate) type Prepared = Result<(Request, Option<c::Recipient>), Failed>;
@@ -693,9 +690,6 @@ pub(crate) fn prepared(
                 Failed::Refused(why) => render::failure(why, called.json, 2),
                 Failed::Fixed(why) => render::failure(why, called.json, 1),
                 Failed::Detail(why) => render::failure(&why, called.json, 1),
-                Failed::Unknown { what, name } => choice::named(b"unknown ", what, &name, called.json),
-                Failed::NotOffered { name } => choice::named(b"model not offered", b"", &name, called.json),
-                Failed::SubAgentNamedTwice { name } => choice::named(b"sub-agent named twice", b"", &name, called.json),
             };
             finish(called, printed, out);
             return;
@@ -816,6 +810,7 @@ fn send(
     };
     let (Event::Send { request, .. } | Event::Carry { request, .. }) = &event else { unreachable!("act event") };
     let mut operation = Operation::for_call(request, render::outcome::act_tool(called.call.tool));
+    operation.model_flags(&called.call);
     operation.to = to;
     operation.exported = exported;
     if called.call.tool == rows::EXPORT_AT {

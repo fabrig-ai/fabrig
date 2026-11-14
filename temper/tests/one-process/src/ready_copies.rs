@@ -301,6 +301,7 @@ pub struct Outcome {
     pub first_making_second_waiting: bool,
 }
 struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<Store>>,
     rows: BTreeMap<root::Key, root::Record>,
@@ -312,7 +313,7 @@ struct Judge {
     order: Vec<Vec<u8>>,
 }
 impl Judge {
-    fn rows(&mut self) {
+    fn rows(&mut self) -> Result<(), String> {
         let mut making = 0;
         let mut first = None;
         let mut second = None;
@@ -325,13 +326,39 @@ impl Judge {
                     .position(|source| {
                         source.repository.rsplit(|byte| *byte == b'/').next() == Some(row.key.name.as_ref())
                     })
-                    .expect("catalogue target");
-                assert_eq!(row.key.forge, 1);
-                assert_eq!(row.key.org.as_ref(), b"acme");
-                assert_eq!(row.from, MakeFrom::Copy { address: SOURCES[index].address.into() });
-                let into = row.into.as_ref().expect("Ready's project");
-                assert_eq!((into.project, into.home), (1, index == 0));
-                assert!(!matches!(row.state, MakingState::Failed(_)), "no failed copy: {row:?}");
+                    .ok_or_else(|| String::from("catalogue target"))?;
+                match (&(row.key.forge), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(row.key.org.as_ref()), &(b"acme")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(row.from), &(MakeFrom::Copy { address: SOURCES[index].address.into() })) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                let into = row.into.as_ref().ok_or_else(|| String::from("Ready's project"))?;
+                match (&(into.project, into.home), &(1, index == 0)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                if matches!(row.state, MakingState::Failed(_)) {
+                    return Err(format!("no failed copy: {row:?}"));
+                }
                 if row.state == MakingState::Making {
                     making += 1;
                 }
@@ -342,22 +369,25 @@ impl Judge {
                 }
             }
         }
-        assert!(making <= 1, "one writing run per forge");
-        if second == Some(&MakingState::Making) {
-            assert!(
-                self.seen.borrow().first_making_second_waiting,
+        if making > 1 {
+            return Err(String::from("one writing run per forge"));
+        }
+        if (second == Some(&MakingState::Making)) && (!(self.seen.borrow().first_making_second_waiting)) {
+            return Err(format!(
                 "request order: widget must be Making while gadget is Waiting first; widget {first:?}, gadget {second:?}"
-            );
+            ));
         }
         self.seen.borrow_mut().first_making_second_waiting |=
             first == Some(&MakingState::Making) && second == Some(&MakingState::Waiting);
+
+        Ok(())
     }
 }
-impl skein_world::Referee<Proc> for Judge {
+impl Judge {
     #[expect(clippy::too_many_lines, reason = "one referee turn checks commits, sign-in and both adoptions")]
-    fn act(&mut self, _: Time, procs: &mut [Proc]) {
-        let Some(service_index) = procs.iter().position(|proc| matches!(proc, Proc::Service(_))) else { return };
-        let Proc::Service(service) = &mut procs[service_index] else { unreachable!() };
+    fn act_checked(&mut self, _: Time, procs: &mut [Proc]) -> Result<(), String> {
+        let Some(service_index) = procs.iter().position(|proc| matches!(proc, Proc::Service(_))) else { return Ok(()) };
+        let Proc::Service(service) = &mut procs[service_index] else { return Err(String::from("unreachable")) };
         let link = if self.handed { None } else { service.service.links().pop() };
         for commit in service.observer.commits.drain(..) {
             for write in &commit.writes {
@@ -371,19 +401,19 @@ impl skein_world::Referee<Proc> for Judge {
                         "Ready copy kept: {} at {:?}, home {}",
                         String::from_utf8_lossy(&row.key.name),
                         row.asked,
-                        row.into.as_ref().expect("project").home
+                        row.into.as_ref().ok_or_else(|| String::from("project"))?.home
                     );
                 }
                 referee::restart::apply(&mut self.rows, write);
             }
-            self.rows();
+            self.rows()?;
         }
         let caller = procs
             .iter_mut()
             .find_map(|proc| {
                 if let Proc::Other(Native::Person(HarnessProcess::Calls(caller))) = proc { Some(caller) } else { None }
             })
-            .expect("native ctl");
+            .ok_or_else(|| String::from("native ctl"))?;
         if let Some(link) = link {
             let mut sign_in = Command::new(&[b"sign-in", b"-"]);
             sign_in.input = link;
@@ -402,7 +432,13 @@ impl skein_world::Referee<Proc> for Judge {
             self.handed = true;
         }
         for answer in &caller.answers {
-            assert_eq!(answer.exit, Exit::Code(0), "ctl: {}", String::from_utf8_lossy(&answer.error));
+            match (&(answer.exit), &(Exit::Code(0))) {
+                (left, right) if left != right => {
+                    let finding = format!("ctl: {}", String::from_utf8_lossy(&answer.error));
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
         }
         if self.handed && caller.answers.len() == 3 && !self.browsing {
             for proc in procs.iter_mut() {
@@ -438,43 +474,127 @@ impl skein_world::Referee<Proc> for Judge {
                         None
                     }
                 })
-                .expect("native ctl");
+                .ok_or_else(|| String::from("native ctl"))?;
             if self.checking.is_none() {
                 caller.commands.push_back(Command::new(&[b"forge", b"list", b"--json"]));
                 caller.commands.push_back(Command::new(&[b"project", b"show", b"1", b"--json"]));
                 self.checking = Some(());
             }
-            let [_, _, _, forges, project] = caller.answers.as_slice() else { return };
-            let forges = copy::json(forges);
-            let [forge] = forges["forges"].as_array().expect("forge rows").as_slice() else {
-                panic!("one connected forge")
+            let [_, _, _, forges, project] = caller.answers.as_slice() else { return Ok(()) };
+            let forges = copy::json(forges)?;
+            let [forge] = forges["forges"].as_array().ok_or_else(|| String::from("forge rows"))?.as_slice() else {
+                return Err(String::from("one connected forge"));
             };
-            assert_eq!(forge["number"], 1);
-            assert_eq!(forge["makings"].as_array().expect("making rows").len(), 0);
-            let project = copy::json(project);
-            assert_eq!(project["number"], 1);
-            let resources = project["resources"].as_array().expect("project resources");
-            assert_eq!(resources.len(), 2, "both copies belong to Ready's project");
-            assert_eq!(self.order, [b"widget".to_vec(), b"gadget".to_vec()], "requests kept in input order");
-            assert!(
-                !self.rows.values().any(
-                    |record| matches!(record, root::Record::Forge { row } if matches!(row.as_ref(), Stored::Making(_)))
-                ),
-                "no making row remains"
-            );
+            match (&(forge["number"]), &(1)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(forge["makings"].as_array().ok_or_else(|| String::from("making rows"))?.len()), &(0)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            let project = copy::json(project)?;
+            match (&(project["number"]), &(1)) {
+                (left, right) if left != right => {
+                    let finding = String::from("assertion `left == right` failed");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            let resources = project["resources"].as_array().ok_or_else(|| String::from("project resources"))?;
+            match (&(resources.len()), &(2)) {
+                (left, right) if left != right => {
+                    let finding = String::from("both copies belong to Ready's project");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            match (&(self.order), &([b"widget".to_vec(), b"gadget".to_vec()])) {
+                (left, right) if left != right => {
+                    let finding = String::from("requests kept in input order");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
+            if self.rows.values().any(
+                |record| matches!(record, root::Record::Forge { row } if matches!(row.as_ref(), Stored::Making(_))),
+            ) {
+                return Err(String::from("no making row remains"));
+            }
             for (index, source) in SOURCES.iter().enumerate() {
-                let name = source.repository.rsplit(|byte| *byte == b'/').next().expect("source name");
-                let repository = repositories.iter().find(|row| name == row.name.as_ref()).expect("copy adopted");
-                assert_eq!(repository.project, 1);
-                assert_eq!(repository.home, index == 0, "only the first copy is home");
-                assert_eq!(repository.owner.as_ref(), b"acme");
-                assert_eq!(repository.role, temper_engine_domain_forge::Role::Owned);
-                assert_eq!(repository.settings.default_branch.as_ref(), source.branch);
-                assert_eq!(repository.provider.forge, 1);
+                let name =
+                    source.repository.rsplit(|byte| *byte == b'/').next().ok_or_else(|| String::from("source name"))?;
+                let repository = repositories
+                    .iter()
+                    .find(|row| name == row.name.as_ref())
+                    .ok_or_else(|| String::from("copy adopted"))?;
+                match (&(repository.project), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(repository.home), &(index == 0)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("only the first copy is home");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(repository.owner.as_ref()), &(b"acme")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(repository.role), &(temper_engine_domain_forge::Role::Owned)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(repository.settings.default_branch.as_ref()), &(source.branch)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(repository.provider.forge), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 let key = serde_json::json!(["0001", format!("{:08x}", repository.provider.repository)]);
-                let resource = resources.iter().find(|row| row["part"]["key"]["path"] == key).expect("copy in project");
-                assert_eq!(resource["role"], "owned");
-                assert_eq!(resource["home"], index == 0);
+                let resource = resources
+                    .iter()
+                    .find(|row| row["part"]["key"]["path"] == key)
+                    .ok_or_else(|| String::from("copy in project"))?;
+                match (&(resource["role"]), &("owned")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(resource["home"]), &(index == 0)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
             }
             self.seen.borrow_mut().adopted = repositories.len();
             self.controls.signal(service_index, ServiceSignal::Terminate);
@@ -488,8 +608,30 @@ impl skein_world::Referee<Proc> for Judge {
             self.stopped = true;
         }
         self.store.borrow_mut().pending.clear();
+
+        Ok(())
     }
-    fn observe(&mut self, _: Time, _: &[Proc]) {}
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         (!self.stopped).then_some(DEADLINE)
     }
@@ -503,7 +645,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopped
+        self.finding.is_none() && (self.stopped)
     }
 }
 
@@ -529,6 +671,7 @@ pub fn run() -> Outcome {
             skein_sim::Config::calm(),
             skein_world::Memory::Unchecked,
             |controls| Judge {
+                finding: None,
                 controls,
                 store,
                 rows: BTreeMap::new(),
