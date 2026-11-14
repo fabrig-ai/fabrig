@@ -28,16 +28,31 @@ pub struct Change {
     pub environment: Option<NamePair>,
     pub placement: Option<PlacementPair>,
 }
-pub type NamePair = crate::diff::Changed<Box<[u8]>>;
-pub type MemberPair = crate::diff::Changed<Option<Box<[u8]>>>;
-pub type PlacementPair = crate::diff::Changed<Placement>;
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct NamePair {
+    pub before: Box<[u8]>,
+    pub after: Box<[u8]>,
+}
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct MemberPair {
+    pub before: Option<Box<[u8]>>,
+    pub after: Option<Box<[u8]>>,
+}
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct PlacementPair {
+    pub before: Placement,
+    pub after: Placement,
+}
 #[must_use]
 pub(crate) fn change(before: &Meta, after: &Meta) -> Option<Change> {
     let change = Change {
-        base: NamePair::between(&before.base, &after.base),
-        member: MemberPair::between(&before.member, &after.member),
-        environment: NamePair::between(&before.environment, &after.environment),
-        placement: PlacementPair::between(&before.placement, &after.placement),
+        base: if before.base == after.base { None } else { Some(NamePair { before: before.base.clone(), after: after.base.clone() }) },
+        member: if before.member == after.member { None } else { Some(MemberPair { before: before.member.clone(), after: after.member.clone() }) },
+        environment: if before.environment == after.environment { None } else { Some(NamePair { before: before.environment.clone(), after: after.environment.clone() }) },
+        placement: if before.placement == after.placement { None } else { Some(PlacementPair { before: before.placement.clone(), after: after.placement.clone() }) },
     };
     if change.base.is_none() && change.member.is_none() && change.environment.is_none() && change.placement.is_none() {
         None

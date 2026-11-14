@@ -25,12 +25,6 @@ pub struct Changed<T> {
     pub after: T,
 }
 
-impl<T: PartialEq + Clone> Changed<T> {
-    pub(crate) fn between(before: &T, after: &T) -> Option<Self> {
-        if before == after { None } else { Some(Self { before: before.clone(), after: after.clone() }) }
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
     pub target: Box<[u8]>,
