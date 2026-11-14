@@ -75,7 +75,13 @@ class ProtocolTests(unittest.TestCase):
                                     stderr=subprocess.STDOUT, text=True, timeout=5)
             print(f'libtest {scenario}: {result.stdout!r}; log: {logfile.read_text()!r}', flush=True)
             self.assertIn(f'test {name}' + (' - should panic' if scenario == 'expected-panic' else '') + ' ... ', result.stdout)
-            self.assertIn(('ok ' if scenario in ('pass', 'expected-panic') else 'failed ') + name, logfile.read_text())
+            if scenario == 'starved':
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(logfile.read_text(), '')
+                self.assertTrue(result.stdout.rstrip().endswith(
+                    'skein-world: starved: waited 1 ms runnable, fixture patience'))
+            else:
+                self.assertIn(('ok ' if scenario in ('pass', 'expected-panic') else 'failed ') + name, logfile.read_text())
 
 
 class RunnerFixture(unittest.TestCase):
@@ -443,16 +449,39 @@ class RunnerTests(RunnerFixture):
         self.assertEqual(failure.get('type'), 'test abort')
         self.assertIn('signal 15 (SIGTERM)', failure.get('message'))
 
-    def test_starved_and_later_panic(self):
-        for case, outcome in [('starved', 'starved'), ('starved-panic', 'failed')]:
+    def test_starved_endings(self):
+        for case, outcome, processes in [
+                ('starved', 'starved', 2), ('starved-panic', 'failed', 1),
+                ('starved-nonzero', 'crashed', 2), ('starved-return', 'passed', 1),
+                ('starved-not-last', 'crashed', 2), ('starved-blanks', 'starved', 2)]:
             with self.subTest(case=case):
                 self.env['FIXTURE_CASE'] = case
                 self.directory = self.root / case
                 result = self.invoke()
-                self.assertEqual(result['tests'][0]['outcome'], outcome)
-                self.assertIn('skein-world: starved:', result['tests'][0]['output'])
-                self.assertEqual([t['outcome'] for t in result['tests'][1:]], ['passed', 'passed'])
-                self.assertEqual(len(result['processes']), 1)
+                tests = {t['test_name']: t for t in result['tests']}
+                self.assertEqual(tests['a']['outcome'], outcome)
+                if outcome != 'passed':
+                    self.assertIn('skein-world: starved:', tests['a']['output'])
+                self.assertEqual([tests[n]['outcome'] for n in ('b', 'c')], ['passed', 'passed'])
+                self.assertEqual(len(result['processes']), processes)
+                self.assertTrue(all(t['alone'] is None for t in tests.values()))
+                self.assertNotIn('alone', [p['kind'] for p in result['processes']])
+                if processes == 2:
+                    self.assertEqual([p['tests'] for p in result['processes']], [['a'], ['b', 'c']])
+                    self.assertEqual(result['processes'][1]['kind'], 'fresh')
+                    self.assertEqual(tests['b']['process'], tests['c']['process'])
+                    self.assertNotEqual(tests['a']['process'], tests['b']['process'])
+                if case == 'starved-nonzero':
+                    self.assertEqual(result['processes'][0]['exit_code'], 3)
+
+    def test_starved_last_after_failure(self):
+        self.env['FIXTURE_CASE'] = 'failure-then-starved'
+        result = self.invoke()
+        self.assertEqual([(t['test_name'], t['outcome']) for t in result['tests']],
+                         [('a', 'failed'), ('b', 'passed'), ('c', 'starved')])
+        self.assertEqual(len(result['processes']), 1)
+        self.assertEqual(result['processes'][0]['exit_code'], 0)
+        self.assertTrue(all(t['alone'] is None for t in result['tests']))
 
     def test_failure_alone_and_first(self):
         self.binary(names=('a_sets', 'b_reads'), native='state')
