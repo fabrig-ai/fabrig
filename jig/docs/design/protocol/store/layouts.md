@@ -209,7 +209,11 @@ is a `Layout` row per value type of every registered family, at id that
 version, made from the family's kept text at that version (`KeptFamily::texts`)
 with the held families' kept texts at their versions; and a `Text` row
 for each text named. No value is read or rewritten: one commit of a row
-per value type, and a row per text.
+per value type, and a row per text. A value type whose root or variant
+the kept text at that version lacks has no layout there, and no value of
+it can be stored: the seed makes no row for it, and 5.2 registers its
+binary layout at its family's version. A census counting rows in such a
+type's key ranges refuses the open, `Set` with patch 0.
 
 ### 5.2 The binary's layouts
 
