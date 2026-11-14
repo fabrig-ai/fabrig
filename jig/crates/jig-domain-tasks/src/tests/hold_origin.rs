@@ -16,7 +16,7 @@ fn origin(phase: &Phase) -> Option<&HoldSource> {
 }
 
 #[test]
-fn hold_origin_survives_restart_terminal_and_release_in_exact_milestones() {
+fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
     let mut h = Harness::new();
     h.make([task(1, &[])].into());
     h.send(Event::Prepare { reply_to: to(), task: 1 });
@@ -61,14 +61,17 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_milestones() {
         operation: Release { task: 1, again: None, message: None },
     });
     assert_eq!(h.domain.task(1).unwrap().phase, Phase::Active(Active::Due));
-    let Some(Stored::Milestone(retained)) = h.stored.get(&Key::Milestone { task: 1, position }) else {
-        panic!("held milestone retained")
+    let Some(Stored::Hold(retained)) = h.stored.get(&Key::Hold { task: 1, position }) else {
+        panic!("held row retained")
     };
-    assert_eq!(origin(&retained.phase), Some(&resource(b"changed")));
-    let Some(Stored::Milestone(retained)) = h.stored.get(&Key::Milestone { task: 1, position: first.milestone }) else {
-        panic!("original milestone retained")
+    assert_eq!(retained.held.source.as_deref(), Some(&resource(b"changed")));
+    let Some(Stored::Hold(retained)) = h.stored.get(&Key::Hold { task: 1, position: first.milestone }) else {
+        panic!("original hold retained")
     };
-    assert_eq!(retained.phase, first.phase);
+    assert_eq!(
+        Phase::Held { was: retained.held.was.clone(), why: retained.held.why, source: retained.held.source.clone() },
+        first.phase
+    );
 }
 
 #[test]

@@ -4,7 +4,8 @@
 //! trails and before/after history require those store rows; no trail is cached.
 
 use super::{
-    AuthorityLine, Chip, ContractLine, Ending, HoldLine, Parameter, Part, PriorPhase, Proposer, Task, TaskLink, Text,
+    AuthorityLine, Chip, ContractLine, Ending, HoldPhaseLine, Parameter, Part, PriorPhase, Proposer, Task, TaskLink,
+    Text,
 };
 use crate::{Limits, documents::Missing};
 use alloc::boxed::Box;
@@ -89,7 +90,7 @@ pub enum ProposalAction {
     },
     Release {
         task: TaskLink,
-        hold: Option<HoldLine>,
+        hold: Option<HoldPhaseLine>,
     },
 }
 /// Current recipient; earlier recipients are retained proposal history rows.
@@ -231,21 +232,26 @@ pub struct AmendmentChange {
     pub reason: Text,
     pub cut: bool,
 }
-/// Timestamped lifecycle row named by a task activity position.
+/// Attempts and held phases (domain/tasks/lifecycle.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct MilestoneLine {
+pub struct AttemptLine {
     pub task: u64,
-    pub position: u64,
-    pub phase: MilestonePhase,
-    pub at: Option<Wall>,
+    pub attempt: u64,
+    pub claimed: Option<Wall>,
+    pub started: Option<Wall>,
+    pub ended: Option<Wall>,
+    pub end: Option<tasks::EndKind>,
+    pub phases: Option<u32>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum MilestonePhase {
-    Waiting,
-    Active(tasks::Active),
-    Closing { stage: tasks::Stage, ending: Ending },
-    Held { before: PriorPhase, why: tasks::Hold, source: Option<Part>, ending: Option<Ending> },
-    Ended(Ending),
+pub struct HoldLine {
+    pub task: u64,
+    pub position: u64,
+    pub at: Wall,
+    pub before: PriorPhase,
+    pub why: tasks::Hold,
+    pub source: Option<Part>,
+    pub ending: Option<Ending>,
 }
 pub fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
     // A task page prices every nested authority, part, chip, form and result

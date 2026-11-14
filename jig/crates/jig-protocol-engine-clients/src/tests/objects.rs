@@ -59,6 +59,41 @@ fn a_project_document_becomes_its_record() {
     );
 }
 
+#[test]
+fn an_escalations_hold_uses_the_v22_milestone_bridge() {
+    use jig_domain_tasks as t;
+    use skein_lib::Wall;
+    let mut source = fixtures::decided_escalation(p::EscalationDecision::Release);
+    let reads::EndedValue::Escalation { hold, .. } = &mut source.value else { panic!("escalation") };
+    *hold = Some(d::HoldLine {
+        task: 7,
+        position: 31,
+        at: Wall::from_nanos(37),
+        before: d::PriorPhase::Active(t::Active::Running { attempt: 3 }),
+        why: t::Hold::Stopped,
+        source: None,
+        ending: None,
+    });
+    let limits = fixtures::wire_limits();
+    let w::ReadValue::Ended(value) =
+        translate::document(&reads::Answer::Ended(Box::new(source)), &[], &crate::Private::none(), &limits).unwrap()
+    else {
+        panic!("ended")
+    };
+    let w::EndedValue::Escalation(value) = value.value() else { panic!("escalation") };
+    let hold = value.hold().as_ref().unwrap();
+    assert_eq!(hold.task(), 7);
+    assert_eq!(hold.position(), 31);
+    assert_eq!(*hold.at(), Some(37));
+    let w::MilestonePhase::Held(phase) = hold.phase() else { panic!("v22 held phase") };
+    assert_eq!(phase.why(), &w::HoldCategory::Stopped);
+    let w::PriorPhase::Active(active) = phase.before() else { panic!("running before hold") };
+    assert_eq!(
+        active.value(),
+        &w::RunStage::Running(w::RunStageRunning::new(&limits, w::RunStageRunningParts { attempt: 3 }).unwrap())
+    );
+}
+
 fn with_decision(source: &reads::Ended, decision: p::EscalationDecision) -> reads::Answer {
     let mut source = source.clone();
     let reads::EndedValue::Escalation { decision: target, .. } = &mut source.value else {

@@ -73,11 +73,23 @@ pub fn history_page() -> reads::Page {
             amendment: None,
             at: None,
         }),
-        reads::PageRow::Milestone(d::MilestoneLine {
+        reads::PageRow::Attempt(d::AttemptLine {
+            task: 7,
+            attempt: 1,
+            claimed: None,
+            started: None,
+            ended: None,
+            end: None,
+            phases: None,
+        }),
+        reads::PageRow::Hold(d::HoldLine {
             task: 7,
             position: 31,
-            phase: d::MilestonePhase::Waiting,
-            at: Some(Wall::from_nanos(37)),
+            before: d::PriorPhase::Waiting,
+            why: t::Hold::Deadline,
+            source: None,
+            ending: None,
+            at: Wall::from_nanos(37),
         }),
     ])))
 }

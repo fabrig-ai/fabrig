@@ -178,6 +178,42 @@ pub struct Milestone {
     pub at: skein_lib::Wall,
 }
 
+/// Attempt and hold history (domain/tasks/lifecycle.md, 12.1 and 12.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct AttemptRow {
+    pub task: u64,
+    pub attempt: u64,
+    pub claimed: Option<skein_lib::Wall>,
+    pub started: Option<skein_lib::Wall>,
+    pub ended: Option<skein_lib::Wall>,
+    pub end: Option<crate::EndKind>,
+    pub phases: Option<u32>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct OpenAttempt {
+    pub attempt: u64,
+    pub claimed: Option<skein_lib::Wall>,
+    pub started: Option<skein_lib::Wall>,
+    pub from: u64,
+    pub end: Option<crate::EndKind>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Held {
+    pub was: Was,
+    pub why: crate::Hold,
+    pub source: Option<Box<crate::HoldSource>>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct HoldRow {
+    pub task: u64,
+    pub position: u64,
+    pub held: Held,
+    pub at: skein_lib::Wall,
+}
+
 /// One kind of durable task-tree change.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Change {

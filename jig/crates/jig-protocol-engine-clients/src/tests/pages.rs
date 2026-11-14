@@ -214,22 +214,38 @@ fn a_turn_past_the_page_crosses_as_its_size() {
 fn a_history_page_keeps_its_cut_flag() {
     let limits = fixtures::wire_limits();
     let mut source = fixtures::history_page();
-    let literal = jig_client_test_records::mixed_history_page();
-    for (label, cut) in [("cut", true), ("whole", false)] {
+    for cut in [true, false] {
         source.cut = cut;
-        let mut expected = literal.clone().into_parts();
-        expected.cut = cut;
-        assert_eq!(
-            pages::page(
-                &fixtures::models(),
-                &reads::Read::History { task: 7, subtree: false, from: None },
-                &source,
-                &crate::Private::none(),
-                &limits
-            ),
-            Ok(w::ReadValue::History(w::HistoryPage::new(&limits, expected).expect(label))),
-            "{label}"
-        );
+        let w::ReadValue::History(page) = pages::page(
+            &fixtures::models(),
+            &reads::Read::History { task: 7, subtree: false, from: None },
+            &source,
+            &crate::Private::none(),
+            &limits,
+        )
+        .unwrap() else {
+            panic!("history")
+        };
+        assert_eq!(page.cut(), cut);
+        let mut pieces = skein_lib::Reader::new(page.rows());
+        let change = skein_codec::piece::split(&mut pieces).unwrap().unwrap();
+        let w::HistoryRow::Change(_) = w::HistoryRow::decode(&limits, &mut skein_lib::Reader::new(&change)).unwrap()
+        else {
+            panic!("change before hold")
+        };
+        let hold = skein_codec::piece::split(&mut pieces).unwrap().unwrap();
+        let w::HistoryRow::Milestone(hold) =
+            w::HistoryRow::decode(&limits, &mut skein_lib::Reader::new(&hold)).unwrap()
+        else {
+            panic!("v22 hold bridge")
+        };
+        assert_eq!(hold.value().task(), 7);
+        assert_eq!(hold.value().position(), 31);
+        assert_eq!(*hold.value().at(), Some(37));
+        let w::MilestonePhase::Held(phase) = hold.value().phase() else { panic!("held phase") };
+        assert_eq!(phase.before(), &w::PriorPhase::Waiting);
+        assert_eq!(phase.why(), &w::HoldCategory::Deadline);
+        assert!(skein_codec::piece::split(&mut pieces).unwrap().is_none(), "attempt omitted");
     }
 }
 #[test]

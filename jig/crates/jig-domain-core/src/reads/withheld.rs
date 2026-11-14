@@ -64,7 +64,8 @@ pub(crate) fn person_answer(answer: Answer) -> Answer {
                     PageRow::Line(_)
                     | PageRow::EndedDelegate(_)
                     | PageRow::History(_)
-                    | PageRow::Milestone(_)
+                    | PageRow::Attempt(_)
+                    | PageRow::Hold(_)
                     | PageRow::Inbox(_)
                     | PageRow::Note(_)
                     | PageRow::Spend(_) => {}
