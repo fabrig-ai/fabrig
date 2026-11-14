@@ -102,7 +102,69 @@ impl World {
         self.set_clock(now, wall);
         self.settle_oracle()?;
         let inventory = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
-        let records = self.store.readback_of(&inventory).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let records =
+            self.store.readback_of(&inventory).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let (parties, tasks) = self.oracle_read_set(&records);
+        let before = self.oracle_documents(&parties, &tasks);
+        self.restart_configured(configuration(&self.restart_config.0))?;
+        self.settle_oracle()?;
+        if !self.domain.ready() {
+            return Err("restart oracle: decisions did not open".into());
+        }
+        let after = self.oracle_documents(&parties, &tasks);
+        for (key, expected) in &before {
+            let found = after.get(key).expect("same oracle read set");
+            compare_answer(key, expected, found)?;
+        }
+        let restored = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let recovered =
+            self.store.readback_of(&restored).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let mut expected_header = deployment(&records)?;
+        let found_header = deployment(&recovered)?;
+        expected_header.commits = found_header.commits;
+        if expected_header != found_header {
+            return Err(format!(
+                "restart oracle deployment field at key Deployment: expected {expected_header:?}, found {found_header:?}"
+            ));
+        }
+        for key in inventory.keys().chain(restored.keys()).collect::<BTreeSet<_>>() {
+            let exception = rebuilt(key);
+            let header = keys::decode(key) == Some(core::Key::Core(core::CoreKey::Deployment));
+            let wires = keys::decode_own(key) == Some(keys::Own::Wires);
+            let expired = exception.is_some()
+                && !restored.contains_key(key)
+                && keys::decode(key).is_some_and(|key| self.expired(&records, &key));
+            let refreshed_move = keys::decode(key).is_some_and(|key| {
+                let key = root::Key::Core(key);
+                refreshed_move(records.get(&key), recovered.get(&key))
+            });
+            if !(refreshed_move || exception.is_some() && (header || wires || expired))
+                && inventory.get(key) != restored.get(key)
+            {
+                return Err(format!(
+                    "restart oracle retained key {:?} ({:?}); rebuild {:?}: expected {:?}, found {:?}",
+                    key,
+                    keys::decode(key),
+                    exception,
+                    inventory.get(key),
+                    restored.get(key)
+                ));
+            }
+        }
+        for (key, row) in &records {
+            if matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(_))))
+                && Some(row) != recovered.get(key)
+            {
+                return Err(format!(
+                    "restart oracle transcript key {key:?}: expected {row:?}, found {:?}",
+                    recovered.get(key)
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn oracle_read_set(&self, records: &BTreeMap<root::Key, root::Record>) -> (BTreeSet<u64>, BTreeSet<u64>) {
         let mut parties: BTreeSet<_> = records
             .values()
             .filter_map(|row| {
@@ -146,53 +208,7 @@ impl World {
         if let Some(peers) = &self.peers {
             tasks.extend(peers.parties.iter().filter_map(|party| party.last_task));
         }
-        let before = self.oracle_documents(&parties, &tasks);
-        self.restart_configured(configuration(&self.restart_config.0))?;
-        self.settle_oracle()?;
-        if !self.domain.ready() {
-            return Err("restart oracle: decisions did not open".into());
-        }
-        let after = self.oracle_documents(&parties, &tasks);
-        for (key, expected) in &before {
-            let found = after.get(key).expect("same oracle read set");
-            compare_answer(key, expected, found)?;
-        }
-        let restored = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
-        let recovered = self.store.readback_of(&restored).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
-        let mut expected_header = deployment(&records)?;
-        let found_header = deployment(&recovered)?;
-        expected_header.commits = found_header.commits;
-        if expected_header != found_header {
-            return Err(format!("restart oracle deployment field at key Deployment: expected {expected_header:?}, found {found_header:?}"));
-        }
-        for key in inventory.keys().chain(restored.keys()).collect::<BTreeSet<_>>() {
-            let exception = rebuilt(key);
-            let header = keys::decode(key) == Some(core::Key::Core(core::CoreKey::Deployment));
-            let wires = keys::decode_own(key) == Some(keys::Own::Wires);
-            let expired = exception.is_some()
-                && !restored.contains_key(key)
-                && keys::decode(key).is_some_and(|key| self.expired(&records, &key));
-            let refreshed_move = keys::decode(key).is_some_and(|key| {
-                let key = root::Key::Core(key);
-                refreshed_move(records.get(&key), recovered.get(&key))
-            });
-            if !(refreshed_move || exception.is_some() && (header || wires || expired))
-                && inventory.get(key) != restored.get(key)
-            {
-                return Err(format!(
-                    "restart oracle retained key {:?} ({:?}); rebuild {:?}: expected {:?}, found {:?}",
-                    key, keys::decode(key), exception, inventory.get(key), restored.get(key)
-                ));
-            }
-        }
-        for (key, row) in &records {
-            if matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(_))))
-                && Some(row) != recovered.get(key)
-            {
-                return Err(format!("restart oracle transcript key {key:?}: expected {row:?}, found {:?}", recovered.get(key)));
-            }
-        }
-        Ok(())
+        (parties, tasks)
     }
 
     fn expired(&self, records: &BTreeMap<root::Key, root::Record>, key: &core::Key) -> bool {
@@ -366,7 +382,11 @@ fn durable(mut document: Document) -> Document {
     document
 }
 
-fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, found: &core::reads::Answer) -> Result<(), String> {
+fn compare_answer(
+    key: &(u64, Option<u64>),
+    expected: &core::reads::Answer,
+    found: &core::reads::Answer,
+) -> Result<(), String> {
     let document = key.1.map_or_else(|| "Frame".to_owned(), |task| format!("Task {task}"));
     macro_rules! fields {
         ($left:expr, $right:expr; $($field:ident),+ $(,)?) => {$(
@@ -446,7 +466,10 @@ fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, foun
         }
     }
     if expected != found {
-        return Err(format!("restart oracle document {document} field answer (sign-in {}): expected {expected:?}, found {found:?}", key.0));
+        return Err(format!(
+            "restart oracle document {document} field answer (sign-in {}): expected {expected:?}, found {found:?}",
+            key.0
+        ));
     }
     Ok(())
 }

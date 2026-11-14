@@ -368,13 +368,9 @@ impl Store {
         self.open();
         self.kill = None;
         if self.disk.is_some() && self.sets.sets.is_empty() && !self.reached_kill() {
-            if self.applied < self.acknowledged {
-                return Err(ReadbackFinding::Inventory { key: None, reason: "acknowledged prefix survives".into() });
-            }
+            assert!(self.applied >= self.acknowledged, "acknowledged prefix survives");
             let actual = self.readback()?;
-            if Some(&actual) != self.prefixes.get(&self.applied) {
-                return Err(ReadbackFinding::Inventory { key: None, reason: "recovery is one whole submitted prefix".into() });
-            }
+            assert_eq!(Some(&actual), self.prefixes.get(&self.applied), "recovery is one whole submitted prefix");
             self.rows = actual;
             self.prefixes.retain(|number, _| *number <= self.applied);
             self.submissions.retain(|number, _| *number <= self.applied);

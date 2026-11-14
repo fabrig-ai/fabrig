@@ -31,6 +31,20 @@ fn a_writer_forgetting_a_durable_task_field_names_its_document() {
 }
 
 #[test]
+fn a_readback_finding_reaches_finish_without_a_second_restart() {
+    let mut world = World::new(Setup { seed: 1910, ..Setup::default() });
+    world.turn(1, 1, None, b"durable answer");
+    world.end(tasks::End::Parked, 1);
+    world.store.unread_transcript(1);
+    let finding = world.finish().expect_err("the committed transcript is unread");
+    assert!(finding.contains("restart oracle readback: Transcript { task: 1, backwards: false"), "{finding}");
+    assert!(finding.contains("terminal: Unread"), "{finding}");
+    let applied = world.store.applied;
+    assert_eq!(world.finish(), Ok(()));
+    assert_eq!(world.store.applied, applied);
+}
+
+#[test]
 fn a_deliberately_broken_fixture_skips_the_oracle() {
     let mut world = World::new(Setup { seed: 1903, ..Setup::default() });
     world.stopped = true;

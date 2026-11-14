@@ -11,8 +11,12 @@ const READER: Token = Token::new(0);
 #[derive(Debug)]
 pub enum ReadbackFinding {
     NotQuiescent,
-    ApplicationKey { key: Box<[u8]> },
-    ApplicationValue { key: Box<[u8]> },
+    ApplicationKey {
+        key: Box<[u8]>,
+    },
+    ApplicationValue {
+        key: Box<[u8]>,
+    },
     Transcript {
         task: u64,
         backwards: bool,
@@ -20,7 +24,11 @@ pub enum ReadbackFinding {
         terminal: Box<Event>,
         reason: &'static str,
     },
-    Inventory { key: Option<Box<[u8]>>, reason: String },
+    /// A retained page, component row or decoded record disagrees with its stored inventory.
+    Inventory {
+        key: Option<Box<[u8]>>,
+        reason: String,
+    },
 }
 
 fn inventory(key: &[u8], reason: impl Into<String>) -> ReadbackFinding {
@@ -44,6 +52,7 @@ impl Store {
     /// Collect the entire main map through production pages, including component
     /// and installation rows. Requires a quiescent fixture boundary; the output
     /// owns memory proportional to the complete inventory.
+    #[expect(clippy::type_complexity, reason = "complete raw inventory owns both keys and values")]
     pub fn retained(&mut self) -> Result<BTreeMap<Box<[u8]>, Box<[u8]>>, ReadbackFinding> {
         self.readback_boundary()?;
         let mut found = BTreeMap::new();
@@ -64,7 +73,7 @@ impl Store {
                 })?;
             let mut last = after.clone();
             for row in page.rows {
-                if !last.as_deref().is_none_or(|last| row.key.as_ref() > last) {
+                if last.as_deref().is_some_and(|last| row.key.as_ref() <= last) {
                     return Err(inventory(&row.key, "exclusive ordered keys"));
                 }
                 last = Some(row.key.clone());
@@ -76,7 +85,7 @@ impl Store {
             if Some(&next) != last.as_ref() {
                 return Err(inventory(&next, "cursor is the last returned key"));
             }
-            if !after.as_deref().is_none_or(|after| next.as_ref() > after) {
+            if after.as_deref().is_some_and(|after| next.as_ref() <= after) {
                 return Err(inventory(&next, "retained progress"));
             }
             after = Some(next);
@@ -138,7 +147,14 @@ impl Store {
     }
 
     /// Read back an inventory `retained` just returned, with nothing changed between.
-    pub fn readback_of(&mut self, rows: &BTreeMap<Box<[u8]>, Box<[u8]>>) -> Result<BTreeMap<root::Key, root::Record>, ReadbackFinding> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one inventory walk decodes each family and checks its cross-index links"
+    )]
+    pub fn readback_of(
+        &mut self,
+        rows: &BTreeMap<Box<[u8]>, Box<[u8]>>,
+    ) -> Result<BTreeMap<root::Key, root::Record>, ReadbackFinding> {
         self.readback_boundary()?;
         let mut found = BTreeMap::new();
         let mut transcripts = BTreeMap::new();
@@ -160,9 +176,15 @@ impl Store {
             } else if let Some(application) = keys::of_application(key) {
                 let (number, record_key) = jig_test_store::keys::decode(application, &self.limits.connector)
                     .ok_or_else(|| ReadbackFinding::ApplicationKey { key: application.into() })?;
-                let event = self.readback_query(Request::Get { owner: READER, key: Get::Application(application.into()) })?;
-                let Event::Got { owner: READER, row: Some(protocol::Row::Application { key: got, value: bytes }) } = event else {
-                    return Err(inventory(key, format!("discovered application Get must be present and typed: {event:?}")));
+                let event =
+                    self.readback_query(Request::Get { owner: READER, key: Get::Application(application.into()) })?;
+                let Event::Got { owner: READER, row: Some(protocol::Row::Application { key: got, value: bytes }) } =
+                    event
+                else {
+                    return Err(inventory(
+                        key,
+                        format!("discovered application Get must be present and typed: {event:?}"),
+                    ));
                 };
                 if got.as_ref() != application || &bytes != value {
                     return Err(inventory(key, "application Get key and bytes agree with inventory"));
@@ -177,14 +199,17 @@ impl Store {
                     return Err(inventory(key, "unique decoded key"));
                 }
             } else if *key == installation {
-                codec::accounts::Installation::decode(value).map_err(|failure| inventory(key, format!("installation row: {failure:?}")))?;
+                codec::accounts::Installation::decode(value)
+                    .map_err(|failure| inventory(key, format!("installation row: {failure:?}")))?;
             } else {
                 match keys::decode_own(key).ok_or_else(|| inventory(key, "recognized retained key"))? {
                     keys::Own::Format => {
-                        codec::component::Format::decode(value).map_err(|failure| inventory(key, format!("format row: {failure:?}")))?;
+                        codec::component::Format::decode(value)
+                            .map_err(|failure| inventory(key, format!("format row: {failure:?}")))?;
                     }
                     keys::Own::Layouts => {
-                        codec::component::Layouts::decode(value).map_err(|failure| inventory(key, format!("layouts row: {failure:?}")))?;
+                        codec::component::Layouts::decode(value)
+                            .map_err(|failure| inventory(key, format!("layouts row: {failure:?}")))?;
                     }
                     keys::Own::Wires => {
                         protocol::component_v3::Wires::decode(
@@ -204,7 +229,8 @@ impl Store {
                         }
                     }
                     keys::Own::Transcript { task } => {
-                        let index = codec::component::Transcript::decode(value).map_err(|failure| inventory(key, format!("transcript index: {failure:?}")))?;
+                        let index = codec::component::Transcript::decode(value)
+                            .map_err(|failure| inventory(key, format!("transcript index: {failure:?}")))?;
                         if index.window > index.length {
                             return Err(inventory(key, "window within committed transcript"));
                         }
@@ -213,7 +239,8 @@ impl Store {
                         }
                     }
                     keys::Own::Attempt { task, attempt } => {
-                        let index = codec::component::Attempt::decode(value).map_err(|failure| inventory(key, format!("attempt index: {failure:?}")))?;
+                        let index = codec::component::Attempt::decode(value)
+                            .map_err(|failure| inventory(key, format!("attempt index: {failure:?}")))?;
                         attempts.push((key, task, attempt, index));
                     }
                 }
@@ -229,7 +256,8 @@ impl Store {
             let forwards = self.transcript(*task, false)?;
             let mut backwards = self.transcript(*task, true)?;
             backwards.reverse();
-            let key = keys::encode_own(&keys::Own::Transcript { task: *task }, self.component_limits.store.key).expect("transcript key");
+            let key = keys::encode_own(&keys::Own::Transcript { task: *task }, self.component_limits.store.key)
+                .expect("transcript key");
             if forwards != backwards {
                 return Err(inventory(&key, "complete transcript frame orders agree"));
             }

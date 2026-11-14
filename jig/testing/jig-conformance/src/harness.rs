@@ -14,9 +14,12 @@ pub trait Durable: Sized {
     /// Returns the first failed numbered commit.
     fn tick(&mut self, hold: bool) -> Result<Option<u64>, u64>;
     fn release_held(&mut self) -> Option<u64>;
-    fn crash(&mut self, seed: u64);
-    #[must_use]
-    fn fork(&self) -> Self;
+    /// # Errors
+    /// Returns a recovery readback finding.
+    fn crash(&mut self, seed: u64) -> Result<(), String>;
+    /// # Errors
+    /// Returns a recovery readback finding while replaying durable commits.
+    fn fork(&self) -> Result<Self, String>;
     fn applied(&self) -> u64;
     /// No submitted commit or page remains in flight.
     fn idle(&self) -> bool;
@@ -35,11 +38,12 @@ impl<K: Ord + Clone + Debug, R: Clone + Debug> Durable for jig_fake_store::Store
     fn release_held(&mut self) -> Option<u64> {
         Self::release_held(self)
     }
-    fn crash(&mut self, _: u64) {
+    fn crash(&mut self, _: u64) -> Result<(), String> {
         Self::crash(self);
+        Ok(())
     }
-    fn fork(&self) -> Self {
-        self.clone()
+    fn fork(&self) -> Result<Self, String> {
+        Ok(self.clone())
     }
     fn applied(&self) -> u64 {
         self.applied
@@ -313,7 +317,7 @@ impl<A: Application> Harness<A> {
     pub fn crash(&mut self) -> Result<(), Violation> {
         self.crashes.push(self.store.applied());
         self.referee.observe(self.clock.now, Observed::Restart)?;
-        self.store.crash(self.seed);
+        self.store.crash(self.seed).map_err(|why| Violation { promise: crate::referee::Promise::Once, why })?;
         self.events.clear();
         self.outputs.clear();
         A::cold(&mut self.peers, &self.store, self.clock)?;
@@ -547,21 +551,23 @@ where
 {
     /// Capture the outside state only; resuming necessarily performs a cold start.
     /// Held domain continuations are discarded along with the domain.
-    #[must_use]
-    pub fn cold_snapshot(&self) -> ColdSnapshot<A> {
-        ColdSnapshot {
+    ///
+    /// # Errors
+    /// Returns a recovery readback finding from replaying the captured store.
+    pub fn cold_snapshot(&self) -> Result<ColdSnapshot<A>, Violation> {
+        Ok(ColdSnapshot {
             config: self.config.clone(),
             seed: self.seed,
             systems: self.systems.clone(),
             peers: self.peers.clone(),
-            store: self.store.fork(),
+            store: self.store.fork().map_err(|why| Violation { promise: crate::referee::Promise::Once, why })?,
             referee: self.referee.clone(),
             trace: self.trace.clone(),
             maximum: self.maximum,
             clock: self.clock,
             iterations: self.iterations,
             crashes: self.crashes.clone(),
-        }
+        })
     }
 
     /// Fork a captured durable cut through the same crash/restart path as fresh replay.
@@ -572,7 +578,7 @@ where
         // Exactly crash's outside sequence, before constructing its one new root.
         snapshot.crashes.push(snapshot.store.applied());
         snapshot.referee.observe(snapshot.clock.now, Observed::Restart)?;
-        snapshot.store.crash(snapshot.seed);
+        snapshot.store.crash(snapshot.seed).map_err(|why| Violation { promise: crate::referee::Promise::Once, why })?;
         A::cold(&mut snapshot.peers, &snapshot.store, snapshot.clock)?;
         Self::inspect_outside(
             &mut snapshot.peers,

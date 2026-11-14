@@ -217,8 +217,7 @@ impl World {
 
     /// A cold start under `config`, which `restart_config` already holds a copy of.
     pub(crate) fn restart_configured(&mut self, config: root::Config) -> Result<(), String> {
-        self.observer
-            .observe(self.wall, crate::referee::Observed::Restart)?;
+        self.observer.observe(self.wall, crate::referee::Observed::Restart)?;
         if matches!(self.cut, Some(super::Cut::Disk { .. }))
             || matches!(self.reached_cut, Some(super::Cut::Disk { .. }))
         {
@@ -227,7 +226,9 @@ impl World {
         if let Some(super::Cut::Disk { from, operation }) = self.cut {
             self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
         }
-        self.store.reconfigure(18, &config.core.settings.models).map_err(|finding| format!("restart readback: {finding:?}"))?;
+        self.store
+            .reconfigure(18, &config.core.settings.models)
+            .map_err(|finding| format!("restart readback: {finding:?}"))?;
         if self.store.reached_kill() {
             self.reached_cut = self.cut.take();
             return Ok(());

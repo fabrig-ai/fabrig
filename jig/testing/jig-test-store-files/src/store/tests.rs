@@ -155,13 +155,17 @@ fn readback_discovers_actual_inventory_without_changing_the_mirror() {
 #[test]
 fn readback_refuses_pending_writes_without_draining_them() {
     let mut store = snapshot_store();
-    store.submit(2, Box::new([]), 0);
+    let inventory = store.retained().expect("quiet inventory before submission");
+    store.submit(2, Box::new([root::Write::Save(result(1, 1))]), 0);
     let pending = store.pending.clone();
     let held = store.held.clone();
     let rows = store.rows.clone();
     let applied = store.applied;
     assert!(matches!(store.readback(), Err(super::ReadbackFinding::NotQuiescent)));
     assert_eq!(store.pending, pending);
+    assert!(matches!(store.retained(), Err(super::ReadbackFinding::NotQuiescent)));
+    assert!(matches!(store.readback_of(&inventory), Err(super::ReadbackFinding::NotQuiescent)));
+    assert!(matches!(store.transcript(1, false), Err(super::ReadbackFinding::NotQuiescent)));
     assert_eq!(store.held, held);
     assert_eq!(store.rows, rows);
     assert_eq!(store.applied, applied);
@@ -171,7 +175,8 @@ fn readback_refuses_pending_writes_without_draining_them() {
 }
 
 fn component_commit(store: &mut Store, number: u64, writes: Box<[jig_protocol_store::Write]>) {
-    let terminal = store.readback_query(jig_protocol_store::Request::Commit { number, writes }).expect("component commit");
+    let terminal =
+        store.readback_query(jig_protocol_store::Request::Commit { number, writes }).expect("component commit");
     assert!(matches!(terminal, jig_protocol_store::Event::Committed { number: found, .. } if found == number));
 }
 
@@ -227,6 +232,30 @@ fn readback_rejects_undecodable_actual_value() {
         panic!("undecodable application value finding");
     };
     assert_eq!(key, jig_test_store::keys::encode(1, &jig_test_connector::RecordKey::Result(1)));
+}
+
+#[test]
+fn readback_rejects_an_application_value_under_another_records_key() {
+    let mut store = snapshot_store();
+    let key = jig_test_store::keys::encode(1, &jig_test_connector::RecordKey::Result(1));
+    let record = jig_test_connector::Record::Result { task: ROWS + 1, code: 7 };
+    component_commit(
+        &mut store,
+        2,
+        Box::new([jig_protocol_store::Write::Put {
+            key: key.clone(),
+            value: jig_test_store::records::encode(&record),
+        }]),
+    );
+    let before = store.retained().expect("raw inventory");
+    let mirror = store.rows.clone();
+    let Err(super::ReadbackFinding::Inventory { key: Some(found), reason }) = store.readback() else {
+        panic!("application record key agreement finding");
+    };
+    assert_eq!(jig_protocol_store::keys::of_application(&found), Some(key.as_ref()));
+    assert_eq!(reason, "application record key agreement");
+    assert_eq!(store.retained().expect("unchanged inventory"), before);
+    assert_eq!(store.rows, mirror);
 }
 
 fn transcript_store() -> (Store, Vec<core::TurnRecord>) {
@@ -294,12 +323,14 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
     use skein_io::file;
     use skein_lib::Token;
     let (mut store, _) = transcript_store();
-    let event = store.readback_query(jig_protocol_store::Request::Transcript {
-        owner: Token::new(0),
-        read: jig_protocol_store::TranscriptRead::Page { task: 1, backwards: false, after: None },
-        rows: 2,
-        bytes: u64::from(store.component_limits.store.page.bytes),
-    }).expect("prefix page");
+    let event = store
+        .readback_query(jig_protocol_store::Request::Transcript {
+            owner: Token::new(0),
+            read: jig_protocol_store::TranscriptRead::Page { task: 1, backwards: false, after: None },
+            rows: 2,
+            bytes: u64::from(store.component_limits.store.page.bytes),
+        })
+        .expect("prefix page");
     let jig_protocol_store::Event::Turns { turns, next: Some(offset), .. } = event else { panic!("prefix page") };
     assert_eq!(turns.len(), 2);
     let root = store.files.root();
