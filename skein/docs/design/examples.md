@@ -486,12 +486,16 @@ processes, each a host of an `iterate` (a service, or a fake client):
     process the walk has found, below the binary's group as well as
     adopted, killed through its pidfd, and, once a binary it killed has
     exited, a last listing for the orphans it left, killed in turn. A
-    process still running after that is never passed over: the kit
-    fails the test, naming it; a test already unwinding cannot fail
+    process still running after that is never passed over: on an
+    ordinary return the kit's report of it is a finding its teardown
+    fails the test with, naming it; a test already unwinding cannot fail
     twice, so the kit writes `skein-world: left running:` and the pids
-    to stderr instead. A test process killed outright, by its runner's
-    timeout or a signal, runs none of this: a fixture's own tie to its
-    owner ends its tree then (testing/README.md, 5).
+    to stderr instead. That fallback is a `Drop`'s, which runs only while
+    a test unwinds, so it is never the only cleanup and no test
+    exercises it (../foundation/programming-model.md, 10.4). A test
+    process killed outright, by its runner's timeout or a signal, or one
+    that aborts, runs none of this: a fixture's own tie to its owner
+    ends its tree then (testing/README.md, 5).
   - **A crash on purpose.** A test that crashes its binary, to prove
     what a restart finds, is its supervisor (runtime/shell.md, 12). It supervises
     the tree (`Expectation::Supervise`), kills all of it at once

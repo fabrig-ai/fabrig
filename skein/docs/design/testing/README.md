@@ -244,6 +244,52 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   the world settles, naming the process and the deadline. In the
   replaying tiers that is a jump of the clock to it; in the real loop, a
   wake for it. No service writes the check, and none opts out.
+- **Its checks return their findings** (../../foundation/programming-model.md, 10.4).
+  A referee's, a judge's or the harness's own check that fails gives its
+  finding as a value, the text it fails with now: the seed, the time,
+  what broke and, in the simulated world, the trace's tail. Only the
+  loop or the test that drives it panics on it, once, at its top, so a
+  check's own tests read its finding and catch nothing.
+  - `Referee::watch(&mut self, now: Time, procs: &[P]) -> Result<(), String>`
+    watches every process after one iterated, and returns a broken safety
+    expectation's finding. The simulated world's turns and the real loop
+    call it where they called `observe`, and fail with its `Err` at once,
+    observing nothing after it. `Referee::observe(&mut self, now, procs)`,
+    which panics on what it finds, stays for the referees outside skein
+    that aren't converted yet: it has an empty default, and `watch`'s
+    default calls it and returns `Ok(())`. A referee implements one of
+    the two, and none of skein's implements `observe`. Once no referee
+    does, `observe` goes and `watch` loses its default.
+  - `Expectations::check(&mut self, now: Time, procs: &[P]) -> Result<(), String>`
+    sets each met expectation aside and returns the first broken one's
+    finding, `seed <seed>: at <ns> ns, <expectation> broke: <why>`.
+    `Expectations::observe` panics on it.
+  - `World::try_run`, `World::try_run_with_faults` and
+    `World::try_run_with_inputs`, each `-> Result<Outcome<P, M>, String>`,
+    run as `run`, `run_with_faults` and `run_with_inputs` do, and return
+    the run's own verdicts as a finding: a referee's finding, an overdue
+    expectation, a world idle and unsettled with nothing due, one past
+    its steps, and the teardown policy check, each with the seed and the
+    trace's tail as `run` prints them now. `run*` call them and panic on
+    the `Err`.
+  - The real loop fails with a finding only after its forced cleanup,
+    as above. A binary keeps an expected end's finding, a process group
+    or tree process still running at its exit (../examples.md, 6), as a
+    value the loop reads, and the tree keeper's report of what it left
+    running and its cgroup's removal error are values too, which the
+    kit's teardown fails with once, on an ordinary return. Conformance's
+    real backend gives a wait that passes unanswered, its listener's
+    among them, as a finding with its figures.
+  - The domain world's referee, `skein_world::domain::Referee`, holds its
+    verdict as a value (`verdict()`). `check_holding(seed)` and
+    `check_passed(seed)`, each `-> Result<(), String>`, give the text
+    `assert_holding` and `assert_passed` panic with. `Ledger::check_settled()
+    -> Result<(), String>` and `check_replays(seed, other, run) -> Result<R, String>`
+    are the returning forms of `Ledger::assert_settled` and
+    `assert_replays`, which panic on them.
+  - A harness that adds context to a failure writes it before it runs
+    what may fail: conformance's simulated driver names each seed and
+    configuration on stderr before running it, and catches nothing.
 - **It tells a starved run from a slow one** in the real loop
   by `Deadline`, the same real-clock deadline every harness uses
   (../../foundation/testing-strategy.md, 2.10). `skein_world::{Deadline, Expired, Starved,
@@ -303,8 +349,10 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   dies with the thread that started it (a parent-death signal,
   `exec_dying_with_parent`, ../runtime/shell.md, 3), each descendant
   it starts that leaves its group or session ends its own loop once
-  that owner process is gone, and a test that unwinds has the kit end
-  the rest and report what it could not (../examples.md, 6). skein's
+  that owner process is gone. None of that waits on unwinding: a test
+  that unwinds may have the kit end the rest sooner (../examples.md, 6),
+  never alone, and no test exercises that path, which a test of the
+  process ending covers. skein's
   process fixture (`tests/conformance/real`, built for the worlds as
   `world_process_fixture`) ties its `never`, `fork-live` and
   `supervise-*` modes so; a descendant that only sleeps its bounded

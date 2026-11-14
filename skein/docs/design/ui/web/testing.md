@@ -187,8 +187,13 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     the server's arguments, in a command's (below) and in the origins'
     pages is that peer's address, `ip:port`, as `{address}` is the
     server's;
-  - a peer's failed assertion fails the test as the binary's trouble
-    does, naming the peer;
+  - the harness writes `lent peer <name>` on stderr before it hands a
+    peer control, unless the last such line already names it, so a
+    peer's failed assertion, which ends the test, follows the name of
+    the peer it fails in; nothing catches it
+    (../../../foundation/programming-model.md, 10.4). A peer's startup
+    that fails as a value fails the test as the binary's trouble does,
+    naming the peer;
   - at the run's end the harness shuts each peer down and drives it
     until it holds nothing, within the run's time, and hands it back.
     The test then reads the peer's observations, and the state behind
