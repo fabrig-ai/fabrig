@@ -1,8 +1,8 @@
 //! The observed red boundary, its green turn and the remaining member's round
 //! (temper/docs/design/domain/landing-search.md, 3–5 and 8).
 use super::{
-    Judge, Phase, Process, Proof, Script, Turn, Value, change, gate_runs, get, hold, landing, landings, main,
-    member_branch, members, sha,
+    Judge, Phase, Process, Proof, Script, Turn, Value, gate_runs, get, hold, landing, landings, main,
+    member_branch, members, sha, ctl,
 };
 use skein_fake_llm_domain::api::Finish;
 
@@ -32,6 +32,28 @@ pub(super) fn gate_status(statuses: &Value, verdict: &str) -> Result<bool, Strin
 }
 
 impl Judge<'_> {
+    fn observe_blamed(&mut self, procs: &mut [Process]) -> Result<bool, String> {
+        let calls = super::calls(procs)?;
+        if let Some(index) = self.blamed_read {
+            let Some(ended) = calls.ends().get(index) else { return Ok(false) };
+            if ended.exit != Some(skein_io::kernel::Exit::Code(0)) {
+                return Err(format!("blamed change read: {}", String::from_utf8_lossy(&ended.stderr)));
+            }
+            let panel = ctl::try_json(ended)?;
+            if panel["task"] != 4 {
+                return Err("the blamed change read names another task".into());
+            }
+            self.blamed_panel = Some(panel);
+            self.blamed_read = None;
+            Ok(true)
+        } else {
+            // Keep the world's model peer running while the repair is admitted.
+            self.blamed_read = Some(calls.ends().len());
+            calls.push(ctl::Step::Run(ctl::Call::new(&["change", "show", "4", "--json"]).in_directory("private")));
+            Ok(false)
+        }
+    }
+
     fn receipt(&self, run: u64, prefix: &str, verdict: &str) -> Result<bool, String> {
         Ok({
             let actual = get(self.forge, &format!("actions/runs/{run}"));
@@ -92,7 +114,10 @@ impl Judge<'_> {
             if !member["landed"].is_null() {
                 return Err(String::from("the blamed member did not land"));
             }
-            let change = change(self.root, member["change"].as_u64().ok_or(String::from("blamed change"))?)?;
+            let change = self.blamed_panel.as_ref().ok_or("fresh blamed change read")?;
+            if change["task"] != member["change"] {
+                return Err("the blamed member names another task".into());
+            }
             if change["step"] != "repairing" || change["runs"].as_u64().is_none() {
                 return Ok(false);
             }
@@ -300,6 +325,11 @@ impl Judge<'_> {
     }
 
     pub(super) fn search(&mut self, step: Step, procs: &mut [Process]) -> Result<(), String> {
+        if let Step::Boundary | Step::Remainder = step
+            && !self.observe_blamed(procs)?
+        {
+            return Ok(());
+        }
         match step {
             Step::One => self.probe(1, "failure")?,
             Step::Two => self.probe(2, "success")?,
