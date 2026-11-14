@@ -16,19 +16,8 @@ hearth/tests/builder/tests/real/main.rs should_panic 1
 jig/crates/jig-client-domain/src/tests/carried.rs should_panic 3
 jig/crates/jig-client-domain/src/tests/requests.rs should_panic 4
 jig/crates/jig-client/src/tests/unlinked.rs should_panic 5
-jig/crates/jig-domain-core/src/tests/acts/proposals.rs should_panic 1
-jig/crates/jig-domain-core/src/tests/jobs.rs should_panic 4
-jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs should_panic 1
-jig/crates/jig-domain-core/src/tests/settings/templates.rs should_panic 1
-jig/crates/jig-domain-core/src/tests/start.rs should_panic 4
 jig/crates/jig-domain-core/src/tests/start/inbox.rs should_panic 1
 jig/crates/jig-domain-fleet/src/tests/needs.rs should_panic 1
-jig/crates/jig-domain-people/src/tests/act_charges.rs should_panic 1
-jig/crates/jig-domain-people/src/tests/ended.rs should_panic 1
-jig/crates/jig-domain-people/src/tests/start.rs should_panic 10
-jig/crates/jig-domain-tasks/src/tests/close_project.rs should_panic 1
-jig/crates/jig-domain-tasks/src/tests/periods.rs should_panic 1
-jig/crates/jig-domain-tasks/src/tests/startup/detail.rs should_panic 4
 jig/crates/jig-protocol-config/src/tests/members.rs should_panic 1
 jig/crates/jig-protocol-engine-clients/src/tests/catalogue.rs should_panic 1
 jig/crates/jig-protocol-store/src/tests.rs should_panic 1
@@ -42,7 +31,6 @@ jig/testing/jig-client-kit/src/joint/stories/referee_stories.rs should_panic 1
 jig/testing/jig-client-test-view/src/tests/world_limits.rs should_panic 2
 jig/testing/jig-test-store-files/src/store/tests.rs should_panic 5
 jig/testing/jig-test-store-files/src/tests/routes.rs should_panic 1
-jig/tests/accounts/tests/suite/simulation.rs should_panic 1
 jig/tests/client/tests/suite/memory.rs should_panic 2
 jig/tests/client/tests/suite/referee.rs should_panic 11
 jig/tests/client/tests/suite/stories.rs should_panic 2

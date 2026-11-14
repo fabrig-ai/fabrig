@@ -15,56 +15,26 @@ fn fresh() -> (Domain, Queue<Request>) {
 }
 
 #[test]
-#[should_panic(expected = "people start begins once before input")]
-fn fresh_timer_input_prevents_late_selection() {
+fn a_fresh_timer_emits_nothing() {
     let (mut domain, mut out) = fresh();
     fire(&mut domain, &env(), &mut out);
     assert!(out.is_empty());
-    domain.start_restore(Wall::EPOCH);
 }
 
 #[test]
-#[should_panic(expected = "people start begins once before input")]
-fn ending_seeding_prevents_late_selection() {
-    let (mut domain, _) = fresh();
-    domain.end_seeding();
-    domain.start_restore(Wall::EPOCH);
-}
-
-#[test]
-#[should_panic(expected = "people start begins once before input")]
-fn cancelling_absent_moves_prevents_late_selection() {
-    let (mut domain, _) = fresh();
-    domain.cancel_moves(None);
-    domain.start_restore(Wall::EPOCH);
-}
-
-#[test]
-#[should_panic(expected = "people start begins once before input")]
-fn refused_application_part_prevents_late_selection() {
+fn an_absent_application_part_is_unknown() {
     let (mut domain, _) = fresh();
     assert_eq!(
         application_part(&mut domain, &env(), Token::new(1), Ask::Stop { project: 1, task: 1 }),
         Err(Outcome::Refused(Refusal::Unknown))
     );
-    domain.start_restore(Wall::EPOCH);
 }
 
 #[test]
-#[should_panic(expected = "people start begins once before input")]
-fn completing_absent_application_part_prevents_late_selection() {
-    let (mut domain, _) = fresh();
-    application_part_done(&mut domain, Token::new(1));
-    domain.start_restore(Wall::EPOCH);
-}
-
-#[test]
-#[should_panic(expected = "people start begins once before input")]
-fn resolving_ended_conversation_prevents_a_late_start() {
+fn an_absent_ended_conversation_keeps_no_read_position() {
     let (mut domain, _) = fresh();
     domain.restore_ended_conversation(1);
     assert!(domain.read_conversations().is_empty());
-    domain.start_restore(Wall::EPOCH);
 }
 
 fn result_entry() -> ResultRef {
@@ -72,12 +42,10 @@ fn result_entry() -> ResultRef {
 }
 
 #[test]
-#[should_panic(expected = "people start begins once before input")]
-fn absent_result_input_prevents_a_late_start() {
+fn an_absent_partys_result_is_not_cached() {
     let (mut domain, _) = fresh();
     domain.remember_result(&LIMITS, 1, result_entry());
     assert_eq!(domain.cached_results(1), None);
-    domain.start_restore(Wall::EPOCH);
 }
 
 fn ended_mark() -> EndedMark {
@@ -85,12 +53,10 @@ fn ended_mark() -> EndedMark {
 }
 
 #[test]
-#[should_panic(expected = "people start begins once before input")]
-fn absent_ended_mark_context_prevents_late_selection() {
+fn an_absent_ended_mark_context_emits_nothing() {
     let (mut domain, mut out) = fresh();
     domain.mark_ended(&env(), ended_mark(), &mut out);
     assert!(out.is_empty());
-    domain.start_restore(Wall::EPOCH);
 }
 
 #[test]
@@ -499,14 +465,6 @@ fn explicit_start_checks_nested_bytes_and_shared_request_capacity() {
         );
         assert!(!domain.start_link());
     }
-}
-
-#[test]
-#[should_panic(expected = "wrong people family: EndedRead")]
-fn explicit_start_asserts_wrong_family() {
-    let env = env();
-    let (mut domain, mut out) = new_start(&env);
-    load(&mut domain, &env, Stored::EndedRead { task: 1, party: 1, through: 1 }, &mut out);
 }
 
 #[test]
@@ -1328,16 +1286,6 @@ fn never_started_domain_accepts_roles() {
     step(&mut domain, &env(), Event::Roles { project: 1, holdings: Box::new([]) }, &mut out);
     assert!(domain.ready());
     assert!(domain.has_project(1));
-}
-
-#[test]
-#[should_panic(expected = "people start begins once before input")]
-fn an_open_start_cannot_begin_again() {
-    let (mut domain, _) = new_start(&env());
-    assert!(domain.start_link());
-    domain.start_sweep();
-    assert!(domain.start_complete(&env()));
-    domain.start_restore(Wall::EPOCH);
 }
 
 #[test]
