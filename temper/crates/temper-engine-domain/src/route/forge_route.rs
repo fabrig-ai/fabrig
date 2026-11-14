@@ -5035,7 +5035,11 @@ pub(crate) fn outputs(
                         domain.work.push(Work::Forge(step));
                     }
                 }
-                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                // Due connector procedures refresh their own pending work.
+                // Landings also need a wake after the offered decision settles.
+                if domain.core.tasks.procedure_due(task).is_none() || domain.forge.landing(task).is_some() {
+                    domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                }
             }
             forge::Request::Resource { project, name, role, hold } => {
                 route_resource(domain, env, project, &name, role, hold);
