@@ -10,7 +10,7 @@ use temper_client_domain::{self as d, Address, ChatsFilter, Step, pages};
 use temper_client_protocol_wire::v1 as w;
 
 const HERE: u16 = 3;
-fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
+fn reading_welcome(step: Step) -> (d::Domain, skein_lib::Queue<d::Request>) {
     let limits = f::limits();
     let (frame, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All }, &limits);
     let me = frame.pages().me(frame.client()).unwrap().clone();
@@ -61,7 +61,11 @@ fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
         },
         &mut out,
     );
-    while let Some(request) = out.pop() {
+    (root, out)
+}
+fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
+    let (root, out) = reading_welcome(step);
+    for request in &out {
         if let d::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
@@ -71,7 +75,7 @@ fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
             && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
                 == &w::Read::Deployment
         {
-            return (root, read);
+            return (root, *read);
         }
     }
     panic!("live link reads deployment");
@@ -1830,6 +1834,174 @@ fn ready_making_and_its_endings_keep_one_retry_act() {
         } else {
             assert!(text.contains("It is not known whether your project was made."));
         }
+    }
+}
+
+fn ready_with_pending_playground() -> (d::Domain, skein_lib::Token, skein_lib::Token) {
+    use jig_client::contract as c;
+    use temper_client_protocol_wire as wire;
+    let (mut root, out) = reading_welcome(Step::Ready);
+    let mut me_watch = None;
+    let mut playground = None;
+    for request in &out {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = request
+        {
+            if *subject == jig_client::Watchable::Jig(c::Subject::Me) {
+                me_watch = Some(*watch);
+            } else if *subject == jig_client::Watchable::Jig(c::Subject::Accounts) {
+                f::welcome_account(&mut root, *watch);
+            } else if *subject == jig_client::Watchable::Jig(c::Subject::Settings) {
+                super::home::deliver(
+                    &mut root,
+                    *watch,
+                    c::Delivery::Settings(Box::new(c::SettingsDocument {
+                        newest: 0,
+                        settings: skein_lib::List::uncapped(),
+                        held: skein_lib::List::uncapped(),
+                        pending: skein_lib::List::uncapped(),
+                    })),
+                );
+            } else if Some(subject.clone()) == d::forge::dismissed::watch(&f::limits().forge) {
+                f::root_event(
+                    &mut root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch: *watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::dismissals(
+                                        &w::Dismissals::new(
+                                            &w::CEILINGS,
+                                            w::DismissalsParts { dismissed: skein_lib::List::with_capacity(0) },
+                                        )
+                                        .unwrap(),
+                                    ),
+                                },
+                            },
+                        },
+                    },
+                );
+            } else if Some(subject.clone()) == d::forge::forges::watch(&f::limits().forge) {
+                let doc = w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: owned_adopted_rows(), linked: true })
+                    .unwrap();
+                f::root_event(
+                    &mut root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch: *watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::forges(&doc),
+                                },
+                            },
+                        },
+                    },
+                );
+            }
+        }
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+        {
+            let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
+            if reading.read() == &w::Read::Deployment {
+                f::deliver_deployment(&mut root, *read, true, true);
+            } else if reading.read() == &w::Read::Playground {
+                playground = Some(*read);
+            }
+        }
+    }
+    (root, me_watch.expect("me watch"), playground.expect("playground read still out"))
+}
+
+#[test]
+fn ready_creates_and_selects_an_empty_project_while_the_playground_read_is_out() {
+    use jig_client::contract as c;
+    let (mut root, me_watch, playground) = ready_with_pending_playground();
+    assert_eq!(pages::welcome::decision(&root), None, "the first-run decision waits for the playground read");
+    let mut view = f::page_view(&root);
+    let create = node(view.tree(), Role::Button, "Create your project");
+    assert!(!view.tree().disabled(create));
+    let action = crate::act(&mut view, create, Act::Press).unwrap();
+    let out = super::home::drive(&mut root, d::Event::Act { action });
+    let attempt = out
+        .iter()
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, request, .. } },
+            } = request
+            {
+                assert_eq!(
+                    *request,
+                    jig_client::Ask::Jig(Box::new(c::Ask::MakeProject {
+                        name: c::Text::new(b"My project".as_slice().into(), 64).unwrap(),
+                        policy: 1,
+                    }))
+                );
+                Some(*attempt)
+            } else {
+                None
+            }
+        })
+        .expect("enabled Ready sends MakeProject without the first-run decision");
+    f::deliver_no_playground(&mut root, playground);
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let existing = me.projects.get(0).unwrap().clone();
+    let mut project = existing.clone();
+    project.project = 77;
+    let templates = f::chat::messaging_root();
+    project.templates = templates.pages().me(templates.client()).unwrap().projects.get(0).unwrap().templates.clone();
+    project.name = c::DocumentText::complete(c::Text::new(b"My project".as_slice().into(), 64).unwrap());
+    me.projects = skein_lib::List::with_capacity(2);
+    me.projects.push(existing).unwrap();
+    me.projects.push(project).unwrap();
+    f::deliver_me(&mut root, me_watch, me);
+    let out = super::home::drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                        c::DocumentOutcome::ProjectMade { project: 77 },
+                    )))),
+                },
+            },
+        },
+    );
+    assert!(out.iter().any(|request| {
+        if let d::Request::Show { address, .. } = request { *address == Address::Home { project: 77 } } else { false }
+    }));
+    let mut out =
+        super::home::drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Home { project: 77 }) });
+    let chats = super::home::ChatFixture {
+        live: c::Tasks { rows: skein_lib::List::uncapped(), more: false },
+        ended: c::TaskPage {
+            live: skein_lib::List::uncapped(),
+            live_after: None,
+            ended: c::EndedGroup::Rows { rows: skein_lib::List::uncapped(), after: None, cut: false },
+        },
+    };
+    super::home::settle_home(&mut root, &mut out, None, Some(&chats), None);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        node(view.tree(), Role::Heading { level: 1 }, "My project is ready.");
+        let project = node(view.tree(), Role::Button, "My project");
+        assert!(
+            view.tree().nodes().iter().find(|n| n.id == project).unwrap().states.as_slice().contains(&State::Pressed)
+        );
+        assert!(f::find(view.tree(), Role::Status, b"Live").is_some());
+        assert!(f::find(view.tree(), Role::Status, b"Behind").is_none());
     }
 }
 

@@ -108,31 +108,16 @@ impl Referee<NativeClient> for Judge {
                 }
                 Page::Starting | Page::Home | Page::Chats | Page::Forges | Page::Accounts | Page::Done => {}
             }
-            let missing = match self.page {
-                Page::Starting => "Inbox: native client started and Status Owner",
-                Page::Ready => "Welcome Ready: enabled Button Create your project",
-                Page::Home => {
-                    "Home: Heading My project is ready. level 1, pressed Button My project, Status Live and no Status Behind"
-                }
-                Page::Chats => {
-                    "Chats: Heading Talk to an agent. level 1, Button My project, Status Live and no Status Behind"
-                }
-                Page::Forges => "Forges: Heading Forges level 1 and Disclosure Forgejo on this machine",
-                Page::Accounts => {
-                    "Accounts: Heading Accounts level 1, Disclosure OpenAI API key · held by the deployment, Status Live and no Status Behind"
-                }
-                Page::Done => "nothing",
-            };
             if !matches!(self.page, Page::Done) && now >= self.until {
                 return Err(format!(
-                    "Ready's Create session {} missing {missing}; tree names: {:?}",
+                    "Ready's Create, client session {}: missing {}; tree (role, name, states): {:?}",
                     if self.press { 1 } else { 2 },
+                    self.unmet(client).join(", "),
                     client
                         .tree()
                         .nodes()
                         .iter()
-                        .filter_map(|node| node.name.as_deref())
-                        .map(String::from_utf8_lossy)
+                        .map(|node| (node.role, node.name.as_deref().map(String::from_utf8_lossy), &node.states))
                         .collect::<Vec<_>>()
                 ));
             }
@@ -157,6 +142,67 @@ impl Referee<NativeClient> for Judge {
             return false;
         }
         matches!(self.page, Page::Done)
+    }
+}
+
+impl Judge {
+    fn unmet(&self, client: &NativeClient) -> Vec<&'static str> {
+        let present = |role, name| named(client, role, name).is_some();
+        let project = named(client, Role::Button, b"My project")
+            .is_some_and(|node| !self.press || node.states.as_slice().contains(&State::Pressed));
+        let mut conditions = match self.page {
+            Page::Starting => vec![
+                (client.started(), "native client started"),
+                (present(Role::Status, b"Owner"), "Status \"Owner\" present"),
+            ],
+            Page::Ready => vec![(
+                named(client, Role::Button, b"Create your project")
+                    .is_some_and(|node| !node.states.as_slice().contains(&State::Disabled)),
+                "Button \"Create your project\" enabled",
+            )],
+            Page::Home => vec![
+                (
+                    present(Role::Heading { level: 1 }, HOME_HEADLINE),
+                    "Heading level 1 \"My project is ready.\" present",
+                ),
+                (project, "Button \"My project\" pressed"),
+            ],
+            Page::Chats => vec![
+                (
+                    present(Role::Heading { level: 1 }, b"Talk to an agent."),
+                    "Heading level 1 \"Talk to an agent.\" present",
+                ),
+                (project, if self.press { "Button \"My project\" pressed" } else { "Button \"My project\" present" }),
+            ],
+            Page::Forges => vec![
+                (
+                    present(Role::Heading { level: 1 }, b"Where your code lives."),
+                    "Heading level 1 \"Where your code lives.\" present",
+                ),
+                (
+                    present(Role::Disclosure, b"Forgejo on this machine"),
+                    "Disclosure \"Forgejo on this machine\" present",
+                ),
+            ],
+            Page::Accounts => vec![
+                (
+                    present(Role::Heading { level: 1 }, b"What agents run on."),
+                    "Heading level 1 \"What agents run on.\" present",
+                ),
+                (
+                    present(Role::Disclosure, "OpenAI API key · held by the deployment".as_bytes()),
+                    "Disclosure \"OpenAI API key · held by the deployment\" present",
+                ),
+            ],
+            Page::Done => Vec::new(),
+        };
+        if matches!(self.page, Page::Home | Page::Chats | Page::Accounts) {
+            conditions.extend([
+                (present(Role::Status, b"Live"), "Status \"Live\" present"),
+                (!present(Role::Status, b"Behind"), "Status \"Behind\" absent"),
+            ]);
+        }
+        conditions.into_iter().filter_map(|(met, name)| (!met).then_some(name)).collect()
     }
 }
 
