@@ -1,8 +1,12 @@
 //! Temper's map rows (temper/docs/design/protocol/baseline.md, 4;
 //! temper/docs/design/protocol/store.md, 3).
-use jig_protocol_store::{KeptFamily, KeptMap, Keys, Owner, PatchSet};
+use jig_protocol_store::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType};
 
 /// Application key ranges are relative to jig's application tag or secrets prefix.
+#[expect(
+    clippy::disallowed_macros,
+    reason = "value types name the binary's generated schema text (jig protocol/store/layouts.md, 2)"
+)]
 pub const PATCH_SET: PatchSet = PatchSet {
     jobs: &[],
     owner: Owner::Application,
@@ -11,6 +15,270 @@ pub const PATCH_SET: PatchSet = PatchSet {
     fresh: None,
     families: &[
         KeptFamily {
+            current: include_str!("../schema/store-v22.schema"),
+            types: &[
+                ValueType { number: 0, root: "Row", variant: Some("call"), keys: &[KeyRange { from: &[0], to: &[1] }] },
+                ValueType {
+                    number: 1,
+                    root: "Row",
+                    variant: Some("proposed_effect"),
+                    keys: &[KeyRange { from: &[1], to: &[2] }],
+                },
+                ValueType {
+                    number: 2,
+                    root: "Row",
+                    variant: Some("repository"),
+                    keys: &[KeyRange { from: &[2], to: &[3] }],
+                },
+                ValueType { number: 3, root: "Row", variant: Some("hold"), keys: &[KeyRange { from: &[3], to: &[4] }] },
+                ValueType {
+                    number: 4,
+                    root: "Row",
+                    variant: Some("names"),
+                    keys: &[KeyRange { from: &[4], to: &[5] }],
+                },
+                ValueType {
+                    number: 5,
+                    root: "Row",
+                    variant: Some("subscription"),
+                    keys: &[KeyRange { from: &[5], to: &[6] }],
+                },
+                ValueType {
+                    number: 6,
+                    root: "Row",
+                    variant: Some("branch_head"),
+                    keys: &[KeyRange { from: &[6], to: &[7] }],
+                },
+                ValueType {
+                    number: 7,
+                    root: "Row",
+                    variant: Some("pull_state"),
+                    keys: &[KeyRange { from: &[7], to: &[8] }],
+                },
+                ValueType { number: 8, root: "Row", variant: Some("ci"), keys: &[KeyRange { from: &[8], to: &[9] }] },
+                ValueType {
+                    number: 9,
+                    root: "Row",
+                    variant: Some("landed"),
+                    keys: &[KeyRange { from: &[9], to: &[10] }],
+                },
+                ValueType {
+                    number: 10,
+                    root: "Row",
+                    variant: Some("entry"),
+                    keys: &[KeyRange { from: &[10], to: &[11] }],
+                },
+                ValueType {
+                    number: 11,
+                    root: "Row",
+                    variant: Some("client"),
+                    keys: &[KeyRange { from: &[11], to: &[12] }],
+                },
+                ValueType {
+                    number: 12,
+                    root: "Row",
+                    variant: Some("change"),
+                    keys: &[KeyRange { from: &[12], to: &[13] }],
+                },
+                ValueType {
+                    number: 13,
+                    root: "Row",
+                    variant: Some("issue"),
+                    keys: &[KeyRange { from: &[13], to: &[14] }],
+                },
+                ValueType {
+                    number: 14,
+                    root: "Row",
+                    variant: Some("release"),
+                    keys: &[KeyRange { from: &[14], to: &[15] }],
+                },
+                ValueType {
+                    number: 15,
+                    root: "Row",
+                    variant: Some("application"),
+                    keys: &[KeyRange { from: &[15], to: &[16] }],
+                },
+                ValueType {
+                    number: 16,
+                    root: "Row",
+                    variant: Some("writer"),
+                    keys: &[KeyRange { from: &[16], to: &[17] }],
+                },
+                ValueType {
+                    number: 17,
+                    root: "Row",
+                    variant: Some("binding"),
+                    keys: &[KeyRange { from: &[18], to: &[19] }],
+                },
+                ValueType {
+                    number: 18,
+                    root: "Row",
+                    variant: Some("setting"),
+                    keys: &[KeyRange { from: &[20], to: &[21] }],
+                },
+                ValueType {
+                    number: 19,
+                    root: "Row",
+                    variant: Some("flight"),
+                    keys: &[KeyRange { from: &[21], to: &[22] }],
+                },
+                ValueType {
+                    number: 20,
+                    root: "Row",
+                    variant: Some("landing"),
+                    keys: &[KeyRange { from: &[23], to: &[24] }],
+                },
+                ValueType {
+                    number: 21,
+                    root: "Row",
+                    variant: Some("receipt"),
+                    keys: &[KeyRange { from: &[24], to: &[25] }],
+                },
+                ValueType {
+                    number: 22,
+                    root: "Row",
+                    variant: Some("forge"),
+                    keys: &[KeyRange { from: &[25], to: &[26] }],
+                },
+                ValueType {
+                    number: 23,
+                    root: "Row",
+                    variant: Some("forge_number"),
+                    keys: &[KeyRange { from: &[26], to: &[27] }],
+                },
+                ValueType {
+                    number: 24,
+                    root: "Row",
+                    variant: Some("playground"),
+                    keys: &[KeyRange { from: &[27], to: &[28] }],
+                },
+                ValueType {
+                    number: 25,
+                    root: "Row",
+                    variant: Some("tier"),
+                    keys: &[KeyRange { from: &[28], to: &[29] }],
+                },
+                ValueType {
+                    number: 26,
+                    root: "Row",
+                    variant: Some("verification"),
+                    keys: &[KeyRange { from: &[29], to: &[30] }],
+                },
+                ValueType {
+                    number: 27,
+                    root: "Row",
+                    variant: Some("landing_log"),
+                    keys: &[KeyRange { from: &[30], to: &[31] }],
+                },
+                ValueType {
+                    number: 28,
+                    root: "Row",
+                    variant: Some("finding"),
+                    keys: &[KeyRange { from: &[31], to: &[32] }],
+                },
+                ValueType {
+                    number: 29,
+                    root: "Row",
+                    variant: Some("dismissed"),
+                    keys: &[KeyRange { from: &[34], to: &[35] }],
+                },
+                ValueType {
+                    number: 30,
+                    root: "Row",
+                    variant: Some("making"),
+                    keys: &[KeyRange { from: &[35], to: &[36] }],
+                },
+                ValueType {
+                    number: 31,
+                    root: "Row",
+                    variant: Some("project_facts"),
+                    keys: &[KeyRange { from: &[36], to: &[37] }],
+                },
+                ValueType {
+                    number: 32,
+                    root: "Row",
+                    variant: Some("looked"),
+                    keys: &[KeyRange { from: &[37], to: &[38] }],
+                },
+                ValueType {
+                    number: 33,
+                    root: "Row",
+                    variant: Some("away"),
+                    keys: &[KeyRange { from: &[38], to: &[39] }],
+                },
+                ValueType {
+                    number: 34,
+                    root: "Row",
+                    variant: Some("decided"),
+                    keys: &[KeyRange { from: &[39], to: &[40] }],
+                },
+                ValueType {
+                    number: 35,
+                    root: "Row",
+                    variant: Some("closer"),
+                    keys: &[KeyRange { from: &[40], to: &[41] }],
+                },
+                ValueType {
+                    number: 36,
+                    root: "Row",
+                    variant: Some("landed_draft"),
+                    keys: &[KeyRange { from: &[41], to: &[42] }],
+                },
+                ValueType {
+                    number: 37,
+                    root: "Row",
+                    variant: Some("follow"),
+                    keys: &[KeyRange { from: &[42], to: &[43] }],
+                },
+                ValueType {
+                    number: 38,
+                    root: "Row",
+                    variant: Some("device"),
+                    keys: &[KeyRange { from: &[43], to: &[44] }],
+                },
+                ValueType {
+                    number: 39,
+                    root: "Row",
+                    variant: Some("red"),
+                    keys: &[KeyRange { from: &[44], to: &[45] }],
+                },
+                ValueType {
+                    number: 40,
+                    root: "Row",
+                    variant: Some("red_number"),
+                    keys: &[KeyRange { from: &[45], to: &[46] }],
+                },
+                ValueType {
+                    number: 41,
+                    root: "Row",
+                    variant: Some("history_project"),
+                    keys: &[KeyRange { from: &[127], to: &[128] }],
+                },
+                ValueType {
+                    number: 42,
+                    root: "Row",
+                    variant: Some("history_event"),
+                    keys: &[KeyRange { from: &[128], to: &[129] }],
+                },
+                ValueType {
+                    number: 43,
+                    root: "Row",
+                    variant: Some("history_change"),
+                    keys: &[KeyRange { from: &[129], to: &[130] }],
+                },
+                ValueType {
+                    number: 44,
+                    root: "Row",
+                    variant: Some("history_landing"),
+                    keys: &[KeyRange { from: &[130], to: &[131] }],
+                },
+                ValueType {
+                    number: 45,
+                    root: "Row",
+                    variant: Some("history_last"),
+                    keys: &[KeyRange { from: &[131], to: &[132] }],
+                },
+            ],
             name: "temper-store",
             texts: crate::patches::kept::temper_store::TEXTS,
             map: KeptMap::Store,
@@ -66,6 +334,8 @@ pub const PATCH_SET: PatchSet = PatchSet {
             flights: &[Keys { from: &[crate::keys::FLIGHT], to: &[22], root: "Row" }],
         },
         KeptFamily {
+            current: temper_protocol_records::patches::kept::temper_secrets::TEXTS.last().expect("kept text"),
+            types: &[],
             name: "temper-secrets",
             texts: temper_protocol_records::patches::kept::temper_secrets::TEXTS,
             map: KeptMap::Secrets,

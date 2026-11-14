@@ -66,7 +66,7 @@ pub struct KeptFamily {
 pub struct ValueType {
     pub number: u16,                    // the value type's, within its family: stable, never reused
     pub root: &'static str,             // its root declaration, as `current` spells it
-    pub variant: Option<&'static str>,  // the leading enumeration's variant, for a broad root
+    pub variant: Option<&'static str>,  // the leading enumeration's variant, for a broad root its keys tell apart
     pub keys: &'static [KeyRange],      // the keys that hold it
 }
 pub struct KeyRange {
@@ -77,14 +77,31 @@ pub struct KeyRange {
 
 - **One per kind of value its keys tell apart:** the tasks family's
   milestones (`01 01 0a`) are one, its live tasks another; a family whose
-  roots are records of their own (the settings') has one per root. Its
+  roots are records of their own (the settings') has one per root. A
+  broad root whose keys do not tell its variants apart is one value type
+  without a variant, the declaration whole (skein's
+  `data/codec/README.md`, 9.4): the settings' `ApplicationState`, led by
+  its `follows`, and the tasks' live and ended tasks, whose keys hold a
+  task written before talk (`live`, `ended`) beside one written since
+  (`live_talk`, `ended_talk`); a change to any variant of its root moves
+  it. Its
   number names it in the registry's keys (3), so a declaration or a
   variant renamed (`was`, skein's `data/codec/README.md`, section 3)
   keeps its value type.
+- **One root per range:** a range never holds two roots that only the
+  values' bytes tell apart, since a layout names one root. The settings'
+  charter versions (`01 00 08 03`) held two, a version without an
+  overlay as a `CharterVersion` and one with an overlay as an
+  `OverlaidCharterVersion`, decoded by trial at the same keys
+  (`../../domain/engine/overlays.md`, 7). They are one value type at
+  `CharterVersion`, whose declaration gains `overlay: option Overlay`,
+  and jig's written job `charter-versions` (6) puts each stored value
+  again as that one root; the binary then declares no
+  `OverlaidCharterVersion`.
 - **Checked where the set is admitted,** at every open, beside
   `opening.md`, 3's checks, a failure refused `Set` with patch 0: each
   number given once in its family; each root a declaration of `current`
-  and each variant given exactly where that root is broad, naming one of
+  and each variant given only where that root is broad, naming one of
   its leading enumeration's variants (`Schema::root`); each range
   non-empty and the ranges of all the family's types ordered, disjoint,
   and together exactly the family's `keys`, so that each key the family
@@ -226,7 +243,8 @@ row names that is missing or does not parse, or a value type the binary
 does not declare), and the values the census counts at that id, or that
 it cannot tell (`opening.md`, 1.8). A layout row of a value type the
 binary no longer declares is refused the same way while a value may
-hold it.
+hold it, `Undeclared`, whether its family is one the binary declares or
+not: the refusal names the family as the row's key spells it.
 
 ### 5.4 Retirement
 
@@ -259,6 +277,16 @@ at the binary's. Its owner's function reads the old value by skein's
 generic values (skein's `data/codec/README.md`, section 8) and builds
 the new by its generated code. The check takes the layout as converted
 (5.3), and the next writing open retires it.
+
+A written job also takes a layout that a plan reaches when the values
+at that layout are not all the root it names: the settings' charter
+versions at their seeded layout (2). Its job, `charter-versions`,
+converts from `CharterVersion`'s layout in the settings' last kept text.
+Its function reads each value as that text's `CharterVersion` or,
+failing that, its `OverlaidCharterVersion`, as the codec did by trial,
+and puts the value again as the binary's `CharterVersion`. The read edge
+leaves values at a written job's `from` layout to the job, never to a
+plan (`jobs.md`, 4).
 
 ## 7. Bounds
 

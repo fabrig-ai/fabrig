@@ -12,7 +12,7 @@ pub const MAX_HELD: u32 = 4;
 pub struct Root {
     /// An index belonging to the schema.
     pub decl: DeclIx,
-    /// An index belonging to the root's leading enumeration, exactly when broad.
+    /// An index belonging to the root's leading enumeration, or none for the whole declaration.
     pub variant: Option<VariantIx>,
 }
 
@@ -149,11 +149,11 @@ fn validate(schema: &Schema, root: Root) -> Result<(), LayoutError> {
         return Err(LayoutError::Root);
     }
     match (leading(schema, root.decl), root.variant) {
-        (None, None) => Ok(()),
+        (None | Some(_), None) => Ok(()),
         (Some((first, count)), Some(at)) if at.index() >= first.index() && at.index() < add(first.index(), count) => {
             Ok(())
         }
-        (None | Some(_), Some(_)) | (Some(_), None) => Err(LayoutError::Root),
+        (None | Some(_), Some(_)) => Err(LayoutError::Root),
     }
 }
 

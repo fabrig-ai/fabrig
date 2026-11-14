@@ -39,6 +39,20 @@ pub struct KeptFamily {
     /// Ranges whose every record is an effect in flight, its key naming
     /// it (protocol/store/opening.md 3), in `Keys`' form. Empty: none.
     pub flights: &'static [Keys],
+    /// The binary's schema text; a patched family's latest kept text.
+    pub current: &'static str,
+    /// Registered value types; empty for a patched family (protocol/store/layouts.md, 2).
+    pub types: &'static [ValueType],
+}
+
+/// A stable kind of value, distinguished by its keys (protocol/store/layouts.md, 2).
+#[derive(Clone, Copy, Debug)]
+pub struct ValueType {
+    pub number: u16,
+    pub root: &'static str,
+    /// A leading enumeration's variant, or none for the whole declaration.
+    pub variant: Option<&'static str>,
+    pub keys: &'static [crate::KeyRange],
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Keys {
@@ -66,6 +80,8 @@ pub const JIG: PatchSet = PatchSet {
     patches: &[],
     fresh: None,
     families: &[KeptFamily {
+        current: "",
+        types: &[],
         name: "jig-store-secrets",
         texts: &[],
         map: KeptMap::Secrets,

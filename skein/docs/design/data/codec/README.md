@@ -917,12 +917,16 @@ hold: a milestone's layout is `Row` with `Value` at its `milestone`
 variant alone, so a change to another variant's record moves the
 milestone's layout not at all.
 
-- **The root,** `Root { decl, variant }`: `variant` is given exactly when
-  `decl` is broad, a declaration with a leading enumeration as
+- **The root,** `Root { decl, variant }`: `variant` may be given only
+  when `decl` is broad, a declaration with a leading enumeration as
   `patches.md`, 3.1 defines it (an enumeration itself, or a record whose
   first field's type is an enumeration with no `list` or `option`
   level), and names a variant of that enumeration. Any other root takes
-  none.
+  none. A broad root without one is the declaration whole, every variant
+  of its enumeration, encoded as `value`: the root of a value type whose
+  keys do not tell its variants apart (the settings' `ApplicationState`,
+  whose `follows` leads it; a key that holds an older variant beside the
+  one its owner writes).
 - **Without the family's version.** A `versioned` record is encoded by
   its flag alone, so that a layout keeps its fingerprint while its
   family's version moves, and a value type whose bytes no change reached
@@ -952,15 +956,17 @@ held'       = held                                        # 9.1's, for a family 
 inner       = SHA-256(0x02 · record' | 0x02 · enumeration')  # a declaration's, by this encoding
 ```
 
-A broad enumeration root is `restricted` in place of `value`; a broad
-record root is `record'` whose first type is `0x0f · restricted`.
+A broad enumeration root at a variant is `restricted` in place of
+`value`; a broad record root at a variant is `record'` whose first type
+is `0x0f · restricted`; a broad root without one is `value`, as any
+other root.
 `index` is the variant's place in its enumeration, which its tag is,
 so two layouts that put the variant at two tags differ.
 
 ```rust
 pub const MAX_HELD: u32 = 4;
 pub struct Root { pub decl: DeclIx, pub variant: Option<VariantIx> }
-pub enum LayoutError { Root, Deep }     // a variant where none is taken, or none where one is; held past MAX_HELD
+pub enum LayoutError { Root, Deep }     // a variant where none is taken, or one its enumeration lacks; held past MAX_HELD
 impl Schema {
     pub fn root(&self, decl: &[u8], variant: Option<&[u8]>) -> Option<Root>; // by its text's own names
     pub fn layout(&self, root: Root, held: &[&Schema]) -> Result<Fingerprint, LayoutError>;
@@ -973,7 +979,8 @@ root reaches, each held text's in turn, with no recursion and a table
 per text it reaches, at most `MAX_DECLARATIONS` each. Its tests, beside
 9.3's: a versioned root's layout equal across its family's versions; a
 milestone-like variant's layout unmoved by a change to a sibling
-variant's record and moved by its own; a held record's change moving
+variant's record and moved by its own; a broad root without a variant
+moved by either; a held record's change moving
 its holder's layout when its family is given and not when it is not;
 defaults and former names moving nothing; golden digests for the
 fixture that holds every type, as 9.3's.

@@ -78,6 +78,20 @@ fn broad_roots_keep_siblings_out_but_include_payload_tail_and_tag() {
 }
 
 #[test]
+fn whole_broad_roots_include_every_variant() {
+    let base = broad("x: u8", "y: u8", "a: A, b: B", "list 4 u8");
+    for changed in [
+        broad("x: u16", "y: u8", "a: A, b: B", "list 4 u8"),
+        broad("x: u8", "y: u16", "a: A, b: B", "list 4 u8"),
+        broad("x: u8", "y: u8", "a: A, b: B, c", "list 4 u8"),
+    ] {
+        for name in ["Row", "Value"] {
+            assert_ne!(layout(&base, name, None, &[]), layout(&changed, name, None, &[]), "{name}");
+        }
+    }
+}
+
+#[test]
 fn roots_find_own_names_and_refuse_variants_without_a_leading_enumeration() {
     let schema = schema(
         "family f 1 record A { x: u8 } enum Other { z } enum Value { a: A, b }
@@ -98,7 +112,7 @@ fn roots_find_own_names_and_refuse_variants_without_a_leading_enumeration() {
     }
     for name in ["Row", "Value"] {
         let root = schema.root(name.as_bytes(), None).expect("declaration by name");
-        assert_eq!(schema.layout(root, &[]), Err(LayoutError::Root), "{name}");
+        schema.layout(root, &[]).expect("whole broad declaration");
         assert_eq!(schema.layout(Root { variant: Some(VariantIx::new(0)), ..root }, &[]), Err(LayoutError::Root));
         assert_eq!(schema.layout(Root { variant: Some(VariantIx::new(99)), ..root }, &[]), Err(LayoutError::Root));
     }

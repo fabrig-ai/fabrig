@@ -24,5 +24,6 @@ mod worst;
 mod fuzzy {
     mod decode;
     mod generic;
+    mod layout;
     mod patch;
 }

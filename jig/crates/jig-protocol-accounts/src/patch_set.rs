@@ -1,7 +1,11 @@
 //! Jig's owner set (jig/docs/design/protocol/store/opening.md, 3).
-use jig_protocol_store::{KeptFamily, KeptMap, Keys, Owner, PatchSet, patches};
+use jig_protocol_store::{KeptFamily, KeptMap, KeyRange, Keys, Owner, PatchSet, ValueType, patches};
 
 /// The component, core, children and secrets; Moved is held inside Carried.
+#[expect(
+    clippy::disallowed_macros,
+    reason = "value types name the binary's generated schema texts (protocol/store/layouts.md, 2)"
+)]
 pub const JIG_PATCH_SET: PatchSet = PatchSet {
     jobs: &[],
     owner: Owner::Jig,
@@ -10,6 +14,8 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
     fresh: None,
     families: &[
         KeptFamily {
+            current: patches::kept::jig_store_component::TEXTS.last().expect("kept text"),
+            types: &[],
             name: "jig-store-component",
             texts: patches::kept::jig_store_component::TEXTS,
             map: KeptMap::Store,
@@ -21,6 +27,8 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: patches::kept::jig_store_openings::TEXTS.last().expect("kept text"),
+            types: &[],
             name: "jig-store-openings",
             texts: patches::kept::jig_store_openings::TEXTS,
             map: KeptMap::Store,
@@ -29,6 +37,8 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: patches::kept::jig_store_registry::TEXTS.last().expect("kept text"),
+            types: &[],
             name: "jig-store-registry",
             texts: patches::kept::jig_store_registry::TEXTS,
             map: KeptMap::Store,
@@ -41,6 +51,57 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: include_str!("../../jig-protocol-store/schema/core-v6.schema"),
+            types: &[
+                ValueType {
+                    number: 0,
+                    root: "Row",
+                    variant: Some("deployment"),
+                    keys: &[KeyRange { from: &[1, 0, 0], to: &[1, 0, 1] }],
+                },
+                ValueType {
+                    number: 1,
+                    root: "Row",
+                    variant: Some("projection"),
+                    keys: &[KeyRange { from: &[1, 0, 1], to: &[1, 0, 2] }],
+                },
+                ValueType {
+                    number: 2,
+                    root: "Row",
+                    variant: Some("run_proof"),
+                    keys: &[KeyRange { from: &[1, 0, 2], to: &[1, 0, 3] }],
+                },
+                ValueType {
+                    number: 3,
+                    root: "Row",
+                    variant: Some("call"),
+                    keys: &[KeyRange { from: &[1, 0, 3], to: &[1, 0, 4] }],
+                },
+                ValueType {
+                    number: 4,
+                    root: "Row",
+                    variant: Some("turn"),
+                    keys: &[KeyRange { from: &[1, 0, 4], to: &[1, 0, 5] }],
+                },
+                ValueType {
+                    number: 5,
+                    root: "Row",
+                    variant: Some("terminal"),
+                    keys: &[KeyRange { from: &[1, 0, 5], to: &[1, 0, 6] }],
+                },
+                ValueType {
+                    number: 6,
+                    root: "Row",
+                    variant: Some("proposal_decision"),
+                    keys: &[KeyRange { from: &[1, 0, 6], to: &[1, 0, 7] }],
+                },
+                ValueType {
+                    number: 7,
+                    root: "Row",
+                    variant: Some("escalation_decision"),
+                    keys: &[KeyRange { from: &[1, 0, 7], to: &[1, 0, 8] }],
+                },
+            ],
             name: "jig-store-core",
             texts: patches::kept::jig_store_core::TEXTS,
             map: KeptMap::Store,
@@ -49,6 +110,123 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: include_str!("../../jig-protocol-store/schema/tasks-v12.schema"),
+            types: &[
+                ValueType {
+                    number: 0,
+                    root: "Row",
+                    variant: None,
+                    keys: &[KeyRange { from: &[1, 1], to: &[1, 1, 1] }],
+                },
+                ValueType {
+                    number: 1,
+                    root: "Row",
+                    variant: Some("stub"),
+                    keys: &[KeyRange { from: &[1, 1, 1], to: &[1, 1, 2] }],
+                },
+                ValueType {
+                    number: 2,
+                    root: "Row",
+                    variant: Some("ledger"),
+                    keys: &[KeyRange { from: &[1, 1, 2], to: &[1, 1, 3] }],
+                },
+                ValueType {
+                    number: 3,
+                    root: "Row",
+                    variant: Some("writer"),
+                    keys: &[KeyRange { from: &[1, 1, 3], to: &[1, 1, 4] }],
+                },
+                ValueType {
+                    number: 4,
+                    root: "Row",
+                    variant: Some("pool"),
+                    keys: &[KeyRange { from: &[1, 1, 4], to: &[1, 1, 5] }],
+                },
+                ValueType {
+                    number: 5,
+                    root: "Row",
+                    variant: Some("person_proposal"),
+                    keys: &[KeyRange { from: &[1, 1, 5], to: &[1, 1, 6] }],
+                },
+                ValueType {
+                    number: 6,
+                    root: "Row",
+                    variant: None,
+                    keys: &[KeyRange { from: &[1, 1, 6], to: &[1, 1, 7] }],
+                },
+                ValueType {
+                    number: 7,
+                    root: "Row",
+                    variant: Some("closed_ledger"),
+                    keys: &[KeyRange { from: &[1, 1, 7], to: &[1, 1, 8] }],
+                },
+                ValueType {
+                    number: 8,
+                    root: "Row",
+                    variant: Some("decided_proposal"),
+                    keys: &[KeyRange { from: &[1, 1, 8], to: &[1, 1, 9] }],
+                },
+                ValueType {
+                    number: 9,
+                    root: "Row",
+                    variant: Some("history"),
+                    keys: &[KeyRange { from: &[1, 1, 9], to: &[1, 1, 10] }],
+                },
+                ValueType {
+                    number: 10,
+                    root: "Row",
+                    variant: Some("milestone"),
+                    keys: &[KeyRange { from: &[1, 1, 10], to: &[1, 1, 11] }],
+                },
+                ValueType {
+                    number: 11,
+                    root: "Row",
+                    variant: Some("activity"),
+                    keys: &[KeyRange { from: &[1, 1, 11], to: &[1, 1, 12] }],
+                },
+                ValueType {
+                    number: 12,
+                    root: "Row",
+                    variant: Some("update"),
+                    keys: &[KeyRange { from: &[1, 1, 12], to: &[1, 1, 13] }],
+                },
+                ValueType {
+                    number: 13,
+                    root: "Row",
+                    variant: Some("result"),
+                    keys: &[KeyRange { from: &[1, 1, 13], to: &[1, 1, 17] }],
+                },
+                ValueType {
+                    number: 14,
+                    root: "Row",
+                    variant: Some("ended_delegate"),
+                    keys: &[KeyRange { from: &[1, 1, 17], to: &[1, 1, 18] }],
+                },
+                ValueType {
+                    number: 15,
+                    root: "Row",
+                    variant: Some("delegate"),
+                    keys: &[KeyRange { from: &[1, 1, 18], to: &[1, 1, 19] }],
+                },
+                ValueType {
+                    number: 16,
+                    root: "Row",
+                    variant: Some("ended_by_party"),
+                    keys: &[KeyRange { from: &[1, 1, 19], to: &[1, 1, 20] }],
+                },
+                ValueType {
+                    number: 17,
+                    root: "Row",
+                    variant: Some("ended_by_project"),
+                    keys: &[KeyRange { from: &[1, 1, 20], to: &[1, 1, 21] }],
+                },
+                ValueType {
+                    number: 18,
+                    root: "Row",
+                    variant: Some("placed_hold"),
+                    keys: &[KeyRange { from: &[1, 1, 21], to: &[1, 2] }],
+                },
+            ],
             name: "jig-store-tasks",
             texts: patches::kept::jig_store_tasks::TEXTS,
             map: KeptMap::Store,
@@ -57,6 +235,81 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: include_str!("../../jig-protocol-store/schema/people-v17.schema"),
+            types: &[
+                ValueType {
+                    number: 0,
+                    root: "Row",
+                    variant: Some("person"),
+                    keys: &[KeyRange { from: &[1, 2], to: &[1, 2, 1] }],
+                },
+                ValueType {
+                    number: 1,
+                    root: "Row",
+                    variant: Some("read_results"),
+                    keys: &[KeyRange { from: &[1, 2, 1], to: &[1, 2, 2] }],
+                },
+                ValueType {
+                    number: 2,
+                    root: "Row",
+                    variant: Some("read_conversation"),
+                    keys: &[KeyRange { from: &[1, 2, 2], to: &[1, 2, 3] }],
+                },
+                ValueType {
+                    number: 3,
+                    root: "Row",
+                    variant: Some("sign_in"),
+                    keys: &[KeyRange { from: &[1, 2, 3], to: &[1, 2, 4] }],
+                },
+                ValueType {
+                    number: 4,
+                    root: "Row",
+                    variant: Some("roles"),
+                    keys: &[KeyRange { from: &[1, 2, 4], to: &[1, 2, 5] }],
+                },
+                ValueType {
+                    number: 5,
+                    root: "Row",
+                    variant: Some("policy"),
+                    keys: &[KeyRange { from: &[1, 2, 5], to: &[1, 2, 6] }],
+                },
+                ValueType {
+                    number: 6,
+                    root: "Row",
+                    variant: Some("answer"),
+                    keys: &[KeyRange { from: &[1, 2, 6], to: &[1, 2, 7] }],
+                },
+                ValueType {
+                    number: 7,
+                    root: "Row",
+                    variant: Some("ended_read"),
+                    keys: &[KeyRange { from: &[1, 2, 7], to: &[1, 2, 8] }],
+                },
+                ValueType {
+                    number: 8,
+                    root: "Row",
+                    variant: Some("acted"),
+                    keys: &[KeyRange { from: &[1, 2, 8], to: &[1, 2, 9] }],
+                },
+                ValueType {
+                    number: 9,
+                    root: "Row",
+                    variant: Some("deletion"),
+                    keys: &[KeyRange { from: &[1, 2, 9], to: &[1, 2, 10] }],
+                },
+                ValueType {
+                    number: 10,
+                    root: "Row",
+                    variant: Some("public"),
+                    keys: &[KeyRange { from: &[1, 2, 10], to: &[1, 2, 11] }],
+                },
+                ValueType {
+                    number: 11,
+                    root: "Row",
+                    variant: Some("deleted"),
+                    keys: &[KeyRange { from: &[1, 2, 11], to: &[1, 3] }],
+                },
+            ],
             name: "jig-store-people",
             texts: patches::kept::jig_store_people::TEXTS,
             map: KeptMap::Store,
@@ -65,6 +318,21 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: include_str!("../../jig-protocol-store/schema/notes-v1.schema"),
+            types: &[
+                ValueType {
+                    number: 0,
+                    root: "Row",
+                    variant: Some("entry"),
+                    keys: &[KeyRange { from: &[1, 3], to: &[1, 3, 1] }],
+                },
+                ValueType {
+                    number: 1,
+                    root: "Row",
+                    variant: Some("line"),
+                    keys: &[KeyRange { from: &[1, 3, 1], to: &[1, 4] }],
+                },
+            ],
             name: "jig-store-notes",
             texts: patches::kept::jig_store_notes::TEXTS,
             map: KeptMap::Store,
@@ -73,6 +341,39 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: include_str!("../../jig-protocol-store/schema/accounts-v2.schema"),
+            types: &[
+                ValueType {
+                    number: 0,
+                    root: "Row",
+                    variant: Some("next"),
+                    keys: &[KeyRange { from: &[1, 4, 0], to: &[1, 4, 1] }],
+                },
+                ValueType {
+                    number: 1,
+                    root: "Row",
+                    variant: Some("account"),
+                    keys: &[KeyRange { from: &[1, 4, 1], to: &[1, 4, 2] }],
+                },
+                ValueType {
+                    number: 2,
+                    root: "Row",
+                    variant: Some("source"),
+                    keys: &[KeyRange { from: &[1, 4, 2], to: &[1, 4, 3] }],
+                },
+                ValueType {
+                    number: 3,
+                    root: "Row",
+                    variant: Some("issued"),
+                    keys: &[KeyRange { from: &[1, 4, 4], to: &[1, 4, 5] }],
+                },
+                ValueType {
+                    number: 4,
+                    root: "Row",
+                    variant: Some("facts"),
+                    keys: &[KeyRange { from: &[1, 4, 5], to: &[1, 4, 6] }],
+                },
+            ],
             name: "jig-store-accounts",
             texts: patches::kept::jig_store_accounts::TEXTS,
             map: KeptMap::Store,
@@ -84,6 +385,57 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: include_str!("../../jig-protocol-store/schema/settings-v3.schema"),
+            types: &[
+                ValueType {
+                    number: 0,
+                    root: "Default",
+                    variant: None,
+                    keys: &[KeyRange { from: &[1, 0, 8, 0], to: &[1, 0, 8, 1] }],
+                },
+                ValueType {
+                    number: 1,
+                    root: "Changed",
+                    variant: None,
+                    keys: &[
+                        KeyRange { from: &[1, 0, 8, 1, 0], to: &[1, 0, 8, 1, 4] },
+                        KeyRange { from: &[1, 0, 8, 1, 5], to: &[1, 0, 8, 2] },
+                    ],
+                },
+                ValueType {
+                    number: 2,
+                    root: "ApplicationState",
+                    variant: None,
+                    keys: &[KeyRange { from: &[1, 0, 8, 1, 4], to: &[1, 0, 8, 1, 5] }],
+                },
+                ValueType {
+                    number: 3,
+                    root: "Revision",
+                    variant: None,
+                    keys: &[
+                        KeyRange { from: &[1, 0, 8, 2], to: &[1, 0, 8, 3] },
+                        KeyRange { from: &[1, 0, 9], to: &[1, 0, 10] },
+                    ],
+                },
+                ValueType {
+                    number: 4,
+                    root: "CharterVersion",
+                    variant: None,
+                    keys: &[KeyRange { from: &[1, 0, 8, 3], to: &[1, 0, 8, 4] }],
+                },
+                ValueType {
+                    number: 5,
+                    root: "Proposal",
+                    variant: None,
+                    keys: &[KeyRange { from: &[1, 0, 8, 4], to: &[1, 0, 8, 5] }],
+                },
+                ValueType {
+                    number: 6,
+                    root: "Extent",
+                    variant: None,
+                    keys: &[KeyRange { from: &[1, 0, 8, 5], to: &[1, 0, 8, 6] }],
+                },
+            ],
             name: "jig-store-settings",
             texts: patches::kept::jig_store_settings::TEXTS,
             map: KeptMap::Store,
@@ -102,6 +454,8 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: patches::kept::jig_store_secrets::TEXTS.last().expect("kept text"),
+            types: &[],
             name: "jig-store-secrets",
             texts: patches::kept::jig_store_secrets::TEXTS,
             map: KeptMap::Secrets,
@@ -116,6 +470,8 @@ pub const JIG_PATCH_SET: PatchSet = PatchSet {
             flights: &[],
         },
         KeptFamily {
+            current: crate::patches::kept::jig_accounts::TEXTS.last().expect("kept text"),
+            types: &[],
             name: "jig-accounts",
             texts: crate::patches::kept::jig_accounts::TEXTS,
             map: KeptMap::Secrets,
