@@ -2734,6 +2734,7 @@ impl Referee<Process> for LiveJudge<'_> {
     }
     fn watch(&mut self, _now: skein_lib::Time, procs: &[Process]) -> Result<(), String> {
         use skein_shell::Host;
+        super::ctl::check(procs)?;
         if let Some(why) = self.failure.take() {
             self.failure.set(Some(why.clone()));
             return Err(why);

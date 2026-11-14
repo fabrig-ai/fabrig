@@ -45,10 +45,10 @@ struct Running {
     control: Option<SocketAddr>,
 }
 impl Running {
-    fn start(kind: &str, document: &Path, observations: Option<&Path>) -> Self {
+    fn start(kind: &str, document: &Path, observations: Option<&Path>) -> Result<Self, String> {
         Self::command(command(kind, document), observations)
     }
-    fn command(mut command: Command, observations: Option<&Path>) -> Self {
+    fn command(mut command: Command, observations: Option<&Path>) -> Result<Self, String> {
         command.args(["--ready", "ready ", "--seed", "23"]);
         if let Some(path) = observations {
             command.arg("--observations").arg(path);
@@ -78,12 +78,12 @@ impl Running {
                     child.kill().expect("stop fake after readiness failure");
                 }
                 let ended = child.wait_with_output().expect("reap fake after readiness failure");
-                panic!(
+                return Err(format!(
                     "ready line: {why:?}; status {}; stderr {}; partial {:?}; command {command:?}",
                     ended.status,
                     String::from_utf8_lossy(&ended.stderr),
                     String::from_utf8_lossy(&bytes)
-                );
+                ));
             }
             bytes.push(byte[0]);
             if byte[0] == b'\n' {
@@ -102,7 +102,7 @@ impl Running {
         }
         assert!(run.address.ip().is_loopback());
         assert_ne!(run.address.port(), 0);
-        run
+        Ok(run)
     }
     fn stop(self) {
         let stderr = self.stop_with_stderr();
@@ -162,7 +162,6 @@ impl Drop for Running {
     }
 }
 #[test]
-#[should_panic(expected = "status exit status: 7; stderr fixture refused")]
 fn readiness_eof_reports_child_status_and_stderr() {
     let mut command = Command::new("/bin/sh");
     command
@@ -171,7 +170,8 @@ fn readiness_eof_reports_child_status_and_stderr() {
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let _run = Running::command(command, None);
+    let finding = Running::command(command, None).err().expect("readiness EOF finding");
+    assert!(finding.contains("status exit status: 7; stderr fixture refused"), "{finding}");
 }
 /// The fake owns its sockets so a starved control request also closes a held query
 /// (skein/docs/foundation/testing-strategy.md, 2.10).
@@ -623,7 +623,7 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
     let start = || {
         let mut cmd = command("forge", &doc);
         cmd.arg("--state").arg(&state);
-        Running::command(cmd, None)
+        Running::command(cmd, None).unwrap_or_else(|why| panic!("{why}"))
     };
     let run = start();
     assert!(!state.exists(), "startup writes no state");
@@ -714,7 +714,7 @@ fn forge_state_keeps_made_workflows_and_manual_merge_settings() {
     let start = || {
         let mut cmd = command("forge", &doc);
         cmd.arg("--state").arg(&state);
-        Running::command(cmd, None)
+        Running::command(cmd, None).unwrap_or_else(|why| panic!("{why}"))
     };
     let run = start();
     let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
@@ -853,12 +853,12 @@ fn forge_run() {
             let (listen, path, token) = prepared_forge(dir);
             let mut command = deployment_command("forge", dir);
             command.arg("1");
-            let run = Running::command(command, Some(&observations));
+            let run = Running::command(command, Some(&observations)).unwrap_or_else(|why| panic!("{why}"));
             assert_eq!(run.address, listen, "ready on fake.listen");
             (run, path, token)
         } else {
             (
-                Running::start("forge", &doc, Some(&observations)),
+                Running::start("forge", &doc, Some(&observations)).unwrap_or_else(|why| panic!("{why}")),
                 dir.join("forge/admin_token"),
                 temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN).to_vec(),
             )
@@ -979,11 +979,11 @@ fn llm_run() {
             let path = dir.join("demo/llm.key");
             let key = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_vec();
             support::write_private(&path, &[key.as_slice(), b"\n"].concat());
-            let run = Running::command(deployment_command("llm", dir), None);
+            let run = Running::command(deployment_command("llm", dir), None).unwrap_or_else(|why| panic!("{why}"));
             assert_eq!(run.address, listen, "ready on application.demo.llm.listen");
             (run, path, key)
         } else {
-            let run = Running::start("llm", &doc, None);
+            let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
             let key = temper_fake::credential::credential(23, temper_fake::credential::KEY);
             private_hex(&dir.join("key"), &key);
             (run, dir.join("key"), key.to_vec())
@@ -1396,7 +1396,7 @@ fn git_run() {
         fs::create_dir(dir.join("work")).expect("worker directory");
         let doc = dir.join("forge.json");
         document(&doc, &forge_document(dir));
-        let forge = Running::start("forge", &doc, None);
+        let forge = Running::start("forge", &doc, None).unwrap_or_else(|why| panic!("{why}"));
         let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
         let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
         // Setup's admin flag does not itself grant repository access.
@@ -1422,7 +1422,7 @@ fn git_run() {
             GitEndpoint::Llm => {
                 let doc = dir.join("llm.json");
                 document(&doc, &llm_document(dir, false));
-                let run = Running::start("llm", &doc, None);
+                let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
                 let address = run.address;
                 llm = Some(run);
                 address
@@ -1597,7 +1597,7 @@ fn llm_holds_a_piece_until_control_releases_it() {
         {"text":"first piece","hold":null}, {"text":"second piece","hold":"gate"}
     ]}],"finish":"stop","tokens":6}]);
     document(&doc, &value);
-    let run = Running::start("llm", &doc, None);
+    let run = Running::start("llm", &doc, None).unwrap_or_else(|why| panic!("{why}"));
     let control = run.control.expect("control bound before ready");
     let key = fs::read(scratch.path().join("key")).expect("generated key");
     let authorization = format!("Bearer {}", std::str::from_utf8(&key).expect("key is hex"));
@@ -1679,7 +1679,7 @@ fn llm_fails_a_credential_its_line_names_and_accepts_the_added_key() {
     doc["cued"] = json!([{"cue":"limited","turns":[turn(json!({"exhausted":{"retry_after_ms":1000}}))]}]);
     let path = dir.join("llm.json");
     document(&path, &doc);
-    let run = Running::start("llm", &path, None);
+    let run = Running::start("llm", &path, None).unwrap_or_else(|why| panic!("{why}"));
     let primary = credential(23, KEY);
     let second = credential(23, added_key(0));
     private_hex(&dir.join("key"), &primary);
@@ -1714,7 +1714,7 @@ fn the_oauth_fake_logs_each_connection_it_turns_away_at_its_cap() {
     );
     let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
     command.args(["fake", "oauth", "--document"]).arg(path);
-    let run = Running::command(command, None);
+    let run = Running::command(command, None).unwrap_or_else(|why| panic!("{why}"));
     let sockets: Vec<_> = (0..temper_fake::oauth::CONNECTIONS).map(|_| stream(&run, run.address)).collect();
     let extra = stream(&run, run.address);
     let expected =

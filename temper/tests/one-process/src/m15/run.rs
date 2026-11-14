@@ -399,5 +399,5 @@ pub fn delivery(renew: bool) -> observer::Counts {
     let counts = observer::finish(&mut outcome.machine.0.borrow_mut());
     world::lower_store(None);
     github::set_active(false);
-    counts
+    counts.unwrap_or_else(|finding| panic!("{finding}"))
 }

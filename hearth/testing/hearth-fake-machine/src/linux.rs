@@ -2,6 +2,7 @@
 use alloc::{
     boxed::Box,
     collections::{BTreeMap, BTreeSet, VecDeque},
+    string::String,
     vec::Vec,
 };
 use skein_lib::Rng;
@@ -335,10 +336,20 @@ impl Machine {
         self.null_descriptors(pid);
         pid
     }
+    /// Checks that the machine started this process and it still runs.
+    pub(crate) fn check_process(&self, pid: Pid) -> Result<(), String> {
+        let process = self.processes.get(&pid).ok_or("a process it started")?;
+        if process.exit.is_some() {
+            return Err("a process it started, still running".into());
+        }
+        Ok(())
+    }
+    #[expect(clippy::panic, reason = "the fake's call panics on its check's finding")]
     fn process(&self, pid: Pid) -> &Process {
-        let process = self.processes.get(&pid).expect("a process it started");
-        assert_eq!(process.exit, None, "a process it started, still running");
-        process
+        if let Err(finding) = self.check_process(pid) {
+            panic!("{finding}");
+        }
+        self.processes.get(&pid).expect("the process was checked")
     }
     fn inode(&self, node: Node) -> &Inode {
         self.nodes.get(&node).expect("a node the machine issued")
@@ -346,10 +357,20 @@ impl Machine {
     fn inode_mut(&mut self, node: Node) -> &mut Inode {
         self.nodes.get_mut(&node).expect("a node the machine issued")
     }
+    /// Checks that the machine issued this handle and the process holds it.
+    pub(crate) fn check_handle(&self, pid: Pid, handle: Handle) -> Result<(), String> {
+        let open = self.handles.get(&handle).ok_or("a handle it issued")?;
+        if open.pid != pid {
+            return Err("a handle it issued to this process".into());
+        }
+        Ok(())
+    }
+    #[expect(clippy::panic, reason = "the fake's call panics on its check's finding")]
     fn handle(&self, pid: Pid, handle: Handle) -> &Open {
-        let open = self.handles.get(&handle).expect("a handle it issued");
-        assert_eq!(open.pid, pid, "a handle it issued to this process");
-        open
+        if let Err(finding) = self.check_handle(pid, handle) {
+            panic!("{finding}");
+        }
+        self.handles.get(&handle).expect("the handle was checked")
     }
     fn opened(&mut self, pid: Pid, node: Node, how: How) -> Handle {
         self.next_handle = self.next_handle.checked_add(1).expect("handle identities fit");

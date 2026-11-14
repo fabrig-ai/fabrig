@@ -156,7 +156,7 @@ fn close(world: &mut World) {
     world.until(Until::Ready);
     let forges = world.root.forges();
     world.store.crash(0);
-    snapshot.compare_rows(&world.store.rows);
+    snapshot.compare_rows(&world.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
     // Restore performs work per retained row. The small world's fixed 200 steps
     // cannot scan a scale story; give each row the existing round-trip bound.
     let steps = STEPS * u32::try_from(world.store.rows.len()).expect("bounded retained rows");
@@ -169,10 +169,10 @@ fn close(world: &mut World) {
         }
     }
     assert!(world.root.quiescent(), "scale restart drains its retained rows");
-    snapshot.compare_rows(&world.store.rows);
-    oracle::compare_forges(forges, world.root.forges());
+    snapshot.compare_rows(&world.store.rows).unwrap_or_else(|finding| panic!("{finding}"));
+    oracle::compare_forges(forges, world.root.forges()).unwrap_or_else(|finding| panic!("{finding}"));
     for (index, (_, read)) in snapshot.queries.iter().enumerate() {
-        snapshot.compare_answer(index, world.party_read(read.clone()));
+        snapshot.compare_answer(index, world.party_read(read.clone())).unwrap_or_else(|finding| panic!("{finding}"));
     }
     world.until(Until::Ready);
 }

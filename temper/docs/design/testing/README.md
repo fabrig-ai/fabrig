@@ -491,10 +491,37 @@ the hour. What temper adds:
     stories' attribution (`../client/web/testing.md`, 3), the process
     tier's printed link and cluster members (`process-tier.md`), and
     the GitHub stories' secrets scans and teardown (`live-tier.md`);
+  - the engine's domain world's cold restart oracle: its comparisons of
+    the rows, the answer and the forges a restart reads back, and the
+    erasing close, return the first difference, naming its key, and the
+    world's close and the conformance world's violation carry it to
+    their top; the walking world's delivery of a result its referee
+    refuses, which the world keeps for its run;
+  - the worker world's referee of turns (`checks.md`, 2): a replay that
+    changes a turn's body or spend, or a turn past one never seen, is a
+    finding the world keeps for its run;
+  - the one-process world's observer of saved artifacts, whose scan for
+    a newly issued token returns its finding through the observer's
+    close (2.5);
+  - the real loop's `Until` step, which an observation that failed or
+    was signalled ends with its finding, whatever its stdout
+    (`real-loop.md`);
+  - temper-box-kit's ctl checks that a child's prerequisite succeeded
+    before its output is read or polled again, and that a refused
+    adoption stops what waits on it, kept for its judge's `watch`; and
+    the fake box's readiness, which returns the child's exit status and
+    stderr when the child ends before it is ready;
+  - the port chooser's refusal of an ephemeral range that leaves fewer
+    than two blocks, naming the range (`process-tier.md`), which its
+    caller panics on;
   - a harness that names a seed, a walk, a case or a story's step
     writes it to stderr before it runs it, and a table of cases stops
     at its first failing case, having named it. The runner prints a
     failed test's output.
+
+  No temper test triggers an assertion: what an assertion guards is
+  tested through the outcomes around it (skein's
+  `../foundation/programming-model.md`, 10.4).
 
 The referee is built on skein's world harness (`skein-world`; skein's
 `testing/README.md`, section 5), as ordinary Rust: each world writes its
