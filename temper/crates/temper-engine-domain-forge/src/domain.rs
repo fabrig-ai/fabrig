@@ -3759,6 +3759,20 @@ fn delegate_result(
         row.change.owns_turn = false;
         ended = true;
     }
+    let ci_repair = match kind {
+        change::Delegate::Repair(change::Repair::Ci | change::Repair::Semantic) => true,
+        change::Delegate::Repair(
+            change::Repair::Gate(_)
+            | change::Repair::Review { .. }
+            | change::Repair::Landing { .. }
+            | change::Repair::LandingAt { .. },
+        )
+        | change::Delegate::Produce
+        | change::Delegate::Close
+        | change::Delegate::Gate { .. }
+        | change::Delegate::Resolve { .. }
+        | change::Delegate::Merge { .. } => false,
+    };
     let agent = match kind {
         change::Delegate::Gate { .. } => false,
         change::Delegate::Produce
@@ -3773,13 +3787,26 @@ fn delegate_result(
             read.branch.due = true;
         }
     }
+    // A CI repair's terminal needs a branch read sent after its end, even
+    // when a step already gathering CI observes the result first.
+    if ci_repair {
+        let mut gathering = None;
+        for (token, pending) in &d.steps {
+            if pending.task == task {
+                gathering = Some(*token);
+            }
+        }
+        if let Some(gathering) = gathering {
+            d.steps.get_mut(&gathering).expect("found pending step").woken = true;
+        }
+    }
     // Keep the merge's identity through the fresh branch read, including after restart.
     match kind {
         change::Delegate::Merge { .. } | change::Delegate::Close | change::Delegate::Resolve { .. } => {}
         change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => row.delegate = None,
     }
     d.start_conflicts.remove(&task);
-    row.delegate_status = if no_change { change::Status::Failed } else { status };
+    row.delegate_status = if no_change && !ci_repair { change::Status::Failed } else { status };
     match kind {
         change::Delegate::Gate { number, head } => {
             if let Err(cause) = record_review(row, env, number, head, (status, failed, cancelled), words) {
@@ -5691,6 +5718,12 @@ fn change_facts(
     let window = crate::settle::window(d, row.task);
     change::Facts {
         fault: pending.failed.fault(pending.branch.unwrap_or([0; 32])),
+        rerun: match d.configured.get(&row.repository.forge) {
+            Some(config) => {
+                config.kind == crate::Kind::Forgejo && pending.failed.job(pending.branch.unwrap_or([0; 32])).is_some()
+            }
+            None => false,
+        },
         pending: pending.pending.clone(),
         verification: d.change_verification(row.task),
         verification_bound,

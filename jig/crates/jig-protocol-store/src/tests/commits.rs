@@ -89,7 +89,7 @@ fn a_first_commit_puts_format_layouts_and_installation_with_its_header() {
         codec::component::Format {
             component: 3,
             core: 6,
-            tasks: 12,
+            tasks: 13,
             people: 17,
             notes: 1,
             accounts: 2,

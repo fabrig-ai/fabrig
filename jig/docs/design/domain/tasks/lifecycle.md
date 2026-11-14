@@ -114,20 +114,39 @@ these hold:
   would bring it nothing new;
 - it is no conversation, does not stand (`standing.md`), and is not
   ended by its requester (9): each waits on its person or its session;
-- it awaits nothing that would bring the answer: it is not kept (8), and
-  has no pending proposal, no live person delegate, and no
-  executor-taken timer or task watch naming a live task.
+- it awaits no decision that would bring the answer: it is not kept
+  (8), and has no pending proposal and no live person delegate, each a
+  person's or a holder's decision whose end wakes it.
 
-Its next run's brief shows each open question (../engine/briefs.md,
-1.2). No notice is numbered: the open question is the reason. Each such
-park consumes a run try, retained across these wakes as Nothing left to
-await's are. Past its run tries the task is held, as a task past its
-tries is (6), for `Failures` of the run's class, its hold's words
-`Task A's question N is still open: LINE`, A, N and LINE the oldest open
-question's asker, number and first line, cut at a character's edge to
-the 128 bytes a hold's reason keeps (`REASON_BYTES`), so that whoever
-the hold reaches sees what waits. A task held so is not failed: its
-delegates go on, and a release counts its tries again from it.
+A question is read in a run, never settled by it: its delivery leaves
+the inbox with the run's committed read (`messages.md`, 2), and this
+rule is what brings it back until it is answered or ends. Its next
+run's brief shows each open question (../engine/briefs.md, 1.2). No
+notice is numbered: the open question is the reason. How often it wakes
+the task depends on what else the task awaits:
+
+- **A task that awaits nothing else** is woken at each such park. Each
+  consumes a run try, retained across these wakes as Nothing left to
+  await's are. Past its run tries the task is held, as a task past its
+  tries is (6), for `Failures` of the run's class, its hold's words
+  `Task A's question N is still open: LINE`, A, N and LINE the oldest
+  open question's asker, number and first line, cut at a character's
+  edge to the 128 bytes a hold's reason keeps (`REASON_BYTES`), so that
+  whoever the hold reaches sees what waits. A task held so is not
+  failed: its delegates go on, and a release counts its tries again from
+  it. With nothing else to wake it, waiting would leave it stopped.
+- **A task with an executor-taken timer or a task watch naming a live
+  task** is woken once for each question, never polled: those bring no
+  answer, since the question waits on this task alone, but a task
+  holding one means to go on at that event. A park leaving open a
+  question newer than the task's `question_woken` (the newest question
+  that has woken it so, 0 for none, never lowered) makes it due again at
+  once, spending no run try, and `question_woken` takes the newest open
+  question's number. A park leaving open only questions at or below it
+  leaves the task idle, spending no try, until its next event: its
+  watch's news or result, its timer, a message. A goal that means to
+  answer once a change lands costs one more run, not its tries (the
+  user, 2026-11-14).
 
 ## 3. Procedure tasks
 

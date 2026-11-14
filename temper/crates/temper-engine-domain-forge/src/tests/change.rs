@@ -1,5 +1,7 @@
 use super::*;
 
+mod empty_repair;
+
 #[test]
 fn ending_a_held_change_keeps_its_hold_without_a_cancelling_step() {
     use temper_engine_domain_forge_change::{Hold, State};
@@ -1356,6 +1358,23 @@ fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
                 }
             );
         }
+    }
+}
+
+#[test]
+fn only_empty_ci_repairs_keep_their_successful_delegate_status() {
+    use temper_engine_domain_forge_change as change;
+    for (why, expected) in [
+        (change::Repair::Ci, change::Status::Passed),
+        (change::Repair::Semantic, change::Status::Passed),
+        (change::Repair::Gate(9), change::Status::Failed),
+        (change::Repair::Review { head: fixtures::HEAD }, change::Status::Failed),
+        (change::Repair::Landing { gate: 9 }, change::Status::Failed),
+        (change::Repair::LandingAt { gate: 9, candidate: fixtures::HEAD, below: None }, change::Status::Failed),
+    ] {
+        let mut d = delegate_waiting(change::State::Repairing { requested: true, why }, change::Delegate::Repair(why));
+        producer_terminal(&mut d, true);
+        assert_eq!(d.change(fixtures::CHANGE).expect("change").delegate_status, expected);
     }
 }
 
