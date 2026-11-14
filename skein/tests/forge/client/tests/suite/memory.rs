@@ -201,6 +201,7 @@ fn asked(op: &api::Op) -> Asked {
             | api::Read::Runs { .. }
             | api::Read::Run { .. }
             | api::Read::Tree { .. }
+            | api::Read::JobState { .. }
             | api::Read::Job { .. }
             | api::Read::Protection { .. }
             | api::Read::Settings

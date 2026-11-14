@@ -7,6 +7,7 @@
 //! rate windows, observations and tallies do not cross this boundary.
 mod codec;
 mod fields;
+mod job_state;
 mod operations;
 mod repositories;
 mod validate;
@@ -99,8 +100,8 @@ impl Domain {
         for _ in 0..count(&mut input, crate::limits::timers(limits).ok_or(Refusal::Limits("timers"))?, "timers")? {
             get_alarm(&mut input, &mut domain, limits)?;
         }
-        if !input.is_empty() {
-            require(input.bytes(8) == Some(b"MANUAL01".as_slice()), "trailing bytes")?;
+        let mut extension = if input.is_empty() { None } else { input.bytes(8) };
+        if extension == Some(b"MANUAL01".as_slice()) {
             let rows = count(&mut input, limits.repositories, "manual merge settings")?;
             require(rows == domain.repositories.len(), "manual merge settings")?;
             for index in 0..rows {
@@ -111,6 +112,11 @@ impl Domain {
                 let (id, _) = domain.repositories.iter().nth(skein_lib::usize_of(index)).expect("bounded repository");
                 domain.repositories.get_mut(id).expect("retained repository").manual_merges = settings;
             }
+            extension = if input.is_empty() { None } else { input.bytes(8) };
+        }
+        if extension.is_some() {
+            require(extension == Some(b"JOBST001".as_slice()), "trailing bytes")?;
+            job_state::get(&mut input, &mut domain, limits)?;
         }
         require(input.is_empty(), "trailing bytes")?;
         Ok(domain)
@@ -159,6 +165,7 @@ fn put(out: &mut Sink, domain: &Domain) {
             out.flag(repository.manual_merges.autodetect_manual_merge);
         }
     }
+    job_state::put(out, domain);
 }
 fn retained(alarm: Alarm) -> bool {
     match alarm {

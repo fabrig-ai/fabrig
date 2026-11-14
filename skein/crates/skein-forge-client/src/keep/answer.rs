@@ -80,7 +80,8 @@ pub(crate) fn answered_repository(
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
-        | Answer::Job { .. }
+        | Answer::JobState { .. }
+| Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
         | Answer::Collaborators { .. }
@@ -226,7 +227,8 @@ pub(crate) fn answered_resource(
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
-        | Answer::Job { .. }
+        | Answer::JobState { .. }
+| Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
         | Answer::Collaborators { .. }

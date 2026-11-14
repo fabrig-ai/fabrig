@@ -342,16 +342,36 @@ fn job_json(row: &document::Job, json: &mut Encoder) -> Result<(), Overflow> {
     json.unsigned(u64::from(row.attempt));
     json.key(b"head_sha");
     json.string(&id::write_commit(&row.head).ok_or(Overflow)?);
+    if row.state != api::JobState::Waiting || !row.labels.is_empty() || row.running_step.is_some() {
+        json.key(b"status");
+        json.string(match row.state {
+            api::JobState::Waiting => b"queued",
+            api::JobState::Blocked => b"waiting",
+            api::JobState::Running => b"in_progress",
+            api::JobState::Completed => b"completed",
+        });
+        json.key(b"labels");
+        json.array_start();
+        for label in &row.labels {
+            json.string(label);
+        }
+        json.array_end();
+    }
     json.key(b"steps");
     json.array_start();
-    if let Some(step) = &row.step {
+    for step in [&row.step, &row.running_step].into_iter().flatten() {
         json.object_start();
         json.key(b"number");
         json.unsigned(u64::from(step.number));
         json.key(b"name");
         json.string(&step.name);
-        json.key(b"conclusion");
-        json.string(b"failure");
+        if row.running_step.as_ref() == Some(step) {
+            json.key(b"status");
+            json.string(b"in_progress");
+        } else {
+            json.key(b"conclusion");
+            json.string(b"failure");
+        }
         json.object_end();
     }
     json.array_end();

@@ -127,7 +127,8 @@ fn observation(answer: Answer) -> Observed {
         Answer::Pull(pull) => Observed::Head(pull.commit),
         Answer::Checks(rows) => Observed::Checks(rows),
         Answer::Job { attempt, log, .. } => Observed::Job { attempt, log },
-        Answer::Located { .. }
+        Answer::JobState { .. }
+        | Answer::Located { .. }
         | Answer::Items { .. }
         | Answer::Item { .. }
         | Answer::Reviews { .. }

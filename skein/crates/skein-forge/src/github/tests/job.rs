@@ -27,7 +27,17 @@ fn bounds() -> Bounds {
 }
 fn metadata() -> document::Job {
     let attempt = attempt();
-    document::Job { id: attempt.job, run: attempt.run, attempt: attempt.attempt, head: attempt.head, step: None }
+    document::Job {
+        id: attempt.job,
+        run: attempt.run,
+        attempt: attempt.attempt,
+        head: attempt.head,
+        step: None,
+        labels: Box::new([]),
+        cut: false,
+        state: api::JobState::Waiting,
+        running_step: None,
+    }
 }
 fn request(log: bool) -> Request {
     let owner = Box::from(*b"acme");
@@ -345,4 +355,71 @@ fn failed_job_redirect_selects_failed_step_retention_with_the_answer_room() {
             truncated: true,
         })))
     );
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    reason = "table fixtures construct JSON and expected owned labels with ordinary test Rust"
+)]
+fn job_state_documents_name_waits_without_reading_logs() {
+    let labels = ["\"docker\""; 17].join(",");
+    for (status, steps, labels, run, attempt_no, http, expected, cut) in [
+        ("queued", "[]", "\"docker\",\"linux\"".to_owned(), 22_u64, 2_u32, 200, Ok(api::JobState::Waiting), false),
+        ("requested", "[]", String::new(), 22, 2, 200, Ok(api::JobState::Waiting), false),
+        ("pending", "[]", String::new(), 22, 2, 200, Ok(api::JobState::Waiting), false),
+        ("waiting", "[]", String::new(), 22, 2, 200, Ok(api::JobState::Blocked), false),
+        (
+            "in_progress",
+            r#"[{"number":1,"name":"setup","status":"completed"},{"number":2,"name":"test","status":"in_progress"},{"number":3,"name":"later","status":"in_progress"}]"#,
+            String::new(),
+            22,
+            2,
+            200,
+            Ok(api::JobState::Running),
+            false,
+        ),
+        ("completed", "[]", String::new(), 22, 2, 200, Ok(api::JobState::Completed), false),
+        ("new-status", "[]", String::new(), 22, 2, 200, Ok(api::JobState::Waiting), false),
+        ("queued", "[]", String::new(), 23, 2, 200, Err(api::Error::MissingJob), false),
+        ("queued", "[]", String::new(), 22, 3, 200, Err(api::Error::MissingJob), false),
+        ("queued", "[]", String::new(), 22, 2, 404, Err(api::Error::MissingJob), false),
+        ("queued", "[]", labels, 22, 2, 200, Ok(api::JobState::Waiting), true),
+    ] {
+        let mut call = Call::new(1, true, bounds());
+        call.plan = Plan::new(KEY, api::Op::Read(api::Read::JobState { attempt: attempt() }));
+        call.bounds.rows = 16;
+        assert_eq!(call.plan.begin(call.bounds, b"example-app", &mut call.tables), Ok(Step::send(request(false))));
+        let document = format!(
+            r#"{{"id":11,"run_id":{run},"run_attempt":{attempt_no},"head_sha":"0123456789abcdef0123456789abcdef01234567","status":"{status}","labels":[{labels}],"steps":{steps}}}"#
+        );
+        let result = if http == 404 {
+            call.head(http, None)
+        } else {
+            let (rows, job) = decode(Kind::Job, document.as_bytes(), 1, &limits());
+            assert!(rows.is_empty());
+            assert_eq!(call.head(200, None), None);
+            call.heard(Heard::Done(Body::Document(job.unwrap())))
+        };
+        let expected = expected.map(|state| api::Answer::JobState {
+            attempt: attempt(),
+            state,
+            labels: if cut {
+                vec![Box::from(b"docker".as_slice()); 16].into_boxed_slice()
+            } else if labels.is_empty() {
+                Box::new([])
+            } else {
+                Box::new([Box::from(b"docker".as_slice()), Box::from(b"linux".as_slice())])
+            },
+            step: if state == api::JobState::Running {
+                Some(api::Step { number: 2, name: Box::from(b"test".as_slice()) })
+            } else {
+                None
+            },
+            cut,
+        });
+        assert_eq!(result, Some(Step::Done(expected)), "{document}");
+    }
 }

@@ -19,6 +19,7 @@ fn workflow() -> Workflow {
     Workflow {
         file: copy_of(b"wf"),
         jobs: names(&[b"test"]),
+        requirements: Box::new([]),
         latency_min: Duration::from_secs(5),
         latency_max: Duration::from_secs(5),
         silent: 0,

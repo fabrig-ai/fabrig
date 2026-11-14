@@ -18,7 +18,7 @@ impl Plan {
         Ok(self.send(request))
     }
     pub(super) fn job_done(&mut self, job: document::Job, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        let Read::Job { attempt, max_bytes, .. } = self.read else {
+        let Read::Job { attempt, max_bytes, state_only, .. } = self.read else {
             return Err(api::Error::InvalidAnswer);
         };
         if self.stage != Stage::Job {
@@ -27,6 +27,17 @@ impl Plan {
         if job.id != attempt.job || job.run != attempt.run || job.attempt != attempt.attempt || job.head != attempt.head
         {
             return Err(api::Error::MissingJob);
+        }
+        if state_only {
+            let answer = crate::job_state::answer(
+                attempt,
+                job.state,
+                job.labels,
+                job.running_step,
+                job.cut,
+                bounds.answer_bytes,
+            )?;
+            return self.terminal(answer, bounds);
         }
         let step_bytes = match &job.step {
             Some(step) => u32::try_from(step.name.len()).or(Err(api::Error::TooLarge(Excess::unnamed())))?,

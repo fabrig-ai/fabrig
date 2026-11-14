@@ -74,6 +74,7 @@ pub(crate) fn workflows(tier: Option<Tier>, gates: Box<[raw::Workflow]>) -> Box<
     let mut workflows = gates.into_vec();
     if let Some(tier) = tier {
         workflows.push(raw::Workflow {
+            requirements: Box::new([]),
             file: b"slow.yml".as_slice().into(),
             jobs: Box::new([b"test".as_slice().into()]),
             latency_min: Duration::from_secs(90),

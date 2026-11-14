@@ -34,8 +34,24 @@ pub fn run() -> Run {
 }
 pub fn jobs() -> Box<[Job]> {
     Box::from([
-        Job { id: 1, run_id: 1, attempt: 1, name: Box::from(*b"pass"), status: StepStatus::Success },
-        Job { id: 2, run_id: 1, attempt: 1, name: Box::from(*b"fail"), status: StepStatus::Failure },
+        Job {
+            labels: Box::new([]),
+            cut: false,
+            id: 1,
+            run_id: 1,
+            attempt: 1,
+            name: Box::from(*b"pass"),
+            status: StepStatus::Success,
+        },
+        Job {
+            labels: Box::new([]),
+            cut: false,
+            id: 2,
+            run_id: 1,
+            attempt: 1,
+            name: Box::from(*b"fail"),
+            status: StepStatus::Failure,
+        },
     ])
 }
 pub fn status(context: &[u8], status: StatusState, description: &[u8], target_url: &[u8], at: u64) -> CommitStatus {
@@ -53,7 +69,15 @@ pub fn raw() -> Request {
 }
 pub fn failing_job() -> Answer {
     Answer::Job {
-        job: Job { id: 2, run_id: 1, attempt: 1, name: Box::from(*b"fail"), status: StepStatus::Failure },
+        job: Job {
+            labels: Box::new([]),
+            cut: false,
+            id: 2,
+            run_id: 1,
+            attempt: 1,
+            name: Box::from(*b"fail"),
+            status: StepStatus::Failure,
+        },
         steps: Box::from([
             Step { number: 0, name: Box::from(*b"Set up job"), status: StepStatus::Success },
             Step {

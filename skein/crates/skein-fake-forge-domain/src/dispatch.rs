@@ -98,8 +98,19 @@ pub(crate) fn dispatch(
             state: RunState::Running,
             conclusion: None,
             steps: Box::new([]),
+            labels: Box::new([]),
+            needs: Box::new([]),
+            wait: Some(actions::JobWait::Runner),
         })
         .expect("one job per definition");
+    }
+    for job in jobs.iter_mut() {
+        for requirement in &workflow.requirements {
+            if requirement.job == job.name {
+                job.labels.clone_from(&requirement.labels);
+                job.needs.clone_from(&requirement.needs);
+            }
+        }
     }
     let mut kept = Kept { run, pull: None, jobs, artifact: None };
     actions::complete(&mut kept);
@@ -135,12 +146,58 @@ fn workflow<'a>(repository: &'a Repository, file: &[u8]) -> Result<&'a crate::ap
 }
 
 fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64, job: u64) {
+    let repository = domain.repositories.get_mut(id).expect("repository");
+    let kept = repository.dispatched.get_mut(&run).expect("dispatched run");
+    let mut wait = None;
+    let mut found = None;
+    for entry in &kept.jobs {
+        if entry.id == job {
+            found = Some(entry);
+            break;
+        }
+    }
+    let entry = found.expect("retained job");
+    if let Some(served) = &env.limits.runner_labels {
+        for label in &entry.labels {
+            if !served.contains(label) {
+                wait = Some(actions::JobWait::Runner);
+            }
+        }
+    }
+    for need in &entry.needs {
+        for other in &kept.jobs {
+            if other.name == *need && other.state != RunState::Completed {
+                wait = Some(actions::JobWait::Needs);
+            }
+        }
+    }
+    for entry in kept.jobs.iter_mut() {
+        if entry.id == job {
+            entry.wait = wait;
+            if wait.is_none() {
+                entry.steps = Box::new([actions::Step {
+                    number: 1,
+                    name: entry.name.clone(),
+                    status: actions::StepStatus::Running,
+                    log: Box::new([]),
+                }]);
+            }
+        }
+    }
     let repository = domain.repositories.get(id).expect("repository");
     let kept = repository.dispatched.get(&run).expect("dispatched run");
     let file = kept.run.workflow.as_ref().expect("workflow run");
     let workflow = workflow(repository, file).expect("configured workflow for retained run");
     let (silent, min, max) = (workflow.silent, workflow.latency_min, workflow.latency_max);
-    if domain.rng.chance(silent) {
+    if wait.is_some() {
+        domain
+            .timers
+            .arm(
+                Alarm::Workflow { repository: id, run, job },
+                env.now.saturating_add(max.max(skein_lib::Duration::from_millis(1))),
+            )
+            .expect("retained job timer");
+    } else if domain.rng.chance(silent) {
         domain.tally.silent = domain.tally.silent.saturating_add(1);
     } else {
         let span = faults::draw(domain, min, max);
@@ -154,6 +211,12 @@ fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64,
 pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64, job: u64) {
     let repository = domain.repositories.get(id).expect("repository");
     let kept = repository.dispatched.get(&run).expect("timer's retained run");
+    for entry in &kept.jobs {
+        if entry.id == job && entry.wait.is_some() {
+            pending(domain, env, id, run, job);
+            return;
+        }
+    }
     let commit = kept.run.commit;
     let lost = domain.rng.chance(env.limits.lost);
     let file = kept.run.workflow.as_ref().expect("dispatched workflow");
