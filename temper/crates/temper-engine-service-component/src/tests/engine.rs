@@ -323,7 +323,13 @@ fn a_failed_commit_releases_nothing_after_it() {
         .above
         .push(jig_protocol_store::Event::Committed { number: first.checked_add(1).unwrap(), fill: 0 });
     fixtures::turn(&mut service);
-    assert_eq!(service.end(), Some(&crate::End::Stopped(crate::Stop::CommitFailed { number: first })));
+    assert_eq!(
+        service.end(),
+        Some(&crate::End::Stopped(crate::Stop::CommitFailed {
+            number: first,
+            why: crate::CommitStop::Store(jig_protocol_store::CommitFailure::Failed),
+        }))
+    );
     assert!(service.engine.as_ref().expect("engine").requests.is_empty(), "later outputs stayed behind the barrier");
     assert!(service.engine.as_ref().expect("engine").store.host.above.is_empty());
 }

@@ -1,5 +1,5 @@
 //! The engine's lines and handover io (temper/docs/design/protocol/services.md, 7).
-use temper_engine_service::{End, Stop};
+use temper_engine_service::{CommitStop, End, RouteStop, Stop};
 use temper_shell::directories::Directories;
 
 pub fn read_handover(
@@ -128,7 +128,9 @@ pub fn ending_with_binary(
                 };
                 format!("{binary} serve: the engine's journal stopped: {why}\n")
             }
-            Stop::CommitFailed { number } => format!("{binary} serve: commit {number} failed\n"),
+            Stop::CommitFailed { number, why } => {
+                format!("{binary} serve: commit {number} failed: {}\n", commit_why(*number, *why))
+            }
             Stop::Hooks => format!("{binary} serve: webhooks listener failed\n"),
             Stop::Listener { listener, address, error } => listener_failed_line(binary, *listener, *address, *error),
         },
@@ -146,6 +148,112 @@ pub fn ending_with_binary(
         }
     }
     (lines, u8::from(output_failed || end != Some(&End::Drained)))
+}
+
+/// Bounded causes without record contents (temper/docs/design/protocol/store.md, 4).
+fn commit_why(number: u64, why: CommitStop) -> String {
+    use jig_protocol_store::{CommitCheck, CommitFailure};
+    use skein_kv::{Exhausted, Large, Refusal};
+    match why {
+        CommitStop::Store(CommitFailure::Refused(Refusal::Full(Exhausted::Budget { used, budget, projected }))) => {
+            format!(
+                "the store's map is full ({} of {} bytes; this commit needs {})",
+                grouped(used),
+                grouped(budget),
+                grouped(projected)
+            )
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::Full(Exhausted::Entries { capacity }))) => {
+            format!("the store's map is full ({} entries)", grouped(u64::from(capacity)))
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::Full(Exhausted::Numbers))) => {
+            "the store's commit numbers are at their end".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Key))) => {
+            "the store refused it: a key past the key limit".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Value))) => {
+            "the store refused it: a value past the value limit".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Ops))) => {
+            "the store refused it: more operations than the commit limit".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Frame))) => {
+            "the store refused it: a frame past the commit limit".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Page))) => {
+            "the store refused it: a page past the page limit".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::TooLarge(Large::Range))) => {
+            "the store refused it: a range that ends before it starts".into()
+        }
+        CommitStop::Store(CommitFailure::Refused(Refusal::Busy)) => "the store refused it: its queue is full".into(),
+        CommitStop::Store(CommitFailure::Refused(Refusal::Unavailable)) => {
+            "the store refused it: the store is not open".into()
+        }
+        CommitStop::Store(CommitFailure::Failed) => {
+            "the store's log failed a write or a sync, so its outcome is uncertain".into()
+        }
+        CommitStop::Store(CommitFailure::Owner { owner }) => {
+            format!("the store committed root commit {owner} as its commit {number}")
+        }
+        CommitStop::Store(CommitFailure::Transcript) => "a file step of its transcripts failed".into(),
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Number)) => {
+            "the store's own check refused it: its number is not the store's next".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Closed)) => {
+            "the store's own check refused it: the store is not open".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Queue)) => {
+            "the store's own check refused it: the queue behind transcripts' syncs is full".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Writes)) => {
+            "the store's own check refused it: more writes than the root's bound".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Switching)) => {
+            "the store's own check refused it: a patch switch is pending".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Encoding)) => {
+            "the store's own check refused it: a key, record or frame past its codec's limits".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Copy)) => {
+            "the store's own check refused it: a copy's first key is not in the map".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Reads)) => {
+            "the store's own check refused it: a read of the map it needs failed".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Capacity)) => {
+            "the store's own check refused it: more operations than the commit's bounds hold".into()
+        }
+        CommitStop::Store(CommitFailure::Check(CommitCheck::Bytes)) => {
+            "the store's own check refused it: its operations past the store's commit bytes".into()
+        }
+        CommitStop::Store(CommitFailure::Stopped) => "the store had stopped at another commit's failure".into(),
+        CommitStop::Route(RouteStop::Open) => {
+            "the engine's store routing stopped: the store refused to open while the engine ran".into()
+        }
+        CommitStop::Route(RouteStop::Secrets) => {
+            "the engine's store routing stopped: the store's secrets were not ready".into()
+        }
+        CommitStop::Route(RouteStop::Cursor) => {
+            "the engine's store routing stopped: a load's cursor did not translate or advance".into()
+        }
+        CommitStop::Route(RouteStop::Page) => {
+            "the engine's store routing stopped: a load's page could not be measured or cut".into()
+        }
+    }
+}
+
+fn grouped(figure: u64) -> String {
+    let digits = figure.to_string();
+    let mut grouped = String::new();
+    for (position, digit) in digits.chars().enumerate() {
+        if position != 0 && (digits.len() - position).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    grouped
 }
 
 fn store_refusal(binary: &str, (lines, exit): (Box<[u8]>, u8)) -> (String, u8) {

@@ -131,6 +131,146 @@ fn older_store_refusals_use_jigs_recovery_words_and_the_store_path() {
 }
 
 #[test]
+fn a_full_map_names_its_usage_budget_and_projected_bytes() {
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    let end = End::Stopped(Stop::CommitFailed {
+        number: 685_204,
+        why: CommitStop::Store(jig_protocol_store::CommitFailure::Refused(skein_kv::Refusal::Full(
+            skein_kv::Exhausted::Budget { used: 268_433_350, budget: 268_435_456, projected: 268_435_862 },
+        ))),
+    });
+    assert_eq!(
+        ending_with_binary("temper-engine", Some(&end), false, &directories, b"/data/store", &[]),
+        (
+            "temper-engine serve: commit 685204 failed: the store's map is full (268,433,350 of 268,435,456 bytes; this commit needs 268,435,862)\n".into(),
+            1,
+        )
+    );
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table pins every protocol/store.md section 4 cause and CHECK word")]
+fn every_commit_cause_has_bounded_content_free_words_and_a_whole_stop_line() {
+    use CommitStop::{Route, Store};
+    use jig_protocol_store::{CommitCheck, CommitFailure};
+    use skein_kv::{Exhausted, Large, Refusal};
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    for (why, expected) in [
+        (
+            Store(CommitFailure::Refused(Refusal::Full(Exhausted::Budget {
+                used: u64::MAX,
+                budget: u64::MAX,
+                projected: u64::MAX,
+            }))),
+            "the store's map is full (18,446,744,073,709,551,615 of 18,446,744,073,709,551,615 bytes; this commit needs 18,446,744,073,709,551,615)",
+        ),
+        (
+            Store(CommitFailure::Refused(Refusal::Full(Exhausted::Entries { capacity: u32::MAX }))),
+            "the store's map is full (4,294,967,295 entries)",
+        ),
+        (
+            Store(CommitFailure::Refused(Refusal::Full(Exhausted::Numbers))),
+            "the store's commit numbers are at their end",
+        ),
+        (
+            Store(CommitFailure::Refused(Refusal::TooLarge(Large::Key))),
+            "the store refused it: a key past the key limit",
+        ),
+        (
+            Store(CommitFailure::Refused(Refusal::TooLarge(Large::Value))),
+            "the store refused it: a value past the value limit",
+        ),
+        (
+            Store(CommitFailure::Refused(Refusal::TooLarge(Large::Ops))),
+            "the store refused it: more operations than the commit limit",
+        ),
+        (
+            Store(CommitFailure::Refused(Refusal::TooLarge(Large::Frame))),
+            "the store refused it: a frame past the commit limit",
+        ),
+        (
+            Store(CommitFailure::Refused(Refusal::TooLarge(Large::Page))),
+            "the store refused it: a page past the page limit",
+        ),
+        (
+            Store(CommitFailure::Refused(Refusal::TooLarge(Large::Range))),
+            "the store refused it: a range that ends before it starts",
+        ),
+        (Store(CommitFailure::Refused(Refusal::Busy)), "the store refused it: its queue is full"),
+        (Store(CommitFailure::Refused(Refusal::Unavailable)), "the store refused it: the store is not open"),
+        (Store(CommitFailure::Failed), "the store's log failed a write or a sync, so its outcome is uncertain"),
+        (
+            Store(CommitFailure::Owner { owner: u64::MAX }),
+            "the store committed root commit 18446744073709551615 as its commit 18446744073709551615",
+        ),
+        (Store(CommitFailure::Transcript), "a file step of its transcripts failed"),
+        (
+            Store(CommitFailure::Check(CommitCheck::Number)),
+            "the store's own check refused it: its number is not the store's next",
+        ),
+        (Store(CommitFailure::Check(CommitCheck::Closed)), "the store's own check refused it: the store is not open"),
+        (
+            Store(CommitFailure::Check(CommitCheck::Queue)),
+            "the store's own check refused it: the queue behind transcripts' syncs is full",
+        ),
+        (
+            Store(CommitFailure::Check(CommitCheck::Writes)),
+            "the store's own check refused it: more writes than the root's bound",
+        ),
+        (
+            Store(CommitFailure::Check(CommitCheck::Switching)),
+            "the store's own check refused it: a patch switch is pending",
+        ),
+        (
+            Store(CommitFailure::Check(CommitCheck::Encoding)),
+            "the store's own check refused it: a key, record or frame past its codec's limits",
+        ),
+        (
+            Store(CommitFailure::Check(CommitCheck::Copy)),
+            "the store's own check refused it: a copy's first key is not in the map",
+        ),
+        (
+            Store(CommitFailure::Check(CommitCheck::Reads)),
+            "the store's own check refused it: a read of the map it needs failed",
+        ),
+        (
+            Store(CommitFailure::Check(CommitCheck::Capacity)),
+            "the store's own check refused it: more operations than the commit's bounds hold",
+        ),
+        (
+            Store(CommitFailure::Check(CommitCheck::Bytes)),
+            "the store's own check refused it: its operations past the store's commit bytes",
+        ),
+        (Store(CommitFailure::Stopped), "the store had stopped at another commit's failure"),
+        (Route(RouteStop::Open), "the engine's store routing stopped: the store refused to open while the engine ran"),
+        (Route(RouteStop::Secrets), "the engine's store routing stopped: the store's secrets were not ready"),
+        (Route(RouteStop::Cursor), "the engine's store routing stopped: a load's cursor did not translate or advance"),
+        (Route(RouteStop::Page), "the engine's store routing stopped: a load's page could not be measured or cut"),
+    ] {
+        let words = commit_why(u64::MAX, why);
+        assert_eq!(words, expected, "{why:?}");
+        assert!(words.len() <= 160, "{why:?}: {} bytes", words.len());
+        let end = End::Stopped(Stop::CommitFailed { number: u64::MAX, why });
+        assert_eq!(
+            ending_with_binary("temper-engine", Some(&end), false, &directories, b"/data/store", &[]),
+            (format!("temper-engine serve: commit 18446744073709551615 failed: {expected}\n"), 1),
+            "{why:?}",
+        );
+    }
+}
+
+#[test]
+fn byte_and_entry_figures_group_in_threes() {
+    for (figure, expected) in [(0, "0"), (999, "999"), (1000, "1,000"), (u64::MAX, "18,446,744,073,709,551,615")] {
+        assert_eq!(grouped(figure), expected);
+    }
+}
+
+#[test]
 fn other_endings_keep_their_exit_behavior() {
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
@@ -159,7 +299,15 @@ fn other_endings_keep_their_exit_behavior() {
             1,
         ),
         (Some(End::Stopped(Stop::Binding)), false, "temper serve: deployment namespace binding refused\n", 1),
-        (Some(End::Stopped(Stop::CommitFailed { number: 7 })), false, "temper serve: commit 7 failed\n", 1),
+        (
+            Some(End::Stopped(Stop::CommitFailed {
+                number: 7,
+                why: CommitStop::Store(jig_protocol_store::CommitFailure::Stopped),
+            })),
+            false,
+            "temper serve: commit 7 failed: the store had stopped at another commit's failure\n",
+            1,
+        ),
         (
             Some(End::Stopped(Stop::Journal {
                 why: temper_engine_service::JournalStop::Refused { commit: 7, sent: 9, durable: 8 },
