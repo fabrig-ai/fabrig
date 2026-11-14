@@ -1,0 +1,5 @@
+patch 1
+owner jig 6
+
+family jig-store-tasks 12 to 13
+add BeforeTalk.question_woken u64 0

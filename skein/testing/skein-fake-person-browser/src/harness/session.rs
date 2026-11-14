@@ -29,6 +29,20 @@ pub enum Report {
     BrowserClosed,
     Trouble(String),
 }
+// Each pop reserves the room for putting an ordinary completion back.
+fn take_root_close(complete: &mut Queue<Complete>, reports: &mut Vec<Report>) {
+    for _ in 0..complete.len() {
+        let entry = complete.pop().expect("each queued completion is taken once");
+        if entry.op == ROOT_CLOSE {
+            if let Err(error) = entry.result {
+                reports.push(Report::Trouble(format!("closing session root: {error:?}")));
+            }
+        } else {
+            complete.push(entry);
+        }
+    }
+}
+
 enum Opening {
     Idle,
     Starting(Box<[u8]>),
@@ -180,17 +194,8 @@ impl Pump {
         self.benv.wall = time.wall;
         self.ienv.now = time.now;
         self.ienv.wall = time.wall;
-        let mut ordinary = Queue::with_capacity(0);
-        while let Some(complete) = self.complete.pop() {
-            if complete.op == ROOT_CLOSE {
-                if let Err(error) = complete.result {
-                    self.reports.push(Report::Trouble(format!("closing session root: {error:?}")));
-                }
-            } else {
-                ordinary.push(complete);
-            }
-        }
-        io::stage::up(&mut self.io, &self.ienv, &mut ordinary, &mut self.io_events, &mut self.submits, time.now);
+        take_root_close(&mut self.complete, &mut self.reports);
+        io::stage::up(&mut self.io, &self.ienv, &mut self.complete, &mut self.io_events, &mut self.submits, time.now);
         while let Some(event) = self.io_events.pop() {
             self.io_event(event);
         }
@@ -239,8 +244,11 @@ impl Pump {
             let submit = self.ring.register(0, submit);
             self.ring.queue(submit);
         }
-        let pending =
-            self.io.is_ready() || self.browser.work_pending() || !self.requests.is_empty() || self.ring.has_ready();
+        let pending = self.io.is_ready()
+            || self.browser.work_pending()
+            || !self.requests.is_empty()
+            || !self.complete.is_empty()
+            || self.ring.has_ready();
         let deadline = self
             .io
             .next_deadline()
@@ -337,6 +345,11 @@ impl Pump {
             && self.io.is_empty()
             && self.ring.is_empty()
             && self.submits.is_empty()
+            && self.complete.is_empty()
             && self.requests.is_empty()
     }
 }
+
+#[cfg(test)]
+#[path = "session_tests.rs"]
+mod tests;

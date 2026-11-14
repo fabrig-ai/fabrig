@@ -1,6 +1,6 @@
 //! Durable task values translated exhaustively (protocol/store/records.md, 1).
 use super::{activity, index, phase, proposals, state, value};
-use crate::tasks_v12 as wire;
+use crate::tasks_v13 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{List, Wall};
@@ -300,6 +300,7 @@ fn before_talk(
             },
             closer: source.closer,
             asked_requester: source.asked_requester,
+            question_woken: source.question_woken,
             history: task_history(source, limits)?,
             run: task_run(source, limits, moved)?,
             definition: task_definition(source, limits, moved)?,
@@ -461,6 +462,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         interests,
         outcome,
         asked_requester,
+        question_woken,
     } = source.into_parts();
     let history = history.into_parts();
     let run = run.into_parts();
@@ -494,6 +496,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         offered,
         reasons,
         asked_requester,
+        question_woken,
         label: definition.label,
         flags: phase::read_flags(definition.flags),
         last_activity: Wall::from_nanos(history.last_activity),

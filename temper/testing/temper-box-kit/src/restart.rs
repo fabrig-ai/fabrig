@@ -60,6 +60,8 @@ pub fn shared_cache_restart(case: &str) {
     forge_land::initialize(&other_paths);
     super::own_listener_files(&other_paths[0]);
     other_paths[2].clone_from(&paths[2]);
+    let restarted_client = scratch.path().join("restarted-client");
+    std::fs::create_dir(&restarted_client).expect("fresh client for the restarted deployment's sign-in link");
     let other = boxed::run_ctl(
         &other,
         boxed::echo_steps(deployment_flags(&other_paths)),
@@ -69,7 +71,7 @@ pub fn shared_cache_restart(case: &str) {
         |_| {
             let mut steps = forgejo_setup_steps("again");
             steps.extend(reads());
-            boxed::run_ctl(scratch.path(), flags, scratch.path(), steps, BOX_DEADLINE, |_| ())
+            boxed::run_ctl(scratch.path(), flags, &restarted_client, steps, BOX_DEADLINE, |_| ())
         },
     );
     drained(other.exit, other.left.as_deref(), &other.stderr);

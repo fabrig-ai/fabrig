@@ -2573,17 +2573,20 @@ fn ctl_assert_success(calls: &[support::Ended]) {
 
 #[test]
 fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_forge() {
-    use std::{fs, os::unix::fs::PermissionsExt};
     use support::{
+        boxed::CtlLlm,
         ctl::{Call, Step},
         first_repository,
     };
     let scratch = support::Scratch::new("forgejo-playground-copy");
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    for path in &paths {
-        fs::create_dir(path).expect("empty first-run directory");
-        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("private directory");
-    }
+    support::forge_land::initialize(&paths);
+    support::own_listener_files(&paths[0]);
+    let CtlLlm { peer, expected_exits, on_link } = first_repository::playground_read_llm(&paths[0]);
+    // The worker pins its agent at startup. Route it to the fake before the
+    // box starts, not at the sign-in link after the worker has kept its copy.
+    on_link();
+    let llm = CtlLlm { peer, expected_exits, on_link: Box::new(|| {}) };
     let flags = support::boxed::echo_steps(deployment_flags(&paths));
     let _cached = cache_forgejo_binaries(&paths[2]);
     let mut steps = vec![
@@ -2600,7 +2603,7 @@ fn playground_setup_adopts_widget_and_the_worker_reads_its_source_on_the_owned_f
         steps,
         BOX_DEADLINE,
         |_| first_repository::playground_read_evidence(&paths[0], scratch.path()),
-        first_repository::playground_read_llm(&paths[0]),
+        llm,
     );
     let stderr = String::from_utf8_lossy(&ended.stderr);
     assert_eq!(ended.exit, Some(Exit::Code(0)), "box drained: {stderr}");
