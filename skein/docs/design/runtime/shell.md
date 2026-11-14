@@ -115,6 +115,17 @@ target is a compile error naming the three (`readiness.md`, 5, 6).
   and lives as long as the loop. `parent` must be the PID the caller's
   parent gave it (for example as an argument), so the re-check detects
   death before the signal was installed. macOS returns `Unsupported`.
+- **A parent-side spawn,** `spawn_dying_with_parent(command: &mut
+  std::process::Command, signal) -> std::io::Result<std::process::Child>`,
+  for a test kit with no binary of its own to exec through
+  (`skein/docs/design/testing/README.md`, 5's "No fixture outlives its
+  test"): the same parent-death signal and parent re-check, installed in
+  the forked child before its exec, the parent being the spawning
+  process. A re-check that fails refuses the spawn as the child-side
+  exec does. The signal fires when the spawning thread exits, as above,
+  so a kit spawns on the thread that keeps the process. Off Linux it
+  spawns without the signal, as smith's program child starts its program
+  directly on macOS.
 - **Its checks:** the first two broken invariants of the kernel boundary
   (an invalid record, a token already in flight) at submit.
 

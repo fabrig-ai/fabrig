@@ -2329,49 +2329,43 @@ fn a_restart_over_an_imported_then_exported_account_answers_ctl() {
     account_transfer_restart("restart-imported-exported-account");
 }
 
-/// temper/docs/design/testing/live-tier.md: the landing story's panic between its sittings.
+/// temper/docs/design/testing/live-tier.md: the launcher's return after a sitting stopped.
 #[test]
-fn a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path() {
+fn a_held_record_returns_on_a_box_of_its_own_after_the_storys_box_stopped() {
     use std::os::unix::fs::PermissionsExt;
     use support::ctl::{Call, Step};
-    let scratch = support::Scratch::new("held-login-guard");
+    let scratch = support::Scratch::new("held-login-return-box");
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
     imported_restart_account(scratch.path(), &paths);
     let held = scratch.path().join("incoming-account.move");
     let temper = skein_scratch::paths::binary("temper-box");
-    // As run_live does: the sitting's hook fails on a stopped box, as the launcher's does.
-    support::held_login::return_hook(&temper, scratch.path(), &scratch.path().join("client"), &held);
-    let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _lent = support::held_login::Lent::new(&temper, &paths, &held);
-        let sitting = support::boxed::run_ctl_with_account(
-            scratch.path(),
-            support::boxed::echo_steps(deployment_flags(&paths)),
-            scratch.path(),
-            vec![
-                Step::Run(Call::sign_in()),
-                Step::Run(Call::new(&["account", "import", held.to_str().expect("move file"), "--key", "guard"])),
-                Step::Run(Call::new(&["account", "list", "--until", "usable"])),
-            ],
-            BOX_DEADLINE,
-            || (),
-            support::forge_land::fake_face(support::sign_in::restart_issued_issuer(&paths[0]), no_model_scripts()),
-        );
-        ctl_assert_success(&sitting.calls);
-        assert_eq!(sitting.calls.len(), 3, "all import acts answered");
-        assert_eq!(sitting.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&sitting.stderr));
-        assert_eq!(sitting.left, Some(Vec::new()), "the sitting drained");
-        assert!(!held.exists(), "the record moved in");
-        panic!("the story's assertion after its box stopped");
-    }))
-    .expect_err("story failed");
-    assert_eq!(failed.downcast_ref::<&str>(), Some(&"the story's assertion after its box stopped"));
-    let metadata = std::fs::symlink_metadata(&held).expect("the guard returned the record");
+    let sitting = support::boxed::run_ctl_with_account(
+        scratch.path(),
+        support::boxed::echo_steps(deployment_flags(&paths)),
+        scratch.path(),
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["account", "import", held.to_str().expect("move file"), "--key", "guard"])),
+            Step::Run(Call::new(&["account", "list", "--until", "usable"])),
+        ],
+        BOX_DEADLINE,
+        || (),
+        support::forge_land::fake_face(support::sign_in::restart_issued_issuer(&paths[0]), no_model_scripts()),
+    );
+    ctl_assert_success(&sitting.calls);
+    assert_eq!(sitting.calls.len(), 3, "all import acts answered");
+    assert_eq!(sitting.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&sitting.stderr));
+    assert_eq!(sitting.left, Some(Vec::new()), "the sitting drained");
+    assert!(!held.exists(), "the record moved in");
+    support::forge_land::rung::return_on_a_box_of_its_own(&temper, scratch.path(), &paths, &held)
+        .expect("return on its own box");
+    let metadata = std::fs::symlink_metadata(&held).expect("the return box exported the record");
     assert!(metadata.is_file() && metadata.len() > 0);
     assert_eq!(metadata.permissions().mode() & 0o7777, 0o600);
     let config: serde_json::Value =
         serde_json::from_slice(&std::fs::read(paths[0].join("temper.json")).expect("configuration")).expect("JSON");
     let listener = config["application"]["clients"]["listener"]["socket"].as_str().expect("client listener");
-    assert!(std::net::TcpStream::connect(listener).is_err(), "the guard's box stopped");
+    assert!(std::net::TcpStream::connect(listener).is_err(), "the return's box stopped");
     scratch.remove();
 }
 

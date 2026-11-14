@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-12. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-14. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6 has no known gap in closing a panic report with its thread's
 `panicked at` line and message after one forced backtrace. The fail-stop

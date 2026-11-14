@@ -414,6 +414,7 @@ Drafts:
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
+- [`draft/design-economy.md`](draft/design-economy.status.md)
 - [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)

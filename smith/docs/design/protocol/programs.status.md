@@ -1,6 +1,6 @@
 # programs: status
 
-2026-11-12. Where smith's code lags or departs from [programs.md](programs.md).
+2026-11-14. Where smith's code lags or departs from [programs.md](programs.md).
 
 
 Sections 2 and 5.1 have no known gap in Linux's program-child launch:
@@ -52,6 +52,7 @@ fake status supplies it; this does not establish a real-login render check.
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,
   3; this is a design gap, not an absent implementation.
+
 
 - **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`

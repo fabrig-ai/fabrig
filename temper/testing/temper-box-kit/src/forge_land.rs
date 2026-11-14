@@ -1600,15 +1600,16 @@ impl LivePlan<'_> {
 
     /// Install the held record's give-back in the story's store; `binary` is the temper
     /// the hook runs.
-    pub fn install_return_hook(&self, binary: &std::path::Path) {
+    pub fn install_return_hook(&self, binary: &std::path::Path) -> Result<(), String> {
         if let LiveModel::ChatGpt { account: Some(account) } = self.model {
             super::held_login::return_hook(
                 binary,
                 self.paths[0].parent().expect("store"),
                 &self.client_directory(),
                 account,
-            );
+            )?;
         }
+        Ok(())
     }
 
     /// The held record's import as the sitting runs it, behind the give-back's lock.
@@ -2625,7 +2626,7 @@ pub fn run_live(
     if let Face::Fake { peer, .. } = &face {
         peer.configure(&plan.paths[0]);
     }
-    plan.install_return_hook(&skein_scratch::paths::binary("temper-box"));
+    plan.install_return_hook(&skein_scratch::paths::binary("temper-box"))?;
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         Command {

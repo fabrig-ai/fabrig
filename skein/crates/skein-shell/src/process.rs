@@ -48,6 +48,28 @@ fn parent_death_exec_is_unsupported() {
     );
 }
 
+/// Spawns a command with a parent-death signal (runtime/shell.md, 3).
+/// On Linux the signal survives exec of a non-setuid binary and is cleared
+/// by a setuid/setgid exec. It fires when the spawning thread exits, rather
+/// than when the spawning process exits: spawn on the thread that keeps
+/// the process. A parent re-check before exec refuses a changed parent.
+/// Off Linux it spawns without the signal.
+#[expect(clippy::disallowed_types, reason = "a test kit needs a Command and Child without its own exec binary")]
+pub fn spawn_dying_with_parent(
+    command: &mut std::process::Command,
+    signal: skein_io::kernel::Signal,
+) -> std::io::Result<std::process::Child> {
+    #[cfg(target_os = "linux")]
+    {
+        system::process::spawn_dying_with_parent(command, signal)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _unused = signal;
+        command.spawn()
+    }
+}
+
 /// Opens the service's termination signal source for io
 /// to adopt before the loop starts (runtime/shell.md, section 6; runtime/io/README.md, section 4).
 pub fn open_termination_signals() -> Result<Fd, i32> {
