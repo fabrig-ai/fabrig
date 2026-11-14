@@ -32,7 +32,5 @@ and its stops' tokens on its mark's; `Scene::mark_fade` gives it back.
 it. A fill's, a radial and other marks' fades are `README.md`, section 15's.
 
 - **Not yet:** 3: the builder's assertion against a node inside a named button, tab or menu item (`skein-ui/src/builder.rs`, `close`).
-- **Not yet:** 13: `Tree::used` [in flight: change 2731]
-- **Not yet:** 14: tests catch the builder's assertions on a call off its roles [in flight: change 2729]
 - **Not yet:** 14: the builder's capacity and fraction tests, `#[should_panic]`, go with `temper/docs/design/draft/panics.execution.md`, P8.
 - **Departs:** 3.1: the `debt-28` request of 2026-11-06 has each of its items end with fewer lines than it started; the role sets' named predicates ended 80 lines of Rust up, since one exhaustive `match` in `skein-ui/src/tree.rs` outweighs the short sites it replaced. `temper-client-view/src/tests/choice.rs` keeps one such slice, in a file that request keeps out of. 3.4: a progress still takes a text child: `close` asserts only that a fraction has runs of its own, so a progress with no fraction may hold its words in a child (`temper-client-shell-terminal/src/tests/fixtures.rs`), and one with a fraction may hold a child beside its runs. The text shell prints such a child's words; the web mapping gives them no `aria-valuetext`. It stays so that no fixture moves.

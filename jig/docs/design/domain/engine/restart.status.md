@@ -8,5 +8,4 @@
    the undocumented root methods remain `README.status.md`, 4.
    the child-timer departure remains `README.status.md`, 4.1.
    the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
-- **Not yet:** a settings proposal numbered past what its settings key holds asserts at the restart rather than refusing as `Linked::SettingsProposal` [in flight: change 2732]
 
