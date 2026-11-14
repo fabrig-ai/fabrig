@@ -5,9 +5,14 @@ use crate::{
     revision::{self, declaration::Map},
 };
 use alloc::boxed::Box;
-pub type Change = crate::diff::Changed<Boot>;
 use hearth_lib::{encode::Digest, hash::H};
 use skein_lib::{List, Map as Sorted};
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Change {
+    pub before: Boot,
+    pub after: Boot,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Boot {
     pub params: Box<[Box<[u8]>]>,

@@ -5,6 +5,7 @@ use hearth_lib::{
     encode::{Digest, Encoder},
     hash::H,
 };
+use skein_lib::{Joined, List, Map, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Config {
     pub presets: Box<[Preset]>,
@@ -33,8 +34,8 @@ pub fn file(path: &[u8], mode: Mode, content_digest: Digest) -> TreeEntry {
         node: Node::File {
             content_digest,
             mode: if mode == Mode::Executable { 0o755 } else { 0o644 },
-            owner: skein_lib::bytes::copy_of(b"root"),
-            group: skein_lib::bytes::copy_of(b"root"),
+            owner: bytes::copy_of(b"root"),
+            group: bytes::copy_of(b"root"),
         },
     }
 }
@@ -119,40 +120,57 @@ pub enum EntryChange {
 }
 #[must_use]
 pub(crate) fn change(before: Option<&Config>, after: Option<&Config>) -> Change {
+    let scripts = directives_changes::scripts(before, after);
+    let members = changes::members(before, after);
+    let empty = Config {
+        presets: Box::new([]),
+        tmpfiles: Box::new([]),
+        scripts: Box::new([]),
+        groups: Box::new([]),
+        users: Box::new([]),
+        members: Box::new([]),
+        tree: Box::new([]),
+    };
+    let before = before.unwrap_or(&empty);
+    let after = after.unwrap_or(&empty);
     let presets = directives_changes::presets(before, after);
     let tmpfiles = directives_changes::tmpfiles(before, after);
-    let scripts = directives_changes::scripts(before, after);
     let groups = changes::groups(before, after);
     let users = changes::users(before, after);
-    let members = changes::members(before, after);
-    let before = match before {
-        Some(config) => config.tree.as_ref(),
-        None => &[],
-    };
-    let after = match after {
-        Some(config) => config.tree.as_ref(),
-        None => &[],
-    };
-    let tree = crate::diff::keyed(
-        before,
-        after,
-        |entry| &entry.path,
-        |change| match change {
-            crate::diff::Keyed::Added { key, value } => EntryChange::Added { path: key, node: value.node.clone() },
-            crate::diff::Keyed::Removed { key, value } => EntryChange::Removed { path: key, node: value.node.clone() },
-            crate::diff::Keyed::Changed { key, before, after } => EntryChange::Changed {
-                path: key,
-                before: before.node.clone(),
-                after: after.node.clone(),
+    let mut old = Map::uncapped();
+    for row in &before.tree {
+        old.insert(row.path.as_ref(), row).expect("an uncapped map");
+    }
+    let mut new = Map::uncapped();
+    for row in &after.tree {
+        new.insert(row.path.as_ref(), row).expect("an uncapped map");
+    }
+    let mut tree = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => EntryChange::Removed { path: bytes::copy_of(key), node: row.node.clone() },
+            Joined::Second(row) => EntryChange::Added { path: bytes::copy_of(key), node: row.node.clone() },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => EntryChange::Changed {
+                path: bytes::copy_of(key),
+                before: was.node.clone(),
+                after: now.node.clone(),
                 sizes: None,
                 hunks: None,
             },
-        },
-    );
+        };
+        tree.push(change).expect("an uncapped list");
+    }
+    let tree = tree.into_boxed();
     Change { presets, tmpfiles, scripts, groups, users, members, tree }
 }
 
-pub type Sizes = crate::diff::Changed<u64>;
+/// File sizes before and after (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Sizes {
+    pub before: u64,
+    pub after: u64,
+}
 impl EntryChange {
     pub(crate) fn pair(
         &mut self,
@@ -193,8 +211,20 @@ pub use accounts::{Group, GroupKind, Member, User, UserKind};
 pub(crate) use accounts::build as accounts;
 pub(crate) use accounts::rows as account_rows;
 
-pub type GroupKeyed = crate::diff::Keyed<GroupKind>;
-pub type UserKeyed = crate::diff::Keyed<UserKind>;
+/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum GroupKeyed {
+    Added { key: Box<[u8]>, value: GroupKind },
+    Removed { key: Box<[u8]>, value: GroupKind },
+    Changed { key: Box<[u8]>, before: GroupKind, after: GroupKind },
+}
+/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum UserKeyed {
+    Added { key: Box<[u8]>, value: UserKind },
+    Removed { key: Box<[u8]>, value: UserKind },
+    Changed { key: Box<[u8]>, before: UserKind, after: UserKind },
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum MemberChange {
     Added(Member),
@@ -207,8 +237,25 @@ mod directives;
 pub(crate) use directives::encode_scripts;
 pub use directives::{Action, Line, LineKind, Preset, Script, Tmpfile};
 
-pub type PresetKeyed = crate::diff::Keyed<Action>;
-pub type LineKeyed = crate::diff::Keyed<Line>;
-pub type ScriptsChange = crate::diff::Changed<Box<[Script]>>;
+/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum PresetKeyed {
+    Added { key: Box<[u8]>, value: Action },
+    Removed { key: Box<[u8]>, value: Action },
+    Changed { key: Box<[u8]>, before: Action, after: Action },
+}
+/// Changes in key order (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum LineKeyed {
+    Added { key: Box<[u8]>, value: Line },
+    Removed { key: Box<[u8]>, value: Line },
+    Changed { key: Box<[u8]>, before: Line, after: Line },
+}
+/// Scripts before and after (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ScriptsChange {
+    pub before: Box<[Script]>,
+    pub after: Box<[Script]>,
+}
 
 mod directives_changes;
