@@ -110,6 +110,42 @@
   - **Counted as asked:** the repair stays in the change's repairs, on its
     panel and in its result, whose reason for it goes on `then CI passed at H`
     (`README.md`, 2, step 7).
+- **A CI repair that changes nothing checks its head again.** A CI repair
+  (above: its reason CI failed at the head) changes nothing when it ends
+  finding nothing to do (its result `no_change`), or ends delivering with
+  the change's branch, read after its end, still at the head it was asked
+  to repair: a flake its agent saw pass, or a red that names no failing
+  test. Neither is a failure: neither holds the change, and the hold
+  "failed for good" stays a repair's that failed or was cancelled. At a
+  green head the rule above ends it. At a head whose CI still fails, the
+  change checks that head again, by the first of these that applies:
+  - **Run again at the head,** where the forge runs a job again (Forgejo
+    does; skein's GitHub adapter refuses the write) and a failed check at
+    the head names a job read at this head: the change runs that job again,
+    one write as a runner's re-run is (`README.md`, 2, step 3), choosing a
+    job the runner failed before another, its account's reason `a repair
+    changed nothing`. It is checking at the same head: the gates' verdicts
+    there stay valid, under a queue it keeps its turn, CI read at the head
+    is pending again until the new attempt ends, and its stall counts
+    afresh. One job runs again for each such repair; a failed check still
+    red after it is a red as any other.
+  - **Updated onto its base,** where no job can run again and the head
+    lacks its base's tip: an update (`../README.md`, section 6), counted
+    against its updates and holding past their bound as any update does,
+    and its new head is checked again (`README.md`, 2, step 3).
+  - **Otherwise its red stands:** checking at the same head, the next
+    repair is asked as for any red.
+
+  The repair that changed nothing stays counted as asked; the run again
+  and the update count no repair. A red that comes back asks the next
+  repair, counted, so a red that keeps coming back ends at the repair
+  bound: the change holds, its hold's account `its repairs are spent: N of
+  LIMIT taken`, N its repairs and LIMIT `forge.change_policy.repairs`, for
+  every change as for a follow change. Other reasons are not touched: a
+  gate's, a review's or a check's repair, a person's request for changes,
+  a landing's, a resolution and a queue's ejection that change nothing
+  hold the change as before (1, *A repair of another reason that changes
+  nothing*).
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
@@ -647,3 +683,17 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   words; a lone reviews section past the deadline still fails its brief.
   Default: the pull section alone has a cutoff, the one a deployment met
   (2026-11-12).
+
+- **A repair of another reason that changes nothing** (`repairs.md`, *A CI
+  repair that changes nothing checks its head again*): a gate's or a
+  review's verdict at the head stays valid there, so checking the same
+  head again would only ask the next repair, and a landing's, a
+  resolution's and an ejection's red is not CI's at the change's head.
+  Default: such a repair finding nothing to do holds the change, as a
+  failed one does, until a person decides (2026-11-14).
+
+- **Every failed job at once** (`repairs.md`, *A CI repair that changes
+  nothing checks its head again*): one job runs again for each repair that
+  changed nothing, as one write is one job's; a head with several failed
+  jobs spends a repair on each left red. Default: one job, since a
+  deployment's CI fails in one gate job (2026-11-14).
