@@ -136,6 +136,7 @@ impl<K: Ord, V> Map<K, V> {
     }
 
     /// Each key of either map once, in key order (runtime/lib.md, 5.2).
+    #[must_use]
     pub fn join<'a>(&'a self, other: &'a Map<K, V>) -> Join<'a, K, V> {
         let mut first = self.entries.iter();
         let mut second = other.entries.iter();
@@ -172,6 +173,7 @@ impl<V> Clone for Joined<'_, V> {
 }
 
 /// A borrowing, allocation-free walk over two maps by key (runtime/lib.md, 5.2).
+#[derive(Debug)]
 pub struct Join<'a, K, V> {
     first: btree_map::Iter<'a, K, V>,
     second: btree_map::Iter<'a, K, V>,
