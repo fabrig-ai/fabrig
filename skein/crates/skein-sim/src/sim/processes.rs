@@ -11,6 +11,7 @@
 
 use alloc::collections::VecDeque;
 use alloc::format;
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use skein_io::kernel::{Done, Error, Exit, Fd, Op, Pipe, Resources, Signal, Target, Way};
@@ -303,22 +304,33 @@ impl Sim {
     /// Checks hosted children have exited, and output from children that exited
     /// with their own code was read through EOF (testing-strategy.md, section 6).
     pub fn assert_hosted_settled(&self, pid: Pid) {
+        if let Err(finding) = self.check_hosted_settled(pid) {
+            Self::die(&finding);
+        }
+    }
+
+    /// Returns the finding for hosted children and their output once settled.
+    pub fn check_hosted_settled(&self, pid: Pid) -> Result<(), String> {
         for child in self.process(pid).children.values() {
             if child.service.is_some() {
-                assert!(child.exit.is_some(), "every hosted child finished once settled");
+                if child.exit.is_none() {
+                    return Err(self.report("every hosted child finished once settled"));
+                }
                 match child.exit {
                     Some(Exit::Code(_)) => {
                         for pipe in &child.pipes {
-                            assert!(
-                                pipe.spec.way != Way::Out || pipe.read_to_end,
-                                "every hosted child's output pipe was read to its end once settled"
-                            );
+                            if pipe.spec.way == Way::Out && !pipe.read_to_end {
+                                return Err(
+                                    self.report("every hosted child's output pipe was read to its end once settled")
+                                );
+                            }
                         }
                     }
                     Some(Exit::Signal(_)) | None => {}
                 }
             }
         }
+        Ok(())
     }
 
     /// Gives a process a pipe it can read; the world feeds and closes its writer.
@@ -489,7 +501,7 @@ impl Sim {
         self.complete(pid, token, op, Ok(Done::Count(u32::try_from(count).expect("a count"))));
     }
 
-    pub(super) fn check_process(&self, pid: Pid, kind: Summary) {
+    pub(super) fn check_process(&self, pid: Pid, kind: Summary) -> Result<(), String> {
         let process = self.process(pid);
         let fd = kind.fd().expect("a process operation names a descriptor");
         match kind {
@@ -502,16 +514,16 @@ impl Sim {
                         )
                     )
                 }) {
-                    self.fail(pid, &format!("Spawn root {fd:?} is not an open directory"));
+                    return Err(self.finding(pid, &format!("Spawn root {fd:?} is not an open directory")));
                 }
             }
             Summary::Wait { .. } | Summary::Signal { .. } => {
                 let Some(&child_id) = process.pidfds.get(&fd) else {
-                    self.fail(pid, &format!("{kind:?} on {fd:?}, which is not a pidfd"));
+                    return Err(self.finding(pid, &format!("{kind:?} on {fd:?}, which is not a pidfd")));
                 };
                 let child = process.children.get(&child_id).expect("pidfd names a child");
                 if child.wait_state == WaitState::Reaped {
-                    self.fail(pid, &format!("an operation after the reap on {fd:?}"));
+                    return Err(self.finding(pid, &format!("an operation after the reap on {fd:?}")));
                 }
                 if matches!(kind, Summary::Wait { .. })
                     && process
@@ -519,18 +531,18 @@ impl Sim {
                         .values()
                         .any(|flight| matches!(flight.kind, Summary::Wait { pidfd, .. } if pidfd == fd))
                 {
-                    self.fail(pid, &format!("a second Wait on {fd:?}"));
+                    return Err(self.finding(pid, &format!("a second Wait on {fd:?}")));
                 }
                 if matches!(kind, Summary::Wait { reap: true, .. }) && child.wait_state != WaitState::Observed {
-                    self.fail(pid, &format!("a reap before an observed exit on {fd:?}"));
+                    return Err(self.finding(pid, &format!("a reap before an observed exit on {fd:?}")));
                 }
             }
             Summary::ReadSignal { .. } => {
                 let Some(source) = process.signal_fds.get(&fd) else {
-                    self.fail(pid, &format!("{kind:?} on {fd:?}, which is not a signalfd"));
+                    return Err(self.finding(pid, &format!("{kind:?} on {fd:?}, which is not a signalfd")));
                 };
                 if source.read.is_some() {
-                    self.fail(pid, &format!("a second signal read on {fd:?}"));
+                    return Err(self.finding(pid, &format!("a second signal read on {fd:?}")));
                 }
             }
             Summary::PipeRead { .. } | Summary::PipeWrite { .. } | Summary::Close { .. } => {
@@ -542,11 +554,13 @@ impl Sim {
                         _ => false,
                     };
                     if !valid {
-                        self.fail(pid, &format!("{kind:?} has the wrong direction on inherited pipe {fd:?}"));
+                        return Err(
+                            self.finding(pid, &format!("{kind:?} has the wrong direction on inherited pipe {fd:?}"))
+                        );
                     }
                     for flight in process.flights.values() {
                         if flight.kind.fd() == Some(fd) {
-                            self.fail(pid, &format!("{kind:?} beside {:?} on {fd:?}", flight.kind));
+                            return Err(self.finding(pid, &format!("{kind:?} beside {:?} on {fd:?}", flight.kind)));
                         }
                     }
                 } else if let Some(end) = process.pipe_fds.get(&fd) {
@@ -558,11 +572,11 @@ impl Sim {
                         _ => false,
                     };
                     if !valid {
-                        self.fail(pid, &format!("{kind:?} has the wrong direction on pipe {fd:?}"));
+                        return Err(self.finding(pid, &format!("{kind:?} has the wrong direction on pipe {fd:?}")));
                     }
                     for flight in process.flights.values() {
                         if flight.kind.fd() == Some(fd) {
-                            self.fail(pid, &format!("{kind:?} beside {:?} on {fd:?}", flight.kind));
+                            return Err(self.finding(pid, &format!("{kind:?} beside {:?} on {fd:?}", flight.kind)));
                         }
                     }
                 } else if matches!(kind, Summary::Close { .. })
@@ -570,15 +584,16 @@ impl Sim {
                 {
                     for flight in process.flights.values() {
                         if flight.kind.fd() == Some(fd) {
-                            self.fail(pid, &format!("a Close beside {:?} on {fd:?}", flight.kind));
+                            return Err(self.finding(pid, &format!("a Close beside {:?} on {fd:?}", flight.kind)));
                         }
                     }
                 } else {
-                    self.fail(pid, &format!("{kind:?} on {fd:?}, which is not a pipe"));
+                    return Err(self.finding(pid, &format!("{kind:?} on {fd:?}, which is not a pipe")));
                 }
             }
-            _ => self.bug("only process operations are checked here"),
+            _ => return Err(self.report("a bug of the simulator: only process operations are checked here")),
         }
+        Ok(())
     }
 
     #[expect(clippy::too_many_lines, reason = "one exhaustive table for process and inherited pipe operations")]
@@ -894,7 +909,7 @@ impl Sim {
                     Ok(Done::Spawned { pidfd, sender: skein_io::kernel::Sender::new(child_id) }),
                 );
             }
-            Ok(reply) => self.machine(&format!("{reply:?} to a Spawn")),
+            Ok(reply) => self.bug(&format!("checked answer {reply:?} to a Spawn")),
             Err(error) => self.complete(pid, token, op, Err(error)),
         }
     }
