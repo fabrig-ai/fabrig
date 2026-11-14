@@ -163,7 +163,7 @@ impl Referee<Process> for Judge {
             procs[0].inner.ending = true;
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         self.passed = procs.iter().all(Host::is_empty);
         let address_ready = procs[0].inner.process.issuer().expect("issuer slot").address().is_some();
         let client = procs[1].inner.process.client().expect("owner slot");
@@ -177,6 +177,7 @@ impl Referee<Process> for Judge {
         let shutdown_ready =
             procs[1].inner.process.is_empty() && procs[2].inner.process.is_empty() && !procs[0].inner.ending;
         self.wake = (owner_ready || redirect_ready || shutdown_ready).then_some(now);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake.or(Some(Time::from_nanos(180_000_000_000)))
