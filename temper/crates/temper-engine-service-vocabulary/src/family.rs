@@ -862,14 +862,15 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
                 limits,
                 w::RepairingParts {
                     reason: match reason {
-                        change::Repair::Ci => w::Reason::Ci,
+                        // A failed landing test gate is CI; the landing keeps its prefix context.
+                        change::Repair::Ci | change::Repair::LandingAt { .. } | change::Repair::Landing { .. } => {
+                            w::Reason::Ci
+                        }
                         change::Repair::Review { .. } => w::Reason::Review,
                         change::Repair::Gate(gate) => {
                             w::Reason::Gate(w::GateReason::new(limits, w::GateReasonParts { gate }).ok()?)
                         }
                         change::Repair::Semantic => w::Reason::Semantic,
-                        // landing.md 3: the top's task
-                        change::Repair::LandingAt { .. } | change::Repair::Landing { .. } => return None,
                     },
                 },
             )

@@ -5150,3 +5150,25 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
         assert_eq!(wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result, expected);
     }
 }
+
+#[test]
+fn a_landing_repair_keeps_its_change_panel_readable() {
+    for reason in [
+        change::Repair::Landing { gate: 0 },
+        change::Repair::LandingAt {
+            gate: 0,
+            candidate: [8; 32],
+            below: Some(change::Below { green: [7; 32], changes: [None; 4] }),
+        },
+    ] {
+        let mut value = panel();
+        value.step = forge::PanelStep::Repairing(reason);
+        value.way = change::Way::Turn;
+        value.in_landing = Some(61);
+        value.runs = Some(88);
+        let got = decoded_panel(value, &fixtures::forge_table(&[]));
+        assert_eq!(*got.step(), repairing(w::Reason::Ci));
+        assert_eq!(*got.in_landing(), Some(61));
+        assert_eq!(*got.runs(), Some(88));
+    }
+}
