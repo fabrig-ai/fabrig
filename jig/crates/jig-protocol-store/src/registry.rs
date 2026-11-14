@@ -7,8 +7,31 @@ use skein_codec::{
 };
 use skein_lib::{Buffer, List, Map, Queue};
 mod check;
+pub(crate) mod rehearsal;
 mod rows;
 mod texts;
+
+/// Fitted at open beside the plans (protocol/store/layouts.md, 7). A store
+/// whose plans all keep needs no conversion buffer; its reads only rehead.
+#[derive(Debug)]
+pub(crate) struct ReadWork {
+    pub(crate) workspace: Workspace,
+    buffer: Buffer,
+}
+impl ReadWork {
+    pub(crate) fn new() -> Self {
+        Self { workspace: Workspace::new(), buffer: Buffer::with_capacity(0) }
+    }
+    fn fit(layouts: &Layouts, workspace: Workspace, bound: u32) -> Self {
+        let mut converts = false;
+        for ty in &layouts.types {
+            for (_, plan) in &ty.plans {
+                converts |= !plan.keeps();
+            }
+        }
+        Self { workspace, buffer: Buffer::with_capacity(if converts { bound } else { 0 }) }
+    }
+}
 
 type Digest = [u8; 32];
 type RowKey = (Box<str>, u16, u16);
@@ -66,7 +89,6 @@ impl Layouts {
         }
         self.types.get(range.ty)
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "the next change wires the store's write edge"))]
     pub(crate) fn write(&self, key: &[u8], value: &mut [u8]) -> Result<(), ()> {
         if !self.active {
             return Ok(());
@@ -80,7 +102,6 @@ impl Layouts {
         rehead(value, ty.binary);
         Ok(())
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "the next change wires the store's read edges"))]
     pub(crate) fn read<'a>(
         &self,
         key: &[u8],
@@ -166,6 +187,17 @@ impl Layouts {
         None
     }
 }
+/// Keep an owned row in place when only its head moves. A converted row owns
+/// the conversion buffer's result before the next read reuses it.
+pub(crate) fn read(store: &mut Store, key: &[u8], value: &mut Box<[u8]>) {
+    let original = value.as_ptr();
+    let work = &mut store.layout_work;
+    let mapped = store.registry.read(key, value, &mut work.buffer, &mut work.workspace);
+    if mapped.as_ptr() != original {
+        *value = Box::from(mapped);
+    }
+}
+
 pub(crate) fn head(value: &[u8]) -> Option<u16> {
     Some(u16::from_be_bytes(value.get(..2)?.try_into().ok()?))
 }
@@ -198,7 +230,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     }
     if !seeded && !registered {
         *store.registry = layouts;
-        *store.layout_work = Workspace::new();
+        *store.layout_work = ReadWork::new();
         return Ok(false);
     }
     if let Err(why) = crate::patching::plan::bounds(&store.patch_sets) {
@@ -217,7 +249,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     let writing = changed || (!seeded && !layouts.types.is_empty());
     rows::operations(store, &mut layouts)?;
     layouts.active = seeded && !changed;
+    *store.layout_work = ReadWork::fit(&layouts, work, store.limits.store.value);
     *store.registry = layouts;
-    *store.layout_work = work;
     Ok(writing)
 }

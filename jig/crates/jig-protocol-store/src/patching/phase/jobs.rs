@@ -188,7 +188,12 @@ fn load_values(
         bound = bound.checked_add(space.rows)?;
     }
     for _ in 0..bound {
-        let walked = match pages::reader::walk(store, ranges, running.after.as_ref(), store.limits.store.ops) {
+        let page = if written {
+            pages::reader::walk_stored(store, ranges, running.after.as_ref(), store.limits.store.ops)
+        } else {
+            pages::reader::walk(store, ranges, running.after.as_ref(), store.limits.store.ops)
+        };
+        let walked = match page {
             Ok(walked) => walked,
             Err(failure) => {
                 store.open_failed(crate::restore::OpenFailure::Data(failure));
