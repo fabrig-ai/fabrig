@@ -1,7 +1,7 @@
 //! The deployment's generations on disk (protocol/store/README.md, 2, and protocol/store/opening.md, 1, 2 and 4).
 use crate::{Arrived, Root, directory::OWNER};
 use alloc::boxed::Box;
-use skein_io::{digest::Digest, file, kernel::Kind};
+use skein_io::{digest::Digest, file, kernel::{Error, Kind}};
 use skein_lib::{Decimal, List, Queue, Writer};
 
 pub(crate) const ACTIVE: &[u8] = b"active";
@@ -212,7 +212,7 @@ pub(crate) fn removed(removing: &mut Removing, arrived: Arrived, queue: &mut Que
         Step::Opening => {
             let file::Event::Opened { file, .. } = arrived.event else {
                 // A previous cut may already have removed the target completely.
-                if let file::Event::Failed { error: skein_io::kernel::Error::NotFound, .. } = arrived.event {
+                if let file::Event::Failed { error: Error::NotFound, .. } = arrived.event {
                     let length = removing.levels.len().checked_sub(1).expect("opening level");
                     removing.levels.truncate(length);
                     if length == 0 {
@@ -296,7 +296,11 @@ enum CopyStep {
     StoreDirectory,
     Destination,
     Source,
+    Newest,
+    NewestClose,
+    CopySource,
     Page,
+    Link,
     ReadOpen,
     WriteOpen,
     Read,
@@ -313,10 +317,17 @@ enum CopyStep {
     Failing,
     Finished,
 }
-/// Generation `from`'s maps copied into `from + 1` (protocol/store/opening.md 2, step 2).
-/// Directories are made 0o700, secrets opened private, files created exclusively
-/// 0o600 and copied through one bounded chunk. Files, map directories and finally
-/// generations are synced. The source is only read; a standing destination fails.
+#[derive(Debug, PartialEq, Eq)]
+enum CopyWay {
+    Link,
+    Copy,
+}
+/// Generation `from`'s maps linked and copied (protocol/store/opening.md 2, step 2).
+/// A patch links the snapshot and all but the newest log segment, found over every
+/// page first; a rehearsal copies everything. Refused links fall back to copies.
+/// Directories are made 0o700, secrets opened private, copied files created
+/// exclusively 0o600 through one bounded chunk. Copied files, map directories and
+/// finally generations are synced. No source bytes change; a standing destination fails.
 #[derive(Debug)]
 pub(crate) struct Copying {
     root: Root,
@@ -324,6 +335,8 @@ pub(crate) struct Copying {
     from: u64,
     to: u64,
     chunk: u32,
+    way: CopyWay,
+    newest: Option<u64>,
     map: Map,
     source: Option<Root>,
     destination: Option<Root>,
@@ -339,7 +352,9 @@ pub(crate) struct Copying {
     progress: Progress,
 }
 pub(crate) fn copy(root: Root, from: u64, chunk: u32, below: &mut crate::Below) -> Copying {
-    copy_between(root, root, from, from.checked_add(1).unwrap_or(0), chunk, below)
+    let mut copying = copy_between(root, root, from, from.checked_add(1).unwrap_or(0), chunk, below);
+    copying.way = CopyWay::Link;
+    copying
 }
 pub(crate) fn copy_between(
     source_root: Root,
@@ -364,6 +379,8 @@ pub(crate) fn copy_between(
         from,
         to,
         chunk,
+        way: CopyWay::Copy,
+        newest: None,
         map: Map::Store,
         source: None,
         destination: None,
@@ -413,12 +430,19 @@ fn copy_next(copying: &mut Copying, queue: &mut Queue<file::Request>) -> Progres
         if entry.kind != Kind::File {
             return copy_fail(copying, queue);
         }
-        queue.push(file::Request::OpenReadNoFollow {
-            owner: OWNER,
-            root: copying.source.expect("source map open").fd,
-            name: entry.name.clone(),
-        });
-        copying.step = CopyStep::ReadOpen;
+        let sealed = if let Some(number) = segment(&entry.name) { Some(number) < copying.newest } else { false };
+        if copying.way == CopyWay::Link && copying.map == Map::Store && (entry.name.as_ref() == b"snapshot" || sealed) {
+            queue.push(file::Request::HardLink {
+                owner: OWNER,
+                from_root: copying.source.expect("source map open").fd,
+                from: entry.name.clone(),
+                to_root: copying.destination.expect("destination map open").fd,
+                to: entry.name.clone(),
+            });
+            copying.step = CopyStep::Link;
+        } else {
+            copy_open(copying, queue);
+        }
     } else if copying.last {
         queue.push(file::Request::SyncDirectory {
             owner: OWNER,
@@ -429,6 +453,34 @@ fn copy_next(copying: &mut Copying, queue: &mut Queue<file::Request>) -> Progres
         copy_page(copying, queue);
     }
     Progress::Pending
+}
+/// Only kv's fixed-width decimal segment names can be shared.
+fn segment(name: &[u8]) -> Option<u64> {
+    let digits = name.strip_prefix(b"log-")?;
+    if digits.len() != 20 {
+        return None;
+    }
+    let mut number = 0_u64;
+    for digit in digits {
+        if !digit.is_ascii_digit() {
+            return None;
+        }
+        number = number.checked_mul(10)?.checked_add(u64::from(digit.checked_sub(b'0')?))?;
+    }
+    Some(number)
+}
+fn copy_open(copying: &mut Copying, queue: &mut Queue<file::Request>) {
+    let entry = copying.entries.get(copying.next).expect("current entry retained");
+    queue.push(file::Request::OpenReadNoFollow {
+        owner: OWNER,
+        root: copying.source.expect("source map open").fd,
+        name: entry.name.clone(),
+    });
+    copying.step = CopyStep::ReadOpen;
+}
+fn copy_advance(copying: &mut Copying, queue: &mut Queue<file::Request>) -> Progress {
+    copying.next = copying.next.checked_add(1).expect("page index bounded by PAGE");
+    copy_next(copying, queue)
 }
 fn copy_read(copying: &mut Copying, queue: &mut Queue<file::Request>) {
     if copying.offset == copying.length {
@@ -506,6 +558,110 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             let fd = arrived.fd.expect("opened directory has its descriptor");
             copying.source = Some(Root { token: file, fd });
             copy_page(copying, queue);
+            if copying.way == CopyWay::Link && copying.map == Map::Store {
+                copying.step = CopyStep::Newest;
+            }
+        }
+        CopyStep::Newest => {
+            let entries = match arrived.event {
+                file::Event::Listed { entries, .. } => entries,
+                file::Event::Opened { .. }
+                | file::Event::Refused { .. }
+                | file::Event::Locked { .. }
+                | file::Event::Busy { .. }
+                | file::Event::Loaded { .. }
+                | file::Event::Scanned { .. }
+                | file::Event::Stored { .. }
+                | file::Event::Conflict { .. }
+                | file::Event::TooLarge { .. }
+                | file::Event::Stated { .. }
+                | file::Event::Written { .. }
+                | file::Event::Read { .. }
+                | file::Event::Cut { .. }
+                | file::Event::Synced { .. }
+                | file::Event::Closed { .. }
+                | file::Event::Linked { .. }
+                | file::Event::Renamed { .. }
+                | file::Event::Removed { .. }
+                | file::Event::Cancelled { .. }
+                | file::Event::Made { .. }
+                | file::Event::Failed { .. } => return copy_fail(copying, queue),
+            };
+            for entry in &entries {
+                if let Some(number) = segment(&entry.name) {
+                    copying.newest = copying.newest.max(Some(number));
+                }
+            }
+            if entries.len() == skein_lib::length::usize_of(PAGE) {
+                copy_page(copying, queue);
+                copying.step = CopyStep::Newest;
+            } else {
+                let source = copying.source.take().expect("source map open");
+                queue.push(file::Request::Close { owner: OWNER, file: source.token });
+                copying.step = CopyStep::NewestClose;
+            }
+        }
+        CopyStep::NewestClose => {
+            match arrived.event {
+                file::Event::Closed { .. } => {},
+                file::Event::Opened { .. }
+                | file::Event::Refused { .. }
+                | file::Event::Locked { .. }
+                | file::Event::Busy { .. }
+                | file::Event::Loaded { .. }
+                | file::Event::Scanned { .. }
+                | file::Event::Stored { .. }
+                | file::Event::Conflict { .. }
+                | file::Event::TooLarge { .. }
+                | file::Event::Stated { .. }
+                | file::Event::Written { .. }
+                | file::Event::Read { .. }
+                | file::Event::Cut { .. }
+                | file::Event::Synced { .. }
+                | file::Event::Linked { .. }
+                | file::Event::Renamed { .. }
+                | file::Event::Removed { .. }
+                | file::Event::Listed { .. }
+                | file::Event::Cancelled { .. }
+                | file::Event::Made { .. }
+                | file::Event::Failed { .. } => return copy_fail(copying, queue),
+            }
+            queue.push(file::Request::OpenDirectory {
+                owner: OWNER,
+                root: copying.source_root.fd,
+                name: map(copying.from, Map::Store),
+                no_follow: true,
+            });
+            copying.step = CopyStep::CopySource;
+        }
+        CopyStep::CopySource => {
+            let file = match arrived.event {
+                file::Event::Opened { file, .. } => file,
+                file::Event::Refused { .. }
+                | file::Event::Locked { .. }
+                | file::Event::Busy { .. }
+                | file::Event::Loaded { .. }
+                | file::Event::Scanned { .. }
+                | file::Event::Stored { .. }
+                | file::Event::Conflict { .. }
+                | file::Event::TooLarge { .. }
+                | file::Event::Stated { .. }
+                | file::Event::Written { .. }
+                | file::Event::Read { .. }
+                | file::Event::Cut { .. }
+                | file::Event::Synced { .. }
+                | file::Event::Closed { .. }
+                | file::Event::Linked { .. }
+                | file::Event::Renamed { .. }
+                | file::Event::Removed { .. }
+                | file::Event::Listed { .. }
+                | file::Event::Cancelled { .. }
+                | file::Event::Made { .. }
+                | file::Event::Failed { .. } => return copy_fail(copying, queue),
+            };
+            let fd = arrived.fd.expect("opened directory has its descriptor");
+            copying.source = Some(Root { token: file, fd });
+            copy_page(copying, queue);
         }
         CopyStep::Page => {
             let file::Event::Listed { entries, .. } = arrived.event else {
@@ -515,6 +671,41 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             copying.entries = entries;
             copying.next = 0;
             return copy_next(copying, queue);
+        }
+        CopyStep::Link => {
+            let error = match arrived.event {
+                file::Event::Linked { .. } => return copy_advance(copying, queue),
+                file::Event::Failed { error, .. } => error,
+                file::Event::Opened { .. }
+                | file::Event::Refused { .. }
+                | file::Event::Locked { .. }
+                | file::Event::Busy { .. }
+                | file::Event::Loaded { .. }
+                | file::Event::Scanned { .. }
+                | file::Event::Stored { .. }
+                | file::Event::Conflict { .. }
+                | file::Event::TooLarge { .. }
+                | file::Event::Stated { .. }
+                | file::Event::Written { .. }
+                | file::Event::Read { .. }
+                | file::Event::Cut { .. }
+                | file::Event::Synced { .. }
+                | file::Event::Closed { .. }
+                | file::Event::Renamed { .. }
+                | file::Event::Removed { .. }
+                | file::Event::Listed { .. }
+                | file::Event::Cancelled { .. }
+                | file::Event::Made { .. } => return copy_fail(copying, queue),
+            };
+            match error {
+                Error::Permission | Error::TooManyLinks | Error::Other(_) => copy_open(copying, queue),
+                Error::Busy | Error::Refused | Error::Reset | Error::BrokenPipe | Error::NotConnected
+                | Error::AddressInUse | Error::AddressNotAvailable | Error::Unreachable | Error::TimedOut
+                | Error::TooManyOpenFiles | Error::NoBufferSpace | Error::Cancelled | Error::TooLate
+                | Error::NotFound | Error::Exists | Error::NotADirectory | Error::IsADirectory | Error::NotEmpty
+                | Error::NoSpace | Error::ReadOnly | Error::NameTooLong | Error::Escape | Error::NotAFile
+                | Error::InvalidArgument => return copy_fail(copying, queue),
+            }
         }
         CopyStep::ReadOpen => {
             let file::Event::Opened { file, len, .. } = arrived.event else {
@@ -581,8 +772,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
             let file::Event::Closed { .. } = arrived.event else {
                 return copy_fail(copying, queue);
             };
-            copying.next = copying.next.checked_add(1).expect("page index bounded by PAGE");
-            return copy_next(copying, queue);
+            return copy_advance(copying, queue);
         }
         CopyStep::MapSync => {
             let file::Event::Synced { .. } = arrived.event else {
@@ -773,7 +963,7 @@ fn drop_arrived(dropping: &mut Dropping, arrived: Arrived, queue: &mut Queue<fil
                     return drop_close(dropping, Progress::Failed, queue);
                 };
                 let progress =
-                    if error == skein_io::kernel::Error::NotFound { Progress::Done } else { Progress::Failed };
+                    if error == Error::NotFound { Progress::Done } else { Progress::Failed };
                 return drop_close(dropping, progress, queue);
             };
             queue
