@@ -2,7 +2,6 @@
 
 2026-11-13. Where the tree's code lags or departs from [results.md](results.md).
 
-- **Not yet:** 1 and 2: `deployment census`'s text and JSON [in flight: change 2673].
 
 - **Not yet:** 1: a deletion's outcome prints `removed: project 3, fabrig`, not `deleted: project 3, fabrig`, and its kept form `kept: remove-project, removed: project 3` [in flight: change 634].
 
