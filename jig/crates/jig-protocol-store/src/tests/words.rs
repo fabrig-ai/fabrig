@@ -68,6 +68,10 @@ fn a_numbers_refusal_says_to_restore_whole_or_move_the_generations() {
 fn a_failed_refusal_says_to_check_space_and_permissions_then_restore() {
     says(OpenRefusal::Failed, FAILED, "\n\n-");
 }
+#[test]
+fn an_unplanned_layout_says_to_start_a_build_that_converts_it() {
+    says(OpenRefusal::Layout { family: "fixture".into(), value_type: 0, id: 2, values: Some(1), why: crate::Unplanned::Text }, "- `Layout`: \"", "\"");
+}
 
 #[test]
 fn todays_layouts_refusal_says_to_move_its_three_directories() {

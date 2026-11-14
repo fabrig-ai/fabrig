@@ -12,6 +12,7 @@ enum Waiting {
     Ready,
     Page { rows: Box<[pages::WalkRow]>, end: bool },
     Commit { number: u64, end: bool },
+    Registry { number: u64 },
 }
 #[derive(Debug)]
 pub(crate) struct Running {
@@ -22,18 +23,20 @@ pub(crate) struct Running {
     rows: u64,
     commits: u64,
     waiting: Waiting,
+    registered: bool,
+    first: bool,
 }
 impl Running {
     pub(super) fn ready(&self) -> bool {
         match self.waiting {
             Waiting::Ready => true,
-            Waiting::Page { .. } | Waiting::Commit { .. } => false,
+            Waiting::Page { .. } | Waiting::Commit { .. } | Waiting::Registry { .. } => false,
         }
     }
     pub(crate) fn at_page(&self) -> bool {
         match self.waiting {
             Waiting::Page { .. } => true,
-            Waiting::Ready | Waiting::Commit { .. } => false,
+            Waiting::Ready | Waiting::Commit { .. } | Waiting::Registry { .. } => false,
         }
     }
     fn current(&self) -> (Owner, Job) {
@@ -41,6 +44,7 @@ impl Running {
     }
     pub(super) fn committed(&mut self, number: u64, above: &mut Queue<Event>, token: skein_lib::Token) -> bool {
         match self.waiting {
+            Waiting::Registry { number: expected } if number == expected => { self.waiting = Waiting::Ready; true }
             Waiting::Commit { number: expected, end } if number == expected => {
                 self.commits = self.commits.checked_add(1).expect("commits bounded by commit number");
                 if end {
@@ -54,13 +58,14 @@ impl Running {
                     });
                     self.index = self.index.checked_add(1).expect("bounded pending jobs");
                     self.after = None;
+                    self.first = true;
                     self.rows = 0;
                     self.commits = 0;
                 }
                 self.waiting = Waiting::Ready;
                 true
             }
-            Waiting::Ready | Waiting::Page { .. } | Waiting::Commit { .. } => false,
+            Waiting::Ready | Waiting::Page { .. } | Waiting::Commit { .. } | Waiting::Registry { .. } => false,
         }
     }
     fn refusal(&self, refusal: JobRefusal) -> OpenRefusal {
@@ -99,6 +104,8 @@ pub(super) fn begin(
             rows: 0,
             commits: 0,
             waiting: Waiting::Ready,
+            registered: false,
+            first: true,
         })),
     );
     resume(store, env, above, below);
@@ -130,13 +137,9 @@ fn relative(owner: Owner, key: &[u8]) -> Option<&[u8]> {
 fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> Option<()> {
     let (of, job) = running.current();
     let ranges = ranges(store, of, &job)?;
-    let walked = match pages::reader::walk(store, &ranges, running.after.as_ref(), store.limits.store.ops) {
-        Ok(walked) => walked,
-        Err(failure) => {
-            store.open_failed(crate::restore::OpenFailure::Data(failure));
-            return None;
-        }
-    };
+    let written = store.registry.written(&job);
+    let id = match &written { Some((id, _)) => Some(*id), None => None };
+    let walked = load_values(store, running, &ranges, job.converts.is_some(), id)?;
     if walked.rows.is_empty() && walked.next.is_some() {
         return None;
     }
@@ -151,12 +154,46 @@ fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> O
         owner: store.directory.owner,
         of,
         job: Box::from(job.name),
-        page: JobPage { rows: rows.into_boxed(), end, layout: None },
+        page: JobPage { rows: rows.into_boxed(), end, layout: if running.first { match written { Some((_, layout)) => Some(layout), None => None } } else { None } },
     });
+    running.first = false;
     Some(())
+}
+fn load_values(store: &mut Store, running: &mut Running, ranges: &[skein_kv::Range], written: bool, id: Option<u16>) -> Option<pages::Walked> {
+    let mut bound = 1_u64;
+    for space in store.stores.store.census().keyspaces() { bound = bound.checked_add(space.rows)?; }
+    for _ in 0..bound {
+        let walked = match pages::reader::walk(store, ranges, running.after.as_ref(), store.limits.store.ops) {
+            Ok(walked) => walked,
+            Err(failure) => { store.open_failed(crate::restore::OpenFailure::Data(failure)); return None; }
+        };
+        if !written { return Some(walked); }
+        let mut rows = List::uncapped();
+        let mut last = None;
+        for row in walked.rows {
+            last = Some(row.cursor.clone());
+            if id.is_some() && crate::registry::head(&row.row.value) == id { rows.push(row).ok()?; }
+        }
+        if !rows.is_empty() || walked.next.is_none() { return Some(pages::Walked { rows: rows.into_boxed(), next: walked.next }); }
+        running.after = last;
+    }
+    None
 }
 pub(super) fn resume(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
     let Patching::Jobs(mut running) = *take(store) else { unreachable!("resume routed jobs") };
+    if !running.registered {
+        if !running.ready() { state(store, Patching::Jobs(running)); return; }
+        let Some(ops) = store.registry.batch(&store.limits) else { return refuse(store, above) };
+        if !ops.is_empty() {
+            let Some(number) = store.stores.store.last().checked_add(1) else { return refuse(store, above) };
+            running.waiting = Waiting::Registry { number };
+            state(store, Patching::Jobs(running));
+            commits::submit(store, env, number, ops, above, below);
+            return;
+        }
+        store.registry.activate();
+        running.registered = true;
+    }
     if running.index == running.pending.len() {
         let Some(number) = store.stores.store.last().checked_add(1) else { return refuse(store, above) };
         running.sealing.number = number;

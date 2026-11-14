@@ -27,6 +27,7 @@ mod settings;
 mod operations;
 mod phase;
 mod words;
+mod registered_layouts;
 
 mod frame_memory;
 mod frame_patches;

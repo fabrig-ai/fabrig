@@ -28,6 +28,7 @@ use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod jobs;
 mod value_types;
+mod registry;
 
 const CHUNK: u32 = 4096;
 const KEY: &[u8] = b"row";

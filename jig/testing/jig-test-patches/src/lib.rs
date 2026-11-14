@@ -10,6 +10,7 @@ extern crate alloc;
 pub mod patches;
 
 pub const NAME: &str = "fixture";
+pub mod layouts;
 
 /// Application key bytes; the store adds tag 2 (protocol/store/README.md 4.2).
 pub mod keys {
