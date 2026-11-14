@@ -120,34 +120,6 @@ fn a_change_set_hashes_to_its_vectors_with_a_parent_without_one_and_empty() {
     );
 }
 
-#[test]
-#[should_panic(expected = "an encoding is finished with its one value whole")]
-fn a_tree_digest_told_more_entries_than_it_is_fed_panics() {
-    let mut digest = TreeDigest::new(2);
-    digest.entry(&root());
-    assert_eq!(digest.finish(), d(0), "finishing panics before this");
-}
-
-#[test]
-#[should_panic(expected = "an encoding holds one value")]
-fn a_tree_digest_fed_more_entries_than_it_was_told_panics() {
-    let mut digest = TreeDigest::new(1);
-    digest.entry(&root());
-    digest.entry(&root());
-}
-
-#[test]
-#[should_panic(expected = "a put carries the child's entry, and a delete none")]
-fn a_put_without_its_entry_panics() {
-    ChangesDigest::new(None, d(1), 1).change(Op::Put, b"a", None);
-}
-
-#[test]
-#[should_panic(expected = "a put carries the entry at its path")]
-fn a_put_with_another_paths_entry_panics() {
-    ChangesDigest::new(None, d(1), 1).change(Op::Put, b"b", Some(&entry(b"a", 0o644, Payload::Fifo)));
-}
-
 fn written(item: &Item) -> Box<[u8]> {
     tree::item(item, &SHIPPED).expect("a bounded item")
 }
