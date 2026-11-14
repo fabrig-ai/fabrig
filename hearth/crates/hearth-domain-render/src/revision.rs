@@ -3,7 +3,7 @@ use crate::errors::Repository;
 use alloc::boxed::Box;
 pub mod declaration;
 pub(crate) mod held;
-use skein_lib::bytes;
+use skein_lib::{Bisection, bytes};
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Oid(pub Box<[u8]>);
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -278,15 +278,28 @@ impl Documents {
         self.store(oid, crate::vocabulary::Decoded::Declaration(declaration));
     }
     #[must_use]
-    #[expect(clippy::disallowed_methods, reason = "library bisection compares task names in sorted document paths")]
     pub fn declaration(&self, name: &[u8]) -> Option<(u32, Option<&declaration::Declaration>)> {
         // new's Map keeps paths sorted and unique. Only declarations remain under
         // tasks/, whose identifier bytes (lowercase, digits, _) all sort above /,
         // so their path order is also their task order.
-        let first = self.entries.partition_point(|entry| entry.path.as_ref() < b"tasks/".as_slice());
-        let at =
-            self.entries.get(first..)?.binary_search_by(|entry| task(&entry.path).unwrap_or(b"").cmp(name)).ok()?;
-        let index = first.checked_add(at).expect("bounded listing");
+        let mut search = Bisection::over(self.entries.len());
+        for _ in 0..Bisection::PROBES {
+            let Some(probe) = search.probe() else { break };
+            let entry = self.entries.get(probe).expect("a probe within the slice");
+            search.narrow(entry.path.as_ref().cmp(b"tasks/"));
+        }
+        let first = search.end();
+        let entries = self.entries.get(first..)?;
+        let mut search = Bisection::over(entries.len());
+        for _ in 0..Bisection::PROBES {
+            let Some(probe) = search.probe() else { break };
+            let entry = entries.get(probe).expect("a probe within the slice");
+            search.narrow(task(&entry.path).unwrap_or(b"").cmp(name));
+        }
+        if task(&entries.get(search.end())?.path) != Some(name) {
+            return None;
+        }
+        let index = first.checked_add(search.end()).expect("bounded listing");
         Some((u32::try_from(index).expect("bounded listing"), self.declared.get(index)?.as_ref()))
     }
     pub fn set(&mut self, oid: &Oid, document: Document) {
@@ -337,10 +350,14 @@ impl Documents {
         &self.entries
     }
     #[must_use]
-    #[expect(clippy::disallowed_methods, reason = "library bisection compares sorted document paths")]
     pub fn find(&self, path: &[u8]) -> Option<u32> {
-        let index = self.entries.binary_search_by(|entry| entry.path.as_ref().cmp(path)).ok()?;
-        u32::try_from(index).ok()
+        let mut search = Bisection::over(self.entries.len());
+        for _ in 0..Bisection::PROBES {
+            let Some(probe) = search.probe() else { break };
+            let entry = self.entries.get(probe).expect("a probe within the slice");
+            search.narrow(entry.path.as_ref().cmp(path));
+        }
+        if self.entries.get(search.end())?.path.as_ref() == path { u32::try_from(search.end()).ok() } else { None }
     }
 }
 /// Retained decoded bytes admitted on arrival (hearth/docs/design/domain/render/README.md, 2.3).
