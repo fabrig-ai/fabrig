@@ -81,3 +81,12 @@ observation and world-cost work.
   7: `jig-client-wire-world`'s and `jig-client-protocol-world`'s public
   sweeps write each case's whole input before they run it, not the case
   and its length. [in flight: change 3078]
+- **Not yet:**
+  7: the client's world asserts its referee's findings at once, with no
+  returning entry points. [in flight: change 3115]
+  7: the restart oracle asserts its comparisons, and the store files'
+  readback panics on what it finds. [in flight: change 3114]
+  7: the host's refusal referee and turn engine, and the notes' referee,
+  assert. [in flight: change 3116]
+  7: jig's domain step tests trigger assertions of start order, routing
+  and their constructors' limits. [in flight: change 3110]

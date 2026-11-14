@@ -828,6 +828,10 @@ fn start_failures_name_the_set_key_setting_and_measured_limit() {
         (Failure::HeldPastLimit { which: HeldLimit::Revisions, held: 5, limit: 4 }, "Revisions, held 5, limit 4"),
         (Failure::HeldPastLimit { which: HeldLimit::Versions, held: 5, limit: 4 }, "Versions, held 5, limit 4"),
         (
+            Failure::NeedsPastLimit { held: 4097, limit: 4096 },
+            "stored settings' agent needs hold 4097 bytes, past the 4096 byte bound; raise fleet.needs_bytes",
+        ),
+        (
             Failure::Settings {
                 failure: settings::Failure {
                     setting: settings::Setting::Policy(1),

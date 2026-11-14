@@ -108,11 +108,12 @@ impl jig_conformance::Durable for Store {
     fn release_held(&mut self) -> Option<u64> {
         Self::release_held(self)
     }
-    fn crash(&mut self, seed: u64) {
+    fn crash(&mut self, seed: u64) -> Result<(), String> {
         Self::crash(self, seed);
+        Ok(())
     }
-    fn fork(&self) -> Self {
-        Self::fork(self)
+    fn fork(&self) -> Result<Self, String> {
+        Ok(Self::fork(self))
     }
     fn applied(&self) -> u64 {
         self.applied

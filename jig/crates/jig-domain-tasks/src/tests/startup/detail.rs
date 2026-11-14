@@ -333,14 +333,6 @@ fn successful_restore_has_no_failure_detail() {
 }
 
 #[test]
-#[should_panic(expected = "duplicate live index")]
-fn duplicate_live_is_an_assertion() {
-    let mut cold = empty(&LIMITS);
-    cold.send(Event::Restore { record: row() });
-    cold.send(Event::Restore { record: row() });
-}
-
-#[test]
 fn missing_charter_is_a_required_link() {
     let mut source = one_task();
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("row") };
@@ -510,29 +502,6 @@ fn nonparty_placed_owners_do_not_acquire_the_party_bound() {
     assert_eq!(cold.send(Event::Check).len(), 0);
     assert!(cold.domain.checked());
     assert_eq!(cold.domain.restore_failure(), None);
-}
-
-#[test]
-#[should_panic(expected = "ended row in live load")]
-fn ended_row_is_phase_misuse() {
-    let mut record = row();
-    let Stored::Live(task) = &mut record else { panic!("row") };
-    let ended = Stored::Ended(task.clone());
-    empty(&LIMITS).send(Event::Restore { record: ended });
-}
-
-#[test]
-#[should_panic(expected = "restored completion before link")]
-fn completion_before_link_is_phase_misuse() {
-    empty(&LIMITS).send(Event::Restored);
-}
-
-#[test]
-#[should_panic(expected = "restore row after load completed")]
-fn late_row_is_phase_misuse() {
-    let mut cold = empty(&LIMITS);
-    cold.send(Event::Check);
-    cold.send(Event::Restore { record: row() });
 }
 
 #[test]

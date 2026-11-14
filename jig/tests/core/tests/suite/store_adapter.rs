@@ -92,7 +92,7 @@ fn a_crash_keeps_a_durable_turn_and_loses_a_held_one() {
     store.submit(2, turn_commit(LIVE, 1, b"kept"), 0);
     assert_eq!(store.tick(false), Ok(Some(2)));
     store.submit(3, turn_commit(LIVE, 2, b"held by the world"), 5);
-    store.crash(7);
+    store.crash(7).expect("crash readback");
     assert_eq!(store.applied, 2);
     assert_eq!(window_turns(&mut store, LIVE), [Box::from(b"kept".as_slice())]);
 }
@@ -133,7 +133,7 @@ fn a_fork_replays_to_the_same_rows() {
     let mut store = committed();
     store.submit(2, turn_commit(LIVE, 1, b"forked"), 0);
     assert_eq!(store.tick(false), Ok(Some(2)));
-    let mut fork = store.fork();
+    let mut fork = store.fork().expect("fork readback");
     assert_eq!(fork.rows, store.rows);
     assert_eq!(window_turns(&mut fork, LIVE), [Box::from(b"forked".as_slice())]);
 }
@@ -198,10 +198,10 @@ fn a_fork_replays_the_fresh_mark_and_its_commit_numbers() {
     use fresh_windows as f;
     let mut world = f::parked();
     f::restart(&mut world, f::AFTER);
-    let mut fork = world.store.fork();
+    let mut fork = world.store.fork().expect("fork readback");
     assert_eq!(fork.rows, world.store.rows);
     assert_eq!(fork.applied, world.store.applied);
-    fork.crash(f::SEED);
+    fork.crash(f::SEED).expect("crash readback");
     assert_eq!(fork.rows, world.store.rows);
     assert_eq!(fork.applied, world.store.applied);
 }
