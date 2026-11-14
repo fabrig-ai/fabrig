@@ -87,7 +87,7 @@ impl Limits {
         settings.pattern_end_open_value = 32_768;
         settings.pattern_segments = 9;
         settings.pattern_segments_item = 32_768;
-        // The stock's 22 executors fit whole.
+        // The stock's 21 executors and one deployment charter fit whole.
         settings.delegation_kinds = 22;
         settings.authority_grants = 1_048_576;
         settings.authority_note_resources = 1_048_576;

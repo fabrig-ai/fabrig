@@ -170,12 +170,14 @@ fn turn_without_prepare_is_refused_with_needed_and_configured_limits() {
         jig.limits.core.tasks.result_bytes = result;
         let mut problems = Problems::empty();
         let _members = application::parse(&document, at, &jig, &config::Directories::working(), &mut problems);
-        let words = String::from_utf8(lines(&problems).into_vec()).unwrap();
-        assert_eq!(!words.is_empty(), refused, "{by}: {spec}/{result}: {words}");
+        let words = lines(&problems);
+        assert_eq!(!words.is_empty(), refused, "{by}: {spec}/{result}: {words:?}");
         for (limit, has, needs) in [("tasks.spec_bytes", spec, 16384), ("tasks.result_bytes", result, 4096)] {
             if by == "turn" && has < needs {
-                for expected in [limit.to_owned(), has.to_string(), needs.to_string(), "prepare job".to_owned()] {
-                    assert!(words.contains(&expected), "missing {expected}: {words}");
+                let has = skein_lib::Decimal::of(u64::from(has));
+                let needs = skein_lib::Decimal::of(u64::from(needs));
+                for expected in [limit.as_bytes(), has.as_bytes(), needs.as_bytes(), b"prepare job".as_slice()] {
+                    assert!(skein_lib::bytes::find(&words, expected).is_some(), "missing {expected:?}: {words:?}");
                 }
             }
         }

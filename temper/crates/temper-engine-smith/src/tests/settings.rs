@@ -341,7 +341,7 @@ fn settings_neutral_form_preserves_ctls_bounds() {
         neutral.settings.authority_note_resources, ctl.settings.authority_note_resources,
         "authority_note_resources"
     );
-    // The stock's 22 executors fit whole.
+    // The stock's 21 executors and one deployment charter fit whole.
     assert_eq!(neutral.settings.delegation_kinds, 22);
     assert_eq!(neutral.settings.delegation_kinds, ctl.settings.delegation_kinds, "delegation_kinds");
     assert_eq!(neutral.settings.part_key_path_value, ctl.settings.part_key_path_value, "part_key_path_value");

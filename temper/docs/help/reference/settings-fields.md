@@ -437,7 +437,7 @@ A kind of delegate: a one-member object.
 - `charter`: integer, 0 to 4,294,967,295. An agent under this charter, which must be offered.
 - `procedure`: integer, 0 to 4,294,967,295. This procedure: 2 is the forge's change.
 - `role`: integer, 0 to 4,294,967,295. A person in this role.
-- `job`: integer, 0 to 4,294,967,295. This job: 3 is the project's merge job.
+- `job`: integer, 0 to 4,294,967,295. This job: 1 prepares a landing, 3 is the project's merge job, 4 closes a goal.
 
 ## resource
 
