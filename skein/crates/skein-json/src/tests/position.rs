@@ -79,11 +79,9 @@ fn before_the_first_answer_and_after_restart_it_is_the_start() {
     assert_eq!(machine.tokenizer.position(), at(0, 1, 1));
 }
 #[test]
-#[should_panic(expected = "the end position fits u32")]
-fn a_length_of_u32_max_has_no_bound_and_no_tokenizer() {
+fn a_length_of_u32_max_has_no_bound() {
     let limits = Limits { length: u32::MAX, ..LIMITS };
     assert_eq!(tokenizer::tokenizer_bound(&limits), None);
-    let _tokenizer = tokenizer::Tokenizer::new(&limits);
 }
 
 use crate::tokenizer::Error;

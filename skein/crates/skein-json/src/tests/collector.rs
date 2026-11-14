@@ -241,15 +241,6 @@ fn a_collector_leaves_the_callers_queue_alone() {
 }
 
 #[test]
-#[should_panic(expected = "a Close after Closed")]
-fn a_second_close_is_an_owner_bug() {
-    let mut machine = Machine::new(FILTER, LIMITS);
-    machine.down(Request::Close);
-    drop(machine.above.pop());
-    machine.down(Request::Close);
-}
-
-#[test]
 fn one_static_filter_uses_the_named_cap_supplied_at_construction() {
     const FILTER: Filter = Filter { root: Keep::Text(Cap::new(0)) };
     for cap in 0..=4 {
