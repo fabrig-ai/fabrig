@@ -243,7 +243,8 @@ row names that is missing or does not parse, or a value type the binary
 does not declare), and the values the census counts at that id, or that
 it cannot tell (`opening.md`, 1.8). A layout row of a value type the
 binary no longer declares is refused the same way while a value may
-hold it.
+hold it, `Undeclared`, whether its family is one the binary declares or
+not: the refusal names the family as the row's key spells it.
 
 ### 5.4 Retirement
 

@@ -191,10 +191,10 @@ pub enum OpenRefusal {
     Set { owner: Owner, patch: u32 },                          // a patch set that does not plan (10.3)
     Check { why: Check },                                      // the check before the switch (10.2, step 5)
     InFlight { owner: Owner, family: &'static str, count: u32, keys: Box<[Box<[u8]>]> }, // effects a pending patch reshapes (10.3)
-    Layout { family: &'static str, value_type: u16, id: u16, values: Option<u64>, why: Unplanned }, // layouts.md, 5.3
+    Layout { family: Box<str>, value_type: u16, id: u16, values: Option<u64>, why: Unplanned }, // layouts.md, 5.3; the family as its row's key names it, which may be one the binary lacks
     Job { owner: Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },   // jobs.md, 3
 }
-pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared } // no plan; a text missing or unparsed; a value type the binary lacks
+pub enum Unplanned { Underived(skein_codec::layout::Underived), Text, Undeclared } // no plan; a text missing or unparsed; a value type the binary lacks, in a family it declares or one it does not
 pub enum Older { Unrecorded, Layout(Family), Directory, Unleveled }
 pub enum Generations { Busy, Unreadable, Unnamed, Missing { generation: u64 } }
 pub enum Check { Large { key }, Load { key }, Private { name } }
