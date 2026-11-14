@@ -5,7 +5,6 @@ hearth/testing/hearth-fake-machine/src/tests/files.rs should_panic 2
 hearth/testing/hearth-fake-machine/src/tests/ledger.rs should_panic 1
 hearth/testing/hearth-fake-machine/src/tests/processes.rs should_panic 1
 hearth/testing/hearth-fake-mmdebstrap/src/tests/face.rs should_panic 1
-smith/tests/host/tests/suite/referee.rs should_panic 10
 smith/tests/local-process/tests/suite/terminal.rs should_panic 1
 smith/tests/protocol-llm/tests/suite/referee.rs should_panic 7
 smith/tests/session/tests/suite/referee.rs should_panic 5
