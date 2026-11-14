@@ -450,9 +450,8 @@ fn without_records_serves_past_a_zero_cap() {
     const TARGET: &str = "/jwks";
     let exchange_bytes = u32::try_from(TARGET.len()).expect("document target fits");
     for (recording, records, bytes) in [(true, EXCHANGE_RECORDS, exchange_bytes), (false, 0, 0)] {
-        let mut peer = make_with_caps_at(
-            Transport::Plaintext, Some(terms()), records, bytes, (Ipv4Addr::LOCALHOST, 0).into(),
-        );
+        let mut peer =
+            make_with_caps_at(Transport::Plaintext, Some(terms()), records, bytes, (Ipv4Addr::LOCALHOST, 0).into());
         if !recording {
             peer = peer.without_records();
         }

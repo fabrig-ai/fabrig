@@ -371,11 +371,10 @@ fn connection_and_every_kind_records_fill_their_exact_caps() {
         (forge::Kept::EVERY, repository_exchange_limits(), ["connection", "head", "call"].as_slice()),
     ] {
         let mut world = World::new();
-        world.peer = forge::Peer::new(
-            address(), caps, config(), protocol_limits(), std::rc::Rc::clone(&world.forge), SEED,
-        )
-        .unwrap()
-        .keeping(kept);
+        world.peer =
+            forge::Peer::new(address(), caps, config(), protocol_limits(), std::rc::Rc::clone(&world.forge), SEED)
+                .unwrap()
+                .keeping(kept);
         let response = repository_exchange(&mut world);
         assert!(response.starts_with(b"HTTP/1.1 200"));
         assert_eq!(world.peer.observations().len(), usize::try_from(caps.observations).unwrap());
@@ -386,20 +385,13 @@ fn connection_and_every_kind_records_fill_their_exact_caps() {
 
 #[test]
 fn without_records_serves_past_a_zero_cap() {
-    for (recording, caps) in [
-        (true, repository_exchange_limits()),
-        (false, Limits { observations: 0, observation_bytes: 0, ..limits() }),
-    ] {
+    for (recording, caps) in
+        [(true, repository_exchange_limits()), (false, Limits { observations: 0, observation_bytes: 0, ..limits() })]
+    {
         let mut world = World::new();
-        let mut peer = forge::Peer::new(
-            address(),
-            caps,
-            config(),
-            protocol_limits(),
-            std::rc::Rc::clone(&world.forge),
-            SEED,
-        )
-        .unwrap();
+        let mut peer =
+            forge::Peer::new(address(), caps, config(), protocol_limits(), std::rc::Rc::clone(&world.forge), SEED)
+                .unwrap();
         if !recording {
             peer = peer.without_records();
         }

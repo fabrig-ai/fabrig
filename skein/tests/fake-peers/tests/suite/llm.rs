@@ -719,7 +719,13 @@ fn without_records_serves_past_a_zero_cap() {
         let mut sim = skein_sim::Sim::new(23, skein_sim::Config::calm());
         let (server, client) = (sim.spawn_process(), sim.spawn_process());
         let response = request::request(
-            &mut sim, server, client, &mut peer, &endpoint.target, b"authorization: Bearer k0\r\n", &body,
+            &mut sim,
+            server,
+            client,
+            &mut peer,
+            &endpoint.target,
+            b"authorization: Bearer k0\r\n",
+            &body,
         );
         peer.shutdown();
         for _ in 0..1000 {
