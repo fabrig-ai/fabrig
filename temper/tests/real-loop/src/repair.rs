@@ -423,15 +423,17 @@ fn check_result(ran: &Ran, repaired: u64, merge: u64, scripts: &Value) {
         scripts["cued"][2]["turns"][3]["lines"][0]["arguments"]["fields"]["body"].as_str().expect("producer's report");
     let repair =
         scripts["cued"][3]["turns"][2]["lines"][0]["arguments"]["fields"]["body"].as_str().expect("repair's report");
+    let head = hex(repaired);
+    let line = format!("successful repair task 5: {repair}, then CI passed at {head}");
     assert_eq!(lines[3], "repairs: 1: CI failed: / changes (pull_request)");
-    assert_eq!(lines[4], format!("successful repair task 5: {repair}"));
+    // The result's byte bound may cut this line inside the repaired head, never before it.
+    assert!(lines[4].len() > line.len() - head.len() && line.starts_with(lines[4]), "repair line: {}", lines[4]);
     let whole = format!(
         "repairs: 1: CI failed: / changes (pull_request)\n\
-         successful repair task 5: {repair}\n\
+         {line}\n\
          Producer report (historical; before repairs):\n{producer}\n\
          checks at {head}: / check (pull_request) passed; / changes (pull_request) passed\n\
          reviews: approved at {head}",
-        head = hex(repaired),
     );
     let evidence = words.splitn(4, '\n').nth(3).expect("evidence after the landing identity");
     let (kept, marker) = evidence.rsplit_once("\n[").expect("marked evidence truncation");
