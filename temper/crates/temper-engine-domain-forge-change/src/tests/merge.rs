@@ -277,7 +277,13 @@ fn a_pushed_head_already_contained_ends_with_no_change() {
 #[test]
 fn a_contained_head_from_its_turn_has_landed() {
     for state in [State::First { head: HEAD, ready_since: at(0) }, State::Landing { head: HEAD }] {
-        for effect in [EffectResult::None, EffectResult::Pending, EffectResult::Made, EffectResult::Failed, EffectResult::Conflict] {
+        for effect in [
+            EffectResult::None,
+            EffectResult::Pending,
+            EffectResult::Made,
+            EffectResult::Failed,
+            EffectResult::Conflict,
+        ] {
             let mut c = change(state.clone());
             c.owns_turn = true;
             let f = Facts { contains_head: Status::Passed, contains_base: Status::Failed, base_tip: MERGE, ..facts() };
@@ -294,7 +300,12 @@ fn a_contained_head_from_its_turn_has_landed() {
                 let f = Facts { contains_head: not_contained, ..f.clone() };
                 assert_eq!(decide(&c, &f, &h), decide(&c, &Facts { contains_head: Status::Unknown, ..f }, &h));
             }
-            for (branch, drift, writer) in [(None, None, false), (Some(NEW), None, false), (Some(HEAD), Some(Hold::Retargeted), false), (Some(HEAD), None, true)] {
+            for (branch, drift, writer) in [
+                (None, None, false),
+                (Some(NEW), None, false),
+                (Some(HEAD), Some(Hold::Retargeted), false),
+                (Some(HEAD), None, true),
+            ] {
                 let f = Facts { branch, drift, writer_taken: writer, ..f.clone() };
                 assert_eq!(decide(&c, &f, &h), decide(&c, &Facts { contains_head: Status::Unknown, ..f }, &h));
             }
@@ -314,7 +325,9 @@ fn a_contained_head_from_its_turn_has_landed() {
 fn a_released_failed_merge_lands_at_the_tip_holding_its_head() {
     let c = change(State::Held { was: Box::new(State::Landing { head: HEAD }), why: Hold::Failed });
     let f = Facts { contains_head: Status::Passed, base_tip: MERGE, ..facts() };
-    for (c, h) in [(c.clone(), Heard { released: true, effect: EffectResult::Failed, ..heard() }), (released(&c, at(1)), heard())] {
+    for (c, h) in
+        [(c.clone(), Heard { released: true, effect: EffectResult::Failed, ..heard() }), (released(&c, at(1)), heard())]
+    {
         let next = decide(&c, &f, &h);
         assert_eq!(next.change.state, State::Landed { merge: MERGE, since: at(1) });
         assert_eq!(next.decision, Decision::Finish { merge: MERGE });

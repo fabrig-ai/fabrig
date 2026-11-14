@@ -2451,7 +2451,10 @@ fn failed_head_jobs_are_read_once_and_only_runner_faults_run_again() {
 fn a_moved_base_wakes_a_change_from_its_turn() {
     use skein_forge::api::Answer;
     use temper_engine_domain_forge_change as change;
-    for state in [change::State::First { head: fixtures::HEAD, ready_since: env().wall }, change::State::Landing { head: fixtures::HEAD }] {
+    for state in [
+        change::State::First { head: fixtures::HEAD, ready_since: env().wall },
+        change::State::Landing { head: fixtures::HEAD },
+    ] {
         let mut d = fixtures::connected_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let mut row = fixtures::opening_row();
@@ -2484,9 +2487,21 @@ fn a_containment_landing_withdraws_its_pending_merge() {
     row.change.owns_turn = true;
     seen_base(&mut d, fixtures::BASE);
     fixtures::step_change(&mut d);
-    for answer in [Answer::Commit(fixtures::HEAD), Answer::Commit(fixtures::BASE), Answer::Pull(fixtures::open_pull()), fixtures::checks(skein_forge::api::Check::Passed), Answer::Commits {
-        commits: Box::new([CommitMessage { id: fixtures::BASE, parents: Box::new([fixtures::HEAD]), message: Box::new([]) }]), more: false,
-    }, Answer::Commits { commits: Box::new([]), more: false }] {
+    for answer in [
+        Answer::Commit(fixtures::HEAD),
+        Answer::Commit(fixtures::BASE),
+        Answer::Pull(fixtures::open_pull()),
+        fixtures::checks(skein_forge::api::Check::Passed),
+        Answer::Commits {
+            commits: Box::new([CommitMessage {
+                id: fixtures::BASE,
+                parents: Box::new([fixtures::HEAD]),
+                message: Box::new([]),
+            }]),
+            more: false,
+        },
+        Answer::Commits { commits: Box::new([]), more: false },
+    ] {
         fixtures::answer_next(&mut d, Ok(answer));
     }
     let decided = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
@@ -2510,7 +2525,12 @@ fn a_containment_landing_withdraws_its_pending_merge() {
 fn a_late_merge_outcome_changes_nothing_after_landing() {
     use skein_forge_client::{Made, Outcome};
     use temper_engine_domain_forge_change::State;
-    for outcome in [Outcome::Failed(skein_forge::api::Error::Timeout), Outcome::Held, Outcome::Withdrawn, Outcome::Made { made: Made::Merged(fixtures::HEAD), found: true }] {
+    for outcome in [
+        Outcome::Failed(skein_forge::api::Error::Timeout),
+        Outcome::Held,
+        Outcome::Withdrawn,
+        Outcome::Made { made: Made::Merged(fixtures::HEAD), found: true },
+    ] {
         let (mut d, _) = updating_entry(false);
         let row = d.changes.get_mut(&fixtures::CHANGE).expect("change");
         row.change.state = State::Landed { merge: fixtures::BASE, since: env().wall };
