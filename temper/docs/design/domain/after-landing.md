@@ -561,6 +561,10 @@ blamed landing's full commit (2026-11-04).
 - **Nothing is posted** for a run with no verdict: a run of a tier
   following goal branches (5.4), a run dropped (section 3), or a
   person's hold (section 3).
+- **Not CI:** temper reads none of its `temper/verdict/<tier>`
+  statuses back as a commit's CI unless the landing branch's rule
+  requires one (`forge/keeping-up.md`, section 3), so a red verdict on
+  main's tip holds no landing (section 7, *Others go on*).
 
 ## 10. Effects, reads and the store
 

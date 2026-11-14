@@ -6,6 +6,8 @@ use temper_engine_domain_world::tier_runs::{
     self, LANDING_TICKS, RUN_TICKS, SEED, Tier, change, merge, produce_delegated, restart_cut, task, tier, until,
 };
 pub(super) use temper_engine_domain_world::tier_task_show as task_show;
+#[path = "tiers/post.rs"]
+mod post;
 
 fn chat_world(turn: bool, options: Tier) -> (World, engine::Assignment) {
     start_chat(tier_runs::world(turn, options))
@@ -17,12 +19,15 @@ fn start_chat(mut world: World) -> (World, engine::Assignment) {
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { unreachable!() };
     // One chat funds four producers while their landed changes remain live.
     batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
+    batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
     let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
     (world, chat)
 }
 
 pub(super) fn baseline(world: &mut World) {
-    until(world, RUN_TICKS, "baseline judged", |world| tier(world).record.sequence == 1);
+    until(world, RUN_TICKS, "baseline judged", |world| {
+        tier(world).record.sequence == 1 && tier(world).posting.is_none()
+    });
     // The 90-second baseline outlives the fixture's 60-second sign-in.
     sign_in(world);
 }
@@ -138,7 +143,9 @@ fn green(turn: bool) -> (World, u64) {
     baseline(&mut world);
     let number = produce(&mut world, &chat, 93, b"file", b"small fix");
     verifying(&mut world, number);
-    until(&mut world, RUN_TICKS, "tier judged", |world| tier(world).record.sequence == 2);
+    until(&mut world, RUN_TICKS, "tier judged", |world| {
+        tier(world).record.sequence == 2 && tier(world).posting.is_none()
+    });
     tier_done(&world, 2, "Tier slow run 2: green, cleared 1 landing");
     cleared(&mut world, number);
     eprintln!("seed={SEED}, simulated={:?}", world.env.now);
@@ -170,7 +177,9 @@ fn two_landings() -> (World, [u64; 2]) {
         run.landings.iter().map(|landing| landing.commit).collect::<Vec<_>>(),
         [merge(&world, a), merge(&world, b)]
     );
-    until(&mut world, RUN_TICKS, "range judged", |world| tier(world).record.sequence == 2);
+    until(&mut world, RUN_TICKS, "range judged", |world| {
+        tier(world).record.sequence == 2 && tier(world).posting.is_none()
+    });
     tier_done(&world, 2, "Tier slow run 2: green, cleared 2 landings");
     cleared(&mut world, a);
     cleared(&mut world, b);
@@ -241,7 +250,9 @@ fn repaired() -> (World, [u64; 2]) {
         matches!(panel(&mut world, red), forge_top::PanelStep::Red { .. }),
         "red survives until the repair run judges"
     );
-    until(&mut world, RUN_TICKS, "repair judged", |world| tier(world).record.sequence == 3);
+    until(&mut world, RUN_TICKS, "repair judged", |world| {
+        tier(world).record.sequence == 3 && tier(world).posting.is_none()
+    });
     tier_done(&world, 3, "Tier slow run 3: green, cleared 1 landing");
     cleared(&mut world, red);
     cleared(&mut world, repair);
@@ -444,6 +455,7 @@ fn a_running_tier_task_keeps_the_forge_link_through_completion_and_restart() {
     world.restart_same();
     until(&mut world, RUN_TICKS, "baseline completed after restart", |world| {
         tier(world).record.sequence == 1
+            && tier(world).posting.is_none()
             && restart_cut(world)
             && matches!(task(world, number).phase, tasks::Phase::Ended(_))
     });
@@ -516,7 +528,7 @@ fn observe_range(world: &mut World, task: u64) -> Vec<raw::Run> {
                 runs.push(run);
             }
         }
-        if tier(world).record.sequence == 2 {
+        if tier(world).record.sequence == 2 && tier(world).posting.is_none() {
             let words = execution_words(world, task).to_owned();
             task_show::assert_words(world, task, &words);
             return runs;
@@ -725,7 +737,9 @@ fn failed_landing(failures: &[u8], many: bool) -> (World, u64) {
             tier(world).record.run.as_ref().is_some_and(|run| matches!(run.part, policy::Part::Rerun { .. }))
         });
     }
-    until(&mut world, RUN_TICKS, "failed landing judged", |world| tier(world).record.sequence == 2);
+    until(&mut world, RUN_TICKS, "failed landing judged", |world| {
+        tier(world).record.sequence == 2 && tier(world).posting.is_none()
+    });
     until(&mut world, LANDING_TICKS, "red panel", |world| matches!(change(world, red).change.state, State::Red { .. }));
     (world, red)
 }
@@ -854,14 +868,19 @@ fn a_persons_hold_survives_flight_bound_and_restart_then_releases_the_newest_ran
         assert_eq!(tier(&world).hold.as_ref().expect("restored hold").reason.as_ref(), b"runner maintenance");
         assert_eq!(tier(&world).hold.as_ref().unwrap().party, 1);
         tier_act(&mut world, true);
-        until(&mut world, LANDING_TICKS, "release starts next run", |world| tier(world).record.run.is_some());
+        until(&mut world, LANDING_TICKS, "release starts next run", |world| {
+            tier(world).record.run.is_some() && tier(world).task.is_some()
+        });
+        let run_task = tier(&world).task.expect("released run task");
         let run = tier(&world).record.run.as_ref().unwrap();
         assert_eq!((run.number, run.tip), (judged + 1, merge(&world, b)));
         assert_eq!(
             run.landings.iter().map(|landing| landing.commit).collect::<Vec<_>>(),
             [merge(&world, a), merge(&world, b)]
         );
-        until(&mut world, RUN_TICKS, "released range judged", |world| tier(world).record.sequence == judged + 1);
+        until(&mut world, RUN_TICKS, "released range judged", |world| {
+            tier(world).record.sequence == judged + 1 && matches!(task(world, run_task).phase, tasks::Phase::Ended(_))
+        });
         tier_done(&world, judged + 1, &format!("Tier slow run {}: green, cleared 2 landings", judged + 1));
         if !past_bound {
             for number in [a, b] {

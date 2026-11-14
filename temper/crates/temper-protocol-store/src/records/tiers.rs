@@ -6,6 +6,7 @@ use skein_lib::List;
 use skein_lib::Time;
 use temper_engine_domain_forge_tiers as p;
 use temper_engine_domain_forge_vocabulary as d;
+mod post;
 
 fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
     let mut values = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
@@ -253,6 +254,10 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
                 Some(receipt) => Some(landing::encode_receipt_value(receipt)),
                 None => None,
             },
+            posting: match &row.posting {
+                Some(posting) => Some(post::encode(posting, &row.record.failing)),
+                None => None,
+            },
             received: row.received,
             goals: encode_goals(&row.goals),
             goal: row.goal,
@@ -283,6 +288,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         hold,
         result,
         received,
+        posting,
         goals,
         goal,
         started,
@@ -342,6 +348,10 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             None => None,
         },
         received,
+        posting: match posting {
+            Some(posting) => Some(Box::new(post::decode(posting, &record.failing)?)),
+            None => None,
+        },
         goals: decode_goals(goals)?,
         goal,
         started: match started {

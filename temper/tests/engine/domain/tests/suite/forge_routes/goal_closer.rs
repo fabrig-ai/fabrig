@@ -1201,6 +1201,7 @@ fn a_red_after_the_closers_landing_is_news_for_the_goal() {
         .collect::<Vec<_>>();
     assert!(!landings.contains(&b"main".as_slice()), "no main landings while the closer verifies: {landings:?}");
     assert!(landings.contains(&branch.as_ref()), "the goal keeps its branch's topic");
+    tier_runs::posted(&mut world);
     world.close();
 }
 

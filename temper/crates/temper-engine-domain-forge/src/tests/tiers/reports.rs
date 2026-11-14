@@ -19,7 +19,7 @@ fn range(landings: Box<[p::Landing]>) -> Domain {
     run.landings = landings;
     row.flight = None;
     d.tier_ops.follows.remove(&(REPO, TIER.into()));
-    tier_step(&mut d, DISPATCH, false);
+    settled_step(&mut d, DISPATCH, false);
     made(&mut d, DISPATCH, skein_forge_client::Made::Set);
     d
 }
@@ -49,7 +49,7 @@ fn red(d: &mut Domain) {
     report(d, FAILURES, false);
 }
 fn send(d: &mut Domain, entry: u64) -> api::Write {
-    tier_step(d, entry, false);
+    settled_step(d, entry, false);
     let write = d.entries.get(&entry).unwrap().entry.effect.write.clone();
     made(
         d,
@@ -118,7 +118,7 @@ fn a_busy_rerun_report_is_read_again_without_repeating_tests() {
     let mut out = Queue::uncapped();
     crate::tiers::fire(&mut d, &clock, &mut out);
     assert!(collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }));
-    tier_step(&mut d, DISPATCH + 2, false);
+    settled_step(&mut d, DISPATCH + 2, false);
     assert!(!d.entries.contains_key(&(DISPATCH + 2)), "the report poll must not dispatch or rerun tests");
     let follow = d.tier_ops.follows.get(&(REPO, TIER.into())).unwrap();
     assert!(follow.writes.is_empty());
@@ -176,7 +176,7 @@ fn an_unavailable_artifact_is_read_again_without_a_fault_or_retry() {
         let mut env = env();
         env.limits.client.read_attempts = 1;
         completed(&mut d, api::Conclusion::Failure, Some(1));
-        tier_step(&mut d, DISPATCH + 1, false);
+        settled_step(&mut d, DISPATCH + 1, false);
         let mut artifact = None;
         for _ in 0..LIMITS.client.pending {
             let (call, op) = fixtures::next_at(&mut d, &env);
@@ -253,7 +253,7 @@ fn a_workflow_fault_records_why_before_retrying() {
 fn failure_reads_the_named_artifact_before_rerunning() {
     let mut d = one();
     completed(&mut d, api::Conclusion::Failure, Some(1));
-    tier_step(&mut d, DISPATCH + 1, false);
+    settled_step(&mut d, DISPATCH + 1, false);
     let mut artifact = None;
     for _ in 0..LIMITS.client.pending {
         let (call, op) = fixtures::next_call(&mut d);
@@ -338,7 +338,7 @@ fn probes_skip_unchanged_keys_and_blame_the_first_failure() {
         send(&mut d, PROBE_OPEN),
         api::Write::CreateBranch { branch: b"temper/tier/browser.1.1".as_slice().into(), commit: NEXT_TIP }
     );
-    tier_step(&mut d, PROBE_DISPATCH, false);
+    settled_step(&mut d, PROBE_DISPATCH, false);
     assert_eq!(d.describe_tier_effect(TIER_TASK, PROBE_DISPATCH).unwrap().2.kind, 16);
     let api::Write::Dispatch { inputs, .. } = &d.entries.get(&PROBE_DISPATCH).unwrap().entry.effect.write else {
         panic!("probe dispatch")
@@ -361,12 +361,12 @@ fn a_missing_probe_workflow_names_the_probes_commit_when_held() {
     let mut d = three();
     confirmed(&mut d);
     send(&mut d, PROBE_OPEN);
-    tier_step(&mut d, PROBE_DISPATCH, false);
+    settled_step(&mut d, PROBE_DISPATCH, false);
     let kind = b"workflow tier.yml not found at 0606060606060606060606060606060606060606060606060606060606060606";
     for fault in 0..=RETRIES {
         let entry = PROBE_DISPATCH + u64::from(fault);
         outcome(&mut d, entry, skein_forge_client::Outcome::Failed(api::Error::Missing));
-        let out = tier_step(&mut d, entry + 1, false);
+        let out = settled_step(&mut d, entry + 1, false);
         if fault == RETRIES {
             assert_eq!(
                 choice(&out),
@@ -465,7 +465,7 @@ fn a_failed_receipt_starts_probes_without_a_selected_rerun() {
     kept.result = Some(receipt);
     kept.received = true;
     d.tier_ops.follows.remove(&(REPO, TIER.into()));
-    tier_step(&mut d, OPEN, false);
+    settled_step(&mut d, OPEN, false);
     assert_eq!(d.describe_tier_effect(TIER_TASK, OPEN).unwrap().2.state, LAST_TIP);
     made(&mut d, OPEN, skein_forge_client::Made::Branch(LAST_TIP));
     send(&mut d, PROBE_OPEN);
@@ -478,7 +478,7 @@ fn probe_effects_name_their_commit_resource_and_purpose() {
     use crate::purpose::EffectPurpose;
     let mut d = three();
     confirmed(&mut d);
-    tier_step(&mut d, PROBE_OPEN, false);
+    settled_step(&mut d, PROBE_OPEN, false);
     let (_, what, effect) = d.describe_tier_effect(TIER_TASK, PROBE_OPEN).unwrap();
     assert_eq!((effect.kind, effect.state), (9, NEXT_TIP));
     assert_eq!(
@@ -491,11 +491,11 @@ fn probe_effects_name_their_commit_resource_and_purpose() {
     );
     assert_eq!(row(&d).purpose, Some(EffectPurpose::Tier { repository: REPO, tier: 0, run: 1, operation: 3, part: 3 }));
     made(&mut d, PROBE_OPEN, skein_forge_client::Made::Branch(NEXT_TIP));
-    tier_step(&mut d, PROBE_DISPATCH, false);
+    settled_step(&mut d, PROBE_DISPATCH, false);
     assert_eq!(row(&d).purpose, Some(EffectPurpose::Tier { repository: REPO, tier: 0, run: 1, operation: 4, part: 3 }));
     made(&mut d, PROBE_DISPATCH, skein_forge_client::Made::Set);
     red(&mut d);
-    let out = tier_step(&mut d, PROBE_DISPATCH + 1, false);
+    let out = settled_step(&mut d, PROBE_DISPATCH + 1, false);
     assert_eq!(row(&d).purpose, Some(EffectPurpose::Tier { repository: REPO, tier: 0, run: 1, operation: 5, part: 3 }));
     assert!(out.iter().any(|request| match request {
         Request::Save { release: Some(entry), .. } => *entry == PROBE_DISPATCH + 1,

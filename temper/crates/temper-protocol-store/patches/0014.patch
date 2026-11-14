@@ -1,0 +1,13 @@
+patch 1
+owner temper 14
+
+family temper-store 24 to 25
+add TierPostedTests
+add TierPostedBlame
+add TierPostedLanding
+add TierCommentVerdict
+add TierCommentRepair
+add TierCommentKind
+add TierComment
+add TierPosting
+add TierRow.posting option TierPosting none
