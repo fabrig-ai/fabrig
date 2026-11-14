@@ -309,6 +309,7 @@ fn life(root: &Path, restarted: bool) {
     fds.push(fd);
     let steps = setup(root, restarted);
     let mut world = real::World::new(Judge {
+        failed: None,
         root: root.into(),
         restarted,
         stage: 0,
@@ -363,8 +364,16 @@ fn life(root: &Path, restarted: bool) {
 }
 
 fn landing_settings(root: &Path) -> Value {
-    serde_json::from_slice(&fs::read(root.join("config/native-landing-settings.json")).expect("landing settings"))
-        .expect("landing settings JSON")
+    check_landing_settings(root).unwrap_or_else(|why| panic!("{why}"))
+}
+fn check_landing_settings(root: &Path) -> Result<Value, String> {
+    Ok({
+        serde_json::from_slice(
+            &fs::read(root.join("config/native-landing-settings.json"))
+                .map_err(|error| format!("landing settings: {error:?}"))?,
+        )
+        .map_err(|error| format!("landing settings JSON: {error:?}"))?
+    })
 }
 
 fn project_settings(root: &Path, project: u64) -> PathBuf {
@@ -376,55 +385,135 @@ fn project_settings(root: &Path, project: u64) -> PathBuf {
 }
 
 fn landing_project(root: &Path) -> u64 {
-    landing_settings(root)["items"][0]["setting"]["project"].as_u64().expect("landing rule's project")
+    check_landing_project(root).unwrap_or_else(|why| panic!("{why}"))
+}
+fn check_landing_project(root: &Path) -> Result<u64, String> {
+    Ok({
+        check_landing_settings(root)?["items"][0]["setting"]["project"]
+            .as_u64()
+            .ok_or(String::from("landing rule's project"))?
+    })
 }
 
 fn adopted_project(call: &super::Ended) -> u64 {
-    // Progress and the terminal answer are separate JSON lines, as for setup.
-    let answer = call.stdout.split(|byte| *byte == b'\n').rfind(|line| !line.is_empty()).expect("adoption answer");
-    let connected: Value = serde_json::from_slice(answer).expect("adoption JSON");
-    assert_eq!(connected["outcome"]["adopted"]["owner"], "elsewhere");
-    assert_eq!(connected["outcome"]["adopted"]["name"], "first");
-    connected["project"].as_u64().expect("adoption's project number")
+    check_adopted_project(call).unwrap_or_else(|why| panic!("{why}"))
+}
+fn check_adopted_project(call: &super::Ended) -> Result<u64, String> {
+    Ok({
+        // Progress and the terminal answer are separate JSON lines, as for setup.
+        let answer = call
+            .stdout
+            .split(|byte| *byte == b'\n')
+            .rfind(|line| !line.is_empty())
+            .ok_or(String::from("adoption answer"))?;
+        let connected: Value = serde_json::from_slice(answer).map_err(|error| format!("adoption JSON: {error:?}"))?;
+        {
+            let (left, right) = (&(connected["outcome"]["adopted"]["owner"]), &("elsewhere"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(connected["outcome"]["adopted"]["name"]), &("first"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        connected["project"].as_u64().ok_or(String::from("adoption's project number"))?
+    })
 }
 
-fn assert_landing_settings(ends: &[super::Ended], project: u64) {
-    let rule = ctl::json(&ends[ends.len() - 4]);
-    let producer = ctl::json(&ends[ends.len() - 3]);
-    assert_eq!(rule["setting"], json!({"kind":"landing-rule","project":project,"number":1}));
-    for criterion in ["enforce", "ci", "up_to_date"] {
-        assert_eq!(rule["value"][criterion], true, "{criterion} stays enforced");
+fn check_landing_calls(ends: &[super::Ended], project: u64) -> Result<(), String> {
+    let rule = super::check_ctl_json(&ends[ends.len() - 4])?;
+    let producer = super::check_ctl_json(&ends[ends.len() - 3])?;
+    {
+        let (left, right) = (&(rule["setting"]), &(json!({"kind":"landing-rule","project":project,"number":1})));
+        if left != right {
+            return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+        }
     }
-    assert_eq!(rule["value"]["gates"], json!([]), "the story supplies no review exchange");
-    assert_eq!(producer["value"], 2, "the coding producer is kept across restart");
+    for criterion in ["enforce", "ci", "up_to_date"] {
+        if rule["value"][criterion] != true {
+            return Err(format!("{criterion} stays enforced"));
+        }
+    }
+    if rule["value"]["gates"] != json!([]) {
+        return Err(String::from("the story supplies no review exchange"));
+    }
+    if producer["value"] != 2 {
+        return Err(String::from("the coding producer is kept across restart"));
+    }
+
+    Ok(())
 }
 
-fn connected(calls: &mut ctl::Calls, root: &Path, restarted: bool) {
+fn connected(calls: &mut ctl::Calls, root: &Path, restarted: bool) -> Result<(), String> {
     let ends = calls.ends();
-    assert_landing_settings(ends, landing_project(root));
-    let forges = ctl::json(ends.last().expect("forges read"));
+    check_landing_calls(ends, check_landing_project(root)?)?;
+    let forges = super::check_ctl_json(ends.last().ok_or(String::from("forges read"))?)?;
     let row = &forges["forges"][0];
-    assert_eq!(row["state"], "connected");
-    assert_eq!(row["mode"], "managed");
+    {
+        let (left, right) = (&(row["state"]), &("connected"));
+        if left != right {
+            return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+        }
+    }
+    {
+        let (left, right) = (&(row["mode"]), &("managed"));
+        if left != right {
+            return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+        }
+    }
     if restarted {
         // temper/docs/design/protocol/setup/owned.md, 7: keep the first intent across restarts.
-        assert_eq!(row["first"]["state"], "made");
-        assert_eq!(row["first"]["org"], "elsewhere");
-        assert_eq!(row["first"]["repository"], "first");
+        {
+            let (left, right) = (&(row["first"]["state"]), &("made"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(row["first"]["org"]), &("elsewhere"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        {
+            let (left, right) = (&(row["first"]["repository"]), &("first"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
         calls.push(ctl::Step::Run(ctl::Call::new(&["task", "show", "2"])));
     } else {
-        assert_eq!(row["first"]["state"], "made");
-        start_chat(calls, root);
+        {
+            let (left, right) = (&(row["first"]["state"]), &("made"));
+            if left != right {
+                return Err(format!("assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"));
+            }
+        }
+        start_chat(calls, root)?;
     }
+
+    Ok(())
 }
 
-fn start_chat(calls: &mut ctl::Calls, root: &Path) {
-    let project = adopted_project(&calls.ends()[1]);
-    assert_eq!(landing_project(root), project, "the chat uses the project's no-review rule");
+fn start_chat(calls: &mut ctl::Calls, root: &Path) -> Result<(), String> {
+    let project = check_adopted_project(&calls.ends()[1])?;
+    if check_landing_project(root)? != project {
+        return Err(String::from("the chat uses the project's no-review rule"));
+    }
     let key = root.join("llm-key");
     write_private(&key, jig_channel_kit::fixtures::KEY);
     for call in [
-        ctl::Call::new(&["account", "add-key", "1", key.to_str().expect("key path"), "--key", "elsewhere-model"]),
+        ctl::Call::new(&[
+            "account",
+            "add-key",
+            "1",
+            key.to_str().ok_or(String::from("key path"))?,
+            "--key",
+            "elsewhere-model",
+        ]),
         ctl::Call::new(&["account", "list", "--until", "usable"]),
         ctl::Call::new(&[
             "chat",
@@ -460,6 +549,8 @@ fn start_chat(calls: &mut ctl::Calls, root: &Path) {
             "--json",
         ])));
     }
+
+    Ok(())
 }
 
 /// Project selection is checked without starting a deployment or its forge.
@@ -486,6 +577,7 @@ pub mod tests {
 }
 
 struct Judge {
+    failed: Option<String>,
     root: PathBuf,
     restarted: bool,
     stage: u8,
@@ -497,49 +589,71 @@ struct Judge {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let Process::Binary(engine) = &procs[0] else { panic!("engine") };
-        self.deadline.watch(engine);
-        if !self.settled
-            && !procs.iter().all(Host::is_empty)
-            && let Some(figures) = self.deadline.failed()
-        {
-            self.timed_out = Some(format!("elsewhere life deadline: {figures}"));
-        }
-        if engine.exit_status().is_some() && !self.stopped || self.timed_out.is_some() {
-            eprintln!("engine stderr: {}", String::from_utf8_lossy(engine.stderr()));
-        }
-        assert!(self.stopped || engine.exit_status().is_none(), "engine ended before ctl completed");
-        let Process::Calls(calls) = &mut procs[1] else { panic!("ctl") };
-        while self.logged < calls.ends().len() {
-            let call = &calls.ends()[self.logged];
-            eprintln!(
-                "ctl {} exit {:?}: {} {}",
-                self.logged,
-                call.exit,
-                String::from_utf8_lossy(&call.stdout),
-                String::from_utf8_lossy(&call.stderr)
-            );
-            assert_eq!(call.exit, Some(Exit::Code(0)), "elsewhere prerequisite call {} failed", self.logged);
-            self.logged += 1;
-        }
-        if !calls.foreground_idle() {
+        if self.failed.is_some() {
             return;
         }
-        if self.stage == 0 {
-            connected(calls, &self.root, self.restarted);
-            self.stage = 1;
-        } else if !self.stopped {
-            calls.release();
-            let Process::Binary(engine) = &mut procs[0] else { panic!("engine") };
-            engine.signal(Signal::Terminate);
-            if let Some(Process::Peer(peer)) = procs.get_mut(2) {
-                peer.shutdown();
+        let result = (|| -> Result<(), String> {
+            let Some(Process::Binary(engine)) = procs.first() else { return Err(String::from("engine")) };
+            self.deadline.watch(engine);
+            if !self.settled
+                && !procs.iter().all(Host::is_empty)
+                && let Some(figures) = self.deadline.failed()
+            {
+                self.timed_out = Some(format!("elsewhere life deadline: {figures}"));
             }
-            self.stopped = true;
+            if engine.exit_status().is_some() && !self.stopped || self.timed_out.is_some() {
+                eprintln!("engine stderr: {}", String::from_utf8_lossy(engine.stderr()));
+            }
+            if !self.stopped && engine.exit_status().is_some() {
+                return Err(String::from("engine ended before ctl completed"));
+            }
+            let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl")) };
+            while self.logged < calls.ends().len() {
+                let call = &calls.ends()[self.logged];
+                eprintln!(
+                    "ctl {} exit {:?}: {} {}",
+                    self.logged,
+                    call.exit,
+                    String::from_utf8_lossy(&call.stdout),
+                    String::from_utf8_lossy(&call.stderr)
+                );
+                if call.exit != Some(Exit::Code(0)) {
+                    return Err(format!("elsewhere prerequisite call {} failed", self.logged));
+                }
+                self.logged += 1;
+            }
+            if !calls.foreground_idle() {
+                return Ok(());
+            }
+            if self.stage == 0 {
+                connected(calls, &self.root, self.restarted)?;
+                self.stage = 1;
+            } else if !self.stopped {
+                calls.release();
+                let Some(Process::Binary(engine)) = procs.first_mut() else { return Err(String::from("engine")) };
+                engine.signal(Signal::Terminate);
+                if let Some(Process::Peer(peer)) = procs.get_mut(2) {
+                    peer.shutdown();
+                }
+                self.stopped = true;
+            }
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
+        if let Some(why) = self.timed_out.take() {
+            return Err(why);
+        }
         self.settled = procs.iter().all(Host::is_empty);
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.deadline.until() }
@@ -548,7 +662,7 @@ impl Referee<Process> for Judge {
         if self.settled { None } else { self.timed_out.clone() }
     }
     fn passed(&self) -> bool {
-        self.settled
+        self.failed.is_none() && self.timed_out.is_none() && self.settled
     }
 }
 

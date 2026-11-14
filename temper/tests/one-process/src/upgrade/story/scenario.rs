@@ -101,7 +101,7 @@ pub(super) fn mutations(ledger: &[skein_fake_forge_domain::Observation]) -> Vec<
         .collect()
 }
 
-pub(super) fn continued(store: &referee::Store) {
+pub(super) fn continued(store: &referee::Store) -> Result<(), String> {
     let (task, old_attempt) = STATE.with(|s| (s.borrow().task, s.borrow().attempt));
     let (start, conversation) = store
         .agent_records
@@ -114,21 +114,29 @@ pub(super) fn continued(store: &referee::Store) {
             }
             _ => None,
         })
-        .expect("mid-run task gets a new attempt");
-    assert_eq!(conversation, start.activation(), "the new attempt opens a fresh conversation");
-    assert!(start.transcript().is_empty(), "fresh attempt, not the closed conversation");
+        .ok_or_else(|| String::from("mid-run task gets a new attempt"))?;
+    match (&(conversation), &(start.activation())) {
+        (left, right) if left != right => {
+            let finding = String::from("the new attempt opens a fresh conversation");
+            return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+        }
+        _ => {}
+    }
+    if !(start.transcript().is_empty()) {
+        return Err(String::from("fresh attempt, not the closed conversation"));
+    }
     let charter =
         smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(start.charter()))
-            .expect("charter");
-    assert!(
-        charter
-            .brief()
-            .as_slice()
-            .iter()
-            .any(|section| skein_lib::bytes::find(section.body(), b"upgrade-tail-marker").is_some()),
-        "fresh brief carries the closed window's tail"
-    );
-    assert!(!store.rows.values().any(|row| matches!(row, temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task:t,..} if *t == task))),"crossed claim's forge write settled");
+            .map_err(|why| format!("charter: {why:?}"))?;
+    if !(charter
+        .brief()
+        .as_slice()
+        .iter()
+        .any(|section| skein_lib::bytes::find(section.body(), b"upgrade-tail-marker").is_some()))
+    {
+        return Err(String::from("fresh brief carries the closed window's tail"));
+    }
+    if store.rows.values().any(|row| matches!(row, temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task:t,..} if *t == task))) { return Err(String::from("crossed claim's forge write settled")); }
     let new = store
         .rows
         .values()
@@ -138,23 +146,28 @@ pub(super) fn continued(store: &referee::Store) {
             )) if task.spec.words.as_ref() == b"After upgrade" => Some(task.number),
             _ => None,
         })
-        .expect("new chat allocated");
+        .ok_or_else(|| String::from("new chat allocated"))?;
     STATE.with(|s| {
         let s = s.borrow();
-        let maps = s.before.as_ref().expect("before");
+        let maps = s.before.as_ref().ok_or_else(|| String::from("before"))?;
         let key = jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment);
-        let encoded = jig_protocol_store::keys::encode(&key, 64).expect("header key");
+        let encoded = jig_protocol_store::keys::encode(&key, 64).ok_or_else(|| String::from("header key"))?;
         let Record::Core(CoreRecord::Deployment(header)) = jig_protocol_store::codec::decode(
             &key,
-            maps.store.get(encoded.as_ref()).expect("header"),
+            maps.store.get(encoded.as_ref()).ok_or_else(|| String::from("header"))?,
             &stories::playground::codec(),
             fixtures::store_names(),
         )
-        .expect("header decodes") else {
-            panic!("header")
+        .ok_or_else(|| String::from("header decodes"))?
+        else {
+            return Err(String::from("header"));
         };
-        assert!(new > header.tasks, "new task above every kept task");
-        assert!(start.activation() > header.runs, "new attempt above every kept attempt");
+        if new <= header.tasks {
+            return Err(String::from("new task above every kept task"));
+        }
+        if start.activation() <= header.runs {
+            return Err(String::from("new attempt above every kept attempt"));
+        }
         let resumed = store
             .rows
             .values()
@@ -166,7 +179,13 @@ pub(super) fn continued(store: &referee::Store) {
                 }
                 _ => None,
             })
-            .expect("paused chat's resumed turn");
-        assert!(resumed.read.is_some_and(|number| number > header.messages), "new message above every kept message");
-    });
+            .ok_or_else(|| String::from("paused chat's resumed turn"))?;
+        if resumed.read.is_none_or(|number| number <= header.messages) {
+            return Err(String::from("new message above every kept message"));
+        }
+
+        Ok(())
+    })?;
+
+    Ok(())
 }

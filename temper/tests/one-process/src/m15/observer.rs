@@ -140,17 +140,24 @@ impl Observer {
                 Kind::Token => "installation token",
             })
     }
-    fn check(&self, surface: &str, path: &[u8], bytes: &[u8]) {
-        self.check_since(surface, path, bytes, 0);
+    fn check(&self, surface: &str, path: &[u8], bytes: &[u8]) -> Result<(), String> {
+        self.check_since(surface, path, bytes, 0)?;
+
+        Ok(())
     }
-    fn check_since(&self, surface: &str, path: &[u8], bytes: &[u8], first: usize) {
-        assert!(self.leak_since(path, first).is_none(), "issued secret in {surface} filename");
-        assert!(
-            self.leak_since(bytes, first).is_none(),
-            "{} in {surface} {}",
-            self.leak(bytes).unwrap_or("issued secret"),
-            String::from_utf8_lossy(path)
-        );
+    fn check_since(&self, surface: &str, path: &[u8], bytes: &[u8], first: usize) -> Result<(), String> {
+        if self.leak_since(path, first).is_some() {
+            return Err(format!("issued secret in {surface} filename"));
+        }
+        if self.leak_since(bytes, first).is_some() {
+            return Err(format!(
+                "{} in {surface} {}",
+                self.leak(bytes).unwrap_or("issued secret"),
+                String::from_utf8_lossy(path)
+            ));
+        }
+
+        Ok(())
     }
     fn save(&mut self, surface: &'static str, path: &[u8], bytes: &[u8]) {
         self.artifacts.push(Artifact { surface, path: path.to_vec(), bytes: bytes.to_vec(), checked_needles: 0 });
@@ -231,11 +238,16 @@ impl Observer {
         }
     }
     fn scan(&mut self) {
-        assert!(!self.needles.is_empty(), "the fake issued a key");
+        self.check_scan().expect("secret scan");
+    }
+    fn check_scan(&mut self) -> Result<(), String> {
+        if self.needles.is_empty() {
+            return Err(String::from("the fake issued a key"));
+        }
         for index in 0..self.artifacts.len() {
             let artifact = &self.artifacts[index];
             // Artifacts are immutable; a newly issued needle checks every earlier version.
-            self.check_since(artifact.surface, &artifact.path, &artifact.bytes, artifact.checked_needles);
+            self.check_since(artifact.surface, &artifact.path, &artifact.bytes, artifact.checked_needles)?;
             self.artifacts[index].checked_needles = self.needles.len();
         }
         for stream in &self.streams {
@@ -245,10 +257,12 @@ impl Observer {
                 } else {
                     "client wire"
                 };
-                self.check(surface, b"", &stream.bytes);
+                self.check(surface, b"", &stream.bytes)?;
             }
         }
         self.checkpoints += 1;
+
+        Ok(())
     }
 }
 fn response(bytes: &[u8]) -> Option<(usize, &[u8])> {
@@ -331,7 +345,7 @@ pub(crate) fn page(bytes: &[u8]) {
         }
     });
 }
-pub(crate) fn context(peer: &skein_fake_peers::llm::Peer) {
+pub(crate) fn context(peer: &skein_fake_peers::llm::Peer) -> Result<(), String> {
     OBSERVER.with(|cell| {
         if let Some(observer) = &mut *cell.borrow_mut() {
             let queries: Vec<_> = peer
@@ -341,7 +355,9 @@ pub(crate) fn context(peer: &skein_fake_peers::llm::Peer) {
                     if let skein_fake_peers::llm::Observation::Query { query, .. } = seen { Some(query) } else { None }
                 })
                 .collect();
-            for query in &queries[observer.contexts..] {
+            for query in
+                queries.get(observer.contexts..).ok_or_else(|| String::from("observed contexts are a query prefix"))?
+            {
                 observer.save("agent prompt", b"", &query.system);
                 for part in query.messages.iter().flat_map(|message| message.parts.iter()) {
                     use skein_fake_llm_domain::api::Part;
@@ -362,10 +378,11 @@ pub(crate) fn context(peer: &skein_fake_peers::llm::Peer) {
             }
             observer.contexts = queries.len();
         }
-    });
+        Ok(())
+    })
 }
-pub(crate) fn checkpoint() {
-    OBSERVER.with(|cell| cell.borrow_mut().as_mut().expect("active observer").scan());
+pub(crate) fn checkpoint() -> Result<(), String> {
+    OBSERVER.with(|cell| cell.borrow_mut().as_mut().ok_or_else(|| String::from("active observer"))?.check_scan())
 }
 pub(crate) fn tokens() -> usize {
     OBSERVER.with(|cell| cell.borrow().as_ref().map_or(0, |observer| observer.tokens.len()))
@@ -447,7 +464,7 @@ fn scan_directory(
             if secret_path(&path) {
                 continue;
             }
-            observer.check("persisted filename", b"", &path);
+            observer.check("persisted filename", b"", &path).expect("persisted filename scan");
             if kind == skein_fake_machine::Is::Directory {
                 let child = disk.open(dir, &name, skein_fake_machine::How::Directory).expect("public directory");
                 scan_directory(observer, disk, child, &path, counts);
@@ -458,7 +475,7 @@ fn scan_directory(
                     .read(file, 0, u32::try_from(disk.stat(file).size).expect("scenario file length"))
                     .expect("public persisted bytes");
                 disk.close(file);
-                observer.check("persisted file", &path, &bytes);
+                observer.check("persisted file", &path, &bytes).expect("persisted file scan");
                 counts.files += 1;
                 counts.logs += usize::from(name.starts_with(b"log-") || path.starts_with(b"stderr/"));
                 counts.transcripts += usize::from(path.windows(11).any(|part| part == b"transcripts"));
@@ -491,9 +508,11 @@ pub(crate) fn finish(disk: &mut skein_fake_machine::Machine) -> Counts {
     })
 }
 
-pub(crate) fn public_output(bytes: &[u8]) -> String {
-    OBSERVER.with(|cell| cell.borrow().as_ref().expect("active observer").check("ctl diagnostic", b"", bytes));
-    String::from_utf8_lossy(bytes).into_owned()
+pub(crate) fn public_output(bytes: &[u8]) -> Result<String, String> {
+    OBSERVER.with(|cell| {
+        cell.borrow().as_ref().ok_or_else(|| String::from("active observer"))?.check("ctl diagnostic", b"", bytes)
+    })?;
+    Ok(String::from_utf8_lossy(bytes).into_owned())
 }
 
 #[cfg(test)]

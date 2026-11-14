@@ -2,7 +2,11 @@
 //! outside observations; the conformance harness owns the engine and store.
 #![forbid(unsafe_code)]
 use jig_conformance::scenarios::Scenario;
-use jig_conformance::{Application, Clock, Input, Output, core::peers};
+use jig_conformance::{
+    Application, Clock, Input, Output,
+    core::peers,
+    referee::{Promise, Violation},
+};
 use jig_core_kit::Store;
 use jig_core_kit::conformance::Observer;
 use jig_core_kit::peers::Peers;
@@ -415,11 +419,12 @@ impl Application for Testing {
         vec![root::Event::StartBegin { pending: store.generation_pending }]
     }
 
-    fn cold(peers: &mut Neighbours, store: &Store, clock: Clock) {
-        peers.observer.cold(clock.now, store);
+    fn cold(peers: &mut Neighbours, store: &Store, clock: Clock) -> Result<(), Violation> {
+        peers.observer.cold(clock.now, store).map_err(finding)?;
         peers.peers.restart();
         peers.account_ready = false;
         peers.pending_writes.clear();
+        Ok(())
     }
 
     fn timers(_: &Config) -> Vec<root::Event> {
@@ -504,7 +509,7 @@ impl Application for Testing {
         negative::released(domain, config, clock, outputs)
     }
 
-    fn inbound(peers: &mut Neighbours, store: &Store, clock: Clock, event: &mut root::Event) {
+    fn inbound(peers: &mut Neighbours, store: &Store, clock: Clock, event: &mut root::Event) -> Result<(), Violation> {
         if !matches!(
             event,
             root::Event::StartBegin { .. }
@@ -513,8 +518,9 @@ impl Application for Testing {
                 | root::Event::StartMissing { .. }
                 | root::Event::StartPageRefused { .. }
         ) {
-            peers.observer.inbound(store, clock.now, event);
+            peers.observer.inbound(store, clock.now, event).map_err(finding)?;
         }
+        Ok(())
     }
 
     #[expect(clippy::too_many_lines, reason = "the root delivery vocabulary has one exhaustive outside translation")]
@@ -524,10 +530,10 @@ impl Application for Testing {
         store: &mut Store,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<root::Event>> {
+    ) -> Result<Vec<Input<root::Event>>, Violation> {
         let delivery = negative::delivery(peers.fault, delivery);
         let Delivery::Held(mut delivery) = delivery else {
-            return match delivery {
+            return Ok(match delivery {
                 Delivery::Now(core::Now::Call { to, run, attempt, call }) => {
                     peers.peers.opaque_answer(to, run, attempt, &call).into_iter().map(Input::Event).collect()
                 }
@@ -572,13 +578,13 @@ impl Application for Testing {
                 }
                 Delivery::Now(_) => Vec::new(),
                 Delivery::Held(_) => unreachable!("held handled above"),
-            };
+            });
         };
         scenarios::queries::delivered(peers, store, &delivery);
         scenarios::lifecycle::delivered(peers, &delivery);
-        peers.observer.delivered(clock.now, &mut delivery);
+        peers.observer.delivered(clock.now, &mut delivery).map_err(finding)?;
         peers.peers.delivered(&delivery);
-        match delivery {
+        Ok(match delivery {
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing {
                     vec![Input::Event(root::Event::Core(core::Event::ProjectionSettled {
@@ -616,7 +622,7 @@ impl Application for Testing {
                 if matches!(call, connector::SystemRequest::Apply { .. }) {
                     if peers.hold_writes {
                         peers.pending_writes.push((number, call));
-                        return Vec::new();
+                        return Ok(Vec::new());
                     }
                     fault = peers.next_fault;
                     peers.next_fault = jig_test_system::Fault::None;
@@ -671,7 +677,7 @@ impl Application for Testing {
             | root::Delivery::Start(_)
             | root::Delivery::Message { .. } => Vec::new(),
             root::Delivery::Fleet(_) => panic!("root consumes fleet continuations"),
-        }
+        })
     }
 
     fn poll(
@@ -680,7 +686,7 @@ impl Application for Testing {
         store: &mut Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<root::Event>> {
+    ) -> Result<Vec<Input<root::Event>>, Violation> {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
@@ -717,21 +723,22 @@ impl Application for Testing {
             }
             events.extend(peers.peers.tick(store, Time::from_nanos(clock.now)).into_iter().map(Input::Event));
         }
-        events
+        Ok(events)
     }
 
-    fn submitted(peers: &mut Neighbours, store: &Store, clock: Clock) {
-        peers.observer.submitted(clock.now, store);
+    fn submitted(peers: &mut Neighbours, store: &Store, clock: Clock) -> Result<(), Violation> {
+        peers.observer.submitted(clock.now, store).map_err(finding)?;
+        Ok(())
     }
     fn observed(
         peers: &mut Neighbours,
         systems: &[System; 2],
         store: &Store,
         clock: Clock,
-    ) -> Vec<jig_conformance::referee::Observed> {
-        peers.observer.durable(clock.now, store);
-        peers.observer.systems(clock.now, systems);
-        peers.observer.workers(clock.now, &peers.peers.workers);
+    ) -> Result<Vec<jig_conformance::referee::Observed>, Violation> {
+        peers.observer.durable(clock.now, store).map_err(finding)?;
+        peers.observer.systems(clock.now, systems).map_err(finding)?;
+        peers.observer.workers(clock.now, &peers.peers.workers).map_err(finding)?;
         let mut observed = std::mem::take(&mut peers.routes);
         observed.extend(peers.observer.take());
         for seen in &mut observed {
@@ -739,7 +746,7 @@ impl Application for Testing {
                 Neighbours::cold_receipts(store, receipts);
             }
         }
-        observed
+        Ok(observed)
     }
 
     fn ready(domain: &Engine) -> bool {
@@ -783,3 +790,8 @@ fn run_budget_script() -> Box<[Script]> {
 }
 
 pub mod deletion;
+
+// Recording observers check durable rows and release fences before the harness referee.
+fn finding(why: String) -> Violation {
+    Violation { promise: Promise::Commit, why }
+}

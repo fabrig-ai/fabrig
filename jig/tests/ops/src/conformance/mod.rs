@@ -277,8 +277,8 @@ impl Application for Ops {
         }
         vec![root::Event::Restart { pending: false }]
     }
-    fn cold(peers: &mut Peers, store: &Store, clock: Clock) {
-        peers.observer.cold(clock.now, &observations::core_store(store));
+    fn cold(peers: &mut Peers, store: &Store, clock: Clock) -> Result<(), r::Violation> {
+        peers.observer.cold(clock.now, &observations::core_store(store)).map_err(finding)?;
         peers.account_ready = false;
         peers.asked_accept.clear();
         peers.role_widened = false;
@@ -287,6 +287,7 @@ impl Application for Ops {
             state.cold();
         }
         peers.protocol.clear();
+        Ok(())
     }
     fn timers(_: &Config) -> Vec<root::Event> {
         vec![
@@ -365,9 +366,9 @@ impl Application for Ops {
         }
         outputs
     }
-    fn inbound(peers: &mut Peers, store: &Store, clock: Clock, event: &mut root::Event) {
+    fn inbound(peers: &mut Peers, store: &Store, clock: Clock, event: &mut root::Event) -> Result<(), r::Violation> {
         if let root::Event::Core(event) = event {
-            peers.observer.inbound(|| observations::core_store(store), clock.now, event);
+            peers.observer.inbound(|| observations::core_store(store), clock.now, event).map_err(finding)?;
         }
         if let root::Event::Effect { key, proposal: Some(_), .. } = event {
             let observations = peers.observer.intents.propose(*key);
@@ -376,13 +377,14 @@ impl Application for Ops {
         if let root::Event::Agent(jig_domain_host::FromAgent::Turn { owner, turn }) = event
             && let Some((task, attempt)) = peers.scenario.as_ref().and_then(|state| state.assigned(*owner))
         {
-            peers.observer.completion(clock.now, task, attempt, turn.spent);
+            peers.observer.completion(clock.now, task, attempt, turn.spent).map_err(finding)?;
         }
         peers.agents.stepped(event);
         if let Some(observed) = application::requested(store, event) {
             peers.application_requests = true;
             peers.application_observed.push(observed);
         }
+        Ok(())
     }
 
     #[expect(clippy::too_many_lines, reason = "each outside output has an exhaustive adapter")]
@@ -392,11 +394,11 @@ impl Application for Ops {
         store: &mut Store,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<root::Event>> {
+    ) -> Result<Vec<Input<root::Event>>, r::Violation> {
         let delivery = match delivery {
             Delivery::Root(mut root) => {
                 if let root::Output::Core(held) = root.as_mut() {
-                    peers.observer.delivered(clock.now, held);
+                    peers.observer.delivered(clock.now, held).map_err(finding)?;
                 }
                 *root
             }
@@ -404,17 +406,17 @@ impl Application for Ops {
                 for (task, parent) in rows {
                     peers.pending_results.push((commit, task, parent));
                 }
-                return Vec::new();
+                return Ok(Vec::new());
             }
         };
         scenarios::delivered(peers, store, &delivery);
         if peers.scenario.is_some()
             && let Some(event) = scenarios::reads::load(store, &delivery)
         {
-            return vec![Input::Event(event)];
+            return Ok(vec![Input::Event(event)]);
         }
 
-        match delivery {
+        Ok(match delivery {
             root::Output::Application { to, outcome } => {
                 peers.application_observed.push(r::Observed::ApplicationAnswered {
                     reply: to.into_token().raw(),
@@ -448,18 +450,21 @@ impl Application for Ops {
                             | root::Record::Infrastructure(_) => None,
                         })
                         .expect("durable assignment proof");
-                    peers.observer.assigned(
-                        clock.now,
-                        jig_conformance::core::Assignment {
-                            task,
-                            attempt,
-                            budget,
-                            conversation: proof.conversation,
-                            resumed: !assignment.turns.is_empty(),
-                            settings: 1,
-                        },
-                        &[],
-                    );
+                    peers
+                        .observer
+                        .assigned(
+                            clock.now,
+                            jig_conformance::core::Assignment {
+                                task,
+                                attempt,
+                                budget,
+                                conversation: proof.conversation,
+                                resumed: !assignment.turns.is_empty(),
+                                settings: 1,
+                            },
+                            &[],
+                        )
+                        .map_err(finding)?;
                 }
                 vec![Input::Event(root::Event::Released(child))]
             }
@@ -513,7 +518,7 @@ impl Application for Ops {
             }
             root::Output::Infrastructure(call) => {
                 if let Some(events) = scenarios::infrastructure(peers, &call) {
-                    return events;
+                    return Ok(events);
                 }
 
                 if peers.document_story
@@ -523,7 +528,7 @@ impl Application for Ops {
                     // The external system may answer slowly. Let the client
                     // acknowledge the committed restarting panel first.
                     peers.pending_document_effects.push(call);
-                    return Vec::new();
+                    return Ok(Vec::new());
                 }
                 if let infra::SystemRequest::Apply { key, attempt, effect } = &call {
                     let attempt = *attempt;
@@ -634,7 +639,7 @@ impl Application for Ops {
                             },
                         },
                     });
-                    return vec![Input::Event(root::Event::Infrastructure(infra::Event::System(event)))];
+                    return Ok(vec![Input::Event(root::Event::Infrastructure(infra::Event::System(event)))]);
                 }
                 vec![Input::Event(root::Event::Infrastructure(infra::Event::System(systems.infrastructure(call))))]
             }
@@ -648,7 +653,7 @@ impl Application for Ops {
             }
             root::Output::Core(core::Held::CallAnswer { to, key, part }) => {
                 if peers.scenario.is_some() {
-                    return Vec::new();
+                    return Ok(Vec::new());
                 }
                 vec![Input::Event(peers.protocol.answer(to, key, &part, true))]
             }
@@ -658,7 +663,7 @@ impl Application for Ops {
             root::Output::Now(core::Now::EffectAnswer { to, key, part }) => {
                 if let Some(state) = &mut peers.scenario {
                     state.answer(part);
-                    return Vec::new();
+                    return Ok(Vec::new());
                 }
                 vec![Input::Event(peers.protocol.answer(to, key, &part, false))]
             }
@@ -714,7 +719,7 @@ impl Application for Ops {
                 let records = observations::core_store(store).rows;
                 let rows = match peers::transcript(&records, task, from) {
                     Ok(rows) => rows,
-                    Err(event) => return vec![Input::Event(root::Event::Core(*event))],
+                    Err(event) => return Ok(vec![Input::Event(root::Event::Core(*event))]),
                 };
                 vec![Input::Event(root::Event::Store(root::Store::Transcript {
                     task,
@@ -760,7 +765,7 @@ impl Application for Ops {
             | root::Output::ProjectMade { .. } => Vec::new(),
             root::Output::Agent(request) => protocol::agent(peers, request),
             root::Output::Commit { .. } | root::Output::Stop => unreachable!("harness consumed commit/stop"),
-        }
+        })
     }
     fn poll(
         peers: &mut Peers,
@@ -768,7 +773,7 @@ impl Application for Ops {
         store: &mut Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<root::Event>> {
+    ) -> Result<Vec<Input<root::Event>>, r::Violation> {
         let now = clock.now / 1_000_000_000;
         if now > systems.now {
             systems.production.advance(now - systems.now);
@@ -857,7 +862,7 @@ impl Application for Ops {
                     store,
                     clock,
                     Delivery::Root(Box::new(root::Output::Infrastructure(call))),
-                ));
+                )?);
             }
         }
         if let Some(state) = &mut peers.scenario {
@@ -865,13 +870,13 @@ impl Application for Ops {
         } else {
             events.extend(peers.agents.poll(clock));
         }
-        events
+        Ok(events)
     }
-    fn submitted(peers: &mut Peers, store: &Store, _: Clock) {
+    fn submitted(peers: &mut Peers, store: &Store, _: Clock) -> Result<(), r::Violation> {
         let commit = store.pending.back().map(|pending| {
             jig_conformance::core::commit(pending.number, pending.writes.as_ref(), observations::core_write)
         });
-        peers.observer.submitted(commit, Vec::new(), || observations::core_store(store));
+        peers.observer.submitted(commit, Vec::new(), || observations::core_store(store)).map_err(finding)?;
         documents::leads_submitted(peers, store);
         if peers.document_story || peers.client_documents {
             documents::submitted(peers, store);
@@ -879,10 +884,11 @@ impl Application for Ops {
         if peers.application_requests {
             peers.application_observed.extend(application::submitted(store));
         }
+        Ok(())
     }
-    fn observed(peers: &mut Peers, _: &Systems, store: &Store, clock: Clock) -> Vec<r::Observed> {
+    fn observed(peers: &mut Peers, _: &Systems, store: &Store, clock: Clock) -> Result<Vec<r::Observed>, r::Violation> {
         if store.applied != peers.observer.applied() {
-            peers.observer.durable(clock.now, &observations::core_store(store));
+            peers.observer.durable(clock.now, &observations::core_store(store)).map_err(finding)?;
         }
         let mut observed = Vec::new();
         let mut answers = Vec::new();
@@ -934,7 +940,7 @@ impl Application for Ops {
             false
         });
         observed.append(&mut peers.observed);
-        observed
+        Ok(observed)
     }
     fn ready(domain: &root::Domain) -> bool {
         domain.ready()
@@ -1228,3 +1234,8 @@ fn census_owner(store: &Store, row: &root::Record) -> Vec<root::Record> {
 
 mod funding;
 pub mod turn_backoff;
+
+// Recording observers check durable rows and release fences before the harness referee.
+fn finding(why: String) -> r::Violation {
+    r::Violation { promise: r::Promise::Commit, why }
+}

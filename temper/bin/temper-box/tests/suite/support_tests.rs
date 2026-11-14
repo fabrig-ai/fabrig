@@ -16,9 +16,13 @@ fn the_retained_cluster_charter_overrides_have_no_documents() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn printed_links_count_and_fail_without_disclosing_secrets() {
     support::printed_link_tests::printed_links_count_and_fail_without_disclosing_secrets();
+}
+
+#[test]
+fn a_judge_keeps_an_action_finding_for_watch() {
+    support::account_move::tests::a_judge_keeps_an_action_finding_for_watch();
 }
 
 #[test]

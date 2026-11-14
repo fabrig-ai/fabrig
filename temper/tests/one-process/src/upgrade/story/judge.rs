@@ -6,6 +6,7 @@ use skein_shell::Host;
 use std::{cell::RefCell, rc::Rc};
 #[expect(clippy::struct_excessive_bools, reason = "independent stop, fault, client and upgrade observations")]
 pub(super) struct Judge {
+    finding: Option<String>,
     controls: skein_world::Controls,
     store: Rc<RefCell<referee::Store>>,
     forge: referee::forge::Forge,
@@ -28,6 +29,7 @@ impl Judge {
         ledger: Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>,
     ) -> Self {
         Self {
+            finding: None,
             controls,
             store,
             forge: referee::forge::Forge::new(transport.clone(), Story::PlaygroundA).keeping_ledger(),
@@ -43,8 +45,10 @@ impl Judge {
         }
     }
 
-    fn after_kill(&mut self, first: &Proc, others: &mut [Proc]) {
-        assert!(STATE.with(|s| s.borrow().killed), "only a killed service is replaced by a closer");
+    fn after_kill(&mut self, first: &Proc, others: &mut [Proc]) -> Result<(), String> {
+        if !(STATE.with(|s| s.borrow().killed)) {
+            return Err(String::from("only a killed service is replaced by a closer"));
+        }
         for proc in others.iter_mut() {
             if let Proc::Other(HarnessProcess::Client(person)) = proc {
                 person.finish();
@@ -66,8 +70,10 @@ impl Judge {
             STATE.with(|s| s.borrow_mut().kill_told = true);
         }
         self.stopped = true;
-        self.stop_peers(others);
+        self.stop_peers(others)?;
         self.finished = first.is_empty() && others.iter().all(Host::is_empty);
+
+        Ok(())
     }
     fn arm_write(&mut self, others: &mut [Proc]) {
         if !self.upgrade
@@ -141,13 +147,13 @@ impl Judge {
         }
         self.client_started = true;
     }
-    fn stop_peers(&mut self, procs: &mut [Proc]) {
+    fn stop_peers(&mut self, procs: &mut [Proc]) -> Result<(), String> {
         let ended = procs.iter().all(|p| !matches!(p, Proc::Agent(a) if !a.is_empty()));
         for p in procs {
             match p {
                 Proc::Peer(peer) => {
                     if ended && !self.released {
-                        peer.release(stories::STOP_HOLD).expect("mid-run hold released");
+                        peer.release(stories::STOP_HOLD).map_err(|why| format!("mid-run hold released: {why:?}"))?;
                         self.released = true;
                     }
                     peer.shutdown();
@@ -156,10 +162,12 @@ impl Judge {
                 _ => {}
             }
         }
+
+        Ok(())
     }
 }
-impl skein_world::Referee<Proc> for Judge {
-    fn act(&mut self, _: Time, procs: &mut [Proc]) {
+impl Judge {
+    fn act_checked(&mut self, _: Time, procs: &mut [Proc]) -> Result<(), String> {
         self.ticks += 1;
         let epoch = STATE.with(|s| s.borrow().epoch);
         if epoch != self.epoch {
@@ -171,10 +179,12 @@ impl skein_world::Referee<Proc> for Judge {
         }
         let (first, others) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else {
-            self.after_kill(&first[0], others);
-            return;
+            self.after_kill(&first[0], others)?;
+            return Ok(());
         };
-        assert!(self.ticks < 100_000, "upgrade bounded turns: {:?}", service.service.wait_state());
+        if self.ticks >= 100_000 {
+            return Err(format!("upgrade bounded turns: {:?}", service.service.wait_state()));
+        }
         if !self.upgrade {
             for proc in others.iter() {
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc
@@ -211,28 +221,33 @@ impl skein_world::Referee<Proc> for Judge {
             for proc in others.iter() {
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc {
                     for answer in &caller.answers {
-                        assert_eq!(
-                            answer.exit,
-                            skein_io::kernel::Exit::Code(0),
-                            "ctl: {}",
-                            String::from_utf8_lossy(&answer.error)
-                        );
+                        match (&(answer.exit), &(skein_io::kernel::Exit::Code(0))) {
+                            (left, right) if left != right => {
+                                let finding = format!("ctl: {}", String::from_utf8_lossy(&answer.error));
+                                return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                            }
+                            _ => {}
+                        }
                     }
                     if self.upgrade {
                         STATE.with(|s| {
-                            assert_eq!(
-                                caller.answers[0].output,
-                                s.borrow().kept_answer,
-                                "replayed key is answered from its record"
-                            );
-                        });
+                            match (&(caller.answers[0].output), &(s.borrow().kept_answer)) {
+                                (left, right) if left != right => {
+                                    let finding = String::from("replayed key is answered from its record");
+                                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                                }
+                                _ => {}
+                            }
+
+                            Ok(())
+                        })?;
                     } else {
                         STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&caller.answers[0].output));
                     }
                 }
             }
             if self.upgrade {
-                continued(&self.store.borrow());
+                continued(&self.store.borrow())?;
             }
 
             for proc in others.iter_mut() {
@@ -244,24 +259,44 @@ impl skein_world::Referee<Proc> for Judge {
                 }
             }
             if !self.upgrade {
-                assert!(self.store.borrow().rows.values().any(|r| matches!(r,temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task,..} if STATE.with(|s| *task == s.borrow().task)))),"write still in flight at the stop boundary");
+                if !(self.store.borrow().rows.values().any(|r| matches!(r,temper_engine_domain::Record::Forge {row} if matches!(row.as_ref(),temper_engine_domain_forge::Stored::Flight {task,..} if STATE.with(|s| *task == s.borrow().task))))) { return Err(String::from("write still in flight at the stop boundary")); }
                 STATE.with(|s| s.borrow_mut().write_at = Some(service.observer.inner.submitted));
             }
             self.controls.signal(0, ServiceSignal::Terminate);
             self.stopped = true;
         }
         if self.stopped {
-            self.stop_peers(others);
+            self.stop_peers(others)?;
             self.finished = service.is_empty() && others.iter().all(Host::is_empty);
         }
+
+        Ok(())
     }
-    fn observe(&mut self, _: Time, procs: &[Proc]) {
+}
+impl skein_world::Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        for proc in procs {
+            if let Proc::Service(service) = proc
+                && let Some(why) = &service.observer.inner.finding
+            {
+                return Err(why.clone());
+            }
+        }
+
         // Keep the fake's write ledger outside the service and peer lifetimes.
         // Forge's branch referee consumes the same observations after this copy.
         if self.stopped {
             self.finished = procs.iter().all(Host::is_empty);
         }
-        self.forge.observe(procs);
+        self.forge.observe(procs)?;
         self.ledger.borrow_mut().extend(self.forge.take_ledger());
         let issue = self.ledger.borrow().iter().any(|o| matches!(o, skein_fake_forge_domain::Observation::Opened {title, ..} if title.as_ref() == b"Upgrade once"));
         if issue {
@@ -269,12 +304,16 @@ impl skein_world::Referee<Proc> for Judge {
                 let mut s = s.borrow_mut();
                 if !s.issue {
                     s.issue = true;
-                    let Proc::Service(service) = &procs[0] else { panic!("service") };
+                    let Proc::Service(service) = &procs[0] else { return Err(String::from("service")) };
                     s.write_at = Some(service.observer.inner.submitted);
                     self.transport.forge.borrow_mut().config.timeouts = 0;
                 }
-            });
+
+                Ok(())
+            })?;
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         Some(Time::from_nanos(60_000_000_000))
@@ -303,6 +342,6 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.finished
+        self.finding.is_none() && (self.finished)
     }
 }

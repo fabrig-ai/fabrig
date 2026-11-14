@@ -386,7 +386,7 @@ impl ScenarioApplication for Ops {
                         &mut world.store,
                         clock,
                         super::Delivery::Root(Box::new(root::Output::Infrastructure(call))),
-                    ) {
+                    )? {
                         if let Input::Event(event) = input {
                             world.send(event);
                         }

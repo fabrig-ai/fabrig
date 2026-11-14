@@ -252,6 +252,7 @@ pub(crate) struct ServiceObserver {
     capture: Capture,
     store: Rc<RefCell<Store>>,
     pub(crate) commits: Vec<crate::referee::durable::Commit>,
+    pub(crate) finding: Option<String>,
     pub(crate) wire: Wire,
     pub(crate) attached: bool,
     pub(crate) cut_before: Option<u32>,
@@ -276,6 +277,7 @@ impl Observe for ServiceObserver {
             capture,
             store: store.clone(),
             commits: Vec::new(),
+            finding: None,
             wire: Wire::new(store),
             attached: false,
             cut_before: None,
@@ -310,7 +312,9 @@ impl Observe for ServiceObserver {
             self.hooks = Some(bound);
         }
         self.capture.complete(&complete);
-        self.wire.complete(&complete);
+        if self.finding.is_none() {
+            self.finding = self.wire.complete(&complete).err();
+        }
         Some(complete)
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
@@ -324,12 +328,18 @@ impl Observe for ServiceObserver {
             }
         }
         self.before_iteration = self.submitted;
-        self.commits.extend(self.store.borrow_mut().observe(
-            &mut self.capture.events,
-            &self.codec,
-            fixtures::store_names(),
-            &self.families,
-        ));
+        if self.finding.is_none() {
+            let observed = self.store.borrow_mut().observe(
+                &mut self.capture.events,
+                &self.codec,
+                fixtures::store_names(),
+                &self.families,
+            );
+            match observed {
+                Ok(commits) => self.commits.extend(commits),
+                Err(why) => self.finding = Some(why),
+            }
+        }
         if let Some(reserve) = &mut self.reserve {
             reserve.submit(service.submissions());
             true
@@ -344,7 +354,9 @@ impl Observe for ServiceObserver {
     fn after_iterate(&mut self, service: &mut temper_service::Service, submitted: u32) {
         self.submitted += submitted;
         if self.cut_before.is_some_and(|before| self.before_iteration <= before && before < self.submitted) {
-            referee::Referee::check_roots(service);
+            if self.finding.is_none() {
+                self.finding = referee::Referee::check_roots(service).err();
+            }
             self.cut_before = None;
         }
     }
