@@ -6467,6 +6467,7 @@ dependencies = [
  "temper-client-tools",
  "temper-engine-domain",
  "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-service-startup",
  "temper-engine-service-stock",

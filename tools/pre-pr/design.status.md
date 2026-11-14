@@ -9,6 +9,7 @@
   the check's own, with a JUnit overlay, not through `tools/tiers/one-process
   default`; no starved line, alone label or `check one-process`. 9: the tests
   fake nextest, not one-process.
+- **Not yet:** 1, 4, *A failing test's process again*, 5, *A flake*, 6, the flake lines and *The results file*, 7, 9: no failing test's process runs again, `temper/rerun` is not read, no flake is told from a failure, and no `temper/check-results` is written [in flight: change 2816].
 
 No other gaps in sections 1–9. Section 10's later work remains outside the delivery
 check.

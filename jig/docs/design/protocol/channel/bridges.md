@@ -257,7 +257,7 @@ them is its own (temper's `protocol/wires.md`).
   everything the worker sends on it: each `FromWorker` kind's record, with its variant present there;
   smith's `RunResult` and `Turn`; and the application's parts it sends
   (`Left`, `Saved`, `Preparation`, `JobResult`, `Items` of a job's
-  answer where it has one).
+  answer where it has one, and `Ask`).
 - **One that is not** closes the channel at once, logging `the engine
   speaks WIRE N, below what this worker sends whole: restart the engine
   first`, naming each such wire, and redials after its pause. So the

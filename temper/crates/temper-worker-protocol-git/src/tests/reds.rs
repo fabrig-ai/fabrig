@@ -10,7 +10,7 @@ use skein_lib::{List, Token};
 use std::{
     ffi::OsStr,
     fs,
-    io::{Seek, SeekFrom, Write},
+    io::{Read, Seek, SeekFrom, Write},
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
     process::Command,
@@ -56,20 +56,28 @@ fn under(roots: &List<(Fd, PathBuf)>, fd: Fd, name: &[u8]) -> PathBuf {
     }
     panic!("open directory");
 }
-fn file_steps(root: &Path, directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool, fail: bool) -> git::Done {
+fn file_steps(root: &Path, mut task: Task, fail: bool) -> git::Done {
     let settings = fixtures::settings();
     let mut dirs = Directories::new(1);
-    let mut task = Task::reds(directory, content, marker);
     let mut action = task.first(&mut dirs, &settings);
-    let mut file = None;
+    let mut file: Option<fs::File> = None;
     let mut roots = List::uncapped();
     roots.push((settings.root, root.to_path_buf())).unwrap();
     let mut next_fd = 10_i32;
     for _ in 0..4096_u32 {
         match action {
-            Action::Run(op) => {
+            Action::Run(mut op) => {
                 assert!(op.is_valid(), "valid kernel operation: {op:?}");
-                let result = if let Op::Remove { dir, name, .. } = &op {
+                let result = if let Op::Read { buf, at, .. } = &mut op {
+                    if fail {
+                        Err(Error::Permission)
+                    } else {
+                        let opened = file.as_mut().expect("opened results");
+                        opened.seek(SeekFrom::Start(*at)).unwrap();
+                        let count = opened.read(buf.get_mut(..buf.len().min(997)).unwrap()).unwrap();
+                        Ok(kernel::Done::Count(u32::try_from(count).unwrap()))
+                    }
+                } else if let Op::Remove { dir, name, .. } = &op {
                     completed(fs::remove_file(under(&roots, *dir, name)))
                 } else if let Op::MakeDirectory { dir, name, .. } = &op {
                     completed(fs::create_dir(under(&roots, *dir, name)))
@@ -82,6 +90,14 @@ fn file_steps(root: &Path, directory: Box<[u8]>, content: Option<Box<[u8]>>, mar
                         assert!(place.is_dir());
                         roots.push((fd, place)).unwrap();
                         Ok(kernel::Done::Fd(fd))
+                    } else if let kernel::OpenHow::ReadNoFollow = how {
+                        match fs::File::open(place) {
+                            Ok(opened) => {
+                                file = Some(opened);
+                                Ok(kernel::Done::Fd(fd))
+                            }
+                            Err(why) => Err(error(why)),
+                        }
                     } else {
                         match fs::OpenOptions::new().write(true).create_new(true).open(place) {
                             Ok(opened) => {
@@ -106,6 +122,9 @@ fn file_steps(root: &Path, directory: Box<[u8]>, content: Option<Box<[u8]>>, mar
                     drop(file.take());
                     Ok(kernel::Done::Count(0))
                 } else if let Op::Rename { from_dir, from, to_dir, to, .. } = &op {
+                    if to.as_ref() == b"rerun" {
+                        assert_eq!(from.as_ref(), b"rerun.tmp");
+                    }
                     completed(fs::rename(under(&roots, *from_dir, from), under(&roots, *to_dir, to)))
                 } else {
                     panic!("unexpected file operation: {op:?}")
@@ -148,7 +167,10 @@ fn perform(root: &Path, at: &git::Place, action: git::Reds, fail: bool) -> git::
                     &fixtures::checkout(),
                 )
             }
-            Next::Reds { directory, content, marker } => return file_steps(root, directory, content, marker, fail),
+            Next::Reds { directory, content, marker, rerun } => {
+                return file_steps(root, Task::reds(directory, content, marker, rerun), fail);
+            }
+            Next::Results { directory } => return file_steps(root, Task::results(directory), fail),
             Next::End(done) => return done,
             Next::Snapshot { .. }
             | Next::Make
@@ -177,7 +199,10 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(base)]);
     fs::create_dir_all(repo.join(".git/temper")).unwrap();
     fs::write(repo.join(".git/temper/reds"), b"stale").unwrap();
-    assert_eq!(perform(root, &at, git::Reds::Prepare { wait_ms: 6000 }, false), git::Done::Succeeded);
+    assert_eq!(
+        perform(root, &at, git::Reds::Prepare { wait_ms: 6000, rerun_processes: 4 }, false),
+        git::Done::Succeeded
+    );
     assert!(!repo.join(".git/temper/reds").exists());
     assert_eq!(fs::read(repo.join(".git/temper/reds-wait")).unwrap(), b"temper-reds-wait 1 6000\n");
     let action = git::Reds::Write {
@@ -236,7 +261,10 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     perform(root, &at, git::Reds::Clear, false);
     git(&repo, &[b"update-ref", b"-d", b"refs/temper/landing"]);
     fs::remove_file(repo.join(".git/temper/reds-wait")).unwrap();
-    assert_eq!(perform(root, &at, git::Reds::Prepare { wait_ms: 6000 }, false), git::Done::Succeeded);
+    assert_eq!(
+        perform(root, &at, git::Reds::Prepare { wait_ms: 6000, rerun_processes: 4 }, false),
+        git::Done::Succeeded
+    );
     assert!(!repo.join(".git/temper/reds-wait").exists());
     assert!(!repo.join(".git/temper/reds").exists());
     let wide_at = git::Place { repository: b"sha256".as_slice().into(), ..at };
@@ -255,4 +283,82 @@ fn real_git_filters_the_pinned_base_and_installs_whole_files_in_git_paths() {
     };
     assert_eq!(perform(root, &wide_at, action, false), git::Done::Succeeded);
     assert_eq!(fs::read(wide.join(".git/temper/reds")).unwrap(), b"temper-reds 1\n- test a::t wide\n");
+}
+
+#[test]
+fn prepare_and_start_clear_results_and_install_the_rerun_marker() {
+    let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "worker-rerun");
+    let root = scratch.path();
+    let at = git::Place { workspace: Token::new(7), repository: b"app".as_slice().into(), git: None };
+    let repo = path(root, &invocation::place(&at));
+    fs::create_dir_all(&repo).unwrap();
+    git(&repo, &[b"init", b"-q"]);
+    let head = commit(&repo, "pin");
+    git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(head)]);
+    let files = repo.join(".git/temper");
+    fs::create_dir_all(&files).unwrap();
+    for (processes, expected) in
+        [(4, b"temper-rerun 1 4\n".as_slice()), (0, b"temper-rerun 1 0\n"), (16, b"temper-rerun 1 16\n")]
+    {
+        fs::write(files.join("reds"), b"stale").unwrap();
+        fs::write(files.join("check-results"), b"stale").unwrap();
+        fs::write(files.join("rerun.tmp"), b"unfinished").unwrap();
+        assert_eq!(
+            perform(root, &at, git::Reds::Prepare { wait_ms: 6000, rerun_processes: processes }, false),
+            git::Done::Succeeded
+        );
+        assert_eq!(fs::read(files.join("rerun")).unwrap(), expected);
+        assert!(!files.join("rerun.tmp").exists());
+        assert!(!files.join("reds").exists());
+        assert!(!files.join("check-results").exists());
+        fs::write(files.join("check-results"), b"another check").unwrap();
+        assert_eq!(perform(root, &at, git::Reds::Clear, false), git::Done::Succeeded);
+        assert!(!files.join("check-results").exists());
+        assert_eq!(fs::read(files.join("rerun")).unwrap(), expected);
+    }
+}
+
+#[test]
+fn results_are_read_to_the_bound_then_removed_even_on_read_failure() {
+    let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "worker-results");
+    let root = scratch.path();
+    let at = git::Place { workspace: Token::new(7), repository: b"app".as_slice().into(), git: None };
+    let repo = path(root, &invocation::place(&at));
+    fs::create_dir_all(&repo).unwrap();
+    git(&repo, &[b"init", b"-q"]);
+    let head = commit(&repo, "pin");
+    git(&repo, &[b"update-ref", b"refs/temper/landing", &invocation::hex(head)]);
+    let files = repo.join(".git/temper");
+    fs::create_dir_all(&files).unwrap();
+    for (size, fail) in [
+        (None, false),
+        (Some(0), false),
+        (Some(31), false),
+        (Some(262_144), false),
+        (Some(262_145), false),
+        (Some(300_000), false),
+        (Some(31), true),
+    ] {
+        fs::write(files.join("reds"), b"stale").unwrap();
+        let expected = match size {
+            Some(size) => Some(repeated(b"x", size.min(262_145))),
+            None => None,
+        };
+        if let Some(size) = size {
+            fs::write(files.join("check-results"), repeated(b"x", size)).unwrap();
+        }
+        let expected = if fail { None } else { expected };
+        assert_eq!(perform(root, &at, git::Reds::Read { check: 1 }, fail), git::Done::Results { bytes: expected });
+        assert!(!files.join("check-results").exists());
+        assert!(!files.join("reds").exists());
+        assert_eq!(perform(root, &at, git::Reds::Read { check: 1 }, false), git::Done::Results { bytes: None });
+    }
+}
+
+fn repeated(part: &[u8], count: usize) -> Box<[u8]> {
+    let mut out = skein_lib::Writer::new(part.len().checked_mul(count).unwrap());
+    for _ in 0..count {
+        out.put(part).unwrap();
+    }
+    out.finish()
 }

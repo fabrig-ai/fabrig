@@ -117,16 +117,31 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             }
             let directory = [path(&at).as_slice(), b"/.git/temper"].concat();
             let file = [directory.as_slice(), b"/reds"].concat();
+            let results = [directory.as_slice(), b"/check-results"].concat();
             match action {
-                temper_worker_domain_checkout::git::Reds::Prepare { wait_ms } => {
+                temper_worker_domain_checkout::git::Reds::Prepare { wait_ms, rerun_processes } => {
+                    disk.remove(&results);
                     disk.remove(&file);
                     disk.mkdir(&directory);
                     disk.write(
                         &[directory.as_slice(), b"/reds-wait"].concat(),
                         format!("temper-reds-wait 1 {wait_ms}\n").as_bytes(),
                     );
+                    disk.write(
+                        &[directory.as_slice(), b"/rerun"].concat(),
+                        format!("temper-rerun 1 {rerun_processes}\n").as_bytes(),
+                    );
                 }
-                temper_worker_domain_checkout::git::Reds::Clear => disk.remove(&file),
+                temper_worker_domain_checkout::git::Reds::Clear => {
+                    disk.remove(&file);
+                    disk.remove(&results);
+                }
+                temper_worker_domain_checkout::git::Reds::Read { .. } => {
+                    disk.remove(&file);
+                    let bytes = disk.content(&results).map(|bytes| Box::from(&bytes[..bytes.len().min(262_145)]));
+                    disk.remove(&results);
+                    return Done::Results { bytes };
+                }
                 temper_worker_domain_checkout::git::Reds::Write { .. } => return Done::Failed { fault: Fault::Broken },
             }
             Done::Succeeded
