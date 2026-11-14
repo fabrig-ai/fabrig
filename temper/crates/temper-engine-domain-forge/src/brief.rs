@@ -464,21 +464,10 @@ pub(crate) fn brief_answer(
         }
         Ok(_) | Err(_) => {
             refused(fetch.owner, fetch.stage, reason, None, error, out);
-            if unread.fate == crate::BriefFate::Capacity || !crate::held::stand_on_partner(domain, fetch.owner, false) {
-                crate::held::ready(domain, fetch.owner, BriefRead::Failed(unread), out);
+            if let Some(read) = unread_section(domain, fetch.owner, fetch.stage, unread, &mut fetch.words) {
+                crate::held::ready(domain, fetch.owner, read, out);
                 return true;
             }
-            let marker = match fetch.stage {
-                BriefStage::Item | BriefStage::Pull | BriefStage::Files | BriefStage::Compare => {
-                    b"[the pull request could not be read: ".as_slice()
-                }
-                BriefStage::Reviews | BriefStage::Remarks => b"[the reviews could not be read: ",
-                BriefStage::Checks => b"[the failed checks could not be read: ",
-                BriefStage::Job | BriefStage::Run => unreachable!("job failures keep their check's marker"),
-            };
-            append(&mut fetch.words, marker);
-            append(&mut fetch.words, &unread.words);
-            append(&mut fetch.words, b"]\n");
             None
         }
     };
@@ -495,6 +484,31 @@ pub(crate) fn brief_answer(
         finish(domain, fetch, false, out);
     }
     true
+}
+
+/// A brief section's read that fails (temper/docs/design/domain/forge/change/repairs.md).
+fn unread_section(
+    domain: &mut Domain,
+    owner: Token,
+    stage: BriefStage,
+    unread: brief_words::BriefUnread,
+    words: &mut BriefWords,
+) -> Option<BriefRead> {
+    if unread.fate == crate::BriefFate::Capacity || !crate::held::stand_on_partner(domain, owner, false) {
+        return Some(BriefRead::Failed(unread));
+    }
+    let marker = match stage {
+        BriefStage::Item | BriefStage::Pull | BriefStage::Files | BriefStage::Compare => {
+            b"[the pull request could not be read: ".as_slice()
+        }
+        BriefStage::Reviews | BriefStage::Remarks => b"[the reviews could not be read: ",
+        BriefStage::Checks => b"[the failed checks could not be read: ",
+        BriefStage::Job | BriefStage::Run => unreachable!("job failures keep their check's marker"),
+    };
+    append(words, marker);
+    append(words, &unread.words);
+    append(words, b"]\n");
+    None
 }
 
 fn finish(domain: &mut Domain, mut fetch: BriefFetch, cut: bool, out: &mut Queue<Request>) {
@@ -832,7 +846,9 @@ pub(crate) fn gather(
     }
     let read = match source {
         BriefSource::Document => {
-            crate::brief_document::gather(domain, owner, parts, max_job_bytes, out);
+            if !crate::brief_document::gather(domain, owner, parts, max_job_bytes, out) {
+                return;
+            }
             None
         }
         BriefSource::Home { repository, design } => Some(match domain.repository(repository) {
@@ -854,7 +870,33 @@ pub(crate) fn gather(
     };
     if let Some(read) = read {
         crate::held::ready(domain, owner, read, out);
+    } else {
+        require_read(domain, owner, source, out);
     }
+}
+
+/// A section the forge answers later has a read of its own
+/// (temper/docs/design/domain/forge/change/repairs.md).
+pub(super) fn require_read(domain: &mut Domain, section: Token, source: BriefSource, out: &mut Queue<Request>) {
+    if section_owner(domain, section).is_some()
+        || domain.document_fetches.contains_key(&crate::brief_document::call(section))
+    {
+        return;
+    }
+    let stage = match source {
+        BriefSource::Ci { .. } => "checks",
+        BriefSource::Reviews { .. } | BriefSource::Request { .. } => "reviews",
+        BriefSource::Pull { .. } | BriefSource::Home { .. } => "item",
+        BriefSource::Document => "branch",
+    };
+    out.push(Request::BriefReadRefused {
+        section,
+        stage,
+        reason: "the change cannot be named in its section",
+        heads: None,
+        error: None,
+    });
+    crate::held::ready(domain, section, BriefRead::Failed(unnamed()), out);
 }
 
 fn next_remarks(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
@@ -1025,12 +1067,16 @@ pub(super) fn brief_ci(
         return Some(BriefRead::Failed(unnamed()));
     };
     if let change::State::Repairing { why: change::Repair::LandingAt { gate, candidate, .. }, .. } = row.change.state {
-        let words = domain.candidate_failure_words(row.task, gate, candidate)?;
+        let Some(words) = domain.candidate_failure_words(row.task, gate, candidate) else {
+            return Some(landing_gone(domain, owner, parts, bytes, out));
+        };
         let kept = crate::text::fit(&words, skein_lib::usize_of(bytes), b"...");
         return Some(BriefRead::Got { left: skein_lib::len_u64(words.len().saturating_sub(kept.len())), bytes: kept });
     }
     if let change::State::Repairing { why: change::Repair::Landing { gate }, .. } = row.change.state {
-        let words = domain.landing_failure_words(row.task, gate)?;
+        let Some(words) = domain.landing_failure_words(row.task, gate) else {
+            return Some(landing_gone(domain, owner, parts, bytes, out));
+        };
         let kept = crate::text::fit(&words, skein_lib::usize_of(bytes), b"...");
         return Some(BriefRead::Got { left: skein_lib::len_u64(words.len().saturating_sub(kept.len())), bytes: kept });
     }
@@ -1090,6 +1136,15 @@ pub(super) fn brief_ci(
         },
     });
     None
+}
+
+fn landing_gone(domain: &mut Domain, owner: Token, parts: u32, bytes: u32, out: &mut Queue<Request>) -> BriefRead {
+    refused(owner, BriefStage::Checks, "the landing no longer keeps its failure", None, None, out);
+    let mut words = BriefWords::with_capacity(bytes, false);
+    match unread_section(domain, owner, BriefStage::Checks, brief_words::landing_gone(), &mut words) {
+        Some(read) => read,
+        None => brief_part(&words, parts, bytes),
+    }
 }
 
 fn decimal(number: u64) -> Box<[u8]> {
