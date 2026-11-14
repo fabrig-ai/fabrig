@@ -164,7 +164,7 @@ struct StepInput {
 #[derive(Hash, Debug)]
 pub(crate) struct Outboxed {
     pub(crate) entry: skein_forge_client::Entry,
-    held: bool,
+    pub(crate) held: bool,
     handoff: Handoff,
 }
 

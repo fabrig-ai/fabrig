@@ -2028,7 +2028,23 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
     }
 }
 fn result(d: &Domain, task: u64, member: u16, gate: u16, operation: u8) -> policy::Status {
-    d.landing.results.get(&(task, member, gate, operation)).copied().unwrap_or(policy::Status::Unknown)
+    if let Some(status) = d.landing.results.get(&(task, member, gate, operation)) {
+        return *status;
+    }
+    // Recovery keeps each effect's identity in the landing and outbox (landing.md, 12).
+    if let Some(row) = d.landing.rows.get(&task) {
+        for item in &row.entries {
+            if item.member == member
+                && item.gate == gate
+                && self::operation(item.operation) == operation
+                && (item.preparation.is_none() || item.preparation == Some(row.landing.preparation))
+                && let Some(entry) = d.entries.get(&item.entry)
+            {
+                return if entry.held { policy::Status::Failed } else { policy::Status::Pending };
+            }
+        }
+    }
+    policy::Status::Unknown
 }
 #[expect(clippy::too_many_lines, reason = "one policy decision and its atomic durable outputs")]
 fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {

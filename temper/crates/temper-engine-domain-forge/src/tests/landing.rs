@@ -763,6 +763,58 @@ fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
     fixtures::answer(d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
+/// A restored merge is recovered by its outbox entry, not proposed again (domain/landing.md, 12).
+#[test]
+fn a_restored_turn_waits_for_its_existing_merge_entry() {
+    let mut d = turn_fixture();
+    let mut row = d.landing.rows.get(&61).expect("turn").clone();
+    row.entries = Box::new([LandingEntry {
+        entry: 90,
+        member: 0,
+        gate: 0,
+        operation: Operation::Merge,
+        run: None,
+        preparation: Some(row.landing.preparation),
+        base: Some(fixtures::BASE),
+    }]);
+    outputs(&mut d, Event::Restore { record: Stored::Landing(row) });
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Entry {
+                entry: skein_forge_client::Entry {
+                    number: 90,
+                    task: 61,
+                    repository: REPO,
+                    effect: skein_forge_client::Effect {
+                        write: skein_forge::api::Write::Merge {
+                            number: 2,
+                            head: fixtures::HEAD,
+                            how: skein_forge::api::MergeHow::FastForwardOnly,
+                        },
+                        condition: skein_forge_client::Condition::Merge { base: b"main".as_slice().into() },
+                    },
+                    start: None,
+                    attempt: None,
+                    failures: 0,
+                    queued: false,
+                },
+                held: false,
+            },
+        },
+    );
+    let requests = turn_reviews(&mut d);
+    let mut waiting = false;
+    for request in &requests {
+        if let Request::LandingDecision { decision: policy::Decision::Wait { .. }, entry: None, .. } = request {
+            waiting = true;
+        }
+    }
+    assert!(waiting, "the saved merge retains its turn: {requests:?}");
+    assert_eq!(d.landing.rows.get(&61).expect("turn").entries.len(), 1);
+    assert!(d.entries.get(&91).is_none(), "no second merge is proposed");
+}
+
 fn merge_evidence(requests: &[Request]) -> &[LandingEvidence] {
     for request in requests {
         if let Request::LandingDecision {
