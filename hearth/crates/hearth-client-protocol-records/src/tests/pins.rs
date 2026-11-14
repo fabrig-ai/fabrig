@@ -1,4 +1,4 @@
-//! Whole-output pins (hearth/docs/design/domain/render/contracts.md, 4).
+//! Whole-output pins (hearth/docs/design/client/README.md, 3.2).
 use super::fixtures;
 use crate::{
     form::{self, Form},

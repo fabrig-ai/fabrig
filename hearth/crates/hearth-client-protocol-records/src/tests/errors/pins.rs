@@ -1,4 +1,4 @@
-//! Literal printed-form pins (hearth/docs/design/domain/render/contracts.md, 4).
+//! Literal printed-form pins (hearth/docs/design/client/README.md, 3.2).
 use crate::{form::Form, tests::fixtures};
 use hearth_domain_render_vocabulary as render;
 use render::errors::{Error, Kind};
