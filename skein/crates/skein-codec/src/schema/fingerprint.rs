@@ -3,6 +3,9 @@
 use super::{DeclIx, FieldIx, Held, Schema, Shape, Type, TypeIx, VariantIx, add};
 use skein_lib::{List, sha256::Sha256};
 
+mod value;
+pub use value::{LayoutError, MAX_HELD, Root};
+
 /// A layout's SHA-256 (data/codec/README.md, section 9).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fingerprint([u8; 32]);
@@ -158,3 +161,5 @@ fn hash_type(schema: &Schema, declarations: &List<Fingerprint>, mut at: TypeIx, 
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod value_tests;
