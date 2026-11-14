@@ -75,15 +75,19 @@ impl Delegate for Process {
 }
 
 fn machine(procs: &[Process]) -> &Application {
-    match &procs[0] {
-        Process::Machine(application) => application,
-        Process::Shell(_) => panic!("the root process is the machine"),
+    check_machine(procs).unwrap_or_else(|why| panic!("{why}"))
+}
+
+fn check_machine(procs: &[Process]) -> Result<&Application, String> {
+    match procs.first() {
+        Some(Process::Machine(application)) => Ok(application),
+        Some(Process::Shell(_)) | None => Err("the root process is the machine".into()),
     }
 }
 
 impl Expectation<Process> for Terminal {
     fn check(&self, now: Time, procs: &[Process]) -> Result<bool, String> {
-        <Self as Expectation<Application>>::check(self, now, std::slice::from_ref(machine(procs)))
+        <Self as Expectation<Application>>::check(self, now, std::slice::from_ref(check_machine(procs)?))
     }
 
     fn deadline(&self) -> Time {
@@ -92,10 +96,12 @@ impl Expectation<Process> for Terminal {
 }
 
 impl Referee<Process> for Expectations<Process, Terminal> {
-    fn observe(&mut self, now: Time, procs: &[Process]) {
-        let application = machine(procs);
-        assert!(application.terminals.len() <= application.expected, "one terminal per answering act");
-        Expectations::observe(self, now, procs);
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        let application = check_machine(procs)?;
+        if application.terminals.len() > application.expected {
+            return Err("one terminal per answering act".into());
+        }
+        self.check(now, procs)
     }
 
     fn next_deadline(&self) -> Option<Time> {

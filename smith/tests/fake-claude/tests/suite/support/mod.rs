@@ -426,18 +426,19 @@ impl Delegate for Process {
 }
 
 pub struct Judge {
+    finding: Option<String>,
     last_word: skein_world::LastWord,
     controls: skein_world::Controls,
 }
 
-impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
+impl Judge {
+    fn act_checked(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
         let server_called = match procs.get(2) {
             Some(Process::Server(server)) => !server.calls().is_empty(),
             _ => false,
         };
         let server_present = procs.len() > 2;
-        if let Process::Parent(parent) = &mut procs[0] {
+        if let Process::Parent(parent) = procs.first_mut().ok_or("parent first")? {
             if server_called
                 && parent.invocations.front().and_then(|invocation| invocation.control_after.as_deref()) == Some("call")
             {
@@ -452,30 +453,52 @@ impl Referee<Process> for Judge {
                 parent.signal_ready = true;
             }
         }
-        if let Process::Parent(parent) = &mut procs[0]
+        if let Process::Parent(parent) = procs.first_mut().ok_or("parent first")?
             && parent.signal_ready
             && !parent.signalled
         {
-            let signal = parent.invocations.front().expect("invocation").signal.as_ref().expect("signal").0;
+            let signal = parent.invocations.front().ok_or("invocation")?.signal.as_ref().ok_or("signal")?.0;
             self.controls.signal(1, signal);
             parent.signalled = true;
         }
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
-        let Process::Parent(parent) = &procs[0] else { panic!("parent first") };
+}
+
+impl Referee<Process> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let Process::Parent(parent) = procs.first().ok_or("parent first")? else {
+            return Err(String::from("parent first"));
+        };
         if let (Some(Process::Fake(fake)), Some(Process::Server(server))) = (procs.get(1), procs.get(2))
             && fake.exit().is_some()
+            && server.exit() != Some(Exit::Code(0))
         {
-            assert_eq!(server.exit(), Some(Exit::Code(0)), "server settles before fake exits");
+            return Err(format!(
+                "server settles before fake exits\nleft: {:?}\nright: {:?}",
+                server.exit(),
+                Some(Exit::Code(0))
+            ));
         }
         if parent.signal_at.is_some() {
             for child in procs.iter().skip(1) {
-                assert!(child.exit().is_none(), "silent child waits for termination");
+                if child.exit().is_some() {
+                    return Err(String::from("silent child waits for termination"));
+                }
             }
         }
+        Ok(())
     }
     fn passed(&self) -> bool {
-        true
+        self.finding.is_none()
     }
     fn last_word(&self) -> skein_world::LastWord {
         self.last_word
@@ -581,7 +604,7 @@ pub fn run_with(invocations: Vec<Invocation>, options: Options<'_>) -> Run {
     };
     let mut world =
         skein_world::World::new_controlled(7, skein_sim::Config::calm(), skein_world::Memory::Checked, |controls| {
-            Judge { last_word, controls }
+            Judge { finding: None, last_word, controls }
         })
         .with_machine(machine);
     let server = smith_fake_claude::served(b"server");

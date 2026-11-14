@@ -12,15 +12,16 @@ use smith_local_process_world::process::{BrowserProcess, IssuerProcess, Proc};
 use smith_real_world::Scratch;
 
 struct LoginJudge {
+    finding: Option<String>,
     deadline: Time,
     visited: bool,
 }
-impl Referee<Process> for LoginJudge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
+impl LoginJudge {
+    fn act_checked(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
         let binary = procs
             .iter()
             .find_map(|proc| if let Process::Binary(binary) = proc { Some(binary.as_ref()) } else { None })
-            .expect("binary");
+            .ok_or("binary")?;
         let exit = binary.exit_status();
         let issuer_listening = procs.iter().any(|proc| match proc {
             Process::Script(Proc::Issuer(issuer)) => issuer.peer().address().is_some(),
@@ -44,8 +45,22 @@ impl Referee<Process> for LoginJudge {
                 Process::Binary(_) | Process::Script(_) | Process::Sample(_) => {}
             }
         }
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+}
+
+impl Referee<Process> for LoginJudge {
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         Some(self.deadline)
     }
@@ -53,7 +68,7 @@ impl Referee<Process> for LoginJudge {
         (now >= self.deadline).then(|| "fake login did not settle".into())
     }
     fn passed(&self) -> bool {
-        self.visited
+        self.finding.is_none() && (self.visited)
     }
 }
 
@@ -83,8 +98,11 @@ pub fn sign_in(scratch: &Scratch) -> Ran {
         1_048_576,
     )
     .expect("login pipes");
-    let mut world =
-        real::World::new(LoginJudge { deadline: now.saturating_add(Duration::from_secs(2)), visited: false });
+    let mut world = real::World::new(LoginJudge {
+        finding: None,
+        deadline: now.saturating_add(Duration::from_secs(2)),
+        visited: false,
+    });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn(|| {
         Process::Script(Proc::Issuer(Box::new(IssuerProcess::at(skein_fake_peers::Transport::Plaintext, 34_444))))

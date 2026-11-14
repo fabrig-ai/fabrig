@@ -28,7 +28,7 @@ fn an_inline_chat_writes_a_complete_stream_through_its_answer() {
     let mut world = World::traced(11, &files, Placement::InProcess, b"First answer");
     world.settle();
     let records = world.records();
-    events::check(&records);
+    events::check(&records).expect("conforming events");
     let Event::SessionStarted(header) = &records[0].event else { panic!("header first") };
     assert_eq!(header.mode, Mode::Chat);
     assert_eq!(header.chat.as_deref(), Some(b"main".as_slice()));
@@ -39,7 +39,7 @@ fn a_slowed_destination_loses_no_record_under_complete() {
     let files = Files::new();
     let mut world = World::traced(111, &files, Placement::InProcess, b"First answer");
     world.settle();
-    events::check(&world.records());
+    events::check(&world.records()).expect("conforming events");
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn the_spawned_agents_records_stay_in_its_own_trace() {
     world.settle();
     let product = world.records();
     let agent = world.agent_records();
-    events::check(&agent);
+    events::check(&agent).expect("conforming events");
     assert!(agent.iter().any(|r| matches!(r.event, Event::RunStarted(_))));
     assert!(agent.iter().any(|r| matches!(r.event, Event::ResponseCompleted(_))));
     assert!(!product.iter().any(|r| matches!(r.event, Event::RunStarted(_) | Event::ResponseCompleted(_))));

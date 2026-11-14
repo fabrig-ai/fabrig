@@ -20,6 +20,7 @@ const KILL_AT: Time = Time::from_nanos(359_000_000);
 
 fn policy() -> Policy {
     Policy {
+        finding: None,
         deadline: Some(HARD_AT),
         teardown: TEARDOWN,
         grace: GRACE,
