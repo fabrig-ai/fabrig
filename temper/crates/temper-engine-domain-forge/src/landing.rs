@@ -866,6 +866,25 @@ pub(crate) fn job_woken(d: &mut Domain, task: u64) {
         d.landing.pending.get_mut(&token).expect("pending landing gather").woken = true;
     }
 }
+/// A member's evidence before its reads: only what its change row already holds.
+fn unread_evidence(member: u64, change: &crate::ChangeRow) -> crate::LandingEvidence {
+    crate::LandingEvidence {
+        change: member,
+        facts: crate::ChangeEvidence {
+            touched: crate::Touched::UNKNOWN,
+            prior: change.change.clone(),
+            head: None,
+            base_tip: [0; 32],
+            contains_base: change::Status::Unknown,
+            ci: change::Status::Unknown,
+            gates: change.verdicts.clone(),
+            reviews: Box::new([]),
+            reviews_complete: false,
+            size: None,
+        },
+    }
+}
+
 pub(crate) fn step(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -917,23 +936,7 @@ pub(crate) fn step(
     let mut paths = List::with_capacity(env.limits.landing_members);
     for member in &row.landing.members {
         let change = d.changes.get(&member.change).expect("member change");
-        evidence
-            .push(crate::LandingEvidence {
-                change: member.change,
-                facts: crate::ChangeEvidence {
-                    touched: crate::Touched::UNKNOWN,
-                    prior: change.change.clone(),
-                    head: None,
-                    base_tip: [0; 32],
-                    contains_base: change::Status::Unknown,
-                    ci: change::Status::Unknown,
-                    gates: change.verdicts.clone(),
-                    reviews: Box::new([]),
-                    reviews_complete: false,
-                    size: None,
-                },
-            })
-            .expect("bounded evidence");
+        evidence.push(unread_evidence(member.change, change)).expect("bounded evidence");
         facts.push(fresh(d.train_gates(&row, repository(member)))).expect("admitted members");
         paths.push(Paths { files: Box::new([]), whole: false }).expect("admitted members");
     }
