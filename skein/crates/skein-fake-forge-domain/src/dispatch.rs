@@ -175,12 +175,20 @@ fn pending(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, run: u64,
         if entry.id == job {
             entry.wait = wait;
             if wait.is_none() {
-                entry.steps = Box::new([actions::Step {
-                    number: 1,
-                    name: entry.name.clone(),
-                    status: actions::StepStatus::Running,
-                    log: Box::new([]),
-                }]);
+                entry.steps = Box::new([
+                    actions::Step {
+                        number: 0,
+                        name: copy_of(b"Set up job"),
+                        status: actions::StepStatus::Success,
+                        log: Box::new([]),
+                    },
+                    actions::Step {
+                        number: 1,
+                        name: entry.name.clone(),
+                        status: actions::StepStatus::Running,
+                        log: Box::new([]),
+                    },
+                ]);
             }
         }
     }

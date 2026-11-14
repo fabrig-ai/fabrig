@@ -1,5 +1,4 @@
 use super::fixtures::{self, decode, limits};
-use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -156,10 +155,10 @@ fn job_metadata_bounds_and_malformed_steps_reject_the_answer() {
         "STEPS",
         r#"[{"number":1,"name":"build","conclusion":"failure"},{"number":2,"name":"later","conclusion":"success"}]"#,
     );
-    let error = decode(Kind::Job, input.as_bytes(), 7, &limits).1.unwrap_err();
+    let Document::Job(job) = decode(Kind::Job, input.as_bytes(), 7, &limits).1.unwrap() else { panic!("job") };
+    assert_eq!(job.step, Some(api::Step { number: 1, name: Box::from(b"build".as_slice()) }));
     let mut call = Call::new(8, true, bounds());
-    call.head(200, None);
-    assert_eq!(call.heard(Heard::Done(Body::Malformed(error))), Some(failed(api::Error::TooLarge(Excess::unnamed()))));
+    assert_eq!(call.job(job), Some(Step::send(request(true))), "streaming steps do not consume inner rows");
 }
 #[test]
 fn job_missing_statuses_and_each_attempt_mismatch_are_missing_job() {

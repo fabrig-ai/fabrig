@@ -35,7 +35,7 @@ pub fn run() -> Run {
 pub fn jobs() -> Box<[Job]> {
     Box::from([
         Job {
-            labels: Box::new([]),
+            labels: Box::new([Box::from(b"kit-host".as_slice())]),
             cut: false,
             id: 1,
             run_id: 1,
@@ -44,7 +44,7 @@ pub fn jobs() -> Box<[Job]> {
             status: StepStatus::Success,
         },
         Job {
-            labels: Box::new([]),
+            labels: Box::new([Box::from(b"kit-host".as_slice())]),
             cut: false,
             id: 2,
             run_id: 1,
@@ -70,7 +70,7 @@ pub fn raw() -> Request {
 pub fn failing_job() -> Answer {
     Answer::Job {
         job: Job {
-            labels: Box::new([]),
+            labels: Box::new([Box::from(b"kit-host".as_slice())]),
             cut: false,
             id: 2,
             run_id: 1,

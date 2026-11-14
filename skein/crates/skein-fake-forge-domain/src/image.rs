@@ -68,7 +68,9 @@ impl Domain {
             return Err(Refusal::Malformed("image length"));
         }
         let mut input = Reader::new(bytes);
-        require(input.bytes(8) == Some(b"FORGEIMG".as_slice()), "image format")?;
+        let format = input.bytes(8);
+        let job_state = format == Some(b"FORGEIM2".as_slice());
+        require(job_state || format == Some(b"FORGEIMG".as_slice()), "image format")?;
         let mut domain = Domain::new(config, 0);
         let limits = &config.limits;
         for _ in 0..count(&mut input, limits.repositories, "repositories")? {
@@ -114,7 +116,7 @@ impl Domain {
             }
             extension = if input.is_empty() { None } else { input.bytes(8) };
         }
-        if extension.is_some() {
+        if job_state || extension.is_some() {
             require(extension == Some(b"JOBST001".as_slice()), "trailing bytes")?;
             job_state::get(&mut input, &mut domain, limits)?;
         }
@@ -123,7 +125,7 @@ impl Domain {
     }
 }
 fn put(out: &mut Sink, domain: &Domain) {
-    out.put(b"FORGEIMG");
+    out.put(b"FORGEIM2");
     out.u32(domain.repositories.len());
     for (_, r) in &domain.repositories {
         repositories::put(out, r);

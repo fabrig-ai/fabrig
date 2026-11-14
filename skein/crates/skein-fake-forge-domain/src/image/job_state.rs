@@ -1,4 +1,4 @@
-//! Optional versioned image extension; older images default to no requirements.
+//! Versioned job-state records; legacy images default to no requirements.
 use super::{Domain, Reader, Refusal, Sink, codec, fields};
 use crate::{Limits, actions::JobWait, api};
 use skein_lib::List;
