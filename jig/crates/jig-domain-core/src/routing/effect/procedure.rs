@@ -135,6 +135,16 @@ pub(crate) fn apply(
         }
         return out;
     }
+    let mut later = Queue::uncapped();
+    for _ in 0..routed.len() {
+        let request = routed.pop().expect("routed step count");
+        match request {
+            Request::Now(now) => later.push(Request::Now(now)),
+            Request::Write(_) | Request::Ask { .. } | Request::Held(_) | Request::ProjectMade { .. } => {
+                out.push(request)
+            }
+        }
+    }
     let mut revisions = List::with_capacity(revised.capacity());
     for number in revised.into_boxed() {
         revisions
@@ -151,9 +161,8 @@ pub(crate) fn apply(
     }
     // The connector records the admitted batch before a retained wake can
     // activate its next step against that connector's state.
-    for _ in 0..routed.len() {
-        let request = routed.pop().expect("routed step count");
-        out.push(request);
+    for _ in 0..later.len() {
+        out.push(later.pop().expect("deferred immediate output count"));
     }
     out
 }

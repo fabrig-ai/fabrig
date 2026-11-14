@@ -11,7 +11,7 @@ fn procedure() -> Harness {
     h
 }
 
-fn wait(h: &mut Harness) -> Vec<crate::Request> {
+fn wait(h: &mut Harness) -> Box<[crate::Request]> {
     let (_, _, step) = h.domain.procedure_due(1).expect("due procedure");
     let read = h.domain.procedure_offered(1);
     h.send(Event::Procedure {
@@ -21,6 +21,7 @@ fn wait(h: &mut Harness) -> Vec<crate::Request> {
         read,
         decision: ProcedureDecision::new(ProcedureEnd::Wait),
     })
+    .into_boxed_slice()
 }
 
 #[test]
@@ -50,10 +51,17 @@ fn a_pending_wake_follows_the_owners_step_acknowledgment() {
     let mut h = procedure();
     h.send(Event::WakeProcedure { task: 1 });
     let out = wait(&mut h);
-    let done = out.iter().position(|request| matches!(request, crate::Request::Done { .. })).expect("step done");
-    let wake = out
-        .iter()
-        .position(|request| matches!(request, crate::Request::Activate { context } if context.task == 1))
-        .expect("next step");
-    assert!(done < wake, "the owner records its decision before another activation: {out:?}");
+    let mut acknowledged = false;
+    let mut activated = false;
+    for request in out {
+        if let crate::Request::Done { .. } = request {
+            acknowledged = true;
+        } else if let crate::Request::Activate { context } = request
+            && context.task == 1
+        {
+            assert!(acknowledged, "the owner records its decision before another activation");
+            activated = true;
+        }
+    }
+    assert!(activated);
 }

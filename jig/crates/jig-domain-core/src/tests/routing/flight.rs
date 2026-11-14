@@ -492,26 +492,44 @@ fn a_procedure_owner_hears_its_step_before_a_retained_activation() {
     let (mut core, limits) = tree_core();
     let mut parent = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, None);
     parent.executor = tasks::Executor::Procedure { connector: 2, code: 1 };
-    send_task(&mut core, &limits, tasks::Event::Make {
-        reply_to: ReplyTo::new(Token::new(1)), creator: tasks::Party::Person(1), batch: Box::new([parent]),
-    });
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::Make {
+            reply_to: ReplyTo::new(Token::new(1)),
+            creator: tasks::Party::Person(1),
+            batch: Box::new([parent]),
+        },
+    );
     send_task(&mut core, &limits, tasks::Event::WakeProcedure { task: 1 });
     let read = core.tasks.procedure_offered(1);
     let mut out = crate::routing::effect::procedure::apply(
-        &mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-        ReplyTo::new(Token::new(u64::MAX)), 1, 1, read,
+        &mut core,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+        ReplyTo::new(Token::new(u64::MAX)),
+        1,
+        1,
+        read,
         tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
     );
+    let mut saved = false;
     let mut acknowledged = false;
     let mut activated = false;
     while let Some(request) = out.pop() {
-        match request {
-            Request::Ask { ask: Ask::StepMade { task: 1, .. }, .. } => acknowledged = true,
-            Request::Now(now) if matches!(now.as_ref(), Now::Activate { context } if context.task == 1) => {
-                assert!(acknowledged, "the owner receives its step before the next activation");
-                activated = true;
-            }
-            _ => {}
+        if let Request::Write(Write::Save(Record::Tasks(tasks::Stored::Live(row)))) = &request
+            && row.number == 1
+        {
+            saved = true;
+        }
+        if let Request::Ask { ask: Ask::StepMade { task: 1, .. }, .. } = request {
+            assert!(saved, "the owner observes the task writes before its step acknowledgment");
+            acknowledged = true;
+        } else if let Request::Now(now) = request
+            && let Now::Activate { context } = now.as_ref()
+            && context.task == 1
+        {
+            assert!(acknowledged, "the owner receives its step before the next activation");
+            activated = true;
         }
     }
     assert!(activated);
