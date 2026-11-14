@@ -13,21 +13,12 @@ use skein_io::{self as io};
 use skein_lib::{List, Map, Queue, Reader, Time, Token};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
-/// Temper's roots and bridge, with its spoken entry from the engine's table
-/// (temper/docs/design/protocol/wires.md, 4 and 10).
+/// Temper's roots, bridge and spoken entry, without constructing the other
+/// families in the engine's statement (temper/docs/design/protocol/wires.md, 4 and 10).
 pub fn application(
     limits: &wire::Limits,
 ) -> Result<jig_protocol_worker_wire::Application, skein_codec::bridge::BridgeError> {
-    let mut application = temper_protocol_worker_wire::application(limits)?;
-    let mut wires = List::with_capacity(1);
-    for wire in crate::wires().into_boxed() {
-        if wire.name == temper_protocol_worker_wire::wire::FAMILY {
-            wires.push(wire).expect("one application wire");
-        }
-    }
-    assert!(wires.len() == 1, "the table names temper's worker wire once");
-    application.spoken = wires;
-    Ok(application)
+    temper_protocol_worker_wire::application(limits)
 }
 
 #[derive(Debug)]
@@ -158,7 +149,7 @@ impl Workers {
         crate::upgrade::Workers {
             names: self.worker_names.clone().into_boxed(),
             room: self.opening_limits.room,
-            schema: kit::limits::schema(&self.opening_limits).expect("validated worker limits"),
+            schema: self.host.component.full_schema().clone(),
         }
     }
     fn pull(&mut self, events: &mut Queue<root::Event>) {
@@ -389,6 +380,14 @@ fn preparation_part(
 /// Channel bounds, with application parts measured from temper's codecs.
 #[must_use]
 pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
+    let limits = derived_limits(settings)?;
+    if !valid(&limits) {
+        return None;
+    }
+    Some(limits)
+}
+
+fn derived_limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
     let jig = &settings.jig.limits;
     let wire = crate::translate::limits(&settings.limits)?;
     let largest = temper_protocol_worker_wire::largest(&wire)?;
@@ -434,7 +433,7 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         credentials: settings.limits.forge.forges,
         facts: link.facts,
     };
-    let limits = kit::Limits {
+    Some(kit::Limits {
         room: jig.io.largest_room(),
         sizes,
         names: link.names,
@@ -446,11 +445,7 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         ping: link.ping,
         silence: link.silence,
         stall: link.stall,
-    };
-    if !valid(&limits) {
-        return None;
-    }
-    Some(limits)
+    })
 }
 
 /// Check the channel's limits independently of the service's containers.
@@ -472,7 +467,8 @@ fn channel_limits_accept_stock_and_refuse_zero_handshake() {
 impl Workers {
     /// Construct checked channels from the service's typed settings.
     pub fn configured(settings: &mut crate::settings::Engine, deployment: [u8; 16]) -> Result<Self, Problems> {
-        let worker_limits = limits(settings).ok_or(kit::host::invalid(What::Bound))?;
+        // The host validates these derived bounds against its prepared schema.
+        let worker_limits = derived_limits(settings).ok_or(kit::host::invalid(What::Bound))?;
         let mut endpoints =
             List::with_capacity(u32::try_from(settings.jig.llm.endpoints.len()).expect("endpoint count"));
         for endpoint in &settings.jig.llm.endpoints {

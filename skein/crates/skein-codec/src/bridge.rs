@@ -1,7 +1,7 @@
 //! Kept wire versions, checked reverses and lossless translation (data/codec/bridges.md, 5).
 
 use crate::patch::{Build, Capacity, Halt, KeepError, Old, PatchError, PatchWrong, Patcher, Site, Step};
-use crate::schema::{DeclIx, Span};
+use crate::schema::{DeclIx, Schema, Span};
 use crate::value::Node;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
@@ -33,6 +33,7 @@ pub struct Bridge {
     current: u16,
     sites: Sites,
     nodes: u32,
+    layouts: List<[u8; 32]>,
 }
 
 impl Bridge {
@@ -49,13 +50,53 @@ impl Bridge {
             return Err(BridgeError::Room);
         }
         let mut patcher = Patcher::new(capacity);
-        let mut first = None;
-        let mut current = None;
+        let mut previous = None;
         for text in texts {
             let version = match patcher.keep(text.as_bytes()) {
                 Ok(version) => version,
                 Err(error) => return Err(BridgeError::Keep(error)),
             };
+            consecutive(&mut previous, version)?;
+        }
+        Self::planned(patcher, capacity, patches, floor, sites)
+    }
+
+    /// Keeps schemas already parsed for bounds or fingerprints, and plans the
+    /// same bridge as `new` without parsing their retained texts again.
+    pub fn from_schemas(
+        capacity: Capacity,
+        schemas: List<Schema>,
+        patches: &[&str],
+        floor: u16,
+        sites: Sites,
+    ) -> Result<Bridge, BridgeError> {
+        if capacity.text > crate::schema::MAX_TEXT {
+            return Err(BridgeError::Room);
+        }
+        let mut machine = Patcher::new(capacity);
+        let mut previous = None;
+        for schema in schemas.into_boxed() {
+            let version = match machine.keep_schema(schema) {
+                Ok(version) => version,
+                Err(error) => return Err(BridgeError::Keep(error)),
+            };
+            consecutive(&mut previous, version)?;
+        }
+        Self::planned(machine, capacity, patches, floor, sites)
+    }
+
+    fn planned(
+        mut machine: Patcher,
+        capacity: Capacity,
+        patches: &[&str],
+        floor: u16,
+        sites: Sites,
+    ) -> Result<Bridge, BridgeError> {
+        let mut first = None;
+        let mut current = None;
+        let mut layouts = List::with_capacity(capacity.versions);
+        for schema in machine.schemas() {
+            let version = schema.version();
             if let Some(previous) = current {
                 if u16::checked_add(previous, 1) != Some(version) {
                     return Err(BridgeError::Floor);
@@ -64,6 +105,7 @@ impl Bridge {
                 first = Some(version);
             }
             current = Some(version);
+            layouts.push(schema.fingerprints().family().digest()).expect("one layout per kept schema");
         }
         let first = first.ok_or(BridgeError::Floor)?;
         let current = current.ok_or(BridgeError::Floor)?;
@@ -71,7 +113,7 @@ impl Bridge {
             return Err(BridgeError::Floor);
         }
         for text in patches {
-            let planned = match patcher.plan(text.as_bytes()) {
+            let planned = match machine.plan(text.as_bytes()) {
                 Ok(plan) => plan,
                 Err(error) => {
                     let patch = match crate::patch::header(text.as_bytes()) {
@@ -82,9 +124,9 @@ impl Bridge {
                 }
             };
             if let Some(plan) = planned {
-                let version = patcher.versions(plan).to;
+                let version = machine.versions(plan).to;
                 if version > floor {
-                    match patcher.reverse(text.as_bytes()) {
+                    match machine.reverse(text.as_bytes()) {
                         Ok(Some(_)) => {}
                         Ok(None) => return Err(BridgeError::Reverse { version, error: missing() }),
                         Err(error) => return Err(BridgeError::Reverse { version, error }),
@@ -93,11 +135,11 @@ impl Bridge {
             }
         }
         for version in first..current {
-            if patcher.plan_from(version).is_none() {
+            if machine.plan_from(version).is_none() {
                 return Err(BridgeError::Plan { patch: 0, error: missing() });
             }
         }
-        Ok(Bridge { patcher, first, floor, current, sites, nodes: capacity.nodes })
+        Ok(Bridge { patcher: machine, first, floor, current, sites, nodes: capacity.nodes, layouts })
     }
 
     /// The kept family's name.
@@ -128,7 +170,7 @@ impl Bridge {
     /// The family fingerprint of a kept version.
     #[must_use]
     pub fn layout(&self, version: u16) -> Option<[u8; 32]> {
-        Some(self.patcher.schema(version)?.fingerprints().family().digest())
+        self.layouts.get(u32::from(version.checked_sub(self.first)?)).copied()
     }
 
     fn root_at(&self, version: u16, root: &[u8]) -> Option<DeclIx> {
@@ -225,6 +267,16 @@ impl Bridge {
 
 fn missing() -> PatchError {
     PatchError { line: 1, at: Span { start: 0, end: 0 }, wrong: PatchWrong::Unkept }
+}
+
+fn consecutive(previous: &mut Option<u16>, version: u16) -> Result<(), BridgeError> {
+    if let Some(previous) = *previous
+        && previous.checked_add(1) != Some(version)
+    {
+        return Err(BridgeError::Floor);
+    }
+    *previous = Some(version);
+    Ok(())
 }
 
 /// Family fingerprints in kept-version order from the floor through current.
