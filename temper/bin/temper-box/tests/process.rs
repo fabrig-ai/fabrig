@@ -252,11 +252,13 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
-    turn_restart::configure(scratch.path(), forge.repository());
+    turn_restart::cuts::configure(scratch.path(), forge.repository());
     let started = clock.now().now;
-    let (proof, _) = turn_restart::run(scratch.path(), &forge, &barrier, None);
+    let preparing = turn_restart::cuts::preparing(scratch.path(), &forge, &barrier);
+    assert_eq!(preparing.reads.landing["phase"], "preparing");
+    eprintln!("turn restart cut: preparing");
+    let proof = turn_restart::cuts::prepared(scratch.path(), &forge, &barrier, &preparing);
     eprintln!("turn restart first run: {}", landing_by_turn::elapsed(&clock, started));
-    let proof = proof.expect("stopped inside the gate job");
     let panel = &proof.reads.landing;
     eprintln!("turn restart mid-proof: {}", serde_json::to_string(&proof.reads.landing).expect("landing JSON"));
     assert_eq!(panel["phase"], "proving");
@@ -283,7 +285,10 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let proof = retried.as_ref().unwrap_or(&proof);
     let started = clock.now().now;
     barrier.release(proof.run);
-    let (_, landed) = turn_restart::run(scratch.path(), &forge, &barrier, Some(proof));
+    let turning = turn_restart::cuts::turn(scratch.path(), &forge, &barrier, proof);
+    assert_eq!(turning.reads.landing["phase"], "turn");
+    eprintln!("turn restart cut: turn");
+    let (_, landed) = turn_restart::run(scratch.path(), &forge, &barrier, Some(&turning));
     eprintln!("turn restart second run: {}", landing_by_turn::elapsed(&clock, started));
     let landed = landed.expect("landed reads before stopping");
     assert_eq!(landed.landing["phase"], "landed");

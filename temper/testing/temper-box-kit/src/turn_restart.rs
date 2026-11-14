@@ -1,6 +1,8 @@
 //! Cold restart evidence through the native person, ctl and the owned Forgejo
 //! (temper/docs/design/domain/landing.md, 7 and 15;
 //! temper/docs/design/protocol/forge/engine.md, 1).
+pub mod cuts;
+use cuts::Cut;
 use super::{
     ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm,
     forgejo::{JobBarrier, Throwaway},
@@ -171,6 +173,7 @@ struct Judge<'a> {
     landed: &'a Cell<Option<Reads>>,
     previous: Option<&'a Proof>,
     retry: bool,
+    cut: Cut,
     ready: bool,
     advanced: Option<(String, String)>,
     poll: Time,
@@ -182,8 +185,15 @@ impl Judge<'_> {
         Ok({
             let forge = self.chat.forge.ok_or(String::from("owned forge"))?;
             if let Some(previous) = self.previous
-                && !self.retry
+                && !self.retry && self.cut != Cut::Prepared
             {
+                if self.cut == Cut::Turn {
+                    let (landing, change) = self.members()?;
+                    let reads = reads(self.root, landing, change)?;
+                    if reads.landing["phase"] != "turn" { return Ok(false); }
+                    self.proof.set(Some(Proof { reads, original: previous.original.clone(), moved: previous.moved.clone(), run: previous.run }));
+                    return Ok(true);
+                }
                 let landing = previous.reads.landing["task"].as_u64().ok_or(String::from("landing task"))?;
                 let change = previous.reads.change["task"].as_u64().ok_or(String::from("change task"))?;
                 // Let the outer world drive its peers and binary pipes between reads.
@@ -258,6 +268,14 @@ impl Judge<'_> {
                     "turn restart: main moved from {before} to {moved} while the review held readiness at {original}"
                 );
                 self.advanced = Some((original, moved.to_owned()));
+            }
+            if self.cut == Cut::Preparing && self.root.join("prepare-started").is_file() {
+                let (landing, change) = self.members()?;
+                let reads = reads(self.root, landing, change)?;
+                if reads.landing["phase"] != "preparing" { return Err("git barrier is inside preparing".into()); }
+                let (original, moved) = self.advanced.clone().ok_or("main advanced before prepare")?;
+                self.proof.set(Some(Proof { reads, original, moved, run: 0 }));
+                return Ok(true);
             }
             let Some(run) = self.waiting_gate(forge)? else { return Ok(false) };
             let (landing, change) = self.members()?;
@@ -510,13 +528,13 @@ pub fn run(
     barrier: &JobBarrier,
     previous: Option<&Proof>,
 ) -> (Option<Proof>, Option<Reads>) {
-    run_to(root, forge, barrier, previous, false)
+    run_to(root, forge, barrier, previous, false, Cut::Ordinary)
 }
 
 /// A cancelled run is redispatched by the policy; stop inside that retry's job.
 #[must_use]
 pub fn retry(root: &Path, forge: &Throwaway, barrier: &JobBarrier, previous: &Proof) -> Proof {
-    run_to(root, forge, barrier, Some(previous), true).0.expect("stopped inside the retry")
+    run_to(root, forge, barrier, Some(previous), true, Cut::Ordinary).0.expect("stopped inside the retry")
 }
 
 fn run_to(
@@ -525,11 +543,14 @@ fn run_to(
     barrier: &JobBarrier,
     previous: Option<&Proof>,
     retry: bool,
+    cut: Cut,
 ) -> (Option<Proof>, Option<Reads>) {
     let first = previous.is_none();
     let peer = fake_llm(if first { held_review_scripts(forge) } else { landing_scripts(ANSWER, forge) });
     peer.configure(root);
-    let script = if first { person::adopt_and_start_change(forge) } else { person::found() };
+    let script = if first { person::adopt_and_start_change(forge) } else {
+        if cut == Cut::Prepared || cut == Cut::Turn { person::signed_in() } else { person::found() }
+    };
     let clock = Clock::new();
     let mut binary = serve(root);
     let streams = binary.take_streams().expect("serve pipes");
@@ -556,6 +577,7 @@ fn run_to(
         landed: &landed,
         previous,
         retry,
+        cut,
         ready: false,
         advanced: None,
         poll: clock.now().now,
