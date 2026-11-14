@@ -161,6 +161,104 @@ fn drive(disk: &mut Disk, store: &mut Store, first: Box<[Event]>) -> Vec<Event> 
     }
     panic!("jobs did not end")
 }
+fn assert_edge(page: &JobPage, of: Owner) {
+    assert_eq!(page.edge.writes, 7);
+    // 1024 commit bytes minus 26 framing, the job put (20/21 key,
+    // 10 value, 9 framing), and seven one-byte application tags.
+    assert_eq!(page.edge.bytes, if of == Owner::Jig { 959 } else { 951 });
+}
+fn edge_answer(page: &JobPage, of: Owner, extra_writes: u32, extra_bytes: u32) -> JobAnswer {
+    // Unregistered keys keep value decoding out of this commit-edge test.
+    let mut writes: Vec<JobWrite> = (0..page.edge.writes + extra_writes)
+        .map(|index| {
+            let relative = format!("e/{index}").into_bytes();
+            let key = if of == Owner::Jig { [b"\x02".as_slice(), &relative].concat() } else { relative };
+            JobWrite::Put { key: key.into(), value: Box::new([0]) }
+        })
+        .collect();
+    let bytes: u32 = writes.iter().map(put_bytes).sum();
+    let JobWrite::Put { value, .. } = &mut writes[0] else { unreachable!() };
+    *value = vec![0; usize::try_from(1 + page.edge.bytes + extra_bytes - bytes).unwrap()].into();
+    assert_eq!(writes.iter().map(put_bytes).sum::<u32>(), page.edge.bytes + extra_bytes);
+    JobAnswer { writes: writes.into_boxed_slice(), through: None }
+}
+fn put_bytes(write: &JobWrite) -> u32 {
+    let JobWrite::Put { key, value } = write else { panic!("edge answer puts only") };
+    skein_kv::put_bytes(u32::try_from(key.len()).unwrap(), u32::try_from(value.len()).unwrap()).unwrap()
+}
+#[test]
+fn job_pages_hand_both_owners_the_edge_the_answer_enforces_including_at_end() {
+    const JIG_ONLY: PatchSets = PatchSets { sets: &[BASE.sets[0], PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }] };
+    const APP_ONLY: PatchSets = PatchSets { sets: &[PatchSet { jobs: &[APP_JOB], ..BASE.sets[0] }, BASE.sets[1]] };
+    let baseline = fixture_baseline(None);
+    for (of, sets) in [(Owner::Jig, JIG_ONLY), (Owner::Application, APP_ONLY)] {
+        for (commits, ops) in [(8, 16), (16, 8)] {
+            for at_end in [false, true] {
+                for (extra_writes, extra_bytes, accepted) in [(0, 0, true), (1, 0, false), (0, 1, false)] {
+                    let mut disk = Disk::new(&baseline);
+                    let before = snapshot(&mut disk);
+                    let mut store = store(&disk, sets);
+                    store.limits.commits.writes = commits;
+                    store.limits.store.ops = ops;
+                    store.limits.store.commit = 1024;
+                    let (owner, found, job, mut page) = page(disk.open(&mut store));
+                    assert_eq!(found, of);
+                    assert!(!page.end && !page.rows.is_empty());
+                    assert_edge(&page, of);
+                    if at_end {
+                        for _ in 0_u32..10 {
+                            let events = disk.request(
+                                &mut store,
+                                Request::Job { owner, answer: Ok(JobAnswer { writes: Box::new([]), through: None }) },
+                            );
+                            let (_, _, _, next) = self::page(events);
+                            page = next;
+                            assert_edge(&page, of);
+                            if page.end {
+                                break;
+                            }
+                        }
+                        assert!(page.end && page.rows.is_empty());
+                    }
+                    let number = store.stores.store.last() + 1;
+                    let response = edge_answer(&page, of, extra_writes, extra_bytes);
+                    let written: Vec<_> = response
+                        .writes
+                        .iter()
+                        .map(|write| {
+                            let JobWrite::Put { key, value } = write else { unreachable!() };
+                            let key = if of == Owner::Application {
+                                crate::keys::application(key, store.limits.store.key).unwrap()
+                            } else {
+                                key.clone()
+                            };
+                            (key, value.clone())
+                        })
+                        .collect();
+                    let events = disk.request(&mut store, Request::Job { owner, answer: Ok(response) });
+                    if accepted {
+                        assert_eq!(store.stores.store.last(), number + u64::from(at_end), "{events:?}");
+                        for (key, value) in written {
+                            assert_eq!(fixtures::get_kv(&mut store, &key), Some(value));
+                        }
+                        assert_eq!(done(&mut store, of, &job), at_end.then_some(number));
+                    } else {
+                        let [Event::OpenRefused { why: OpenRefusal::Job { owner: refused, job: name, why, .. }, .. }] =
+                            events.as_ref()
+                        else {
+                            panic!("edge refusal: {events:?}")
+                        };
+                        assert_eq!(*refused, of);
+                        assert_eq!(name, &job);
+                        assert!(why.contains(if extra_writes > 0 { "commit edge" } else { "commit byte bound" }));
+                    }
+                    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+                    assert_eq!(snapshot(&mut disk), before);
+                }
+            }
+        }
+    }
+}
 #[test]
 fn pending_jobs_page_in_owner_and_set_order_commit_answers_then_seal_and_run_no_more() {
     let mut disk = Disk::new(&fixture_baseline(None));
