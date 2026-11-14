@@ -285,6 +285,7 @@ impl Delegate for Root {
         }
     }
 }
+#[derive(Debug)]
 enum Phase {
     Lending,
     Reading,
@@ -306,6 +307,7 @@ impl Referee<Root> for Judge {
             let [Root::Client(binary), Root::Terminal(terminal), Root::Peer(peer)] = roots else {
                 return Err(String::from("binary, terminal and peer"));
             };
+            terminal.client_exit = binary.exit_status();
             match self.phase {
                 Phase::Lending if terminal.has(b"LOGIN-READY") && !terminal.writing => {
                     if !terminal.has(b"\x1b[?1049l") {
@@ -352,7 +354,7 @@ impl Referee<Root> for Judge {
         if !self.settled
             && let Some(figures) = self.patience.failed()
         {
-            return Err(format!("terminal loan did not settle: {figures}"));
+            return Err(format!("terminal loan did not settle in {:?}: {figures}", self.phase));
         }
 
         Ok(())

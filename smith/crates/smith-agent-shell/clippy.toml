@@ -21,6 +21,8 @@ disallowed-types = [
 disallowed-methods = [
     { path = "std::thread::Builder::spawn", reason = "one loop per process; io owns append streams" },
     { path = "std::thread::spawn", reason = "one loop per process, and the ring is set up for a single issuer" },
+    { path = "std::panic::catch_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
+    { path = "std::panic::resume_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
 ]
 
 # Unit tests are ordinary Rust (programming-model.md, section 10.2).
