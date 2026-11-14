@@ -2,7 +2,6 @@
 
 2026-11-14. Where skein's code lags or departs from [client.md](client.md).
 
-- **Not yet:** 7.2: a withdrawal of an entry with an attempt changes nothing, so the write is sent again (`outbox.rs`, `withdraw`) [in flight: change 2645].
 
 - **Not yet:** 4: a branch never there rests at `slow` like any absent branch (`keep/answer.rs`, `rest_resource`).
 - **Not yet:** 4: a commit's hint reads the pull requests with it as their head (`keep/poll.rs`, `affected`).
