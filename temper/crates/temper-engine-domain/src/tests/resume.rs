@@ -1083,3 +1083,78 @@ fn accepted_openings_commit_separately_after_the_starts_wires_are_durable() {
         assert!(commits.get(0).unwrap() < commits.get(1).unwrap());
     }
 }
+
+#[expect(clippy::unnecessary_box_returns, reason = "reports cross the store and core boundaries boxed")]
+fn census(commit: u64) -> Box<jig_domain_core::documents::StoreCensus> {
+    Box::new(jig_domain_core::documents::StoreCensus { commit, since: 7, keyspaces: List::with_capacity(0) })
+}
+
+fn census_reader_rows() -> [crate::Record; 2] {
+    use jig_domain_people::{Holding, Identity, IdentityKey, Role, Stored};
+    [
+        crate::Record::Core(jig_domain_core::Record::People(Stored::Person {
+            number: 1,
+            identity: Identity {
+                key: IdentityKey { provider: 0, subject: Box::new([1]) },
+                login: Box::from(b"owner".as_slice()),
+                name: Box::from(b"Owner".as_slice()),
+            },
+        })),
+        crate::Record::Core(jig_domain_core::Record::People(Stored::Roles {
+            project: jig_domain_people::DEPLOYMENT,
+            holdings: Box::new([Holding { person: 1, role: Role::Owner }]),
+        })),
+    ]
+}
+
+fn deployment_census(domain: &Domain, env: &Env<Limits>) -> Option<Box<jig_domain_core::documents::StoreCensus>> {
+    use jig_domain_core::documents::{Document, Subject, Window};
+    let document = jig_domain_core::documents::make(
+        &domain.core,
+        &crate::limits::core_limits(&env.limits),
+        1,
+        &Subject::Deployment,
+        &Window { rows: 1, after: None },
+        env.wall,
+    )
+    .expect("deployment owner reads its document");
+    let Document::Deployment(deployment) = document else { panic!("deployment document") };
+    deployment.census
+}
+
+#[test]
+fn a_store_census_reaches_the_cores_deployment_document() {
+    let (mut domain, env) = super::resume_fixture::root_with_records(
+        super::resume_fixture::config(7),
+        &super::resume_fixture::limits(),
+        &census_reader_rows(),
+    );
+    assert_eq!(deployment_census(&domain, &env), None);
+    for commit in [10, 11] {
+        let report = census(commit);
+        crate::try_step(&mut domain, &env, Event::Store(StoreInput::Census(report.clone()))).unwrap();
+        assert_eq!(deployment_census(&domain, &env), Some(report));
+        assert_eq!(domain.startup_census, None);
+    }
+}
+
+#[test]
+fn only_the_last_startup_census_is_handed_to_the_core_with_the_kept_fill() {
+    let (mut store, env) = restored_start_store();
+    let (mut domain, _) = cold();
+    for row in census_reader_rows() {
+        store.rows.insert(row.key(), row);
+    }
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Census(census(10)))).unwrap();
+    crate::step(&mut domain, &env, Event::Restart { pending: false });
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Census(census(11)))).unwrap();
+    assert_eq!(domain.startup_census, Some(census(11)));
+    store.run(&mut domain, &env, true);
+    assert_eq!(domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
+    crate::try_step(&mut domain, &env, Event::Store(StoreInput::Census(census(12)))).unwrap();
+    assert_eq!(domain.startup_census, Some(census(12)));
+    store.run(&mut domain, &env, false);
+    assert!(domain.ready());
+    assert_eq!(domain.startup_census, None);
+    assert_eq!(deployment_census(&domain, &env), Some(census(12)));
+}

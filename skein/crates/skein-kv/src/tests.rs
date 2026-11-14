@@ -391,7 +391,7 @@ fn the_map_keeps_its_encoded_size_through_puts_overwrites_and_erases() {
         vec![put(b"bb", b"temporary"), Op::Erase { key: Box::from(&b"bb"[..]) }],
     ] {
         let used = map.check(&ops, &limits).expect("the batch fits");
-        map.apply(&ops, used);
+        map.apply(&ops, used, None, true);
         for op in ops {
             match op {
                 Op::Put { key, value } => {
@@ -454,7 +454,7 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
     let mut map = KvMap::new(&limits);
     let initial = [put(&[0], b"seed"), put(&[1], b"map")];
     let used = map.check(&initial, &limits).expect("initial rows fit");
-    map.apply(&initial, used);
+    map.apply(&initial, used, None, true);
     let mut admitted = Queued::new();
     let mut accepted = vec![];
     let mut full = 0_u32;
@@ -511,7 +511,7 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
         }
         if step % APPLY_EVERY == 0 || step % DRAIN_EVERY == 0 {
             let used = map.check(&accepted, &limits).expect("admitted ops fit");
-            map.apply(&accepted, used);
+            map.apply(&accepted, used, None, true);
             admitted.applied(&accepted, number);
         }
         if step % DRAIN_EVERY == 0 {
@@ -538,7 +538,7 @@ fn applying_an_earlier_commit_keeps_a_later_charge_on_the_same_key() {
     admit(&mut admitted, &map, &second, &limits, 2).expect("second commit fits");
 
     let used = map.check(&first, &limits).expect("first commit fits");
-    map.apply(&first, used);
+    map.apply(&first, used, None, true);
     admitted.applied(&first, 1);
     let mut concatenated = second.to_vec();
     concatenated.extend_from_slice(&third);

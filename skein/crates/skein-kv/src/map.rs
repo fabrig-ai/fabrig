@@ -3,7 +3,7 @@
 #![expect(clippy::disallowed_types, reason = "returned pages are bounded by Page")]
 #![expect(clippy::disallowed_methods, reason = "pure lookups and bounded admission scans have no hidden effects")]
 
-use crate::{Limits, Op, Page, Range, Refusal, Row};
+use crate::{Census, CensusRule, Limits, Op, Page, Range, Refusal, Row};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::ops::Bound;
@@ -24,6 +24,7 @@ pub(crate) struct KvMap {
     entries: Map<Box<[u8]>, Box<[u8]>>,
     used: u64,
     live: u64,
+    pub(crate) census: Census,
 }
 
 /// A key's charge once the commits touching it apply, and the last of those commits.
@@ -161,7 +162,7 @@ impl KvMap {
     pub(crate) fn new(limits: &Limits) -> KvMap {
         let possible = limits.budget / ENTRY;
         let capacity = u32::try_from(possible).unwrap_or(u32::MAX);
-        KvMap { entries: Map::with_capacity(capacity), used: 0, live: 0 }
+        KvMap { entries: Map::with_capacity(capacity), used: 0, live: 0, census: Census::new() }
     }
 
     #[must_use]
@@ -201,14 +202,18 @@ impl KvMap {
         Queued::new().check(self, ops, limits).map(|projected| projected.used)
     }
 
-    pub(crate) fn apply(&mut self, ops: &[Op], used: u64) {
+    pub(crate) fn apply(&mut self, ops: &[Op], used: u64, rule: Option<&CensusRule>, writes: bool) {
         // Remove first so an atomic batch whose final map fits is never
         // refused by a transient extra entry. Only each key's last op wins.
         for (index, op) in ops.iter().enumerate() {
             if has_later(ops, index, op.key()) {
                 continue;
             }
-            if let Some(old) = self.entries.remove(op.key()) {
+            let old = self.entries.remove(op.key());
+            if let Some(rule) = rule {
+                self.census.apply(rule, op, old.as_deref(), writes);
+            }
+            if let Some(old) = old {
                 let size = row_bytes(op.key(), &old);
                 self.live = self.live.checked_sub(size).expect("the removed row is counted");
             }

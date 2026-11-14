@@ -1,7 +1,7 @@
 //! Independent printed and local links, fresh bearer tokens, and durable digest admission (protocol/client/sign-in.md).
 use crate::{Kept, SecretOwner, routes::Route};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v21 as w;
+use jig_client_protocol_wire::v22 as w;
 use skein_lib::{CryptoRng, Map, Secret, Time, Token, Writer, length::len_u64};
 /// How many past links a component keeps the digests of (protocol/client/sign-in.md).
 pub(crate) const PAST_LINKS: u32 = 8;

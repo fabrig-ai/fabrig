@@ -366,7 +366,8 @@ impl Store {
                         self.missing.push((record, target));
                         continue;
                     }
-                    engine::StoreInput::Committed { .. } => continue,
+                    // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
+                    engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     reply @ (engine::StoreInput::Switched | engine::StoreInput::ReadLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
@@ -402,7 +403,8 @@ impl Store {
             if let Some(reply) = self.replies.pop() {
                 match reply {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
-                    engine::StoreInput::Committed { .. } => continue,
+                    // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
+                    engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     engine::StoreInput::MissingLink { .. }
                     | engine::StoreInput::Switched
                     | engine::StoreInput::Uncommitted { .. }
@@ -509,7 +511,8 @@ impl Store {
             | Event::Closed { .. } => {
                 unreachable!("an engine store never rehearses or goes back")
             }
-            Event::Patched { .. } => {}
+            // This world does not consume the census (jig protocol/store/README.md, 6.3).
+            Event::Census { .. } | Event::Patched { .. } => {}
             Event::Committed { number, .. } => {
                 let writes = self.inflight.remove(&number).expect("root commit");
                 for write in &writes {

@@ -4,6 +4,18 @@ use super::table::{
     Occurs::{Optional, Repeated, Required},
     Tool, flag, positional, switch,
 };
+/// Deployment census (client/ctl/tools.md, 2; client/ctl/results.md, 1 and 2).
+pub const DEPLOYMENT_CENSUS_AT: u8 = 98;
+pub const DEPLOYMENT_CENSUS: Tool = Tool {
+    name: b"deployment census",
+    line: b"Read the store's census in the deployment's document",
+    prints: b"`census at commit N, writes since commit S`, then a line per keyspace in prefix order; `no census yet` before the first report",
+    result: b"census",
+    forms: &[&[]],
+    keyed: Keyed::Never,
+    area: 3,
+    notes: b"Needs a deployment role; jig's refusal exits 2 without one.\nPrefixes print in lower-case hex, - for the empty prefix or no name.\nHeads print H:R,H:R, - for an unnumbered head, heads - for none.\nJSON keeps the census whole, or null before the first report.\n",
+};
 pub const ME: Tool = Tool {
     name: b"me",
     line: b"Read your party: its projects, what it may start, and what waits on it",

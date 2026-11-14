@@ -1260,3 +1260,16 @@ fn history_application_rows_decode_as_stored_without_entering_the_restart() {
     assert_eq!(next, Some(engine::Key::Forge(key)));
     assert!(out.is_empty());
 }
+
+#[test]
+fn the_components_census_is_handed_to_the_root_whole() {
+    let mut routes = fixtures::routes();
+    let mut out = Queue::uncapped();
+    let census =
+        Box::new(core::documents::StoreCensus { commit: 23, since: 7, keyspaces: skein_lib::List::with_capacity(0) });
+    route::up(&mut routes, store::Event::Census { census: census.clone() }, &mut out);
+    let Some(Up::Root(event)) = out.pop() else { panic!("census reaches the root") };
+    let engine::Event::Store(engine::StoreInput::Census(found)) = *event else { panic!("root census") };
+    assert_eq!(found, census);
+    assert!(out.is_empty(), "one report");
+}

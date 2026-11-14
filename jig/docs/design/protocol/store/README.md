@@ -488,6 +488,55 @@ was made (`../../domain/tasks/README.md`, section 3):
 - **Transcripts' disk** is the deployment's: retention bounds it, and its
   directory's free space is the operator's.
 
+### 6.3 The census
+
+What the store holds and what its log writes, per keyspace, so that a
+deployment's owner sees where the store grows and what an upgrade would
+walk (temper's `draft/store-shape.md`, 8). skein-kv counts (skein's
+`data/kv.md`, 2.2); the component names the keyspaces and reports the
+count up, and nothing of it is stored.
+
+- **The rule:** the component gives every skein-kv store it opens for
+  the map (the active generation's and a patched copy's, never the
+  secrets' store) the census rule of its tags (4.2): a key under tag 0
+  counts by its first two bytes, the component's family; under tag 1 by
+  three, jig's child and family (`01 01 0a`, the tasks child's
+  milestones); under tag 2 by two, the application's first key tag
+  (`02 0c`); any other first byte by one.
+- **Names,** `OWNER.FAMILY`, ASCII lower-case letters, digits, `.` and
+  `-`, at most 48 bytes: `component.format`, `tasks.milestones`,
+  `core.terminals`, `temper.changes`. The component's and jig's come
+  from a table beside the component's key encoders (`keys`), one name per
+  tag they write; the application's from a table it hands the component
+  with its patch sets, its own name and a name per first key tag it
+  writes (`Store::keyspaces`). A prefix no table names has an empty name,
+  and readers show its bytes. A test holds each table to its key
+  writers: every tag written has one name, and no two names repeat.
+- **The report,** `StoreCensus` (the core's vocabulary, beside
+  `StoreFill`): the last commit counted (`commit`), the commit the log's
+  period began at (`since`, skein's `data/kv.md`, 2.2), and a row per
+  keyspace in prefix order, each its prefix, its name, its rows, keys'
+  and values' bytes, its heads with their rows, and its puts, erases and
+  bytes written since `since`. The component sends it up as
+  `Event::Census`:
+  - once the store has opened, after `Opened`: what recovery counted, a
+    patched generation's after its patches;
+  - then after a commit's answer, once `CENSUS_EVERY` (60 s of the
+    component's clock) has passed since the last report, so never while
+    no commit is answered.
+  The fill goes on with every commit's answer (6.2).
+- **Up to the core:** the root hands each report to the core as the
+  core's `Event::Census`, keeping the last one while it starts as it
+  keeps the fill; the core keeps the last report and marks the
+  deployment's document, which carries it
+  (`../../client/domain/contract/documents.md`, 1). So a deployment
+  document's watchers hear of the census at most once a minute, and a
+  reader sees it as of its `commit`.
+- **Its cost** is skein-kv's: a search of at most 128 keyspaces per
+  operation applied, and a census of at most 129 rows, the empty
+  prefix's included, of at most 8 heads each; the component's report
+  copies it once a minute.
+
 ## 7. The application's part
 
 - **Its families,** under its tag (4.2), keyed by its own encoder by the

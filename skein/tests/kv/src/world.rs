@@ -17,7 +17,7 @@ pub struct World {
     pub root: Fd,
     pub io: FileIo,
     file_limits: FileLimits,
-    store: Store,
+    pub store: Store,
     pub env: Env<Limits>,
     pub above: Queue<Event>,
     pub below: Queue<file::Request>,
