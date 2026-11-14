@@ -9,7 +9,8 @@ The code follows the design, so the design sets its size. This draft asks a desi
 - **What a design says:** concepts, rules, formats, failures, and why. It leaves to the code the types, fields and steps that no other area reads (section 4). A change to a design counts the concepts it adds and removes, and removes those with no behaviour of their own (section 5). An implementer starts from lean specs, gets more detail only on demand, and says where a design makes it write the same thing twice (section 6).
 - **A pilot first,** in one area, run as temper goals into main from a template of their own, so that every other goal runs as today (sections 7 and 8). It measures what fewer concepts save, and how much detail the implementer needs before its code gets worse.
 - **Adoption is the user's,** area by area, once the pilot's figures are in (section 9).
-- **Unchanged:** `skein/docs/foundation/programming-model.md`, `skein/docs/foundation/testing-strategy.md`, `DESIGN.md`, template 4 and its charters.
+- **A second pilot,** on hearth's records written three times, is a draft of its own: one owner per concept across the layers, scored by how clear the code reads and how cheap it is to change (`one-owner.md`).
+- **Unchanged:** `skein/docs/foundation/programming-model.md`, but for the vocabularies `one-owner.md`, 4 adds to it; `skein/docs/foundation/testing-strategy.md`, `DESIGN.md`, template 4 and its charters.
 
 ## 2. What the design holds
 
@@ -70,7 +71,7 @@ A name with behaviour or rules of its own: an entity, a state, a refusal, a reco
 
 ### 5.3 What stays fixed
 
-The programming model, whole. Each layer has its own entities (`skein/docs/foundation/programming-model.md`, 4.1), the types belong to the domain (4.4), siblings share no domain types (4.5), and the subset holds (10). Fewer concepts works inside it: fewer per layer, and fewer layers for a concept where a layer adds nothing of its own. A shape that several types share goes into skein's lib, which may be generic (10.2), or stays a concrete record for each type: no generic item, function pointer or closure in step code, in a contract or in the code.
+The programming model, whole. Each layer has its own entities (`skein/docs/foundation/programming-model.md`, 4.1), the types belong to the domain (4.4), siblings share no domain types (4.5), and the subset holds (10). Fewer concepts works inside it: fewer per layer, and fewer layers for a concept where a layer adds nothing of its own. A shape that several types share goes into skein's lib, which may be generic (10.2), or stays a concrete record for each type: no generic item, function pointer or closure in step code, in a contract or in the code. The second pilot adds one role to the model, the vocabulary, and keeps the rest (`one-owner.md`, 4).
 
 ## 6. The way back from code to design
 

@@ -3,10 +3,11 @@
 - **Kind:** duplication
 - **Where:** `hearth-protocol-config`, `hearth-domain-render/src/parts`, `hearth-domain-render/src/errors.rs`, `hearth-client-protocol-records/src/parts`, `hearth-client-protocol-records/src/errors.rs`, `hearth-protocol-builder/src/translate`, `hearth-protocol-builder/src/tests/fixtures`
 - **Seen:** 2026-11-04 at `66968a30ef`, new, from a search for repeated blocks; the layering it comes from is `hearth/docs/design/README.md`, 4.2
-- **Checked:** 2026-11-05 at `13fb737baf`
+- **Seen:** 2026-11-14 at `2e457d3f00`, in `temper/docs/design/draft/one-owner.md`, 3: `hearth-client-protocol-records`' 162 struct and enum names share 140 short names with render's
+- **Checked:** 2026-11-14 at `2e457d3f00`
 - **Value:** low (a field added once, if the layering allows)
 - **Size:** L
-- **Status:** kept (the layers' own vocabularies)
+- **Status:** planned (`temper/docs/design/draft/one-owner.md`: render's values get one owner)
 - **Paid when:** a reviewer sees either fewer hand translations, or this item `kept` with its reason.
 - **Measure:** `git ls-files hearth/crates/hearth-protocol-builder/src/translate | xargs cat | wc -l`: 2869
 
