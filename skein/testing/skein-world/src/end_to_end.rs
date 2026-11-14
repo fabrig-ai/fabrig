@@ -22,11 +22,13 @@ use crate::Host;
 use crate::tree::{self, Tree};
 pub use crate::tree::{Cleanup, Containment, Counts, Expectation, Method, PeakScope, TreeStatus};
 
-// The real loop and its binary hosts share one thread (testing/README.md, 5).
-// Keep the first finding until the loop can drain its kernel before returning it.
+// A run's finding scope is its thread's (skein/docs/design/testing/README.md, 5).
+// Nested runs keep and return their own findings while the outer run waits.
+// Keep each run's first finding until its forced cleanup finishes; leaving its
+// scope drops later findings and restores what the enclosing run kept.
 std::thread_local! {
     static FINDING: core::cell::RefCell<Option<String>> = const { core::cell::RefCell::new(None) };
-    static IN_LOOP: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
+    static IN_LOOP: core::cell::Cell<usize> = const { core::cell::Cell::new(0) };
 }
 
 fn keep_finding(why: String) {
@@ -46,7 +48,7 @@ pub(crate) fn teardown_finding(result: Result<(), String>) {
         if std::thread::panicking() {
             use std::io::Write;
             let _reported = writeln!(std::io::stderr().lock(), "skein-world: {why}");
-        } else if IN_LOOP.get() {
+        } else if IN_LOOP.get() > 0 {
             keep_finding(why);
         } else {
             crate::fail(&why);
@@ -54,21 +56,21 @@ pub(crate) fn teardown_finding(result: Result<(), String>) {
     }
 }
 
-pub(crate) struct FindingScope;
+pub(crate) struct FindingScope {
+    enclosing: Option<String>,
+}
 
 impl FindingScope {
     pub(crate) fn enter() -> Self {
-        assert!(!IN_LOOP.replace(true), "one real loop per thread");
-        Self
+        IN_LOOP.set(IN_LOOP.get().checked_add(1).expect("real loop depth overflow"));
+        Self { enclosing: take_finding() }
     }
 }
 
 impl Drop for FindingScope {
     fn drop(&mut self) {
-        IN_LOOP.set(false);
-        // A run already returning its first verdict does not leak a cleanup's
-        // later finding into the next run on this thread.
-        let _later = take_finding();
+        FINDING.with(|finding| *finding.borrow_mut() = self.enclosing.take());
+        IN_LOOP.set(IN_LOOP.get().checked_sub(1).expect("real loop depth underflow"));
     }
 }
 
@@ -787,6 +789,35 @@ mod tests {
         super::teardown_finding(Err("cleanup".into()));
         drop(scope);
         assert_eq!(take_finding(), None, "cleanup cannot fail a later run");
+    }
+
+    #[test]
+    fn nested_runs_keep_their_own_findings_and_restore_the_outer_finding() {
+        let outer = super::FindingScope::enter();
+        super::teardown_finding(Err("outer".into()));
+        let inner = super::FindingScope::enter();
+        assert_eq!(take_finding(), None, "the inner run starts clean");
+        super::teardown_finding(Err("inner".into()));
+        assert_eq!(take_finding().as_deref(), Some("inner"));
+        drop(inner);
+        assert_eq!(take_finding().as_deref(), Some("outer"));
+        drop(outer);
+    }
+
+    #[test]
+    fn an_inner_runs_unreturned_finding_cannot_reach_the_outer_run() {
+        let outer = super::FindingScope::enter();
+        let inner = super::FindingScope::enter();
+        super::teardown_finding(Err("late".into()));
+        drop(inner);
+        assert_eq!(take_finding(), None, "the inner cleanup cannot fail the outer run");
+        drop(outer);
+    }
+
+    #[test]
+    #[should_panic(expected = "outside every run")]
+    fn a_teardown_outside_every_run_fails_at_once() {
+        super::teardown_finding(Err("outside every run".into()));
     }
 
     #[test]
