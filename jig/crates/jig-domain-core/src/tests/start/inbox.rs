@@ -118,8 +118,7 @@ fn question_storage_full_names_the_activity_key() {
 }
 
 #[test]
-#[should_panic(expected = "People(EndedRead { task: 3, party: 1 }) links mismatched Tasks(Ended(2))")]
-fn ended_read_pair_mismatch_panics_with_both_keys() {
+fn ended_read_with_another_requester_refuses_with_both_keys() {
     let (mut core, env) = loaded();
     inbox(&mut core, &env);
     assert!(
@@ -128,7 +127,52 @@ fn ended_read_pair_mismatch_panics_with_both_keys() {
             &Record::People(people::Stored::EndedRead { task: 3, party: 1, through: 0 })
         )
     );
-    let _accepted = core.restore_inbox_row(&env.limits, &Record::Tasks(tasks::Stored::Ended(Box::new(ended()))));
+    let mut row = ended();
+    row.number = 3;
+    row.requester = tasks::Party::Person(2);
+    let record = Record::Tasks(tasks::Stored::Ended(Box::new(row)));
+    assert!(!core.restore_inbox_row(&env.limits, &record));
+    let expected = Failure::Link {
+        record: crate::Key::People(people::Key::EndedRead { task: 3, party: 1 }),
+        linked: crate::start::Linked::Record(record.key()),
+    };
+    assert_eq!(core.start_failure(), Some(expected.clone()));
+    let mut out = Queue::uncapped();
+    let Action::Refused(failure) = core.start_done(&env, Phase::LoadInbox, &mut out) else {
+        panic!("mismatched requester refuses before commit or sweep")
+    };
+    assert_eq!(failure, expected);
+    assert!(out.is_empty());
+    assert_eq!(core.start_phase(), Some(Phase::LoadInbox));
+}
+
+#[test]
+fn ended_read_without_conversation_refuses_with_both_keys() {
+    let (mut core, env) = loaded();
+    inbox(&mut core, &env);
+    assert!(
+        core.restore_inbox_row(
+            &env.limits,
+            &Record::People(people::Stored::EndedRead { task: 3, party: 1, through: 0 })
+        )
+    );
+    let mut row = ended();
+    row.number = 3;
+    row.flags.conversation = false;
+    let record = Record::Tasks(tasks::Stored::Ended(Box::new(row)));
+    assert!(!core.restore_inbox_row(&env.limits, &record));
+    let expected = Failure::Link {
+        record: crate::Key::People(people::Key::EndedRead { task: 3, party: 1 }),
+        linked: crate::start::Linked::Record(record.key()),
+    };
+    assert_eq!(core.start_failure(), Some(expected.clone()));
+    let mut out = Queue::uncapped();
+    let Action::Refused(failure) = core.start_done(&env, Phase::LoadInbox, &mut out) else {
+        panic!("non-conversation refuses before commit or sweep")
+    };
+    assert_eq!(failure, expected);
+    assert!(out.is_empty());
+    assert_eq!(core.start_phase(), Some(Phase::LoadInbox));
 }
 
 #[test]
