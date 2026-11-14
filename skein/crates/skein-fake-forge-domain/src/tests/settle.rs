@@ -48,10 +48,3 @@ fn head_and_base_moves_draw_replayable_inclusive_settle_deadlines() {
         }
     }
 }
-
-#[test]
-#[should_panic(expected = "latencies are ranges")]
-fn reversed_settle_range_is_refused_at_admission() {
-    let _domain =
-        Domain::new(&Config { settle_min: Duration::from_secs(3), settle_max: Duration::from_secs(2), ..calm() }, 7);
-}

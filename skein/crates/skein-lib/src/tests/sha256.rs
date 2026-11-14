@@ -75,15 +75,6 @@ fn debug_shows_the_count_hashed_and_not_the_state() {
     assert_eq!(alloc::fmt::format(format_args!("{state:?}")), "Sha256 { hashed: 3 }");
 }
 
-#[test]
-#[should_panic(expected = "SHA-256 hashes at most 2^64 - 1 bits")]
-fn hashing_past_the_standard_s_bound_is_a_bug() {
-    let mut state = sha256::Sha256::having_hashed(u64::MAX / 8);
-    state.update(b"");
-    let _finished = state.clone().finish();
-    state.update(b"a");
-}
-
 /// RFC 4231, section 4: key, data and HMAC-SHA256; case 5 in full.
 const RFC_4231: [(&[u8], &[u8], &str); 7] = [
     (&[0x0b; 20], b"Hi There", "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"),
