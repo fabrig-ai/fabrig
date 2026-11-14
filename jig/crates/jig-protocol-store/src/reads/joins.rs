@@ -12,8 +12,8 @@ pub(super) fn as_task(value: &core::Record) -> Option<&tasks::TaskRecord> {
         core::Record::Tasks(
             tasks::Stored::PlacedHold(_)
             | tasks::Stored::Summary(_)
- | tasks::Stored::Retention(_)
- | tasks::Stored::Stub(_)
+            | tasks::Stored::Retention(_)
+            | tasks::Stored::Stub(_)
             | tasks::Stored::Ledger(_)
             | tasks::Stored::Writer(_)
             | tasks::Stored::Pool(_)

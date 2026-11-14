@@ -130,8 +130,13 @@ fn retention_keys_sort_by_stage_then_wall_time_then_number() {
     use skein_lib::Wall;
     let mut previous = Key::Tasks(TaskKey::Summary(u64::MAX));
     for (stage, since, number) in [
-        (Stage::Turns, 5, 9), (Stage::Turns, 6, 1), (Stage::Turns, 6, 2),
-        (Stage::Record, 0, 0), (Stage::Summary, 0, 0), (Stage::Forgotten, 0, 0), (Stage::Proposal, 0, 0),
+        (Stage::Turns, 5, 9),
+        (Stage::Turns, 6, 1),
+        (Stage::Turns, 6, 2),
+        (Stage::Record, 0, 0),
+        (Stage::Summary, 0, 0),
+        (Stage::Forgotten, 0, 0),
+        (Stage::Proposal, 0, 0),
     ] {
         let key = Key::Tasks(TaskKey::Retention { stage, since: Wall::from_nanos(since), number });
         assert!(previous < key);

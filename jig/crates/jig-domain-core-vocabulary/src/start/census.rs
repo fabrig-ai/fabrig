@@ -44,8 +44,8 @@ impl Census {
             }
             Key::Tasks(
                 tasks::Key::Summary(_)
-             | tasks::Key::Retention { .. }
-             | tasks::Key::Live(_)
+                | tasks::Key::Retention { .. }
+                | tasks::Key::Live(_)
                 | tasks::Key::Ended(_)
                 | tasks::Key::PlacedHold(_)
                 | tasks::Key::Stub(_)

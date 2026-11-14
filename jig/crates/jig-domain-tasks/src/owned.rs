@@ -17,7 +17,10 @@ use core::mem::{size_of, size_of_val};
 pub fn stored_bytes(record: &Stored) -> Option<u64> {
     match record {
         Stored::Summary(row) => {
-            let words = match &row.result { Some(result) => bytes(result.words.len())?, None => 0 };
+            let words = match &row.result {
+                Some(result) => bytes(result.words.len())?,
+                None => 0,
+            };
             bytes(size_of::<crate::TaskSummary>())?
                 .checked_add(bytes(row.title.len())?)?
                 .checked_add(bytes(row.reason.len())?)?

@@ -33,16 +33,23 @@ fn pending() -> Harness {
 }
 #[test]
 fn decided_person_proposals_save_the_proposal_retention_stage() {
-    for choice in [0, 1, 2] {
+    for choice in [0_u8, 1, 2] {
         let mut h = pending();
         h.env.wall = Wall::from_nanos(1234);
         if choice == 2 {
             h.send(Event::WithdrawPersonProposal { reply_to: None, proposer: PROPOSER, proposal: PROPOSAL });
         } else {
             h.send(Event::DecidePersonProposal {
-                reply_to: to(), proposer: PROPOSER, proposal: PROPOSAL, by: Party::Person(OWNER),
+                reply_to: to(),
+                proposer: PROPOSER,
+                proposal: PROPOSAL,
+                by: Party::Person(OWNER),
                 message: if choice == 0 { None } else { Some(101) },
-                decision: if choice == 0 { ProposalDecision::Accept } else { ProposalDecision::Reject { reason: b"later".as_slice().into() } },
+                decision: if choice == 0 {
+                    ProposalDecision::Accept
+                } else {
+                    ProposalDecision::Reject { reason: b"later".as_slice().into() }
+                },
                 revision: if choice == 0 { Some(2) } else { None },
             });
         }

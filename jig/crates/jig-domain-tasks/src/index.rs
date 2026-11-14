@@ -130,7 +130,11 @@ pub enum Key {
     /// One durable placed hold, after the existing key families.
     PlacedHold(u64),
     Summary(u64),
-    Retention { stage: crate::RetentionStage, since: Wall, number: u64 },
+    Retention {
+        stage: crate::RetentionStage,
+        since: Wall,
+        number: u64,
+    },
 }
 
 impl Key {

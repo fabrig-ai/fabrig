@@ -114,8 +114,8 @@ pub fn is_update(key: &Key) -> bool {
         Key::Tasks(tasks::Key::Update { .. }) => true,
         Key::Tasks(
             tasks::Key::Summary(_)
-             | tasks::Key::Retention { .. }
-             | tasks::Key::Live(_)
+            | tasks::Key::Retention { .. }
+            | tasks::Key::Live(_)
             | tasks::Key::Ended(_)
             | tasks::Key::PlacedHold(_)
             | tasks::Key::Stub(_)
