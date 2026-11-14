@@ -52,7 +52,10 @@ root for one step at a time, and the root asks the store:
   conversations' read positions among them, ended ones never), then the
   tasks child's live families, then the core's own live rows (goals'
   projections, run proofs, calls, agents' conversations). It is a fixed
-  list of intervals, in that order, paged and handed up typed. The root
+  list of intervals, in that order, paged and handed up typed. A live
+  task is handed up whole, its hot row joined to its cold row by a point
+  read; a goal's projection rows come as they lie, the core joining
+  their words (`parts.md`, 2 and 3). The root
   has the accounts child want its sources only once these are restored
   (`../../domain/accounts.md`, 3.5);
 - **the inbox's census,** a step of its own once people's read positions

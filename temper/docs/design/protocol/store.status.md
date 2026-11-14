@@ -9,6 +9,8 @@
 
 - **Not yet:** 2: the `Change` row's `follows` [in flight: change 99].
 
+- **Not yet:** 2: families 47 and 48, a change's two parts: each change is one row of family 12, written whole on every save; 4: `jobs::page` names no job `change-parts`.
+
 
 Section 2 has no known implementation gap in provider 0's subject.
 The forge's codec writes the 10-byte forge and user pair, reads it only
