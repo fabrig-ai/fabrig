@@ -366,7 +366,11 @@ impl Judge<'_> {
             eprintln!("batch service exit: {:?}", binary.exit_status());
             eprintln!("batch service: {}", super::without_secrets(binary.stderr()));
         }
-        eprintln!("batch phase: {:?}", self.phase);
+        eprintln!(
+            "batch phase: {:?}; empty hosts: {:?}",
+            self.phase,
+            procs.iter().map(Host::is_empty).collect::<Vec<_>>()
+        );
         for (arguments, value) in &self.reads.borrow().last {
             eprintln!("batch ctl {arguments:?}: {value:?}");
         }
@@ -632,11 +636,6 @@ impl Judge<'_> {
         calls(procs)?.release();
         let Some(Process::Binary(binary)) = procs.first_mut() else { return Err(String::from("serve")) };
         binary.signal(Signal::Terminate);
-        for proc in procs {
-            if let Process::Peer(peer) = proc {
-                peer.shutdown();
-            }
-        }
         self.chat.phase = ChatPhase::Stopping;
 
         Ok(())
@@ -960,6 +959,21 @@ impl Referee<Process> for Judge<'_> {
             return;
         }
         let result = (|| -> Result<(), String> {
+            if self.chat.stopping() {
+                if procs.first().is_some_and(Host::is_empty) {
+                    // The repair's client is gone before its held fake terminal
+                    // retires; no repair result reaches the deployment.
+                    for proc in procs {
+                        if let Process::Peer(peer) = proc
+                            && !peer.is_empty()
+                        {
+                            peer.release(b"batch-repair").map_err(|error| format!("retire repair call: {error:?}"))?;
+                            peer.shutdown();
+                        }
+                    }
+                }
+                return Ok(());
+            }
             if matches!(self.chat.phase, ChatPhase::SettingUp) {
                 if calls(procs)?.ends().len() < turn_restart::SETUP_CALLS {
                     return Ok(());
@@ -1029,6 +1043,11 @@ fn peer(root: &Path, forge: &Throwaway, story: Story) -> super::llm::Listening {
     recipe.limits.connections = 8;
     recipe.limits.io.sockets = 16;
     recipe.domain_limits.calls = 8;
+    // The single-agent observation room scales with the independent producers.
+    let producers = u32::try_from(story.changes()).expect("scripted producers");
+    recipe.limits.observations = recipe.limits.observations.checked_mul(producers).expect("batch observations");
+    recipe.limits.observation_bytes =
+        recipe.limits.observation_bytes.checked_mul(producers).expect("batch observation bytes");
     let scripts = temper_real_loop_world::llm::cued(scripts(root, forge, story));
     let rules = Rules {
         cued: scripts
