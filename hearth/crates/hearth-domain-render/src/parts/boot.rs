@@ -5,19 +5,10 @@ use crate::{
     revision::{self, declaration::Map},
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::parts::boot::{Boot, Change};
 use hearth_lib::{encode::Digest, hash::H};
 use skein_lib::{List, Map as Sorted};
-/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Change {
-    pub before: Boot,
-    pub after: Boot,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Boot {
-    pub params: Box<[Box<[u8]>]>,
-    pub mutable: bool,
-}
+
 #[must_use]
 pub(crate) fn digest(boot: &Boot) -> Digest {
     let mut hash = H::new(b"part:boot", 1);

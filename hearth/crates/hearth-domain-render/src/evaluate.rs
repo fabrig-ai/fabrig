@@ -1,5 +1,6 @@
 //! A bounded postfix value stack (hearth/docs/design/domain/render/README.md, 5.3; hearth/docs/design/protocol/format/templates.md, 4
 //! to 7).
+pub use hearth_domain_render_vocabulary::evaluate::FaultKind;
 pub mod context;
 mod escape;
 pub mod filter;
@@ -82,19 +83,7 @@ pub struct Fault {
     pub at: u32,
     pub kind: FaultKind,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum FaultKind {
-    Unknown,
-    NoKey,
-    NoIndex,
-    Undefined,
-    Type,
-    Overflow,
-    Empty,
-    Path,
-    Output,
-    Limit,
-}
+
 pub fn expression<'c>(
     evaluator: &mut Evaluator<'c>,
     expression: &Expression,
