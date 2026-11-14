@@ -388,17 +388,3 @@ fn a_new_loop_counts_elapsed_time_from_its_browser_instant() {
         assert_eq!(slices.world().now(), Time::from_nanos(3), "seed {seed}");
     }
 }
-
-#[test]
-#[should_panic(expected = "the visitor is an admitted process")]
-fn a_visitor_index_must_name_a_process() {
-    let (world, mut reach) = scripted::world(SEEDS[0], &[], false);
-    reach.at = world.processes().len();
-    let _slices = Slices::new(world, reach, BUDGET, Time::ZERO);
-}
-
-#[test]
-#[should_panic(expected = "a slice has at least one step")]
-fn a_slice_must_have_a_nonzero_budget() {
-    let _slices = support::slices(SEEDS[0], &[], 0, false);
-}

@@ -90,12 +90,6 @@ skein/crates/skein-shell/src/readiness/guards.rs should_panic 4
 skein/crates/skein-tls/src/client/native/tests.rs should_panic 5
 skein/crates/skein-tls/src/tests/held.rs should_panic 2
 skein/crates/skein-tls/src/tests/machine.rs should_panic 12
-skein/crates/skein-ui-web/src/tests/log.rs should_panic 1
-skein/crates/skein-ui-web/src/tests/page.rs should_panic 2
-skein/crates/skein-ui/src/builder.rs should_panic 1
-skein/crates/skein-ui/src/tests/log.rs should_panic 2
-skein/crates/skein-ui/src/tests/slots.rs should_panic 3
-skein/crates/skein-ui/src/tests/tree.rs should_panic 26
 skein/examples/echo/domain/src/tests.rs should_panic 2
 skein/examples/echo/protocol/src/tests/conn.rs should_panic 1
 skein/testing/skein-echo-client/src/tests.rs should_panic 4
@@ -106,13 +100,11 @@ skein/tests/lib/tests/suite/journal.rs should_panic 1
 skein/tests/llm-connection/tests/suite/close.rs should_panic 5
 skein/tests/llm/tests/suite/bounded_peer_memory.rs should_panic 2
 skein/tests/oauth-accounts/tests/suite/referee.rs should_panic 11
-skein/tests/playground/tests/suite/slices.rs should_panic 2
 skein/tests/sim/tests/suite/files.rs should_panic 24
 skein/tests/sim/tests/suite/invariants.rs should_panic 29
 skein/tests/sim/tests/suite/processes.rs should_panic 7
 skein/tests/tls/tests/suite/handshake.rs should_panic 1
 skein/tests/tls/tests/suite/native_output.rs should_panic 3
-skein/tests/ui-text/tests/suite/terminal.rs should_panic 1
 skein/tests/world/tests/suite/domain_referee.rs should_panic 3
 skein/tests/world/tests/suite/domain_utilities.rs should_panic 1
 skein/tests/world/tests/suite/hosted.rs should_panic 5

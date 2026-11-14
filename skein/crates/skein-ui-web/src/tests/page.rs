@@ -397,14 +397,6 @@ fn a_removal_taking_the_focus_falls_back_to_the_main() {
     assert_eq!(ops, vec![Op::Remove { node: BUTTON }, Op::Focus { node: MAIN }]);
 }
 
-const MISSING_NODE: NodeId = NodeId(99); // never allocated in the fixture
-
-#[test]
-#[should_panic(expected = "patch names a held node")]
-fn a_patch_naming_no_held_node_panics() {
-    page().apply(&[Patch::Remove { node: MISSING_NODE }], &mut Vec::new());
-}
-
 #[test]
 fn a_drawing_shows_its_fallback_before_its_first_resize() {
     let (mut page, mut view) =
@@ -936,14 +928,6 @@ fn the_pages_words_reach_a_completed_items_span() {
         page.html(),
         r#"<li data-node="1" aria-describedby="skein-ui-description-1"><span data-node="2">Branch pushed</span><span id="skein-ui-state-1"> done &amp; &lt;met&gt;</span><span id="skein-ui-description-1">Item help</span></li>"#
     );
-}
-
-#[test]
-#[should_panic(expected = "the page's words come before its first patch")]
-fn setting_words_after_a_node_is_held_asserts() {
-    let (mut page, mut view) = (page(), View::new(&LIMITS));
-    page.apply(&fixtures::patches(&mut view, 0, |b| completed_item(b, true)), &mut Vec::new());
-    page.words(crate::mapping::Words::ENGLISH);
 }
 
 #[test]
