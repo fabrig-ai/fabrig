@@ -14,6 +14,8 @@
 
 - **Not yet:** 2, a change whose pushed head its landing branch already contains: it lives on, and only a contained catch-up ends with no change; nothing reads whether the base's tip contains a change's head.
 
+- **Not yet:** 2, *From its turn on, a contained head has landed*, and step 7: a change at its turn or landing whose head its landing branch contains sends its merge, the forge client sends it again, and a failed one holds without reading containment (`temper-engine-domain-forge-change/src/domain.rs`, `first`, `landing`) [in flight: change 2645].
+
 - **Not yet:** 2, step 6: a resolution and a merge job wait for no producer or repair to end, and are cut at the last head the change knew, not its latest push (`repairs.md`).
 
 - **Not yet:** 1, 3: a goal's runs push to its run
