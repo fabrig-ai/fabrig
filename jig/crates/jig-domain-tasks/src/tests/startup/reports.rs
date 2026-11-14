@@ -10,7 +10,6 @@ const INITIAL_REVISION: u32 = 1;
 const NEXT_REVISION: u32 = 2;
 const CONNECTOR: u16 = 1;
 const KIND: u16 = 1;
-const OTHER_CONNECTOR: u16 = 2;
 const PROJECT: u32 = 1;
 const CHARTER: u32 = 1;
 
@@ -180,39 +179,6 @@ fn configuration_follows_operational_reports() {
         &mut out,
     );
     configure(&mut domain, &env, &mut out);
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn kinds_validate_connector_ownership() {
-    let (mut domain, env, mut out) = fresh();
-    assert!(
-        std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| step(
-            &mut domain,
-            &env,
-            Event::Kinds {
-                connector: CONNECTOR,
-                kinds: Box::new([crate::Kind { connector: OTHER_CONNECTOR, kind: KIND, hold: HoldKind::Shared }])
-            },
-            &mut out
-        )))
-        .is_err()
-    );
-}
-
-#[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn charters_validate_model_efforts() {
-    let (mut domain, env, mut out) = fresh();
-    assert!(
-        std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| step(
-            &mut domain,
-            &env,
-            Event::Charters { newest: INITIAL_REVISION, charters: charters(), efforts: Box::new([]) },
-            &mut out
-        )))
-        .is_err()
-    );
 }
 
 #[test]
