@@ -7,6 +7,3 @@
     have no reference documents. The playground host's documents are
     rendered and checked; the tree's common and test documents exist
     (`../cli/README.md`, 8 and 11).
-  - 5: the browser world finds `temper-box` and `temper-playground-serve`
-    two directories above its executable, not through
-    `skein_scratch::paths::built`. [in flight: change 2976]
