@@ -3,7 +3,6 @@
 2026-11-13. Where jig's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 4.4: the people child keeps no deleted project's mark [in flight: change 629].
-- **Not yet:** 2, 9: generations sharing files by hard links, and the store world's tests of the links, of a refused link copied and of the previous generation's files kept whole [in flight: change 2668].
 
 `records.md`, section 1's tasks-v9 terminal includes a bounded failed-activation reason.
 Its schema, generated codec, goldens and layout fingerprint change together
