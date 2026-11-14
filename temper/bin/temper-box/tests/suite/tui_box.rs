@@ -172,6 +172,7 @@ enum Phase {
     Done,
 }
 struct Judge {
+    failed: Option<String>,
     case: Case,
     phase: Phase,
     root: PathBuf,
@@ -181,99 +182,124 @@ struct Judge {
 }
 impl Referee<Root> for Judge {
     fn act(&mut self, _now: Time, roots: &mut [Root]) {
-        let [Root::Client(client), Root::Terminal(terminal), Root::Calls(calls)] = roots else {
-            panic!("client, person and ctl")
-        };
-        terminal.client_exit = client.exit_status();
-        match self.phase {
-            Phase::Connecting if terminal.has(b"Live") && !terminal.writing => {
-                assert!(box_link::link_path(&self.root).is_file(), "the handed link signed in and serve renewed it");
-                match self.case {
-                    Case::Idle => {
-                        terminal.keys(b"\x03");
-                        calls.release();
-                        self.phase = Phase::Stopping;
+        if self.failed.is_some() {
+            return;
+        }
+        let result = (|| -> Result<(), String> {
+            let [Root::Client(client), Root::Terminal(terminal), Root::Calls(calls)] = roots else {
+                return Err(String::from("client, person and ctl"));
+            };
+            terminal.client_exit = client.exit_status();
+            match self.phase {
+                Phase::Connecting if terminal.has(b"Live") && !terminal.writing => {
+                    if !box_link::link_path(&self.root).is_file() {
+                        return Err(String::from("the handed link signed in and serve renewed it"));
                     }
-                    Case::Killed => {
-                        client.signal(Signal::Kill);
-                        calls.release();
-                        self.phase = Phase::Stopping;
-                    }
-                    Case::Working => {
-                        let token = self.root.join("state/temper/tui/token");
-                        if !token.is_file() {
-                            return;
+                    match self.case {
+                        Case::Idle => {
+                            terminal.keys(b"\x03");
+                            calls.release();
+                            self.phase = Phase::Stopping;
                         }
-                        // ctl has its own directory and acts as the TUI's person.
-                        fs::copy(token, self.root.join("ctl/token"))
-                            .expect("copy fixture credential without printing it");
-                        calls.push(support::ctl::Step::Run(
-                            support::ctl::Call::new(&["playground", "start", "--key", "tui-playground"])
-                                .by(&self.client),
-                        ));
-                        self.phase = Phase::SettingUp;
+                        Case::Killed => {
+                            client.signal(Signal::Kill);
+                            calls.release();
+                            self.phase = Phase::Stopping;
+                        }
+                        Case::Working => {
+                            let token = self.root.join("state/temper/tui/token");
+                            if !token.is_file() {
+                                return Ok(());
+                            }
+                            // ctl has its own directory and acts as the TUI's person.
+                            fs::copy(token, self.root.join("ctl/token"))
+                                .map_err(|error| format!("copy fixture credential without printing it: {error:?}"))?;
+                            calls.push(support::ctl::Step::Run(
+                                support::ctl::Call::new(&["playground", "start", "--key", "tui-playground"])
+                                    .by(&self.client),
+                            ));
+                            self.phase = Phase::SettingUp;
+                        }
                     }
                 }
-            }
-            Phase::SettingUp if calls.foreground_idle() => {
-                assert!(
-                    calls.ends().iter().all(|call| call.exit == Some(Exit::Code(0))),
-                    "playground set up: {:?}",
-                    calls
-                        .ends()
-                        .iter()
-                        .map(|call| (call.exit, support::without_secrets(&call.stderr)))
-                        .collect::<Vec<_>>()
-                );
-                self.phase = Phase::Project;
-            }
-            Phase::Project if terminal.has(b"playground") && !terminal.writing => {
-                terminal.bytes.clear();
-                terminal.keys(b"Add CSV export to widget\r");
-                self.phase = Phase::Chat;
-            }
-            // The echoed input can precede the running chat read by the TUI.
-            Phase::Chat
-                if terminal.has(b"Add CSV export to widget") && terminal.has(b"Working") && !terminal.writing =>
-            {
-                terminal.keys(b"\x03");
-                self.phase = Phase::Question;
-            }
-            Phase::Question if terminal.has(b"Stop the box?") && !terminal.writing => {
-                terminal.keys(b"\r");
-                calls.release();
-                self.phase = Phase::Stopping;
-            }
-            Phase::Stopping
-                if client.exit_status().is_some()
-                    && support::boxed::box_log(&self.root.join("data"))
+                Phase::SettingUp if calls.foreground_idle() => {
+                    if !calls.ends().iter().all(|call| call.exit == Some(Exit::Code(0))) {
+                        return Err(format!(
+                            "playground set up: {:?}",
+                            calls
+                                .ends()
+                                .iter()
+                                .map(|call| (call.exit, support::without_secrets(&call.stderr)))
+                                .collect::<Vec<_>>()
+                        ));
+                    }
+                    self.phase = Phase::Project;
+                }
+                Phase::Project if terminal.has(b"playground") && !terminal.writing => {
+                    terminal.bytes.clear();
+                    terminal.keys(b"Add CSV export to widget\r");
+                    self.phase = Phase::Chat;
+                }
+                // The echoed input can precede the running chat read by the TUI.
+                Phase::Chat
+                    if terminal.has(b"Add CSV export to widget") && terminal.has(b"Working") && !terminal.writing =>
+                {
+                    terminal.keys(b"\x03");
+                    self.phase = Phase::Question;
+                }
+                Phase::Question if terminal.has(b"Stop the box?") && !terminal.writing => {
+                    terminal.keys(b"\r");
+                    calls.release();
+                    self.phase = Phase::Stopping;
+                }
+                Phase::Stopping
+                    if client.exit_status().is_some()
+                        && match fs::read_to_string(self.root.join("data/box/logs/box.log")) {
+                            Ok(log) => log,
+                            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+                            Err(error) => return Err(format!("box log: {error}")),
+                        }
                         .lines()
                         .next_back()
                         .is_some_and(|line| line.ends_with("Stopped")) =>
-            {
-                self.phase = Phase::Done;
+                {
+                    self.phase = Phase::Done;
+                }
+                Phase::Connecting
+                | Phase::SettingUp
+                | Phase::Project
+                | Phase::Chat
+                | Phase::Question
+                | Phase::Stopping
+                | Phase::Done => {}
             }
-            Phase::Connecting
-            | Phase::SettingUp
-            | Phase::Project
-            | Phase::Chat
-            | Phase::Question
-            | Phase::Stopping
-            | Phase::Done => {}
+
+            Ok(())
+        })();
+        if let Err(why) = result {
+            self.failed = Some(why);
         }
     }
-    fn observe(&mut self, _now: Time, roots: &[Root]) {
+    fn watch(&mut self, _now: Time, roots: &[Root]) -> Result<(), String> {
+        if let Some(why) = self.failed.take() {
+            return Err(why);
+        }
         self.settled = matches!(self.phase, Phase::Done) && roots.iter().all(Host::is_empty);
         if !self.settled
             && let Some(figures) = self.patience.failed()
         {
-            panic!("TUI's box did not settle in {:?}: {figures}", self.phase);
+            return Err(format!("TUI's box did not settle in {:?}: {figures}", self.phase));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.settled { None } else { self.patience.until() }
     }
     fn passed(&self) -> bool {
+        if self.failed.is_some() {
+            return false;
+        }
         self.settled
     }
 }
@@ -339,6 +365,7 @@ fn run(case: Case, name: &str) {
         support::ctl::Calls::linked(&format!("http://{address}/jig/v1/sign-in/link?secret={}", "A".repeat(43)), &ctl);
     calls.hold();
     let mut world = real::World::new(Judge {
+        failed: None,
         case,
         phase: Phase::Connecting,
         root: root.into(),
@@ -369,8 +396,10 @@ struct LoginJudge {
     settled: bool,
 }
 impl Referee<Root> for LoginJudge {
-    fn observe(&mut self, _now: Time, roots: &[Root]) {
+    fn watch(&mut self, _now: Time, roots: &[Root]) -> Result<(), String> {
         self.settled = roots.iter().all(Host::is_empty);
+
+        Ok(())
     }
     fn passed(&self) -> bool {
         self.settled

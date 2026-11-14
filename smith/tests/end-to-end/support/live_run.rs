@@ -52,7 +52,7 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         if !self.shutdown
             && procs.iter().any(|proc| matches!(proc, Process::Binary(binary) if binary.exit_status().is_some()))
         {
@@ -62,66 +62,80 @@ impl Referee<Process> for Judge {
             if let Process::Binary(binary) = proc
                 && let Some(exit) = binary.exit_status()
             {
-                assert_eq!(exit, Exit::Code(0), "live Smith must exit successfully; diagnostic bytes are withheld");
-                assert!(
-                    std::str::from_utf8(binary.stderr()).is_ok_and(|text| text.lines().all(|line| line
-                        == "smith: local host started"
-                        || line == "smith: agent started"
-                        || line == "smith: commands run in process groups and are not contained"
-                        || line == "smith: chat chat"
-                        || trust_notice(line))),
-                    "live Smith emitted an unexpected diagnostic; credential-bearing bytes are withheld"
-                );
+                if exit != Exit::Code(0) {
+                    return Err(format!(
+                        "live Smith must exit successfully; diagnostic bytes are withheld\nleft: {:?}\nright: {:?}",
+                        exit,
+                        Exit::Code(0)
+                    ));
+                }
+                if !(std::str::from_utf8(binary.stderr()).is_ok_and(|text| {
+                    text.lines().all(|line| {
+                        line == "smith: local host started"
+                            || line == "smith: agent started"
+                            || line == "smith: commands run in process groups and are not contained"
+                            || line == "smith: chat chat"
+                            || trust_notice(line)
+                    })
+                })) {
+                    return Err(String::from(
+                        "live Smith emitted an unexpected diagnostic; credential-bearing bytes are withheld",
+                    ));
+                }
             }
         }
         if self.reviewed || !procs.iter().all(Host::is_empty) {
-            return;
+            return Ok(());
         }
-        let records = super::read_trace(&self.directory, &self.trace_prefix);
-        assert!(
-            records.iter().any(|record| matches!(&record.event,
-                smith_events::Event::ToolStarted(started) if started.tool.as_ref() == b"finish")),
-            "the shipped live agent called finish"
-        );
-        assert!(
-            records.iter().any(|record| matches!(&record.event,
+        let records = super::check_trace(&self.directory, &self.trace_prefix)?;
+        if !(records.iter().any(|record| {
+            matches!(&record.event,
+                smith_events::Event::ToolStarted(started) if started.tool.as_ref() == b"finish")
+        })) {
+            return Err(String::from("the shipped live agent called finish"));
+        }
+        if !(records.iter().any(|record| {
+            matches!(&record.event,
                 smith_events::Event::ToolCompleted(completed)
                 if completed.tool.as_ref() == b"finish"
                     && completed.verdict == smith_events::Verdict::Result
                     && (self.expectation.before.is_none()
-                        || completed.delivery == Some(smith_events::Delivered::Delivered)))),
-            "the live agent received its accepted or delivered finish terminal"
-        );
+                        || completed.delivery == Some(smith_events::Delivered::Delivered)))
+        })) {
+            return Err(String::from("the live agent received its accepted or delivered finish terminal"));
+        }
         if let Some(before) = &self.expectation.before {
-            let head = self.checkout.head().expect("live committed head");
-            assert!(head != *before, "live run creates a new commit");
+            let head = self.checkout.head().ok_or("live committed head")?;
+            if head == *before {
+                return Err(String::from("live run creates a new commit"));
+            }
             let message = self.checkout.message(&head);
-            assert!(
-                skein_lib::bytes::find(&message, b"Smith-Delivery:").is_some(),
-                "commit carries the delivery identity"
-            );
+            if skein_lib::bytes::find(&message, b"Smith-Delivery:").is_none() {
+                return Err(String::from("commit carries the delivery identity"));
+            }
             let files = self.checkout.files(&head);
             for (path, expected) in &self.expectation.files {
-                assert!(
-                    files.get(path).is_some_and(|bytes| bytes == expected),
-                    "the committed file has its prescribed content"
-                );
-                assert!(
-                    std::fs::read(self.directory.join("repo").join(std::str::from_utf8(path).expect("test path")))
-                        .is_ok_and(|bytes| bytes == *expected),
-                    "the delivered checkout keeps the prescribed content"
-                );
+                if files.get(path).is_none_or(|bytes| bytes != expected) {
+                    return Err(String::from("the committed file has its prescribed content"));
+                }
+                if !(std::fs::read(
+                    self.directory.join("repo").join(std::str::from_utf8(path).map_err(|_| String::from("test path"))?),
+                )
+                .is_ok_and(|bytes| bytes == *expected))
+                {
+                    return Err(String::from("the delivered checkout keeps the prescribed content"));
+                }
             }
             let person = procs
                 .iter()
                 .find_map(|proc| if let Process::Script(Proc::Terminal(person)) = proc { Some(person) } else { None })
-                .expect("live person");
-            assert!(
-                skein_lib::bytes::find(person.shown(), b"Change delivered").is_some(),
-                "terminal observed delivery"
-            );
+                .ok_or("live person")?;
+            if skein_lib::bytes::find(person.shown(), b"Change delivered").is_none() {
+                return Err(String::from("terminal observed delivery"));
+            }
         }
         self.reviewed = true;
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.next_act.into_iter().chain([self.deadline]).min()

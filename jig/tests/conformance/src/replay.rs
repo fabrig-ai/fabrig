@@ -59,16 +59,11 @@ fn finish_steps(
 fn diagnose(
     world: &mut World,
     seed: u64,
+    scenario: Scenario,
     play: impl FnOnce(&mut World) -> Result<(), Violation>,
 ) -> Result<(), Violation> {
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| play(world))).unwrap_or_else(|cause| {
-        let detail = cause
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| cause.downcast_ref::<&str>().copied())
-            .unwrap_or("non-string panic");
-        panic!("scenario seed {seed}: {detail}\n{}", world.trace.join("\n"));
-    })
+    eprintln!("scenario {scenario:?}, seed {seed}");
+    play(world)
 }
 
 fn finish(
@@ -78,7 +73,7 @@ fn finish(
     position: Position,
     position_seen: &RefCell<Position>,
 ) -> Result<(), Violation> {
-    diagnose(world, seed, |world| finish_steps(world, scenario, position, position_seen))
+    diagnose(world, seed, scenario, |world| finish_steps(world, scenario, position, position_seen))
 }
 
 /// Replay every original numbered durable cut from its outside snapshot.
@@ -168,7 +163,7 @@ pub fn fresh(scenario: Scenario, cut: Cut, seed: u64, enabled: bool) -> Result<W
     let config = Testing::configuration(scenario, seed).expect("testing binds every shared story");
     let mut world = Harness::<Testing>::with_trace(config, seed, enabled);
     world.cut(cut);
-    diagnose(&mut world, seed, |world| {
+    diagnose(&mut world, seed, scenario, |world| {
         for step in program(scenario) {
             match step {
                 Step::Action(action) => Testing::action(world, action).map_err(|error| world.diagnostic(error))?,

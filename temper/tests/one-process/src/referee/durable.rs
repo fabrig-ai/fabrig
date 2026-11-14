@@ -163,7 +163,7 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
-    ) -> Vec<Commit> {
+    ) -> Result<Vec<Commit>, String> {
         let mut committed = Vec::new();
         for event in events.drain(..) {
             match event {
@@ -172,7 +172,7 @@ impl Store {
                     // record; the store, its snapshots and its logs hold none
                     // (jig's protocol/store/secrets.md).
                     if !in_generation(&path).is_some_and(|suffix| suffix.starts_with(b"secrets/")) {
-                        super::secrets::require(&bytes, "store bytes");
+                        super::secrets::check(&bytes, "store bytes")?;
                     }
                     if let Some(validated) = self.validated.get_mut(&path)
                         && at < *validated
@@ -183,7 +183,7 @@ impl Store {
                     file.resize(file.len().max(at + bytes.len()), 0);
                     file[at..at + bytes.len()].copy_from_slice(&bytes);
                     if path.as_slice() == b"active" {
-                        committed.extend(self.active_file(limits, names, connector));
+                        committed.extend(self.active_file(limits, names, connector)?);
                     }
                 }
                 Observed::Pending { path, bytes } => {
@@ -192,7 +192,7 @@ impl Store {
                             .0
                             .into_iter()
                             .map(|(number, ops)| self.commit(number, ops, limits, names, connector))
-                            .collect();
+                            .collect::<Result<_, _>>()?;
                     }
                 }
                 Observed::Renamed { from, to } => {
@@ -200,23 +200,23 @@ impl Store {
                         self.files.insert(to.clone(), bytes);
                     }
                     if in_generation(&to) == Some(b"store/snapshot".as_slice()) {
-                        committed.extend(self.snapshot(&to, limits, names, connector));
+                        committed.extend(self.snapshot(&to, limits, names, connector)?);
                     }
                 }
                 Observed::Recovered(path) if is_log(&path) => {
                     if let Some(bytes) = self.files.get(&path) {
                         self.recovered.extend(frames(bytes, 0).0.into_iter().map(|(number, _)| number));
                     }
-                    committed.extend(self.durable(&path, limits, names, connector));
+                    committed.extend(self.durable(&path, limits, names, connector)?);
                 }
                 Observed::Snapshot(path) => {
-                    committed.extend(self.snapshot(&path, limits, names, connector));
+                    committed.extend(self.snapshot(&path, limits, names, connector)?);
                 }
                 Observed::Sync(path) if is_log(&path) => {
-                    committed.extend(self.durable(&path, limits, names, connector));
+                    committed.extend(self.durable(&path, limits, names, connector)?);
                 }
                 Observed::Sync(path) if in_generation(&path) == Some(b"store/snapshot".as_slice()) => {
-                    committed.extend(self.snapshot(&path, limits, names, connector));
+                    committed.extend(self.snapshot(&path, limits, names, connector)?);
                 }
                 Observed::Sync(path)
                     if in_generation(&path) == Some(b"store".as_slice())
@@ -230,12 +230,12 @@ impl Store {
                     self.restoring = false;
                 }
                 Observed::Sync(path) if path.is_empty() => {
-                    committed.extend(self.active_file(limits, names, connector));
+                    committed.extend(self.active_file(limits, names, connector)?);
                 }
                 Observed::Sync(_) | Observed::Recovered(_) => {}
             }
         }
-        committed
+        Ok(committed)
     }
     fn durable(
         &mut self,
@@ -243,9 +243,9 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
-    ) -> Vec<Commit> {
+    ) -> Result<Vec<Commit>, String> {
         let mut committed = Vec::new();
-        let Some(bytes) = self.files.get(path) else { return committed };
+        let Some(bytes) = self.files.get(path) else { return Ok(committed) };
         let start = self.validated.get(path).copied().unwrap_or(0);
         let after = self.generation(path).map_or(self.applied, |generation| generation.number);
         let (frames, used) = frames(&bytes[start..], after);
@@ -255,18 +255,18 @@ impl Store {
                 continue;
             }
             if self.deferred.is_some() {
-                committed.extend(self.active_file(limits, names, connector));
+                committed.extend(self.active_file(limits, names, connector)?);
                 continue;
             }
             if number <= self.applied {
                 continue;
             }
-            let commit = self.commit(number, ops, limits, names, connector);
+            let commit = self.commit(number, ops, limits, names, connector)?;
             self.apply(&commit, limits);
             self.pending.retain(|pending| pending.number > number);
             committed.push(commit);
         }
-        committed
+        Ok(committed)
     }
     fn apply(&mut self, commit: &Commit, limits: &codec::View) {
         if let Some(installation) = commit.installation {
@@ -304,7 +304,7 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
-    ) -> Commit {
+    ) -> Result<Commit, String> {
         let mut writes = Vec::new();
         let mut installation = None;
         let mut wires = false;
@@ -312,7 +312,8 @@ impl Store {
             match op {
                 skein_kv::Op::Put { key, value } => {
                     if let Some(key) = keys::decode(&key) {
-                        let row = codec::decode(&key, &value, limits, names).expect("real stored row decodes");
+                        let row = codec::decode(&key, &value, limits, names)
+                            .ok_or_else(|| String::from("real stored row decodes"))?;
                         if let core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
                             history: true,
                             revision,
@@ -326,15 +327,24 @@ impl Store {
                             writes.push(root::Write::Save(root::Record::Core(row)));
                         }
                     } else if let Some(keys::Own::Transcript { task }) = keys::decode_own(&key) {
-                        let place = codec::component::Transcript::decode(&value).expect("real transcript place");
+                        let place = codec::component::Transcript::decode(&value)
+                            .map_err(|why| format!("real transcript place: {why:?}"))?;
                         let name = format!("transcripts/{:016x}/{task:016x}", task >> 12).into_bytes();
-                        let bytes = self.files.get(&name).expect("transcript write precedes map commit");
+                        let bytes = self
+                            .files
+                            .get(&name)
+                            .ok_or_else(|| String::from("transcript write precedes map commit"))?;
                         let mut at = usize::try_from(self.lengths.get(&task).copied().unwrap_or(0))
-                            .expect("fixture transcript offset");
-                        while at < usize::try_from(place.length).expect("fixture transcript length") {
-                            let len = u32::from_be_bytes(bytes[at..at + 4].try_into().expect("frame length")) as usize;
+                            .map_err(|why| format!("fixture transcript offset: {why:?}"))?;
+                        while at
+                            < usize::try_from(place.length)
+                                .map_err(|why| format!("fixture transcript length: {why:?}"))?
+                        {
+                            let len = u32::from_be_bytes(
+                                bytes[at..at + 4].try_into().map_err(|why| format!("frame length: {why:?}"))?,
+                            ) as usize;
                             let turn = transcripts::frame::decode(&bytes[at..at + len], limits)
-                                .expect("whole real transcript frame");
+                                .map_err(|why| format!("whole real transcript frame: {why:?}"))?;
                             writes.push(root::Write::Save(root::Record::Core(core::Record::Core(
                                 core::CoreRecord::Turn(turn),
                             ))));
@@ -343,11 +353,14 @@ impl Store {
                     } else if keys::decode_own(&key) == Some(keys::Own::Wires) {
                         wires = true;
                     } else if Some(key.as_ref()) == keys::installation(64).as_deref() {
-                        installation =
-                            Some(codec::accounts::Installation::decode(&value).expect("kept installation").id);
+                        installation = Some(
+                            codec::accounts::Installation::decode(&value)
+                                .map_err(|why| format!("kept installation: {why:?}"))?
+                                .id,
+                        );
                     } else if key.first() == Some(&keys::APPLICATION) {
-                        let row =
-                            temper_protocol_store::records::decode(&value, connector).expect("real application row");
+                        let row = temper_protocol_store::records::decode(&value, connector)
+                            .map_err(|why| format!("real application row: {why:?}"))?;
                         writes.push(root::Write::Save(root::Record::Forge { row: Box::new(row) }));
                     }
                 }
@@ -358,13 +371,13 @@ impl Store {
                         writes.push(root::Write::DropTranscript { task });
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let key = temper_protocol_store::keys::decode(&key[1..], connector.forge())
-                            .expect("real application key");
+                            .ok_or_else(|| String::from("real application key"))?;
                         writes.push(root::Write::Erase(root::Key::Forge(key)));
                     }
                 }
             }
         }
-        Commit { number, writes, installation, wires }
+        Ok(Commit { number, writes, installation, wires })
     }
 }
 type Frames = Vec<(u64, Box<[skein_kv::Op]>)>;

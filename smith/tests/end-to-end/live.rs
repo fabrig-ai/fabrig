@@ -274,40 +274,32 @@ fn a_configured_push_lands() {
     let branch = format!("smith-live-{}-{}", std::process::id(), skein_shell::Clock::new().now().now.as_nanos());
     assert!(git(&repo, &["checkout", "-q", "-b", &branch]).status.success(), "unique live branch");
     assert!(git(&repo, &["remote", "add", "origin", remote]).status.success(), "selected remote");
-    let mut completed = String::new();
-    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        completed = run(
-            &environment,
-            Leg { story: "a_configured_push_lands", account: "chatgpt", invocation: 1, step: Step::Exec },
-            &scratch,
-            CHANGE,
-            Expectation { before: scratch.checkout().head(), files: changed_files() },
-            true,
-            false,
-        );
-        let seen = git(&repo, &["ls-remote", "origin", &format!("refs/heads/{branch}")]);
-        assert!(seen.status.success(), "inspect remote branch; exit={:?}\n{completed}", seen.status.code());
-        let head = scratch.checkout().head().unwrap_or_else(|| panic!("delivered head\n{completed}"));
-        assert!(
-            seen.stdout.split(u8::is_ascii_whitespace).next() == Some(head.as_slice()),
-            "push landed at the delivered commit\n{completed}"
-        );
-    }));
-    if completed.is_empty()
-        && let Err(failure) = &outcome
-        && let Some(report) = failure.downcast_ref::<String>()
-    {
-        completed.clone_from(report);
+    let stale = git(&repo, &["ls-remote", "--heads", "origin", "refs/heads/smith-live-*"]);
+    assert!(stale.status.success(), "list earlier live branches; exit={:?}", stale.status.code());
+    for line in std::str::from_utf8(&stale.stdout).expect("remote refs are UTF-8").lines() {
+        let (_, name) = line.split_once('\t').expect("remote ref has its object id");
+        assert!(name.starts_with("refs/heads/smith-live-"), "only live fixture branches are removed");
+        let removed = git(&repo, &["push", "origin", &format!(":{name}")]);
+        assert!(removed.status.success(), "remove earlier live branch; exit={:?}", removed.status.code());
     }
-    let cleanup = git(&repo, &["push", "origin", &format!(":refs/heads/{branch}")]);
-    assert!(
-        cleanup.status.success(),
-        "remove remote branch even on story failure; exit={:?}\n{completed}",
-        cleanup.status.code()
+    let completed = run(
+        &environment,
+        Leg { story: "a_configured_push_lands", account: "chatgpt", invocation: 1, step: Step::Exec },
+        &scratch,
+        CHANGE,
+        Expectation { before: scratch.checkout().head(), files: changed_files() },
+        true,
+        false,
     );
-    if let Err(failure) = outcome {
-        std::panic::resume_unwind(failure);
-    }
+    let seen = git(&repo, &["ls-remote", "origin", &format!("refs/heads/{branch}")]);
+    assert!(seen.status.success(), "inspect remote branch; exit={:?}\n{completed}", seen.status.code());
+    let head = scratch.checkout().head().unwrap_or_else(|| panic!("delivered head\n{completed}"));
+    assert!(
+        seen.stdout.split(u8::is_ascii_whitespace).next() == Some(head.as_slice()),
+        "push landed at the delivered commit\n{completed}"
+    );
+    let cleanup = git(&repo, &["push", "origin", &format!(":refs/heads/{branch}")]);
+    assert!(cleanup.status.success(), "remove landed remote branch; exit={:?}\n{completed}", cleanup.status.code());
 }
 
 fn run(

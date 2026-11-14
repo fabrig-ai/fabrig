@@ -249,6 +249,7 @@ fn run_with_issuer(
         workers: Vec::new(),
         lifecycle: Lifecycle::default(),
         failure: None,
+        finding: None,
         armed: false,
         wake: None,
         forge: None,
@@ -351,22 +352,25 @@ impl Llm {
 }
 impl Llm {
     /// Plays the deferred scripts, by their turn rules where given, once the forge is bound.
-    fn bind(&mut self, address: std::net::SocketAddr) {
+    fn bind(&mut self, address: std::net::SocketAddr) -> Result<(), String> {
         if let Some(recipe) = self.recipe.take() {
-            self.peer = llm::peer((recipe.build)(address, &recipe.source)).expect("derived forge recipe");
+            self.peer = llm::peer((recipe.build)(address, &recipe.source))
+                .map_err(|error| format!("derived forge recipe: {error:?}"))?;
             self.scripts = None;
-            return;
+            return Ok(());
         }
         if let Some(groups) = self.groups.take() {
-            self.peer = llm::peer(llm::played(groups(address))).expect("bound forge script groups");
-            return;
+            self.peer = llm::peer(llm::played(groups(address)))
+                .map_err(|error| format!("bound forge script groups: {error:?}"))?;
+            return Ok(());
         }
-        let Some(scripts) = self.scripts.take() else { return };
+        let Some(scripts) = self.scripts.take() else { return Ok(()) };
         let recipe = match self.rules.take() {
             Some(rules) => llm::played_by_input(scripts(address), rules()),
             None => llm::scripted(scripts(address)),
         };
-        self.peer = llm::peer(recipe).expect("bound forge scripts");
+        self.peer = llm::peer(recipe).map_err(|error| format!("bound forge scripts: {error:?}"))?;
+        Ok(())
     }
 }
 impl std::ops::Deref for Llm {
@@ -396,6 +400,7 @@ pub(crate) fn run_forge(
         workers: Vec::new(),
         lifecycle: Lifecycle::default(),
         failure: None,
+        finding: None,
         armed: false,
         wake: None,
         forge: Some(state.clone()),
@@ -550,6 +555,7 @@ struct Judge {
     lifecycle: Lifecycle,
     armed: bool,
     failure: Option<Failure>,
+    finding: Option<String>,
     wake: Option<Time>,
     forge: Option<std::rc::Rc<std::cell::RefCell<Option<forge::State>>>>,
     github: Option<crate::github::State>,
@@ -624,22 +630,27 @@ impl Children {
         }
         self.locks.borrow_mut().apply(caller);
     }
-    fn lock_changed(&mut self, children: &[Proc], caller: &Caller) -> bool {
+    fn lock_changed(&mut self, children: &[Proc], caller: &Caller) -> Result<bool, String> {
         let mut locks = self.locks.borrow_mut();
         let setup = caller.setup();
         // Without an invalidation, neither the records nor the caller's lock
         // tuples changed; only leaving setup can change the answer.
         if locks.invalidated.is_empty() && self.last_setup == setup {
-            return self.lock_change;
+            return Ok(self.lock_change);
         }
         while let Some((call, setup)) = locks.invalidated.pop() {
             let phase = usize::from(setup);
             let records = &mut self.calls[call][phase];
-            let differs = records.positions.len() > 1
-                && records.positions.iter().any(|index| {
-                    let Kind::Ctl(recorded) = &children[*index].kind else { panic!("ctl position") };
-                    recorded.differs(caller)
-                });
+            let mut differs = false;
+            if records.positions.len() > 1 {
+                for index in &records.positions {
+                    let Kind::Ctl(recorded) = &children[*index].kind else { return Err("ctl position".into()) };
+                    if recorded.differs(caller) {
+                        differs = true;
+                        break;
+                    }
+                }
+            }
             if differs != records.differs {
                 if differs {
                     self.differing_calls[phase] += 1;
@@ -654,7 +665,7 @@ impl Children {
         self.last_setup = setup;
         self.lock_change =
             locks.changed(caller) || self.differing_calls[0] != 0 || setup && self.differing_calls[1] != 0;
-        self.lock_change
+        Ok(self.lock_change)
     }
     fn finish(&mut self, children: &[Proc]) {
         // The referee owns the queue's heap. Hosts must release their subscriptions
@@ -666,11 +677,14 @@ impl Children {
         }
         self.finished = true;
     }
-    fn settled(&self, children: &[Proc]) -> bool {
-        self.terminals.iter().all(|index| {
-            let Kind::Terminal(terminal) = &children[*index].kind else { panic!("terminal position") };
-            terminal.is_empty()
-        })
+    fn settled(&self, children: &[Proc]) -> Result<bool, String> {
+        for index in &self.terminals {
+            let Kind::Terminal(terminal) = &children[*index].kind else { return Err("terminal position".into()) };
+            if !terminal.is_empty() {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 }
 
@@ -681,15 +695,15 @@ struct LlmHistory {
     visits: usize,
 }
 impl LlmHistory {
-    fn observe(&mut self, observations: &[skein_fake_peers::llm::Observation]) -> i64 {
+    fn observe(&mut self, observations: &[skein_fake_peers::llm::Observation]) -> Result<i64, String> {
         // Deferred forge/GitHub peers are replaced before they run; a driven peer only appends.
-        let suffix = observations.get(self.seen..).expect("LLM observation history never shrinks");
+        let suffix = observations.get(self.seen..).ok_or("LLM observation history never shrinks")?;
         self.visits += suffix.len();
         self.pending = suffix.iter().fold(self.pending, |n, event| {
             n + i64::from(matches!(event, Query { .. })) - i64::from(matches!(event, Answered { .. }))
         });
         self.seen = observations.len();
-        self.pending
+        Ok(self.pending)
     }
 }
 impl Judge {
@@ -699,15 +713,15 @@ impl Judge {
         service: &ServiceHost,
         workers: &[Proc],
         children: &[Proc],
-    ) -> lifecycle::Shutdown {
-        self.lifecycle.shutdown(
+    ) -> Result<lifecycle::Shutdown, String> {
+        Ok(self.lifecycle.shutdown(
             caller.is_empty(),
             Hosts {
                 service_empty: service.is_empty(),
                 workers_empty: workers.iter().all(Host::is_empty),
-                children_settled: self.children.settled(children),
+                children_settled: self.children.settled(children)?,
             },
-        )
+        ))
     }
     fn finish_peers(&mut self, peer: &mut Llm, children: &mut [Proc]) {
         peer.scripts = None;
@@ -740,40 +754,41 @@ impl Judge {
             }
         }
     }
-    fn worker_actions(&mut self, caller_end: usize, caller: &Caller, workers: &mut [Proc]) {
+    fn worker_actions(&mut self, caller_end: usize, caller: &Caller, workers: &mut [Proc]) -> Result<(), String> {
         if let Some(name) = caller.adding_worker() {
-            let position = worker_position(workers, name).expect("configured worker");
-            let Kind::Service(worker) = &mut workers[position].kind else { panic!("worker root") };
+            let position = worker_position(workers, name).ok_or("configured worker")?;
+            let Kind::Service(worker) = &mut workers[position].kind else { return Err("worker root".into()) };
             let Some(crate::cluster::Shape::Worker { started, .. }) = &mut worker.cluster else {
-                panic!("worker shape")
+                return Err("worker shape".into());
             };
             *started = true;
             caller.added.set(worker.linked() > 0);
         }
         if let Some(name) = caller.stopping_worker() {
-            let position = worker_position(workers, name).expect("configured worker");
-            let Kind::Service(worker) = &mut workers[position].kind else { panic!("worker root") };
+            let position = worker_position(workers, name).ok_or("configured worker")?;
+            let Kind::Service(worker) = &mut workers[position].kind else { return Err("worker root".into()) };
             if !worker.stopping() {
-                worker.stop_for_restart();
+                worker.stop_for_restart()?;
                 self.controls.signal(caller_end + position, ServiceSignal::Terminate);
             }
             caller.worker_ready.set(worker.settled());
         }
         if let Some(name) = caller.starting_worker() {
-            let position = worker_position(workers, name).expect("configured worker");
-            let Kind::Service(worker) = &mut workers[position].kind else { panic!("worker root") };
+            let position = worker_position(workers, name).ok_or("configured worker")?;
+            let Kind::Service(worker) = &mut workers[position].kind else { return Err("worker root".into()) };
             if worker.stopping() {
-                worker.restart();
+                worker.restart()?;
             }
             caller.worker_ready.set(worker.linked() > worker.lives().iter().map(|life| life.linked).sum());
         }
+        Ok(())
     }
 }
 impl Judge {
     fn capture_overdue(&mut self, now: Time, procs: &mut [Proc]) {
         let report = self.describe_pending(now, procs);
         self.patience.capture(report);
-        crate::patience::fail_overdue::<Proc, _>(self, now);
+        self.finding = crate::patience::check_overdue::<Proc, _>(self, now).err();
     }
     fn describe_pending(&self, now: Time, procs: &mut [Proc]) -> String {
         use std::fmt::Write;
@@ -801,17 +816,18 @@ impl Judge {
         report
     }
 }
-impl Referee<Proc> for Judge {
+impl Judge {
     #[expect(clippy::too_many_lines, reason = "issuer admission cues join the other hosted-process story cues")]
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         if self.patience.due() {
             self.capture_overdue(now, procs);
+            return Ok(());
         }
         self.wake = None;
-        if self.failure.is_some() {
-            return;
+        if self.failure.is_some() || self.finding.is_some() {
+            return Ok(());
         }
-        let engine_index = procs.iter().position(|proc| matches!(&proc.kind, Kind::Service(_))).expect("engine root");
+        let engine_index = procs.iter().position(|proc| matches!(&proc.kind, Kind::Service(_))).ok_or("engine root")?;
         let caller_end = 3;
         let (roots, children) = procs.split_at_mut(caller_end);
         let [
@@ -820,11 +836,11 @@ impl Referee<Proc> for Judge {
             Proc { kind: Kind::Caller(caller), .. },
         ] = roots
         else {
-            panic!("root admission order")
+            return Err("root admission order".into());
         };
         let (workers, children) = children.split_at_mut(self.workers.len());
         for proc in workers.iter_mut() {
-            let Kind::Service(worker) = &mut proc.kind else { panic!("worker root") };
+            let Kind::Service(worker) = &mut proc.kind else { return Err("worker root".into()) };
             worker.address = peer.address();
             if let Some(crate::cluster::Shape::Worker { engine, .. }) = &mut worker.cluster {
                 *engine = service.workers_address;
@@ -832,31 +848,31 @@ impl Referee<Proc> for Judge {
         }
         if caller.stopping_engine() {
             if !service.stopping() {
-                service.stop_for_restart();
+                service.stop_for_restart()?;
                 self.controls.signal(engine_index, ServiceSignal::Terminate);
             }
             caller.engine_ready.set(service.settled());
         }
         if let Some(failures) = caller.starting_engine() {
             if service.stopping() {
-                service.restart_after_failures(failures);
+                service.restart_after_failures(failures)?;
             }
             caller.engine_ready.set(service.links() > 1 && story_ready(service, workers));
         }
         if let Some(name) = caller.cancelled_worker() {
-            let position = worker_position(workers, name).expect("configured worker");
-            let Kind::Service(worker) = &workers[position].kind else { panic!("worker root") };
+            let position = worker_position(workers, name).ok_or("configured worker")?;
+            let Kind::Service(worker) = &workers[position].kind else { return Err("worker root".into()) };
             caller.contact_cancelled.set(contact_cancelled(worker));
         }
-        self.worker_actions(caller_end, caller, workers);
+        self.worker_actions(caller_end, caller, workers)?;
         peer.release_hold(caller);
         if placed(workers) && peer.placement_hold && !self.lifecycle.finished {
             peer.cue = true;
         }
         if !self.armed {
             for name in caller.held_names() {
-                let name = temper_client_tools::jig::key::Name::new(name).expect("held request name");
-                service.arm(temper_client_tools::key::engine(&name));
+                let name = temper_client_tools::jig::key::Name::new(name).ok_or("held request name")?;
+                service.arm(temper_client_tools::key::engine(&name))?;
             }
             self.armed = true;
         }
@@ -869,23 +885,23 @@ impl Referee<Proc> for Judge {
         }
         if let Some(state) = &self.forge {
             let mut borrowed = state.borrow_mut();
-            let state = borrowed.as_mut().expect("spawned forge");
-            let Kind::Forge(forge) = &mut children[0].kind else { panic!("forge admission order") };
+            let state = borrowed.as_mut().ok_or("spawned forge")?;
+            let Kind::Forge(forge) = &mut children[0].kind else { return Err("forge admission order".into()) };
             service.forge_address = forge.address();
             for proc in workers.iter_mut() {
-                let Kind::Service(worker) = &mut proc.kind else { panic!("worker root") };
+                let Kind::Service(worker) = &mut proc.kind else { return Err("worker root".into()) };
                 worker.forge_address = forge.address();
             }
             if let Some(address) = forge.address() {
-                peer.bind(address);
+                peer.bind(address)?;
             }
             if let Some(hooks) = service.hooks
                 && !state.hooked
             {
                 state.hand_hooks(hooks);
             }
-            person_push(now, caller, state, &mut service.seen);
-            service.seen.collect(now, forge, &state.handle, &state.repository);
+            person_push(now, caller, state, &mut service.seen)?;
+            service.seen.collect(now, forge, &state.handle, &state.repository)?;
             caller.advanced.set(
                 state.moved
                     && (caller.pushing().is_some()
@@ -896,22 +912,22 @@ impl Referee<Proc> for Judge {
             }
         }
         if let Some(state) = &self.github {
-            github_cues(state, peer, service, caller, children);
+            github_cues(state, peer, service, caller, children)?;
         }
         service.address = peer.address();
         Lifecycle::release(caller, service.links(), story_ready(service, workers));
         if !caller.released && service.is_empty() {
-            self.fail_startup(service.early_exit(engine_index), caller, workers, caller_end);
+            self.fail_startup(service.early_exit(engine_index)?, caller, workers, caller_end);
             self.finish_peers(peer, children);
-            return;
+            return Ok(());
         }
         if let Some(call) = caller.watching {
             service.arm_watch(call);
             caller.watched = service.delivered();
         }
-        let shutdown = self.shutdown_decisions(caller, service, workers, children);
+        let shutdown = self.shutdown_decisions(caller, service, workers, children)?;
         if shutdown.workers {
-            check_ending(caller, service, workers, children);
+            check_ending(caller, service, workers, children)?;
             for (position, _) in self.workers.iter().enumerate() {
                 self.controls.signal(caller_end + position, ServiceSignal::Terminate);
             }
@@ -922,26 +938,37 @@ impl Referee<Proc> for Judge {
         if shutdown.peers {
             // Check before waiting on all hosted children: an orphaned held
             // program must fail for its missing interrupt, not a world timeout.
-            caller.check_program_stop();
+            caller.check_program_stop()?;
             self.finish_peers(peer, children);
+        }
+        Ok(())
+    }
+}
+impl Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if let Err(finding) = self.act_checked(now, procs) {
+            self.finding = Some(finding);
         }
     }
     #[expect(
         clippy::too_many_lines,
         reason = "the referee observes engine and worker restart cues alongside peer and caller progress"
     )]
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(finding) = &self.finding {
+            return Err(finding.clone());
+        }
         for proc in procs {
             if let Kind::Service(host) = &proc.kind
                 && let Some(service) = &host.service
                 && let Some(engine) = service.engine_domain()
             {
-                self.tasks.observe(engine, &proc.diagnostics.terminals);
+                self.tasks.observe(engine, &proc.diagnostics.terminals)?;
             }
         }
         if let Some(failure) = &mut self.failure {
             failure.settled = procs.iter().all(Host::is_empty);
-            return;
+            return crate::patience::check_overdue::<Proc, _>(self, now);
         }
         let [
             Proc { kind: Kind::Llm(peer), .. },
@@ -950,20 +977,21 @@ impl Referee<Proc> for Judge {
             ..,
         ] = procs
         else {
-            panic!("root admission order")
+            return Err("root admission order".into());
         };
         let caller_end = 3;
         let (workers, children) = procs[caller_end..].split_at(self.workers.len());
-        let workers_changed = workers.iter().any(|proc| {
-            let Kind::Service(worker) = &proc.kind else { panic!("worker root") };
-            (peer.address().is_some() && worker.address.is_none())
+        let mut workers_changed = false;
+        for proc in workers {
+            let Kind::Service(worker) = &proc.kind else { return Err("worker root".into()) };
+            workers_changed |= (peer.address().is_some() && worker.address.is_none())
                 || (worker_started(worker)
                     && service.workers_address.is_some()
-                    && worker.cluster.as_ref().is_some_and(|shape| !shape.ready()))
-        });
+                    && worker.cluster.as_ref().is_some_and(|shape| !shape.ready()));
+        }
         let _ = self.children.observe(children);
         if let Some(index) = self.children.terminals.last() {
-            let Kind::Terminal(terminal) = &children[*index].kind else { panic!("terminal position") };
+            let Kind::Terminal(terminal) = &children[*index].kind else { return Err("terminal position".into()) };
             // Exit lines mutate in place, rather than appending to a history.
             caller.terminal.refused.set(terminal.exit_line().is_some_and(|line| {
                 line.as_ref() == b"temper open: the link was refused: use the fresh link temper serve printed\n"
@@ -979,11 +1007,11 @@ impl Referee<Proc> for Judge {
                     && pending_llm(peer.observations()),
         );
         caller.links.set(service.links());
-        let lock_changed = self.children.lock_changed(children, caller);
-        let forge_changed = self.forge.as_ref().is_some_and(|state| {
+        let lock_changed = self.children.lock_changed(children, caller)?;
+        let forge_changed = if let Some(state) = &self.forge {
             let borrowed = state.borrow();
-            let state = borrowed.as_ref().expect("spawned forge");
-            let Kind::Forge(forge) = &children[0].kind else { panic!("forge root") };
+            let state = borrowed.as_ref().ok_or("spawned forge")?;
+            let Kind::Forge(forge) = &children[0].kind else { return Err("forge root".into()) };
             (forge.address().is_some() && service.forge_address.is_none())
                 || (service.hooks.is_some() && !state.hooked)
                 || (caller.advancing() && state.hooked && !state.moved)
@@ -991,13 +1019,15 @@ impl Referee<Proc> for Judge {
                 || (caller.advancing()
                     && !caller.advanced.get()
                     && (!forge.observations().is_empty() || !service.seen.responses().is_empty()))
-        });
-        let pending = self.llm_history.observe(peer.observations());
+        } else {
+            false
+        };
+        let pending = self.llm_history.observe(peer.observations())?;
         let placing = placed(workers) && pending > 0 && peer.placement_hold;
         let named_worker = |name| {
-            worker_position(workers, name).map(|position| {
-                let Kind::Service(worker) = &workers[position].kind else { panic!("worker root") };
-                worker.as_ref()
+            worker_position(workers, name).and_then(|position| {
+                // The workers were checked above.
+                if let Kind::Service(worker) = &workers[position].kind { Some(worker.as_ref()) } else { None }
             })
         };
         let worker_action = caller
@@ -1033,11 +1063,12 @@ impl Referee<Proc> for Judge {
                 && !caller.released
                 && story_ready(service, workers))
             || (caller.watching.is_some() && (!service.watching() || service.delivered() && !caller.watched))
-            || (caller.is_empty() && self.children.settled(children) && !self.lifecycle.stopping)
+            || (caller.is_empty() && self.children.settled(children)? && !self.lifecycle.stopping)
             || (service.is_empty() && !self.lifecycle.finished && (!caller.released || caller.is_empty()))
         {
             self.wake = Some(now);
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         [self.wake, self.patience.deadline()].into_iter().flatten().min()
@@ -1051,7 +1082,7 @@ impl Referee<Proc> for Judge {
             .or_else(|| self.patience.overdue())
     }
     fn passed(&self) -> bool {
-        self.lifecycle.passed(self.failure.is_some())
+        self.lifecycle.passed(self.failure.is_some() || self.finding.is_some())
     }
 }
 
@@ -1062,13 +1093,13 @@ fn story_ready(service: &ServiceHost, workers: &[Proc]) -> bool {
             .all(|proc| matches!(&proc.kind, Kind::Service(worker) if !worker_started(worker) || worker.linked() > 0))
 }
 
-fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], children: &[Proc]) {
+fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], children: &[Proc]) -> Result<(), String> {
     let declared = caller.leftovers();
     let mut obligations = crate::ending::Obligations::default();
-    obligations.read(service, declared);
+    obligations.read(service, declared)?;
     for worker in workers {
-        let Kind::Service(worker) = &worker.kind else { panic!("worker root") };
-        obligations.read(worker, declared);
+        let Kind::Service(worker) = &worker.kind else { return Err("worker root".into()) };
+        obligations.read(worker, declared)?;
     }
     let active_program =
         service.service.as_ref().and_then(crate::service::Driven::worker_domain).is_some_and(|worker| {
@@ -1087,19 +1118,20 @@ fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], childr
         }
         obligations.read_child(3 + workers.len() + index, child);
     }
-    obligations.check(declared).unwrap_or_else(|error| panic!("{error}"));
+    obligations.check(declared)
 }
 
-fn person_push(now: Time, caller: &Caller, state: &mut forge::State, seen: &mut forge::Seen) {
+fn person_push(now: Time, caller: &Caller, state: &mut forge::State, seen: &mut forge::Seen) -> Result<(), String> {
     if caller.advancing() && state.hooked && !state.moved {
-        state.advance(now, skein_shell::Clock::new().now().wall);
+        state.advance(now, skein_shell::Clock::new().now().wall)?;
     }
     if let Some((path, words)) = caller.pushing()
         && !state.moved
     {
-        state.push(now, skein_shell::Clock::new().now().wall, path, words);
-        seen.pushed(&state.handle);
+        state.push(now, skein_shell::Clock::new().now().wall, path, words)?;
+        seen.pushed(&state.handle)?;
     }
+    Ok(())
 }
 
 fn github_cues(
@@ -1108,30 +1140,31 @@ fn github_cues(
     service: &mut ServiceHost,
     caller: &mut Caller,
     children: &mut [Proc],
-) {
-    let Kind::Forge(forge) = &mut children[0].kind else { panic!("GitHub root") };
+) -> Result<(), String> {
+    let Kind::Forge(forge) = &mut children[0].kind else { return Err("GitHub root".into()) };
     service.forge_address = forge.address();
     if service.blob_address != forge.blob_address() {
         service.blob_address = forge.blob_address();
         if let Some(blob) = service.blob_address {
             forge
                 .github_layer_mut()
-                .expect("GitHub layer")
+                .ok_or("GitHub layer")?
                 .set_blob_origin(
                     format!("http://productionresultssa17.blob.core.windows.net:{}", blob.port()).into_bytes().into(),
                 )
-                .expect("fake log origin");
+                .map_err(|error| format!("fake log origin: {error:?}"))?;
         }
     }
     if let Some(address) = forge.address() {
-        peer.bind(address);
+        peer.bind(address)?;
     }
     caller.github_app = service.github_seen.app.as_ref().map(|app| app.id);
-    service.checkpoint_github(forge, &caller.calls);
+    service.checkpoint_github(forge, &caller.calls)?;
     if service.is_empty() {
-        service.github_seen.collect(forge, &state.handle);
+        service.github_seen.collect(forge, &state.handle)?;
         forge.shutdown();
     }
+    Ok(())
 }
 
 pub(crate) fn run_cluster(
@@ -1189,6 +1222,7 @@ fn cluster_judge(
         workers: workers.to_vec(),
         lifecycle: Lifecycle::default(),
         failure: None,
+        finding: None,
         armed: false,
         wake: None,
         forge,
@@ -1378,14 +1412,20 @@ mod tests {
         let mut procs = vec![ctl(false), ctl(false)];
         let mut children = super::Children::default();
         children.apply(&procs, &mut caller);
-        assert!(!children.lock_changed(&procs, &caller));
+        assert!(!children.lock_changed(&procs, &caller).expect("ctl records"));
 
         lock_event(&mut procs, 0, Some(1), None);
-        assert!(children.lock_changed(&procs, &caller), "the older attempt completed after its retry");
+        assert!(
+            children.lock_changed(&procs, &caller).expect("ctl records"),
+            "the older attempt completed after its retry"
+        );
         children.apply(&procs, &mut caller);
         assert_eq!(caller.calls[0].locked, Some(skein_lib::Time::from_nanos(1)));
-        assert!(children.lock_changed(&procs, &caller), "the newer empty attempt still disagrees");
-        assert!(children.lock_changed(&procs, &caller), "the disagreement needs no new event");
+        assert!(
+            children.lock_changed(&procs, &caller).expect("ctl records"),
+            "the newer empty attempt still disagrees"
+        );
+        assert!(children.lock_changed(&procs, &caller).expect("ctl records"), "the disagreement needs no new event");
     }
 
     #[test]
@@ -1400,14 +1440,20 @@ mod tests {
         lock_event(&mut procs, 0, Some(1), None);
         let mut children = super::Children::default();
         children.apply(&procs, &mut setup);
-        assert!(children.lock_changed(&procs, &setup), "setup's older attempt disagrees");
+        assert!(children.lock_changed(&procs, &setup).expect("setup records"), "setup's older attempt disagrees");
 
         // The story's slot now has a fresh host, while the setup hosts remain.
         let mut caller = caller();
-        assert!(!children.lock_changed(&procs, &caller), "finished setup's cached disagreement is ignored");
+        assert!(
+            !children.lock_changed(&procs, &caller).expect("ctl records"),
+            "finished setup's cached disagreement is ignored"
+        );
         procs.push(ctl(false));
         children.apply(&procs, &mut caller);
-        assert!(!children.lock_changed(&procs, &caller), "a setup attempt is not a retry of the story's call");
+        assert!(
+            !children.lock_changed(&procs, &caller).expect("ctl records"),
+            "a setup attempt is not a retry of the story's call"
+        );
         assert_eq!(caller.calls[0].locked, None);
     }
 
@@ -1418,12 +1464,15 @@ mod tests {
         lock_event(&mut procs, 1, Some(1), None);
         let mut children = super::Children::default();
         children.apply(&procs, &mut caller);
-        assert!(children.lock_changed(&procs, &caller));
+        assert!(children.lock_changed(&procs, &caller).expect("ctl records"));
 
         procs.pop().expect("killed retry");
         children.apply(&procs, &mut caller);
         assert_eq!(caller.calls[0].locked, None, "the retained attempt replaces the killed one");
-        assert!(!children.lock_changed(&procs, &caller), "the removed attempt cannot keep the judge awake");
+        assert!(
+            !children.lock_changed(&procs, &caller).expect("ctl records"),
+            "the removed attempt cannot keep the judge awake"
+        );
     }
 
     #[test]
@@ -1433,11 +1482,14 @@ mod tests {
         lock_event(&mut procs, 1, Some(1), None);
         let mut children = super::Children::default();
         children.apply(&procs, &mut caller);
-        assert!(children.lock_changed(&procs, &caller));
+        assert!(children.lock_changed(&procs, &caller).expect("ctl records"));
 
         procs.clear();
         children.apply(&procs, &mut caller);
-        assert!(!children.lock_changed(&procs, &caller), "no attempt remains to disagree with the caller");
+        assert!(
+            !children.lock_changed(&procs, &caller).expect("ctl records"),
+            "no attempt remains to disagree with the caller"
+        );
     }
 
     #[test]
@@ -1448,12 +1500,15 @@ mod tests {
         lock_event(&mut procs, 1, Some(1), Some(2));
         let mut children = super::Children::default();
         children.apply(&procs, &mut caller);
-        assert!(children.lock_changed(&procs, &caller), "the older attempt has not released its lock");
+        assert!(
+            children.lock_changed(&procs, &caller).expect("ctl records"),
+            "the older attempt has not released its lock"
+        );
 
         lock_event(&mut procs, 0, Some(1), Some(2));
-        assert!(!children.lock_changed(&procs, &caller), "both attempts now match the caller");
+        assert!(!children.lock_changed(&procs, &caller).expect("ctl records"), "both attempts now match the caller");
         children.apply(&procs, &mut caller);
-        assert!(!children.lock_changed(&procs, &caller));
+        assert!(!children.lock_changed(&procs, &caller).expect("ctl records"));
     }
 
     #[test]
@@ -1506,7 +1561,7 @@ mod tests {
                         n + i64::from(matches!(event, Query { .. })) - i64::from(matches!(event, Answered { .. }))
                     });
                     reference_visits += prefix.len();
-                    let pending = history.observe(prefix);
+                    let pending = history.observe(prefix).expect("growing history");
                     assert_eq!(pending, expected, "{name}, prefix {length}");
                     for placed in [false, true] {
                         assert_eq!(placed && pending > 0, placed && expected > 0, "{name}, prefix {length}");

@@ -1000,6 +1000,7 @@ dependencies = [
  "jig-protocol-transcript",
  "skein-codec",
  "skein-lib",
+ "skein-rows",
  "skein-ui-web",
  "smith-transcript",
 ]
@@ -1011,6 +1012,7 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -1418,6 +1420,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -1963,6 +1966,7 @@ dependencies = [
  "skein-oauth",
  "skein-oauth-accounts",
  "skein-oauth-issuer",
+ "skein-rows",
  "skein-scratch",
  "skein-tls",
  "tempfile",
@@ -1992,6 +1996,7 @@ dependencies = [
  "skein-codec",
  "skein-lib",
  "skein-oauth-issuer",
+ "skein-rows",
  "smith-transcript",
 ]
 
@@ -2057,6 +2062,7 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-oauth",
+ "skein-rows",
  "skein-scratch",
  "skein-sim",
  "smith-transcript",

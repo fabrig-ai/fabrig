@@ -37,158 +37,154 @@ fn pool(world: &mut World, slots: u32) {
 #[test]
 fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
     for seed in 161..=192 {
-        let replay = std::panic::catch_unwind(|| {
-            let mut rng = Rng::new(seed);
-            let (config, limits) = plan_fixture(seed);
-            let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
-            world.configure_holds(
-                1,
-                Box::new([tasks::Kind {
-                    connector: 1,
-                    kind: 2,
-                    hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits },
-                }]),
-            );
-            world.send(root::Event::Connector {
-                number: 1,
-                event: connector::Event::Adopt {
-                    project: 1,
-                    resource: jig_test_connector_kit::path(1, 2),
-                    role: connector::ResourceRole::Owned,
-                },
-            });
-            let initial = u32::try_from(1 + rng.below(2)).expect("small pool");
-            pool(&mut world, initial);
-            let parent = world.assignments[0];
-            let mut children = Vec::new();
-            for completion in 1..=3 {
-                let mut authority = world.assigned.as_ref().expect("parent").run.authority.clone();
-                authority.budget.spend = 10 + rng.below(8);
-                authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-                world.send(root::Event::Core(core::Event::DelegateValidated {
-                    to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
-                    key: core::CallKey { task: parent.0, attempt: parent.1, completion, position: 0 },
-                    batch: Box::new([core::Delegate {
-                        deadline: jig_domain_tasks::Deadline::Named,
-                        label: 0,
-                        flags: jig_domain_tasks::Flags::PLAIN,
-                        tracked: None,
-                        budget: jig_domain_people::Budget::Named,
-                        executor: tasks::Executor::Agent { charter: 1 },
-                        spec: tasks::Spec {
-                            job: None,
-                            asks: false,
-                            words: b"pool work".as_slice().into(),
-                            parameters: Box::new([tasks::Parameter::Resource { name: 1, connector: 1, resource: 2 }]),
-                            inputs: Box::new([]),
-                        },
-                        contract: tasks::Contract::Report { words: 128 },
-                        authority,
-                        llm: None,
-                        symbolic_grants: Box::new([]),
-                        dependencies: Box::new([]),
-                        wake: Some(tasks::WakePolicy::DEFAULT),
-                    }]),
-                    stubs: Box::new([]),
-                }));
-                let core::CallPart::Delegated(numbers) = &world.answers.last().expect("admitted delegate").2 else {
-                    panic!("delegate not admitted");
-                };
-                children.push(numbers[0].task);
-            }
-            assert_eq!(world.assignments.len(), 1 + skein_lib::length::usize_of(initial));
-            pool(&mut world, 0);
-            for child in children.iter().take(skein_lib::length::usize_of(initial)) {
-                world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
-                finish(&mut world, *child);
-                assert_eq!(world.assignments.len(), 1 + skein_lib::length::usize_of(initial));
-                world.release_commits();
-            }
-            pool(&mut world, 1);
-            for child in children.iter().skip(skein_lib::length::usize_of(initial)) {
-                finish(&mut world, *child);
-            }
-            finish(&mut world, parent.0);
-            assert!(children.iter().all(|number| {
-                world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(*number))))
-            }));
+        eprintln!("replay pool seed {seed}");
+        let mut rng = Rng::new(seed);
+        let (config, limits) = plan_fixture(seed);
+        let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
+        world.configure_holds(
+            1,
+            Box::new([tasks::Kind {
+                connector: 1,
+                kind: 2,
+                hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits },
+            }]),
+        );
+        world.send(root::Event::Connector {
+            number: 1,
+            event: connector::Event::Adopt {
+                project: 1,
+                resource: jig_test_connector_kit::path(1, 2),
+                role: connector::ResourceRole::Owned,
+            },
         });
-        assert!(replay.is_ok(), "replay pool seed {seed}");
+        let initial = u32::try_from(1 + rng.below(2)).expect("small pool");
+        pool(&mut world, initial);
+        let parent = world.assignments[0];
+        let mut children = Vec::new();
+        for completion in 1..=3 {
+            let mut authority = world.assigned.as_ref().expect("parent").run.authority.clone();
+            authority.budget.spend = 10 + rng.below(8);
+            authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+            world.send(root::Event::Core(core::Event::DelegateValidated {
+                to: ReplyTo::new(Token::new(9000 + u64::from(completion))),
+                key: core::CallKey { task: parent.0, attempt: parent.1, completion, position: 0 },
+                batch: Box::new([core::Delegate {
+                    deadline: jig_domain_tasks::Deadline::Named,
+                    label: 0,
+                    flags: jig_domain_tasks::Flags::PLAIN,
+                    tracked: None,
+                    budget: jig_domain_people::Budget::Named,
+                    executor: tasks::Executor::Agent { charter: 1 },
+                    spec: tasks::Spec {
+                        job: None,
+                        asks: false,
+                        words: b"pool work".as_slice().into(),
+                        parameters: Box::new([tasks::Parameter::Resource { name: 1, connector: 1, resource: 2 }]),
+                        inputs: Box::new([]),
+                    },
+                    contract: tasks::Contract::Report { words: 128 },
+                    authority,
+                    llm: None,
+                    symbolic_grants: Box::new([]),
+                    dependencies: Box::new([]),
+                    wake: Some(tasks::WakePolicy::DEFAULT),
+                }]),
+                stubs: Box::new([]),
+            }));
+            let core::CallPart::Delegated(numbers) = &world.answers.last().expect("admitted delegate").2 else {
+                panic!("delegate not admitted");
+            };
+            children.push(numbers[0].task);
+        }
+        assert_eq!(world.assignments.len(), 1 + skein_lib::length::usize_of(initial));
+        pool(&mut world, 0);
+        for child in children.iter().take(skein_lib::length::usize_of(initial)) {
+            world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
+            finish(&mut world, *child);
+            assert_eq!(world.assignments.len(), 1 + skein_lib::length::usize_of(initial));
+            world.release_commits();
+        }
+        pool(&mut world, 1);
+        for child in children.iter().skip(skein_lib::length::usize_of(initial)) {
+            finish(&mut world, *child);
+        }
+        finish(&mut world, parent.0);
+        assert!(children.iter().all(|number| {
+            world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(*number))))
+        }));
     }
 }
 
 #[test]
 fn random_period_budgets_reset_before_a_standing_template_creates_its_next_batch() {
     for seed in 193..=208 {
-        let replay = std::panic::catch_unwind(|| {
-            let mut rng = Rng::new(seed);
-            let (config, limits) = plan_fixture(seed);
-            let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
-            world.end(tasks::End::Parked, 0);
-            let mut authority = world.assigned.as_ref().expect("chat").run.authority.clone();
-            authority.budget.spend = 30;
-            authority.delegation =
-                tasks::Delegation { kinds: Box::new([tasks::AuthorityExecutor::Charter(1)]), tasks: 1, depth: 1 };
-            let mut member_authority = authority.clone();
-            member_authority.budget.spend = 10 + rng.below(10);
-            member_authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-            world.send(root::Event::Core(core::Event::StartRecurring {
-                project: 1,
-                authority,
-                template: tasks::RecurringTemplate {
-                    key: 1,
-                    overlap: tasks::RecurringOverlap::Skip,
-                    batch: Box::new([tasks::New {
-                        deadline: jig_domain_tasks::Deadline::Named,
-                        label: 0,
-                        flags: jig_domain_tasks::Flags::PLAIN,
-                        number: 1,
-                        project: 1,
-                        executor: tasks::Executor::Agent { charter: 1 },
-                        llm: None,
-                        spec: tasks::Spec {
-                            job: None,
-                            asks: false,
-                            words: b"period work".as_slice().into(),
-                            parameters: Box::new([]),
-                            inputs: Box::new([]),
-                        },
-                        contract: tasks::Contract::Report { words: 128 },
-                        numbers: tasks::Numbers {
-                            budget: member_authority.budget.spend,
-                            spent: 0,
-                            spent_below: 0,
-                            reserved: 0,
-                        },
-                        authority: member_authority,
-                        funder: tasks::Funder::Period { project: 1, period: 0 },
-                        dependencies: Box::new([]),
-                        holdings: Box::new([]),
-                        wake: tasks::WakePolicy::DEFAULT,
-                        recurring: None,
-                        tracked: None,
-                    }]),
-                },
-            }));
-            let first = world.assignments.last().expect("first batch").0;
-            finish(&mut world, first);
-            for period in 2..=3 {
-                let count = world.assignments.len();
-                world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
-                world.send(root::Event::Core(core::Event::Period { project: 1, period, budget: 140, next: None }));
-                assert_eq!(world.assignments.len(), count, "a new batch waits for the reset commit");
-                world.release_commits();
-                assert_eq!(world.assignments.len(), count + 1);
-                let task = world.assignments.last().expect("period batch").0;
-                assert!(matches!(world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))),
-                    Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
-                        if matches!(row.funder, tasks::Funder::Recurring { period: funded, .. } if funded == period)));
-                world.send(root::Event::Core(core::Event::Period { project: 1, period, budget: 140, next: None }));
-                assert_eq!(world.assignments.len(), count + 1);
-                finish(&mut world, task);
-            }
-        });
-        assert!(replay.is_ok(), "replay recurring seed {seed}");
+        eprintln!("replay recurring seed {seed}");
+        let mut rng = Rng::new(seed);
+        let (config, limits) = plan_fixture(seed);
+        let mut world = World::new(Setup { seed, configuration: Some(config), limits, ..Setup::default() });
+        world.end(tasks::End::Parked, 0);
+        let mut authority = world.assigned.as_ref().expect("chat").run.authority.clone();
+        authority.budget.spend = 30;
+        authority.delegation =
+            tasks::Delegation { kinds: Box::new([tasks::AuthorityExecutor::Charter(1)]), tasks: 1, depth: 1 };
+        let mut member_authority = authority.clone();
+        member_authority.budget.spend = 10 + rng.below(10);
+        member_authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+        world.send(root::Event::Core(core::Event::StartRecurring {
+            project: 1,
+            authority,
+            template: tasks::RecurringTemplate {
+                key: 1,
+                overlap: tasks::RecurringOverlap::Skip,
+                batch: Box::new([tasks::New {
+                    deadline: jig_domain_tasks::Deadline::Named,
+                    label: 0,
+                    flags: jig_domain_tasks::Flags::PLAIN,
+                    number: 1,
+                    project: 1,
+                    executor: tasks::Executor::Agent { charter: 1 },
+                    llm: None,
+                    spec: tasks::Spec {
+                        job: None,
+                        asks: false,
+                        words: b"period work".as_slice().into(),
+                        parameters: Box::new([]),
+                        inputs: Box::new([]),
+                    },
+                    contract: tasks::Contract::Report { words: 128 },
+                    numbers: tasks::Numbers {
+                        budget: member_authority.budget.spend,
+                        spent: 0,
+                        spent_below: 0,
+                        reserved: 0,
+                    },
+                    authority: member_authority,
+                    funder: tasks::Funder::Period { project: 1, period: 0 },
+                    dependencies: Box::new([]),
+                    holdings: Box::new([]),
+                    wake: tasks::WakePolicy::DEFAULT,
+                    recurring: None,
+                    tracked: None,
+                }]),
+            },
+        }));
+        let first = world.assignments.last().expect("first batch").0;
+        finish(&mut world, first);
+        for period in 2..=3 {
+            let count = world.assignments.len();
+            world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
+            world.send(root::Event::Core(core::Event::Period { project: 1, period, budget: 140, next: None }));
+            assert_eq!(world.assignments.len(), count, "a new batch waits for the reset commit");
+            world.release_commits();
+            assert_eq!(world.assignments.len(), count + 1);
+            let task = world.assignments.last().expect("period batch").0;
+            assert!(matches!(world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))),
+                Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))))
+                    if matches!(row.funder, tasks::Funder::Recurring { period: funded, .. } if funded == period)));
+            world.send(root::Event::Core(core::Event::Period { project: 1, period, budget: 140, next: None }));
+            assert_eq!(world.assignments.len(), count + 1);
+            finish(&mut world, task);
+        }
     }
 }
 
@@ -246,10 +242,8 @@ fn narrowed_policy_case(seed: u64) {
 #[test]
 fn random_policy_changes_leave_a_committed_flight_whole_and_recheck_waiting_proposals() {
     for seed in 209..=224 {
-        let replay = std::panic::catch_unwind(|| {
-            narrowed_policy_case(seed);
-        });
-        assert!(replay.is_ok(), "replay policy seed {seed}");
+        eprintln!("replay policy seed {seed}");
+        narrowed_policy_case(seed);
     }
 }
 

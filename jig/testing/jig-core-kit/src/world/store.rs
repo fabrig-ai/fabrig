@@ -114,9 +114,9 @@ impl World {
         header.commits = self.store.applied + 1;
         writes.push(root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))));
         self.store.submit(header.commits, writes.into_boxed_slice(), 0);
-        self.observer.submitted(self.wall, &self.store);
+        self.observer.submitted(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
         assert_eq!(self.store.tick(false), Ok(Some(header.commits)));
-        self.observer.durable(self.wall, &self.store);
+        self.observer.durable(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
         self.refresh_fixture_header();
     }
     fn refresh_fixture_header(&mut self) {
@@ -217,7 +217,9 @@ impl World {
 
     /// A cold start under `config`, which `restart_config` already holds a copy of.
     pub(crate) fn restart_configured(&mut self, config: root::Config) {
-        self.observer.observe(self.wall, crate::referee::Observed::Restart);
+        self.observer
+            .observe(self.wall, crate::referee::Observed::Restart)
+            .unwrap_or_else(|finding| self.fail(&finding));
         if matches!(self.cut, Some(super::Cut::Disk { .. }))
             || matches!(self.reached_cut, Some(super::Cut::Disk { .. }))
         {
@@ -233,7 +235,7 @@ impl World {
         }
         // The observer may resume A after a crashed pending copy whose
         // process-local commits were discarded. Its own position is the fence.
-        self.observer.fresh_mark(self.wall, &self.store);
+        self.observer.fresh_mark(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
         self.observer.configure_projects(&config);
         if let Some(watches) = &mut self.watches {
             watches.restart(self.store.applied);
@@ -241,7 +243,7 @@ impl World {
         if let Some(reads) = &mut self.reads {
             reads.restart(self.store.applied);
         }
-        self.observer.cold(self.wall, &self.store);
+        self.observer.cold(self.wall, &self.store).unwrap_or_else(|finding| self.fail(&finding));
         self.stopped = false;
         self.period_started = false;
         self.restoring = None;

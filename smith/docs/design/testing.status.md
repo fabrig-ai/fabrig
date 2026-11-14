@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-12. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-14. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 2.1: only the local-process world sweeps the simulator's faults
@@ -29,3 +29,9 @@
     `tests/host/src/inline.rs` runs `smith-machine-world` with
     `smith-protocol-machine`'s types. No reason is recorded, and no debt
     item names them (section 9).
+  - 2.3: the live push story catches its run's panic to remove its
+    branch, and removes no branch an earlier run left.
+    [in flight: change 2864]
+  - 5: smith's world referees implement `observe`, not `watch`, and the
+    event checks, the program referee's among them, panic on a
+    difference. [in flight: change 2864]

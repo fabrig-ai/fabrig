@@ -40,18 +40,23 @@ impl Referee<Proc> for Forced {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         self.judge.act(now, procs);
     }
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        self.judge.observe(now, procs);
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        self.judge.watch(now, procs)?;
         if procs[1].diagnostics.terminals.ended.contains(&crate::case::REVIEW) {
             // An independent terminal witness triggers the fake verdict, even if
             // the judge's task-observation hook has been disconnected.
-            let Kind::Service(host) = &procs[1].kind else { panic!("engine fixture") };
-            let engine = host.service.as_ref().expect("prepared engine").engine_domain().expect("engine domain");
-            assert!(engine.tasks().stub(crate::case::REVIEW).is_none(), "ordinary delegate completion needs no stub");
-            let sync = procs[1].diagnostics.terminals.last_sync.expect("terminal sync");
-            assert!(!procs[1].diagnostics.pending.contains_key(&sync), "completion hook removes the finished sync");
+            let Kind::Service(host) = &procs[1].kind else { return Err("engine fixture".into()) };
+            let engine = host.service.as_ref().ok_or("prepared engine")?.engine_domain().ok_or("engine domain")?;
+            if engine.tasks().stub(crate::case::REVIEW).is_some() {
+                return Err("ordinary delegate completion needs no stub".into());
+            }
+            let sync = procs[1].diagnostics.terminals.last_sync.ok_or("terminal sync")?;
+            if procs[1].diagnostics.pending.contains_key(&sync) {
+                return Err("completion hook removes the finished sync".into());
+            }
             self.judge.patience.force_failed();
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.judge.next_deadline()
@@ -65,7 +70,6 @@ impl Referee<Proc> for Forced {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn forced_overdue_observes_real_tasks_operations_and_dispatch() {
     use crate::world::{self, ForgePeer};
     const WORKERS: &[&str] = &["ws", "s1"];
@@ -89,12 +93,9 @@ fn forced_overdue_observes_real_tasks_operations_and_dispatch() {
         *state.borrow_mut() = Some(forge);
         Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer))))
     });
-    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _outcome = world.run(&skein_shell::Clock::new(), crate::PATIENCE);
-    }))
-    .expect_err("the review terminal forces the overdue dispatch");
+    let result = world.try_run(&skein_shell::Clock::new(), crate::PATIENCE);
     crate::git::share(None);
-    let message = panic.downcast_ref::<String>().expect("formatted failure");
+    let Err(message) = result else { panic!("the review terminal forces the overdue dispatch") };
     for expected in [
         "the referee failed the real loop before patience",
         "task=2 state=landing",
@@ -166,7 +167,7 @@ fn journal(numbers: &[u64]) -> Queue<Complete> {
 
 fn end(tasks: &mut Tasks, terminals: &mut Terminals, numbers: &[u64]) {
     terminals.observe(&journal(numbers));
-    tasks.observe_terminals(terminals);
+    tasks.observe_terminals(terminals).expect("terminal rows");
 }
 
 #[test]

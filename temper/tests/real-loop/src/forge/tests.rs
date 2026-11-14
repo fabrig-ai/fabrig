@@ -43,9 +43,9 @@ fn forge_snapshots_retain_initial_state_and_subsequent_changes() {
     let (state, peer) = State::new(fixture());
     let head = state.handle.borrow().domain.branch(&state.repository, MAIN).expect("seeded main");
     let mut seen = Seen::default();
-    seen.collect(Time::ZERO, &peer, &state.handle, &state.repository);
+    seen.collect(Time::ZERO, &peer, &state.handle, &state.repository).expect("forge snapshot");
     call(&state, api::Op::Git(api::Git::Create { branch: TOPIC.into(), commit: head }));
-    seen.collect(Time::ZERO, &peer, &state.handle, &state.repository);
+    seen.collect(Time::ZERO, &peer, &state.handle, &state.repository).expect("forge snapshot");
     let api::Answer::Created(number) = call(
         &state,
         api::Op::Write(api::Write::OpenPull {
@@ -58,12 +58,12 @@ fn forge_snapshots_retain_initial_state_and_subsequent_changes() {
     ) else {
         panic!("created pull");
     };
-    seen.collect(Time::ZERO, &peer, &state.handle, &state.repository);
+    seen.collect(Time::ZERO, &peer, &state.handle, &state.repository).expect("forge snapshot");
     call(&state, api::Op::Write(api::Write::Close { number }));
-    seen.collect(Time::ZERO, &peer, &state.handle, &state.repository);
+    seen.collect(Time::ZERO, &peer, &state.handle, &state.repository).expect("forge snapshot");
     call(&state, api::Op::Write(api::Write::Reopen { number }));
-    seen.collect(CHANGED, &peer, &state.handle, &state.repository);
-    seen.collect(UNCHANGED, &peer, &state.handle, &state.repository);
+    seen.collect(CHANGED, &peer, &state.handle, &state.repository).expect("changed snapshot");
+    seen.collect(UNCHANGED, &peer, &state.handle, &state.repository).expect("unchanged snapshot");
     let [initial, branched, opened, closed, reopened] = seen.snapshots() else {
         panic!("one initial snapshot and one per branch or pull transition; got {}", seen.snapshots().len());
     };
@@ -82,13 +82,13 @@ fn forge_snapshots_retain_initial_state_and_subsequent_changes() {
 fn deliveries_follow_peer_order_without_repeating_unchanged_history() {
     let mut records = vec![Observation::Connection { connection: Token::new(CALL), open: true }];
     let mut seen = Seen::default();
-    seen.collect_deliveries(&records);
+    seen.collect_deliveries(&records).expect("peer history");
     assert_eq!(seen.deliveries(), []);
     records.push(Observation::Delivery { post: None, outcome: Delivery::Written });
-    seen.collect_deliveries(&records);
-    seen.collect_deliveries(&records);
+    seen.collect_deliveries(&records).expect("peer history");
+    seen.collect_deliveries(&records).expect("peer history");
     assert_eq!(seen.deliveries(), &[Delivery::Written]);
     records.push(Observation::Delivery { post: None, outcome: Delivery::Reset });
-    seen.collect_deliveries(&records);
+    seen.collect_deliveries(&records).expect("peer history");
     assert_eq!(seen.deliveries(), &[Delivery::Written, Delivery::Reset]);
 }

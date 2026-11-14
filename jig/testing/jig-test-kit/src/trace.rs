@@ -9,16 +9,25 @@ pub fn settings(directory: &Path) -> serde_json::Value {
 }
 
 pub fn check(directory: &Path, credential: Option<&[u8]>) {
-    let bytes = fs::read(directory.join("agent-trace.jsonl")).expect("Smith provider trace");
+    try_check(directory, credential).unwrap_or_else(|why| panic!("{why}"));
+}
+
+pub fn try_check(directory: &Path, credential: Option<&[u8]>) -> Result<(), String> {
+    let bytes =
+        fs::read(directory.join("agent-trace.jsonl")).map_err(|why| format!("Smith provider trace: {why:?}"))?;
     let mut prompts = 0;
     for line in bytes.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()) {
-        let record: serde_json::Value = serde_json::from_slice(line).expect("Smith event JSON");
+        let record: serde_json::Value =
+            serde_json::from_slice(line).map_err(|why| format!("Smith event JSON: {why:?}"))?;
         if record.get("prompt").is_some_and(serde_json::Value::is_object) {
             prompts += 1;
         }
-        fields(&record, credential);
+        fields(&record, credential)?;
     }
-    assert!(prompts > 0, "everything capture includes an actual provider prompt");
+    if prompts <= 0 {
+        return Err(String::from("everything capture includes an actual provider prompt"));
+    }
+    Ok(())
 }
 /// A failed live run's trace in words, before it is erased: its prompts and each failure's
 /// [`NAMED`] fields, its detail's words and its completion's. No content, credential or header.
@@ -90,29 +99,39 @@ fn cut(words: &mut String, run: &mut String) {
     words.push_str(if run.len() >= 16 { "[cut]" } else { run.as_str() });
     run.clear();
 }
-fn fields(value: &serde_json::Value, credential: Option<&[u8]>) {
+fn fields(value: &serde_json::Value, credential: Option<&[u8]>) -> Result<(), String> {
     match value {
         serde_json::Value::Object(fields) => {
             for (name, value) in fields {
-                assert!(
-                    !["authorization", "access_token", "refresh_token", "id_token", "credential", "grant"]
-                        .contains(&name.to_ascii_lowercase().as_str()),
-                    "credential field in Smith trace"
-                );
-                self::fields(value, credential);
+                if ["authorization", "access_token", "refresh_token", "id_token", "credential", "grant"]
+                    .contains(&name.to_ascii_lowercase().as_str())
+                {
+                    return Err(String::from("credential field in Smith trace"));
+                }
+                self::fields(value, credential)?;
             }
         }
         serde_json::Value::Array(values) => {
             for value in values {
-                fields(value, credential);
+                fields(value, credential)?;
             }
         }
         serde_json::Value::String(text) => {
-            assert!(!text.to_ascii_lowercase().contains("authorization:"), "Authorization header in Smith trace");
+            if text.to_ascii_lowercase().contains("authorization:") {
+                return Err(String::from("Authorization header in Smith trace"));
+            }
             if let Some(credential) = credential {
-                assert_ne!(text.as_bytes(), credential, "grant value in Smith trace");
+                {
+                    let (observed_value, wanted) = (&(text.as_bytes()), &(credential));
+                    if observed_value == wanted {
+                        return Err(format!(
+                            "grant value in Smith trace; assertion `left != right` failed: left: {observed_value:?}, right: {wanted:?}"
+                        ));
+                    }
+                }
             }
         }
         serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {}
     }
+    Ok(())
 }

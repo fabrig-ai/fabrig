@@ -37,14 +37,16 @@ fn document(status: u16, control: &[u8], age: Option<&[u8]>, body: &[u8]) -> Ans
     }
     Answer { status, headers: headers.into(), body: body.into() }
 }
-pub(super) fn no_cors(answer: &Answer) {
-    assert!(
-        answer.headers.iter().all(|h| !h.name.to_ascii_lowercase().starts_with(b"access-control-")),
-        "no CORS header: {answer:?}"
-    );
+pub(super) fn no_cors(answer: &Answer) -> Result<(), String> {
+    if !(answer.headers.iter().all(|h| !h.name.to_ascii_lowercase().starts_with(b"access-control-"))) {
+        return Err(format!("no CORS header: {answer:?}"));
+    }
+
+    Ok(())
 }
 
 struct Judge {
+    finding: Option<String>,
     seed: u64,
     name: String,
     stage: usize,
@@ -64,32 +66,34 @@ impl Judge {
         visitor: &mut Visitor,
         upstream: &mut Upstream,
         second: &mut Upstream,
-    ) {
+    ) -> Result<(), String> {
         if !proxy.ready() || !upstream.ready() || !second.ready() || self.stopped {
-            return;
+            return Ok(());
         }
         if self.wake.is_some_and(|wake| now < wake) {
-            return;
+            return Ok(());
         }
         self.wake = None;
         if !matches!(self.stage, 8 | 9)
             && self.name == "the_proxy_keeps_age_and_serves_nothing_stale"
             && self.calls.iter().any(|id| !visitor.answers.contains_key(id))
         {
-            return;
+            return Ok(());
         }
         if self.name != "the_proxy_keeps_age_and_serves_nothing_stale"
             && self.calls.iter().any(|id| !visitor.answers.contains_key(id))
         {
-            return;
+            return Ok(());
         }
         match self.name.as_str() {
             "the_proxy_keeps_age_and_serves_nothing_stale"
-            | "a_stopped_upstream_serves_copies_until_their_freshness_ends" => self.age(now, proxy, visitor, upstream),
-            "the_proxy_keeps_only_public_200_and_404" => self.policy(proxy, visitor, upstream),
-            "two_deployments_behind_one_proxy_keep_their_own_copies" => self.keys(proxy, visitor),
-            "a_refused_host_is_never_answered_from_the_cache" => self.host(proxy, visitor),
-            other => panic!("unknown proxy walk {other}"),
+            | "a_stopped_upstream_serves_copies_until_their_freshness_ends" => {
+                self.age(now, proxy, visitor, upstream)?;
+            }
+            "the_proxy_keeps_only_public_200_and_404" => self.policy(proxy, visitor, upstream)?,
+            "two_deployments_behind_one_proxy_keep_their_own_copies" => self.keys(proxy, visitor)?,
+            "a_refused_host_is_never_answered_from_the_cache" => self.host(proxy, visitor)?,
+            other => return Err(format!("unknown proxy walk {other}")),
         }
         if self.stage == usize::MAX && proxy.idle() && upstream.idle() && second.idle() {
             proxy.stop();
@@ -97,16 +101,21 @@ impl Judge {
             second.stop();
             self.stopped = true;
         }
+
+        Ok(())
     }
-    fn last<'a>(&self, visitor: &'a Visitor) -> &'a Answer {
-        visitor
-            .answers
-            .get(self.calls.last().expect("sent call"))
-            .expect("completed call")
-            .as_ref()
-            .expect("answered call")
+    fn last<'a>(&self, visitor: &'a Visitor) -> Result<&'a Answer, String> {
+        Ok({
+            visitor
+                .answers
+                .get(self.calls.last().ok_or_else(|| String::from("sent call"))?)
+                .ok_or_else(|| String::from("completed call"))?
+                .as_ref()
+                .ok_or_else(|| String::from("answered call"))?
+        })
     }
-    fn age(&mut self, now: Time, proxy: &Proxy, visitor: &mut Visitor, upstream: &mut Upstream) {
+    #[expect(clippy::too_many_lines, reason = "the ordered referee checks return their findings at each step")]
+    fn age(&mut self, now: Time, proxy: &Proxy, visitor: &mut Visitor, upstream: &mut Upstream) -> Result<(), String> {
         match self.stage {
             0 => {
                 upstream.answer = document(200, b"public, max-age=3, must-revalidate", Some(b"1"), b"first");
@@ -114,7 +123,13 @@ impl Judge {
                 self.stage = 1;
             }
             1 => {
-                assert_eq!(self.last(visitor).body.as_ref(), b"first");
+                match (&(self.last(visitor)?.body.as_ref()), &(b"first")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.wake = Some(Time::from_nanos(now.as_nanos() + 1_000_000_000));
                 self.stage = 2;
             }
@@ -123,8 +138,20 @@ impl Judge {
                 self.stage = 3;
             }
             3 => {
-                assert_eq!(self.last(visitor).header(b"Age"), Some(b"2".as_slice()));
-                assert_eq!(proxy.counts.upstream_public, 1);
+                match (&(self.last(visitor)?.header(b"Age")), &(Some(b"2".as_slice()))) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(proxy.counts.upstream_public), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 if self.name == "the_proxy_keeps_age_and_serves_nothing_stale" {
                     upstream.hold = true;
                     self.wake = Some(Time::from_nanos(now.as_nanos() + 1_000_000_000));
@@ -136,7 +163,13 @@ impl Judge {
                 }
             }
             4 => {
-                assert_eq!(self.last(visitor).body.as_ref(), b"first");
+                match (&(self.last(visitor)?.body.as_ref()), &(b"first")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.wake = Some(Time::from_nanos(now.as_nanos() + 1_000_000_000));
                 self.stage = 5;
             }
@@ -145,9 +178,27 @@ impl Judge {
                 self.stage = 6;
             }
             6 => {
-                assert_eq!(self.last(visitor).status, 502, "no stale copy on upstream failure");
-                assert_eq!(proxy.counts.upstream_public, 2);
-                assert_eq!(proxy.counts.served_from_cache, 2);
+                match (&(self.last(visitor)?.status), &(502)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("no stale copy on upstream failure");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(proxy.counts.upstream_public), &(2)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(proxy.counts.served_from_cache), &(2)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.stage = usize::MAX;
             }
             7 => {
@@ -156,36 +207,57 @@ impl Judge {
             }
             8 => {
                 if upstream.requests.len() != 2 {
-                    return;
+                    return Ok(());
                 }
-                assert!(
-                    !visitor.answers.contains_key(self.calls.last().expect("refresh request")),
-                    "no stale copy while refreshing"
-                );
+                if visitor.answers.contains_key(self.calls.last().ok_or_else(|| String::from("refresh request"))?) {
+                    return Err(String::from("no stale copy while refreshing"));
+                }
                 self.send(visitor, b"one.example", PATH);
                 self.stage = 9;
             }
             9 => {
                 if upstream.requests.len() != 3 {
-                    return;
+                    return Ok(());
                 }
                 for id in self.calls.iter().rev().take(2) {
-                    assert!(!visitor.answers.contains_key(id), "no stale copy for either refresher");
+                    if visitor.answers.contains_key(id) {
+                        return Err(String::from("no stale copy for either refresher"));
+                    }
                 }
-                assert_eq!(proxy.counts.served_from_cache, 1);
+                match (&(proxy.counts.served_from_cache), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 upstream.release();
                 self.stage = 10;
             }
             10 => {
-                assert_eq!(proxy.counts.upstream_public, 3, "refreshes are foreground reads");
-                assert_eq!(self.last(visitor).status, 200);
+                match (&(proxy.counts.upstream_public), &(3)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("refreshes are foreground reads");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(self.last(visitor)?.status), &(200)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.stage = usize::MAX;
             }
             usize::MAX => {}
-            other => panic!("age stage {other}"),
+            other => return Err(format!("age stage {other}")),
         }
+
+        Ok(())
     }
-    fn policy(&mut self, proxy: &Proxy, visitor: &mut Visitor, upstream: &mut Upstream) {
+    fn policy(&mut self, proxy: &Proxy, visitor: &mut Visitor, upstream: &mut Upstream) -> Result<(), String> {
         const ROWS: &[(u16, &[u8], u32)] = &[
             (200, b"public, max-age=2, must-revalidate", 1),
             (404, b"public, max-age=2, must-revalidate", 1),
@@ -200,14 +272,14 @@ impl Judge {
             (200, b"public, max-age=2, must-revalidate, stale-if-error=2", 2),
         ];
         if self.stage == usize::MAX {
-            return;
+            return Ok(());
         }
         let row = self.stage / 3;
         if row >= ROWS.len() {
             let extra = row - ROWS.len();
             if extra == 2 {
                 self.stage = usize::MAX;
-                return;
+                return Ok(());
             }
             if self.stage % 3 < 2 {
                 upstream.answer = document(200, b"public, max-age=2, must-revalidate", None, b"other route");
@@ -218,14 +290,19 @@ impl Judge {
                     &[(b"Host", b"one.example")],
                 ));
             } else {
-                assert_eq!(
-                    proxy.counts.upstream_other,
-                    u32::try_from((extra + 1) * 2).expect("other requests"),
-                    "neither a public POST nor another GET is cached"
-                );
+                match (
+                    &(proxy.counts.upstream_other),
+                    &(u32::try_from((extra + 1) * 2).map_err(|why| format!("other requests: {why:?}"))?),
+                ) {
+                    (left, right) if left != right => {
+                        let finding = String::from("neither a public POST nor another GET is cached");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
             }
             self.stage += 1;
-            return;
+            return Ok(());
         }
         let (status, control, reached) = ROWS[row];
         let path = format!("/jig/v1/public/0/1/{row}");
@@ -235,41 +312,92 @@ impl Judge {
                 self.send(visitor, b"one.example", path.as_bytes());
             }
             1 => {
-                assert_eq!(self.last(visitor).status, status);
+                match (&(self.last(visitor)?.status), &(status)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.send(visitor, b"one.example", path.as_bytes());
             }
             2 => {
-                assert_eq!(self.last(visitor).status, status);
+                match (&(self.last(visitor)?.status), &(status)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 let expected: u32 = ROWS[..=row].iter().map(|r| r.2).sum();
-                assert_eq!(
-                    proxy.counts.upstream_public, expected,
-                    "cache row {row}: expected {reached} upstream calls"
-                );
+                match (&(proxy.counts.upstream_public), &(expected)) {
+                    (left, right) if left != right => {
+                        let finding = format!("cache row {row}: expected {reached} upstream calls");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
             }
-            other => panic!("policy stage {other}"),
+            other => return Err(format!("policy stage {other}")),
         }
         self.stage += 1;
+
+        Ok(())
     }
-    fn keys(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) {
+    fn keys(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) -> Result<(), String> {
         match self.stage {
             0 => self.send(visitor, b"one.example", PATH),
             1 | 3 => {
-                assert_eq!(self.last(visitor).body.as_ref(), b"first");
+                match (&(self.last(visitor)?.body.as_ref()), &(b"first")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.send(visitor, b"two.example", PATH);
             }
             2 => {
-                assert_eq!(self.last(visitor).body.as_ref(), b"second");
+                match (&(self.last(visitor)?.body.as_ref()), &(b"second")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.send(visitor, b"one.example", PATH);
             }
             4 => {
-                assert_eq!(self.last(visitor).body.as_ref(), b"second");
-                assert_eq!(proxy.counts.upstream_public, 2);
-                assert_eq!(proxy.counts.served_from_cache, 2);
+                match (&(self.last(visitor)?.body.as_ref()), &(b"second")) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(proxy.counts.upstream_public), &(2)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(proxy.counts.served_from_cache), &(2)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.send(visitor, b"alias.example", PATH);
             }
-            5 => {
-                assert_eq!(proxy.counts.upstream_public, 3, "validated Host is part of the key even on one upstream");
-            }
+            5 => match (&(proxy.counts.upstream_public), &(3)) {
+                (left, right) if left != right => {
+                    let finding = String::from("validated Host is part of the key even on one upstream");
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            },
             6..=8 => self.send(
                 visitor,
                 b"one.example",
@@ -280,58 +408,121 @@ impl Judge {
                 },
             ),
             9 => {
-                assert_eq!(
-                    proxy.counts.upstream_public, 6,
-                    "raw paths are neither decoded nor normalized into the canonical cached path"
-                );
+                match (&(proxy.counts.upstream_public), &(6)) {
+                    (left, right) if left != right => {
+                        let finding =
+                            String::from("raw paths are neither decoded nor normalized into the canonical cached path");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 proxy.config.upstreams[0].names.retain(|name| name.as_ref() != b"one.example");
                 proxy.config.upstreams[1].names.push(b"one.example".as_slice().into());
                 self.send(visitor, b"one.example", PATH);
             }
             10 => {
-                assert_eq!(
-                    self.last(visitor).body.as_ref(),
-                    b"second",
-                    "the same Host and path on another upstream cannot reuse its old copy"
-                );
-                assert_eq!(proxy.counts.upstream_public, 7);
+                match (&(self.last(visitor)?.body.as_ref()), &(b"second")) {
+                    (left, right) if left != right => {
+                        let finding =
+                            String::from("the same Host and path on another upstream cannot reuse its old copy");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(proxy.counts.upstream_public), &(7)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.stage = usize::MAX;
-                return;
+                return Ok(());
             }
-            usize::MAX => return,
-            other => panic!("key stage {other}"),
+            usize::MAX => return Ok(()),
+            other => return Err(format!("key stage {other}")),
         }
         self.stage += 1;
+
+        Ok(())
     }
-    fn host(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) {
+    fn host(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) -> Result<(), String> {
         match self.stage {
             0 => self.send(visitor, b"one.example", PATH),
             1 => {
-                assert_eq!(self.last(visitor).status, 200);
+                match (&(self.last(visitor)?.status), &(200)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 proxy.config.upstreams[0].names.retain(|name| name.as_ref() != b"one.example");
                 self.send(visitor, b"one.example", PATH);
             }
             2 => {
-                assert_eq!(self.last(visitor).status, 421);
-                no_cors(self.last(visitor));
-                assert_eq!(proxy.counts.refused_host, 1);
-                assert_eq!(proxy.counts.upstream_public, 1);
-                assert_eq!(proxy.counts.served_from_cache, 0);
+                match (&(self.last(visitor)?.status), &(421)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                no_cors(self.last(visitor)?)?;
+                match (&(proxy.counts.refused_host), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(proxy.counts.upstream_public), &(1)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
+                match (&(proxy.counts.served_from_cache), &(0)) {
+                    (left, right) if left != right => {
+                        let finding = String::from("assertion `left == right` failed");
+                        return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                    }
+                    _ => {}
+                }
                 self.stage = usize::MAX;
-                return;
+                return Ok(());
             }
-            usize::MAX => return,
-            other => panic!("host stage {other}"),
+            usize::MAX => return Ok(()),
+            other => return Err(format!("host stage {other}")),
         }
         self.stage += 1;
+
+        Ok(())
     }
 }
-impl skein_world::Referee<Program> for Judge {
-    fn observe(&mut self, _: Time, procs: &[Program]) {
+impl Judge {
+    fn act_checked(&mut self, now: Time, procs: &mut [Program]) -> Result<(), String> {
         let [Program::Proxy(proxy), Program::Visitor(visitor), Program::Upstream(upstream), Program::Upstream(second)] =
             procs
         else {
-            panic!("proxy composition")
+            return Err(String::from("proxy program composition"));
+        };
+        self.act_inner(now, proxy, visitor, upstream, second)?;
+
+        Ok(())
+    }
+}
+impl skein_world::Referee<Program> for Judge {
+    fn watch(&mut self, _: Time, procs: &[Program]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+
+        let [Program::Proxy(proxy), Program::Visitor(visitor), Program::Upstream(upstream), Program::Upstream(second)] =
+            procs
+        else {
+            return Err(String::from("proxy composition"));
         };
         self.act_ready = !self.stopped
             && proxy.ready()
@@ -339,14 +530,13 @@ impl skein_world::Referee<Program> for Judge {
             && second.ready()
             && (self.calls.iter().all(|id| visitor.answers.contains_key(id))
                 || (self.name == "the_proxy_keeps_age_and_serves_nothing_stale" && matches!(self.stage, 8 | 9)));
+
+        Ok(())
     }
     fn act(&mut self, now: Time, procs: &mut [Program]) {
-        let [Program::Proxy(proxy), Program::Visitor(visitor), Program::Upstream(upstream), Program::Upstream(second)] =
-            procs
-        else {
-            panic!("proxy program composition")
-        };
-        self.act_inner(now, proxy, visitor, upstream, second);
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake
@@ -358,14 +548,23 @@ impl skein_world::Referee<Program> for Judge {
             .then(|| format!("proxy walk {}, stage {}, seed {}", self.name, self.stage, self.seed))
     }
     fn passed(&self) -> bool {
-        self.stopped
+        self.finding.is_none() && self.stopped
     }
 }
 pub(super) fn run(seed: u64, name: &str) {
     let machine = temper_playground::machine::Machine::new(temper_playground::machine::fresh());
     let mut world =
         skein_world::World::new_controlled(seed, skein_sim::Config::calm(), skein_world::Memory::Unchecked, |_| {
-            Judge { seed, name: name.into(), stage: 0, calls: Vec::new(), wake: None, stopped: false, act_ready: false }
+            Judge {
+                finding: None,
+                seed,
+                name: name.into(),
+                stage: 0,
+                calls: Vec::new(),
+                wake: None,
+                stopped: false,
+                act_ready: false,
+            }
         })
         .with_machine(machine);
     world.spawn(|| Program::Proxy(Box::new(Proxy::new(PROXY, config(UPSTREAM)))));
@@ -384,4 +583,30 @@ pub(super) fn run(seed: u64, name: &str) {
     });
     let outcome = world.run();
     assert!(outcome.procs.iter().all(Host::is_empty), "proxy world drains, seed {seed}");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_world::Referee as _;
+
+    #[test]
+    fn an_act_finding_blocks_passed_and_is_kept_for_watch() {
+        let mut judge = Judge {
+            finding: None,
+            seed: 17,
+            name: "proxy finding".into(),
+            stage: 0,
+            calls: Vec::new(),
+            wake: None,
+            stopped: true,
+            act_ready: false,
+        };
+        assert!(judge.passed());
+        judge.act(Time::ZERO, &mut []);
+        assert!(!judge.passed(), "a kept act finding prevents success");
+        assert_eq!(judge.watch(Time::ZERO, &[]), Err(String::from("proxy program composition")));
+        judge.act(Time::ZERO, &mut []);
+        assert_eq!(judge.watch(Time::ZERO, &[]), Err(String::from("proxy program composition")));
+    }
 }

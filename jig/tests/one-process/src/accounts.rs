@@ -226,6 +226,7 @@ enum Phase {
     Ended,
 }
 struct Judge {
+    finding: Option<String>,
     story: Story,
     phase: Phase,
     received: usize,
@@ -237,7 +238,7 @@ struct Judge {
     restarts: u32,
 }
 impl Judge {
-    fn watch(native: &mut NativeClient) {
+    fn watch_accounts(native: &mut NativeClient) {
         native.account_request(jig_client::Event::Watch {
             handle: ACCOUNTS,
             subject: jig_client::Watchable::Jig(c::Subject::Accounts),
@@ -257,28 +258,38 @@ impl Judge {
         self.received = native.received.len();
         answer
     }
-    fn visit(&mut self, answer: Option<c::Answer>, peers: &mut [Process]) {
+    fn visit(&mut self, answer: Option<c::Answer>, peers: &mut [Process]) -> Result<(), String> {
         if let Some(answer) = answer {
             let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted { source, address })) =
                 answer
             else {
-                panic!("sign-in: {answer:?}")
+                return Err(format!("sign-in: {answer:?}"));
             };
             self.source = Some(source);
-            let Process::Visitor(visitor) = &mut peers[1] else { panic!("visitor") };
+            let Process::Visitor(visitor) = peers.get_mut(1).ok_or("visitor")? else {
+                return Err(String::from("visitor"));
+            };
             visitor.hand(&address);
             self.phase = Phase::Usable;
         }
+        Ok(())
     }
-    fn sign_out(&mut self, native: &mut NativeClient, answer: Option<c::Answer>) {
+    fn sign_out(&mut self, native: &mut NativeClient, answer: Option<c::Answer>) -> Result<(), String> {
         if let Some(answer) = answer {
-            assert_eq!(
-                answer,
-                c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
-                    confirmed: true,
-                    failed_hosts: Box::new([]),
-                }))
-            );
+            {
+                let (observed_value, wanted) = (
+                    &(answer),
+                    &(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignedOut {
+                        confirmed: true,
+                        failed_hosts: Box::new([]),
+                    }))),
+                );
+                if observed_value != wanted {
+                    return Err(format!(
+                        "assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
             self.confirmed = true;
         }
         if self.confirmed && self.accounts.as_ref().is_some_and(|accounts| accounts.accounts.is_empty()) {
@@ -286,113 +297,52 @@ impl Judge {
             native.finish_account_sign_in();
             self.phase = Phase::Closing;
         }
+        Ok(())
     }
-    fn usable(&mut self) -> bool {
-        let Some(accounts) = &self.accounts else { return false };
+    fn usable(&mut self) -> Result<bool, String> {
+        let Some(accounts) = &self.accounts else { return Ok(false) };
         let Some(account) = accounts.accounts.iter().find(|a| {
             a.sources.iter().any(|s| Some(s.number) == self.source && s.usable && s.state == c::AccountState::Granted)
         }) else {
-            return false;
+            return Ok(false);
         };
-        assert!(account.plan, "a signed-in plan is granted");
-        assert!(matches!(account.holder, c::AccountHolder::Party(_)));
-        assert!(account.sources.iter().all(|s| s.kind == c::AccountKind::SignIn));
+        if !account.plan {
+            return Err(String::from("a signed-in plan is granted"));
+        }
+        if !matches!(account.holder, c::AccountHolder::Party(_)) {
+            return Err(String::from("assertion failed: matches!(account.holder, c::AccountHolder::Party(_))"));
+        }
+        if !account.sources.iter().all(|s| s.kind == c::AccountKind::SignIn) {
+            return Err(String::from(
+                "assertion failed: account.sources.iter().all(|s| s.kind == c::AccountKind::SignIn)",
+            ));
+        }
         if let Some(previous) = self.account {
-            assert_eq!(account.number, previous, "restored account identity");
+            {
+                let (observed_value, wanted) = (&(account.number), &(previous));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "restored account identity; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
         }
         self.account = Some(account.number);
-        true
+        Ok(true)
     }
 }
 impl skein_world::Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let (app, others) = procs.split_at_mut(1);
-        let Process::App { host, spare, restarts } = &mut app[0] else { panic!("service") };
-        let (person, peers) = others.split_at_mut(1);
-        let Process::Other(Proc::Client(native)) = &mut person[0] else { panic!("native client") };
-        if !self.handed
-            && let Some(link) = host.service.links().pop()
-        {
-            native.sign_in(&link).expect("printed link");
-            self.handed = true;
-        }
-        let answer = self.receive(native);
-        match self.phase {
-            Phase::Admission if native.account_sign_in_ready() => {
-                Self::watch(native);
-                native.ask_account_sign_in(SIGN_IN, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 1 });
-                self.phase = Phase::Address;
-            }
-            Phase::Address => self.visit(answer, peers),
-            Phase::Usable | Phase::Restored => {
-                if !self.usable() {
-                    return;
-                }
-                if self.story == Story::Restart && self.restarts == 0 {
-                    host.service.shutdown();
-                    self.accounts = None;
-                    self.phase = Phase::Stopping;
-                } else {
-                    native.hold_after_script();
-                    native.resume_after_account_setup();
-                    self.phase = Phase::Answer;
-                }
-            }
-            Phase::Stopping if host.is_empty() => {
-                let (root, worker) = spare.take().expect("independent roots retained for the next service");
-                let store = host.store.clone();
-                store.borrow_mut().recovering();
-                **host = world::start_service(root, worker, None, &document(), Some(runtime()));
-                host.store = store;
-                self.restarts += 1;
-                *restarts += 1;
-                self.phase = Phase::Restored;
-            }
-            Phase::Answer => {
-                let failure = host.store.borrow().rows.values().find_map(|row| {
-                    if let jig_test_domain::Record::Core(jig_domain_core::Record::Core(
-                        jig_domain_core::CoreRecord::Terminal(terminal),
-                    )) = row
-                        && let jig_domain_tasks::End::Failed(class) = terminal.end
-                    {
-                        Some(class)
-                    } else {
-                        None
-                    }
-                });
-                if self.story == Story::Refused && failure.is_some() {
-                    native.account_request(jig_client::Event::Unwatch { handle: ACCOUNTS });
-                    native.finish_account_sign_in();
-                    self.phase = Phase::Closing;
-                } else if native.script_finished() {
-                    native.hold_for_account_sign_in();
-                    native.ask_account_sign_in(
-                        SIGN_OUT,
-                        c::Ask::SignOut {
-                            holder: c::AskAccountHolder::Own,
-                            source: self.source.expect("signed-in source"),
-                        },
-                    );
-                    self.phase = Phase::SignOut;
-                }
-            }
-            Phase::SignOut => self.sign_out(native, answer),
-            Phase::Closing if native.is_empty() => {
-                host.service.shutdown();
-                for proc in peers {
-                    match proc {
-                        Process::Issuer(peer) => peer.shutdown(),
-                        Process::Other(Proc::Peer(peer)) => peer.shutdown(),
-                        Process::Visitor(_) | Process::Other(_) => {}
-                        Process::App { .. } => unreachable!(),
-                    }
-                }
-                self.phase = Phase::Ended;
-            }
-            Phase::Admission | Phase::Stopping | Phase::Closing | Phase::Ended => {}
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         (!self.passed()).then_some(Time::from_nanos(WAIT.as_nanos()))
     }
@@ -401,7 +351,7 @@ impl skein_world::Referee<Process> for Judge {
             .then(|| format!("account story {:?}: phase {:?}, accounts {:?}", self.story, self.phase, self.accounts))
     }
     fn passed(&self) -> bool {
-        matches!(self.phase, Phase::Ended)
+        self.finding.is_none() && matches!(self.phase, Phase::Ended)
     }
 }
 
@@ -411,6 +361,7 @@ pub fn run(seed: u64, story: Story) -> Outcome {
     let mut machine = world::machine();
     let client_root = machine.reopen_root(2);
     let mut world = skein_world::World::new_controlled(seed, skein_sim::Config::calm(), Memory::Unchecked, |_| Judge {
+        finding: None,
         story,
         phase: Phase::Admission,
         received: 0,
@@ -508,5 +459,97 @@ fn evidence(procs: &[Process]) -> Outcome {
             }
         }),
         provider_failure: host.wire.answers.last().cloned(),
+    }
+}
+
+impl Judge {
+    fn check_act(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
+        let (app, others) = procs.split_first_mut().ok_or("service")?;
+        let Process::App { host, spare, restarts } = app else { return Err(String::from("service")) };
+        let (person, peers) = others.split_first_mut().ok_or("native client")?;
+        let Process::Other(Proc::Client(native)) = person else { return Err(String::from("native client")) };
+        if !self.handed
+            && let Some(link) = host.service.links().pop()
+        {
+            native.sign_in(&link).map_err(|why| format!("printed link: {why:?}"))?;
+            self.handed = true;
+        }
+        let answer = self.receive(native);
+        match self.phase {
+            Phase::Admission if native.account_sign_in_ready() => {
+                Self::watch_accounts(native);
+                native.ask_account_sign_in(SIGN_IN, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 1 });
+                self.phase = Phase::Address;
+            }
+            Phase::Address => self.visit(answer, peers)?,
+            Phase::Usable | Phase::Restored => {
+                if !self.usable()? {
+                    return Ok(());
+                }
+                if self.story == Story::Restart && self.restarts == 0 {
+                    host.service.shutdown();
+                    self.accounts = None;
+                    self.phase = Phase::Stopping;
+                } else {
+                    native.hold_after_script();
+                    native.resume_after_account_setup();
+                    self.phase = Phase::Answer;
+                }
+            }
+            Phase::Stopping if host.is_empty() => {
+                let (root, worker) = spare.take().ok_or("independent roots retained for the next service")?;
+                let store = host.store.clone();
+                store.borrow_mut().recovering();
+                **host = world::start_service(root, worker, None, &document(), Some(runtime()));
+                host.store = store;
+                self.restarts += 1;
+                *restarts += 1;
+                self.phase = Phase::Restored;
+            }
+            Phase::Answer => {
+                let failure = host.store.borrow().rows.values().find_map(|row| {
+                    if let jig_test_domain::Record::Core(jig_domain_core::Record::Core(
+                        jig_domain_core::CoreRecord::Terminal(terminal),
+                    )) = row
+                        && let jig_domain_tasks::End::Failed(class) = terminal.end
+                    {
+                        Some(class)
+                    } else {
+                        None
+                    }
+                });
+                if self.story == Story::Refused && failure.is_some() {
+                    native.account_request(jig_client::Event::Unwatch { handle: ACCOUNTS });
+                    native.finish_account_sign_in();
+                    self.phase = Phase::Closing;
+                } else if native.script_finished() {
+                    native.hold_for_account_sign_in();
+                    native.ask_account_sign_in(
+                        SIGN_OUT,
+                        c::Ask::SignOut {
+                            holder: c::AskAccountHolder::Own,
+                            source: self.source.ok_or("signed-in source")?,
+                        },
+                    );
+                    self.phase = Phase::SignOut;
+                }
+            }
+            Phase::SignOut => self.sign_out(native, answer)?,
+            Phase::Closing if native.is_empty() => {
+                host.service.shutdown();
+                for proc in peers {
+                    match proc {
+                        Process::Issuer(peer) => peer.shutdown(),
+                        Process::Other(Proc::Peer(peer)) => peer.shutdown(),
+                        Process::Visitor(_) | Process::Other(_) => {}
+                        Process::App { .. } => return Err(String::from("internal error: entered unreachable code")),
+                    }
+                }
+                self.phase = Phase::Ended;
+            }
+            Phase::Admission | Phase::Stopping | Phase::Closing | Phase::Ended => {}
+        }
+
+        Ok(())
     }
 }

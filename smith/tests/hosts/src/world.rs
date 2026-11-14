@@ -263,6 +263,7 @@ struct Release {
 }
 
 struct Referee {
+    finding: Option<String>,
     release: Option<Release>,
     seed: u64,
     scenario: Scenario,
@@ -273,8 +274,8 @@ struct Referee {
     meeting: skein_world::domain::Referee<referee::Meeting>,
 }
 
-impl skein_world::Referee<Proc> for Referee {
-    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+impl Referee {
+    fn act_checked(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
         if let Some(release) = &mut self.release {
             for proc in &mut *procs {
                 if let Proc::Peer(peer) = proc {
@@ -282,20 +283,20 @@ impl skein_world::Referee<Proc> for Referee {
                         release.at = Some(now.saturating_add(release.after));
                     }
                     if !release.released && release.at.is_some_and(|at| now >= at) {
-                        peer.release(&release.name).expect("named hold fits the peer");
+                        peer.release(&release.name).map_err(|_| String::from("named hold fits the peer"))?;
                         release.released = true;
                     }
                 }
             }
         }
-        self.iteration = self.iteration.checked_add(1).expect("finite scenario");
+        self.iteration = self.iteration.checked_add(1).ok_or("finite scenario")?;
         let parent = procs
             .iter()
             .find_map(|proc| match proc {
                 Proc::Parent(parent) => Some(parent),
                 Proc::Agent { .. } | Proc::Peer(_) | Proc::Error(_) => None,
             })
-            .expect("parent");
+            .ok_or("parent")?;
         let gone = parent.seen.gone.is_some();
         let admitted = parent.seen.admitted;
         if parent.seen.started && self.started.is_none() {
@@ -303,7 +304,7 @@ impl skein_world::Referee<Proc> for Referee {
         }
         let crash = match (self.scenario, self.started) {
             (Scenario::Crash(cut), Some(started)) => {
-                !gone && !self.injected && self.iteration.checked_sub(started).expect("Start precedes cut") >= cut
+                !gone && !self.injected && self.iteration.checked_sub(started).ok_or("Start precedes cut")? >= cut
             }
             (Scenario::Plain | Scenario::IgnoreCancel, _) | (Scenario::Crash(_), None) => false,
         };
@@ -330,36 +331,49 @@ impl skein_world::Referee<Proc> for Referee {
             }
         }
         self.injected |= crash || pause;
+        Ok(())
+    }
+}
+
+impl skein_world::Referee<Proc> for Referee {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
     }
 
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
         let parent = procs
             .iter()
             .find_map(|proc| match proc {
                 Proc::Parent(parent) => Some(parent),
                 Proc::Agent { .. } | Proc::Peer(_) | Proc::Error(_) => None,
             })
-            .expect("parent");
+            .ok_or("parent")?;
         let observations = parent.observations();
-        for observation in observations.get(self.reviewed..).expect("observations only grow") {
+        for observation in observations.get(self.reviewed..).ok_or("observations only grow")? {
             self.meeting.observe(now, *observation, &mut Vec::new());
         }
         self.reviewed = observations.len();
         if parent.seen.gone.is_some() {
             for proc in procs {
                 if let Proc::Agent { errors, .. } = proc {
-                    referee::review_agent_errors(
+                    referee::check_agent_errors(
                         &errors.bytes(),
-                        parent.seen.detail.as_deref().expect("Gone detail"),
+                        parent.seen.detail.as_deref().ok_or("Gone detail")?,
                         parent.seen.answered.is_some(),
-                    );
+                    )?;
                 }
             }
         }
         self.meeting.fire(now, &mut Vec::new());
         if matches!(self.meeting.verdict(), skein_world::domain::Verdict::Failed(_)) {
-            self.meeting.assert_passed(self.seed);
+            self.meeting.check_passed(self.seed)?;
         }
+        Ok(())
     }
 
     fn next_deadline(&self) -> Option<Time> {
@@ -376,7 +390,8 @@ impl skein_world::Referee<Proc> for Referee {
     }
 
     fn passed(&self) -> bool {
-        self.reviewed > 0 && matches!(self.meeting.verdict(), skein_world::domain::Verdict::Passed)
+        self.finding.is_none()
+            && (self.reviewed > 0 && matches!(self.meeting.verdict(), skein_world::domain::Verdict::Passed))
     }
 }
 
@@ -465,6 +480,7 @@ impl World {
         let mut machine = skein_fake_machine::Machine::new();
         let root = machine.lay(&[]);
         let referee = Referee {
+            finding: None,
             release: self.release.clone(),
             seed: self.seed,
             scenario: self.scenario,

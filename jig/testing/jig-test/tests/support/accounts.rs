@@ -26,16 +26,21 @@ pub fn configuration(directory: &Path) {
     }]);
     private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
-fn client(procs: &mut [Process]) -> &mut NativeClient {
-    let Process::Person(person) = &mut procs[1] else { panic!("native person") };
-    person.client.as_mut().expect("native client")
+fn client(procs: &mut [Process]) -> Result<&mut NativeClient, String> {
+    let Process::Person(person) = procs.get_mut(1).ok_or("native person")? else {
+        return Err(String::from("native person"));
+    };
+    person.client.as_mut().ok_or_else(|| String::from("native client"))
 }
-fn answer(procs: &[Process]) -> Option<c::Answer> {
-    let Process::Person(person) = &procs[1] else { panic!("native person") };
-    person.client.as_ref()?.received.iter().rev().find_map(|event| match event {
+fn answer(procs: &[Process]) -> Result<Option<c::Answer>, String> {
+    let Process::Person(person) = procs.get(1).ok_or("native person")? else {
+        return Err(String::from("native person"));
+    };
+    let Some(native) = &person.client else { return Ok(None) };
+    Ok(native.received.iter().rev().find_map(|event| match event {
         Received::Answer { answer, .. } => Some(answer.clone()),
         Received::SignedIn { .. } | Received::Sent { .. } | Received::Delivery(_) | Received::Read(_) => None,
-    })
+    }))
 }
 fn run_world<R: Referee<Process>>(
     directory: &Path,
@@ -81,6 +86,7 @@ const SETUP_WAIT: Duration = Duration::from_secs(20);
 const WORLD_WAIT: Duration = Duration::from_secs(40);
 
 struct Shutdown {
+    finding: Option<String>,
     asked: bool,
     sent: Option<Time>,
     killed: bool,
@@ -89,56 +95,23 @@ struct Shutdown {
 }
 impl Referee<Process> for Shutdown {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        if self.exit.is_some() {
-            return;
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
-        if let Some(sent) = self.sent {
-            let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-            if let Some(status) = binary.exit_status() {
-                let elapsed = now.saturating_since(sent);
-                eprintln!("SIGTERM elapsed={elapsed:?} killed={} status={status:?}", self.killed);
-                let Process::Issuer(issuer) = &mut procs[2] else { panic!("issuer") };
-                // Keep the fake alive until the binary exits; it cannot help teardown.
-                issuer.shutdown();
-                self.exit = Some(status);
-            } else if !self.killed && now >= sent.saturating_add(SHUTDOWN_WAIT) {
-                eprintln!("SIGTERM still running after {SHUTDOWN_WAIT:?}; killing owned child");
-                binary.signal(Signal::Kill);
-                self.killed = true;
-            }
-            return;
-        }
-        let Process::Person(person) = &mut procs[1] else { panic!("native person") };
-        let Some(native) = &mut person.client else { return };
-        if native.signed_in != 1 || !native.account_sign_in_ready() {
-            return;
-        }
-        if !self.asked {
-            native
-                .ask_account_sign_in(ACCOUNT_SIGN_IN, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 3 });
-            self.asked = true;
-            return;
-        }
-        {
-            let Some(answer) = answer(procs) else { return };
-            let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted { address, .. })) =
-                answer
-            else {
-                panic!("account sign-in answer: {answer:?}")
-            };
-            assert!(!address.is_empty(), "the pending sign-in has its authorization address");
-        }
-        // Deliberately never hand the address to Visitor.
-        client(procs).finish_account_sign_in();
-        let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
-        binary.signal(Signal::Terminate);
-        self.sent = Some(now);
     }
-    fn observe(&mut self, _now: Time, procs: &[Process]) {
-        let Process::Visitor(visitor) = &procs[3] else { panic!("browser") };
-        assert!(!visitor.handed(), "no authorization visit");
-        let Process::Binary(binary) = &procs[0] else { panic!("binary") };
-        assert!(binary.exit_status().is_none() || self.sent.is_some(), "binary exited before SIGTERM");
+    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let Process::Visitor(visitor) = procs.get(3).ok_or("browser")? else { return Err(String::from("browser")) };
+        if visitor.handed() {
+            return Err(String::from("no authorization visit"));
+        }
+        let Process::Binary(binary) = procs.first().ok_or("binary")? else { return Err(String::from("binary")) };
+        if binary.exit_status().is_some() && self.sent.is_none() {
+            return Err(String::from("binary exited before SIGTERM"));
+        }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.exit.is_some() {
@@ -153,7 +126,7 @@ impl Referee<Process> for Shutdown {
         (self.exit.is_none() && now >= self.deadline).then(|| "SIGTERM process setup or cleanup did not settle".into())
     }
     fn passed(&self) -> bool {
-        self.exit.is_some()
+        self.finding.is_none() && self.exit.is_some()
     }
 }
 
@@ -163,6 +136,7 @@ pub fn sigterm() {
     configuration(directory.path());
     let clock = Clock::new();
     let judge = Shutdown {
+        finding: None,
         asked: false,
         sent: None,
         killed: false,
@@ -173,4 +147,61 @@ pub fn sigterm() {
     assert!(outcome.procs.iter().all(Host::is_empty), "all SIGTERM test io settles");
     let Process::Binary(binary) = &outcome.procs[0] else { panic!("binary") };
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "SIGTERM must end without SIGKILL");
+}
+
+impl Shutdown {
+    fn check_act(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
+        if self.exit.is_some() {
+            return Ok(());
+        }
+        if let Some(sent) = self.sent {
+            let Process::Binary(binary) = procs.get_mut(0).ok_or("binary")? else { return Err(String::from("binary")) };
+            if let Some(status) = binary.exit_status() {
+                let elapsed = now.saturating_since(sent);
+                eprintln!("SIGTERM elapsed={elapsed:?} killed={} status={status:?}", self.killed);
+                let Process::Issuer(issuer) = procs.get_mut(2).ok_or("issuer")? else {
+                    return Err(String::from("issuer"));
+                };
+                // Keep the fake alive until the binary exits; it cannot help teardown.
+                issuer.shutdown();
+                self.exit = Some(status);
+            } else if !self.killed && now >= sent.saturating_add(SHUTDOWN_WAIT) {
+                eprintln!("SIGTERM still running after {SHUTDOWN_WAIT:?}; killing owned child");
+                binary.signal(Signal::Kill);
+                self.killed = true;
+            }
+            return Ok(());
+        }
+        let Process::Person(person) = procs.get_mut(1).ok_or("native person")? else {
+            return Err(String::from("native person"));
+        };
+        let Some(native) = &mut person.client else { return Ok(()) };
+        if native.signed_in != 1 || !native.account_sign_in_ready() {
+            return Ok(());
+        }
+        if !self.asked {
+            native
+                .ask_account_sign_in(ACCOUNT_SIGN_IN, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 3 });
+            self.asked = true;
+            return Ok(());
+        }
+        {
+            let Some(answer) = answer(procs)? else { return Ok(()) };
+            let c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountSignInStarted { address, .. })) =
+                answer
+            else {
+                return Err(format!("account sign-in answer: {answer:?}"));
+            };
+            if address.is_empty() {
+                return Err(String::from("the pending sign-in has its authorization address"));
+            }
+        }
+        // Deliberately never hand the address to Visitor.
+        client(procs)?.finish_account_sign_in();
+        let Process::Binary(binary) = procs.get_mut(0).ok_or("binary")? else { return Err(String::from("binary")) };
+        binary.signal(Signal::Terminate);
+        self.sent = Some(now);
+
+        Ok(())
+    }
 }

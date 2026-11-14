@@ -276,7 +276,9 @@ impl skein_world::Referee<Process> for Judge {
             self.done = true;
         }
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         if self.done { None } else { Some(Time::ZERO.saturating_add(DEADLINE)) }
     }

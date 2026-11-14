@@ -22,3 +22,6 @@ jig-domain-views.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+skein-rows.workspace = true

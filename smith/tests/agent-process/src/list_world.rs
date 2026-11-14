@@ -215,11 +215,12 @@ fn make(spawn: &Spawn, inherited: &Inherited) -> Proc {
 }
 
 struct Judge {
+    finding: Option<String>,
     ended: bool,
 }
-impl Referee<Proc> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Proc]) {
-        let done = matches!(&procs[0], Proc::Driver(parent) if parent.status.is_some() && parent.is_empty());
+impl Judge {
+    fn act_checked(&mut self, _now: Time, procs: &mut [Proc]) -> Result<(), String> {
+        let done = matches!(procs.first().ok_or("parent")?, Proc::Driver(parent) if parent.status.is_some() && parent.is_empty());
         if done && !self.ended {
             self.ended = true;
             for proc in procs {
@@ -228,10 +229,24 @@ impl Referee<Proc> for Judge {
                 }
             }
         }
+        Ok(())
     }
-    fn observe(&mut self, _now: Time, _procs: &[Proc]) {}
+}
+
+impl Referee<Proc> for Judge {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
+        if self.finding.is_none() {
+            self.finding = self.act_checked(now, procs).err();
+        }
+    }
+    fn watch(&mut self, _now: Time, _procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn passed(&self) -> bool {
-        self.ended
+        self.finding.is_none() && (self.ended)
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.ended).then_some(Time::ZERO.saturating_add(Duration::from_secs(30)))
@@ -247,9 +262,13 @@ pub fn run(configuration: &[u8], ask: &[u8], peer: Option<impl FnOnce() -> Peer>
     let mut files = skein_fake_machine::Machine::new();
     let root = files.lay(&[]);
     let parent_root = files.open(root, b".", skein_fake_machine::How::Directory).expect("parent root");
-    let mut world =
-        skein_world::World::new(7, skein_sim::Config::calm(), Judge { ended: false }, skein_world::Memory::Checked)
-            .with_machine(skein_fake_machine::Rooted { files, root });
+    let mut world = skein_world::World::new(
+        7,
+        skein_sim::Config::calm(),
+        Judge { finding: None, ended: false },
+        skein_world::Memory::Checked,
+    )
+    .with_machine(skein_fake_machine::Rooted { files, root });
     world.host(HostedProgram {
         program: b"smith-agent".as_slice().into(),
         make,

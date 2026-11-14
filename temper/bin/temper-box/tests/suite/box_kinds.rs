@@ -37,12 +37,14 @@ impl Referee<BoxProcess> for Judge {
         }
         self.settled = self.stopping && procs.iter().all(Host::is_empty);
     }
-    fn observe(&mut self, now: Time, procs: &[BoxProcess]) {
+    fn watch(&mut self, now: Time, procs: &[BoxProcess]) -> Result<(), String> {
         if (!self.stopping && self.removed.exists()) || (self.stopping && procs.iter().all(Host::is_empty)) {
             self.wake = Some(now);
         } else if !self.settled {
             self.wake = Some(now.saturating_add(Duration::from_millis(10)));
         }
+
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         self.wake

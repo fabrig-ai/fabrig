@@ -67,8 +67,10 @@ struct Judge {
     done: bool,
 }
 impl skein_world::Referee<SignalHost<Tool>> for Judge {
-    fn observe(&mut self, _: Time, procs: &[SignalHost<Tool>]) {
+    fn watch(&mut self, _: Time, procs: &[SignalHost<Tool>]) -> Result<(), String> {
         self.done = procs.iter().all(Host::is_empty);
+
+        Ok(())
     }
     fn passed(&self) -> bool {
         self.done

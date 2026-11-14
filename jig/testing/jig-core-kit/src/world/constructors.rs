@@ -55,6 +55,7 @@ impl World {
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
         let mut world = Self::empty(configuration, &limits, patch_sets);
+        world.seed = seed;
         world.configure_disk(disk_store, patch_sets);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
@@ -173,6 +174,7 @@ impl World {
         let store = Store::starting_with_patch_sets(limits, &configuration.core.settings.models, sets);
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
+            seed: 0,
             manual: false,
             public_referee: crate::referee::public::Referee::default(),
             returned: 0,
