@@ -49,7 +49,7 @@ fn advance(world: &mut World, until: fn(&World) -> bool) {
         if until(world) {
             return;
         }
-        world.iterate();
+        world.iterate().unwrap_or_else(|detail| panic!("{}", world.finding(&detail)));
         if until(world) {
             return;
         }
@@ -164,7 +164,7 @@ fn a_cancelled_job_is_stopped_and_answered_once_its_processes_are_gone() {
     assign(&mut w, assignment());
     advance(&mut w, is_active);
     cancel(&mut w);
-    w.iterate();
+    w.iterate().unwrap_or_else(|detail| panic!("{}", w.finding(&detail)));
     assert_eq!(w.parent.tally().releases, 0);
     w.run(ITERATIONS);
     assert_eq!(failure(&w), JobFailure::Cancelled(Reason::Engine));
@@ -179,7 +179,7 @@ fn a_cancelled_job_waits_for_its_delivery() {
     assign(&mut w, assignment());
     advance(&mut w, is_delivering);
     cancel(&mut w);
-    w.iterate();
+    w.iterate().unwrap_or_else(|detail| panic!("{}", w.finding(&detail)));
     assert_eq!(w.parent.tally().releases, 0);
     w.run(ITERATIONS);
     assert_eq!(failure(&w), JobFailure::Cancelled(Reason::Engine));
@@ -217,7 +217,7 @@ fn the_hello_states_the_kinds_and_lists_a_hosted_job() {
     advance(&mut w, is_active);
     let event = w.job_opened();
     send(&mut w, event);
-    w.iterate();
+    w.iterate().unwrap_or_else(|detail| panic!("{}", w.finding(&detail)));
     let owner = *w.admitted.get(&(RUN, ATTEMPT)).expect("hosted job");
     assert_eq!(w.host.hosting(owner).expect("phase").phase, Phase::Active);
     // Keep the answer by delaying the engine's ACK over the network.
@@ -225,7 +225,7 @@ fn the_hello_states_the_kinds_and_lists_a_hosted_job() {
     let before = w.trace().iter().filter(|line| line.contains("host -> Up(JobAnswer")).count();
     let event = w.job_opened();
     send(&mut w, event);
-    w.iterate();
+    w.iterate().unwrap_or_else(|detail| panic!("{}", w.finding(&detail)));
     assert_eq!(&*w.job_kinds, [BOUND]);
     assert!(w.host.answer_at(0).is_some());
     assert!(w.trace().iter().any(|line| line.contains("Answered")));
