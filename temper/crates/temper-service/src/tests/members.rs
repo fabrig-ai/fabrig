@@ -43,7 +43,7 @@ const APPLICATION: &[u8] = br#"{
 }"#;
 
 fn expanded() -> Box<[u8]> {
-    let input = fixtures::with(&fixtures::document(), b"application", APPLICATION);
+    let input = fixtures::with(&fixtures::turn_document(), b"application", APPLICATION);
     let input = fixtures::with(
         &input,
         b"engine.providers",

@@ -1074,3 +1074,33 @@ pub fn unopened_store() -> crate::store::Store {
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
     crate::store::Store::new(&root, &profile, &models, seeds().installation)
 }
+
+/// The prepare job's declared request and result must fit a turn fixture.
+pub fn turn_document() -> Box<[u8]> {
+    let document = document();
+    let mut overrides: serde_json::Value =
+        serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
+    overrides["tasks.spec_bytes"] = 16_384_u32.into();
+    overrides["tasks.result_bytes"] = 4_096_u32.into();
+    overrides["tasks.message_bytes"] = 4_096_u32.into();
+    let document = with(&document, b"engine.limits.overrides", &serde_json::to_vec(&overrides).unwrap());
+    let mut overrides: serde_json::Value =
+        serde_json::from_slice(&value(&document, b"application.limits.overrides")).unwrap();
+    overrides["forge.client.op_bytes"] = 4_096_u32.into();
+    with(&document, b"application.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
+}
+
+pub fn turn_jig() -> jig_protocol_config::Engine {
+    let mut jig = engine().jig;
+    jig.limits.core.tasks.spec_bytes = 16_384;
+    jig.limits.core.tasks.result_bytes = 4_096;
+    jig.limits.core.tasks.message_bytes = 4_096;
+    jig
+}
+
+/// A turn fixture receives the prepare job's result as a task message.
+pub fn turn_agent() -> settings::Agent {
+    let mut agent = startup_agent();
+    agent.bounds.message_bytes = 4_096;
+    agent
+}
