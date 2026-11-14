@@ -268,7 +268,7 @@ pub fn run(scenario: &Scenario, settings: &Settings, seed: u64) -> Run {
         if server_acts {
             server.act(now);
         }
-        referee.observe(at(now), &procs);
+        referee.watch(at(now), &procs).unwrap_or_else(|why| panic!("{why}"));
         if let Some(overdue) = referee.overdue(at(now)) {
             let (client, server) = ends(&procs);
             panic!(
@@ -544,21 +544,33 @@ impl Referee<Proc> for Watch<'_> {
     /// other sent, in order, each event with what the reader's face shows;
     /// and the writer is held to what the caps between them hold. Then the
     /// goals.
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
         let seed = self.seed;
         let (client_end, server_end) = ends(procs);
         let (client, server) = (&client_end.seen, &server_end.seen);
-        assert!(client.events.len() <= self.events.len(), "seed {seed}: no event the server did not write");
+        if client.events.len() > self.events.len() {
+            return Err(format!("seed {seed}: no event the server did not write"));
+        }
         for index in self.checked_events..client.events.len() {
             let (name, data) = &client.events[index];
             let Due { name: expected_name, data: expected_data, id, retry } = &self.events[index];
-            assert_eq!(name, expected_name, "seed {seed}: event {index}'s type");
-            assert_eq!(data, expected_data, "seed {seed}: event {index}'s data, as the server wrote it");
-            assert_eq!(
-                client.ids[index],
-                (id.clone(), *retry),
-                "seed {seed}: the reader's last event ID and reconnection time once event {index} came"
-            );
+            if name != expected_name {
+                return Err(format!(
+                    "assertion `left == right` failed: seed {seed}: event {index}'s type\n  left: {name:?}\n right: {expected_name:?}"
+                ));
+            }
+            if data != expected_data {
+                return Err(format!(
+                    "assertion `left == right` failed: seed {seed}: event {index}'s data, as the server wrote it\n  left: {data:?}\n right: {expected_data:?}"
+                ));
+            }
+            if client.ids[index] != (id.clone(), *retry) {
+                return Err(format!(
+                    "assertion `left == right` failed: seed {seed}: the reader's last event ID and reconnection time once event {index} came\n  left: {:?}\n right: {:?}",
+                    client.ids[index],
+                    (id.clone(), *retry)
+                ));
+            }
             if !id.is_empty() || retry.is_some() {
                 self.fell.ids += 1;
             }
@@ -573,31 +585,37 @@ impl Referee<Proc> for Watch<'_> {
         // The documents of the events, when every response was one.
         if client.statuses.iter().all(|status| *status == 200) {
             for index in self.checked_documents..client.documents.len() {
-                assert_eq!(client.documents[index], self.documents[index], "seed {seed}: event {index}'s document");
+                if client.documents[index] != self.documents[index] {
+                    return Err(format!(
+                        "assertion `left == right` failed: seed {seed}: event {index}'s document\n  left: {:?}\n right: {:?}",
+                        client.documents[index], self.documents[index]
+                    ));
+                }
             }
             self.checked_documents = client.documents.len();
         }
         for index in self.checked_requests..server.requests.len() {
-            assert!(
-                self.scenario.requests[index].starts_with(&server.requests[index]),
-                "seed {seed}: the server read the client's request {index}, token for token"
-            );
+            if !self.scenario.requests[index].starts_with(&server.requests[index]) {
+                return Err(format!("seed {seed}: the server read the client's request {index}, token for token"));
+            }
         }
         self.checked_requests = server.requests.len();
         // Flow control: what the writer sent that the client has not read.
         let in_flight = server.framed.saturating_sub(self.received);
         let bound = self.settings.in_flight();
-        assert!(
-            in_flight <= bound,
-            "seed {seed}: the writer ran {in_flight} bytes ahead of the reader, past the {bound} the caps hold"
-        );
+        if in_flight > bound {
+            return Err(format!(
+                "seed {seed}: the writer ran {in_flight} bytes ahead of the reader, past the {bound} the caps hold"
+            ));
+        }
         self.fell.most_in_flight = self.fell.most_in_flight.max(in_flight);
         self.fell.writer_held |= writer_held(now, client, server);
         self.fell.upload_held |= upload_held(now, client, server);
         self.fell.upload_stopped |= client.upload_failed == Some(Fault::Other);
         self.fell.writer_failed |= server.writer_failed;
         self.fell.calls = self.fell.calls.max(client.calls);
-        self.goals.observe(now, procs);
+        self.goals.check(now, procs)?;
+        Ok(())
     }
 
     fn next_deadline(&self) -> Option<Time> {
@@ -629,4 +647,54 @@ pub fn json_limits() -> skein_json::writer::Limits {
 
 fn json_limits_tokenizer() -> skein_json::tokenizer::Limits {
     skein_json::tokenizer::Limits { depth: 16, string: 4096, number: 32, chunk: 64, length: 1 << 16 }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn procs(scenario: &Scenario, settings: &Settings) -> [Proc; 2] {
+        [
+            Proc::Client(client_end::End::new(
+                settings.client,
+                Bottom::new(settings.client_intake, settings.client_output),
+                scenario.client.clone(),
+            )),
+            Proc::Server(server_end::End::new(
+                settings.server,
+                Bottom::new(settings.server_intake, settings.server_output),
+                scenario.server.clone(),
+            )),
+        ]
+    }
+
+    #[test]
+    fn watch_returns_an_event_the_server_did_not_write() {
+        let mut rng = Rng::new(17);
+        let scenario = crate::scenario::stream(&mut rng);
+        let settings = Settings::drawn(&mut rng);
+        let mut referee = Watch::new(&scenario, &settings, 17);
+        let mut procs = procs(&scenario, &settings);
+        // All scripted events have already been checked; one extra must fail before indexing them.
+        let extra = referee.events.len();
+        referee.checked_events = extra;
+        let (client, _) = ends_mut(&mut procs);
+        client.seen.events.resize(extra + 1, (Vec::new(), Vec::new()));
+        assert_eq!(referee.watch(at(3), &procs), Err(String::from("seed 17: no event the server did not write")));
+    }
+
+    #[test]
+    fn watch_returns_a_broken_goal_with_seed_and_time() {
+        let mut rng = Rng::new(17);
+        let scenario = crate::scenario::early(&mut rng);
+        let settings = Settings::drawn(&mut rng);
+        let mut referee = Watch::new(&scenario, &settings, 17);
+        let mut procs = procs(&scenario, &settings);
+        assert_eq!(referee.watch(at(2), &procs), Ok(()));
+        let (_, server) = ends_mut(&mut procs);
+        server.seen.requests.push(Vec::new());
+        let why = referee.watch(at(3), &procs).expect_err("the early answer forbids reading the body");
+        assert!(why.starts_with("seed 17: at 3 ns, Answered"), "{why}");
+        assert!(why.ends_with("broke: the server read the body it answered before"), "{why}");
+    }
 }

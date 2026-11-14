@@ -1,49 +1,32 @@
 //! One table test's rows (skein/docs/design/testing/README.md, 6): cases of one
 //! behaviour share a process (skein/docs/foundation/testing-strategy.md,
-//! 8), and every row still runs and names itself when it fails.
+//! 8). Each row is named before it runs; the first failure ends the table.
 //!
 //! Ordinary Rust (programming-model.md, 10.2): it runs in tests only.
 
 use std::collections::BTreeSet;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 
-/// Runs `body` on every row, then panics naming each row that panicked,
-/// with its message. Fewer than two rows, or two rows of one name, panic
-/// before any row runs.
+/// Runs `body` on each row in order, naming it on stderr before it runs.
+/// The first failure ends the table. Fewer than two rows, or two rows of
+/// one name, panic before any row runs.
 #[track_caller]
+#[expect(clippy::print_stderr, reason = "the row's name is the table's report (testing/README.md, 6)")]
 pub fn check<R>(rows: impl IntoIterator<Item = (&'static str, R)>, body: impl Fn(R)) {
+    check_with_report(rows, body, |line| eprintln!("{line}"));
+}
+
+#[track_caller]
+fn check_with_report<R>(rows: impl IntoIterator<Item = (&'static str, R)>, body: impl Fn(R), report: impl Fn(&str)) {
     let rows: Vec<_> = rows.into_iter().collect();
     assert!(rows.len() >= 2, "a table needs at least two rows");
     let mut names = BTreeSet::new();
     for (name, _) in &rows {
         assert!(names.insert(name), "two rows have one name: {name}");
     }
-    let total = rows.len();
-    let mut failures = Vec::new();
     for (name, row) in rows {
-        if let Err(payload) = catch_unwind(AssertUnwindSafe(|| body(row))) {
-            let message = payload
-                .downcast_ref::<String>()
-                .map(String::as_str)
-                .or_else(|| payload.downcast_ref::<&str>().copied())
-                .unwrap_or("<no message>");
-            failures.push(format!("{name}: {message}"));
-        }
+        report(&format!("skein-rows: row {name}"));
+        body(row);
     }
-    assert!(failures.is_empty(), "{} of {total} rows failed\n{}", failures.len(), failures.join("\n"));
-}
-
-/// Holds for a row what `#[should_panic(expected = "...")]` holds for a
-/// test: `call` must panic, with a message holding `expected`.
-#[track_caller]
-pub fn panics(expected: &str, call: impl FnOnce()) {
-    let payload = catch_unwind(AssertUnwindSafe(call)).expect_err("call must panic");
-    let message = payload
-        .downcast_ref::<String>()
-        .map(String::as_str)
-        .or_else(|| payload.downcast_ref::<&str>().copied())
-        .expect("panic must have a message");
-    assert!(message.contains(expected), "panic message {message:?} must contain {expected:?}");
 }
 
 #[cfg(test)]

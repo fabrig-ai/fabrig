@@ -3,7 +3,6 @@ use super::Lent;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{Queue, Time, Token, Wall};
 use skein_world::ring::Ring;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 
 #[cfg(test)]
 mod tests;
@@ -23,24 +22,32 @@ pub(super) struct Peers<'a, 'b> {
     lent: &'a mut [Lent<'b>],
     states: Vec<State>,
     pub limits: Vec<u32>,
+    last: Option<Vec<u8>>,
 }
 
-/// Only a call into a lent host is caught; ring and harness faults propagate.
-fn call<T>(name: &[u8], action: impl FnOnce() -> T) -> Result<T, String> {
-    catch_unwind(AssertUnwindSafe(action)).map_err(|payload| {
-        let text = payload
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| payload.downcast_ref::<&str>().copied())
-            .unwrap_or("non-text assertion");
-        format!("lent peer {}: {text}", String::from_utf8_lossy(name))
-    })
+/// Name the peer before handing it control; its assertions are fail-stop.
+#[expect(clippy::print_stderr, reason = "name a lent peer before its assertions can end the test")]
+fn call<T>(last: &mut Option<Vec<u8>>, name: &[u8], action: impl FnOnce() -> T) -> T {
+    call_with_report(last, name, action, |line| eprintln!("{line}"))
+}
+
+fn call_with_report<T>(
+    last: &mut Option<Vec<u8>>,
+    name: &[u8],
+    action: impl FnOnce() -> T,
+    mut report: impl FnMut(&str),
+) -> T {
+    if last.as_deref() != Some(name) {
+        report(&format!("lent peer {}", String::from_utf8_lossy(name)));
+        *last = Some(name.to_vec());
+    }
+    action()
 }
 impl<'a, 'b> Peers<'a, 'b> {
-    pub fn new(lent: &'a mut [Lent<'b>]) -> Result<Self, String> {
-        let limits =
-            lent.iter().map(|lent| call(lent.name, || lent.peer.operations())).collect::<Result<Vec<_>, _>>()?;
-        Ok(Self { states: (0..lent.len()).map(|_| State::default()).collect(), lent, limits })
+    pub fn new(lent: &'a mut [Lent<'b>]) -> Self {
+        let mut last = None;
+        let limits = lent.iter().map(|lent| call(&mut last, lent.name, || lent.peer.operations())).collect();
+        Self { states: (0..lent.len()).map(|_| State::default()).collect(), lent, limits, last }
     }
     pub fn ready(&self) -> bool {
         self.states.iter().all(|state| state.address.is_some())
@@ -77,17 +84,10 @@ impl<'a, 'b> Peers<'a, 'b> {
         }
         None
     }
-    pub fn drive(&mut self, ring: &mut Ring, now: Time, wall: Wall, stop: bool) -> Vec<String> {
-        let mut failures = Vec::new();
+    pub fn drive(&mut self, ring: &mut Ring, now: Time, wall: Wall, stop: bool) {
         for (index, (lent, state)) in self.lent.iter_mut().zip(&mut self.states).enumerate() {
             let host = FIRST + index;
-            let room = match call(lent.name, || lent.peer.completions().room()) {
-                Ok(room) => room,
-                Err(error) => {
-                    failures.push(error);
-                    continue;
-                }
-            };
+            let room = call(&mut self.last, lent.name, || lent.peer.completions().room());
             let mut delivered = Queue::with_capacity(room);
             ring.deliver(host, &mut delivered);
             if let Some(token) = state.listening
@@ -95,7 +95,7 @@ impl<'a, 'b> Peers<'a, 'b> {
             {
                 state.delivered = Some(token);
             }
-            let result = call(lent.name, || {
+            let submissions = call(&mut self.last, lent.name, || {
                 while let Some(complete) = delivered.pop() {
                     lent.peer.completions().push(complete);
                 }
@@ -122,17 +122,11 @@ impl<'a, 'b> Peers<'a, 'b> {
                 }
                 submissions
             });
-            match result {
-                Ok(submissions) => {
-                    for record in submissions {
-                        let record = ring.register(host, record);
-                        ring.queue(record);
-                    }
-                }
-                Err(error) => failures.push(error),
+            for record in submissions {
+                let record = ring.register(host, record);
+                ring.queue(record);
             }
         }
-        failures
     }
     pub fn empty(&self) -> bool {
         self.states.iter().all(|state| state.empty)

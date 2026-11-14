@@ -212,7 +212,7 @@ impl Referee<Process> for Judge {
             }
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
         self.now = now;
         let browser = procs
             .iter()
@@ -221,20 +221,16 @@ impl Referee<Process> for Judge {
                 Process::Server(_) => None,
             })
             .expect("browser");
-        assert!(
-            self.expected.starts_with(&browser.reports),
-            "seed {}: unexpected reports {:?}, expected {:?}",
-            self.seed,
-            browser.reports,
-            self.expected
-        );
-        if let Some(stage) = self.stages.front().filter(|stage| stage.at > now) {
-            assert!(
-                browser.reports.len() <= stage.reports,
-                "seed {}: a report before the scripted read-on: {:?}",
-                self.seed,
-                browser.reports
-            );
+        if !self.expected.starts_with(&browser.reports) {
+            return Err(format!(
+                "seed {}: unexpected reports {:?}, expected {:?}",
+                self.seed, browser.reports, self.expected
+            ));
+        }
+        if let Some(stage) = self.stages.front().filter(|stage| stage.at > now)
+            && browser.reports.len() > stage.reports
+        {
+            return Err(format!("seed {}: a report before the scripted read-on: {:?}", self.seed, browser.reports));
         }
         let closed = procs
             .iter()
@@ -265,6 +261,7 @@ impl Referee<Process> for Judge {
             && browser.reports == self.expected
             && closed >= self.closed
             && now >= self.until;
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if self.passed {
@@ -315,4 +312,38 @@ pub fn run(seed: u64, script: &Script, memory: Memory) -> Outcome<Process> {
     world.run_with_faults(|_, now, _| {
         script.reset_at.filter(|at| now >= *at).map(|_| skein_sim::Faults { reset: 1000, ..skein_sim::Faults::NONE })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn watch_returns_unexpected_reports_but_accepts_an_idle_visitor() {
+        let mut judge = Judge {
+            seed: 17,
+            stages: vec![Stage { at: Time::from_nanos(10), ..Stage::new(0, Vec::new()) }].into(),
+            expected: Vec::new(),
+            listener: false,
+            closed: 0,
+            until: Time::ZERO,
+            passed: false,
+            now: Time::ZERO,
+            wake: false,
+        };
+        let mut procs = [Process::Browser(Box::new(Browser {
+            visitor: Visitor::new(&config()),
+            inputs: std::collections::VecDeque::new(),
+            allowed: 0,
+            reports: vec![Report::StreamOpened],
+        }))];
+        assert_eq!(
+            judge.watch(Time::ZERO, &procs),
+            Err(String::from("seed 17: unexpected reports [StreamOpened], expected []"))
+        );
+        let Process::Browser(browser) = &mut procs[0] else { unreachable!("the browser fixture") };
+        browser.reports.clear();
+        assert_eq!(judge.watch(Time::ZERO, &procs), Ok(()));
+        assert!(!judge.passed(), "waiting for the visitor's next input is no verdict");
+    }
 }

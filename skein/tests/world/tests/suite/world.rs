@@ -114,10 +114,13 @@ fn an_overdue_liveness_expectation_fails_naming_what_is_pending() {
 }
 
 #[test]
-#[should_panic(expected = "broke: it received")]
 fn a_broken_safety_expectation_fails_at_once() {
     let expect = vec![Expect::Silent { at: 0, until: ms(1_000) }];
-    let _outcome = world(Config::calm(), expect, server, sender, Memory::Checked).run();
+    let finding = world(Config::calm(), expect, server, sender, Memory::Checked)
+        .try_run()
+        .expect_err("the referee returns its broken safety expectation");
+    assert!(finding.starts_with("seed 7: at 20000000 ns, Silent"), "{finding}");
+    assert!(finding.contains("broke: it received"), "{finding}");
 }
 
 #[test]
@@ -233,8 +236,9 @@ impl skein_world::Referee<Script> for AllocatingJudge {
     fn act(&mut self, _now: skein_lib::Time, _procs: &mut [Script]) {
         self.storage.resize(self.bytes, 1);
     }
-    fn observe(&mut self, _now: skein_lib::Time, _procs: &[Script]) {
+    fn watch(&mut self, _now: skein_lib::Time, _procs: &[Script]) -> Result<(), String> {
         self.storage.resize(self.bytes * 2, 1);
+        Ok(())
     }
     fn passed(&self) -> bool {
         true
@@ -254,13 +258,15 @@ fn referee_allocations_leave_the_process_peak_unchanged() {
         peaks.push(outcome.peaks().expect("process checked")[0]);
         drop(outcome); // Also checks that the process releases exactly its own heap.
     }
-    assert_eq!(peaks[0], peaks[1], "neither referee act nor observe belongs to the process");
+    assert_eq!(peaks[0], peaks[1], "neither referee act nor watch belongs to the process");
 }
 
 struct IdleJudge(bool);
 
 impl skein_world::Referee<Script> for IdleJudge {
-    fn observe(&mut self, _now: skein_lib::Time, _procs: &[Script]) {}
+    fn watch(&mut self, _now: skein_lib::Time, _procs: &[Script]) -> Result<(), String> {
+        Ok(())
+    }
 
     fn idle(&mut self, _now: skein_lib::Time, _procs: &[Script], settled: bool) {
         self.0 = settled;
