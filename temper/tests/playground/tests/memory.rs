@@ -11,10 +11,11 @@ const SEED: u64 = 7;
 const STARTUP_STEPS: u64 = 10_000;
 
 // The service's first-step held uses the 2026-11-14 worker-wire v8 table in
-// temper/docs/development/playground-memory.md, and its first-step peak the
-// 2026-11-13 worker-wire v7 table, each plus a quarter, rounded up to two
-// significant digits. Other service ceilings keep the earlier 2026-11-13
-// table; nonservice bounds keep the 2026-11-12 figures plus a quarter.
+// temper/docs/development/playground-memory.md, its first-step peak the
+// 2026-11-13 worker-wire v7 table, and its start held the 2026-11-14 worker-wire
+// v9 table, each plus a quarter, rounded up to two significant digits. Its
+// start peak keeps the earlier 2026-11-13 table; nonservice bounds keep the
+// 2026-11-12 figures plus a quarter.
 // Bounds follow process names, not admission order.
 const SERVICE_FIRST_STEP_HELD: i64 = 470_000;
 const SERVICE_FIRST_STEP_PEAK: i64 = 690_000;
@@ -24,7 +25,7 @@ const FORGE_FIRST_STEP_HELD: i64 = 30_130 + 30_130 / 4;
 const FORGE_FIRST_STEP_PEAK: i64 = 30_130 + 30_130 / 4;
 const VISITOR_FIRST_STEP_HELD: i64 = 1_054 + 1_054 / 4;
 const VISITOR_FIRST_STEP_PEAK: i64 = 1_068 + 1_068 / 4;
-const SERVICE_START_HELD: i64 = 600_000;
+const SERVICE_START_HELD: i64 = 790_000;
 const SERVICE_START_PEAK: i64 = 760_000;
 const LLM_START_HELD: i64 = 28_185 + 28_185 / 4;
 const LLM_START_PEAK: i64 = 28_185 + 28_185 / 4;

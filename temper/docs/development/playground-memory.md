@@ -2,10 +2,11 @@
 
 These are native counting-allocator bytes, not browser memory or resident size.
 The playground binary's test holds the service's first-step held bytes from
-the 2026-11-14 worker-wire v8 table below and its first-step peak from the
-2026-11-13 worker-wire v7 table, each with a quarter's margin rounded up to
-two significant digits. The other service ceilings retain the earlier
-2026-11-13 table; nonservice regression bounds retain their 2026-11-12 figures plus a quarter
+the 2026-11-14 worker-wire v8 table below, its first-step peak from the
+2026-11-13 worker-wire v7 table, and its start held from the 2026-11-14
+worker-wire v9 table, each with a quarter's margin rounded up to two
+significant digits. Its start peak retains the earlier 2026-11-13 table;
+nonservice regression bounds retain their 2026-11-12 figures plus a quarter
 ([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
 the memory's bar itself to the user.
 
@@ -47,7 +48,7 @@ the composition still captures the sign-in line as its normal `step` does.
 
 Measured 2026-11-03 (`date -u +%F`), on a builder, at commit
 `79d1b7c27b20bce64fcc5e6b3e75c3db3732948e`. This historical table is retained
-for comparison; the service's bounds now follow the 2026-11-13 table below.
+for comparison; the active service bounds follow the tables named above.
 
 | Process | First step held | First step peak | Start held | Start peak | Story A high water |
 |---|---:|---:|---:|---:|---|
@@ -175,7 +176,7 @@ in the opaque control. Against the earlier table, git's start peak is one
 byte higher and the fake disk's start retained heap is 802 bytes higher;
 both remain within their unchanged ceilings. No runtime limit changes.
 
-### Current service table: worker-wire v8
+### Earlier service table: worker-wire v8
 
 Measured 2026-11-14 (`date -u`), on `temper62476/g2476` after main's
 landing-history H1 merged into it, with `temper-worker-wire` 8, keeping
@@ -208,6 +209,39 @@ Only the exceeded service first-step held ceiling moves: 368,044 plus a
 quarter is 460,055, rounded up to two significant digits gives 470,000
 bytes, replacing 340,000. The service's first-step peak stays 690,000 and
 its start held/peak 600,000/760,000. No runtime limit changes.
+
+### Current service table: worker-wire v9
+
+Measured 2026-11-14 (`date -u`), on `temper62811/c2819`, with
+`temper-worker-wire` 9, keeping versions 5, 6, 7 and 8 and their bridges.
+Every figure in this table came from one run of
+`story_as_world_at_its_first_step_and_start`, with comparisons suspended
+only for measurement and restored afterwards. First step takes one world
+step; start takes 159 world steps.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 412,064 | 627,215 | 630,245 | 754,101 |
+| 1: fake LLM | 27,585 | 27,585 | 28,321 | 28,321 |
+| 2: fake forge HTTP | 30,394 | 30,394 | 31,135 | 31,179 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,450 | 5,991 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,417 | 250,507 |
+| Shared forge before start | 7,229 | not separately measured at start |
+
+Against the v8 table, the service grows 44,020 held and 43,924 peak bytes at
+the first step and 44,116 held and 44,020 peak bytes at start. This run
+isolated no control, so the growth is attributed to the further kept
+version, its bridge and roots, and the new results/kept shapes. Nonservice
+figures are unchanged but the fake disk's retained heap, 24 bytes higher at
+the first step and 56 bytes higher at start.
+
+Only the exceeded service start held ceiling moves: 630,245 plus a quarter,
+rounded up to two significant digits, gives 790,000 bytes, replacing 600,000.
+Every other ceiling stays as it is. No runtime limit changes.
 
 The following one-process observation is the unbound 2026-11-08 measurement;
 its ignored test has no active figures to repin. The one-process binary takes the same entry as
