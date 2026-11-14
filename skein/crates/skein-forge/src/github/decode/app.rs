@@ -141,6 +141,7 @@ impl State {
             | Node::RunOutput
             | Node::RunApp
             | Node::Job
+            | Node::JobLabels
             | Node::JobSteps
             | Node::JobStep
             | Node::User
@@ -418,6 +419,7 @@ impl State {
                 | Node::RunApp
                 | Node::Job
                 | Node::Protection(_)
+                | Node::JobLabels
                 | Node::JobSteps
                 | Node::JobStep
                 | Node::IdResult

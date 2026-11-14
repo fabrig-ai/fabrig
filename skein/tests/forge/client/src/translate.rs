@@ -132,7 +132,7 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
         }
         client::Read::File { head, path, .. } => forge::Read::File { commit: number(*head), path: path.clone() },
         client::Read::Checks { commit } => forge::Read::Checks { commit: number(*commit) },
-        client::Read::Job { attempt, .. } => forge::Read::Job { job: attempt.job },
+        client::Read::JobState { attempt } | client::Read::Job { attempt, .. } => forge::Read::Job { job: attempt.job },
         client::Read::Protection { branch } => forge::Read::Protection { branch: branch.clone() },
         client::Read::Settings => forge::Read::Settings,
         client::Read::Collaborators { .. } => forge::Read::Collaborators,
@@ -533,6 +533,7 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
             | client::Read::Tree { .. }
             | client::Read::Artifact { .. }
             | client::Read::Commits { .. }
+            | client::Read::JobState { .. }
             | client::Read::Job { .. }
             | client::Read::Protection { .. }
             | client::Read::Settings
@@ -655,6 +656,21 @@ pub fn digest(bytes: &[u8]) -> u64 {
 }
 
 fn job_answer(asked: &client::Op, job: &forge::Job, steps: &[forge::Step]) -> client::Answer {
+    if let client::Op::Read(client::Read::JobState { attempt }) = asked {
+        let state = match job.wait {
+            Some(forge::JobWait::Runner) => client::JobState::Waiting,
+            Some(forge::JobWait::Needs) => client::JobState::Blocked,
+            None => match job.state {
+                forge::RunState::Running => client::JobState::Running,
+                forge::RunState::Completed => client::JobState::Completed,
+            },
+        };
+        let step = steps
+            .iter()
+            .find(|step| step.status == forge::StepStatus::Running)
+            .map(|step| client::Step { number: step.number, name: step.name.clone() });
+        return client::Answer::JobState { attempt: *attempt, state, labels: job.labels.clone(), step, cut: false };
+    }
     let client::Op::Read(client::Read::Job { attempt, max_bytes, .. }) = asked else {
         panic!("Job answer requires a job read")
     };
@@ -805,7 +821,7 @@ pub fn run_jobs(jobs: Box<[forge::Job]>) -> Box<[client::RunJob]> {
                 id: job.id,
                 name: job.name,
                 attempt: job.attempt,
-                state: state_in(job.state),
+                state: if job.wait.is_some() { client::RunState::Waiting } else { state_in(job.state) },
                 conclusion: conclusion_in(job.conclusion),
                 steps: if failed { u32::try_from(job.steps.len()).expect("world steps") } else { 0 },
                 step,

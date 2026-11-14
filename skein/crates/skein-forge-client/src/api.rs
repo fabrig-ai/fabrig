@@ -21,6 +21,7 @@ enum Shape {
     Compare,
     Checks,
     Job,
+    JobState,
     File,
     Protection,
     Settings,
@@ -52,6 +53,7 @@ fn shape(answer: &Answer) -> Shape {
         Answer::PullFiles { .. } => Shape::PullFiles,
         Answer::Compare { .. } => Shape::Compare,
         Answer::Checks(_) => Shape::Checks,
+        Answer::JobState { .. } => Shape::JobState,
         Answer::Job { .. } => Shape::Job,
         Answer::Directory { .. } | Answer::File { .. } => Shape::File,
         Answer::Protection(_) => Shape::Protection,
@@ -87,6 +89,7 @@ pub(crate) fn accepts(op: &Op, answer: &Answer) -> bool {
             Read::PullFiles { .. } => Shape::PullFiles,
             Read::Compare { .. } => Shape::Compare,
             Read::Checks { .. } => Shape::Checks,
+            Read::JobState { .. } => Shape::JobState,
             Read::Job { .. } => Shape::Job,
             Read::Protection { .. } => Shape::Protection,
             Read::Settings => Shape::Settings,
@@ -167,9 +170,23 @@ fn read_accepts(read: &Read, answer: &Answer) -> bool {
         }
         Read::Locate { .. } => skein_forge::locate::accepts(answer),
         Read::Items { kind, .. } => items_ordered(answer, *kind),
+        Read::JobState { attempt } => {
+            let Answer::JobState { attempt: received, state, labels, step, .. } = answer else {
+                return false;
+            };
+            for label in labels {
+                if label.len() > 255 {
+                    return false;
+                }
+            }
+            received == attempt
+                && labels.len() <= 16
+                && (*state == skein_forge::api::JobState::Running || step.is_none())
+        }
         Read::Job { attempt, max_bytes, .. } => match answer {
             Answer::Job { attempt: received, log, .. } => received == attempt && log.len() <= usize_of(*max_bytes),
-            Answer::Items { .. }
+            Answer::JobState { .. }
+            | Answer::Items { .. }
             | Answer::Runs { .. }
             | Answer::Run(_)
             | Answer::Tree { .. }
@@ -263,6 +280,7 @@ fn checks_at_head(answer: &Answer, head: Commit) -> bool {
         | Answer::Compare { .. }
         | Answer::Directory { .. }
         | Answer::File { .. }
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -317,6 +335,7 @@ fn items_ordered(answer: &Answer, kind: Option<Kind>) -> bool {
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -360,6 +379,7 @@ fn reviews_ordered(answer: &Answer) -> bool {
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -406,6 +426,7 @@ fn item_matches(answer: &Answer, number: u64, after: u64) -> bool {
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -440,6 +461,7 @@ fn pull_answer(answer: &Answer) -> Option<&Pull> {
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -474,6 +496,7 @@ fn observed_head(answer: &Answer) -> Option<Commit> {
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -510,6 +533,7 @@ fn compared(answer: &Answer, before: Commit, after: Commit) -> bool {
         | Answer::Checks(_)
         | Answer::Directory { .. }
         | Answer::File { .. }
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -555,6 +579,7 @@ fn file_matches(answer: &Answer, head: Commit, path: &[u8], max_bytes: u32) -> b
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -593,6 +618,7 @@ fn artifact_fits(answer: &Answer, max_bytes: u32) -> bool {
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Protection(_)
         | Answer::Settings(_)
@@ -636,6 +662,7 @@ fn commits_unique(answer: &Answer) -> bool {
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::File { .. }
         | Answer::Protection(_)

@@ -27,6 +27,41 @@ impl Driver {
     pub fn component(&self) -> &Component {
         dispatch!(self, w, &w.component)
     }
+    pub fn configure_workflows(
+        &mut self,
+        seed: u64,
+        workflows: Box<[raw::Workflow]>,
+        tree: Box<[raw::File]>,
+        author: u64,
+    ) {
+        let path = self.path().to_vec();
+        dispatch!(self, w, {
+            w.fake_env.limits.limits.workflows = u32::try_from(workflows.len()).expect("workflows");
+            w.fake_env.limits.limits.workflow_runs = 4;
+            let mut domain = fake::Domain::new(&w.fake_env.limits, seed);
+            fake::repository(
+                &mut domain,
+                &w.fake_env.limits,
+                raw::Setup {
+                    id: 2,
+                    name: path.clone().into(),
+                    default: b"main".as_slice().into(),
+                    tree,
+                    workflows,
+                    labels: Box::new([]),
+                    checks: raw::Checks { contexts: Box::new([]), ..skein_forge_kit::joint::checks(1000) },
+                    protection: None,
+                    hooked: false,
+                },
+            );
+            fake::grant(&mut domain, &path, author, raw::Permission::Admin);
+            fake::grant(&mut domain, &path, 2, raw::Permission::Write);
+            w.domain = domain;
+        });
+    }
+    pub fn runner_labels(&mut self, labels: Option<Box<[Box<[u8]>]>>) {
+        dispatch!(self, w, w.fake_env.limits.runner_labels = labels);
+    }
     pub fn fake_env(&self) -> &Env<fake::Config> {
         dispatch!(self, w, &w.fake_env)
     }

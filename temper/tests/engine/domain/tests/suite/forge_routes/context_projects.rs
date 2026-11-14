@@ -31,6 +31,7 @@ fn adopt_pair_configured(
 
 fn follow_workflow(cued: bool) -> raw::Workflow {
     raw::Workflow {
+        requirements: Box::new([]),
         file: b"test.yml".as_slice().into(),
         jobs: Box::new([b"test".as_slice().into()]),
         latency_min: Duration::ZERO,

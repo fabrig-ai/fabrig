@@ -210,6 +210,14 @@ fn job(json: &mut Encoder, value: &Job, steps: &[Step]) {
         json.key(b"status");
         json.string(document::step_status_text(value.status));
     }
+    if !value.labels.is_empty() {
+        json.key(b"runs_on");
+        json.array_start();
+        for label in &value.labels {
+            json.string(label);
+        }
+        json.array_end();
+    }
     if !steps.is_empty() {
         json.key(b"steps");
         json.array_start();

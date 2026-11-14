@@ -346,6 +346,11 @@ fn a_connection_wait_excludes_unanswered_time_but_keeps_prior_stall_time() {
                 let (call, _) = fixtures::next_at(&mut d, &env);
                 out = fixtures::answer_at(&mut d, &env, call, Ok(answer));
             }
+            if !titled && decision == c::Decision::Hold(c::Hold::Stalled) {
+                let (call, read) = fixtures::next_at(&mut d, &env);
+                assert_eq!(read, skein_forge::api::Op::Read(skein_forge::api::Read::Checks { commit: fixtures::HEAD }));
+                out = fixtures::answer_at(&mut d, &env, call, Ok(Answer::Checks(Box::new([]))));
+            }
             let mut decided = false;
             for request in &out {
                 decided |= *request

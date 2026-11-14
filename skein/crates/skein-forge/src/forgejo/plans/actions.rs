@@ -40,13 +40,20 @@ pub struct Plan {
     row: Repository,
     limit: u32,
     count: u32,
+    state_only: bool,
+    answer_bytes: u32,
 }
 impl Plan {
     pub fn new(read: api::Read, row: Repository, bounds: Bounds) -> Result<Self, api::Error> {
+        let mut state_only = false;
         let state = match read {
             api::Read::Checks { commit } => Self::listing(commit, Shape::Checks, 1, bounds, true),
             api::Read::Statuses { commit, page } => {
                 Self::listing(commit, Shape::Statuses { ci: api::Ci::None, more: false }, page, bounds, true)
+            }
+            api::Read::JobState { attempt } => {
+                state_only = true;
+                State::Run { attempt, max: 0, part: api::LogPart::End }
             }
             api::Read::Job { attempt, max_bytes, part } => State::Run { attempt, max: max_bytes, part },
             api::Read::Runs { .. }
@@ -71,7 +78,7 @@ impl Plan {
             | api::Read::Compare { .. }
             | api::Read::File { .. } => return Err(api::Error::InvalidAnswer),
         };
-        Ok(Self { state, row, limit: bounds.page_size, count: 0 })
+        Ok(Self { state, row, limit: bounds.page_size, count: 0, state_only, answer_bytes: bounds.answer_bytes })
     }
     fn listing(head: api::Commit, shape: Shape, page: u32, bounds: Bounds, resolve_jobs: bool) -> State {
         let room = bounds
@@ -93,6 +100,8 @@ impl Plan {
             row,
             limit: bounds.page_size,
             count: 0,
+            state_only: false,
+            answer_bytes: bounds.answer_bytes,
         })
     }
     pub fn begin(&mut self) -> Step {
@@ -282,7 +291,9 @@ impl Plan {
             },
             d::Row::Step(value) => match state {
                 State::Job { attempt, max, part, mut step } => {
-                    if step.is_none() && value.status == d::StepStatus::Failure {
+                    if step.is_none()
+                        && value.status == if self.state_only { d::StepStatus::Running } else { d::StepStatus::Failure }
+                    {
                         step = Some(api::Step { number: value.number, name: value.name });
                     }
                     Ok(State::Job { attempt, max, part, step })
@@ -443,6 +454,20 @@ impl Plan {
                 };
                 if job.id != attempt.job || job.run_id != attempt.run || job.attempt != attempt.attempt {
                     return Err(api::Error::MissingJob);
+                }
+                if self.state_only {
+                    let state = match job.status {
+                        d::StepStatus::Unknown | d::StepStatus::Waiting => api::JobState::Waiting,
+                        d::StepStatus::Blocked => api::JobState::Blocked,
+                        d::StepStatus::Running => api::JobState::Running,
+                        d::StepStatus::Success
+                        | d::StepStatus::Failure
+                        | d::StepStatus::Cancelled
+                        | d::StepStatus::Skipped => api::JobState::Completed,
+                    };
+                    let answer =
+                        crate::job_state::answer(attempt, state, job.labels, step, job.cut, self.answer_bytes)?;
+                    return Ok((State::Ended, Some(Step::Done(Ok(answer)))));
                 }
                 let sent = Step::Send(Exchange {
                     request: r::Request::JobLog {

@@ -59,6 +59,7 @@ impl Referee {
             | api::Answer::Checks(_)
             | api::Answer::Directory { .. }
             | api::Answer::File { .. }
+            | api::Answer::JobState { .. }
             | api::Answer::Job { .. }
             | api::Answer::Protection(_)
             | api::Answer::Settings(_)

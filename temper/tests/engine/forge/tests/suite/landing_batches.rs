@@ -386,6 +386,7 @@ fn every_exact_judgement_uses_its_members_prefix_branch_and_survives_restart() {
 }
 pub(crate) fn workflow(red: bool) -> raw::Workflow {
     raw::Workflow {
+        requirements: Box::new([]),
         file: b"gate.yml".as_slice().into(),
         jobs: Box::new([b"test".as_slice().into()]),
         fails: Box::new([]),

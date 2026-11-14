@@ -21,6 +21,7 @@ fn failures() -> p::Failures {
 }
 fn workflow(flaky: Box<[Box<[u8]>]>, reports: bool) -> raw::Workflow {
     raw::Workflow {
+        requirements: Box::new([]),
         fails: Box::new([]),
         flaky,
         report: reports.then(|| raw::Report {

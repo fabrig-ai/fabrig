@@ -28,6 +28,7 @@ fn the_follow_workflow_repairs_from_its_report_then_lands_and_keeps_green_parity
     let mut world = World::checking_follow(
         511,
         raw::Workflow {
+            requirements: Box::new([]),
             file: WORKFLOW.into(),
             jobs: Box::new([b"test".as_slice().into()]),
             latency_min: Duration::from_secs(10),

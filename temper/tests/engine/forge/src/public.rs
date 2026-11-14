@@ -36,6 +36,7 @@ pub fn world(passes: u32) -> World {
     let mut world = World::public_turn(
         SEED,
         raw::Workflow {
+            requirements: Box::new([]),
             fails: Box::new([]),
             flaky: Box::new([]),
             report: None,

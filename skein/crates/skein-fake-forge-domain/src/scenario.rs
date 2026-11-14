@@ -54,6 +54,15 @@ pub fn repository(domain: &mut Domain, config: &Config, setup: Setup) -> u64 {
         fits(&workflow.file, limits.name_bytes).expect("workflow file within the limits");
         assert!(workflow_files.insert(copy_of(&workflow.file)).expect("bounded workflows"), "unique workflow files");
         fit_names(&workflow.jobs, limits.contexts, limits).expect("workflow jobs within the limits");
+        assert!(workflow.requirements.len() <= usize_of(limits.contexts), "bounded requirements");
+        for requirement in &workflow.requirements {
+            assert!(workflow.jobs.contains(&requirement.job), "requirements name a job");
+            fit_names(&requirement.labels, limits.contexts, limits).expect("labels fit");
+            fit_names(&requirement.needs, limits.contexts, limits).expect("needs fit");
+            for need in &requirement.needs {
+                assert!(workflow.jobs.contains(need), "needs name a job");
+            }
+        }
         assert!(workflow.latency_min <= workflow.latency_max, "workflow latency is a range");
         let mut jobs = skein_lib::Set::with_capacity(limits.contexts);
         for job in &workflow.jobs {

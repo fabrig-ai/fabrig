@@ -131,6 +131,7 @@ fn shared_resource(op: &Op) -> Option<crate::What> {
         | Read::PullFiles { .. }
         | Read::Compare { .. }
         | Read::Checks { .. }
+        | Read::JobState { .. }
         | Read::Job { .. }
         | Read::File { .. }
         | Read::Protection { .. }

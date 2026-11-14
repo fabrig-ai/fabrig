@@ -67,6 +67,7 @@ impl Plan {
                 | api::Read::Compare { .. }
                 | api::Read::Commits { .. }
                 | api::Read::Checks { .. }
+                | api::Read::JobState { .. }
                 | api::Read::Job { .. }
                 | api::Read::File { .. }
                 | api::Read::Protection { .. }
