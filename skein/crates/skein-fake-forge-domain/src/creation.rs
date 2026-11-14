@@ -56,7 +56,7 @@ pub fn create_repository(
     )?;
     let checks = config.made_checks.clone();
     let mut stored = Repository::new(limits, copy_of(name), copy_of(b"main"), first, checks, None, false);
-    stored.workflows = config.made_workflows.clone();
+    stored.workflows.clone_from(&config.made_workflows);
     stored.manual_merges = config.made_manual_merges;
     stored.id = id;
     stored.permissions.insert(owner, crate::api::Permission::Admin).expect("owner room");
@@ -84,7 +84,7 @@ pub fn create_empty_repository(domain: &mut Domain, config: &Config, name: &[u8]
     let id = last.checked_add(1).ok_or(Error::Full)?;
     let checks = config.made_checks.clone();
     let mut stored = Repository::empty(limits, copy_of(name), copy_of(b"main"), checks, None, false);
-    stored.workflows = config.made_workflows.clone();
+    stored.workflows.clone_from(&config.made_workflows);
     stored.manual_merges = config.made_manual_merges;
     stored.id = id;
     stored.permissions.insert(owner, crate::api::Permission::Admin).expect("owner room");

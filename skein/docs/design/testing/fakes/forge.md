@@ -652,7 +652,11 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   (2.6) alike, as a Forgejo whose runner takes every repository runs a
   new one's checks; `made_checks` with no contexts, its default, makes
   them report none, as before. A made repository keeps the checks it was
-  made with across an image (2.7).
+  made with across an image (2.7). `Config.made_workflows` gives every
+  repository it makes its dispatch-only workflows, none by default;
+  `Config.made_manual_merges` gives its manual-merge settings, both off by
+  default. A made repository and a copy's destination alike take these,
+  and keep them across an image.
   Collaborator lists contain explicit grants only: site administration
   and organization ownership grant access without adding membership.
   Pagination counts the listed collaborators after excluding implicit access.

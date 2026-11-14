@@ -102,6 +102,10 @@ impl Document {
         let github = self.github.as_ref()?;
         Some(github.pem())
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the document checks joint repository identities beside its forge-wide settings"
+    )]
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
         let d = read::document(bytes)?;
         let p = Path::root();
@@ -245,7 +249,7 @@ impl Document {
             configuration.limits.workflow_runs = workflows::RUNS;
         }
         configuration.made_checks = self.made_checks.clone();
-        configuration.made_workflows = self.workflows.clone();
+        configuration.made_workflows.clone_from(&self.workflows);
         configuration.made_manual_merges = self.manual_merges;
         let mut domain = domain::Domain::new(&configuration, seed);
         let mut repositories = List::with_capacity(crate::ENTRIES);

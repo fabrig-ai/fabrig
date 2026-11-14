@@ -661,6 +661,140 @@ fn forge_state_keeps_an_api_write_only_after_an_orderly_stop() {
     run.end();
     assert!(!state.exists(), "SIGKILL writes no image");
 }
+fn made_gate(run: &Running, auth: &str, branch: &str, expected: &str) {
+    let response =
+        request(run, run.address, "GET", &format!("/api/v1/repos/session/made/branches/{branch}"), auth, b"");
+    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
+    let head = body(&response)["commit"]["id"].as_str().expect("head").to_owned();
+    let response = request(
+        run,
+        run.address,
+        "POST",
+        "/api/v1/repos/session/made/actions/workflows/gate.yml/dispatches",
+        auth,
+        &serde_json::to_vec(&json!({"ref":branch,"inputs":{}})).expect("dispatch"),
+    );
+    assert!(response.starts_with(b"HTTP/1.1 204"), "{}", String::from_utf8_lossy(&response));
+    for _ in 0..128 {
+        let response = request(
+            run,
+            run.address,
+            "GET",
+            &format!("/api/v1/repos/session/made/actions/runs?workflow_id=gate.yml&head_sha={head}"),
+            auth,
+            b"",
+        );
+        assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
+        let runs = body(&response);
+        let latest = &runs["workflow_runs"][0];
+        if latest["status"] == "running" || latest["status"] == "waiting" {
+            continue;
+        }
+        assert_eq!(latest["status"], expected);
+        let id = latest["id"].as_u64().expect("run id");
+        let response =
+            request(run, run.address, "GET", &format!("/api/v1/repos/session/made/actions/runs/{id}/jobs"), auth, b"");
+        assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
+        let jobs = body(&response);
+        assert_eq!(jobs[0]["name"], "gate");
+        assert_eq!(jobs[0]["status"], expected);
+        return;
+    }
+    panic!("gate did not complete");
+}
+#[test]
+fn forge_state_keeps_made_workflows_and_manual_merge_settings() {
+    let scratch = support::Scratch::new("made-forge-gates");
+    let doc = scratch.path().join("forge.json");
+    let state = scratch.path().join("forge.state");
+    let mut value = forge_document(scratch.path());
+    value["workflows"] = json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]);
+    value["manual_merges"] = json!({"allow":true,"autodetect":true});
+    document(&doc, &value);
+    let start = || {
+        let mut cmd = command("forge", &doc);
+        cmd.arg("--state").arg(&state);
+        Running::command(cmd, None)
+    };
+    let run = start();
+    let token = temper_fake::credential::credential(23, temper_fake::credential::ADMIN_TOKEN);
+    let auth = format!("token {}", std::str::from_utf8(&token).expect("hex token"));
+    for (target, payload) in [
+        ("/api/v1/admin/users/temper-admin/orgs", json!({"username":"session","visibility":"private"})),
+        ("/api/v1/orgs/session/repos", json!({"name":"made","private":true,"auto_init":true,"default_branch":"main"})),
+    ] {
+        let response = request(&run, run.address, "POST", target, &auth, &serde_json::to_vec(&payload).expect("setup"));
+        assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
+    }
+    let credentials = format!("temper-admin:{}", std::str::from_utf8(&token).expect("hex token"));
+    let alphabet = skein_lib::base64::Alphabet::Standard;
+    let size = skein_lib::base64::encoded_len(alphabet, u32::try_from(credentials.len()).expect("short credentials"))
+        .expect("base64 length");
+    let mut encoded = skein_lib::Writer::new(usize::try_from(size).expect("short credentials"));
+    skein_lib::base64::encode(alphabet, credentials.as_bytes(), &mut encoded).expect("sized credentials");
+    let git_auth = format!("Basic {}", std::str::from_utf8(&encoded.finish()).expect("base64"));
+    made_gate(&run, &auth, "main", "success");
+    let response =
+        request(&run, run.address, "POST", "/.fake/git/fetch", &git_auth, br#"{"repository":"session/made"}"#);
+    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
+    let first = body(&response)["commit"].as_u64().expect("main commit");
+    let response = request(
+        &run,
+        run.address,
+        "POST",
+        "/.fake/git/create",
+        &git_auth,
+        &serde_json::to_vec(&json!({"repository":"session/made","branch":"work","commit":first})).expect("branch"),
+    );
+    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
+    let response = request(&run, run.address, "POST", "/api/v1/repos/session/made/contents/.fake-forge/gate", &auth,
+        br#"{"branch":"work","content":"ZmFpbA==","message":"Fail the gate","author":{"name":"member","email":"member@example.invalid"},"committer":{"name":"member","email":"member@example.invalid"}}"#);
+    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
+    let response = request(
+        &run,
+        run.address,
+        "POST",
+        "/api/v1/repos/session/made/pulls",
+        &auth,
+        br#"{"title":"A member","body":"","head":"work","base":"main"}"#,
+    );
+    assert!(response.starts_with(b"HTTP/1.1 201"), "{}", String::from_utf8_lossy(&response));
+    let number = body(&response)["number"].as_u64().expect("pull number");
+    run.stop();
+    assert!(state.exists(), "orderly stop keeps an image");
+    // A changed document supplies later creations, not the restored repository.
+    value["workflows"][0]["cue"] = Value::Null;
+    value["manual_merges"] = json!({});
+    document(&doc, &value);
+    let run = start();
+    made_gate(&run, &auth, "work", "failure");
+    let pull = format!("/api/v1/repos/session/made/pulls/{number}");
+    let response = request(&run, run.address, "GET", &pull, &auth, b"");
+    assert_eq!(body(&response)["merged"], false);
+    let response = request(
+        &run,
+        run.address,
+        "POST",
+        "/.fake/git/fetch",
+        &git_auth,
+        br#"{"repository":"session/made","branch":"work"}"#,
+    );
+    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
+    let head = body(&response)["commit"].as_u64().expect("work head");
+    let response = request(
+        &run,
+        run.address,
+        "POST",
+        "/.fake/git/push",
+        &git_auth,
+        &serde_json::to_vec(&json!({"repository":"session/made","branch":"main","commit":head,"expected":first}))
+            .expect("push"),
+    );
+    assert!(response.starts_with(b"HTTP/1.1 200"), "{}", String::from_utf8_lossy(&response));
+    let response = request(&run, run.address, "GET", &pull, &auth, b"");
+    assert_eq!(body(&response)["merged"], true);
+    run.stop();
+}
 #[test]
 fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
     use std::os::unix::fs::symlink;
