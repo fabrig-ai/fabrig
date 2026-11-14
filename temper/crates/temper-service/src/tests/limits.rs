@@ -651,14 +651,19 @@ fn github_component_checks_key_deadline_and_renewal() {
         let mut config = fixtures::configured_engine();
         config.forges[0].kind = crate::settings::Kind::GitHub;
         limits::apply(&mut config.limits, name, value).unwrap();
-        if name == b"forge_component.deadline_ms" {
-            config.limits.forge.client.lifetime = Duration::from_secs(300);
-        }
         let Err(found) = fixtures::checked_endpoints(&config, fixtures::forge_runtime()) else { panic!("{expected}") };
         let found = crate::startup::Problems::jig(found, &jig_protocol_config::Path::root());
         let lines = crate::startup::lines(&found);
         assert!(core::str::from_utf8(&lines).unwrap().contains(expected), "{expected}: {lines:?}");
     }
+}
+
+#[test]
+fn github_component_starts_with_the_profile_deadline_and_renewal() {
+    let mut config = fixtures::configured_engine();
+    config.forges[0].kind = crate::settings::Kind::GitHub;
+    assert_eq!(config.limits.forge_component.renew_before, Duration::from_secs(600));
+    fixtures::checked_endpoints(&config, fixtures::forge_runtime()).expect("GitHub accepts the profile limits");
 }
 
 #[test]
