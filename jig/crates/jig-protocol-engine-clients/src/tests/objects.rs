@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::translate;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v22 as w;
+use jig_client_protocol_wire::v23 as w;
 use jig_client_test_records as records;
 use jig_domain_core_vocabulary::{documents as d, reads};
 use jig_domain_people as p;
@@ -60,7 +60,7 @@ fn a_project_document_becomes_its_record() {
 }
 
 #[test]
-fn an_escalations_hold_uses_the_v22_milestone_bridge() {
+fn an_escalations_hold_keeps_its_lifecycle_facts() {
     use jig_domain_tasks as t;
     use skein_lib::Wall;
     let mut source = fixtures::decided_escalation(p::EscalationDecision::Release);
@@ -84,10 +84,9 @@ fn an_escalations_hold_uses_the_v22_milestone_bridge() {
     let hold = value.hold().as_ref().unwrap();
     assert_eq!(hold.task(), 7);
     assert_eq!(hold.position(), 31);
-    assert_eq!(*hold.at(), Some(37));
-    let w::MilestonePhase::Held(phase) = hold.phase() else { panic!("v22 held phase") };
-    assert_eq!(phase.why(), &w::HoldCategory::Stopped);
-    let w::PriorPhase::Active(active) = phase.before() else { panic!("running before hold") };
+    assert_eq!(hold.at(), 37);
+    assert_eq!(hold.why(), &w::HoldCategory::Stopped);
+    let w::PriorPhase::Active(active) = hold.before() else { panic!("running before hold") };
     assert_eq!(
         active.value(),
         &w::RunStage::Running(w::RunStageRunning::new(&limits, w::RunStageRunningParts { attempt: 3 }).unwrap())

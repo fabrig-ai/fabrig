@@ -29,7 +29,7 @@ pub fn phrase_count() -> u32 {
         .expect("composed phrase count fits")
         .checked_add(u32::try_from(crate::words::activity_words::ALL.len()).expect("activity phrase count fits"))
         .expect("composed phrase count fits")
-        .checked_add(u32::try_from(crate::words::milestone_words::ALL.len()).expect("milestone phrase count fits"))
+        .checked_add(u32::try_from(crate::words::lifecycle_words::ALL.len()).expect("lifecycle phrase count fits"))
         .expect("composed phrase count fits")
         .checked_add(u32::try_from(crate::words::history_words::ALL.len()).expect("history phrase count fits"))
         .expect("composed phrase count fits")
@@ -93,8 +93,8 @@ pub fn shapes(normal: Box<[PhraseShape]>, text: u32) -> Box<[PhraseShape]> {
     for shape in crate::words::history_words::shapes() {
         result.push(shape).expect("history shapes fit");
     }
-    for shape in crate::words::milestone_words::shapes() {
-        result.push(shape).expect("milestone shapes fit");
+    for shape in crate::words::lifecycle_words::shapes() {
+        result.push(shape).expect("lifecycle shapes fit");
     }
     for shape in crate::words::inbox_words::shapes() {
         result.push(shape).expect("Inbox shapes fit");
@@ -165,8 +165,8 @@ pub fn language(normal: Language) -> Language {
     for phrase in crate::words::history_words::language().phrases {
         phrases.push(phrase).expect("history words fit");
     }
-    for phrase in crate::words::milestone_words::language().phrases {
-        phrases.push(phrase).expect("milestone words fit");
+    for phrase in crate::words::lifecycle_words::language().phrases {
+        phrases.push(phrase).expect("lifecycle words fit");
     }
     for phrase in crate::words::inbox_words::language().phrases {
         phrases.push(phrase).expect("Inbox words fit");
@@ -235,7 +235,7 @@ pub fn phrase_bytes(book: &Phrasebook) -> Option<u32> {
     for phrase in crate::words::history_words::ALL {
         largest = largest.max(book.capacity(phrase.id())?);
     }
-    for phrase in crate::words::milestone_words::ALL {
+    for phrase in crate::words::lifecycle_words::ALL {
         largest = largest.max(book.capacity(phrase.id())?);
     }
     for phrase in crate::words::inbox_words::ALL {

@@ -7,7 +7,7 @@ pub(crate) mod deployment;
 pub(crate) mod ended_pages;
 pub(crate) mod frame_facts;
 pub(crate) mod history;
-pub(crate) mod milestone;
+pub(crate) mod lifecycle;
 pub(crate) mod outcome;
 pub(crate) mod person_task;
 pub(crate) mod policy_edit;

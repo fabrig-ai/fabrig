@@ -8,9 +8,9 @@ pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
 
 #[expect(clippy::struct_field_names, reason = "The Accounts wire record retains the schema’s accounts field.")]
 #[rustfmt::skip]
-#[path = "generated/v22.rs"]
-pub mod v22;
-pub use v22::*;
+#[path = "generated/v23.rs"]
+pub mod v23;
+pub use v23::*;
 
 #[rustfmt::skip]
 #[path = "generated/public_v1.rs"]
@@ -28,7 +28,7 @@ pub const PUBLIC_BOARD: u16 = 2;
 pub const PUBLIC_CARD: u16 = 3;
 
 /// The client wire version this release reads and writes.
-pub const VERSION: u32 = 22;
+pub const VERSION: u32 = 23;
 
 #[cfg(test)]
 mod tests;

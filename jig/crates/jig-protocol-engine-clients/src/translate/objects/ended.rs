@@ -169,29 +169,50 @@ pub fn proposal_history(
         },
     )
 }
-/// The v22 bridge carries held phases as milestone lines; attempts have no v22 row.
-pub fn milestone(value: &d::HoldLine, limits: &w::Limits) -> Result<w::MilestoneLine, w::Problem> {
-    w::MilestoneLine::new(
+/// Retained lifecycle facts (client/domain/contract/README.md, 4).
+pub fn attempt(value: &d::AttemptLine, limits: &w::Limits) -> Result<w::AttemptLine, w::Problem> {
+    w::AttemptLine::new(
         limits,
-        w::MilestoneLineParts {
+        w::AttemptLineParts {
+            task: value.task,
+            attempt: value.attempt,
+            claimed: match value.claimed {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            started: match value.started {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            ended: match value.ended {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            end: match value.end {
+                Some(end) => Some(super::super::activity::end(end, limits)?),
+                None => None,
+            },
+            phases: value.phases,
+        },
+    )
+}
+pub fn hold(value: &d::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::Problem> {
+    w::HoldLine::new(
+        limits,
+        w::HoldLineParts {
             task: value.task,
             position: value.position,
-            at: Some(value.at.as_nanos()),
-            phase: w::MilestonePhase::Held(w::MilestonePhaseHeld::new(
-                limits,
-                w::MilestonePhaseHeldParts {
-                    before: chips::prior(value.before, limits)?,
-                    why: chips::hold(value.why, limits)?,
-                    source: match &value.source {
-                        Some(item) => Some(owner::part(item, limits)?),
-                        None => None,
-                    },
-                    ending: match &value.ending {
-                        Some(item) => Some(chips::ending(item, limits)?),
-                        None => None,
-                    },
-                },
-            )?),
+            at: value.at.as_nanos(),
+            before: chips::prior(value.before, limits)?,
+            why: chips::hold(value.why, limits)?,
+            source: match &value.source {
+                Some(item) => Some(owner::part(item, limits)?),
+                None => None,
+            },
+            ending: match &value.ending {
+                Some(item) => Some(chips::ending(item, limits)?),
+                None => None,
+            },
         },
     )
 }

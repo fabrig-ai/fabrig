@@ -75,12 +75,12 @@ pub fn history_page() -> reads::Page {
         }),
         reads::PageRow::Attempt(d::AttemptLine {
             task: 7,
-            attempt: 1,
-            claimed: None,
-            started: None,
-            ended: None,
-            end: None,
-            phases: None,
+            attempt: 2,
+            claimed: Some(Wall::from_nanos(14)),
+            started: Some(Wall::from_nanos(15)),
+            ended: Some(Wall::from_nanos(19)),
+            end: Some(t::EndKind::Finished),
+            phases: Some(3),
         }),
         reads::PageRow::Hold(d::HoldLine {
             task: 7,
