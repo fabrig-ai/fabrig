@@ -508,6 +508,7 @@ fn read_name(repository: &forge::Repository, read: &skein_forge::api::Read, limi
         | skein_forge::api::Read::Statuses { .. }
         | skein_forge::api::Read::Compare { .. }
         | skein_forge::api::Read::Checks { .. }
+        | skein_forge::api::Read::JobState { .. }
         | skein_forge::api::Read::Job { .. }
         | skein_forge::api::Read::Branches { .. }
         | skein_forge::api::Read::Settings

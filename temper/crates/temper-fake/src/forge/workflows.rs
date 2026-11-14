@@ -47,6 +47,7 @@ pub(super) fn decode(d: &skein_json::Document, at: u32, p: &Path, ci_ms: u32) ->
                 flaky: Box::new([]),
                 report: None,
                 select: None,
+                requirements: Box::new([]),
             })
             .expect("bounded workflows");
     }

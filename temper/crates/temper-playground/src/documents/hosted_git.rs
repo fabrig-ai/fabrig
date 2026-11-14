@@ -69,6 +69,7 @@ pub const LIMITS: skein_fake_forge_domain::Limits = skein_fake_forge_domain::Lim
 #[must_use]
 pub fn config() -> skein_fake_forge_domain::Config {
     skein_fake_forge_domain::Config {
+        runner_labels: None,
         setup_faults: 0,
         lost: 0,
         made_checks: skein_fake_forge_domain::Config::test().made_checks,

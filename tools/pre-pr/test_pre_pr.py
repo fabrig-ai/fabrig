@@ -1,4 +1,4 @@
-"""Delivery selection, known reds and inherited counts (tools/pre-pr/design.md, 3, 5, 9)."""
+"""Delivery selection, goal reds and inherited counts (tools/pre-pr/design.md, 3, 5, 9)."""
 import contextlib
 import hashlib
 import importlib.util
@@ -152,8 +152,8 @@ sys.exit(int(count > 0))
         self.write('tools/tiers/packages.toml', '[test-binaries]\nsmith = '
                    '[{package="smith-fake-claude", bin="fake-claude"}, '
                    '{package="z-helper", bin="helper"}]\n')
-        self.write('.temper/known-reds.md', '- test smith::end_to_end runs_fake\n'
-                   '- lint smith-fake-claude E0001 src/main.rs\n')
+        self.goal_file('reds', b'temper-reds 1\n- test smith::end_to_end runs_fake\n'
+                       b'- lint smith-fake-claude E0001 src/main.rs\n')
         self.pin()
         self.write('smith/src/lib.rs', 'pub fn changed() {}\n')
         events = []
@@ -205,51 +205,37 @@ sys.exit(int(count > 0))
                                  ['cargo', 'build', '-p', 'z-helper', '--bin', 'last'],
                                  'one-process'])
 
-    def test_known_reds_judge_only_listed_tests_and_lints(self):
-        test = PRE_PR.failure('test api::rules rule', 'test output', ('api::rules', 'rule'), 'api')
-        lint = PRE_PR.failure('clippy api clippy::rule api/src/lib.rs', 'changed message',
-                              ('api', 'clippy::rule', 'api/src/lib.rs', 'changed message'), 'api')
-        for entry, check, error, accepted in (
-                ('- test api::rules rule', 'tests', test, True),
-                ('- test api::rules rule\n' * 65, 'tests', test, False),
-                ('- test api::rules rule\n' + 'x' * 8193, 'tests', test, False),
-                ('- test api::rules other', 'tests', test, False),
-                ('- test api::other rule', 'tests', test, False),
-                (None, 'tests', test, False),
-                ('- lint api clippy::rule api/src/lib.rs', 'clippy', lint, True),
-                ('- lint other clippy::rule api/src/lib.rs', 'clippy', lint, False),
-                ('- lint api clippy::other api/src/lib.rs', 'clippy', lint, False),
-                ('- lint api clippy::rule api/src/other.rs', 'clippy', lint, False),
-                ('- test api::rules rule', 'tests', PRE_PR.failure('build', 'no tests ran'), False),
-                ('- test api::rules rule', 'tests', PRE_PR.failure('check one-process', 'tool error'), False),
-                ('- lint api clippy::rule api/src/lib.rs', 'clippy',
-                 PRE_PR.failure('check clippy', 'tool error'), False)):
-            with self.subTest(entry=entry, failure=error['name']):
-                path = self.root / '.temper/known-reds.md'
-                path.unlink(missing_ok=True)
-                if entry is not None:
-                    self.write('.temper/known-reds.md', '# Known reds\n\nSome prose.\n' + entry + '  \n')
-                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
-                answer = (101 if error['name'] == 'build' or check == 'clippy' else 100, [error.copy()])
-                result, log, calls, _ = self.deliver(**{
-                    'clippy_answer' if check == 'clippy' else 'one_process_answer':
-                    answer if check == 'clippy' else (*answer, None)})
-                self.assertEqual(result, int(not accepted), log)
-                summary = log.rsplit('pre-pr: passed (' if accepted else 'pre-pr: refused (', 1)[1]
-                self.assertIn(error['name'], summary)
-                if accepted:
-                    self.assertIn('inherited: ' + error['name'] +
-                                  ' (known red, .temper/known-reds.md)', summary)
-                    self.assertIn(f'pre-pr: {check}: inherited,', log)
-                else:
-                    self.assertNotIn('inherited: ' + error['name'], summary)
-                if entry is None:
-                    self.assertNotIn('pre-pr: known reds:', log)
-                else:
-                    self.assertIn('pre-pr: known reds:', log)
-                self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
-                self.assertFalse((self.root / '.git/temper-pre-pr/base').exists())
-                (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
+    def test_tree_list_counts_nothing(self):
+        test = PRE_PR.failure('test api::rules listed', 'test output', ('api::rules', 'listed'), 'api')
+        lint = PRE_PR.failure('clippy api clippy::rule api/src/lib.rs', 'lint output',
+                              ('api', 'clippy::rule', 'api/src/lib.rs', 'message'), 'api')
+        for entry, check, error in (
+                ('- test api::rules listed', 'tests', test),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy', lint)):
+            for extra in ('', '\n- test api::rules other' * 65, '\n' + 'x' * 8193):
+                for goal in (False, True):
+                    with self.subTest(entry=entry, size=len(extra), goal=goal):
+                        self.setUp()
+                        self.write('.temper/known-reds.md', entry + extra + '\n')
+                        self.pin()
+                        path = self.goal_file('reds', ('temper-reds 1\n' + entry + '\n').encode())
+                        if not goal:
+                            path.unlink()
+                        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                        answer = (101 if check == 'clippy' else 100, [error.copy()])
+                        result, log, _, _ = self.deliver(**{
+                            'clippy_answer' if check == 'clippy' else 'one_process_answer':
+                            answer if check == 'clippy' else (*answer, None)})
+                        self.assertEqual(result, int(not goal), log)
+                        summary = log.rsplit('pre-pr: passed (' if goal else 'pre-pr: refused (', 1)[1]
+                        if goal:
+                            self.assertIn('inherited: ' + error['name'] + ' (red, temper/reds)', summary)
+                        else:
+                            self.assertIn('\n' + error['name'] + '\n' + error['log'], summary)
+                            self.assertNotIn('inherited:', summary)
+                        self.assertNotIn('pre-pr: known reds', log)
+                        self.assertNotIn('\nknown-reds\n', summary)
+                        (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
     def goal_file(self, name, content):
         path = self.root / self.command('git', 'rev-parse', '--git-path', 'temper/' + name).strip()
@@ -257,57 +243,43 @@ sys.exit(int(count > 0))
         path.write_bytes(content)
         return path
 
-    def test_goal_reds_judge_tests_and_coded_lints_beside_the_list(self):
+    def test_goal_reds_judge_tests_and_coded_lints(self):
         test = PRE_PR.failure('test api::rules rule', 'test output', ('api::rules', 'rule'), 'api')
         lint = PRE_PR.failure('clippy api clippy::rule api/src/lib.rs', 'message',
                               ('api', 'clippy::rule', 'api/src/lib.rs', 'message'), 'api')
         uncoded = PRE_PR.failure('clippy api  api/src/lib.rs', 'compiler error',
                                  ('api', '', 'api/src/lib.rs', 'compiler error'), 'api')
-        for entry, check, error, listed, accepted in (
-                ('- test api::rules rule', 'tests', test, '', True),
-                ('- test api::rules rule', 'tests', test, '- test api::rules rule\n', True),
-                ('- test api::rules rule', 'tests', test, '- test api::rules list_only\n' * 65, False),
-                ('- test api::rules rule', 'tests', test, '- test api::rules list_only\n' + 'x' * 8193, False),
-                ('- test api::rules other', 'tests', test, '', False),
-                ('- test api::other rule', 'tests', test, '', False),
-                ('- lint api clippy::rule api/src/lib.rs', 'clippy', lint, '', True),
-                ('- lint api clippy::rule api/src/lib.rs', 'clippy', lint,
-                 '- lint api clippy::rule api/src/lib.rs\n', True),
-                ('- lint api clippy::rule api/src/lib.rs', 'clippy', uncoded, '', False),
-                ('- lint api clippy::other api/src/lib.rs', 'clippy', lint, '', False),
-                ('- lint api clippy::rule api/src/other.rs', 'clippy', lint, '', False),
-                ('- lint other clippy::rule api/src/lib.rs', 'clippy', lint, '', False),
-                ('- test api::rules rule', 'tests', PRE_PR.failure('build', 'no tests ran'), '', False),
-                ('- test api::rules rule', 'tests', PRE_PR.failure('check one-process', 'tool error'), '', False),
+        for entry, check, error, accepted in (
+                ('- test api::rules rule', 'tests', test, True),
+                ('- test api::rules other', 'tests', test, False),
+                ('- test api::other rule', 'tests', test, False),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy', lint, True),
+                ('- lint api clippy::rule api/src/lib.rs', 'clippy', uncoded, False),
+                ('- lint api clippy::other api/src/lib.rs', 'clippy', lint, False),
+                ('- lint api clippy::rule api/src/other.rs', 'clippy', lint, False),
+                ('- lint other clippy::rule api/src/lib.rs', 'clippy', lint, False),
+                ('- test api::rules rule', 'tests', PRE_PR.failure('build', 'no tests ran'), False),
+                ('- test api::rules rule', 'tests', PRE_PR.failure('check one-process', 'tool error'), False),
                 ('- lint api clippy::rule api/src/lib.rs', 'clippy',
-                 PRE_PR.failure('check clippy', 'tool error'), '', False)):
-            with self.subTest(entry=entry, failure=error['name'], listed=listed[:80]):
+                 PRE_PR.failure('check clippy', 'tool error'), False)):
+            with self.subTest(entry=entry, failure=error['name']):
                 self.goal_file('reds', ('temper-reds 1\n' + entry + '\n').encode())
-                self.write('.temper/known-reds.md', listed)
                 self.write('api/src/lib.rs', 'pub fn changed() {}\n')
-                over_cap = len(listed.encode()) > 8192 or listed.count('\n') > 64
-                errors = [error.copy()]
-                if over_cap:
-                    errors.append(PRE_PR.failure('test api::rules list_only', 'list-only failure',
-                                                 ('api::rules', 'list_only'), 'api'))
-                answer = (101 if check == 'clippy' else 100, errors)
-                result, log, _, _ = self.deliver(**{
+                answer = (101 if check == 'clippy' else 100, [error.copy()])
+                result, log, calls, _ = self.deliver(**{
                     'clippy_answer' if check == 'clippy' else 'one_process_answer':
                     answer if check == 'clippy' else (*answer, None)})
                 self.assertEqual(result, int(not accepted), log)
                 self.assertIn('pre-pr: reds: 1 entries (temper/reds)', log)
-                inherits = error in (test, lint) and entry in (
-                    '- test api::rules rule', '- lint api clippy::rule api/src/lib.rs')
-                if inherits:
+                summary = log.rsplit('pre-pr: passed (' if accepted else 'pre-pr: refused (', 1)[1]
+                self.assertIn(error['name'], summary)
+                if accepted:
                     self.assertIn('inherited: ' + error['name'] + ' (red, temper/reds)', log)
-                    self.assertNotIn(' (known red, .temper/known-reds.md)', log)
+                    self.assertIn(f'pre-pr: {check}: inherited,', log)
                 else:
                     self.assertNotIn('inherited: ' + error['name'], log)
-                if over_cap:
-                    self.assertIn('\nknown-reds\n', log)
-                    self.assertIn('\ntest api::rules list_only\n', log)
-                    self.assertNotIn('inherited: test api::rules list_only', log)
-                self.assertLess(log.index('pre-pr: reds:'), log.index('pre-pr: known reds:'))
+                self.assertFalse(any('temper-pre-pr/base' in str(cwd) for _, cwd in calls))
+                self.assertFalse((self.root / '.git/temper-pre-pr/base').exists())
                 (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
     def test_goal_reds_are_strict_whole_bounded_files(self):
@@ -452,8 +424,8 @@ sys.exit(int(count > 0))
                  error='test api::rules rule', tail='may depend on an earlier test: first, second'),
             dict(case='alone failed', code=100, tests=[dict(test, alone='failed', before=['first'])],
                  error='test api::rules rule', tail='stderr tail'),
-            dict(case='known red', code=100, tests=[test], known='- test api::rules rule', inherited=True),
-            dict(case='different binary', code=100, tests=[test], known='- test api::other rule',
+            dict(case='goal red', code=100, tests=[test], reds='- test api::rules rule', inherited=True),
+            dict(case='different binary', code=100, tests=[test], reds='- test api::other rule',
                  error='test api::rules rule'),
             dict(case='empty 100', code=100, error='check one-process', tail='exit 100 without JUnit failures',
                  files={'junit.xml': '<testsuites/>'}),
@@ -517,8 +489,9 @@ sys.exit(int(count > 0))
                     print(text, end='')
                     return row['code'], PRE_PR.tail(text)
 
-                self.write('.temper/known-reds.md', row.get('known', '- test api::rules rule' if
-                           row.get('error') in ('build', 'check one-process') else '') + '\n')
+                entries = row.get('reds', '- test api::rules rule' if
+                                  row.get('error') in ('build', 'check one-process') else '')
+                self.goal_file('reds', ('temper-reds 1\n' + (entries + '\n' if entries else '')).encode())
                 result, log, calls, _ = self.deliver(('api', 'client'), one_process_answer=None, process_answer=fake)
                 self.assertEqual(result, int('error' in row), log)
                 self.assertEqual((self.root / '.git/pre-pr-passed').exists(), result == 0)
@@ -531,7 +504,7 @@ sys.exit(int(count > 0))
                     status = 'inherited' if row.get('inherited') else 'passed'
                     self.assertIn(f'pre-pr: tests: {status},', log)
                     if row.get('inherited'):
-                        self.assertIn('inherited: test api::rules rule (known red, .temper/known-reds.md)', summary)
+                        self.assertIn('inherited: test api::rules rule (red, temper/reds)', summary)
                     else:
                         self.assertNotIn('\ntest api::', summary)
                 if row.get('tail', '').startswith('may depend'):
@@ -625,9 +598,8 @@ sys.exit(int(count > 0))
     def test_process_again_excludes_reds_and_runs_in_key_order(self):
         self.goal_file('rerun', b'temper-rerun 1 2\n')
         self.goal_file('reds', b'temper-reds 1\n- test api::rules goal\n')
-        self.write('.temper/known-reds.md', '- test api::rules listed\n')
         tests = [dict(binary_id='api::rules', test_name=name, outcome='crashed')
-                 for name in ('z', 'listed', 'goal', 'a')]
+                 for name in ('z', 'goal', 'a')]
         tests += [dict(binary_id='api::rules', test_name=outcome, outcome=outcome)
                   for outcome in ('cancelled', 'starved', 'passed')]
         result, log, _, _ = self.ledger_run(tests)
@@ -638,7 +610,6 @@ sys.exit(int(count > 0))
         self.assertLess(summary.index('flake: test api::rules a'), summary.index('flake: test api::rules z'))
         self.assertLess(summary.index('flake: test api::rules z'), summary.index('inherited: test api::rules'))
         self.assertIn('inherited: test api::rules goal (red, temper/reds)', summary)
-        self.assertIn('inherited: test api::rules listed (known red, .temper/known-reds.md)', summary)
 
     def test_rerun_bound_is_strict_and_all_or_none(self):
         test = dict(binary_id='api::rules', test_name='rule', outcome='failed')
@@ -672,9 +643,8 @@ sys.exit(int(count > 0))
         lint_keys = ['lint api clippy::bad api/src/lib.rs', 'lint api clippy::good api/src/lib.rs',
                      'lint other clippy::good other/src/lib.rs']
         self.goal_file('reds', ('temper-reds 1\n' + ''.join('- ' + key + '\n' for key in test_keys + lint_keys)).encode())
-        self.write('.temper/known-reds.md', '- test api::rules listed\n')
         tests = [dict(binary_id='api::rules', test_name=name, outcome=name) for name in names[:-1]]
-        tests += [dict(binary_id='api::rules', test_name=name, outcome='failed') for name in ('listed', 'flake')]
+        tests.append(dict(binary_id='api::rules', test_name='flake', outcome='failed'))
         lint = PRE_PR.failure('clippy api clippy::bad api/src/lib.rs', 'lint output',
                               ('api', 'clippy::bad', 'api/src/lib.rs', 'message'), 'api')
         replacements = []
@@ -736,33 +706,6 @@ sys.exit(int(count > 0))
         result, log, _, _ = self.deliver()
         self.assertEqual(result, 0, log)
         self.assertRegex(path.read_text(), r'\Atemper-check 1\ncheck [0-9a-f]{40} - passed\n\Z')
-
-    def test_known_reds_are_bounded_snapshot_entries(self):
-        for with_base in (True, False):
-            if not with_base:
-                self.command('git', 'update-ref', '-d', 'refs/temper/landing')
-            for content, count, accepted in (
-                    ('- test api::rules rule\n' * 64, 64, True),
-                    ('- test api::rules rule\n' * 65, 65, False),
-                    ('x' * 8192, 0, True),
-                    ('x' * 8193, 0, False),
-                    ('é' * 4096, 0, True),
-                    ('é' * 4096 + 'x', 0, False),
-                    ('- test api::rules rule\n' + 'x' * 8193, 1, False),
-                    ('# Prose\n - test api::rules rule\n- test api::rules\n'
-                     '- lint api clippy::rule\n', 0, True)):
-                with self.subTest(entries=count, size=len(content.encode()), base=with_base):
-                    # Only this unstaged Markdown changes: reading is independent of code selection.
-                    self.write('.temper/known-reds.md', content)
-                    result, log, _, code = self.deliver()
-                    self.assertEqual(result, int(not accepted), log)
-                    self.assertEqual(code, (not with_base, False, False))
-                    self.assertIn(f'pre-pr: known reds: {count} entries (.temper/known-reds.md)', log)
-                    if not accepted:
-                        self.assertIn('known-reds\n.temper/known-reds.md: '
-                                      f'{count} entries, {len(content.encode()):,} bytes; '
-                                      'the cap is 64 entries and 8,192 bytes', log)
-                    (self.root / '.git/pre-pr-passed').unlink(missing_ok=True)
 
     def test_saved_edits_are_checked_with_new_edits(self):
         title = 'Unchecked: work in progress, saved before a question'

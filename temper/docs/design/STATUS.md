@@ -1,6 +1,6 @@
 # Status
 
-2026-11-13. The first milestone stands in the code. The wires between
+2026-11-14. The first milestone stands in the code. The wires between
 the engine, its workers, their agents and the clients move their
 versions with their layouts, stated and checked at the channel's
 opening; each build speaks each wire from its floor, and jig's channel
@@ -157,21 +157,30 @@ on vsr-rs"; nothing acts on it, and Home on All projects' What follows
 what draws it beside the follows, from the first four projects'
 `follows` documents (`client/pages/home.md`, 1), within a shipped
 client's 26 watches (`protocol/configuration/limits.md`). A goal's reds
-are temper's records, milestones B1 and B2 of `draft/branch-reds.md`
+are temper's records, milestones B1 to B3 of `draft/branch-reds.md`
 (`domain/forge/reds.md`). A goal's coordinator records and ends them with
 the `red` tool, at most `forge.branch_reds` a goal. At each check's start
 the worker asks the engine for them through an application's ask on
 jig's channel (jig's `domain/hosts/hub.md`, 10), and writes those whose
 commit the check's base contains to `temper/reds`, which fabrig's
-delivery check reads beside `.temper/known-reds.md`, its cache keyed on
-the file. The check runs a failing test's process again, through
+delivery check reads, its cache keyed on the file; the tree keeps no
+list of known reds. The check runs a failing test's process again, through
 one-process's `--again`, and a test that passes then is a flake, refusing
 nothing; at its end it writes `temper/check-results`, which the worker
 reports to the engine, passed or refused. A change keeps the reds its
 passed checks passed, and they end when it lands into the goal's branch;
 each flake is filed or counted as a `flake` finding (`domain/findings.md`,
-4). Reds end too by the tool and with their goal; the list's removal is
-B3 (`draft/branch-reds.status.md`).
+4). Reds end too by the tool and with their goal (`draft/branch-reds.status.md`).
+
+A project's tiers after landing (`domain/after-landing.md`) are held and
+released by a person, `temper ctl tier hold` and `tier release`, the hold
+kept on the tier's record and said on a verifying change's line; a red
+range is bisected over its changed-key landings; each verdict is posted
+on the forge, `temper/verdict/<tier>` on the run's tip and a comment on
+each member's pull request, `Repaired by #M` once a repair passes. A
+change's stall on CI and a landing's gate run past its bound name each
+pending job's state, read by skein's `JobState`; a tier's run that never
+ends is held by no bound (`draft/tier-controls.status.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need
@@ -459,7 +468,6 @@ Drafts:
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/goal-start-flags.md`](draft/goal-start-flags.status.md)
-- [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
@@ -488,6 +496,7 @@ Drafts:
 - [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: identity walks rewrite a record's head alone where its patch leaves its bytes valid; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets. S4, goal 2826: layout ids: defaults and former names in skein's schemas, a value type's layout fingerprint, derived plans over a value's bytes, the command passing over registered families; jig's store registry of layouts, seeded with no value rewritten, its heads mapped at the store's edges and every value converted as read, the open's check, and jobs at open routed to their owners, written changes among them.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
+- [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/tui-design-session.md`](draft/tui-design-session.status.md)
 - [`draft/tui.md`](draft/tui.status.md)

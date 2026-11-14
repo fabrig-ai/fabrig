@@ -26,6 +26,7 @@ pub fn accepts(answer: &Answer) -> bool {
         | Answer::PullFiles { .. }
         | Answer::Compare { .. }
         | Answer::Checks(_)
+        | Answer::JobState { .. }
         | Answer::Job { .. }
         | Answer::Directory { .. }
         | Answer::File { .. }

@@ -430,6 +430,9 @@ fn ci_run(id: u64, number: u64, commit: u64) -> Run {
 }
 fn ci_job(id: u64, run: u64, index: u32, attempt: u32) -> Job {
     Job {
+        labels: Box::new([]),
+        needs: Box::new([]),
+        wait: None,
         id,
         run,
         index,
@@ -451,6 +454,7 @@ fn dispatch_harness(config: Config, jobs: &[&[u8]]) -> Harness {
         select: None,
         file: copy_of(b"gate.yml"),
         jobs: names(jobs),
+        requirements: Box::new([]),
         latency_min: Duration::from_secs(10),
         latency_max: Duration::from_secs(10),
         passes: 1000,

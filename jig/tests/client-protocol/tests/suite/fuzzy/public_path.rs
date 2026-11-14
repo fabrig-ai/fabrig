@@ -4,7 +4,7 @@ use jig_client_protocol_http::{PublicPath, public_target};
 use jig_protocol_engine_clients::PublicRead;
 use jig_protocol_engine_clients_http::public_path;
 use skein_lib::{List, Rng};
-use std::fmt::Write as _;
+use std::fmt::{Arguments, Write as _};
 
 const FIRST_SEED: u64 = 0x7075_7a74;
 const SEEDS: u64 = 4;
@@ -28,8 +28,8 @@ fn path_of(read: &PublicRead) -> PublicPath {
     PublicPath { owner: read.owner, version: read.version, kind: read.kind, ids }
 }
 
-fn inspect(seed: u64, bytes: &[u8], canonical: bool) -> Option<PublicRead> {
-    eprintln!("seed {seed:#x}, input {bytes:?}");
+fn inspect(seed: u64, bytes: &[u8], canonical: bool, case: Arguments<'_>) -> Option<PublicRead> {
+    eprintln!("seed {seed:#x}, {case}, input length {}", bytes.len());
     let read = public_path(bytes);
     if canonical && let Some(read) = &read {
         assert_eq!(public_target(&path_of(read)).as_ref(), bytes, "accepted target prints byte for byte");
@@ -69,11 +69,11 @@ fn target(path: &PublicPath) -> Vec<u8> {
     text.into_bytes()
 }
 
-fn printed(seed: u64, path: &PublicPath, bytes: &[u8]) {
-    eprintln!("printer seed {seed:#x}, input {bytes:?}");
+fn printed(seed: u64, path: &PublicPath, bytes: &[u8], sample: u32) {
+    eprintln!("printer seed {seed:#x}, sample {sample}, original, input length {}", bytes.len());
     assert_eq!(public_target(path).as_ref(), bytes, "printer seed {seed:#x}, input {bytes:?}");
-    let read =
-        inspect(seed, bytes, true).unwrap_or_else(|| panic!("canonical refused, seed {seed:#x}, input {bytes:?}"));
+    let read = inspect(seed, bytes, true, format_args!("sample {sample}, original"))
+        .unwrap_or_else(|| panic!("canonical refused, seed {seed:#x}, input {bytes:?}"));
     assert_eq!(read.owner, path.owner, "owner seed {seed:#x}, input {bytes:?}");
     assert_eq!(read.version, path.version, "version seed {seed:#x}, input {bytes:?}");
     assert_eq!(read.kind, path.kind, "kind seed {seed:#x}, input {bytes:?}");
@@ -81,22 +81,22 @@ fn printed(seed: u64, path: &PublicPath, bytes: &[u8]) {
     assert_eq!(read.ids.as_ref(), ids, "ids seed {seed:#x}, input {bytes:?}");
 }
 
-fn mutations(seed: u64, rng: &mut Rng, bytes: &[u8], canonical: bool) {
+fn mutations(seed: u64, rng: &mut Rng, bytes: &[u8], canonical: bool, sample: u32) {
     let position = index(rng, bytes.len());
     let mut changed = bytes.to_vec();
     *changed.get_mut(position).expect("canonical byte") ^= 1;
-    let _ = inspect(seed, &changed, canonical);
+    let _ = inspect(seed, &changed, canonical, format_args!("sample {sample}, flipped byte {position}"));
     changed = bytes.to_vec();
     changed.insert(position, byte(rng));
-    let _ = inspect(seed, &changed, canonical);
+    let _ = inspect(seed, &changed, canonical, format_args!("sample {sample}, inserted byte {position}"));
     changed = bytes.to_vec();
     changed.remove(position);
-    let _ = inspect(seed, &changed, canonical);
+    let _ = inspect(seed, &changed, canonical, format_args!("sample {sample}, removed byte {position}"));
 
     let text = std::str::from_utf8(bytes).expect("canonical ascii");
     let segments: Vec<_> = text.split('/').collect();
     for (position, segment) in segments.iter().enumerate().skip(1) {
-        for replacement in [
+        for (replacement_index, replacement) in [
             format!("{segment}/{segment}"),
             String::new(),
             ".".to_owned(),
@@ -109,14 +109,29 @@ fn mutations(seed: u64, rng: &mut Rng, bytes: &[u8], canonical: bool) {
             segment.to_ascii_uppercase(),
             format!("0{segment}"),
             "65536".to_owned(),
-        ] {
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let mut changed = segments.clone();
             *changed.get_mut(position).expect("segment position") = &replacement;
-            let _ = inspect(seed, changed.join("/").as_bytes(), canonical);
+            let _ = inspect(
+                seed,
+                changed.join("/").as_bytes(),
+                canonical,
+                format_args!("sample {sample}, segment {position} replacement {replacement_index}"),
+            );
         }
     }
-    for suffix in ["?q=1", "#fragment", "/", "/0000000000000000/0000000000000000/0000000000000000"] {
-        let _ = inspect(seed, format!("{text}{suffix}").as_bytes(), canonical);
+    for (suffix_index, suffix) in
+        ["?q=1", "#fragment", "/", "/0000000000000000/0000000000000000/0000000000000000"].into_iter().enumerate()
+    {
+        let _ = inspect(
+            seed,
+            format!("{text}{suffix}").as_bytes(),
+            canonical,
+            format_args!("sample {sample}, suffix {suffix_index}"),
+        );
     }
 }
 
@@ -124,23 +139,23 @@ fn sweep(canonical: bool) {
     for seed in FIRST_SEED..FIRST_SEED.checked_add(SEEDS).expect("seed range") {
         let mut rng = Rng::new(seed);
         let mut bytes = [0; 256];
-        for _ in 0..ARBITRARY {
+        for sample in 0..ARBITRARY {
             let length = index(&mut rng, bytes.len().checked_add(1).expect("small buffer"));
             let input = bytes.get_mut(..length).expect("bounded length");
             for value in &mut *input {
                 *value = byte(&mut rng);
             }
-            let _ = inspect(seed, input, canonical);
+            let _ = inspect(seed, input, canonical, format_args!("arbitrary {sample}"));
         }
         for sample in 0..CANONICAL {
             let path = drawn(&mut rng, sample);
             let bytes = target(&path);
             if canonical {
-                printed(seed, &path, &bytes);
+                printed(seed, &path, &bytes, sample);
             } else {
-                let _ = inspect(seed, &bytes, false);
+                let _ = inspect(seed, &bytes, false, format_args!("sample {sample}, original"));
             }
-            mutations(seed, &mut rng, &bytes, canonical);
+            mutations(seed, &mut rng, &bytes, canonical, sample);
         }
     }
 }

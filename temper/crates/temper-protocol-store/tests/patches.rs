@@ -79,5 +79,10 @@ mod patches {
         fn p0013_goldens() {
             assert_eq!(skein_codegen::patch::goldens(&owner(), 13, super::written), Ok(()), "patch 0013 goldens");
         }
+
+        #[test]
+        fn p0014_goldens() {
+            assert_eq!(skein_codegen::patch::goldens(&owner(), 14, super::written), Ok(()), "patch 0014 goldens");
+        }
     }
 }

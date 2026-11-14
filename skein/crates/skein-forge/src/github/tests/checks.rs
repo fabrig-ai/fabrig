@@ -42,7 +42,17 @@ fn run(id: u64, check: api::Check, app: &[u8]) -> document::Run {
     }
 }
 fn job(id: u64) -> document::Job {
-    document::Job { id, run: 9_007_199_254_740_993, attempt: 2, head: head(), step: None }
+    document::Job {
+        id,
+        run: 9_007_199_254_740_993,
+        attempt: 2,
+        head: head(),
+        step: None,
+        labels: Box::new([]),
+        cut: false,
+        state: api::JobState::Waiting,
+        running_step: None,
+    }
 }
 fn request(stage: Kind, page: u32, per_page: u32) -> Request {
     let owner = Box::from(*b"acme");
@@ -381,7 +391,17 @@ fn github_checks_metadata_round_trip() {
         let (rows, doc) = decode(Kind::CheckRuns, &bytes(out), chunk, &limits());
         assert_eq!(doc, Ok(Document::Rows));
         assert_eq!(rows.as_slice(), &[Row::Run(row)]);
-        let row = document::Job { id: u64::MAX, run: u64::MAX, attempt: u32::MAX, head: head(), step: None };
+        let row = document::Job {
+            id: u64::MAX,
+            run: u64::MAX,
+            attempt: u32::MAX,
+            head: head(),
+            step: None,
+            labels: Box::new([]),
+            cut: false,
+            state: api::JobState::Waiting,
+            running_step: None,
+        };
         let mut out = Writer::new(4096);
         server::job(&row, &mut out).unwrap();
         assert_eq!(decode(Kind::Job, &bytes(out), chunk, &limits()).1, Ok(Document::Job(row)));
@@ -453,7 +473,20 @@ fn github_checks_metadata_defaults_and_bounds() {
             }
         );
         let (_, result) = decode(Kind::Job, br#"{"id":11,"run_id":22,"run_attempt":2,"head_sha":"0123456789abcdef0123456789abcdef01234567","steps":[{"number":1,"name":"ignored","conclusion":"success"}]}"#, chunk, &limits());
-        assert_eq!(result, Ok(Document::Job(document::Job { id: 11, run: 22, attempt: 2, head: head(), step: None })));
+        assert_eq!(
+            result,
+            Ok(Document::Job(document::Job {
+                id: 11,
+                run: 22,
+                attempt: 2,
+                head: head(),
+                step: None,
+                labels: Box::new([]),
+                cut: false,
+                state: api::JobState::Waiting,
+                running_step: None
+            }))
+        );
     }
     for missing_id in [false, true] {
         let mut call = runs_started(bounds());
@@ -546,7 +579,17 @@ fn github_checks_resolve_actions_url_instead_of_check_run_id() {
         let mut out = Writer::new(json.len());
         out.put(json).unwrap();
         assert_eq!(call.json(Kind::CheckRuns, out, false), Some(Step::send(job_request(31))));
-        let row = document::Job { id: 31, run: 22, attempt: 2, head: head(), step: None };
+        let row = document::Job {
+            id: 31,
+            run: 22,
+            attempt: 2,
+            head: head(),
+            step: None,
+            labels: Box::new([]),
+            cut: false,
+            state: api::JobState::Waiting,
+            running_step: None,
+        };
         let checks = answer(call.job(&row));
         assert_eq!(checks[0].job, Some(api::JobAttempt { head: head(), run: 22, job: 31, attempt: 2 }));
     }
@@ -559,7 +602,17 @@ fn github_checks_validate_linked_run_and_positive_attempt() {
         let mut check = self::run(901, api::Check::Failed, b"github-actions");
         check.url = Box::from(b"https://github.com/acme/widgets/actions/runs/22/job/31".as_slice());
         assert_eq!(call.runs(&[check], false), Some(Step::send(job_request(31))));
-        let result = call.job(&document::Job { id: 31, run, attempt, head: head(), step: None });
+        let result = call.job(&document::Job {
+            id: 31,
+            run,
+            attempt,
+            head: head(),
+            step: None,
+            labels: Box::new([]),
+            cut: false,
+            state: api::JobState::Waiting,
+            running_step: None,
+        });
         if run == 22 && attempt == 2 {
             assert!(answer(result)[0].job.is_some());
         } else {

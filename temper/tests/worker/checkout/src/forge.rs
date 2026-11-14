@@ -63,6 +63,7 @@ pub const LIMITS: Limits = Limits {
 #[must_use]
 pub fn config() -> Config {
     Config {
+        runner_labels: None,
         setup_faults: 0,
         lost: 0,
         made_checks: Config::test().made_checks,
