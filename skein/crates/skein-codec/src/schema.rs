@@ -3,10 +3,12 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Map, bytes, usize_of};
 
+pub(crate) mod constant;
 mod fingerprint;
 mod grammar;
 mod layout;
 mod limits;
+mod metadata;
 mod tokens;
 pub use fingerprint::{Fingerprint, Fingerprints, LayoutError, MAX_HELD, Root};
 pub use limits::{LimitLevel, limit_child, limit_name};
@@ -156,6 +158,17 @@ pub struct Variant {
     pub boxed: bool,
 }
 
+/// A part whose former names are kept separately (data/codec/README.md, 7.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Named {
+    /// A declaration in the schema.
+    Declaration(DeclIx),
+    /// A field in a record.
+    Field(FieldIx),
+    /// A variant in an enumeration.
+    Variant(VariantIx),
+}
+
 /// A field's bounded wire type, with its chain outermost first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Type {
@@ -264,6 +277,10 @@ pub enum Wrong {
     DuplicateField,
     /// A variant's name was used before in its enumeration.
     DuplicateVariant,
+    /// A former name repeats a current or former name in its scope.
+    Former,
+    /// A default is not a value of its field's type.
+    Default,
     /// The encoded worst case overflows u64.
     Overflow,
     /// The declaration's encoded worst case exceeds u32.
@@ -273,6 +290,10 @@ pub enum Wrong {
 /// The token wanted by the grammar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Expected {
+    /// A name after was.
+    Name,
+    /// A value after = or some.
+    Default,
     /// The family keyword.
     Family,
     /// An opening brace.
@@ -300,6 +321,13 @@ pub struct Schema {
     names: Map<Box<[u8]>, DeclIx>,
     minimum: List<u32>,
     maximum: List<u32>,
+    former: List<Span>,
+    declaration_former: List<Span>,
+    field_former: List<Span>,
+    variant_former: List<Span>,
+    defaults: List<Option<Span>>,
+    encodings: List<Option<Span>>,
+    pool: List<u8>,
 }
 
 impl Schema {
@@ -357,6 +385,49 @@ impl Schema {
         *self.types.get(at.0).expect("type index belongs to this schema")
     }
 
+    /// Former names in text order, empty when the part has none.
+    #[must_use]
+    pub fn was(&self, named: Named) -> &[Span] {
+        let range = match named {
+            Named::Declaration(at) => self.declaration_former.get(at.index()),
+            Named::Field(at) => self.field_former.get(at.index()),
+            Named::Variant(at) => self.variant_former.get(at.index()),
+        }
+        .expect("named part belongs to this schema");
+        self.former.as_slice().get(usize_of(range.start)..usize_of(range.end)).expect("former names range")
+    }
+
+    /// The default's encoding, including implicit none for an option.
+    #[must_use]
+    pub fn default(&self, at: FieldIx) -> Option<&[u8]> {
+        match *self.encodings.get(at.index()).expect("field belongs to this schema") {
+            Some(range) => {
+                Some(self.pool.as_slice().get(usize_of(range.start)..usize_of(range.end)).expect("encoding range"))
+            }
+            None => match self.ty(self.field(at).ty) {
+                Type::Option(_) => Some(&[0]),
+                Type::U8
+                | Type::U16
+                | Type::U32
+                | Type::U64
+                | Type::Bool
+                | Type::Duration
+                | Type::Fixed(_)
+                | Type::Secret { .. }
+                | Type::Text(_)
+                | Type::Bytes { .. }
+                | Type::List { .. }
+                | Type::Named(_) => None,
+            },
+        }
+    }
+
+    /// The explicit default's source range, for tools retaining its spelling.
+    #[must_use]
+    pub fn default_span(&self, at: FieldIx) -> Option<Span> {
+        *self.defaults.get(at.index()).expect("field belongs to this schema")
+    }
+
     /// Looks up a declaration by name in the ordered table.
     #[must_use]
     pub fn find(&self, name: &[u8]) -> Option<DeclIx> {
@@ -401,6 +472,7 @@ pub fn parse(text: &[u8]) -> Result<Schema, SchemaError> {
     let parser = grammar::Parser::new(bytes::copy_of(text), tokens, final_line);
     let mut parsed = parser.parse()?;
     layout::check(&mut parsed)?;
+    metadata::check(&mut parsed.schema)?;
     Ok(parsed.schema)
 }
 
@@ -415,11 +487,14 @@ pub(crate) fn schema_bound(text: u32) -> Option<u64> {
         List::<Field>::price(text)?,
         List::<Variant>::price(text)?,
         List::<Type>::price(text)?,
-        List::<Span>::price(text)?,
+        List::<Span>::price(text)?.checked_mul(4)?, // references and former name ranges
+        List::<Span>::price(declarations)?,
+        List::<Option<Span>>::price(text)?.checked_mul(2)?, // defaults and encoded ranges
+        u64::from(text).checked_mul(8)?,                    // encoded constants
         List::<Option<Span>>::price(text)?,
         List::<u32>::price(declarations)?.checked_mul(2)?,
         Map::<Box<[u8]>, DeclIx>::price(declarations)?,
-        skein_lib::Set::<Box<[u8]>>::price(text)?,
+        skein_lib::Set::<(u32, Box<[u8]>)>::price(text)?,
     ] {
         total = total.checked_add(bytes)?;
     }

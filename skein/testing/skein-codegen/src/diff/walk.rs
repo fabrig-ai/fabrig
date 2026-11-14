@@ -3,7 +3,7 @@
 use super::spell::{label, name, parts, spell, word};
 use super::{Change, Diff, DiffError, Fill, Kind, Op, Rename};
 use skein_codec::patch::{self, Comparison, Matching, Target};
-use skein_codec::schema::{DeclIx, Schema, Shape, Type};
+use skein_codec::schema::{DeclIx, Named, Schema, Shape, Type};
 
 pub(super) fn matching(old: &Schema, new: &Schema, renames: &[Rename]) -> Result<Matching, DiffError> {
     let mut matching = Matching::new(new);
@@ -24,6 +24,7 @@ pub(super) fn matching(old: &Schema, new: &Schema, renames: &[Rename]) -> Result
                 Err(_) => errors.push(index),
             }
         }
+        former_names(old, new, renames, &mut matching, part);
         if part {
             matching.pair_parts(old, new);
         } else {
@@ -31,6 +32,65 @@ pub(super) fn matching(old: &Schema, new: &Schema, renames: &[Rename]) -> Result
         }
     }
     if let Some(index) = errors.into_iter().min() { Err(DiffError::Rename(index)) } else { Ok(matching) }
+}
+
+// Explicit renames reserve their parts first; former names only pair what
+// remains, and never displace a current name present in the kept scope.
+fn former_names(old: &Schema, new: &Schema, renames: &[Rename], matching: &mut Matching, part: bool) {
+    for at in (0..new.declarations()).map(DeclIx::new) {
+        if !part {
+            let target = Target::Declaration(at);
+            let current = label(new, target);
+            if old.find(current.as_bytes()).is_some()
+                || matching.part(target).is_some()
+                || renames.iter().any(|rename| matches!(rename, Rename::Declaration { new, .. } if *new == current))
+            {
+                continue;
+            }
+            for former in new.was(Named::Declaration(at)) {
+                let Some(source) = old.find(new.spelled(*former)) else {
+                    continue;
+                };
+                let source = Target::Declaration(source);
+                if !matching.used(source) {
+                    matching.pair(target, source);
+                    break;
+                }
+            }
+        } else if let Some(kept) = matching.old(at) {
+            if !matches!(
+                (old.declaration(kept).shape, new.declaration(at).shape),
+                (Shape::Record { .. }, Shape::Record { .. }) | (Shape::Enum { .. }, Shape::Enum { .. })
+            ) {
+                continue;
+            }
+            let old_parts = parts(old, kept);
+            let decl = name(new, at.index());
+            for target in parts(new, at) {
+                let current = label(new, target);
+                if matching.part(target).is_some() || old_parts.iter().any(|source| label(old, *source) == current)
+                    || renames.iter().any(|rename| matches!(rename, Rename::Part { decl: owner, new, .. } if *owner == decl && *new == current)) {
+                    continue;
+                }
+                let named = match target {
+                    Target::Field(at) => Named::Field(at),
+                    Target::Variant(at) => Named::Variant(at),
+                    Target::Declaration(_) => unreachable!("parts are fields or variants"),
+                };
+                for former in new.was(named) {
+                    let Some(source) =
+                        old_parts.iter().copied().find(|source| label(old, *source).as_bytes() == new.spelled(*former))
+                    else {
+                        continue;
+                    };
+                    if !matching.used(source) {
+                        matching.pair(target, source);
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn same_part(matching: &Matching, old: &Schema, new: &Schema, a: Target, b: Target) -> bool {
@@ -190,7 +250,13 @@ fn operation(old: &Schema, new: &Schema, matching: &Matching, change: &patch::Ch
         }
         (P::Add, Target::Field(at)) => {
             let ty = new.field(at).ty;
-            let value = if matches!(new.ty(ty), Type::Option(_)) { Fill::Absent } else { Fill::Asked };
+            let value = if let Some(span) = new.default_span(at) {
+                Fill::Default(word(new, span))
+            } else if matches!(new.ty(ty), Type::Option(_)) {
+                Fill::Absent
+            } else {
+                Fill::Asked
+            };
             Op::AddField { decl, field: part, ty: spell(new, ty), value }
         }
         (P::Drop, Target::Field(_)) => Op::DropField { decl, field: part },

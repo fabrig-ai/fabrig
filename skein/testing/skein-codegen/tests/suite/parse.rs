@@ -136,6 +136,14 @@ mod tests {
     }
 
     #[test]
+    fn defaults_and_former_names_leave_generated_output_identical() {
+        let with = parse("family f 1\nrecord Item was Before { value was old: u32 = 7 }\nenum State was Phase { paused was suspended, ready }\nrecord R { state: State = ready text: text 8 = \"hi #é\" list: list 4 u8 = [] opt: option u8 = some 3 }").expect("metadata");
+        let without = parse("family f 1\nrecord Item { value: u32 }\nenum State { paused, ready }\nrecord R { state: State text: text 8 list: list 4 u8 opt: option u8 }").expect("layout alone");
+        assert_eq!(with, without);
+        assert_eq!(generate(&with), generate(&without));
+    }
+
+    #[test]
     fn layout_refusals_precede_the_rust_name_checks() {
         assert_eq!(
             parse("family f 1\nrecord lowercase {}\nrecord R { a: Missing }").expect_err("layout precedes Rust names"),

@@ -7,7 +7,7 @@ use crate::support::reprint;
 mod tests {
     use super::{
         generated,
-        reprint::{renamed, reprint},
+        reprint::{renamed, reprint, reprint_metadata},
     };
     use core::fmt::Write;
     use skein_codec::schema::{DeclIx, Schema, parse};
@@ -52,14 +52,22 @@ mod tests {
     #[test]
     fn every_schema_preserves_fingerprints_after_reprinting() {
         for (name, text) in shipped_schemas() {
-            let (schema, other) = reprinted_schemas(name, text);
+            let schema = shipped_schema(name, text);
             let expected = schema.fingerprints();
-            let fingerprints = other.fingerprints();
-            assert_eq!(expected.family(), fingerprints.family(), "{name}");
-            for (at, rename) in (0..schema.declarations()).zip(renamed(&schema)) {
-                let at = DeclIx::new(at);
-                let renamed_at = other.find(rename.new.as_bytes()).expect("renamed declaration");
-                assert_eq!(expected.declaration(at), fingerprints.declaration(renamed_at), "{name}: {}", rename.old);
+            for source in [reprint(&schema), reprint_metadata(&schema)] {
+                let other = shipped_schema(name, &source);
+                let fingerprints = other.fingerprints();
+                assert_eq!(expected.family(), fingerprints.family(), "{name}");
+                for (at, rename) in (0..schema.declarations()).zip(renamed(&schema)) {
+                    let at = DeclIx::new(at);
+                    let renamed_at = other.find(rename.new.as_bytes()).expect("renamed declaration");
+                    assert_eq!(
+                        expected.declaration(at),
+                        fingerprints.declaration(renamed_at),
+                        "{name}: {}",
+                        rename.old
+                    );
+                }
             }
         }
     }

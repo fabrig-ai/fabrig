@@ -154,8 +154,8 @@ mod tests {
 
     #[test]
     fn wire_nonlayout_edits_need_no_patch() {
-        const OLD: &str = "family w 1\nrecord R { id: u8 }\nenum E { r: R, empty }\n";
-        const NOW: &str = "# comment\nfamily\nw # header\n1\nrecord R {\nid : u8\n}\nenum E { r: boxed R, empty } # boxed is not layout\n";
+        const OLD: &str = "family w 1\nrecord R { id: u8 t: text 8 }\nenum E { r: R, empty }\n";
+        const NOW: &str = "# comment\nfamily\nw # header\n1\nrecord R was Before {\nid was key: u8 = 3\nt: text 8 = \"hi #é\"\n}\nenum E { r was record: boxed R, empty } # boxed is not layout\n";
         let (scratch, base) = fixture("nonlayout", OLD, NOW, WIRES);
         let root = scratch.path();
         assert_eq!(check(root, &base), Ok(Vec::new()));
