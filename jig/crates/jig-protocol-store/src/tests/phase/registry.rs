@@ -109,14 +109,23 @@ fn snapshot(disk: &mut Disk) -> Contents {
 }
 #[test]
 fn a_new_value_type_has_no_seed_layout_and_registers_its_current_variant() {
-    let current = Box::leak(format!("{CURRENT}enum Value {{ later: Stable }}\nversioned record Row {{ value: Value }}\n").into_boxed_str());
-    let family = KeptFamily { current,
-        keys: &[Keys { from: b"a", to: b"b", root: "Growing" }, Keys { from: b"c", to: b"d", root: "Stable" }, Keys { from: b"e", to: b"f", root: "Row" }],
+    let current = Box::leak(
+        format!("{CURRENT}enum Value {{ later: Stable }}\nversioned record Row {{ value: Value }}\n").into_boxed_str(),
+    );
+    let family = KeptFamily {
+        current,
+        keys: &[
+            Keys { from: b"a", to: b"b", root: "Growing" },
+            Keys { from: b"c", to: b"d", root: "Stable" },
+            Keys { from: b"e", to: b"f", root: "Row" },
+        ],
         types: &[
             ValueType { number: 0, root: "Growing", variant: None, keys: &[KeyRange { from: b"a", to: b"b" }] },
             ValueType { number: 1, root: "Stable", variant: None, keys: &[KeyRange { from: b"c", to: b"d" }] },
             ValueType { number: 2, root: "Row", variant: Some("later"), keys: &[KeyRange { from: b"e", to: b"f" }] },
-        ], ..FAMILY };
+        ],
+        ..FAMILY
+    };
     let set = PatchSet { families: Box::leak(Box::new([family])), ..SET };
     let mut disk = Disk::new(&base(false, true));
     let mut store = store(&disk, set);

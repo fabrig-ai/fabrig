@@ -1,8 +1,8 @@
 //! Jobs follow patches and closed windows, before the seal (protocol/store/jobs.md, 2–3).
 use super::{Patching, refuse, sealing, state, take};
 use crate::{
-    Below, Cursor, Event, Job, JobAnswer, JobPage, JobRefusal, JobRow, JobWrite, Limits, OpenRefusal, Owner, Store,
-    commits, keys, open, pages,
+    Below, Cursor, Event, Job, JobAnswer, JobPage, JobRefusal, JobRoom, JobRow, JobWrite, Limits, OpenRefusal, Owner,
+    Store, commits, keys, open, pages,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, length::len_u64};
@@ -161,6 +161,7 @@ fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> O
         of,
         job: Box::from(job.name),
         page: JobPage {
+            room: room(store, of, &job)?,
             rows: rows.into_boxed(),
             end,
             layout: if running.first {
@@ -271,6 +272,18 @@ fn size(op: &skein_kv::Op) -> Option<u64> {
         skein_kv::Op::Put { value, .. } => skein_kv::put_bytes(key, u32::try_from(value.len()).ok()?)?,
         skein_kv::Op::Erase { .. } => skein_kv::erase_bytes(key)?,
     }))
+}
+fn room(store: &Store, of: Owner, job: &Job) -> Option<JobRoom> {
+    let writes = store.limits.commits.writes.min(store.limits.store.ops).checked_sub(1)?;
+    // A u64's largest encoding bounds the done row at any commit number.
+    let done = crate::jobs::kept::operation(store, of, job, u64::MAX)?;
+    let reserved = u64::from(skein_kv::FRAME_BYTES).checked_add(size(&done)?)?;
+    let mut bytes = u64::from(store.limits.store.commit).checked_sub(reserved)?;
+    if of == Owner::Application {
+        // JobWrite::bytes counts relative keys. Each whole key adds one tag.
+        bytes = bytes.checked_sub(u64::from(writes))?;
+    }
+    Some(JobRoom { writes, bytes })
 }
 fn operations(
     store: &Store,
