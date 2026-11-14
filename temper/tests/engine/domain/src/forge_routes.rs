@@ -2045,7 +2045,11 @@ impl World {
                 }
                 engine::Request::Forge { call, repository, op } => {
                     if self.busy_reads && matches!(op, skein_forge::api::Op::Read(_)) {
-                        self.held_reads.get_or_insert_with(Vec::new).push(engine::Request::Forge { call, repository, op });
+                        self.held_reads.get_or_insert_with(Vec::new).push(engine::Request::Forge {
+                            call,
+                            repository,
+                            op,
+                        });
                         continue;
                     }
                     if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })) {

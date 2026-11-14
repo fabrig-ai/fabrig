@@ -163,7 +163,10 @@ pub(crate) fn load_outputs(
                 }
                 match waiting(domain, waiter) {
                     Some(Waiting::ChangeDelegate) => crate::route::forge_route::delegate_record::loaded(
-                        domain, env, decision.as_mut().expect("admitted historical terminal"), waiter,
+                        domain,
+                        env,
+                        decision.as_mut().expect("admitted historical terminal"),
+                        waiter,
                         if cut.is_none() && next.is_none() { Some(rows) } else { None },
                     ),
                     Some(Waiting::Document) => crate::route::document::loaded(domain, waiter, rows, next, cut, out),
@@ -203,7 +206,11 @@ pub(crate) fn load_outputs(
                 }
                 match waiting(domain, waiter) {
                     Some(Waiting::ChangeDelegate) => crate::route::forge_route::delegate_record::loaded(
-                        domain, env, decision.as_mut().expect("admitted historical failure"), waiter, None,
+                        domain,
+                        env,
+                        decision.as_mut().expect("admitted historical failure"),
+                        waiter,
+                        None,
                     ),
                     Some(Waiting::Document) => crate::route::document::failed(domain, waiter),
                     Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),

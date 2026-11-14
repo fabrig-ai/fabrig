@@ -120,7 +120,7 @@ pub struct Domain {
     pub(crate) next_effect_owner: u64,
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
     pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
-    pub(crate) forge_release_steps: Map<u64, u64>,
+    pub(crate) forge_release_steps: Map<u64, (u64, Wall)>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,

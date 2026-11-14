@@ -2573,7 +2573,6 @@ fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
     }
 }
 
-
 fn restarted_producing() -> Domain {
     use temper_engine_domain_forge_change as change;
     let mut d = fixtures::connected_domain();
@@ -2587,11 +2586,18 @@ fn restarted_producing() -> Domain {
     row.change.state = change::State::Producing { requested: true };
     outputs(&mut d, Event::Change { row });
     fixtures::step_change(&mut d);
-    for _ in 0..3 {
+    for _ in 0_u32..3 {
         fixtures::missing_pull_reads(&mut d);
-        outputs(&mut d, Event::Hint { hint: skein_forge::api::Hint {
-            repository: REPO, change: skein_forge::api::Change::Branch(b"temper/51".as_slice().into()), key: None,
-        }});
+        outputs(
+            &mut d,
+            Event::Hint {
+                hint: skein_forge::api::Hint {
+                    repository: REPO,
+                    change: skein_forge::api::Change::Branch(b"temper/51".as_slice().into()),
+                    key: None,
+                },
+            },
+        );
         // The root's activation after branch news replaces this gather's input.
         fixtures::step_change(&mut d);
         assert!(fixtures::finish_missing(&mut d).is_empty(), "the woken gather restarts, not decides");
@@ -2613,10 +2619,20 @@ fn a_gather_restarted_by_news_still_spends_its_steps_stall() {
     assert_eq!(d.next_wall_deadline(), Some(until), "a later wake keeps the original deadline");
     env.wall = Wall::from_nanos(until.as_nanos().saturating_add(1));
     fire(&mut d, &env, &mut out);
-    assert!(out.iter().any(|request| matches!(request, Request::ChangeDecision {
-        task: fixtures::CHANGE, decision: change::Decision::Hold(change::Hold::Stalled), ..
-    })), "restarting is not progress: {out:?}");
-    assert!(matches!(d.change(fixtures::CHANGE).unwrap().change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+    let mut held = false;
+    for request in &out {
+        if let Request::ChangeDecision { task, decision, .. } = request
+            && *task == fixtures::CHANGE
+            && *decision == change::Decision::Hold(change::Hold::Stalled)
+        {
+            held = true;
+        }
+    }
+    assert!(held, "restarting is not progress: {out:?}");
+    assert!(matches!(
+        d.change(fixtures::CHANGE).unwrap().change.state,
+        change::State::Held { why: change::Hold::Stalled, .. }
+    ));
 }
 
 #[test]
@@ -2651,14 +2667,32 @@ fn a_release_supersedes_an_outstanding_gather_and_ignores_its_late_answer() {
 fn an_ended_writers_slot_stops_waiting_after_its_branch_is_read() {
     use temper_engine_domain_forge_change as change;
     let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
-    outputs(&mut d, Event::ProducedTitle {
-        task: fixtures::CHANGE, child: 52, title: b"Pushed".as_slice().into(), report: b"Done".as_slice().into(),
-    });
+    outputs(
+        &mut d,
+        Event::ProducedTitle {
+            task: fixtures::CHANGE,
+            child: 52,
+            title: b"Pushed".as_slice().into(),
+            report: b"Done".as_slice().into(),
+        },
+    );
     producer_terminal(&mut d, false);
-    outputs(&mut d, Event::Restore { record: Stored::Hold(Hold {
-        name: Name { forge: REPO.forge, repository: REPO.repository, what: What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])) },
-        task: fixtures::CHANGE, writer: Some(Writer::Run { task: 52, attempt: 1 }), design_writers: Box::new([]), drift: None,
-    }) });
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                name: Name {
+                    forge: REPO.forge,
+                    repository: REPO.repository,
+                    what: What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])),
+                },
+                task: fixtures::CHANGE,
+                writer: Some(Writer::Run { task: 52, attempt: 1 }),
+                design_writers: Box::new([]),
+                drift: None,
+            }),
+        },
+    );
     outputs(&mut d, waiting_step(false, false));
     fixtures::missing_pull_reads(&mut d);
     let finished = fixtures::finish_missing(&mut d);
@@ -2671,13 +2705,26 @@ fn only_a_live_askers_question_exempts_a_title_wait() {
     for live in [false, true] {
         let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
         d.changes.get_mut(&fixtures::CHANGE).expect("change").questions.open = Box::new([change::Open {
-            asker: 52, number: 1, line: b"Question".as_slice().into(), words: b"Question".as_slice().into(), stands: change::Stands::Asked,
+            asker: 52,
+            number: 1,
+            line: b"Question".as_slice().into(),
+            words: b"Question".as_slice().into(),
+            stands: change::Stands::Asked,
         }]);
         outputs(&mut d, waiting_step(live, false));
         fixtures::missing_pull_reads(&mut d);
         let finished = fixtures::finish_missing(&mut d);
-        let expected = if live { change::Decision::Wait { until: None } } else { change::Decision::Hold(change::Hold::Stalled) };
-        assert!(finished.iter().any(|request| matches!(request, Request::ChangeDecision { decision, .. } if *decision == expected)), "live={live}: {finished:?}");
+        let expected =
+            if live { change::Decision::Wait { until: None } } else { change::Decision::Hold(change::Hold::Stalled) };
+        assert!(
+            finished.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision: expected,
+                entry: None,
+                evidence: None,
+            }),
+            "live={live}: {finished:?}"
+        );
     }
 }
 
@@ -2688,10 +2735,15 @@ fn an_unanswered_gather_keeps_live_agent_and_dependency_exemptions() {
         let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
         outputs(&mut d, if dependency { dependency_step() } else { waiting_step(true, false) });
         let mut clock = env();
-        clock.wall = Wall::from_nanos(clock.wall.as_nanos().saturating_add(clock.limits.change_policy.stall.as_nanos()).saturating_add(1));
+        clock.wall = Wall::from_nanos(
+            clock.wall.as_nanos().saturating_add(clock.limits.change_policy.stall.as_nanos()).saturating_add(1),
+        );
         let mut out = Queue::uncapped();
         fire(&mut d, &clock, &mut out);
-        assert!(!matches!(d.change(fixtures::CHANGE).unwrap().change.state, change::State::Held { .. }), "exemption={dependency}: {out:?}");
+        assert!(
+            !matches!(d.change(fixtures::CHANGE).unwrap().change.state, change::State::Held { .. }),
+            "exemption={dependency}: {out:?}"
+        );
         assert_eq!(d.change(fixtures::CHANGE).unwrap().change.since, clock.wall);
     }
 }

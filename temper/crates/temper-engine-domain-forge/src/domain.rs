@@ -2134,17 +2134,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         d.change_due.remove(task);
         let owner = step_owner(d, *task);
         if let Some(owner) = owner {
-            let pending = d.steps.remove(&owner).expect("collected gather");
-            wait_for_forge(d, env, &pending, None, out);
-            let held = match d.changes.get(task) {
-                Some(row) => {
-                    if let change::State::Held { .. } = row.change.state { true } else { row.terminal() }
-                },
-                None => true,
-            };
-            if !held && !connection_wait::contains(d, *task) {
-                d.steps.insert(owner, pending).expect("gather keeps its room");
-            }
+            fire_gather(d, env, owner, out);
         } else {
             emit(out, Request::WakeProcedure { task: *task });
         }
@@ -3919,6 +3909,42 @@ fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
     None
 }
 
+fn fire_gather(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    if outage::reading(d, owner) {
+        return;
+    }
+    let pending = d.steps.remove(&owner).expect("collected gather");
+    let Some(row) = d.changes.get(&pending.task) else { return };
+    if row.terminal() {
+        emit(out, Request::WakeProcedure { task: pending.task });
+        return;
+    }
+    if let change::State::Held { .. } = row.change.state {
+        d.steps.insert(owner, pending).expect("held read keeps its room");
+        return;
+    }
+    if connection_wait::waiting(d, row.task, row.repository.forge) {
+        connection_wait::wait(d, env, row.task, out);
+        return;
+    }
+    let exempt = pending.heard.delegate_live || waits_for_dependencies(row, &pending);
+    let until = skein_lib::Wall::from_nanos(
+        row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
+    );
+    if !exempt && env.wall >= until {
+        wait_for_forge(d, env, &pending, None, out);
+        return;
+    }
+    if exempt {
+        let row = d.changes.get_mut(&pending.task).expect("gather's change");
+        row.change.since = env.wall;
+        let saved = row.clone();
+        save_change(d, out, saved);
+    }
+    arm_gather(d, env, &pending);
+    d.steps.insert(owner, pending).expect("gather keeps its room");
+}
+
 fn step_owner(d: &Domain, task: u64) -> Option<Token> {
     for (owner, pending) in &d.steps {
         if pending.task == task {
@@ -3932,6 +3958,9 @@ fn step_owner(d: &Domain, task: u64) -> Option<Token> {
 // (temper/docs/design/domain/forge/change/repairs.md, Stalls).
 fn arm_gather(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep) {
     let Some(row) = d.changes.get(&pending.task) else { return };
+    if row.terminal() {
+        return;
+    }
     if let change::State::Held { .. } = row.change.state {
         return;
     }
@@ -4237,6 +4266,7 @@ fn step_read(
     if d.stopping {
         return;
     }
+    arm_gather(d, env, &pending);
     let Some(row) = d.changes.get(&pending.task) else { return };
     if row.terminal() {
         if let Some(decision) = change_terminal(row) {
@@ -4843,7 +4873,8 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
     let until = skein_lib::Wall::from_nanos(
         row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
     );
-    if pending.woken && env.wall >= until {
+    let active = if let change::State::Held { .. } = row.change.state { false } else { true };
+    if active && pending.woken && env.wall >= until && !pending.heard.delegate_live && !waits_for_dependencies(row, &pending) {
         wait_for_forge(d, env, &pending, None, out);
         return;
     }
@@ -5362,8 +5393,8 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
     None
 }
 
-// Only an ended task's slot stops being a wait after the fresh branch read.
-// Effect entries keep their own settlement, independently of the agent's end.
+// The change's ended pushing child leaves no wait after its branch read.
+// Other holders and effect entries keep their own settlement.
 fn ended_branch_writer(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> bool {
     if pending.heard.delegate_live || !pending.branch_fresh {
         return false;
@@ -5374,7 +5405,7 @@ fn ended_branch_writer(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> bo
             && crate::items::branch_matches(name, &row.branch)
         {
             return match hold.writer {
-                Some(Writer::Run { .. } | Writer::Lost { .. }) => true,
+                Some(Writer::Run { task, .. } | Writer::Lost { task, .. }) => hold.task == row.task && task != row.task,
                 Some(Writer::Entry(_)) | None => false,
             };
         }
@@ -5410,8 +5441,7 @@ fn change_facts(
     let requester_writing = change_requester_writing(d, row);
     let (writer_taken, requester_branch) = match change_branch_hold(d, row) {
         Some((holder, taken)) => (
-            taken && !requester_writing && !ended_branch_writer(d, row, pending)
-                || held_branch_merge(d, row),
+            taken && !requester_writing && !ended_branch_writer(d, row, pending) || held_branch_merge(d, row),
             holder != row.task,
         ),
         None => (false, false),
@@ -6064,18 +6094,32 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
 // shared fresh reads in the client as well as advancing its watched reads.
 fn fresh_release_reads(d: &mut Domain, env: &Env<Limits>, row: &ChangeRow, out: &mut Queue<Request>) {
     for branch in [&row.branch, &row.base] {
-        child(d, env, skein_forge_client::Event::Hint {
-            hint: skein_forge::api::Hint {
-                repository: row.repository, change: skein_forge::api::Change::Branch(branch.clone()), key: None,
+        child(
+            d,
+            env,
+            skein_forge_client::Event::Hint {
+                hint: skein_forge::api::Hint {
+                    repository: row.repository,
+                    change: skein_forge::api::Change::Branch(branch.clone()),
+                    key: None,
+                },
             },
-        }, out);
+            out,
+        );
     }
     if let Some(number) = row.pull {
-        child(d, env, skein_forge_client::Event::Hint {
-            hint: skein_forge::api::Hint {
-                repository: row.repository, change: skein_forge::api::Change::Item(number), key: None,
+        child(
+            d,
+            env,
+            skein_forge_client::Event::Hint {
+                hint: skein_forge::api::Hint {
+                    repository: row.repository,
+                    change: skein_forge::api::Change::Item(number),
+                    key: None,
+                },
             },
-        }, out);
+            out,
+        );
     }
 }
 

@@ -266,7 +266,7 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: 
                 | Read::Remember(_)
                 | Read::SettingsNote { .. }
                 | Read::ChangeDelegate { .. }
-        | Read::Notes { .. },
+                | Read::Notes { .. },
             )
             | None,
         ) => unreachable!("the refused read returns unchanged"),

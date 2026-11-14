@@ -456,7 +456,13 @@ fn an_undecided_stall_passes_up_to_a_person() {
 fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
     let (mut world, goal, task, producer) = preparing(true);
     waiting(&mut world, task, &producer, true);
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(170)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [170; 16],
+        ask: people::Ask::Say { project: 1, task, words: b"Read CI again.".as_slice().into() },
+    }));
     let mut read = None;
     for _ in 0..STEPS {
         if let Some(index) = world.events.iter().position(|event| matches!(event,
@@ -486,6 +492,7 @@ fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
         world.tick();
     }
     assert_eq!(live_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
     world.send(read);
     for _ in 0..STEPS {
         world.tick();

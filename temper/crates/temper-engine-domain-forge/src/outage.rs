@@ -110,6 +110,15 @@ pub(super) fn deadline(d: &Domain) -> Option<Time> {
         None => None,
     }
 }
+/// An explicit unavailable answer exempts this read until it answers again.
+pub(super) fn reading(d: &Domain, owner: Token) -> bool {
+    let Some(state) = &d.outage else { return false };
+    match state.reads.get(&owner) {
+        Some(reading) => reading.outage,
+        None => false,
+    }
+}
+
 pub(super) fn recommitted(d: &Domain, entry: u64) -> bool {
     match &d.outage {
         Some(state) => state.recommitted(entry),

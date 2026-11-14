@@ -82,7 +82,7 @@ pub(crate) fn call(
                 | Read::InputCheck(_)
                 | Read::GoalWords(_)
                 | Read::ChangeDelegate { .. }
-        | Read::Notes { .. }
+                | Read::Notes { .. }
                 | Read::SettingsNote { .. }
                 | Read::Remember(_),
             )

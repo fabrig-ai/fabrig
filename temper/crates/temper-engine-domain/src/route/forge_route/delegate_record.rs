@@ -1,6 +1,9 @@
 //! A release and an ended stall exemption read the delegate's durable terminal
 //! (temper/docs/design/domain/forge/change/repairs.md, Stalls and A release).
-use super::{Decision, Delivery, Domain, Env, Limits, ProcedureStep, Record, StepEnd, Token, Work, emit, forge, forge_change, tasks};
+use super::{
+    Decision, Delivery, Domain, Env, Limits, ProcedureStep, Record, StepEnd, Token, Work, emit, forge, forge_change,
+    tasks,
+};
 use crate::boundary::Read;
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -11,27 +14,37 @@ pub(super) fn is_release(domain: &Domain, task: u64) -> bool {
         return false;
     }
     let revision = record.revisions.hold;
-    domain.forge_release_steps.get(&task) != Some(&revision)
+    match domain.forge_release_steps.get(&task) {
+        Some((consumed, _)) => *consumed != revision,
+        None => true,
+    }
 }
 
 pub(super) fn take_release(domain: &mut Domain, task: u64) -> bool {
     if !is_release(domain, task) {
         return false;
     }
-    let revision = domain.core.tasks.task(task).expect("released task").revisions.hold;
-    domain.forge_release_steps.insert(task, revision).expect("one release per live change");
+    let record = domain.core.tasks.task(task).expect("released task");
+    let release = (record.revisions.hold, record.phase_since);
+    domain.forge_release_steps.insert(task, release).expect("one release per live change");
     true
 }
 
 /// Defer this activation only while its historical terminal is being read.
-pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, context: &tasks::RunContext) -> bool {
+pub(crate) fn start(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    context: &tasks::RunContext,
+) -> bool {
     let task = context.task;
     let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { return false };
     let released = take_release(domain, task);
     if released {
-        domain.forge_delegating.insert((task, step), super::ChangeStep {
-            delegate: None, relayed: None, refusal: None, released: true,
-        }).expect("one release per change step");
+        domain
+            .forge_delegating
+            .insert((task, step), super::ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
+            .expect("one release per change step");
         super::super::forge_event(domain, env, decision, forge::Event::ReleaseChange { task });
     }
     let Some(row) = domain.forge.change(task) else { return false };
@@ -48,9 +61,15 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
     let revision = domain.core.tasks.task(task).expect("due change").revisions.hold;
     let read = Read::ChangeDelegate { task, child, step, revision };
     match domain.archive_reads.insert(Some(read)) {
-        Ok(waiter) => emit(decision, &env.limits, Delivery::Load {
-            waiter: waiter.token(), range: crate::Range::Core(crate::CoreRange::TaskResult { task: child }), after: None,
-        }),
+        Ok(waiter) => emit(
+            decision,
+            &env.limits,
+            Delivery::Load {
+                waiter: waiter.token(),
+                range: crate::Range::Core(crate::CoreRange::TaskResult { task: child }),
+                after: None,
+            },
+        ),
         Err(_) => retry(domain, env, task, step),
     }
     true
@@ -73,13 +92,24 @@ fn retry(domain: &mut Domain, env: &Env<Limits>, task: u64, step: u64) {
     let until = skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(1_000_000_000));
     domain.forge.wait_change(&env.with(env.limits.forge), task, Some(until));
     domain.work.push(Work::Core(core::Event::ProcedureStep {
-        task, step, connector: domain.config.forge_connector, code: super::CHANGE_CODE,
+        task,
+        step,
+        connector: domain.config.forge_connector,
+        code: super::CHANGE_CODE,
         decision: ProcedureStep::new(StepEnd::Wait),
     }));
 }
 
-pub(crate) fn loaded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, waiter: Token, rows: Option<Box<[Record]>>) {
-    let Some(Read::ChangeDelegate { task, child, step, revision }) = crate::archive::take_read(domain, waiter) else { return };
+pub(crate) fn loaded(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    waiter: Token,
+    rows: Option<Box<[Record]>>,
+) {
+    let Some(Read::ChangeDelegate { task, child, step, revision }) = crate::archive::take_read(domain, waiter) else {
+        return;
+    };
     domain.archive_reads.retire(skein_lib::Id::from_token(waiter));
     let Some(record) = domain.core.tasks.task(task) else { return };
     let Some((_, _, due)) = domain.core.tasks.procedure_due(task) else { return };
@@ -88,26 +118,48 @@ pub(crate) fn loaded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Deci
     if record.revisions.hold != revision || due != step || expected != child {
         return;
     }
-    let Some(rows) = rows else { retry(domain, env, task, step); return };
+    let Some(rows) = rows else {
+        retry(domain, env, task, step);
+        return;
+    };
     let mut ended = None;
     for row in rows {
         if let Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) = row
-            && row.number == child && row.requester == tasks::Party::Task(task)
+            && row.number == child
+            && row.requester == tasks::Party::Task(task)
         {
             ended = Some(row);
         }
     }
-    let Some(ended) = ended else { retry(domain, env, task, step); return };
-    let tasks::Phase::Ended(ending) = &ended.phase else { retry(domain, env, task, step); return };
+    let Some(ended) = ended else {
+        retry(domain, env, task, step);
+        return;
+    };
+    let tasks::Phase::Ended(ending) = &ended.phase else {
+        retry(domain, env, task, step);
+        return;
+    };
     if let tasks::Ending::Done(tasks::TaskResult::Change { title, words, .. }) = ending {
-        super::super::forge_event(domain, env, decision, forge::Event::ProducedTitle {
-            task, child, title: title.words.clone(), report: words.clone(),
-        });
+        super::super::forge_event(
+            domain,
+            env,
+            decision,
+            forge::Event::ProducedTitle { task, child, title: title.words.clone(), report: words.clone() },
+        );
     }
     let (status, no_change, failed, cancelled, words) = terminal(ending);
-    super::super::forge_event(domain, env, decision, forge::Event::DelegateResult {
-        task, child, ended_at: ended.ended_at, status, no_change, failed, cancelled, words,
-    });
+    // An end recovered by a release cannot spend that release's fresh allowance.
+    let ended_at = match (ended.ended_at, domain.forge_release_steps.get(&task)) {
+        (Some(at), Some((_, released))) => Some(at.max(*released)),
+        (at, None) => at,
+        (None, Some(_)) => None,
+    };
+    super::super::forge_event(
+        domain,
+        env,
+        decision,
+        forge::Event::DelegateResult { task, child, ended_at, status, no_change, failed, cancelled, words },
+    );
     if let Some(context) = domain.core.tasks.run_context(task)
         && !super::start_change(domain, env, &context)
     {
@@ -126,7 +178,9 @@ fn terminal(ending: &tasks::Ending) -> (forge_change::Status, bool, bool, bool, 
             tasks::TaskResult::NoChange { words } => (Passed, true, false, false, words.clone()),
             tasks::TaskResult::Failure { reason } => (Failed, false, true, false, reason.clone()),
             tasks::TaskResult::Job { bytes } => (Passed, false, false, false, bytes.clone()),
-            tasks::TaskResult::Approved { words, .. } => (Failed, false, false, false, words.clone().unwrap_or_default()),
+            tasks::TaskResult::Approved { words, .. } => {
+                (Failed, false, false, false, words.clone().unwrap_or_default())
+            }
         },
         tasks::Ending::Failed { reason } => (Failed, false, true, false, reason.clone()),
         tasks::Ending::Cancelled { reason, .. } => (Failed, false, false, true, reason.clone()),
@@ -140,8 +194,13 @@ mod tests {
     #[test]
     fn a_recovered_negative_verdict_is_still_negative() {
         let ending = tasks::Ending::Done(tasks::TaskResult::Verdict {
-            code: 2, fields: Box::new([]), words: b"Needs a repair".as_slice().into(),
+            code: 2,
+            fields: Box::new([]),
+            words: b"Needs a repair".as_slice().into(),
         });
-        assert_eq!(terminal(&ending), (forge_change::Status::Failed, false, false, false, b"Needs a repair".as_slice().into()));
+        assert_eq!(
+            terminal(&ending),
+            (forge_change::Status::Failed, false, false, false, b"Needs a repair".as_slice().into())
+        );
     }
 }

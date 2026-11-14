@@ -162,9 +162,9 @@ mod change_producer;
 mod early_start;
 mod follows;
 
+mod delivered_change;
 #[path = "forge_routes/goal_questions.rs"]
 mod goal_questions;
-mod delivered_change;
 
 mod goal_delivery;
 #[path = "forge_routes/goal_landing.rs"]
