@@ -83,6 +83,17 @@ impl Judge<'_> {
         self.stage = Stage::Restart;
         Ok(())
     }
+    pub(super) fn saved_result(&self) -> Result<(), String> {
+        let file = self.forge.repository_observation("acme", "widget", "contents/walk/line-2?ref=main");
+        let encoded: Vec<_> =
+            file["content"].as_str().ok_or("saved file")?.bytes().filter(|byte| !byte.is_ascii_whitespace()).collect();
+        let bytes = skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, &encoded, 1024)
+            .map_err(|why| format!("saved file: {why:?}"))?;
+        if bytes.as_ref() != b"Saved work\nDelivered work\n" {
+            return Err(format!("saved work retained: {}", String::from_utf8_lossy(&bytes)));
+        }
+        Ok(())
+    }
     pub(super) fn remaining_delivery(&mut self, procs: &mut [Process]) -> Result<(), String> {
         let Some(list) = self.read(procs, &["landing", "list", "--project", "1", "--ended"]) else { return Ok(()) };
         if let Some(row) = list["landings"].as_array().ok_or("landings")?.iter().find(|row| row["phase"] != "landed") {

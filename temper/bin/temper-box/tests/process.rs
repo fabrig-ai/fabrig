@@ -181,6 +181,15 @@ fn four_goals_land_together_after_loading_batch_four() {
     support::turn_drills::run(support::turn_drills::Drill::BatchFour);
 }
 
+/// temper/docs/design/domain/landing.md, 7 and 9: the third member is blamed and repaired.
+#[test]
+fn a_breaking_third_goal_is_narrowed_and_repaired_in_batch_four() {
+    support::turn_drills::run(support::turn_drills::Drill::Breaking);
+}
+
+
+
+
 /// temper/docs/design/testing/process-tier.md: a queue that lands green.
 #[test]
 fn a_batch_of_three_lands_by_one_fast_forward() {

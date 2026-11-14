@@ -2,6 +2,8 @@
 //! temper/docs/design/domain/landing.md, 5, 7, 8 and 15.
 mod batch;
 mod delivery;
+mod departures;
+mod go_live;
 use super::{
     Process, Scratch,
     batch_landing::call,
@@ -27,6 +29,24 @@ pub enum Drill {
     Phases,
     Delivery,
     BatchFour,
+    Breaking,
+    Conflict,
+    GoLive,
+    Moving,
+}
+impl Drill {
+    fn members(self) -> usize {
+        if self == Self::Moving {
+            3
+        } else if self.is_batch() {
+            4
+        } else {
+            3
+        }
+    }
+    fn is_batch(self) -> bool {
+        matches!(self, Self::BatchFour | Self::Breaking | Self::Conflict | Self::Moving)
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Stage {
@@ -40,6 +60,8 @@ enum Stage {
     WorkerStopping,
     DeliveryRest,
     Batch,
+    GoLiveApply,
+    GoLiveStays,
     Stop,
 }
 
@@ -50,7 +72,7 @@ fn write(path: &Path, value: &Value) {
     super::write_private(path, &serde_json::to_vec(value).expect("fixture JSON"));
 }
 
-fn configure(root: &Path, repository: u64) {
+fn configure(root: &Path, repository: u64, drill: Drill) {
     turn_restart::configure(root, repository);
     let path = root.join("temper.json");
     let mut value = document(&path);
@@ -64,6 +86,9 @@ fn configure(root: &Path, repository: u64) {
     // A restart heals while the worker retains its prepare job and agent workspace.
     value["engine"]["limits"]["overrides"]["fleet.grace_ms"] = 30_000.into();
     value["application"]["limits"]["overrides"]["forge.client.fallback_ms"] = 1000.into();
+    if drill == Drill::GoLive {
+        value["application"]["landing"]["projects"][0]["by"] = "queue".into();
+    }
     write(&path, &value);
 }
 
@@ -117,11 +142,11 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
     let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
     shared.retain(|script| !script.cue.starts_with(b"## Task\n\n@coding"));
     let mut scripts = shared;
-    for number in 1..=if drill == Drill::BatchFour { 4 } else { 3 } {
+    for number in 1..=drill.members() {
         let words = format!("@drill-code-{number} Edit line {number}");
         let mut child = delegate["batch"][0].clone();
         child["spec"]["words"] = words.clone().into();
-        if drill == Drill::BatchFour {
+        if drill.is_batch() {
             child["tracked"] = json!({"priority":number});
         }
         let mut goal = owner.clone();
@@ -134,8 +159,14 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
             call(b"finish", &json!({"form":"change","fields":{"title":format!("Drill change {number}"),"body":"Edit one line."}})),
         ]) });
     }
-    if drill == Drill::BatchFour {
+    if drill.is_batch() {
         batch::scripts(&mut scripts);
+        if matches!(drill, Drill::Breaking | Drill::Conflict | Drill::Moving) {
+            departures::scripts(&mut scripts, drill);
+        }
+    }
+    if drill == Drill::GoLive {
+        go_live::scripts(&mut scripts);
     }
     if drill == Drill::Delivery {
         delivery::scripts(&mut scripts);
@@ -178,7 +209,7 @@ fn peer(root: &Path, forge: &Throwaway, drill: Drill) -> super::llm::Listening {
     peer
 }
 
-fn setup(root: &Path) -> Vec<ctl::Step> {
+fn setup(root: &Path, drill: Drill) -> Vec<ctl::Step> {
     let mut steps = turn_restart::setup(root);
     steps
         .push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "template", "1", "--json"]).in_directory("private")));
@@ -192,7 +223,7 @@ fn setup(root: &Path) -> Vec<ctl::Step> {
             value["flags"]["listed"] = true.into();
             value["flags"]["ended_by"] = "result".into();
             value["tracked"] = 1.into();
-            value["deadline"] = json!({"span":270_000_000_000_u64});
+            value["deadline"] = json!({"span":3_600_000_000_000_u64});
             value["label"] = 2.into();
         });
         let mut change = document(&file);
@@ -200,6 +231,29 @@ fn setup(root: &Path) -> Vec<ctl::Step> {
         write(&file, &change);
         ctl::settings_change(calls.last().expect("settings revision"), &file, "drill-template").in_directory("private")
     })));
+    for charter in [1, 2, 4] {
+        steps.push(ctl::Step::Run(
+            ctl::Call::new(&["settings", "show", "charter", &charter.to_string(), "--json"]).in_directory("private"),
+        ));
+    }
+    steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "--json"]).in_directory("private")));
+    let file = root.join("drill-charters.json");
+    steps.push(ctl::Step::Then(Box::new(move |calls| {
+        let mut items = Vec::new();
+        for ended in &calls[calls.len() - 4..calls.len() - 1] {
+            let packet = ctl::json(ended);
+            let mut value = packet["value"].clone();
+            assert!(value["time"].is_number(), "charter time");
+            value["time"] = 270_000_000_000_u64.into();
+            items.push(json!({"setting":packet["setting"],"set":value}));
+        }
+        write(&file, &json!({"items":items}));
+        ctl::settings_change(calls.last().expect("settings revision"), &file, "drill-agent-deadlines")
+            .in_directory("private")
+    })));
+    if drill == Drill::GoLive {
+        go_live::setup(root, &mut steps);
+    }
     steps
 }
 
@@ -208,6 +262,9 @@ struct Judge<'a> {
     worker: PathBuf,
     drill: Drill,
     delivery_armed: bool,
+    go_live_revision: Option<u64>,
+    go_live_call: Option<usize>,
+    go_live_applied: bool,
     batch: batch::Batch,
     forge: &'a Throwaway,
     barrier: &'a JobBarrier,
@@ -218,7 +275,9 @@ struct Judge<'a> {
     poll: Time,
     deadline: super::patience::Patience,
     failure: Option<String>,
+    failed_at: Option<Time>,
     pending: Option<(Vec<String>, usize)>,
+    transient: Vec<usize>,
     reads: BTreeMap<Vec<String>, Value>,
     setup_count: usize,
     checked: usize,
@@ -252,9 +311,11 @@ impl Judge<'_> {
         let Some((key, index)) = self.pending.as_ref() else { return Ok(()) };
         let Some(ended) = calls(procs).ends().get(*index) else { return Ok(()) };
         if ended.exit != Some(Exit::Code(0)) {
-            if matches!(self.stage, Stage::Resume | Stage::Batch)
+            if (matches!(self.stage, Stage::Resume | Stage::GoLiveApply)
+                || (self.stage == Stage::Batch && self.batch.starting()))
                 && String::from_utf8_lossy(&ended.stderr).contains("nothing listens")
             {
+                self.transient.push(*index);
                 self.pending = None;
                 return Ok(());
             }
@@ -292,6 +353,9 @@ impl Judge<'_> {
         self.stage = Stage::Observe;
     }
     fn observe(&mut self, procs: &mut [Process]) -> Result<(), String> {
+        if self.drill == Drill::GoLive {
+            Self::release_go_live(procs)?;
+        }
         let task = if let Some(panel) = &self.panel {
             panel["task"].as_u64().ok_or("landing task")?
         } else {
@@ -308,6 +372,17 @@ impl Judge<'_> {
         if self.drill == Drill::Delivery {
             self.panel = Some(panel.clone());
             return self.delivery(procs, &panel);
+        }
+        if self.drill == Drill::GoLive {
+            self.panel = Some(panel.clone());
+            if panel["phase"] == "proving"
+                && let Some(run) = self.barrier.waiting(None)
+            {
+                self.run = Some(run);
+                self.barrier.release(run);
+                self.stage = Stage::Resume;
+            }
+            return Ok(());
         }
         let phase = ["preparing", "proving", "turn"][usize::try_from(self.number - 1).expect("three phases")];
         if self.number == 3
@@ -370,9 +445,9 @@ impl Judge<'_> {
             }
         }
         self.drive(procs)?;
-        for ended in calls(procs).ends() {
+        for (index, ended) in calls(procs).ends().iter().enumerate() {
             if ended.exit.is_some_and(|exit| exit != Exit::Code(0)) {
-                if self.restarts > 0 && String::from_utf8_lossy(&ended.stderr).contains("nothing listens") {
+                if self.transient.contains(&index) {
                     continue;
                 }
                 return Err(format!(
@@ -434,14 +509,20 @@ impl Judge<'_> {
                     self.checked = 1;
                 }
                 if calls(procs).foreground_idle() {
-                    if self.drill == Drill::BatchFour {
+                    if self.drill.is_batch() {
                         self.begin_batch(procs);
                     } else {
                         self.start_goal(procs);
                     }
                 }
             }
-            Stage::Observe => self.observe(procs)?,
+            Stage::Observe => {
+                if self.drill == Drill::GoLive && !self.go_live_applied {
+                    self.go_live_cut(procs)?;
+                } else {
+                    self.observe(procs)?;
+                }
+            }
             Stage::Restart => {
                 if !binary(procs, 0).is_empty() {
                     return Ok(());
@@ -461,7 +542,13 @@ impl Judge<'_> {
                 if self.drill == Drill::Phases && self.number == 2 {
                     self.barrier.release(self.run.ok_or("held gate")?);
                 }
-                self.stage = if self.drill == Drill::BatchFour { Stage::Batch } else { Stage::Resume };
+                self.stage = if self.drill.is_batch() {
+                    Stage::Batch
+                } else if self.drill == Drill::GoLive {
+                    Stage::GoLiveApply
+                } else {
+                    Stage::Resume
+                };
             }
             Stage::Resume => {
                 let task = self.panel.as_ref().ok_or("retained landing")?["task"].as_u64().ok_or("task")?;
@@ -494,7 +581,9 @@ impl Judge<'_> {
                     return Err(format!("restart spends no repair: {change}"));
                 }
                 eprintln!("drill 5: resumed and landed: {panel}; {change}");
-                if self.drill == Drill::Delivery {
+                if self.drill == Drill::GoLive {
+                    self.stage = Stage::Verify;
+                } else if self.drill == Drill::Delivery {
                     if self.number == 1 {
                         self.number = 2;
                         self.stage = Stage::DeliveryRest;
@@ -513,7 +602,13 @@ impl Judge<'_> {
                     return Ok(());
                 };
                 let rows = list["landings"].as_array().ok_or("landings")?;
-                let expected = if self.drill == Drill::Phases { 3 } else { 2 };
+                let expected = if self.drill == Drill::Phases {
+                    3
+                } else if self.drill == Drill::GoLive {
+                    1
+                } else {
+                    2
+                };
                 if rows.len() != expected || rows.iter().any(|row| row["phase"] != "landed") {
                     return Err(format!("exactly three landings: {list}"));
                 }
@@ -528,8 +623,13 @@ impl Judge<'_> {
                 {
                     return Err(format!("one dispatch per landing: {runs}"));
                 }
+                if self.drill == Drill::Delivery {
+                    self.saved_result()?;
+                }
                 self.stop(procs);
             }
+            Stage::GoLiveApply => self.go_live_apply(procs)?,
+            Stage::GoLiveStays => self.go_live_stays(procs)?,
             Stage::Batch => self.batch(procs)?,
             Stage::WorkerStopping => self.stopped_worker(procs)?,
             Stage::DeliveryRest => self.remaining_delivery(procs)?,
@@ -540,17 +640,84 @@ impl Judge<'_> {
 }
 impl Referee<Process> for Judge<'_> {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
-        if self.failure.is_some() || now < self.poll {
+        if self.failure.is_some() {
+            if self.failed_at.is_none() {
+                self.failed_at = Some(now);
+                for index in [0, 3] {
+                    if binary(procs, index).exit_status().is_none() {
+                        binary(procs, index).signal(Signal::Terminate);
+                    }
+                }
+            }
+            calls(procs).cancel();
+            if let Some(run) = self.barrier.waiting(None) {
+                self.barrier.release(run);
+            }
+            for proc in procs {
+                if let Process::Peer(peer) = proc {
+                    for name in [
+                        b"drill-repair".as_slice(),
+                        b"drill-batch-reviews",
+                        b"drill-batch-ready",
+                        b"drill-saved",
+                        b"drill-second",
+                        b"drill-go-live",
+                        b"drill-moving",
+                    ] {
+                        let _released = peer.release(name);
+                    }
+                    peer.shutdown();
+                }
+            }
+            self.poll = now.saturating_add(Duration::from_millis(10));
             return;
         }
-        self.poll = now.saturating_add(Duration::from_millis(10));
+        if now < self.poll {
+            return;
+        }
+        self.poll = now.saturating_add(Duration::from_millis(100));
         if let Err(why) = self.sample(procs) {
             self.failure = Some(why);
         }
     }
-    fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        if self.failure.is_some()
+            && !procs.iter().all(Host::is_empty)
+            && self.failed_at.is_none_or(|at| now.saturating_since(at) < Duration::from_secs(20))
+        {
+            return Ok(());
+        }
         if let Some(why) = self.failure.take() {
+            eprintln!("drill {:?}: stage {:?}; batch {:?}", self.drill, self.stage, self.batch);
+            for (index, proc) in procs.iter().enumerate() {
+                let binary = match proc {
+                    Process::Binary(binary) => Some(binary.as_ref()),
+                    Process::Member(member) => Some(member.binary()),
+                    _ => None,
+                };
+                if let Some(binary) = binary {
+                    eprintln!(
+                        "process {index} {:?}: {}",
+                        binary.exit_status(),
+                        super::without_secrets(binary.stderr())
+                    );
+                }
+            }
             return Err(why);
+        }
+        if self.stage == Stage::Stop && procs.iter().all(Host::is_empty) {
+            for index in [0, 3] {
+                let Process::Member(member) = &procs[index] else {
+                    return Err("a restarted engine and external worker".into());
+                };
+                if member.binary().exit_status() != Some(Exit::Code(0)) {
+                    return Err(format!(
+                        "process {index} did not drain: {:?}: {}",
+                        member.binary().exit_status(),
+                        super::without_secrets(member.binary().stderr())
+                    ));
+                }
+            }
         }
         if let Process::Person(person) = &procs[1]
             && let Some(why) = &person.failed
@@ -559,7 +726,12 @@ impl Referee<Process> for Judge<'_> {
         }
         if let Some(figures) = self.deadline.failed() {
             for (i, proc) in procs.iter().enumerate() {
-                if let Process::Binary(binary) = proc {
+                let binary = match proc {
+                    Process::Binary(binary) => Some(binary.as_ref()),
+                    Process::Member(member) => Some(member.binary()),
+                    _ => None,
+                };
+                if let Some(binary) = binary {
                     eprintln!("binary {i}: {}", super::without_secrets(binary.stderr()));
                 }
             }
@@ -586,18 +758,19 @@ pub fn run(drill: Drill) {
     let root = scratch.path();
     let barrier = JobBarrier::new(root);
     let forge = turn_restart::start(&scratch);
-    let workflow = barrier.gate_workflow(super::landing_by_turn::WORKFLOW);
+    let workflow =
+        barrier.gate_workflow(&super::landing_by_turn::WORKFLOW.replace("&& sh check.sh", "&& test ! -e walk/red"));
     forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
     for number in 1..=4 {
         forge.add_file(&format!("walk/line-{number}"), b"Before\n");
     }
     super::configuration(root, &forge.forge());
-    configure(root, forge.repository());
+    configure(root, forge.repository(), drill);
     let peer = peer(root, &forge, drill);
     let worker = split(root);
     let mut binary = super::serve(root);
     let streams = binary.take_streams().expect("engine pipes");
-    let steps = setup(root);
+    let steps = setup(root, drill);
     let setup_count = steps.len();
     let clock = Clock::new();
     let mut world = real::World::new(Judge {
@@ -605,6 +778,9 @@ pub fn run(drill: Drill) {
         worker: worker.clone(),
         drill,
         delivery_armed: false,
+        go_live_revision: None,
+        go_live_call: None,
+        go_live_applied: false,
         batch: batch::Batch::default(),
         forge: &forge,
         barrier: &barrier,
@@ -615,7 +791,9 @@ pub fn run(drill: Drill) {
         poll: clock.now().now,
         deadline: super::patience::Patience::watching("staging restart phases", super::LANDING, &binary),
         failure: None,
+        failed_at: None,
         pending: None,
+        transient: Vec::new(),
         reads: BTreeMap::new(),
         setup_count,
         checked: 0,
