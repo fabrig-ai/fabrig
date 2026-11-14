@@ -182,7 +182,7 @@ pub(crate) fn told(state: &mut Tiers, env: &Env<Limits>, told: &Told, out: &mut 
         Told::Answered { key, outcome } => {
             let Some(pending) = state.pending.remove(key) else { return };
             let request = decoded(&pending.request).expect("tier request");
-            if request.repository().is_none() {
+            if request.repository().is_none() && has_tier_answer(outcome) {
                 state.next_read = state.next_read.checked_add(1).expect("tier home read sequence");
                 let handle = Handle { asker: Owner::Forge.asker(), number: (state.next_read << 32) | 0x74 };
                 out.push(Out::Client {
@@ -205,6 +205,15 @@ pub(crate) fn told(state: &mut Tiers, env: &Env<Limits>, told: &Told, out: &mut 
         | Told::Link { .. }
         | Told::Text { .. } => {}
     }
+}
+fn has_tier_answer(outcome: &Outcome) -> bool {
+    let Outcome::Answered(jig_client::Answered::Family(record)) = outcome else { return false };
+    if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
+        return false;
+    }
+    let Some(answer) = decode_answer(&record.bytes) else { return false };
+    let w::Outcome::Tier(_) = answer.into_parts().outcome else { return false };
+    true
 }
 fn home(result: &Readout) -> Option<w::DraftRepository> {
     let Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) = result else { return None };
