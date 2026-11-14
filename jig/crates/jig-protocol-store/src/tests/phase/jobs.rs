@@ -4,7 +4,7 @@ use super::*;
 use crate::{Converts, Job, JobAnswer, JobPage, JobRefusal, JobWrite, KeyRange, Owner, PatchSet, PatchSets};
 use alloc::collections::VecDeque;
 
-const JIG_JOB: Job = Job {
+const UPSTREAM_JOB: Job = Job {
     name: "notes-to-labels",
     keys: &[KeyRange { from: jig_test_patches_jig::keys::NOTES_FROM, to: jig_test_patches_jig::keys::NOTES_TO }],
     converts: None,
@@ -18,10 +18,10 @@ const FOLLOW: Job =
     Job { name: "read-the-first-jobs-writes", keys: &[KeyRange { from: b"l", to: b"m" }], converts: None };
 const JOBS: PatchSets = PatchSets {
     // Deliberately downstream first: the component chooses Owner's order.
-    sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..BASE.sets[0] }, PatchSet { jobs: &[JIG_JOB], ..BASE.sets[1] }],
+    sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..BASE.sets[0] }, PatchSet { jobs: &[UPSTREAM_JOB], ..BASE.sets[1] }],
 };
 const PATCHES_AND_JOBS: PatchSets = PatchSets {
-    sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..SETS.sets[0] }, PatchSet { jobs: &[JIG_JOB], ..SETS.sets[1] }],
+    sets: &[PatchSet { jobs: &[APP_JOB, FOLLOW], ..SETS.sets[0] }, PatchSet { jobs: &[UPSTREAM_JOB], ..SETS.sets[1] }],
 };
 fn store(disk: &Disk, sets: PatchSets) -> Store {
     let mut store = disk.store_with_chunk(CHUNK);
@@ -178,7 +178,7 @@ fn pending_jobs_page_in_owner_and_set_order_commit_answers_then_seal_and_run_no_
     else {
         panic!("job progress: {events:?}")
     };
-    assert_eq!(jig.as_ref(), JIG_JOB.name);
+    assert_eq!(jig.as_ref(), UPSTREAM_JOB.name);
     assert_eq!(app_job.as_ref(), APP_JOB.name);
     assert_eq!(follow.as_ref(), FOLLOW.name);
     assert_eq!(*last, FIXTURE_LAST + 13);
@@ -211,7 +211,7 @@ fn an_empty_stores_first_commit_marks_every_declared_job_done() {
         _ => false,
     });
     for (of, name) in
-        [(Owner::Jig, JIG_JOB.name), (Owner::Application, APP_JOB.name), (Owner::Application, FOLLOW.name)]
+        [(Owner::Jig, UPSTREAM_JOB.name), (Owner::Application, APP_JOB.name), (Owner::Application, FOLLOW.name)]
     {
         assert_eq!(done(&mut store, of, name), Some(1));
     }
@@ -274,7 +274,7 @@ fn refused_or_out_of_bounds_answers_abandon_the_copy_and_retry_from_the_first_pa
         assert!(
             match events.as_ref() {
                 [Event::OpenRefused { why: OpenRefusal::Job { owner: Owner::Jig, job, .. }, .. }]
-                    if job.as_ref() == JIG_JOB.name =>
+                    if job.as_ref() == UPSTREAM_JOB.name =>
                     true,
                 _ => false,
             },
@@ -329,7 +329,7 @@ fn patches_finish_before_pending_jobs_and_the_seal_follows_the_jobs() {
 
 #[test]
 fn job_admission_checks_names_ranges_map_and_written_family_on_both_owners() {
-    for (base, job) in [(BASE.sets[0], APP_JOB), (BASE.sets[1], JIG_JOB)] {
+    for (base, job) in [(BASE.sets[0], APP_JOB), (BASE.sets[1], UPSTREAM_JOB)] {
         let first = job.keys[0];
         let half: &'static [u8] = if base.owner == Owner::Application { b"l/x" } else { &[2, b'n', b'/', b'x'] };
         let ordered: &'static [KeyRange] =
