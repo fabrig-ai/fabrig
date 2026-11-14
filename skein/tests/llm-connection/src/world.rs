@@ -48,37 +48,55 @@ impl Judge {
     }
 
     /// Observe exactly one owner event, without reading the component's state.
-    pub fn observe(&mut self, event: &Event) {
-        assert!(!self.closed, "nothing follows Closed");
+    pub fn observe(&mut self, event: &Event) -> Result<(), String> {
+        if self.closed {
+            return Err("nothing follows Closed".into());
+        }
         match event {
             Event::Closed => {
-                assert!(self.pending.is_empty(), "every call has its terminal before Closed");
+                if !self.pending.is_empty() {
+                    return Err("every call has its terminal before Closed".into());
+                }
                 self.closed = true;
             }
             Event::Completed { call, .. } => {
-                assert!(self.pending.remove(call), "one terminal per call");
+                if !self.pending.remove(call) {
+                    return Err("one terminal per call".into());
+                }
                 self.completed += 1;
             }
             Event::Cancelled { call, .. } => {
-                assert!(self.pending.remove(call), "one terminal per call");
+                if !self.pending.remove(call) {
+                    return Err("one terminal per call".into());
+                }
                 self.cancelled += 1;
             }
             Event::Failed { call, .. } => {
-                assert!(self.pending.remove(call), "one terminal per call");
+                if !self.pending.remove(call) {
+                    return Err("one terminal per call".into());
+                }
                 self.failed += 1;
             }
             Event::Delta { call, .. } | Event::Block { call, .. } => {
-                assert!(self.pending.contains(call), "output belongs to an active call");
+                if !self.pending.contains(call) {
+                    return Err("output belongs to an active call".into());
+                }
                 self.deltas += 1;
             }
             Event::Refused { .. } => self.refused += 1,
         }
+        Ok(())
     }
 
     /// Waiting solely for lower settlement must let the owning loop sleep.
-    pub fn settlement(&self, work: bool, deadline: Option<Time>, now: Time) {
-        assert!(!work, "io settlement alone is not runnable work");
-        assert!(deadline.is_none_or(|deadline| deadline > now), "no past-due wake while only io settles");
+    pub fn settlement(&self, work: bool, deadline: Option<Time>, now: Time) -> Result<(), String> {
+        if work {
+            return Err("io settlement alone is not runnable work".into());
+        }
+        if deadline.is_some_and(|deadline| deadline <= now) {
+            return Err("no past-due wake while only io settles".into());
+        }
+        Ok(())
     }
 }
 
@@ -402,7 +420,9 @@ impl World {
     pub fn tick(&mut self) {
         if let Some(event) = self.above.pop() {
             self.events.push(format!("{event:?}"));
-            self.judge.observe(&event);
+            if let Err(finding) = self.judge.observe(&event) {
+                panic!("{finding}");
+            }
             if let Event::Delta { call, .. } | Event::Block { call, .. } = event {
                 self.request(Request::Next { call });
             }
@@ -519,7 +539,11 @@ impl World {
         assert!(self.judge.closed);
         assert!(self.peers.values().all(|peer| peer.settled));
         assert!(self.above.is_empty() && self.below.is_empty());
-        self.judge.settlement(self.component.has_work(), self.component.next_deadline(), self.env.now);
+        if let Err(finding) =
+            self.judge.settlement(self.component.has_work(), self.component.next_deadline(), self.env.now)
+        {
+            panic!("{finding}");
+        }
         for peer in self.peers.values_mut() {
             self.trace.append(&mut peer.wire.trace);
         }
