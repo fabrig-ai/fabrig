@@ -551,6 +551,7 @@ pub(crate) struct Caller {
     pub(crate) returned: Vec<crate::issuer::Returned>,
     pub(crate) released: bool,
     closing: bool,
+    pub(crate) finding: Option<String>,
     pub(crate) advanced: Cell<bool>,
     pub(crate) hold_released: Cell<bool>,
     pub(crate) added: Cell<bool>,
@@ -865,6 +866,7 @@ impl Caller {
             returned: Vec::with_capacity(visits),
             released: false,
             closing: false,
+            finding: None,
             advanced: Cell::new(false),
             hold_released: Cell::new(false),
             added: Cell::new(false),
@@ -1335,7 +1337,7 @@ impl Caller {
         self.browsed.push(self.browser.take().expect("finished browser").seen);
         true
     }
-    fn command_act(&mut self, now: Time) -> bool {
+    fn command_act(&mut self, now: Time) -> Result<bool, String> {
         let step = &self.steps[self.next];
         let Some(index) = self.current else {
             assert!(self.running.iter().flatten().count() < fixtures::CALLS_AT_ONCE as usize);
@@ -1349,32 +1351,32 @@ impl Caller {
                     .find_map(|arg| if let Arg::ActivityBefore(source) = arg { Some(*source) } else { None })
                     .expect("optional activity source");
                 if activity_cursor(&self.calls[source].stdout).is_none() {
-                    return true;
+                    return Ok(true);
                 }
             }
             let index = self.calls.len();
             self.spawn(now, index);
             self.current = Some(index);
-            return false;
+            return Ok(false);
         };
         if let Step::Start { .. } = step {
             if !self.running[index].as_ref().is_some_and(|r| r.started) {
-                return false;
+                return Ok(false);
             }
         } else if self.running[index].is_some() {
-            return false;
+            return Ok(false);
         }
         if let Step::Until { argv, .. } = step {
             let call = &self.calls[index];
-            assert_eq!(
-                call.exit,
-                Some(Exit::Code(0)),
-                "Until step {} argv={:?} exit={:?}: {}",
-                self.next,
-                self.diagnostic_argv(argv),
-                call.exit,
-                String::from_utf8_lossy(&call.stderr)
-            );
+            if call.exit != Some(Exit::Code(0)) {
+                return Err(format!(
+                    "Until step {} argv={:?} exit={:?}: {}",
+                    self.next,
+                    self.diagnostic_argv(argv),
+                    call.exit,
+                    String::from_utf8_lossy(&call.stderr)
+                ));
+            }
         }
         if let Step::Call { argv, .. } = step
             && argv.1.success
@@ -1394,18 +1396,18 @@ impl Caller {
         if matches!(step, Step::SameParty { .. }) && call.tries == 1 {
             let link = *self.retry_link.get_or_insert(self.links.get());
             if self.links.get() <= link {
-                return false;
+                return Ok(false);
             }
             self.retry_link = None;
             self.spawn(now, index);
-            return false;
+            return Ok(false);
         }
         if let Step::Until { holds, early, .. } = step
             && !holds.matches(&call.stdout)
         {
             call.early += u32::from(occurrences(&call.stdout, early) != 0);
             self.spawn(now, index);
-            return false;
+            return Ok(false);
         }
         if matches!(step,Step::Call { argv,.. } if is_settings(argv)) {
             assert_eq!(
@@ -1417,7 +1419,7 @@ impl Caller {
             );
         }
         self.current = None;
-        true
+        Ok(true)
     }
     fn skip_completed_steps(&mut self) {
         if matches!(self.steps.get(self.next), Some(Step::Held { .. })) && self.held.get() {
@@ -1431,6 +1433,9 @@ impl Caller {
         }
     }
     fn advance(&mut self, now: Time) {
+        if self.finding.is_some() {
+            return;
+        }
         self.skip_completed_steps();
         let Some(step) = self.steps.get(self.next) else {
             self.finish();
@@ -1510,15 +1515,21 @@ impl Caller {
             | Step::SameParty { .. }
             | Step::Call { .. }
             | Step::Start { .. }
-            | Step::Until { .. } => {
-                if !self.command_act(now) {
+            | Step::Until { .. } => match self.command_act(now) {
+                Ok(true) => {}
+                Ok(false) => return,
+                Err(finding) => {
+                    self.finding = Some(finding);
                     return;
                 }
-            }
+            },
         }
         self.next += 1;
     }
     fn can_advance(&self) -> bool {
+        if self.finding.is_some() {
+            return false;
+        }
         match self.steps.get(self.next) {
             Some(Step::ClaudeTurn { source }) => crate::claude::turn_started(&self.scratch, source),
             Some(Step::Authorize | Step::AuthorizeHeld | Step::Return) => {
@@ -1713,7 +1724,7 @@ mod read_condition_tests {
                 prior.stdout = serde_json::to_vec(source).expect("activity JSON");
                 caller.calls.push(prior);
                 caller.running.push(None);
-                let complete = caller.command_act(Time::ZERO);
+                let complete = caller.command_act(Time::ZERO).expect("activity page observation");
                 if page["before"].is_null() {
                     assert!(complete, "a complete journal needs no further command");
                     assert_eq!(caller.calls.len(), 1);
@@ -1881,20 +1892,22 @@ mod read_condition_tests {
         assert!(!condition.matches(b"plain pending text"));
     }
     #[test]
-    #[should_panic(
-        expected = "Until step 0 argv=[\"task\", \"show\", \"1\", \"--json\"] exit=Some(Code(1)): store cannot be read"
-    )]
     fn until_rejects_a_failed_observation_even_when_stdout_matches() {
-        failed_observation(Exit::Code(1));
+        let finding = failed_observation(Exit::Code(1));
+        assert_eq!(
+            finding,
+            "Until step 0 argv=[\"task\", \"show\", \"1\", \"--json\"] exit=Some(Code(1)): store cannot be read"
+        );
     }
     #[test]
-    #[should_panic(
-        expected = "Until step 0 argv=[\"task\", \"show\", \"1\", \"--json\"] exit=Some(Signal(15)): store cannot be read"
-    )]
     fn until_rejects_a_signaled_observation_even_when_stdout_matches() {
-        failed_observation(Exit::Signal(15));
+        let finding = failed_observation(Exit::Signal(15));
+        assert_eq!(
+            finding,
+            "Until step 0 argv=[\"task\", \"show\", \"1\", \"--json\"] exit=Some(Signal(15)): store cannot be read"
+        );
     }
-    fn failed_observation(exit: Exit) {
+    fn failed_observation(exit: Exit) -> String {
         let mut caller = Caller::new(
             vec![until(D1, crate::argv!["task", "show", "1", "--json"], b"ready", b"pending")],
             PathBuf::new(),
@@ -1905,7 +1918,22 @@ mod read_condition_tests {
         caller.calls[0].exit = Some(exit);
         caller.calls[0].stdout = b"ready".to_vec();
         caller.calls[0].stderr = b"store cannot be read".to_vec();
+        let tries = caller.calls[0].tries;
+        while caller.submissions.pop().is_some() {}
+        let finding = caller.command_act(Time::from_nanos(1)).expect_err("failed observation rejects matching stdout");
+        assert_eq!(caller.next, 0);
+        assert_eq!(caller.current, Some(0));
+        assert_eq!(caller.calls[0].tries, tries);
+        assert!(caller.submissions.is_empty(), "the failed observation is not retried");
         caller.advance(Time::from_nanos(1));
+        assert_eq!(caller.finding.as_ref(), Some(&finding), "the host keeps the finding for its judge");
+        caller.advance(Time::from_nanos(2));
+        assert_eq!(caller.next, 0);
+        assert_eq!(caller.current, Some(0));
+        assert_eq!(caller.calls[0].tries, tries);
+        assert!(caller.submissions.is_empty());
+        assert!(!caller.can_advance(), "a finding stops the story");
+        finding
     }
     #[test]
     fn real_loop_until_retries_initial_due_and_retains_exact_matching_response() {
