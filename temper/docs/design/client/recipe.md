@@ -1,11 +1,12 @@
 # Recipes
 
-Provisional, 2026-11-12. A recipe says how a fresh fake box reaches a
-state that QA's cases start from (`../draft/landed-qa.md`, 5): a
-directory in the repository, its steps in the drive session's lines
-(`drive.md`, 3), its last lines the state's check, walked by
-`temper-client-journeys recipe walk` from a fresh box or from a box a
-place restored from an ancestor's copy. The copy itself, its archive,
+Provisional, 2026-11-12, revised 2026-11-14. A recipe says how a fresh
+place of its kind, a fake box or a deployment
+(`../testing/qa/deployment.md`), reaches a state that QA's cases start
+from (`../draft/landed-qa.md`, 5): a directory in the repository, its
+steps in the drive session's lines (`drive.md`, 3), its last lines the
+state's check, walked by `temper-client-journeys recipe walk` from a
+fresh place or from one a place restored from an ancestor's copy. The copy itself, its archive,
 its place and when it is made again are the QA tool's
 (`../draft/landed-qa.md`, 5 and 9); this document gives the hash that
 names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
@@ -15,20 +16,26 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
 
 - **A directory per recipe,** `temper/docs/development/qa/setups/NAME/`:
   `recipe`, `scripts.json` where it has its own, `files/` where its
-  `forge` lines commit files, and `README.md` (section 2).
+  lines read files, `config/` for a deployment's root, and `README.md`
+  (section 2).
+- **Two kinds:** a chain whose root holds `config/` is a deployment's,
+  walked on a deployment's processes; any other a box's (section 2).
 - **Its format:** `recipe 1`; `after NAME`, its parent, where it has
-  one; its steps, drive lines of the browser, the TUI, ctl and the forge; last,
-  its check, `web see` and `tui see` lines (section 3).
+  one; its steps, drive lines of the browser, the TUI, ctl, the forge
+  and the deployment; last, its check, the `web see` and `tui see`
+  lines that end it, or the lines after a `check` record (section 3).
 - **A chain of parents,** followed by `after`: at most eight, no cycle
   (3.2).
 - **Its hash** is SHA-256 over the chain from its root, each recipe's
   name, `recipe`, `scripts.json` and files, so it changes with any
   parent's (section 4).
-- **Its walk** is one drive session: from a fresh box, every recipe of
+- **Its walk** is one drive session: from a fresh place, every recipe of
   the chain in turn, or from an ancestor's restored copy, that
   ancestor's check and then the recipes after it. Each recipe's steps
   start on the box's root page with no TUI running, and each check is
-  read there too, so a recipe walks the same from either (section 5).
+  read there too, so a recipe walks the same from either; a chain with
+  no web and no tui line walks in a ctl session, a deployment's on its
+  processes (section 5).
 - **Its first failed line stops the walk,** naming the recipe and the
   line; a place then judges it (`../draft/landed-qa.md`, 5).
 
@@ -45,15 +52,27 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
   `otherwise`, each optional. The scripts cover its own steps and,
   where its cases go on past its state, theirs
   (`../draft/landed-qa.md`, 6).
-- **`files/`,** where its `forge commit` lines commit any: each file
-  they commit, at its repository path under `files/`, so that the
-  recipe holds all it gives (`../draft/landed-qa.md`, 5): `files/PATH`
-  for a line's PATH (`drive.md`, 3.5). Each PATH a `forge commit` line
-  of the recipe names is a regular file there, at most 64 KiB, and each
-  file there is named by one of its lines; a file missing, past the
-  bound or named by none refuses the recipe, naming it. At most 64
-  files. Only the recipe's own lines read them: a child's `forge`
-  lines commit from the child's `files/`.
+- **`files/`,** where its `forge commit` lines commit any or its
+  `deployment patch` lines read any: each such file, at its path under
+  `files/`, so that the recipe holds all it gives
+  (`../draft/landed-qa.md`, 5): `files/PATH` for a line's PATH
+  (`drive.md`, 3.5 and 3.8). Each PATH a `forge commit` or `deployment
+  patch` line of the recipe names is a regular file there, at most 64
+  KiB, and each file there is named by one of its lines; a file missing,
+  past the bound or named by none refuses the recipe, naming it. At most
+  64 files. Only the recipe's own lines read them: a child's lines read
+  the child's `files/`.
+- **`config/`,** a deployment's root recipe's alone: the documents its
+  place's processes start from (`../testing/qa/deployment.md`, 2), each
+  of its five files present and nothing else, each at most 256 KiB. A
+  recipe with `config/` has no `after`; a recipe with `after` and
+  `config/` refuses, naming it.
+- **Its kind** is its chain's root's: a deployment's where the root
+  holds `config/`, a box's otherwise. A deployment's recipe takes ctl,
+  forge and deployment lines alone, until the web client and the TUI
+  reach a deployment (`../testing/qa/deployment.md`, 10): a web or tui
+  line in any recipe of such a chain refuses it, naming the line. A
+  box's recipe takes no deployment line, refused the same way.
 - **`README.md`:** one paragraph, the state it reaches and the pages and
   screens it serves. The walk does not read it; `recipe list` prints its
   first sentence (5.2).
@@ -73,16 +92,25 @@ bare, bytes in double quotes.
 |---|---|---|
 | `recipe` | `1`, the format's version | the first line |
 | `after` | a recipe's name | the second line, or absent: its parent, whose state it starts from; absent, it starts from a fresh box |
-| a step | a drive line: `web`, `tui`, `ctl` or `forge`, then its record (`drive.md`, 3.2 to 3.5) | after those, in order, none or more |
-| the check | `web see TEXT` or `tui see TEXT` | last: the run of `see` lines that ends the file, one at least |
+| a step | a drive line: `web`, `tui`, `ctl`, `forge` or `deployment`, then its record (`drive.md`, 3.2 to 3.5 and 3.8) | after those, in order, none or more |
+| `check` | none | where present, once, after the steps: every line after it is the check |
+| the check | after `check`: `ctl` lines, `web see TEXT` or `tui see TEXT`; with no `check`: `web see TEXT` or `tui see TEXT` | last, one line at least |
 
 - **A person's acts alone:** no look, no `end` and no empty line; each
   refuses the recipe, naming its line (`drive.md`, 4 keeps them out of
   the kept lines too). `tui stop` is the walk's (section 5) and refused
   in a recipe.
-- **The check** is the trailing run of `web see` and `tui see` lines; a
-  `see` before a step that isn't one is a step, which waits. A recipe
-  whose last line is not a `see` is refused, naming it.
+- **The check** is every line after `check`, where the recipe has one:
+  each a `ctl` line, which its author keeps to reads and waits
+  (`ctl/tools.md`, 2 and 4), so that its failure is the state's absence,
+  or a `see`; a `forge` or `deployment` line there refuses the recipe,
+  naming it. With no `check`, the check is
+  the trailing run of `web see` and `tui see` lines, as before; a `see`
+  before a step that isn't one is a step, which waits. A recipe with no
+  `check` whose last line is not a `see`, or a `check` with no line
+  after it, is refused, naming it. So a recipe with no web and no tui
+  line, a deployment's among them, ends with `check` and its ctl lines
+  (`../draft/landed-qa.md`, 5).
 - **At most 1024 lines.**
 
 ### 3.2 Its chain
@@ -106,9 +134,14 @@ significant first: its name, its `recipe`'s bytes, its
 `scripts.json`'s bytes, empty where it has none, then the number of
 its files (none where it has no `files/`) as 8 bytes, and for each file
 of `files/`, in the byte order of their paths, its path relative to
-`files/` and its bytes. Written as 64 lowercase hexadecimal digits.
+`files/` and its bytes; then the number of its `config/` files (none
+where it has no `config/`) as 8 bytes, and for each, in the byte order
+of their names, its name and its bytes. Written as 64 lowercase
+hexadecimal digits. Every recipe's hash changed once with `config/`'s
+part, in Q6, so each copy is made again once at its next restore
+(`../testing/qa/places.md`, 4).
 
-- **It changes with any parent's** recipe, scripts, files or name, so
+- **It changes with any parent's** recipe, scripts, files, documents or name, so
   that a copy named by it is never restored for a chain that differs
   (`../draft/landed-qa.md`, 5 and 11). `README.md` is not hashed: a
   reworded paragraph makes no copy again.
@@ -120,8 +153,20 @@ of `files/`, in the byte order of their paths, its path relative to
 ### 5.1 `recipe walk`
 
 ```text
-temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]
+temper-client-journeys recipe walk NAME --bin DIR [--bundle DIR] --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]
 ```
+
+- **Its session by the chain's kind** (section 2):
+  - **a box's, with a web or tui line** in any of its recipes: a drive
+    session as below, `--bundle` required;
+  - **a box's with none:** a ctl session (`drive.md`, 2.6), `--bundle`
+    required, as the box takes it;
+  - **a deployment's:** a deployment's session, `--deployment` the
+    root's `config/` (`../testing/qa/deployment.md`), `--ports`
+    required, `--bundle` not taken.
+
+  A walk without what its kind requires refuses before anything starts,
+  naming it.
 
 - **The chain read first:** a refusal of section 3 comes before
   anything starts, naming the recipe and its line.
@@ -143,14 +188,18 @@ temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--
   - from a fresh box: for each Ri, its steps, then `web reload "/"` and
     `tui stop`, then its check;
   - from Rj's copy: Rj's check, then for each Ri after Rj, its steps,
-    then `web reload "/"` and `tui stop`, then its check.
+    then `web reload "/"` and `tui stop`, then its check;
+  - in a ctl session, a box's or a deployment's, the same with no
+    `web reload "/"` and no `tui stop`: there is no page and no TUI to
+    put back. A deployment's fresh place is its root's documents,
+    prepared (`../testing/qa/deployment.md`, 4).
 
   The session starts on the root page with no TUI (`drive.md`, 2.3), so
   each recipe's steps start there, and each check is read there, as a
   restored copy shows it.
-- **Each recipe's files:** a `forge commit` line reads its PATHs from
-  the `files/` of the recipe that holds the line (section 2), never
-  from another recipe's or a `--files` directory.
+- **Each recipe's files:** a `forge commit` or `deployment patch` line
+  reads its PATHs from the `files/` of the recipe that holds the line
+  (section 2), never from another recipe's or a `--files` directory.
 - **Its output:** each answer of the session, every line of it prefixed
   `NAME:N `, the recipe and the line of its file that gave it, or
   `walk:` for the walk's own `web reload "/"` and `tui stop`.
@@ -204,11 +253,23 @@ Focused, with no browser and no box:
   order.
 - **Refused:** a cycle of two, a ninth parent, a missing parent, a
   recipe that ends on a step, a look, an `end`, a `tui stop`, a file
-  beyond the four, a name out of bounds; a `forge commit` PATH missing
-  from `files/`, and a file of `files/` no line names.
+  beyond the five, a name out of bounds; a `forge commit` or `deployment
+  patch` PATH missing from `files/`, and a file of `files/` no line
+  names; a `check` with no line after it, or a `forge` line after it; a
+  child with `config/`, a root's `config/` lacking one of its five
+  documents or holding another file; a web or tui line in a
+  deployment's chain, a deployment line in a box's.
+- **The check:** with `check`, every line after it, ctl lines among
+  them; without, the trailing `see` run, as before.
 - **Its hash:** changed by a parent's `recipe`, by a parent's
-  `scripts.json`, by a parent's file's bytes or path, and by a name,
-  and unchanged by a `README.md`.
+  `scripts.json`, by a parent's file's bytes or path, by a root's
+  `config/` document's bytes, and by a name, and unchanged by a
+  `README.md`.
+- **The walk's session by kind:** a box's chain with a web or tui line
+  in a full session with its resets; one with none in a ctl session with
+  none; a deployment's in a deployment's session given its root's
+  `config/` and `--ports`, with none; a walk lacking what its kind
+  requires refused before anything starts.
 - **The walk's plan:** the box given each `scripts.json` of the chain,
   root first; each recipe's `forge commit` given its own `files/`; a
   failed line stopping the walk with exit 5, naming the recipe and its
