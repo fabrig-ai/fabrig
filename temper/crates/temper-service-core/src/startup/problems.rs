@@ -119,6 +119,7 @@ fn jig_words(what: config::What) -> &'static [u8] {
         config::What::Because(words) => words,
         config::What::PolicyExecutors { .. }
         | config::What::PolicyBytes { .. }
+        | config::What::NeedsBytes { .. }
         | config::What::PolicyEnvelope { .. }
         | config::What::AmendmentEnvelope { .. }
         | config::What::CodecCeiling { .. }
@@ -277,6 +278,7 @@ pub fn render_problem<E>(problem: &Problem<What<E>>, writer: &mut Writer, measur
         What::Jig(
             what @ (config::What::PolicyExecutors { .. }
             | config::What::PolicyBytes { .. }
+            | config::What::NeedsBytes { .. }
             | config::What::PolicyEnvelope { .. }
             | config::What::AmendmentEnvelope { .. }
             | config::What::CodecCeiling { .. }

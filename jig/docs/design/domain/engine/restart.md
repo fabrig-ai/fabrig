@@ -135,8 +135,9 @@ one rule for every child and the store:
   did not load (a task's party, project, placed hold or task, a claim's
   proof), a task or a claim naming a revision not held or a charter
   that revision lacks (`settings.md`, 7), a name reserved by another source
-  (../accounts.md, 3.4), an ended read position whose task is missing,
-  a projection or a connector's row naming what it lacks, a person
+  (../accounts.md, 3.4), an ended read position whose task is missing
+  or whose task's record is not that party's conversation (the census's
+  pair, `../../protocol/store/loads.md`, 2), a projection or a connector's row naming what it lacks, a person
   whose identity another person's row holds (the second row naming
   the first).
 - **It no longer checks** a family's rules, a record's shape beyond its
@@ -192,7 +193,9 @@ cannot make (above). `Action::Refused(failure)` stops
 the start, `start_phase()` naming the phase: a `start::Failure` is the
 store against the configuration, never a record judged: `Settings`,
 `ProjectPolicy { project }` (a saved policy past `limits.policy_bytes`
-or that cannot be accounted), `HeldPastLimit`, `AccountsPastLimit`,
+or that cannot be accounted), `HeldPastLimit`,
+`NeedsPastLimit { held, limit }` (the stored settings' agent needs, in
+owned bytes, past the fleet's needs bound, `fleet.md`), `AccountsPastLimit`,
 `LiveSet { set, key, held, limit }` (a live set past its limit, `set` a
 `LiveSet`), `Accounting` and `LlmChoice`, each reached by a test from a
 stored record. `Action::Idle` follows `Open`, and `start_opened()` says

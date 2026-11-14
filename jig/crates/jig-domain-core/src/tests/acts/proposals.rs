@@ -94,11 +94,3 @@ fn a_procedure_step_proposing_what_nobody_may_accept_is_refused() {
     };
     assert_eq!(core.procedure_proposal_flights(), 0);
 }
-
-#[test]
-#[should_panic(expected = "party words fit one run message")]
-fn core_new_refuses_party_words_beyond_a_runs_message() {
-    let mut limits = limits();
-    limits.people.words = limits.tasks.message_bytes + 1;
-    drop(Core::new(config(41), &limits).expect("fixture core configuration"));
-}

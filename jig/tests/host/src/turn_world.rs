@@ -495,12 +495,12 @@ impl World {
 
     pub fn cancel_contact(&mut self) {
         self.send(Event::CancelAll { reason: Reason::Contact });
-        self.resume();
+        self.resume().unwrap_or_else(|finding| self.fail_finding(&finding));
     }
 
     pub fn shutdown(&mut self) {
         self.send(Event::CancelAll { reason: Reason::Shutdown });
-        self.resume();
+        self.resume().unwrap_or_else(|finding| self.fail_finding(&finding));
     }
 
     /// A channel loss does not drop host-owned turn bodies or the link's answer.
@@ -517,7 +517,7 @@ impl World {
                 panic!("turn")
             };
             assert_eq!((run, attempt), (RUN, ATTEMPT));
-            self.receive_turn(turn);
+            self.receive_turn(turn).unwrap_or_else(|finding| self.fail_finding(&finding));
         }
         for index in 0..self.host.kept_answers() {
             let answer = self.host.answer_at(index).expect("kept answer");
@@ -533,7 +533,7 @@ impl World {
     pub fn retry_busy(&mut self, number: u32) {
         let turn = self.host.turn(RUN, ATTEMPT, number).expect("busy turn retained");
         if self.connected {
-            self.receive_turn(turn);
+            self.receive_turn(turn).unwrap_or_else(|finding| self.fail_finding(&finding));
         }
     }
 
@@ -569,43 +569,44 @@ impl World {
 
     fn send(&mut self, event: Event) {
         self.events.push_back(event);
-        self.settle();
+        self.settle().unwrap_or_else(|finding| self.fail_finding(&finding));
     }
 
-    fn settle(&mut self) {
+    fn settle(&mut self) -> Result<(), String> {
         for _ in 0..128 {
             let Some(event) = self.events.pop_front() else {
                 self.host.reclaim();
                 self.drain_facts();
-                return;
+                return Ok(());
             };
             self.refusals.event(&event);
             host::step(&mut self.host, &self.env, event, &mut self.out);
             while let Some(request) = self.out.pop() {
-                self.route(request);
+                self.route(request)?;
             }
             self.drain_facts();
         }
-        panic!("the peer hand-offs did not settle");
+        Err("the peer hand-offs did not settle".into())
     }
 
-    fn resume(&mut self) {
+    fn resume(&mut self) -> Result<(), String> {
         for _ in 0..self.limits.slots {
             if !self.host.is_ready() {
-                return;
+                return Ok(());
             }
             host::resume(&mut self.host, &self.env, &mut self.out);
             while let Some(request) = self.out.pop() {
-                self.route(request);
+                self.route(request)?;
             }
-            self.settle();
+            self.settle()?;
         }
         assert!(!self.host.is_ready());
+        Ok(())
     }
 
     #[expect(clippy::too_many_lines, reason = "the turn world checks the complete host output vocabulary")]
-    fn route(&mut self, request: Request) {
-        self.refusals.request(&request);
+    fn route(&mut self, request: Request) -> Result<(), String> {
+        self.refusals.request(&request)?;
         match request {
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
@@ -658,7 +659,7 @@ impl World {
             Request::Up(LinkUp::Turn { run, attempt, turn, .. }) => {
                 assert_eq!((run, attempt), (RUN, ATTEMPT));
                 if self.connected {
-                    self.receive_turn(turn);
+                    self.receive_turn(turn)?;
                 }
             }
             Request::Agent(ToAgent::Acknowledge { agent, .. }) => {
@@ -719,6 +720,7 @@ impl World {
                 panic!("unscripted request: {request:?}")
             }
         }
+        Ok(())
     }
 
     /// Answers a relayed call with the scripted answer, or a plain reply.
@@ -753,15 +755,24 @@ impl World {
         self.events.push_back(Event::Agent(FromAgent::Started { owner, agent: AGENT }));
     }
 
-    fn receive_turn(&mut self, turn: Turn) {
-        self.link_words.push("turn");
+    fn receive_turn(&mut self, turn: Turn) -> Result<(), String> {
         if let Some(previous) = self.seen.get(&turn.turn) {
-            assert_eq!(previous, &turn, "replay preserves the whole turn");
+            if previous != &turn {
+                return Err("replay preserves the whole turn".into());
+            }
         } else {
-            assert_eq!(turn.turn, u32::try_from(self.seen.len()).expect("bounded") + 1, "no turn gap");
+            if turn.turn != u32::try_from(self.seen.len()).expect("bounded") + 1 {
+                return Err("no turn gap".into());
+            }
             self.seen.insert(turn.turn, turn);
         }
+        self.link_words.push("turn");
         self.stats.transmissions += 1;
+        Ok(())
+    }
+
+    fn fail_finding(&self, finding: &str) -> ! {
+        panic!("scripted host: {finding}\n{}", self.link_words.join("\n"));
     }
 
     fn receive_report(&mut self, record: host::LinkUp) {
@@ -816,16 +827,23 @@ mod referee_tests {
     }
 
     #[test]
-    #[should_panic(expected = "replay preserves the whole turn")]
     fn changed_replay_is_rejected() {
         let mut world = World::new();
-        world.receive_turn(turn(1, b"original"));
-        world.receive_turn(turn(1, b"changed"));
+        world.receive_turn(turn(1, b"original")).expect("the original turn is accepted");
+        let finding = world.receive_turn(turn(1, b"changed")).expect_err("a changed replay is refused");
+        assert!(finding.contains("replay preserves the whole turn"), "{finding}");
+        assert_eq!(world.seen.get(&1), Some(&turn(1, b"original")));
+        assert_eq!(world.stats.transmissions, 1);
+        assert_eq!(world.link_words, ["turn"]);
     }
 
     #[test]
-    #[should_panic(expected = "no turn gap")]
     fn unseen_prefix_is_rejected() {
-        World::new().receive_turn(turn(2, b"gap"));
+        let mut world = World::new();
+        let finding = world.receive_turn(turn(2, b"gap")).expect_err("a gap is refused");
+        assert!(finding.contains("no turn gap"), "{finding}");
+        assert!(world.seen.is_empty());
+        assert_eq!(world.stats.transmissions, 0);
+        assert_eq!(world.link_words, Vec::<&str>::new());
     }
 }

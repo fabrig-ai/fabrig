@@ -199,6 +199,19 @@ mod sizing_tests {
     use protocol::host::max_read;
 
     #[test]
+    fn application_spoken_equals_the_engines_worker_wire_entry() {
+        let application = temper_protocol_worker_wire::application(&temper_protocol_worker_wire::v1::CEILINGS).unwrap();
+        let wires = super::wires();
+        let mut entry = None;
+        for wire in &wires {
+            if wire.name == temper_protocol_worker_wire::wire::FAMILY {
+                entry = Some(wire);
+            }
+        }
+        assert_eq!(application.spoken.get(0), Some(entry.expect("engine's worker wire")));
+    }
+
+    #[test]
     fn drivers_read_a_whole_page_in_every_admitted_store() {
         let (application, _, profile) = crate::tests::fixtures::store_limits();
         let limits = super::limits(&application, &application.forge, &profile).unwrap();

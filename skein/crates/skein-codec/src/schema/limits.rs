@@ -62,10 +62,22 @@ fn bound(name: &[u8], ceiling: u32, limits: &Map<Box<[u8]>, u32>) -> u64 {
 fn field_size(
     schema: &Schema,
     field: Field,
-    mut name: Box<[u8]>,
+    record: &[u8],
     limits: &Map<Box<[u8]>, u32>,
     sizes: &List<u64>,
 ) -> Option<u64> {
+    // Fixed-width fields and declaration references read no named limit.
+    // Avoid allocating and spelling a limit name that their branch discards.
+    match schema.ty(field.ty) {
+        Type::U8 | Type::Bool => return Some(1),
+        Type::U16 => return Some(2),
+        Type::U32 => return Some(4),
+        Type::U64 | Type::Duration => return Some(8),
+        Type::Fixed(length) => return Some(u64::from(length)),
+        Type::Named(at) => return Some(*sizes.get(at.index()).expect("earlier declaration has its bound")),
+        Type::Option(_) | Type::List { .. } | Type::Bytes { .. } | Type::Secret { .. } | Type::Text(_) => {}
+    }
+    let mut name = limit_name(record, schema.spelled(field.name));
     let mut at = field.ty;
     let mut size = 0_u64;
     let mut copies = 1_u64;
@@ -100,7 +112,34 @@ fn field_size(
     unreachable!("a checked type chain ends in the table")
 }
 
+/// Each declaration's bound, in text order. An arithmetic failure ends the
+/// valid prefix, including declarations that do not refer to the failing one.
+#[derive(Debug)]
+pub struct Bounds {
+    sizes: List<u64>,
+}
+
+impl Bounds {
+    /// The bound at this declaration, or `None` after any failure at or before it.
+    #[must_use]
+    pub fn at(&self, at: DeclIx) -> Option<u64> {
+        self.sizes.get(at.index()).copied()
+    }
+}
+
+pub(super) fn bounds_within(schema: &Schema, names: &[&str], values: &[u32]) -> Bounds {
+    let mut sizes = List::with_capacity(schema.declarations());
+    let _complete = fill(schema, schema.declarations(), names, values, &mut sizes);
+    Bounds { sizes }
+}
+
 pub(super) fn most_bytes_within(schema: &Schema, at: DeclIx, names: &[&str], values: &[u32]) -> Option<u64> {
+    let mut sizes = List::with_capacity(schema.declarations());
+    fill(schema, add(at.index(), 1), names, values, &mut sizes)?;
+    sizes.get(at.index()).copied()
+}
+
+fn fill(schema: &Schema, count: u32, names: &[&str], values: &[u32], sizes: &mut List<u64>) -> Option<()> {
     if names.len() != values.len() {
         return None;
     }
@@ -108,16 +147,15 @@ pub(super) fn most_bytes_within(schema: &Schema, at: DeclIx, names: &[&str], val
     for (name, value) in names.iter().zip(values) {
         limits.insert(skein_lib::bytes::copy_of(name.as_bytes()), *value).expect("at most one entry per name");
     }
-    let mut sizes = List::with_capacity(schema.declarations());
-    for index in 0..=at.index() {
+    for index in 0..count {
         let declaration = schema.declaration(DeclIx::new(index));
         let size = match declaration.shape {
             Shape::Record { versioned, first, count } => {
                 let mut size = if versioned { 2_u64 } else { 0_u64 };
                 for index in first.index()..add(first.index(), count) {
                     let field = schema.field(FieldIx::new(index));
-                    let name = limit_name(schema.spelled(declaration.name), schema.spelled(field.name));
-                    size = size.checked_add(field_size(schema, field, name, &limits, &sizes)?)?;
+                    size =
+                        size.checked_add(field_size(schema, field, schema.spelled(declaration.name), &limits, sizes)?)?;
                 }
                 size
             }
@@ -136,5 +174,5 @@ pub(super) fn most_bytes_within(schema: &Schema, at: DeclIx, names: &[&str], val
         };
         sizes.push(size).expect("one bound per declaration");
     }
-    sizes.get(at.index()).copied()
+    Some(())
 }

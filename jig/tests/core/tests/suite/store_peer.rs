@@ -137,7 +137,7 @@ fn pending_failed_and_abandoned_transactions_emit_nothing_and_crash_preserves_ca
     store.submit(2, writes(2, Write::Erase(key.clone())), 2);
     assert_eq!(store.tick(false), Ok(None));
     peer.capture(Time::from_nanos(21), &store);
-    store.crash(18);
+    store.crash(18).expect("crash readback");
     peer.capture(Time::from_nanos(22), &store);
     let captured = peer.take();
     assert_eq!(captured.len(), 1);
@@ -151,7 +151,7 @@ fn pending_failed_and_abandoned_transactions_emit_nothing_and_crash_preserves_ca
     assert_eq!(store.applied, 1);
     assert_eq!(store.rows.get(&key), Some(&durable));
     assert!(store.pending.is_empty());
-    store.crash(18);
+    store.crash(18).expect("crash readback");
     peer.capture(Time::from_nanos(24), &store);
     assert_eq!(peer.take().len(), 0);
     assert_eq!(captured[0].rows.get(&key), Some(&durable));

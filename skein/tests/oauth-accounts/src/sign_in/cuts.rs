@@ -167,6 +167,7 @@ impl Referee<Process> for Judge {
         self.passed = procs.iter().all(Host::is_empty);
         let address_ready = procs[0].inner.process.issuer().expect("issuer slot").address().is_some();
         let client = procs[1].inner.process.client().expect("owner slot");
+        client.check_contracts()?;
         let owner_ready = if let Some(owner) = &client.sign_in {
             (client.component.is_none() && address_ready) || (!owner.visits.is_empty() && self.sign_in.delivered == 0)
         } else {

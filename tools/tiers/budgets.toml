@@ -5,6 +5,7 @@
 # Smith's focused and fuzzy suites: 30 and 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
 # Skein's focused suite: 40 CPU seconds, by the user's word of 11-08; its fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
 # Jig's fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
+# Jig's and Temper's focused suites: 215 and 1250 CPU seconds, set by temper/tiers on the user's word of 11-14 ("CPU figures you can take them yourself"), at 1.5 times the development machine's focused run of main at 11-14 11:42Z (jig 143 CPU s, temper 832), the rule the other figures in this file came from (director/decisions/0028).
 # Temper's fuzzy suite: 180 CPU seconds, raised by half from the strategy's 120 by the user's word of 11-08, to be revisited.
 # Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
 
@@ -29,8 +30,14 @@ cpu_suite_s = 40
 [gate.skein.fuzzy]
 cpu_suite_s = 120
 
+[gate.jig.default]
+cpu_suite_s = 215
+
 [gate.jig.fuzzy]
 cpu_suite_s = 120
+
+[gate.temper.default]
+cpu_suite_s = 1250
 
 [gate.temper.fuzzy]
 cpu_suite_s = 180

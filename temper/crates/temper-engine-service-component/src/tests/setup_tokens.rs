@@ -82,6 +82,7 @@ impl Tokens {
         user
     }
     pub(super) fn scan(&self, engine: &crate::engine::Engine) {
+        let forges = alloc::format!("{:?}", engine.domain.forges());
         for secret in [&self.api, &self.git, &self.hook] {
             for note in &engine.notes {
                 assert!(!contains(alloc::format!("{note:?}").as_bytes(), secret.expose()));
@@ -95,7 +96,7 @@ impl Tokens {
             for answer in &engine.setup.answers {
                 assert!(!contains(alloc::format!("{answer:?}").as_bytes(), secret.expose()));
             }
-            assert!(!contains(alloc::format!("{:?}", engine.domain.forges()).as_bytes(), secret.expose()));
+            assert!(!contains(forges.as_bytes(), secret.expose()));
         }
     }
 }
@@ -114,17 +115,11 @@ fn empty_settings() -> crate::settings::Engine {
 pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
     use jig_client_protocol_wire::v22 as j;
     use jig_domain_people as people;
-    let mut bootstrap = fixtures::ready();
-    let mut header = bootstrap.engine.as_ref().unwrap().domain.deployment();
-    header.commits = header.commits.checked_add(1).unwrap();
-    let mut store = bootstrap.engine.take().unwrap().store;
+    let mut store = fixtures::records_store();
     fixtures::commit(
         &mut store,
-        header.commits,
+        1,
         Box::new([
-            root::Write::Save(root::Record::Core(jig_domain_core::Record::Core(
-                jig_domain_core::CoreRecord::Deployment(header),
-            ))),
             root::Write::Erase(root::Key::Forge(domain::Key::Forge(1))),
             root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::ForgeNumber { last: 0 }) }),
             root::Write::Save(root::Record::Core(jig_domain_core::Record::People(people::Stored::Roles {

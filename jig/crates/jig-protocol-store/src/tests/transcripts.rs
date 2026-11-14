@@ -1027,12 +1027,38 @@ fn a_read_script_delivers_one_complete_frame() {
     }
 }
 #[test]
-#[should_panic(expected = "startup bounds cover transcript reads")]
-fn a_read_past_the_bounded_table_is_a_contract_break() {
-    let (mut store, _) = readable(&pair());
-    for owner in 801..806 {
-        ask(&mut store, owner, forwards(None), 1, 4096);
+fn the_bounded_table_holds_its_limit_of_reads_until_each_owners_terminal() {
+    const FIRST: u64 = 801;
+    let turns = pair();
+    let (mut store, disk) = readable(&turns);
+    let (events, mut below) = ask(&mut store, FIRST, forwards(None), 1, 4096);
+    assert!(events.is_empty());
+    for index in 1..store.limits.reads {
+        let owner = FIRST.checked_add(u64::from(index)).expect("fixture owner");
+        let (events, waiting) = ask(&mut store, owner, forwards(None), 1, 4096);
+        assert!(events.is_empty());
+        assert!(waiting.transcripts.is_empty());
     }
+    assert_eq!(store.transcripts.reads.len(), store.limits.reads);
+    for index in 0..store.limits.reads {
+        let expected = Token::new(FIRST.checked_add(u64::from(index)).expect("fixture owner"));
+        let mut terminal = false;
+        for _ in 0_u32..4096 {
+            let (events, next) = read_answer(&mut store, below, &disk, 4096);
+            below = next;
+            if !events.is_empty() {
+                let (owner, found, next) = page(&events);
+                assert_eq!(owner, expected);
+                assert_eq!(found, turns.get(..1).expect("first turn"));
+                assert_eq!(next, Some(PAIR_FRAME));
+                terminal = true;
+                break;
+            }
+        }
+        assert!(terminal, "each owner receives its terminal");
+    }
+    assert!(store.transcripts.reads.is_empty());
+    assert!(below.transcripts.is_empty());
 }
 #[test]
 fn a_window_with_no_row_room_still_checks_its_named_start() {

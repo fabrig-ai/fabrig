@@ -42,6 +42,7 @@ pub struct Component {
     pub(crate) codec: wire::v14::Limits,
     pub(crate) connections: Map<Token, Connection>,
     schema: skein_channel::Schema,
+    full_schema: skein_channel::Schema,
     next_channel: u64,
     next_part: u64,
     life: Life,
@@ -61,11 +62,23 @@ impl Component {
         jig: List<wire::Spoken>,
         application: wire::Application,
     ) -> Result<Self, Unusable> {
-        if !crate::valid(limits) {
+        let full_schema = crate::limits::schema(limits).ok_or(Unusable::Limits)?;
+        Self::with_schema(limits, workers, jig, application, full_schema)
+    }
+
+    /// Constructs readers of the full schema already prepared for this service.
+    pub fn with_schema(
+        limits: &Limits,
+        workers: Box<[Worker]>,
+        jig: List<wire::Spoken>,
+        application: wire::Application,
+        full_schema: skein_channel::Schema,
+    ) -> Result<Self, Unusable> {
+        if !crate::limits::valid_with_schema(limits, &full_schema) {
             return Err(Unusable::Limits);
         }
         let codec = wire::sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
-        let schema = wire::schema_for(&codec, &jig).ok_or(Unusable::Limits)?;
+        let schema = wire::schema_for_prepared(&full_schema, &jig).ok_or(Unusable::Limits)?;
         if workers.len() > skein_lib::length::usize_of(limits.names) {
             return Err(Unusable::Workers);
         }
@@ -95,6 +108,7 @@ impl Component {
             codec,
             connections,
             schema,
+            full_schema,
             next_channel: 1,
             next_part: 1,
             life: Life::Running,
@@ -103,6 +117,12 @@ impl Component {
             translation,
         })
     }
+    /// The full opening table used by validation and upgrade judgements.
+    #[must_use]
+    pub fn full_schema(&self) -> &skein_channel::Schema {
+        &self.full_schema
+    }
+
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         match event {
             Event::Accepted { connection } => self.accepted(now, connection, out),

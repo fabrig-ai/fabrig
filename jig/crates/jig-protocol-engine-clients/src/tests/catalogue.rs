@@ -202,13 +202,3 @@ fn a_catalogue_at_the_wire_bound_replaces_the_models() {
         usize::try_from(exchange.env.limits.wire.me_model_shown_some).unwrap()
     );
 }
-
-#[test]
-#[should_panic(expected = "core catalogue fits the client wire")]
-fn a_catalogue_past_the_wire_bound_panics() {
-    let mut exchange = f::Exchange::new();
-    let mut models = translate::llm::catalogue(&catalogue());
-    models.last_mut().unwrap().shown =
-        Some(vec![b'n'; usize::try_from(exchange.env.limits.wire.me_model_shown_some).unwrap() + 1].into_boxed_slice());
-    exchange.component.down(&exchange.env, Event::Catalogue { models }, &mut exchange.out);
-}

@@ -30,7 +30,9 @@ observation and world-cost work.
   and together they fell 181, but D035's own tasks rose 34, where that plan's
   story has about 200 down: the client's sweep rose 158 and the people's 61, and
   the core's fell 139; no reason is recorded.
-  9: the focused suite's fit within 30 CPU s is unproved. The
+  9: the focused suite's CPU budget is 215 s (`tools/tiers/budgets.toml`),
+  1.5 times its 143 in the development machine's focused run of main at
+  11-14 11:42Z, by the user's word of 11-14. The
   `jig-world-cost` and `jig-world-cost-2` requests leave further cost repairs;
   their whole-suite effect, and fuzzy's fit with the moved core and store
   sweeps and `Standard` drive, await the queue's after-landing record. The
@@ -81,3 +83,12 @@ observation and world-cost work.
   7: `jig-client-wire-world`'s and `jig-client-protocol-world`'s public
   sweeps write each case's whole input before they run it, not the case
   and its length. [in flight: change 3078]
+- **Not yet:**
+  7: the client's world asserts its referee's findings at once, with no
+  returning entry points. [in flight: change 3115]
+  7: the restart oracle asserts its comparisons, and the store files'
+  readback panics on what it finds. [in flight: change 3114]
+  7: the host's refusal referee and turn engine, and the notes' referee,
+  assert. [in flight: change 3116]
+  7: jig's domain step tests trigger assertions of start order, routing
+  and their constructors' limits. [in flight: change 3110]

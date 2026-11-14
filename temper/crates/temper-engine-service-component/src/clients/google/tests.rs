@@ -186,6 +186,8 @@ fn a_members_checked_identity_binds_and_mints_twice_then_refuses_another_subject
 #[test]
 fn checked_nonmembers_and_unverified_addresses_mint_nothing() {
     let overlong = format!(r#"{{"email":"{}","email_verified":true}}"#, "a".repeat(255));
+    let (mut service, mut issuer) = world::world(2);
+    service.adopt_bundle(fixtures::bundle::bundle());
     for (payload, ending) in [
         (
             br#"{"email":"other@example.com","email_verified":true}"#.as_slice(),
@@ -195,8 +197,6 @@ fn checked_nonmembers_and_unverified_addresses_mint_nothing() {
         (br#"{"name":"No address","email_verified":true}"#, "Google hasn’t verified this account’s address".as_bytes()),
         (overlong.as_bytes(), "Google hasn’t verified this account’s address".as_bytes()),
     ] {
-        let (mut service, mut issuer) = world::world(2);
-        service.adopt_bundle(fixtures::bundle::bundle());
         let peer = finish(&mut service, &mut issuer, payload, b"first-sub", b"/sign-in/google?then=%2F%2Fevil.example");
         world::ending(&peer, b"HTTP/1.1 403", ending);
         assert!(

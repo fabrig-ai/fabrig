@@ -38,15 +38,6 @@ fn a_retired_entity_is_reachable_until_reclaimed_and_its_handle_goes_stale() {
 }
 
 #[test]
-#[should_panic(expected = "an entity is retired once")]
-fn retiring_twice_is_a_bug() {
-    let mut slab = Slab::with_capacity(1);
-    let id = slab.insert(()).expect("room for one");
-    slab.retire(id);
-    slab.retire(id);
-}
-
-#[test]
 fn a_zero_capacity_slab_refuses_everything() {
     let mut slab = Slab::with_capacity(0);
     assert_eq!(slab.insert(1_u8), Err(1));

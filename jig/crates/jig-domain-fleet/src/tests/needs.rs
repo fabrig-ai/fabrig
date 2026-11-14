@@ -224,9 +224,16 @@ fn refusal(h: &Harness) -> HelloRefusal {
 }
 
 #[test]
-#[should_panic(expected = "configured agent needs fit their byte bound")]
-fn needs_past_their_byte_bound_fail_construction() {
-    core::mem::drop(Domain::new(&Limits { needs_bytes: 0, ..LIMITS }, 0, needs_window(8192)));
+fn needs_at_their_byte_bound_construct_and_one_byte_past_is_refused() {
+    let needs = needs_window(8192);
+    let held = u64::try_from(size_of::<CharterNeeds>() + size_of::<ModelNeed>() + b"model".len()).unwrap();
+    let limits = Limits { needs_bytes: held, ..LIMITS };
+    assert_eq!(crate::needs_fit(&limits, 0, &needs), Ok(()));
+    let domain = Domain::new(&limits, 0, needs.clone());
+    assert_eq!(domain.needs, needs);
+    let limits = Limits { needs_bytes: held - 1, ..LIMITS };
+    assert_eq!(crate::needs_fit(&limits, 0, &needs), Err(crate::NeedsPast { held, limit: held - 1 }));
+    assert_eq!(crate::needs_fit(&limits, 1, &needs), Ok(()));
 }
 
 #[test]

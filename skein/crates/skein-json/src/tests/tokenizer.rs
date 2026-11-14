@@ -225,60 +225,6 @@ fn a_close_withdraws_what_was_demanded_and_answers_once() {
 }
 
 #[test]
-#[should_panic(expected = "a Next before the last one was answered")]
-fn a_second_next_before_the_first_is_answered_is_a_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.down(Request::Next));
-    drop(machine.down(Request::Next));
-}
-
-#[test]
-#[should_panic(expected = "a Next after the document's outcome")]
-fn a_next_after_the_outcome_is_a_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.up(Up::End));
-    drop(machine.down(Request::Next));
-    drop(machine.down(Request::Next));
-}
-
-#[test]
-#[should_panic(expected = "a scan holds the quote it ends at")]
-fn a_tokenizer_with_a_chunk_of_zero_is_a_bug() {
-    drop(Machine::new(Limits { chunk: 0, ..LIMITS }));
-}
-
-#[test]
-#[should_panic(expected = "a Close after Closed")]
-fn a_close_after_closed_is_a_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.down(Request::Close));
-    drop(machine.down(Request::Close));
-}
-
-#[test]
-#[should_panic(expected = "a Next after Closed")]
-fn a_next_after_closed_is_a_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.down(Request::Close));
-    drop(machine.down(Request::Next));
-}
-
-#[test]
-#[should_panic(expected = "bytes delivered without a read demand")]
-fn bytes_while_idle_are_the_side_belows_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.bytes(b"{"));
-}
-
-#[test]
-#[should_panic(expected = "the tokenizer asks for no room")]
-fn room_is_the_side_belows_bug() {
-    let mut machine = Machine::new(LIMITS);
-    drop(machine.down(Request::Next));
-    drop(machine.up(Up::Room));
-}
-
-#[test]
 fn nesting_past_the_depth_is_refused_at_the_first_container_past_it() {
     assert_eq!(tokens(b"[[{\"a\":[]}]]").len(), 9, "four deep is the limit");
     let events = read(b"[[{\"a\":[[]]}]]", LIMITS);
@@ -493,24 +439,6 @@ fn the_tokenizer_bound_counts_stack_text_and_delivery() {
     assert_eq!(json::tokenizer_bound(&Limits { chunk: 0, ..limits }), None, "a scan of nothing");
 }
 
-#[test]
-#[should_panic(expected = "a scan delivers through its quote or its maximum")]
-fn a_scan_short_of_its_maximum_without_its_quote_is_the_side_belows_bug() {
-    let mut machine = Machine::new(Limits { chunk: 4, ..LIMITS });
-    drop(machine.down(Request::Next));
-    drop(machine.bytes(b"\""));
-    drop(machine.bytes(b"a"));
-}
-
-#[test]
-#[should_panic(expected = "a scan delivers through its quote or its maximum")]
-fn a_scan_past_its_maximum_is_the_side_belows_bug() {
-    let mut machine = Machine::new(Limits { chunk: 4, ..LIMITS });
-    drop(machine.down(Request::Next));
-    drop(machine.bytes(b"\""));
-    drop(machine.bytes(b"bcdefghij\""));
-}
-
 /// Reads scripted demands through the same stream contract as the ordinary driver.
 fn scripted(document: &[u8], limits: Limits, requests: &[Request]) -> Vec<Event> {
     let mut machine = Machine::new(limits);
@@ -616,10 +544,4 @@ fn skipped_and_long_strings_still_check_all_of_their_text() {
     assert_eq!(scripted(b"[1,]", LIMITS, &[Request::Skip]), [Event::Failed(Error::Unexpected)]);
     assert_eq!(scripted(b"[[[]]]", Limits { depth: 2, ..LIMITS }, &[Request::Skip]), [Event::Failed(Error::TooDeep)]);
     assert_eq!(scripted(b"\"abc\"", Limits { length: 3, ..LIMITS }, &[Request::Skip]), [Event::Failed(Error::TooLong)]);
-}
-
-#[test]
-#[should_panic(expected = "Skip where a key comes")]
-fn skip_is_not_a_demand_for_an_object_key() {
-    drop(scripted(b"{}", LIMITS, &[Request::Next, Request::Skip]));
 }

@@ -397,7 +397,8 @@ this shell's text (README.md, 14.1).
   end closing without a new print, a print begun finished at closing, a
   print longer than the output room written whole, in pieces, before the
   next, a name longer than a node's text refused, an application's line
-  longer than the settings' line bytes stopping the terminal.
+  of the settings' line bytes written whole; one longer is the
+  application's bug, asserted and untested (../../foundation/programming-model.md, 10.4).
 - **An application's terminal client** is tested in its own tiers: its
   worlds play this shell, and its end-to-end tests run lines in on a
   pipe and pages out on another (../../foundation/testing-strategy.md, 2.9).

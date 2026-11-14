@@ -160,6 +160,7 @@ fn a_duplicate_token_makes_no_generation() {
 #[test]
 fn every_stopped_forge_withdraws_its_entries_in_one_generation() {
     use connection::{StartRead, Stopped, Value};
+    let mut service = github();
     for why in [
         Stopped::Invalid { value: Value::Credential },
         Stopped::Invalid { value: Value::Token },
@@ -175,7 +176,15 @@ fn every_stopped_forge_withdraws_its_entries_in_one_generation() {
         Stopped::Refused { read: StartRead::Mint, status: 422 },
         Stopped::Refused { read: StartRead::Viewer, status: 403 },
     ] {
-        let mut service = github();
+        // Each refusal starts with an unannounced token table and its first
+        // generation; the transport and retained App records are unchanged.
+        let engine = service.engine.as_mut().unwrap();
+        engine.values.identities = crate::values::Identities::with_capacity(engine.env.limits.forge.forges);
+        let state = engine.values.tokens.forges.get_mut(&1).unwrap();
+        state.entries = skein_lib::Map::with_capacity(state.entries.capacity());
+        state.made.clear();
+        state.announced = false;
+        while engine.notes.pop().is_some() {}
         route(&mut service, token(11, 111, b"first", b"first-token", 100));
         route(&mut service, token(22, 222, b"second", b"second-token", 100));
         route(&mut service, connection::Event::Connected { forge: 1 });

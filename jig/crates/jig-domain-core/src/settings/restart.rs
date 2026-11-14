@@ -385,6 +385,12 @@ impl Core {
             return;
         }
         let needs = super::fleet_needs::current(self, &env.limits);
+        if !self.start_opened()
+            && let Err(past) = fleet::needs_fit(&env.limits.fleet, self.fleet_versions, &needs)
+        {
+            self.refuse_restore(crate::start::Failure::NeedsPastLimit { held: past.held, limit: past.limit });
+            return;
+        }
         let mut work = Queue::uncapped();
         let mut fleet_out = crate::routing::children::route_fleet(self, env, &mut work, fleet::Event::Needs(needs));
         assert!(work.is_empty(), "restored needs start no task work");

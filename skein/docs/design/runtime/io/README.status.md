@@ -10,7 +10,6 @@ without killing its group, or `Way::Null` giving a child `/dev/null`
 descriptors without parent pipe entities. Process rows cover closure
 before and after exit and mixed null, given and pipe descriptors.
 
-- **Not yet:** 5: the step tests of a stale token going up and of a send past the room or with none granted, `#[should_panic]`, go with `temper/docs/design/draft/panics.execution.md`, P8.
 - **Departs:** 2: `Io::new`
   asserts `skein_io::valid`, but `skein-fake-peers/src/face.rs`'s `valid`
   and `skein-oauth-accounts/src/limits.rs`'s `io_capacity_bound` rebuild
