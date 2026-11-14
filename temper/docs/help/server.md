@@ -246,8 +246,15 @@ The page's `temper-forge-sign-in` meta appears only once `forge connect`
 has kept the forge. If a newly fetched page still lacks it,
 restart once: the engine makes it from the kept record.
 
-If not: `temper ctl: the sign-in link was refused`: spent or expired.
-Temper printed a fresh one: rerun the line.
+If not: a directory already signed in refuses the link before sending
+anything, leaving it unspent: `temper ctl DIR sign-out` first, or use
+another directory. Sign-out empties even a token the engine answers and
+refuses; with no answer it keeps the token and exits 1.
+`temper ctl: the sign-in link was refused` distinguishes `it was already
+used`, `it has expired`, and `temper does not know it, as another
+deployment's link or one it no longer remembers`; each asks for a fresh
+one from `temper-box serve`. Other refusals keep the line without a
+reason. Get a fresh link and rerun the line.
 `connected already` (exit 2): a kept store keeps its forge, and there is
 nothing to do. Other refusals: as temper help forgejo says in its step 2.
 

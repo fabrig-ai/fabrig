@@ -150,7 +150,7 @@ pub const SIGN_IN: Tool = Tool {
     ],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It writes the token and the engine's address into DIR. A link\nsigns in once, and expires; `the sign-in link was refused` (exit\n1) asks for a fresh link. With every sign-in in use, it says when\nthe earliest ends and until when this link stays usable. It leaves\nthe link's file as it was. With --service FILE, sign in as the\nservice at the address FILE holds. FILE must be owner-only and\nin party make's form; otherwise exit 1 before sending anything.\n",
+    notes: b"It writes the token, engine's address and party into DIR. A link\nsigns in only into a directory not signed in: sign-out first,\n`temper ctl DIR sign-out`, or use another directory. A held token\nrefuses before sending anything, leaving the link unspent.\nA link signs in once and expires. `the sign-in link was refused`\n(exit 1) distinguishes `it was already used`, `it has expired`,\nand `temper does not know it, as another deployment's link or\none it no longer remembers`; each ends `temper-box serve prints\na fresh one`. Other refusals keep the line without a reason.\nWith every sign-in in use, it says when the earliest ends and\nuntil when this link stays usable. It leaves the link's file as\nit was. With --service FILE, sign in as the service at the address\nFILE holds, even into a signed-in DIR. FILE must be owner-only\nand in party make's form; otherwise exit 1 before sending anything.\n",
 };
 pub const SIGN_OUT: Tool = Tool {
     name: b"sign-out",
@@ -160,7 +160,7 @@ pub const SIGN_OUT: Tool = Tool {
     forms: &[&[]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"It sends none of the requests DIR keeps.\n",
+    notes: b"It sends none of the requests DIR keeps. If the engine answers\nand refuses the token, it still empties token, exits 0 and prints\nnothing: the sign-in is over either way. With no engine answer,\nit keeps token and exits 1, naming the address that did not answer.\nUse sign-out before a link's sign-in into an already signed-in DIR.\n",
 };
 pub const PENDING: Tool = Tool {
     name: b"pending",

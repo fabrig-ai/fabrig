@@ -282,6 +282,7 @@ impl OneShot {
                 self.output.push(false, printed.stdout);
                 self.finish(printed.status, false);
             } else if let Some(token) = token {
+                signing.credential = Credential::New;
                 self.root_event(jig_client::Event::Start { kept: skein_lib::List::with_capacity(0) });
                 self.root_event(jig_client::Event::SignIn { with: jig_client::With::Held(token) });
                 self.until = Some(self.env.now.saturating_add(limits::DEADLINE));
@@ -293,12 +294,13 @@ impl OneShot {
         }
     }
     fn sign_out_keep(&mut self) {
-        if self.class != Class::SignOut || self.call.is_some() {
+        if self.class != Class::SignOut || !self.recovery.loaded {
             return;
         }
         let signing = self.signing.as_mut().expect("sign-out shell");
         let shell = signing.shell.as_mut().expect("loaded shell");
         if signing.credential == Credential::New && self.root.client().link().state == jig_client::Link::SignedOut {
+            self.call = None;
             shell.keep(None);
             signing.credential = Credential::Writing;
         }
@@ -348,17 +350,23 @@ impl OneShot {
                         self.finish(1, false);
                         return;
                     }
-                    Some(
+                    reason @ (Some(
                         NotSignedIn::Approval(_)
                         | NotSignedIn::LinkUsed
                         | NotSignedIn::LinkExpired
                         | NotSignedIn::LinkUnknown,
                     )
-                    | None => {
+                    | None) => {
                         self.fail(if self.service_sign_in.is_some() {
                             b"the service credential was refused"
                         } else {
-                            b"the sign-in link was refused"
+                            match reason {
+                                Some(NotSignedIn::LinkUsed) => b"the sign-in link was refused: it was already used; temper-box serve prints a fresh one",
+                                Some(NotSignedIn::LinkExpired) => b"the sign-in link was refused: it has expired; temper-box serve prints a fresh one",
+                                Some(NotSignedIn::LinkUnknown) => b"the sign-in link was refused: temper does not know it, as another deployment's link or one it no longer remembers; temper-box serve prints a fresh one",
+                                Some(NotSignedIn::Approval(_)) | None => b"the sign-in link was refused",
+                                Some(NotSignedIn::Busy | NotSignedIn::NotReady | NotSignedIn::Full { .. }) => unreachable!("transient sign-in answer handled"),
+                            }
                         });
                         return;
                     }
