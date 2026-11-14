@@ -280,10 +280,9 @@ impl Running {
         }
         let log = directory.join(if program == "forgejo" { "server.log" } else { "runner.log" });
         let output = fs::File::create(&log).expect("log");
-        let child = command(directory, program)
-            .stdout(output.try_clone().expect("log clone"))
-            .stderr(output)
-            .spawn()
+        let mut command = command(directory, program);
+        command.stdout(output.try_clone().expect("log clone")).stderr(output);
+        let child = skein_shell::spawn_dying_with_parent(&mut command, skein_io::kernel::Signal::Kill)
             .expect("run");
         Self { child: Some(child), log }
     }

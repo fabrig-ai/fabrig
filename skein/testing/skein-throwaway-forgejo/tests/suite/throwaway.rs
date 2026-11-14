@@ -42,7 +42,8 @@ fn a_throwaway_forgejo_starts_serves_its_admin_and_is_removed() {
         &std::env::var_os("SKEIN_FORGEJO").expect("SKEIN_FORGEJO must name the pinned Forgejo"),
     ))
     .expect("pinned Forgejo");
-    let scratch = skein_scratch::paths::target_tmp().join("throwaway-start");
+    let root = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "throwaway-start");
+    let scratch = root.path().join("forge");
     let mut instance = forgejo.start(&scratch, &Settings::small()).expect("started");
     let admin = instance.admin().clone();
     let user = instance.exchange(&Outgoing::get("/api/v1/user", Some(&admin.token))).expect("answered");
@@ -67,17 +68,16 @@ fn forgejo_running(root: &Path, body: &str) -> Forgejo {
 }
 #[test]
 fn a_work_path_runs_commands_in_the_scratch_with_its_environment() {
-    let root = skein_scratch::paths::target_tmp().join("work-path-run");
-    let forgejo = forgejo_running(&root, "pwd; echo \"$HOME $PATH $TZ\"; echo \"$@\"");
-    let work = forgejo.work_path(&root.join("work"), &Settings::small()).expect("prepared");
+    let root = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "work-path-run");
+    let forgejo = forgejo_running(root.path(), "pwd; echo \"$HOME $PATH $TZ $TMPDIR\"; echo \"$@\"");
+    let work = forgejo.work_path(&root.path().join("work"), &Settings::small()).expect("prepared");
     let output = work.run(&["admin", "user", "list"]).expect("ran");
     let w = work.scratch().display();
     assert_eq!(
         output.stdout,
-        format!("{w}\n{w}/home /usr/bin:/bin Asia/Kolkata\n--work-path {w} --config {w}/app.ini admin user list\n")
+        format!("{w}\n{w}/home /usr/bin:/bin Asia/Kolkata {w}/tmp\n--work-path {w} --config {w}/app.ini admin user list\n")
     );
     assert!(work.scratch().join("tmp").is_dir());
-    fs::remove_dir_all(root).expect("removed");
 }
 #[test]
 fn a_failed_work_path_command_keeps_its_exit_code_and_both_streams() {

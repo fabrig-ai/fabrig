@@ -92,7 +92,8 @@ fn a_repository_survives_a_kill_and_restart_on_the_same_scratch_and_port() {
         &std::env::var_os("SKEIN_FORGEJO").expect("SKEIN_FORGEJO must name the pinned Forgejo"),
     ))
     .expect("pinned Forgejo");
-    let scratch = skein_scratch::paths::target_tmp().join("throwaway-restart");
+    let root = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "throwaway-restart");
+    let scratch = root.path().join("forge");
     for stop_after_kill in [false, true] {
         let mut instance = forgejo.start(&scratch, &Settings::small()).expect("started");
         let admin = instance.admin().clone();

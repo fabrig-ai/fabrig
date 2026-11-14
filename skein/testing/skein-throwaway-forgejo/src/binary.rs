@@ -58,6 +58,7 @@ impl Forgejo {
 pub(crate) fn environment(cmd: &mut Command, scratch: &Path) {
     cmd.env_clear()
         .env("HOME", scratch.join("home"))
+        .env("TMPDIR", scratch.join("tmp"))
         .env("PATH", "/usr/bin:/bin")
         .env("TZ", "Asia/Kolkata")
         .env("GIT_CONFIG_NOSYSTEM", "1")
