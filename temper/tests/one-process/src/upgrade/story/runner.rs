@@ -34,7 +34,11 @@ fn run(selection: Option<Selection>, kill: Option<u32>) {
     stories::set(Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
-    let configuration = golden::configuration(&start.deployment);
+    let mut configuration: serde_json::Value =
+        serde_json::from_slice(&golden::configuration(&start.deployment)).expect("upgrade configuration");
+    // The lost-write recovery and settling fit this story's sixty-second bound.
+    configuration["application"]["limits"]["overrides"]["forge.client.lifetime_ms"] = 10_000.into();
+    let configuration = serde_json::to_vec(&configuration).expect("upgrade configuration");
     let mut disk = machine::fresh();
     temper_playground::story::prepare(&mut disk, &start.deployment, start.seed);
     let store = Rc::new(RefCell::new(referee::Store::new()));

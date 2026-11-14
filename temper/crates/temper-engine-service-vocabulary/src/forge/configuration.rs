@@ -106,6 +106,13 @@ pub fn shared_limits(limits: &limits::Limits, io: &skein_io::Limits) -> skein_fo
         io: *io,
     }
 }
+/// The call deadline follows the lifetime, capped for GitHub
+/// (temper/docs/design/protocol/configuration/limits.md, "The forge client's lifetime and the forge call's deadline").
+#[must_use]
+pub(crate) fn deadline(lifetime: Duration) -> Duration {
+    lifetime.min(skein_forge_connection::limits::APP_DEADLINE)
+}
+
 /// The small profile's component room, derived from the forge where they agree.
 #[must_use]
 pub fn small(forge: &forge::Limits) -> skein_forge_connection::Limits {
@@ -135,7 +142,7 @@ pub fn small(forge: &forge::Limits) -> skein_forge_connection::Limits {
         target_bytes: 4096,
         repositories: forge.repositories,
         users: 256,
-        deadline: forge.client.lifetime,
+        deadline: deadline(forge.client.lifetime),
         idle: Duration::from_secs(4),
         start_backoff: Duration::from_secs(1),
         start_backoff_max: Duration::from_secs(60),

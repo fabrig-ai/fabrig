@@ -112,8 +112,9 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     entries: 8,
     // Attempts of a write, from the engine forge world fixture.
     write_attempts: 3,
-    // Longest time a sent write may arrive, from the engine forge world fixture.
-    lifetime: Duration::from_secs(10),
+    // Room for a real forge's merge, under Forgejo's 360 s git timeout
+    // (temper/docs/design/protocol/configuration/limits.md, "The forge client's lifetime and the forge call's deadline").
+    lifetime: Duration::from_secs(300),
     // Allowance for clock movement, from the engine forge world fixture.
     clock_margin: Duration::from_secs(1),
     // Three chat branches, six change names, two followed tier branches and
@@ -458,7 +459,11 @@ pub fn profile(profile: Profile) -> Limits {
 }
 /// Set one dotted field name byte for byte.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
+    let lifetime = limits.forge.client.lifetime;
     names::apply(limits, name, value)?;
+    if name == b"forge.client.lifetime_ms" && limits.forge_component.deadline == crate::forge::deadline(lifetime) {
+        limits.forge_component.deadline = crate::forge::deadline(limits.forge.client.lifetime);
+    }
     if name == b"forge.client.calls" || name == b"forge.client.answer_bytes" {
         limits.forge_component.kept_bytes = u64::from(limits.forge.client.calls)
             .checked_mul(u64::from(limits.forge.client.answer_bytes))
@@ -604,6 +609,54 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 
 #[cfg(test)]
 mod making_tests {
+    #[test]
+    fn small_forge_calls_have_room_for_a_merge() {
+        let limits = profile(Profile::Small);
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(300));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
+    }
+
+    #[test]
+    fn standard_forge_calls_have_room_for_a_merge() {
+        let limits = profile(Profile::Standard);
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(300));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
+    }
+
+    #[test]
+    fn a_shorter_forge_lifetime_moves_the_derived_deadline() {
+        let mut limits = profile(Profile::Small);
+        assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 100_000), Ok(()));
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(100));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(100));
+    }
+
+    #[test]
+    fn a_longer_forge_lifetime_keeps_the_github_deadline_cap() {
+        let mut limits = profile(Profile::Small);
+        assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 600_000), Ok(()));
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(600));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(270));
+    }
+
+    #[test]
+    fn a_forge_deadline_override_before_the_lifetime_stays() {
+        let mut limits = profile(Profile::Small);
+        assert_eq!(apply(&mut limits, b"forge_component.deadline_ms", 60_000), Ok(()));
+        assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 120_000), Ok(()));
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(120));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn a_forge_deadline_override_after_the_lifetime_stays() {
+        let mut limits = profile(Profile::Small);
+        assert_eq!(apply(&mut limits, b"forge.client.lifetime_ms", 120_000), Ok(()));
+        assert_eq!(apply(&mut limits, b"forge_component.deadline_ms", 60_000), Ok(()));
+        assert_eq!(limits.forge.client.lifetime, Duration::from_secs(120));
+        assert_eq!(limits.forge_component.deadline, Duration::from_secs(60));
+    }
+
     #[test]
     fn forge_fallback_defaults_and_dotted_overrides() {
         for selected in [Profile::Small, Profile::Standard] {
