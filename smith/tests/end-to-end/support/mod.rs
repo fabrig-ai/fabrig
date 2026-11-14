@@ -29,21 +29,21 @@ use std::{
 /// The fake program built beside this package's shipped binary.
 #[must_use]
 pub fn fake_claude() -> PathBuf {
-    fake_claude_beside(&skein_scratch::paths::binary("smith"))
+    fake_claude_beside(&skein_scratch::paths::binary("smith")).unwrap_or_else(|refusal| panic!("{refusal}"))
 }
 
 /// Find the executable sibling, naming the build command when it is absent.
-#[must_use]
-pub fn fake_claude_beside(smith: &Path) -> PathBuf {
+pub fn fake_claude_beside(smith: &Path) -> Result<PathBuf, String> {
     let path = smith.parent().expect("smith binary has a parent directory").join("fake-claude");
     let executable =
         std::fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0);
-    assert!(
-        executable,
-        "{}: missing or nonexecutable fake; run cargo build -p smith-fake-claude --bin fake-claude",
-        path.display()
-    );
-    path
+    if !executable {
+        return Err(format!(
+            "{}: missing or nonexecutable fake; run cargo build -p smith-fake-claude --bin fake-claude",
+            path.display()
+        ));
+    }
+    Ok(path)
 }
 
 pub enum Process {

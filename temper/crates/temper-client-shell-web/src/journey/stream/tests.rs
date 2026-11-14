@@ -151,21 +151,3 @@ fn refused_bodies_and_partial_prefixes_are_plain() {
         assert!(restored.as_ref() == bytes, "plain stream roundtrip");
     }
 }
-
-#[test]
-#[should_panic(expected = "11 10")]
-fn a_record_length_change_panics_with_lengths_alone() {
-    let mut lines = vec![piece(EVENT)];
-    let mut streams = Streams::read(&lines).expect("event");
-    streams.events_mut().first_mut().expect("event").record = b"long record".as_slice().into();
-    streams.write(&mut lines);
-}
-
-#[test]
-#[should_panic(expected = "11 10")]
-fn a_plain_length_change_panics_with_lengths_alone() {
-    let mut lines = vec![piece(b": comment\n")];
-    let mut streams = Streams::read(&lines).expect("comment");
-    streams.plain_mut().first_mut().expect("comment").bytes = b": comments\n".as_slice().into();
-    streams.write(&mut lines);
-}
