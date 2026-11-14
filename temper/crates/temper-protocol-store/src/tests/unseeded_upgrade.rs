@@ -32,7 +32,8 @@ fn old_sets() -> PatchSets {
                             .iter()
                             .map(|f| {
                                 let texts = match f.name {
-                                    "jig-store-tasks" | "temper-store" => f.texts.split_last().unwrap().1,
+                                    "jig-store-tasks" => f.texts.split_last().unwrap().1,
+                                    "temper-store" => &f.texts[..13], // v11 through the source fixture's v23.
                                     _ => f.texts,
                                 };
                                 KeptFamily { texts, current: texts.last().unwrap(), types: &[], ..*f }
@@ -49,7 +50,7 @@ fn old_sets() -> PatchSets {
 }
 fn component(disk: &Disk, sets: PatchSets) -> Store {
     let mut app = crate::application(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
-    app.version = if sets.sets.last().unwrap().patches.len() == 12 { 23 } else { 24 };
+    app.version = if sets.sets.last().unwrap().patches.len() == 12 { 23 } else { crate::STORE_VERSION };
     let mut store = Store::on_directory(&disk.limits(), app, &[], disk.seeded());
     store.patch_sets(sets);
     store
@@ -128,7 +129,7 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     let layout_key = |family: &str, number, id| {
         store::keys::encode_own(&store::keys::Own::Layout { family: family.into(), number, id }, 1024).unwrap()
     };
-    assert!(kv_get(&mut disk, &mut map, layout_key("temper-store", 12, 24)).is_none());
+    assert!(kv_get(&mut disk, &mut map, layout_key("temper-store", 12, 25)).is_none());
     assert!(kv_get(&mut disk, &mut map, layout_key("jig-store-tasks", 0, 13)).is_none());
     disk.kv(&mut map, skein_kv::Request::Close { owner: Token::new(1) });
 
@@ -149,13 +150,13 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
         }
     }
     assert!(opened);
-    assert_eq!(patched, [(store::Owner::Application, 13), (store::Owner::Jig, 6)]);
+    assert_eq!(patched, [(store::Owner::Application, 13), (store::Owner::Jig, 6), (store::Owner::Application, 14)]);
     let events = disk.request(&mut current, Request::Get { owner: Token::new(1), key: Get::Application(change_key) });
     let [Event::Got { row: Some(Row::Application { value, .. }), .. }] = events.as_slice() else {
         panic!("change: {events:?}")
     };
-    let change = crate::v24::Row::decode(&crate::v24::CEILINGS, &mut Reader::new(value)).unwrap();
-    let crate::v24::Value::Change(change) = change.into_parts().value else { panic!("change row") };
+    let change = crate::v25::Row::decode(&crate::v25::CEILINGS, &mut Reader::new(value)).unwrap();
+    let crate::v25::Value::Change(change) = change.into_parts().value else { panic!("change row") };
     assert_eq!(change.task_release(), &None);
     let events = disk.request(
         &mut current,
@@ -176,7 +177,7 @@ fn unseeded_v23_and_v12_rows_patch_before_the_current_registry_is_seeded() {
     disk.restart();
 
     let mut map = disk.map(2);
-    for (family, number, id, key) in [("temper-store", 12, 24, tagged_change), ("jig-store-tasks", 0, 13, task_key)] {
+    for (family, number, id, key) in [("temper-store", 12, 25, tagged_change), ("jig-store-tasks", 0, 13, task_key)] {
         let bytes = kv_get(&mut disk, &mut map, layout_key(family, number, id)).unwrap();
         let layout =
             store::registry_v1::Layout::decode(&store::registry_v1::CEILINGS, &mut Reader::new(&bytes)).unwrap();
