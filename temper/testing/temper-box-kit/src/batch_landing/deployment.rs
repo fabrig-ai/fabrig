@@ -1,0 +1,318 @@
+//! Deployment constraints and a departed member's later landing
+//! (temper/docs/design/domain/landing.md, 3, 4.2 and 5.1;
+//! temper/docs/design/protocol/configuration/settings.md, 1).
+use super::{Judge, Phase, Process, Script, Story, call, candidate, hold, members, release};
+use crate::{
+    ctl,
+    forgejo::{JobBarrier, Throwaway},
+    turn_restart, write_private,
+};
+use serde_json::{Value, json};
+use std::{fs, path::Path};
+
+/// Use the shipped document's standard profiles and declared-message sizing.
+/// A copied project retains its grants when its prepare executor is added.
+pub fn configure(root: &Path, repository: u64) {
+    turn_restart::configure_batch(root, repository, 1);
+    let path = root.join("temper.json");
+    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let shipped: Value = serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/temper.json"))
+        .expect("shipped deployment");
+    for part in ["engine", "application"] {
+        value[part]["limits"] = shipped[part]["limits"].clone();
+    }
+    value["workers"][0]["limits"] = shipped["workers"][0]["limits"].clone();
+    value["workers"][0]["slots"] = shipped["workers"][0]["slots"].clone();
+    let agent_path = root.join("agent.json");
+    let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
+    let shipped_agent: Value =
+        serde_json::from_slice(include_bytes!("../../../../crates/temper-init/template/agent.json"))
+            .expect("shipped agent");
+    agent["profile"] = shipped_agent["profile"].clone();
+    crate::configuration::turn_bounds::apply(&mut value, crate::configuration::turn_bounds::turn_body(&agent));
+    write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
+    write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    write_private(&root.join("copied-project.json"), b"{}");
+}
+
+pub(super) fn setup_count(root: &Path) -> usize {
+    turn_restart::SETUP_CALLS + if root.join("copied-project.json").exists() { 7 } else { 0 }
+}
+
+pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
+    let mut steps = turn_restart::setup(root);
+    if !root.join("copied-project.json").exists() {
+        return steps;
+    }
+    let base = steps.len();
+    steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "--json"]).in_directory("private")));
+    steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "policy", "1", "--json"]).in_directory("private")));
+    let file = root.join("copied-project.json");
+    steps.push(ctl::Step::Then(Box::new(move |calls| {
+        let mut policy = ctl::json(&calls[base + 1])["value"].clone();
+        let ceiling = &mut policy["ceiling"];
+        ceiling["delegation"]["kinds"].as_array_mut().expect("executors").retain(|kind| kind != &json!({"job":1}));
+        ceiling["grants"].as_array_mut().expect("grants").retain(|grant| grant["kind"] != 15);
+        policy["projections"].as_array_mut().expect("projections").retain(|grant| grant["kind"] != 15);
+        for role in policy["roles"].as_array_mut().expect("roles") {
+            role["authority"]["grants"].as_array_mut().expect("role grants").retain(|grant| grant["kind"] != 15);
+            role["authority"]["delegation"]["kinds"]
+                .as_array_mut()
+                .expect("role executors")
+                .retain(|kind| kind != &json!({"job":1}));
+        }
+        write_private(
+            &file,
+            &serde_json::to_vec(&json!({"items":[{
+                "setting":{"kind":"project-policy","project":1},"set":policy
+            }]}))
+            .expect("copied policy"),
+        );
+        ctl::settings_change(&calls[base], &file, "copy-project-policy").in_directory("private")
+    })));
+    steps.push(ctl::Step::Run(ctl::Call::new(&["project", "show", "1", "--json"]).in_directory("private")));
+    steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "--json"]).in_directory("private")));
+    let copied = root.join("copied-project.json");
+    let file = root.join("prepare-executor.json");
+    steps.push(ctl::Step::Then(Box::new(move |calls| {
+        let copied: Value = serde_json::from_slice(&fs::read(&copied).expect("copied project")).expect("policy JSON");
+        let mut policy = copied["items"][0]["set"].clone();
+        assert!(!policy["ceiling"]["grants"].as_array().expect("grants").iter().any(|grant| grant["kind"] == 15));
+        policy["ceiling"]["delegation"]["kinds"].as_array_mut().expect("executors").push(json!({"job":1}));
+        write_private(
+            &file,
+            &serde_json::to_vec(&json!({"items":[{
+                "setting":{"kind":"project-policy","project":1},"set":policy
+            }]}))
+            .expect("updated policy"),
+        );
+        let revision = ctl::newest(&calls[base + 4]).to_string();
+        ctl::Call::new(&[
+            "settings",
+            "apply",
+            file.to_str().expect("settings path"),
+            "--against",
+            &revision,
+            "--running",
+            "stays",
+            "--key",
+            "add-prepare-executor",
+        ])
+        .in_directory("private")
+    })));
+    steps.push(ctl::Step::Run(ctl::Call::new(&["project", "show", "1", "--json"]).in_directory("private")));
+    steps
+}
+
+pub(super) fn repair_script(scripts: &mut Vec<Script>) {
+    let mut read = call(b"read", &json!({"path":"batch-1.txt"}));
+    read.lines = [vec![hold(b"deployment-repair")], read.lines.into_vec()].concat().into_boxed_slice();
+    scripts.push(Script {
+        cue: b"Repair the failed landing gate".as_slice().into(),
+        turns: vec![
+            read,
+            call(b"write", &json!({"path":"batch-1.txt","content":"Repaired\n"})),
+            call(b"finish", &json!({"form":"change","fields":{"title":"Repaired change","body":"Gate repaired."}})),
+        ]
+        .into_boxed_slice(),
+    });
+}
+
+impl Judge<'_> {
+    pub(super) fn deployment_step(&mut self, procs: &mut [Process]) -> Result<(), String> {
+        if let Phase::StartGoal = self.phase {
+            self.amends = super::calls(procs)?.ends().len();
+            super::calls(procs)?.push(ctl::Step::Run(
+                ctl::Call::new(&[
+                    "goal",
+                    "start",
+                    "--project",
+                    "1",
+                    "--template",
+                    "4",
+                    "@moving-goal Write the design",
+                    "--budget",
+                    "1000000",
+                    "--key",
+                    "moving-goal",
+                ])
+                .in_directory("private"),
+            ));
+            self.phase = Phase::GoalGates;
+            return Ok(());
+        }
+        if let Phase::GoalGates = self.phase {
+            let calls = super::calls(procs)?;
+            let Some(ended) = calls.ends().get(self.amends) else { return Ok(()) };
+            if ended.exit != Some(skein_io::kernel::Exit::Code(0)) {
+                return Err(format!("goal start: {}", String::from_utf8_lossy(&ended.stderr)));
+            }
+            let change = match self.change(4) {
+                Ok(change) => change,
+                Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(()),
+                Err(why) => return Err(why),
+            };
+            if change["step"] == "gating" {
+                release(procs, b"batch-reviews")?;
+                self.phase = Phase::Batch;
+            }
+            return Ok(());
+        }
+        if let Phase::GoalEnding = self.phase {
+            release(procs, b"goal-finish")?;
+            if self.read(&["task", "show", "3"])?["chip"]["phase"] == "ended" {
+                self.phase = Phase::Ending;
+            }
+            return Ok(());
+        }
+        let first = self.first.as_ref().ok_or("first proof")?;
+        let task = first.panel["task"].as_u64().ok_or("landing task")?;
+        let panel = self.landing(task)?;
+        let change_task = if matches!(self.story, Story::Conflict | Story::MidProof) { 4 } else { 3 };
+        let change = self.change(change_task)?;
+        self.observe(0, json!({"landing":panel,"change":change}));
+        if let Phase::SingleLanded = self.phase {
+            if self.landed(first)? {
+                self.phase = Phase::Ending;
+            }
+            return Ok(());
+        }
+        if let Phase::Moved = self.phase {
+            release(procs, b"goal-midproof")?;
+            if change["head"] == members(&first.panel)?[0]["head"] {
+                return Ok(());
+            }
+            self.barrier.release(first.run);
+            if panel["phase"] != "ended" {
+                return Ok(());
+            }
+            let left = &members(&panel)?[0]["left"];
+            if left.is_null() || !members(&panel)?[0]["landed"].is_null() {
+                return Err("superseded member left".into());
+            }
+            if super::main(self.forge)? != self.base {
+                return Err("superseded prefix never lands".into());
+            }
+            self.phase = Phase::Repaired;
+        }
+        if let Phase::Conflict = self.phase {
+            release(procs, b"batch-reviews")?;
+            if !self.landed(first)? || change["step"] != "resolving" {
+                return Ok(());
+            }
+            if super::main(self.forge)? != candidate(&first.panel)? {
+                return Err("only the first conflicting change landed".into());
+            }
+            release(procs, b"deployment-resolution")?;
+            self.phase = Phase::Resolved;
+        }
+        if let Phase::Repair = self.phase {
+            if change["step"] != "repairing" || panel["phase"] != "ended" {
+                return Ok(());
+            }
+            if members(&panel)?[0]["left"].is_null() || !members(&panel)?[0]["landed"].is_null() {
+                return Err("the failed member left without landing".into());
+            }
+            if super::main(self.forge)? != self.base {
+                return Err("red never reached main".into());
+            }
+            release(procs, b"deployment-repair")?;
+            self.phase = Phase::Repaired;
+        }
+        if matches!(self.phase, Phase::Repaired | Phase::Resolved) {
+            release(procs, b"deployment-resolution")?;
+            release(procs, b"deployment-repair")?;
+            release(procs, b"batch-reviews")?;
+            if self.second.is_none() {
+                if let Some(proof) = self.proof(Some(first.run), &[change_task])? {
+                    if matches!(self.story, Story::Repaired)
+                        && members(&proof.panel)?[0]["head"] == members(&first.panel)?[0]["head"]
+                    {
+                        return Err("repair delivers a new head".into());
+                    }
+                    self.barrier.release(proof.run);
+                    self.second = Some(proof);
+                }
+            } else if self.landed(self.second.as_ref().ok_or("repaired proof")?)? {
+                if super::main(self.forge)? != candidate(&self.second.as_ref().ok_or("repaired proof")?.panel)? {
+                    return Err("repaired prefix reached main".into());
+                }
+                self.phase = if let Story::MidProof = self.story { Phase::GoalEnding } else { Phase::Ending };
+            }
+        }
+        Ok(())
+    }
+}
+
+/// A real root needs more entries than the tiny key fixture.
+pub fn add_root(forge: &Throwaway) {
+    for number in 0..17 {
+        forge.add_file(&format!("root-{number}.txt"), b"Repository root entry.\n");
+    }
+}
+
+pub fn run_repaired(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    super::run_story(root, forge, barrier, Story::Repaired);
+}
+pub fn run_green(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    super::run_story(root, forge, barrier, Story::DeploymentGreen);
+}
+
+pub(super) fn resolution_script(scripts: &mut Vec<Script>) {
+    let mut read = call(b"read", &json!({"path":"shared.txt"}));
+    read.lines = [vec![hold(b"deployment-resolution")], read.lines.into_vec()].concat().into_boxed_slice();
+    scripts.push(Script {
+        cue: b"Resolve the conflict from change head".as_slice().into(),
+        turns: vec![
+            read,
+            call(b"write", &json!({"path":"shared.txt","content":"Change 1 and change 2 resolved\n"})),
+            call(
+                b"finish",
+                &json!({"form":"change","fields":{"title":"Resolve both changes","body":"Preserve both goals."}}),
+            ),
+        ]
+        .into_boxed_slice(),
+    });
+}
+
+pub fn run_conflict(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    super::run_story(root, forge, barrier, Story::Conflict);
+}
+
+pub(super) fn goal_scripts(forge: &Throwaway) -> Box<[Script]> {
+    use skein_fake_llm_domain::api::{Finish, Turn};
+    let mut scripts = crate::landing_scripts(crate::ANSWER, forge).into_vec();
+    let owner = scripts.iter_mut().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
+    owner.turns = Box::new([call(b"finish", &json!({"form":"report","text":"Ready for the goal.","fields":{}}))]);
+    let review = scripts
+        .iter_mut()
+        .find(|script| script.cue.as_ref() == b"Review this change at the named head")
+        .expect("review");
+    review.turns[0].lines = [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
+    let mut moved = call(b"write", &json!({"path":"design.md","content":"# Design\nSecond delivery\n"}));
+    moved.lines = [vec![hold(b"goal-midproof")], moved.lines.into_vec()].concat().into_boxed_slice();
+    let finish = call(b"finish", &json!({"form":"report","text":"Design landed.","fields":{}}));
+    let held_finish = Turn {
+        lines: [vec![hold(b"goal-finish")], finish.lines.into_vec()].concat().into_boxed_slice(),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    };
+    scripts.push(Script {
+        cue: b"## Task\n\n@moving-goal".as_slice().into(),
+        turns: vec![
+            call(b"read", &json!({"path":"design.md"})),
+            call(b"write", &json!({"path":"design.md","content":"# Design\nFirst delivery\n"})),
+            call(b"deliver", &json!({"fields":{"title":"First design","body":"Initial design."}})),
+            call(b"change", &json!({"words":"Land the moving design","branch":"mine"})),
+            moved,
+            call(b"deliver", &json!({"fields":{"title":"Second design","body":"Updated while proving."}})),
+            held_finish,
+        ]
+        .into_boxed_slice(),
+    });
+    scripts.into_boxed_slice()
+}
+
+pub fn run_midproof(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    super::run_story(root, forge, barrier, Story::MidProof);
+}

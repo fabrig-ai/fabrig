@@ -175,6 +175,25 @@ fn a_red_batch_is_narrowed_before_the_remaining_change_lands() {
     batch_landing("batch-red-narrowed", true);
 }
 
+#[test]
+fn a_deployment_sized_repository_root_lands_by_turn() {
+    deployment_turn("deployment-root", support::batch_landing::deployment::run_green);
+}
+
+fn deployment_turn(case: &str, run: fn(&std::path::Path, &support::forgejo::Throwaway, &support::forgejo::JobBarrier)) {
+    use support::{batch_landing::deployment, landing_by_turn, turn_restart};
+    let scratch = support::Scratch::new(case);
+    let barrier = support::forgejo::JobBarrier::new(scratch.path());
+    let forge = turn_restart::start(&scratch);
+    forge.add_file(".forgejo/workflows/gate.yaml", barrier.gate_workflow(landing_by_turn::WORKFLOW).as_bytes());
+    deployment::add_root(&forge);
+    support::configuration(scratch.path(), &forge.forge());
+    deployment::configure(scratch.path(), forge.repository());
+    run(scratch.path(), &forge, &barrier);
+    forge.stop();
+    scratch.remove();
+}
+
 fn batch_landing(case: &str, narrowed: bool) {
     use support::{batch_landing, landing_by_turn, turn_restart};
     let scratch = support::Scratch::new(case);
