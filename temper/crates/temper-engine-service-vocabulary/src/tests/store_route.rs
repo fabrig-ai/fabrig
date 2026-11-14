@@ -910,7 +910,12 @@ fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
                 owner: fixtures::OWNER,
                 of,
                 job: "unknown-job".into(),
-                page: store::JobPage { rows: Box::new([]), end: true, layout: None },
+                page: store::JobPage {
+                    rows: Box::new([]),
+                    end: true,
+                    layout: None,
+                    room: store::JobRoom { writes: 0, bytes: 0 },
+                },
             },
             &mut out,
         );
