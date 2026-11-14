@@ -51,7 +51,8 @@ pub(crate) fn build(expansion: &Expansion) -> Result<Data, Box<[Error]>> {
     for located in &entries {
         match crate::kinds::data::entry(located) {
             Ok(entry) => {
-                rows.insert((entry.name.clone(), entry.task.clone()), (entry, located)).expect("entry bound");
+                rows.insert((entry.value.name.clone(), entry.source.task.clone()), (entry, located))
+                    .expect("entry bound");
             }
             Err(error) => {
                 faults.push(*error).expect("entry bound");
@@ -59,16 +60,14 @@ pub(crate) fn build(expansion: &Expansion) -> Result<Data, Box<[Error]>> {
         }
     }
     let mut entries = List::with_capacity(rows.len());
-    for (index, ((name, _task), (entry, located))) in rows.iter().enumerate() {
+    for (index, ((_name, _task), (entry, located))) in rows.iter().enumerate() {
         if index == usize::try_from(MAX_ENTRIES).expect("entry limit") {
             faults
                 .push(crate::kinds::secrets::fault(located, None, Schema::Above { max: i64::from(MAX_ENTRIES) }))
                 .expect("entry bound");
             break;
         }
-        entries
-            .push(DataEntry { name: name.clone(), value: DataValue { class: entry.class, path: entry.path.clone() } })
-            .expect("entry bound");
+        entries.push(entry.value.clone()).expect("entry bound");
     }
     if faults.is_empty() { Ok(Data { entries: entries.into_boxed() }) } else { Err(faults.into_boxed()) }
 }

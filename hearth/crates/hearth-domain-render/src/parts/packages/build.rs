@@ -56,7 +56,7 @@ pub fn read(root: &Value) -> Option<(Sources, Apt)> {
         Apt { install_recommends: boolean(root, b"install_recommends")? },
     ))
 }
-pub fn build(
+pub(crate) fn build(
     root: &Value,
     placement: &revision::Placement,
     expansion: &Expansion,
