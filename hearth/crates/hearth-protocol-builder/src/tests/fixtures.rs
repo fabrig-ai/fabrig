@@ -328,31 +328,6 @@ impl Layer {
     }
 }
 
-pub fn config_change() -> render::diff::Change {
-    use render::{diff, parts::config, revision::Mode};
-    diff::Change {
-        target: bytes::copy_of(b"x1-prod"),
-        change: diff::TargetChange::Changed {
-            parts: Box::new([diff::PartChange::Config(config::Change {
-                presets: Box::new([]),
-                tmpfiles: Box::new([]),
-                scripts: None,
-                groups: Box::new([]),
-                users: Box::new([]),
-                members: Box::new([]),
-                tree: Box::new([config::EntryChange::Changed {
-                    path: bytes::copy_of(b"/etc/motd"),
-                    before: config::file(b"etc/motd", Mode::File, hearth_lib::encode::Digest([1; 32])).node,
-                    after: config::file(b"etc/motd", Mode::Executable, hearth_lib::encode::Digest([2; 32])).node,
-                    sizes: Some(config::Sizes { before: 9, after: 22 }),
-                    hunks: Some(diff::Hunks { lines: Box::new([]), left_out: 401, binary: false }),
-                }]),
-            })]),
-            rebuild: diff::Rebuild::FromConfig,
-        },
-    }
-}
-
 pub fn roots() -> crate::Roots {
     crate::Roots {
         store: crate::Root { fd: Fd::new(3), token: Token::new(31) },
@@ -420,25 +395,6 @@ impl Layer {
             after: hearth_lib::encode::Digest([2; 32]),
         });
     }
-}
-
-#[must_use]
-pub fn render_hunks() -> [render::diff::Hunks; 2] {
-    use render::diff::{Hunks, Line, LineKind};
-    [
-        Hunks {
-            lines: Box::new([
-                Line { kind: LineKind::Hunk, text: bytes::copy_of(b"@@ -1 +1 @@") },
-                Line { kind: LineKind::Context, text: bytes::copy_of(b"context") },
-                Line { kind: LineKind::Removed, text: bytes::copy_of(b"old") },
-                Line { kind: LineKind::Added, text: bytes::copy_of(b"new") },
-                Line { kind: LineKind::NoNewline, text: bytes::copy_of(b" No newline at end of file") },
-            ]),
-            left_out: 401,
-            binary: false,
-        },
-        Hunks { lines: Box::new([]), left_out: 0, binary: true },
-    ]
 }
 
 #[must_use]
@@ -657,36 +613,6 @@ pub fn every_syntax() -> [hearth_protocol_template::error::ErrorKind; 19] {
 }
 
 #[must_use]
-pub fn meta_changes() -> [render::parts::meta::Change; 2] {
-    use crate::render::{
-        parts::meta::{Change, MemberPair, NamePair, Placement, PlacementPair},
-        revision::{Firmware, Runs},
-    };
-    [
-        Change {
-            base: Some(NamePair { before: b"x1".as_slice().into(), after: b"x2".as_slice().into() }),
-            member: Some(MemberPair { before: None, after: Some(b"a".as_slice().into()) }),
-            environment: Some(NamePair { before: b"lab".as_slice().into(), after: b"prod".as_slice().into() }),
-            placement: Some(PlacementPair {
-                before: Placement { kind: Runs::Metal, firmware: Some(Firmware::Efi), hardware: None, on: None },
-                after: Placement {
-                    kind: Runs::Container,
-                    firmware: None,
-                    hardware: None,
-                    on: Some(b"x1-prod".as_slice().into()),
-                },
-            }),
-        },
-        Change {
-            base: None,
-            member: Some(MemberPair { before: Some(b"a".as_slice().into()), after: None }),
-            environment: None,
-            placement: None,
-        },
-    ]
-}
-
-#[must_use]
 pub fn decode_error() -> render::errors::Error {
     use render::errors as render_errors;
     use render::revision as target;
@@ -753,15 +679,7 @@ pub use keep::*;
 mod debian;
 pub use debian::*;
 
-mod software;
-pub use software::software_records;
-mod live;
-pub use live::{live_records, live_specs};
-mod secrets;
-pub use secrets::secret_records;
-
 mod exports;
-pub mod files;
 mod packages;
 pub use exports::*;
 pub use packages::*;
@@ -771,24 +689,17 @@ pub use resolution::*;
 
 mod resolve;
 pub use resolve::*;
-mod accounts;
-pub use accounts::*;
 
 mod indices;
 pub use indices::*;
-pub mod data;
-mod directives;
-pub use directives::*;
 
-mod diff_resolution;
-pub use diff_resolution::*;
 mod ids;
 pub use ids::*;
 
 mod collisions;
 pub use collisions::*;
-mod part_changes;
-pub use part_changes::*;
 
 mod lists;
 pub use lists::only;
+
+pub const DEFAULT_SCRIPT_ORDER: u16 = 500;

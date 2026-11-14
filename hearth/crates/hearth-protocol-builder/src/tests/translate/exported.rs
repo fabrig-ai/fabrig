@@ -1,4 +1,5 @@
 use crate::{records::errors as records, render::errors as render, tests::fixtures};
+
 fn cause_back(cause: records::Cause) -> render::Cause {
     match cause {
         records::Cause::Decode(records::Decode::Unexpected) => render::Cause::Decode(render::Decode::Unexpected),
@@ -23,12 +24,8 @@ fn each_exported_cause_translates_to_the_records_and_back() {
         let records::Kind::Exported(records::Exported { exporter, task: exporting, cause }) = kind else {
             panic!("exported")
         };
-        let mut translated_side = None;
-        if let Some(side) = side {
-            translated_side = Some(super::side_back(side));
-        }
         let back = render::Error {
-            side: translated_side,
+            side,
             kind: render::Kind::Exported(render::Exported { exporter, task: exporting, cause: cause_back(cause) }),
             class: crate::render::vocabulary::Class::Configuration,
             at: None,

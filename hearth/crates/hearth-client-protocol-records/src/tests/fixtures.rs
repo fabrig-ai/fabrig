@@ -1,12 +1,15 @@
-use crate::{
-    parts::{
-        config::{Config, Node, TreeEntry},
-        meta::{Firmware, Meta, Placement, PlacementKind},
-    },
-    records::{Part, PartRecord, Spec},
-};
 use alloc::boxed::Box;
+use hearth_domain_render_vocabulary as render;
+use render::{
+    parts::{
+        Part, PartRecord, Spec,
+        config::{Config, Node, TreeEntry},
+        meta::{Meta, Placement},
+    },
+    revision::{Firmware, Runs as PlacementKind},
+};
 use skein_lib::bytes::copy_of;
+
 pub fn digest(prefix: [u8; 6]) -> [u8; 32] {
     let mut value = [0; 32];
     for (to, from) in value.iter_mut().zip(prefix) {
@@ -29,11 +32,11 @@ pub fn x1_prod() -> Box<Spec> {
             },
         },
         resolution: None,
-        meta_digest: digest([0xc4, 0xd3, 0xa0, 0xb1, 0xe2, 0xf5]),
-        commit: copy_of(b"1a2b3c4d00000000000000000000000000000000"),
-        digest: digest([0x9a, 0x0c, 0x5e, 0x1f, 0x2b, 0x3d]),
+        meta_digest: hearth_lib::encode::Digest(digest([0xc4, 0xd3, 0xa0, 0xb1, 0xe2, 0xf5])),
+        commit: render::revision::Oid(copy_of(b"1a2b3c4d00000000000000000000000000000000")),
+        digest: hearth_lib::encode::Digest(digest([0x9a, 0x0c, 0x5e, 0x1f, 0x2b, 0x3d])),
         parts: Box::new([Part {
-            digest: digest([0xe7, 0xc2, 0xa0, 0xd9, 0x5b, 0x13]),
+            digest: hearth_lib::encode::Digest(digest([0xe7, 0xc2, 0xa0, 0xd9, 0x5b, 0x13])),
             record: PartRecord::Config(Config {
                 presets: Box::new([]),
                 tmpfiles: Box::new([]),
@@ -44,7 +47,7 @@ pub fn x1_prod() -> Box<Spec> {
                 tree: Box::new([TreeEntry {
                     path: copy_of(b"/etc/hostname"),
                     node: Node::File {
-                        content_digest: digest([0x3f, 0x1c, 0x2a, 0xb0, 0x7e, 0x44]),
+                        content_digest: hearth_lib::encode::Digest(digest([0x3f, 0x1c, 0x2a, 0xb0, 0x7e, 0x44])),
                         mode: 0o644,
                         owner: copy_of(b"root"),
                         group: copy_of(b"root"),
@@ -62,23 +65,34 @@ pub const X1_PROD_TEXT: &str = concat!(
     "  /etc/hostname            file 0644 root:root 3f1c2ab07e44\n",
 );
 
-pub fn with_resolution(mut spec: Box<Spec>, resolution: crate::records::Resolution) -> Box<Spec> {
-    spec.resolution = Some(resolution);
+pub fn with_resolution(mut spec: Box<Spec>, resolution: render::keys::Resolution) -> Box<Spec> {
+    spec.resolution = Some(Box::new(resolution));
     spec
 }
-pub fn known() -> crate::records::Resolution {
-    crate::records::Resolution::Known {
-        key: digest([0x0c, 0x7d, 0x9e, 0x41, 0xc0, 0xd2]),
-        keys: crate::records::Keys { packages: [0x11; 32], software: [0x22; 32], config: [0x33; 32] },
+pub fn known() -> render::keys::Resolution {
+    render::keys::Resolution::Known {
+        key: hearth_lib::encode::Digest(digest([0x0c, 0x7d, 0x9e, 0x41, 0xc0, 0xd2])),
+        keys: render::keys::Keys {
+            packages: hearth_lib::encode::Digest([0x11; 32]),
+            software: hearth_lib::encode::Digest([0x22; 32]),
+            config: hearth_lib::encode::Digest([0x33; 32]),
+        },
     }
 }
 
-pub fn wg0_changed() -> crate::diff::Change {
-    use crate::diff::{
-        Change, ConfigChange, EntryChange, HunkLine, Hunks, LineKind, PartChange, Rebuild, Sizes, TargetChange,
-    };
+pub fn wg0_changed() -> render::diff::Change {
+    use render::diff::Change;
+    use render::diff::Hunks;
+    use render::diff::Line as HunkLine;
+    use render::diff::LineKind;
+    use render::diff::PartChange;
+    use render::diff::Rebuild;
+    use render::diff::TargetChange;
+    use render::parts::config::Change as ConfigChange;
+    use render::parts::config::EntryChange;
+    use render::parts::config::Sizes;
     const LINES: [(LineKind, &[u8]); 7] = [
-        (LineKind::Header, b"@@ -9,5 +9,5 @@ ListenPort=51820"),
+        (LineKind::Hunk, b"@@ -9,5 +9,5 @@ ListenPort=51820"),
         (LineKind::Context, b"[WireGuardPeer]"),
         (LineKind::Context, "PublicKey=AAAA…=".as_bytes()),
         (LineKind::Context, b"AllowedIPs=10.0.0.1/32"),
@@ -113,7 +127,12 @@ pub fn wg0_changed() -> crate::diff::Change {
     }
 }
 pub fn file(content_digest: [u8; 32]) -> Node {
-    Node::File { content_digest, mode: 0o644, owner: copy_of(b"root"), group: copy_of(b"root") }
+    Node::File {
+        content_digest: hearth_lib::encode::Digest(content_digest),
+        mode: 0o644,
+        owner: copy_of(b"root"),
+        group: copy_of(b"root"),
+    }
 }
 pub const WG0_TEXT: &str = concat!(
     "carbon-prod                                         rebuild from config\n",
@@ -122,8 +141,14 @@ pub const WG0_TEXT: &str = concat!(
     "                PublicKey=AAAA…=\n                AllowedIPs=10.0.0.1/32\n",
     "               -Endpoint=203.0.113.157:51820\n               +Endpoint=203.0.113.158:51820\n                PersistentKeepalive=25\n",
 );
-pub fn tally(targets: u32, changed: u32, unchanged: u32) -> crate::diff::Tally {
-    crate::diff::Tally { from: copy_of(b"main"), to: copy_of(b"HEAD"), targets, changed, unchanged }
+pub fn tally(targets: u32, changed: u32, unchanged: u32) -> render::diff::Tally {
+    render::diff::Tally {
+        from: render::revision::Oid(copy_of(b"main")),
+        to: render::revision::Oid(copy_of(b"HEAD")),
+        targets,
+        changed,
+        unchanged,
+    }
 }
 
 pub fn modules_guard() -> crate::errors::Error {
@@ -286,11 +311,14 @@ pub fn syntax_error(syntax: crate::errors::Syntax) -> crate::errors::Error {
     error
 }
 #[must_use]
-pub fn meta_changes() -> [crate::diff::MetaChange; 2] {
-    use crate::{
-        diff::{MemberPair, MetaChange, NamePair, PlacementPair},
-        parts::meta::{Firmware, Placement, PlacementKind},
-    };
+pub fn meta_changes() -> [render::parts::meta::Change; 2] {
+    use render::parts::meta::Change as MetaChange;
+    use render::parts::meta::MemberPair;
+    use render::parts::meta::NamePair;
+    use render::parts::meta::Placement;
+    use render::parts::meta::PlacementPair;
+    use render::revision::Firmware;
+    use render::revision::Runs as PlacementKind;
     [
         MetaChange {
             base: Some(NamePair { before: b"x1".as_slice().into(), after: b"x2".as_slice().into() }),

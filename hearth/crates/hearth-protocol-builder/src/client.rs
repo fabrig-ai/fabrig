@@ -14,6 +14,7 @@ use skein_lib::{
     Env, Queue, Token,
     stream::{Down, Up},
 };
+
 #[derive(Debug)]
 enum Stream {
     Taking,
@@ -164,14 +165,14 @@ impl Client {
     pub fn answer(&mut self, env: &Env<Limits>, answer: Answer, store: &[u8]) {
         assert!(self.takes(), "printer takes one record at a time");
         let record = match answer {
-            Answer::Spec(spec) => Record::Spec(Box::new(answers::spec(spec))),
+            Answer::Spec(spec) => Record::Spec(Box::new(spec)),
             Answer::Error(mut error) => {
                 if let crate::render::errors::Kind::Store(fault) = &mut error.kind {
                     fault.store = skein_lib::bytes::copy_of(store);
                 }
                 Record::Error(crate::translate::errors::error(error))
             }
-            Answer::Change(change) => Record::Change(super::translate::changes::change(change)),
+            Answer::Change(change) => Record::Change(change),
             Answer::Layer { layer, key, state } => Record::Layer(answers::layer(layer, key, state)),
             Answer::Failed { step, why } => {
                 let failed = answers::failed(step, why);
@@ -194,7 +195,6 @@ impl Client {
         assert_eq!(to.into_token(), Token::new(0), "the initial call's reply");
         self.stream.end(outcome);
         let outcome = self.outcome(outcome);
-        let diff = super::translate::changes::optional_tally(diff);
         self.print(env, Record::Terminal(records::records::Terminal { outcome, diff, left_out }));
     }
     /// The terminal's outcome: a refused record fails the answer, and an

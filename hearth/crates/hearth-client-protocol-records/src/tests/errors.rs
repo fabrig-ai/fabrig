@@ -7,7 +7,9 @@ use crate::{
     records::{Record, Terminal, Type},
     startup::{Misuse, Opened, Startup},
 };
+use hearth_domain_render_vocabulary as render;
 use skein_lib::bytes::copy_of;
+
 const GUARD: &str =
     "\ntasks/boot/task.json:22:7: carbon-lab: boot: requires modules: no initramfs modules for this hardware\n";
 #[test]
@@ -463,9 +465,9 @@ fn a_syntax_error_prints_its_path_task_and_message() {
 fn a_syntax_error_prints_its_json_kind_and_fault() {
     assert_eq!(form::print(Form::JsonLines, &Record::Error(fixtures::syntax_error(crate::errors::Syntax::Unclosed)), Some(Type::Spec), &limits::SHIPPED).as_deref(), Ok(b"{\"record\":\"error\",\"kind\":\"decode\",\"decode\":{\"kind\":\"syntax\",\"fault\":\"unclosed\"},\"class\":\"configuration\",\"at\":{\"column\":1,\"line\":2,\"path\":\"tasks/motd/tree/etc/issue.j2\"},\"task\":\"motd\"}\n".as_slice()));
 }
-const DIFF_ERROR_TEXT: &[(crate::diff::Side, &str)] = &[
-    (crate::diff::Side::From, "from: envs/lab.json:1:14: duplicate key \"motd\" (envs/lab.json:1:2)\n"),
-    (crate::diff::Side::To, "to: envs/lab.json:1:14: duplicate key \"motd\" (envs/lab.json:1:2)\n"),
+const DIFF_ERROR_TEXT: &[(render::diff::Side, &str)] = &[
+    (render::diff::Side::From, "from: envs/lab.json:1:14: duplicate key \"motd\" (envs/lab.json:1:2)\n"),
+    (render::diff::Side::To, "to: envs/lab.json:1:14: duplicate key \"motd\" (envs/lab.json:1:2)\n"),
 ];
 #[test]
 fn a_diff_error_leads_its_line_with_the_revision_side() {

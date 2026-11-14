@@ -1,11 +1,12 @@
 use super::*;
-use crate::{diff::ResolutionChange, parts::packages::*, records::Resolution};
+use hearth_domain_render_vocabulary as render;
+use render::{diff::ResolutionChange, keys::Resolution, parts::packages::*};
 use skein_lib::bytes::copy_of;
 
 #[test]
 fn packages_needed_and_container_forms() {
     let mut rich = fixtures::packages_record();
-    rich.initramfs_file = Some([7; 32]);
+    rich.initramfs_file = Some(hearth_lib::encode::Digest([7; 32]));
     rich.initramfs =
         Some(Initramfs { modules: Box::new([copy_of(b"btrfs"), copy_of(b"nvme")]), microcode: Microcode::None });
     rich.apt.install_recommends = true;
@@ -42,8 +43,10 @@ fn packages_needed_and_container_forms() {
         ]),
         groups: Box::new([SeedGroup { name: copy_of(b"mail"), gid: 121 }]),
     };
-    let mut rich_spec = fixtures::with_resolution(fixtures::x1_prod(), Resolution::Needed { key: [3; 32] });
-    rich_spec.parts = Box::new([Part { digest: [0; 32], record: PartRecord::Packages(rich) }]);
+    let mut rich_spec =
+        fixtures::with_resolution(fixtures::x1_prod(), Resolution::Needed { key: hearth_lib::encode::Digest([3; 32]) });
+    rich_spec.parts =
+        Box::new([Part { digest: hearth_lib::encode::Digest([0; 32]), record: PartRecord::Packages(rich) }]);
     let mut container = fixtures::packages_record();
     container.variant = Variant::Container;
     container.initramfs = None;

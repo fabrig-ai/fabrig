@@ -4,6 +4,7 @@ use crate::{
     records::{Record, Type},
 };
 use alloc::boxed::Box;
+
 pub(crate) mod json;
 pub(crate) mod text;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -25,6 +26,6 @@ pub fn print(form: Form, record: &Record, after: Option<Type>, limits: &Limits) 
     }
 }
 
-mod meta;
+pub(crate) mod meta;
 
-mod resolution_change;
+pub(crate) mod resolution_change;

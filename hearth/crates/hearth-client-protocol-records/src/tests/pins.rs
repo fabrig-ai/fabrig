@@ -1,13 +1,19 @@
 //! Whole-output pins (hearth/docs/design/domain/render/contracts.md, 4).
 use super::fixtures;
 use crate::{
-    diff::{ConfigChange, PartChange},
     form::{self, Form},
     limits,
-    parts::config::Config,
-    records::{Part, PartRecord, Record},
+    records::Record,
 };
 use alloc::boxed::Box;
+use hearth_domain_render_vocabulary as render;
+use render::{
+    diff::PartChange,
+    parts::{
+        Part, PartRecord,
+        config::{Change as ConfigChange, Config},
+    },
+};
 
 // Only literal fragments enter these macros: the expectation never uses the printer.
 macro_rules! spec_text {
@@ -51,7 +57,7 @@ fn check(rows: &[(Record, &str, &str)]) {
 }
 fn spec(part: PartRecord) -> Record {
     let mut spec = fixtures::x1_prod();
-    spec.parts = Box::new([Part { digest: [0; 32], record: part }]);
+    spec.parts = Box::new([Part { digest: hearth_lib::encode::Digest([0; 32]), record: part }]);
     Record::Spec(spec)
 }
 fn config() -> Config {

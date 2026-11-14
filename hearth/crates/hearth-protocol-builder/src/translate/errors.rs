@@ -89,7 +89,7 @@ pub fn error(error: target::Error) -> records::errors::Error {
         render::vocabulary::Class::Configuration => records::errors::Class::Configuration,
         render::vocabulary::Class::Operational => records::errors::Class::Operational,
     };
-    records::errors::Error { side: optional_side(side), kind, class, at: place(at), also: place(also), target, task }
+    records::errors::Error { side, kind, class, at: place(at), also: place(also), target, task }
 }
 fn place(place: Option<target::Place>) -> Option<records::errors::Place> {
     let target::Place { path, position } = place?;
@@ -579,10 +579,6 @@ fn filter_name(value: render::evaluate::Filter) -> &'static [u8] {
         Filter::Basename => b"basename",
         Filter::Dirname => b"dirname",
     }
-}
-
-fn optional_side(side: Option<render::diff::Side>) -> Option<records::diff::Side> {
-    Some(super::changes::side(side?))
 }
 
 #[must_use]

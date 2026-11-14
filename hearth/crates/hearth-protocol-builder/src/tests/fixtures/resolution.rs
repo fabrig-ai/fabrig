@@ -1,21 +1,6 @@
 use crate::{render, tree};
 use skein_lib::{Duration, Wall};
-#[must_use]
-pub fn resolution_specs() -> [render::parts::Spec; 3] {
-    [
-        None,
-        Some(render::keys::Resolution::Needed { key: super::ABC }),
-        Some(render::keys::Resolution::Known {
-            key: super::ABC,
-            keys: render::keys::Keys { packages: super::ABC, software: super::ABC, config: super::ABC },
-        }),
-    ]
-    .map(|resolution| {
-        let mut spec = super::spec();
-        spec.resolution = boxed_resolution(resolution);
-        spec
-    })
-}
+
 #[must_use]
 pub fn resolution_record(inputs: tree::resolution::Inputs) -> tree::resolution::Resolution {
     use tree::resolution::*;
@@ -45,10 +30,6 @@ pub fn resolution_record(inputs: tree::resolution::Inputs) -> tree::resolution::
             costs: Costs { fetched: 7, took: Duration::from_secs(1) },
         },
     }
-}
-
-fn boxed_resolution(value: Option<render::keys::Resolution>) -> Option<Box<render::keys::Resolution>> {
-    Some(Box::new(value?))
 }
 
 #[must_use]

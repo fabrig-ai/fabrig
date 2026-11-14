@@ -1,5 +1,6 @@
 use super::*;
-use crate::{diff::*, parts::config::*};
+use hearth_domain_render_vocabulary as render;
+use render::{diff::Hunks, parts::config::*};
 use skein_lib::bytes::copy_of;
 
 macro_rules! config_diff_json {
@@ -45,10 +46,10 @@ fn user() -> UserKind {
         shell: copy_of(b"/bin/sh"),
     }
 }
-fn line(kind: crate::parts::config::LineKind) -> Line {
+fn line(kind: LineKind) -> Line {
     Line { kind, mode: None, owner: None, group: None, age: Some(copy_of(b"7d")), argument: Some(copy_of(b"target")) }
 }
-fn tmpfile(kind: crate::parts::config::LineKind) -> Record {
+fn tmpfile(kind: LineKind) -> Record {
     let mut config = config();
     config.tmpfiles = Box::new([Tmpfile { path: copy_of(b"/tmp/item"), line: line(kind) }]);
     spec(PartRecord::Config(config))
@@ -59,7 +60,6 @@ macro_rules! tmp_json {
 }
 #[test]
 fn tmpfile_line_kinds_with_optional_fields() {
-    use crate::parts::config::LineKind;
     check(&[
         (
             tmpfile(LineKind::CapitalD),
@@ -251,8 +251,7 @@ fn keyed_accounts_and_directives() {
     added.groups = Box::new([GroupKeyed::Added { key: copy_of(b"ops"), value: GroupKind::Sysusers { gid: None } }]);
     added.users = Box::new([UserKeyed::Added { key: copy_of(b"alice"), value: user() }]);
     added.presets = Box::new([PresetKeyed::Added { key: copy_of(b"mail.service"), value: Action::Enable }]);
-    added.tmpfiles =
-        Box::new([LineKeyed::Added { key: copy_of(b"/tmp/item"), value: line(crate::parts::config::LineKind::FPlus) }]);
+    added.tmpfiles = Box::new([LineKeyed::Added { key: copy_of(b"/tmp/item"), value: line(LineKind::FPlus) }]);
     let mut removed = config_change();
     removed.groups = Box::new([GroupKeyed::Changed {
         key: copy_of(b"ops"),
@@ -261,10 +260,7 @@ fn keyed_accounts_and_directives() {
     }]);
     removed.users = Box::new([UserKeyed::Removed { key: copy_of(b"alice"), value: user() }]);
     removed.presets = Box::new([PresetKeyed::Removed { key: copy_of(b"mail.service"), value: Action::Enable }]);
-    removed.tmpfiles = Box::new([LineKeyed::Removed {
-        key: copy_of(b"/tmp/item"),
-        value: line(crate::parts::config::LineKind::FPlus),
-    }]);
+    removed.tmpfiles = Box::new([LineKeyed::Removed { key: copy_of(b"/tmp/item"), value: line(LineKind::FPlus) }]);
     check(&[
         (
             change(PartChange::Config(added)),

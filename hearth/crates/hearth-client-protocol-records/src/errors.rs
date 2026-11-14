@@ -10,7 +10,7 @@ pub use validation::Evaluation;
 use validation::{json_names, names, signed};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Error {
-    pub side: Option<crate::diff::Side>,
+    pub side: Option<hearth_domain_render_vocabulary::diff::Side>,
     pub kind: Kind,
     pub class: Class,
     pub at: Option<Place>,
@@ -58,7 +58,7 @@ pub struct Position {
 impl Error {
     pub(crate) fn text(&self, lines: &mut Lines) {
         if let Some(side) = self.side {
-            lines.put(side.name());
+            lines.put(crate::diff::side(side));
             lines.put(b": ");
         }
         if let Some(at) = &self.at {
@@ -112,7 +112,7 @@ impl Error {
     pub(crate) fn json(&self, json: &mut Encoder) {
         field(json, b"record", b"error");
         if let Some(side) = self.side {
-            field(json, b"side", side.name());
+            field(json, b"side", crate::diff::side(side));
         }
         match &self.kind {
             Kind::Reserved(reserved) => {

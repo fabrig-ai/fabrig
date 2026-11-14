@@ -1,13 +1,13 @@
 use super::fixtures;
-use crate::{
-    form::Form,
-    records::{PartRecord, Resolution},
-};
+use crate::form::Form;
+use hearth_domain_render_vocabulary as render;
+use render::{keys::Resolution, parts::PartRecord};
+
 #[test]
 fn the_packages_line_ends_with_its_resolution_as_render_md_shows() {
     let spec = fixtures::with_resolution(
         fixtures::packages_spec(),
-        Resolution::Needed { key: fixtures::digest([0x0c, 0x7d, 0x9e, 0x41, 0xc0, 0xd2]) },
+        Resolution::Needed { key: hearth_lib::encode::Digest(fixtures::digest([0x0c, 0x7d, 0x9e, 0x41, 0xc0, 0xd2])) },
     );
     assert!(
         skein_lib::bytes::find(
@@ -70,7 +70,7 @@ fn json_gives_the_initramfs_file_beside_the_packages_digest() {
     let mut spec = fixtures::packages_spec();
     for part in &mut spec.parts {
         if let PartRecord::Packages(packages) = &mut part.record {
-            packages.initramfs_file = Some([7; 32]);
+            packages.initramfs_file = Some(hearth_lib::encode::Digest([7; 32]));
         }
     }
     let json = fixtures::packages_json(spec);
