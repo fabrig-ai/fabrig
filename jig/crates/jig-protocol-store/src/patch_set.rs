@@ -19,7 +19,7 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
     name: "jig",
     patches: patches::PATCHES,
     fresh: None,
-    families: &JIG_STORE_FAMILIES,
+    families: &STORE_FAMILIES,
 };
 
 /// Every store-owned family, in owner-set order.
@@ -27,7 +27,7 @@ pub const JIG_STORE_PATCH_SET: PatchSet = PatchSet {
     clippy::disallowed_macros,
     reason = "value types name the binary's generated schema texts (protocol/store/layouts.md, 2)"
 )]
-pub const JIG_STORE_FAMILIES: [KeptFamily; 10] = [
+pub const STORE_FAMILIES: [KeptFamily; 10] = [
     KeptFamily {
         current: patches::kept::jig_store_component::TEXTS.last().expect("kept text"),
         types: &[],

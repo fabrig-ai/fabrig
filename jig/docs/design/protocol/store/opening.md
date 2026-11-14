@@ -485,7 +485,7 @@ impl PatchSets {
   `JIG_PATCH_SET` of `jig-protocol-accounts` and temper's own
   (temper's `protocol/baseline.md`, 4), each kept
   at level 0 with no patch until a landing brings one. This crate owns
-  `JIG_STORE_FAMILIES` and `JIG_STORE_PATCH_SET`: its families' metadata,
+  `STORE_FAMILIES` and `JIG_STORE_PATCH_SET`: its families' metadata,
   registered value types and written jobs. Accounts builds `JIG_PATCH_SET`
   from that set, appending its own `jig-accounts` kept family; the store
   names no accounts consumer. The store's real-family layout and job tests

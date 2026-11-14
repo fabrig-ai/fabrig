@@ -4,7 +4,7 @@ use jig_protocol_store::{KeptFamily, KeptMap, PatchSet};
 /// The component, core, children and secrets; Moved is held inside Carried.
 pub const JIG_PATCH_SET: PatchSet = {
     let [component, openings, registry, core, tasks, people, notes, accounts, settings, secrets] =
-        jig_protocol_store::JIG_STORE_FAMILIES;
+        jig_protocol_store::STORE_FAMILIES;
     PatchSet {
         families: &[
             component,

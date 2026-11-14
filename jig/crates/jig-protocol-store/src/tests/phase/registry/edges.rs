@@ -213,7 +213,7 @@ fn a_copy_reads_the_sources_layout_and_stores_the_destinations_id() {
 }
 
 #[test]
-fn ended_joins_restore_the_family_version_before_the_typed_decoder() {
+fn ended_joins_restore_the_family_version_before_its_decoder() {
     let mut disk = Disk::new(&[]);
     let expected = fixtures::ended_task(21);
     let limits = fixtures::store_limits().codec_view().unwrap();

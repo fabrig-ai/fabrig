@@ -28,7 +28,7 @@ mod open;
 mod pages;
 mod patch_set;
 mod patching;
-pub use patch_set::{JIG_STORE_FAMILIES, JIG_STORE_PATCH_SET};
+pub use patch_set::{JIG_STORE_PATCH_SET, STORE_FAMILIES};
 mod rehearsal;
 pub use patching::Counts;
 pub use patching::baseline::{SKEIN_PATCH_SET, SMITH_PATCH_SET};
