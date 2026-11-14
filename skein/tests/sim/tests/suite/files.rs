@@ -5,7 +5,7 @@
 //! What the records answer, rule by rule, is the conformance suite's.
 
 use skein_fake_machine::Item;
-use skein_io::kernel::{Done, Entry, Error, Fd, Kind, Op, OpenHow, Stat};
+use skein_io::kernel::{Complete, Done, Entry, Error, Fd, Kind, Op, OpenHow, Stat, Submit};
 use skein_lib::{Duration, Queue, Token};
 use skein_sim::{Answer, Ask, Call, Config, Event, Fault, Faults, Handle, Pid, Reply, Ticket};
 use skein_sim_tests::World;
@@ -276,54 +276,63 @@ fn a_cancel_of_a_close_waiting_on_the_machine_is_too_late() {
 // Broken invariants.
 
 #[test]
-#[should_panic(expected = "an operation on files on")]
 fn an_operation_on_files_on_a_sockets_descriptor() {
     let mut world = World::calm();
     let pid = world.spawn();
     let socket = world.socket(pid);
-    world.submit(pid, Op::Stat { fd: socket });
+    let submit = Submit { op: world.token(), kind: Op::Stat { fd: socket } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("an operation on files on"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "an operation on sockets on a file's descriptor")]
 fn an_operation_on_sockets_on_a_files_descriptor() {
     let (mut world, pid, root) = rooted();
-    world.submit(pid, Op::Shutdown { fd: root });
+    let submit = Submit { op: world.token(), kind: Op::Shutdown { fd: root } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("an operation on sockets on a file's descriptor"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a Read on a descriptor not opened to read")]
 fn a_read_of_a_file_opened_to_create() {
     let (mut world, pid, root) = rooted();
     let file = world.open(pid, root, b"new", OpenHow::Create { mode: None }).unwrap();
-    world.submit(pid, Op::Read { fd: file, buf: Box::from([0; 4]), at: 0 });
+    let submit = Submit { op: world.token(), kind: Op::Read { fd: file, buf: Box::from([0; 4]), at: 0 } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("a Read on a descriptor not opened to read"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a Read on a descriptor not opened to read")]
 fn a_read_of_a_directory_opened_as_one() {
     let (mut world, pid, root) = rooted();
-    world.submit(pid, Op::Read { fd: root, buf: Box::from([0; 4]), at: 0 });
+    let submit = Submit { op: world.token(), kind: Op::Read { fd: root, buf: Box::from([0; 4]), at: 0 } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("a Read on a descriptor not opened to read"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a Write on a descriptor not opened to create")]
 fn a_write_of_a_file_opened_to_read() {
     let (mut world, pid, root) = rooted();
     let file = world.open(pid, root, b"a.txt", OpenHow::Read).unwrap();
-    world.submit(pid, Op::Write { fd: file, bytes: Box::from(&b"x"[..]), from: 0, at: 0 });
+    let submit =
+        Submit { op: world.token(), kind: Op::Write { fd: file, bytes: Box::from(&b"x"[..]), from: 0, at: 0 } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("a Write on a descriptor not opened to create"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a List on a descriptor opened to create")]
 fn a_list_of_a_file_opened_to_create() {
     let (mut world, pid, root) = rooted();
     let file = world.open(pid, root, b"new", OpenHow::Create { mode: None }).unwrap();
-    world.submit(pid, Op::List { fd: file, entries: Box::from([Entry::BLANK]), names: vec![0; 255].into() });
+    let submit = Submit {
+        op: world.token(),
+        kind: Op::List { fd: file, entries: Box::from([Entry::BLANK]), names: vec![0; 255].into() },
+    };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("a List on a descriptor opened to create"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "which io never cancels")]
 fn a_cancel_of_an_operation_on_files_that_completes_promptly() {
     let (mut world, pid, root) = rooted();
     world.serving = false;
@@ -335,20 +344,22 @@ fn a_cancel_of_an_operation_on_files_that_completes_promptly() {
         no_replace: false,
     };
     let rename = world.submit(pid, rename);
-    world.submit(pid, Op::Cancel { target: rename });
+    let submit = Submit { op: world.token(), kind: Op::Cancel { target: rename } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("which io never cancels"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a Close while")]
 fn a_close_of_a_root_with_an_open_beneath_it_in_flight() {
     let (mut world, pid, root) = rooted();
     world.serving = false;
     world.submit(pid, Op::Open { root, path: Box::from(&b"a.txt"[..]), how: OpenHow::Read });
-    world.submit(pid, Op::Close { fd: root });
+    let submit = Submit { op: world.token(), kind: Op::Close { fd: root } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("a Close while"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "a Close while")]
 fn a_close_of_either_directory_of_a_rename_in_flight() {
     let (mut world, pid, root) = rooted();
     let dir = world.open(pid, root, b"d", OpenHow::Directory).unwrap();
@@ -363,23 +374,30 @@ fn a_close_of_either_directory_of_a_rename_in_flight() {
             no_replace: false,
         },
     );
-    world.submit(pid, Op::Close { fd: dir });
+    let submit = Submit { op: world.token(), kind: Op::Close { fd: dir } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("a Close while"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "an invalid record")]
 fn a_name_that_could_leave_its_directory() {
     let (mut world, pid, root) = rooted();
-    world.submit(pid, Op::MakeDirectory { dir: root, name: Box::from(&b"../out"[..]), mode: 0o777 });
+    let submit = Submit {
+        op: world.token(),
+        kind: Op::MakeDirectory { dir: root, name: Box::from(&b"../out"[..]), mode: 0o777 },
+    };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("an invalid record"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "which is not open in this process")]
 fn an_operation_on_a_closed_files_descriptor() {
     let (mut world, pid, root) = rooted();
     let file = world.open(pid, root, b"a.txt", OpenHow::Read).unwrap();
     world.close(pid, file);
-    world.submit(pid, Op::Stat { fd: file });
+    let submit = Submit { op: world.token(), kind: Op::Stat { fd: file } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("which is not open in this process"), "{finding}");
 }
 
 // The seam's own checks: an answer the machine should not give fails the
@@ -403,36 +421,46 @@ fn answer(world: &mut World, answer: Answer) {
 }
 
 #[test]
-#[should_panic(expected = "which is no call waiting")]
 fn an_answer_to_no_call() {
     let (mut world, _pid, call) = reading();
     answer(&mut world, Answer { ticket: call.ticket, result: Ok(Reply::Read(Box::from(&b"hell"[..]))) });
-    answer(&mut world, Answer { ticket: call.ticket, result: Ok(Reply::Read(Box::from(&b"hell"[..]))) });
+    let finding = world
+        .sim
+        .check_answer(&Answer { ticket: call.ticket, result: Ok(Reply::Read(Box::from(&b"hell"[..]))) })
+        .unwrap_err();
+    assert!(finding.contains("which is no call waiting"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "the machine broke the seam")]
 fn an_answer_of_another_shape() {
-    let (mut world, _pid, call) = reading();
-    answer(&mut world, Answer { ticket: call.ticket, result: Ok(Reply::Done) });
+    let (world, _pid, call) = reading();
+    let finding = world.sim.check_answer(&Answer { ticket: call.ticket, result: Ok(Reply::Done) }).unwrap_err();
+    assert!(finding.contains("the machine broke the seam"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "5 bytes read, of 4 asked")]
 fn a_read_answered_with_more_than_it_asked() {
-    let (mut world, _pid, call) = reading();
-    answer(&mut world, Answer { ticket: call.ticket, result: Ok(Reply::Read(Box::from(&b"hello"[..]))) });
+    let (world, _pid, call) = reading();
+    let finding = world
+        .sim
+        .check_answer(&Answer { ticket: call.ticket, result: Ok(Reply::Read(Box::from(&b"hello"[..]))) })
+        .unwrap_err();
+    assert!(finding.contains("5 bytes read, of 4 asked"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "the simulator broke the contract")]
 fn an_answer_of_an_error_the_operation_never_names() {
-    let (mut world, _pid, call) = reading();
-    answer(&mut world, Answer { ticket: call.ticket, result: Err(Error::Escape) });
+    let (mut world, pid, root) = rooted();
+    let file = world.open(pid, root, b"a.txt", OpenHow::Read).expect("a file to read");
+    world.serving = false;
+    let token = world.submit(pid, Op::Read { fd: file, buf: Box::from([0; 4]), at: 0 });
+    let complete =
+        Complete { op: token, kind: Op::Read { fd: file, buf: Box::from([0; 4]), at: 0 }, result: Err(Error::Escape) };
+    let finding = world.sim.check_completion(pid, &complete).unwrap_err();
+    assert!(finding.contains("the simulator broke the contract"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "which is held already")]
 fn a_handle_issued_twice() {
     let (mut world, pid, root) = rooted();
     world.serving = false;
@@ -441,7 +469,8 @@ fn a_handle_issued_twice() {
     world.sim.calls(&mut calls);
     let call = calls.pop().expect("the open's call");
     let Ask::Open { root: held, .. } = call.ask else { panic!("an open") };
-    answer(&mut world, Answer { ticket: call.ticket, result: Ok(Reply::Opened(held)) });
+    let finding = world.sim.check_issued(pid, held).unwrap_err();
+    assert!(finding.contains("which is held already"), "{finding}");
 }
 
 #[test]
@@ -496,70 +525,79 @@ fn a_hung_append_asks_the_machine_nothing_and_is_stopped_by_cancel() {
 }
 
 #[test]
-#[should_panic(expected = "a second Append in flight")]
 fn a_second_append_in_flight_breaks_the_contract() {
     let (mut world, pid, root) = faulty(Faults { hung: 1000, ..Faults::NONE });
     let file = world.append(pid, root, b"a.txt", 0o600);
     world.submit(pid, Op::append(file, Box::from(&b"a"[..]), 0).unwrap());
-    world.submit(pid, Op::append(file, Box::from(&b"b"[..]), 0).unwrap());
+    let submit = Submit { op: world.token(), kind: Op::append(file, Box::from(&b"b"[..]), 0).unwrap() };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("a second Append in flight"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "an Append on a descriptor not opened to write")]
 fn an_append_on_a_read_descriptor_breaks_the_contract() {
     let (mut world, pid, root) = rooted();
     let file = world.open(pid, root, b"a.txt", OpenHow::Read).unwrap();
-    world.submit(pid, Op::append(file, Box::from(&b"a"[..]), 0).unwrap());
+    let submit = Submit { op: world.token(), kind: Op::append(file, Box::from(&b"a"[..]), 0).unwrap() };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("an Append on a descriptor not opened to write"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "only Stat and Close may use a path-only descriptor")]
 fn path_only_descriptors_cannot_read() {
     let (mut world, pid, root) = rooted();
     let path = world.open(pid, root, b"a.txt", OpenHow::PathNoFollow).unwrap();
-    world.submit(pid, Op::Read { fd: path, buf: Box::from([0; 1]), at: 0 });
+    let submit = Submit { op: world.token(), kind: Op::Read { fd: path, buf: Box::from([0; 1]), at: 0 } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("only Stat and Close may use a path-only descriptor"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "only Stat and Close may use a path-only descriptor")]
 fn path_only_descriptors_cannot_sync() {
     let (mut world, pid, root) = rooted();
     let path = world.open(pid, root, b"a.txt", OpenHow::PathNoFollow).unwrap();
-    world.submit(pid, Op::Sync { fd: path });
+    let submit = Submit { op: world.token(), kind: Op::Sync { fd: path } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("only Stat and Close may use a path-only descriptor"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "only Stat and Close may use a path-only descriptor")]
 fn path_only_descriptors_cannot_be_roots() {
     let (mut world, pid, root) = rooted();
     let path = world.open(pid, root, b"d", OpenHow::PathNoFollow).unwrap();
-    world.submit(pid, Op::Open { root: path, path: Box::from(&b"inner"[..]), how: OpenHow::Read });
+    let submit =
+        Submit { op: world.token(), kind: Op::Open { root: path, path: Box::from(&b"inner"[..]), how: OpenHow::Read } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("only Stat and Close may use a path-only descriptor"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "which io never cancels")]
 fn a_cancel_of_a_lock_fails_the_world() {
     let (mut world, pid, root) = rooted();
     world.serving = false;
     let lock = world.submit(pid, Op::Lock { fd: root });
-    world.submit(pid, Op::Cancel { target: lock });
+    let submit = Submit { op: world.token(), kind: Op::Cancel { target: lock } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("which io never cancels"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "only Stat and Close may use a path-only descriptor")]
 fn a_lock_on_a_path_only_descriptor_fails_the_world() {
     let (mut world, pid, root) = rooted();
     let file = world.open(pid, root, b"a.txt", OpenHow::PathNoFollow).unwrap();
-    world.submit(pid, Op::Lock { fd: file });
+    let submit = Submit { op: world.token(), kind: Op::Lock { fd: file } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("only Stat and Close may use a path-only descriptor"), "{finding}");
 }
 
 #[test]
-#[should_panic(expected = "an operation on files on")]
 fn a_lock_on_a_socket_fails_the_world() {
     let mut world = World::calm();
     let pid = world.spawn();
     let socket = world.socket(pid);
-    world.submit(pid, Op::Lock { fd: socket });
+    let submit = Submit { op: world.token(), kind: Op::Lock { fd: socket } };
+    let finding = world.sim.check_submission(pid, &submit).unwrap_err();
+    assert!(finding.contains("an operation on files on"), "{finding}");
 }
 
 #[test]

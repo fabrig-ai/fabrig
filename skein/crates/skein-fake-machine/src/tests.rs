@@ -50,13 +50,13 @@ fn handles_are_issued_once() {
 }
 
 #[test]
-#[should_panic(expected = "a handle the machine never issued, or closed")]
 fn a_closed_handle_is_its_clients_bug() {
     let (mut machine, root) = machine(&[Item::file(b"f", b"")]);
     let file = machine.open(root, b"f", How::Read).unwrap();
+    assert_eq!(machine.check_handle(file), Ok(()));
     machine.close(file);
-    let stat = machine.stat(file);
-    panic!("stated a closed handle: {stat:?}");
+    let finding = machine.check_handle(file).expect_err("a closed handle");
+    assert!(finding.contains("a handle the machine never issued, or closed"), "{finding}");
 }
 
 /// Forty links followed in one resolution, and no more.

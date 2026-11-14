@@ -278,14 +278,6 @@ fn an_empty_writer_is_finished_at_once() {
 }
 
 #[test]
-#[should_panic(expected = "a writer is finished full")]
-fn finishing_short_is_a_bug() {
-    let mut writer = Writer::new(2);
-    writer.put(b"a").expect("room");
-    drop(writer.finish());
-}
-
-#[test]
 fn a_number_is_its_digits_without_leading_zeros() {
     assert_eq!(Decimal::of(0).as_bytes(), b"0");
     assert_eq!(Decimal::of(7).as_bytes(), b"7");

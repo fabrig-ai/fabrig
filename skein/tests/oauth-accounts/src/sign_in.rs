@@ -267,35 +267,44 @@ impl Contracts {
         Self { sign_in, keeps: Ledger::new("sign-in and keeper terminals"), kept: Vec::new(), closed: false }
     }
     /// Records a candidate that has no keeper answer yet.
-    pub fn keep(&mut self, generation: u64) {
-        self.keeps.open(generation, ());
+    pub fn keep(&mut self, generation: u64) -> Result<(), String> {
+        self.keeps.try_open(generation, ())
     }
     /// Records the owner's durable answer.
-    pub fn kept(&mut self, generation: u64, yes: bool) {
-        self.keeps.end(generation);
+    pub fn kept(&mut self, generation: u64, yes: bool) -> Result<(), String> {
+        self.keeps.try_end(generation)?;
         if yes {
             self.kept.push(generation);
         }
+        Ok(())
     }
     /// Success must follow keeping and end the admitted sign-in once.
-    pub fn signed_in(&mut self, generation: u64) {
-        assert!(self.kept.contains(&generation), "signed in before kept");
-        self.sign_in.end(0);
+    pub fn signed_in(&mut self, generation: u64) -> Result<(), String> {
+        if !self.kept.contains(&generation) {
+            return Err(String::from("signed in before kept"));
+        }
+        self.sign_in.try_end(0)
     }
     /// A failed sign-in has the same one-terminal rule.
-    pub fn failed(&mut self) {
-        self.sign_in.end(0);
+    pub fn failed(&mut self) -> Result<(), String> {
+        self.sign_in.try_end(0)
     }
     /// Lending requires durable keeping.
-    pub fn granted(&mut self, generation: u64) {
-        assert!(self.kept.contains(&generation), "grant before kept");
+    pub fn granted(&mut self, generation: u64) -> Result<(), String> {
+        if !self.kept.contains(&generation) {
+            return Err(String::from("grant before kept"));
+        }
+        Ok(())
     }
     /// Closed follows all request and keeper terminals once.
-    pub fn closed(&mut self) {
-        assert!(!self.closed);
-        self.sign_in.assert_settled();
-        self.keeps.assert_settled();
+    pub fn closed(&mut self) -> Result<(), String> {
+        if self.closed {
+            return Err(String::from("assertion failed: !self.closed"));
+        }
+        self.sign_in.check_settled()?;
+        self.keeps.check_settled()?;
         self.closed = true;
+        Ok(())
     }
 }
 impl Default for Contracts {
@@ -388,13 +397,15 @@ pub(crate) fn file_event(client: &mut Client, now: Time, event: &io::file::Event
         owner_mut(client).stored_private = Some(now);
     }
 }
-pub(crate) fn keeping(owner: &mut Owner, generation: u64) {
-    owner.contracts[0].keep(generation);
+pub(crate) fn keeping(owner: &mut Owner, generation: u64) -> Result<(), String> {
+    owner.contracts[0].keep(generation)?;
     owner.facts.push(Fact::Keep(generation));
+    Ok(())
 }
-pub(crate) fn kept(owner: &mut Owner, record: oauth::SavedToken, yes: bool) {
-    owner.contracts[0].kept(record.generation, yes);
+pub(crate) fn kept(owner: &mut Owner, record: oauth::SavedToken, yes: bool) -> Result<(), String> {
+    owner.contracts[0].kept(record.generation, yes)?;
     owner.records.push(record);
+    Ok(())
 }
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside delivery, shutdown and success observations")]
@@ -486,6 +497,7 @@ impl Referee<Process> for Judge {
     }
     fn watch(&mut self, now: Time, processes: &[Process]) -> Result<(), String> {
         let client = processes.iter().find_map(Process::client).expect("owner");
+        client.check_contracts()?;
         let browser = processes.iter().find_map(Process::browser).expect("browser");
         let issuer = processes.iter().find_map(Process::issuer).expect("issuer");
         self.wake = ((client.component.is_none()

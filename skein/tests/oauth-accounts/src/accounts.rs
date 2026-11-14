@@ -311,6 +311,9 @@ impl Referee<world::Process> for Judge {
         }
     }
     fn watch(&mut self, now: Time, processes: &[world::Process]) -> Result<(), String> {
+        for client in processes.iter().filter_map(world::Process::client) {
+            client.check_contracts()?;
+        }
         let address_ready =
             processes.iter().any(|process| process.issuer().is_some_and(|peer| peer.address().is_some()));
         let settled = processes.iter().any(|process| process.client().is_some_and(Host::is_empty));

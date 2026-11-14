@@ -11,6 +11,7 @@ mod opens;
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
 use alloc::format;
+use alloc::string::String;
 use alloc::vec::Vec;
 
 /// The longest name a directory holds (`NAME_MAX`).
@@ -926,11 +927,20 @@ impl Machine {
         self.nodes.remove(&node);
     }
 
-    fn handle(&self, handle: Opened) -> &Handle {
-        match self.handles.get(&handle.raw()) {
-            Some(handle) => handle,
-            None => fail(&format!("{handle:?}: a handle the machine never issued, or closed")),
+    /// Checks that the machine issued this handle and still holds it.
+    pub(crate) fn check_handle(&self, handle: Opened) -> Result<(), String> {
+        if self.handles.contains_key(&handle.raw()) {
+            Ok(())
+        } else {
+            Err(format!("{handle:?}: a handle the machine never issued, or closed"))
         }
+    }
+
+    fn handle(&self, handle: Opened) -> &Handle {
+        if let Err(finding) = self.check_handle(handle) {
+            fail(&finding);
+        }
+        self.handles.get(&handle.raw()).expect("the handle was checked")
     }
 
     fn node(&self, node: NodeId) -> &Node {

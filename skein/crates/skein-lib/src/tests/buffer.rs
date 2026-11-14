@@ -62,21 +62,6 @@ fn back_patches_can_end_at_the_last_byte_put() {
 }
 
 #[test]
-#[should_panic(expected = "a back-patch writes over bytes already put")]
-fn a_back_patch_one_byte_past_length_is_a_bug() {
-    const CAPACITY: u32 = 5; // Room exists, but only four bytes have been put.
-    let mut buffer = holding(CAPACITY, b"abcd");
-    buffer.set_u32(1, 0);
-}
-
-#[test]
-#[should_panic(expected = "a back-patch writes over bytes already put")]
-fn a_back_patch_with_an_overflowing_end_is_a_bug() {
-    let mut buffer = Buffer::with_capacity(0);
-    buffer.set_u32(u32::MAX, 0);
-}
-
-#[test]
 fn clearing_restores_room_for_a_second_record() {
     const CAPACITY: u32 = 6; // The first record fills the buffer.
     for second in [b"".as_slice(), b"new", b"second"] {

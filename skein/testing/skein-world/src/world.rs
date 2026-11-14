@@ -1,5 +1,5 @@
 //! The referee's loop and verdicts over the simulated world's steps (testing/world.md, 3).
-use crate::heap::{Heap, Metered};
+use crate::heap::{Findings, Heap, Metered};
 use crate::{
     Controls, Cut, Digests, Host, HostedProgram, Inherited, Machine, Memory, NoMachine, Outcome, Referee,
     StartupAppend, StartupAppends, StartupRoot, StartupRoots,
@@ -191,6 +191,8 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
         F: FnMut(usize, Time, &Queue<Submit>) -> Option<Faults>,
         I: FnMut(&mut Sim, &[Pid], &[P]),
     {
+        let findings = self.inner.meter().0.as_ref().map(|heap| heap.findings.clone()).unwrap_or_default();
+        findings.check()?;
         let mut last_word = None;
         loop {
             if self.inner.steps().checked_add(1).expect("within STEPS") >= STEPS {
@@ -209,8 +211,9 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
                 let Some((host, signal)) = signal else { break };
                 self.inner.signal(host, signal);
             }
-            let mut turns = Observing { referee: &mut self.referee, faults: &mut faults };
+            let mut turns = Observing { referee: &mut self.referee, faults: &mut faults, findings: &findings };
             let step = self.inner.try_step_with(&mut turns)?;
+            findings.check()?;
             if !step.ran {
                 self.referee.watch(now, self.inner.processes())?;
             }
@@ -256,7 +259,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
         }
         let peaks = self.inner.meter().0.as_ref().map(Heap::report);
         let held = self.inner.meter().0.as_ref().map(Heap::held);
-        let finished = self.inner.finish();
+        let finished = self.inner.try_finish()?;
         Ok(Outcome {
             machine: finished.machine,
             killed: finished.killed,
@@ -294,6 +297,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
 struct Observing<'a, R, F> {
     referee: &'a mut R,
     faults: &'a mut F,
+    findings: &'a Findings,
 }
 
 impl<P, R: Referee<P>, F> Turns<P> for Observing<'_, R, F>
@@ -304,6 +308,7 @@ where
         (self.faults)(at, now, batch)
     }
     fn try_turned(&mut self, now: Time, processes: &[P]) -> Result<(), String> {
+        self.findings.check()?;
         self.referee.watch(now, processes)
     }
 }
