@@ -63,7 +63,8 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         Op::DiffPaths { .. } => Done::Paths { files: Box::new([]) },
         Op::Brings { .. } => Done::Brings { brings: false },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
-        Op::Point { .. }
+        Op::Reds { .. }
+        | Op::Point { .. }
         | Op::Store { .. }
         | Op::Make { .. }
         | Op::Clone { .. }

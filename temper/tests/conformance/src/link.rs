@@ -177,8 +177,8 @@ pub(crate) fn down(peers: &mut Peers, now: Time, down: host::LinkDown) -> Vec<r:
             vec![receipt]
         }
         host::LinkDown::Relayed { call, answer, .. } => relayed(peers, now, &call, answer),
-        // The scripted worker carries neither jobs nor grant values.
-        host::LinkDown::AssignJob { .. } | host::LinkDown::Grant { .. } => Vec::new(),
+        // The scripted worker carries no jobs, grant values or application asks.
+        host::LinkDown::Asked { .. } | host::LinkDown::AssignJob { .. } | host::LinkDown::Grant { .. } => Vec::new(),
         host::LinkDown::ReadList { .. } => panic!("this fixture requests no account lists"),
         host::LinkDown::Assign { .. } => panic!("temper's root hands assignments as typed deliveries"),
     }

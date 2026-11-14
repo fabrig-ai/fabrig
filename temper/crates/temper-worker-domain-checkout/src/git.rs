@@ -58,6 +58,8 @@ pub struct Place {
 /// names, in [`Done::Succeeded`] if it names none, or in [`Done::Failed`].
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Op {
+    /// Best-effort check files (domain/forge/reds.md, 5.2).
+    Reds { at: Place, action: Reds },
     /// Make the workspace's directory empty: rename the old tree aside
     /// into trash, make it afresh, and sweep the old tree later.
     Make { workspace: Token, stores: Box<[Token]> },
@@ -131,6 +133,20 @@ pub enum Op {
         identity: u32,
         account: Option<u64>,
     },
+}
+
+/// Check files resolved by git rev-parse --git-path (domain/forge/reds.md, 5.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Reds {
+    Prepare { wait_ms: u32 },
+    Clear,
+    Write { reds: Box<[Red]> },
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Red {
+    pub key: Box<[u8]>,
+    /// Exact object bytes, preserving SHA-1 or SHA-256 width.
+    pub head: Box<[u8]>,
 }
 
 /// The local reference a fetch writes (temper/docs/design/protocol/git.md, 4.3).
@@ -247,6 +263,7 @@ pub enum Missing {
 /// An operation's kind, for the facts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
+    Reds,
     Store,
     Look,
     Make,
@@ -267,6 +284,7 @@ impl Op {
     #[must_use]
     pub const fn kind(&self) -> Kind {
         match self {
+            Op::Reds { .. } => Kind::Reds,
             Op::Store { .. } => Kind::Store,
             Op::Make { .. } => Kind::Make,
             Op::Look { .. } => Kind::Look,
@@ -295,7 +313,8 @@ impl Op {
             | Op::CheckOut { .. }
             | Op::Merge { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
-            Op::Point { .. }
+            Op::Reds { .. }
+            | Op::Point { .. }
             | Op::Clone { .. }
             | Op::Look { .. }
             | Op::Brings { .. }

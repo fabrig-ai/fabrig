@@ -622,6 +622,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         ),
         Event::Loaded => attempt::loaded(domain, env),
         Event::Hello { channel, worker, hello } => channel::hello(domain, env, channel, worker, hello, out),
+        Event::Ask { channel, run, attempt, number, bytes } => {
+            call::ask(domain, channel, run, attempt, number, bytes, out);
+        }
+        Event::Asked { channel, run, attempt, number, answer } => {
+            call::asked(domain, channel, run, attempt, number, answer, out);
+        }
         Event::Lost { channel } => channel::lost(domain, env, channel, out),
         Event::Answer { channel, run, attempt, answer, payload } => {
             attempt::answer(domain, channel, run, attempt, answer, payload, out);

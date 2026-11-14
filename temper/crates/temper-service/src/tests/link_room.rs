@@ -90,6 +90,8 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::Logins
                 | Kind::SignedOut
                 | Kind::JobAnswer
+                | Kind::Ask
+                | Kind::Asked
                 | Kind::Wires => false,
             };
             if start {
@@ -250,7 +252,9 @@ impl Joint {
                     temper_worker_domain::Event::Link(hub::LinkDown::Assign { assignment }) => {
                         self.assignments.push(assignment).unwrap();
                     }
-                    other @ (temper_worker_domain::Event::SourceAnswered { .. }
+                    other @ (temper_worker_domain::Event::RedsAsk { .. }
+                    | temper_worker_domain::Event::RedsAnswer { .. }
+                    | temper_worker_domain::Event::SourceAnswered { .. }
                     | temper_worker_domain::Event::ListRead { .. }
                     | temper_worker_domain::Event::AssignJob { .. }
                     | temper_worker_domain::Event::Job { .. }

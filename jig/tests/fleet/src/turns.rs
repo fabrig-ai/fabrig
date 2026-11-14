@@ -271,6 +271,8 @@ impl World {
                 | Request::ProgramEmail { .. }
                 | Request::Assign { .. }
                 | Request::Inbound { .. }
+                | Request::Ask { .. }
+                | Request::Asked { .. }
                 | Request::Relay { .. }
                 | Request::Relayed { .. }
                 | Request::RelayBusy { .. }

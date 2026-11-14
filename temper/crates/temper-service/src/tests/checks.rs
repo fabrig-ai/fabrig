@@ -266,6 +266,8 @@ fn a_channel_limit_past_a_ceiling_names_the_limit() {
         entries: 8,
         entry_token_bytes: 512,
         text_bytes: 256,
+        reds: 64,
+        red_key_bytes: 256,
     };
     let mut found = Problems::empty();
     let too_many = payload::Bounds { repositories: u32::MAX, ..normal };

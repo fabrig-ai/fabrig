@@ -29,6 +29,8 @@ pub(crate) mod make;
 #[path = "outage.rs"]
 mod outage;
 mod rebase;
+#[path = "reds.rs"]
+mod reds;
 #[path = "restore.rs"]
 mod restore;
 mod room;
@@ -214,6 +216,8 @@ pub struct Domain {
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
     pub(crate) findings: Option<Box<Map<(u32, u32), crate::Finding>>>,
+    pub(crate) reds: Map<(u64, Box<[u8]>), crate::Red>,
+    pub(crate) red_number: Option<u64>,
     pub(crate) looked: Map<(u64, u32), crate::Looked>,
     pub(crate) dismissed: Map<(u64, crate::PersonFact), ()>,
     pub(crate) connections: Map<u16, ConnectionState>,
@@ -613,6 +617,7 @@ impl Domain {
                 | crate::CallPayload::Refused(_)
                 | crate::CallPayload::Follow { .. }
                 | crate::CallPayload::Finding(_)
+                | crate::CallPayload::Red(_)
                 | crate::CallPayload::Decided { .. } => {}
             }
         }
@@ -632,6 +637,7 @@ impl Domain {
             | crate::CallPayload::Refused(_)
             | crate::CallPayload::Follow { .. }
             | crate::CallPayload::Finding(_)
+            | crate::CallPayload::Red(_)
             | crate::CallPayload::Decided { .. } => {
                 unreachable!("effect payload")
             }
@@ -849,6 +855,8 @@ impl Domain {
             aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
             findings: None,
+            reds: Map::with_capacity(l.branch_reds.checked_mul(l.holds).expect("checked red capacity")),
+            red_number: None,
             looked: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             dismissed: Map::with_capacity(l.dismissed()),
             connections: Map::with_capacity(l.forges),
@@ -6377,6 +6385,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             if d.forge_ended(name.forge) {
                 d.holds.remove(&name);
                 crate::tiers::released(d, &name, out);
+                reds::released(d, task, &name, out);
                 emit(out, Request::Erase { key: Key::Hold(name) });
                 continue;
             }
@@ -6393,6 +6402,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             if unpublished_branch(d, &name) && writer.is_none() {
                 d.holds.remove(&name);
                 crate::tiers::released(d, &name, out);
+                reds::released(d, task, &name, out);
                 emit(out, Request::Erase { key: Key::Hold(name) });
                 continue;
             }
@@ -6407,6 +6417,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
                 if !goal_branch::landed(d, &name) {
                     d.holds.remove(&name);
                     crate::tiers::released(d, &name, out);
+                    reds::released(d, task, &name, out);
                     emit(out, Request::Erase { key: Key::Hold(name) });
                     continue;
                 }
@@ -6439,6 +6450,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             }
             d.holds.remove(&name);
             crate::tiers::released(d, &name, out);
+            reds::released(d, task, &name, out);
             emit(out, Request::Erase { key: Key::Hold(name) });
             continue;
         }
@@ -6666,6 +6678,7 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
         if let Some(name) = resource {
             d.holds.remove(&name);
             crate::tiers::released(d, &name, out);
+            reds::released(d, task, &name, out);
             emit(out, Request::Erase { key: Key::Hold(name) });
         } else {
             row.close_pull = None;
@@ -6681,6 +6694,7 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
                 Some(name) => {
                     d.holds.remove(&name);
                     crate::tiers::released(d, &name, out);
+                    reds::released(d, task, &name, out);
                     emit(out, Request::Erase { key: Key::Hold(name) });
                 }
                 None => row.close_pull = None,
@@ -8102,6 +8116,10 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                 .expect("restored configured forge fits");
             d.records.insert(record.number, record).expect("restored forge fits");
         }
+        Stored::Red(row) => {
+            d.reds.insert((row.goal, row.key.clone()), row).expect("restored red room checked");
+        }
+        Stored::RedNumber { last } => d.red_number = Some(last),
         Stored::ForgeNumber { last } => {
             d.forge_number = d.forge_number.max(last);
         }
@@ -8955,7 +8973,15 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Forge
+            RecordKind::Red => {
+                for (_, row) in &self.reds {
+                    if need == (Need::Task { task: row.goal, retired: None }) {
+                        return Key::Red { goal: row.goal, key: row.key.clone() };
+                    }
+                }
+            }
+            RecordKind::RedNumber
+            | RecordKind::Forge
             | RecordKind::Landed
             | RecordKind::Binding
             | RecordKind::Setting

@@ -421,7 +421,8 @@ impl Joined {
                     host::LinkUp::Answer { run, attempt, .. } => {
                         Some(host::LinkDown::Acknowledge { run: *run, attempt: *attempt })
                     }
-                    host::LinkUp::Piece { .. }
+                    host::LinkUp::Ask { .. }
+                    | host::LinkUp::Piece { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }
                     | host::LinkUp::Limited { .. }

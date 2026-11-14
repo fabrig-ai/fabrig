@@ -327,6 +327,9 @@ impl Protocol {
                     Ok(vec![temper_engine_service_vocabulary::tools::settings_note(to, *call, &body, &self.catalogue)])
                 }
                 engine::HostRequest::Dropped { .. } => Ok(Vec::new()),
+                ask @ engine::HostRequest::Ask { .. } => {
+                    Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(ask)))))
+                }
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) => {
                 match *delivery {

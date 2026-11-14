@@ -12,5 +12,8 @@ skein-lib.workspace = true
 skein-io.workspace = true
 temper-worker-domain-checkout.workspace = true
 
+[dev-dependencies]
+skein-scratch.workspace = true
+
 [lints]
 workspace = true

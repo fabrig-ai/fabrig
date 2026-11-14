@@ -1,6 +1,6 @@
 //! Making rows (temper/docs/design/protocol/store.md, 2 and 5).
 use super::FITS;
-use crate::v21 as w;
+use crate::v22 as w;
 use skein_lib::Wall;
 use temper_engine_domain_forge_vocabulary as d;
 

@@ -158,7 +158,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 bounds: env.limits.bounds.clone(),
             },
         ),
-        Event::Lost => hub(domain, env, HubEvent::SourceLost),
+        Event::Lost => hub(domain, env, HubEvent::LinkLost),
         Event::GracePassed => {
             hub(domain, env, HubEvent::CancelAll { reason: host::Reason::Contact });
             if domain.stopping {
@@ -301,6 +301,9 @@ fn route(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn down(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
+        host::Request::Asked { run, attempt, number, answer } => {
+            out.push(Request::Asked { run, attempt, number, answer });
+        }
         host::Request::ReadList { read, endpoint, grant } => out.push(Request::ReadList { read, endpoint, grant }),
         host::Request::CancelRead { read } => out.push(Request::CancelRead { read }),
         host::Request::Job(job) => hub(domain, env, host::Event::Job(job.refused())),

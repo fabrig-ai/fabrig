@@ -405,6 +405,8 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::Job => "job",
                 Kind::JobAnswer => "job-answer",
                 Kind::Wires => "wires",
+                Kind::Ask => "ask",
+                Kind::Asked => "asked",
             };
             let bound = match unsent.bound {
                 Bound::Translation { version, halt } => {

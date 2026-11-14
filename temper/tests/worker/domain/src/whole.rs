@@ -173,7 +173,12 @@ impl World {
 
     fn take(&mut self, request: Request) {
         match request {
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::RedsAsk { .. }
+            | Request::RedsAnswer { .. }
+            | Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
             Request::Hello(hello) => {
@@ -242,6 +247,7 @@ impl World {
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
             | host::LinkUp::JobAnswer { .. }
+            | host::LinkUp::Ask { .. }
             | host::LinkUp::Answer { .. } => panic!("unscripted link record: {up:?}"),
         }
     }

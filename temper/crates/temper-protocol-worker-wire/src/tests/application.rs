@@ -58,6 +58,14 @@ fn the_roots_name_the_declarations_temper_encodes() {
         (Carried::Saved, "Saved", crate::saved(&saved)),
         (Carried::Preparation, "Preparation", crate::preparation(&preparation)),
         (Carried::Grant, "Identity", identity.expose().into()),
+        (Carried::Ask, "Ask", crate::ask(&v1::Ask::Reds)),
+        (
+            Carried::Answer,
+            "Answer",
+            crate::answer(&v1::Answer::Reds(
+                v1::Reds::new(&limits, v1::RedsParts { reds: List::with_capacity(0) }).unwrap(),
+            )),
+        ),
     ] {
         let mut found = None;
         for root in &application.roots {
@@ -71,7 +79,7 @@ fn the_roots_name_the_declarations_temper_encodes() {
         let mut value = skein_codec::value::Value::with_room(256);
         value.decode(&schema, schema.find(root.declaration.as_bytes()).unwrap(), bytes).expect("encoder's declaration");
     }
-    assert_eq!(application.roots.len(), 6);
+    assert_eq!(application.roots.len(), 8);
     for root in &application.roots {
         assert_ne!(root.carried, Carried::JobResult, "tooling's result is opaque");
     }

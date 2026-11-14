@@ -26,6 +26,12 @@ pub enum Event {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    Asked {
+        run: Token,
+        attempt: Token,
+        number: u64,
+        answer: host::AskAnswer,
+    },
     ReadList {
         read: u64,
         endpoint: u32,
