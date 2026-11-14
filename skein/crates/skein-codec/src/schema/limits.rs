@@ -100,7 +100,34 @@ fn field_size(
     unreachable!("a checked type chain ends in the table")
 }
 
+/// Each declaration's bound, in text order. An arithmetic failure ends the
+/// valid prefix, including declarations that do not refer to the failing one.
+#[derive(Debug)]
+pub struct Bounds {
+    sizes: List<u64>,
+}
+
+impl Bounds {
+    /// The bound at this declaration, or `None` after any failure at or before it.
+    #[must_use]
+    pub fn at(&self, at: DeclIx) -> Option<u64> {
+        self.sizes.get(at.index()).copied()
+    }
+}
+
+pub(super) fn bounds_within(schema: &Schema, names: &[&str], values: &[u32]) -> Bounds {
+    let mut sizes = List::with_capacity(schema.declarations());
+    let _complete = fill(schema, schema.declarations(), names, values, &mut sizes);
+    Bounds { sizes }
+}
+
 pub(super) fn most_bytes_within(schema: &Schema, at: DeclIx, names: &[&str], values: &[u32]) -> Option<u64> {
+    let mut sizes = List::with_capacity(schema.declarations());
+    fill(schema, add(at.index(), 1), names, values, &mut sizes)?;
+    sizes.get(at.index()).copied()
+}
+
+fn fill(schema: &Schema, count: u32, names: &[&str], values: &[u32], sizes: &mut List<u64>) -> Option<()> {
     if names.len() != values.len() {
         return None;
     }
@@ -108,8 +135,7 @@ pub(super) fn most_bytes_within(schema: &Schema, at: DeclIx, names: &[&str], val
     for (name, value) in names.iter().zip(values) {
         limits.insert(skein_lib::bytes::copy_of(name.as_bytes()), *value).expect("at most one entry per name");
     }
-    let mut sizes = List::with_capacity(schema.declarations());
-    for index in 0..=at.index() {
+    for index in 0..count {
         let declaration = schema.declaration(DeclIx::new(index));
         let size = match declaration.shape {
             Shape::Record { versioned, first, count } => {
@@ -117,7 +143,7 @@ pub(super) fn most_bytes_within(schema: &Schema, at: DeclIx, names: &[&str], val
                 for index in first.index()..add(first.index(), count) {
                     let field = schema.field(FieldIx::new(index));
                     let name = limit_name(schema.spelled(declaration.name), schema.spelled(field.name));
-                    size = size.checked_add(field_size(schema, field, name, &limits, &sizes)?)?;
+                    size = size.checked_add(field_size(schema, field, name, &limits, sizes)?)?;
                 }
                 size
             }
@@ -136,5 +162,5 @@ pub(super) fn most_bytes_within(schema: &Schema, at: DeclIx, names: &[&str], val
         };
         sizes.push(size).expect("one bound per declaration");
     }
-    sizes.get(at.index()).copied()
+    Some(())
 }

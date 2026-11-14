@@ -9,7 +9,7 @@ mod layout;
 mod limits;
 mod tokens;
 pub use fingerprint::{Fingerprint, Fingerprints};
-pub use limits::{LimitLevel, limit_child, limit_name};
+pub use limits::{Bounds, LimitLevel, limit_child, limit_name};
 
 #[cfg(test)]
 mod tests;
@@ -380,6 +380,14 @@ impl Schema {
     #[must_use]
     pub fn most_bytes(&self, at: DeclIx) -> u32 {
         *self.maximum.get(at.0).expect("checked declaration has its worst case")
+    }
+
+    /// Every declaration's encoded worst case in one pass with one named-limit map.
+    /// Equal to `most_bytes_within` at each declaration: a mismatch gives no
+    /// bounds, and overflow ends the valid prefix. Unnamed limits use their ceilings.
+    #[must_use]
+    pub fn bounds_within(&self, names: &[&str], values: &[u32]) -> Bounds {
+        limits::bounds_within(self, names, values)
     }
 
     /// The encoded worst case with matching named limits no larger than the text's bounds.

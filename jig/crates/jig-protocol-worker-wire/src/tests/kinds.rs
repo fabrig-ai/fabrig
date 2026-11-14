@@ -4,6 +4,14 @@ use skein_channel::Direction;
 use skein_codec::schema::{Shape, VariantIx};
 
 #[test]
+fn prepared_tables_equal_the_separate_schema_and_statement() {
+    let limits = super::fixtures::LIMITS;
+    let (schema, spoken) = crate::schema_and_spoken(&limits).expect("prepared tables");
+    assert_eq!(schema, crate::schema(&limits).expect("separate schema"));
+    assert_eq!(spoken, crate::spoken());
+}
+
+#[test]
 fn terms_use_the_agreed_versions_own_table() {
     use skein_channel::{Kind as ChannelKind, Role, Schema, Term, Version};
     use skein_lib::List;
