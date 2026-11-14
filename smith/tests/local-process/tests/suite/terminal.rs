@@ -19,16 +19,67 @@ fn a_refusal_records_a_failed_write_after_exit_and_drains() {
 }
 
 #[test]
-#[should_panic(expected = "terminal write failed")]
-fn an_interactive_terminal_panics_on_a_failed_write() {
-    let mut person = Terminal::attached(kernel::Fd::new(10), vec![Action::Eof]);
-    let (_, write) = start_eof(&mut person);
-    person.completions().push(kernel::Complete {
-        op: write.op,
-        kind: write.kind,
-        result: Err(kernel::Error::Other(5)),
-    });
-    person.iterate(Time::ZERO, Wall::EPOCH);
+fn an_interactive_terminal_keeps_a_failed_write_as_its_finding() {
+    for exit_first in [false, true] {
+        let stream = kernel::Fd::new(10);
+        let mut person = Terminal::attached(stream, vec![Action::Eof, Action::Send(b"more input\n".as_slice().into())]);
+        assert_eq!(person.finding(), None);
+        let (read, write) = start_eof(&mut person);
+        let exit = kernel::Exit::Code(1);
+        if exit_first {
+            person.finished(exit);
+        }
+        person.completions().push(kernel::Complete {
+            op: write.op,
+            kind: write.kind,
+            result: Err(kernel::Error::Other(5)),
+        });
+        person.iterate(Time::ZERO, Wall::EPOCH);
+        let finding = format!(
+            "terminal write failed: Err(Other(5)); exit: {:?}; terminal ended: false",
+            exit_first.then_some(exit),
+        );
+        assert_eq!(person.finding(), Some(finding.as_str()));
+        assert_eq!(person.failed_write(), None, "only refusal scripts accept failed input");
+        assert!(person.submissions().is_empty(), "failed input is not retried and the script stops");
+        assert!(!person.is_empty(), "the finding still lets output drain");
+
+        let kernel::Op::PipeRead { mut buf, .. } = read.kind else { panic!("terminal read") };
+        buf[..6].copy_from_slice(b"output");
+        person.completions().push(kernel::Complete {
+            op: read.op,
+            kind: kernel::Op::PipeRead { fd: stream, buf },
+            result: Ok(kernel::Done::Count(6)),
+        });
+        person.iterate(Time::ZERO, Wall::EPOCH);
+        assert_eq!(person.shown(), b"output");
+        let read = person.submissions().pop().expect("keep draining after the finding");
+        assert!(matches!(read.kind, kernel::Op::PipeRead { .. }));
+        assert!(person.submissions().is_empty(), "draining submits no more writes");
+        person.completions().push(kernel::Complete {
+            op: read.op,
+            kind: read.kind,
+            result: Ok(kernel::Done::Count(0)),
+        });
+        person.iterate(Time::ZERO, Wall::EPOCH);
+        if !exit_first {
+            assert_eq!(person.exit(), None);
+            assert!(person.submissions().is_empty(), "terminal close waits for exit");
+            person.finished(exit);
+            person.iterate(Time::ZERO, Wall::EPOCH);
+        }
+        let close = person.submissions().pop().expect("close after output end and exit");
+        assert!(matches!(close.kind, kernel::Op::Close { fd } if fd == stream));
+        assert!(!person.is_empty(), "wait for close completion");
+        person.completions().push(kernel::Complete {
+            op: close.op,
+            kind: close.kind,
+            result: Ok(kernel::Done::Nothing),
+        });
+        person.iterate(Time::ZERO, Wall::EPOCH);
+        assert!(person.is_empty(), "the terminal drains with a finding");
+        assert_eq!(person.finding(), Some(finding.as_str()), "draining retains the first finding");
+    }
 }
 
 fn start_eof(person: &mut Terminal) -> (kernel::Submit, kernel::Submit) {

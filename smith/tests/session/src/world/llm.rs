@@ -5,11 +5,18 @@ use super::{Call, Delivery, Failure, Prompt, Token, World, agent, in_call_order,
 impl World {
     pub(super) fn complete(&mut self, owner: Token, prompt: Prompt, deadlines: agent::Deadlines) {
         let opener = self.openers[&owner];
-        window_referee::prompt(
+        if self.finding.is_some() {
+            return;
+        }
+        self.finding = window_referee::prompt(
             self.sessions.get_mut(&opener).expect("known session"),
             &prompt,
             &self.agent_stage.env.limits,
-        );
+        )
+        .err();
+        if self.finding.is_some() {
+            return;
+        }
         self.affordable(owner, &prompt);
         in_call_order(&prompt);
         self.check_results(owner, &prompt);

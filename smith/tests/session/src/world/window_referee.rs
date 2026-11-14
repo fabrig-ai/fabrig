@@ -4,36 +4,63 @@
 use super::{Block, Prompt, Session, agent};
 
 /// Check two requests of one window (smith/docs/design/domain/session.md, sections 3 and 10).
-pub fn assert_prompt_extends(previous: &Prompt, current: &Prompt) {
-    assert_prompt_boundary(previous, current, None);
+///
+/// # Errors
+/// Returns the first change to the window's fixed prefix or append-only history.
+pub fn check_prompt_extends(previous: &Prompt, current: &Prompt) -> Result<(), String> {
+    check_prompt_boundary(previous, current, None)
 }
 
 /// A replacement needs the exact opening observed in a compaction turn.
-pub fn assert_prompt_boundary(previous: &Prompt, current: &Prompt, opening: Option<&[agent::llm::Message]>) {
-    assert_eq!(current.affinity, previous.affinity, "a window keeps its affinity");
-    assert_eq!(current.system, previous.system, "a window keeps its system text");
-    assert_eq!(current.tools, previous.tools, "a window keeps its tool grants");
-    assert_eq!(current.delegated, previous.delegated, "a window keeps its tool descriptors");
-    if let Some(opening) = opening {
-        assert!(current.messages.starts_with(opening), "a window begins with its recorded opening");
-    } else {
-        assert!(current.messages.starts_with(&previous.messages), "a window extends its history");
+///
+/// # Errors
+/// Returns the first change to the fixed prefix or mismatch with the authorised history.
+pub fn check_prompt_boundary(
+    previous: &Prompt,
+    current: &Prompt,
+    opening: Option<&[agent::llm::Message]>,
+) -> Result<(), String> {
+    if current.affinity != previous.affinity {
+        return Err("a window keeps its affinity".into());
     }
+    if current.system != previous.system {
+        return Err("a window keeps its system text".into());
+    }
+    if current.tools != previous.tools {
+        return Err("a window keeps its tool grants".into());
+    }
+    if current.delegated != previous.delegated {
+        return Err("a window keeps its tool descriptors".into());
+    }
+    if let Some(opening) = opening {
+        if !current.messages.starts_with(opening) {
+            return Err("a window begins with its recorded opening".into());
+        }
+    } else if !current.messages.starts_with(&previous.messages) {
+        return Err("a window extends its history".into());
+    }
+    Ok(())
 }
 
 /// No request may exceed the supplied model window.
-pub fn assert_prompt_bound(bound: u64, window: u32) {
-    assert!(bound <= u64::from(window), "no prompt whose bound exceeds its window");
+///
+/// # Errors
+/// Returns a finding when the prompt's bound exceeds the window.
+pub fn check_prompt_bound(bound: u64, window: u32) -> Result<(), String> {
+    if bound > u64::from(window) {
+        return Err("no prompt whose bound exceeds its window".into());
+    }
+    Ok(())
 }
 
-pub(super) fn prompt(session: &mut Session, prompt: &Prompt, limits: &agent::Limits) {
+pub(super) fn prompt(session: &mut Session, prompt: &Prompt, limits: &agent::Limits) -> Result<(), String> {
     if let Some(previous) = &session.previous_prompt {
         if session.compacting.is_some() {
-            assert_compaction_prompt(previous, prompt, session);
+            check_compaction_prompt(previous, prompt, session)?;
         } else if session.opening.is_some() {
-            assert_prompt_boundary(previous, prompt, session.opening.as_deref());
+            check_prompt_boundary(previous, prompt, session.opening.as_deref())?;
         } else {
-            assert_prompt_extends(previous, prompt);
+            check_prompt_extends(previous, prompt)?;
         }
     }
     session.opening = None;
@@ -56,10 +83,13 @@ pub(super) fn prompt(session: &mut Session, prompt: &Prompt, limits: &agent::Lim
             _ => session.summary.map_or(bytes, |(summary_bytes, tokens)| bytes - summary_bytes + tokens),
         };
         let threshold = u64::from(session.window) * u64::from(limits.threshold[0]) / u64::from(limits.threshold[1]);
-        assert!(input <= threshold, "ordinary completion's check stays within its threshold: {input} > {threshold}");
+        if input > threshold {
+            return Err(format!("ordinary completion's check stays within its threshold: {input} > {threshold}"));
+        }
     }
 
     session.previous_prompt = Some(prompt.clone());
+    Ok(())
 }
 
 pub(super) fn recorded_window(session: &mut Session, turn: &agent::record::Turn, index: usize) {
@@ -82,7 +112,7 @@ pub(super) fn recorded_window(session: &mut Session, turn: &agent::record::Turn,
         Some((skein_lib::len_u64(text.len()), turn.usage.output_tokens.unwrap_or(u64::from(session.max_tokens))));
 }
 
-fn assert_compaction_prompt(previous: &Prompt, current: &Prompt, session: &Session) {
+fn check_compaction_prompt(previous: &Prompt, current: &Prompt, session: &Session) -> Result<(), String> {
     let following = session.ordinary.map_or(0, |(_, following)| following);
     let mut preserved = previous.clone();
     preserved.messages = previous
@@ -98,11 +128,12 @@ fn assert_compaction_prompt(previous: &Prompt, current: &Prompt, session: &Sessi
             (!message.content.is_empty()).then_some(message)
         })
         .collect();
-    assert_prompt_extends(&preserved, current);
-    assert_eq!(
-        current.messages.last().expect("summary request").content,
-        Box::new([Block::Text { text: session.summary_instruction.clone(), replay: None }]) as Box<[Block]>
-    );
+    check_prompt_extends(&preserved, current)?;
+    let last = current.messages.last().ok_or("summary request")?;
+    if last.content.as_ref() != [Block::Text { text: session.summary_instruction.clone(), replay: None }] {
+        return Err("a compaction ends with its summary instruction".into());
+    }
+    Ok(())
 }
 
 /// Check the provider's independently drawn size only when a request is sent.
