@@ -16,14 +16,15 @@ impl Referee<Proc> for Recording {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         self.judge.act(now, procs);
     }
-    fn observe(&mut self, now: Time, procs: &[Proc]) {
-        self.judge.observe(now, procs);
+    fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        let finding = self.judge.watch(now, procs);
         if self.judge.failure.is_some() {
             self.receipt.settled.set(procs.iter().all(Host::is_empty));
             self.receipt.passed.set(self.judge.passed());
-            let Kind::Caller(caller) = &procs[2].kind else { panic!("caller root") };
+            let Kind::Caller(caller) = &procs[2].kind else { return Err("caller root".into()) };
             self.receipt.calls.set(caller.calls.len());
         }
+        finding
     }
     fn next_deadline(&self) -> Option<Time> {
         self.judge.next_deadline()
@@ -40,7 +41,7 @@ fn startup(
     scratch: &skein_scratch::Scratch,
     occupied: Option<&TcpListener>,
     receipt: Rc<Receipt>,
-) -> skein_world::real::Outcome<Proc> {
+) -> Result<skein_world::real::Outcome<Proc>, String> {
     let patience = crate::PATIENCE;
     let fixture = crate::github::fixture();
     let (state, peer) = crate::github::State::new(fixture);
@@ -73,11 +74,10 @@ fn startup(
     });
     host(&mut world, scratch.path(), || vec![crate::calls::sign_in(crate::calls::D1)], true, 1);
     world.spawn(|| Proc::new(Kind::Forge(Box::new(ForgePeer::new(peer)))));
-    world.run(&skein_shell::Clock::new(), patience)
+    world.try_run(&skein_shell::Clock::new(), patience)
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("occupied listener");
     let scratch = skein_scratch::Scratch::new("failed-start");
@@ -85,10 +85,9 @@ fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     // The chooser's block claim outlives the story and belongs in its descriptor baseline.
     drop(temper_fixtures::ports::reserve::<1>(&[]));
     let descriptors = std::fs::read_dir("/proc/self/fd").expect("own descriptors").count();
-    let result =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| startup(&scratch, Some(&listener), receipt.clone())));
-    let Err(payload) = result else { panic!("a service exit before its link must fail the story") };
-    let message = payload.downcast_ref::<String>().expect("failure message");
+    let Err(message) = startup(&scratch, Some(&listener), receipt.clone()) else {
+        panic!("a service exit before its link must fail the story")
+    };
     assert!(message.contains("service 1 exited before caller release: Code(1)"), "{message}");
     assert!(
         message.contains(&format!(

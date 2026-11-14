@@ -211,11 +211,7 @@ temper/tests/one-process/src/m15/observer.rs should_panic 1
 temper/tests/one-process/src/public.rs catch_unwind 1
 temper/tests/one-process/src/referee/durable/tests.rs catch_unwind 1
 temper/tests/one-process/tests/suite/one_process.rs catch_unwind 1
-temper/tests/real-loop/src/calls.rs catch_unwind 1
 temper/tests/real-loop/src/calls.rs should_panic 2
-temper/tests/real-loop/src/patience.rs catch_unwind 2
-temper/tests/real-loop/src/world/diagnostics/tests.rs catch_unwind 1
-temper/tests/real-loop/src/world/teardown.rs catch_unwind 1
 temper/tests/worker/domain/src/runtime.rs should_panic 2
 temper/tests/worker/domain/tests/suite/fuzzy/runtime.rs catch_unwind 1
 tools/tiers/fixtures/one-process/tests.rs should_panic 1
