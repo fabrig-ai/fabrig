@@ -37,15 +37,9 @@ jig/crates/jig-protocol-store/src/tests/readers.rs should_panic 2
 jig/crates/jig-protocol-store/src/tests/restore.rs should_panic 4
 jig/crates/jig-protocol-store/src/tests/start_pages.rs should_panic 1
 jig/crates/jig-protocol-store/src/tests/transcripts.rs should_panic 1
-jig/testing/jig-client-kit/src/harness/world/words_tests.rs should_panic 1
-jig/testing/jig-client-kit/src/joint/stories/referee_stories.rs should_panic 1
-jig/testing/jig-client-test-view/src/tests/world_limits.rs should_panic 2
 jig/testing/jig-test-store-files/src/store/tests.rs should_panic 5
 jig/testing/jig-test-store-files/src/tests/routes.rs should_panic 1
 jig/tests/accounts/tests/suite/simulation.rs should_panic 1
-jig/tests/client/tests/suite/memory.rs should_panic 2
-jig/tests/client/tests/suite/referee.rs should_panic 11
-jig/tests/client/tests/suite/stories.rs should_panic 2
 jig/tests/core/tests/suite/oracle.rs should_panic 3
 jig/tests/host/src/refusals.rs should_panic 1
 jig/tests/host/src/turn_world.rs should_panic 2
