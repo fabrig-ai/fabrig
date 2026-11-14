@@ -59,11 +59,20 @@ The two suites are the strategy's (skein/docs/foundation/testing-strategy.md, se
 - **Fuzzy tests** are each world's `tests/suite/fuzzy/*.rs` modules. A sweep
   settles each random world under every invariant, and reaches every
   ending among them.
-- **Budgets.** The focused suite's 30 s stands until the user sets its
-  CPU budget from measured numbers; the fuzzy suite's is 180 s, the
+- **Budgets.** The focused suite's CPU budget is 1250 s, 1.5 times the
+  development machine's focused run of main at 11-14 11:42Z (832 CPU s),
+  by the user's word of 11-14; the fuzzy suite's is 180 s, the
   strategy's 120 raised by half by the user's word of 11-08, for now, to
   be revisited (`tools/tiers/budgets.toml`). Both are separate from the
   profiles' wall hard limits. Within them, guides:
+  - the engine component's unit tests (`temper-engine-service-component`'s
+    lib tests, every one a focused test) each within the strategy's
+    40 ms unit-test guide (skein/docs/foundation/testing-strategy.md, 8),
+    and their binary's process at most 20 CPU s. A test builds the
+    services it checks and no other: no fixture builds a whole service
+    only to take its store or to throw it away. A service builds each of
+    its fixed tables (a wire's schemas, bounds, fingerprints and bridges)
+    once, however many of its parts read it;
   - the worlds below the domain other than the real loop (the protocol,
     machine, client, one-process and reconcile worlds) together at most
     8 s of the default suite;

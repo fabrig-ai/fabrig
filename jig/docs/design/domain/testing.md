@@ -497,7 +497,7 @@ The core's world gains about a dozen focused scenarios (half with the
 change, half with revisions and moves), the tasks child's and the
 fleet's a few each, each as long as the scenarios beside it, a few cuts
 each: about what the runtime projects' stories added, a small part of
-the focused suite's 30 seconds. The fuzzy suite gains no sweep: a change
+the focused suite's budget. The fuzzy suite gains no sweep: a change
 of settings, and a move, become two more operations its random worlds
 draw, at the cost of the steps they take. Each change that adds them
 measures both suites before and after on the gate; past a budget, it
@@ -532,7 +532,8 @@ than cutting the cover.
   `temper/docs/development/limits-worlds.md`; changed-row-only verdicts
   cannot replace the whole observation contract.
 - **Further world-cost repairs** (7, 9): which remaining representations and
-  algorithms need to change for the focused suite to fit its 30 CPU s budget.
+  algorithms need to change for the focused suite to fit its CPU budget
+  (`tools/tiers/budgets.toml`).
   Read whole-suite cost from the queue after landing, including fuzzy's moved
   core and store sweeps and `Standard` drive. A world's real first start and
   every story's cold restart stay; further changes to the product's catalogue

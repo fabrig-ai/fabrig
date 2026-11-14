@@ -181,7 +181,7 @@ pub(crate) fn start(service: &mut crate::Service, issuer: &mut fake::Issuer, tar
     pump(service, &mut peer);
     answer_fetch(service, issuer);
     pump(service, &mut peer);
-    assert!(peer.received().starts_with(b"HTTP/1.1 303"));
+    assert!(peer.received().starts_with(b"HTTP/1.1 303"), "start response: {:?}", peer.received());
     let cookie: Box<[u8]> = header(&peer, "set-cookie").into();
     assert!(cookie.ends_with(b"; Secure"));
     assert!(
@@ -252,6 +252,22 @@ pub(crate) fn signed_return(service: &mut crate::Service, issuer: &mut fake::Iss
     peer
 }
 #[test]
+fn a_scripted_issuer_answer_keeps_the_redirects_protocol_turn_ready() {
+    let (mut service, mut issuer) = world(2);
+    let mut peer = peer(&mut service, b"/sign-in/google", None);
+    pump(&mut service, &mut peer);
+    assert!(!service.engine.as_ref().unwrap().clients.transport_pending(NOW, true), "the fetch waits for the issuer");
+    answer_fetch(&mut service, &mut issuer);
+    let engine = service.engine.as_mut().unwrap();
+    assert!(engine.clients.transport_pending(NOW, true), "the OAuth answer has an output to route");
+    crate::engine::iterate(engine, NOW, WALL);
+    assert!(engine.clients.transport_pending(NOW, true), "the newly queued redirect must wake the next protocol pass");
+    pump(&mut service, &mut peer);
+    assert!(peer.is_closed());
+    assert!(peer.received().starts_with(b"HTTP/1.1 303"));
+}
+
+#[test]
 fn a_signed_member_mints_twice_and_keeps_the_binding_against_another_subject() {
     let (mut service, mut issuer) = world(2);
     account(&mut issuer, b"first-sub", Some(b"SAM@example.com"), true);
@@ -281,12 +297,12 @@ fn a_signed_member_mints_twice_and_keeps_the_binding_against_another_subject() {
 }
 #[test]
 fn signed_nonmembers_missing_email_and_unverified_email_mint_nothing() {
+    let (mut service, mut issuer) = world(2);
     for (address, verified, text) in [
         (Some(b"other@example.com".as_slice()), true, "other@example.com can’t sign in here".as_bytes()),
         (None, true, "Google hasn’t verified this account’s address".as_bytes()),
         (Some(b"sam@example.com".as_slice()), false, "Google hasn’t verified sam@example.com".as_bytes()),
     ] {
-        let (mut service, mut issuer) = world(2);
         account(&mut issuer, b"first-sub", address, verified);
         let peer = signed_return(&mut service, &mut issuer, b"/sign-in/google");
         ending(&peer, b"HTTP/1.1 403", text);
@@ -308,8 +324,8 @@ fn a_signed_member_with_a_bad_then_returns_home_and_mint_refused_is_busy() {
 }
 #[test]
 fn choosing_an_account_and_cancelling_keep_the_safe_return() {
+    let (mut service, mut issuer) = world(2);
     for error in ["access_denied", "another_error"] {
-        let (mut service, mut issuer) = world(2);
         let (url, cookie) =
             start(&mut service, &mut issuer, b"/sign-in/google?then=%2Fprojects%3Ftab%3Dmine&account=choose");
         assert!(url.windows(b"prompt=select_account".len()).any(|part| part == b"prompt=select_account"));
@@ -353,8 +369,8 @@ fn absent_unknown_used_and_restarted_tags_expire() {
 }
 #[test]
 fn a_wrong_state_and_a_past_deadline_expire() {
+    let (mut service, mut issuer) = world_lifetime(2, Duration::from_secs(1));
     for late in [false, true] {
-        let (mut service, mut issuer) = world_lifetime(2, Duration::from_secs(1));
         let (_, cookie) = start(&mut service, &mut issuer, b"/sign-in/google");
         let now = if late { Time::from_nanos(2_000_000_000) } else { NOW };
         let mut peer = peer(&mut service, b"/sign-in/google/return?code=c&state=wrong", Some(&cookie));
@@ -391,11 +407,11 @@ fn pending_full_is_busy_and_unreachable_keys_end_before_the_visit() {
 }
 #[test]
 fn disabled_routes_and_wrong_methods_carry_the_policy_and_clear_returns() {
+    let (mut service, _) = world(2);
     for (method, path, disabled, expected) in [
-        ("GET", "/sign-in/google/return", true, b"HTTP/1.1 404".as_slice()),
-        ("POST", "/sign-in/google/return", false, b"HTTP/1.1 405"),
+        ("POST", "/sign-in/google/return", false, b"HTTP/1.1 405".as_slice()),
+        ("GET", "/sign-in/google/return", true, b"HTTP/1.1 404"),
     ] {
-        let (mut service, _) = world(2);
         if disabled {
             service.engine.as_mut().unwrap().clients.google = None;
         }
@@ -413,9 +429,12 @@ fn disabled_routes_and_wrong_methods_carry_the_policy_and_clear_returns() {
 }
 #[test]
 fn fuzzy_route_endings_replay_from_the_seed() {
+    let mut fixture = None;
     for seed in 0_u64..24 {
         let mut rng = skein_lib::Rng::new(seed);
-        let (mut service, mut issuer) = world(2);
+        // Refusals consume the attempt without binding a person. A mint does
+        // bind, so its next seed needs a cold world to check that first binding.
+        let (service, issuer) = fixture.get_or_insert_with(|| world(2));
         let target = if rng.chance(500) {
             b"/sign-in/google?then=%2Fprojects%3Ftab%3Dmine".as_slice()
         } else {
@@ -423,34 +442,30 @@ fn fuzzy_route_endings_replay_from_the_seed() {
         };
         if rng.chance(500) {
             let member = rng.chance(500);
-            account(
-                &mut issuer,
-                b"seed-sub",
-                Some(if member { b"sam@example.com" } else { b"other@example.com" }),
-                true,
-            );
-            let peer = signed_return(&mut service, &mut issuer, target);
+            account(issuer, b"seed-sub", Some(if member { b"sam@example.com" } else { b"other@example.com" }), true);
+            let peer = signed_return(service, issuer, target);
             ending(&peer, if member { b"HTTP/1.1 303" } else { b"HTTP/1.1 403" }, b"");
             if member {
                 assert_eq!(
                     header(&peer, "location"),
                     if target.ends_with(b"evil.example") { b"/".as_slice() } else { b"/projects?tab=mine" }
                 );
+                fixture = None;
             }
             continue;
         }
-        let (_, cookie) = start(&mut service, &mut issuer, target);
+        let (_, cookie) = start(service, issuer, target);
         let callback = match rng.below(3) {
             0 => b"/sign-in/google/return?error=access_denied".as_slice(),
             1 => b"/sign-in/google/return?error=%3Cscript%3E".as_slice(),
             _ => b"/sign-in/google/return?code=unused&state=wrong".as_slice(),
         };
-        let mut peer = peer(&mut service, callback, Some(&cookie));
-        pump(&mut service, &mut peer);
+        let mut peer = peer(service, callback, Some(&cookie));
+        pump(service, &mut peer);
         ending(&peer, b"HTTP/1.1 400", "The sign-in didn’t finish".as_bytes());
         assert!(!core::str::from_utf8(peer.received()).unwrap().contains("<script>"), "seed {seed}");
-        let mut replayed = self::peer(&mut service, callback, Some(&cookie));
-        pump(&mut service, &mut replayed);
+        let mut replayed = self::peer(service, callback, Some(&cookie));
+        pump(service, &mut replayed);
         ending(&replayed, b"HTTP/1.1 400", b"It took too long");
     }
 }
