@@ -1,18 +1,20 @@
 # README: status
 
-2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-14. Where the tree's code lags or departs from [README.md](README.md).
 
 
 - **Not yet:** 1: parameter 18, the source landings a follow change
   follows, its route `up` and no early start [in flight: change 99].
 
-- **Not yet:** 3, *Its own writes are its own* and *Its branch moved*'s words: an update's made head is not recorded as its branch's head, so a goal's landing on its held branch takes it for drift and holds `BranchMoved`; a let-go update is judged against the base's tip read now, not the base it asked for; a close-out's or catch-up's merge into the goal's branch takes no writer slot the landing sees; and a `BranchMoved` hold names neither head (`temper-engine-domain-forge/src/domain.rs`, `change_outcome`, `change_facts`; `temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`).
+- **Not yet:** 3, *Its own writes are its own*: an update's made head is not recorded as its branch's head, so a goal's landing on its held branch takes it for drift and holds `BranchMoved`; a let-go update is judged against the base's tip read now, not the base it asked for; and a close-out's or catch-up's merge into the goal's branch takes no writer slot the landing sees (`temper-engine-domain-forge/src/domain.rs`, `change_outcome`, `change_facts`; `temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`).
 
 
 - **Not yet:** 1, `reruns`, and 2, step 3, *The runner's failures run again*, with step 7's attempt in the landed result: a change's CI failed by the runner is repaired like any other, and no configuration names `forge.change_policy.reruns` (`temper-engine-domain-forge-change/src/domain.rs`, `checking`, `gating`).
 
 
 - **Not yet:** 2, a change whose pushed head its landing branch already contains: it lives on, and only a contained catch-up ends with no change; nothing reads whether the base's tip contains a change's head.
+
+- **Not yet:** 2, step 1, *A result with a head always moves the change on*: a change whose producer ended with a pushed head can sit at producing with no pull request and no hold (`repairs.md`'s status, "Stalls") [in flight: change 2709].
 
 - **Not yet:** 2, *From its turn on, a contained head has landed*, and step 7: a change at its turn or landing whose head its landing branch contains sends its merge, the forge client sends it again, and a failed one holds without reading containment (`temper-engine-domain-forge-change/src/domain.rs`, `first`, `landing`) [in flight: change 2645].
 
