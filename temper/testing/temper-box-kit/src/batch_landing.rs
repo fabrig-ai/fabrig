@@ -173,7 +173,7 @@ pub fn message_room(root: &Path, value: &mut Value) {
     let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
     agent["profile"]["declared"]["tool_payload"] = 63_740.into();
     for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
-        endpoint["limits"]["output"] = 65_536.into();
+        endpoint["limits"]["output"] = 48_000.into();
     }
     // The standard store holds the prepare job; keep only the story's engine bounds.
     let prepare = temper_service::limits::prepare_bound();
@@ -212,6 +212,13 @@ pub fn message_room(root: &Path, value: &mut Value) {
     overrides.insert("forge.client.fallback_ms".into(), 5000.into());
     turn_restart::staging_limits(value);
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
+    // A task's retained inbox also crosses the record load edge.
+    for name in ["root.loads.bytes", "root.loads.reply_bytes"] {
+        let current = value["application"]["limits"]["overrides"][name].as_u64().expect("load bound");
+        value["application"]["limits"]["overrides"][name] = current.max(8_388_608).into();
+    }
+    value["application"]["limits"]["overrides"]["root.loads.read_bytes"] = 16_777_216.into();
+    value["application"]["limits"]["overrides"]["root.journal.transcript_bytes"] = 8_388_608.into();
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }
 

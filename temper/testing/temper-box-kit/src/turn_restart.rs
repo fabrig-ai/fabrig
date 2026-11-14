@@ -90,6 +90,7 @@ pub fn staging_limits(value: &mut Value) {
     }
     value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
     value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = (82 * 63_738).into();
     value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
     value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
     value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
@@ -369,7 +370,8 @@ impl Judge<'_> {
         let Some(Process::Person(person)) = procs.get(1) else { return Err(String::from("native person")) };
         let setup = procs.iter().find_map(|proc| match proc {
             Process::Calls(calls) => Some(calls.ends().iter().map(|call| call.exit).collect::<Vec<_>>()),
-            Process::Binary(_)
+            Process::Member(_)
+            | Process::Binary(_)
             | Process::Stdout(_)
             | Process::Person(_)
             | Process::Peer(_)
