@@ -243,6 +243,14 @@ fn gate_runs(forge: &Throwaway) -> Result<Vec<Value>, String> {
 
 /// Fixture admission is checked without starting the owned forge or a process story.
 pub mod tests {
+    pub fn gate_receipt_waits_for_an_unpublished_status_context() {
+        use serde_json::json;
+        assert_eq!(super::narrowed::gate_status(&json!({"statuses":null}), "failure"), Ok(false));
+        assert_eq!(super::narrowed::gate_status(&json!({"statuses":[{"context":"temper/gate/gate","status":"pending"}]}), "failure"), Ok(false));
+        assert_eq!(super::narrowed::gate_status(&json!({"statuses":[{"context":"temper/gate/gate","status":"failure"}]}), "failure"), Ok(true));
+        assert!(super::narrowed::gate_status(&json!({"statuses":"malformed"}), "failure").is_err());
+    }
+
     pub fn the_scripted_batch_fits_its_budget_and_call() {
         let scratch = super::super::Scratch::new("batch-admission");
         let api = "127.0.0.1:3000".parse().expect("fixture forge");

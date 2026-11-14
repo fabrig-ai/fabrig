@@ -23,6 +23,14 @@ pub(super) fn hold_repair(scripts: &mut Vec<Script>) {
     });
 }
 
+pub(super) fn gate_status(statuses: &Value, verdict: &str) -> Result<bool, String> {
+    if statuses["statuses"].is_null() {
+        return Ok(false);
+    }
+    let rows = statuses["statuses"].as_array().ok_or(String::from("statuses"))?;
+    Ok(rows.iter().any(|status| status["context"] == "temper/gate/gate" && status["status"] == verdict))
+}
+
 impl Judge<'_> {
     fn receipt(&self, run: u64, prefix: &str, verdict: &str) -> Result<bool, String> {
         Ok({
@@ -37,11 +45,7 @@ impl Judge<'_> {
                 return Ok(false);
             }
             let statuses = get(self.forge, &format!("commits/{prefix}/status"));
-            statuses["statuses"]
-                .as_array()
-                .ok_or(String::from("statuses"))?
-                .iter()
-                .any(|status| status["context"] == "temper/gate/gate" && status["status"] == verdict)
+            gate_status(&statuses, verdict)?
         })
     }
 
