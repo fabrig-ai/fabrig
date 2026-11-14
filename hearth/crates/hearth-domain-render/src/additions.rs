@@ -1,14 +1,11 @@
 //! Files and tmpfiles lines render contributes (hearth/docs/design/domain/render/README.md, 3.6, hearth/docs/design/domain/render/spec.md, 1.2).
 use crate::{
-    kinds::{
-        data,
-        users::{Accounts, UserKind},
-    },
+    entries::Claimant,
+    kinds::{data, users::Accounts},
     parts::{
         config::{Line, LineKind, Tmpfile},
         packages::{Initramfs, Microcode},
     },
-    revision::Position,
 };
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Map, Writer};
@@ -17,15 +14,15 @@ pub fn subordinate(accounts: &Accounts) -> Option<Box<[u8]>> {
     let mut ranges = Map::with_capacity(u32::try_from(accounts.users.len()).expect("user bound"));
     let mut length = 0_usize;
     for user in &accounts.users {
-        if let UserKind::Sysusers { subordinate: Some((base, count)), .. } = &user.kind {
+        if let Some((base, count)) = &user.subordinate {
             let base = Decimal::of(u64::from(*base));
             let count = Decimal::of(u64::from(*count));
             length = length
-                .saturating_add(user.name.len())
+                .saturating_add(user.value.name.len())
                 .saturating_add(base.as_bytes().len())
                 .saturating_add(count.as_bytes().len())
                 .saturating_add(3);
-            ranges.insert(user.name.clone(), (base, count)).expect("user bound");
+            ranges.insert(user.value.name.clone(), (base, count)).expect("user bound");
         }
     }
     if ranges.is_empty() {
@@ -42,8 +39,7 @@ pub fn subordinate(accounts: &Accounts) -> Option<Box<[u8]>> {
 /// A generated line retains its declaration's claimant for collision checks.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DataLine {
-    pub task: Box<[u8]>,
-    pub at: Position,
+    pub source: Claimant,
     pub tmpfile: Tmpfile,
 }
 #[must_use]
@@ -52,10 +48,9 @@ pub fn data_lines(entries: &[data::Entry]) -> Box<[DataLine]> {
     for entry in entries {
         lines
             .push(DataLine {
-                task: entry.task.clone(),
-                at: entry.at,
+                source: entry.source.clone(),
                 tmpfile: Tmpfile {
-                    path: entry.path.clone(),
+                    path: entry.value.value.path.clone(),
                     line: Line {
                         kind: LineKind::D,
                         mode: Some(entry.mode),

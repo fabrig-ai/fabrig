@@ -37,25 +37,30 @@ pub enum PartRecord {
     Boot(boot::Boot),
     Exports(exports::Exports),
 }
+impl PartRecord {
+    pub(crate) const fn name(&self) -> &'static [u8] {
+        match self {
+            Self::Config(_) => b"config",
+            Self::Data(_) => b"data",
+            Self::Secrets(_) => b"secrets",
+            Self::Software(_) => b"software",
+            Self::Packages(_) => b"packages",
+            Self::Live(_) => b"live",
+            Self::Boot(_) => b"boot",
+            Self::Exports(_) => b"exports",
+        }
+    }
+}
+
 #[must_use]
-pub fn spec_digest(meta: &Digest, parts: &[Part]) -> Digest {
+pub(crate) fn spec_digest(meta: &Digest, parts: &[Part]) -> Digest {
     let mut hash = H::new(b"spec", 1);
     let record = hash.values();
     record.map(u64::try_from(parts.len()).expect("bounded parts").saturating_add(1));
     let mut ordered = skein_lib::Map::with_capacity(u32::try_from(parts.len()).expect("part count").saturating_add(1));
     ordered.insert(skein_lib::bytes::copy_of(b"meta"), *meta).expect("part count");
     for part in parts {
-        let name: &[u8] = match &part.record {
-            PartRecord::Config(_) => b"config",
-            PartRecord::Data(_) => b"data",
-            PartRecord::Exports(_) => b"exports",
-            PartRecord::Secrets(_) => b"secrets",
-            PartRecord::Software(_) => b"software",
-            PartRecord::Packages(_) => b"packages",
-            PartRecord::Live(_) => b"live",
-            PartRecord::Boot(_) => b"boot",
-        };
-        ordered.insert(skein_lib::bytes::copy_of(name), part.digest).expect("part count");
+        ordered.insert(skein_lib::bytes::copy_of(part.record.name()), part.digest).expect("part count");
     }
     for (name, digest) in &ordered {
         record.key(name);

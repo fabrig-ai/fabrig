@@ -26,25 +26,34 @@ pub(crate) struct Known {
     pub(crate) closure: Option<Box<[crate::resolution::Package]>>,
 }
 impl Known {
+    pub(super) fn apply(&self, key: Digest, spec: &mut parts::Spec) {
+        let keys = keys::layers(
+            &self.digest,
+            &keys::part(spec, b"packages"),
+            &keys::part(spec, b"software"),
+            &keys::part(spec, b"config"),
+        );
+        spec.resolution = Some(Box::new(keys::Resolution::Known { key, keys }));
+    }
     fn from_record(record: crate::resolution::Record, diff: bool) -> Self {
         Self { digest: record.digest, closure: if diff { Some(record.closure) } else { None } }
     }
 }
 impl Finding {
-    pub fn resolve(&mut self, deadline: Option<skein_lib::Time>) {
+    pub(crate) fn resolve(&mut self, deadline: Option<skein_lib::Time>) {
         self.deadline = deadline;
     }
-    pub fn inst(&mut self, inst: crate::resolution::Inst) {
+    pub(crate) fn inst(&mut self, inst: crate::resolution::Inst) {
         if self.fault.is_none() {
             self.fault = self.closure.as_mut().expect("active closure").inst(inst).err();
         }
     }
-    pub fn stanza(&mut self, line: u32, stanza: crate::resolution::Stanza) {
+    pub(crate) fn stanza(&mut self, line: u32, stanza: crate::resolution::Stanza) {
         if self.fault.is_none() {
             self.fault = self.closure.as_mut().expect("active closure").stanza(line, stanza).err();
         }
     }
-    pub fn new(capacity: u32) -> Self {
+    pub(crate) fn new(capacity: u32) -> Self {
         Self {
             assembled: false,
             next: 0,
@@ -122,13 +131,7 @@ impl Side {
             if let Some(resolution) = &spec.resolution {
                 let key = resolution.key();
                 if let Some(Some(record)) = self.finding.asked.get(&key) {
-                    let keys = keys::layers(
-                        &record.digest,
-                        &keys::part(&spec, b"packages"),
-                        &keys::part(&spec, b"software"),
-                        &keys::part(&spec, b"config"),
-                    );
-                    spec.resolution = Some(Box::new(keys::Resolution::Known { key, keys }));
+                    record.apply(key, &mut spec);
                 }
             }
             return Some(Answer::Spec(spec));
@@ -147,14 +150,14 @@ impl Side {
         let closure = self.finding.closure.take().expect("active closure");
         let closed = match self.finding.fault.take() {
             Some(fault) => Err(fault),
-            None => closure.close(requested_names(&self.made, &key)),
+            None => closure.close(&packages_for(&self.made, &key).request),
         };
         match closed {
             Ok(closure) => {
                 let digest = keys::closure(&closure);
                 let record = crate::resolution::Record {
                     key,
-                    inputs: inputs(&self.made, &key),
+                    inputs: parts::packages::inputs(packages_for(&self.made, &key)),
                     sources: lines,
                     closure,
                     digest,
@@ -267,14 +270,14 @@ fn failure_kind(failure: crate::vocabulary::Failure) -> Option<crate::errors::Ki
     })
 }
 
-fn requested_names<'a>(made: &'a Map<Box<[u8]>, Made>, key: &Digest) -> &'a [Box<[u8]>] {
+fn packages_for<'a>(made: &'a Map<Box<[u8]>, Made>, key: &Digest) -> &'a parts::packages::Packages {
     for (_, made) in made {
         if let Made::Spec(spec) = made
             && let Some(resolution) = &spec.resolution
             && resolution.key() == *key
             && let Some(packages) = packages(spec)
         {
-            return &packages.request;
+            return packages;
         }
     }
     unreachable!("resolution holder")
@@ -284,19 +287,6 @@ fn classified_failure(
 ) -> Option<(crate::vocabulary::Class, crate::errors::Kind)> {
     let (class, failure) = failure?;
     Some((class, failure_kind(failure)?))
-}
-
-fn inputs(made: &Map<Box<[u8]>, Made>, key: &Digest) -> parts::packages::Inputs {
-    for (_, made) in made {
-        if let Made::Spec(spec) = made
-            && let Some(resolution) = &spec.resolution
-            && resolution.key() == *key
-            && let Some(packages) = packages(spec)
-        {
-            return parts::packages::inputs(packages);
-        }
-    }
-    unreachable!("key has a holder")
 }
 
 impl Finding {

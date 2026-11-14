@@ -145,10 +145,13 @@ pub struct World {
     pub comparison_delay: Option<Duration>,
     /// A branch whose reads take twenty seconds, each decided when it is sent.
     pub slow_branch: Option<Box<[u8]>>,
+    pub slow_branch_latency: Duration,
     /// Delay the review diff independently of the change's fresh checks.
     pub review_files_delay: Option<Duration>,
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
+    pub hold_reads_at_any_step: bool,
+    pub busy_reads: bool,
     /// Source comparisons withheld before their terminal, including across a cold restart.
     pub held_comparisons: Option<Vec<engine::Request>>,
     /// An unusable comparison must conservatively keep a source landing.
@@ -159,6 +162,8 @@ pub struct World {
     /// Hold decoded write answers after the independent forge has made the effect.
     pub hold_write_answers: Option<HoldWrite>,
     pub held_write_answers: Vec<engine::Event>,
+    /// Serve a lagging pull head while the branch reads remain current.
+    pub lagging_pull_head: Option<skein_forge::api::Commit>,
     /// Hold final ancestry answers across the root's settling boundary.
     pub hold_ancestry_answers: bool,
     pub held_ancestry_answers: Vec<engine::Event>,
@@ -171,6 +176,8 @@ pub struct World {
     pub drained: Option<u64>,
     pub unsettled: Vec<engine::Unsettled>,
     pub busy_calls: u32,
+    /// Time per normal tick; short-stall stories can drive reads with less shell latency.
+    pub tick_interval: Duration,
     /// Opt-in worker answer acknowledgements for settlement stories.
     pub acknowledgements: Option<Vec<(u64, u64)>>,
 }
@@ -1248,13 +1255,17 @@ impl World {
             files_too_large: false,
             comparison_delay: None,
             slow_branch: None,
+            slow_branch_latency: Duration::from_secs(20),
             review_files_delay: None,
             gate,
             held_reads: None,
+            hold_reads_at_any_step: false,
+            busy_reads: false,
             held_comparisons: None,
             fail_comparisons: false,
             hold_write_answers: None,
             held_write_answers: Vec::new(),
+            lagging_pull_head: None,
             hold_ancestry_answers: false,
             held_ancestry_answers: Vec::new(),
             lose_writes: 0,
@@ -1264,6 +1275,7 @@ impl World {
             drained: None,
             unsettled: Vec::new(),
             busy_calls: 0,
+            tick_interval: Duration::from_millis(100),
             acknowledgements: None,
             merges: 0,
             writes: Vec::new(),
@@ -1941,6 +1953,7 @@ impl World {
         self.held_write_answers.clear();
         self.held_ancestry_answers.clear();
         self.hold_ancestry_answers = false;
+        self.lagging_pull_head = None;
         self.hold_write_answers = None;
         self.drained = None;
         self.unsettled.clear();
@@ -2036,6 +2049,14 @@ impl World {
                     }));
                 }
                 engine::Request::Forge { call, repository, op } => {
+                    if self.busy_reads && matches!(op, skein_forge::api::Op::Read(_)) {
+                        self.held_reads.get_or_insert_with(Vec::new).push(engine::Request::Forge {
+                            call,
+                            repository,
+                            op,
+                        });
+                        continue;
+                    }
                     if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })) {
                         if let Some(reads) = &mut self.held_comparisons {
                             reads.push(engine::Request::Forge { call, repository, op });
@@ -2056,9 +2077,9 @@ impl World {
                     }
                     if let Some(reads) = &mut self.held_reads
                         && matches!(op, skein_forge::api::Op::Read(_))
-                        && self.store.rows.values().any(|row| matches!(row,
+                        && (self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
                             Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(row)
-                                if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. }))))
+                                if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))))
                     {
                         reads.push(engine::Request::Forge { call, repository, op });
                         continue;
@@ -2233,8 +2254,8 @@ impl World {
                     self.pending_repositories.insert(call, Box::from(name));
                     let mut limits = self.fake_env.limits.clone();
                     if slow {
-                        limits.latency_min = Duration::from_secs(20);
-                        limits.latency_max = Duration::from_secs(20);
+                        limits.latency_min = self.slow_branch_latency;
+                        limits.latency_max = self.slow_branch_latency;
                     }
                     if let Some(delay) = review_delay.or(comparison_delay) {
                         limits.latency_min = delay;
@@ -2599,6 +2620,27 @@ impl World {
     )]
     fn tick_with_reply_cut(&mut self, target: Option<u64>, resume: bool) -> bool {
         let mut lost = false;
+        // A Busy retry keeps the offered change step in flight. Drain that
+        // read's timer before snapshotting; an idle procedure's poll is not work.
+        let retrying_change = self.oracle_running
+            && self.events.is_empty()
+            && self.immediate.is_empty()
+            && self.pending.is_empty()
+            && self.store.idle()
+            && self.store.rows.values().any(|row| {
+                matches!(row,
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+                if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. })
+                    && task.phase == tasks::Phase::Active(tasks::Active::Due))
+            });
+        let retrying_change = retrying_change
+            && self
+                .root
+                .next_deadline(&self.env)
+                .is_some_and(|due| due <= self.env.now.saturating_add(Duration::from_secs(1)));
+        if retrying_change && let Some(due) = self.root.next_deadline(&self.env) {
+            self.env.now = self.env.now.max(due);
+        }
         if self.oracle_running {
             if !self.pending.is_empty()
                 && let Some(due) = self.fake.next_deadline()
@@ -2606,7 +2648,7 @@ impl World {
                 self.env.now = self.env.now.max(due);
             }
         } else {
-            self.env.now = self.env.now.saturating_add(Duration::from_millis(100));
+            self.env.now = self.env.now.saturating_add(self.tick_interval);
         }
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.fake_env.now = self.env.now;
@@ -2648,6 +2690,11 @@ impl World {
                     let result = match result {
                         Ok(answer) => {
                             let mut answer = translate::answer(&op, answer, &self.env.limits.forge.client);
+                            if let Some(head) = self.lagging_pull_head
+                                && let Ok(skein_forge::api::Answer::Pull(pull)) = &mut answer
+                            {
+                                pull.commit = head;
+                            }
                             if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
                                 let raw::Answer::Jobs(jobs) = self
                                     .fake
@@ -2700,7 +2747,7 @@ impl World {
         }
         self.collect();
         self.flush();
-        if !self.oracle_running {
+        if !self.oracle_running || retrying_change {
             engine::fire(&mut self.root, &self.env);
         }
         engine::release(&mut self.root, &self.env, &mut self.out);
@@ -3235,6 +3282,7 @@ impl World {
             // A hosted attempt may keep a future fleet deadline armed. No
             // timer is fired merely to close a story; all immediate terminals drain.
             if self.root.ready()
+                && !self.root.forge_work_ready()
                 && self.root.held_bytes() == 0
                 && self.events.is_empty()
                 && self.immediate.is_empty()

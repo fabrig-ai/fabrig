@@ -1,8 +1,9 @@
 //! Defaulted declarations must agree field for field, without their provenance.
 mod rows;
-use super::{Declared, claims};
+use super::Declared;
 use crate::{
-    errors::{Class, Collector, Collision, Error, Kind, Place, Subject},
+    entries::Claimant,
+    errors::{Class, Collector, Collision, Error, Kind, Subject},
     kinds::{
         cmdline::Parameter,
         groups::Group,
@@ -13,7 +14,6 @@ use crate::{
         config::{Preset, Tmpfile},
         packages::Preseed,
     },
-    revision::Position,
 };
 use alloc::boxed::Box;
 use rows::Row;
@@ -27,34 +27,21 @@ pub struct Survivors {
     pub preseeds: Box<[Preseed]>,
     pub parameters: Box<[Parameter]>,
 }
-#[derive(Debug)]
-pub(super) struct Claimant {
-    task: Box<[u8]>,
-    at: Position,
-}
-impl Claimant {
-    pub(super) fn new(task: &[u8], at: Position) -> Self {
-        Self { task: copy_of(task), at }
-    }
-    fn place(&self) -> Place {
-        Place { path: claims::declaration(&self.task), position: Some(self.at) }
-    }
-}
 type Kept<'a> = Map<(Subject, Box<[u8]>), (&'a Row, &'a Claimant)>;
 type Key = (Box<[u8]>, Box<[u8]>, Subject, u32);
 pub(super) struct Rows {
-    rows: Map<Key, (Row, Claimant)>,
+    rows: Map<Key, Row>,
     valid: bool,
 }
 impl Rows {
     fn new(limits: &Limits) -> Self {
         Self { rows: Map::with_capacity(limits.expansion), valid: true }
     }
-    fn insert(&mut self, key: &[u8], row: Row, who: Claimant, target: &[u8], errors: &mut Collector) {
-        let key = (who.task.clone(), copy_of(key), row.subject(), self.rows.len());
-        if let Err((_key, (_row, who))) = self.rows.insert(key, (row, who)) {
+    fn insert(&mut self, key: &[u8], row: Row, target: &[u8], errors: &mut Collector) {
+        let key = (row.source().task.clone(), copy_of(key), row.subject(), self.rows.len());
+        if let Err((_key, row)) = self.rows.insert(key, row) {
             self.valid = false;
-            errors.push(error(target, Kind::Evaluation(crate::evaluate::FaultKind::Limit), &who, None));
+            errors.push(error(target, Kind::Evaluation(crate::evaluate::FaultKind::Limit), row.source(), None));
         }
     }
 }
@@ -64,7 +51,8 @@ pub fn declarations(declared: &Declared<'_>, limits: &Limits, errors: &mut Colle
     let mut rows = Rows::new(limits);
     rows::gather(&mut rows, declared, errors);
     let mut kept: Kept<'_> = Map::with_capacity(limits.expansion);
-    for ((_, name, subject, _), (row, who)) in &rows.rows {
+    for ((_, name, subject, _), row) in &rows.rows {
+        let who = row.source();
         let key = (*subject, name.clone());
         if let Some((first, at)) = kept.get_mut(&key) {
             if !first.same(row) {
@@ -81,6 +69,7 @@ pub fn declarations(declared: &Declared<'_>, limits: &Limits, errors: &mut Colle
                 ));
                 rows.valid = false;
             } else if !first.explicit() && row.explicit() {
+                // Keep the first claimant for errors, but retain the explicit declaration for the part.
                 *first = row;
             }
         } else {
@@ -101,10 +90,10 @@ fn finish(kept: &Kept<'_>, limits: &Limits) -> Survivors {
             Row::User(user, _) => users.push(user.clone()).expect("kept bound"),
             Row::Group(group, true) => groups.push(group.clone()).expect("kept bound"),
             Row::Group(_, false) => {}
-            Row::Preset(row) => presets.push(row.clone()).expect("kept bound"),
-            Row::Tmpfile(row) => tmpfiles.push(row.clone()).expect("kept bound"),
-            Row::Preseed(row) => preseeds.push(row.clone()).expect("kept bound"),
-            Row::Parameter(row) => {
+            Row::Preset(row, _) => presets.push(row.clone()).expect("kept bound"),
+            Row::Tmpfile(row, _) => tmpfiles.push(row.clone()).expect("kept bound"),
+            Row::Preseed(row, _) => preseeds.push(row.clone()).expect("kept bound"),
+            Row::Parameter(row, _) => {
                 parameters.insert((row.order, name.clone()), row).expect("kept bound");
             }
         }

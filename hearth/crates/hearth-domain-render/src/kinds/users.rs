@@ -4,54 +4,33 @@ use super::{
     secrets::{fault, formed, text},
 };
 use crate::{
-    entries::Located,
+    entries::{Claimant, Located},
     errors::{Error, Format, Schema},
-    revision::{Position, declaration::Name},
+    parts::config::{self, UserKind},
+    revision::declaration::Name,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Map, bytes::copy_of};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Accounts {
+pub(crate) struct Accounts {
     pub users: Box<[User]>,
     pub groups: Box<[Group]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct User {
-    pub name: Box<[u8]>,
-    pub task: Box<[u8]>,
-    pub at: Position,
-    pub kind: UserKind,
+pub(crate) struct User {
+    pub value: config::User,
+    pub source: Claimant,
+    pub subordinate: Option<(u32, u32)>,
+    pub member_of: Box<[Box<[u8]>]>,
+    pub package_ids: (Option<u32>, Option<u32>),
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum UserKind {
-    Sysusers {
-        uid: Option<u32>,
-        group: Box<[u8]>,
-        gecos: Box<[u8]>,
-        home: Box<[u8]>,
-        shell: Box<[u8]>,
-        subordinate: Option<(u32, u32)>,
-        member_of: Box<[Box<[u8]>]>,
-    },
-    Package {
-        uid: Option<u32>,
-        gid: Option<u32>,
-    },
-}
-pub fn accounts(users: &[Located<'_>], groups: &[Located<'_>], faults: &mut List<Error>) -> Accounts {
+pub(crate) fn accounts(users: &[Located<'_>], groups: &[Located<'_>], faults: &mut List<Error>) -> Accounts {
     let mut kept_users = List::with_capacity(u32::try_from(users.len()).expect("entry count"));
     let mut kept_groups = List::with_capacity(u32::try_from(groups.len()).expect("entry count"));
     for located in users {
         match check(located) {
-            Ok(kind) => {
-                kept_users
-                    .push(User {
-                        name: located.entry.key.clone(),
-                        task: copy_of(located.task),
-                        at: located.entry.at,
-                        kind,
-                    })
-                    .expect("entry count");
+            Ok(user) => {
+                kept_users.push(user).expect("entry count");
             }
             Err((name, schema)) => {
                 faults.push(fault(located, Some(name), schema)).expect("entry count");
@@ -70,7 +49,7 @@ pub fn accounts(users: &[Located<'_>], groups: &[Located<'_>], faults: &mut List
     }
     Accounts { users: kept_users.into_boxed(), groups: kept_groups.into_boxed() }
 }
-fn check(located: &Located<'_>) -> Result<UserKind, (Name, Schema)> {
+fn check(located: &Located<'_>) -> Result<User, (Name, Schema)> {
     let entry = located.entry;
     let uid = id(entry, Name::Uid)?;
     if package(entry)? {
@@ -85,7 +64,13 @@ fn check(located: &Located<'_>) -> Result<UserKind, (Name, Schema)> {
                 ));
             }
         }
-        return Ok(UserKind::Package { uid, gid: id(entry, Name::Gid)? });
+        return Ok(User {
+            value: config::User { name: entry.key.clone(), kind: UserKind::Package },
+            source: Claimant::new(located.task, entry.at),
+            subordinate: None,
+            member_of: Box::new([]),
+            package_ids: (uid, id(entry, Name::Gid)?),
+        });
     }
     if entry.int(Name::Gid).is_some() {
         return Err((Name::Gid, Schema::UndeclaredField { field: copy_of(b"gid"), declared: Box::new([]) }));
@@ -117,14 +102,21 @@ fn check(located: &Located<'_>) -> Result<UserKind, (Name, Schema)> {
         Ok(range) => range,
         Err(schema) => return Err((Name::Subordinate, schema)),
     };
-    Ok(UserKind::Sysusers {
-        uid,
-        group: text(entry, Name::Group, &entry.key),
-        gecos: text(entry, Name::Gecos, b""),
-        home: text(entry, Name::Home, b"/"),
-        shell: text(entry, Name::Shell, b"/usr/sbin/nologin"),
+    Ok(User {
+        value: config::User {
+            name: entry.key.clone(),
+            kind: UserKind::Sysusers {
+                uid,
+                group: text(entry, Name::Group, &entry.key),
+                gecos: text(entry, Name::Gecos, b""),
+                home: text(entry, Name::Home, b"/"),
+                shell: text(entry, Name::Shell, b"/usr/sbin/nologin"),
+            },
+        },
+        source: Claimant::new(located.task, entry.at),
         subordinate,
         member_of: member_of.into_boxed(),
+        package_ids: (None, None),
     })
 }
 fn subordinate(range: Option<(i64, i64)>) -> Result<Option<(u32, u32)>, Schema> {

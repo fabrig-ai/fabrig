@@ -6,7 +6,7 @@ use crate::{
     schema::Defaults,
 };
 use alloc::boxed::Box;
-use skein_lib::{List, Map, Stack, bytes};
+use skein_lib::{List, Map, bytes};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Index {
@@ -171,58 +171,10 @@ pub(super) fn settings(
     for index in indexes {
         let Some(task) = task(target, index, documents, defaults, merge) else { continue };
         left = left.checked_sub(ELEMENT.saturating_add(u64::try_from(task.name.len()).expect("task name")))?;
-        left = charge(&task.settings, left, merge.stack.capacity())?;
+        if !crate::held::charge(crate::held::Tree::Composed(&task.settings), &mut left, merge.stack.capacity()) {
+            return None;
+        }
         tasks.push(task).expect("task count");
     }
     Some(Settings { tasks: tasks.into_boxed() })
-}
-fn charge(value: &Composed, mut left: u64, depth: u32) -> Option<u64> {
-    #[derive(Debug)]
-    enum Children<'a> {
-        List(core::slice::Iter<'a, Composed>),
-        Map(core::slice::Iter<'a, super::Pair>),
-    }
-    let mut stack = Stack::with_capacity(depth);
-    let mut next = Some(value);
-    for _ in 0..left.saturating_mul(2).saturating_add(u64::from(depth)).saturating_add(1) {
-        if let Some(value) = next.take() {
-            let bytes = match &value.kind {
-                Composite::Bool(_) | Composite::Int(_) => 0,
-                Composite::String(value) => u64::try_from(value.len()).expect("string bytes"),
-                Composite::List(values) => {
-                    stack.push(Children::List(values.iter())).expect("decoded depth");
-                    u64::try_from(values.len()).expect("list count").saturating_mul(ELEMENT)
-                }
-                Composite::Map(values) => {
-                    stack.push(Children::Map(values.iter())).expect("decoded depth");
-                    let mut size = 0_u64;
-                    for pair in values {
-                        size = size
-                            .saturating_add(ELEMENT)
-                            .saturating_add(u64::try_from(pair.key.len()).expect("key bytes"));
-                    }
-                    size
-                }
-            };
-            left = left.checked_sub(bytes)?;
-        }
-        let Some(mut children) = stack.pop() else { return Some(left) };
-        let more = match &mut children {
-            Children::List(values) => {
-                next = values.next();
-                next.is_some()
-            }
-            Children::Map(values) => {
-                next = match values.next() {
-                    Some(pair) => Some(&pair.value),
-                    None => None,
-                };
-                next.is_some()
-            }
-        };
-        if more {
-            stack.push(children).expect("popped frame fits");
-        }
-    }
-    None
 }

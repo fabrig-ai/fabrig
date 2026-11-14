@@ -12,7 +12,7 @@ impl Target {
         let oid = side.listed_entry(path).expect("planned template listed").oid.clone();
         let template = side.templates.get(&oid)?;
         let context = self.roots.as_ref().expect("task roots").context();
-        let element = super::element(&self.expansion, &side.documents, task, via, &context, &side.limits);
+        let element = super::element(&self.prepared.expansion, &side.documents, task, via, &context, &side.limits);
         match template::run(
             template,
             &context,
@@ -47,8 +47,13 @@ impl Target {
     }
     pub(super) fn script(&mut self, side: &mut Side, task: &[u8]) -> bool {
         let mut source = None;
-        for (index, script) in
-            self.scripts.iter().enumerate().skip(usize::try_from(self.script).expect("bounded cursor"))
+        for (index, script) in self
+            .prepared
+            .installation
+            .scripts
+            .iter()
+            .enumerate()
+            .skip(usize::try_from(self.script).expect("bounded cursor"))
         {
             if script.task.as_ref() == task {
                 source = Some(script.clone());

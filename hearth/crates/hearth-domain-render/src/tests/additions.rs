@@ -36,8 +36,7 @@ fn a_data_entry_becomes_a_d_line_with_its_mode_and_owners() {
     assert_eq!(
         additions::data_lines(core::slice::from_ref(&entry)).as_ref(),
         [additions::DataLine {
-            task: copy_of(b"motd"),
-            at: fixtures::kinds::FILE_AT,
+            source: crate::entries::Claimant::new(b"motd", fixtures::kinds::FILE_AT),
             tmpfile: Tmpfile {
                 path: copy_of(b"/var/log/journal"),
                 line: Line {

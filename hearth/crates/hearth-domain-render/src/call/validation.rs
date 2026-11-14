@@ -7,18 +7,6 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::List;
 
-pub(super) fn limit(target: &[u8]) -> errors::Error {
-    errors::Error {
-        side: None,
-        kind: errors::Kind::Evaluation(crate::evaluate::FaultKind::Limit),
-        class: crate::vocabulary::Class::Configuration,
-        at: None,
-        also: None,
-        target: Some(skein_lib::bytes::copy_of(target)),
-        task: None,
-    }
-}
-
 pub(super) fn schema_errors(
     errors: &mut errors::Collector,
     documents: &Documents,
@@ -55,7 +43,7 @@ impl Side {
         let Some(settings) =
             compose::bounded(target, &self.documents, &self.defaults, &mut self.merge, self.limits.composed)
         else {
-            let mut error = limit(&target.name);
+            let mut error = errors::target_limit(&target.name, None);
             error.at = Some(errors::Place {
                 path: skein_lib::bytes::copy_of(self.documents.path(target.base_env)),
                 position: None,
@@ -190,7 +178,7 @@ pub(super) fn checked(
     let checked = crate::schema::validate(settings, revision, &check, validator, &mut left, &mut faults);
     schema_errors(errors, revision.documents, Some(&target.name), &faults);
     if validator.limited() {
-        errors::push(errors, limit(&target.name));
+        errors::push(errors, errors::target_limit(&target.name, None));
     }
     checked
 }

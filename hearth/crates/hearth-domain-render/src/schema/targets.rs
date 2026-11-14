@@ -2,28 +2,28 @@
 use super::{Against, Check, Defaults, Fault, Validator, push};
 use crate::{
     compose::{self, Merge, Settings, Target},
-    evaluate::{ELEMENT, Entry, Value},
+    evaluate::{Entry, Value},
     revision::{Documents, Entry as Listed},
 };
 use alloc::boxed::Box;
-use skein_lib::{List, Stack};
+use skein_lib::List;
 #[derive(Debug)]
-pub struct Revision<'a> {
+pub(crate) struct Revision<'a> {
     pub documents: &'a Documents,
     pub defaults: &'a Defaults,
     pub listing: &'a [Listed],
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Checked {
+pub(crate) struct Checked {
     pub name: Box<[u8]>,
     pub settings: Value,
     pub tasks: Value,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Validated {
+pub(crate) struct Validated {
     pub tasks: Box<[Checked]>,
 }
-pub fn validate(
+pub(crate) fn validate(
     settings: &Settings,
     revision: &Revision<'_>,
     check: &Check<'_>,
@@ -95,7 +95,7 @@ pub fn validate(
                     }
                     let entry = found.expect("declared read");
                     if let Some(value) = &entry.value
-                        && !charge(value, left, validator.stack.capacity())
+                        && !crate::held::charge(crate::held::Tree::Validated(value), left, validator.stack.capacity())
                     {
                         validator.limited = true;
                         return None;
@@ -133,57 +133,7 @@ fn reserve(size: u64, left: &mut u64, validator: &mut Validator) -> bool {
         }
     }
 }
-fn charge(value: &Value, left: &mut u64, depth: u32) -> bool {
-    #[derive(Debug)]
-    enum Children<'a> {
-        List(core::slice::Iter<'a, Value>),
-        Map(core::slice::Iter<'a, Entry>),
-    }
-    let mut stack = Stack::with_capacity(depth);
-    let mut next = Some(value);
-    for _ in 0..left.saturating_mul(2).saturating_add(u64::from(depth)).saturating_add(1) {
-        if let Some(value) = next.take() {
-            let size = match value {
-                Value::String(bytes) => u64::try_from(bytes.len()).expect("bounded bytes"),
-                Value::List(items) => {
-                    stack.push(Children::List(items.iter())).expect("validated depth");
-                    u64::try_from(items.len()).expect("bounded items").saturating_mul(ELEMENT)
-                }
-                Value::Map(entries) => {
-                    stack.push(Children::Map(entries.iter())).expect("validated depth");
-                    let mut size = 0_u64;
-                    for entry in entries {
-                        size = size.saturating_add(super::entry_size(&entry.key));
-                    }
-                    size
-                }
-                Value::Bool(_) | Value::Int(_) => 0,
-            };
-            let Some(rest) = left.checked_sub(size) else { return false };
-            *left = rest;
-        }
-        let Some(mut children) = stack.pop() else { return true };
-        let more = match &mut children {
-            Children::List(items) => {
-                next = items.next();
-                next.is_some()
-            }
-            Children::Map(entries) => {
-                if let Some(entry) = entries.next() {
-                    next = entry.value.as_ref();
-                    true
-                } else {
-                    false
-                }
-            }
-        };
-        if more {
-            stack.push(children).expect("popped frame fits");
-        }
-    }
-    false
-}
-pub fn unclaimed(
+pub(crate) fn unclaimed(
     targets: &[Target],
     revision: &Revision<'_>,
     validator: &mut Validator,
