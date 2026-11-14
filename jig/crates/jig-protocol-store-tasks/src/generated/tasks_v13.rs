@@ -2001,10 +2001,14 @@ pub enum Path {
     SummaryResultKind,
     /// The `words` field of `SummaryResult`.
     SummaryResultWords,
-    /// The `words_cut` field of `SummaryResult`.
-    SummaryResultWordsCut,
     /// Bytes after `SummaryResult`.
     SummaryResultTail,
+    /// The `done` field of `SummaryEndings`.
+    SummaryEndingsDone,
+    /// The `failed` field of `SummaryEndings`.
+    SummaryEndingsFailed,
+    /// Bytes after `SummaryEndings`.
+    SummaryEndingsTail,
     /// The `number` field of `TaskSummary`.
     TaskSummaryNumber,
     /// The `root` field of `TaskSummary`.
@@ -2025,16 +2029,14 @@ pub enum Path {
     TaskSummaryExecutor,
     /// The `title` field of `TaskSummary`.
     TaskSummaryTitle,
-    /// The `title_cut` field of `TaskSummary`.
-    TaskSummaryTitleCut,
     /// The `ending` field of `TaskSummary`.
     TaskSummaryEnding,
     /// The `reason` field of `TaskSummary`.
     TaskSummaryReason,
-    /// The `reason_cut` field of `TaskSummary`.
-    TaskSummaryReasonCut,
     /// The `result` field of `TaskSummary`.
     TaskSummaryResult,
+    /// The `cuts` field of `TaskSummary`.
+    TaskSummaryCuts,
     /// The `created_at` field of `TaskSummary`.
     TaskSummaryCreatedAt,
     /// The `changed` field of `TaskSummary`.
@@ -2045,8 +2047,8 @@ pub enum Path {
     TaskSummaryEndedAt,
     /// The `numbers` field of `TaskSummary`.
     TaskSummaryNumbers,
-    /// The `budget` field of `TaskSummary`.
-    TaskSummaryBudget,
+    /// The `deadline` field of `TaskSummary`.
+    TaskSummaryDeadline,
     /// The `funder` field of `TaskSummary`.
     TaskSummaryFunder,
     /// The `ended_delegates` field of `TaskSummary`.
@@ -13386,8 +13388,6 @@ pub struct SummaryResultParts {
     pub kind: SummaryResultKind,
     /// The `words` field.
     pub words: Box<[u8]>,
-    /// The `words_cut` field.
-    pub words_cut: bool,
 }
 
 /// `SummaryResult` in this codec family.
@@ -13395,14 +13395,13 @@ pub struct SummaryResultParts {
 pub struct SummaryResult {
     kind: SummaryResultKind,
     words: Box<[u8]>,
-    words_cut: bool,
 }
 
 impl SummaryResult {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: SummaryResultParts) -> Result<Self, Problem> {
-        let SummaryResultParts { kind, words, words_cut } = parts;
-        let value = Self { kind, words, words_cut };
+        let SummaryResultParts { kind, words } = parts;
+        let value = Self { kind, words };
         value.check(limits)?;
         Ok(value)
     }
@@ -13415,18 +13414,52 @@ impl SummaryResult {
     #[must_use]
     pub fn words(&self) -> &[u8] { &self.words }
 
-    /// Reads the `words_cut` field.
-    #[must_use]
-    pub fn words_cut(&self) -> bool { self.words_cut }
-
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> SummaryResultParts { SummaryResultParts { kind: self.kind, words: self.words, words_cut: self.words_cut } }
+    pub fn into_parts(self) -> SummaryResultParts { SummaryResultParts { kind: self.kind, words: self.words } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.words.len() > usize::try_from(limits.summary_result_words.min(CEILINGS.summary_result_words)).expect("u32 fits usize") { return Err(Problem { path: Path::SummaryResultWords, reason: skein_codec::Reason::Bound }); }
         Ok(())
     }
+}
+
+/// Movable fields of `SummaryEndings`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryEndingsParts {
+    /// The `done` field.
+    pub done: u32,
+    /// The `failed` field.
+    pub failed: u32,
+}
+
+/// `SummaryEndings` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SummaryEndings {
+    done: u32,
+    failed: u32,
+}
+
+impl SummaryEndings {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: SummaryEndingsParts) -> Result<Self, Problem> {
+        let SummaryEndingsParts { done, failed } = parts;
+        let value = Self { done, failed };
+        Ok(value)
+    }
+
+    /// Reads the `done` field.
+    #[must_use]
+    pub fn done(&self) -> u32 { self.done }
+
+    /// Reads the `failed` field.
+    #[must_use]
+    pub fn failed(&self) -> u32 { self.failed }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SummaryEndingsParts { SummaryEndingsParts { done: self.done, failed: self.failed } }
+
 }
 
 /// Movable fields of `TaskSummary`.
@@ -13452,16 +13485,14 @@ pub struct TaskSummaryParts {
     pub executor: Executor,
     /// The `title` field.
     pub title: Box<[u8]>,
-    /// The `title_cut` field.
-    pub title_cut: bool,
     /// The `ending` field.
     pub ending: SummaryEnding,
     /// The `reason` field.
     pub reason: Box<[u8]>,
-    /// The `reason_cut` field.
-    pub reason_cut: bool,
     /// The `result` field.
     pub result: Option<SummaryResult>,
+    /// The `cuts` field.
+    pub cuts: u8,
     /// The `created_at` field.
     pub created_at: u64,
     /// The `changed` field.
@@ -13472,12 +13503,12 @@ pub struct TaskSummaryParts {
     pub ended_at: u64,
     /// The `numbers` field.
     pub numbers: Numbers,
-    /// The `budget` field.
-    pub budget: Budget,
+    /// The `deadline` field.
+    pub deadline: Option<u64>,
     /// The `funder` field.
     pub funder: Funder,
     /// The `ended_delegates` field.
-    pub ended_delegates: Endings,
+    pub ended_delegates: SummaryEndings,
     /// The `attempt` field.
     pub attempt: u64,
     /// The `activity` field.
@@ -13501,19 +13532,18 @@ pub struct TaskSummary {
     tracked: Option<u32>,
     executor: Executor,
     title: Box<[u8]>,
-    title_cut: bool,
     ending: SummaryEnding,
     reason: Box<[u8]>,
-    reason_cut: bool,
     result: Option<SummaryResult>,
+    cuts: u8,
     created_at: u64,
     changed: u64,
     last_activity: u64,
     ended_at: u64,
     numbers: Numbers,
-    budget: Budget,
+    deadline: Option<u64>,
     funder: Funder,
-    ended_delegates: Endings,
+    ended_delegates: SummaryEndings,
     attempt: u64,
     activity: u64,
     result_position: u64,
@@ -13523,8 +13553,8 @@ pub struct TaskSummary {
 impl TaskSummary {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: TaskSummaryParts) -> Result<Self, Problem> {
-        let TaskSummaryParts { number, root, depth, requester, project, label, flags, tracked, executor, title, title_cut, ending, reason, reason_cut, result, created_at, changed, last_activity, ended_at, numbers, budget, funder, ended_delegates, attempt, activity, result_position, last_reply } = parts;
-        let value = Self { number, root, depth, requester, project, label, flags, tracked, executor, title, title_cut, ending, reason, reason_cut, result, created_at, changed, last_activity, ended_at, numbers, budget, funder, ended_delegates, attempt, activity, result_position, last_reply };
+        let TaskSummaryParts { number, root, depth, requester, project, label, flags, tracked, executor, title, ending, reason, result, cuts, created_at, changed, last_activity, ended_at, numbers, deadline, funder, ended_delegates, attempt, activity, result_position, last_reply } = parts;
+        let value = Self { number, root, depth, requester, project, label, flags, tracked, executor, title, ending, reason, result, cuts, created_at, changed, last_activity, ended_at, numbers, deadline, funder, ended_delegates, attempt, activity, result_position, last_reply };
         value.check(limits)?;
         Ok(value)
     }
@@ -13569,10 +13599,6 @@ impl TaskSummary {
     #[must_use]
     pub fn title(&self) -> &[u8] { &self.title }
 
-    /// Reads the `title_cut` field.
-    #[must_use]
-    pub fn title_cut(&self) -> bool { self.title_cut }
-
     /// Reads the `ending` field.
     #[must_use]
     pub fn ending(&self) -> &SummaryEnding { &self.ending }
@@ -13581,13 +13607,13 @@ impl TaskSummary {
     #[must_use]
     pub fn reason(&self) -> &[u8] { &self.reason }
 
-    /// Reads the `reason_cut` field.
-    #[must_use]
-    pub fn reason_cut(&self) -> bool { self.reason_cut }
-
     /// Reads the `result` field.
     #[must_use]
     pub fn result(&self) -> &Option<SummaryResult> { &self.result }
+
+    /// Reads the `cuts` field.
+    #[must_use]
+    pub fn cuts(&self) -> u8 { self.cuts }
 
     /// Reads the `created_at` field.
     #[must_use]
@@ -13609,9 +13635,9 @@ impl TaskSummary {
     #[must_use]
     pub fn numbers(&self) -> &Numbers { &self.numbers }
 
-    /// Reads the `budget` field.
+    /// Reads the `deadline` field.
     #[must_use]
-    pub fn budget(&self) -> &Budget { &self.budget }
+    pub fn deadline(&self) -> &Option<u64> { &self.deadline }
 
     /// Reads the `funder` field.
     #[must_use]
@@ -13619,7 +13645,7 @@ impl TaskSummary {
 
     /// Reads the `ended_delegates` field.
     #[must_use]
-    pub fn ended_delegates(&self) -> &Endings { &self.ended_delegates }
+    pub fn ended_delegates(&self) -> &SummaryEndings { &self.ended_delegates }
 
     /// Reads the `attempt` field.
     #[must_use]
@@ -13639,7 +13665,7 @@ impl TaskSummary {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> TaskSummaryParts { TaskSummaryParts { number: self.number, root: self.root, depth: self.depth, requester: self.requester, project: self.project, label: self.label, flags: self.flags, tracked: self.tracked, executor: self.executor, title: self.title, title_cut: self.title_cut, ending: self.ending, reason: self.reason, reason_cut: self.reason_cut, result: self.result, created_at: self.created_at, changed: self.changed, last_activity: self.last_activity, ended_at: self.ended_at, numbers: self.numbers, budget: self.budget, funder: self.funder, ended_delegates: self.ended_delegates, attempt: self.attempt, activity: self.activity, result_position: self.result_position, last_reply: self.last_reply } }
+    pub fn into_parts(self) -> TaskSummaryParts { TaskSummaryParts { number: self.number, root: self.root, depth: self.depth, requester: self.requester, project: self.project, label: self.label, flags: self.flags, tracked: self.tracked, executor: self.executor, title: self.title, ending: self.ending, reason: self.reason, result: self.result, cuts: self.cuts, created_at: self.created_at, changed: self.changed, last_activity: self.last_activity, ended_at: self.ended_at, numbers: self.numbers, deadline: self.deadline, funder: self.funder, ended_delegates: self.ended_delegates, attempt: self.attempt, activity: self.activity, result_position: self.result_position, last_reply: self.last_reply } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.title.len() > usize::try_from(limits.task_summary_title.min(CEILINGS.task_summary_title)).expect("u32 fits usize") { return Err(Problem { path: Path::TaskSummaryTitle, reason: skein_codec::Reason::Bound }); }
@@ -26892,7 +26918,6 @@ impl SummaryResult {
         let field_words = &self.words;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_words.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -26903,8 +26928,6 @@ impl SummaryResult {
         let field_words = &self.words;
         writer.put(&u32::try_from(field_words.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_words.as_ref())?;
-        let field_words_cut = &self.words_cut;
-        writer.put(&[u8::from(*field_words_cut)])?;
         Ok(())
     }
 
@@ -26918,8 +26941,40 @@ impl SummaryResult {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_kind = SummaryResultKind::decode_from(limits, reader)?;
         let decoded_words = { let length = match skein_codec::read_len(reader, limits.summary_result_words.min(CEILINGS.summary_result_words)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::SummaryResultWords, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::SummaryResultWords, reason: skein_codec::Reason::Short })?) };
-        let decoded_words_cut = match reader.u8().ok_or(Problem { path: Path::SummaryResultWordsCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::SummaryResultWordsCut, reason: skein_codec::Reason::Bool }) };
-        Ok(Self { kind: decoded_kind, words: decoded_words, words_cut: decoded_words_cut })
+        Ok(Self { kind: decoded_kind, words: decoded_words })
+    }
+}
+
+impl SummaryEndings {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_done = &self.done;
+        writer.put(&field_done.to_be_bytes())?;
+        let field_failed = &self.failed;
+        writer.put(&field_failed.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SummaryEndingsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_done = reader.u32().ok_or(Problem { path: Path::SummaryEndingsDone, reason: skein_codec::Reason::Short })?;
+        let decoded_failed = reader.u32().ok_or(Problem { path: Path::SummaryEndingsFailed, reason: skein_codec::Reason::Short })?;
+        Ok(Self { done: decoded_done, failed: decoded_failed })
     }
 }
 
@@ -26947,28 +27002,30 @@ impl TaskSummary {
         let field_title = &self.title;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_title.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_ending = &self.ending;
         size = size.checked_add(field_ending.measure()).expect("schema ceilings fit u32");
         let field_reason = &self.reason;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_reason.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_result = &self.result;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if let Some(some_0) = field_result {
         size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
         }
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_budget = &self.budget;
-        size = size.checked_add(field_budget.measure()).expect("schema ceilings fit u32");
+        let field_deadline = &self.deadline;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_deadline.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         let field_funder = &self.funder;
         size = size.checked_add(field_funder.measure()).expect("schema ceilings fit u32");
-        size = size.checked_add(12).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
@@ -27005,15 +27062,11 @@ impl TaskSummary {
         let field_title = &self.title;
         writer.put(&u32::try_from(field_title.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_title.as_ref())?;
-        let field_title_cut = &self.title_cut;
-        writer.put(&[u8::from(*field_title_cut)])?;
         let field_ending = &self.ending;
         field_ending.encode(writer)?;
         let field_reason = &self.reason;
         writer.put(&u32::try_from(field_reason.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_reason.as_ref())?;
-        let field_reason_cut = &self.reason_cut;
-        writer.put(&[u8::from(*field_reason_cut)])?;
         let field_result = &self.result;
         match field_result {
             Some(some_0) => {
@@ -27022,6 +27075,8 @@ impl TaskSummary {
             }
             None => writer.put(&[0_u8])?,
         }
+        let field_cuts = &self.cuts;
+        writer.put(&[*field_cuts])?;
         let field_created_at = &self.created_at;
         writer.put(&field_created_at.to_be_bytes())?;
         let field_changed = &self.changed;
@@ -27032,8 +27087,14 @@ impl TaskSummary {
         writer.put(&field_ended_at.to_be_bytes())?;
         let field_numbers = &self.numbers;
         field_numbers.encode(writer)?;
-        let field_budget = &self.budget;
-        field_budget.encode(writer)?;
+        let field_deadline = &self.deadline;
+        match field_deadline {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_funder = &self.funder;
         field_funder.encode(writer)?;
         let field_ended_delegates = &self.ended_delegates;
@@ -27067,24 +27128,23 @@ impl TaskSummary {
         let decoded_tracked = match reader.u8().ok_or(Problem { path: Path::TaskSummaryTracked, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u32().ok_or(Problem { path: Path::TaskSummaryTracked, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TaskSummaryTracked, reason: skein_codec::Reason::Tag }) };
         let decoded_executor = Executor::decode_from(limits, reader)?;
         let decoded_title = { let length = match skein_codec::read_len(reader, limits.task_summary_title.min(CEILINGS.task_summary_title)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TaskSummaryTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TaskSummaryTitle, reason: skein_codec::Reason::Short })?) };
-        let decoded_title_cut = match reader.u8().ok_or(Problem { path: Path::TaskSummaryTitleCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::TaskSummaryTitleCut, reason: skein_codec::Reason::Bool }) };
         let decoded_ending = SummaryEnding::decode_from(limits, reader)?;
         let decoded_reason = { let length = match skein_codec::read_len(reader, limits.task_summary_reason.min(CEILINGS.task_summary_reason)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::TaskSummaryReason, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::TaskSummaryReason, reason: skein_codec::Reason::Short })?) };
-        let decoded_reason_cut = match reader.u8().ok_or(Problem { path: Path::TaskSummaryReasonCut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::TaskSummaryReasonCut, reason: skein_codec::Reason::Bool }) };
         let decoded_result = match reader.u8().ok_or(Problem { path: Path::TaskSummaryResult, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(SummaryResult::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::TaskSummaryResult, reason: skein_codec::Reason::Tag }) };
+        let decoded_cuts = reader.u8().ok_or(Problem { path: Path::TaskSummaryCuts, reason: skein_codec::Reason::Short })?;
         let decoded_created_at = reader.u64().ok_or(Problem { path: Path::TaskSummaryCreatedAt, reason: skein_codec::Reason::Short })?;
         let decoded_changed = reader.u64().ok_or(Problem { path: Path::TaskSummaryChanged, reason: skein_codec::Reason::Short })?;
         let decoded_last_activity = reader.u64().ok_or(Problem { path: Path::TaskSummaryLastActivity, reason: skein_codec::Reason::Short })?;
         let decoded_ended_at = reader.u64().ok_or(Problem { path: Path::TaskSummaryEndedAt, reason: skein_codec::Reason::Short })?;
         let decoded_numbers = Numbers::decode_from(limits, reader)?;
-        let decoded_budget = Budget::decode_from(limits, reader)?;
+        let decoded_deadline = match reader.u8().ok_or(Problem { path: Path::TaskSummaryDeadline, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::TaskSummaryDeadline, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::TaskSummaryDeadline, reason: skein_codec::Reason::Tag }) };
         let decoded_funder = Funder::decode_from(limits, reader)?;
-        let decoded_ended_delegates = Endings::decode_from(limits, reader)?;
+        let decoded_ended_delegates = SummaryEndings::decode_from(limits, reader)?;
         let decoded_attempt = reader.u64().ok_or(Problem { path: Path::TaskSummaryAttempt, reason: skein_codec::Reason::Short })?;
         let decoded_activity = reader.u64().ok_or(Problem { path: Path::TaskSummaryActivity, reason: skein_codec::Reason::Short })?;
         let decoded_result_position = reader.u64().ok_or(Problem { path: Path::TaskSummaryResultPosition, reason: skein_codec::Reason::Short })?;
         let decoded_last_reply = reader.u64().ok_or(Problem { path: Path::TaskSummaryLastReply, reason: skein_codec::Reason::Short })?;
-        Ok(Self { number: decoded_number, root: decoded_root, depth: decoded_depth, requester: decoded_requester, project: decoded_project, label: decoded_label, flags: decoded_flags, tracked: decoded_tracked, executor: decoded_executor, title: decoded_title, title_cut: decoded_title_cut, ending: decoded_ending, reason: decoded_reason, reason_cut: decoded_reason_cut, result: decoded_result, created_at: decoded_created_at, changed: decoded_changed, last_activity: decoded_last_activity, ended_at: decoded_ended_at, numbers: decoded_numbers, budget: decoded_budget, funder: decoded_funder, ended_delegates: decoded_ended_delegates, attempt: decoded_attempt, activity: decoded_activity, result_position: decoded_result_position, last_reply: decoded_last_reply })
+        Ok(Self { number: decoded_number, root: decoded_root, depth: decoded_depth, requester: decoded_requester, project: decoded_project, label: decoded_label, flags: decoded_flags, tracked: decoded_tracked, executor: decoded_executor, title: decoded_title, ending: decoded_ending, reason: decoded_reason, result: decoded_result, cuts: decoded_cuts, created_at: decoded_created_at, changed: decoded_changed, last_activity: decoded_last_activity, ended_at: decoded_ended_at, numbers: decoded_numbers, deadline: decoded_deadline, funder: decoded_funder, ended_delegates: decoded_ended_delegates, attempt: decoded_attempt, activity: decoded_activity, result_position: decoded_result_position, last_reply: decoded_last_reply })
     }
 }
 
@@ -37015,7 +37075,6 @@ impl SummaryResult {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(SummaryResultKind::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.summary_result_words))?)?;
-        size = size.checked_add(1_u64)?;
         size.checked_add(0)
     }
 
@@ -37029,7 +37088,34 @@ impl SummaryResult {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(SummaryResultKind::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.summary_result_words))?;
-        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl SummaryEndings {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -37049,15 +37135,14 @@ impl TaskSummary {
         size = size.checked_add(4_u64)?.checked_add(4_u64)?;
         size = size.checked_add(Flags::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(4_u64)?)?;
         size = size.checked_add(Executor::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.task_summary_title))?)?;
-        size = size.checked_add(1_u64)?.checked_add(SummaryEnding::encoded_bound_within(limits)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.task_summary_reason))?)?.checked_add(1_u64)?;
-        size = size.checked_add(1_u64.checked_add(SummaryResult::encoded_bound_within(limits)?)?)?.checked_add(8_u64)?;
+        size = size.checked_add(SummaryEnding::encoded_bound_within(limits)?)?.checked_add(4_u64.checked_add(u64::from(limits.task_summary_reason))?)?;
+        size = size.checked_add(1_u64.checked_add(SummaryResult::encoded_bound_within(limits)?)?)?.checked_add(1_u64)?;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?.checked_add(Numbers::encoded_bound_within(limits)?)?;
-        size = size.checked_add(Budget::encoded_bound_within(limits)?)?.checked_add(Funder::encoded_bound_within(limits)?)?;
-        size = size.checked_add(Endings::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
         size = size.checked_add(8_u64)?.checked_add(8_u64)?;
-        size = size.checked_add(8_u64)?;
+        size = size.checked_add(Numbers::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(Funder::encoded_bound_within(limits)?)?.checked_add(SummaryEndings::encoded_bound_within(limits)?)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
         size.checked_add(0)
     }
 
@@ -37075,15 +37160,14 @@ impl TaskSummary {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(Flags::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(Executor::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.task_summary_title))?;
-        heap = heap.checked_add(0_u64)?.checked_add(SummaryEnding::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(u64::from(limits.task_summary_reason))?.checked_add(0_u64)?;
+        heap = heap.checked_add(SummaryEnding::decoded_bound_within(limits)?)?.checked_add(u64::from(limits.task_summary_reason))?;
         heap = heap.checked_add(SummaryResult::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(Numbers::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(Budget::decoded_bound_within(limits)?)?.checked_add(Funder::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(Endings::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(Numbers::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Funder::decoded_bound_within(limits)?)?.checked_add(SummaryEndings::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -39140,6 +39224,7 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SummaryChange::encoded_bound_within(limits)?);
     biggest = biggest.max(SummaryResultKind::encoded_bound_within(limits)?);
     biggest = biggest.max(SummaryResult::encoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryEndings::encoded_bound_within(limits)?);
     biggest = biggest.max(TaskSummary::encoded_bound_within(limits)?);
     biggest = biggest.max(RetentionStage::encoded_bound_within(limits)?);
     biggest = biggest.max(RetentionRow::encoded_bound_within(limits)?);
@@ -39148,11 +39233,11 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Row::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionBatch::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionProposal::encoded_bound_within(limits)?);
-    biggest = biggest.max(CapacityActionPersonProposal::encoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn encoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(CapacityActionPersonProposal::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionMessage::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionSource::encoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionIntroduce::encoded_bound_within(limits)?);
@@ -39491,6 +39576,7 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(SummaryChange::decoded_bound_within(limits)?);
     biggest = biggest.max(SummaryResultKind::decoded_bound_within(limits)?);
     biggest = biggest.max(SummaryResult::decoded_bound_within(limits)?);
+    biggest = biggest.max(SummaryEndings::decoded_bound_within(limits)?);
     biggest = biggest.max(TaskSummary::decoded_bound_within(limits)?);
     biggest = biggest.max(RetentionStage::decoded_bound_within(limits)?);
     biggest = biggest.max(RetentionRow::decoded_bound_within(limits)?);
@@ -39499,11 +39585,11 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(Row::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionBatch::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionProposal::decoded_bound_within(limits)?);
-    biggest = biggest.max(CapacityActionPersonProposal::decoded_bound_within(limits)?);
     Some(biggest)
 }
 
 fn decoded_bound_3(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(CapacityActionPersonProposal::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionMessage::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionSource::decoded_bound_within(limits)?);
     biggest = biggest.max(CapacityActionIntroduce::decoded_bound_within(limits)?);

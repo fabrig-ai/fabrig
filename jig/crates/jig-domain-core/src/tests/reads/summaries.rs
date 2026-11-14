@@ -69,7 +69,7 @@ fn a_summary_line_keeps_its_chip_budget_identity_and_ended_counts() {
     assert_eq!(line.ended_at, Some(summary.ended_at));
     assert_eq!(
         line.budget,
-        BudgetLine { numbers: summary.numbers, left: 69, funder: summary.funder, deadline: summary.budget.deadline }
+        BudgetLine { numbers: summary.numbers, left: 69, funder: summary.funder, deadline: summary.deadline }
     );
     assert_eq!(line.chip.details.budget, line.budget);
     assert_eq!((line.delegates_done, line.delegates_total), (4, 6));

@@ -1,17 +1,25 @@
 //! Task and funding addresses (protocol/store/README.md, section 4.1).
-use jig_domain_tasks::{Funder, Key, Newest, UpdateObject, RetentionStage};
-use skein_lib::Wall;
+use jig_domain_tasks::{Funder, Key, Newest, RetentionStage, UpdateObject};
 use skein_kv::{KeyReader, KeyWriter};
+use skein_lib::Wall;
+#[expect(clippy::too_many_lines, reason = "one arm per durable tasks key keeps their tags together")]
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
     match key {
-        Key::Summary(task) => { writer.tag(30); writer.u64(*task); }
+        Key::Summary(task) => {
+            writer.tag(30);
+            writer.u64(*task);
+        }
         Key::Retention { stage, since, number } => {
             writer.tag(31);
             writer.tag(match stage {
-                RetentionStage::Turns => 0, RetentionStage::Record => 1, RetentionStage::Summary => 2,
-                RetentionStage::Forgotten => 3, RetentionStage::Proposal => 4,
+                RetentionStage::Turns => 0,
+                RetentionStage::Record => 1,
+                RetentionStage::Summary => 2,
+                RetentionStage::Forgotten => 3,
+                RetentionStage::Proposal => 4,
             });
-            writer.u64(since.as_nanos()); writer.u64(*number);
+            writer.u64(since.as_nanos());
+            writer.u64(*number);
         }
         Key::PlacedHold(hold) => {
             writer.tag(21);
@@ -103,10 +111,15 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
         30 => Key::Summary(reader.u64()?),
         31 => Key::Retention {
             stage: match reader.tag()? {
-                0 => RetentionStage::Turns, 1 => RetentionStage::Record, 2 => RetentionStage::Summary,
-                3 => RetentionStage::Forgotten, 4 => RetentionStage::Proposal, _ => return None,
+                0 => RetentionStage::Turns,
+                1 => RetentionStage::Record,
+                2 => RetentionStage::Summary,
+                3 => RetentionStage::Forgotten,
+                4 => RetentionStage::Proposal,
+                _ => return None,
             },
-            since: Wall::from_nanos(reader.u64()?), number: reader.u64()?,
+            since: Wall::from_nanos(reader.u64()?),
+            number: reader.u64()?,
         },
         21 => Key::PlacedHold(reader.u64()?),
         0 => Key::Live(reader.u64()?),

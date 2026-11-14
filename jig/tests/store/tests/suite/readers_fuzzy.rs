@@ -99,11 +99,13 @@ fn seeded_task_queries_list_summary_only_owners_and_other_reads_are_gone() {
     }
 }
 
-fn summary_queries(seed: u64) {
-    let mut rng = Rng::new(seed);
+fn summary_owners(
+    seed: u64,
+    rng: &mut Rng,
+    stand: &jig_core_kit::world::World,
+) -> (World, BTreeMap<u64, core::documents::TaskLine>, Vec<u64>) {
     let mut world = World::new(seed);
     world.commit(root::first()).expect("first commit");
-    let mut stand = jig_core_kit::world::World::new(jig_core_kit::world::Setup { seed, ..Default::default() });
     let mut expected = BTreeMap::new();
     let mut summaries = Vec::new();
     let mut writes = vec![Write::Save(root::header(2))];
@@ -173,6 +175,13 @@ fn summary_queries(seed: u64) {
         }
     }
     world.commit(writes.into_boxed_slice()).expect("mixed ended owners");
+    (world, expected, summaries)
+}
+
+fn summary_queries(seed: u64) {
+    let mut rng = Rng::new(seed);
+    let mut stand = jig_core_kit::world::World::new(jig_core_kit::world::Setup { seed, ..Default::default() });
+    let (mut world, expected, summaries) = summary_owners(seed, &mut rng, &stand);
     for requester in [None, Some(tasks::Party::Person(1))] {
         let query = core::documents::TaskQuery {
             project: Some(1),

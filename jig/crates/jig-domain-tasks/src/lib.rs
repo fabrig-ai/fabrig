@@ -125,7 +125,10 @@ mod settings;
 mod settings_moves;
 mod standing;
 mod summary;
-pub use summary::{TaskSummary, SummaryEnding, SummaryResult, SummaryResultKind, RetentionStage, RetentionRow, SUMMARY_TEXT};
+pub use summary::{
+    RetentionRow, RetentionStage, SUMMARY_TEXT, SummaryEnding, SummaryEndings, SummaryResult, SummaryResultKind,
+    TaskSummary,
+};
 mod stored;
 pub use stored::failure::{RestoreBound, RestoreCause, RestoreFailure, RestoreLlmWhy};
 mod subscriptions;

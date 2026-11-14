@@ -1,6 +1,6 @@
 //! Ended task summaries and their next retention stage (protocol/store/retention.md, 3–4).
+use crate::{Ending, Executor, Flags, Funder, Numbers, Party, Phase, TaskRecord, TaskResult};
 use alloc::boxed::Box;
-use crate::{Budget, Ending, Endings, Executor, Flags, Funder, Numbers, Party, Phase, TaskRecord, TaskResult};
 use skein_lib::{Wall, bytes::utf8_prefix, length::usize_of};
 
 pub const SUMMARY_TEXT: u32 = 256;
@@ -25,7 +25,10 @@ impl RetentionRow {
     pub const fn of(record: &TaskRecord) -> Self {
         Self {
             stage: if record.ever_turned { RetentionStage::Turns } else { RetentionStage::Record },
-            since: match record.ended_at { Some(at) => at, None => record.changed },
+            since: match record.ended_at {
+                Some(at) => at,
+                None => record.changed,
+            },
             number: record.number,
         }
     }
@@ -60,6 +63,12 @@ pub struct SummaryResult {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct SummaryEndings {
+    pub done: u32,
+    pub failed: u32,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TaskSummary {
     pub number: u64,
     pub root: u64,
@@ -81,9 +90,9 @@ pub struct TaskSummary {
     pub last_activity: Wall,
     pub ended_at: Wall,
     pub numbers: Numbers,
-    pub budget: Budget,
+    pub deadline: Option<Wall>,
     pub funder: Funder,
-    pub ended_delegates: Endings,
+    pub ended_delegates: SummaryEndings,
     pub attempt: u64,
     pub activity: u64,
     pub result_position: u64,
@@ -98,25 +107,49 @@ impl TaskSummary {
         let (ending, reason, result) = match &record.phase {
             Phase::Ended(Ending::Done(result)) => (SummaryEnding::Done, &[][..], Some(result)),
             Phase::Ended(Ending::Failed { reason }) => (SummaryEnding::Failed, reason.as_ref(), None),
-            Phase::Ended(Ending::Cancelled { by, at, reason, result }) => (
-                SummaryEnding::Cancelled { by: *by, at: *at }, reason.as_ref(), result.as_ref(),
-            ),
+            Phase::Ended(Ending::Cancelled { by, at, reason, result }) => {
+                (SummaryEnding::Cancelled { by: *by, at: *at }, reason.as_ref(), result.as_ref())
+            }
             Phase::Waiting | Phase::Active(_) | Phase::Held { .. } | Phase::Closing(_) => {
                 unreachable!("a summary is made only for an ended task")
             }
         };
         let (reason, reason_cut) = text(reason);
-        let result = match result { Some(value) => Some(SummaryResult::of(value)), None => None };
+        let result = match result {
+            Some(value) => Some(SummaryResult::of(value)),
+            None => None,
+        };
         Self {
-            number: record.number, root: record.root, depth: record.depth,
-            requester: record.requester, project: record.project, label: record.label,
-            flags: record.flags, tracked: record.tracked, executor: record.executor,
-            title, title_cut, ending, reason, reason_cut, result,
-            created_at: record.created_at, changed: record.changed, last_activity: record.last_activity,
+            number: record.number,
+            root: record.root,
+            depth: record.depth,
+            requester: record.requester,
+            project: record.project,
+            label: record.label,
+            flags: record.flags,
+            tracked: record.tracked,
+            executor: record.executor,
+            title,
+            title_cut,
+            ending,
+            reason,
+            reason_cut,
+            result,
+            created_at: record.created_at,
+            changed: record.changed,
+            last_activity: record.last_activity,
             ended_at: RetentionRow::of(record).since,
-            numbers: record.numbers, budget: record.authority.budget, funder: record.funder,
-            ended_delegates: record.ended_delegates, attempt: record.attempt, activity: record.activity,
-            result_position: record.result_position, last_reply: record.last_reply,
+            numbers: record.numbers,
+            deadline: record.authority.budget.deadline,
+            funder: record.funder,
+            ended_delegates: SummaryEndings {
+                done: record.ended_delegates.done,
+                failed: record.ended_delegates.failed,
+            },
+            attempt: record.attempt,
+            activity: record.activity,
+            result_position: record.result_position,
+            last_reply: record.last_reply,
         }
     }
 }
@@ -124,13 +157,18 @@ impl SummaryResult {
     fn of(result: &TaskResult) -> Self {
         let (kind, words) = match result {
             TaskResult::Job { .. } => (SummaryResultKind::Job, &[][..]),
-            TaskResult::Approved { words, .. } => (SummaryResultKind::Approved, match words {
-                Some(words) => words.as_ref(), None => &[],
-            }),
+            TaskResult::Approved { words, .. } => (
+                SummaryResultKind::Approved,
+                match words {
+                    Some(words) => words.as_ref(),
+                    None => &[],
+                },
+            ),
             TaskResult::Report { words } => (SummaryResultKind::Report, words.as_ref()),
             TaskResult::Verdict { code, words, .. } => (SummaryResultKind::Verdict { code: *code }, words.as_ref()),
             TaskResult::Change { connector, kind, resource, title, .. } => (
-                SummaryResultKind::Change { connector: *connector, kind: *kind, resource: *resource }, title.words.as_ref(),
+                SummaryResultKind::Change { connector: *connector, kind: *kind, resource: *resource },
+                title.words.as_ref(),
             ),
             TaskResult::NoChange { words } => (SummaryResultKind::NoChange, words.as_ref()),
             TaskResult::Failure { reason } => (SummaryResultKind::Failed, reason.as_ref()),

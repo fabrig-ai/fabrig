@@ -34,7 +34,7 @@ pub fn task_line_from_summary(
         changed: summary.changed,
         last_activity: summary.last_activity,
         ended_at: Some(summary.ended_at),
-        budget: super::task_tree::budget_figures(summary.numbers, summary.funder, summary.budget.deadline),
+        budget: super::task_tree::budget_figures(summary.numbers, summary.funder, summary.deadline),
         waits_on: WaitsOn::Nothing,
         phases: PhaseCounts::ZERO,
         delegates_done: summary.ended_delegates.done,

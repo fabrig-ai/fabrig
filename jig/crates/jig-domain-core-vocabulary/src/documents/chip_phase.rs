@@ -137,7 +137,7 @@ pub fn from_summary(limits: &Limits, summary: &tasks::TaskSummary) -> ChipDetail
         wake: tasks::WakePolicy::DEFAULT,
         person_wait: None,
         hold: None,
-        budget: super::task_tree::budget_figures(summary.numbers, summary.funder, summary.budget.deadline),
+        budget: super::task_tree::budget_figures(summary.numbers, summary.funder, summary.deadline),
         activity: summary.activity,
         resources: List::with_capacity(0),
         resources_cut: false,

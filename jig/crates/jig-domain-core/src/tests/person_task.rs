@@ -540,6 +540,37 @@ fn failures_past_the_tries_hold_without_an_inbox_until_cancelled() {
 }
 
 #[test]
+fn ending_summary_keeps_the_core_assigned_result_position() {
+    let (mut core, env) = fixture();
+    let task = make_person(&mut core, &env);
+    drop(step(
+        &mut core,
+        &env,
+        Event::Tasks(tasks::Event::Cancel {
+            reply_to: ReplyTo::new(Token::new(2)),
+            by: tasks::Party::Deployment { project: PROJECT },
+            operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
+        }),
+    ));
+    drop(step(&mut core, &env, Event::Tasks(tasks::Event::EffectsSettled { task })));
+    let out = step(&mut core, &env, Event::Tasks(tasks::Event::Settled { task }));
+    let mut ended = None;
+    let mut summary = None;
+    for request in &out {
+        if let Request::Write(Write::Save(Record::Tasks(tasks::Stored::Ended(row)))) = request {
+            ended = Some(row);
+        }
+        if let Request::Write(Write::Save(Record::Tasks(tasks::Stored::Summary(row)))) = request {
+            summary = Some(row);
+        }
+    }
+    let ended = ended.expect("ended row");
+    let summary = summary.expect("summary row");
+    assert_ne!(ended.result_position, 0);
+    assert_eq!(**summary, tasks::TaskSummary::of(ended));
+}
+
+#[test]
 fn run_progress_uses_the_current_chip_observation_and_ends_with_the_run() {
     let (mut core, mut env) = fixture();
     let task = make_person(&mut core, &env);

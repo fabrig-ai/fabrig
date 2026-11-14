@@ -27,7 +27,9 @@ pub(super) fn rows(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
 pub(super) fn proposals(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     let mut writes = List::uncapped();
     for row in &page.rows {
-        let Some(Key::Core(CoreKey::ProposalDecision { proposer: Proposer::Party(party), proposal })) = keys::decode(&row.key) else {
+        let Some(Key::Core(CoreKey::ProposalDecision { proposer: Proposer::Party(party), proposal })) =
+            keys::decode(&row.key)
+        else {
             return Err(refusal(&row.key, "not a party proposal decision key"));
         };
         let Ok(record) = core_v6::Row::decode(&core_v6::CEILINGS, &mut Reader::new(&row.value)) else {
@@ -40,9 +42,15 @@ pub(super) fn proposals(page: &JobPage) -> Result<JobAnswer, JobRefusal> {
         if codec::core::decode_proposer(record.proposer) != Proposer::Party(party) || record.proposal != proposal {
             return Err(refusal(&row.key, "proposal decision key disagrees with record"));
         }
-        put(&mut writes, Stored::Retention(RetentionRow {
-            stage: RetentionStage::Proposal, since: Wall::from_nanos(record.at), number: proposal,
-        }), &row.key)?;
+        put(
+            &mut writes,
+            Stored::Retention(RetentionRow {
+                stage: RetentionStage::Proposal,
+                since: Wall::from_nanos(record.at),
+                number: proposal,
+            }),
+            &row.key,
+        )?;
     }
     Ok(JobAnswer { writes: writes.into_boxed(), through: None })
 }
