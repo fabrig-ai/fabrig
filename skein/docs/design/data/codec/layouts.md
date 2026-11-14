@@ -41,7 +41,7 @@ and one without never match.
 
 Each text comes with the texts of the families it holds (`README.md`,
 9.4: `held`), the old with those its layout was made with, the new with
-the binary's. A held record whose family is given on both sides is
+the binary's. A held record or enumeration (2: Held records) whose family is given on both sides is
 converted by its own plan (2); one given on neither is copied as it is;
 one given on one side alone has no plan (`Underived::Held`).
 
@@ -83,7 +83,11 @@ one given on one side alone has no plan (`Underived::Held`).
 - **Held records** are converted by the held text's plan from the old
   held text to the new one, at the held type's own root, and keep only
   where that plan keeps; the held record's versioned head is written at
-  the new held text's version.
+  the new held text's version. A held type may be an enumeration
+  (`refusal: bytes 517 holds jig-store-people Refusal`): it is planned
+  at its declaration whole, as a broad root without a variant (1), and
+  has no head. A held type that is neither a record nor an enumeration
+  has no plan (`Underived::Held`).
 
 ## 3. The pass
 
