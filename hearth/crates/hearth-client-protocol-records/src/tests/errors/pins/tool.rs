@@ -1,8 +1,8 @@
 use super::assert_prints;
-use crate::{
-    errors::{Command, Ended},
-    tests::fixtures,
-};
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Command, Ended};
+
 use skein_lib::bytes::copy_of;
 
 #[test]
@@ -65,7 +65,7 @@ fn tool_bytes() {
             ),
         ),
         (
-            fixtures::mmdebstrap_error(Ended::Missing { oid: copy_of(b"1a2b3c4d") }),
+            fixtures::mmdebstrap_error(Ended::Missing { oid: render::revision::Oid(copy_of(b"1a2b3c4d")) }),
             "mmdebstrap is missing object 1a2b3c4d\n",
             concat!(
                 r#"{"record":"error","kind":"tool","tool":{"command":"mmdebstrap","ended":{"kind":"missing","oid":"1a2b3c4d"},"tail":[]},"class":"operational"}"#,

@@ -1,8 +1,10 @@
 use crate::{
-    errors::Rule,
     form::Form,
     tests::fixtures::{self, reserved as f},
 };
+use hearth_domain_render_vocabulary as render;
+use render::errors::Rule;
+
 const TEXT: &[(Rule, &[u8])] = &[
     (Rule::ActivatorKey, b"\"rootwait\" is reserved: the activator owns this command-line key (domain/machine/boot.md, 3.2)\n"),
     (Rule::RootKey, b"\"rootwait\" is reserved: it changes how tiny-initramfs finds or starts the root (domain/machine/boot.md, 3.2)\n"),

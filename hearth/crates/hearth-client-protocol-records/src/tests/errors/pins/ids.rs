@@ -1,8 +1,7 @@
 use super::assert_prints;
-use crate::{
-    errors::{Owns, Why},
-    tests::fixtures,
-};
+use crate::tests::fixtures;
+use hearth_domain_render_vocabulary as render;
+use render::errors::{Owns, Why};
 
 #[test]
 fn ids_bytes() {

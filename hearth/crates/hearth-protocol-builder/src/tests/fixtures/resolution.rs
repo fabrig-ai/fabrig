@@ -52,30 +52,6 @@ fn boxed_resolution(value: Option<render::keys::Resolution>) -> Option<Box<rende
 }
 
 #[must_use]
-pub fn resolution_faults() -> [render::errors::Resolution; 9] {
-    use render::errors::Resolution;
-    [
-        Resolution::Unknown { package: b"apt".as_slice().into() },
-        Resolution::Unsatisfiable { package: Some(b"curl".as_slice().into()) },
-        Resolution::Unsatisfiable { package: None },
-        Resolution::Absent { uri: b"http://one/".as_slice().into(), suite: b"forky".as_slice().into() },
-        Resolution::Missing { package: b"apt".as_slice().into() },
-        Resolution::Unmatched {
-            name: b"apt".as_slice().into(),
-            version: b"3.3.3".as_slice().into(),
-            architecture: b"amd64".as_slice().into(),
-        },
-        Resolution::Disagree {
-            name: b"apt".as_slice().into(),
-            version: b"3.3.3".as_slice().into(),
-            architecture: b"amd64".as_slice().into(),
-        },
-        Resolution::TooLarge { max: u64::from(tree::limits::SHIPPED.resolution.body) },
-        Resolution::TooMany { max: super::CLOSURE_LIMIT },
-    ]
-}
-
-#[must_use]
 pub fn resolution_inputs() -> tree::resolution::Inputs {
     use hearth_lib::encode::Item;
     tree::resolution::Inputs {

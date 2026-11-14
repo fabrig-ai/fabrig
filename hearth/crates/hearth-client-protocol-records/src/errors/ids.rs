@@ -1,81 +1,53 @@
 //! Missing fixed ids name the concrete owned entry (hearth/docs/design/domain/render/errors.md, 2).
 use crate::form::{json::field, text::Lines};
-use alloc::boxed::Box;
+use hearth_domain_render_vocabulary::errors::{Ids, Owns, Why};
 use skein_json::writer::Encoder;
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Ids {
-    pub owner: Box<[u8]>,
-    pub of: Owns,
-    pub entry: Box<[u8]>,
-    pub why: Why,
+
+pub(super) const fn owns_name(item: Owns) -> &'static [u8] {
+    match item {
+        Owns::Data => b"data",
+        Owns::Secret => b"secret",
+        Owns::Identity => b"identity",
+        Owns::Download => b"download",
+        Owns::User => b"user",
+    }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Owns {
-    Data,
-    Secret,
-    Identity,
-    Download,
-    User,
+
+pub(super) const fn why_name(item: Why) -> &'static [u8] {
+    match item {
+        Why::NoUser => b"no_user",
+        Why::NoGroup => b"no_group",
+        Why::NoUid => b"no_uid",
+        Why::NoGid => b"no_gid",
+        Why::OneId => b"one_id",
+        Why::NotPackageUser => b"not_package_user",
+        Why::NotPackageGroup => b"not_package_group",
+    }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Why {
-    NoUser,
-    NoGroup,
-    NoUid,
-    NoGid,
-    OneId,
-    NotPackageUser,
-    NotPackageGroup,
-}
-impl Owns {
-    const fn name(self) -> &'static [u8] {
-        match self {
-            Self::Data => b"data",
-            Self::Secret => b"secret",
-            Self::Identity => b"identity",
-            Self::Download => b"download",
-            Self::User => b"user",
+
+pub(super) fn ids_text(item: &Ids, lines: &mut Lines) {
+    lines.put(&item.owner);
+    lines.put(b" owns ");
+    lines.put(&item.entry);
+    lines.put(b" and has no fixed id: ");
+    match item.why {
+        Why::NoUser | Why::NoGroup => {
+            lines.put(if item.why == Why::NoUser { b"no user " } else { b"no group " });
+            lines.put(&item.owner);
+            lines.put(b" is declared");
         }
+        Why::NoUid => lines.put(b"the user has no uid"),
+        Why::NoGid => lines.put(b"the group has no gid"),
+        Why::OneId => lines.put(b"a package user needs both uid and gid or neither"),
+        Why::NotPackageUser => lines.put(b"a download needs a package user"),
+        Why::NotPackageGroup => lines.put(b"a download needs a package group"),
     }
 }
-impl Why {
-    const fn name(self) -> &'static [u8] {
-        match self {
-            Self::NoUser => b"no_user",
-            Self::NoGroup => b"no_group",
-            Self::NoUid => b"no_uid",
-            Self::NoGid => b"no_gid",
-            Self::OneId => b"one_id",
-            Self::NotPackageUser => b"not_package_user",
-            Self::NotPackageGroup => b"not_package_group",
-        }
-    }
-}
-impl Ids {
-    pub(super) fn text(&self, lines: &mut Lines) {
-        lines.put(&self.owner);
-        lines.put(b" owns ");
-        lines.put(&self.entry);
-        lines.put(b" and has no fixed id: ");
-        match self.why {
-            Why::NoUser | Why::NoGroup => {
-                lines.put(if self.why == Why::NoUser { b"no user " } else { b"no group " });
-                lines.put(&self.owner);
-                lines.put(b" is declared");
-            }
-            Why::NoUid => lines.put(b"the user has no uid"),
-            Why::NoGid => lines.put(b"the group has no gid"),
-            Why::OneId => lines.put(b"a package user needs both uid and gid or neither"),
-            Why::NotPackageUser => lines.put(b"a download needs a package user"),
-            Why::NotPackageGroup => lines.put(b"a download needs a package group"),
-        }
-    }
-    pub(super) fn json(&self, json: &mut Encoder) {
-        json.object_start();
-        field(json, b"entry", &self.entry);
-        field(json, b"of", self.of.name());
-        field(json, b"owner", &self.owner);
-        field(json, b"why", self.why.name());
-        json.object_end();
-    }
+pub(super) fn ids_json(item: &Ids, json: &mut Encoder) {
+    json.object_start();
+    field(json, b"entry", &item.entry);
+    field(json, b"of", owns_name(item.of));
+    field(json, b"owner", &item.owner);
+    field(json, b"why", why_name(item.why));
+    json.object_end();
 }

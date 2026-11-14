@@ -41,17 +41,3 @@ fn placement_pair_back(pair: Option<records::PlacementPair>) -> Option<meta::Pla
     let pair = pair?;
     Some(meta::PlacementPair { before: placement_back(pair.before), after: placement_back(pair.after) })
 }
-
-const ERROR_SIDES: &[(Option<diff::Side>, Option<records::Side>)] = &[
-    (None, None),
-    (Some(diff::Side::From), Some(records::Side::From)),
-    (Some(diff::Side::To), Some(records::Side::To)),
-];
-#[test]
-fn an_errors_side_crosses_to_records() {
-    for (row, &(side, expected)) in ERROR_SIDES.iter().enumerate() {
-        let mut error = crate::tests::fixtures::decode_error();
-        error.side = side;
-        assert_eq!(crate::translate::errors::error(error).side, expected, "row {row}: error side");
-    }
-}
