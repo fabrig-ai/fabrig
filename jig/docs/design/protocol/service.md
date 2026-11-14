@@ -445,10 +445,12 @@ Each within jig's suites' budgets.
   before the trace is erased. The test catches nothing
   (`temper/docs/design/draft/panics.md`, 5): the story's run and its
   final check return their findings, and on one the test prints those
-  failures and its wall time, then fails. Its scratch is kept whatever
-  ends it, and the script, once the test process has ended (on a
-  signal, having stopped the runner and reaped it), erases the records
-  and traces, keeps the rest on a failure and removes it on a pass. The refused-plan run-failure words are
+  failures and its wall time, erases the records and traces and keeps
+  the rest of its scratch, as it does now, then fails. Whatever else
+  ends it, a panic of our own code or a signal, the script, once the
+  test process has ended (on a signal, having stopped the runner with
+  TERM and reaped it), erases the records and traces under its scratch,
+  keeps the rest on a failure and removes it on a pass. The refused-plan run-failure words are
   checked by the focused step test
   `live_sign_in::tests::a_refused_plan_is_reported_with_the_run_failure`.
 - **The browser tier:** `jig-test` serving jig's test application's
