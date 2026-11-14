@@ -1750,3 +1750,47 @@ fn a_prepare_result_survives_a_busy_read_before_its_prefix_is_judged() {
     let row = d.landing.rows.get(&61).expect("waiting round");
     assert_eq!(preparation::outcomes(&row.landing.round.failure, LIMITS.landing_members), Some(prepared));
 }
+
+#[test]
+fn a_busy_landing_read_retries_before_the_hearing_fallback() {
+    let mut d = landing_fixture();
+    fixtures::connect(&mut d);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    member_landing(&mut d);
+    let mut clock = env();
+    clock.limits.client.fallback = Duration::from_secs(300);
+    fixtures::repository_heard(&mut d, &clock, REPO);
+    let mut out = Queue::uncapped();
+    step(
+        &mut d,
+        &clock,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard {
+                job: None,
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: policy::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
+        },
+        &mut out,
+    );
+    let owner = *d.landing.pending.iter().next().expect("landing read").0;
+    landing::answered(&mut d, &clock, owner, Err(skein_forge::api::Error::Busy), &mut out);
+    let expected = Wall::from_nanos(clock.wall.as_nanos().saturating_add(clock.limits.client.poll.as_nanos()));
+    let mut until = None;
+    while let Some(request) = out.pop() {
+        if let Request::LandingDecision { decision: policy::Decision::Wait { until: found }, .. } = request {
+            until = found;
+        }
+    }
+    assert_eq!(until, Some(expected), "client room can return before the repository fallback");
+}

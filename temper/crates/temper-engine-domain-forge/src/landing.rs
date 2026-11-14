@@ -1067,7 +1067,18 @@ fn advance(
         return;
     }
     if answer == Err(api::Error::Busy) && !matches_stall(&p.stage) {
-        wait(d, p.task, env, p.repository, out);
+        // Client capacity is independent of the repository's delivery fallback.
+        emit(
+            out,
+            Request::LandingDecision {
+                task: p.task,
+                decision: policy::Decision::Wait {
+                    until: Some(wall_at(env, env.now.saturating_add(env.limits.client.poll))),
+                },
+                entry: None,
+                evidence: None,
+            },
+        );
         return;
     }
     let Some(row) = d.landing.rows.get(&p.task).cloned() else {
