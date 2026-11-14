@@ -174,7 +174,6 @@ smith/tests/protocol-llm/tests/suite/referee.rs should_panic 7
 smith/tests/session/tests/suite/referee.rs should_panic 5
 temper/bin/temper-box/tests/live.rs catch_unwind 2
 temper/bin/temper-box/tests/live.rs resume_unwind 2
-temper/bin/temper-box/tests/process.rs catch_unwind 1
 temper/bin/temper-box/tests/suite/fake.rs should_panic 1
 temper/bin/temper-box/tests/suite/forge_land.rs catch_unwind 1
 temper/bin/temper-box/tests/suite/support_tests.rs should_panic 3
