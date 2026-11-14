@@ -39,6 +39,27 @@ pub(crate) struct Walk {
     state: State,
 }
 
+/// The walk and heads-alone path choose the same block and old root (opening.md 2, step 4).
+fn selected(machines: &Machines, step: Planned, family: FamilyIx, root: &str) -> Option<(PlanIx, DeclIx)> {
+    let machine = machines.get(family);
+    let version = machine.reached;
+    let plan = match machine.block(step) {
+        Some(plan) => plan,
+        None => machine.identity(version)?,
+    };
+    let patcher = machine.patcher.as_ref()?;
+    let root = patcher.schema(version)?.find(root.as_bytes())?;
+    if patcher.versions(plan).from != version {
+        return None;
+    }
+    Some((plan, root))
+}
+
+pub(crate) fn rehead(machines: &Machines, step: Planned, family: FamilyIx, root: &str, record: &mut [u8]) -> bool {
+    let Some((plan, root)) = selected(machines, step, family, root) else { return false };
+    machines.get(family).patcher.as_ref().expect("selected patcher").rehead(plan, root, record)
+}
+
 pub(crate) fn start(
     machines: &mut Machines,
     step: Planned,
@@ -46,20 +67,9 @@ pub(crate) fn start(
     root: &str,
     record: Box<[u8]>,
 ) -> Result<(Walk, Stop), Halt> {
-    let machine = machines.get(family);
-    let version = machine.reached;
-    let plan = match machine.block(step) {
-        Some(plan) => plan,
-        None => machine.identity(version).ok_or(Halt::Order)?,
-    };
+    let (plan, root) = selected(machines, step, family, root).ok_or(Halt::Order)?;
     let patcher = machines.patcher(family);
-    let schema = patcher.schema(version).ok_or(Halt::Order)?;
-    let root = schema.find(root.as_bytes()).ok_or(Halt::Order)?;
-    let versions = patcher.versions(plan);
-    if versions.from != version {
-        return Err(Halt::Order);
-    }
-    let target = versions.to;
+    let target = patcher.versions(plan).to;
     patcher.start(plan, root, record)?;
     let mut frames = List::with_capacity(machines.len());
     frames.push(Frame { family, plan, root, target, calls: 0 }).expect("one holder frame");

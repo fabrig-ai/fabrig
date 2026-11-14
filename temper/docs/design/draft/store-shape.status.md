@@ -2,7 +2,7 @@
 
 2026-11-13. Where the design lags or departs from [store-shape.md](store-shape.md).
 
-Nothing of this draft is designed or built yet: its execution file's milestones write the design as they run.
+Section 10.1's S2 is designed and built: identity walks rewrite the head alone (skein's `data/codec/patches.md`, 3.1; jig's `protocol/store/opening.md`, 2, step 4). Nothing else of this draft is designed or built yet: its execution file's milestones write the design as they run.
 
 - **Design lags:**
   - 2: skein's `data/kv.md`, section 6 plans payload logs for turns alone, and none is built; jig's `protocol/store/README.md`, sections 1, 2 and 10.1 to 10.4, and jig's `protocol/store/loads.md`, sections 2 to 4, keep every task's history in the map; jig's `protocol/store/transcripts.md`, sections 1 to 6, keeps turns in files of their own, uncompressed, outside the generations.
