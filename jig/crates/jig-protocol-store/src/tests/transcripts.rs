@@ -23,14 +23,18 @@ fn writing() -> (Store, Below) {
     assert!(events.is_empty());
     (store, below)
 }
-fn turn_bytes(store: &mut Store, mut below: Below) -> (Box<[u8]>, Below) {
+fn opened_frame(store: &mut Store, mut below: Below) -> Below {
     let Some(file::Request::OpenWriteNoFollow { owner, .. }) = below.transcripts.pop() else {
         panic!("open transcript");
     };
-    let (_, below) = fixtures::answer(
+    fixtures::answer(
         store,
         Io::Transcripts(Arrived { event: file::Event::Opened { owner, file: Token::new(700), len: 0 }, fd: None }),
-    );
+    )
+    .1
+}
+fn turn_bytes(store: &mut Store, below: Below) -> (Box<[u8]>, Below) {
+    let below = opened_frame(store, below);
     let (bytes, offset, below) = written_frame(store, below);
     assert_eq!(offset, 0);
     (bytes, below)
@@ -147,6 +151,27 @@ fn a_commit_behind_a_turn_waits_its_turn() {
         panic!("commits retain their order: {events:?}");
     };
 }
+fn failed_transcript(store: &mut Store, owner: Token) -> Box<[Event]> {
+    let (events, _) = fixtures::answer(
+        store,
+        Io::Transcripts(Arrived {
+            event: file::Event::Failed { owner, error: Error::Permission, committed: false, residue: None },
+            fd: None,
+        }),
+    );
+    events
+}
+fn assert_transcript_failure(store: &Store, events: &[Event]) {
+    let [
+        Event::Failed { number: 2, why: crate::CommitFailure::Transcript },
+        Event::Failed { number: 3, why: crate::CommitFailure::Stopped },
+    ] = events
+    else {
+        panic!("failed ordered commits: {events:?}");
+    };
+    assert_eq!(store.stores.store.last(), 1);
+    assert_eq!(store.phase, Phase::Stopped);
+}
 #[test]
 fn a_failed_sync_fails_the_commit_and_those_behind() {
     let (mut store, below) = writing();
@@ -155,18 +180,19 @@ fn a_failed_sync_fails_the_commit_and_those_behind() {
     let Some(file::Request::Sync { owner, .. }) = below.transcripts.pop() else {
         panic!("sync frame");
     };
-    let (events, _) = fixtures::answer(
-        &mut store,
-        Io::Transcripts(Arrived {
-            event: file::Event::Failed { owner, error: Error::Permission, committed: false, residue: None },
-            fd: None,
-        }),
-    );
-    let [Event::Failed { number: 2 }, Event::Failed { number: 3 }] = &*events else {
-        panic!("failed ordered commits: {events:?}");
+    let events = failed_transcript(&mut store, owner);
+    assert_transcript_failure(&store, &events);
+}
+#[test]
+fn a_failed_frame_write_fails_the_commit_and_those_behind() {
+    let (mut store, below) = writing();
+    assert!(submit(&mut store, 3, &[]).0.is_empty());
+    let mut below = opened_frame(&mut store, below);
+    let Some(file::Request::WriteAt { owner, .. }) = below.transcripts.pop() else {
+        panic!("write frame");
     };
-    assert_eq!(store.stores.store.last(), 1);
-    assert_eq!(store.phase, Phase::Stopped);
+    let events = failed_transcript(&mut store, owner);
+    assert_transcript_failure(&store, &events);
 }
 fn two_open_transcripts() -> Store {
     let (mut store, _) = fixtures::opened_with_transcripts();
@@ -216,10 +242,10 @@ fn the_transcript_queue_refuses_before_a_later_commit_is_submitted() {
     assert!(submit(&mut store, 4, &[]).0.is_empty());
     let (events, _) = submit(&mut store, 5, &[]);
     let [
-        Event::Failed { number: 5 },
-        Event::Failed { number: 2 },
-        Event::Failed { number: 3 },
-        Event::Failed { number: 4 },
+        Event::Failed { number: 5, why: crate::CommitFailure::Check(crate::CommitCheck::Queue) },
+        Event::Failed { number: 2, why: crate::CommitFailure::Stopped },
+        Event::Failed { number: 3, why: crate::CommitFailure::Stopped },
+        Event::Failed { number: 4, why: crate::CommitFailure::Stopped },
     ] = &*events
     else {
         panic!("all unsubmitted commits fail: {events:?}");
@@ -359,8 +385,8 @@ fn a_named_frame_refusal_precedes_failures_of_earlier_pending_commits() {
     let (events, below) = submit(&mut store, 4, &[turn]);
     let [
         Event::FrameTooLarge { number: 4, task: LIVE, bytes: found, limit: bound },
-        Event::Failed { number: 2 },
-        Event::Failed { number: 3 },
+        Event::Failed { number: 2, why: crate::CommitFailure::Stopped },
+        Event::Failed { number: 3, why: crate::CommitFailure::Stopped },
     ] = &*events
     else {
         panic!("named terminal then earlier pending failures: {events:?}")

@@ -958,19 +958,24 @@ pub(crate) fn events_up(
                     crate::census::due(store, above);
                 } else {
                     stopped(store);
-                    above.push(Event::Failed { number });
+                    crate::transcripts::failed(
+                        store,
+                        Some(number),
+                        crate::CommitFailure::Owner { owner: owner.raw() },
+                        above,
+                    );
                 }
             }
-            skein_kv::Event::Refused { owner, .. } => {
+            skein_kv::Event::Refused { owner, refusal } => {
                 stopped(store);
                 if !secret {
-                    crate::transcripts::failed(store, Some(owner.raw()), above);
+                    crate::transcripts::failed(store, Some(owner.raw()), crate::CommitFailure::Refused(refusal), above);
                 }
             }
             skein_kv::Event::Failed { number, .. } => {
                 stopped(store);
                 if !secret {
-                    crate::transcripts::failed(store, Some(number), above);
+                    crate::transcripts::failed(store, Some(number), crate::CommitFailure::Failed, above);
                 }
             }
             skein_kv::Event::OpenFailed { .. } => refuse(store, above),
