@@ -1088,10 +1088,14 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
         assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "amended: {answer:?}");
         assert_eq!(live_task(&world, task).waiting_on.as_ref(), [latch]);
     }
+    // One slow read orders readiness without exhausting opening's 30-second stall.
     world.slow_branch = producer_b.workspace.repositories[0].push.clone();
+    world.slow_branch_latency = skein_lib::Duration::from_secs(1);
     finish_producer(&mut world, &producer_a, forge_world::REPO);
     finish_producer(&mut world, &producer_b, forge_world::REPO);
-    for _ in 0..PAIR_TICKS {
+    // World ticks advance 100 ms: two seconds keep the latch inside opening's stall.
+    const LATCH_TICKS: u32 = 20;
+    for _ in 0..LATCH_TICKS {
         world.tick();
     }
     assert!(landing_rows(&world).is_empty(), "the latch keeps both changes");

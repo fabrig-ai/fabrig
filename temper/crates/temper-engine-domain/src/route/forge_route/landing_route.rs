@@ -172,12 +172,44 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     form_train(domain, env, repository, &branch);
 }
 
+fn matches_ready(state: &forge_change::State) -> bool {
+    match state {
+        forge_change::State::Ready { .. } => true,
+        forge_change::State::Producing { .. }
+        | forge_change::State::Opening { .. }
+        | forge_change::State::Recreating { .. }
+        | forge_change::State::Reopening { .. }
+        | forge_change::State::Checking { .. }
+        | forge_change::State::Gating { .. }
+        | forge_change::State::Preparing { .. }
+        | forge_change::State::CancellingGates { .. }
+        | forge_change::State::Queued { .. }
+        | forge_change::State::First { .. }
+        | forge_change::State::Updating { .. }
+        | forge_change::State::WaitingProducer { .. }
+        | forge_change::State::Resolving { .. }
+        | forge_change::State::Repairing { .. }
+        | forge_change::State::Landing { .. }
+        | forge_change::State::Landed { .. }
+        | forge_change::State::NoChange { .. }
+        | forge_change::State::Ended
+        | forge_change::State::Held { .. }
+        | forge_change::State::Red { .. }
+        | forge_change::State::Cleared { .. }
+        | forge_change::State::Uncleared { .. }
+        | forge_change::State::Judging { .. } => false,
+    }
+}
+
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
     // A dependency completion can wake several changes together. Their due steps
     // must settle readiness before the train selects its sealed members.
+    // Ready rows have settled; members already in a landing hold no new unit.
     for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
         if let Some(change) = domain.forge.change(task)
             && change.base.as_ref() == branch
+            && change.change.landing.is_none()
+            && !matches_ready(&change.change.state)
             && domain.core.tasks.procedure_due(task).is_some()
         {
             return false;
