@@ -547,12 +547,11 @@ fn ended_row(number: u64) -> store::Row {
 }
 
 fn projection_row() -> core::Record {
-    core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::Task {
+    core::Record::Core(core::CoreRecord::Projection(core::ProjectionRecord::TaskHot {
         goal: 1,
-        task: core::ProjectionTask {
+        task: core::ProjectionTaskHot {
             number: 1,
             requester: jig_domain_tasks::Party::Deployment { project: 1 },
-            words: Box::new([]),
             phase: jig_domain_tasks::Phase::Waiting,
         },
     }))

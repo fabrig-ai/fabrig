@@ -25,6 +25,8 @@ pub struct Limits {
     pub projection_task_words: u32,
     pub projection_milestone_words: u32,
     pub projection_goal_row_pending: u32,
+    pub projection_goal_hot_pending: u32,
+    pub projection_words_words: u32,
     pub run_proof_accounts: u32,
     pub run_proof_credentials: u32,
     pub run_proof_outstanding: u32,
@@ -52,6 +54,8 @@ pub const CEILINGS: Limits = Limits {
     projection_task_words: 262_144,
     projection_milestone_words: 524_288,
     projection_goal_row_pending: 1_024,
+    projection_goal_hot_pending: 1_024,
+    projection_words_words: 262_144,
     run_proof_accounts: 64,
     run_proof_credentials: 1_024,
     run_proof_outstanding: 128,
@@ -59,7 +63,7 @@ pub const CEILINGS: Limits = Limits {
 };
 
 /// The limits' field names, in field order.
-pub const LIMIT_NAMES: [&str; 23] = [
+pub const LIMIT_NAMES: [&str; 25] = [
     "escalation_decision_reject_reason",
     "settled_answer_host_body",
     "settled_answer_delivery_evidence",
@@ -79,6 +83,8 @@ pub const LIMIT_NAMES: [&str; 23] = [
     "projection_task_words",
     "projection_milestone_words",
     "projection_goal_row_pending",
+    "projection_goal_hot_pending",
+    "projection_words_words",
     "run_proof_accounts",
     "run_proof_credentials",
     "run_proof_outstanding",
@@ -88,11 +94,12 @@ pub const LIMIT_NAMES: [&str; 23] = [
 impl Limits {
     /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
-    pub fn values(&self) -> [u32; 23] {
+    pub fn values(&self) -> [u32; 25] {
         [
             self.escalation_decision_reject_reason, self.settled_answer_host_body, self.settled_answer_delivery_evidence, self.settled_call_tool, self.call_part_effect_denied_findings, self.call_part_tool_denied_findings, self.call_part_delegation_denied_findings, self.task_bytes_value,
             self.call_part_delegated_value, self.note_bytes_value, self.call_part_note_recalled_entries, self.settings_refusal_value, self.phase_bytes_value, self.change_bytes_value, self.end_bytes_value, self.projection_goal_words,
-            self.projection_task_words, self.projection_milestone_words, self.projection_goal_row_pending, self.run_proof_accounts, self.run_proof_credentials, self.run_proof_outstanding, self.turn_record_transcript,
+            self.projection_task_words, self.projection_milestone_words, self.projection_goal_row_pending, self.projection_goal_hot_pending, self.projection_words_words, self.run_proof_accounts, self.run_proof_credentials, self.run_proof_outstanding,
+            self.turn_record_transcript,
         ]
     }
 }
@@ -648,6 +655,40 @@ pub enum Path {
     ProjectionMilestoneRowMilestone,
     /// Bytes after `ProjectionMilestoneRow`.
     ProjectionMilestoneRowTail,
+    /// The `number` field of `ProjectionGoalHot`.
+    ProjectionGoalHotNumber,
+    /// The `project` field of `ProjectionGoalHot`.
+    ProjectionGoalHotProject,
+    /// The `priority` field of `ProjectionGoalHot`.
+    ProjectionGoalHotPriority,
+    /// The `phase` field of `ProjectionGoalHot`.
+    ProjectionGoalHotPhase,
+    /// The `pending` field of `ProjectionGoalHot`.
+    ProjectionGoalHotPending,
+    /// The `changed` field of `ProjectionGoalHot`.
+    ProjectionGoalHotChanged,
+    /// The `fed_at` field of `ProjectionGoalHot`.
+    ProjectionGoalHotFedAt,
+    /// Bytes after `ProjectionGoalHot`.
+    ProjectionGoalHotTail,
+    /// The `goal` field of `ProjectionTaskHot`.
+    ProjectionTaskHotGoal,
+    /// The `number` field of `ProjectionTaskHot`.
+    ProjectionTaskHotNumber,
+    /// The `requester` field of `ProjectionTaskHot`.
+    ProjectionTaskHotRequester,
+    /// The `phase` field of `ProjectionTaskHot`.
+    ProjectionTaskHotPhase,
+    /// Bytes after `ProjectionTaskHot`.
+    ProjectionTaskHotTail,
+    /// The `goal` field of `ProjectionWords`.
+    ProjectionWordsGoal,
+    /// The `task` field of `ProjectionWords`.
+    ProjectionWordsTask,
+    /// The `words` field of `ProjectionWords`.
+    ProjectionWordsWords,
+    /// Bytes after `ProjectionWords`.
+    ProjectionWordsTail,
     /// The tag of `ProjectionRecord`.
     ProjectionRecordTag,
     /// The `task` field of `TerminalRecord`.
@@ -827,6 +868,8 @@ fn check_limits_0(limits: &Limits) -> Result<(), Problem> {
     if limits.projection_task_words > CEILINGS.projection_task_words { return Err(Problem { path: Path::ProjectionTaskWords, reason: skein_codec::Reason::Bound }); }
     if limits.projection_milestone_words > CEILINGS.projection_milestone_words { return Err(Problem { path: Path::ProjectionMilestoneWords, reason: skein_codec::Reason::Bound }); }
     if limits.projection_goal_row_pending > CEILINGS.projection_goal_row_pending { return Err(Problem { path: Path::ProjectionGoalRowPending, reason: skein_codec::Reason::Bound }); }
+    if limits.projection_goal_hot_pending > CEILINGS.projection_goal_hot_pending { return Err(Problem { path: Path::ProjectionGoalHotPending, reason: skein_codec::Reason::Bound }); }
+    if limits.projection_words_words > CEILINGS.projection_words_words { return Err(Problem { path: Path::ProjectionWordsWords, reason: skein_codec::Reason::Bound }); }
     if limits.run_proof_accounts > CEILINGS.run_proof_accounts { return Err(Problem { path: Path::RunProofAccounts, reason: skein_codec::Reason::Bound }); }
     if limits.run_proof_credentials > CEILINGS.run_proof_credentials { return Err(Problem { path: Path::RunProofCredentials, reason: skein_codec::Reason::Bound }); }
     if limits.run_proof_outstanding > CEILINGS.run_proof_outstanding { return Err(Problem { path: Path::RunProofOutstanding, reason: skein_codec::Reason::Bound }); }
@@ -4895,6 +4938,192 @@ impl ProjectionMilestoneRow {
     }
 }
 
+/// Movable fields of `ProjectionGoalHot`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectionGoalHotParts {
+    /// The `number` field.
+    pub number: u64,
+    /// The `project` field.
+    pub project: u32,
+    /// The `priority` field.
+    pub priority: u32,
+    /// The `phase` field.
+    pub phase: PhaseBytes,
+    /// The `pending` field.
+    pub pending: List<Connector>,
+    /// The `changed` field.
+    pub changed: bool,
+    /// The `fed_at` field.
+    pub fed_at: Option<u64>,
+}
+
+/// `ProjectionGoalHot` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectionGoalHot {
+    number: u64,
+    project: u32,
+    priority: u32,
+    phase: PhaseBytes,
+    pending: List<Connector>,
+    changed: bool,
+    fed_at: Option<u64>,
+}
+
+impl ProjectionGoalHot {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ProjectionGoalHotParts) -> Result<Self, Problem> {
+        let ProjectionGoalHotParts { number, project, priority, phase, pending, changed, fed_at } = parts;
+        let value = Self { number, project, priority, phase, pending, changed, fed_at };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Reads the `project` field.
+    #[must_use]
+    pub fn project(&self) -> u32 { self.project }
+
+    /// Reads the `priority` field.
+    #[must_use]
+    pub fn priority(&self) -> u32 { self.priority }
+
+    /// Reads the `phase` field.
+    #[must_use]
+    pub fn phase(&self) -> &PhaseBytes { &self.phase }
+
+    /// Reads the `pending` field.
+    #[must_use]
+    pub fn pending(&self) -> &List<Connector> { &self.pending }
+
+    /// Reads the `changed` field.
+    #[must_use]
+    pub fn changed(&self) -> bool { self.changed }
+
+    /// Reads the `fed_at` field.
+    #[must_use]
+    pub fn fed_at(&self) -> &Option<u64> { &self.fed_at }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ProjectionGoalHotParts { ProjectionGoalHotParts { number: self.number, project: self.project, priority: self.priority, phase: self.phase, pending: self.pending, changed: self.changed, fed_at: self.fed_at } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.phase.check(limits)?;
+        if self.pending.capacity() > limits.projection_goal_hot_pending.min(CEILINGS.projection_goal_hot_pending) { return Err(Problem { path: Path::ProjectionGoalHotPending, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+/// Movable fields of `ProjectionTaskHot`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectionTaskHotParts {
+    /// The `goal` field.
+    pub goal: u64,
+    /// The `number` field.
+    pub number: u64,
+    /// The `requester` field.
+    pub requester: Party,
+    /// The `phase` field.
+    pub phase: PhaseBytes,
+}
+
+/// `ProjectionTaskHot` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectionTaskHot {
+    goal: u64,
+    number: u64,
+    requester: Party,
+    phase: PhaseBytes,
+}
+
+impl ProjectionTaskHot {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ProjectionTaskHotParts) -> Result<Self, Problem> {
+        let ProjectionTaskHotParts { goal, number, requester, phase } = parts;
+        let value = Self { goal, number, requester, phase };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `goal` field.
+    #[must_use]
+    pub fn goal(&self) -> u64 { self.goal }
+
+    /// Reads the `number` field.
+    #[must_use]
+    pub fn number(&self) -> u64 { self.number }
+
+    /// Reads the `requester` field.
+    #[must_use]
+    pub fn requester(&self) -> &Party { &self.requester }
+
+    /// Reads the `phase` field.
+    #[must_use]
+    pub fn phase(&self) -> &PhaseBytes { &self.phase }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ProjectionTaskHotParts { ProjectionTaskHotParts { goal: self.goal, number: self.number, requester: self.requester, phase: self.phase } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        self.phase.check(limits)?;
+        Ok(())
+    }
+}
+
+/// Movable fields of `ProjectionWords`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectionWordsParts {
+    /// The `goal` field.
+    pub goal: u64,
+    /// The `task` field.
+    pub task: u64,
+    /// The `words` field.
+    pub words: Box<[u8]>,
+}
+
+/// `ProjectionWords` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ProjectionWords {
+    goal: u64,
+    task: u64,
+    words: Box<[u8]>,
+}
+
+impl ProjectionWords {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ProjectionWordsParts) -> Result<Self, Problem> {
+        let ProjectionWordsParts { goal, task, words } = parts;
+        let value = Self { goal, task, words };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `goal` field.
+    #[must_use]
+    pub fn goal(&self) -> u64 { self.goal }
+
+    /// Reads the `task` field.
+    #[must_use]
+    pub fn task(&self) -> u64 { self.task }
+
+    /// Reads the `words` field.
+    #[must_use]
+    pub fn words(&self) -> &[u8] { &self.words }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ProjectionWordsParts { ProjectionWordsParts { goal: self.goal, task: self.task, words: self.words } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.words.len() > usize::try_from(limits.projection_words_words.min(CEILINGS.projection_words_words)).expect("u32 fits usize") { return Err(Problem { path: Path::ProjectionWordsWords, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
 /// `ProjectionRecord` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ProjectionRecord {
@@ -4904,6 +5133,14 @@ pub enum ProjectionRecord {
     Task(ProjectionTaskRow),
     /// `milestone` carrying `ProjectionMilestoneRow`.
     Milestone(ProjectionMilestoneRow),
+    /// `goal_hot` carrying `ProjectionGoalHot`.
+    GoalHot(ProjectionGoalHot),
+    /// `task_hot` carrying `ProjectionTaskHot`.
+    TaskHot(ProjectionTaskHot),
+    /// `goal_words` carrying `ProjectionWords`.
+    GoalWords(ProjectionWords),
+    /// `task_words` carrying `ProjectionWords`.
+    TaskWords(ProjectionWords),
 }
 
 impl ProjectionRecord {
@@ -4918,6 +5155,9 @@ impl ProjectionRecord {
             Self::Goal(record) => ProjectionGoalRow::check(record, limits),
             Self::Task(record) => ProjectionTaskRow::check(record, limits),
             Self::Milestone(record) => ProjectionMilestoneRow::check(record, limits),
+            Self::GoalHot(record) => ProjectionGoalHot::check(record, limits),
+            Self::TaskHot(record) => ProjectionTaskHot::check(record, limits),
+            Self::GoalWords(record) | Self::TaskWords(record) => ProjectionWords::check(record, limits),
         }?;
         Ok(())
     }
@@ -9827,6 +10067,158 @@ impl ProjectionMilestoneRow {
     }
 }
 
+impl ProjectionGoalHot {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_phase = &self.phase;
+        size = size.checked_add(field_phase.measure()).expect("schema ceilings fit u32");
+        let field_pending = &self.pending;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_pending.len().checked_mul(2).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_fed_at = &self.fed_at;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_fed_at.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_project = &self.project;
+        writer.put(&field_project.to_be_bytes())?;
+        let field_priority = &self.priority;
+        writer.put(&field_priority.to_be_bytes())?;
+        let field_phase = &self.phase;
+        field_phase.encode(writer)?;
+        let field_pending = &self.pending;
+        writer.put(&field_pending.len().to_be_bytes())?;
+        for item_0 in field_pending.as_slice() {
+        item_0.encode(writer)?;
+        }
+        let field_changed = &self.changed;
+        writer.put(&[u8::from(*field_changed)])?;
+        let field_fed_at = &self.fed_at;
+        match field_fed_at {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProjectionGoalHotTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::ProjectionGoalHotNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_project = reader.u32().ok_or(Problem { path: Path::ProjectionGoalHotProject, reason: skein_codec::Reason::Short })?;
+        let decoded_priority = reader.u32().ok_or(Problem { path: Path::ProjectionGoalHotPriority, reason: skein_codec::Reason::Short })?;
+        let decoded_phase = PhaseBytes::decode_from(limits, reader)?;
+        let decoded_pending = { let count = match skein_codec::read_count(reader, limits.projection_goal_hot_pending.min(CEILINGS.projection_goal_hot_pending)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ProjectionGoalHotPending, reason }), }; if count > reader.remaining() / 2 { return Err(Problem { path: Path::ProjectionGoalHotPending, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Connector::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_changed = match reader.u8().ok_or(Problem { path: Path::ProjectionGoalHotChanged, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ProjectionGoalHotChanged, reason: skein_codec::Reason::Bool }) };
+        let decoded_fed_at = match reader.u8().ok_or(Problem { path: Path::ProjectionGoalHotFedAt, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ProjectionGoalHotFedAt, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ProjectionGoalHotFedAt, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { number: decoded_number, project: decoded_project, priority: decoded_priority, phase: decoded_phase, pending: decoded_pending, changed: decoded_changed, fed_at: decoded_fed_at })
+    }
+}
+
+impl ProjectionTaskHot {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_requester = &self.requester;
+        size = size.checked_add(field_requester.measure()).expect("schema ceilings fit u32");
+        let field_phase = &self.phase;
+        size = size.checked_add(field_phase.measure()).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_goal = &self.goal;
+        writer.put(&field_goal.to_be_bytes())?;
+        let field_number = &self.number;
+        writer.put(&field_number.to_be_bytes())?;
+        let field_requester = &self.requester;
+        field_requester.encode(writer)?;
+        let field_phase = &self.phase;
+        field_phase.encode(writer)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProjectionTaskHotTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_goal = reader.u64().ok_or(Problem { path: Path::ProjectionTaskHotGoal, reason: skein_codec::Reason::Short })?;
+        let decoded_number = reader.u64().ok_or(Problem { path: Path::ProjectionTaskHotNumber, reason: skein_codec::Reason::Short })?;
+        let decoded_requester = Party::decode_from(limits, reader)?;
+        let decoded_phase = PhaseBytes::decode_from(limits, reader)?;
+        Ok(Self { goal: decoded_goal, number: decoded_number, requester: decoded_requester, phase: decoded_phase })
+    }
+}
+
+impl ProjectionWords {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        let field_words = &self.words;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_words.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_goal = &self.goal;
+        writer.put(&field_goal.to_be_bytes())?;
+        let field_task = &self.task;
+        writer.put(&field_task.to_be_bytes())?;
+        let field_words = &self.words;
+        writer.put(&u32::try_from(field_words.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_words.as_ref())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ProjectionWordsTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_goal = reader.u64().ok_or(Problem { path: Path::ProjectionWordsGoal, reason: skein_codec::Reason::Short })?;
+        let decoded_task = reader.u64().ok_or(Problem { path: Path::ProjectionWordsTask, reason: skein_codec::Reason::Short })?;
+        let decoded_words = { let length = match skein_codec::read_len(reader, limits.projection_words_words.min(CEILINGS.projection_words_words)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ProjectionWordsWords, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ProjectionWordsWords, reason: skein_codec::Reason::Short })?) };
+        Ok(Self { goal: decoded_goal, task: decoded_task, words: decoded_words })
+    }
+}
+
 impl ProjectionRecord {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -9835,6 +10227,9 @@ impl ProjectionRecord {
             Self::Goal(record) => 1_u32.checked_add(ProjectionGoalRow::measure(record)).expect("schema ceilings fit u32"),
             Self::Task(record) => 1_u32.checked_add(ProjectionTaskRow::measure(record)).expect("schema ceilings fit u32"),
             Self::Milestone(record) => 1_u32.checked_add(ProjectionMilestoneRow::measure(record)).expect("schema ceilings fit u32"),
+            Self::GoalHot(record) => 1_u32.checked_add(ProjectionGoalHot::measure(record)).expect("schema ceilings fit u32"),
+            Self::TaskHot(record) => 1_u32.checked_add(ProjectionTaskHot::measure(record)).expect("schema ceilings fit u32"),
+            Self::GoalWords(record) | Self::TaskWords(record) => 1_u32.checked_add(ProjectionWords::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -9844,6 +10239,10 @@ impl ProjectionRecord {
             Self::Goal(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
             Self::Task(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
             Self::Milestone(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+            Self::GoalHot(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
+            Self::TaskHot(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
+            Self::GoalWords(record) => { writer.put(&[5_u8])?; record.encode(writer)?; }
+            Self::TaskWords(record) => { writer.put(&[6_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -9861,6 +10260,10 @@ impl ProjectionRecord {
             0 => Self::Goal(ProjectionGoalRow::decode_from(limits, reader)?),
             1 => Self::Task(ProjectionTaskRow::decode_from(limits, reader)?),
             2 => Self::Milestone(ProjectionMilestoneRow::decode_from(limits, reader)?),
+            3 => Self::GoalHot(ProjectionGoalHot::decode_from(limits, reader)?),
+            4 => Self::TaskHot(ProjectionTaskHot::decode_from(limits, reader)?),
+            5 => Self::GoalWords(ProjectionWords::decode_from(limits, reader)?),
+            6 => Self::TaskWords(ProjectionWords::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ProjectionRecordTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -13755,6 +14158,100 @@ impl ProjectionMilestoneRow {
     }
 }
 
+impl ProjectionGoalHot {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(PhaseBytes::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.projection_goal_hot_pending).checked_mul(Connector::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(PhaseBytes::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<Connector>::price(limits.projection_goal_hot_pending)?.checked_add(u64::from(limits.projection_goal_hot_pending).checked_mul(Connector::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+impl ProjectionTaskHot {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(Party::encoded_bound_within(limits)?)?.checked_add(PhaseBytes::encoded_bound_within(limits)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(Party::decoded_bound_within(limits)?)?.checked_add(PhaseBytes::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+impl ProjectionWords {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.projection_words_words))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.projection_words_words))?;
+        heap.checked_add(0)
+    }
+}
+
 impl ProjectionRecord {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -13766,7 +14263,9 @@ impl ProjectionRecord {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(ProjectionGoalRow::encoded_bound_within(limits)?).max(ProjectionTaskRow::encoded_bound_within(limits)?);
-        biggest = biggest.max(ProjectionMilestoneRow::encoded_bound_within(limits)?);
+        biggest = biggest.max(ProjectionMilestoneRow::encoded_bound_within(limits)?).max(ProjectionGoalHot::encoded_bound_within(limits)?);
+        biggest = biggest.max(ProjectionTaskHot::encoded_bound_within(limits)?).max(ProjectionWords::encoded_bound_within(limits)?);
+        biggest = biggest.max(ProjectionWords::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -13780,7 +14279,9 @@ impl ProjectionRecord {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(ProjectionGoalRow::decoded_bound_within(limits)?).max(ProjectionTaskRow::decoded_bound_within(limits)?);
-        biggest = biggest.max(ProjectionMilestoneRow::decoded_bound_within(limits)?);
+        biggest = biggest.max(ProjectionMilestoneRow::decoded_bound_within(limits)?).max(ProjectionGoalHot::decoded_bound_within(limits)?);
+        biggest = biggest.max(ProjectionTaskHot::decoded_bound_within(limits)?).max(ProjectionWords::decoded_bound_within(limits)?);
+        biggest = biggest.max(ProjectionWords::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -14321,6 +14822,9 @@ fn encoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ProjectionGoalRow::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectionTaskRow::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectionMilestoneRow::encoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectionGoalHot::encoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectionTaskHot::encoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectionWords::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectionRecord::encoded_bound_within(limits)?);
     biggest = biggest.max(TerminalRecord::encoded_bound_within(limits)?);
     biggest = biggest.max(TurnProof::encoded_bound_within(limits)?);
@@ -14464,6 +14968,9 @@ fn decoded_bound_1(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(ProjectionGoalRow::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectionTaskRow::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectionMilestoneRow::decoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectionGoalHot::decoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectionTaskHot::decoded_bound_within(limits)?);
+    biggest = biggest.max(ProjectionWords::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectionRecord::decoded_bound_within(limits)?);
     biggest = biggest.max(TerminalRecord::decoded_bound_within(limits)?);
     biggest = biggest.max(TurnProof::decoded_bound_within(limits)?);

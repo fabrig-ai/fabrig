@@ -27,6 +27,7 @@ mod settings;
 pub(crate) mod charter_versions;
 mod operations;
 mod phase;
+pub(crate) mod projection_parts;
 mod registered_layouts;
 mod words;
 

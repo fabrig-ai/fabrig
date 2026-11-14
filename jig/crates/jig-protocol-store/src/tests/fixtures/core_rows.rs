@@ -66,28 +66,17 @@ pub fn turn() -> core::TurnRecord {
     }
 }
 pub fn goal() -> core::ProjectionRecord {
-    core::ProjectionRecord::Goal {
-        goal: core::ProjectionGoal {
-            number: 11,
-            project: 2,
-            priority: 7,
-            words: Box::from(b"goal".as_slice()),
-            phase: super::task_phase(),
-        },
+    core::ProjectionRecord::GoalHot {
+        goal: core::ProjectionGoalHot { number: 11, project: 2, priority: 7, phase: super::task_phase() },
         pending: Box::new([2, 3]),
         changed: true,
         fed_at: Some(19),
     }
 }
 pub fn projection_task(requester: tasks::Party) -> core::ProjectionRecord {
-    core::ProjectionRecord::Task {
+    core::ProjectionRecord::TaskHot {
         goal: 11,
-        task: core::ProjectionTask {
-            number: 12,
-            requester,
-            words: Box::from(b"task".as_slice()),
-            phase: super::task_phase(),
-        },
+        task: core::ProjectionTaskHot { number: 12, requester, phase: super::task_phase() },
     }
 }
 pub fn milestone(identity: core::MilestoneId) -> core::ProjectionRecord {

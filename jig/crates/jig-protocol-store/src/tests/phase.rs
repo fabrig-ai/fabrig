@@ -28,6 +28,7 @@ use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod charter_versions;
 mod jobs;
+mod projection_parts;
 mod registry;
 mod value_types;
 

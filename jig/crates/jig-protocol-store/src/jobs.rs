@@ -64,10 +64,14 @@ pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
     if job == "charter-versions" {
         return charter_versions::page(page);
     }
+    if job == "projection-parts" {
+        return projection_parts::page(page);
+    }
     Err(JobRefusal { key: None, why: Box::from("no such jig job") })
 }
 
 mod charter_versions;
+mod projection_parts;
 
 pub(crate) mod admission;
 pub(crate) mod kept;
