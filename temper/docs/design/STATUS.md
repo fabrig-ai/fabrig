@@ -439,6 +439,7 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
+- [`draft/goal-start-flags.md`](draft/goal-start-flags.status.md)
 - [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)
