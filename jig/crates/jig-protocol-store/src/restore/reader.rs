@@ -35,7 +35,11 @@ pub fn page(
     for item in walked.rows {
         let source = site(store, &item.row.key);
         let (row, joined, size) = decode(store, item.row, &source)?;
-        let total = used.checked_add(size).ok_or(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), source))?;
+        let total =
+            used.checked_add(size).ok_or(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), source.clone()))?;
+        if total > bytes && found.is_empty() {
+            return Err(Failure::at(Cause::RowPastPage { needs: size, has: bytes }, source));
+        }
         if total > bytes || found.room() < if joined.is_some() { 2 } else { 1 } {
             let next = Some(cursor);
             super::assert_progress(after, found.is_empty(), next.as_ref());

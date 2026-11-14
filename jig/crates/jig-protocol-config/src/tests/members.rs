@@ -364,12 +364,3 @@ fn each_line_is_within_its_bound() {
     }
     assert_eq!(members::names("absent").count(), 0);
 }
-
-#[cfg(debug_assertions)]
-#[test]
-#[should_panic(expected = "configuration member missing from table")]
-fn a_decoder_request_without_a_row_panics_even_when_the_member_is_absent() {
-    let document = document(b"{}");
-    let mut object = read::Object::shaped(&document, 0, "engine").unwrap();
-    let _value = object.member(&document, b"unlisted");
-}

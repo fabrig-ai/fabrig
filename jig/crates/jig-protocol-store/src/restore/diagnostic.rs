@@ -31,6 +31,7 @@ pub enum Cause {
     Range(RangeFailure),
     Walk(WalkFailure),
     Decode(DecodeFailure),
+    RowPastPage { needs: u64, has: u64 },
     Join { target: RowSite, failure: JoinFailure },
     Arithmetic(Arithmetic),
 }
