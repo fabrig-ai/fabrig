@@ -64,6 +64,3 @@
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a
   wait that plan located and did not split, and test 2 has since lost the step (`README.md`, section 3
   ).
-- **Not yet:** 3: `Stories` panics on a failed outcome rather than
-  returning its finding, and the attribution's test catches.
-  [in flight: change 2867]

@@ -120,6 +120,3 @@ after-landing execution (`../protocol/openid-provider.status.md`, 9).
    the neutral-owner exceptions remain `live-tier.status.md` (Departs, the whole document).
    the offline startup helper gap remains `live-tier.status.md` (Departs, the whole document).
    the held-record return's mechanism remains `live-tier.status.md` (Departs, the whole document).
-- **Not yet:** the whole document: the engine replay's digest and text
-  comparisons panic on a difference, and their test catches.
-  [in flight: change 2867]
