@@ -117,6 +117,8 @@ pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
         &mut below,
     );
     assert!(matches!(above.pop(), Some(Event::Opened { pending: false, .. })));
+    // These transcript checks do not consume the map census (protocol/store/README.md, 6.3).
+    let Some(Event::Census { .. }) = above.pop() else { panic!("opened census") };
 }
 pub(crate) use jig_store_world::patches::fixture_turn as turn;
 // Six file operations and two patch stops cover one small fixture frame.
@@ -145,6 +147,8 @@ pub(crate) fn decode(
     for _ in 0..STEPS {
         if let Some(event) = above.pop() {
             match event {
+                // These transcript checks do not consume the census (protocol/store/README.md, 6.3).
+                Event::Census { .. } => continue,
                 Event::Page { .. } | Event::PageRefused { .. } => {
                     unreachable!("a start's pages need a start-mode store")
                 }

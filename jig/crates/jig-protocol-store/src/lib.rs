@@ -10,8 +10,10 @@ pub mod patches;
 
 mod back;
 pub mod boundary;
+mod census;
 pub mod codec;
 mod commits;
+pub use census::{CENSUS_EVERY, Keyspaces};
 mod directory;
 pub mod ended;
 pub mod format;
@@ -109,6 +111,7 @@ pub struct Store {
     start_open_failure: Option<restore::OpenFailure>,
     rehearsal: Option<rehearsal::State>,
     back: Option<back::State>,
+    census: census::State,
 }
 
 #[derive(Debug)]
@@ -196,10 +199,15 @@ impl Store {
         limits: &Limits,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
-        stores: Stores,
+        mut stores: Stores,
     ) -> Store {
         let codec_limits = checked_codec(limits).expect("the store's limits are valid");
+        let census = census::State::new();
+        if stores.store.last() == 0 && stores.store.is_empty() {
+            stores.store.count(census.rule);
+        }
         Store {
+            census,
             limits: *limits,
             application,
             codec_limits,
@@ -255,6 +263,28 @@ impl Store {
     /// Supplies the owners' static patch data (protocol/store/opening.md 3).
     pub fn patch_sets(&mut self, sets: PatchSets) {
         self.patch_sets = sets;
+    }
+
+    /// Supplies the application's census names with its patch sets (protocol/store/README.md, 6.3).
+    pub fn keyspaces(&mut self, names: Keyspaces) {
+        for (index, &(tag, name)) in names.families.iter().enumerate() {
+            assert!(name.len() <= 48, "census name is at most 48 bytes");
+            for byte in name.bytes() {
+                assert!(
+                    byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'.' || byte == b'-',
+                    "census name is ASCII lower-case, digits, dot or hyphen"
+                );
+            }
+            let suffix = name.strip_prefix(names.owner).expect("census name belongs to its owner");
+            assert!(
+                !names.owner.is_empty() && suffix.starts_with('.') && suffix.len() > 1,
+                "census name is OWNER.FAMILY"
+            );
+            for &(other, other_name) in names.families.get(..index).expect("earlier names") {
+                assert!(tag != other && name != other_name, "one unique census name per family");
+            }
+        }
+        self.census.names = names;
     }
 
     /// The start's wires (protocol/store/records.md 3), at most 16 with names of at most
@@ -358,6 +388,7 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
 
 /// The memory component's requests (protocol/store/opening.md).
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
+    store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
     down_inner(store, env, request, above, below);
     accounted(store, lengths, above, below);
@@ -408,6 +439,7 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
 
 /// File terminals routed through their independent drivers.
 pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>, below: &mut Below) {
+    store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
     rehearsal::arriving(store, &io);
     if rehearsal::closing(store) {
@@ -435,6 +467,7 @@ fn up_inner(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Even
 
 /// Bounded background store work and the orphan sweep.
 pub fn fire(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Below) {
+    store.census.now = env.now;
     let lengths = rehearsal::lengths(below);
     fire_inner(store, env, above, below);
     accounted(store, lengths, above, below);

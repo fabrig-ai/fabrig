@@ -95,20 +95,23 @@ fn overwrites_short_values_missing_erases_and_last_ops_are_counted() {
     store.count(rule());
     commit(&mut store, vec![put(b"aa", &[0, 11, 7])]);
     commit(&mut store, vec![put(b"aa", &[0, 12, 8, 9])]);
-    assert_eq!(view(store.census()), (1, vec![View {
-        prefix: b"a".to_vec(), counts: [1, 2, 4, 2, 0, 11], heads: vec![(Some(12), 1)],
-    }]));
+    assert_eq!(
+        view(store.census()),
+        (1, vec![View { prefix: b"a".to_vec(), counts: [1, 2, 4, 2, 0, 11], heads: vec![(Some(12), 1)] }])
+    );
     commit(&mut store, vec![erase(b"absent"), put(b"ab", b"x"), put(b"ac", b"")]);
-    assert_eq!(view(store.census()), (1, vec![View {
-        prefix: b"a".to_vec(), counts: [3, 6, 5, 4, 1, 22], heads: vec![(None, 2), (Some(12), 1)],
-    }]));
+    assert_eq!(
+        view(store.census()),
+        (1, vec![View { prefix: b"a".to_vec(), counts: [3, 6, 5, 4, 1, 22], heads: vec![(None, 2), (Some(12), 1)] }])
+    );
     commit(
         &mut store,
         vec![put(b"aa", b"ignored"), erase(b"aa"), put(b"aa", &[0, 13]), put(b"ad", b"ignored"), erase(b"ad")],
     );
-    assert_eq!(view(store.census()), (1, vec![View {
-        prefix: b"a".to_vec(), counts: [3, 6, 3, 5, 2, 28], heads: vec![(None, 2), (Some(13), 1)],
-    }]));
+    assert_eq!(
+        view(store.census()),
+        (1, vec![View { prefix: b"a".to_vec(), counts: [3, 6, 3, 5, 2, 28], heads: vec![(None, 2), (Some(13), 1)] }])
+    );
 }
 
 #[test]
@@ -128,12 +131,18 @@ fn prefixes_fit_the_rule_the_key_and_the_constant() {
     prefix[1] = u8::MAX;
     store.count(CensusRule { prefix });
     commit(&mut store, vec![put(&[], &[]), put(&[0, 2], &[]), put(&[1, 2], &[]), put(&[1; CENSUS_PREFIX + 1], &[])]);
-    assert_eq!(view(store.census()), (1, vec![
-        View { prefix: vec![], counts: [1, 0, 0, 1, 0, 0], heads: vec![(None, 1)] },
-        View { prefix: vec![0], counts: [1, 2, 0, 1, 0, 2], heads: vec![(None, 1)] },
-        View { prefix: vec![1; CENSUS_PREFIX], counts: [1, 9, 0, 1, 0, 9], heads: vec![(None, 1)] },
-        View { prefix: vec![1, 2], counts: [1, 2, 0, 1, 0, 2], heads: vec![(None, 1)] },
-    ]));
+    assert_eq!(
+        view(store.census()),
+        (
+            1,
+            vec![
+                View { prefix: vec![], counts: [1, 0, 0, 1, 0, 0], heads: vec![(None, 1)] },
+                View { prefix: vec![0], counts: [1, 2, 0, 1, 0, 2], heads: vec![(None, 1)] },
+                View { prefix: vec![1; CENSUS_PREFIX], counts: [1, 9, 0, 1, 0, 9], heads: vec![(None, 1)] },
+                View { prefix: vec![1, 2], counts: [1, 2, 0, 1, 0, 2], heads: vec![(None, 1)] },
+            ]
+        )
+    );
 }
 
 #[test]
@@ -144,9 +153,13 @@ fn keyspaces_overflow_after_the_named_bound() {
         commit(&mut store, vec![put(&[u8::try_from(tag).expect("tag")], b"v")]);
     }
     assert_eq!(store.census().keyspaces().len(), CENSUS_KEYSPACES);
-    let mut expected: Vec<_> = (0..CENSUS_KEYSPACES).map(|tag| View {
-        prefix: vec![u8::try_from(tag).expect("tag")], counts: [1, 1, 1, 1, 0, 2], heads: vec![(None, 1)],
-    }).collect();
+    let mut expected: Vec<_> = (0..CENSUS_KEYSPACES)
+        .map(|tag| View {
+            prefix: vec![u8::try_from(tag).expect("tag")],
+            counts: [1, 1, 1, 1, 0, 2],
+            heads: vec![(None, 1)],
+        })
+        .collect();
     assert_eq!(view(store.census()), (1, expected.clone()));
     let overflow = u8::try_from(CENSUS_KEYSPACES).expect("overflow tag");
     commit(&mut store, vec![put(&[overflow], &[0, 12])]);
@@ -214,7 +227,9 @@ fn snapshot_pruning_does_not_split_folded_keyspaces() {
     world.fire_once();
     let mut expected = vec![View { prefix: vec![], counts: [1, 1, 2, 0, 0, 0], heads: vec![(Some(12), 1)] }];
     expected.extend((1..CENSUS_KEYSPACES).map(|tag| View {
-        prefix: vec![u8::try_from(tag).expect("tag")], counts: [1, 1, 2, 0, 0, 0], heads: vec![(Some(12), 1)],
+        prefix: vec![u8::try_from(tag).expect("tag")],
+        counts: [1, 1, 2, 0, 0, 0],
+        heads: vec![(Some(12), 1)],
     }));
     assert_eq!(view(world.store.census()), (last + 1, expected.clone()), "pruning frees a named slot");
     let next = overflow + 1;
@@ -256,10 +271,16 @@ fn recovery_recounts_commits_and_keeps_the_rule_when_the_map_restarts() {
     disk_commit(&mut world, vec![put(&[1, 1, 10, 0, 7], &[0, 11]), put(b"a", b"x")], 1);
     disk_commit(&mut world, vec![put(&[1, 1, 10, 0, 7], &[0, 12, 65]), erase(b"absent")], 2);
     let before = view(world.store.census());
-    assert_eq!(before, (1, vec![
-        View { prefix: vec![1, 1, 10], counts: [1, 5, 3, 2, 0, 15], heads: vec![(Some(12), 1)] },
-        View { prefix: b"a".to_vec(), counts: [1, 1, 1, 1, 1, 8], heads: vec![(None, 1)] },
-    ]));
+    assert_eq!(
+        before,
+        (
+            1,
+            vec![
+                View { prefix: vec![1, 1, 10], counts: [1, 5, 3, 2, 0, 15], heads: vec![(Some(12), 1)] },
+                View { prefix: b"a".to_vec(), counts: [1, 1, 1, 1, 1, 8], heads: vec![(None, 1)] },
+            ]
+        )
+    );
     close(&mut world);
     // Open recovers into a new map but must keep this Store's rule.
     open(&mut world);
@@ -283,20 +304,32 @@ fn snapshot_start_resets_writes_prunes_empty_spaces_and_recovery_keeps_its_perio
         }
         world.fire_once();
     }
-    assert_eq!(view(world.store.census()), (3, vec![
-        View { prefix: vec![1, 1, 10], counts: [1, 5, 2, 0, 0, 0], heads: vec![(Some(13), 1)] },
-        View { prefix: b"a".to_vec(), counts: [1, 1, 2, 0, 0, 0], heads: vec![(Some(11), 1)] },
-        View { prefix: b"b".to_vec(), counts: [1, 1, 2, 0, 0, 0], heads: vec![(Some(12), 1)] },
-    ]));
+    assert_eq!(
+        view(world.store.census()),
+        (
+            3,
+            vec![
+                View { prefix: vec![1, 1, 10], counts: [1, 5, 2, 0, 0, 0], heads: vec![(Some(13), 1)] },
+                View { prefix: b"a".to_vec(), counts: [1, 1, 2, 0, 0, 0], heads: vec![(Some(11), 1)] },
+                View { prefix: b"b".to_vec(), counts: [1, 1, 2, 0, 0, 0], heads: vec![(Some(12), 1)] },
+            ]
+        )
+    );
     // This commit is logged from S, while the snapshot is still running.
     disk_commit(&mut world, vec![put(b"b", &[0, 14, 65]), erase(b"a")], 3);
     // A keyspace erased at S remains reconstructible from its erase frame.
     let before = view(world.store.census());
-    assert_eq!(before, (3, vec![
-        View { prefix: vec![1, 1, 10], counts: [1, 5, 2, 0, 0, 0], heads: vec![(Some(13), 1)] },
-        View { prefix: b"a".to_vec(), counts: [0, 0, 0, 0, 1, 1], heads: vec![] },
-        View { prefix: b"b".to_vec(), counts: [1, 1, 3, 1, 0, 4], heads: vec![(Some(14), 1)] },
-    ]));
+    assert_eq!(
+        before,
+        (
+            3,
+            vec![
+                View { prefix: vec![1, 1, 10], counts: [1, 5, 2, 0, 0, 0], heads: vec![(Some(13), 1)] },
+                View { prefix: b"a".to_vec(), counts: [0, 0, 0, 0, 1, 1], heads: vec![] },
+                View { prefix: b"b".to_vec(), counts: [1, 1, 3, 1, 0, 4], heads: vec![(Some(14), 1)] },
+            ]
+        )
+    );
     close(&mut world);
     world.store = Store::new(&world.env.limits);
     world.store.count(rule());

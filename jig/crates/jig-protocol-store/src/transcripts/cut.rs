@@ -137,6 +137,7 @@ fn finish(store: &mut Store, result: Result<bool, ()>, above: &mut Queue<Event>)
                     installation: store.installation,
                     pending: crate::patching::switch::pending(store),
                 });
+                crate::census::report(store, above);
             }
         }
         Ok(false) => {}

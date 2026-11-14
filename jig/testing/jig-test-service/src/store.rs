@@ -191,7 +191,8 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             | protocol::Event::Back { .. }
             | protocol::Event::BackRefused { .. }
             | protocol::Event::Closed { .. } => unreachable!("an engine store never rehearses or goes back"),
-            protocol::Event::Patched { .. } => {}
+            // This test service does not consume the census (protocol/store/README.md, 6.3).
+            protocol::Event::Census { .. } | protocol::Event::Patched { .. } => {}
             protocol::Event::OpenRefused { why, .. } => {
                 let failure = engine
                     .store

@@ -502,11 +502,7 @@ impl World {
 
     pub fn settle(&mut self) -> Vec<Event> {
         self.drive();
-        let mut events = Vec::new();
-        while let Some(event) = self.above.pop() {
-            events.push(event);
-        }
-        events
+        answers(&mut self.above)
     }
 
     /// A request whose serving sites the shell answers at once, each by its
@@ -567,6 +563,8 @@ impl World {
             let mut answer = None;
             for event in events {
                 match event {
+                    // This store world has no census consumer (protocol/store/README.md, 6.3).
+                    Event::Census { .. } => {}
                     Event::Page { .. } | Event::PageRefused { .. } => {
                         unreachable!("a start's pages need a start-mode store")
                     }
@@ -621,10 +619,7 @@ impl World {
                 // Patching may have ready in-memory work between file asks.
                 // Keep firing until its next site, file ask or terminal.
                 self.drive();
-                events = Vec::new();
-                while let Some(event) = self.above.pop() {
-                    events.push(event);
-                }
+                events = answers(&mut self.above);
             }
         }
         panic!("open did not settle");
@@ -849,11 +844,7 @@ impl World {
     /// so a root can submit a commit while a snapshot is being written.
     pub fn settle_until(&mut self, operation: u32) -> Vec<Event> {
         self.drive_until(Some(operation));
-        let mut events = Vec::new();
-        while let Some(event) = self.above.pop() {
-            events.push(event);
-        }
-        events
+        answers(&mut self.above)
     }
 
     fn drive_until(&mut self, pause: Option<u32>) {
@@ -1089,12 +1080,20 @@ impl World {
             );
         }
         self.drive();
-        let mut events = Vec::new();
-        while let Some(event) = self.above.pop() {
-            events.push(event);
-        }
-        events
+        answers(&mut self.above)
     }
+}
+
+// The model observes durable rows, not telemetry (protocol/store/README.md, 6.3).
+fn answers(above: &mut Queue<Event>) -> Vec<Event> {
+    let mut events = Vec::new();
+    while let Some(event) = above.pop() {
+        if let Event::Census { .. } = event {
+            continue;
+        }
+        events.push(event);
+    }
+    events
 }
 
 fn tree(machine: &mut Machine, root: skein_fake_machine::Opened, path: &[u8], paths: &mut Vec<Vec<u8>>) {

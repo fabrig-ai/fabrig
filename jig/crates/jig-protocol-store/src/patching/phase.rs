@@ -124,6 +124,7 @@ fn close_directories(store: &mut Store, below: &mut Below) {
     below.secrets.push(file::Request::Close { owner: OWNER, file: private.token });
     // Release A's in-memory maps before opening the copy (protocol/store/opening.md 2, Room).
     store.stores.store = skein_kv::Store::new(&store.limits.store);
+    store.stores.store.count(store.census.rule);
     store.stores.secrets = skein_kv::Store::new(&store.limits.secrets);
 }
 fn dropping(store: &mut Store, above: &mut Queue<Event>, below: &mut Below) {

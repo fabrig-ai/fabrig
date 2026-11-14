@@ -283,7 +283,9 @@ fn untagged(mut event: store::Event) -> store::Event {
         | store::Event::Stale { owner }
         | store::Event::Erased { owner }
         | store::Event::SecretsLoaded { owner, .. } => *owner = Token::new(owner.untagged()),
-        store::Event::Opened { .. }
+        // The map census belongs to the root, not secrets (protocol/store/README.md, 6.3).
+        store::Event::Census { .. }
+        | store::Event::Opened { .. }
         | store::Event::Switched { .. }
         | store::Event::OpenRefused { .. }
         | store::Event::Committed { .. }

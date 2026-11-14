@@ -591,6 +591,8 @@ pub type TranscriptTexts = Box<[TurnText]>;
 
 #[derive(Hash, Debug)]
 pub enum StoreInput {
+    /// The named map census (jig's protocol/store/README.md, 6.3).
+    Census(Box<core::documents::StoreCensus>),
     /// A startup page's missing owner, handed in before that page's Loaded.
     MissingLink {
         owner: Token,

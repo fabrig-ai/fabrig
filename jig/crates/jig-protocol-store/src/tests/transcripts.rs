@@ -273,7 +273,9 @@ fn an_oversized_later_turn_refuses_the_whole_batch_and_prior_data_survives_crash
     let mut disk = Disk::new(&[]);
     let mut store = disk.store();
     let opened = disk.open(&mut store);
-    let [Event::Opened { last: 0, .. }] = &*opened else { panic!("empty store opened: {opened:?}") };
+    let [Event::Opened { last: 0, .. }, Event::Census { .. }] = &*opened else {
+        panic!("empty store opened: {opened:?}")
+    };
     let prior = fixtures::turn(LIVE, 1, 1, b"old");
     let committed = disk.request(
         &mut store,
@@ -321,7 +323,9 @@ fn an_oversized_later_turn_refuses_the_whole_batch_and_prior_data_survives_crash
     disk.crash(17);
     let mut reopened = disk.store();
     let opened = disk.open(&mut reopened);
-    let [Event::Opened { last: 1, .. }] = &*opened else { panic!("prior commit recovered: {opened:?}") };
+    let [Event::Opened { last: 1, .. }, Event::Census { .. }] = &*opened else {
+        panic!("prior commit recovered: {opened:?}")
+    };
     let read = disk.request(
         &mut reopened,
         crate::Request::Transcript {
@@ -1105,7 +1109,7 @@ fn cut_done(store: &mut Store, request: file::Request, mut below: Below) -> Box<
     fixtures::script(store, below, &[Answer::Cut, Answer::Synced, Answer::Closed])
 }
 fn opened(events: &[Event]) {
-    let [Event::Opened { owner, last, installation: _, pending: false }] = events else {
+    let [Event::Opened { owner, last, installation: _, pending: false }, Event::Census { .. }] = events else {
         panic!("open after cuts: {events:?}");
     };
     assert_eq!(*owner, Token::new(801));
