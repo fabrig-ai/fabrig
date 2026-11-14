@@ -377,12 +377,13 @@ impl Observer {
     }
 
     /// Submit one translated observation, identifying the first broken promise.
-    pub fn observe(&mut self, now: u64, observed: r::Observed) {
+    pub fn observe(&mut self, now: u64, observed: r::Observed) -> Result<(), String> {
         if let Some(recorded) = &mut self.recorded {
             recorded.push(observed);
         } else {
-            self.referee.observe(now, observed).unwrap_or_else(|error| panic!("referee {error:?} at {now}"));
+            self.referee.observe(now, observed).map_err(|error| format!("referee {error:?} at {now}"))?;
         }
+        Ok(())
     }
 
     /// Record evidence for a referee owned by an enclosing harness.
@@ -404,7 +405,7 @@ impl Observer {
 
     /// Observe inbound peer traffic, before the root may decide it. `store` runs
     /// only for an event whose check reads a row (`jig/docs/design/domain/testing.md`, 5).
-    pub fn inbound<'a>(&mut self, store: impl FnOnce() -> Store<'a>, now: u64, event: &mut core::Event) {
+    pub fn inbound<'a>(&mut self, store: impl FnOnce() -> Store<'a>, now: u64, event: &mut core::Event) -> Result<(), String> {
         self.project_makes.act(event);
         let reads_row = matches!(
             event,
@@ -417,14 +418,14 @@ impl Observer {
         );
         if !reads_row {
             for observed in self.intents.inbound(event) {
-                self.observe(now, observed);
+                self.observe(now, observed)?;
             }
-            return;
+            return Ok(());
         }
         let store = store();
         self.project_makes.ask(&store, event);
         for observed in self.intents.inbound_core(&store, event) {
-            self.observe(now, observed);
+            self.observe(now, observed)?;
         }
         if let core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask }) = event {
             let person = store.rows.values().copied().find_map(|row| match row {
@@ -450,6 +451,7 @@ impl Observer {
                 }
             }
         }
+        Ok(())
     }
 
     /// A restart changes future makes' configured policies, never an existing project's.
@@ -522,7 +524,7 @@ impl Observer {
     }
 
     /// Compare the cold store with the receipts that outside observers saw.
-    pub fn cold(&mut self, now: u64, store: &Store<'_>) {
+    pub fn cold(&mut self, now: u64, store: &Store<'_>) -> Result<(), String> {
         self.projection.invalidate();
         self.requests.retain(|_, (_, _, seen)| seen.is_none());
         // An uncommitted forget is lost with the old root. A start's mark may
@@ -566,7 +568,8 @@ impl Observer {
                 | core::Record::Accounts(_) => None,
             }))
             .collect();
-        self.observe(now, r::Observed::ColdStore { receipts });
+        self.observe(now, r::Observed::ColdStore { receipts })?;
+        Ok(())
     }
 
     /// Observe the commit the store has just received, and the revisions it names.
@@ -576,7 +579,7 @@ impl Observer {
         commit: Option<Commit<'a>>,
         named: Vec<NamedRevision>,
         store: impl FnOnce() -> Store<'a>,
-    ) {
+    ) -> Result<(), String> {
         self.intents.submitted(commit.as_ref().map(|commit| commit.number), named);
         if let Some(pending) = commit {
             self.projection.submitted(&pending);
@@ -608,7 +611,7 @@ impl Observer {
                 matches!(write, Write::Erase(core::Key::Tasks(tasks::Key::Activity { .. } | tasks::Key::Ended(_))))
             });
             if !erases_task {
-                return;
+                return Ok(());
             }
             let store = store();
             let mut tasks = Vec::new();
@@ -622,10 +625,9 @@ impl Observer {
                     for key in store.rows.keys() {
                         if matches!(key, core::Key::People(people::Key::ReadConversation { task: chat, .. }) if chat == task)
                         {
-                            assert!(
-                                pending.writes.contains(&Write::Erase(key.clone())),
-                                "read marker erases with its owner"
-                            );
+                            if !pending.writes.contains(&Write::Erase(key.clone())) {
+                                return Err("read marker erases with its owner".into());
+                            }
                         }
                     }
                     tasks.push(*task);
@@ -635,6 +637,7 @@ impl Observer {
                 self.forgetting.insert(pending.number, tasks);
             }
         }
+        Ok(())
     }
 
     /// The last commit applied to the observer's durable evidence.
@@ -644,25 +647,27 @@ impl Observer {
     }
 
     /// Snapshot only the store's durable rows, including held acknowledgements.
-    pub fn durable(&mut self, now: u64, store: &Store<'_>) {
-        self.durable_at(now, store, store.applied);
+    pub fn durable(&mut self, now: u64, store: &Store<'_>) -> Result<(), String> {
+        self.durable_at(now, store, store.applied)?;
+        Ok(())
     }
 
     /// Upgrade metadata and the start's mark do not change the referee's
     /// snapshot. At bootstrap, these repeat the seed's view.
-    pub fn fresh_mark(&mut self, now: u64, store: &Store<'_>) {
+    pub fn fresh_mark(&mut self, now: u64, store: &Store<'_>) -> Result<(), String> {
         for number in self.applied + 1..=store.applied {
-            self.durable_at(now, store, number);
+            self.durable_at(now, store, number)?;
         }
+        Ok(())
     }
 
     #[expect(clippy::too_many_lines, reason = "one boundary translation projects every durable family")]
-    fn durable_at(&mut self, now: u64, store: &Store<'_>, number: u64) {
+    fn durable_at(&mut self, now: u64, store: &Store<'_>, number: u64) -> Result<(), String> {
         if number == self.applied {
-            return;
+            return Ok(());
         }
         for observed in self.intents.durable(store) {
-            self.observe(now, observed);
+            self.observe(now, observed)?;
         }
         for (project, policy) in self.project_makes.durable(store) {
             if !self.referee.policy.projects.contains_key(&project) {
@@ -724,7 +729,9 @@ impl Observer {
                 }
                 core::Record::Tasks(tasks::Stored::Activity(value)) => {
                     let kept = self.activity.entry((value.task, value.position)).or_insert_with(|| value.clone());
-                    assert_eq!(kept, value, "immutable activity row changed");
+                    if kept != value {
+                        return Err("immutable activity row changed".into());
+                    }
                 }
                 core::Record::Tasks(tasks::Stored::History(value)) => {
                     if value.change == tasks::Change::ProposalAccepted
@@ -763,7 +770,9 @@ impl Observer {
                     if let people::Ask::Say { task, .. } = ask.as_ref()
                         && let people::Outcome::Said { task: answered, message } = outcome
                     {
-                        assert_eq!(task, answered, "party's words answered for another task");
+                        if task != answered {
+                            return Err("party's words answered for another task".into());
+                        }
                         if self.words.insert((*task, *message)) {
                             words.push((*task, *message));
                         }
@@ -836,32 +845,32 @@ impl Observer {
         }
         for ((task, position), kept) in &self.activity {
             let key = core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position });
-            assert!(
-                matches!(store.rows.get(&key), Some(core::Record::Tasks(tasks::Stored::Activity(row))) if row == kept),
-                "immutable activity row disappeared"
-            );
+            if !matches!(store.rows.get(&key), Some(core::Record::Tasks(tasks::Stored::Activity(row))) if row == kept) {
+                return Err("immutable activity row disappeared".into());
+            }
         }
-        self.observe(now, r::Observed::Durable { number, snapshot });
+        self.observe(now, r::Observed::Durable { number, snapshot })?;
         self.applied = number;
         let applied: Vec<_> = self.forgetting.keys().copied().filter(|commit| *commit <= number).collect();
         for number in applied {
             for task in self.forgetting.remove(&number).expect("submitted retention") {
-                self.observe(now, r::Observed::Forgotten { task });
+                self.observe(now, r::Observed::Forgotten { task })?;
             }
         }
         for (task, message) in words {
-            self.observe(now, r::Observed::Words { task, message });
+            self.observe(now, r::Observed::Words { task, message })?;
         }
         for receipt in reached {
-            self.observe(now, r::Observed::Reached(receipt));
+            self.observe(now, r::Observed::Reached(receipt))?;
         }
+        Ok(())
     }
 
     /// Observe a released core output.
-    pub fn delivered(&mut self, now: u64, delivery: &mut core::Held) {
+    pub fn delivered(&mut self, now: u64, delivery: &mut core::Held) -> Result<(), String> {
         if let core::Held::PeopleReply { to, reply } = &mut *delivery {
             for observed in self.intents.reply(skein_lib::Token::new(destination(to)), reply) {
-                self.observe(now, observed);
+                self.observe(now, observed)?;
             }
         }
         let mut requires = Vec::new();
@@ -890,17 +899,17 @@ impl Observer {
                 requires.push(call(*key));
             }
             core::Held::PeopleReply { to, reply } => {
-                self.reply_receipts(to, reply, &mut requires);
+                self.reply_receipts(to, reply, &mut requires)?;
                 if let people::Reply::Outcome(people::Outcome::ProjectRemoved { project }) = reply {
-                    self.observe(now, r::Observed::ProjectRemoved { project: *project });
+                    self.observe(now, r::Observed::ProjectRemoved { project: *project })?;
                 }
             }
             core::Held::Acted { outcome: people::Outcome::ProjectRemoved { project }, .. } => {
-                self.observe(now, r::Observed::ProjectRemoved { project: *project });
+                self.observe(now, r::Observed::ProjectRemoved { project: *project })?;
             }
             core::Held::Result { person, task, .. } => {
                 requires.push(r::Receipt::Ended(*task));
-                self.observe(now, r::Observed::Result { task: *task, to: r::Source::Person(*person) });
+                self.observe(now, r::Observed::Result { task: *task, to: r::Source::Person(*person) })?;
             }
             // The application's use of need arrivals is its own.
             core::Held::NeedArrived { .. }
@@ -938,28 +947,31 @@ impl Observer {
             | core::Held::NotesWritten { .. }
             | core::Held::NotesDeleted { .. } => {}
         }
-        self.observe(now, r::Observed::Released { requires });
+        self.observe(now, r::Observed::Released { requires })?;
+        Ok(())
     }
     /// A host's independently reported completion charge.
-    pub fn completion(&mut self, now: u64, task: u64, attempt: u64, cumulative: u64) {
+    pub fn completion(&mut self, now: u64, task: u64, attempt: u64, cumulative: u64) -> Result<(), String> {
         if self.claims.contains(&(task, attempt)) {
-            self.observe(now, r::Observed::Completion { task, attempt, cumulative });
+            self.observe(now, r::Observed::Completion { task, attempt, cumulative })?;
         }
+        Ok(())
     }
     /// A prepared assignment released to a host.
-    pub fn assigned(&mut self, now: u64, assignment: Assignment, messages: &[tasks::Word]) {
+    pub fn assigned(&mut self, now: u64, assignment: Assignment, messages: &[tasks::Word]) -> Result<(), String> {
         let Assignment { task, attempt, conversation, resumed, budget, settings } = assignment;
-        self.observe(now, r::Observed::Assigned { task, attempt, conversation, resumed, budget, settings });
+        self.observe(now, r::Observed::Assigned { task, attempt, conversation, resumed, budget, settings })?;
         for word in messages {
-            self.observe(now, r::Observed::Reached(r::Receipt::Word(task, word.number)));
+            self.observe(now, r::Observed::Reached(r::Receipt::Word(task, word.number)))?;
         }
+        Ok(())
     }
     /// A settled named call's body must be durable before its answer.
-    pub fn call_answer(&self, task: u64, attempt: u64, serial: u64, writes: bool) {
-        assert!(
-            !writes || serial == 0 || self.settled_calls.contains(&(task, attempt, serial)),
-            "answer preceded its durable named-call record"
-        );
+    pub fn call_answer(&self, task: u64, attempt: u64, serial: u64, writes: bool) -> Result<(), String> {
+        if writes && serial != 0 && !self.settled_calls.contains(&(task, attempt, serial)) {
+            return Err("answer preceded its durable named-call record".into());
+        }
+        Ok(())
     }
 
     fn terminal_receipt(&self, run: u64, attempt: u64) -> Option<r::Receipt> {
@@ -974,7 +986,7 @@ impl Observer {
         })
     }
 
-    fn reply_receipts(&mut self, to: &mut skein_lib::ReplyTo, reply: &people::Reply, requires: &mut Vec<r::Receipt>) {
+    fn reply_receipts(&mut self, to: &mut skein_lib::ReplyTo, reply: &people::Reply, requires: &mut Vec<r::Receipt>) -> Result<(), String> {
         match reply {
             people::Reply::SignedIn { sign_in, .. } => requires.push(r::Receipt::SignIn(*sign_in)),
             people::Reply::Signer(_)
@@ -991,13 +1003,16 @@ impl Observer {
                 let to = destination(to);
                 if let Some((person, key, seen)) = self.requests.remove(&to) {
                     if let Some(fence) = seen {
-                        assert!(self.applied >= fence.after, "Seen reply preceded its durable position/forget commit");
+                        if self.applied < fence.after {
+                            return Err("Seen reply preceded its durable position/forget commit".into());
+                        }
                     } else {
                         requires.push(r::Receipt::Party(person, key));
                     }
                 }
             }
         }
+        Ok(())
     }
 }
 

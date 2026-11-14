@@ -100,7 +100,7 @@ impl Observer {
         observer.inner.record();
         observer
     }
-    pub fn systems(&mut self, now: u64, systems: &[jig_test_system::System; 2]) {
+    pub fn systems(&mut self, now: u64, systems: &[jig_test_system::System; 2]) -> Result<(), String> {
         for (index, system) in systems.iter().enumerate() {
             let connector = u16::try_from(index + 1).expect("two systems");
             for read in &system.reads()[self.reads[index]..] {
@@ -111,7 +111,7 @@ impl Observer {
                         state: read.state,
                         at: read.at,
                     },
-                );
+                )?;
             }
             self.reads[index] = system.reads().len();
             for effect in &system.observed()[self.effects[index]..] {
@@ -134,12 +134,13 @@ impl Observer {
                             copy: effect.copy,
                         },
                     },
-                );
+                )?;
             }
             self.effects[index] = system.observed().len();
         }
+        Ok(())
     }
-    pub fn workers(&mut self, now: u64, workers: &[jig_fake_workers::Worker]) {
+    pub fn workers(&mut self, now: u64, workers: &[jig_fake_workers::Worker]) -> Result<(), String> {
         let mut totals: BTreeMap<u64, (u64, u64)> = BTreeMap::new();
         for worker in workers {
             for ((task, attempt), expense) in &worker.expenses {
@@ -152,7 +153,7 @@ impl Observer {
                             turns: expense.lost_turns,
                             spent: expense.lost,
                         },
-                    );
+                    )?;
                 }
                 let total = totals.entry(*task).or_default();
                 total.0 += expense.spent;
@@ -160,30 +161,31 @@ impl Observer {
             }
         }
         for (task, (spent, lost_bound)) in totals {
-            self.observe(now, r::Observed::Spend { task, spent, lost_bound });
+            self.observe(now, r::Observed::Spend { task, spent, lost_bound })?;
         }
+        Ok(())
     }
     pub fn configure_projects(&mut self, config: &root::Config) {
         self.inner.configure_projects(&config.core);
     }
-    pub fn inbound(&mut self, store: &Store, now: u64, event: &mut root::Event) {
+    pub fn inbound(&mut self, store: &Store, now: u64, event: &mut root::Event) -> Result<(), String> {
         if let root::Event::Core(event) = event {
-            self.inner.inbound(|| store_view(store), now, event);
+            self.inner.inbound(|| store_view(store), now, event)?;
         }
         if let root::Event::Answer { task, attempt, end, .. } = event {
             for observed in self.inner.intents.terminal(*task, *attempt, end) {
-                self.observe(now, observed);
+                self.observe(now, observed)?;
             }
         }
         if let root::Event::EffectCall { key, proposal: Some(_), .. } = event {
             for observed in self.inner.intents.propose(*key) {
-                self.observe(now, observed);
+                self.observe(now, observed)?;
             }
         }
         if let root::Event::Turn { task, attempt, cumulative, .. }
         | root::Event::Answer { task, attempt, cumulative, .. } = event
         {
-            self.inner.completion(now, *task, *attempt, *cumulative);
+            self.inner.completion(now, *task, *attempt, *cumulative)?;
         }
         if let root::Event::Connector {
             number,
@@ -203,14 +205,15 @@ impl Observer {
                 root::Record::Core(_) | root::Record::Connector { .. } => None,
             })
         {
-            self.observe(now, r::Observed::Uncertain { connector: *number, key: effect_key(key) });
+            self.observe(now, r::Observed::Uncertain { connector: *number, key: effect_key(key) })?;
         }
         if let Some(observed) = crate::application_observations::requested(store, event) {
             self.application_requests = true;
-            self.observe(now, observed);
+            self.observe(now, observed)?;
         }
+        Ok(())
     }
-    pub fn submitted(&mut self, now: u64, store: &Store) {
+    pub fn submitted(&mut self, now: u64, store: &Store) -> Result<(), String> {
         let mut named = Vec::new();
         if let Some(commit) = store.pending.back() {
             for write in &commit.writes {
@@ -239,29 +242,33 @@ impl Observer {
             .pending
             .back()
             .map(|pending| conformance::commit(pending.number, pending.writes.as_ref(), core_write));
-        self.inner.submitted(commit, named, || store_view(store));
+        self.inner.submitted(commit, named, || store_view(store))?;
         if self.application_requests {
             for observed in crate::application_observations::submitted(store) {
-                self.observe(now, observed);
+                self.observe(now, observed)?;
             }
         }
+        Ok(())
     }
-    pub fn durable(&mut self, now: u64, store: &Store) {
+    pub fn durable(&mut self, now: u64, store: &Store) -> Result<(), String> {
         if store.applied == self.inner.applied() {
-            return;
+            return Ok(());
         }
-        self.inner.durable(now, &store_view(store));
+        self.inner.durable(now, &store_view(store))?;
+        Ok(())
     }
-    pub fn fresh_mark(&mut self, now: u64, store: &Store) {
+    pub fn fresh_mark(&mut self, now: u64, store: &Store) -> Result<(), String> {
         if store.applied == self.inner.applied() {
-            return;
+            return Ok(());
         }
-        self.inner.fresh_mark(now, &store_view(store));
+        self.inner.fresh_mark(now, &store_view(store))?;
+        Ok(())
     }
-    pub fn cold(&mut self, now: u64, store: &Store) {
-        self.inner.cold(now, &store_view(store));
+    pub fn cold(&mut self, now: u64, store: &Store) -> Result<(), String> {
+        self.inner.cold(now, &store_view(store))?;
+        Ok(())
     }
-    pub fn delivered(&mut self, now: u64, delivery: &mut root::Delivery) {
+    pub fn delivered(&mut self, now: u64, delivery: &mut root::Delivery) -> Result<(), String> {
         let mut requires = Vec::new();
         match delivery {
             root::Delivery::Assigned { assignment, .. } => {
@@ -276,18 +283,18 @@ impl Observer {
                         settings: assignment.run.revision,
                     },
                     &assignment.messages,
-                );
+                )?;
             }
             root::Delivery::Core(held) => {
-                self.inner.delivered(now, held);
-                return;
+                self.inner.delivered(now, held)?;
+                return Ok(());
             }
             root::Delivery::CallAnswer { task, attempt, call: settled, writes, .. } => {
-                self.inner.call_answer(*task, *attempt, settled.serial, *writes);
+                self.inner.call_answer(*task, *attempt, settled.serial, *writes)?;
             }
             root::Delivery::Message { task: run, word, .. } => {
                 requires.push(r::Receipt::Word(*run, word.number));
-                self.observe(now, r::Observed::Reached(r::Receipt::Word(*run, word.number)));
+                self.observe(now, r::Observed::Reached(r::Receipt::Word(*run, word.number)))?;
             }
             root::Delivery::System { connector, call: connector::SystemRequest::Apply { key, attempt, .. } } => {
                 requires.push(r::Receipt::Outbox(*connector, effect_key(*key), *attempt));
@@ -306,7 +313,7 @@ impl Observer {
                         connector: *number,
                         outcome: crate::application_observations::encoded(outcome),
                     },
-                );
+                )?;
             }
             root::Delivery::Fleet(_)
             | root::Delivery::ApplicationDocument { .. }
@@ -319,7 +326,8 @@ impl Observer {
             | root::Delivery::Start(_)
             | root::Delivery::System { .. } => {}
         }
-        self.observe(now, r::Observed::Released { requires });
+        self.observe(now, r::Observed::Released { requires })?;
+        Ok(())
     }
 }
 fn core_row(row: &root::Record) -> Option<&jig_domain_core::Record> {
