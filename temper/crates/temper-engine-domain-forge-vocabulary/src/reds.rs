@@ -12,6 +12,13 @@ pub struct Red {
     pub at: u64,
     pub generation: u64,
 }
+/// A change's latest passed check of a goal's red (reds.md, 5.7).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RedPass {
+    pub change: u64,
+    pub key: Box<[u8]>,
+    pub generation: u64,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RecordRed {
     pub goal: u64,

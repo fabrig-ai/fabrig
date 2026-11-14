@@ -10,7 +10,7 @@ use alloc::boxed::Box;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Undecodable;
 
-/// A run's application read (temper/docs/design/domain/forge/reds.md, 5.4).
+/// A run's application read or report (temper/docs/design/domain/forge/reds.md, 5.4 and 5.6).
 /// A check's report (temper/docs/design/domain/forge/reds.md, 5.6).
 #[derive(Hash, PartialEq, Eq, Debug)]
 pub struct CheckResults {

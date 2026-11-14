@@ -108,11 +108,18 @@ fn results_require_whole_asks_and_sha1_or_sha256_tree_and_base() {
     for malformed in [bytes.get(..bytes.len() - 1).unwrap(), trailing.as_ref()] {
         assert_eq!(reds::answer(&mut service, &run, malformed, 21), host::AskAnswer::Refused);
     }
-    // A tree past the schema ceiling is refused from its length prefix alone.
-    let mut oversized = skein_lib::Writer::new(21);
-    oversized.put(&[1]).unwrap();
-    oversized.put(&1_u64.to_be_bytes()).unwrap();
-    oversized.put(&2_u64.to_be_bytes()).unwrap();
-    oversized.put(&33_u32.to_be_bytes()).unwrap();
-    assert_eq!(reds::answer(&mut service, &run, &oversized.finish(), 22), host::AskAnswer::Refused);
+    // A tree or base past the schema ceiling is refused from its length prefix alone.
+    for base in [false, true] {
+        let mut oversized = skein_lib::Writer::new(if base { 46 } else { 21 });
+        oversized.put(&[1]).unwrap();
+        oversized.put(&1_u64.to_be_bytes()).unwrap();
+        oversized.put(&2_u64.to_be_bytes()).unwrap();
+        if base {
+            oversized.put(&20_u32.to_be_bytes()).unwrap();
+            oversized.put(&[3; 20]).unwrap();
+            oversized.put(&[1]).unwrap();
+        }
+        oversized.put(&33_u32.to_be_bytes()).unwrap();
+        assert_eq!(reds::answer(&mut service, &run, &oversized.finish(), 22), host::AskAnswer::Refused);
+    }
 }

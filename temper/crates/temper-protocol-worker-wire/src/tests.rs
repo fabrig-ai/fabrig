@@ -191,10 +191,8 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     let one_more =
         largest + u64::from(v1::CEILINGS.items_repositories) * (4 + u64::from(v1::CEILINGS.prefixes_branches_item));
     assert!(one_more > 1_048_576);
-    assert_eq!(
-        sizes,
-        crate::Largest { items: 12792, left: 86, saved: 1084, resource: 41, grant: 233, ask: 1, answer: 109 }
-    );
+    assert_eq!(u64::from(sizes.ask), v1::Ask::encoded_bound(&v1::CEILINGS).expect("worker's ask envelope"));
+    assert_eq!(u64::from(sizes.answer), v1::Answer::encoded_bound(&limits).expect("answer"));
 }
 
 #[test]

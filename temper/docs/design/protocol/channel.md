@@ -362,7 +362,7 @@ the routing in the step that routes the record:
   | `left` | `Left` | the checkout's `repositories` |
   | `saved` | `Saved` | the checkout's `repositories`, `conflicts` and `path_bytes`, and `PushDiagnostic::CAPACITY` |
   | `resource` | `Preparation` | fixed |
-  | `ask` | `Ask` | a check's results: the engine: `forge.branch_reds` passed and as many failed keys of `forge.red_key_bytes`, and 16 flakes of a 512-byte key and a 2,048-byte log; the worker: the schema's ceilings, 256 keys of 512 bytes each way and the same flakes (`../domain/forge/reds.md`, 5.6) |
+  | `ask` | `Ask` | a check's results at the schema's ceilings on both sides: 256 keys of 512 bytes each way and 16 flakes of a 512-byte key and a 2,048-byte log. The worker sends an ask and the engine takes it, so the engine's size is the worker's, not one from its forge's limits; the engine's decode still refuses a report past `forge.branch_reds` and `forge.red_key_bytes` (`../domain/forge/reds.md`, 5.6) |
   | `answer` | `Answer` | the engine: `forge.branch_reds` reds of `forge.red_key_bytes` with a 32-byte head; the worker: the schema's ceilings, 256 reds of 512 bytes (`../domain/forge/reds.md`, 5.4) |
   | `evidence` | smith's delivery reply | smith's channel limits, as the hub's `delivery_evidence_bytes` takes them |
   | `grant` | max(credential value bound, program source name bound 32, generated `Identity::encoded_bound`), which grows with `forges.installations` on a GitHub forge | jig's accounts (jig's `protocol/llm.md`, section 6); an identity's login and author at their bounds, `records.value_bytes` and `forges.installations`, checked to fit jig's grant bound at start (configuration/engine.md) |

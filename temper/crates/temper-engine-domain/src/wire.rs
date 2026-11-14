@@ -1,4 +1,4 @@
-//! The application's typed ask and snapshot (temper/docs/design/domain/forge/reds.md, 5.4).
+//! The application's typed asks and answers (temper/docs/design/domain/forge/reds.md, 5.4 and 5.6).
 use crate::{Domain, RunRed, reds_for_run};
 use alloc::boxed::Box;
 use skein_lib::Token;

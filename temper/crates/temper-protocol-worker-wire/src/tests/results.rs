@@ -44,14 +44,15 @@ fn largest_report(limits: &v1::Limits) -> v1::CheckResults {
 }
 
 #[test]
-fn reports_at_each_sides_bounds_fill_the_largest_ask() {
+fn reports_roundtrip_at_bounds_and_the_ask_envelope_holds_the_worker_ceiling() {
     for limits in [fixtures::limits(), v1::CEILINGS] {
         let ask = v1::Ask::Results(largest_report(&limits));
         let bytes = crate::ask(&ask);
         assert_eq!(v1::Ask::decode(&limits, &mut Reader::new(&bytes)).unwrap(), ask);
         let largest = crate::largest(&limits).unwrap();
-        assert_eq!(usize::try_from(largest.ask).unwrap(), bytes.len());
-        assert_eq!(u64::from(largest.ask), v1::Ask::encoded_bound(&limits).unwrap());
+        assert!(bytes.len() <= usize::try_from(largest.ask).unwrap());
+        assert_eq!(u64::from(largest.ask), v1::Ask::encoded_bound(&v1::CEILINGS).unwrap());
+        assert_eq!(largest.ask, 305_383);
         assert!(largest.ask <= jig_protocol_worker_wire::v14::CEILINGS.ask_bytes);
     }
 }

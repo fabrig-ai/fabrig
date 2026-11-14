@@ -1133,3 +1133,6 @@ mod landing_log_tests;
 
 #[path = "status.rs"]
 mod status_tests;
+
+#[path = "red_passes.rs"]
+mod red_pass_tests;

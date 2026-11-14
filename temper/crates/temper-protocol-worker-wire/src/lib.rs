@@ -101,7 +101,10 @@ pub fn largest(limits: &v1::Limits) -> Option<Largest> {
         saved: narrow(v1::Saved::encoded_bound(limits)?)?,
         resource: narrow(v1::Preparation::encoded_bound(limits)?)?,
         grant: narrow(v1::Identity::encoded_bound(limits)?)?,
-        ask: narrow(v1::Ask::encoded_bound(limits)?)?,
+        // The worker sends at the schema ceilings. The engine must admit that
+        // envelope on jig's channel before applying its own report decode bounds
+        // (protocol/channel.md, 8; domain/forge/reds.md, 5.6).
+        ask: narrow(v1::Ask::encoded_bound(&v1::CEILINGS)?)?,
         answer: narrow(v1::Answer::encoded_bound(limits)?)?,
     })
 }
@@ -158,7 +161,7 @@ pub fn answer(value: &v1::Answer) -> Box<[u8]> {
     writer.finish()
 }
 
-/// Head lengths admitted by the application (domain/forge/reds.md, 5.4).
+/// Commit lengths admitted by the application (domain/forge/reds.md, 5.4 and 5.6).
 #[must_use]
 pub fn red_head(head: &[u8]) -> bool {
     head.len() == 20 || head.len() == 32
