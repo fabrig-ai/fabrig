@@ -15,23 +15,10 @@ pub(super) fn is_release(domain: &Domain, task: u64) -> bool {
         return false;
     }
     let revision = record.revisions.hold;
-    match domain.forge_release_steps.get(&task) {
-        Some((consumed, _)) => *consumed != revision,
-        None => match &row.task_release {
-            Some(release) => release.revision != revision,
-            None => true,
-        },
+    match &row.task_release {
+        Some(release) => release.revision != revision,
+        None => true,
     }
-}
-
-pub(super) fn take_release(domain: &mut Domain, task: u64) -> bool {
-    if !is_release(domain, task) {
-        return false;
-    }
-    let record = domain.core.tasks.task(task).expect("released task");
-    let release = (record.revisions.hold, record.phase_since);
-    domain.forge_release_steps.insert(task, release).expect("one release per live change");
-    true
 }
 
 /// Defer this activation only while its historical terminal is being read.
@@ -43,16 +30,32 @@ pub(crate) fn start(
 ) -> bool {
     let task = context.task;
     let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { return false };
-    let released = take_release(domain, task);
+    let released = is_release(domain, task);
     if released {
         domain
             .forge_delegating
             .insert((task, step), super::ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
             .expect("one release per change step");
-        super::super::forge_event(domain, env, decision, forge::Event::ReleaseChange { task, release: Some(forge::TaskRelease { revision: domain.core.tasks.task(task).expect("released task").revisions.hold, at: domain.core.tasks.task(task).expect("released task").phase_since }) });
+        super::super::forge_event(
+            domain,
+            env,
+            decision,
+            forge::Event::ReleaseChange {
+                task,
+                release: Some(forge::TaskRelease {
+                    revision: domain.core.tasks.task(task).expect("released task").revisions.hold,
+                    at: domain.core.tasks.task(task).expect("released task").phase_since,
+                }),
+            },
+        );
     }
     let Some(row) = domain.forge.change(task) else { return false };
     let Some((child, _)) = row.delegate else { return false };
+    for word in &context.inbox {
+        if !released && word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind).is_some() {
+            return false;
+        }
+    }
     let mut stale_question = false;
     for question in &row.questions.open {
         stale_question |= question.asker == child;
@@ -119,6 +122,10 @@ pub(crate) fn loaded(
     let Some((_, _, due)) = domain.core.tasks.procedure_due(task) else { return };
     let Some(row) = domain.forge.change(task) else { return };
     let Some((expected, _)) = row.delegate else { return };
+    let released_at = match &row.task_release {
+        Some(release) => Some(release.at),
+        None => None,
+    };
     if record.revisions.hold != revision || due != step || expected != child {
         return;
     }
@@ -153,8 +160,8 @@ pub(crate) fn loaded(
     }
     let (status, no_change, failed, cancelled, words) = terminal(ending);
     // An end recovered by a release cannot spend that release's fresh allowance.
-    let ended_at = match (ended.ended_at, domain.forge_release_steps.get(&task)) {
-        (Some(at), Some((_, released))) => Some(at.max(*released)),
+    let ended_at = match (ended.ended_at, released_at) {
+        (Some(at), Some(released)) => Some(at.max(released)),
         (at, None) => at,
         (None, Some(_)) => None,
     };

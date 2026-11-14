@@ -342,9 +342,6 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
 }
 
 fn keep_produced_title(domain: &mut Domain, record: &core::Record) {
-    if let core::Record::Tasks(tasks::Stored::Ended(row)) = record {
-        domain.forge_release_steps.remove(&row.number);
-    }
     if let core::Record::Tasks(tasks::Stored::Ended(row)) = record
         && let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { title, words, .. })) = &row.phase
         && let tasks::Party::Task(task) = row.requester

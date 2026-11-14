@@ -4117,6 +4117,47 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
 }
 
 #[test]
+fn a_consumed_task_release_is_not_replayed_after_restore() {
+    use super::{forge, tasks};
+    use skein_lib::Queue;
+    let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
+    for revision in [1, 2] {
+        let (mut domain, env) = two_forges();
+        domain.core.tasks = tasks::Domain::new(
+            &env.limits.tasks,
+            tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
+            7,
+            0,
+            Box::new([]),
+            Box::new([]),
+        );
+        let mut task = fixture.core.tasks.task(task).unwrap().clone();
+        task.number = 7;
+        task.due_reason = tasks::Why::Released;
+        task.revisions.hold = revision;
+        tasks::step(
+            &mut domain.core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Restore { record: tasks::Stored::Live(Box::new(task)) },
+            &mut Queue::uncapped(),
+        );
+        let mut row = change_row(None);
+        row.task_release = Some(forge::TaskRelease { revision: 1, at: env.wall });
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+            &mut Queue::uncapped(),
+        );
+        assert_eq!(
+            super::delegate_record::is_release(&domain, 7),
+            revision != 1,
+            "a consumed revision survives restart; a later release remains fresh"
+        );
+    }
+}
+
+#[test]
 fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     use super::{Work, forge, forge_change as change, tasks};
     use skein_lib::Queue;

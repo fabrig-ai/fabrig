@@ -728,7 +728,13 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         &w::CEILINGS,
         w::ChangeRowParts {
             task_release: match task_release {
-                Some(release) => Some(w::TaskRelease::new(&w::CEILINGS, w::TaskReleaseParts { revision: release.revision, at: release.at.as_nanos() }).expect(FITS)),
+                Some(release) => Some(
+                    w::TaskRelease::new(
+                        &w::CEILINGS,
+                        w::TaskReleaseParts { revision: release.revision, at: release.at.as_nanos() },
+                    )
+                    .expect(FITS),
+                ),
                 None => None,
             },
             signed: super::landing_log::encode_signed(signed),
@@ -864,7 +870,10 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, s
     } = value.into_parts();
     Ok(top::ChangeRow {
         task_release: match task_release {
-            Some(release) => { let w::TaskReleaseParts { revision, at } = release.into_parts(); Some(top::TaskRelease { revision, at: Wall::from_nanos(at) }) },
+            Some(release) => {
+                let w::TaskReleaseParts { revision, at } = release.into_parts();
+                Some(top::TaskRelease { revision, at: Wall::from_nanos(at) })
+            }
             None => None,
         },
         signed: super::landing_log::decode_signed(signed),

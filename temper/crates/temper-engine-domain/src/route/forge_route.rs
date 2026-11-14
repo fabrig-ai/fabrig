@@ -2529,7 +2529,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         drop_settled_change(domain, env, &mut out);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
-        task_release: None,
+                task_release: None,
                 signed: Box::new([]),
                 task,
                 repository: provider,
@@ -2656,7 +2656,6 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             .expect("one released relay per change step");
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
-    delegate_record::take_release(domain, task);
     domain.work.push(Work::Forge(step));
     true
 }

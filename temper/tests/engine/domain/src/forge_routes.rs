@@ -2617,6 +2617,27 @@ impl World {
     )]
     fn tick_with_reply_cut(&mut self, target: Option<u64>, resume: bool) -> bool {
         let mut lost = false;
+        // A Busy retry keeps the offered change step in flight. Drain that
+        // read's timer before snapshotting; an idle procedure's poll is not work.
+        let retrying_change = self.oracle_running
+            && self.events.is_empty()
+            && self.immediate.is_empty()
+            && self.pending.is_empty()
+            && self.store.idle()
+            && self.store.rows.values().any(|row| {
+                matches!(row,
+                Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+                if matches!(task.executor, tasks::Executor::Procedure { code: 2, .. })
+                    && task.phase == tasks::Phase::Active(tasks::Active::Due))
+            });
+        let retrying_change = retrying_change
+            && self
+                .root
+                .next_deadline(&self.env)
+                .is_some_and(|due| due <= self.env.now.saturating_add(Duration::from_secs(1)));
+        if retrying_change && let Some(due) = self.root.next_deadline(&self.env) {
+            self.env.now = self.env.now.max(due);
+        }
         if self.oracle_running {
             if !self.pending.is_empty()
                 && let Some(due) = self.fake.next_deadline()
@@ -2723,7 +2744,7 @@ impl World {
         }
         self.collect();
         self.flush();
-        if !self.oracle_running {
+        if !self.oracle_running || retrying_change {
             engine::fire(&mut self.root, &self.env);
         }
         engine::release(&mut self.root, &self.env, &mut self.out);

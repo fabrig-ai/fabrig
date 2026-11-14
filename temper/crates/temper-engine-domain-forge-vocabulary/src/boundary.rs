@@ -982,14 +982,14 @@ pub struct FollowCheck {
     pub faults: u32,
     pub held: Option<Box<[u8]>>,
 }
-/// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
+/// A task release consumed by its change (temper/docs/design/domain/forge/change/repairs.md, A release).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TaskRelease {
     pub revision: u64,
     pub at: skein_lib::Wall,
 }
 
-/// The last task release consumed by the change survives restart.
+/// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
     pub task_release: Option<TaskRelease>,
