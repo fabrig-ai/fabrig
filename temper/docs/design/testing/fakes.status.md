@@ -25,5 +25,3 @@
   `temper/crates` do so. No reason is recorded, and no debt item holds
   them.
 
-- **Not yet:** 3: the fake git program asserts its replay's order as it
-  is asked, and its test catches. [in flight: change 2867]

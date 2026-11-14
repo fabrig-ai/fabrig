@@ -31,6 +31,3 @@ Section 7's reference service prints the printed link alone and drops
 the secret `LocalLink` gives (`jig/testing/jig-test-service/src/clients.rs`);
 no known gap.
 
-- **Not yet:** 8: the live sign-in test catches its run's panic to
-  print its failures and erase its records, and `scripts/live-sign-in.sh`
-  traps its exit alone. [in flight: change 2857]
