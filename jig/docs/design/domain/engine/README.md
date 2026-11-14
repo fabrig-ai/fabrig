@@ -824,6 +824,11 @@ section 5).
   `settings.proposals`. Default: check the full bound before replacement,
   refuse the fresh proposal and retain the pending set. Replacement
   grants no extra slot.
+- **A settings change past the fleet's needs bound** (`fleet.md`): a
+  change whose charters' needs pass `fleet.needs_bytes` is accepted, and
+  the next start refuses as `NeedsPastLimit`, naming the bound to raise.
+  Default: so; a proposal's admission that priced its needs would refuse
+  it before it is held.
 
 - **A party's scope beyond its asking runs** (`briefs.md`, 2.1): whether a delegate
   works for the person two tasks up and reads their preferences, whether

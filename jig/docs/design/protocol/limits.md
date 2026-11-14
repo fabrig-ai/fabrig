@@ -227,6 +227,13 @@
   over them, are priced at two whole sets within the counts and bytes
   above. Each is positive, or the start is refused, naming it; settings
   held past one lowered since refuse the start, saying which.
+- **The fleet's needs bound** (`fleet.needs_bytes`) holds the configured
+  charters' agent needs, in owned bytes, as the fleet counts them
+  (`../domain/engine/fleet.md`), or the start is refused as
+  `What::NeedsBytes { bytes, limit }` at `limits.fleet.needs_bytes`, as a
+  policy past its budget is as `What::PolicyBytes`. Stored settings whose
+  needs pass it refuse the start as `NeedsPastLimit`
+  (`../domain/engine/restart.md`).
 - **An application's kinds of settings** declare a value's largest
   bytes and the values per scope (`../domain/engine/settings.md`, 5), which
   enter the core's worst case for what it keeps of each setting, and
