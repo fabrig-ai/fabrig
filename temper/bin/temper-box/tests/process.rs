@@ -186,6 +186,11 @@ fn a_deployment_sized_repository_root_lands_by_turn() {
 }
 
 #[test]
+fn a_goal_delivering_mid_proof_leaves_and_lands_its_new_head() {
+    deployment_turn("deployment-midproof", support::batch_landing::deployment::run_midproof);
+}
+
+#[test]
 fn a_batch_of_four_narrows_its_breaking_member_with_deployment_limits() {
     use support::{batch_landing, landing_by_turn, turn_restart};
     let scratch = support::Scratch::new("deployment-batch-four");
