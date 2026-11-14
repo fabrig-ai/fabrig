@@ -9,7 +9,6 @@
   reference's description keeps the stock's rule 1 over its goals'
   branches until its owner sets the project's.
 
-- **Not yet:** the whole document: the repository's check still counts a lint or test failure its tree's list of known reds names as inherited, beside the goal's reds [in flight: change 3057].
 
 - **Departs:** the whole document: template 4's report reaches its run as at most
   1,024 bytes, jig's bound on a contract's text (jig's `domain/hosts/charters.md`
