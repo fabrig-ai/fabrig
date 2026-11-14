@@ -4413,7 +4413,6 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     };
     let account = if why == forge_change::Hold::Repairs
         && let Some(row) = domain.forge.change(task)
-        && row.follows.is_some()
     {
         let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
         append(&mut words, b"its repairs are spent: ");
