@@ -16,10 +16,16 @@ python3 -c 'from cryptography.hazmat.primitives.serialization import load_pem_pr
 export NEXTEST_DOUBLE_SPAWN=0
 ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --no-run
 scratch=$(readlink -f "$(mktemp -d "${TMPDIR:-/tmp}/temper-live-github.XXXXXX")")
+runner=
 cleanup() {
     status=$?
+    trap - EXIT INT TERM HUP
     # Backstop failures must not skip removal of the run's private state.
     set +e
+    if [ -n "$runner" ]; then
+        kill -TERM "$runner" 2>/dev/null
+        wait "$runner" 2>/dev/null
+    fi
     # A fresh private cwd identifies only this run's processes. Never inspect environments.
     owned=
     for process in /proc/[0-9]*; do
@@ -183,5 +189,8 @@ trap 'exit 129' HUP
 status=0
 TEMPER_TEST_LIVE_GITHUB_OWNER=$owner TEMPER_TEST_LIVE_GITHUB_FIXTURES=$fixtures TMPDIR=$scratch \
     ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo nextest run -p temper-box --profile live-temper --ignore-default-filter --run-ignored only --no-capture \
-    -E 'binary(=live_github) & test(=a_chat_lands_a_change_on_github_com_through_a_restart)' || status=$?
+    -E 'binary(=live_github) & test(=a_chat_lands_a_change_on_github_com_through_a_restart)' &
+runner=$!
+wait "$runner" || status=$?
+runner=
 exit "$status"

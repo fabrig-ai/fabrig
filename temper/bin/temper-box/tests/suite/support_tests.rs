@@ -215,7 +215,6 @@ fn terminal_a_terminal_adoption_refusal_uses_the_current_frame() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn github_file_scan_excludes_only_jigs_generation_secrets_store() {
     support::github::file_scan_excludes_only_jigs_generation_secrets_store();
 }
