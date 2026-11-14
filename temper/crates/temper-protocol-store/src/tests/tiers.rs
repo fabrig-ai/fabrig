@@ -19,6 +19,95 @@ fn round_trip(row: d::Stored, family: u8) {
     assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
     assert_eq!(records::row(&bytes, &records::encode(&row), &bounds), Ok(row));
 }
+fn before_posting(row: &d::TierRow) -> Box<[u8]> {
+    use super::catch_up::{kept_schema, kept_value};
+    use crate::patches::kept::temper_store::p0014::new as fields;
+    let schema = kept_schema(25);
+    let bytes = records::encode(&d::Stored::Tier(row.clone()));
+    let (value, root) = kept_value(&schema, b"Row", bytes);
+    let tier = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
+    let span = value.span(value.field(tier, fields::tier_row::POSTING).unwrap()).unwrap();
+    let from = usize::try_from(span.start).unwrap();
+    let to = usize::try_from(span.end).unwrap();
+    let mut before = skein_lib::Writer::new(value.bytes().len().checked_sub(to.checked_sub(from).unwrap()).unwrap());
+    before.put(&[0, 24]).unwrap();
+    before.put(&value.bytes()[2..from]).unwrap();
+    before.put(&value.bytes()[to..]).unwrap();
+    before.finish()
+}
+
+#[test]
+fn tier_posting_round_trips_its_cursor_blame_and_comment_purposes() {
+    let mut row = fixtures::tier_row();
+    row.observations = Box::new([]);
+    row.pending = Box::new([]);
+    row.flight = None;
+    row.result = None;
+    row.probe = None;
+    row.record.run = None;
+    row.record.flakes = Box::new([]);
+    row.record.failing = p::Failures::Tests(Box::new([Box::from(b"suite.alpha".as_slice())]));
+    let p::Failures::Tests(tests) = &row.record.failing else { panic!("enumerated fixture") };
+    let failures = p::Failures::Tests(Box::new([tests[0].clone()]));
+    let landings = Box::new([
+        d::TierPostedLanding { commit: [1; 32], blame: p::Blame::Cleared, change: Some(51) },
+        d::TierPostedLanding { commit: [2; 32], blame: p::Blame::Owns(failures.clone()), change: None },
+        d::TierPostedLanding { commit: [3; 32], blame: p::Blame::Suspect(failures), change: Some(52) },
+        d::TierPostedLanding { commit: [4; 32], blame: p::Blame::Owns(p::Failures::Many), change: None },
+        d::TierPostedLanding { commit: [5; 32], blame: p::Blame::Suspect(p::Failures::Many), change: None },
+    ]);
+    for pending in [false, true] {
+        for next in 0..=4 {
+            if pending && next > 1 {
+                continue;
+            }
+            row.posting = Some(Box::new(d::TierPosting {
+                number: 3,
+                tip: [4; 32],
+                link: Box::new([b'u'; 2048]),
+                check: if pending { skein_forge::api::Check::Pending } else { skein_forge::api::Check::Failed },
+                description: Box::new([b'd'; 140]),
+                landings: if pending { Box::new([]) } else { landings.clone() },
+                comments: if pending {
+                    Box::new([])
+                } else {
+                    Box::new([
+                        d::TierComment { pull: 41, landing: [2; 32], kind: d::TierCommentKind::Verdict { at: 1 } },
+                        d::TierComment {
+                            pull: 42,
+                            landing: [6; 32],
+                            kind: d::TierCommentKind::Repaired { by: Some(43) },
+                        },
+                        d::TierComment { pull: 44, landing: [7; 32], kind: d::TierCommentKind::Repaired { by: None } },
+                    ])
+                },
+                next,
+                entry: if next == 0 { Some(17) } else { None },
+                part: u16::from(pending),
+                op_bytes: fixtures::LIMITS.client.op_bytes,
+            }));
+            round_trip(d::Stored::Tier(row.clone()), 28);
+        }
+    }
+}
+
+#[test]
+fn v24_rows_start_with_no_posting() {
+    use super::catch_up::patched;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for run in [false, true] {
+        let mut row = fixtures::tier_row();
+        if !run {
+            row.record.run = None;
+            row.probe = None;
+        }
+        let bytes = patched(24, 13, b"Row", before_posting(&row));
+        let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
+        assert!(decoded.posting.is_none());
+        assert_eq!(decoded, row);
+    }
+}
+
 #[test]
 fn tier_records_keep_the_whole_policy_and_all_parts() {
     let full = fixtures::tier_row();
@@ -77,12 +166,12 @@ fn waiting_groups_and_a_persons_independent_hold_round_trip() {
     round_trip(d::Stored::Tier(row), 28);
 }
 
-// Omit only v24's additions; the patcher decodes these bytes with the kept v23 schema.
+// Omit v24's additions; the patcher decodes these bytes with the kept v23 schema.
 fn before_groups(row: &d::TierRow) -> Box<[u8]> {
     use super::catch_up::{kept_schema, kept_value};
     use crate::patches::kept::temper_store::p0013::new as fields;
     let schema = kept_schema(24);
-    let bytes = records::encode(&d::Stored::Tier(row.clone()));
+    let bytes = before_posting(row);
     let (value, root) = kept_value(&schema, b"Row", bytes);
     let tier = value.payload(value.field(root, fields::row::VALUE).unwrap()).unwrap().unwrap();
     let mut omitted = skein_lib::List::with_capacity(4);
@@ -143,7 +232,7 @@ fn v23_probes_resume_the_unsearched_suffix_and_rows_have_no_hold() {
         // An old row cannot carry a person's hold, even when all its other fields are present.
         row.hold = None;
         let before = before_groups(&row);
-        let bytes = patched(23, 12, b"Row", before);
+        let bytes = patched(24, 13, b"Row", patched(23, 12, b"Row", before));
         let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier") };
         assert!(decoded.hold.is_none(), "v23 has no person's hold");
         if part >= 3 {
@@ -312,20 +401,21 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.failed_tests_tests, fixtures::LIMITS.tiers.failing_tests);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 120_220);
-    assert!(skein_lib::len_u64(empty_goals.len()) < crate::v24::TierRow::encoded_bound(l).unwrap());
+    assert_eq!(empty_goals.len(), 120_221);
+    assert!(skein_lib::len_u64(empty_goals.len()) < crate::v25::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
     full.hold = Some(d::TierHold {
         party: u64::MAX,
         at: skein_lib::Wall::from_nanos(u64::MAX),
         reason: Box::new([b'r'; 1024]),
     });
+    full.posting = Some(Box::new(fixtures::tier_posting(&full.record.failing)));
     full.goals = fixtures::tier_goals();
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
-    assert_eq!(skein_lib::len_u64(row.len()), crate::v24::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 188_064);
+    assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
+    assert_eq!(row.len(), 193_655);
 }
 
 #[test]
@@ -450,7 +540,7 @@ fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
         );
     }
     let mut limits = fixtures::LIMITS;
-    limits.holds = crate::v24::CEILINGS.tier_row_goals;
+    limits.holds = crate::v25::CEILINGS.tier_row_goals;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_some());
     limits.holds += 1;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_none());

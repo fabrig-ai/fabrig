@@ -683,7 +683,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v24::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v25::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -741,13 +741,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v24::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v25::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v24::Row {
-    use crate::v24 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v25::Row {
+    use crate::v25 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),
@@ -1116,6 +1116,7 @@ pub fn tier_row() -> top::TierRow {
             .unwrap();
     }
     top::TierRow {
+        posting: None,
         hold: None,
         observations: Box::new([b'o'; 8192]),
         requested: true,
@@ -1163,6 +1164,46 @@ pub fn tier_row() -> top::TierRow {
                 landings,
             }),
         },
+    }
+}
+
+pub fn tier_posting(failing: &temper_engine_domain_forge_tiers::Failures) -> top::TierPosting {
+    use temper_engine_domain_forge_tiers as p;
+    let bound = LIMITS.changes.checked_mul(2).unwrap().checked_add(1).unwrap();
+    let mut landings = List::with_capacity(bound);
+    for _ in 0..bound {
+        landings
+            .push(top::TierPostedLanding {
+                commit: [1; 32],
+                blame: p::Blame::Owns(failing.clone()),
+                change: Some(u64::MAX),
+            })
+            .unwrap();
+    }
+    let mut comments = List::with_capacity(
+        LIMITS.landings_kept.checked_mul(LIMITS.landing_members).unwrap().checked_add(LIMITS.changes).unwrap(),
+    );
+    for _ in 0..comments.capacity() {
+        comments
+            .push(top::TierComment {
+                pull: u64::MAX,
+                landing: [1; 32],
+                kind: top::TierCommentKind::Repaired { by: Some(u64::MAX) },
+            })
+            .unwrap();
+    }
+    top::TierPosting {
+        number: u64::MAX,
+        tip: [1; 32],
+        link: Box::new([b'u'; 2048]),
+        check: skein_forge::api::Check::Failed,
+        description: Box::new([b'd'; 140]),
+        landings: landings.into_boxed(),
+        comments: comments.into_boxed(),
+        next: 0,
+        entry: Some(u64::MAX),
+        part: 0,
+        op_bytes: LIMITS.client.op_bytes,
     }
 }
 
