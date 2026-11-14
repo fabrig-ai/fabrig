@@ -64,7 +64,7 @@ impl Referee {
     pub(crate) fn admitted(&mut self, owner: Token, run: Token, attempt: Token) {
         self.owners.insert(owner, (run, attempt));
     }
-    pub(crate) fn request(&mut self, request: &Request) {
+    pub(crate) fn request(&mut self, request: &Request) -> Result<(), String> {
         match request {
             Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
@@ -74,9 +74,11 @@ impl Referee {
                     self.pending.entry(*key).or_default().remove(name);
                 }
             }
-            Request::Up(LinkUp::Turn { run, attempt, turn }) => self.fence((*run, *attempt), turn.read, &turn.refused),
+            Request::Up(LinkUp::Turn { run, attempt, turn }) => {
+                self.fence((*run, *attempt), turn.read, &turn.refused)?;
+            }
             Request::Up(LinkUp::Answer { run, attempt, answer, .. }) => {
-                self.fence((*run, *attempt), answer.read, &answer.refused);
+                self.fence((*run, *attempt), answer.read, &answer.refused)?;
             }
             Request::Asked { .. }
             | Request::Job(_)
@@ -99,28 +101,29 @@ impl Referee {
             | Request::Save { .. }
             | Request::Release { .. } => {}
         }
+        Ok(())
     }
-    fn fence(&mut self, key: (Token, Token), read: Option<Token>, refused: &[Refused]) {
+    fn fence(&mut self, key: (Token, Token), read: Option<Token>, refused: &[Refused]) -> Result<(), String> {
+        if let Some(read) = read
+            && let Some(names) = self.pending.get(&key)
+            && names.iter().any(|name| name.raw() <= read.raw() && !refused.iter().any(|item| item.name == *name))
+        {
+            return Err("each refusal arrives before the first fence that passes it".into());
+        }
         let names = self.pending.entry(key).or_default();
         for refused in refused {
             names.remove(&refused.name);
         }
-        if let Some(read) = read {
-            assert!(
-                names.iter().all(|name| name.raw() > read.raw()),
-                "each refusal arrives before the first fence that passes it"
-            );
-        }
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{FromAgent, Referee};
-    use jig_domain_host::{Event, LinkUp, MessageRefusal, Request, Turn};
+    use jig_domain_host::{Event, LinkUp, MessageRefusal, Refused, Request, Turn};
     use skein_lib::Token;
     #[test]
-    #[should_panic(expected = "each refusal arrives before the first fence that passes it")]
     fn a_missing_refusal_at_a_passing_fence_is_rejected() {
         let mut referee = Referee::default();
         referee.admitted(Token::new(1), Token::new(31), Token::new(932));
@@ -129,17 +132,31 @@ mod tests {
             name: Token::new(7),
             reason: MessageRefusal::Full,
         }));
-        referee.request(&Request::Up(LinkUp::Turn {
-            run: Token::new(31),
-            attempt: Token::new(932),
-            turn: Turn {
-                turn: 1,
-                spent: 0,
-                read: Some(Token::new(8)),
-                opens_window: false,
-                refused: Box::new([]),
-                body: Box::new([]),
-            },
+        referee.event(&Event::Agent(FromAgent::Refused {
+            owner: Token::new(1),
+            name: Token::new(6),
+            reason: MessageRefusal::Full,
         }));
+        let finding = referee
+            .request(&Request::Up(LinkUp::Turn {
+                run: Token::new(31),
+                attempt: Token::new(932),
+                turn: Turn {
+                    turn: 1,
+                    spent: 0,
+                    read: Some(Token::new(8)),
+                    opens_window: false,
+                    refused: Box::new([Refused { name: Token::new(6), reason: MessageRefusal::Full }]),
+                    body: Box::new([]),
+                },
+            }))
+            .expect_err("the fence passed a missing refusal");
+        assert!(finding.contains("each refusal arrives before the first fence that passes it"), "{finding}");
+        assert!(
+            referee
+                .pending
+                .get(&(Token::new(31), Token::new(932)))
+                .is_some_and(|names| names.contains(&Token::new(7)) && names.contains(&Token::new(6)))
+        );
     }
 }

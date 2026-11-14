@@ -4,7 +4,6 @@ use super::*;
 use crate::joint::transport::Reply;
 
 #[test]
-#[should_panic(expected = "nothing shown done before durable")]
 fn the_joint_referee_catches_a_translation_answering_stop_before_its_actual_commit() {
     let (mut world, client) = stop_ready();
     let submitted = world.front().session.driver.world.store.applied + 1;
@@ -36,7 +35,6 @@ fn the_joint_referee_catches_a_translation_answering_stop_before_its_actual_comm
         )
         .expect("component accepts the premature reply");
     let callbacks = world.front().session.poll(now, clock(now)).expect("link decodes the reply");
-    for (owner, event) in callbacks {
-        world.event(owner, event);
-    }
+    let finding = callbacks.into_iter().try_for_each(|(owner, event)| world.try_event(owner, event)).unwrap_err();
+    assert!(finding.contains("nothing shown done before durable"), "{finding}");
 }

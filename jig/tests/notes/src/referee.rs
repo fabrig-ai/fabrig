@@ -76,17 +76,26 @@ pub struct Referee;
 
 impl Referee {
     /// A commit saves or erases both records and never advances over an unseen revision.
-    pub fn before_commit(&self, store: &BTreeMap<Key, Record>, writes: &[Write], intent: &Intent) {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the referee checks each atomic commit shape and its caller's intent together"
+    )]
+    pub fn before_commit(
+        &self,
+        store: &BTreeMap<Key, Record>,
+        writes: &[Write],
+        intent: &Intent,
+    ) -> Result<(), String> {
         if let Intent::DropProject { project, .. } = intent {
             for write in writes {
                 let Write::Erase(key) = write else {
-                    panic!("a project drop only erases index lines and their entries");
+                    return Err("a project drop only erases index lines and their entries".into());
                 };
                 let scope = match key {
                     Key::Line { scope, .. } => scope,
                     Key::Entry { .. } => {
                         let Some(Record::Entry(entry)) = store.get(key) else {
-                            panic!("drop erases an existing entry");
+                            return Err("drop erases an existing entry".into());
                         };
                         &entry.scope
                     }
@@ -97,90 +106,144 @@ impl Referee {
                     | Scope::Goal { project: found, .. }
                     | Scope::Resources { project: found, .. } => project == found,
                 };
-                assert!(in_project, "drop erases only its project's scopes");
-                assert!(store.contains_key(key), "drop erases an existing line or entry");
+                if !in_project {
+                    return Err("drop erases only its project's scopes".into());
+                }
+                if !store.contains_key(key) {
+                    return Err("drop erases an existing line or entry".into());
+                }
             }
-            return;
+            return Ok(());
         }
         match writes {
             [Write::Save(Record::Entry(entry)), Write::Save(Record::Line(line))] => {
-                assert_eq!(entry.name, line.name, "entry and index line name the same note");
-                assert_eq!(entry.scope, line.scope, "entry and index line have one scope");
-                assert_eq!(entry.description, line.description, "index line has the committed description");
-                assert_eq!(entry.revision, line.revision, "index line has the committed revision");
+                if entry.name != line.name {
+                    return Err("entry and index line name the same note".into());
+                }
+                if entry.scope != line.scope {
+                    return Err("entry and index line have one scope".into());
+                }
+                if entry.description != line.description {
+                    return Err("index line has the committed description".into());
+                }
+                if entry.revision != line.revision {
+                    return Err("index line has the committed revision".into());
+                }
                 let recalled = match intent {
                     Intent::Write { name, recalled, .. } => {
-                        assert_eq!(*name, entry.name, "write names its entry");
+                        if *name != entry.name {
+                            return Err("write names its entry".into());
+                        }
                         *recalled
                     }
                     Intent::Edit { party, name, recalled, .. } => {
-                        assert_eq!(*name, entry.name, "edit names its entry");
-                        assert_eq!(entry.author, Author::Party { party: *party }, "party authored the correction");
+                        if *name != entry.name {
+                            return Err("edit names its entry".into());
+                        }
+                        if entry.author != (Author::Party { party: *party }) {
+                            return Err("party authored the correction".into());
+                        }
                         Some(*recalled)
                     }
-                    Intent::Read { .. } | Intent::DropProject { .. } => panic!("a read makes no write"),
+                    Intent::Read { .. } | Intent::DropProject { .. } => return Err("a read makes no write".into()),
                 };
                 match store.get(&Key::Entry { name: entry.name }) {
                     None => {
-                        assert_eq!(recalled, None, "a new entry was not recalled");
-                        assert_eq!(entry.revision, 1, "a new entry starts at revision one");
+                        if recalled.is_some() {
+                            return Err("a new entry was not recalled".into());
+                        }
+                        if entry.revision != 1 {
+                            return Err("a new entry starts at revision one".into());
+                        }
                     }
                     Some(Record::Entry(old)) => {
-                        assert_eq!(recalled, Some(old.revision), "a revision names the one the writer saw");
-                        assert_eq!(
-                            entry.revision,
-                            old.revision.checked_add(1).expect("revision fits"),
-                            "revision advances once"
-                        );
-                        assert_eq!(entry.scope, old.scope, "an entry does not move between scopes");
+                        if recalled != Some(old.revision) {
+                            return Err("a revision names the one the writer saw".into());
+                        }
+                        if entry.revision != old.revision.checked_add(1).ok_or("revision fits")? {
+                            return Err("revision advances once".into());
+                        }
+                        if entry.scope != old.scope {
+                            return Err("an entry does not move between scopes".into());
+                        }
                     }
-                    Some(Record::Line(_)) => unreachable!("an entry key holds an entry"),
+                    Some(Record::Line(_)) => return Err("an entry key holds an entry".into()),
                 }
             }
             [Write::Erase(Key::Entry { name }), Write::Erase(Key::Line { scope, name: line_name })] => {
-                assert_eq!(name, line_name, "deletion erases entry and line together");
+                if name != line_name {
+                    return Err("deletion erases entry and line together".into());
+                }
                 let Intent::Edit { name: asked, recalled, .. } = intent else {
-                    panic!("a party deletes an entry");
+                    return Err("a party deletes an entry".into());
                 };
-                assert_eq!(name, asked, "deletion names the asked entry");
+                if name != asked {
+                    return Err("deletion names the asked entry".into());
+                }
                 let Some(Record::Entry(old)) = store.get(&Key::Entry { name: *name }) else {
-                    panic!("a deletion has an entry");
+                    return Err("a deletion has an entry".into());
                 };
-                assert_eq!(old.scope, *scope, "deletion erases the right scope line");
-                assert_eq!(old.revision, *recalled, "deletion names the revision the party saw");
+                if old.scope != *scope {
+                    return Err("deletion erases the right scope line".into());
+                }
+                if old.revision != *recalled {
+                    return Err("deletion names the revision the party saw".into());
+                }
             }
-            _ => panic!("one commit saves or erases an entry and its line together: {writes:?}"),
+            _ => return Err(format!("one commit saves or erases an entry and its line together: {writes:?}")),
         }
+        Ok(())
     }
 
     /// Durable index lines agree with their entries, and every scope stays bounded.
-    pub fn after_commit(&self, store: &BTreeMap<Key, Record>, limits: &Limits) {
+    pub fn after_commit(&self, store: &BTreeMap<Key, Record>, limits: &Limits) -> Result<(), String> {
         let mut counts = BTreeMap::<Scope, u32>::new();
         for (key, record) in store {
-            assert_eq!(key, &key_of(record), "record is stored under its own key");
+            if key != &key_of(record) {
+                return Err("record is stored under its own key".into());
+            }
             match record {
                 Record::Entry(entry) => {
                     let line_key = Key::Line { scope: entry.scope.clone(), name: entry.name };
                     if let Some(Record::Line(line)) = store.get(&line_key) {
-                        assert_eq!(line.description, entry.description, "index describes the committed entry");
-                        assert_eq!(line.revision, entry.revision, "index gives the committed revision");
+                        if line.description != entry.description {
+                            return Err("index describes the committed entry".into());
+                        }
+                        if line.revision != entry.revision {
+                            return Err("index gives the committed revision".into());
+                        }
                     }
-                    assert!(entry.description.len() <= skein_lib::length::usize_of(limits.description_bytes));
-                    assert!(entry.body.len() <= skein_lib::length::usize_of(limits.body_bytes));
-                    assert!(entry.references.len() <= limits.references);
+                    if entry.description.len() > skein_lib::length::usize_of(limits.description_bytes) {
+                        return Err(
+                            "entry.description.len() <= skein_lib::length::usize_of(limits.description_bytes)".into()
+                        );
+                    }
+                    if entry.body.len() > skein_lib::length::usize_of(limits.body_bytes) {
+                        return Err("entry.body.len() <= skein_lib::length::usize_of(limits.body_bytes)".into());
+                    }
+                    if entry.references.len() > limits.references {
+                        return Err("entry.references.len() <= limits.references".into());
+                    }
                 }
                 Record::Line(line) => {
                     let Some(Record::Entry(entry)) = store.get(&Key::Entry { name: line.name }) else {
-                        panic!("index line has its entry");
+                        return Err("index line has its entry".into());
                     };
-                    assert_eq!(entry.description, line.description, "index describes the committed entry");
-                    assert_eq!(entry.revision, line.revision, "index gives the committed revision");
+                    if entry.description != line.description {
+                        return Err("index describes the committed entry".into());
+                    }
+                    if entry.revision != line.revision {
+                        return Err("index gives the committed revision".into());
+                    }
                     let count = counts.entry(line.scope.clone()).or_insert(0);
-                    *count = count.checked_add(1).expect("scope count fits");
-                    assert!(*count <= limits.entries_per_scope, "nothing held beyond entries per scope");
+                    *count = count.checked_add(1).ok_or("scope count fits")?;
+                    if *count > limits.entries_per_scope {
+                        return Err("nothing held beyond entries per scope".into());
+                    }
                 }
             }
         }
+        Ok(())
     }
 }
 
