@@ -175,6 +175,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
                 next.owns_turn = false;
                 next.since = now;
                 next.state = State::Opening { requested: false };
+                next.last_head = Some(head);
                 return opening(next, false, facts, standing, now, limits);
             }
             return take_pushed_head(next, head, now);
@@ -780,11 +781,16 @@ fn opening(
     let Some(head) = facts.branch else {
         return hold(change, Hold::BranchMissing);
     };
+    if let Some(expected) = change.last_head
+        && head != expected
+    {
+        return hold(change, Hold::BranchMoved);
+    }
     change.last_head = Some(head);
     match facts.pull {
         Pull::Open { head: pull_head, .. } => {
             if head != pull_head {
-                return hold(change, Hold::BranchMoved);
+                return waiting(change, facts, now, limits);
             }
             change.state = pushed(&change, head);
             change.since = now;
@@ -964,7 +970,10 @@ fn verdict(change: &Change, gate: Gate, facts: &Facts, head: [u8; 32]) -> Status
 }
 
 fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
-    if facts.branch != Some(head) {
+    let Some(branch) = facts.branch else {
+        return hold(change, Hold::BranchMissing);
+    };
+    if branch != head {
         return hold(change, Hold::BranchMoved);
     }
     if change.way == Way::Queue && facts.ci.head == head && facts.ci.status == Status::Failed {
@@ -1054,7 +1063,10 @@ fn cancelling_gates(mut change: Change, head: [u8; 32], facts: &Facts, now: Wall
     {
         return rerun(change, head, now);
     }
-    if facts.branch != Some(head) {
+    let Some(branch) = facts.branch else {
+        return hold(change, Hold::BranchMissing);
+    };
+    if branch != head {
         return hold(change, Hold::BranchMoved);
     }
     if facts.live_gate == Some(head) {
@@ -1080,7 +1092,10 @@ fn queued(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    if facts.branch != Some(head) {
+    let Some(branch) = facts.branch else {
+        return hold(change, Hold::BranchMissing);
+    };
+    if branch != head {
         return hold(change, Hold::BranchMoved);
     }
     if let Some(reviewed) = standing.review_request {
@@ -1123,7 +1138,10 @@ fn first(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
-    if facts.branch != Some(head) {
+    let Some(branch) = facts.branch else {
+        return hold(change, Hold::BranchMissing);
+    };
+    if branch != head {
         return hold(change, Hold::BranchMoved);
     }
     if let Some(stepped) = contained_landing(&change, facts, standing, now) {
@@ -1699,10 +1717,12 @@ fn ready(
     if standing.delegate_live {
         return Stepped { change, decision: Decision::Wait { until: None } };
     }
-    if facts.branch != Some(head) {
-        if change.last_head == facts.branch
-            && let Some(head) = facts.branch
-        {
+    let Some(branch) = facts.branch else {
+        return hold(change, Hold::BranchMissing);
+    };
+    if branch != head {
+        if change.last_head == Some(branch) {
+            let head = branch;
             change.state = State::Gating { head, asked: Box::new([]) };
             change.clean = Box::new([]);
             change.gate_failures = Box::new([]);
@@ -1720,7 +1740,7 @@ fn ready(
         }
         Some(Ask::Prepare { head: expected, main }) => {
             if head != expected {
-                return hold(change, Hold::BranchMoved);
+                return waiting(change, facts, now, limits);
             }
             prepare_due(change, head, main, ready_since, now, limits)
         }
@@ -1842,10 +1862,12 @@ pub fn prefix_verdict(
 
 fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     let State::Judging { head, ready_since, target, asked } = change.state.clone() else { unreachable!("judging") };
-    if facts.branch != Some(head) {
-        if change.last_head == facts.branch
-            && let Some(head) = facts.branch
-        {
+    let Some(branch) = facts.branch else {
+        return hold(change, Hold::BranchMissing);
+    };
+    if branch != head {
+        if change.last_head == Some(branch) {
+            let head = branch;
             return take_pushed_head(change, head, now);
         }
         return hold(change, Hold::BranchMoved);

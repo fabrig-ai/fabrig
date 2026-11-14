@@ -5133,7 +5133,11 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
                             crate::settle::cap(d, env, &row, &facts, decision),
                         ),
                         entry: None,
-                        evidence: None,
+                        evidence: if decision == change::Decision::Hold(change::Hold::BranchMoved) {
+                            Some(step_evidence(d, &row, &pending, effect_prior))
+                        } else {
+                            None
+                        },
                     },
                 );
                 return;
