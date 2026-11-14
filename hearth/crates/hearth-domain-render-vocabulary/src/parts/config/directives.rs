@@ -1,4 +1,4 @@
-//! Render values (hearth/docs/design/domain/render/contracts.md, 1).
+//! Render values (hearth/docs/design/domain/render/README.md, 5.1).
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Preset {

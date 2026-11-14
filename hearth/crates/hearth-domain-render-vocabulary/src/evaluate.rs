@@ -1,4 +1,4 @@
-//! Evaluation values and faults (hearth/docs/design/domain/render/contracts.md, 1).
+//! Evaluation values and faults (hearth/docs/design/domain/render/README.md, 5.1).
 pub mod filter;
 pub use filter::Filter;
 pub mod value;

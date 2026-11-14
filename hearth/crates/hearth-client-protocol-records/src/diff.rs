@@ -326,7 +326,7 @@ pub(crate) mod directives;
 
 pub(crate) mod placed;
 
-/// The client's side names (hearth/docs/design/domain/render/contracts.md, 2).
+/// The client's side names (hearth/docs/design/client/README.md, 3.2).
 #[must_use]
 pub fn side(side: Side) -> &'static [u8] {
     match side {
