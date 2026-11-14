@@ -49,6 +49,8 @@ impl Forgejo {
     pub fn sha256(&self) -> &str {
         &self.sha256
     }
+    /// Starts a server that dies with this calling thread on Linux.
+    /// Keep that thread alive for the instance's use (testing/fakes/forge.md, 6).
     /// # Errors
     /// Returns the provisioning failure, cleaning up anything started.
     pub fn start(&self, scratch: &Path, settings: &Settings) -> Result<Instance, Failure> {

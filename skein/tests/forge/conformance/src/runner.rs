@@ -267,11 +267,7 @@ pub(crate) fn start(f: &Fixture, binary: &Path, secrets: &mut Secrets) -> Result
     )?;
     let log = File::create(scratch.join("runner.log"))?;
     let mut command = command(binary, &scratch);
-    command.arg("--config")
-        .arg(&config)
-        .arg("daemon")
-        .stdout(log.try_clone()?)
-        .stderr(log);
+    command.arg("--config").arg(&config).arg("daemon").stdout(log.try_clone()?).stderr(log);
     let child = skein_shell::spawn_dying_with_parent(&mut command, skein_io::kernel::Signal::Terminate)?;
     Ok((Runner { child: Some(child) }, version))
 }

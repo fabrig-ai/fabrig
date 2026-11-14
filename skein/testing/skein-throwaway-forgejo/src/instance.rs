@@ -303,6 +303,7 @@ impl Instance {
         self.end_child()
     }
     /// Starts the owned process on its existing scratch and port, waiting for its API.
+    /// On Linux the process dies when this calling thread ends.
     /// # Errors
     /// Refuses an attached or running instance, or returns a startup failure.
     pub fn restart(&self) -> Result<(), Failure> {
@@ -441,7 +442,10 @@ mod tests {
 
     #[test]
     #[ignore = "needs SKEIN_FORGEJO"]
-    #[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_FORGEJO to locate the pinned test binary")]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "skein's round: reads SKEIN_FORGEJO to locate the pinned test binary"
+    )]
     fn a_server_dies_when_its_starting_thread_ends_without_stopping_it() {
         use std::os::unix::process::ExitStatusExt;
 
@@ -452,15 +456,18 @@ mod tests {
         let root = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "throwaway-thread");
         let scratch = root.path().join("forge");
         let (mut child, pid) = std::thread::scope(|scope| {
-            scope.spawn(|| {
-                let instance = forgejo.start(&scratch, &Settings::small()).expect("started");
-                // Retain only the handle for reaping: no destructor or stop sends a signal.
-                let mut child = instance.child.lock().expect("child lock").take().expect("web started");
-                assert!(child.try_wait().expect("running").is_none());
-                let pid = child.id();
-                std::mem::forget(instance);
-                (child, pid)
-            }).join().expect("starting thread")
+            scope
+                .spawn(|| {
+                    let instance = forgejo.start(&scratch, &Settings::small()).expect("started");
+                    // Retain only the handle for reaping: no destructor or stop sends a signal.
+                    let mut child = instance.child.lock().expect("child lock").take().expect("web started");
+                    assert!(child.try_wait().expect("running").is_none());
+                    let pid = child.id();
+                    std::mem::forget(instance);
+                    (child, pid)
+                })
+                .join()
+                .expect("starting thread")
         });
         let mut deadline = Deadline::arm("the leaked Forgejo's parent-death signal", Duration::from_secs(2));
         deadline.watch_process(pid);

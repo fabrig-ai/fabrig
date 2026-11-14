@@ -75,7 +75,9 @@ fn a_work_path_runs_commands_in_the_scratch_with_its_environment() {
     let w = work.scratch().display();
     assert_eq!(
         output.stdout,
-        format!("{w}\n{w}/home /usr/bin:/bin Asia/Kolkata {w}/tmp\n--work-path {w} --config {w}/app.ini admin user list\n")
+        format!(
+            "{w}\n{w}/home /usr/bin:/bin Asia/Kolkata {w}/tmp\n--work-path {w} --config {w}/app.ini admin user list\n"
+        )
     );
     assert!(work.scratch().join("tmp").is_dir());
 }
