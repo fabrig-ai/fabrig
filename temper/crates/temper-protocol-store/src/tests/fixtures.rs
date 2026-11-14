@@ -1167,6 +1167,22 @@ pub fn tier_row() -> top::TierRow {
     }
 }
 
+pub fn tier_posting(failing: &temper_engine_domain_forge_tiers::Failures) -> top::TierPosting {
+    use temper_engine_domain_forge_tiers as p;
+    let bound = LIMITS.changes.checked_mul(2).unwrap().checked_add(1).unwrap();
+    let mut landings = List::with_capacity(bound);
+    for _ in 0..bound {
+        landings.push(top::TierPostedLanding { commit: [1; 32], blame: p::Blame::Owns(failing.clone()), change: Some(u64::MAX) }).unwrap();
+    }
+    let mut comments = List::with_capacity(LIMITS.landings_kept.checked_mul(LIMITS.landing_members).unwrap().checked_add(LIMITS.changes).unwrap());
+    for _ in 0..comments.capacity() {
+        comments.push(top::TierComment { pull: u64::MAX, landing: [1; 32], kind: top::TierCommentKind::Repaired { by: Some(u64::MAX) } }).unwrap();
+    }
+    top::TierPosting { number: u64::MAX, tip: [1; 32], link: Box::new([b'u'; 2048]),
+        check: skein_forge::api::Check::Failed, description: Box::new([b'd'; 140]), landings: landings.into_boxed(), comments: comments.into_boxed(),
+        next: 0, entry: Some(u64::MAX), part: 0, op_bytes: LIMITS.client.op_bytes }
+}
+
 fn tier_pending(landings: &[temper_engine_domain_forge_tiers::Landing]) -> Box<[top::TierLanding]> {
     let mut pending = List::with_capacity(u32::try_from(landings.len()).unwrap());
     for landing in landings {
