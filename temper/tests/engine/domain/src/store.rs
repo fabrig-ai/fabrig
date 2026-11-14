@@ -600,6 +600,10 @@ impl Store {
             match output {
                 Up::Ask(request) => requests.push_back(request),
                 Up::FrameTooLarge { .. } => self.failed = true,
+                Up::Failed { number, .. } => {
+                    self.replies.push(engine::StoreInput::Uncommitted { number });
+                    self.failed = true;
+                }
                 Up::Root(event) => {
                     let engine::Event::Store(input) = *event else {
                         panic!("store terminal");

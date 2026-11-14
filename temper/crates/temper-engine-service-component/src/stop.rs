@@ -99,9 +99,9 @@ pub(crate) fn frame_too_large(engine: &mut Engine, number: u64, task: u64, bytes
     engine.step(root::Event::Store(root::StoreInput::Uncommitted { number }));
     engine.end = Some(End::Stopped(Stop::FrameTooLarge { number, task, bytes, limit }));
 }
-pub(crate) fn failed(engine: &mut Engine, number: u64) {
+pub(crate) fn failed(engine: &mut Engine, number: u64, why: crate::CommitStop) {
     engine.step(root::Event::Store(root::StoreInput::Uncommitted { number }));
-    engine.end = Some(End::Stopped(Stop::CommitFailed { number }));
+    engine.end = Some(End::Stopped(Stop::CommitFailed { number, why }));
 }
 pub(crate) fn open(engine: &mut Engine, why: &jig_protocol_store::OpenRefusal) {
     engine.end = Some(End::Stopped(Stop::StoreOpen { why: why.clone() }));

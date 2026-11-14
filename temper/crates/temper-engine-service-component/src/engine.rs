@@ -880,14 +880,11 @@ fn answer_routed(engine: &mut Engine) {
                         }
                     }
                 }
-                if let root::Event::Store(root::StoreInput::Uncommitted { number }) = *event {
-                    stop::failed(engine, number);
-                } else {
-                    engine.blocked = false;
-                    engine.step(*event);
-                }
+                engine.blocked = false;
+                engine.step(*event);
             }
             Up::Ask(request) => engine.store.host.ask(request),
+            Up::Failed { number, why } => stop::failed(engine, number, why),
             Up::FrameTooLarge { number, task, bytes, limit } => {
                 stop::frame_too_large(engine, number, task, bytes, limit);
             }

@@ -4,7 +4,9 @@
 #![expect(clippy::disallowed_types, reason = "tests enumerate a small fixed set of key tuples")]
 #![expect(clippy::disallowed_methods, reason = "tests copy fixed byte vectors for comparisons")]
 
-use crate::{Event, KeyReader, KeyWriter, Limits, Op, Page, Range, Request, Store, down, up};
+use crate::{
+    Event, Exhausted, KeyReader, KeyWriter, Large, Limits, Op, Page, Range, Refusal, Request, Store, down, up,
+};
 use crate::{crc, frame};
 use alloc::boxed::Box;
 use alloc::vec;
@@ -156,7 +158,7 @@ fn a_page_too_small_for_one_row_is_refused() {
         &mut above,
         &mut below,
     );
-    assert_eq!(above.pop(), Some(Event::Refused { owner: Token::new(2), refusal: crate::Refusal::TooLarge }));
+    assert_eq!(above.pop(), Some(Event::Refused { owner: Token::new(2), refusal: Refusal::TooLarge(Large::Page) }));
     down(
         &mut store,
         &env,
@@ -168,7 +170,7 @@ fn a_page_too_small_for_one_row_is_refused() {
         &mut above,
         &mut below,
     );
-    assert_eq!(above.pop(), Some(Event::Refused { owner: Token::new(3), refusal: crate::Refusal::TooLarge }));
+    assert_eq!(above.pop(), Some(Event::Refused { owner: Token::new(3), refusal: Refusal::TooLarge(Large::Range) }));
 }
 
 fn open_store(env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<file::Request>) -> Store {
@@ -190,6 +192,152 @@ fn open_store(env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<fil
     assert!(above.is_empty());
     assert!(below.is_empty());
     store
+}
+
+#[test]
+fn budget_refusal_counts_applied_and_unsynced_commits() {
+    const BUDGET: u64 = 256;
+    // ENTRY + one-byte key + ten-byte value = 139; the next row costs 149.
+    const USED: u64 = 139;
+    const PROJECTED: u64 = 288;
+    for disk in [false, true] {
+        let mut env = env();
+        env.limits.budget = BUDGET;
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        let mut store = if disk { open_store(&env, &mut above, &mut below) } else { Store::memory(&env.limits) };
+        down(
+            &mut store,
+            &env,
+            Request::Commit { owner: Token::new(2), ops: Box::new([put(b"a", &[0; 10])]) },
+            &mut above,
+            &mut below,
+        );
+        if disk {
+            let Some(file::Request::WriteAt { .. }) = below.pop() else { panic!("frame write requested") };
+            assert!(above.is_empty(), "the first commit still waits for sync");
+            assert_eq!(store.used(), 0, "the applied map is empty");
+        } else {
+            assert_eq!(above.pop(), Some(Event::Committed { owner: Token::new(2), number: 1 }));
+            assert_eq!(store.used(), USED);
+        }
+        down(
+            &mut store,
+            &env,
+            Request::Commit { owner: Token::new(3), ops: Box::new([put(b"b", &[0; 20])]) },
+            &mut above,
+            &mut below,
+        );
+        assert_eq!(
+            above.pop(),
+            Some(Event::Refused {
+                owner: Token::new(3),
+                refusal: Refusal::Full(Exhausted::Budget { used: USED, budget: BUDGET, projected: PROJECTED }),
+            }),
+            "disk: {disk}"
+        );
+        assert!(above.is_empty());
+        assert!(below.is_empty(), "the refusal wrote nothing");
+        if disk {
+            up(&mut store, &env, file::Event::Written { owner: Token::new(0x4b56) }, &mut above, &mut below);
+            let Some(file::Request::Sync { .. }) = below.pop() else { panic!("log sync requested") };
+            up(&mut store, &env, file::Event::Synced { owner: Token::new(0x4b56) }, &mut above, &mut below);
+            assert_eq!(above.pop(), Some(Event::Committed { owner: Token::new(2), number: 1 }));
+        }
+        assert_eq!(store.used(), USED, "refusal kept the admitted map");
+        assert_eq!(store.last(), 1);
+    }
+}
+
+#[test]
+fn too_large_names_the_limit_that_refused_the_request() {
+    let owner = Token::new(2);
+    let mut env = env();
+    env.limits.key = 2;
+    env.limits.value = 2;
+    env.limits.ops = 2;
+    env.limits.commit = 40;
+    env.limits.page = Page { rows: 2, bytes: 8 };
+    for disk in [false, true] {
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        let mut store = if disk { open_store(&env, &mut above, &mut below) } else { Store::memory(&env.limits) };
+        down(&mut store, &env, Request::Commit { owner, ops: Box::new([put(b"a", b"vv")]) }, &mut above, &mut below);
+        if disk {
+            let Some(file::Request::WriteAt { .. }) = below.pop() else { panic!("frame write requested") };
+            up(&mut store, &env, file::Event::Written { owner: Token::new(0x4b56) }, &mut above, &mut below);
+            let Some(file::Request::Sync { .. }) = below.pop() else { panic!("log sync requested") };
+            up(&mut store, &env, file::Event::Synced { owner: Token::new(0x4b56) }, &mut above, &mut below);
+        }
+        assert_eq!(above.pop(), Some(Event::Committed { owner, number: 1 }));
+        for (request, large) in [
+            (Request::Commit { owner, ops: Box::new([put(b"key", b"v")]) }, Large::Key),
+            (Request::Commit { owner, ops: Box::new([Op::Erase { key: Box::from(&b"key"[..]) }]) }, Large::Key),
+            (Request::Commit { owner, ops: Box::new([put(b"k", b"val")]) }, Large::Value),
+            (Request::Commit { owner, ops: Box::new([put(b"a", b"v"), put(b"b", b"v"), put(b"c", b"v")]) }, Large::Ops),
+            (Request::Commit { owner, ops: Box::new([put(b"a", b"vv"), put(b"b", b"vv")]) }, Large::Frame),
+            (Request::Get { owner, key: Box::from(&b"key"[..]) }, Large::Key),
+            (Request::Load { owner, range: Range::prefix(b""), max: Page { rows: 0, bytes: 8 } }, Large::Page),
+            (Request::Load { owner, range: Range::prefix(b""), max: Page { rows: 2, bytes: 0 } }, Large::Page),
+            (Request::Load { owner, range: Range::prefix(b""), max: Page { rows: 3, bytes: 8 } }, Large::Page),
+            (Request::Load { owner, range: Range::prefix(b""), max: Page { rows: 2, bytes: 9 } }, Large::Page),
+            (Request::Load { owner, range: Range::prefix(b""), max: Page { rows: 1, bytes: 2 } }, Large::Page),
+            (Request::Load { owner, range: Range::prefix(b"key"), max: env.limits.page }, Large::Key),
+            (
+                Request::Load {
+                    owner,
+                    range: Range { start: Box::from(&b""[..]), end: Some(Box::from(&b"key"[..])) },
+                    max: env.limits.page,
+                },
+                Large::Key,
+            ),
+            (
+                Request::Load {
+                    owner,
+                    range: Range { start: Box::from(&b"z"[..]), end: Some(Box::from(&b"a"[..])) },
+                    max: env.limits.page,
+                },
+                Large::Range,
+            ),
+        ] {
+            down(&mut store, &env, request, &mut above, &mut below);
+            assert_eq!(above.pop(), Some(Event::Refused { owner, refusal: Refusal::TooLarge(large) }), "disk: {disk}");
+            assert!(above.is_empty());
+            assert!(below.is_empty());
+        }
+    }
+}
+
+#[test]
+fn entry_capacity_refusal_names_the_capacity() {
+    // Construction fixes one entry slot; admission's larger byte budget lets
+    // the entry bound refuse before bytes do, without allocating a huge map.
+    let mut limits = limits();
+    limits.budget = crate::map::ENTRY;
+    let map = crate::map::KvMap::new(&limits);
+    limits.budget = 4096;
+    assert_eq!(map.check(&[put(b"a", b"v")], &limits), Ok(130));
+    assert_eq!(
+        map.check(&[put(b"a", b"v"), put(b"b", b"v")], &limits),
+        Err(Refusal::Full(Exhausted::Entries { capacity: 1 }))
+    );
+}
+
+#[test]
+fn commit_numbers_refuse_at_their_end() {
+    let env = env();
+    for disk in [false, true] {
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        let mut store = if disk { open_store(&env, &mut above, &mut below) } else { Store::memory(&env.limits) };
+        store.exhaust_numbers();
+        let owner = Token::new(2);
+        down(&mut store, &env, Request::Commit { owner, ops: Box::new([put(b"a", b"v")]) }, &mut above, &mut below);
+        assert_eq!(above.pop(), Some(Event::Refused { owner, refusal: Refusal::Full(Exhausted::Numbers) }));
+        assert!(above.is_empty());
+        assert!(below.is_empty());
+        assert_eq!(store.last(), u64::MAX);
+    }
 }
 
 #[test]
@@ -272,7 +420,10 @@ fn map_budget_refusal_precedes_the_full_byte_queue() {
         down(&mut store, &env, Request::Commit { owner, ops: Box::new([put(b"k", b"v")]) }, &mut above, &mut below);
     }
     assert!(above.is_empty(), "one frame is writing and one fills the byte queue");
-    for (op, refusal) in [(put(b"x", b"v"), crate::Refusal::Full), (put(b"k", b"v"), crate::Refusal::Busy)] {
+    for (op, refusal) in [
+        (put(b"x", b"v"), Refusal::Full(Exhausted::Budget { used: BUDGET, budget: BUDGET, projected: 2 * BUDGET })),
+        (put(b"k", b"v"), Refusal::Busy),
+    ] {
         let owner = Token::new(4);
         down(&mut store, &env, Request::Commit { owner, ops: Box::new([op]) }, &mut above, &mut below);
         assert_eq!(above.pop(), Some(Event::Refused { owner, refusal }));
@@ -419,13 +570,22 @@ fn the_map_keeps_its_encoded_size_through_puts_overwrites_and_erases() {
     }
 }
 
+// Concatenating ops starts at the applied map; queued admission starts at the
+// accepted projection. Only that base differs in otherwise identical refusals.
+fn with_admission_base(mut result: Result<(), Refusal>, used: u64) -> Result<(), Refusal> {
+    if let Err(Refusal::Full(Exhausted::Budget { used: base, .. })) = &mut result {
+        *base = used;
+    }
+    result
+}
+
 fn admit(
     queued: &mut crate::map::Queued,
     map: &crate::map::KvMap,
     ops: &[Op],
     limits: &Limits,
     number: u64,
-) -> Result<(), crate::Refusal> {
+) -> Result<(), Refusal> {
     let projected = queued.check(map, ops, limits)?;
     queued.reserve(ops, projected, number);
     Ok(())
@@ -477,7 +637,8 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
         }
         let mut concatenated = accepted.clone();
         concatenated.extend_from_slice(&ops);
-        let expected = map.check(&concatenated, &limits).map(|_| ());
+        let base = map.check(&accepted, &limits).expect("accepted projection fits");
+        let expected = with_admission_base(map.check(&concatenated, &limits).map(|_| ()), base);
         assert_eq!(admit(&mut admitted, &map, &ops, &limits, number), expected, "seed {SEED:#x}, commit {step}");
         match expected {
             Ok(()) => {
@@ -486,9 +647,9 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
             }
             Err(refusal) => {
                 match refusal {
-                    crate::Refusal::Full => full += 1,
-                    crate::Refusal::TooLarge => too_large += 1,
-                    crate::Refusal::Busy | crate::Refusal::Unavailable => panic!("map admission refusal"),
+                    Refusal::Full(..) => full += 1,
+                    Refusal::TooLarge(..) => too_large += 1,
+                    Refusal::Busy | Refusal::Unavailable => panic!("map admission refusal"),
                 }
                 // Rebuild the state before the refusal and compare the next admission.
                 let mut unchanged = Queued::new();
@@ -497,7 +658,7 @@ fn queued_admission_matches_concatenated_ops_after_refusals() {
                 let probe = [put(&key, b"next")];
                 let mut concatenated = accepted.clone();
                 concatenated.extend_from_slice(&probe);
-                let expected = map.check(&concatenated, &limits).map(|_| ());
+                let expected = with_admission_base(map.check(&concatenated, &limits).map(|_| ()), base);
                 assert_eq!(admit(&mut unchanged, &map, &probe, &limits, number), expected, "reference probe at {step}");
                 assert_eq!(
                     admit(&mut admitted, &map, &probe, &limits, number),

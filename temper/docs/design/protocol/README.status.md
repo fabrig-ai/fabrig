@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-12. Where temper's code lags or departs from [README.md](README.md).
+2026-11-14. Where temper's code lags or departs from [README.md](README.md).
 
 
 `binaries.md`, section 3's feature-free `temper-agent` is present, with its shared

@@ -3,7 +3,7 @@ use super::{
     File, Stage,
     cut::{self, Arrival},
 };
-use crate::{Arrived, Below, Event, Limits, Root, Store, keys, open, pages, transcripts};
+use crate::{Arrived, Below, CommitCheck, CommitFailure, Event, Limits, Root, Store, keys, open, pages, transcripts};
 use alloc::boxed::Box;
 use skein_io::file;
 use skein_lib::{Env, List, Queue, Token};
@@ -40,7 +40,7 @@ fn capacity(limits: &Limits) -> Option<u32> {
     // Each task needs at least one 18-byte attempt key in the map or a reservation.
     u32::try_from(limits.store.budget.checked_div(18)?).ok()?.checked_add(super::reservation_count(limits)?)
 }
-fn attempt_key(store: &mut Store, task: u64, after: Option<u64>) -> Result<Option<keys::Own>, ()> {
+fn attempt_key(store: &mut Store, task: u64, after: Option<u64>) -> Result<Option<keys::Own>, CommitCheck> {
     let first = match after {
         Some(last) => match last.checked_add(1) {
             Some(next) => next,
@@ -48,23 +48,23 @@ fn attempt_key(store: &mut Store, task: u64, after: Option<u64>) -> Result<Optio
         },
         None => 0,
     };
-    let start = keys::encode_own(&keys::Own::Attempt { task, attempt: first }, store.limits.store.key).ok_or(())?;
+    let start = keys::encode_own(&keys::Own::Attempt { task, attempt: first }, store.limits.store.key)
+        .ok_or(CommitCheck::Encoding)?;
     let end = match task.checked_add(1) {
-        Some(next) => {
-            keys::encode_own(&keys::Own::Attempt { task: next, attempt: 0 }, store.limits.store.key).ok_or(())?
-        }
+        Some(next) => keys::encode_own(&keys::Own::Attempt { task: next, attempt: 0 }, store.limits.store.key)
+            .ok_or(CommitCheck::Encoding)?,
         None => Box::new([keys::COMPONENT, 3]),
     };
-    let page = pages::load(store, skein_kv::Range { start, end: Some(end) }).or(Err(()))?;
+    let page = pages::load(store, skein_kv::Range { start, end: Some(end) }).or(Err(CommitCheck::Reads))?;
     let Some(row) = page.rows.into_iter().next() else {
         return Ok(None);
     };
-    Ok(Some(keys::decode_own(&row.key).ok_or(())?))
+    Ok(Some(keys::decode_own(&row.key).ok_or(CommitCheck::Reads)?))
 }
-pub(crate) fn queue(store: &mut Store, task: u64, through: u64) -> Option<()> {
+pub(crate) fn queue(store: &mut Store, task: u64, through: u64) -> Result<(), CommitCheck> {
     for orphan in &store.transcripts.drop.orphans {
         if orphan.task == task {
-            return Some(());
+            return Ok(());
         }
     }
     let mut pending = false;
@@ -74,28 +74,28 @@ pub(crate) fn queue(store: &mut Store, task: u64, through: u64) -> Option<()> {
             break;
         }
     }
-    if !pending && attempt_key(store, task, None).ok()?.is_none() {
-        return Some(());
+    if !pending && attempt_key(store, task, None)?.is_none() {
+        return Ok(());
     }
     store.transcripts.drop.orphans.push(Orphan { task, after: None, through });
-    Some(())
+    Ok(())
 }
-pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Option<()> {
+pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Result<(), CommitCheck> {
     for _ in 0..store.limits.orphan_erases {
         let Some(mut orphan) = store.transcripts.drop.orphans.pop() else { break };
         if orphan.through > store.stores.store.last() {
             store.transcripts.drop.orphans.push(orphan);
             break;
         }
-        match attempt_key(store, orphan.task, orphan.after).ok()? {
+        match attempt_key(store, orphan.task, orphan.after)? {
             Some(key @ keys::Own::Attempt { task, attempt }) => {
                 if task != orphan.task {
-                    return None;
+                    return Err(CommitCheck::Reads);
                 }
-                let key = keys::encode_own(&key, store.limits.store.key)?;
-                ops.push(skein_kv::Op::Erase { key }).ok()?;
+                let key = keys::encode_own(&key, store.limits.store.key).ok_or(CommitCheck::Encoding)?;
+                ops.push(skein_kv::Op::Erase { key }).or(Err(CommitCheck::Capacity))?;
                 orphan.after = Some(attempt);
-                if attempt_key(store, orphan.task, orphan.after).ok()?.is_some() {
+                if attempt_key(store, orphan.task, orphan.after)?.is_some() {
                     store.transcripts.drop.orphans.push(orphan);
                 }
             }
@@ -106,12 +106,12 @@ pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Option<
                 | keys::Own::Opening(_)
                 | keys::Own::Transcript { .. },
             ) => {
-                return None;
+                return Err(CommitCheck::Reads);
             }
             None => {}
         }
     }
-    Some(())
+    Ok(())
 }
 pub(crate) fn restore(store: &mut Store) -> Result<(), ()> {
     let mut start: Box<[u8]> = Box::new([keys::COMPONENT, 2]);
@@ -135,7 +135,7 @@ pub(crate) fn restore(store: &mut Store) -> Result<(), ()> {
             return Err(());
         };
         if place.is_none() {
-            queue(store, task, 0).ok_or(())?;
+            queue(store, task, 0).or(Err(()))?;
         }
         start = pages::past(&row.key).ok_or(())?;
     }
@@ -175,7 +175,7 @@ pub(crate) fn arrived(
 ) {
     let fd = arrived.fd;
     let Some(event) = cut::arrival(arrived.event) else {
-        transcripts::failed(store, None, above);
+        transcripts::failed(store, None, CommitFailure::Transcript, above);
         return;
     };
     let step = core::mem::replace(&mut store.transcripts.drop.step, Step::Idle);
@@ -243,6 +243,6 @@ pub(crate) fn arrived(
             super::write::fire(store, env, above, below);
         }
         Some(false) => {}
-        None => transcripts::failed(store, None, above),
+        None => transcripts::failed(store, None, CommitFailure::Transcript, above),
     }
 }

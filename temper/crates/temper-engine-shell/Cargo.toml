@@ -31,6 +31,7 @@ skein-shell.workspace = true
 skein-io.workspace = true
 skein-http.workspace = true
 skein-lib.workspace = true
+skein-kv.workspace = true
 skein-json.workspace = true
 skein-forge.workspace = true
 jig-protocol-config.workspace = true

@@ -128,12 +128,43 @@ fn opening_to_store(opening: engine::WorkerOpening) -> store::WorkerOpening {
     }
 }
 
+/// Why a commit failed: the store's cause or its routing stopping on its own
+/// (temper/docs/design/protocol/store.md, 4). In-process only.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CommitStop {
+    Store(store::CommitFailure),
+    Route(RouteStop),
+}
+
+/// Why the engine's store routing stopped (temper/docs/design/protocol/store.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RouteStop {
+    /// The store answered a refused open while the engine ran.
+    Open,
+    /// The store answered its secrets not ready.
+    Secrets,
+    /// A load's continuation did not translate into its cursor, or did not advance.
+    Cursor,
+    /// A load's page past the start could not be measured or cut.
+    Page,
+}
+
 /// A root terminal or the next component page of a filtered load.
 #[derive(Debug)]
 pub enum Up {
     Root(Box<engine::Event>),
     Ask(store::Request),
-    FrameTooLarge { number: u64, task: u64, bytes: u32, limit: u32 },
+    FrameTooLarge {
+        number: u64,
+        task: u64,
+        bytes: u32,
+        limit: u32,
+    },
+    /// Feed the number through the root's Uncommitted policy before stopping.
+    Failed {
+        number: u64,
+        why: CommitStop,
+    },
 }
 
 /// Route one root request; table saturation refuses before issuing a load.
@@ -203,7 +234,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         }
         store::Event::Census { census } => root(into, engine::StoreInput::Census(census)),
         store::Event::Committed { number, fill } => root(into, engine::StoreInput::Committed { number, fill }),
-        store::Event::Failed { number } => root(into, engine::StoreInput::Uncommitted { number }),
+        store::Event::Failed { number, why } => into.push(Up::Failed { number, why: CommitStop::Store(why) }),
         store::Event::FrameTooLarge { number, task, bytes, limit } => {
             into.push(Up::FrameTooLarge { number, task, bytes, limit });
         }
@@ -272,7 +303,8 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             )));
         }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
-        store::Event::OpenRefused { .. } | store::Event::SecretsNotReady { .. } => stop(routes, into),
+        store::Event::OpenRefused { .. } => stop(routes, RouteStop::Open, into),
+        store::Event::SecretsNotReady { .. } => stop(routes, RouteStop::Secrets, into),
         store::Event::Decoded { .. }
         | store::Event::Undecodable { .. }
         | store::Event::Rehearsing { .. }
@@ -312,8 +344,8 @@ fn startup_page(
 fn root(into: &mut Queue<Up>, event: engine::StoreInput) {
     into.push(Up::Root(Box::new(engine::Event::Store(event))));
 }
-fn stop(routes: &Routes, into: &mut Queue<Up>) {
-    root(into, engine::StoreInput::Uncommitted { number: routes.commit });
+fn stop(routes: &Routes, why: RouteStop, into: &mut Queue<Up>) {
+    into.push(Up::Failed { number: routes.commit, why: CommitStop::Route(why) });
 }
 
 #[expect(clippy::too_many_lines, reason = "the page bounds its prefix before handing off its terminal")]
@@ -356,7 +388,7 @@ fn page(
             let (Some(position), Some(start)) =
                 (ranges::cursor(&flight.range, &key), ranges::cursor(&flight.range, after))
             else {
-                stop(routes, into);
+                stop(routes, RouteStop::Cursor, into);
                 return;
             };
             if (position.interval, &position.after) <= (start.interval, &start.after) {
@@ -489,7 +521,7 @@ fn continue_filtered(
         && let Some(next) = &cursor
         && (next.after.is_empty() || flight.cursor.as_ref() == Some(next))
     {
-        stop(routes, into);
+        stop(routes, RouteStop::Cursor, into);
         return;
     }
     flight.after = scanned;
@@ -503,7 +535,7 @@ fn continue_filtered(
         routes.pending.insert(owner, flight).expect("removed slot");
         into.push(Up::Ask(request));
     } else {
-        stop(routes, into);
+        stop(routes, RouteStop::Cursor, into);
     }
 }
 
@@ -537,7 +569,7 @@ fn page_failed(routes: &Routes, flight: &Flight, into: &mut Queue<Up>) {
     if ranges::starting(&flight.range) {
         root(into, engine::StoreInput::Unloaded { owner: flight.root });
     } else {
-        stop(routes, into);
+        stop(routes, RouteStop::Page, into);
     }
 }
 
