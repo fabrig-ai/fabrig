@@ -376,11 +376,8 @@ impl Builder {
             match (a, b) {
                 (None, None) => return Ok(Kind::Copy),
                 (Some(a), Some(b)) => {
-                    let ad = text(olds, a).find(old.spelled(an)).ok_or(place.error(Why::Held))?;
-                    let bd = text(news, b).find(new.spelled(bn)).ok_or(place.error(Why::Held))?;
-                    if !is_record(text(olds, a), ad) || !is_record(text(news, b), bd) {
-                        return Err(place.error(Why::Held));
-                    }
+                    let ad = text(olds, a).root(old.spelled(an), None).ok_or(place.error(Why::Held))?.decl;
+                    let bd = text(news, b).root(new.spelled(bn), None).ok_or(place.error(Why::Held))?.decl;
                     let inner = self.request(
                         Key { old: location(a, At::Decl(ad)), new: location(b, At::Decl(bd)), root: false },
                         place,
@@ -585,12 +582,6 @@ fn family(texts: &[&Schema], name: &[u8]) -> Option<u32> {
         }
     }
     None
-}
-fn is_record(schema: &Schema, at: DeclIx) -> bool {
-    match schema.declaration(at).shape {
-        Shape::Record { .. } => true,
-        Shape::Enum { .. } => false,
-    }
 }
 fn valid_root(schema: &Schema, root: Root) -> bool {
     if root.decl.index() >= schema.declarations() {

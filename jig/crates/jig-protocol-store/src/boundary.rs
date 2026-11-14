@@ -308,6 +308,8 @@ impl Check {
 /// Why a store refuses to open, saying which (protocol/store/records.md, 3, protocol/store/README.md, 5, protocol/store/opening.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OpenRefusal {
+    /// A held layout cannot be read by this binary (protocol/store/layouts.md, 5.3).
+    Layout { family: Box<str>, value_type: u16, id: u16, values: Option<u64>, why: Unplanned },
     /// The format row names another version of `family`.
     Format { family: Family, found: u32, wanted: u32 },
     /// The format row names another deployment than the header.
@@ -337,6 +339,14 @@ pub enum OpenRefusal {
     /// in the plan's order, its count, and its first keys, at most 64.
     InFlight { owner: crate::Owner, family: &'static str, count: u32, keys: Box<[Box<[u8]>]> },
 }
+/// Why a layout cannot be planned (protocol/store/opening.md, 1.8).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Unplanned {
+    Underived(skein_codec::layout::Underived),
+    Text,
+    Undeclared,
+}
+
 /// A refusal whose fix moves the generations (protocol/store/README.md 2), `why` saying
 /// which version or build.
 macro_rules! older {
@@ -418,6 +428,10 @@ impl OpenRefusal {
                 " does not end at the commit its header records, so a file was lost, cut or restored apart from the others, and this start has changed nothing in it. Restore ",
                 " whole from one backup, or, to start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store.",
+            ],
+            Self::Layout { .. } => &[
+                "",
+                " holds values at a layout this build cannot read, and this start has changed nothing in it. Start the build before it again, or a later build whose schema converts that layout, by its defaults and former names or by a written job.",
             ],
             Self::Failed => &[
                 "A file in ",
