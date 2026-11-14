@@ -143,6 +143,12 @@ pub fn configure(root: &Path, repository: u64) {
     turn_restart::configure_batch(root, repository, 3);
     let path = root.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let engine = temper_real_loop_world::settings::configuration(&value);
+    // Each direct child reserves the prepare-sized result carrier in its
+    // requester's inbox (jig's domain/tasks/messages.md, 2).
+    let inbox_bytes = engine.limits.core.tasks.inbox_messages
+        .checked_mul(engine.limits.core.tasks.result_bytes)
+        .expect("batch result credits");
     for name in ["tasks.tasks", "tasks.project_tasks", "tasks.tree_tasks", "tasks.exemptions"] {
         value["engine"]["limits"]["overrides"][name] = 64.into();
     }
@@ -167,12 +173,12 @@ pub fn configure(root: &Path, repository: u64) {
     // A message reserves two bytes inside the call's tool payload
     // (temper/docs/design/protocol/configuration/limits.md, limits checked at start).
     value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 8190.into();
-    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 8192.into();
+    value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = inbox_bytes.into();
     value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
     value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 8192.into();
     let limits = &mut value["workers"][0]["limits"]["overrides"];
     limits["tasks.message_bytes"] = 8190.into();
-    limits["tasks.inbox_bytes"] = 8192.into();
+    limits["tasks.inbox_bytes"] = inbox_bytes.into();
     limits["core.call_answer_bytes"] = 8192.into();
     limits["hub.event_bytes"] = 8190.into();
     limits["hub.outcome_bytes"] = 8192.into();
@@ -262,6 +268,11 @@ pub mod tests {
             u32::try_from(tracked).expect("tracked changes") <= engine.limits.core.tasks.project_goals,
             "the independent changes fit the project's goal limit"
         );
+        let result_credits = u32::try_from(delegate["batch"].as_array().expect("batch").len())
+            .expect("batch members")
+            .checked_mul(engine.limits.core.tasks.result_bytes)
+            .expect("batch result credits");
+        assert!(result_credits <= engine.limits.core.tasks.inbox_bytes, "the batch's result credits fit its inbox");
         let spend: u64 = delegate["batch"]
             .as_array()
             .expect("batch")
@@ -413,7 +424,7 @@ impl Judge<'_> {
             };
             let task = row["task"].as_u64().ok_or(String::from("landing task"))?;
             if row["changes"] != json!(expected) {
-                return Err(String::from("sealed in queue order"));
+                return Err(format!("sealed in queue order: expected {expected:?}, got {}", row["changes"]));
             }
             let panel = landing(self.root, task)?;
             if members(&panel)?.iter().any(|member| member["candidate"].is_null()) {
