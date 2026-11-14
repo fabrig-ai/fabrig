@@ -362,20 +362,20 @@ fn files_collectors_measure_complete_outputs_beside_the_expected_mirror() {
         let expected = world.store.rows.clone();
         let expected_heap = meter.end();
         meter.start();
-        let raw = world.store.retained();
+        let raw = world.store.retained().expect("complete readback");
         let raw_heap = meter.end();
         meter.start();
-        let decoded = world.store.readback();
+        let decoded = world.store.readback().expect("complete readback");
         let decoded_heap = meter.end();
         meter.start();
-        let forwards = world.store.transcript(task, false);
-        let mut backwards = world.store.transcript(task, true);
+        let forwards = world.store.transcript(task, false).expect("complete readback");
+        let mut backwards = world.store.transcript(task, true).expect("complete readback");
         backwards.reverse();
         let frames_heap = meter.end();
         assert_eq!(decoded, expected);
         assert_eq!(world.store.rows, expected, "complete readback never updates the mirror");
         assert_eq!(forwards, backwards);
-        assert_eq!(world.store.retained(), raw, "no main-map writes or cleanup");
+        assert_eq!(world.store.retained().expect("complete readback"), raw, "no main-map writes or cleanup");
         eprintln!(
             "files collectors goal={goal} raw entries={} decoded entries={} task frames={}: expected peak/held={}/{}; +raw={}/{}; +readback (internal raw map, decoded map, metadata, Get temporaries and bidirectional vectors)={}/{}; +external frame vectors={}/{}",
             raw.len(),

@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 
 mod readback;
+pub use readback::ReadbackFinding;
 #[cfg(test)]
 mod tests;
 
@@ -329,11 +330,11 @@ impl Store {
         }
     }
     /// Crash and reopen under a configuration whose models may differ from the last.
-    pub fn reconfigure(&mut self, seed: u64, models: &[jig_domain_core::Model]) {
+    pub fn reconfigure(&mut self, seed: u64, models: &[jig_domain_core::Model]) -> Result<(), ReadbackFinding> {
         self.models = models.into();
-        self.crash(seed);
+        self.crash(seed)
     }
-    pub fn crash(&mut self, seed: u64) {
+    pub fn crash(&mut self, seed: u64) -> Result<(), ReadbackFinding> {
         let component = self.component.take().expect("component exists");
         let application = jig_test_store::application(&self.limits.connector);
         self.component = Some(if let Some(disk) = &mut self.disk {
@@ -367,15 +368,20 @@ impl Store {
         self.open();
         self.kill = None;
         if self.disk.is_some() && self.sets.sets.is_empty() && !self.reached_kill() {
-            assert!(self.applied >= self.acknowledged, "acknowledged prefix survives");
-            let actual = self.readback();
-            assert_eq!(Some(&actual), self.prefixes.get(&self.applied), "recovery is one whole submitted prefix");
+            if self.applied < self.acknowledged {
+                return Err(ReadbackFinding::Inventory { key: None, reason: "acknowledged prefix survives".into() });
+            }
+            let actual = self.readback()?;
+            if Some(&actual) != self.prefixes.get(&self.applied) {
+                return Err(ReadbackFinding::Inventory { key: None, reason: "recovery is one whole submitted prefix".into() });
+            }
             self.rows = actual;
             self.prefixes.retain(|number, _| *number <= self.applied);
             self.submissions.retain(|number, _| *number <= self.applied);
             self.durable = self.submissions.iter().map(|(number, writes)| (*number, writes.clone())).collect();
             self.acknowledged = self.applied;
         }
+        Ok(())
     }
     /// Whether the disk has stopped serving operations at the selected cut.
     #[must_use]
@@ -398,14 +404,13 @@ impl Store {
         &self.disk.as_ref().expect("directory store").mutations
     }
     /// Replay durable commits into fresh stores and a fresh filesystem.
-    #[must_use]
-    pub fn fork(&self) -> Store {
+    pub fn fork(&self) -> Result<Store, ReadbackFinding> {
         let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets, self.disk.is_some());
         fresh.wires(self.wires);
         for index in 0..=self.durable.len() {
             for (_, sets) in self.patches.iter().filter(|(at, _)| *at == index) {
                 fresh.patch_sets(*sets);
-                fresh.crash(0);
+                fresh.crash(0)?;
             }
             if let Some((number, writes)) = self.durable.get(index) {
                 if fresh.generation_pending && writes.contains(&root::Write::Wires) {
@@ -419,7 +424,7 @@ impl Store {
         fresh.patch_sets(self.sets);
         fresh.turn_text = self.turn_text;
         fresh.page_delay = self.page_delay;
-        fresh
+        Ok(fresh)
     }
     /// Save fixture rows in one numbered transaction with the deployment header.
     pub fn seed(&mut self, rows: Box<[root::Record]>) {

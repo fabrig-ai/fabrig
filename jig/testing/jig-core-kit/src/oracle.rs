@@ -80,9 +80,14 @@ impl World {
     /// answered and the store's retained rows, restart cold, read back, and compare
     /// through `durable`. Panics naming the first difference (document, field, key).
     pub fn close(&mut self) {
-        if let Err(message) = self.close_oracle() {
+        if let Err(message) = self.finish() {
             panic!("{message}");
         }
+    }
+
+    /// Run the closing cold restart and readback once, returning its first finding.
+    pub fn finish(&mut self) -> Result<(), String> {
+        self.close_oracle()
     }
 
     fn close_oracle(&mut self) -> Result<(), String> {
@@ -96,8 +101,8 @@ impl World {
         let (now, wall) = self.clocks();
         self.set_clock(now, wall);
         self.settle_oracle()?;
-        let inventory = self.store.retained();
-        let records = self.store.readback_of(&inventory);
+        let inventory = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let records = self.store.readback_of(&inventory).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
         let mut parties: BTreeSet<_> = records
             .values()
             .filter_map(|row| {
@@ -142,20 +147,24 @@ impl World {
             tasks.extend(peers.parties.iter().filter_map(|party| party.last_task));
         }
         let before = self.oracle_documents(&parties, &tasks);
-        self.restart_configured(configuration(&self.restart_config.0));
+        self.restart_configured(configuration(&self.restart_config.0))?;
         self.settle_oracle()?;
-        assert!(self.domain.ready(), "restart oracle: decisions did not open");
+        if !self.domain.ready() {
+            return Err("restart oracle: decisions did not open".into());
+        }
         let after = self.oracle_documents(&parties, &tasks);
         for (key, expected) in &before {
             let found = after.get(key).expect("same oracle read set");
-            compare_answer(key, expected, found);
+            compare_answer(key, expected, found)?;
         }
-        let restored = self.store.retained();
-        let recovered = self.store.readback_of(&restored);
-        let mut expected_header = deployment(&records);
-        let found_header = deployment(&recovered);
+        let restored = self.store.retained().map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let recovered = self.store.readback_of(&restored).map_err(|finding| format!("restart oracle readback: {finding:?}"))?;
+        let mut expected_header = deployment(&records)?;
+        let found_header = deployment(&recovered)?;
         expected_header.commits = found_header.commits;
-        assert_eq!(expected_header, found_header, "restart oracle deployment field at key Deployment");
+        if expected_header != found_header {
+            return Err(format!("restart oracle deployment field at key Deployment: expected {expected_header:?}, found {found_header:?}"));
+        }
         for key in inventory.keys().chain(restored.keys()).collect::<BTreeSet<_>>() {
             let exception = rebuilt(key);
             let header = keys::decode(key) == Some(core::Key::Core(core::CoreKey::Deployment));
@@ -167,20 +176,20 @@ impl World {
                 let key = root::Key::Core(key);
                 refreshed_move(records.get(&key), recovered.get(&key))
             });
-            if !(refreshed_move || exception.is_some() && (header || wires || expired)) {
-                assert_eq!(
-                    inventory.get(key),
-                    restored.get(key),
-                    "restart oracle retained key {:?} ({:?}); rebuild {:?}",
-                    key,
-                    keys::decode(key),
-                    exception
-                );
+            if !(refreshed_move || exception.is_some() && (header || wires || expired))
+                && inventory.get(key) != restored.get(key)
+            {
+                return Err(format!(
+                    "restart oracle retained key {:?} ({:?}); rebuild {:?}: expected {:?}, found {:?}",
+                    key, keys::decode(key), exception, inventory.get(key), restored.get(key)
+                ));
             }
         }
         for (key, row) in &records {
-            if matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(_)))) {
-                assert_eq!(Some(row), recovered.get(key), "restart oracle transcript key {key:?}");
+            if matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(_))))
+                && Some(row) != recovered.get(key)
+            {
+                return Err(format!("restart oracle transcript key {key:?}: expected {row:?}, found {:?}", recovered.get(key)));
             }
         }
         Ok(())
@@ -221,7 +230,7 @@ impl World {
                 return Ok(());
             }
         }
-        panic!("restart oracle: held delivery at store readback boundary");
+        Err("restart oracle: held delivery at store readback boundary".into())
     }
 
     fn oracle_documents(
@@ -253,13 +262,13 @@ impl World {
     }
 }
 
-fn deployment(records: &BTreeMap<root::Key, root::Record>) -> core::Deployment {
-    let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(row))) =
-        &records[&root::Key::Core(core::Key::Core(core::CoreKey::Deployment))]
+fn deployment(records: &BTreeMap<root::Key, root::Record>) -> Result<core::Deployment, String> {
+    let Some(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(row)))) =
+        records.get(&root::Key::Core(core::Key::Core(core::CoreKey::Deployment)))
     else {
-        panic!("restart oracle deployment header")
+        return Err("restart oracle deployment header".into());
     };
-    *row
+    Ok(*row)
 }
 
 // accounts.md 6: restart cancels an in-flight move; the first refreshed grant clears its Moving hold.
@@ -357,12 +366,16 @@ fn durable(mut document: Document) -> Document {
     document
 }
 
-fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, found: &core::reads::Answer) {
+fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, found: &core::reads::Answer) -> Result<(), String> {
     let document = key.1.map_or_else(|| "Frame".to_owned(), |task| format!("Task {task}"));
     macro_rules! fields {
         ($left:expr, $right:expr; $($field:ident),+ $(,)?) => {$(
-            assert_eq!($left.$field, $right.$field,
-                "restart oracle document {} field {} (sign-in {})", document, stringify!($field), key.0);
+            if $left.$field != $right.$field {
+                return Err(format!(
+                    "restart oracle document {} field {} (sign-in {}): expected {:?}, found {:?}",
+                    document, stringify!($field), key.0, $left.$field, $right.$field
+                ));
+            }
         )+};
     }
     if let (core::reads::Answer::Document(left), core::reads::Answer::Document(right)) = (expected, found) {
@@ -432,7 +445,10 @@ fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, foun
             );
         }
     }
-    assert_eq!(expected, found, "restart oracle document {document} field answer (sign-in {})", key.0);
+    if expected != found {
+        return Err(format!("restart oracle document {document} field answer (sign-in {}): expected {expected:?}, found {found:?}", key.0));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -460,7 +476,7 @@ mod tests {
         world.observer.record();
         world.seed(Box::new([root::Record::Core(core::Record::Tasks(super::tasks::Stored::Live(row)))]));
         assert!(world.domain.ready());
-        let message = world.close_oracle().expect_err("the closing restart refuses the missing project");
+        let message = world.finish().expect_err("the closing restart refuses the missing project");
         assert_eq!(
             message,
             "restart oracle: start refused at Some(Link): Link { record: Tasks(Live(1)), linked: Project(99) }"

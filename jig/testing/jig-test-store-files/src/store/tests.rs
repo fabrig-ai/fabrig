@@ -119,7 +119,7 @@ fn delayed_pages_arrive_in_reverse_and_across_a_crash() {
     // restore every durable row exactly once, including continuation pages.
     store.pause_pages(true);
     ask_snapshots(&mut store);
-    store.crash(CRASH_SEED);
+    store.crash(CRASH_SEED).expect("crash readback");
     assert!(!store.loading());
     assert!(store.answers().is_empty());
     ask_snapshots(&mut store);
@@ -131,10 +131,10 @@ fn delayed_pages_arrive_in_reverse_and_across_a_crash() {
 fn readback_discovers_actual_inventory_without_changing_the_mirror() {
     let mut store = snapshot_store();
     let expected = store.rows.clone();
-    let before = store.retained();
-    assert_eq!(store.readback(), expected);
+    let before = store.retained().expect("complete readback");
+    assert_eq!(store.readback().expect("complete readback"), expected);
     assert_eq!(store.rows, expected);
-    assert_eq!(store.retained(), before, "readers write and erase nothing");
+    assert_eq!(store.retained().expect("complete readback"), before, "readers write and erase nothing");
     assert_eq!(store.applied, 1);
     assert!(
         before.contains_key(&jig_protocol_store::keys::installation(store.component_limits.store.key).expect("key"))
@@ -153,15 +153,25 @@ fn readback_discovers_actual_inventory_without_changing_the_mirror() {
 }
 
 #[test]
-#[should_panic(expected = "quiescent fixture boundary")]
 fn readback_refuses_pending_writes_without_draining_them() {
     let mut store = snapshot_store();
     store.submit(2, Box::new([]), 0);
-    let _found = store.readback();
+    let pending = store.pending.clone();
+    let held = store.held.clone();
+    let rows = store.rows.clone();
+    let applied = store.applied;
+    assert!(matches!(store.readback(), Err(super::ReadbackFinding::NotQuiescent)));
+    assert_eq!(store.pending, pending);
+    assert_eq!(store.held, held);
+    assert_eq!(store.rows, rows);
+    assert_eq!(store.applied, applied);
+    assert!(store.inflight.is_empty());
+    assert!(store.replies.is_empty());
+    assert!(store.delayed.is_empty());
 }
 
 fn component_commit(store: &mut Store, number: u64, writes: Box<[jig_protocol_store::Write]>) {
-    let terminal = store.readback_query(jig_protocol_store::Request::Commit { number, writes });
+    let terminal = store.readback_query(jig_protocol_store::Request::Commit { number, writes }).expect("component commit");
     assert!(matches!(terminal, jig_protocol_store::Event::Committed { number: found, .. } if found == number));
 }
 
@@ -179,17 +189,16 @@ fn readback_exposes_extra_missing_and_altered_actual_rows() {
         2,
         Box::new([Write::Put { key: extra_key.clone(), value: jig_test_store::records::encode(&extra) }]),
     );
-    assert_ne!(store.readback(), expected, "extra valid row is discovered");
+    assert_ne!(store.readback().expect("complete readback"), expected, "extra valid row is discovered");
     component_commit(&mut store, 3, Box::new([Write::Remove { key: extra_key }, Write::Remove { key: key.clone() }]));
-    assert_ne!(store.readback(), expected, "missing expected row is exposed");
+    assert_ne!(store.readback().expect("complete readback"), expected, "missing expected row is exposed");
     let altered = jig_test_connector::Record::Result { task: 1, code: 99 };
     component_commit(&mut store, 4, Box::new([Write::Put { key, value: jig_test_store::records::encode(&altered) }]));
-    assert_ne!(store.readback(), expected, "altered value is read through Get");
+    assert_ne!(store.readback().expect("complete readback"), expected, "altered value is read through Get");
     assert_eq!(store.rows, expected, "all changes were component-only");
 }
 
 #[test]
-#[should_panic(expected = "recognized application key")]
 fn readback_rejects_unknown_actual_key() {
     let mut store = snapshot_store();
     component_commit(
@@ -197,11 +206,13 @@ fn readback_rejects_unknown_actual_key() {
         2,
         Box::new([jig_protocol_store::Write::Put { key: Box::new([255]), value: Box::new([]) }]),
     );
-    let _found = store.readback();
+    let Err(super::ReadbackFinding::ApplicationKey { key }) = store.readback() else {
+        panic!("unknown application key finding");
+    };
+    assert_eq!(key.as_ref(), &[255]);
 }
 
 #[test]
-#[should_panic(expected = "application record decodes")]
 fn readback_rejects_undecodable_actual_value() {
     let mut store = snapshot_store();
     component_commit(
@@ -212,7 +223,10 @@ fn readback_rejects_undecodable_actual_value() {
             value: Box::new([]),
         }]),
     );
-    let _found = store.readback();
+    let Err(super::ReadbackFinding::ApplicationValue { key }) = store.readback() else {
+        panic!("undecodable application value finding");
+    };
+    assert_eq!(key, jig_test_store::keys::encode(1, &jig_test_connector::RecordKey::Result(1)));
 }
 
 fn transcript_store() -> (Store, Vec<core::TurnRecord>) {
@@ -244,35 +258,38 @@ fn transcript_store() -> (Store, Vec<core::TurnRecord>) {
 #[test]
 fn readback_of_agrees_with_readback() {
     let (mut store, _) = transcript_store();
-    let inventory = store.retained();
-    let expected = store.readback();
-    assert_eq!(store.readback_of(&inventory), expected);
+    let inventory = store.retained().expect("complete readback");
+    let expected = store.readback().expect("complete readback");
+    assert_eq!(store.readback_of(&inventory).expect("complete readback"), expected);
     assert_eq!(expected, store.rows);
-    assert_eq!(store.retained(), inventory, "readback preserves the supplied inventory");
+    assert_eq!(store.retained().expect("complete readback"), inventory, "readback preserves the supplied inventory");
 }
 
 #[test]
 fn readback_transcripts_compare_both_frame_orders_with_independent_turns() {
     let (mut store, expected) = transcript_store();
     let mirror = store.rows.clone();
-    let before = store.retained();
-    assert_eq!(store.transcript(1, false), expected);
-    assert_eq!(store.transcript(1, true), expected.into_iter().rev().collect::<Vec<_>>());
-    assert_eq!(store.readback(), mirror);
+    let before = store.retained().expect("complete readback");
+    assert_eq!(store.transcript(1, false).expect("complete readback"), expected);
+    assert_eq!(store.transcript(1, true).expect("complete readback"), expected.into_iter().rev().collect::<Vec<_>>());
+    assert_eq!(store.readback().expect("complete readback"), mirror);
     assert_eq!(store.rows, mirror);
-    assert_eq!(store.retained(), before);
+    assert_eq!(store.retained().expect("complete readback"), before);
 }
 
 #[test]
-#[should_panic(expected = "complete transcript requires successful Turns")]
 fn readback_rejects_unread_transcript() {
     let (mut store, _) = transcript_store();
     store.unread_transcript(1);
-    let _found = store.transcript(1, false);
+    let Err(super::ReadbackFinding::Transcript { task: 1, backwards: false, after: None, terminal, .. }) =
+        store.transcript(1, false)
+    else {
+        panic!("unread transcript finding");
+    };
+    assert!(matches!(*terminal, jig_protocol_store::Event::Unread { owner } if owner == skein_lib::Token::new(0)));
 }
 
 #[test]
-#[should_panic(expected = "complete transcript requires successful Turns")]
 fn readback_rejects_unread_transcript_after_a_successful_prefix() {
     use skein_io::file;
     use skein_lib::Token;
@@ -282,7 +299,7 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
         read: jig_protocol_store::TranscriptRead::Page { task: 1, backwards: false, after: None },
         rows: 2,
         bytes: u64::from(store.component_limits.store.page.bytes),
-    });
+    }).expect("prefix page");
     let jig_protocol_store::Event::Turns { turns, next: Some(offset), .. } = event else { panic!("prefix page") };
     assert_eq!(turns.len(), 2);
     let root = store.files.root();
@@ -297,7 +314,13 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
     let _closed = store.file(file::Request::Close { owner: Token::new(800), file });
     // The first two real frames still read successfully; the committed third
     // frame is now missing, so a complete collector must reject its prefix.
-    let _found = store.transcript(1, false);
+    let Err(super::ReadbackFinding::Transcript { task: 1, backwards: false, after: Some(after), terminal, .. }) =
+        store.transcript(1, false)
+    else {
+        panic!("unread terminal after the prefix");
+    };
+    assert_eq!(after, offset);
+    assert!(matches!(*terminal, jig_protocol_store::Event::Unread { owner } if owner == Token::new(0)));
 }
 
 fn starting_snapshot() -> Store {
@@ -358,13 +381,13 @@ fn start_mode_survives_crash_and_fork_with_complete_readback() {
     let mut store = starting_snapshot();
     let expected = store.rows.clone();
     check_start_snapshot(&mut store);
-    assert_eq!(store.readback(), expected);
-    store.crash(CRASH_SEED);
+    assert_eq!(store.readback().expect("complete readback"), expected);
+    store.crash(CRASH_SEED).expect("crash readback");
     check_start_snapshot(&mut store);
-    assert_eq!(store.readback(), expected);
-    let mut forked = store.fork();
+    assert_eq!(store.readback().expect("complete readback"), expected);
+    let mut forked = store.fork().expect("fork readback");
     check_start_snapshot(&mut forked);
-    assert_eq!(forked.readback(), expected);
+    assert_eq!(forked.readback().expect("complete readback"), expected);
 }
 #[test]
 fn start_switch_without_a_pending_generation_finishes_without_a_store_switch() {
@@ -384,7 +407,7 @@ fn start_pages_delay_and_a_crash_discards_their_flights() {
     store.ask(StoreOut::Start { phase: core::start::Phase::RestoreConnector { connector: 1 }, census: None });
     assert!(store.answers().is_empty());
     assert!(store.loading());
-    store.crash(CRASH_SEED);
+    store.crash(CRASH_SEED).expect("crash readback");
     assert!(!store.loading());
     assert!(store.answers().is_empty());
     store.pause_pages(false);

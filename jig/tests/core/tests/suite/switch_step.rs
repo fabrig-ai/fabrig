@@ -26,7 +26,7 @@ fn before() -> World {
     let mut world = World::new(Setup { seed: f::SEED, patch_sets: f::BEFORE, ..Setup::default() });
     // Establish the recovered source bytes before comparing generations: a
     // normal open may trim a log's unused tail during recovery (protocol/store/opening.md, 1).
-    world.store.crash(f::SEED);
+    world.store.crash(f::SEED).expect("crash readback");
     world
 }
 
@@ -54,6 +54,7 @@ fn wires(world: &mut World) -> Box<[u8]> {
     world
         .store
         .retained()
+        .expect("complete retained inventory")
         .into_iter()
         .find_map(|(key, value)| {
             (jig_protocol_store::keys::decode_own(&key) == Some(jig_protocol_store::keys::Own::Wires)).then_some(value)
@@ -168,7 +169,7 @@ fn a_live_set_past_lowered_limits_leaves_the_old_generation_active() {
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
     world.store.patch_sets(f::BEFORE);
-    world.store.crash(f::SEED);
+    world.store.crash(f::SEED).expect("crash readback");
     assert_eq!(world.store.applied, last);
     assert_eq!(world.store.rows, rows);
     assert!(!world.store.generation_pending);
@@ -238,7 +239,7 @@ fn stopping_with_the_mark_held_does_not_adopt_runs() {
 fn refuses_before_switch(mut world: World) {
     // Each caller deliberately seeds an unmade link and inspects the unfinished copy.
     world.broken();
-    world.store.crash(f::SEED);
+    world.store.crash(f::SEED).expect("crash readback");
     let source = world.store.generation_contents(b"generations/1");
     let last = world.store.applied;
     let assignments = world.assignments.clone();
@@ -268,7 +269,7 @@ fn refuses_before_switch(mut world: World) {
             | core::start::Phase::SettleOutbox { .. }
     )));
     world.store.patch_sets(f::BEFORE);
-    world.store.crash(f::SEED);
+    world.store.crash(f::SEED).expect("crash readback");
     assert_eq!(world.store.applied, last);
     // The inspection mirror caches copy rows; compare the recovered files,
     // including every map, through the earlier build's actual store open.

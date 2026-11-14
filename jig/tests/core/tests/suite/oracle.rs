@@ -13,7 +13,6 @@ fn a_parked_conversation_keeps_its_documents_and_transcript() {
 }
 
 #[test]
-#[should_panic(expected = "restart oracle document Task 1 field chip")]
 fn a_writer_forgetting_a_durable_task_field_names_its_document() {
     let mut world = World::new(Setup { seed: 1902, ..Setup::default() });
     world.end(tasks::End::Parked, 0);
@@ -24,7 +23,11 @@ fn a_writer_forgetting_a_durable_task_field_names_its_document() {
     };
     row.spec.words = b"writer forgot its answer".as_slice().into();
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))]));
-    world.close();
+    let finding = world.finish().expect_err("writer omitted a durable field");
+    assert!(finding.contains("restart oracle document Task 1 field chip"), "{finding}");
+    let applied = world.store.applied;
+    assert_eq!(world.finish(), Ok(()), "the finding is returned only once");
+    assert_eq!(world.store.applied, applied);
 }
 
 #[test]
@@ -97,28 +100,6 @@ fn close_settles_a_commit_held_before_the_component() {
     world.close();
     assert!(world.store.held.is_empty());
     assert!(world.store.pending.is_empty());
-}
-
-#[test]
-#[should_panic(expected = "restart oracle document Task 1 field chip")]
-fn dropping_a_world_runs_the_restart_oracle() {
-    let mut world = World::new(Setup { seed: 1907, ..Setup::default() });
-    world.end(tasks::End::Parked, 0);
-    let task = world.assigned.as_ref().expect("assigned task").task;
-    let key = root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)));
-    let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(mut row))) = world.store.rows[&key].clone() else {
-        panic!("live task");
-    };
-    row.spec.words = b"writer forgot its answer".as_slice().into();
-    world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))]));
-}
-
-#[test]
-#[should_panic(expected = "the story's own assertion")]
-fn unwinding_preserves_the_storys_failure_without_a_second_panic() {
-    let mut world = World::new(Setup { seed: 1908, ..Setup::default() });
-    world.stopped = true;
-    panic!("the story's own assertion");
 }
 
 #[test]
