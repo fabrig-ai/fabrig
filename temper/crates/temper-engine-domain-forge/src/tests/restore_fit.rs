@@ -633,7 +633,7 @@ fn expired_adopted_history_neither_counts_nor_links_an_absent_repository() {
     }
     assert_eq!(d.restore_fit_failure(), None);
     assert_eq!(d.fit_restored(&LIMITS), Ok(()));
-    d.reconcile(&reconcile::empty_tasks());
+    assert_eq!(d.missing_link(&reconcile::empty_tasks()), None);
 }
 #[test]
 fn nonexpired_adopted_history_still_asserts_its_missing_repository() {

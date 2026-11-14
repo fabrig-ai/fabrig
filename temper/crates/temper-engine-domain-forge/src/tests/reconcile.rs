@@ -510,7 +510,6 @@ fn production_link_keeps_failed_issue_history_without_a_goal() {
         let mut d = domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(&mut d, Event::Restore { record: failed_history(desired) });
-        d.reconcile(&empty_tasks());
         assert_eq!(d.missing_link(&empty_tasks()), None);
         let out = outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Wall });
         assert!(!has_projection_effect(&out));
@@ -532,7 +531,6 @@ fn production_link_requires_a_failed_issues_repository() {
 fn production_link_preserves_pending_closing_entry_and_flight() {
     let (mut d, _) = closing_history(Some(ENTRY), REPO);
     outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
-    d.reconcile(&empty_tasks());
     assert_eq!(d.missing_link(&empty_tasks()), None);
 }
 
@@ -548,7 +546,6 @@ fn production_link_preserves_retired_forge_owners() {
     ] {
         outputs(&mut d, Event::Restore { record });
     }
-    d.reconcile(&empty_tasks());
     assert_eq!(d.missing_link(&empty_tasks()), None);
 }
 
@@ -574,7 +571,6 @@ fn only_a_stopped_follow_keeps_its_task_as_history() {
         outputs(&mut d, Event::Restore { record: Stored::Follow(row.clone()) });
         let tasks = empty_tasks();
         if stopped {
-            d.reconcile(&tasks);
             assert_eq!(d.missing_link(&tasks), None);
             assert_eq!(d.follow_row(5, 1), Some(&row), "the ended task's number stays recorded");
         } else {
@@ -624,7 +620,6 @@ fn a_restored_tier_whose_task_is_absent_drops_its_run_before_linking() {
     d.link_tiers(&tasks, &LIMITS);
     assert!(resolved(&d, &Stored::Tier(saved), false));
     assert_eq!(d.missing_link(&tasks), None);
-    d.reconcile(&tasks);
     assert!(tiers::row(&d).record.run.is_none());
     assert!(tiers::row(&d).task.is_none());
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -634,22 +629,6 @@ fn a_restored_tier_whose_task_is_absent_drops_its_run_before_linking() {
             if row.task.is_none() && row.record.run.is_none() && row.record.sequence == 1)));
     let out = tiers::key_trees(&mut d);
     assert!(out.iter().any(|request| matches!(request, Request::TierRun { number: 2, .. })));
-}
-
-#[test]
-#[should_panic(expected = "for Call(NamedCall { task: 7")]
-fn reconcile_panics_on_a_missing_link() {
-    let mut d = domain();
-    outputs(&mut d, Event::Restore { record: call(TASK) });
-    assert_eq!(
-        d.missing_link(&empty_tasks()),
-        Some(MissingLink {
-            kind: RecordKind::Call,
-            key: stored_key(&call(TASK)),
-            need: Need::Task { task: TASK, retired: None },
-        })
-    );
-    d.reconcile(&empty_tasks());
 }
 
 #[test]
@@ -778,7 +757,7 @@ fn a_start_keeps_the_names_of_tasks_jig_does_not_hold() {
         }
         if count == LIMITS.repositories {
             assert_eq!(d.fit_restored(&LIMITS), Ok(()));
-            d.reconcile(&tasks);
+            assert_eq!(d.missing_link(&tasks), None);
         } else {
             assert_eq!(
                 d.fit_restored(&LIMITS),

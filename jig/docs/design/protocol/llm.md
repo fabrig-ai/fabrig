@@ -539,8 +539,9 @@ Each within jig's suites' budgets.
 - **The moved record's form:** its codec's step tests, each refusal of
   a decode, and a fuzzed decode, total and bounded.
 - **The translation's step tests:** every request and event each way;
-  every failure class mapped; the unreachable ones asserted; the table's
-  generations, schemes, expiry and pushing out.
+  every reachable failure class mapped (an unreachable one is asserted,
+  and no test triggers it: `skein/docs/foundation/programming-model.md`,
+  10.4); the table's generations, schemes, expiry and pushing out.
 - **The engine's LLM path and accounts,** in the protocol world
   (`service.md`, section 8): the root, `smith-inline-agent`, smith's
   component with the slots' contracts beside it, skein's connection

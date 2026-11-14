@@ -74,10 +74,13 @@ fn funding(funder: Funder, parent: Option<Funder>, period: Option<PeriodTimes>, 
 fn ended_tree(page: &EndedPage, w: &Words, cap: Option<Limits>) -> Tree {
     let f = crate::tests::render_limits(&CLIENT, w).unwrap();
     let cap = cap.unwrap_or(f);
+    ended_tree_with_bindings(page, w, cap, cap.bindings).0
+}
+fn ended_tree_with_bindings(page: &EndedPage, w: &Words, cap: Limits, entries: u32) -> (Tree, JigBindings) {
     let mut b = Builder::new(&cap);
-    let mut bindings = JigBindings::new(cap.bindings, CLIENT.client.text);
+    let mut bindings = JigBindings::new(entries, CLIENT.client.text);
     view::ended_render(&mut b, &Fixture::new(&CLIENT).view(), page, w, &mut bindings);
-    b.finish()
+    (b.finish(), bindings)
 }
 fn spend_tree(page: &SpendPage, w: &Words, cap: Option<Limits>) -> Tree {
     let f = crate::tests::render_limits(&CLIENT, w).unwrap();
@@ -218,7 +221,7 @@ fn exact_limits(tree: &Tree, maximum: Limits) -> Limits {
         })
         .max()
         .unwrap();
-    let bindings = tree.nodes().iter().filter(|n| n.binding.is_some() || n.link.is_some() || n.slot.is_some()).count();
+    let bindings = tree.nodes().iter().filter(|n| n.binding.is_some() || n.link.is_some()).count();
     Limits {
         nodes: tree.len(),
         depth: u32::try_from(depth).unwrap(),
@@ -230,8 +233,7 @@ fn exact_limits(tree: &Tree, maximum: Limits) -> Limits {
     }
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn ended_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_each_one_under_whole() {
+fn ended_ended_view_fits_exact_node_depth_text_binding_and_slot_storage() {
     let w = words();
     let page = ended(
         ChipEnding::Done(ResultValue::Connector {
@@ -245,18 +247,18 @@ fn ended_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_each_
     let tree = ended_tree(&page, &w, None);
     let exact = exact_limits(&tree, f);
     assert!(exact.bindings > 0 && exact.slots > 0);
-    assert_eq!(ended_tree(&page, &w, Some(exact)).len(), tree.len());
-    for below in [
-        Limits { nodes: exact.nodes - 1, ..exact },
-        Limits { depth: exact.depth - 1, ..exact },
-        Limits { text_per_node: exact.text_per_node - 1, ..exact },
-        Limits { text_bytes: exact.text_bytes - 1, ..exact },
-        Limits { bindings: exact.bindings - 1, ..exact },
-        Limits { slots: exact.slots - 1, ..exact },
-    ] {
-        std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| ended_tree(&page, &w, Some(below))))
-            .expect_err("each one-under whole view storage refuses");
-    }
+    // Jig's table holds a meaning for each bound node and each slot;
+    // skein's builder charges slots separately from bound nodes.
+    let entries = exact.bindings.checked_add(exact.slots).unwrap();
+    let (tree, bindings) = ended_tree_with_bindings(&page, &w, exact, entries);
+    let used = tree.used();
+    assert_eq!(used.nodes, exact.nodes);
+    assert_eq!(used.depth, exact.depth);
+    assert_eq!(used.text_per_node, exact.text_per_node);
+    assert_eq!(used.text_bytes, exact.text_bytes);
+    assert_eq!(used.bindings, exact.bindings);
+    assert_eq!(used.slots, exact.slots);
+    assert_eq!(bindings.len(), entries);
     assert_eq!(page, original);
     assert!(
         view::ended_nodes(
@@ -274,7 +276,6 @@ fn ended_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_each_
     );
 }
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn ended_funding_view_exact_geometry_and_reserved_empty_rows_remain_independent_of_scalar_values() {
     let mut goldens = Goldens::new("tree/fragments/ended_pages/ended_funding_view_exact");
     let w = words();
@@ -289,16 +290,13 @@ fn ended_funding_view_exact_geometry_and_reserved_empty_rows_remain_independent_
     let exact = exact_limits(&tree, f);
     assert_eq!(exact.bindings, 0);
     assert_eq!(exact.slots, 0);
-    assert_eq!(spend_tree(&page, &w, Some(exact)).len(), tree.len());
-    for below in [
-        Limits { nodes: exact.nodes - 1, ..exact },
-        Limits { depth: exact.depth - 1, ..exact },
-        Limits { text_per_node: exact.text_per_node - 1, ..exact },
-        Limits { text_bytes: exact.text_bytes - 1, ..exact },
-    ] {
-        std::panic::catch_unwind(|| spend_tree(&page, &w, Some(below)))
-            .expect_err("one-under ended scalar tree refuses");
-    }
+    let used = spend_tree(&page, &w, Some(exact)).used();
+    assert_eq!(used.nodes, exact.nodes);
+    assert_eq!(used.depth, exact.depth);
+    assert_eq!(used.text_per_node, exact.text_per_node);
+    assert_eq!(used.text_bytes, exact.text_bytes);
+    assert_eq!(used.bindings, exact.bindings);
+    assert_eq!(used.slots, exact.slots);
     let mut reserved = page.clone();
     reserved.rows = List::with_capacity(CLIENT.client.rows);
     let tree = spend_tree(&reserved, &w, None);
