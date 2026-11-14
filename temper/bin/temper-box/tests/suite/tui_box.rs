@@ -396,6 +396,11 @@ struct LoginJudge {
     settled: bool,
 }
 impl Referee<Root> for LoginJudge {
+    fn act(&mut self, _now: Time, roots: &mut [Root]) {
+        if let [Root::Client(binary), Root::Terminal(terminal)] = roots {
+            terminal.client_exit = binary.exit_status();
+        }
+    }
     fn watch(&mut self, _now: Time, roots: &[Root]) -> Result<(), String> {
         self.settled = roots.iter().all(Host::is_empty);
 
