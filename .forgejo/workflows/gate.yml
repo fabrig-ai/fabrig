@@ -1,0 +1,26 @@
+name: Gate
+# The landing's gate under `by: turn`: dispatched by temper alone, at a
+# landing's candidate, with the round's base. What it runs is the runner
+# host's `$CI_GATE`, the same as ci.yml's.
+on:
+  workflow_dispatch:
+    inputs:
+      temper_commit:
+        required: true
+      temper_key:
+        required: true
+      temper_base:
+        required: false
+        default: ""
+jobs:
+  gate:
+    runs-on: dogfood
+    steps:
+      - run: '"$CI_GATE" "${{ inputs.temper_commit }}" "${{ inputs.temper_base }}"'
+        env:
+          CI_GATE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: junit
+          path: junit.xml
