@@ -171,8 +171,6 @@ skein/crates/skein-ui/src/tests/tree.rs catch_unwind 5
 skein/crates/skein-ui/src/tests/tree.rs should_panic 26
 skein/examples/echo/domain/src/tests.rs should_panic 2
 skein/examples/echo/protocol/src/tests/conn.rs should_panic 1
-skein/testing/skein-codegen/src/tests.rs catch_unwind 1
-skein/testing/skein-codegen/tests/suite/patch_check.rs catch_unwind 2
 skein/testing/skein-echo-client/src/tests.rs should_panic 4
 skein/testing/skein-fake-person-browser/src/harness/deadline_tests.rs should_panic 1
 skein/testing/skein-world/src/deadline.rs resume_unwind 1
@@ -181,9 +179,7 @@ skein/testing/skein-world/src/end_to_end.rs should_panic 1
 skein/testing/skein-world/src/ring.rs catch_unwind 1
 skein/testing/skein-world/src/tree.rs catch_unwind 1
 skein/testing/skein-world/src/tree.rs should_panic 3
-skein/tests/codec/tests/suite/fuzzy/generic.rs catch_unwind 1
 skein/tests/heap/tests/suite/meter.rs should_panic 6
-skein/tests/io/src/processes.rs catch_unwind 2
 skein/tests/lib/tests/suite/journal.rs should_panic 1
 skein/tests/llm-connection/tests/suite/close.rs should_panic 5
 skein/tests/llm/tests/suite/bounded_peer_memory.rs catch_unwind 2
