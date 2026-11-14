@@ -35,10 +35,15 @@ pub const PROJECT: &str = "1";
 /// ctl's result keeps the full merge id after any pull request identity (client/ctl/results.md, 1).
 #[must_use]
 pub fn landed_result(task: &str) -> (&str, &str) {
-    let line = task.lines().find(|line| line.starts_with("result: Landed · ")).expect("landed result line");
-    let (_, merge) = line.split_once("merge commit ").expect("landed merge id");
-    assert!(merge.len() == 40 && merge.bytes().all(|byte| byte.is_ascii_hexdigit()), "full merge id: {line}");
-    (line, merge)
+    check_landed_result(task).unwrap_or_else(|why| panic!("{why}"))
+}
+pub fn check_landed_result(task: &str) -> Result<(&str, &str), String> {
+    let line = task.lines().find(|line| line.starts_with("result: Landed · ")).ok_or("landed result line")?;
+    let (_, merge) = line.split_once("merge commit ").ok_or("landed merge id")?;
+    if merge.len() != 40 || !merge.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(format!("full merge id: {line}"));
+    }
+    Ok((line, merge))
 }
 
 #[derive(Clone)]
@@ -1127,6 +1132,7 @@ struct Judge {
     scratch: PathBuf,
     token_names: Vec<String>,
     pending: String,
+    finding: Option<String>,
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
@@ -1148,22 +1154,30 @@ impl Referee<Process> for Judge {
             }
         }
         if procs.len() == 2 && !self.stopped {
-            let Process::Calls(calls) = &procs[1] else { panic!("calls host") };
+            let Process::Calls(calls) = &procs[1] else {
+                self.finding = Some("calls host".into());
+                return;
+            };
             if calls.done() {
-                let Process::Binary(serve) = &mut procs[0] else { panic!("serve binary") };
+                let Process::Binary(serve) = &mut procs[0] else {
+                    self.finding = Some("serve binary".into());
+                    return;
+                };
                 serve.signal(Signal::Terminate);
                 self.stopped = true;
             }
         }
     }
-    fn observe(&mut self, now: Time, procs: &[Process]) {
+    fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
         self.settled = procs.iter().all(Host::is_empty);
-        if let Process::Binary(serve) = &procs[0] {
-            assert!(
-                self.stopped || serve.exit_status().is_none(),
-                "serve ended early: {}",
-                String::from_utf8_lossy(serve.stderr())
-            );
+        if let Process::Binary(serve) = &procs[0]
+            && !self.stopped
+            && serve.exit_status().is_some()
+        {
+            return Err(format!("serve ended early: {}", String::from_utf8_lossy(serve.stderr())));
         }
         if !self.settled && now >= self.deadline {
             self.pending = procs
@@ -1191,6 +1205,7 @@ impl Referee<Process> for Judge {
                 })
                 .unwrap_or_else(|| "no calls host".into());
         }
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.settled).then_some(self.deadline)
@@ -1199,7 +1214,7 @@ impl Referee<Process> for Judge {
         (!self.settled && now >= self.deadline).then(|| format!("ctl story did not settle: {}", self.pending))
     }
     fn passed(&self) -> bool {
-        self.settled
+        self.finding.is_none() && self.settled
     }
 }
 #[must_use]
@@ -1233,6 +1248,7 @@ fn run_with_serve(story: Story<'_>, mut serve: skein_world::end_to_end::Binary) 
         scratch: story.scratch.into(),
         token_names: story.tokens,
         pending: String::new(),
+        finding: None,
     });
     world.spawn_with_fds(serve.descriptors(), || Process::Binary(Box::new(serve)));
     world.spawn_with_fds(fds, || {
@@ -1261,8 +1277,12 @@ fn run_with_serve(story: Story<'_>, mut serve: skein_world::end_to_end::Binary) 
 }
 #[must_use]
 pub fn alone(scratch: &Path, call: Call) -> Ended {
+    try_alone(scratch, call).unwrap_or_else(|why| panic!("{why}"))
+}
+
+pub fn try_alone(scratch: &Path, call: Call) -> Result<Ended, String> {
     let clock = Clock::new();
-    let root = skein_shell::open_root(scratch).expect("scratch root");
+    let root = skein_shell::open_root(scratch).map_err(|error| format!("scratch root: {error}"))?;
     let mut world = real::World::new(Judge {
         stopped: false,
         settled: false,
@@ -1270,17 +1290,22 @@ pub fn alone(scratch: &Path, call: Call) -> Ended {
         scratch: scratch.into(),
         token_names: Vec::new(),
         pending: String::new(),
+        finding: None,
     });
     world.spawn_with_fds(vec![root], || Process::Calls(Box::new(Calls::new(root, vec![Step::Run(call)], None, None))));
-    let mut outcome = world.run(&clock, WITHIN);
-    let Process::Calls(calls) = &mut outcome.procs[0] else { panic!("calls host") };
-    calls.ends.pop().expect("one ctl end")
+    let mut outcome = world.try_run(&clock, WITHIN)?;
+    let Process::Calls(calls) = &mut outcome.procs[0] else { return Err("calls host".into()) };
+    calls.ends.pop().ok_or_else(|| "one ctl end".into())
 }
 #[must_use]
 #[track_caller]
 pub fn json(ended: &Ended) -> serde_json::Value {
-    serde_json::from_slice(&ended.stdout).unwrap_or_else(|error| {
-        panic!("ctl JSON: {error}; exit {:?}; stderr: {}", ended.exit, String::from_utf8_lossy(&ended.stderr))
+    try_json(ended).unwrap_or_else(|why| panic!("{why}"))
+}
+
+pub fn try_json(ended: &Ended) -> Result<serde_json::Value, String> {
+    serde_json::from_slice(&ended.stdout).map_err(|error| {
+        format!("ctl JSON: {error}; exit {:?}; stderr: {}", ended.exit, String::from_utf8_lossy(&ended.stderr))
     })
 }
 
@@ -1371,9 +1396,10 @@ pub mod read_condition_tests {
             scratch: PathBuf::new(),
             token_names: Vec::new(),
             pending: String::new(),
+            finding: None,
         };
         let calls = Calls::new(Fd::new(0), Vec::new(), None, None);
-        judge.observe(Time::ZERO, &[Process::Calls(Box::new(calls))]);
+        assert_eq!(judge.watch(Time::ZERO, &[Process::Calls(Box::new(calls))]), Ok(()));
         assert_eq!(
             judge.overdue(Time::ZERO).as_deref(),
             Some("ctl story did not settle: calls=0 member=none child=None")
@@ -1471,21 +1497,32 @@ pub mod read_condition_tests {
 
     struct VisitJudge {
         settled: bool,
+        finding: Option<String>,
     }
     impl Referee<Process> for VisitJudge {
         fn act(&mut self, now: Time, procs: &mut [Process]) {
-            let Process::Calls(calls) = &mut procs[0] else { panic!("call host") };
+            let Process::Calls(calls) = &mut procs[0] else {
+                self.finding = Some("call host".into());
+                return;
+            };
             if calls.visiting() {
                 calls.visit_handed();
-                assert!(!calls.work_pending(now), "a handed visit waits for its visitor without spinning");
+                if calls.work_pending(now) {
+                    self.finding = Some("a handed visit waits for its visitor without spinning".into());
+                    return;
+                }
                 calls.visited(200);
             }
         }
-        fn observe(&mut self, _now: Time, procs: &[Process]) {
+        fn watch(&mut self, _now: Time, procs: &[Process]) -> Result<(), String> {
+            if let Some(why) = &self.finding {
+                return Err(why.clone());
+            }
             self.settled = procs.iter().all(Host::is_empty);
+            Ok(())
         }
         fn passed(&self) -> bool {
-            self.settled
+            self.finding.is_none() && self.settled
         }
     }
 
@@ -1493,7 +1530,7 @@ pub mod read_condition_tests {
         let scratch = super::super::Scratch::new(&format!("returned-visit-wake-{}", std::process::id()));
         let root = skein_shell::open_root(scratch.path()).expect("scratch root");
         let clock = Clock::new();
-        let mut world = real::World::new(VisitJudge { settled: false });
+        let mut world = real::World::new(VisitJudge { settled: false, finding: None });
         world.spawn_with_fds(vec![root], || Process::Calls(Box::new(Calls::new(root, vec![Step::Visit], None, None))));
         let ended = world.run(&clock, Duration::from_secs(2));
         assert!(ended.procs.iter().all(Host::is_empty), "returned visit drains the call host");
