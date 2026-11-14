@@ -40,8 +40,9 @@ fn goal_world_with_ci(
 
 #[expect(
     clippy::too_many_arguments,
+    clippy::too_many_lines,
     clippy::fn_params_excessive_bools,
-    reason = "the update stories reuse the closer fixture with an independent main containment rule"
+    reason = "the update stories reuse the closer fixture with independent containment and read timing"
 )]
 fn goal_world_with_updates(
     close: bool,
@@ -123,7 +124,9 @@ fn goal_world_with_updates(
             approvals: Box::new([]),
         },
     ]));
-    if stall.is_some() { world.tick_interval = Duration::from_millis(10); }
+    if stall.is_some() {
+        world.tick_interval = Duration::from_millis(10);
+    }
     if commits.is_some() {
         let client = skein_forge_client::Limits { rows: 8, ..world.env.limits.forge.client };
         world = world.with_forge_client(client);

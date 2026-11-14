@@ -2404,7 +2404,9 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
 
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(super) fn start_recovered_change(
-    domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext,
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    context: &tasks::RunContext,
     recovered: Option<(u64, Option<skein_lib::Wall>)>,
 ) -> bool {
     let task = context.task;
@@ -2678,7 +2680,10 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
             if held { Some((forge_change::Status::Failed, true, false)) } else { change_delegate_status(&word.kind) };
         if let Some((status, failed, cancelled)) = status {
             domain.work.push(Work::Forge(forge::Event::DelegateResult {
-                ended_at: match recovered { Some((recovered, at)) if recovered == child => at, Some(_) | None => None },
+                ended_at: match recovered {
+                    Some((recovered, at)) if recovered == child => at,
+                    Some(_) | None => None,
+                },
                 task,
                 child,
                 status,

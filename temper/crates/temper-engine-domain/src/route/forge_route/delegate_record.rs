@@ -56,7 +56,11 @@ pub(crate) fn start(
         stale_question |= question.asker == child;
     }
     for word in &context.inbox {
-        if !released && !stale_question && word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind).is_some() {
+        if !released
+            && !stale_question
+            && word.from == tasks::Party::Task(child)
+            && super::change_delegate_status(&word.kind).is_some()
+        {
             return false;
         }
     }

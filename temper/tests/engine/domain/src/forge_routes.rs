@@ -3282,6 +3282,7 @@ impl World {
             // A hosted attempt may keep a future fleet deadline armed. No
             // timer is fired merely to close a story; all immediate terminals drain.
             if self.root.ready()
+                && !self.root.forge_work_ready()
                 && self.root.held_bytes() == 0
                 && self.events.is_empty()
                 && self.immediate.is_empty()
