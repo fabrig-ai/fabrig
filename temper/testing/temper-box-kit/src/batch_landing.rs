@@ -332,9 +332,25 @@ fn calls(procs: &mut [Process]) -> Result<&mut ctl::Calls, String> {
 
 impl Judge<'_> {
     fn changes_made(&self) -> Result<bool, String> {
-        let tasks = read(self.root, &["task", "list", "--project", "1", "--parent", "2"])?;
-        let rows = tasks["tasks"]["rows"].as_array().ok_or("change task rows")?;
-        Ok(CHANGES.into_iter().all(|task| rows.iter().any(|row| row["chip"]["task"] == task)))
+        let mut tasks = read(self.root, &["task", "list", "--project", "1", "--parent", "2"])?;
+        let mut found = Vec::new();
+        loop {
+            let rows = tasks.get("tasks").map_or(&tasks["live"], |tasks| &tasks["rows"]);
+            let rows = rows.as_array().ok_or_else(|| format!("change task rows: {tasks}"))?;
+            for row in rows {
+                if let Some(task) = row["chip"]["task"].as_u64()
+                    && CHANGES.contains(&task)
+                    && !found.contains(&task)
+                {
+                    found.push(task);
+                }
+            }
+            if found.len() == CHANGES.len() {
+                return Ok(true);
+            }
+            let Some(next) = tasks["read_on"].as_str() else { return Ok(false) };
+            tasks = read(self.root, &next.split_ascii_whitespace().collect::<Vec<_>>())?;
+        }
     }
     fn reviews_pending(&self) -> Result<bool, String> {
         Ok({
@@ -682,7 +698,8 @@ impl Judge<'_> {
                     if !all {
                         return Ok(false);
                     }
-                    Ok::<_, String>(change(self.root, task)?["gates"][0]["verdict"] == "passed")
+                    let panel = change(self.root, task)?;
+                    Ok::<_, String>(panel["gates"][0]["verdict"] == "approved")
                 })? {
                     if !landings(self.root)?["landings"].as_array().ok_or(String::from("landings"))?.is_empty() {
                         return Err(String::from(

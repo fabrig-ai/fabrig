@@ -541,6 +541,7 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
         fs::create_dir(path).expect("empty first-run directory");
         fs::set_permissions(path, fs::Permissions::from_mode(0o700)).expect("private first-run directory");
     }
+    support::csv_repair::initialize(&paths);
     let flags = support::boxed::echo_steps(deployment_flags(&paths));
     let (cached, sources) = cache_forgejo_binaries(&paths[2]);
     let mut bot = None;
@@ -624,10 +625,9 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
             replace_admin_handover(&paths);
         }
         let wrote = format!("First run: wrote the configuration, {}\n", paths[0].join("temper.json").display());
-        assert_eq!(
-            support::boxed::box_log(&paths[1]).contains(&wrote),
-            run == "first",
-            "only the first box writes configuration"
+        assert!(
+            !support::boxed::box_log(&paths[1]).contains(&wrote),
+            "init wrote the configuration before either box started"
         );
     }
     scratch.remove();
