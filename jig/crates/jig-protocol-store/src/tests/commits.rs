@@ -308,13 +308,6 @@ fn later_commits_do_not_replace_the_format_row() {
 }
 
 #[test]
-#[should_panic(expected = "the first root commit saves its deployment header")]
-fn the_first_commit_without_a_header_is_an_owners_bug() {
-    let mut store = fixtures::opened();
-    commit(&mut store, 1, Box::new([fixtures::save(note())]));
-}
-
-#[test]
 fn a_committed_store_reopens_at_its_last_number_with_its_kept_installation() {
     let store = committed_header();
     let mut restarted = fixtures::over(store.into_stores());

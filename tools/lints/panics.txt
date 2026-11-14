@@ -13,15 +13,6 @@ hearth/testing/hearth-fake-machine/src/tests/processes.rs should_panic 1
 hearth/testing/hearth-fake-machine/src/tests/universe.rs should_panic 1
 hearth/testing/hearth-fake-mmdebstrap/src/tests/face.rs should_panic 1
 hearth/tests/builder/tests/real/main.rs should_panic 1
-jig/crates/jig-protocol-config/src/tests/members.rs should_panic 1
-jig/crates/jig-protocol-engine-clients/src/tests/catalogue.rs should_panic 1
-jig/crates/jig-protocol-store/src/tests.rs should_panic 1
-jig/crates/jig-protocol-store/src/tests/commits.rs should_panic 1
-jig/crates/jig-protocol-store/src/tests/readers.rs should_panic 2
-jig/crates/jig-protocol-store/src/tests/restore.rs should_panic 4
-jig/crates/jig-protocol-store/src/tests/start_pages.rs should_panic 1
-jig/crates/jig-protocol-store/src/tests/transcripts.rs should_panic 1
-jig/testing/jig-test-store-files/src/tests/routes.rs should_panic 1
 skein/crates/skein-codec/src/tests/piece.rs should_panic 2
 skein/crates/skein-fake-forge-domain/src/tests/cues.rs should_panic 1
 skein/crates/skein-fake-forge-domain/src/tests/protection.rs should_panic 1
