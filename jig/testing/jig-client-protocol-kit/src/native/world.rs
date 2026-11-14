@@ -66,11 +66,11 @@ struct PeriodSource {
     supplied: bool,
 }
 impl PeriodSource {
-    fn step(&mut self, service: &mut jig_test_service::Service, client: &NativeClient) {
+    fn step(&mut self, service: &mut jig_test_service::Service, client: &NativeClient) -> Result<(), String> {
         const FIRST_PERIOD: u64 = 1;
         const PERIOD_BUDGET: u64 = 100;
         if !self.supplied && client.signed_in > 0 {
-            service.engine().expect("engine-only service").parties_in().push(jig_domain_core::Event::Period {
+            service.engine().ok_or("engine-only service")?.parties_in().push(jig_domain_core::Event::Period {
                 project: PROJECT,
                 period: FIRST_PERIOD,
                 budget: PERIOD_BUDGET,
@@ -78,31 +78,27 @@ impl PeriodSource {
             });
             self.supplied = true;
         }
+        Ok(())
     }
 }
 struct Judge {
+    finding: Option<String>,
     period: PeriodSource,
     handed: bool,
     done: bool,
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let (service, client) = procs.split_at_mut(1);
-        let Process::Service(service) = &mut service[0] else { panic!("service") };
-        let Process::Client(client) = &mut client[0] else { panic!("client") };
-        self.period.step(&mut service.0, client);
-        if !self.handed
-            && let Some(link) = service.0.links().pop()
-        {
-            client.sign_in(&link).expect("service's link");
-            self.handed = true;
-        }
-        if !self.done && client.is_empty() {
-            service.0.shutdown();
-            self.done = true;
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         if self.done { None } else { Some(Time::ZERO.saturating_add(Duration::from_secs(5))) }
     }
@@ -114,7 +110,7 @@ impl Referee<Process> for Judge {
         }
     }
     fn passed(&self) -> bool {
-        self.done
+        self.finding.is_none() && self.done
     }
 }
 struct Machine(skein_fake_machine::Machine);
@@ -180,7 +176,7 @@ fn run_mode(seed: u64, script: Script, terminal: bool) -> (Outcome, Box<[u8]>) {
     let mut world = skein_world::World::new(
         seed,
         skein_sim::Config::calm(),
-        Judge { period: PeriodSource { supplied: false }, handed: false, done: false },
+        Judge { finding: None, period: PeriodSource { supplied: false }, handed: false, done: false },
         Memory::Unchecked,
     )
     .with_machine(Machine(machine));
@@ -268,4 +264,25 @@ fn number(page: &[u8], label: &str) -> Option<u32> {
         }
     }
     None
+}
+
+impl Judge {
+    fn check_act(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
+        let (service, rest) = procs.split_first_mut().ok_or("service")?;
+        let Process::Service(service) = service else { return Err(String::from("service")) };
+        let Process::Client(client) = rest.first_mut().ok_or("client")? else { return Err(String::from("client")) };
+        self.period.step(&mut service.0, client)?;
+        if !self.handed
+            && let Some(link) = service.0.links().pop()
+        {
+            client.sign_in(&link).map_err(|why| format!("service's link: {why:?}"))?;
+            self.handed = true;
+        }
+        if !self.done && client.is_empty() {
+            service.0.shutdown();
+            self.done = true;
+        }
+
+        Ok(())
+    }
 }

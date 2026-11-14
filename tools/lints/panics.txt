@@ -41,8 +41,6 @@ jig/testing/jig-client-kit/src/joint/stories/referee_stories.rs should_panic 1
 jig/testing/jig-client-test-view/src/tests/world_limits.rs should_panic 2
 jig/testing/jig-test-store-files/src/store/tests.rs should_panic 5
 jig/testing/jig-test-store-files/src/tests/routes.rs should_panic 1
-jig/testing/jig-test/tests/live.rs catch_unwind 1
-jig/testing/jig-test/tests/live.rs resume_unwind 1
 jig/tests/accounts/tests/suite/simulation.rs should_panic 1
 jig/tests/client/tests/suite/memory.rs should_panic 2
 jig/tests/client/tests/suite/referee.rs should_panic 11
