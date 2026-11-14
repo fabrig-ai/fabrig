@@ -185,6 +185,21 @@ fn a_deployment_sized_repository_root_lands_by_turn() {
     deployment_turn("deployment-root", support::batch_landing::deployment::run_green);
 }
 
+#[test]
+fn a_batch_of_four_narrows_its_breaking_member_with_deployment_limits() {
+    use support::{batch_landing, landing_by_turn, turn_restart};
+    let scratch = support::Scratch::new("deployment-batch-four");
+    let barrier = support::forgejo::JobBarrier::new(scratch.path());
+    let forge = turn_restart::start(&scratch);
+    forge.add_file(".forgejo/workflows/gate.yaml", barrier.gate_workflow(landing_by_turn::WORKFLOW).as_bytes());
+    batch_landing::deployment::add_root(&forge);
+    support::configuration(scratch.path(), &forge.forge());
+    batch_landing::deployment::configure_standard(scratch.path(), forge.repository(), 4);
+    batch_landing::run_narrowed_four(scratch.path(), &forge, &barrier);
+    forge.stop();
+    scratch.remove();
+}
+
 fn deployment_turn(case: &str, run: fn(&std::path::Path, &support::forgejo::Throwaway, &support::forgejo::JobBarrier)) {
     use support::{batch_landing::deployment, landing_by_turn, turn_restart};
     let scratch = support::Scratch::new(case);

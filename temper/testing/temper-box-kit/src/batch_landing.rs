@@ -28,11 +28,12 @@ enum Story {
     DeploymentGreen,
     Conflict,
     MidProof,
+    NarrowedFour,
 }
 impl Story {
     fn changes(self) -> u64 {
         match self {
-            Self::Green => 4,
+            Self::Green | Self::NarrowedFour => 4,
             Self::Narrowed => 3,
             Self::Repaired | Self::DeploymentGreen | Self::MidProof => 1,
             Self::Conflict => 2,
@@ -44,6 +45,7 @@ impl Story {
             Self::Repaired | Self::DeploymentGreen => &[3],
             Self::Conflict => &[3, 4],
             Self::MidProof => &[4],
+            Self::NarrowedFour => &[3, 4, 5, 6],
         }
     }
     fn latch(self) -> u64 {
@@ -97,7 +99,7 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
             call(
                 b"write",
                 &json!({"path":path,"content":match (story, number) {
-                    (Story::Narrowed, 2) | (Story::Repaired, 1) => "red\n".to_owned(),
+                    (Story::Narrowed | Story::NarrowedFour, 2) | (Story::Repaired, 1) => "red\n".to_owned(),
                     _ => format!("Change {number}\n"),
                 }}),
             ),
@@ -107,7 +109,10 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
                 "title":format!("Batch change {number}"),"body":format!("Add {path}.")}}),
             ),
         ];
-        if number == 4 {
+        if matches!(story, Story::NarrowedFour) {
+            turns[0].lines = Box::new([hold(b"batch-coders"), turns[0].lines[0].clone()]);
+        }
+        if number == 4 && !matches!(story, Story::NarrowedFour) {
             turns[0].lines = Box::new([hold(b"batch-fourth"), turns[0].lines[0].clone()]);
         }
         scripts.push(Script {
@@ -154,12 +159,14 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
         .iter_mut()
         .find(|script| script.cue.as_ref() == b"Review this change at the named head")
         .expect("shared review");
-    review.turns[0].lines = [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
+    if !matches!(story, Story::NarrowedFour) {
+        review.turns[0].lines = [vec![hold(b"batch-reviews")], review.turns[0].lines.to_vec()].concat().into_boxed_slice();
+    }
     // The shared coder is replaced by disjoint files, so every head merges cleanly.
     shared.retain(|script| !script.cue.starts_with(b"## Task\n\n@coding"));
     scripts.extend(shared);
     match story {
-        Story::Narrowed => narrowed::hold_repair(&mut scripts),
+        Story::Narrowed | Story::NarrowedFour => narrowed::hold_repair(&mut scripts),
         Story::Repaired => deployment::repair_script(&mut scripts),
         Story::Conflict => deployment::resolution_script(&mut scripts),
         Story::Green | Story::DeploymentGreen | Story::MidProof => {}
@@ -469,7 +476,7 @@ impl Judge<'_> {
                     Err(why) if why.contains("\"error\":\"unknown\"") => return Ok(false),
                     Err(why) => return Err(why),
                 };
-                Ok::<_, String>(change["step"] == "gating" && change["gates"][0]["verdict"] == "pending")
+                Ok::<_, String>(matches!(self.story, Story::NarrowedFour) || (change["step"] == "gating" && change["gates"][0]["verdict"] == "pending"))
             })?
         })
     }
@@ -811,6 +818,7 @@ impl Judge<'_> {
                 }
             }
             Phase::Gates => {
+                release(procs, b"batch-coders")?;
                 release(procs, b"batch-reviews")?;
                 if self.story.ready().iter().copied().try_fold(true, |all, task| {
                     if !all {
@@ -859,7 +867,7 @@ impl Judge<'_> {
                             self.phase =
                                 if let Story::Repaired = self.story { Phase::Repair } else { Phase::SingleLanded };
                         }
-                        Story::Narrowed => {
+                        Story::Narrowed | Story::NarrowedFour => {
                             self.barrier.release(self.first.as_ref().ok_or(String::from("top proof"))?.run);
                             self.phase = Phase::Search(narrowed::Step::One);
                         }
@@ -1229,4 +1237,10 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
     assert!(outcome.procs.iter().all(Host::is_empty), "nothing of the tree remains after Terminate");
     let Process::Binary(binary) = &outcome.procs[0] else { panic!("serve") };
     assert_eq!(binary.exit_status(), Some(Exit::Code(0)), "{}", String::from_utf8_lossy(binary.stderr()));
+}
+
+
+/// A four-member search with the shipped worker slots and current stock policy.
+pub fn run_narrowed_four(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    run_story(root, forge, barrier, Story::NarrowedFour);
 }
