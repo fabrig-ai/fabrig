@@ -364,14 +364,14 @@ tests catches a panic:
 - **Every world's referee and judge** implements `watch`, and keeps what
   its `act` or `idle` finds for its next `watch`.
 - **The conformance observer** (`jig-conformance`'s `core::Observer`, and
-  `jig-core-kit`'s over it) keeps its first finding rather than
-  panicking: the referee's error on an observation, a durable row
-  changed or gone, a reply ahead of its commit's fence. It observes
-  nothing after it, and `Observer::check(&self) -> Result<(), String>`
-  returns it, with the time it was found. The core's world, the
-  conformance harness and the conformance world fail with it at their
-  top, naming the seed and the trace's tail; a test of a check reads
-  `check`'s `Err`.
+  `jig-core-kit`'s over it) returns its findings rather than panicking:
+  each method that observes or checks returns `Result<_, String>`, its
+  `Err` the referee's error on an observation, with the time, a durable
+  row changed or gone, or a reply ahead of its commit's fence, in the
+  words it panics with now. Its callers pass it up, so no finding is
+  dropped: the core's world, the conformance harness and the
+  conformance world fail with it at their top, naming the seed and the
+  trace's tail, and a test of a check reads the `Err`.
 - **The views' referee** records what breaks in skein's domain judge
   (`Judge::check`, `Judge::fail`), never asserting; its last delivery
   following the subject's final change is a returning check too. Its
