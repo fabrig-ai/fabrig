@@ -443,8 +443,13 @@ fn busy(moving: bool) {
             .collect();
         // Identical fresh reads in one cohort share a call; keeping reads
         // retain their own calls. No cohort may lose its base observation.
-        assert!(issued.len() <= offered.len(), "sharing cannot add base reads");
-        assert_eq!(offered.iter().collect::<BTreeSet<_>>(), issued.iter().collect::<BTreeSet<_>>());
+        // Capacity retries stay inside the offered step and may add later
+        // cohorts without another procedure activation.
+        assert!(skein_lib::len_u64(issued.len()) <= table["Head branch"], "each base read needs a read round");
+        assert!(
+            offered.iter().collect::<BTreeSet<_>>().is_subset(&issued.iter().collect::<BTreeSet<_>>()),
+            "no offered cohort loses its base observation"
+        );
         assert_eq!(exact.2, skein_lib::len_u64(issued.len()));
         assert_eq!(second.1, exact.1, "no additional cohort within one second");
         for (_, stored) in world.stored() {
