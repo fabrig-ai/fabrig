@@ -70,7 +70,36 @@ pub fn configure(root: &Path, repository: u64) {
     let path = root.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     super::batch_landing::message_room(root, &mut value);
+    staging_limits(&mut value);
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+}
+
+/// Staging's deployment limits, shared by the owned turn drills.
+/// temper/docs/design/protocol/configuration/limits.md.
+pub fn staging_limits(value: &mut Value) {
+    value["engine"]["limits"]["profile"] = "standard".into();
+    value["application"]["limits"]["profile"] = "standard".into();
+    value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 63_740.into();
+    value["application"]["limits"]["overrides"]["forge.client.lifetime_ms"] = 300_000.into();
+    value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 63_738.into();
+    value["application"]["limits"]["overrides"]["forge_component.body_bytes"] = 127_497.into();
+    value["application"]["limits"]["overrides"]["forge.client.answer_bytes"] = 1_048_576.into();
+    value["application"]["limits"]["overrides"].as_object_mut().expect("limits").remove("forge.key_entries");
+    for limits in ["authority.executors", "tasks.executor_kinds"] {
+        value["engine"]["limits"]["overrides"][limits] = 24.into();
+    }
+    value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
+    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
+    value["workers"][0]["limits"]["overrides"]["core.call_answer_bytes"] = 63_740.into();
+    value["workers"][0]["limits"]["profile"] = "standard".into();
+    value["workers"][0]["limits"]["overrides"]["tasks.result_bytes"] = 63_738.into();
+    value["workers"][0]["limits"]["overrides"]["tasks.message_bytes"] = 63_738.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
+    value["workers"][0]["limits"]["overrides"]["hub.outcome_bytes"] = 63_740.into();
+    value["engine"]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
+    value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 63_738.into();
 }
 
 /// Share the owned turn setup while selecting the story's batch bound.
@@ -80,7 +109,7 @@ pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     config["application"]["landing"]["projects"] = json!([{
         "project":1,"by":"turn","batch":batch,
         "gates":[{"forge":1,"repository":repository,
-            "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true}]}]
+            "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true,"base":true}]}]
     }]);
     // Each member and the train need watched branches
     // (temper/docs/design/protocol/configuration/limits.md, forge.landing_members).

@@ -36,7 +36,7 @@ impl Story {
     }
 }
 
-fn call(name: &[u8], value: &Value) -> Turn {
+pub(super) fn call(name: &[u8], value: &Value) -> Turn {
     Turn {
         lines: Box::new([Line::Call {
             name: name.into(),
@@ -47,7 +47,7 @@ fn call(name: &[u8], value: &Value) -> Turn {
     }
 }
 
-fn hold(name: &[u8]) -> Line {
+pub(super) fn hold(name: &[u8]) -> Line {
     Line::Pieces { pieces: Box::new([Piece { text: b"Waiting.".as_slice().into(), hold: Some(name.into()) }]) }
 }
 
@@ -162,6 +162,7 @@ pub fn configure(root: &Path, repository: u64) {
     limits["forge.client.calls"] = 8.into();
     limits["forge_component.connections"] = 8.into();
     message_room(root, &mut value);
+    turn_restart::staging_limits(&mut value);
     super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
 }
 
@@ -170,7 +171,10 @@ pub fn message_room(root: &Path, value: &mut Value) {
     // The one model call carries four independent change authorities and a latch.
     let agent_path = root.join("agent.json");
     let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
-    agent["profile"]["declared"]["tool_payload"] = 8192.into();
+    agent["profile"]["declared"]["tool_payload"] = 63_740.into();
+    for endpoint in agent["endpoints"].as_array_mut().expect("agent endpoints") {
+        endpoint["limits"]["output"] = 65_536.into();
+    }
     // The standard store holds the prepare job; keep only the story's engine bounds.
     let prepare = temper_service::limits::prepare_bound();
     value["engine"]["limits"] = json!({"profile":"standard", "overrides":{
@@ -206,6 +210,7 @@ pub fn message_room(root: &Path, value: &mut Value) {
     }
     // A heard delivery's fallback also bounds prepare retries and merge read-back.
     overrides.insert("forge.client.fallback_ms".into(), 5000.into());
+    turn_restart::staging_limits(value);
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }
