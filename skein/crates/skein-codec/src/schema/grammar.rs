@@ -26,6 +26,7 @@ pub(super) struct Parser {
 impl Parser {
     pub(super) fn new(text: Box<[u8]>, tokens: List<Token>, final_line: u32) -> Parser {
         let count = tokens.len();
+        let text_len = u32::try_from(text.len()).expect("text ceiling");
         let declarations = count.min(MAX_DECLARATIONS);
         Parser {
             parsed: Parsed {
@@ -40,6 +41,13 @@ impl Parser {
                     names: Map::with_capacity(declarations),
                     minimum: List::with_capacity(declarations),
                     maximum: List::with_capacity(declarations),
+                    former: List::with_capacity(count),
+                    declaration_former: List::with_capacity(declarations),
+                    field_former: List::with_capacity(count),
+                    variant_former: List::with_capacity(count),
+                    defaults: List::with_capacity(count),
+                    encodings: List::with_capacity(count),
+                    pool: List::with_capacity(text_len.checked_mul(8).expect("bounded pool")),
                 },
                 references: List::with_capacity(count),
                 payloads: List::with_capacity(count),
@@ -96,17 +104,67 @@ impl Parser {
 
     fn name(&mut self) -> Result<Token, SchemaError> {
         let token = self.take()?;
-        let mut bytes = self.parsed.schema.spelled(token.at).iter();
-        let first = bytes.next().expect("a token is nonempty");
-        if !first.is_ascii_alphabetic() && *first != b'_' {
+        if !valid_name(self.parsed.schema.spelled(token.at)) {
             return Err(Self::error(token, Wrong::Name));
         }
-        for &byte in bytes {
-            if !byte.is_ascii_alphanumeric() && byte != b'_' {
-                return Err(Self::error(token, Wrong::Name));
-            }
-        }
         Ok(token)
+    }
+
+    fn wanted(&mut self, expected: Expected) -> Result<Token, SchemaError> {
+        match self.take() {
+            Ok(token) => Ok(token),
+            Err(error) => Err(SchemaError { wrong: Wrong::Expected(expected), ..error }),
+        }
+    }
+
+    fn former(&mut self) -> Result<Span, SchemaError> {
+        let start = self.parsed.schema.former.len();
+        for _ in 0..self.tokens.len() {
+            if self.peek() != Some(b"was") {
+                break;
+            }
+            self.take()?;
+            let token = self.wanted(Expected::Name)?;
+            let value = self.parsed.schema.spelled(token.at);
+            if !valid_name(value) {
+                return Err(Self::error(token, Wrong::Expected(Expected::Name)));
+            }
+            self.parsed.schema.former.push(token.at).expect("each former name consumes a token");
+        }
+        Ok(Span { start, end: self.parsed.schema.former.len() })
+    }
+
+    fn default(&mut self) -> Result<Option<Span>, SchemaError> {
+        if self.peek() != Some(b"=") {
+            return Ok(None);
+        }
+        self.take()?;
+        let mut start = None;
+        for _ in 0..self.tokens.len() {
+            let token = self.wanted(Expected::Default)?;
+            let first = *start.get_or_insert(token.at.start);
+            let word = self.parsed.schema.spelled(token.at);
+            if word == b"some" {
+                continue;
+            }
+            let end = if word == b"[" {
+                let close = self.wanted(Expected::Default)?;
+                if self.parsed.schema.spelled(close.at) != b"]" {
+                    return Err(Self::error(close, Wrong::Expected(Expected::Default)));
+                }
+                close.at.end
+            } else if word.starts_with(b"\"")
+                || word.first().expect("nonempty token").is_ascii_alphanumeric()
+                || word.starts_with(b"_")
+                || word.starts_with(b"-")
+            {
+                token.at.end
+            } else {
+                return Err(Self::error(token, Wrong::Expected(Expected::Default)));
+            };
+            return Ok(Some(Span { start: first, end }));
+        }
+        unreachable!("a default consumes a token on every round")
     }
 
     fn family(&mut self) -> Result<Token, SchemaError> {
@@ -197,7 +255,9 @@ impl Parser {
                 }
                 b"list" => Type::List { bound: self.bound()?, item: next },
                 b"option" => Type::Option(next),
-                b"{" | b"}" | b":" | b"," => return Err(Self::error(token, Wrong::Expected(Expected::Type))),
+                b"{" | b"}" | b":" | b"," | b"=" | b"[" | b"]" => {
+                    return Err(Self::error(token, Wrong::Expected(Expected::Type)));
+                }
                 _ => Type::Named(super::DeclIx::new(0)),
             };
             self.parsed.schema.types.push(ty).expect("each type consumed a token");
@@ -223,6 +283,8 @@ impl Parser {
 
     fn record(&mut self, versioned: bool) -> Result<Declaration, SchemaError> {
         let name = self.name()?;
+        let former = self.former()?;
+        self.parsed.schema.declaration_former.push(former).expect("one former range per declaration");
         self.expect(b"{", Expected::Open)?;
         let first = self.parsed.schema.fields.len();
         for _ in 0..self.tokens.len() {
@@ -230,8 +292,13 @@ impl Parser {
                 break;
             }
             let name = self.name()?;
+            let former = self.former()?;
+            self.parsed.schema.field_former.push(former).expect("one former range per field");
             self.expect(b":", Expected::Colon)?;
             let ty = self.ty()?;
+            let default = self.default()?;
+            self.parsed.schema.defaults.push(default).expect("one default per field");
+            self.parsed.schema.encodings.push(None).expect("one encoding per field");
             self.parsed
                 .schema
                 .fields
@@ -252,6 +319,8 @@ impl Parser {
 
     fn enumeration(&mut self) -> Result<Declaration, SchemaError> {
         let name = self.name()?;
+        let former = self.former()?;
+        self.parsed.schema.declaration_former.push(former).expect("one former range per declaration");
         self.expect(b"{", Expected::Open)?;
         let first = self.parsed.schema.variants.len();
         for _ in 0..self.tokens.len() {
@@ -259,6 +328,8 @@ impl Parser {
                 break;
             }
             let name = self.name()?;
+            let former = self.former()?;
+            self.parsed.schema.variant_former.push(former).expect("one former range per variant");
             let mut boxed = false;
             let payload = if self.peek() == Some(b":") {
                 self.take()?;
@@ -311,4 +382,20 @@ impl Parser {
         }
         Ok(self.parsed)
     }
+}
+
+fn valid_name(value: &[u8]) -> bool {
+    let mut bytes = value.iter();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+    if !first.is_ascii_alphabetic() && *first != b'_' {
+        return false;
+    }
+    for byte in bytes {
+        if !byte.is_ascii_alphanumeric() && *byte != b'_' {
+            return false;
+        }
+    }
+    true
 }

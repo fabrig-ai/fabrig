@@ -124,11 +124,26 @@ pub(super) fn proposals(kept: &Text, current: &Text, confirmed: &[Rename], first
 
 /// Compares wire layouts with the current header at the kept version, including
 /// `versioned` records (data/codec/command.md, 2; data/codec/README.md, 9.1).
-/// Schema tokens contain no quoted text; comments and whitespace are not layout.
 pub(super) fn layout_changed(kept: &Text, current: &Text) -> Result<bool, Error> {
-    let tokens = current.source.lines().flat_map(|line| line.split('#').next().unwrap_or_default().split_whitespace());
-    let source =
-        format!("family {} {}\n{}", current.family, kept.version, tokens.skip(3).collect::<Vec<_>>().join(" "));
+    let parsed = schema(current)?;
+    let after_family = usize::try_from(parsed.family().end).expect("schema text ceiling");
+    let suffix = current.source.get(after_family..).expect("family span belongs to text");
+    // Replace only the header's version word. Preserve text tokens and comments.
+    let mut offset = 0_usize;
+    let mut comment = false;
+    for byte in suffix.bytes() {
+        if comment {
+            comment = byte != b'\n';
+        } else if byte == b'#' {
+            comment = true;
+        } else if !byte.is_ascii_whitespace() {
+            break;
+        }
+        offset = offset.checked_add(1).expect("schema text ceiling");
+    }
+    let rest = suffix.get(offset..).expect("version follows family");
+    let end = rest.bytes().take_while(u8::is_ascii_digit).count();
+    let source = format!("family {} {}{}", current.family, kept.version, rest.get(end..).expect("version word"));
     let normalized = Text { source, ..current.clone() };
     Ok(schema(kept)?.fingerprints().family() != schema(&normalized)?.fingerprints().family())
 }
@@ -224,6 +239,40 @@ fn takes_no_value(schema: &Schema, decl: &str, field: &str) -> bool {
     }
 }
 
+// Schema whitespace does not end a default; a patch's newline ends its line.
+// Keep the value's tokens, including every byte inside quotes, on one line.
+fn default_line(spelling: &str) -> String {
+    let mut out = String::new();
+    let mut quoted = false;
+    let mut comment = false;
+    let mut space = false;
+    for character in spelling.chars() {
+        if quoted {
+            out.push(character);
+            if character == '"' {
+                quoted = false;
+            }
+        } else if comment {
+            if character == '\n' {
+                comment = false;
+            }
+        } else if character == '#' {
+            comment = true;
+            space = true;
+        } else if character.is_ascii_whitespace() {
+            space = true;
+        } else {
+            if space && !out.is_empty() {
+                out.push(' ');
+            }
+            space = false;
+            out.push(character);
+            quoted = character == '"';
+        }
+    }
+    out
+}
+
 /// Rebuilds operations, retaining values only for the identical added type;
 /// an added field whose type takes no value is `written` at its own site,
 /// or at its declaration's.
@@ -239,6 +288,9 @@ pub(super) fn block(diff: &Diff, current: &Text, old: Option<&Block>) -> Result<
         let mut line = change.op.to_string();
         if let Op::AddField { decl, field, ty, value } = &change.op {
             let prefix = format!("add {decl}.{field} {ty} ");
+            if let Fill::Default(spelling) = value {
+                line = format!("{prefix}{}", default_line(spelling));
+            }
             if let Some(value) = old.into_iter().flat_map(|block| &block.lines).find_map(|line| match line {
                 Line::Op(line) => line.strip_prefix(&prefix),
                 Line::Site { .. } => None,

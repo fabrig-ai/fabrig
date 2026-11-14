@@ -9,6 +9,8 @@ use super::{
 
 use core::fmt::Write;
 
+mod metadata;
+
 #[test]
 fn named_limits_lower_only_matching_bounds_level_by_level() {
     let schema = parse(b"family f 1 record R { a: text 64 b: list 4 text 16 }").expect("bounded family");
@@ -108,6 +110,34 @@ fn grammar_refusals_name_the_token_and_line() {
         ),
         (b"family {\n1", 2, Span { start: 7, end: 8 }, Wrong::Family, b"family f\n1"),
         (b"family f 65536", 1, Span { start: 9, end: 14 }, Wrong::Version, b"family f 65535"),
+        (
+            b"family f 1\nrecord R { a: text 8 = \"\\\" }",
+            2,
+            Span { start: 35, end: 36 },
+            Wrong::Character,
+            b"family f 1\nrecord R { a: text 8 = \"#\" }",
+        ),
+        (
+            b"family f 1\nrecord R { a: text 8 = \"\t\" }",
+            2,
+            Span { start: 35, end: 36 },
+            Wrong::Character,
+            b"family f 1\nrecord R { a: text 8 = \" \" }",
+        ),
+        (
+            b"family f 1\nrecord R { a: text 8 = \"\x7f\" }",
+            2,
+            Span { start: 35, end: 36 },
+            Wrong::Character,
+            b"family f 1\nrecord R { a: text 8 = \"x\" }",
+        ),
+        (
+            b"family f 1\nrecord R { a: text 8 = \"x\" }\xff",
+            2,
+            Span { start: 39, end: 40 },
+            Wrong::Character,
+            b"family f 1\nrecord R { a: text 8 = \"x\" }#\xff",
+        ),
     ];
     for &(source, line, at, wrong, twin) in cases {
         refusal(source, line, at, wrong);

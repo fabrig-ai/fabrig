@@ -52,8 +52,9 @@ pub enum Op {
 }
 
 /// An added field's value or a request for one (data/codec/diff.md, 2).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Fill {
+    Default(String),
     Absent,
     Asked,
 }
@@ -162,6 +163,7 @@ impl fmt::Display for Kind {
 impl fmt::Display for Fill {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
+            Self::Default(spelling) => spelling,
             Self::Absent => "none",
             Self::Asked => "?",
         })
