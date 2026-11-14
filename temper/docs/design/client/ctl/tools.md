@@ -238,6 +238,8 @@ agent must name.
 | `follow hold --project PROJECT FOLLOW COMMIT --reason TEXT` | keeps the follow change for COMMIT from producing, its reason in the lag | the forge's request | yes |
 | `follow skip --project PROJECT FOLLOW COMMIT --reason TEXT` | counts the landing COMMIT followed with no change, cancelling its follow change and keeping the chain whole | the forge's request | yes |
 | `follow merge --project PROJECT FOLLOW COMMIT COMMIT...` | makes the first follow change of consecutive landings follow them all, cancelling the others' and keeping the chain whole | the forge's request | yes |
+| `tier hold --project PROJECT [--owner OWNER --name NAME] TIER --reason TEXT` | holds the repository's tier TIER, the project's home's when no repository is named: it starts no run until released, its landings still verifying (`../../domain/after-landing.md`, section 3, *A person's hold*); prints `held: TIER of OWNER/NAME`, exit 0; refused, exit 2, `no repository OWNER/NAME`, `no tier TIER on OWNER/NAME`, `TIER of OWNER/NAME is held already by party N: REASON`, or the reason's bounds (1 to 1024 bytes of UTF-8) | the forge family's `TierActRequest` (`../forge/records.md`) | yes |
+| `tier release --project PROJECT [--owner OWNER --name NAME] TIER` | releases the held tier: its next run starts at its branch's newest tip; prints `released: TIER of OWNER/NAME`, exit 0; refused, exit 2, `no repository OWNER/NAME`, `no tier TIER on OWNER/NAME`, or `TIER of OWNER/NAME is not held` | `TierActRequest` | yes |
 | `qa choose LANDING` | chooses a landing's mark for the next QA pass (`../../domain/findings.md`, section 8) | the forge's request | yes |
 | `task hold TASK --stop\|--drain REASON` | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks/lifecycle.md`, 10) | `Hold` | yes |
 | `project hold PROJECT --stop\|--drain REASON` | places a hold of the party's over the whole project, the party's chats exempt | `Hold` | yes |
@@ -623,34 +625,3 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 - **On a box,** the forge's webhooks make the engine's documents move
   soon after the forge does; with polling alone, the same waits answer
   later (`../../protocol/setup/README.md`, section 6).
-
-## 5. The host's tools
-
-| Tool | What it does |
-|---|---|
-| `sign-in FILE\|-` | signs in by the link `temper-box serve` printed, read from FILE, or from stdin for `-`; writes `token` and `address` (`README.md`, 6.1) |
-| `sign-in --service FILE` | signs in as the service whose FILE `party make` wrote, jig's `SignIn { with: Service(credential) }` at the address FILE names; writes `token` and `address` as `sign-in` does, so every later call acts as that party, within its role's authority and pool (`README.md`, section 7). FILE readable by others than its owner, or not in `party make`'s form, is refused before anything is sent, exit 1 |
-| `sign-out` | ends the sign-in and leaves `token` empty, zero bytes, read as signed out (`README.md`, 6.1) |
-| `pending` | lists what DIRECTORY's store keeps: each request's operation, its party and when it was first sent, and how many records these tools cannot read |
-| `help [GROUP [VERB]]` | the page `ctl`, then the tools (`testing.md`, 5); with GROUP, its rows; with GROUP VERB, its record of the table |
-
-- **`pending` reads the store's file only:** it takes no lock, starts
-  no client and sends nothing (`README.md`, 6.3).
-- **A `pending` row** is a line each: the request's operation, as a
-  `kept:` line names it (`results.md`, 1); its party, `party N`; and when it was
-  first sent, `first sent HH:MM UTC`, the documents' words for a wall
-  time (skein's `runtime/lib.md`, section 12), or `not sent`. No name and no
-  key, as a `kept:` line prints none. Under `--json`: `pending`, rows
-  of `operation`, `party` and `first_sent`, a wall time as jig's
-  integer, or `null`; and `unread`.
-- **A record these tools cannot read,** of a store version, or of a
-  family's owner or version, that they do not declare, is counted, never
-  listed: jig's client reads nothing of such a record, drops it at start
-  and says how many (jig's `protocol/client/README.md`, section 7), and
-  `pending` says what a call's client will. Its line, `N kept records
-  these tools cannot read; a call that sends drops them`, follows the
-  rows, and the call exits 0. A file that is not a small store's at all
-  exits 1, "DIRECTORY's store cannot be read".
-- **A TEXT of `-`** is read from stdin, to its end. A call takes at
-  most one `-`, and none with `--call -`; otherwise it is a usage
-  error.
