@@ -3,7 +3,7 @@ use crate::{
     entries::{Concrete, Fault, Located},
     errors::{Format, Kind, Repository, Schema, TypeName},
     revision::{
-        Oid, Position,
+        Position,
         declaration::{Declaration, Interpolated, Map, Name},
     },
     schema::forms,
@@ -12,12 +12,12 @@ use alloc::boxed::Box;
 use hearth_lib::encode::Digest;
 use skein_lib::{List, Map as Ordered, bytes::copy_of};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Plan {
+pub(crate) struct Plan {
     pub task: Box<[u8]>,
     pub installs: Box<[Install]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Install {
+pub(crate) struct Install {
     pub path: Box<[u8]>,
     pub at: Option<Position>,
     pub make: Make,
@@ -25,7 +25,7 @@ pub struct Install {
     pub group: Box<[u8]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Make {
+pub(crate) enum Make {
     Static { sha256: Digest, mode: u16 },
     Link { target: Box<[u8]> },
     Directory { mode: u16 },
@@ -34,28 +34,16 @@ pub enum Make {
 }
 /// The concrete entry and element retained by expansion.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Via {
+pub(crate) struct Via {
     pub entry: u32,
     pub element: Option<u32>,
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct TreeFile {
-    pub path: Box<[u8]>,
-    pub source: Source,
-    pub mode: u16,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Source {
-    Static { sha256: Digest },
-    Template { oid: Oid, path: Box<[u8]> },
-    Link { target: Box<[u8]> },
-}
 #[must_use]
-pub fn link(target: &[u8]) -> bool {
+pub(crate) fn link(target: &[u8]) -> bool {
     !target.is_empty() && target.len() <= 4095 && !target.contains(&0)
 }
 #[must_use]
-pub fn dropped(declaration: &Declaration, kept: &[Located<'_>]) -> Box<[Box<[u8]>]> {
+pub(crate) fn dropped(declaration: &Declaration, kept: &[Located<'_>]) -> Box<[Box<[u8]>]> {
     let mut capacity = 0_usize;
     for group in &declaration.entries {
         capacity = capacity.saturating_add(group.entries.len());
@@ -79,9 +67,9 @@ pub fn dropped(declaration: &Declaration, kept: &[Located<'_>]) -> Box<[Box<[u8]
     }
     paths.into_boxed()
 }
-pub fn plan(
+pub(crate) fn plan(
     task: &[u8],
-    tree: &[TreeFile],
+    tree: &[Install],
     files: &[Located<'_>],
     dropped: &[Box<[u8]>],
     faults: &mut List<Fault>,
@@ -92,17 +80,7 @@ pub fn plan(
         if excluded(&file.path, dropped) {
             continue;
         }
-        let make = match &file.source {
-            Source::Static { sha256 } => Make::Static { sha256: *sha256, mode: file.mode },
-            Source::Template { path, .. } => Make::Rendered { template: path.clone(), via: None, mode: file.mode },
-            Source::Link { target } => Make::Link { target: target.clone() },
-        };
-        installs
-            .insert(
-                file.path.clone(),
-                Install { path: file.path.clone(), at: None, make, owner: copy_of(b"root"), group: copy_of(b"root") },
-            )
-            .expect("plan capacity");
+        installs.insert(file.path.clone(), file.clone()).expect("plan capacity");
     }
     for (index, row) in files.iter().enumerate() {
         if row.task != task || excluded(&row.entry.key, dropped) {
@@ -147,7 +125,7 @@ fn owner(path: &[u8], rows: &[Located<'_>], field: Name) -> Box<[u8]> {
     }
     copy_of(value)
 }
-fn install(entry: &Concrete, tree: &[TreeFile], index: u32) -> Result<Install, Fault> {
+fn install(entry: &Concrete, tree: &[Install], index: u32) -> Result<Install, Fault> {
     let path = entry.key.as_ref();
     let directory = path.ends_with(b"/");
     let checked = if directory { path.strip_suffix(b"/").expect("suffix") } else { path };
@@ -224,21 +202,22 @@ fn install(entry: &Concrete, tree: &[TreeFile], index: u32) -> Result<Install, F
             | Name::Value,
         ) => unreachable!("source names"),
         None if directory && subtree => Make::Directory { mode: mode(entry, 0o755)? },
-        None => match tree_file {
-            Some(TreeFile { source: Source::Static { sha256 }, mode: default, .. }) => {
-                Make::Static { sha256: *sha256, mode: mode(entry, *default)? }
-            }
-            Some(TreeFile { source: Source::Template { path, .. }, mode: default, .. }) => {
-                Make::Rendered { template: path.clone(), via: None, mode: mode(entry, *default)? }
-            }
-            Some(TreeFile { source: Source::Link { target }, .. }) => {
-                if let Some(field) = field(entry, Name::Mode) {
-                    return Err(undeclared(Name::Mode, field.at));
+        None => {
+            let Some(file) = tree_file else { return Err(repository(Repository::NoTree, entry.at)) };
+            let mut make = file.make.clone();
+            match &mut make {
+                Make::Static { mode: default, .. }
+                | Make::Rendered { mode: default, .. }
+                | Make::Copied { mode: default, .. }
+                | Make::Directory { mode: default } => *default = mode(entry, *default)?,
+                Make::Link { .. } => {
+                    if let Some(field) = field(entry, Name::Mode) {
+                        return Err(undeclared(Name::Mode, field.at));
+                    }
                 }
-                Make::Link { target: target.clone() }
             }
-            None => return Err(repository(Repository::NoTree, entry.at)),
-        },
+            make
+        }
     };
     if source.is_some() && tree_file.is_some() {
         return Err(repository(Repository::Destination, entry.at));

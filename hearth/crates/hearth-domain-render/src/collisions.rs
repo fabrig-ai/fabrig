@@ -15,10 +15,14 @@ pub use ids::ids;
 use skein_lib::{Map, bytes::copy_of};
 /// Everything the target's tasks declared.
 #[derive(Debug)]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "File plans are crate-owned; the other collision inputs keep their public contract."
+)]
 pub struct Declared<'a> {
     pub target: &'a [u8],
     pub expansion: &'a Expansion,
-    pub plans: &'a [files::Plan],
+    pub(crate) plans: &'a [files::Plan],
     pub accounts: &'a Accounts,
 }
 /// Refuses tree, data, secret, identity and download collisions.

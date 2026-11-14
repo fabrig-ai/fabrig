@@ -17,6 +17,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_lib::List;
+#[derive(Debug, Hash)]
 pub(crate) struct Installation {
     pub plans: Box<[Plan]>,
     pub presets: Box<[Preset]>,

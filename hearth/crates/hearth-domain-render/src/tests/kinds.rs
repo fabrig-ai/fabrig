@@ -4,8 +4,8 @@ use super::fixtures::{
 };
 use crate::{
     errors::{Format, Kind, Repository, Schema, TypeName},
-    kinds::files::{Make, Source, TreeFile},
-    revision::{Oid, declaration::Name},
+    kinds::files::{Install, Make},
+    revision::declaration::Name,
 };
 #[test]
 fn a_directory_entry_gives_its_files_the_owner_and_group_they_lack() {
@@ -146,13 +146,12 @@ fn a_link_target_at_the_limit_is_accepted() {
 }
 #[test]
 fn tree_etc_x_j2_j2_renders_to_etc_x_j2() {
-    let tree = [TreeFile {
+    let tree = [Install {
         path: b"/etc/x.j2".as_slice().into(),
-        source: Source::Template {
-            oid: Oid(b"oid".as_slice().into()),
-            path: b"tasks/motd/tree/etc/x.j2.j2".as_slice().into(),
-        },
-        mode: 0o644,
+        at: None,
+        make: Make::Rendered { template: b"tasks/motd/tree/etc/x.j2.j2".as_slice().into(), via: None, mode: 0o644 },
+        owner: b"root".as_slice().into(),
+        group: b"root".as_slice().into(),
     }];
     let plan = plan(&tree, &[], &[]).expect("template plan");
     assert_eq!(fixtures::only(&plan.installs).path.as_ref(), b"/etc/x.j2");

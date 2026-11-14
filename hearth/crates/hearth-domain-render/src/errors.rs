@@ -384,11 +384,15 @@ pub enum Ended {
 }
 
 pub(crate) fn repository(path: &[u8], task: Option<&[u8]>, why: Repository) -> Error {
+    repository_at(Place { path: skein_lib::bytes::copy_of(path), position: None }, task, why)
+}
+
+pub(crate) fn repository_at(at: Place, task: Option<&[u8]>, why: Repository) -> Error {
     Error {
         side: None,
         kind: Kind::Repository(why),
         class: Class::Configuration,
-        at: Some(Place { path: skein_lib::bytes::copy_of(path), position: None }),
+        at: Some(at),
         also: None,
         target: None,
         task: copy_task(task),
