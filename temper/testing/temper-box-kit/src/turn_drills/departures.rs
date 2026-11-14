@@ -3,7 +3,7 @@ use super::{Drill, Judge, Process, Script, Value, call, json};
 
 pub(super) fn scripts(scripts: &mut Vec<Script>, drill: Drill) {
     let (cue, path) = if drill == Drill::Breaking {
-        (b"## Task\n\nRepair the failed landing gate".as_slice(), "walk/red")
+        (b"## Task\n\nRepair landing gate ".as_slice(), "walk/red")
     } else {
         (b"## Task\n\nResolve the merge conflict".as_slice(), "walk/line-1")
     };
