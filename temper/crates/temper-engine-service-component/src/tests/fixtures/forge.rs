@@ -62,8 +62,17 @@ impl ForgeFace {
         }
         panic!("the forge answer settles within 512 turns");
     }
+    /// Work this face can complete; another actor supplies setup's outstanding IO.
     pub fn work_pending(&self, service: &crate::Service) -> bool {
-        if service.engine.as_ref().expect("engine").work_pending_without_links(self.now) {
+        let engine = service.engine.as_ref().expect("engine");
+        if engine.forge.work_pending(self.now)
+            || !engine.forge.above.is_empty()
+            || engine.store.work_pending(self.now)
+            || !engine.domain.quiescent()
+            || !engine.events.is_empty()
+            || !engine.requests.is_empty()
+            || engine.pending.is_some()
+        {
             return true;
         }
         for (_, peer) in &self.peers {
