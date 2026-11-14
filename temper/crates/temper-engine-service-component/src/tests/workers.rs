@@ -909,12 +909,11 @@ fn refused_answer_reason_reaches_operator_once() {
     }
 }
 
-/// A restored job claim uses the same fencing and channel as the run fixture.
-fn claimed_job() -> (crate::Service, temper_engine_domain::Assignment) {
+/// Restore a job and its procedure parent, then claim it on the fixture channel.
+fn claimed_job() -> (crate::Service, host::JobAssignment) {
     use temper_engine_domain::{Record, Write};
-    let (mut service, mut run) = fixtures::claimed_chat();
-    let engine = service.engine.as_mut().unwrap();
-    let mut task = engine.domain.tasks().task(run.task).unwrap().clone();
+    let mut store = fixtures::records_store();
+    let mut task = fixtures::task_record(1);
     task.executor = tasks::Executor::Job { kind: 3 };
     task.flags = tasks::Flags::PLAIN;
     task.llm = None;
@@ -932,26 +931,29 @@ fn claimed_job() -> (crate::Service, temper_engine_domain::Assignment) {
     task.requester = tasks::Party::Task(parent.number);
     task.root = parent.number;
     task.depth = 1;
-    let mut header = engine.domain.deployment();
+    let Some(Record::Core(core::Record::Core(core::CoreRecord::Deployment(mut header)))) =
+        fixtures::load(&mut store, root::Range::Core(root::CoreRange::Deployment)).into_iter().next()
+    else {
+        panic!("completed deployment header")
+    };
     header.tasks = 2;
     header.commits = header.commits.checked_add(1).unwrap();
     task.contract = tasks::Contract::Job { bytes: 32 };
     task.spec.job =
         Some(Box::new(tasks::JobSpec { bytes: Box::new([]), deadline: skein_lib::Duration::from_secs(10) }));
     fixtures::commit(
-        &mut engine.store,
-        1,
+        &mut store,
+        header.commits,
         Box::new([
             Write::Save(Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(task))))),
             Write::Save(Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(parent))))),
             Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
         ]),
     );
-    let Some(jig_protocol_store::Event::Committed { .. }) = engine.store.host.above.pop() else {
+    let Some(jig_protocol_store::Event::Committed { .. }) = store.host.above.pop() else {
         panic!("fixture commit");
     };
-    while engine.store.host.above.pop().is_some() {}
-    let mut restored = fixtures::start_with_store(&[(1, 100)], Some(service.engine.take().unwrap().store));
+    let mut restored = fixtures::start_with_store(&[(1, 100)], Some(store));
     fixtures::restart(&mut restored);
     let jig_protocol_engine_workers::host::Output::Hello { mut hello, .. } = hello_for_loss_notes(0) else {
         unreachable!()
@@ -974,8 +976,7 @@ fn claimed_job() -> (crate::Service, temper_engine_domain::Assignment) {
             assigned = Some(job);
         }
     }
-    run.attempt = assigned.expect("the restored job is assigned after its first refusal backs off").attempt.raw();
-    (restored, run)
+    (restored, assigned.expect("the restored job is assigned after its first refusal backs off"))
 }
 
 #[test]
@@ -1003,12 +1004,14 @@ fn job_answer_evidence_reaches_operator_once() {
         ),
     ] {
         for full in [false, true] {
-            let (mut service, run) = claimed_job();
+            let (mut service, job) = claimed_job();
+            let task = job.run.raw();
+            let attempt = job.attempt.raw();
             while service.notes().pop().is_some() {}
             let expected = crate::Note::JobAnswered(JobDiagnostic {
-                task: run.task,
-                run: run.task,
-                attempt: run.attempt,
+                task,
+                run: task,
+                attempt,
                 kind: 3,
                 ending: match &diagnostic {
                     JobDiagnosticEnding::Failed { failure, detail } => {
@@ -1028,8 +1031,8 @@ fn job_answer_evidence_reaches_operator_once() {
                         channel: Token::new(7),
                         link: temper_engine_domain::Link::Up {
                             up: host::LinkUp::JobAnswer {
-                                run: Token::new(run.task),
-                                attempt: Token::new(run.attempt),
+                                run: Token::new(task),
+                                attempt: Token::new(attempt),
                                 answer: ending.clone(),
                             },
                             parts: temper_engine_domain::Parts::none(),
