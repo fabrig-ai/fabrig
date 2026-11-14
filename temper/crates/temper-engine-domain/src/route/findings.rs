@@ -178,7 +178,7 @@ fn commit_prepared(
 ) -> Result<u32, FindingRefusal> {
     commit(domain, env, decision, write?, hand)
 }
-fn commit(
+pub(crate) fn commit(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision,
@@ -452,7 +452,7 @@ fn news_words(row: &forge::Finding, hand: bool, limit: u32) -> Box<[u8]> {
     append(&mut out, &row.body);
     cut_words(out.as_slice(), limit)
 }
-fn cut_words(words: &[u8], limit: u32) -> Box<[u8]> {
+pub(crate) fn cut_words(words: &[u8], limit: u32) -> Box<[u8]> {
     let limit = skein_lib::usize_of(limit);
     if words.len() <= limit {
         return words.into();
