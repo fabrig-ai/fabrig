@@ -79,23 +79,82 @@ fn decode_finding(finding: w::TierFinding) -> Result<p::Finding, Undecodable> {
         blamed: values.into_boxed(),
     })
 }
+fn encode_selection(tests: &p::Selection) -> w::TierSelection {
+    match tests {
+        p::Selection::All => w::TierSelection::All,
+        p::Selection::Tests(tests) => w::TierSelection::Tests(
+            w::TierTests::new(&w::CEILINGS, w::TierTestsParts { tests: encode_tests(tests) }).expect(FITS),
+        ),
+    }
+}
+fn decode_selection(tests: w::TierSelection) -> Result<p::Selection, Undecodable> {
+    Ok(match tests {
+        w::TierSelection::All => p::Selection::All,
+        w::TierSelection::Tests(tests) => p::Selection::Tests(decode_tests(tests.into_parts().tests)?),
+    })
+}
+fn encode_groups(groups: &[p::Group]) -> List<w::TierGroup> {
+    let mut values = List::with_capacity(u32::try_from(groups.len()).expect(FITS));
+    for group in groups {
+        let mut tests = List::with_capacity(u32::try_from(group.tests.len()).expect(FITS));
+        for place in &group.tests {
+            tests.push(*place).expect(FITS);
+        }
+        values
+            .push(
+                w::TierGroup::new(&w::CEILINGS, w::TierGroupParts { low: group.low, high: group.high, tests })
+                    .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    values
+}
+fn group_range(low: u32, high: u32, landings: usize) -> Result<(), Undecodable> {
+    if low > high || usize::try_from(high).or(Err(Undecodable::Malformed))? >= landings {
+        return Err(Undecodable::Malformed);
+    }
+    Ok(())
+}
+fn decode_groups(
+    groups: List<w::TierGroup>,
+    landings: usize,
+    finding: &p::Finding,
+) -> Result<Box<[p::Group]>, Undecodable> {
+    let mut values = List::with_capacity(groups.len());
+    for group in groups.into_boxed() {
+        let w::TierGroupParts { low, high, tests } = group.into_parts();
+        group_range(low, high, landings)?;
+        let p::Failures::Tests(failing) = &finding.failing else { return Err(Undecodable::Malformed) };
+        let mut previous = None;
+        for place in tests.as_slice() {
+            if usize::from(*place) >= failing.len() || previous >= Some(*place) {
+                return Err(Undecodable::Malformed);
+            }
+            previous = Some(*place);
+        }
+        values.push(p::Group { low, high, tests: tests.into_boxed() }).expect(FITS);
+    }
+    Ok(values.into_boxed())
+}
 fn encode_run(run: &p::Run) -> w::TierRun {
     let part = match &run.part {
         p::Part::Whole => w::TierPart::Whole,
         p::Part::Rerun { failed } => w::TierPart::Rerun(
             w::TierTests::new(&w::CEILINGS, w::TierTestsParts { tests: encode_tests(failed) }).expect(FITS),
         ),
-        p::Part::Probe { landing, tests, finding } => {
-            let tests = match tests {
-                p::Selection::All => w::TierSelection::All,
-                p::Selection::Tests(tests) => w::TierSelection::Tests(
-                    w::TierTests::new(&w::CEILINGS, w::TierTestsParts { tests: encode_tests(tests) }).expect(FITS),
-                ),
-            };
+        p::Part::Probe { landing, low, high, tests, waiting, finding } => {
+            let tests = encode_selection(tests);
             w::TierPart::Probe(
                 w::TierProbe::new(
                     &w::CEILINGS,
-                    w::TierProbeParts { landing: *landing, tests, finding: encode_finding(finding) },
+                    w::TierProbeParts {
+                        landing: *landing,
+                        low: *low,
+                        high: *high,
+                        tests,
+                        waiting: encode_groups(waiting),
+                        finding: encode_finding(finding),
+                    },
                 )
                 .expect(FITS),
             )
@@ -121,18 +180,15 @@ fn decode_run(run: w::TierRun) -> Result<p::Run, Undecodable> {
         w::TierPart::Whole => p::Part::Whole,
         w::TierPart::Rerun(tests) => p::Part::Rerun { failed: decode_tests(tests.into_parts().tests)? },
         w::TierPart::Probe(probe) => {
-            let w::TierProbeParts { landing, tests, finding } = probe.into_parts();
-            let tests = match tests {
-                w::TierSelection::All => p::Selection::All,
-                w::TierSelection::Tests(tests) => p::Selection::Tests(decode_tests(tests.into_parts().tests)?),
-            };
+            let w::TierProbeParts { landing, low, high, tests, waiting, finding } = probe.into_parts();
+            group_range(low, high, landings.len())?;
+            let tests = decode_selection(tests);
             let finding = decode_finding(finding)?;
-            if usize::try_from(landing).or(Err(Undecodable::Malformed))? >= landings.len()
-                || finding.blamed.len() != landings.len()
-            {
+            if landing < low || landing > high || finding.blamed.len() != landings.len() {
                 return Err(Undecodable::Malformed);
             }
-            p::Part::Probe { landing, tests, finding }
+            let waiting = decode_groups(waiting, landings.len(), &finding)?;
+            p::Part::Probe { landing, low, high, tests: tests?, waiting, finding }
         }
     };
     Ok(p::Run { number, tip, key, landings, part, faults })
@@ -179,6 +235,16 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
                 Some(flight) => Some(encode_flight(flight)),
                 None => None,
             },
+            hold: match &row.hold {
+                Some(hold) => Some(
+                    w::TierHold::new(
+                        &w::CEILINGS,
+                        w::TierHoldParts { party: hold.party, at: hold.at.as_nanos(), reason: hold.reason.clone() },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
             held: match row.held {
                 Some(fault) => Some(encode_fault(fault)),
                 None => None,
@@ -214,6 +280,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         flight,
         probe,
         held,
+        hold,
         result,
         received,
         goals,
@@ -257,6 +324,13 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         probe: decode_probe(probe, run)?,
         flight: match flight {
             Some(flight) => Some(decode_flight(flight)),
+            None => None,
+        },
+        hold: match hold {
+            Some(hold) => {
+                let w::TierHoldParts { party, at, reason } = hold.into_parts();
+                Some(d::TierHold { party, at: skein_lib::Wall::from_nanos(at), reason })
+            }
             None => None,
         },
         held: match held {

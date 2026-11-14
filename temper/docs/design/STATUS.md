@@ -1,6 +1,6 @@
 # Status
 
-2026-11-13. The first milestone stands in the code. The wires between
+2026-11-14. The first milestone stands in the code. The wires between
 the engine, its workers, their agents and the clients move their
 versions with their layouts, stated and checked at the channel's
 opening; each build speaks each wire from its floor, and jig's channel
@@ -163,6 +163,16 @@ passed checks passed, and they end when it lands into the goal's branch;
 each flake is filed or counted as a `flake` finding (`domain/findings.md`,
 4). Reds end too by the tool and with their goal; the list's removal is
 B3 (`draft/branch-reds.status.md`).
+
+A project's tiers after landing (`domain/after-landing.md`) are held and
+released by a person, `temper ctl tier hold` and `tier release`, the hold
+kept on the tier's record and said on a verifying change's line; a red
+range is bisected over its changed-key landings; each verdict is posted
+on the forge, `temper/verdict/<tier>` on the run's tip and a comment on
+each member's pull request, `Repaired by #M` once a repair passes. A
+change's stall on CI and a landing's gate run past its bound name each
+pending job's state, read by skein's `JobState`; a tier's run that never
+ends is held by no bound (`draft/tier-controls.status.md`).
 
 T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need
@@ -473,6 +483,7 @@ Drafts:
 - [`draft/store-shape.md`](draft/store-shape.status.md) — S1, goal 2651: the census, counted by skein-kv per keyspace, named and reported by jig's component, shown in the deployment's document, temper's Limits page and `temper ctl DIR deployment census`; S2, goal 2652: identity walks rewrite a record's head alone where its patch leaves its bytes valid; S3, goal 2653: generations by hard links: skein-io's `HardLink` on every backend and in the file layer, and an upgrade's new generation linking the previous one's snapshot and sealed segments, copying its newest segment and secrets.
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
+- [`draft/tier-controls.md`](draft/tier-controls.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/tui-design-session.md`](draft/tui-design-session.status.md)
 - [`draft/tui.md`](draft/tui.status.md)

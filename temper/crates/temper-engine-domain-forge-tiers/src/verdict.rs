@@ -1,7 +1,7 @@
 //! Level-triggered verdict decisions (temper/docs/design/domain/after-landing.md, sections 3–5).
 use crate::{
-    Blame, Commit, Failures, Finding, Flake, Group, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt, Record, Run,
-    Selection, Settings, Suspects, TestId, Verdict,
+    Blame, Commit, Failures, Finding, Flake, Group, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt, Record,
+    Run, Selection, Settings, Suspects, TestId, Verdict,
 };
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -98,9 +98,12 @@ pub fn step(record: &Record, run: &Run, outcome: Outcome, settings: &Settings) -
             add_group(&mut groups, *low, *landing, owned);
             add_group(&mut groups, landing.checked_add(1).expect("the middle is before high"), *high, remaining);
             for group in waiting {
-                groups.push(group.clone()).expect("room for waiting groups and two halves");
+                let tests = expand(&finding, &group.tests);
+                groups
+                    .push(SearchGroup { low: group.low, high: group.high, tests })
+                    .expect("room for waiting groups and two halves");
             }
-            probe(record, run, finding, groups.into_boxed())
+            probe(record, run, finding, groups.as_slice())
         }
     }
 }
@@ -207,7 +210,7 @@ fn blame(record: &Record, run: &Run, failing: Failures, flakes: Box<[TestId]>, s
             let mut groups = List::with_capacity(1);
             let high = length(run.landings.len()).checked_sub(1).expect("a non-baseline has landings");
             add_group(&mut groups, 0, high, new);
-            probe(record, run, finding, groups.into_boxed())
+            probe(record, run, finding, groups.as_slice())
         }
     }
 }
@@ -219,21 +222,65 @@ fn own(finding: &mut Finding, landing: u32, failing: Failures) {
     }
 }
 
-fn add_group(groups: &mut List<Group>, low: u32, high: u32, failing: Failures) {
+#[derive(Debug)]
+struct SearchGroup {
+    low: u32,
+    high: u32,
+    tests: Selection,
+}
+
+fn expand(finding: &Finding, places: &[u16]) -> Selection {
+    let Failures::Tests(failing) = &finding.failing else {
+        unreachable!("after many no group waits");
+    };
+    let mut tests = List::with_capacity(length(places.len()));
+    for place in places {
+        tests
+            .push(failing.get(usize::from(*place)).expect("a waiting group's place is in the finding").clone())
+            .expect("one test per place");
+    }
+    Selection::Tests(tests.into_boxed())
+}
+
+fn compact(finding: &Finding, groups: &[SearchGroup]) -> Box<[Group]> {
+    let mut waiting = List::with_capacity(length(groups.len()));
+    for group in groups {
+        let Failures::Tests(failing) = &finding.failing else {
+            unreachable!("after many only one half survives");
+        };
+        let Selection::Tests(tests) = &group.tests else {
+            unreachable!("only enumerated failures have waiting groups");
+        };
+        let mut places = List::with_capacity(length(tests.len()));
+        for (place, test) in failing.iter().enumerate() {
+            if tests.binary_search(test).is_ok() {
+                places
+                    .push(u16::try_from(place).expect("at most 1024 enumerated failures"))
+                    .expect("a subset of the selected tests");
+            }
+        }
+        waiting
+            .push(Group { low: group.low, high: group.high, tests: places.into_boxed() })
+            .expect("one waiting group per remaining group");
+    }
+    waiting.into_boxed()
+}
+
+fn add_group(groups: &mut List<SearchGroup>, low: u32, high: u32, failing: Failures) {
     if low <= high && !none(&failing) {
         let tests = match failing {
             Failures::Tests(tests) => Selection::Tests(tests),
             Failures::Many => Selection::All,
         };
-        groups.push(Group { low, high, tests }).expect("room for the two nonempty halves");
+        groups.push(SearchGroup { low, high, tests }).expect("room for the two nonempty halves");
     }
 }
 
-fn candidates(record: &Record, run: &Run, group: &Group) -> Box<[u32]> {
-    let mut previous = match record.judged {
-        Some(judged) => Some(judged.key),
-        None => None,
-    };
+fn candidates(record: &Record, run: &Run, group: &SearchGroup) -> Box<[u32]> {
+    let mut previous = None;
+    if let Some(judged) = record.judged {
+        previous = Some(judged.key);
+    }
     let mut candidates = List::with_capacity(length(run.landings.len()));
     for (index, landing) in run.landings.iter().enumerate() {
         let index = length(index);
@@ -245,7 +292,7 @@ fn candidates(record: &Record, run: &Run, group: &Group) -> Box<[u32]> {
     candidates.into_boxed()
 }
 
-fn probe(record: &Record, run: &Run, mut finding: Finding, groups: Box<[Group]>) -> Next {
+fn probe(record: &Record, run: &Run, mut finding: Finding, groups: &[SearchGroup]) -> Next {
     // The lower half precedes the upper, both before the disjoint waiting groups.
     for (index, group) in groups.iter().enumerate() {
         let candidates = candidates(record, run, group);
@@ -260,10 +307,11 @@ fn probe(record: &Record, run: &Run, mut finding: Finding, groups: Box<[Group]>)
             let middle = candidates.len().checked_sub(1).expect("several candidates").checked_div(2).expect("two");
             let landing = *candidates.get(middle).expect("the middle candidate");
             let after = index.checked_add(1).expect("group cursor fits");
-            let waiting = Box::from(groups.get(after..).expect("groups after this one"));
-            return dispatch(run, Part::Probe {
-                landing, low: group.low, high: group.high, tests: group.tests.clone(), waiting, finding,
-            });
+            let waiting = compact(&finding, groups.get(after..).expect("groups after this one"));
+            return dispatch(
+                run,
+                Part::Probe { landing, low: group.low, high: group.high, tests: group.tests.clone(), waiting, finding },
+            );
         }
     }
     finish(run, finding)

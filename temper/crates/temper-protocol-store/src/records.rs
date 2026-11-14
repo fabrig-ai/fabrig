@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v23 as w};
+use crate::{Bounds, Undecodable, v24 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge_vocabulary as d;
@@ -358,6 +358,9 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_row_goals: forge.holds,
         tier_row_pending: forge.changes.checked_mul(2)?.checked_add(1)?,
         tier_flight_pending: forge.client.rows,
+        tier_probe_waiting: forge.changes.checked_mul(2)?.checked_add(1)?,
+        tier_group_tests: forge.tiers.failing_tests,
+        tier_hold_reason: 1024,
         tier_run_landings: forge.changes.checked_mul(2)?.checked_add(1)?,
         tier_finding_blamed: forge.changes.checked_mul(2)?.checked_add(1)?,
         tier_finding_flakes: forge.tiers.failing_tests,

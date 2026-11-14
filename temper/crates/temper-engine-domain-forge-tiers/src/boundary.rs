@@ -130,7 +130,8 @@ pub enum Part {
 pub struct Group {
     pub low: u32,
     pub high: u32,
-    pub tests: Selection,
+    /// Strictly increasing places in the finding's enumerated failures.
+    pub tests: Box<[u16]>,
 }
 /// What a probe runs: these tests alone, or, after many, the whole tier.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
