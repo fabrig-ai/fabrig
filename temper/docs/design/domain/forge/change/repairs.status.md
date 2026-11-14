@@ -1,7 +1,8 @@
 # repairs: status
 
-2026-11-13. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-14. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
+- **Not yet:** "A CI repair that changes nothing checks its head again": a repair's `no_change` is read as a failed delegate and holds the change failed for good; a repair delivering at an unchanged head asks the next repair with no check again; a change past its repairs gives no account unless it follows (`temper-engine-domain-forge/src/domain.rs`, `delegate_result`; `temper-engine-domain-forge-change/src/domain.rs`, `repairing`; `temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`) [in flight: change 3012].
 
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`).
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`).
