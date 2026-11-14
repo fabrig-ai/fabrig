@@ -508,8 +508,9 @@ blamed landing's full commit (2026-11-04).
   - red, failures left at the tip once rerun: `failure`, `run N
     failed: B blamed, I inherited`, B the distinct failing tests blamed
     on the range's landings, owned or suspected, I the run's other
-    failures, each `many` where the run's failures are many (section
-    4);
+    failures, inherited; B `many` where a landing's blame is many, and
+    I `many` where the run's failures are many (section 4) and no
+    landing's blame is;
   - pending, before a hold on its faults: section 3's words, posted
     again at each hold of the run.
 
