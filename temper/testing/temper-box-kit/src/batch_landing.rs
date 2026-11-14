@@ -154,6 +154,8 @@ pub fn configure(root: &Path, repository: u64) {
     value["engine"]["limits"]["overrides"]["people.inbox_tasks"] = 128.into();
     value["engine"]["limits"]["overrides"]["fleet.attempts"] = 8.into();
     value["engine"]["limits"]["overrides"]["brief.briefs"] = 8.into();
+    // The engine must accept the worker's advertised slots (temper/docs/design/domain/worker/README.md, 5).
+    value["engine"]["limits"]["overrides"]["fleet.slots"] = 8.into();
     value["workers"][0]["slots"] = 8.into();
     value["workers"][0]["limits"]["overrides"]["hub.slots"] = 8.into();
     for name in ["checkout.workspaces", "git_component.operations"] {
@@ -163,14 +165,18 @@ pub fn configure(root: &Path, repository: u64) {
     let agent_path = root.join("agent.json");
     let mut agent: Value = serde_json::from_slice(&fs::read(&agent_path).expect("agent configuration")).expect("JSON");
     agent["profile"]["declared"]["tool_payload"] = 8192.into();
-    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 8192.into();
+    // A message reserves two bytes inside the call's tool payload
+    // (temper/docs/design/protocol/configuration/limits.md, limits checked at start).
+    value["engine"]["limits"]["overrides"]["tasks.message_bytes"] = 8190.into();
     value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 8192.into();
     value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 8192.into();
+    value["engine"]["limits"]["overrides"]["hub.outcome_bytes"] = 8192.into();
     let limits = &mut value["workers"][0]["limits"]["overrides"];
-    limits["tasks.message_bytes"] = 8192.into();
+    limits["tasks.message_bytes"] = 8190.into();
     limits["tasks.inbox_bytes"] = 8192.into();
     limits["core.call_answer_bytes"] = 8192.into();
     limits["hub.event_bytes"] = 8190.into();
+    limits["hub.outcome_bytes"] = 8192.into();
     value["application"]["limits"]["overrides"]["checkout.message_bytes"] = 8192.into();
     super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&agent));
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
