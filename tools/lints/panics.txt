@@ -174,11 +174,8 @@ skein/examples/echo/protocol/src/tests/conn.rs should_panic 1
 skein/testing/skein-echo-client/src/tests.rs should_panic 4
 skein/testing/skein-fake-person-browser/src/harness/deadline_tests.rs should_panic 1
 skein/testing/skein-world/src/deadline.rs resume_unwind 1
-skein/testing/skein-world/src/end_to_end.rs catch_unwind 2
 skein/testing/skein-world/src/end_to_end.rs should_panic 1
 skein/testing/skein-world/src/ring.rs catch_unwind 1
-skein/testing/skein-world/src/tree.rs catch_unwind 1
-skein/testing/skein-world/src/tree.rs should_panic 3
 skein/tests/heap/tests/suite/meter.rs should_panic 6
 skein/tests/lib/tests/suite/journal.rs should_panic 1
 skein/tests/llm-connection/tests/suite/close.rs should_panic 5
@@ -196,13 +193,11 @@ skein/tests/world/tests/suite/deadline.rs catch_unwind 2
 skein/tests/world/tests/suite/deadline.rs resume_unwind 1
 skein/tests/world/tests/suite/domain_referee.rs should_panic 3
 skein/tests/world/tests/suite/domain_utilities.rs should_panic 1
-skein/tests/world/tests/suite/end_to_end.rs catch_unwind 3
 skein/tests/world/tests/suite/hosted.rs catch_unwind 1
 skein/tests/world/tests/suite/hosted.rs should_panic 5
 skein/tests/world/tests/suite/real.rs catch_unwind 1
 skein/tests/world/tests/suite/steps.rs should_panic 3
-skein/tests/world/tests/suite/supervised_referee.rs catch_unwind 2
-skein/tests/world/tests/suite/world.rs should_panic 7
+skein/tests/world/tests/suite/world.rs should_panic 6
 skein/tests/world/tests/system_alloc/main.rs should_panic 1
 smith/crates/smith-domain-run/src/tests/agents.rs should_panic 1
 smith/crates/smith-local-protocol/src/tests/store.rs should_panic 3
