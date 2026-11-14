@@ -3,7 +3,7 @@
 #![expect(clippy::disallowed_types, reason = "returned pages are bounded by Page")]
 #![expect(clippy::disallowed_methods, reason = "pure lookups and bounded admission scans have no hidden effects")]
 
-use crate::{Census, CensusRule, Limits, Op, Page, Range, Refusal, Row};
+use crate::{Census, CensusRule, Exhausted, Large, Limits, Op, Page, Range, Refusal, Row};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::ops::Bound;
@@ -61,12 +61,16 @@ impl Queued {
     }
 
     /// Admit `ops`, which `check` projected: they are commit `number`.
+    #[expect(clippy::manual_map, reason = "admission explicitly narrows a charge already checked against the budget")]
     pub(crate) fn reserve(&mut self, ops: &[Op], projected: Projected, number: u64) {
         for (index, op) in ops.iter().enumerate() {
             if has_later(ops, index, op.key()) {
                 continue;
             }
-            let charge = op_charge(op).expect("the last op's charge passed admission");
+            let charge = match op_charge(op) {
+                Some(bytes) => Some(u64::try_from(bytes).expect("the last op's charge passed admission")),
+                None => None,
+            };
             let previous = self.charges.insert(Box::from(op.key()), Charge { bytes: charge, number });
             assert!(previous.is_ok(), "projected keys are bounded by admitted commits");
         }
@@ -75,6 +79,7 @@ impl Queued {
     }
 
     /// Check admission without reserving charges when the byte queue would refuse it (data/kv.md, 4).
+    #[expect(clippy::manual_map, reason = "admission explicitly widens stored charges and computes absent ones")]
     pub(crate) fn check(&self, map: &KvMap, ops: &[Op], limits: &Limits) -> Result<Projected, Refusal> {
         let (used, count) = if self.charges.is_empty() { (map.used, map.len()) } else { (self.used, self.count) };
         let mut after = i128::from(used);
@@ -82,12 +87,12 @@ impl Queued {
         for (index, op) in ops.iter().enumerate() {
             let key = op.key();
             if key.len() > usize_of(limits.key) {
-                return Err(Refusal::TooLarge);
+                return Err(Refusal::TooLarge(Large::Key));
             }
             match op {
                 Op::Put { value, .. } => {
                     if value.len() > usize_of(limits.value) {
-                        return Err(Refusal::TooLarge);
+                        return Err(Refusal::TooLarge(Large::Value));
                     }
                 }
                 Op::Erase { .. } => {}
@@ -96,23 +101,33 @@ impl Queued {
                 continue;
             }
             let old = match self.charges.get(key) {
-                Some(charge) => charge.bytes,
+                Some(charge) => match charge.bytes {
+                    Some(bytes) => Some(i128::from(bytes)),
+                    None => None,
+                },
                 None => match map.entries.get(key) {
-                    Some(value) => Some(charge(key, value)?),
+                    Some(value) => Some(charge(key, value)),
                     None => None,
                 },
             };
             if let Some(old) = old {
-                after = after.checked_sub(i128::from(old)).expect("bounded charges fit i128");
+                after = after.checked_sub(old).expect("bounded charges fit i128");
                 count = count.checked_sub(1).expect("bounded entry counts fit i128");
             }
-            if let Some(charge) = op_charge(op)? {
-                after = after.checked_add(i128::from(charge)).expect("bounded charges fit i128");
+            if let Some(charge) = op_charge(op) {
+                after = after.checked_add(charge).expect("bounded charges fit i128");
                 count = count.checked_add(1).expect("bounded entry counts fit i128");
             }
         }
-        if after < 0 || after > i128::from(limits.budget) || count > i128::from(map.entries.capacity()) {
-            return Err(Refusal::Full);
+        if after < 0 || after > i128::from(limits.budget) {
+            return Err(Refusal::Full(Exhausted::Budget {
+                used,
+                budget: limits.budget,
+                projected: u64::try_from(after).unwrap_or(u64::MAX),
+            }));
+        }
+        if count > i128::from(map.entries.capacity()) {
+            return Err(Refusal::Full(Exhausted::Entries { capacity: map.entries.capacity() }));
         }
         let used = u64::try_from(after).expect("projected bytes fit the budget");
         let count = u32::try_from(count).expect("projected entries fit the map capacity");
@@ -146,16 +161,18 @@ fn has_later(ops: &[Op], index: usize, key: &[u8]) -> bool {
     false
 }
 
-fn op_charge(op: &Op) -> Result<Option<u64>, Refusal> {
+fn op_charge(op: &Op) -> Option<i128> {
     match op {
-        Op::Put { key, value } => Ok(Some(charge(key, value)?)),
-        Op::Erase { .. } => Ok(None),
+        Op::Put { key, value } => Some(charge(key, value)),
+        Op::Erase { .. } => None,
     }
 }
 
-fn charge(key: &[u8], value: &[u8]) -> Result<u64, Refusal> {
-    let size = ENTRY.checked_add(skein_lib::len_u64(key.len())).ok_or(Refusal::Full)?;
-    size.checked_add(skein_lib::len_u64(value.len())).ok_or(Refusal::Full)
+fn charge(key: &[u8], value: &[u8]) -> i128 {
+    let size = i128::from(ENTRY)
+        .checked_add(i128::from(skein_lib::len_u64(key.len())))
+        .expect("entry and key charges fit i128");
+    size.checked_add(i128::from(skein_lib::len_u64(value.len()))).expect("a row's charge fits i128")
 }
 
 impl KvMap {
@@ -243,7 +260,7 @@ impl KvMap {
             let size = u32::try_from(key.len().saturating_add(value.len())).unwrap_or(u32::MAX);
             if rows.len() >= usize_of(max.rows) || bytes.checked_add(size).is_none_or(|total| total > max.bytes) {
                 if rows.is_empty() {
-                    return Err(Refusal::TooLarge);
+                    return Err(Refusal::TooLarge(Large::Page));
                 }
                 next = Some(key.clone());
                 break;

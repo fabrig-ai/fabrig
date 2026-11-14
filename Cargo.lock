@@ -6650,6 +6650,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-json",
+ "skein-kv",
  "skein-lib",
  "skein-oauth-accounts",
  "skein-scratch",
