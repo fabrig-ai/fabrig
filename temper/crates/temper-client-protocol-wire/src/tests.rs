@@ -3,6 +3,7 @@ mod drafts;
 mod findings;
 mod fixtures;
 mod source;
+mod tiers;
 mod versions;
 use crate::v1;
 use alloc::boxed::Box;

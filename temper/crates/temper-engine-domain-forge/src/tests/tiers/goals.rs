@@ -535,3 +535,20 @@ fn due_goals_break_start_time_ties_by_the_lowest_goal() {
     assert_eq!(row(&d).goal, Some(3));
     assert_eq!(row(&d).goals.iter().map(|g| g.goal).collect::<Vec<_>>(), [GOAL, OTHER, 3]);
 }
+
+#[test]
+fn a_person_held_tier_starts_no_goal_branch_until_released() {
+    let mut d = configured(None);
+    hold::act(&mut d, TierAct::Hold { reason: b"maintenance".as_slice().into() });
+    hold(&mut d, OTHER, OTHER_BRANCH);
+    moved(&mut d, &env(), OTHER_BRANCH, None, BASE);
+    for (branch, tip) in [(BRANCH, NEXT_TIP), (OTHER_BRANCH, LAST_TIP)] {
+        let out = moved(&mut d, &env(), branch, Some(BASE), tip);
+        assert_eq!(requests(&out), []);
+        assert!(row(&d).record.run.is_none());
+    }
+    assert_eq!(row(&d).goals.len(), 2);
+    let out = hold::act(&mut d, TierAct::Release);
+    assert_eq!(requests(&out), [(1, NEXT_TIP)]);
+    assert_eq!(row(&d).goal, Some(GOAL), "equally due branches sort by goal number");
+}

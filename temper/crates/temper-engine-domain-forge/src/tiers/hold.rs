@@ -1,15 +1,16 @@
 //! A person's hold leaves a run in flight alone (temper/docs/design/domain/after-landing.md, 3).
 use super::{configured_all, empty, save, start_due};
-use crate::{Answered, Domain, Limits, Request, TierHold};
 use crate::tiers::{TierAct, TierActRequest, TierRefusal};
+use crate::{Answered, Domain, Limits, Request, TierHold};
 use skein_forge::api::Repository;
 use skein_lib::{Env, Queue, Token};
 
-#[expect(clippy::manual_find, reason = "step code resolves adopted names without callbacks")]
 fn repository(d: &Domain, call: &TierActRequest) -> Option<Repository> {
     let Some(named) = &call.repository else { return Some(d.home(call.project)?.provider) };
     for (_, row) in &d.repositories {
-        if row.project == call.project && row.owner == named.owner && row.name == named.name
+        if row.project == call.project
+            && row.owner == named.owner
+            && row.name == named.name
             && !d.forge_ended(row.provider.forge)
         {
             return Some(row.provider);
@@ -18,7 +19,13 @@ fn repository(d: &Domain, call: &TierActRequest) -> Option<Repository> {
     None
 }
 
-fn apply(d: &mut Domain, env: &Env<Limits>, party: u64, call: TierActRequest, out: &mut Queue<Request>) -> Result<(), TierRefusal> {
+fn apply(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    party: u64,
+    call: TierActRequest,
+    out: &mut Queue<Request>,
+) -> Result<(), TierRefusal> {
     let repository = repository(d, &call).ok_or(TierRefusal::NoRepository)?;
     let key = (repository, call.tier.clone());
     if !d.tiers.contains_key(&key) {
@@ -30,10 +37,13 @@ fn apply(d: &mut Domain, env: &Env<Limits>, party: u64, call: TierActRequest, ou
             return Err(TierRefusal::NoTier);
         }
     }
-    if let TierAct::Hold { reason } = &call.act {
-        if reason.is_empty() || reason.len() > 1024 || core::str::from_utf8(reason).is_err() {
-            return Err(TierRefusal::Words);
+    match &call.act {
+        TierAct::Hold { reason } => {
+            if reason.is_empty() || reason.len() > 1024 || !skein_lib::bytes::is_utf8(reason) {
+                return Err(TierRefusal::Words);
+            }
         }
+        TierAct::Release => {}
     }
     let mut row = d.tiers.get(&key).cloned().unwrap_or(empty(repository, call.tier));
     match call.act {
@@ -49,14 +59,24 @@ fn apply(d: &mut Domain, env: &Env<Limits>, party: u64, call: TierActRequest, ou
             }
         }
     }
+    let released = row.hold.is_none();
     save(&row, out);
     d.tiers.insert(key, row).expect("configured or recorded tier");
-    start_due(d, env, repository, out);
+    if released {
+        start_due(d, env, repository, out);
+    }
     Ok(())
 }
 
-#[expect(clippy::too_many_arguments, reason = "the admitted act carries its key and authenticated party")]
-pub(crate) fn asked(d: &mut Domain, env: &Env<Limits>, request: Token, token: Token, party: u64, call: TierActRequest, out: &mut Queue<Request>) {
+pub(crate) fn asked(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    request: Token,
+    token: Token,
+    party: u64,
+    call: TierActRequest,
+    out: &mut Queue<Request>,
+) {
     let answer = apply(d, env, party, call, out);
     d.connect.answer(request, token, Answered::Tier(answer), out);
 }

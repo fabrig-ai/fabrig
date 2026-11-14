@@ -103,9 +103,17 @@ pub fn to_root(
                         w::TierAct::Release => forge::TierAct::Release,
                     };
                     return Ok(root::Event::Party(root::PartyInput::Application {
-                        scope, reply_to, sign_in, key, digest, carried,
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
                         request: root::Application::Tier(forge::TierActRequest {
-                            project: value.project, repository, tier: value.tier, act,
+                            project: value.project,
+                            repository,
+                            tier: value.tier,
+                            act,
                         }),
                     }));
                 }
@@ -231,7 +239,7 @@ pub fn to_root(
                         | w::Request::MakeRepository(_)
                         | w::Request::Reachable(_)
                         | w::Request::FollowAct(_)
-                         | w::Request::TierAct(_)
+                        | w::Request::TierAct(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::FileFinding(_)
@@ -1028,9 +1036,9 @@ pub fn answer(
                 Err(why) => Some(match why {
                     forge::TierRefusal::NoRepository => w::TierRefusal::NoRepository,
                     forge::TierRefusal::NoTier => w::TierRefusal::NoTier,
-                    forge::TierRefusal::Held { party, reason } => w::TierRefusal::Held(
-                        w::TierHeldBy::new(limits, w::TierHeldByParts { party, reason }).ok()?
-                    ),
+                    forge::TierRefusal::Held { party, reason } => {
+                        w::TierRefusal::Held(w::TierHeldBy::new(limits, w::TierHeldByParts { party, reason }).ok()?)
+                    }
                     forge::TierRefusal::NotHeld => w::TierRefusal::NotHeld,
                     forge::TierRefusal::Words => w::TierRefusal::Words,
                 }),

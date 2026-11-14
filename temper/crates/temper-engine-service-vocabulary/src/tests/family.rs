@@ -1524,7 +1524,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::Follow { .. }
+                        root::Application::Tier(_)
+                        | root::Application::Follow { .. }
                         | root::Application::Try { .. }
                         | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
@@ -5148,5 +5149,104 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     ] {
         let bytes = family::forge_read(root::ForgeReadAnswer::History(reply), b"", &w::CEILINGS).unwrap();
         assert_eq!(wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result, expected);
+    }
+}
+
+#[test]
+fn tier_acts_translate_the_repository_reason_and_each_outcome() {
+    for repository in [
+        None,
+        Some(
+            w::DraftRepository::new(
+                &w::CEILINGS,
+                w::DraftRepositoryParts { owner: b"acme".as_slice().into(), name: b"site".as_slice().into() },
+            )
+            .unwrap(),
+        ),
+    ] {
+        for (act, expected) in [
+            (
+                w::TierAct::Hold(
+                    w::TierHoldAct::new(&w::CEILINGS, w::TierHoldActParts { reason: b"maintenance".as_slice().into() })
+                        .unwrap(),
+                ),
+                forge::TierAct::Hold { reason: b"maintenance".as_slice().into() },
+            ),
+            (w::TierAct::Release, forge::TierAct::Release),
+        ] {
+            let request = w::TierActRequest::new(
+                &w::CEILINGS,
+                w::TierActRequestParts {
+                    project: 2,
+                    repository: repository.clone(),
+                    tier: b"browser".as_slice().into(),
+                    act,
+                },
+            )
+            .unwrap();
+            let record =
+                w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::TierAct(request) }).unwrap();
+            let event = family::to_root(
+                &jig_protocol_config::Directories::working(),
+                exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+                &fixtures::forge_table(&[]),
+                None,
+                &family::Deployment { welcome: false, owned: false, program_login: None, push: None },
+                None,
+                &w::CEILINGS,
+            )
+            .unwrap();
+            let root::Event::Party(root::PartyInput::Application {
+                reply_to,
+                sign_in,
+                key,
+                digest,
+                carried,
+                request,
+                ..
+            }) = event
+            else {
+                panic!("tier request")
+            };
+            assert_eq!((reply_to, sign_in, key, digest, carried), (REPLY, 3, REQUEST_KEY, [7; 32], None));
+            assert_eq!(
+                request,
+                root::Application::Tier(forge::TierActRequest {
+                    project: 2,
+                    repository: match repository.clone() {
+                        Some(value) => {
+                            let p = value.into_parts();
+                            Some(forge::DraftRepository { owner: p.owner, name: p.name })
+                        }
+                        None => None,
+                    },
+                    tier: b"browser".as_slice().into(),
+                    act: expected
+                })
+            );
+        }
+    }
+    for (value, expected) in [
+        (Ok(()), None),
+        (Err(forge::TierRefusal::NoRepository), Some(w::TierRefusal::NoRepository)),
+        (Err(forge::TierRefusal::NoTier), Some(w::TierRefusal::NoTier)),
+        (
+            Err(forge::TierRefusal::Held { party: 19, reason: b"maintenance".as_slice().into() }),
+            Some(w::TierRefusal::Held(
+                w::TierHeldBy::new(
+                    &w::CEILINGS,
+                    w::TierHeldByParts { party: 19, reason: b"maintenance".as_slice().into() },
+                )
+                .unwrap(),
+            )),
+        ),
+        (Err(forge::TierRefusal::NotHeld), Some(w::TierRefusal::NotHeld)),
+        (Err(forge::TierRefusal::Words), Some(w::TierRefusal::Words)),
+    ] {
+        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+        let bytes = family::answer(Some(root::ApplicationAnswer::Tier(value)), &w::CEILINGS, &jig).unwrap();
+        let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+        let w::Outcome::Tier(answer) = answer.into_parts().outcome else { panic!("tier outcome") };
+        assert_eq!(answer.into_parts().refusal, expected);
     }
 }

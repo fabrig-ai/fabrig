@@ -20,9 +20,7 @@ impl Domain {
                 suffix = tier_blame(&verdict.blame);
             } else {
                 for ((repository, name), row) in &self.tiers {
-                    if *repository == verification.repository
-                        && *name == tier.tier
-                    {
+                    if *repository == verification.repository && *name == tier.tier {
                         hold = row.hold.as_ref();
                         if let Some(flight) = &row.record.run {
                             for landing in &flight.landings {
@@ -33,8 +31,15 @@ impl Domain {
                         }
                     }
                 }
-                suffix = if run.is_none() && let Some(hold) = hold {
-                    crate::tiers::joined(&[b" held by party ", skein_lib::Decimal::of(hold.party).as_bytes(), b": ", &hold.reason])
+                suffix = if run.is_none()
+                    && let Some(hold) = hold
+                {
+                    crate::tiers::joined(&[
+                        b" held by party ",
+                        skein_lib::Decimal::of(hold.party).as_bytes(),
+                        b": ",
+                        &hold.reason,
+                    ])
                 } else {
                     Box::from(if run.is_some() { b" running".as_slice() } else { b" waiting".as_slice() })
                 };

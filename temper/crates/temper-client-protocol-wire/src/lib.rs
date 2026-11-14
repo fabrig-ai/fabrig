@@ -389,6 +389,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::RemoveDevice(_)
         | v1::Request::SetDraft(_)
         | v1::Request::FollowAct(_)
+        | v1::Request::TierAct(_)
         | v1::Request::TryAccount(_)
         | v1::Request::Dismiss(_)
         | v1::Request::Looked(_)

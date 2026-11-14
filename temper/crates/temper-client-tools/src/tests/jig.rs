@@ -32,7 +32,7 @@ mod settings;
 
 mod task_settings;
 
-mod projects;
+pub(super) mod projects;
 
 mod replays;
 

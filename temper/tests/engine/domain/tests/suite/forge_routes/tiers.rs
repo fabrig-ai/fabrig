@@ -778,3 +778,96 @@ fn task_show_keeps_the_clearing_run() {
     let text = std::str::from_utf8(&printed.stdout).expect("ctl UTF-8");
     assert!(text.contains("Cleared by slow run 2."), "stored: {kept}\nstdout: {text}");
 }
+
+fn tier_act(world: &mut World, release: bool) {
+    sign_in(world);
+    let serial = if release { 202 } else { 201 };
+    world.send(engine::Event::Party(engine::PartyInput::Application {
+        scope: people::ApplicationScope::Project(1),
+        reply_to: ReplyTo::new(Token::new(u64::from(serial))),
+        sign_in: world.signed_in.expect("owner signed in"),
+        key: [serial; 16],
+        digest: [serial; 32],
+        carried: None,
+        request: engine::Application::Tier(forge_top::TierActRequest {
+            project: 1,
+            repository: None,
+            tier: b"slow".as_slice().into(),
+            act: if release {
+                forge_top::TierAct::Release
+            } else {
+                forge_top::TierAct::Hold { reason: b"runner maintenance".as_slice().into() }
+            },
+        }),
+    }));
+    until(world, LANDING_TICKS, "tier act committed", |world| tier(world).hold.is_none() == release);
+}
+#[test]
+fn a_persons_hold_survives_flight_bound_and_restart_then_releases_the_newest_range() {
+    for (in_flight, past_bound, restart) in [(true, false, false), (false, true, false), (false, false, true)] {
+        let options = Tier { bound_ms: if past_bound { 60_000 } else { Tier::default().bound_ms }, ..Tier::default() };
+        let (mut world, chat) = chat_world(false, options);
+        baseline(&mut world);
+        let first = if in_flight {
+            let first = produce(&mut world, &chat, 93, b"file", b"first fix");
+            verifying(&mut world, first);
+            until(&mut world, LANDING_TICKS, "run in flight before hold", |world| {
+                tier(world).record.run.as_ref().is_some_and(|run| run.number == 2)
+            });
+            Some(first)
+        } else {
+            None
+        };
+        tier_act(&mut world, false);
+        let a = produce(&mut world, &chat, 94, b"file", b"second fix");
+        let b = produce(&mut world, &chat, 95, b"file", b"third fix");
+        for number in [a, b] {
+            let forge_top::PanelStep::Verifying { tiers, .. } = panel(&mut world, number) else {
+                panic!("verifying held tier")
+            };
+            assert_eq!(tiers.as_ref(), [Box::<[u8]>::from(b"slow held by party 1: runner maintenance".as_slice())]);
+        }
+        if let Some(first) = first {
+            until(&mut world, RUN_TICKS, "in-flight run judged while held", |world| tier(world).record.sequence == 2);
+            cleared(&mut world, first);
+            cleared_result(&world, first, 2, false);
+        }
+        let judged = tier(&world).record.sequence;
+        if past_bound {
+            until(&mut world, RUN_TICKS, "held changes past verification bound", |world| {
+                [a, b].iter().all(|number| matches!(task(world, *number).phase, tasks::Phase::Ended(_)))
+            });
+            for number in [a, b] {
+                assert!(matches!(change(&world, number).change.state, State::Uncleared { .. }));
+                assert!(result(&world, number).contains("Not cleared: no verdict within the verification bound."));
+            }
+        }
+        if restart {
+            until(&mut world, LANDING_TICKS, "held restart cut", restart_cut);
+            world.restart_same();
+        }
+        for _ in 0..LANDING_TICKS {
+            tier_runs::tick(&mut world);
+        }
+        assert!(tier(&world).record.run.is_none(), "held tier starts nothing");
+        assert_eq!(tier(&world).record.sequence, judged);
+        assert_eq!(tier(&world).hold.as_ref().expect("restored hold").reason.as_ref(), b"runner maintenance");
+        assert_eq!(tier(&world).hold.as_ref().unwrap().party, 1);
+        tier_act(&mut world, true);
+        until(&mut world, LANDING_TICKS, "release starts next run", |world| tier(world).record.run.is_some());
+        let run = tier(&world).record.run.as_ref().unwrap();
+        assert_eq!((run.number, run.tip), (judged + 1, merge(&world, b)));
+        assert_eq!(
+            run.landings.iter().map(|landing| landing.commit).collect::<Vec<_>>(),
+            [merge(&world, a), merge(&world, b)]
+        );
+        until(&mut world, RUN_TICKS, "released range judged", |world| tier(world).record.sequence == judged + 1);
+        tier_done(&world, judged + 1, &format!("Tier slow run {}: green, cleared 2 landings", judged + 1));
+        if !past_bound {
+            for number in [a, b] {
+                cleared(&mut world, number);
+                cleared_result(&world, number, judged + 1, false);
+            }
+        }
+    }
+}

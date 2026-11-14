@@ -135,6 +135,8 @@ pub const TOOLS: &[&Tool] = &[
     &crate::follow::HOLD,
     &crate::follow::SKIP,
     &crate::follow::MERGE,
+    &crate::tier::HOLD,
+    &crate::tier::RELEASE,
     &crate::push::LIST,
     &crate::push::ADD,
     &crate::push::REMOVE,
