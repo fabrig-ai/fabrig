@@ -332,7 +332,8 @@ other module is safe Rust, the same on both systems.
   as Linux's `EXDEV`, so that one error table serves both (`Escape`).
 - **Files:** `pread`, `pwrite`, `write`, `ftruncate`, `fstat` (decoded by
   `darwin`), `renameatx_np` with `RENAME_EXCL` for a rename that never
-  replaces and `renameat` otherwise, `unlinkat`, `mkdirat`, `flock`.
+  replaces and `renameat` otherwise, `unlinkat`, `mkdirat`, `linkat`
+  with no flags (a second name, `HardLink`: kernel.md, 6.4), `flock`.
   A no-replace rename to the identical name succeeds without changing
   it on case-insensitive APFS (macOS conformance run 40003540284): XNU
   `bsd/vfs/vfs_syscalls.c:9538-9564` admits the same vnode on those

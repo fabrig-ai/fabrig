@@ -282,6 +282,7 @@ impl OwnedKernel {
                 | Op::Truncate { .. }
                 | Op::Lock { .. }
                 | Op::Stat { .. }
+                | Op::HardLink { .. }
                 | Op::Rename { .. }
                 | Op::Remove { .. }
                 | Op::MakeDirectory { .. }

@@ -43,7 +43,11 @@ impl Drop for Runner {
 }
 pub(crate) fn command(binary: &Path, scratch: &Path) -> Command {
     let mut cmd = Command::new(binary);
-    cmd.env_clear().env("HOME", scratch.join("home")).env("PATH", "/usr/bin:/bin").current_dir(scratch);
+    cmd.env_clear()
+        .env("HOME", scratch.join("home"))
+        .env("TMPDIR", scratch.join("tmp"))
+        .env("PATH", "/usr/bin:/bin")
+        .current_dir(scratch);
     cmd
 }
 pub fn run(
@@ -247,6 +251,7 @@ fn record(
 pub(crate) fn start(f: &Fixture, binary: &Path, secrets: &mut Secrets) -> Result<(Runner, String)> {
     let scratch = f.instance.scratch().join("runner");
     fs::create_dir_all(scratch.join("home"))?;
+    fs::create_dir_all(scratch.join("tmp"))?;
     let version = version(binary, &scratch)?;
     secrets.add(SecretKind::RunnerSecret, registration::RUNNER_SECRET);
     let secret = scratch.join("secret");
@@ -261,13 +266,9 @@ pub(crate) fn start(f: &Fixture, binary: &Path, secrets: &mut Secrets) -> Result
         registration::configuration(&f.instance.base(), registration::RUNNER_UUID, &secret, &scratch.join("jobs")),
     )?;
     let log = File::create(scratch.join("runner.log"))?;
-    let child = command(binary, &scratch)
-        .arg("--config")
-        .arg(&config)
-        .arg("daemon")
-        .stdout(log.try_clone()?)
-        .stderr(log)
-        .spawn()?;
+    let mut command = command(binary, &scratch);
+    command.arg("--config").arg(&config).arg("daemon").stdout(log.try_clone()?).stderr(log);
+    let child = skein_shell::spawn_dying_with_parent(&mut command, skein_io::kernel::Signal::Terminate)?;
     Ok((Runner { child: Some(child) }, version))
 }
 

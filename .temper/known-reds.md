@@ -45,3 +45,4 @@ merged into main brought, each key once. Each is dropped once fixed.
 Confirmed outside the settled-stop change, from goal 2288's graces, 2026-11-13:
 
 - test jig-channel-world::suite channel::a_link_cut_mid_frame_redials_and_each_turn_reaches_the_engine_once
+- test temper-real-loop-world::suite case_5_3::an_owners_amended_instructions_reach_its_next_run_without_a_deadlines_hold_or_the_amendments_history

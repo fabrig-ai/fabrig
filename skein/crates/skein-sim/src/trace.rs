@@ -122,6 +122,12 @@ pub enum Summary {
     Stat {
         fd: Fd,
     },
+    HardLink {
+        from_dir: Fd,
+        from: Text,
+        to_dir: Fd,
+        to: Text,
+    },
     Rename {
         from_dir: Fd,
         from: Text,
@@ -241,6 +247,9 @@ impl Summary {
                 to: Text::of(to),
                 no_replace: *no_replace,
             },
+            Op::HardLink { from_dir, from, to_dir, to } => {
+                Summary::HardLink { from_dir: *from_dir, from: Text::of(from), to_dir: *to_dir, to: Text::of(to) }
+            }
             Op::Remove { dir, name, directory } => {
                 Summary::Remove { dir: *dir, name: Text::of(name), directory: *directory }
             }
@@ -293,6 +302,7 @@ impl Summary {
             | Summary::Lock { .. }
             | Summary::Stat { .. }
             | Summary::Rename { .. }
+            | Summary::HardLink { .. }
             | Summary::Remove { .. }
             | Summary::MakeDirectory { .. }
             | Summary::List { .. } => true,
@@ -331,6 +341,7 @@ impl Summary {
             | Summary::Lock { .. }
             | Summary::Stat { .. }
             | Summary::Rename { .. }
+            | Summary::HardLink { .. }
             | Summary::Remove { .. }
             | Summary::MakeDirectory { .. }
             | Summary::List { .. } => false,
@@ -386,7 +397,9 @@ impl Summary {
             | Summary::ReadSignal { fd }
             | Summary::PipeRead { fd, .. }
             | Summary::PipeWrite { fd, .. } => [Some(*fd), None],
-            Summary::Rename { from_dir, to_dir, .. } => [Some(*from_dir), Some(*to_dir)],
+            Summary::Rename { from_dir, to_dir, .. } | Summary::HardLink { from_dir, to_dir, .. } => {
+                [Some(*from_dir), Some(*to_dir)]
+            }
             Summary::Usage | Summary::Socket { .. } | Summary::Cancel { .. } => [None, None],
         }
     }

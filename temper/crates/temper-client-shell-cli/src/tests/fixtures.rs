@@ -617,7 +617,8 @@ impl Frame {
                 self.input = &self.input[count..];
                 Ok(Done::Count(u32::try_from(count).expect("input count")))
             }
-            Op::Bind { .. }
+            Op::HardLink { .. }
+            | Op::Bind { .. }
             | Op::Listen { .. }
             | Op::Accept { .. }
             | Op::Append { .. }

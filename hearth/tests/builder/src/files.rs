@@ -96,6 +96,7 @@ impl Files {
             | Request::Sync { owner, .. }
             | Request::Close { owner, .. }
             | Request::SyncDirectory { owner, .. }
+            | Request::HardLink { owner, .. }
             | Request::Rename { owner, .. }
             | Request::Remove { owner, .. }
             | Request::List { owner, .. }
@@ -197,6 +198,7 @@ impl Files {
             | Request::OpenWriteNoFollow { .. }
             | Request::Stat { .. }
             | Request::Cut { .. }
+            | Request::HardLink { .. }
             | Request::List { .. } => {
                 unreachable!("unsupported record was asserted")
             }
