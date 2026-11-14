@@ -1,6 +1,5 @@
 //! Seeded public paths (temper/docs/design/client/web/public.md, 1 and 4).
 use skein_lib::Rng;
-use std::panic::catch_unwind;
 use temper_client_domain::address::{Place, Public, parse, print_public};
 
 // Match the codec world's 2,000 draws, each independently replayable.
@@ -34,12 +33,9 @@ fn oracle(path: &[u8]) -> Option<Public> {
 }
 
 fn check(path: &[u8], seed: u64) {
-    let result = catch_unwind(|| {
-        let Place::Public(page) = parse(path) else { panic!("path must read as public") };
-        (page, print_public(&page))
-    });
-    assert!(result.is_ok(), "seed {seed}, input {path:?}: parse or print panicked");
-    let (page, printed) = result.expect("panic reported with seed and input");
+    eprintln!("seed {seed}, input {path:?}: parse and print public path");
+    let Place::Public(page) = parse(path) else { panic!("path must read as public") };
+    let printed = print_public(&page);
     let expected = oracle(path);
     assert_eq!(page, expected.unwrap_or(Public::Projects), "seed {seed}, input {path:?}");
     if expected.is_some() {
@@ -120,6 +116,7 @@ fn sweep(seed: u64) {
 #[test]
 fn public_paths_never_panic_and_print_back_what_they_read() {
     for seed in 1..=SEEDS {
-        assert!(catch_unwind(|| sweep(seed)).is_ok(), "seed {seed}: public path sweep panicked");
+        eprintln!("seed {seed}: public path sweep");
+        sweep(seed);
     }
 }
