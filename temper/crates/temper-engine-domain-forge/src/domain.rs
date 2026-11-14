@@ -2407,7 +2407,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 }
             }
             skein_forge_client::Request::ReadAfreshDone => d.restart_fresh = Some(true),
-            skein_forge_client::Request::OutboxDone => emit(out, Request::RestartDone { stage: RestartStage::Settled }),
+            skein_forge_client::Request::OutboxDone => {
+                crate::landing::restore_waits(d, env);
+                emit(out, Request::RestartDone { stage: RestartStage::Settled });
+            }
         }
     }
     read_afresh_complete(d, out);

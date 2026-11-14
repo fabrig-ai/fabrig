@@ -815,6 +815,43 @@ fn a_restored_turn_waits_for_its_existing_merge_entry() {
     assert!(d.entries.get(&91).is_none(), "no second merge is proposed");
 }
 
+/// Startup's coherent read does not replace the idle procedure's lost poll (domain/landing.md, 12).
+#[test]
+fn a_restored_turn_keeps_a_poll_after_its_startup_read() {
+    use skein_forge::api::Answer;
+    let mut d = landing_fixture();
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+        temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    outputs(&mut d, Event::Restore { record: Stored::Landing(merge_landing_row(false)) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    let mut requests: Box<[Request]> = Box::new([]);
+    for answer in [
+        Answer::Commit(fixtures::HEAD),
+        Answer::Commit(fixtures::BASE),
+        Answer::Pull(fixtures::open_pull()),
+        Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+    ] {
+        requests = fixtures::answer_next(&mut d, Ok(answer));
+    }
+    assert!(requests.contains(&Request::WakeProcedure { task: 61 }), "startup refresh: {requests:?}");
+    outputs(&mut d, Event::SettleOutbox);
+    assert!(d.landing.due.contains_key(&61), "an idle turn still needs its poll after startup's wake");
+    let mut later = env();
+    let until = *d.landing.due.get(&61).expect("restored poll");
+    later.now = later.now.saturating_add(Duration::from_nanos(until.as_nanos().saturating_sub(later.wall.as_nanos())));
+    later.wall = until;
+    let mut out = Queue::uncapped();
+    fire(&mut d, &later, &mut out);
+    let mut woke = false;
+    for request in &out {
+        if *request == (Request::WakeProcedure { task: 61 }) {
+            woke = true;
+        }
+    }
+    assert!(woke, "the restored poll wakes its procedure");
+}
+
 fn merge_evidence(requests: &[Request]) -> &[LandingEvidence] {
     for request in requests {
         if let Request::LandingDecision {

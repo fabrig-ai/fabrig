@@ -3560,6 +3560,24 @@ fn continue_retry(d: &mut Domain, row: &mut LandingRow, entry: u64, out: &mut Qu
     true
 }
 
+/// Startup's fresh-read wake may precede task activation; rebuild the poll after settlement
+/// (domain/landing.md, 12; domain/root.md, 8.1).
+pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
+    for (task, row) in &d.landing.rows {
+        match row.landing.phase {
+            policy::Phase::Waiting
+            | policy::Phase::Preparing
+            | policy::Phase::Proving
+            | policy::Phase::Proved { .. }
+            | policy::Phase::Turn { .. } => {
+                let until = poll_at(d, env, *task);
+                d.landing.due.insert(*task, until).expect("one poll per live landing");
+            }
+            policy::Phase::Held { .. } | policy::Phase::Landed | policy::Phase::Cancelled => {}
+        }
+    }
+}
+
 pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut tasks = List::with_capacity(env.limits.landings);
     for (task, row) in &d.landing.rows {
