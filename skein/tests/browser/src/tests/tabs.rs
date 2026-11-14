@@ -14,7 +14,7 @@ fn tabs_read_the_browser_and_end_once_before_page_close() {
     let Some(Event::Tabs { op: READ, tabs, more: 0 }) = world.above.pop() else { panic!("tab list") };
     assert!(tabs.is_empty());
     let mut referee = crate::referee::Referee::new();
-    referee.event(&Event::Tabs { op: READ, tabs, more: 0 }, 0);
+    referee.event(&Event::Tabs { op: READ, tabs, more: 0 }, 0).expect("browser contract");
     assert_eq!(world.sent.len(), 1);
     let document = Document::parse(world.sent[0].strip_suffix(&[0]).unwrap(), world.env.limits.command).unwrap();
     assert_eq!(document.root().get(b"method").unwrap().text().unwrap().as_ref(), b"Target.getTargets");
@@ -25,5 +25,5 @@ fn tabs_read_the_browser_and_end_once_before_page_close() {
     world.ask(Request::Tabs { page: PAGE, op: Token::new(5) });
     assert!(matches!(world.above.pop(), Some(Event::Refused { op, why: Refusal::Gone, .. }) if op == Token::new(5)));
     assert!(world.sent.is_empty(), "closed page sends no command");
-    world.assert_commands_settled();
+    world.check_commands_settled().expect("commands settled");
 }

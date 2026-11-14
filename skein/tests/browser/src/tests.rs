@@ -329,7 +329,7 @@ fn node_disappearing_during_press_is_refused_before_mouse() {
     assert!(!world.sent.iter().any(|command| {
         command.windows(b"Input.dispatchMouseEvent".len()).any(|part| part == b"Input.dispatchMouseEvent")
     }));
-    world.assert_commands_settled();
+    world.check_commands_settled().expect("commands settled");
 }
 
 #[test]
@@ -350,7 +350,7 @@ fn page_crash_mid_operation_reports_trouble_and_one_refusal() {
         }
     }
     assert_eq!((trouble, refused), (1, 1));
-    world.assert_commands_settled();
+    world.check_commands_settled().expect("commands settled");
 }
 
 mod navigation;
@@ -583,20 +583,20 @@ fn seeded_downloads_end_once_and_survive_page_close() {
         world.ask(Request::Press { page: Token::new(3), op: Token::new(4), node: 7, at: None });
         let mut referee = Referee::new();
         for (person, page, name) in &world.downloads_begun {
-            referee.download_begun(*person, *page, name);
+            referee.download_begun(*person, *page, name).expect("browser contract");
         }
         world.ask(Request::Close { entity: Token::new(3) });
         world.release_delayed();
         let mut terminals = 0;
         while let Some(event) = world.above.pop() {
-            referee.event(&event, 1);
+            referee.event(&event, 1).expect("browser contract");
             if matches!(event, Event::Downloaded { .. } | Event::Trouble { trouble: Trouble::Download, .. }) {
                 terminals += 1;
             }
         }
         assert_eq!(terminals, 1, "seed {seed}");
-        referee.assert_downloads_settled();
-        world.assert_commands_settled();
+        referee.check_downloads_settled().expect("downloads settled");
+        world.check_commands_settled().expect("commands settled");
     }
 }
 #[test]
@@ -608,20 +608,20 @@ fn a_closing_person_cancels_a_delayed_download_without_late_events() {
     world.ask(Request::Press { page: Token::new(3), op: Token::new(4), node: 7, at: None });
     let mut referee = crate::referee::Referee::new();
     for (person, page, name) in &world.downloads_begun {
-        referee.download_begun(*person, *page, name);
+        referee.download_begun(*person, *page, name).expect("browser contract");
     }
     world.ask(Request::Close { entity: Token::new(2) });
     world.release_delayed();
     while let Some(event) = world.above.pop() {
-        referee.event(&event, 1);
+        referee.event(&event, 1).expect("browser contract");
     }
-    referee.assert_downloads_settled();
+    referee.check_downloads_settled().expect("downloads settled");
     assert!(
         world.sent.iter().any(|command| command
             .windows(b"Browser.cancelDownload".len())
             .any(|part| part == b"Browser.cancelDownload"))
     );
-    world.assert_commands_settled();
+    world.check_commands_settled().expect("commands settled");
 }
 
 #[test]
@@ -850,7 +850,7 @@ fn viewport_uses_requested_dimensions_and_waits_for_its_terminal() {
     assert_eq!(params.get(b"mobile").expect("viewport test value").raw(), b"false");
     world.release_delayed();
     assert!(matches!(world.above.pop(), Some(Event::Done { op }) if op == Token::new(4)));
-    world.assert_commands_settled();
+    world.check_commands_settled().expect("commands settled");
 }
 
 #[test]
@@ -866,6 +866,20 @@ fn viewport_refuses_a_missing_page_and_a_failed_command() {
         world.ask(Request::Viewport { page, op: Token::new(4), width: 1440, height: 900 });
         assert!(matches!(world.above.pop(), Some(Event::Refused { op, .. }) if op == Token::new(4)));
         assert!(world.above.is_empty(), "one terminal");
-        world.assert_commands_settled();
+        world.check_commands_settled().expect("commands settled");
     }
+}
+
+#[test]
+fn unanswered_commands_return_a_finding_until_their_deadline() {
+    let mut world = World::new();
+    world.start();
+    world.open();
+    assert_eq!(world.check_commands_settled(), Ok(()));
+    world.fault(b"Accessibility.getFullAXTree", Fault::Drop);
+    world.ask(Request::Snapshot { page: Token::new(3), op: Token::new(4) });
+    let finding = world.check_commands_settled().expect_err("a command is unanswered");
+    assert!(finding.starts_with("unanswered CDP commands:"), "{finding}");
+    world.tick(Time::from_nanos(world.env.limits.answer.as_nanos()));
+    assert_eq!(world.check_commands_settled(), Ok(()));
 }
