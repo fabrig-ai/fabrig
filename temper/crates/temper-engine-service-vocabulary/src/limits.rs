@@ -406,8 +406,9 @@ const STANDARD_ROOT: Root = Root {
     journal: engine::JournalLimits {
         // Deep task row at jig standard's bounds (engine::row_bound):
         // 22,467,664 bytes for the task, inbox, later choice and two reason sets,
-        // plus 21 executor places * 8 bytes per AuthorityExecutor = 22,467,832.
-        transcript_bytes: 22_467_832,
+        // plus 21 executor places * 8 bytes per AuthorityExecutor and the
+        // eight-byte question wake watermark = 22,467,840.
+        transcript_bytes: 22_467_840,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

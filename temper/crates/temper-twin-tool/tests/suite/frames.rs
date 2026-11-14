@@ -60,7 +60,7 @@ fn limits() -> codec::View {
     codec::View {
         settings: store::settings_v3::CEILINGS,
         core: store::core_v6::CEILINGS,
-        tasks: store::tasks_v12::CEILINGS,
+        tasks: store::tasks_v13::CEILINGS,
         people: store::people_v17::CEILINGS,
         notes: store::notes_v1::CEILINGS,
     }
