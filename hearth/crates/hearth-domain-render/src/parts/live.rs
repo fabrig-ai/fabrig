@@ -5,43 +5,10 @@ use crate::{
     revision::declaration::{Map, Name},
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::parts::live::{Action, Change, Consumer, ConsumersKeyed, Covered, Live};
 use hearth_lib::{encode::Digest, hash::H};
 use skein_lib::{Joined, List, Map as Ordered, bytes};
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Live {
-    pub paths: Box<[Covered]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Covered {
-    pub path: Box<[u8]>,
-    pub consumers: Box<[Consumer]>,
-}
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Consumer {
-    pub task: Box<[u8]>,
-    pub unit: Option<Box<[u8]>>,
-    pub action: Action,
-}
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Action {
-    None,
-    Reload,
-    ReloadOrRestart,
-    Restart,
-    Start,
-}
-impl Action {
-    #[must_use]
-    pub(crate) fn name(self) -> &'static [u8] {
-        match self {
-            Self::Reload => b"reload",
-            Self::Restart => b"restart",
-            Self::ReloadOrRestart => b"reload-or-restart",
-            Self::Start => b"start",
-            Self::None => b"none",
-        }
-    }
-}
+
 pub(crate) fn build(expansion: &Expansion) -> Result<Live, Box<[Error]>> {
     let entries = expansion.of(Map::Live);
     let mut capacity = 0_u32;
@@ -102,18 +69,6 @@ pub(crate) fn digest(live: &Live) -> Digest {
         }
     }
     hash.finish()
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Change {
-    pub paths: Box<[ConsumersKeyed]>,
-}
-/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum ConsumersKeyed {
-    Added { key: Box<[u8]>, value: Box<[Consumer]> },
-    Removed { key: Box<[u8]>, value: Box<[Consumer]> },
-    Changed { key: Box<[u8]>, before: Box<[Consumer]>, after: Box<[Consumer]> },
 }
 
 #[must_use]

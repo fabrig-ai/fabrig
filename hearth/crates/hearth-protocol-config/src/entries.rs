@@ -6,24 +6,11 @@ use crate::{
     json::{Kind, Value},
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::{
+    errors::Takes,
+    revision::declaration::{Map, Name},
+};
 use skein_lib::List;
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Map {
-    Packages,
-    Preseeds,
-    Initramfs,
-    Cmdline,
-    Files,
-    Users,
-    Groups,
-    Presets,
-    Tmpfiles,
-    Data,
-    Secrets,
-    Identity,
-    Software,
-    Live,
-}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Entries {
     pub map: Map,
@@ -53,54 +40,6 @@ pub enum Literal {
     Bool { at: Position, value: bool },
     Strings { at: Position, each: Box<[Text]> },
     Range { at: Position, fields: Box<[Field]> },
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Takes {
-    Text,
-    Int,
-    Bool,
-    Strings,
-    Range,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Name {
-    Action,
-    Age,
-    Algorithm,
-    Argument,
-    Base,
-    Class,
-    Component,
-    Copy,
-    Count,
-    Directory,
-    From,
-    Gecos,
-    Gid,
-    Group,
-    Groups,
-    Home,
-    Kind,
-    Link,
-    Mode,
-    Order,
-    Owner,
-    Param,
-    Password,
-    Path,
-    Paths,
-    PublicPath,
-    Sha256,
-    Shell,
-    Strip,
-    Subordinate,
-    Template,
-    Type,
-    Uid,
-    Unit,
-    Unpack,
-    Url,
-    Value,
 }
 type FieldShape = (&'static [u8], Name, Takes);
 const FIELDS: &[(Map, &[FieldShape])] = &[

@@ -1,9 +1,11 @@
-use crate::{
+use crate::records::Record;
+use hearth_domain_render_vocabulary as render;
+use render::{
     diff::PartChange,
     parts::{live, packages, secrets, software},
-    records::Record,
 };
 use skein_lib::bytes::copy_of;
+
 #[derive(Clone, Copy, Debug)]
 pub enum ChangedPart {
     Secrets,
@@ -59,7 +61,7 @@ pub fn part_change(part: ChangedPart) -> Record {
 fn download(sha256: [u8; 32]) -> software::Download {
     software::Download {
         path: copy_of(b"/opt/tool"),
-        sha256,
+        sha256: hearth_lib::encode::Digest(sha256),
         owner: copy_of(b"root"),
         group: copy_of(b"root"),
         how: software::How::Tar { strip: 1 },

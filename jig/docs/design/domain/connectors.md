@@ -729,7 +729,11 @@ release the writer; Uncertain and Held retain it for connector recovery.
   file at a branch's head. The brief child domain plans them (engine/briefs.md,
   section 1) by kind and budget; the connector gathers each, keeps it,
   and says its size, or says why it could not, in fixed words and how
-  that counts (engine/briefs.md, 1.1); asked to cut it to a smaller size, it cuts it by its
+  that counts (engine/briefs.md, 1.1). It gathers within the brief's
+  deadline, which the root gives it with the gather: a section it reads
+  in several reads ends at its cutoff, ahead of the deadline, with what
+  it has and a marker for the rest (engine/briefs.md, 1, *Within the
+  deadline*); asked to cut it to a smaller size, it cuts it by its
   own rules and says the new size; when the brief is complete, it hands
   the section to the root, which puts the assignment together (root.md,
   section 7).

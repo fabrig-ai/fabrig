@@ -39,7 +39,7 @@ A crate that exists for the client is named
 
 | Crate | What it is | Milestone | Designed in |
 |---|---|---|---|
-| `hearth-client-protocol-records` | the client's records and their printer: `render`'s and `diff`'s from M1; the socket's requests and answers, and the other commands' records, from M3; tables and JSON lines | M1, M3 | 3.2, 3.3; hearth/docs/design/domain/render/README.md, 5.1 |
+| `hearth-client-protocol-records` | the printer, and the client's own records: render's values for `render` and `diff` from M1; the socket's requests and answers, and the other commands' records, from M3; tables and JSON lines | M1, M3 | 3.2, 3.3; hearth/docs/design/domain/render/README.md, 5.1 |
 | `hearth-client-domain-dev` | the development loop's domain root: machines by handle, keyed effects, suggestions | M3 | hearth/docs/design/domain/development.md, 8.2 |
 | `hearth-client-protocol-incus` | incus's argument vectors and JSON output | M3b | hearth/docs/design/domain/development.md, 8.3 |
 | `hearth-client-fake-incus` | incus's fake, on the fake machine | M3b | hearth/docs/design/testing/tool-fakes.md |
@@ -153,11 +153,18 @@ A crate that exists for the client is named
 
 ### 3.2 Output
 
-- **Records, not text.** The steward answers with typed records of
-  `hearth-client-protocol-records`, its builder's results among them: a
-  spec's parts, a diff's entries, a build's layers, slot rows, identity
-  rows, journal entries. The domain never formats. The client's protocol
-  layer prints them.
+- **Records, not text.** The steward answers with typed records, its
+  builder's results among them: a spec's parts, a diff's entries, a
+  build's layers, slot rows, identity rows, journal entries. The domain
+  never formats. The client's protocol layer prints them.
+- **One owner for each record's values.** A spec's parts, a diff's
+  changes and render's errors are render's values, from its vocabulary
+  (hearth/docs/design/domain/render/README.md, 5.1), and
+  `hearth-client-protocol-records` prints them with free functions of
+  its own. It keeps a type of its own only where it adds something
+  render doesn't have: the stream's records (startup, progress, a
+  build's layers, the outcome line), the outcome's `unavailable`, and
+  the store's full error, whose limit may be its layers.
 - **Tables for people.** One table per record type, aligned columns,
   keys and digests cut to 12 hex digits, ages as durations:
 
@@ -194,6 +201,10 @@ A crate that exists for the client is named
   - **Within a major version, records and fields are only added.** M3's
     commands add records to version 1 and rename none; a renamed or
     removed field is version 2.
+  - **The version lives in the printer.** It maps render's values to
+    version 1's names and forms, so no second set of types holds the
+    version. A new version moves without a bridge, as a client's wire
+    does.
 - **Progress goes to standard error,** as records too: a build's steps
   as they start and end, a resolution as it starts and ends, the store's
   wait for its lock and its strays (hearth/docs/design/domain/store/README.md, 6.2). With `--json`,

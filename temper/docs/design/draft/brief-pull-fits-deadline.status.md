@@ -1,0 +1,10 @@
+# brief-pull-fits-deadline: status
+
+2026-11-14. Where the design lags or departs from [brief-pull-fits-deadline.md](brief-pull-fits-deadline.md).
+
+The design carries this draft: jig's `jig/docs/design/domain/engine/briefs.md`, 1, *Within the deadline*, and 1.1, with `jig/docs/design/domain/connectors.md`, 9; temper's `../domain/forge/change/repairs.md`, *A forge section is sized by its cutoff*. Of section 2's two ways for an owner to know its time, the owner learns it from the plan: temper's root already gave the forge the brief's deadline with each gather, and the pull section's files and comparison already had a cutoff three quarters of the way to it (2026-11-12), so the forge's cutoff now covers every stage of its pull, reviews and CI sections. The brief child also gained a settle point, seven eighths of the way to the deadline, where it stops waiting for optional sections: without it, an optional section that hadn't answered made a required section that was ready in time but needed a cut fail at the deadline, which section 2's "a brief fails only when a required section has nothing usable" rules out.
+
+- **Design lags:** none.
+- **Design departs:** section 2, "a connector section that has gathered part of its content before the brief's deadline ends with what it has": a section ends with what it has only past its identity, the reads that name what it is for (a pull section's item and pull, its head checked against the pin; a reviews section's reviews; a CI section's checks). A pull section with its item read and its pull not has its title but not its head, so it is not usable; short of its identity, a half of a repair's pair becomes words and stands on its other half, and a lone section waits on to the deadline as before. Decided by the goal's design, 2026-11-14, because a head unchecked against the pin is what `repairs.md` refuses everywhere else.
+- **Design departs:** section 2, "any other connector section that reads in pages": a charter's document has no cutoff. It is one read and optional, and the brief's settle point drops it if it hasn't answered. Decided by the goal's design, 2026-11-14.
+- **Open:** none.

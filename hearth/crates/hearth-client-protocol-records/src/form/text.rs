@@ -5,6 +5,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_lib::{Writer, bytes};
+
 #[derive(Debug)]
 pub(crate) struct Lines {
     sink: Sink,
@@ -103,59 +104,65 @@ fn render(lines: &mut Lines, record: &Record, after: Option<Type>) {
             for part in &*spec.parts {
                 column = column.max(part.record.name().len().saturating_add(2));
             }
-            spec.meta.text(lines, column);
+            crate::parts::meta::text(&spec.meta, lines, column);
             lines.put(b"spec");
             lines.pad_to(column);
-            lines.hex12(&spec.digest);
+            lines.hex12(&spec.digest.0);
             lines.put(b"\n");
             for part in &*spec.parts {
                 lines.put(part.record.name());
                 lines.pad_to(column);
                 lines.put(b"part ");
-                lines.hex12(&part.digest);
-                if let crate::records::PartRecord::Packages(_) = &part.record
+                lines.hex12(&part.digest.0);
+                if let hearth_domain_render_vocabulary::parts::PartRecord::Packages(_) = &part.record
                     && let Some(resolution) = &spec.resolution
                 {
                     lines.put(b"   resolution ");
-                    match resolution {
-                        crate::records::Resolution::Needed { key } => {
-                            lines.hex12(key);
+                    match &**resolution {
+                        hearth_domain_render_vocabulary::keys::Resolution::Needed { key } => {
+                            lines.hex12(&key.0);
                             lines.put(b" needed");
                         }
-                        crate::records::Resolution::Known { key, keys: _ } => {
-                            lines.hex12(key);
+                        hearth_domain_render_vocabulary::keys::Resolution::Known { key, keys: _ } => {
+                            lines.hex12(&key.0);
                             lines.put(b" known");
                         }
                     }
                 }
                 lines.put(b"\n");
-                part.record.text(lines);
+                crate::parts::part_text(&part.record, lines);
             }
             if let Some(resolution) = &spec.resolution {
-                match resolution {
-                    crate::records::Resolution::Needed { .. } => {}
-                    crate::records::Resolution::Known { keys, .. } => {
+                match &**resolution {
+                    hearth_domain_render_vocabulary::keys::Resolution::Needed { .. } => {}
+                    hearth_domain_render_vocabulary::keys::Resolution::Known { keys, .. } => {
                         lines.put(b"keys");
                         lines.pad_to(column);
                         lines.put(b"packages ");
-                        lines.hex12(&keys.packages);
+                        lines.hex12(&keys.packages.0);
                         lines.put(b"   software ");
-                        lines.hex12(&keys.software);
+                        lines.hex12(&keys.software.0);
                         lines.put(b"   config ");
-                        lines.hex12(&keys.config);
+                        lines.hex12(&keys.config.0);
                         lines.put(b"\n");
                     }
                 }
             }
         }
-        Record::Change(change) => change.text(lines),
+        Record::Change(change) => crate::diff::text(change, lines),
         Record::Layer(layer) => layer.text(lines),
         Record::Failed(failed) => (*failed).text(lines),
         Record::Error(error) => {
             if after.is_some() && after != Some(Type::Error) {
                 lines.put(b"\n");
             }
-            error.text(lines);
+            crate::errors::text(error, lines);
+        }
+        Record::StoreFull(full) => {
+            if after.is_some() && after != Some(Type::Error) {
+                lines.put(b"\n");
+            }
+            full.text(lines);
         }
         Record::Startup(startup) => startup.text(lines),
         Record::Terminal(terminal) => {
@@ -164,7 +171,7 @@ fn render(lines: &mut Lines, record: &Record, after: Option<Type>) {
                 lines.put(if terminal.left_out == 1 { b" more error\n" } else { b" more errors\n" });
             }
             if let Some(tally) = &terminal.diff {
-                tally.text(lines);
+                crate::diff::tally_text(tally, lines);
             }
         }
     }

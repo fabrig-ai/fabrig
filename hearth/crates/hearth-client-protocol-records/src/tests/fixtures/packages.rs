@@ -1,8 +1,7 @@
-use crate::{
-    parts::packages::*,
-    records::{Part, PartRecord, Spec},
-};
+use hearth_domain_render_vocabulary as render;
+use render::parts::{Part, PartRecord, Spec, packages::*};
 use skein_lib::bytes::copy_of;
+
 pub fn packages_record() -> Packages {
     Packages {
         initramfs_file: None,
@@ -25,7 +24,7 @@ pub fn packages_record() -> Packages {
 pub fn packages_spec() -> Box<Spec> {
     let mut spec = super::x1_prod();
     spec.parts = Box::new([Part {
-        digest: super::digest([0x4b, 0xe1, 0xc0, 0xd2, 0xa7, 0xf1]),
+        digest: hearth_lib::encode::Digest(super::digest([0x4b, 0xe1, 0xc0, 0xd2, 0xa7, 0xf1])),
         record: PartRecord::Packages(packages_record()),
     }]);
     spec
@@ -60,8 +59,8 @@ pub fn preseeded_spec() -> Box<Spec> {
 pub fn boot_spec() -> Box<Spec> {
     let mut spec = super::x1_prod();
     spec.parts = Box::new([Part {
-        digest: super::digest([0xbc, 0x6c, 0xab, 0x41, 0x72, 0x52]),
-        record: PartRecord::Boot(crate::parts::boot::Boot {
+        digest: hearth_lib::encode::Digest(super::digest([0xbc, 0x6c, 0xab, 0x41, 0x72, 0x52])),
+        record: PartRecord::Boot(render::parts::boot::Boot {
             params: Box::new([copy_of(b"quiet"), copy_of(b"audit=0")]),
             mutable: true,
         }),
@@ -70,10 +69,10 @@ pub fn boot_spec() -> Box<Spec> {
 }
 
 #[must_use]
-pub fn package_change(request: Names) -> crate::diff::PartChange {
-    crate::diff::PartChange::Packages(Change {
+pub fn package_change(request: Names) -> render::diff::PartChange {
+    render::diff::PartChange::Packages(Change {
         seeds: SeedsChange { users: Box::new([]), groups: Box::new([]) },
-        resolution: crate::diff::ResolutionChange::Same,
+        resolution: render::diff::ResolutionChange::Same,
         request,
         sources: None,
         variant: None,
@@ -83,29 +82,33 @@ pub fn package_change(request: Names) -> crate::diff::PartChange {
     })
 }
 #[must_use]
-pub fn change_record(part: crate::diff::PartChange) -> crate::records::Record {
-    crate::records::Record::Change(crate::diff::Change {
+pub fn change_record(part: render::diff::PartChange) -> crate::records::Record {
+    crate::records::Record::Change(render::diff::Change {
         target: copy_of(b"west-prod"),
-        change: crate::diff::TargetChange::Changed { parts: Box::new([part]), rebuild: crate::diff::Rebuild::Nothing },
+        change: render::diff::TargetChange::Changed {
+            parts: Box::new([part]),
+            rebuild: render::diff::Rebuild::Nothing,
+        },
     })
 }
 #[must_use]
-pub fn boot_change() -> crate::diff::PartChange {
-    use crate::parts::boot::{Boot, Change};
-    crate::diff::PartChange::Boot(Change {
+pub fn boot_change() -> render::diff::PartChange {
+    use render::parts::boot::Boot;
+    use render::parts::boot::Change;
+    render::diff::PartChange::Boot(Change {
         before: Boot { params: Box::new([copy_of(b"quiet")]), mutable: false },
         after: Boot { params: Box::new([]), mutable: true },
     })
 }
 
 #[must_use]
-pub fn requested_packages_change() -> crate::diff::PartChange {
+pub fn requested_packages_change() -> render::diff::PartChange {
     package_change(Names { added: Box::new([copy_of(b"vim")]), removed: Box::new([copy_of(b"nano")]) })
 }
 #[must_use]
-pub fn preseed_change() -> crate::diff::PartChange {
+pub fn preseed_change() -> render::diff::PartChange {
     let mut part = unchanged_packages_change();
-    let crate::diff::PartChange::Packages(change) = &mut part else { panic!("packages") };
+    let render::diff::PartChange::Packages(change) = &mut part else { panic!("packages") };
     let spec = preseeded_spec();
     for part in spec.parts {
         if let PartRecord::Packages(packages) = part.record {
@@ -115,9 +118,9 @@ pub fn preseed_change() -> crate::diff::PartChange {
     part
 }
 #[must_use]
-pub fn initramfs_change() -> crate::diff::PartChange {
+pub fn initramfs_change() -> render::diff::PartChange {
     let mut part = unchanged_packages_change();
-    let crate::diff::PartChange::Packages(change) = &mut part else { panic!("packages") };
+    let render::diff::PartChange::Packages(change) = &mut part else { panic!("packages") };
     change.initramfs = Some(InitramfsPair {
         before: None,
         after: Some(Initramfs { modules: Box::new([copy_of(b"nvme")]), microcode: Microcode::Generic }),
@@ -126,7 +129,7 @@ pub fn initramfs_change() -> crate::diff::PartChange {
 }
 
 #[must_use]
-pub fn unchanged_packages_change() -> crate::diff::PartChange {
+pub fn unchanged_packages_change() -> render::diff::PartChange {
     package_change(Names { added: Box::new([]), removed: Box::new([]) })
 }
 

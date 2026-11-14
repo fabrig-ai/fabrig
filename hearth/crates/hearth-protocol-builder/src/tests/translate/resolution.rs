@@ -1,18 +1,3 @@
-use super::specs::spec_back;
-use crate::translate::answers;
-#[test]
-fn a_spec_translates_to_the_records_and_back() {
-    for (row, input) in super::super::fixtures::resolution_specs()
-        .into_iter()
-        .chain(super::super::fixtures::live_specs())
-        .chain(super::super::fixtures::export_specs())
-        .enumerate()
-    {
-        let back = spec_back(answers::spec(input.clone()));
-        assert_eq!(back, input, "row {row}: spec and resolution fields");
-    }
-}
-
 #[test]
 fn a_loaded_resolution_translates_whole_to_the_stores() {
     for (row, inputs) in super::super::fixtures::every_inputs().into_iter().enumerate() {

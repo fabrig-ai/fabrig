@@ -1,6 +1,6 @@
 # The client: status
 
-2026-11-04. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-14. Where hearth's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 2: `hearth-client-domain-dev`, `hearth-client-protocol-incus`,
   `hearth-client-fake-incus`, `hearth-client-world` and
