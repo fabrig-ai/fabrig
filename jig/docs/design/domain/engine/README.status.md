@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+2026-11-14. Where jig's code lags or departs from [README.md](README.md).
 
 `executors.md`, section 5's failed-job cause accompanies its retry class through the hub
 link and terminal proof into the task's notice and exhausted hold. The
@@ -48,8 +48,11 @@ duplicate person's identity refuses as the second `Person` linking the
 first. `start/links.rs`'s `link_resource_projects` stays an assertion:
 it reads connectors' reports held in memory, which no stored row holds.
 A duplicate key, which the store's map cannot hold, also stays an
-assertion. temper's forge link still panics
-(`temper/docs/design/domain/root.status.md`, 8.1).
+assertion, as does a call out of the start's order or a stale
+continuation; none has a test (`temper/docs/design/draft/panics.md`,
+3.3). temper's forge link refuses as jig's do
+(`temper/docs/design/domain/root.md`, 8.1).
+
 
 `executors.md`, section 2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.

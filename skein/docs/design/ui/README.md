@@ -781,6 +781,19 @@ builder asserts each before it allocates.
   against `text_per_node`, which add up across the tree against
   `text_bytes`. A caller's size test reads it rather than counting a
   node's text itself.
+- **`Tree::used(&self) -> Limits`** gives what a finished tree holds of
+  the fields a builder charges, over `Limits::EMPTY`: `nodes`, the
+  tree's length; `depth`, its deepest nesting, a root node at 1;
+  `text_per_node`, the most `Node::text_bytes` of one node;
+  `text_bytes`, their sum; `bindings`, the bindings and addresses its
+  nodes carry; and `slots`, its nodes holding a slot's reference. Every
+  other field is 0. For a tree built in one pass, each equals what the
+  builder charged, so a build fits limits at least `used()` in those
+  fields. A limit's tightness is tested at its price: the owner builds
+  with limits at the price it derived and compares `used()` with it,
+  field by field; one under is the builder's assertion, which no test
+  triggers (`skein/docs/foundation/programming-model.md`, 10.4;
+  `skein/docs/foundation/testing-strategy.md`, 10).
 - **An owner derives the numbers;** skein-ui holds none (policy above,
   numbers below). An application derives its limits from its own: every
   window of its state full and every text at its most bytes, each phrase
@@ -796,10 +809,14 @@ builder asserts each before it allocates.
 ## 14. Testing
 
 - **Step tests** stay in each crate's `src/` (../testing/README.md, section 6): the
-  builder's assertions, matching and ids, each patch and the diff's
+  builder's calls on the roles each belongs to, `Tree::used`, matching and ids, each patch and the diff's
   bound, the view's states, section 6's refusals, the outline's rules, the
   phrasebook's refusals and capacities, the Markdown reader, scenes'
-  bounds, their fades' refusals and their press order.
+  bounds, their fades' refusals and their press order. The builder's
+  assertions, a call off its roles or past the capacity, are untested
+  (`skein/docs/foundation/programming-model.md`, 10.4): an image address
+  is tested where it is checked, `markdown::safe_image_address`, and a
+  capacity at its price through `Tree::used` (section 13).
 - **Golden text** fixes the text shell's renderer and command reader
   (text.md, section 8), among its pages a tree with every role, state
   and property.

@@ -326,8 +326,7 @@ fn an_unknown_flight_key_is_named_in_lowercase_hex() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn missing_forge_links_panic_before_startup_wires() {
+fn missing_forge_links_refuse_the_start_before_startup_wires() {
     use temper_engine_domain::{Record, Write};
     use temper_engine_domain_forge::{Key, MissingLink, Name, Need, RecordKind, Stored, What};
     const KEPT_TASK: u64 = 999;
@@ -351,23 +350,16 @@ fn missing_forge_links_panic_before_startup_wires() {
     );
     drop(previous.store.host.above.pop().expect("fixture commit answer"));
     let mut service = fixtures::restarting_from(previous);
-    std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-        for _ in 0..PASSES {
-            fixtures::turn(&mut service);
-        }
-    }))
-    .expect_err("required forge link is a writer bug");
-    assert_eq!(
-        service.engine.as_ref().expect("linking engine").domain.forge_missing_link(),
-        Some(MissingLink {
-            kind: RecordKind::Names,
-            key: Key::Names(KEPT_TASK),
-            need: Need::Repository(ABSENT_REPOSITORY),
-        })
-    );
-    assert_eq!(service.end(), None, "no startup refusal");
+    for _ in 0..PASSES {
+        fixtures::turn(&mut service);
+    }
+    let link =
+        MissingLink { kind: RecordKind::Names, key: Key::Names(KEPT_TASK), need: Need::Repository(ABSENT_REPOSITORY) };
+    let phase = Some(jig_domain_core::start::Phase::Link);
+    assert_eq!(service.end(), Some(&End::Stopped(Stop::ForgeLink { phase, link: link.clone() })));
     let engine = service.engine.as_ref().expect("linking engine");
-    assert_eq!(engine.domain.start_stop(), None, "no startup refusal recorded");
+    assert_eq!(engine.domain.forge_missing_link(), Some(link.clone()));
+    assert_eq!(engine.domain.start_stop(), Some(temper_engine_domain::StartStop::ForgeLink { phase, link }));
     assert!(!engine.store.host.mark_durable(), "no start wires before link");
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption before link");
     assert!(!engine.domain.ready(), "no decisions before link");

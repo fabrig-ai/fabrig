@@ -133,18 +133,6 @@ fn every_policy_table_reports_the_stored_key_at_capacity() {
 }
 
 #[test]
-#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
-fn duplicate_policy_rows_assert_before_replacing_the_key() {
-    let (mut core, env) = loaded();
-    assert!(core.restore_policy(&env.limits, 1, "First".into(), policy()));
-    let duplicate = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-        core.restore_policy(&env.limits, 1, "Second".into(), policy())
-    }));
-    let _panic = duplicate.expect_err("duplicate policy asserts");
-    assert_eq!(core.names.get(&1).expect("stored name").as_ref(), "First");
-}
-
-#[test]
 fn settings_finish_drops_cross_record_revision_rules() {
     enum Rule {
         DefaultAhead,

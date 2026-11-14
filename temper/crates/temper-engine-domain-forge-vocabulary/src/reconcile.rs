@@ -54,7 +54,7 @@ pub enum Need {
     EntryOwner { task: u64, entry: u64 },
     Entry { task: u64, entry: u64 },
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct MissingLink {
     pub kind: RecordKind,
     pub key: Key,
