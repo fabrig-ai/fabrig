@@ -1,10 +1,13 @@
 # llm-connection: status
 
-2026-11-07. Where skein's code lags or departs from [connection.md](connection.md).
+2026-11-14. Where skein's code lags or departs from [connection.md](connection.md).
 
 Section 4.3 has no known implementation gap in the standalone exchange,
 connection cleanup, deadlines or typed answers without refusal bodies.
 Sharing its exchange shape remains section 9's open question.
+
+- **Not yet:** 8: the close world's judge panics where it finds a breach,
+  and its tests trigger it, `#[should_panic]`.
 
 - **Departs:** 5: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly

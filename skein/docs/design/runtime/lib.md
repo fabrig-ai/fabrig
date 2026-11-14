@@ -661,8 +661,12 @@ data structure, like a queue; a service does not hand-roll one
   writes and held outputs.
 - **Commit and tags:** accepting a decision makes at most one numbered
   commit, holding all its writes. Numbers begin after `durable` (at one
-  for a new journal) and increase in order; a write past number
-  `u64::MAX` is a bug and panics. A decision without a write makes no
+  for a new journal) and increase in order. A writing decision accepted
+  past number `u64::MAX` stops the journal, as an answer out of order
+  does: `durable` is what the store holds, which no panic answers
+  (../../foundation/programming-model.md, 10.4), so it makes no commit, the
+  decision's held outputs never leave, and `release` answers `Stopped`.
+  A decision without a write makes no
   commit. Each held output
   follows that decision's commit, or the last commit made if there was
   no write; it leaves only once that commit is durable. A commit answer
