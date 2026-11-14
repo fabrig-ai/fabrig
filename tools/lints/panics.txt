@@ -1,5 +1,3 @@
 # tools/lints/design.md, 7: the count of catches.
 # --write lowers this list; nothing raises it.
 # Refused, so no line names them: catch_unwind, resume_unwind.
-temper/tests/one-process/src/m15/observer.rs should_panic 1
-temper/tests/real-loop/src/calls.rs should_panic 2
