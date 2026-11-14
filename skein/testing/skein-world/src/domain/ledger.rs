@@ -2,7 +2,7 @@
 //! section 6). The world opens keys and closes them on terminals; duplicates
 //! and missing terminals fail the scenario. Domain policy stays in its referee.
 
-use alloc::vec::Vec;
+use alloc::{format, string::String, vec::Vec};
 
 use alloc::collections::BTreeMap;
 use alloc::collections::btree_map;
@@ -79,10 +79,20 @@ impl<K: Ord + Copy + Debug, V> Ledger<K, V> {
         self.open.is_empty()
     }
 
-    /// Checks that every request has ended, once the world has settled.
-    pub fn assert_settled(&self) {
+    /// Returns the requests that have not ended, once the world has settled.
+    pub fn check_settled(&self) -> Result<(), String> {
         let what = self.what;
         let open: Vec<&K> = self.open.keys().collect();
-        assert!(open.is_empty(), "every {what} has ended: {open:?} have not");
+        if !open.is_empty() {
+            return Err(format!("every {what} has ended: {open:?} have not"));
+        }
+        Ok(())
+    }
+
+    /// Checks that every request has ended, once the world has settled.
+    pub fn assert_settled(&self) {
+        if let Err(why) = self.check_settled() {
+            crate::fail(&why);
+        }
     }
 }
