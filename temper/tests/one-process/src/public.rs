@@ -112,40 +112,31 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
 
 /// Replay a visitor's negative walk with failures naming its seed.
 pub fn walk(seed: u64, name: &str) {
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        if name == "each_broken_relation_refuses_the_start" {
-            deployment::relations();
-        } else if name.starts_with("the_proxy_")
-            || matches!(
-                name,
-                "a_stopped_upstream_serves_copies_until_their_freshness_ends"
-                    | "two_deployments_behind_one_proxy_keep_their_own_copies"
-                    | "a_refused_host_is_never_answered_from_the_cache"
-            )
-        {
-            checks::run(seed, name);
-        } else if name == "a_store_written_before_public_reading_reads_every_project_private" {
-            previous::run(seed);
-        } else if name == "every_inaccessible_identifier_is_one_unknown_byte_for_byte" {
-            TRACKED.with(|tracked| tracked.set(true));
-            service::run(seed, "every_owner_version_and_kind_answers_as_declared");
-            TRACKED.with(|tracked| tracked.set(false));
-            for proxied in [false, true] {
-                identifiers::PROXIED.with(|flag| flag.set(proxied));
-                service::run(seed, name);
-            }
-            TRACKED.with(|tracked| tracked.set(true));
-        } else {
+    eprintln!("public walk {name}, seed {seed}");
+    if name == "each_broken_relation_refuses_the_start" {
+        deployment::relations();
+    } else if name.starts_with("the_proxy_")
+        || matches!(
+            name,
+            "a_stopped_upstream_serves_copies_until_their_freshness_ends"
+                | "two_deployments_behind_one_proxy_keep_their_own_copies"
+                | "a_refused_host_is_never_answered_from_the_cache"
+        )
+    {
+        checks::run(seed, name);
+    } else if name == "a_store_written_before_public_reading_reads_every_project_private" {
+        previous::run(seed);
+    } else if name == "every_inaccessible_identifier_is_one_unknown_byte_for_byte" {
+        TRACKED.with(|tracked| tracked.set(true));
+        service::run(seed, "every_owner_version_and_kind_answers_as_declared");
+        TRACKED.with(|tracked| tracked.set(false));
+        for proxied in [false, true] {
+            identifiers::PROXIED.with(|flag| flag.set(proxied));
             service::run(seed, name);
         }
-    }));
-    ACTIVE.with(|active| active.set(false));
-    if let Err(error) = result {
-        let detail = error
-            .downcast_ref::<String>()
-            .map(String::as_str)
-            .or_else(|| error.downcast_ref::<&str>().copied())
-            .unwrap_or("non-text panic");
-        panic!("public walk {name}, seed {seed}: {detail}");
+        TRACKED.with(|tracked| tracked.set(true));
+    } else {
+        service::run(seed, name);
     }
+    ACTIVE.with(|active| active.set(false));
 }

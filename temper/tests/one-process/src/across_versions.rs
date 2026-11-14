@@ -77,9 +77,9 @@ pub(crate) fn note(note: &temper_service::Note) {
         STATE.with(|state| state.borrow_mut().opened += 1);
     }
 }
-pub(crate) fn tasks(store: &Store) {
+pub(crate) fn tasks(store: &Store) -> Result<(), String> {
     if !active() {
-        return;
+        return Ok(());
     }
     let mut count = 0;
     for row in store.rows.values() {
@@ -87,18 +87,26 @@ pub(crate) fn tasks(store: &Store) {
             jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
         )) = row
         {
-            assert_eq!(task.tries, jig_domain_tasks::Tries::NONE, "task {} spends no try", task.number);
+            match (&(task.tries), &(jig_domain_tasks::Tries::NONE)) {
+                (left, right) if left != right => {
+                    let finding = format!("task {} spends no try", task.number);
+                    return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
+                }
+                _ => {}
+            }
             for word in &task.inbox {
-                assert!(
-                    !word.words.windows(b"version mismatch".len()).any(|part| part == b"version mismatch"),
-                    "no version mismatch notice on task {}",
-                    task.number
-                );
+                if word.words.windows(b"version mismatch".len()).any(|part| part == b"version mismatch") {
+                    return Err(format!("no version mismatch notice on task {}", task.number));
+                }
             }
             count += 1;
         }
     }
-    assert!(count >= 3, "the goal/chat, change and review ran");
+    if count < 3 {
+        return Err(String::from("the goal/chat, change and review ran"));
+    }
+
+    Ok(())
 }
 /// A goal's change lands, with a message and an answered host call in its running run.
 pub fn goal() {

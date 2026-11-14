@@ -208,9 +208,6 @@ temper/tests/engine/domain/tests/suite/oracle.rs should_panic 2
 temper/tests/engine/domain/tests/suite/preparation.rs catch_unwind 1
 temper/tests/engine/domain/tests/suite/walking.rs catch_unwind 1
 temper/tests/one-process/src/m15/observer.rs should_panic 1
-temper/tests/one-process/src/public.rs catch_unwind 1
-temper/tests/one-process/src/referee/durable/tests.rs catch_unwind 1
-temper/tests/one-process/tests/suite/one_process.rs catch_unwind 1
 temper/tests/real-loop/src/calls.rs catch_unwind 1
 temper/tests/real-loop/src/calls.rs should_panic 2
 temper/tests/real-loop/src/patience.rs catch_unwind 2

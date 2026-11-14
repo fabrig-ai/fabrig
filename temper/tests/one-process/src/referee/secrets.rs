@@ -26,18 +26,9 @@ impl fmt::Debug for Roots<'_> {
         self.0.fmt_roots(formatter)
     }
 }
-pub(crate) fn require(bytes: &[u8], place: &str) {
-    assert!(in_bytes(bytes).is_none(), "{} in {place}", in_bytes(bytes).unwrap_or("issued secret"));
-}
-pub(crate) fn require_formatted(text: &str, place: &str) {
-    for (name, token) in [
-        ("LLM access token", fixtures::LLM_TOKEN),
-        ("git identity token", fixtures::GIT_TOKEN),
-        ("forge API token", fixtures::API_TOKEN),
-    ] {
-        assert!(
-            !text.contains(std::str::from_utf8(token).expect("fixture token")) && !text.contains(&format!("{token:?}")),
-            "{name} in {place}"
-        );
+pub(crate) fn check(bytes: &[u8], place: &str) -> Result<(), String> {
+    if let Some(name) = in_bytes(bytes) {
+        return Err(format!("{name} in {place}"));
     }
+    Ok(())
 }
