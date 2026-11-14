@@ -1,18 +1,17 @@
 //! Sort account ids and ranges once, then compare each neighbouring run.
-use super::claims;
 use crate::{
-    errors::{Class, Collector, Collision, Error, Id, Kind, Place, Subject},
-    kinds::users::{Accounts, User, UserKind},
+    entries::Claimant,
+    errors::{Class, Collector, Collision, Error, Id, Kind, Subject},
+    kinds::users::{Accounts, User},
     limits::Limits,
-    revision::Position,
+    parts::config::UserKind,
 };
 use alloc::boxed::Box;
 use skein_lib::{Map, bytes::copy_of};
 #[derive(Debug)]
 struct Claim<'a> {
-    task: &'a [u8],
+    source: &'a Claimant,
     name: &'a [u8],
-    at: Position,
     own: bool,
 }
 type Key = (u32, Box<[u8]>, Box<[u8]>);
@@ -24,9 +23,9 @@ pub fn ids(accounts: &Accounts, target: &[u8], limits: &Limits, errors: &mut Col
     let mut gids = Map::with_capacity(limits.expansion);
     let mut ranges = Map::with_capacity(limits.expansion);
     for user in &accounts.users {
-        let (uid, gid, own) = match &user.kind {
-            UserKind::Sysusers { uid, group, .. } => (*uid, if *group == user.name { *uid } else { None }, true),
-            UserKind::Package { uid, gid } => (*uid, *gid, false),
+        let (uid, gid, own) = match &user.value.kind {
+            UserKind::Sysusers { uid, group, .. } => (*uid, if *group == user.value.name { *uid } else { None }, true),
+            UserKind::Package => (user.package_ids.0, user.package_ids.1, false),
         };
         if let Some(uid) = uid {
             insert(&mut uids, uid, claim(user, false), target, errors, &mut valid);
@@ -34,8 +33,8 @@ pub fn ids(accounts: &Accounts, target: &[u8], limits: &Limits, errors: &mut Col
         if let Some(gid) = gid {
             insert(&mut gids, gid, claim(user, own), target, errors, &mut valid);
         }
-        if let UserKind::Sysusers { subordinate: Some((base, count)), .. } = user.kind {
-            let key = (base, user.task.clone(), user.name.clone());
+        if let Some((base, count)) = user.subordinate {
+            let key = (base, user.source.task.clone(), user.value.name.clone());
             if ranges.insert(key, (base.checked_add(count).expect("checked range"), claim(user, false))).is_err() {
                 limit(target, &claim(user, false), errors);
                 valid = false;
@@ -43,11 +42,11 @@ pub fn ids(accounts: &Accounts, target: &[u8], limits: &Limits, errors: &mut Col
         }
     }
     for group in &accounts.groups {
-        if let Some(gid) = group.gid {
+        if let Some(gid) = group.gid() {
             insert(
                 &mut gids,
                 gid,
-                Claim { task: &group.task, name: &group.name, at: group.at, own: false },
+                Claim { source: &group.source, name: &group.value.name, own: false },
                 target,
                 errors,
                 &mut valid,
@@ -80,7 +79,7 @@ pub fn ids(accounts: &Accounts, target: &[u8], limits: &Limits, errors: &mut Col
     valid
 }
 fn claim(user: &User, own: bool) -> Claim<'_> {
-    Claim { task: &user.task, name: &user.name, at: user.at, own }
+    Claim { source: &user.source, name: &user.value.name, own }
 }
 fn insert<'a>(
     map: &mut Map<Key, Claim<'a>>,
@@ -90,7 +89,7 @@ fn insert<'a>(
     errors: &mut Collector,
     valid: &mut bool,
 ) {
-    let key = (value, copy_of(claim.task), copy_of(claim.name));
+    let key = (value, claim.source.task.clone(), copy_of(claim.name));
     if let Err((_key, claim)) = map.insert(key, claim) {
         limit(target, &claim, errors);
         *valid = false;
@@ -122,30 +121,23 @@ fn shared(map: &Map<Key, Claim<'_>>, id: Id, target: &[u8], errors: &mut Collect
     }
 }
 fn ordered<'a, 'b>(first: &'a Claim<'b>, second: &'a Claim<'b>) -> (&'a Claim<'b>, &'a Claim<'b>) {
-    if (first.task, first.name) <= (second.task, second.name) { (first, second) } else { (second, first) }
-}
-fn place(claim: &Claim<'_>) -> Place {
-    Place { path: claims::declaration(claim.task), position: Some(claim.at) }
+    if (first.source.task.as_ref(), first.name) <= (second.source.task.as_ref(), second.name) {
+        (first, second)
+    } else {
+        (second, first)
+    }
 }
 fn push(target: &[u8], collision: Collision, at: &Claim<'_>, also: &Claim<'_>, errors: &mut Collector) {
-    errors.push(Error {
-        side: None,
-        kind: Kind::Collision(collision),
-        class: Class::Configuration,
-        at: Some(place(at)),
-        also: Some(place(also)),
-        target: Some(copy_of(target)),
-        task: None,
-    });
+    errors.push(super::error(target, collision, at.source.place(), also.source.place()));
 }
 fn limit(target: &[u8], claim: &Claim<'_>, errors: &mut Collector) {
     errors.push(Error {
         side: None,
         kind: Kind::Evaluation(crate::evaluate::FaultKind::Limit),
         class: Class::Configuration,
-        at: Some(place(claim)),
+        at: Some(claim.source.place()),
         also: None,
         target: Some(copy_of(target)),
-        task: Some(copy_of(claim.task)),
+        task: Some(claim.source.task.clone()),
     });
 }

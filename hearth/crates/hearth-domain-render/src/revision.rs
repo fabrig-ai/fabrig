@@ -275,17 +275,7 @@ impl Documents {
         self.decoded.get(usize::try_from(document).ok()?)?.as_ref()
     }
     pub fn set_declaration(&mut self, oid: &Oid, declaration: declaration::Declaration) {
-        let mut source = Some(declaration);
-        let last = self.last_copy(oid, true);
-        for (index, (entry, declared)) in self.entries.iter().zip(self.declared.iter_mut()).enumerate() {
-            if &entry.oid == oid && task(&entry.path).is_some() {
-                *declared = if Some(index) == last {
-                    source.take()
-                } else {
-                    Some(source.as_ref().expect("last copy remains").clone())
-                };
-            }
-        }
+        self.store(oid, crate::vocabulary::Decoded::Declaration(declaration));
     }
     #[must_use]
     #[expect(clippy::disallowed_methods, reason = "library bisection compares task names in sorted document paths")]
@@ -300,15 +290,30 @@ impl Documents {
         Some((u32::try_from(index).expect("bounded listing"), self.declared.get(index)?.as_ref()))
     }
     pub fn set(&mut self, oid: &Oid, document: Document) {
-        let mut source = Some(document);
-        let last = self.last_copy(oid, false);
-        for (index, (entry, decoded)) in self.entries.iter().zip(self.decoded.iter_mut()).enumerate() {
-            if &entry.oid == oid && task(&entry.path).is_none() {
-                *decoded = if Some(index) == last {
-                    source.take()
-                } else {
-                    Some(source.as_ref().expect("last copy remains").clone())
-                };
+        self.store(oid, crate::vocabulary::Decoded::Document(document));
+    }
+    fn store(&mut self, oid: &Oid, value: crate::vocabulary::Decoded) {
+        use crate::vocabulary::Decoded;
+        let declared = match &value {
+            Decoded::Document(_) => false,
+            Decoded::Declaration(_) => true,
+            Decoded::Link(_) | Decoded::Template(_) | Decoded::Refused { .. } => unreachable!("document input"),
+        };
+        let last = self.last_copy(oid, declared);
+        let mut source = Some(value);
+        for (index, entry) in self.entries.iter().enumerate() {
+            if &entry.oid != oid || task(&entry.path).is_some() != declared {
+                continue;
+            }
+            let value = if Some(index) == last {
+                source.take().expect("last copy remains")
+            } else {
+                source.as_ref().expect("last copy remains").clone()
+            };
+            match value {
+                Decoded::Document(value) => *self.decoded.get_mut(index).expect("document index") = Some(value),
+                Decoded::Declaration(value) => *self.declared.get_mut(index).expect("document index") = Some(value),
+                Decoded::Link(_) | Decoded::Template(_) | Decoded::Refused { .. } => unreachable!("document input"),
             }
         }
     }
@@ -340,7 +345,7 @@ impl Documents {
 }
 /// Retained decoded bytes admitted on arrival (hearth/docs/design/domain/render/README.md, 2.3).
 #[derive(Debug, Hash)]
-pub struct Budget {
+pub(crate) struct Budget {
     held: u64,
     max: u64,
     exceeded: bool,
@@ -377,7 +382,7 @@ impl Budget {
 }
 
 #[must_use]
-pub fn task(path: &[u8]) -> Option<&[u8]> {
+pub(crate) fn task(path: &[u8]) -> Option<&[u8]> {
     let path = path.strip_prefix(b"tasks/")?;
     Some(match split(path) {
         Some((task, _)) => task,
@@ -386,7 +391,7 @@ pub fn task(path: &[u8]) -> Option<&[u8]> {
 }
 
 #[must_use]
-pub fn base(path: &[u8]) -> Option<&[u8]> {
+pub(crate) fn base(path: &[u8]) -> Option<&[u8]> {
     Some(split(path.strip_prefix(b"hosts/")?)?.0)
 }
 

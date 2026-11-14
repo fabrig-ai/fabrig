@@ -66,11 +66,12 @@ fn a_groups_entry_of_a_users_own_name_with_its_uid_is_one_row() {
     assert_eq!(
         rows.accounts.groups.as_ref(),
         &[crate::kinds::groups::Group {
-            name: copy_of(b"alice"),
-            task: copy_of(b"b"),
-            at: fixtures::kinds::FILE_AT,
-            gid: Some(f::ACCOUNT_UID),
-            package: false,
+            value: crate::parts::config::Group {
+                name: copy_of(b"alice"),
+                kind: crate::parts::config::GroupKind::Sysusers { gid: Some(f::ACCOUNT_UID) }
+            },
+            source: crate::entries::Claimant::new(b"b", fixtures::kinds::FILE_AT),
+            package_gid: None,
         }]
     );
 }
@@ -206,7 +207,7 @@ fn a_data_line_and_a_tasks_differing_line_at_one_path_collide() {
 #[test]
 fn agreeing_users_keep_the_first_tasks_provenance() {
     let rows = f::agreeing(&f::equal_users()).expect("identical users");
-    assert_eq!(fixtures::only(&rows.accounts.users).task.as_ref(), b"a");
+    assert_eq!(fixtures::only(&rows.accounts.users).source.task.as_ref(), b"a");
 }
 #[test]
 fn a_password_reference_is_part_of_a_users_declaration() {

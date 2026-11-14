@@ -2,11 +2,12 @@
 use crate::{errors::Resolution, limits::Limits, vocabulary::Class};
 use alloc::boxed::Box;
 use skein_lib::Map;
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// A package's identity, ordered by name, architecture, then version (hearth/docs/design/domain/render/spec.md, 2.3).
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Inst {
     pub name: Box<[u8]>,
-    pub version: Box<[u8]>,
     pub architecture: Box<[u8]>,
+    pub version: Box<[u8]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Index {
@@ -70,32 +71,25 @@ pub struct Package {
     pub size: u64,
     pub sha256: hearth_lib::encode::Digest,
 }
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct Triple {
-    name: Box<[u8]>,
-    architecture: Box<[u8]>,
-    version: Box<[u8]>,
-}
 /// Only installed triples are retained; indices may contain unrelated stanzas.
 #[derive(Debug, Hash)]
-pub struct Closure {
-    packages: Map<Triple, Option<Package>>,
+pub(crate) struct Closure {
+    packages: Map<Inst, Option<Package>>,
     max: u32,
 }
 impl Closure {
     #[must_use]
-    pub fn new(limits: &Limits) -> Self {
+    pub(crate) fn new(limits: &Limits) -> Self {
         Self { packages: Map::with_capacity(limits.closure), max: limits.closure }
     }
-    pub fn inst(&mut self, inst: Inst) -> Result<(), Resolution> {
-        let key = Triple { name: inst.name, architecture: inst.architecture, version: inst.version };
-        if !self.packages.contains_key(&key) && self.packages.insert(key, None).is_err() {
+    pub(crate) fn inst(&mut self, inst: Inst) -> Result<(), Resolution> {
+        if !self.packages.contains_key(&inst) && self.packages.insert(inst, None).is_err() {
             return Err(Resolution::TooMany { max: self.max });
         }
         Ok(())
     }
-    pub fn stanza(&mut self, line: u32, stanza: Stanza) -> Result<(), Resolution> {
-        let key = Triple { name: stanza.package, architecture: stanza.architecture, version: stanza.version };
+    pub(crate) fn stanza(&mut self, line: u32, stanza: Stanza) -> Result<(), Resolution> {
+        let key = Inst { name: stanza.package, architecture: stanza.architecture, version: stanza.version };
         let Some(package) = self.packages.get_mut(&key) else { return Ok(()) };
         if let Some(first) = package {
             if first.size != stanza.size || first.sha256 != stanza.sha256 {
@@ -120,7 +114,7 @@ impl Closure {
         });
         Ok(())
     }
-    pub fn close(self, names: &[Box<[u8]>]) -> Result<Box<[Package]>, Resolution> {
+    pub(crate) fn close(self, names: &[Box<[u8]>]) -> Result<Box<[Package]>, Resolution> {
         let mut closure = skein_lib::List::with_capacity(self.max);
         for (key, package) in &self.packages {
             let Some(package) = package else {

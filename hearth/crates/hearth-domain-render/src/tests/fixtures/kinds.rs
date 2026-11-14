@@ -1,6 +1,6 @@
 use crate::{
     entries::{Concrete, Fault, Fielded, Located, Made},
-    kinds::files::{self, Plan, Source, TreeFile},
+    kinds::files::{self, Install, Make, Plan},
     revision::{Position, declaration::Name},
 };
 use alloc::boxed::Box;
@@ -10,11 +10,17 @@ pub const FILE_AT: Position = Position { line: 3, column: 5 };
 pub const FIELD_AT: Position = Position { line: 3, column: 20 };
 // hearth/docs/design/protocol/format/tasks.md, 5: PATH_MAX less its terminating NUL.
 pub const LINK_MAX: usize = 4095;
-pub fn tree(paths: &[&[u8]]) -> Box<[TreeFile]> {
+pub fn tree(paths: &[&[u8]]) -> Box<[Install]> {
     let mut tree = List::with_capacity(u32::try_from(paths.len()).expect("fixture count"));
     for path in paths {
-        tree.push(TreeFile { path: copy_of(path), source: Source::Static { sha256: Digest([1; 32]) }, mode: 0o644 })
-            .expect("fixture count");
+        tree.push(Install {
+            path: copy_of(path),
+            at: None,
+            make: Make::Static { sha256: Digest([1; 32]), mode: 0o644 },
+            owner: copy_of(b"root"),
+            group: copy_of(b"root"),
+        })
+        .expect("fixture count");
     }
     tree.into_boxed()
 }
@@ -27,7 +33,7 @@ pub fn text(name: Name, value: &[u8]) -> Made {
 pub fn directory(value: bool) -> Made {
     Made { name: Name::Directory, at: FIELD_AT, value: Fielded::Bool(value) }
 }
-pub fn plan(tree: &[TreeFile], files: &[Concrete], dropped: &[&[u8]]) -> Result<Plan, Box<[Fault]>> {
+pub fn plan(tree: &[Install], files: &[Concrete], dropped: &[&[u8]]) -> Result<Plan, Box<[Fault]>> {
     let mut rows = List::with_capacity(u32::try_from(files.len()).expect("fixture count"));
     for entry in files {
         rows.push(Located { task: b"motd", entry }).expect("fixture count");
@@ -59,10 +65,12 @@ pub fn template_plans(entries: &[crate::revision::Entry]) -> Box<[Plan]> {
         let mut absolute = skein_lib::Writer::new(path.len().saturating_add(1));
         absolute.put(b"/").expect("prefix");
         absolute.put(path).expect("path");
-        tree.push(TreeFile {
+        tree.push(Install {
             path: absolute.finish(),
-            source: Source::Template { oid: entry.oid.clone(), path: entry.path.clone() },
-            mode: 0o644,
+            at: None,
+            make: Make::Rendered { template: entry.path.clone(), via: None, mode: 0o644 },
+            owner: copy_of(b"root"),
+            group: copy_of(b"root"),
         })
         .expect("fixture count");
     }

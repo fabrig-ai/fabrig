@@ -1,16 +1,16 @@
 //! Declared schemas, defaults and target settings (hearth/docs/design/protocol/format/README.md, 5).
 mod debian;
-pub mod forms;
-pub mod references;
+pub(crate) mod forms;
+pub(crate) mod references;
 mod targets;
 use crate::{
     errors::Schema,
     revision::{self, Documents, Position},
 };
 use alloc::boxed::Box;
-pub use debian::debian;
+pub(crate) use debian::debian;
 use skein_lib::{List, Map, bytes};
-pub use targets::{Checked, Revision, Validated, unclaimed, validate};
+pub(crate) use targets::{Checked, Revision, Validated, unclaimed, validate};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Fault {
     pub schema: Schema,
@@ -560,12 +560,15 @@ pub(crate) fn type_fault(kind: &Composite, form: &Form, spec: Option<&Spec>) -> 
         Composite::Map(value) => value.len(),
         Composite::Bool(_) | Composite::Int(_) => 0,
     };
-    if let Some(max) = &spec.max_length
-        && u64::try_from(length).expect("bounded length") > max.value.unsigned_abs()
-    {
-        return Some(Schema::Length { max_length: max.value });
+    length_fault(length, Some(spec))
+}
+pub(crate) fn length_fault(length: usize, spec: Option<&Spec>) -> Option<Schema> {
+    let max = spec?.max_length.as_ref()?;
+    if u64::try_from(length).expect("bounded length") > max.value.unsigned_abs() {
+        Some(Schema::Length { max_length: max.value })
+    } else {
+        None
     }
-    None
 }
 fn task_defaults(
     declaration: &Declaration,

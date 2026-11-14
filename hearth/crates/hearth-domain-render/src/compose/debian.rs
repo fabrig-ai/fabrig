@@ -1,7 +1,7 @@
 use super::{Box, Composed, Documents, Kind, Layer, Merge, Position, Target, Value, bytes, layers, revision};
 /// Compose the fixed Debian schema over hearth/docs/design/protocol/format/README.md, 3.2's six layers.
 #[must_use]
-pub fn debian(target: &Target, documents: &Documents, merge: &mut Merge) -> Option<Composed> {
+pub(crate) fn debian(target: &Target, documents: &Documents, merge: &mut Merge) -> Option<Composed> {
     let at = Position { line: 1, column: 1 };
     let bottom = Value {
         at,

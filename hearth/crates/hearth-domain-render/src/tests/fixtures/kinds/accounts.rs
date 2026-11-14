@@ -51,6 +51,5 @@ pub fn account_config(expansion: &Expansion) -> Config {
     )
 }
 
-pub const PACKAGE_LIMITS: crate::kinds::users::UserKind =
-    crate::kinds::users::UserKind::Package { uid: Some(1), gid: Some(65533) };
+pub const PACKAGE_LIMITS: (Option<u32>, Option<u32>) = (Some(1), Some(65533));
 pub const SUBORDINATE_LIMITS: (u32, u32) = (65536, 4_294_901_759);

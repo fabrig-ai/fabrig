@@ -28,7 +28,7 @@ pub struct Fetch {
     pub sha256: Digest,
     pub url: Box<[u8]>,
 }
-pub fn build(expansion: &Expansion, scripts: Box<[Script]>) -> Result<Software, Box<[Error]>> {
+pub(crate) fn build(expansion: &Expansion, scripts: Box<[Script]>) -> Result<Software, Box<[Error]>> {
     let entries = expansion.of(Map::Software);
     let count = u32::try_from(entries.len()).expect("entry bound");
     let mut paths = Ordered::with_capacity(count);
@@ -64,7 +64,7 @@ pub fn build(expansion: &Expansion, scripts: Box<[Script]>) -> Result<Software, 
     Ok(Software { downloads: downloads.into_boxed(), scripts, fetch: fetch.into_boxed() })
 }
 #[must_use]
-pub fn digest(software: &Software) -> Digest {
+pub(crate) fn digest(software: &Software) -> Digest {
     let mut hash = H::new(b"part:software", 1);
     let record = hash.values();
     record.map(2);
@@ -102,28 +102,16 @@ pub struct Change {
     pub downloads: Box<[DownloadKeyed]>,
     pub scripts: Option<super::config::ScriptsChange>,
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum DownloadKeyed {
-    Added { key: Box<[u8]>, value: Download },
-    Removed { key: Box<[u8]>, value: Download },
-    Changed { key: Box<[u8]>, before: Download, after: Download },
-}
+pub type DownloadKeyed = crate::diff::Keyed<Download>;
 
 #[must_use]
-pub fn change(before: &Software, after: &Software) -> Change {
+pub(crate) fn change(before: &Software, after: &Software) -> Change {
     Change {
-        downloads: super::secrets::changed(
+        downloads: crate::diff::keyed(
             &before.downloads,
             &after.downloads,
             |row| &row.path,
-            |key, before, after| match (before, after) {
-                (None, Some(value)) => DownloadKeyed::Added { key, value: value.clone() },
-                (Some(value), None) => DownloadKeyed::Removed { key, value: value.clone() },
-                (Some(before), Some(after)) => {
-                    DownloadKeyed::Changed { key, before: before.clone(), after: after.clone() }
-                }
-                (None, None) => unreachable!("union entry"),
-            },
+            |change| change.map(Clone::clone),
         ),
         scripts: if before.scripts == after.scripts {
             None

@@ -423,12 +423,14 @@ Design documents:
 - [`testing/reference-case.md`](testing/reference-case.status.md)
 
 Drafts:
+- [`draft/after-landing-reds-1114.md`](draft/after-landing-reds-1114.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/branch-reds.md`](draft/branch-reds.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
+- [`draft/change-landing-fixes.md`](draft/change-landing-fixes.status.md)
 - [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
@@ -451,6 +453,7 @@ Drafts:
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)
 - [`draft/forge-polls-quiet.md`](draft/forge-polls-quiet.status.md)
 - [`draft/forge-reads-targeted.md`](draft/forge-reads-targeted.status.md)
+- [`draft/fuzzy-context.md`](draft/fuzzy-context.status.md)
 - [`draft/gate-compile.md`](draft/gate-compile.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)

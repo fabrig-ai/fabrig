@@ -63,6 +63,21 @@ impl Failed {
                 return Some(attempt);
             }
         }
+        for check in &self.checks {
+            if check.check == Check::Failed
+                && let Some(attempt) = check.job
+                && attempt.head == head
+                && let Some(Some(run)) = self.runs.get(&attempt.run)
+                && run.commit == head
+                && run.id == attempt.run
+            {
+                for job in &run.jobs {
+                    if job.id == attempt.job && job.attempt == attempt.attempt {
+                        return Some(attempt);
+                    }
+                }
+            }
+        }
         None
     }
 
@@ -77,7 +92,7 @@ impl Failed {
         }
         let context = context?;
         let run = self.runs.get(&attempt.run)?.as_ref()?;
-        let reason = runner(run, attempt, head)?;
+        let reason = runner(run, attempt, head).unwrap_or(b"a repair changed nothing");
         let job = Decimal::of(attempt.job);
         let commit = crate::commit_text(&head);
         let head = commit.get(..12).expect("commit prefix");

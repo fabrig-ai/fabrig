@@ -58,12 +58,28 @@ fn a_baseline_live_row_keeps_its_fields_without_a_talk() {
     assert_eq!(bytes.as_ref(), expected.as_ref());
     let bytes = patched(10, 2, b"Row", bytes);
     let bytes = patched(11, 4, b"Row", bytes);
-    let row = crate::tasks_v12::Row::decode(&crate::tasks_v12::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let bytes = patched(12, 5, b"Row", bytes);
+    let row = crate::tasks_v13::Row::decode(&crate::tasks_v13::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("current row");
-    let crate::tasks_v12::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };
+    let crate::tasks_v13::Value::Live(record) = row.into_parts().value else { panic!("before-talk live") };
     assert!(!record.activation_open());
     assert_eq!(record.session(), &None);
     assert_eq!(record.outcome().tries().infrastructure(), 0);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "patch goldens supply the kept v12 task payloads")]
+fn a_stored_task_before_question_wakes_decodes_with_zero_woken() {
+    for before in [
+        include_bytes!("../../patches/golden/0005/jig-store-tasks/record_before_talk_smallest.bin").as_slice(),
+        include_bytes!("../../patches/golden/0005/jig-store-tasks/record_before_talk_full.bin").as_slice(),
+    ] {
+        let bytes = patched(12, 5, b"BeforeTalk", before.into());
+        let wire =
+            crate::tasks_v13::BeforeTalk::decode(&crate::tasks_v13::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+                .expect("patched task");
+        assert_eq!(wire.question_woken(), 0);
+    }
 }
 
 #[test]
@@ -73,7 +89,7 @@ fn a_stored_counter_before_infrastructure_decodes_with_zero_tries() {
         old.put(&count.to_be_bytes()).unwrap();
     }
     let bytes = patched(10, 2, b"Tries", old.finish());
-    let wire = crate::tasks_v12::Tries::decode(&crate::tasks_v12::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let wire = crate::tasks_v13::Tries::decode(&crate::tasks_v13::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("patched tries");
     assert_eq!(
         crate::codec::tasks::value::read_tries(wire),
