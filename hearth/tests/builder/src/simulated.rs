@@ -154,6 +154,7 @@ fn build(scenario: &Scenario<'_>, seed: u64, config: Config, options: &Options) 
         lock,
         output_release: options.output_release,
         seen: 0,
+        finding: None,
     })
     .with_machine(shared);
     world.host_roots(
@@ -203,36 +204,47 @@ pub struct Referee {
     lock: Option<(fixtures::HeldLock, Time)>,
     output_release: Option<Time>,
     seen: usize,
+    finding: Option<String>,
 }
 impl skein_world::Referee<Proc> for Referee {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        if self.lock.as_ref().is_some_and(|(_, at)| now >= *at) {
-            self.lock.take().expect("held lock").0.release(&self.shared);
+        if self.finding.is_some() {
+            return;
+        }
+        if self.lock.as_ref().is_some_and(|(_, at)| now >= *at)
+            && let Some((lock, _)) = self.lock.take()
+        {
+            lock.release(&self.shared);
         }
         if self.output_release.is_some_and(|at| now >= at) {
             for proc in procs.iter().filter(|proc| matches!(proc, Proc::Client(_))) {
-                assert!(!proc.work_pending(now), "render has stopped behind the held output");
+                if proc.work_pending(now) {
+                    self.finding = Some("render has stopped behind the held output".to_owned());
+                    return;
+                }
             }
             self.output_release = None;
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Proc]) {
+    fn watch(&mut self, _now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(finding) = &self.finding {
+            return Err(finding.clone());
+        }
         let mmdebstraps: Vec<_> = procs.iter().filter(|proc| matches!(proc, Proc::Mmdebstrap(_))).collect();
-        assert!(mmdebstraps.iter().filter(|proc| !proc.is_empty()).count() <= 1, "one mmdebstrap alive at a time");
+        if mmdebstraps.iter().filter(|proc| !proc.is_empty()).count() > 1 {
+            return Err("one mmdebstrap alive at a time".to_owned());
+        }
         if mmdebstraps.len() > self.seen {
-            assert_eq!(
-                self.shared.contents(fixtures::OUTPUT).as_deref(),
-                Some(b"".as_slice()),
-                "resolve finishes before the client prints"
-            );
-            assert_eq!(
-                fixtures::simulation_records(&self.shared).len(),
-                self.seen,
-                "earlier runs are recorded before the next spawn"
-            );
+            if self.shared.contents(fixtures::OUTPUT).as_deref() != Some(b"".as_slice()) {
+                return Err("resolve finishes before the client prints".to_owned());
+            }
+            if fixtures::simulation_records(&self.shared).len() != self.seen {
+                return Err("earlier runs are recorded before the next spawn".to_owned());
+            }
             self.seen = mmdebstraps.len();
         }
         self.done = procs.iter().filter(|proc| matches!(proc, Proc::Client(_))).all(Host::is_empty);
+        Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
         if let Some((_, at)) = self.lock.as_ref() {
@@ -247,7 +259,7 @@ impl skein_world::Referee<Proc> for Referee {
         (!self.done && now >= fixtures::SIMULATION_DEADLINE).then(|| "the simulated builder must settle".to_owned())
     }
     fn passed(&self) -> bool {
-        self.done
+        self.finding.is_none() && self.done
     }
 }
 
@@ -316,4 +328,56 @@ pub fn checked_stuck(
 #[must_use]
 pub fn for_cut(scenario: &Scenario<'_>, seed: u64) -> World<Proc, Referee, Shared> {
     build(scenario, seed, Config::calm(), &Options { instances: fixtures::CUT_INSTANCES, ..Options::default() })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Client, Proc, Referee};
+    use crate::fixtures;
+    use skein_io::kernel::Fd;
+    use skein_lib::Time;
+    use skein_shell::Host;
+    use skein_world::{Inherited, Referee as _};
+
+    fn judge(shared: fixtures::Shared) -> Referee {
+        Referee { shared, done: false, lock: None, output_release: None, seen: 0, finding: None }
+    }
+
+    #[test]
+    fn a_held_output_finding_survives_act_until_watch_and_prevents_passing() {
+        let scenario = fixtures::thin();
+        let shared = fixtures::Shared::for_scenario(&scenario, fixtures::SIMULATION_SEED, fixtures::WORLD_PIPE);
+        let mut referee = judge(shared);
+        let inherited = Inherited {
+            roots: [(b"store".as_slice(), 1), (b"cache", 2), (b"resolutions", 3), (b"staging", 4)]
+                .into_iter()
+                .map(|(name, fd)| (name.into(), Fd::new(fd)))
+                .collect(),
+            appends: vec![(b"output".as_slice().into(), Fd::new(5)), (b"error".as_slice().into(), Fd::new(6))],
+            signal: Fd::new(7),
+            pipes: Vec::new(),
+        };
+        let client = Client::new(&inherited, &scenario, fixtures::SIMULATION_SEED, hearth::limits());
+        let mut procs = [Proc::Client(Box::new(client))];
+        assert!(procs[0].work_pending(Time::ZERO));
+        referee.output_release = Some(Time::ZERO);
+        referee.done = true;
+        referee.act(Time::ZERO, &mut procs);
+        assert!(!referee.passed());
+        referee.act(Time::ZERO, &mut []);
+        assert_eq!(referee.watch(Time::ZERO, &[]), Err("render has stopped behind the held output".to_owned()));
+        assert!(!referee.passed());
+    }
+
+    #[test]
+    fn watch_returns_the_finding_when_the_client_prints_before_resolution() {
+        let outcome = fixtures::simulated_resolved();
+        let mut referee = judge(outcome.machine.clone());
+        assert_eq!(
+            referee.watch(Time::ZERO, &outcome.procs),
+            Err("resolve finishes before the client prints".to_owned())
+        );
+        assert!(!referee.passed());
+        assert_eq!(referee.seen, 0, "the failing spawn was not accepted");
+    }
 }
