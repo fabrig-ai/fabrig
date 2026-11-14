@@ -184,7 +184,6 @@ skein/testing/skein-world/src/tree.rs catch_unwind 1
 skein/testing/skein-world/src/tree.rs should_panic 3
 skein/tests/browser/src/referee.rs should_panic 4
 skein/tests/browser/tests/browser_real.rs catch_unwind 1
-skein/tests/codec/tests/suite/fuzzy/generic.rs catch_unwind 1
 skein/tests/conformance/real/tests/suite/deadline.rs catch_unwind 2
 skein/tests/conformance/sim/src/lib.rs catch_unwind 2
 skein/tests/heap/tests/suite/meter.rs should_panic 6
