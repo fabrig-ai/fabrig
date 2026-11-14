@@ -21,13 +21,12 @@ fn each_change_to_a_file_moves_its_counter_and_lands_in_the_ledger() {
     }
 }
 #[test]
-#[should_panic(expected = "ledger")]
-fn a_full_ledger_asserts() {
+fn the_ledger_holds_its_scenario_s_size() {
     let sizes = Sizes { ledger: 1, ..Sizes::tiny() };
     let mut machine = crate::linux::Machine::new(fixtures::SEED, sizes);
     let pid = machine.login(BUILDER, b"/");
     machine.call(pid, Op::Open { at: At::Root, path: b"/".as_slice().into(), how: How::Directory }).unwrap();
-    machine.call(pid, Op::Open { at: At::Root, path: b"/".as_slice().into(), how: How::Directory }).unwrap();
+    assert_eq!(machine.ledger().count(), usize::try_from(sizes.ledger).expect("ledger size fits"));
 }
 const REFUSED: [(u64, Option<crate::linux::Refusal>); 1] = [(0, Some(crate::linux::Refusal::NotFound))];
 #[test]

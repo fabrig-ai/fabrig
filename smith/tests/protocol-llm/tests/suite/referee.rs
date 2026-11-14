@@ -49,10 +49,10 @@ fn http(body: &str) -> Vec<u8> {
 fn only_the_moving_anthropic_marker_is_removed_from_history() {
     let previous = NativeRequest::from_http(&http(
         r#"{"system":[{"type":"text","text":"fixed","cache_control":{"type":"ephemeral"}}],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"first","cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect("native request findings");
     let next = NativeRequest::from_http(&http(
         r#"{"system":[{"type":"text","text":"fixed","cache_control":{"type":"ephemeral"}}],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"first"}]},{"role":"assistant","content":[{"type":"text","text":"answer","cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect("native request findings");
     assert_eq!(previous.system, next.system);
     assert!(previous.system.contains("cache_control"), "the fixed system marker stays literal");
     assert!(next.history.starts_with(&previous.history));
@@ -60,22 +60,23 @@ fn only_the_moving_anthropic_marker_is_removed_from_history() {
 }
 
 #[test]
-#[should_panic(expected = "at most one moving Anthropic tail marker")]
 fn a_second_anthropic_tail_marker_is_rejected() {
-    let _request = NativeRequest::from_http(&http(
+    let finding = NativeRequest::from_http(&http(
         r#"{"system":[],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"first","cache_control":{"type":"ephemeral"}},{"type":"text","text":"second","cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect_err("broken markers must fail");
+    assert_eq!(finding, "at most one moving Anthropic tail marker");
 }
 
 #[test]
 fn openai_history_and_escaped_marker_words_stay_literal() {
     let openai = NativeRequest::from_http(&http(
         r#"{"instructions":"fixed","tools":[],"input":[{"type":"message","cache_control":{"type":"ephemeral"}}]}"#,
-    ));
+    ))
+    .expect("native request findings");
     assert_eq!(openai.history[0], r#"{"type":"message","cache_control":{"type":"ephemeral"}}"#);
     let quoted = NativeRequest::from_http(&http(
         r#"{"system":[],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"literal ,\"cache_control\":{\"type\":\"ephemeral\"}","cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect("native request findings");
     assert_eq!(
         quoted.history[0],
         r#"{"role":"user","content":[{"type":"text","text":"literal ,\"cache_control\":{\"type\":\"ephemeral\"}"}]}"#
@@ -83,27 +84,28 @@ fn openai_history_and_escaped_marker_words_stay_literal() {
 }
 
 #[test]
-#[should_panic(expected = "exactly one moving Anthropic tail marker")]
 fn an_absent_anthropic_tail_marker_is_rejected() {
-    let _request = NativeRequest::from_http(&http(
+    let finding = NativeRequest::from_http(&http(
         r#"{"system":[],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"plain"}]}]}"#,
-    ));
+    ))
+    .expect_err("broken markers must fail");
+    assert_eq!(finding, "exactly one moving Anthropic tail marker");
 }
 
 #[test]
-#[should_panic(expected = "last eligible block of the last message")]
 fn a_marker_on_an_earlier_eligible_block_is_rejected() {
-    let _request = NativeRequest::from_http(&http(
+    let finding = NativeRequest::from_http(&http(
         r#"{"system":[],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"first","cache_control":{"type":"ephemeral"}},{"type":"tool_result","tool_use_id":"id","content":"result"}]}]}"#,
-    ));
+    )).expect_err("broken markers must fail");
+    assert_eq!(finding, "moving Anthropic marker is on the last eligible block of the last message");
 }
 
 #[test]
-#[should_panic(expected = "thinking never carries a marker")]
 fn a_marker_on_thinking_is_rejected() {
-    let _request = NativeRequest::from_http(&http(
+    let finding = NativeRequest::from_http(&http(
         r#"{"system":[],"tools":[],"messages":[{"role":"assistant","content":[{"type":"text","text":"answer"},{"type":"thinking","thinking":"private","cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect_err("broken markers must fail");
+    assert_eq!(finding, "thinking never carries a marker");
 }
 
 #[test]
@@ -117,7 +119,7 @@ fn changed_native_affinity_is_rejected() {
 fn a_cache_control_field_inside_tool_input_stays_literal() {
     let request = NativeRequest::from_http(&http(
         r#"{"system":[],"tools":[],"messages":[{"role":"assistant","content":[{"type":"tool_use","id":"id","name":"tool","input":{"value":1,"cache_control":{"type":"ephemeral"}},"cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect("native request findings");
     assert_eq!(
         request.history[0],
         r#"{"role":"assistant","content":[{"type":"tool_use","id":"id","name":"tool","input":{"value":1,"cache_control":{"type":"ephemeral"}}}]}"#
@@ -128,7 +130,7 @@ fn a_cache_control_field_inside_tool_input_stays_literal() {
 fn the_last_eligible_block_can_precede_a_literal_thinking_block() {
     let request = NativeRequest::from_http(&http(
         r#"{"system":[],"tools":[],"messages":[{"role":"assistant","content":[{"type":"text","text":"answer","cache_control":{"type":"ephemeral"}},{"type":"thinking","thinking":"private","signature":"sig"}]}]}"#,
-    ));
+    )).expect("native request findings");
     assert_eq!(
         request.history[0],
         r#"{"role":"assistant","content":[{"type":"text","text":"answer"},{"type":"thinking","thinking":"private","signature":"sig"}]}"#
@@ -136,25 +138,41 @@ fn the_last_eligible_block_can_precede_a_literal_thinking_block() {
 }
 
 #[test]
-#[should_panic(expected = "one marker for nonempty system text")]
 fn an_absent_anthropic_system_marker_is_rejected() {
-    let _request = NativeRequest::from_http(&http(
+    let finding = NativeRequest::from_http(&http(
         r#"{"system":[{"type":"text","text":"fixed"}],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"task","cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect_err("broken markers must fail");
+    assert_eq!(finding, "one marker for nonempty system text");
 }
 
 #[test]
-#[should_panic(expected = "fixed marker is on the last system block")]
 fn an_anthropic_system_marker_on_an_earlier_block_is_rejected() {
-    let _request = NativeRequest::from_http(&http(
+    let finding = NativeRequest::from_http(&http(
         r#"{"system":[{"type":"text","text":"earlier","cache_control":{"type":"ephemeral"}},{"type":"text","text":"last"}],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"task","cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect_err("broken markers must fail");
+    assert_eq!(finding, "fixed marker is on the last system block");
 }
 
 #[test]
-#[should_panic(expected = "Anthropic breakpoint allowance")]
 fn a_fifth_anthropic_breakpoint_is_rejected() {
-    let _request = NativeRequest::from_http(&http(
+    let finding = NativeRequest::from_http(&http(
         r#"{"system":[{"type":"text","text":"fixed","cache_control":{"type":"ephemeral"}}],"tools":[{"cache_control":{"type":"ephemeral"}},{"cache_control":{"type":"ephemeral"}},{"cache_control":{"type":"ephemeral"}}],"messages":[{"role":"user","content":[{"type":"text","text":"task","cache_control":{"type":"ephemeral"}}]}]}"#,
-    ));
+    )).expect_err("broken markers must fail");
+    assert_eq!(finding, "Anthropic breakpoint allowance");
+}
+
+#[test]
+fn a_native_request_finding_reaches_the_existing_verdict() {
+    let finding = NativeRequest::from_http(&http(
+        r#"{"system":[],"tools":[],"messages":[{"role":"user","content":[{"type":"text","text":"plain"}]}]}"#,
+    ))
+    .expect_err("absent tail marker must fail");
+    let mut referee = Referee::new(Meeting::default());
+    referee.observe(Time::ZERO, Seen::RequestFinding(finding.clone()), &mut Vec::new());
+    referee.observe(Time::ZERO, Seen::RequestFinding("later finding".into()), &mut Vec::new());
+    let Verdict::Failed(failure) = referee.verdict() else { panic!("native request finding must fail") };
+    assert_eq!(failure.why, finding);
+    let report = referee.check_holding(42).expect_err("world verdict retains the finding");
+    assert!(report.contains(&finding), "{report}");
+    assert!(report.contains("42"), "{report}");
 }

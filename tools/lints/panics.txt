@@ -1,19 +1,8 @@
 # tools/lints/design.md, 7: the count of catches.
 # --write lowers this list; nothing raises it.
 # Refused, so no line names them: catch_unwind, resume_unwind.
-hearth/testing/hearth-fake-machine/src/tests/files.rs should_panic 2
-hearth/testing/hearth-fake-machine/src/tests/ledger.rs should_panic 1
-hearth/testing/hearth-fake-machine/src/tests/processes.rs should_panic 1
-hearth/testing/hearth-fake-mmdebstrap/src/tests/face.rs should_panic 1
-smith/tests/local-process/tests/suite/terminal.rs should_panic 1
-smith/tests/protocol-llm/tests/suite/referee.rs should_panic 7
-smith/tests/session/tests/suite/referee.rs should_panic 5
-temper/bin/temper-box/tests/suite/fake.rs should_panic 1
-temper/bin/temper-box/tests/suite/support_tests.rs should_panic 3
-temper/testing/temper-fixtures/src/ports/tests.rs should_panic 1
 temper/tests/engine/domain/src/oracle.rs should_panic 2
 temper/tests/engine/domain/src/walking.rs should_panic 1
 temper/tests/engine/domain/tests/suite/oracle.rs should_panic 2
 temper/tests/one-process/src/m15/observer.rs should_panic 1
 temper/tests/real-loop/src/calls.rs should_panic 2
-temper/tests/worker/domain/src/runtime.rs should_panic 2
