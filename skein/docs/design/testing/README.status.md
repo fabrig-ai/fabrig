@@ -27,7 +27,8 @@ counted around each reused pass, never by an address.
   `std::panic::resume_unwind` and the payload `StarvedPass`, so that the
   process goes on to its next test, where they would end it with exit 0
   after the line, and the one-process runner starts no new process for
-  the names left (`tools/tiers/design.md`, 11.5 and 11.6, lag likewise);
+  the names left (`tools/tiers/design.md`, 11.5 and 11.6); skein-world's
+  tests of the starved pass and of a starved referee's teardown catch it;
   milestone P6 of `temper/docs/design/draft/panics.execution.md`.
   5: two step tests show a table kept by its address, not by the span's
   count, and their binaries declare no counting allocator: skein-lib's
