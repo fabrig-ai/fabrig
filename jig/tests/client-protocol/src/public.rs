@@ -269,6 +269,7 @@ impl Delegate for Process {
     }
 }
 struct Judge {
+    finding: Option<String>,
     phase: u8,
     project: Option<u64>,
     period: bool,
@@ -280,71 +281,17 @@ fn answered(client: &NativeClient, expected: &c::DocumentOutcome) -> bool {
     client.received.iter().any(|r| matches!(r, Received::Answer { answer: c::Answer::Done(c::Outcome::Document(outcome)), .. } if outcome == expected))
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let [Process::Service(service), Process::Client(client), Process::Probe(probe)] = procs else {
-            panic!("service, signed-in client and public probe")
-        };
-        if self.phase == 0
-            && let Some(link) = service.0.links().pop()
-        {
-            client.sign_in(&link).expect("printed service link");
-            self.phase = 1;
-        }
-        if !self.period && client.signed_in > 0 {
-            service.0.engine().expect("engine").parties_in().push(jig_domain_core::Event::Period {
-                project: 1,
-                period: 1,
-                budget: 100,
-                next: None,
-            });
-            self.period = true;
-        }
-        if self.phase == 1 && client.account_sign_in_ready() {
-            client.idle_fixture_view();
-            let mut task = fixtures::create_tasks().get(0).expect("task fixture").clone();
-            task.tracked = Some(17);
-            task.spec.words =
-                c::Text::new(b"Visible HTTP goal\nhidden HTTP spec".as_slice().into(), 128).expect("spec");
-            send(client, 1, c::Ask::Create { project: 1, tasks: jig_client_kit::test::list([task]) });
-            self.phase = 2;
-        }
-        if self.phase == 2 && client.chats_made == 1 {
-            send(client, 2, c::Ask::SetVisibility { project: 1, public: true });
-            self.phase = 3;
-        }
-        if self.phase == 3 && answered(client, &c::DocumentOutcome::VisibilitySet { project: 1, public: true }) {
-            let project = client.received.iter().rev().find_map(|r| {
-                if let Received::Delivery(c::Delivery::Me(me)) = r {
-                    me.projects.iter().find(|p| p.project == 1).and_then(|p| p.public)
-                } else {
-                    None
-                }
-            });
-            if let Some(project) = project {
-                self.project = Some(project);
-                probe.start(project);
-                self.phase = 4;
-            }
-        }
-        if self.phase == 4 && probe.replies.len() == 1 && probe.socket.is_none() {
-            send(client, 3, c::Ask::SetVisibility { project: 1, public: false });
-            self.phase = 5;
-        }
-        if self.phase == 5 && answered(client, &c::DocumentOutcome::VisibilitySet { project: 1, public: false }) {
-            probe.start(self.project.expect("me's public identifier"));
-            self.phase = 6;
-        }
-        if self.phase == 6 && probe.replies.len() == 2 && probe.socket.is_none() {
-            probe.finished = true;
-            client.finish_account_sign_in();
-            self.phase = 7;
-        }
-        if self.phase == 7 && client.is_empty() {
-            service.0.shutdown();
-            self.phase = 8;
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
     }
-    fn observe(&mut self, _now: Time, _procs: &[Process]) {}
+    fn watch(&mut self, _now: Time, _procs: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         (self.phase != 8).then_some(Time::ZERO.saturating_add(Duration::from_secs(5)))
     }
@@ -353,7 +300,7 @@ impl Referee<Process> for Judge {
             .then(|| format!("public HTTP phase {}", self.phase))
     }
     fn passed(&self) -> bool {
-        self.phase == 8
+        self.finding.is_none() && self.phase == 8
     }
 }
 struct Machine(skein_fake_machine::Machine);
@@ -410,7 +357,7 @@ pub fn run(seed: u64) -> (u64, Vec<Reply>) {
     let mut world = skein_world::World::new(
         seed,
         skein_sim::Config::calm(),
-        Judge { phase: 0, project: None, period: false },
+        Judge { finding: None, phase: 0, project: None, period: false },
         Memory::Unchecked,
     )
     .with_machine(Machine(machine));
@@ -449,4 +396,73 @@ pub fn run(seed: u64) -> (u64, Vec<Reply>) {
         .expect("public identifier in me");
     let Process::Probe(probe) = procs.next().expect("public probe") else { panic!("probe") };
     (project, std::mem::take(&mut probe.replies))
+}
+
+impl Judge {
+    fn check_act(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
+        let [Process::Service(service), Process::Client(client), Process::Probe(probe)] = procs else {
+            return Err(String::from("service, signed-in client and public probe"));
+        };
+        if self.phase == 0
+            && let Some(link) = service.0.links().pop()
+        {
+            client.sign_in(&link).map_err(|why| format!("printed service link: {why:?}"))?;
+            self.phase = 1;
+        }
+        if !self.period && client.signed_in > 0 {
+            service.0.engine().ok_or("engine")?.parties_in().push(jig_domain_core::Event::Period {
+                project: 1,
+                period: 1,
+                budget: 100,
+                next: None,
+            });
+            self.period = true;
+        }
+        if self.phase == 1 && client.account_sign_in_ready() {
+            client.idle_fixture_view();
+            let mut task = fixtures::create_tasks().get(0).ok_or("task fixture")?.clone();
+            task.tracked = Some(17);
+            task.spec.words = c::Text::new(b"Visible HTTP goal\nhidden HTTP spec".as_slice().into(), 128)
+                .map_err(|why| format!("spec: {why:?}"))?;
+            send(client, 1, c::Ask::Create { project: 1, tasks: jig_client_kit::test::list([task]) });
+            self.phase = 2;
+        }
+        if self.phase == 2 && client.chats_made == 1 {
+            send(client, 2, c::Ask::SetVisibility { project: 1, public: true });
+            self.phase = 3;
+        }
+        if self.phase == 3 && answered(client, &c::DocumentOutcome::VisibilitySet { project: 1, public: true }) {
+            let project = client.received.iter().rev().find_map(|r| {
+                if let Received::Delivery(c::Delivery::Me(me)) = r {
+                    me.projects.iter().find(|p| p.project == 1).and_then(|p| p.public)
+                } else {
+                    None
+                }
+            });
+            if let Some(project) = project {
+                self.project = Some(project);
+                probe.start(project);
+                self.phase = 4;
+            }
+        }
+        if self.phase == 4 && probe.replies.len() == 1 && probe.socket.is_none() {
+            send(client, 3, c::Ask::SetVisibility { project: 1, public: false });
+            self.phase = 5;
+        }
+        if self.phase == 5 && answered(client, &c::DocumentOutcome::VisibilitySet { project: 1, public: false }) {
+            probe.start(self.project.ok_or("me's public identifier")?);
+            self.phase = 6;
+        }
+        if self.phase == 6 && probe.replies.len() == 2 && probe.socket.is_none() {
+            probe.finished = true;
+            client.finish_account_sign_in();
+            self.phase = 7;
+        }
+        if self.phase == 7 && client.is_empty() {
+            service.0.shutdown();
+            self.phase = 8;
+        }
+
+        Ok(())
+    }
 }

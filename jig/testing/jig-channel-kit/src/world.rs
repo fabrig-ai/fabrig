@@ -294,7 +294,7 @@ pub(crate) fn answer_store(
     hold: bool,
     scenario: crate::stories::Story,
     now: skein_lib::Time,
-) {
+) -> Result<(), String> {
     host.holding = hold;
     host.corrupt_transcript = matches!(scenario, crate::stories::Story::InvalidTranscript);
     let names = if matches!(scenario, crate::stories::Story::Providers) {
@@ -302,7 +302,7 @@ pub(crate) fn answer_store(
     } else {
         fixtures::store_names()
     };
-    for commit in store.observe(&mut host.files.events, &host.codec, names, &host.store_limits.root.connector) {
+    for commit in store.check(&mut host.files.events, &host.codec, names, &host.store_limits.root.connector)? {
         for write in &commit.writes {
             if let root::Write::Save(row) = write {
                 match row {
@@ -311,7 +311,7 @@ pub(crate) fn answer_store(
                         rules.read(turn.task, turn.attempt, turn.read);
                     }
                     root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(answer))) => {
-                        answer_refusals(host, store, answer, rules);
+                        answer_refusals(host, store, answer, rules)?;
                         if answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Lost) {
                             rules.lost_ended(answer.task, answer.attempt, now);
                         } else {
@@ -330,6 +330,7 @@ pub(crate) fn answer_store(
             }
         }
     }
+    Ok(())
 }
 
 // An ended attempt drops its refusal marks; its refused messages remain in the durable inbox (domain/tasks/messages.md, 2).
@@ -338,7 +339,7 @@ fn answer_refusals(
     store: &Store,
     terminal: &core::TerminalRecord,
     rules: &mut crate::referee::Rules,
-) {
+) -> Result<(), String> {
     for (_, kind, bytes) in &host.wire.frames {
         if *kind != 0x0103 {
             continue;
@@ -347,7 +348,7 @@ fn answer_refusals(
             &jig_protocol_worker_wire::CEILINGS,
             &mut skein_lib::Reader::new(bytes),
         )
-        .expect("received terminal");
+        .map_err(|why| format!("received terminal: {why:?}"))?;
         if (answer.task(), answer.attempt()) != (terminal.task, terminal.attempt) {
             continue;
         }
@@ -362,13 +363,20 @@ fn answer_refusals(
                 }
                 root::Record::Core(_) | root::Record::Connector { .. } => false,
             });
-            assert!(retained, "refused message {} is retained in the durable terminal inbox", refused.name());
+            if !retained {
+                return Err(format!("refused message {} is retained in the durable terminal inbox", refused.name()));
+            }
             rules.message_refused(terminal.task, terminal.attempt, refused.name());
         }
     }
+    Ok(())
 }
 
-pub(crate) fn answer_parties(engine: &mut jig_test_service::Engine, party: &mut parties::Party, views: &mut Views) {
+pub(crate) fn answer_parties(
+    engine: &mut jig_test_service::Engine,
+    party: &mut parties::Party,
+    views: &mut Views,
+) -> Result<(), String> {
     while let Some(output) = engine.parties_out().pop() {
         match output {
             PartyOutput::Held(root::Delivery::Core(core::Held::PeopleReply { to, reply })) => {
@@ -389,7 +397,7 @@ pub(crate) fn answer_parties(engine: &mut jig_test_service::Engine, party: &mut 
                         people::Again::NotReady => parties::Again::NotReady,
                     }),
                     other @ (people::Reply::SignedOut | people::Reply::Outcome(_) | people::Reply::Refused(_)) => {
-                        panic!("one-chat reply {other:?}")
+                        return Err(format!("one-chat reply {other:?}"));
                     }
                 };
                 party.reply(to.into_token().raw(), reply);
@@ -403,8 +411,9 @@ pub(crate) fn answer_parties(engine: &mut jig_test_service::Engine, party: &mut 
                 }
                 if let core::documents::Document::Run(run) = &*document
                     && let Some(writing) = &run.writing
+                    && (writing.turn.turn <= run.committed_turn)
                 {
-                    assert!(writing.turn.turn > run.committed_turn, "committed turns have no writing");
+                    return Err(String::from("committed turns have no writing"));
                 }
                 engine.parties_in().push(core::Event::Delivered { watcher });
             }
@@ -413,70 +422,76 @@ pub(crate) fn answer_parties(engine: &mut jig_test_service::Engine, party: &mut 
                 engine.parties_in().push(core::Event::StreamDelivered { watcher });
             }
             PartyOutput::Busy(event) => {
-                let root::Event::Core(event) = *event else { panic!("party port busy with {event:?}") };
+                let root::Event::Core(event) = *event else { return Err(format!("party port busy with {event:?}")) };
                 engine.parties_in().push(event);
             }
             PartyOutput::Held(_) | PartyOutput::Now(_) => {}
         }
     }
+    Ok(())
 }
 
 pub(crate) fn diagnostics(procs: &[Proc]) -> String {
-    procs
-        .iter()
-        .filter_map(|proc| match proc {
-            Proc::Agent { errors, .. } => Some(String::from_utf8_lossy(&errors.bytes()).into_owned()),
-            Proc::Worker(host) => Some(format!(
-                "{:?}",
-                host.wire
+    check_diagnostics(procs).unwrap_or_else(|why| panic!("{why}"))
+}
+
+pub(crate) fn check_diagnostics(procs: &[Proc]) -> Result<String, String> {
+    let mut rendered = Vec::new();
+    for proc in procs {
+        match proc {
+            Proc::Agent { errors, .. } => rendered.push(String::from_utf8_lossy(&errors.bytes()).into_owned()),
+            Proc::Worker(host) => {
+                let endings: Vec<_> = host
+                    .wire
                     .frames
                     .iter()
-                    .filter_map(|(_, kind, bytes)| if *kind == 0x0103 {
-                        Some(
-                            jig_protocol_worker_wire::Answer::decode(
-                                &jig_protocol_worker_wire::CEILINGS,
-                                &mut skein_lib::Reader::new(bytes),
-                            )
-                            .expect("answer")
-                            .ending()
-                            .clone(),
+                    .filter(|(_, kind, _)| *kind == 0x0103)
+                    .map(|(_, _, bytes)| {
+                        jig_protocol_worker_wire::Answer::decode(
+                            &jig_protocol_worker_wire::CEILINGS,
+                            &mut skein_lib::Reader::new(bytes),
                         )
-                    } else {
-                        None
+                        .map(|answer| answer.ending().clone())
+                        .map_err(|why| format!("answer: {why:?}"))
                     })
-                    .collect::<Vec<_>>()
-            )),
-            Proc::Peer(peer) => Some(format!(
+                    .collect::<Result<_, _>>()?;
+                rendered.push(format!("{endings:?}"));
+            }
+            Proc::Peer(peer) => rendered.push(format!(
                 "{:?}",
                 peer.observations()
                     .iter()
                     .filter(|o| matches!(o, skein_fake_peers::llm::Observation::Answered { .. }))
                     .collect::<Vec<_>>()
             )),
-            Proc::Engine(host) => Some(format!(
-                "engine turns {:?}",
-                host.wire
+            Proc::Engine(host) => {
+                let turns: Vec<_> = host
+                    .wire
                     .frames
                     .iter()
-                    .filter_map(|(_, kind, bytes)| if *kind == 0x0101 {
-                        let t = jig_protocol_worker_wire::Turn::decode(
+                    .filter(|(_, kind, _)| *kind == 0x0101)
+                    .map(|(_, _, bytes)| {
+                        jig_protocol_worker_wire::Turn::decode(
                             &jig_protocol_worker_wire::CEILINGS,
                             &mut skein_lib::Reader::new(bytes),
                         )
-                        .expect("wire turn");
-                        Some((t.task(), t.attempt(), t.number(), t.spent(), *t.read(), t.opens_window()))
-                    } else {
-                        None
+                        .map(|t| (t.task(), t.attempt(), t.number(), t.spent(), *t.read(), t.opens_window()))
+                        .map_err(|why| format!("wire turn: {why:?}"))
                     })
-                    .collect::<Vec<_>>()
-            )),
-            Proc::Probe(_) | Proc::Auth(_) | Proc::Client(_) => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+                    .collect::<Result<_, _>>()?;
+                rendered.push(format!("engine turns {turns:?}"));
+            }
+            Proc::Probe(_) | Proc::Auth(_) | Proc::Client(_) => {}
+        }
+    }
+    Ok(rendered.join("\n"))
 }
 
 pub(crate) fn worker_wire(procs: &[Proc]) -> &processes::Wire {
+    check_worker_wire(procs).unwrap_or_else(|why| panic!("{why}"))
+}
+
+pub(crate) fn check_worker_wire(procs: &[Proc]) -> Result<&processes::Wire, String> {
     procs
         .iter()
         .find_map(|proc| match proc {
@@ -484,7 +499,7 @@ pub(crate) fn worker_wire(procs: &[Proc]) -> &processes::Wire {
             Proc::Probe(peer) => Some(&peer.wire),
             Proc::Engine(_) | Proc::Agent { .. } | Proc::Peer(_) | Proc::Auth(_) | Proc::Client(_) => None,
         })
-        .expect("worker's wire observations")
+        .ok_or_else(|| String::from("worker's wire observations"))
 }
 
 #[derive(Default)]
@@ -527,6 +542,7 @@ fn make_referee(
     calibrating_held_turn: bool,
 ) -> crate::referee::Referee {
     crate::referee::Referee {
+        finding: None,
         calibrating_held_turn,
         redial_ceiling: fixtures::worker_redial_ceiling(),
         store,
@@ -876,5 +892,26 @@ mod tests {
             "the horizon {horizon:?} leaves a margin after fleet grace {grace:?} and redial {redial:?}"
         );
         assert!(horizon >= skein_lib::Time::from_nanos(300_000_000_000), "300 s remains the floor");
+    }
+
+    #[test]
+    fn the_channel_world_returns_a_broken_safety_expectation() {
+        let mut referee = make_referee(
+            &fixtures::one_chat(b"Hello"),
+            false,
+            Rc::new(RefCell::new(Store::new())),
+            Rc::new(RefCell::new(Views::default())),
+            false,
+        );
+        referee.rules.turned(1, 1, 1);
+        referee.rules.turned(1, 1, 1);
+        let mut machine = skein_fake_machine::Machine::new();
+        let root = machine.lay(&[]);
+        let mut world =
+            skein_world::World::new(fixtures::SEED, skein_sim::Config::calm(), referee, skein_world::Memory::Unchecked)
+                .with_machine(Machine(machine));
+        world.spawn_root(skein_sim::Handle::new(root.raw()), processes::worker);
+        let Err(why) = world.try_run() else { panic!("a duplicate durable turn must fail the world") };
+        assert!(why.contains("a turn reaches the durable engine once"), "{why}");
     }
 }

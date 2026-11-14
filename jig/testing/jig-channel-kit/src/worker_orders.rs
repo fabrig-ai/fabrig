@@ -35,6 +35,7 @@ enum Cancel {
 }
 
 struct Judge {
+    finding: Option<String>,
     accounts: account_setup::Setup,
     party: jig_fake_parties::Party,
     store: Store,
@@ -48,98 +49,34 @@ struct Judge {
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
-        self.accounts.act(procs, Story::Chat, self.done);
-        if !self.done {
-            self.accounts.party(now, procs, &mut self.party, &mut self.views, Story::Chat);
-        }
-        if matches!(self.cancel, Cancel::AwaitCall)
-            && procs.iter().any(|proc| {
-                let Proc::Worker(host) = proc else { return false };
-                host.order_probe.as_ref().is_some_and(probe::Probe::waiting_for_cancel)
-            })
-        {
-            self.cancel = Cancel::Ready;
-        }
-        if matches!(self.cancel, Cancel::Ready) {
-            let assignment = procs.iter().find_map(|proc| {
-                let Proc::Engine(host) = proc else { return None };
-                host.wire.frames.iter().find_map(|(_, kind, bytes)| {
-                    (*kind == wire::Kind::Assignment.number()).then(|| {
-                        wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("assignment")
-                    })
-                })
-            });
-            if let Some(assignment) = assignment {
-                let client = procs
-                    .iter_mut()
-                    .find_map(|proc| if let Proc::Client(client) = proc { Some(client) } else { None })
-                    .expect("native owner");
-                client.account_request(jig_client::Event::Send {
-                    key: jig_client::Key { asker: jig_client::Asker(78), number: 99 },
-                    name: Some([99; 16]),
-                    request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Cancel {
-                        project: 1,
-                        task: assignment.task(),
-                        reason: jig_client::contract::Text::new(b"Stop".as_slice().into(), 512)
-                            .expect("bounded reason"),
-                        grace: None,
-                    })),
-                });
-                self.cancel = Cancel::Sent;
-            }
-        }
-        for proc in procs {
-            match proc {
-                Proc::Engine(host) => {
-                    world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now);
-                    let engine = host.service.engine().expect("engine");
-                    world::answer_parties(engine, &mut self.party, &mut self.views);
-                    if !self.period && self.party.sign_in.is_some() {
-                        engine.parties_in().push(core::Event::Period {
-                            project: 1,
-                            period: 1,
-                            budget: 100,
-                            next: None,
-                        });
-                        self.period = true;
-                    }
-                    if self.done && !host.stopping {
-                        host.stopping = true;
-                        host.service.shutdown();
-                    }
-                }
-                Proc::Worker(host) => {
-                    self.outcome.borrow_mut().admission_waits =
-                        host.service.worker(0).expect("worker").admission_waits();
-                    if let Some(probe) = &host.order_probe {
-                        self.outcome.borrow_mut().marker_passed = probe.marker_passed;
-                        self.outcome.borrow_mut().call_held = probe.call_held;
-                    }
-                    if self.done && !host.stopping {
-                        host.stopping = true;
-                        host.service.shutdown();
-                    }
-                }
-                Proc::Peer(peer) if self.done => peer.shutdown(),
-                Proc::Peer(_) | Proc::Agent { .. } | Proc::Client(_) | Proc::Auth(_) | Proc::Probe(_) => {}
-            }
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
     }
-    fn observe(&mut self, _now: Time, procs: &[Proc]) {
-        let worker = world::worker_wire(procs);
+    fn watch(&mut self, _now: Time, procs: &[Proc]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        let worker = world::check_worker_wire(procs)?;
         let mut outcome = self.outcome.borrow_mut();
         outcome.records = worker.frames.iter().map(|(_, kind, _)| *kind).collect();
         outcome.turns = worker
             .frames
             .iter()
             .filter(|(_, kind, _)| *kind == wire::Kind::Turn.number())
-            .map(|(_, _, bytes)| wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("turn"))
-            .collect();
+            .map(|(_, _, bytes)| {
+                wire::Turn::decode(&wire::CEILINGS, &mut Reader::new(bytes)).map_err(|why| format!("turn: {why:?}"))
+            })
+            .collect::<Result<_, _>>()?;
         outcome.answers = worker
             .frames
             .iter()
             .filter(|(_, kind, _)| *kind == wire::Kind::Answer.number())
-            .map(|(_, _, bytes)| wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(bytes)).expect("answer"))
+            .map(|(_, _, bytes)| {
+                wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(bytes)).map_err(|why| format!("answer: {why:?}"))
+            })
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
             .filter(|answer| answer.task() != probe::OTHER_RUN)
             .collect();
         outcome.acknowledgements = worker.acknowledgements.iter().filter(|(run, _)| *run != probe::OTHER_RUN).count();
@@ -149,13 +86,19 @@ impl skein_world::Referee<Proc> for Judge {
             outcome.starts_after_cancel = outcome.starts.saturating_sub(before);
         }
         self.done = outcome.acknowledgements == 1;
+        Ok(())
     }
     fn overdue(&self, now: Time) -> Option<String> {
-        (now > Time::ZERO.saturating_add(Duration::from_secs(45)))
-            .then(|| format!("worker order settles: {:?}; {}", self.outcome.borrow(), world::diagnostics(&[])))
+        (now > Time::ZERO.saturating_add(Duration::from_secs(45))).then(|| {
+            format!(
+                "worker order settles: {:?}; {}",
+                self.outcome.borrow(),
+                world::check_diagnostics(&[]).unwrap_or_else(|why| why)
+            )
+        })
     }
     fn passed(&self) -> bool {
-        self.done
+        self.finding.is_none() && self.done
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::LastExpectation
@@ -204,6 +147,7 @@ fn run_story(cancel: bool, calls: bool) -> Outcome {
     }
     let outcome = Rc::new(RefCell::new(Outcome::default()));
     let judge = Judge {
+        finding: None,
         accounts: account_setup::Setup::default(),
         party: jig_fake_parties::Party::new(1, jig_fake_parties::Role::Owner, 100, fixtures::party_script(&script)),
         store: Store::default(),
@@ -265,4 +209,89 @@ fn run_story(cancel: bool, calls: bool) -> Outcome {
     let settled = harness.run();
     crate::referee::roots_at_end(&settled.procs);
     Rc::try_unwrap(outcome).expect("judge released").into_inner()
+}
+
+impl Judge {
+    fn check_act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
+        self.accounts.act(procs, Story::Chat, self.done)?;
+        if !self.done {
+            self.accounts.party(now, procs, &mut self.party, &mut self.views, Story::Chat)?;
+        }
+        if matches!(self.cancel, Cancel::AwaitCall)
+            && procs.iter().any(|proc| {
+                let Proc::Worker(host) = proc else { return false };
+                host.order_probe.as_ref().is_some_and(probe::Probe::waiting_for_cancel)
+            })
+        {
+            self.cancel = Cancel::Ready;
+        }
+        if matches!(self.cancel, Cancel::Ready) {
+            let assignment = procs.iter().find_map(|proc| {
+                let Proc::Engine(host) = proc else { return None };
+                host.wire.frames.iter().find_map(|(_, kind, bytes)| {
+                    (*kind == wire::Kind::Assignment.number()).then(|| {
+                        wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(bytes))
+                            .map_err(|why| format!("assignment: {why:?}"))
+                    })
+                })
+            });
+            if let Some(assignment) = assignment {
+                let assignment = assignment?;
+                let client = procs
+                    .iter_mut()
+                    .find_map(|proc| if let Proc::Client(client) = proc { Some(client) } else { None })
+                    .ok_or("native owner")?;
+                client.account_request(jig_client::Event::Send {
+                    key: jig_client::Key { asker: jig_client::Asker(78), number: 99 },
+                    name: Some([99; 16]),
+                    request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Cancel {
+                        project: 1,
+                        task: assignment.task(),
+                        reason: jig_client::contract::Text::new(b"Stop".as_slice().into(), 512)
+                            .map_err(|why| format!("bounded reason: {why:?}"))?,
+                        grace: None,
+                    })),
+                });
+                self.cancel = Cancel::Sent;
+            }
+        }
+        for proc in procs {
+            match proc {
+                Proc::Engine(host) => {
+                    world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now)?;
+                    let engine = host.service.engine().ok_or("engine")?;
+                    world::answer_parties(engine, &mut self.party, &mut self.views)?;
+                    if !self.period && self.party.sign_in.is_some() {
+                        engine.parties_in().push(core::Event::Period {
+                            project: 1,
+                            period: 1,
+                            budget: 100,
+                            next: None,
+                        });
+                        self.period = true;
+                    }
+                    if self.done && !host.stopping {
+                        host.stopping = true;
+                        host.service.shutdown();
+                    }
+                }
+                Proc::Worker(host) => {
+                    self.outcome.borrow_mut().admission_waits =
+                        host.service.worker(0).ok_or("worker")?.admission_waits();
+                    if let Some(probe) = &host.order_probe {
+                        self.outcome.borrow_mut().marker_passed = probe.marker_passed;
+                        self.outcome.borrow_mut().call_held = probe.call_held;
+                    }
+                    if self.done && !host.stopping {
+                        host.stopping = true;
+                        host.service.shutdown();
+                    }
+                }
+                Proc::Peer(peer) if self.done => peer.shutdown(),
+                Proc::Peer(_) | Proc::Agent { .. } | Proc::Client(_) | Proc::Auth(_) | Proc::Probe(_) => {}
+            }
+        }
+
+        Ok(())
+    }
 }

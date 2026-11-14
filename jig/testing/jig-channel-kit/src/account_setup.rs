@@ -43,19 +43,19 @@ impl Setup {
         clippy::too_many_lines,
         reason = "one public client handshake serializes source setup before admitting the task"
     )]
-    pub(crate) fn act(&mut self, procs: &mut [Proc], story: Story, done: bool) {
+    pub(crate) fn act(&mut self, procs: &mut [Proc], story: Story, done: bool) -> Result<(), String> {
         let link = if self.linked { None } else { ready_link(procs) };
         let Some(client) = procs.iter_mut().find_map(|p| if let Proc::Client(c) = p { Some(c) } else { None }) else {
-            return;
+            return Ok(());
         };
         if let Some(link) = link {
-            client.sign_in(&link).expect("printed fixture link");
+            client.sign_in(&link).map_err(|why| format!("printed fixture link: {why:?}"))?;
             self.linked = true;
         }
         if done && !self.finished {
             client.finish_account_sign_in();
             self.finished = true;
-            return;
+            return Ok(());
         }
         if self.phase == 0 && client.account_sign_in_ready() {
             let value = if matches!(story, Story::Key { .. }) { crate::fixtures::KEY } else { crate::fixtures::TOKEN };
@@ -105,7 +105,7 @@ impl Setup {
                 | c::DocumentOutcome::AccountProgramDeclared { source, .. },
             )) = answer
             else {
-                panic!("fixture source admitted: {answer:?}");
+                return Err(format!("fixture source admitted: {answer:?}"));
             };
             if !matches!(self.kind, SourceKind::ProgramAndKey) || self.source.is_none() {
                 self.source = Some(*source);
@@ -149,6 +149,7 @@ impl Setup {
             client.idle_fixture_view();
             self.quiet = true;
         }
+        Ok(())
     }
     pub(crate) fn party(
         &mut self,
@@ -157,13 +158,15 @@ impl Setup {
         party: &mut jig_fake_parties::Party,
         views: &mut crate::world::Views,
         story: Story,
-    ) {
+    ) -> Result<(), String> {
         use jig_fake_parties::{Ask, Reply, Task, Up};
         if !self.ready() || matches!(story, Story::Cuts { .. }) {
-            return;
+            return Ok(());
         }
-        let client =
-            procs.iter_mut().find_map(|p| if let Proc::Client(c) = p { Some(c) } else { None }).expect("native client");
+        let client = procs
+            .iter_mut()
+            .find_map(|p| if let Proc::Client(c) = p { Some(c) } else { None })
+            .ok_or("native client")?;
         let answers: Vec<_> = client
             .received
             .iter()
@@ -184,12 +187,12 @@ impl Setup {
             })
             .collect();
         for reply in &answers[self.work_answers..] {
-            party.reply(self.work_to.take().expect("one scripted request"), reply.clone());
+            party.reply(self.work_to.take().ok_or("one scripted request")?, reply.clone());
         }
         self.work_answers = answers.len();
-        observe(client, views);
+        observe(client, views)?;
         let Some(up) = self.work_pending.take().or_else(|| party.tick(now)) else {
-            return;
+            return Ok(());
         };
         let (to, name, ask) = match &up {
             Up::SignIn { to, .. } => {
@@ -197,10 +200,10 @@ impl Setup {
                     .received
                     .iter()
                     .find_map(|r| if let Received::SignedIn { person } = r { Some(*person) } else { None })
-                    .expect("real native sign-in");
+                    .ok_or("real native sign-in")?;
                 // The script only needs an authenticated marker; the native client owns the credential.
                 party.reply(*to, Reply::SignedIn { person, sign_in: 1 });
-                return;
+                return Ok(());
             }
             Up::Request { to, project, key, ask: Ask::Chat { words }, .. } => {
                 let Some(me) = client
@@ -210,30 +213,30 @@ impl Setup {
                     .find_map(|r| if let Received::Delivery(c::Delivery::Me(me)) = r { Some(me) } else { None })
                 else {
                     self.work_pending = Some(up);
-                    return;
+                    return Ok(());
                 };
-                let Ok(mut ask) = jig_client::shapes::chat(me, *project, text(words)) else {
+                let Ok(mut ask) = jig_client::shapes::chat(me, *project, text(words)?) else {
                     self.work_pending = Some(up);
-                    return;
+                    return Ok(());
                 };
                 if let c::Ask::Create { tasks, .. } = &mut ask {
-                    let task = tasks.get_mut(0).expect("chat");
+                    let task = tasks.get_mut(0).ok_or("chat")?;
                     if matches!(story, Story::ApplicationGeneration) {
                         task.spec.parameters = skein_lib::List::with_capacity(1);
                         task.spec
                             .parameters
                             .push(c::Parameter::Resource { name: 1, connector: 1, resource: 1 })
-                            .expect("bounded fixture value");
+                            .map_err(|why| format!("bounded fixture value: {why:?}"))?;
                     }
                     if matches!(story, Story::Providers) {
                         let mut subagents = skein_lib::List::with_capacity(1);
                         subagents
-                            .push(c::ModelEffort { model: text(b"other"), effort: None })
-                            .expect("bounded fixture value");
+                            .push(c::ModelEffort { model: text(b"other")?, effort: None })
+                            .map_err(|why| format!("bounded fixture value: {why:?}"))?;
                         task.llm = Some(c::LlmChoice {
                             later: None,
                             account: None,
-                            main: c::ModelEffort { model: text(b"fake"), effort: None },
+                            main: c::ModelEffort { model: text(b"fake")?, effort: None },
                             subagents,
                         });
                     }
@@ -243,12 +246,12 @@ impl Setup {
             Up::Request { to, project, key, ask: Ask::Say { task, words, release: None }, .. } => {
                 let task = match task {
                     Task::Number(number) => *number,
-                    Task::Last => party.last_task.expect("created chat"),
-                    Task::Waiting => panic!("channel has no person tasks"),
+                    Task::Last => party.last_task.ok_or("created chat")?,
+                    Task::Waiting => return Err(String::from("channel has no person tasks")),
                 };
-                (*to, *key, c::Ask::Message { project: *project, task, words: text(words) })
+                (*to, *key, c::Ask::Message { project: *project, task, words: text(words)? })
             }
-            Up::Request { .. } => panic!("channel public request {up:?}"),
+            Up::Request { .. } => return Err(format!("channel public request {up:?}")),
         };
         client.account_request(jig_client::Event::Send {
             key: Key { asker: Asker(78), number: to },
@@ -256,18 +259,20 @@ impl Setup {
             request: jig_client::Ask::Jig(Box::new(ask)),
         });
         self.work_to = Some(to);
+        Ok(())
     }
-    pub(crate) fn replace(&self, procs: &mut [Proc]) {
+    pub(crate) fn replace(&self, procs: &mut [Proc]) -> Result<(), String> {
         let Some(client) = procs.iter_mut().find_map(|p| if let Proc::Client(c) = p { Some(c) } else { None }) else {
-            panic!("fixture client");
+            return Err(String::from("fixture client"));
         };
         client.account_request(accounts::replace_key(
             key(3),
             [73; 16],
             c::AskAccountHolder::Deployment,
-            self.source.expect("kept key"),
+            self.source.ok_or("kept key")?,
             Secret::new(crate::fixtures::NEXT_KEY.into()),
         ));
+        Ok(())
     }
 }
 fn ready_link(procs: &mut [Proc]) -> Option<Box<[u8]>> {
@@ -287,11 +292,14 @@ fn key(number: u64) -> Key {
     Key { asker: Asker(77), number }
 }
 
-fn text(value: &[u8]) -> c::Text {
-    c::Text::new(value.into(), 512).expect("bounded fixture value")
+fn text(value: &[u8]) -> Result<c::Text, String> {
+    c::Text::new(value.into(), 512).map_err(|why| format!("bounded fixture value: {why:?}"))
 }
 
-fn observe(client: &jig_client_protocol_kit::native::NativeClient, views: &mut crate::world::Views) {
+fn observe(
+    client: &jig_client_protocol_kit::native::NativeClient,
+    views: &mut crate::world::Views,
+) -> Result<(), String> {
     if let Some(text) = client.text(crate::live_text::RUN) {
         views.text_bytes = views.text_bytes.max(text.text.bytes().len());
     }
@@ -304,11 +312,14 @@ fn observe(client: &jig_client_protocol_kit::native::NativeClient, views: &mut c
                 views.text_bytes = views.text_bytes.max(text.text.bytes().len());
             }
             Received::Delivery(c::Delivery::RunState(state)) => {
-                if let Some(writing) = &state.writing {
-                    assert!(writing.turn.number > state.committed_turn, "committed turns have no writing");
+                if let Some(writing) = &state.writing
+                    && (writing.turn.number <= state.committed_turn)
+                {
+                    return Err(String::from("committed turns have no writing"));
                 }
             }
             _ => {}
         }
     }
+    Ok(())
 }

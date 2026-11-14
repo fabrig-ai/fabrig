@@ -192,28 +192,22 @@ impl Delegate for Process {
     }
 }
 struct Judge {
+    finding: Option<String>,
     stopped: bool,
     passed: bool,
 }
 impl Referee<Process> for Judge {
-    fn act(&mut self, _: Time, procs: &mut [Process]) {
-        let [Process::Binary(binary), Process::Reader(reader)] = procs else { panic!("bundle world") };
-        if reader.finished && !self.stopped {
-            binary.signal(Signal::Terminate);
-            self.stopped = true;
-        }
-        if let Some(exit) = binary.exit_status() {
-            assert!(
-                reader.finished,
-                "jig-test exited before the page: {:?}: {}",
-                exit,
-                String::from_utf8_lossy(binary.stderr())
-            );
-            assert_eq!(exit, Exit::Code(0), "bundle server exits cleanly");
-            self.passed = true;
+    fn act(&mut self, now: Time, procs: &mut [Process]) {
+        if self.finding.is_none() {
+            self.finding = self.check_act(now, procs).err();
         }
     }
-    fn observe(&mut self, _: Time, _: &[Process]) {}
+    fn watch(&mut self, _: Time, _: &[Process]) -> Result<(), String> {
+        if let Some(why) = &self.finding {
+            return Err(why.clone());
+        }
+        Ok(())
+    }
     fn next_deadline(&self) -> Option<Time> {
         None
     }
@@ -221,7 +215,7 @@ impl Referee<Process> for Judge {
         None
     }
     fn passed(&self) -> bool {
-        self.passed
+        self.finding.is_none() && self.passed
     }
 }
 
@@ -231,7 +225,7 @@ pub fn page(directory: &Path) -> (u16, Vec<(String, String)>, Vec<u8>) {
     let streams = binary.take_streams().expect("binary pipes");
     let fds = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { panic!("pipes mode") };
-    let mut world = real::World::new(Judge { stopped: false, passed: false });
+    let mut world = real::World::new(Judge { finding: None, stopped: false, passed: false });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || Process::Reader(Box::new(Reader::new(input, output))));
     // The real loop's Deadline classifies an unanswered startup, socket
@@ -262,4 +256,36 @@ fn response(bytes: &[u8]) -> (u16, Vec<(String, String)>, Vec<u8>) {
     let mut body = vec![0; length];
     reader.read_exact(&mut body).expect("HTTP body");
     (status, headers, body)
+}
+
+impl Judge {
+    fn check_act(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
+        let [Process::Binary(binary), Process::Reader(reader)] = procs else {
+            return Err(String::from("bundle world"));
+        };
+        if reader.finished && !self.stopped {
+            binary.signal(Signal::Terminate);
+            self.stopped = true;
+        }
+        if let Some(exit) = binary.exit_status() {
+            if !reader.finished {
+                return Err(format!(
+                    "jig-test exited before the page: {:?}: {}",
+                    exit,
+                    String::from_utf8_lossy(binary.stderr())
+                ));
+            }
+            {
+                let (observed_value, wanted) = (&(exit), &(Exit::Code(0)));
+                if observed_value != wanted {
+                    return Err(format!(
+                        "bundle server exits cleanly; assertion `left == right` failed: left: {observed_value:?}, right: {wanted:?}"
+                    ));
+                }
+            }
+            self.passed = true;
+        }
+
+        Ok(())
+    }
 }

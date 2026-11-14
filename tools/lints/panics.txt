@@ -67,8 +67,6 @@ jig/testing/jig-core-kit/src/conformance.rs catch_unwind 1
 jig/testing/jig-tasks-kit/src/world.rs catch_unwind 1
 jig/testing/jig-test-store-files/src/store/tests.rs should_panic 5
 jig/testing/jig-test-store-files/src/tests/routes.rs should_panic 1
-jig/testing/jig-test/tests/live.rs catch_unwind 1
-jig/testing/jig-test/tests/live.rs resume_unwind 1
 jig/tests/accounts/tests/suite/simulation.rs should_panic 1
 jig/tests/client-protocol/tests/suite/fuzzy/public_path.rs catch_unwind 3
 jig/tests/client-wire/tests/suite/fuzzy/public_wire.rs catch_unwind 2
