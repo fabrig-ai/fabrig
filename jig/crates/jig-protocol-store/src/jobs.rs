@@ -19,11 +19,17 @@ pub struct KeyRange {
     pub from: &'static [u8],
     pub to: &'static [u8],
 }
+#[derive(Clone, Copy, Debug)]
+pub struct JobEdge {
+    pub writes: u32,
+    pub bytes: u32,
+}
 #[derive(Debug)]
 pub struct JobPage {
     pub rows: Box<[JobRow]>,
     pub end: bool,
     pub layout: Option<JobLayout>,
+    pub edge: JobEdge,
 }
 #[derive(Debug)]
 pub struct JobRow {

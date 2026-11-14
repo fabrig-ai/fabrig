@@ -1,8 +1,8 @@
 //! Jobs follow patches and closed windows, before the seal (protocol/store/jobs.md, 2–3).
 use super::{Patching, refuse, sealing, state, take};
 use crate::{
-    Below, Cursor, Event, Job, JobAnswer, JobPage, JobRefusal, JobRow, JobWrite, Limits, OpenRefusal, Owner, Store,
-    commits, keys, open, pages,
+    Below, Cursor, Event, Job, JobAnswer, JobEdge, JobPage, JobRefusal, JobRow, JobWrite, Limits, OpenRefusal, Owner,
+    Store, commits, keys, open, pages,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, length::len_u64};
@@ -161,6 +161,7 @@ fn load(store: &mut Store, running: &mut Running, above: &mut Queue<Event>) -> O
         of,
         job: Box::from(job.name),
         page: JobPage {
+            edge: edge(store, of, &job, store.stores.store.last().checked_add(1)?)?,
             rows: rows.into_boxed(),
             end,
             layout: if running.first {
@@ -265,12 +266,25 @@ fn consumed(owner: Owner, rows: &[pages::WalkRow], through: Option<Box<[u8]>>) -
         }
     }
 }
-fn size(op: &skein_kv::Op) -> Option<u64> {
-    let key = u32::try_from(op.key().len()).ok()?;
+fn size(op: &skein_kv::Op, key: &[u8]) -> Option<u64> {
+    let key = u32::try_from(key.len()).ok()?;
     Some(u64::from(match op {
         skein_kv::Op::Put { value, .. } => skein_kv::put_bytes(key, u32::try_from(value.len()).ok()?)?,
         skein_kv::Op::Erase { .. } => skein_kv::erase_bytes(key)?,
     }))
+}
+fn edge(store: &Store, of: Owner, job: &Job, number: u64) -> Option<JobEdge> {
+    let writes = store.limits.commits.writes.min(store.limits.store.ops).checked_sub(1)?;
+    let done = crate::jobs::kept::operation(store, of, job, number)?;
+    let tag = u32::try_from(whole(store, of, &[])?.len()).ok()?;
+    let bytes = store
+        .limits
+        .store
+        .commit
+        .checked_sub(skein_kv::FRAME_BYTES)?
+        .checked_sub(u32::try_from(size(&done, done.key())?).ok()?)?
+        .checked_sub(tag.checked_mul(writes)?)?;
+    Some(JobEdge { writes, bytes })
 }
 fn operations(
     store: &Store,
@@ -280,15 +294,12 @@ fn operations(
     number: u64,
     end: bool,
 ) -> Result<Box<[skein_kv::Op]>, JobRefusal> {
-    let bound = invalid(None, "job answer is past the store commit edge");
-    let count = len_u64(writes.len()).checked_add(1).ok_or(bound)?;
-    if count > u64::from(store.limits.commits.writes.min(store.limits.store.ops)) {
+    let edge = edge(store, of, job, number).ok_or(invalid(None, "job row does not fit the store commit edge"))?;
+    if len_u64(writes.len()) > u64::from(edge.writes) {
         return Err(invalid(None, "job answer is past the store commit edge"));
     }
     let done = crate::jobs::kept::operation(store, of, job, number).ok_or(invalid(None, "job row does not fit"))?;
-    let mut bytes = u64::from(skein_kv::FRAME_BYTES)
-        .checked_add(size(&done).ok_or(invalid(None, "job row does not fit"))?)
-        .ok_or(invalid(None, "job row does not fit"))?;
+    let mut bytes = 0_u64;
     let mut ops = List::with_capacity(store.limits.store.ops);
     for write in writes {
         let op = match write {
@@ -304,12 +315,12 @@ fn operations(
                 skein_kv::Op::Erase { key: whole }
             }
         };
-        bytes = bytes
-            .checked_add(size(&op).ok_or(invalid(None, "job write does not fit"))?)
-            .ok_or(invalid(None, "job write does not fit"))?;
+        let key = relative(of, op.key()).ok_or(invalid(None, "job key has no owner"))?;
+        let size = size(&op, key).ok_or(invalid(None, "job write does not fit"))?;
+        bytes = bytes.checked_add(size).ok_or(invalid(None, "job write does not fit"))?;
         ops.push(op).expect("answer count checked");
     }
-    if bytes > u64::from(store.limits.store.commit) {
+    if bytes > u64::from(edge.bytes) {
         return Err(invalid(None, "job answer is past the store commit byte bound"));
     }
     if end {
