@@ -2,11 +2,6 @@
 
 2026-11-14. Where the tree's code lags or departs from [fake-machine.md](fake-machine.md).
 
-- **Not yet:** 1: the checks of a handle and of a process have no
-  returning form, so their tests are `#[should_panic]`, and the ledger's
-  test fills it one past its size; 6: the fake mmdebstrap's check
-  panics on an invocation outside its model rather than returning its
-  finding. [in flight: change 3255]
 - **Not yet:** 2: the shared fake machine's full file metadata and kinds,
   snapshot sharing, subvolume inode rules and all path-resolution flags;
   the richer walk fixtures in
