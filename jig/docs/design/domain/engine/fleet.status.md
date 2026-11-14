@@ -1,9 +1,10 @@
 # fleet: status
 
-2026-11-13. Where the tree's code lags or departs from [fleet.md](fleet.md).
+2026-11-14. Where the tree's code lags or departs from [fleet.md](fleet.md).
 
 
 
+- **Not yet:** the whole document: no `needs_fit` or `NeedsPast`; needs past their bound are the fleet's assertion, with nothing refusing them first. [in flight: change 3112]
 - **Not yet:** the whole document: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance.  the point-load fences remain `README.status.md`, 4.2 and 5.3.
