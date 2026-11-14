@@ -337,33 +337,105 @@ fn sign_in_keeps_its_record_before_success() {
     let mut f = fixtures::Disk::sign_in(fixtures::LINK);
     f.answer_sign_in_then_me();
     assert_eq!(f.exit(), None);
+    assert_eq!(f.stored(b"party"), None, "no party before the token and address are durable");
+    assert!(!f.opened(b"party"), "an empty token does not read party");
     f.store_token_with_address();
     assert_eq!(f.stored(b"address"), Some(b"http://127.0.0.1:4000\n".as_slice()));
     assert_eq!(f.stored(b"token"), Some(fixtures::TOKEN_BYTES));
+    assert_eq!(f.stored(b"party"), Some(b"7\n".as_slice()));
+    assert_eq!(f.stored_modes.get(b"party".as_slice()), Some(&0o600));
+    assert!(f.link_bearers.iter().all(Option::is_none));
     assert_eq!(f.exit(), Some(Exit::Code(0)));
 }
 #[test]
-fn a_kept_sign_in_stores_the_fresh_address_without_writing_the_token() {
+fn a_signed_in_directory_refuses_a_link_without_spending_it() {
     let mut f = fixtures::Disk::sign_in(fixtures::LINK);
     f.address = b"http://127.0.0.1:3999\n";
-    f.keep_link = Some(());
     f.token = fixtures::TOKEN_BYTES;
-    f.answer_sign_in_then_me();
-    assert_eq!(f.exit(), None, "address must be durable before success");
-    f.store_token_with_address();
-    assert_eq!(f.stored(b"address"), Some(b"http://127.0.0.1:4000\n".as_slice()));
-    assert_eq!(f.stored(b"token"), None, "the loaded token is never written");
-    assert_eq!(f.host.root.client().link().credential.map(skein_lib::Secret::expose), Some(fixtures::TOKEN_BYTES));
-    assert_eq!(f.exit(), Some(Exit::Code(0)));
-    let mut ordinary = fixtures::Disk::sign_in(fixtures::LINK);
-    ordinary.answer_sign_in_then_me();
-    ordinary.store_token_with_address();
-    assert_eq!(f.stdout(), ordinary.stdout(), "usual success output");
-    assert_eq!(f.stderr(), ordinary.stderr());
-    assert_eq!(f.link_bearers.len(), 1, "the link offers a held bearer");
-    assert_eq!(f.link_bearers[0].as_deref(), Some(fixtures::TOKEN_BYTES));
+    f.party = Some(b"7\n");
+    f.drain();
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stderr(), b"temper ctl: DIRECTORY is signed in as party 7; this link is not spent: sign out first, temper ctl DIRECTORY sign-out, or sign in to another directory\n");
+    assert_eq!(f.stdout(), b"");
+    assert_eq!(f.requests(), 0);
+    assert_eq!(f.link_posts.len(), 0);
+    assert_eq!(f.stored(b"token"), None);
+    assert_eq!(f.stored(b"address"), None);
+    assert_eq!(f.stored(b"party"), None);
+    assert_eq!(f.token, fixtures::TOKEN_BYTES);
+    assert_eq!(f.address, b"http://127.0.0.1:3999\n");
+    assert_eq!(f.party, Some(b"7\n".as_slice()));
 }
 
+#[test]
+fn a_signed_in_directory_without_a_readable_decimal_party_still_refuses() {
+    for (party, error) in [
+        (None, None),
+        (Some(b"not a party\n".as_slice()), None),
+        (Some(b"7\n8\n".as_slice()), None),
+        (Some(b"7".as_slice()), None),
+        (Some(b"+7\n".as_slice()), None),
+        (Some(b"\n".as_slice()), None),
+        (Some(b"18446744073709551616\n".as_slice()), None),
+        (Some(b"000000000000000000007\n".as_slice()), None),
+        (Some(b"7\n".as_slice()), Some(skein_io::kernel::Error::Permission)),
+    ] {
+        let mut f = fixtures::Disk::sign_in(fixtures::LINK);
+        f.token = fixtures::TOKEN_BYTES;
+        f.party = party;
+        f.party_error = error;
+        f.drain();
+        assert_eq!(f.exit(), Some(Exit::Code(1)), "{party:?}, {error:?}");
+        assert_eq!(f.stderr(), b"temper ctl: DIRECTORY is signed in; this link is not spent: sign out first, temper ctl DIRECTORY sign-out, or sign in to another directory\n");
+        assert_eq!(f.requests(), 0);
+        assert_eq!(f.stored(b"token"), None);
+        assert_eq!(f.stored(b"address"), None);
+        assert_eq!(f.stored(b"party"), None);
+    }
+}
+#[test]
+fn a_signed_in_directory_reads_the_largest_party() {
+    let mut f = fixtures::Disk::sign_in(fixtures::LINK);
+    f.token = fixtures::TOKEN_BYTES;
+    f.party = Some(b"18446744073709551615\n");
+    f.drain();
+    assert_eq!(f.stderr(), b"temper ctl: DIRECTORY is signed in as party 18446744073709551615; this link is not spent: sign out first, temper ctl DIRECTORY sign-out, or sign in to another directory\n");
+    assert_eq!(f.requests(), 0);
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+}
+#[test]
+fn a_party_write_failure_is_named_before_success_prints() {
+    let mut f = fixtures::Disk::sign_in(fixtures::LINK);
+    f.fail_party = true;
+    f.answer_sign_in_then_me();
+    f.store_token_with_address();
+    assert_eq!(f.stored(b"token"), Some(fixtures::TOKEN_BYTES));
+    assert_eq!(f.stored(b"address"), Some(b"http://127.0.0.1:4000\n".as_slice()));
+    assert_eq!(f.stored(b"party"), None);
+    assert_eq!(f.stdout(), b"");
+    assert_eq!(f.stderr(), b"temper ctl: DIRECTORY could not be written: party: Permission\n");
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+}
+#[test]
+fn the_engine_names_each_link_refusal_without_writing_files() {
+    use jig_client_protocol_wire::SignInAnswer;
+    for (answer, line) in [
+        (SignInAnswer::LinkUsed, b"temper ctl: the sign-in link was refused: it was already used; temper-box serve prints a fresh one\n".as_slice()),
+        (SignInAnswer::LinkExpired, b"temper ctl: the sign-in link was refused: it has expired; temper-box serve prints a fresh one\n".as_slice()),
+        (SignInAnswer::LinkUnknown, b"temper ctl: the sign-in link was refused: temper does not know it, as another deployment's link or one it no longer remembers; temper-box serve prints a fresh one\n".as_slice()),
+        (SignInAnswer::Refused, b"temper ctl: the sign-in link was refused\n".as_slice()),
+    ] {
+        let mut f = fixtures::Disk::sign_in(fixtures::LINK);
+        f.link_refusal = Some(answer);
+        f.answer_sign_in_then_me();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(f.stdout(), b"");
+        assert_eq!(f.stderr(), line);
+        assert_eq!(f.stored(b"token"), None);
+        assert_eq!(f.stored(b"address"), None);
+        assert_eq!(f.stored(b"party"), None);
+    }
+}
 #[test]
 fn a_non_loopback_link_exits_1_before_sending() {
     let mut f = fixtures::Disk::sign_in(
@@ -378,7 +450,6 @@ fn a_non_loopback_link_exits_1_before_sending() {
 fn a_refused_link_never_prints_its_secret() {
     let mut f = fixtures::Disk::sign_in(fixtures::LINK);
     f.refuse_link = Some(());
-    f.token = fixtures::TOKEN_BYTES;
     f.answer_sign_in_then_me();
     assert_eq!(f.stdout(), b"");
     assert_eq!(f.stderr(), b"temper ctl: the sign-in link was refused\n");
@@ -390,7 +461,6 @@ fn a_refused_link_never_prints_its_secret() {
 fn a_full_link_exits_one_without_writing_token_or_address() {
     let mut f = fixtures::Disk::sign_in(fixtures::LINK);
     f.full_link = Some((2, skein_lib::Wall::EPOCH, skein_lib::Wall::from_nanos(300_000_000_000)));
-    f.token = fixtures::TOKEN_BYTES;
     f.answer_sign_in_then_me();
     assert_eq!(f.exit(), Some(Exit::Code(1)));
     assert_eq!(f.stdout(), b"");
@@ -404,7 +474,7 @@ fn a_busy_link_retries_the_same_link_and_token_then_signs_in() {
     let mut f = fixtures::Disk::act(&[b"sign-in", b"-"]);
     f.input = fixtures::LINK;
     f.busy_links = 1;
-    f.token = b"9876543210987654321098765432109876543210";
+    f.token = b"";
     f.answer_sign_in_then_me();
     assert_eq!(f.next_deadline(), Some(skein_lib::Time::ZERO.saturating_add(SIGN_IN_FIRST)));
     assert_eq!(f.link_posts.len(), 1);
@@ -413,7 +483,7 @@ fn a_busy_link_retries_the_same_link_and_token_then_signs_in() {
     f.advance_past(SIGN_IN_FIRST);
     assert_eq!(f.link_posts.len(), 2);
     assert_eq!(f.link_posts[0], f.link_posts[1]);
-    assert_eq!(f.link_bearers[0].as_deref(), Some(f.token));
+    assert_eq!(f.link_bearers[0].as_deref(), None);
     assert_eq!(f.link_bearers[0], f.link_bearers[1]);
     assert_eq!(f.stored(b"token"), Some(fixtures::TOKEN_BYTES));
     assert_eq!(f.stderr(), b"");
@@ -566,6 +636,7 @@ fn a_chat_answer_waits_for_its_erase() {
 #[test]
 fn sign_in_reads_its_file_beneath_the_file_root() {
     let mut f = fixtures::Disk::act(&[b"sign-in", b"/elsewhere/link"]);
+    f.token = b"";
     f.answer_sign_in_then_me();
     assert_eq!(f.link_root, Some(fixtures::FILE_PARENT));
     assert_eq!(f.link_leaf.as_deref(), Some(b"link".as_slice()));
@@ -628,6 +699,57 @@ fn sign_out_waits_for_the_empty_token_stored() {
     f.store_token_with_address();
     assert_eq!(f.stored(b"token"), Some(b"".as_slice()));
     assert_eq!(f.exit(), Some(Exit::Code(0)));
+}
+#[test]
+fn sign_out_empties_a_refused_token_when_the_engine_answers() {
+    let mut f = fixtures::Disk::act(&[b"sign-out"]);
+    f.refuse_token = true;
+    f.hold_stores = Some(());
+    f.drain();
+    assert_eq!(f.exit(), None, "the empty token must be durable");
+    assert_eq!(f.stored(b"token"), None);
+    f.store_token_with_address();
+    assert_eq!(f.stored(b"token"), Some(b"".as_slice()));
+    assert_eq!(f.exit(), Some(Exit::Code(0)), "no deadline advance needed");
+    assert_eq!(f.stdout(), b"");
+    assert_eq!(f.stderr(), b"");
+}
+#[test]
+fn sign_out_without_an_answer_keeps_the_token() {
+    for listening in [false, true] {
+        let mut f = fixtures::Disk::act(&[b"sign-out"]);
+        f.refuse_connections = !listening;
+        if listening {
+            f.quiet.push(b"/jig/v1/stream");
+        }
+        f.drain();
+        if listening {
+            assert_eq!(f.exit(), None);
+            f.advance_past(skein_lib::Duration::from_secs(30));
+        }
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(f.stored(b"token"), None);
+        assert_eq!(f.token, fixtures::TOKEN_BYTES);
+        assert_eq!(f.stdout(), b"");
+        assert_eq!(
+            f.stderr(),
+            if listening {
+                b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n".as_slice()
+            } else {
+                b"temper ctl: nothing listens at http://127.0.0.1:4000; is temper running?\n".as_slice()
+            }
+        );
+    }
+}
+#[test]
+fn sign_out_not_ready_keeps_the_token() {
+    let mut f = fixtures::Disk::act(&[b"sign-out"]);
+    f.sign_out_answer = jig_client_protocol_wire::SignOutAnswer::NotReady;
+    f.sign_in_then_deliver_me();
+    assert_eq!(f.exit(), None);
+    f.advance_past(skein_lib::Duration::from_secs(30));
+    assert_eq!(f.stored(b"token"), None);
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]
 fn sign_in_dash_reads_stdin() {
@@ -1005,14 +1127,14 @@ fn a_link_answered_again_is_sent_after_backoff() {
     let mut f = fixtures::Disk::act(&[b"sign-in", b"-"]);
     f.input = fixtures::LINK;
     f.again_links = 1;
-    f.token = b"9876543210987654321098765432109876543210";
+    f.token = b"";
     f.answer_sign_in_then_me();
     assert_eq!(f.next_deadline(), Some(skein_lib::Time::ZERO.saturating_add(SIGN_IN_FIRST)));
     assert_eq!(f.link_posts.len(), 1);
     f.advance_past(SIGN_IN_FIRST);
     assert_eq!(f.link_posts.len(), 2);
     assert_eq!(f.link_posts[0], f.link_posts[1]);
-    assert_eq!(f.link_bearers[0].as_deref(), Some(f.token), "the first exchange offers the stored token");
+    assert_eq!(f.link_bearers[0].as_deref(), None, "a link never offers a held token");
     assert_eq!(f.link_bearers[0], f.link_bearers[1], "retry offers the same token");
     assert_eq!(f.stored(b"token"), Some(fixtures::TOKEN_BYTES));
     assert_eq!(f.stderr(), b"");
@@ -1022,6 +1144,7 @@ fn a_link_answered_again_is_sent_after_backoff() {
 #[test]
 fn repeated_again_keeps_the_original_sign_in_deadline() {
     let mut f = fixtures::Disk::act(&[b"sign-in", b"-"]);
+    f.token = b"";
     f.input = fixtures::LINK;
     f.again_links = u32::MAX;
     f.drain();
