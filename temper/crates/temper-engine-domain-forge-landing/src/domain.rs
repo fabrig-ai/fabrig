@@ -838,6 +838,7 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
         let fresh = facts.members.get(usize::from(top)).expect("top facts");
         let candidate = member.candidate.expect("proved candidate");
         if fresh.main == candidate {
+            landing.phase = Phase::Turn { at: now };
             for (index, member) in landing.members.iter_mut().enumerate() {
                 if active(member) && position(index) <= top {
                     member.landed = member.candidate;
@@ -874,7 +875,7 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
                 }
             }
             if !member.told {
-                // Give manual-merge detection one poll from the turn's start;
+                // Give manual-merge detection one poll from merge readback;
                 // the branch readback remains authoritative (landing.md, 8).
                 if member.combined == Some(crate::Combine::Merge) && fresh.merged != Some(prefix) {
                     let at = match &landing.phase {
