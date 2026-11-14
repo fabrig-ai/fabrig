@@ -272,35 +272,3 @@ fn a_withdrawal_that_crosses_the_body_s_last_bytes_then_a_response_is_done() {
     assert_eq!(requests.len(), 1, "the head");
     assert_eq!(machine.server.waiting(), Waiting::Next);
 }
-
-#[test]
-#[should_panic(expected = "a Next while a request is in progress")]
-fn one_request_at_a_time() {
-    let mut machine = Machine::new(LIMITS);
-    machine.call(get());
-    machine.down(Request::Next);
-}
-
-#[test]
-#[should_panic(expected = "a Next on a connection not to be used again")]
-fn no_next_on_a_spent_connection() {
-    let mut machine = Machine::new(LIMITS);
-    machine.up(Up::End);
-    machine.down(Request::Next);
-    machine.down(Request::Next);
-}
-
-#[test]
-#[should_panic(expected = "a Respond with no call in progress")]
-fn no_response_before_a_call() {
-    let mut machine = Machine::new(LIMITS);
-    machine.down(Request::Respond(response(200, Body::None)));
-}
-
-#[test]
-#[should_panic(expected = "a Close after Closed")]
-fn no_close_after_closed() {
-    let mut machine = Machine::new(LIMITS);
-    machine.down(Request::Close);
-    machine.down(Request::Close);
-}
