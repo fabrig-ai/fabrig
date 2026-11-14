@@ -151,8 +151,8 @@ fn each_check_asks_afresh_writes_its_own_answer_and_clears_at_long_done() {
     }
 }
 #[test]
-fn refused_malformed_timed_out_and_superseded_answers_write_nothing() {
-    for case in 0..5_u32 {
+fn refused_malformed_kept_timed_out_and_superseded_answers_write_nothing() {
+    for case in 0..6_u32 {
         let mut h = prepared();
         let (number, hold) = start(&mut h);
         h.step(Event::Done { owner: hold, done: Done::Succeeded });
@@ -160,7 +160,7 @@ fn refused_malformed_timed_out_and_superseded_answers_write_nothing() {
             0 => {
                 assert!(answer(&mut h, number, None).is_empty());
             }
-            1 => {
+            1 | 5 => {
                 let rows = h.step(Event::Link(host::LinkDown::Asked {
                     run: fixtures::RUN,
                     attempt: fixtures::ATTEMPT,
@@ -170,7 +170,8 @@ fn refused_malformed_timed_out_and_superseded_answers_write_nothing() {
                 let Request::RedsAnswer { owner, check, .. } = rows.into_iter().next().expect("decode") else {
                     panic!("decode")
                 };
-                assert!(h.step(Event::RedsAnswer { owner, check, answer: None }).is_empty());
+                let answer = if case == 5 { Some(wire::Answer::Kept) } else { None };
+                assert!(h.step(Event::RedsAnswer { owner, check, answer }).is_empty());
             }
             2 => {
                 h.env.now = h.env.now.saturating_add(Duration::from_millis(5001));

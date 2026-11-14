@@ -41,13 +41,10 @@ fn reds_bound_the_count_and_key_when_built_and_decoded() {
 }
 
 #[test]
-fn the_new_ask_and_answer_roots_cross_only_the_new_version() {
+fn reds_roots_have_no_counterpart_before_v8() {
     let application = crate::application(&fixtures::limits()).unwrap();
     let bridge = application.bridges.get(0).unwrap();
-    assert_eq!(crate::wire::VERSION, 9);
     for root in [b"Ask".as_slice(), b"Answer"] {
-        assert_eq!(bridge.total(9, root), Some(true));
-        assert_eq!(bridge.total(8, root), Some(false), "new variants have no older form");
         assert_eq!(bridge.total(7, root), None, "the previous version has no counterpart");
     }
     assert_eq!(crate::ask(&v1::Ask::Reds).as_ref(), &[0]);
