@@ -36,12 +36,12 @@ boundary (smith's run.md, 8.1).
   build directory from before its first build to its verdict, so the
   executables one-process built are still there when it runs them
   (section 4; `tools/tiers/design.md`, 3).
-- **Known reds, and inherited counts.** Nothing is built or tested at the
-  base. A lint or test failure is inherited only when the checked tree's
-  `.temper/known-reds.md` lists it, or the goal's reds temper writes to
-  `temper/reds` in the git directory name it, the check waiting for that
-  file where temper says it comes; a build failure is always the
-  delivery's. An exceeded baseline count is compared with the base's, with
+- **The goal's reds, and inherited counts.** Nothing is built or tested
+  at the base. A lint or test failure is inherited only when the goal's
+  reds, which temper keeps and writes to `temper/reds` in the git
+  directory, name it, the check waiting for that file where temper says
+  it comes; the tree keeps no list of its own. A build failure is always
+  the delivery's. An exceeded baseline count is compared with the base's, with
   no build; citations compare their counted findings and design sizes
   there too. Inherited failures are named and pass (section 5); every
   other failure refuses.
@@ -226,8 +226,8 @@ delivery hears every failure; the verdict is section 6's.
    cannot read is a failure of the check itself.
 
    **A failing test's process again** (`temper/docs/design/draft/branch-reds.md`,
-   7). After the run and before the judgement, each test failure the
-   known reds and `temper/reds` name no entry for (section 5), a test
+   7). After the run and before the judgement, each test failure
+   `temper/reds` names no entry for (section 5), a test
    `results.json` gives the `outcome` `failed` or `crashed`, runs once
    more: `python3 -I -B tools/tiers/one-process --again <dir>/tests --out
    <dir>/again-<n> <binary id> <names>`, the names the test's `before` in
@@ -292,7 +292,7 @@ hold by its death (`tools/tiers/design.md`, 3).
 Only selected checks contribute failures. The format check runs within
 the code set: its failures are never inherited. Nothing is built or
 tested at the base: a lint or test failure goes back to the delivery
-unless the known reds list it, and a build failure always does, so a
+unless the goal's reds name it, and a build failure always does, so a
 failing delivery costs no base build (section 8). The comparisons that
 need no build stand as they are: a red base's exceeded counts, broken
 citations and oversized documents refuse nothing the delivery did not
@@ -324,33 +324,11 @@ cause.
   runs in it, so the head's target directory and the timestamps of either
   checkout's files stay as they are. It is not made for a lint, test or
   build failure.
-- **The known reds** are `.temper/known-reds.md`, read from section 3's
-  private snapshot (`git cat-file blob <tree>:.temper/known-reds.md`), so
-  the delivery's own edits to it count, staged, unstaged or new. A tree
-  without it has no known reds. It is read once a run, after the cache's
-  check and before check 1, whatever the selection, with or without a
-  base; when present, one line says so: `pre-pr: known reds: <N> entries
-  (.temper/known-reds.md)`. It is Markdown, so that a designer delivers
-  it. Each line, its trailing whitespace stripped, is an entry when it is
-  one of:
-  - `- test <binary id> <name>`: a failing test, keyed as below: its
-    binary id, which holds no whitespace, then a space and its name, the
-    rest of the line;
-  - `- lint <package> <code> <file>`: a lint error, keyed as below without
-    its message: its package and lint code, neither holding whitespace,
-    then a space and its file, the rest of the line. An error with no
-    lint code has no entry.
-
-  Every other line is prose and is ignored, an indented one included.
-  Entries match exactly, case included.
-- **The cap:** at most 64 entries and 8,192 bytes. A file over either is
-  the failure `known-reds`, never inherited, its log naming the file, what
-  it holds and the cap (`.temper/known-reds.md: 65 entries, 2,310 bytes;
-  the cap is 64 entries and 8,192 bytes`); none of its entries counts.
 - **The goal's reds,** which temper keeps and its worker writes at each
   check's start (`temper/docs/design/domain/forge/reds.md`, 5), are
   `temper/reds` under the git directory, at `git rev-parse --git-path
-  temper/reds`; temper's marker beside it is `temper/reds-wait`:
+  temper/reds`; temper's marker beside it is `temper/reds-wait`. They are
+  the only entries the check counts:
   - **Waited for:** where `temper/reds-wait` is one line,
     `temper-reds-wait 1 MS`, MS from 1 to 600,000, the check waits, first
     of all, before the cache's check, until `temper/reds` exists, looking
@@ -362,9 +340,17 @@ cause.
     judgement counts (section 7). A file of more than 2,097,152 bytes is
     oversized and not read.
   - **Its form:** the first line exactly `temper-reds 1`, then each line an
-    entry of the list's two forms above, matched exactly, with no prose
-    and no trailing whitespace; a final line feed is optional and an
-    empty file is malformed. A file of the header alone is no reds.
+    entry of one of two forms, matched exactly, case included, with no
+    prose and no trailing whitespace; a final line feed is optional and an
+    empty file is malformed. A file of the header alone is no reds. The
+    forms:
+    - `- test <binary id> <name>`: a failing test, keyed as below: its
+      binary id, which holds no whitespace, then a space and its name, the
+      rest of the line;
+    - `- lint <package> <code> <file>`: a lint error, keyed as below
+      without its message: its package and lint code, neither holding
+      whitespace, then a space and its file, the rest of the line. An
+      error with no lint code has no entry.
   - **No reds, and why:** a missing, malformed or oversized file counts
     no entry, and one line says which: `pre-pr: reds: none (temper/reds
     not written within MS ms)` where the marker said to wait, `pre-pr:
@@ -372,11 +358,12 @@ cause.
     (temper/reds oversized: B bytes)`. With no marker and no file it
     prints nothing, as a checkout outside temper has none. A file read
     prints `pre-pr: reds: <N> entries (temper/reds)`.
-  - **Counted with the list:** an entry of either counts; the file has no
-    cap of its own, temper bounding it (`forge.branch_reds`), and the
-    list's cap is the list's alone: a list past its cap fails
-    `known-reds` and counts none of its entries, while the file's still
-    count.
+  - **No cap of its own:** temper bounds the file (`forge.branch_reds`).
+- **No list in the tree:** the tree keeps no known reds of its own
+  (`temper/docs/design/draft/branch-reds.md`, 8). A file a branch still
+  carries from before, its lines of the entries' forms included, is not
+  read, counts nothing and prints nothing: a failure only it names is the
+  delivery's.
 - **A lint error** is keyed by its package's name, its lint code (empty
   for a compiler error without one), its primary span's file, relative to
   its worktree's root, and its message; never by line or column. It is
@@ -386,10 +373,10 @@ cause.
   inherited when a `- test` entry gives both; otherwise, failing at the
   base or not, it is the delivery's.
 - **A build failure** (section 4's) is always the delivery's, whatever
-  the known reds hold; so is a failure of a check itself (`check clippy`,
+  the goal's reds hold; so is a failure of a check itself (`check clippy`,
   `check one-process`, `check selection`).
 - **A starved test** is neither failed nor inherited: section 4's warning
-  names it, and it refuses nothing, listed or not.
+  names it, and it refuses nothing, named by an entry or not.
 - **A flake,** a failing test that passed when its process ran again
   (section 4), failed under load: it refuses nothing and is neither the
   delivery's nor inherited. The summary names it and the results file
@@ -399,10 +386,10 @@ cause.
   tree's `scripts/old_forms.py` fails of itself at the base): the
   exceeded counts stay the delivery's, and the summary says why the base
   could not judge them. The citation check's independent comparison and
-  the known reds still stand.
+  the goal's reds still stand.
 - **Inherited never refuses:** each is named in the summary, with the
-  base for a count or a citation and with the file for a known red or a
-  goal's red, and the delivery passes on them.
+  base for a count or a citation and with the file for a goal's red, and
+  the delivery passes on them.
 
 ## 6. Its output
 
@@ -417,7 +404,7 @@ cause.
   - section 4's starved line, where the tests starved;
   - for each failure this delivery made: its check (`format`, `old-forms
     <tree>`, `clippy <package>`, `test <binary id> <name>`, `build`,
-    `known-reds`, `check <name>` for a check that failed of itself), then the last lines
+    `check <name>` for a check that failed of itself), then the last lines
     of its log: a test's JUnit output, with its alone label last where it
     has one, an error's rendered text, a tool's
     output; each at most 1,536 bytes, cut at a line's start and marked
@@ -425,12 +412,9 @@ cause.
   - then each flake (section 5): `flake: test <binary id> <name> (failed
     under load; passed when its process ran again: <K> tests, <seconds>
     s)`, then its first run's log as a failure's, within the same bound;
-  - then each inherited failure, one line each: a known red as
-    `inherited: test <binary id> <name> (known red, .temper/known-reds.md)`
-    or `inherited: clippy <package> <code> <file> (known red,
-    .temper/known-reds.md)`, a goal's red as `inherited: test <binary id>
-    <name> (red, temper/reds)` or `inherited: clippy <package> <code>
-    <file> (red, temper/reds)`, the file's words where both name it,
+  - then each inherited failure, one line each: a goal's red as
+    `inherited: test <binary id> <name> (red, temper/reds)` or
+    `inherited: clippy <package> <code> <file> (red, temper/reds)`,
     exceeded counts as `inherited: old-forms <tree> <form>`, and the
     inherited citation total;
   - past 8,192 bytes, the failures it has not room for are counted in
@@ -445,8 +429,7 @@ cause.
   temper/check-results`, through `temper/check-results.tmp` renamed:
   - `temper-check 1`, then `check <tree> <base> passed|refused`, `<base>`
     `-` without one;
-  - for each entry of `temper/reds` (not of the list) that the run
-    selected: `passed <key>` or `failed <key>`, in key order. A `- test`
+  - for each entry of `temper/reds` that the run selected: `passed <key>` or `failed <key>`, in key order. A `- test`
     entry is selected where its test is in the run's `results.json`:
     `passed` where its `outcome` is `passed`, `failed` where its
     failure is section 5's, inherited or not, and neither where it
@@ -484,7 +467,7 @@ hit is always of the last tree that passed here.
   delivery changed and their direct dependents, on the checkout's warm
   target directory.
 - **No build or test at the base.** A lint, test or build failure goes
-  back to the delivery at once, judged against the known reds alone
+  back to the delivery at once, judged against the goal's reds alone
   (section 5): a failing delivery takes no longer than a passing one. The
   base's worktree is made only for an exceeded count, holds no build, and
   is kept for the next.
@@ -507,7 +490,7 @@ build and runs no real `tools/tiers/one-process`, whose own suite proves it
 merge in progress, no merge base, an unchecked save stepped to its parent);
 the selection (a package, its dependents, a path reader, a path in no
 package, a deletion), with the tests' set given to one-process as section
-4's command and no nextest run of the check's own; known reds and new
+4's command and no nextest run of the check's own; the goal's reds and new
 failures of each kind, a build failure among them, with no cargo run and
 no worktree made at the base; a starved run that passes with its warning;
 the cache by tree and base; the summary's bound; and the hold: a fake hold
@@ -528,18 +511,15 @@ two unchecked saves steps to the checked head: the summary names that head,
 and package selection includes both the saved edits and the delivery's new
 edits. Any other subject keeps the base, and the pin never moves.
 
-It reads the known reds from the snapshot: an unstaged entry for a failing
-test or lint makes it `inherited: … (known red, .temper/known-reds.md)` and
-passes, prose lines around it ignored; an entry with another key, or no
-file at all, leaves the failure the delivery's; a build failure refuses whatever the
-entries; and a file over 64 entries or 8,192 bytes fails as `known-reds`.
-No cargo runs at the base. It reads no real build.
-
 It reads the goal's reds from the git directory: an entry of
 `temper/reds` for a failing test or lint makes it `inherited: … (red,
-temper/reds)` and passes, the list naming it too or not, and still counts
-beside a list past its cap; a header alone, a missing file, a malformed or
-an oversized one count nothing, each with its line; a marker with a small
+temper/reds)` and passes; an entry with another key leaves the failure the
+delivery's; a build failure refuses whatever the entries; a header alone, a
+missing file, a malformed or an oversized one count nothing, each with its
+line. A list in the tree counts nothing: a tree whose old list file names
+a failing test or lint, with no `temper/reds` entry for it, refuses it as
+the delivery's and prints no line of the list. No cargo runs at the base,
+and it reads no real build. A marker with a small
 MS and no file waits about MS and judges with no reds; a marker and a file
 written while the check waits is read; no marker and no file print
 nothing. Its cache: a pass with a reds file is reused with the same bytes
@@ -558,8 +538,7 @@ the test.
 
 It writes the results file only under a marker: its header and check
 line, passed and refused; a `temper/reds` entry passed, failed (inherited)
-and starved (neither), a lint entry passed and failed, an entry of the
-list alone never written; a flake's `|` lines; nothing on a cache hit,
+and starved (neither), a lint entry passed and failed; a flake's `|` lines; nothing on a cache hit,
 and nothing without a marker.
 
 It reads a one-process run's directory as section 4 does, from a fake run
