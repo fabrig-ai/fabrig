@@ -17,16 +17,6 @@
     main holding it is read. The last run read, at main
     `df41529d3ee1`, passed every other story it runs, its Claude Code
     release unknown.
-  - 5: the host world's common parent referee and the inline world's
-    check of an answer panic on a difference, and their tests are
-    `#[should_panic]`. [in flight: change 3252]
-  - 5: the protocol world's reading of a native request panics on its
-    cache markers and breakpoints, and its tests are `#[should_panic]`.
-    [in flight: change 3253]
-  - 5: the session world's window referee panics on a difference, the
-    local-process world's person panics on a terminal write that fails
-    where its script doesn't expect it, and their tests are
-    `#[should_panic]`. [in flight: change 3254]
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).
