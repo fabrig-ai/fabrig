@@ -11,6 +11,7 @@ use temper_engine_domain_forge_tiers as p;
 )]
 pub use temper_engine_domain_forge_vocabulary::tiers::*;
 mod goals;
+pub(crate) mod hold;
 pub(crate) mod parts;
 pub(crate) mod red;
 pub(crate) mod words;
@@ -303,7 +304,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             Some(row) => row,
             None => empty(repository, tier.name),
         };
-        if row.record.judged.is_none() && row.record.run.is_none() && row.baseline.is_none() {
+        if row.hold.is_none() && row.record.judged.is_none() && row.record.run.is_none() && row.baseline.is_none() {
             save(&row, out);
             d.tiers.insert(key.clone(), row).expect("bounded tiers");
             if !d.stopping && !reading(d, &key) && !d.tier_ops.walks.contains_key(&key) {
@@ -330,7 +331,8 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             None if ready => row.pending.last().copied(),
             None => None,
         };
-        if let Some(target) = target
+        if row.hold.is_none()
+            && let Some(target) = target
             && let Some(tip_key) = target.key
             && p::due(&row.record, target.commit)
             && goals::span_passed(row.started, tier.span, env.now)
@@ -1524,7 +1526,7 @@ pub(crate) fn released(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
 }
 
 fn span_deadline(d: &Domain, row: &TierRow) -> Option<Time> {
-    if row.record.run.is_some() {
+    if row.hold.is_some() || row.record.run.is_some() {
         return None;
     }
     let tier = configured(d, row)?;

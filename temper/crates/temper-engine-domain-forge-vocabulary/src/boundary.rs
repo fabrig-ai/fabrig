@@ -285,6 +285,7 @@ pub enum AppWay {
 /// A retained application answer; adoption and making outcomes are durable.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answered {
+    Tier(Result<(), crate::TierRefusal>),
     Follow(Option<Box<[u8]>>),
     Make(MakeAnswer),
     Adopt(ApplicationOutcome),
@@ -1634,6 +1635,12 @@ pub enum Event {
         task: u64,
         follows: ChangeFollows,
         words: Box<[u8]>,
+    },
+    TierAct {
+        request: Token,
+        token: Token,
+        party: u64,
+        call: crate::TierActRequest,
     },
     FollowAct {
         request: Token,

@@ -11,6 +11,7 @@ impl Domain {
         let mut lines = List::with_capacity(u32::try_from(verification.tiers.len()).expect("admitted tiers"));
         for tier in &verification.tiers {
             let mut run = None;
+            let mut hold = None;
             let mut suffix = Box::from(b"".as_slice());
             if let Some(repair) = tier.repaired {
                 run = Some(repair.run);
@@ -21,16 +22,22 @@ impl Domain {
                 for ((repository, name), row) in &self.tiers {
                     if *repository == verification.repository
                         && *name == tier.tier
-                        && let Some(flight) = &row.record.run
                     {
-                        for landing in &flight.landings {
-                            if landing.commit == verification.commit {
-                                run = Some(flight.number);
+                        hold = row.hold.as_ref();
+                        if let Some(flight) = &row.record.run {
+                            for landing in &flight.landings {
+                                if landing.commit == verification.commit {
+                                    run = Some(flight.number);
+                                }
                             }
                         }
                     }
                 }
-                suffix = Box::from(if run.is_some() { b" running".as_slice() } else { b" waiting".as_slice() });
+                suffix = if run.is_none() && let Some(hold) = hold {
+                    crate::tiers::joined(&[b" held by party ", skein_lib::Decimal::of(hold.party).as_bytes(), b": ", &hold.reason])
+                } else {
+                    Box::from(if run.is_some() { b" running".as_slice() } else { b" waiting".as_slice() })
+                };
             }
             let number = skein_lib::Decimal::of(run.unwrap_or(0));
             let mut line = List::uncapped();

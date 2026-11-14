@@ -98,3 +98,25 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
     }
     Some(held)
 }
+
+/// A person's tier control (temper/docs/design/domain/after-landing.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TierActRequest {
+    pub project: u32,
+    pub repository: Option<crate::DraftRepository>,
+    pub tier: Box<[u8]>,
+    pub act: TierAct,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum TierAct {
+    Hold { reason: Box<[u8]> },
+    Release,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum TierRefusal {
+    NoRepository,
+    NoTier,
+    Held { party: u64, reason: Box<[u8]> },
+    NotHeld,
+    Words,
+}

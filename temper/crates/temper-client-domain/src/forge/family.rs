@@ -594,6 +594,17 @@ pub fn follow_act(value: w::FollowActRequest, limits: &w::Limits) -> Option<jig_
     })
 }
 
+/// A keyed tier hold or release (temper/docs/design/domain/after-landing.md, 3).
+#[must_use]
+pub fn tier_act(value: w::TierActRequest, limits: &w::Limits) -> Option<jig_client::Ask> {
+    let project = value.project();
+    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::TierAct(value) }).ok()?;
+    Some(jig_client::Ask::Family {
+        scope: jig_client::contract::Scope::Project(project),
+        record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

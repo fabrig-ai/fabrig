@@ -42,6 +42,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             Some(project) => people::ApplicationScope::Project(*project),
             None => people::ApplicationScope::Deployment,
         },
+        Application::Tier(call) => people::ApplicationScope::Project(call.project),
         Application::Forge(forge::Ask::SetDraft(call)) => people::ApplicationScope::Project(call.project),
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Try { .. } | Application::AddDevice(_) | Application::RemoveDevice { .. } => {
@@ -78,7 +79,8 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             }
             None
         }
-        Application::Follow { .. }
+        Application::Tier(_)
+        | Application::Follow { .. }
         | Application::Forge(_)
         | Application::Dismiss { .. }
         | Application::Looked { .. }
@@ -123,6 +125,17 @@ pub(super) fn admitted(
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::Tier(call) => {
+            if domain.core.people.role(person, call.project) != Some(people::Role::Owner) {
+                let mut out = skein_lib::Queue::uncapped();
+                domain.forge.answer_finding(request, token, forge::Answered::Adopt(
+                    forge::ApplicationOutcome::CoreRefused(people::Refusal::Role { held: role })
+                ), &mut out);
+                forge_route::outputs(domain, env, decision, &mut out);
+            } else {
+                domain.work.push(Work::Forge(forge::Event::TierAct { request, token, party: person, call }));
+            }
+        }
         Application::FileFinding(call) => {
             let answer = super::findings::file_finding(domain, env, decision, forge::Filer::Party(person), call);
             let mut out = skein_lib::Queue::uncapped();
@@ -269,6 +282,7 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         return Some(ApplicationAnswer::Try(*answer));
     }
     match domain.forge.application_answer(token) {
+        Some(forge::Answered::Tier(answer)) => Some(ApplicationAnswer::Tier(answer)),
         Some(forge::Answered::Follow(words)) => Some(ApplicationAnswer::Follow(words)),
         Some(forge::Answered::Make(answer)) => Some(ApplicationAnswer::Make(answer)),
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),
