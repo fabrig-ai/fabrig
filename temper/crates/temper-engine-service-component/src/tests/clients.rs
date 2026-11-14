@@ -717,12 +717,10 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
         let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
         keyed.encode(&mut bytes).unwrap();
         let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer));
-        for _ in 0_u32..128 {
-            call.pump(engine, true);
-            if call.is_closed() {
-                break;
-            }
-        }
+        // Keep the aggregate bound of 128 batches of 256 turns for the
+        // published-size value; a batch alone need not carry all its fragments.
+        call.pump_bounded(engine, true, 128 * 256);
+        assert!(call.is_closed(), "the moved-file request completes within its turn bound");
         if extra == 0 {
             assert!(call.received().starts_with(b"HTTP/1.1 200"), "response: {:?}", call.received());
             let at = bytes::find(call.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();

@@ -181,7 +181,7 @@ pub(crate) fn start(service: &mut crate::Service, issuer: &mut fake::Issuer, tar
     pump(service, &mut peer);
     answer_fetch(service, issuer);
     pump(service, &mut peer);
-    assert!(peer.received().starts_with(b"HTTP/1.1 303"));
+    assert!(peer.received().starts_with(b"HTTP/1.1 303"), "start response: {:?}", peer.received());
     let cookie: Box<[u8]> = header(&peer, "set-cookie").into();
     assert!(cookie.ends_with(b"; Secure"));
     assert!(
@@ -281,12 +281,12 @@ fn a_signed_member_mints_twice_and_keeps_the_binding_against_another_subject() {
 }
 #[test]
 fn signed_nonmembers_missing_email_and_unverified_email_mint_nothing() {
+    let (mut service, mut issuer) = world(2);
     for (address, verified, text) in [
         (Some(b"other@example.com".as_slice()), true, "other@example.com can’t sign in here".as_bytes()),
         (None, true, "Google hasn’t verified this account’s address".as_bytes()),
         (Some(b"sam@example.com".as_slice()), false, "Google hasn’t verified sam@example.com".as_bytes()),
     ] {
-        let (mut service, mut issuer) = world(2);
         account(&mut issuer, b"first-sub", address, verified);
         let peer = signed_return(&mut service, &mut issuer, b"/sign-in/google");
         ending(&peer, b"HTTP/1.1 403", text);

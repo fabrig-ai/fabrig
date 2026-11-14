@@ -80,7 +80,15 @@ fn load(service: &mut Service) {
     face.select(NUMBER);
     for _ in 0_u32..256 {
         face.turn(service);
+        if service.engine.as_ref().unwrap().domain.ready()
+            && service.engine.as_ref().unwrap().forge_records.done()
+            && !face.work_pending(service)
+        {
+            break;
+        }
     }
+    assert!(!face.work_pending(service), "the forge runtime settles within 256 turns");
+    assert!(service.engine.as_ref().unwrap().domain.ready(), "the root restored within 256 turns");
     assert_eq!(service.end(), None);
     assert!(service.engine.as_ref().unwrap().forge_records.done());
 }
