@@ -19,3 +19,10 @@ pub enum Firmware {
     Efi,
     Bios,
 }
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Mode {
+    File,
+    Executable,
+    Link,
+    Submodule,
+}

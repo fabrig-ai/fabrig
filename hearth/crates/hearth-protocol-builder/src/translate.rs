@@ -11,6 +11,4 @@ pub mod operations;
 pub mod resolution;
 pub mod store;
 
-pub mod hunks;
-
 pub mod declarations;

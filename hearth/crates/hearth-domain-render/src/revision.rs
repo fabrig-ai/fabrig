@@ -1,18 +1,11 @@
 //! The listing and typed documents (hearth/docs/design/protocol/format/README.md, 2.1 and 3.4).
 use crate::errors::Repository;
 use alloc::boxed::Box;
-pub use hearth_domain_render_vocabulary::revision::{Firmware, Oid, Position, Runs};
+pub use hearth_domain_render_vocabulary::revision::{Firmware, Mode, Oid, Position, Runs};
 pub mod declaration;
 pub(crate) mod held;
 use skein_lib::{Bisection, bytes};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Mode {
-    File,
-    Executable,
-    Link,
-    Submodule,
-}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Entry {
     pub path: Box<[u8]>,

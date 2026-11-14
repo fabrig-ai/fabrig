@@ -72,7 +72,7 @@ pub struct Line {
     pub kind: LineKind,
     pub text: Box<[u8]>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum LineKind {
     Hunk,
     Context,

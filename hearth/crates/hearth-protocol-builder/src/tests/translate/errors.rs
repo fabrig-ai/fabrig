@@ -409,150 +409,68 @@ fn declaration_map_back(value: record_errors::Map) -> render::revision::declarat
     }
 }
 
-fn declared_config(value: render_errors::Declared) -> crate::config::Declared {
-    match value {
-        render_errors::Declared::Unknown { of } => crate::config::Declared::Unknown { of: object_config(of) },
-        render_errors::Declared::Later => crate::config::Declared::Later,
-        render_errors::Declared::Wrong { expected } => {
-            crate::config::Declared::Wrong { expected: expected_config(expected) }
-        }
-        render_errors::Declared::Missing { key } => crate::config::Declared::Missing { key: required_config(key) },
-        render_errors::Declared::Name => crate::config::Declared::Name,
-        render_errors::Declared::Doc => crate::config::Declared::Doc,
-        render_errors::Declared::Order => crate::config::Declared::Order,
-        render_errors::Declared::Optional => crate::config::Declared::Optional,
-        render_errors::Declared::Bound => crate::config::Declared::Bound,
-        render_errors::Declared::Above => crate::config::Declared::Above,
-        render_errors::Declared::Enum => crate::config::Declared::Enum,
-        render_errors::Declared::Settings => crate::config::Declared::Settings,
-        render_errors::Declared::Secret => crate::config::Declared::Secret,
-    }
-}
 
-fn object_config(value: render_errors::Object) -> crate::config::Object {
-    match value {
-        render_errors::Object::Declaration => crate::config::Object::Declaration,
-        render_errors::Object::Read => crate::config::Object::Read,
-        render_errors::Object::Guard => crate::config::Object::Guard,
-        render_errors::Object::Script => crate::config::Object::Script,
-        render_errors::Object::Bless => crate::config::Object::Bless,
-        render_errors::Object::Entry(map) => crate::config::Object::Entry(declaration_map_config(map)),
-        render_errors::Object::Range => crate::config::Object::Range,
-        render_errors::Object::Spec => crate::config::Object::Spec,
-        render_errors::Object::Export => crate::config::Object::Export,
-        render_errors::Object::Type => crate::config::Object::Type,
-    }
-}
 
-fn expected_config(value: render_errors::Expected) -> crate::config::Expected {
-    match value {
-        render_errors::Expected::Object => crate::config::Expected::Object,
-        render_errors::Expected::String => crate::config::Expected::String,
-        render_errors::Expected::Strings => crate::config::Expected::Strings,
-        render_errors::Expected::Bool => crate::config::Expected::Bool,
-        render_errors::Expected::Int => crate::config::Expected::Int,
-        render_errors::Expected::Field(takes) => crate::config::Expected::Field(takes_config(takes)),
-        render_errors::Expected::True => crate::config::Expected::True,
-        render_errors::Expected::Type => crate::config::Expected::Type,
-    }
-}
 
-fn required_config(value: render_errors::Required) -> crate::config::Required {
-    match value {
-        render_errors::Required::If => crate::config::Required::If,
-        render_errors::Required::Message => crate::config::Required::Message,
-        render_errors::Required::Type => crate::config::Required::Type,
-        render_errors::Required::Doc => crate::config::Required::Doc,
-        render_errors::Required::Value => crate::config::Required::Value,
-    }
-}
 
-fn takes_config(value: render_errors::Takes) -> crate::config::entries::Takes {
-    match value {
-        render_errors::Takes::Text => crate::config::entries::Takes::Text,
-        render_errors::Takes::Int => crate::config::entries::Takes::Int,
-        render_errors::Takes::Bool => crate::config::entries::Takes::Bool,
-        render_errors::Takes::Strings => crate::config::entries::Takes::Strings,
-        render_errors::Takes::Range => crate::config::entries::Takes::Range,
-    }
-}
 
-fn declaration_map_config(value: render::revision::declaration::Map) -> crate::config::entries::Map {
-    match value {
-        render::revision::declaration::Map::Packages => crate::config::entries::Map::Packages,
-        render::revision::declaration::Map::Preseeds => crate::config::entries::Map::Preseeds,
-        render::revision::declaration::Map::Initramfs => crate::config::entries::Map::Initramfs,
-        render::revision::declaration::Map::Software => crate::config::entries::Map::Software,
-        render::revision::declaration::Map::Files => crate::config::entries::Map::Files,
-        render::revision::declaration::Map::Users => crate::config::entries::Map::Users,
-        render::revision::declaration::Map::Groups => crate::config::entries::Map::Groups,
-        render::revision::declaration::Map::Presets => crate::config::entries::Map::Presets,
-        render::revision::declaration::Map::Tmpfiles => crate::config::entries::Map::Tmpfiles,
-        render::revision::declaration::Map::Data => crate::config::entries::Map::Data,
-        render::revision::declaration::Map::Secrets => crate::config::entries::Map::Secrets,
-        render::revision::declaration::Map::Identity => crate::config::entries::Map::Identity,
-        render::revision::declaration::Map::Cmdline => crate::config::entries::Map::Cmdline,
-        render::revision::declaration::Map::Live => crate::config::entries::Map::Live,
-    }
-}
 
-const DECLARED_FAULTS: &[crate::config::Declared] = &[
-    crate::config::Declared::Later,
-    crate::config::Declared::Name,
-    crate::config::Declared::Doc,
-    crate::config::Declared::Order,
-    crate::config::Declared::Optional,
-    crate::config::Declared::Bound,
-    crate::config::Declared::Above,
-    crate::config::Declared::Enum,
-    crate::config::Declared::Settings,
-    crate::config::Declared::Secret,
-    crate::config::Declared::Unknown { of: crate::config::Object::Declaration },
-    crate::config::Declared::Unknown { of: crate::config::Object::Read },
-    crate::config::Declared::Unknown { of: crate::config::Object::Guard },
-    crate::config::Declared::Unknown { of: crate::config::Object::Script },
-    crate::config::Declared::Unknown { of: crate::config::Object::Bless },
-    crate::config::Declared::Unknown { of: crate::config::Object::Range },
-    crate::config::Declared::Unknown { of: crate::config::Object::Spec },
-    crate::config::Declared::Unknown { of: crate::config::Object::Export },
-    crate::config::Declared::Unknown { of: crate::config::Object::Type },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Packages) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Preseeds) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Initramfs) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Software) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Files) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Users) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Groups) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Presets) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Tmpfiles) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Data) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Secrets) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Identity) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Cmdline) },
-    crate::config::Declared::Unknown { of: crate::config::Object::Entry(crate::config::entries::Map::Live) },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Object },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::String },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Strings },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Bool },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Int },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::True },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Type },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Field(crate::config::entries::Takes::Text) },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Field(crate::config::entries::Takes::Int) },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Field(crate::config::entries::Takes::Bool) },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Field(crate::config::entries::Takes::Strings) },
-    crate::config::Declared::Wrong { expected: crate::config::Expected::Field(crate::config::entries::Takes::Range) },
-    crate::config::Declared::Missing { key: crate::config::Required::If },
-    crate::config::Declared::Missing { key: crate::config::Required::Message },
-    crate::config::Declared::Missing { key: crate::config::Required::Type },
-    crate::config::Declared::Missing { key: crate::config::Required::Doc },
-    crate::config::Declared::Missing { key: crate::config::Required::Value },
+const DECLARED_FAULTS: &[render_errors::Declared] = &[
+    render_errors::Declared::Later,
+    render_errors::Declared::Name,
+    render_errors::Declared::Doc,
+    render_errors::Declared::Order,
+    render_errors::Declared::Optional,
+    render_errors::Declared::Bound,
+    render_errors::Declared::Above,
+    render_errors::Declared::Enum,
+    render_errors::Declared::Settings,
+    render_errors::Declared::Secret,
+    render_errors::Declared::Unknown { of: render_errors::Object::Declaration },
+    render_errors::Declared::Unknown { of: render_errors::Object::Read },
+    render_errors::Declared::Unknown { of: render_errors::Object::Guard },
+    render_errors::Declared::Unknown { of: render_errors::Object::Script },
+    render_errors::Declared::Unknown { of: render_errors::Object::Bless },
+    render_errors::Declared::Unknown { of: render_errors::Object::Range },
+    render_errors::Declared::Unknown { of: render_errors::Object::Spec },
+    render_errors::Declared::Unknown { of: render_errors::Object::Export },
+    render_errors::Declared::Unknown { of: render_errors::Object::Type },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Packages) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Preseeds) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Initramfs) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Software) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Files) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Users) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Groups) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Presets) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Tmpfiles) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Data) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Secrets) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Identity) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Cmdline) },
+    render_errors::Declared::Unknown { of: render_errors::Object::Entry(render::revision::declaration::Map::Live) },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Object },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::String },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Strings },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Bool },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Int },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::True },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Type },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Field(render_errors::Takes::Text) },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Field(render_errors::Takes::Int) },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Field(render_errors::Takes::Bool) },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Field(render_errors::Takes::Strings) },
+    render_errors::Declared::Wrong { expected: render_errors::Expected::Field(render_errors::Takes::Range) },
+    render_errors::Declared::Missing { key: render_errors::Required::If },
+    render_errors::Declared::Missing { key: render_errors::Required::Message },
+    render_errors::Declared::Missing { key: render_errors::Required::Type },
+    render_errors::Declared::Missing { key: render_errors::Required::Doc },
+    render_errors::Declared::Missing { key: render_errors::Required::Value },
 ];
 #[test]
-fn each_declared_fault_translates_to_render_and_back() {
+fn each_declared_fault_translates_to_records_and_back() {
     for (row, &input) in DECLARED_FAULTS.iter().enumerate() {
-        let rendered = crate::translate::errors::declared(input);
-        let back = declared_config(declared_back(crate::translate::errors::declared_to_records(rendered)));
+        let back = declared_back(crate::translate::errors::declared_to_records(input));
         assert_eq!(back, input, "row {row}: declaration fault");
     }
 }

@@ -21,14 +21,7 @@ pub fn simulate(
     }
     let mut components = List::with_capacity(4);
     for component in &sources.components {
-        components
-            .push(match component {
-                target::Component::Main => vector::Component::Main,
-                target::Component::Contrib => vector::Component::Contrib,
-                target::Component::NonFree => vector::Component::NonFree,
-                target::Component::NonFreeFirmware => vector::Component::NonFreeFirmware,
-            })
-            .ok()?;
+        components.push(*component).ok()?;
     }
     Some(vector::Simulate {
         sources: vector::Sources {
