@@ -70,7 +70,6 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Scrip
         let words = format!("@batch-code-{number} Add batch-{number}.txt");
         let mut change = delegate["batch"][0].clone();
         change["spec"]["words"] = words.clone().into();
-        change["tracked"] = json!({"priority":number});
         change["authority"]["budget"]["spend"] = (4 * run).into();
         batch.push(change);
         let path = format!("batch-{number}.txt");
@@ -187,7 +186,7 @@ fn read(root: &Path, arguments: &[&str]) -> Result<Value, String> {
     Ok({
         let ended = ctl::alone(root, ctl::Call::new(arguments).in_directory("private").json());
         if ended.exit != Some(Exit::Code(0)) {
-            return Err(format!("{}", String::from_utf8_lossy(&ended.stderr)));
+            return Err(format!("ctl {arguments:?}: {}", String::from_utf8_lossy(&ended.stderr)));
         }
         super::check_ctl_json(&ended)?
     })
@@ -288,6 +287,8 @@ struct Proof {
 }
 #[derive(Debug)]
 enum Phase {
+    Changes,
+    Panels,
     Reviews,
     Keeping,
     Gates,
@@ -330,6 +331,11 @@ fn calls(procs: &mut [Process]) -> Result<&mut ctl::Calls, String> {
 }
 
 impl Judge<'_> {
+    fn changes_made(&self) -> Result<bool, String> {
+        let tasks = read(self.root, &["task", "list", "--project", "1", "--parent", "2"])?;
+        let rows = tasks["tasks"]["rows"].as_array().ok_or("change task rows")?;
+        Ok(CHANGES.into_iter().all(|task| rows.iter().any(|row| row["chip"]["task"] == task)))
+    }
     fn reviews_pending(&self) -> Result<bool, String> {
         Ok({
             CHANGES.into_iter().try_fold(true, |all, task| {
@@ -622,6 +628,30 @@ impl Judge<'_> {
     #[expect(clippy::too_many_lines, reason = "the batch phases return their findings in causal order")]
     fn sample(&mut self, procs: &mut [Process]) -> Result<(), String> {
         match self.phase {
+            Phase::Changes => {
+                if self.changes_made()? {
+                    // A chat can reply before delegating. Once the batch exists,
+                    // native change waits follow each panel's registration.
+                    for task in CHANGES {
+                        calls(procs)?.push(ctl::Step::Run(
+                            ctl::Call::new(&["change", "show", &task.to_string(), "--until", "pull", "--json"])
+                                .in_directory("private"),
+                        ));
+                    }
+                    self.phase = Phase::Panels;
+                }
+            }
+            Phase::Panels => {
+                let calls = calls(procs)?;
+                if calls.foreground_idle() {
+                    for call in calls.ends() {
+                        if call.exit != Some(Exit::Code(0)) {
+                            return Err(format!("{}", String::from_utf8_lossy(&call.stderr)));
+                        }
+                    }
+                    self.phase = Phase::Reviews;
+                }
+            }
             Phase::Reviews => {
                 if self.reviews_pending()? {
                     self.keep_together(procs)?;
@@ -631,7 +661,7 @@ impl Judge<'_> {
                 let calls = calls(procs)?;
                 if calls.foreground_idle() {
                     {
-                        let (left, right) = (&(calls.ends().len()), &(turn_restart::SETUP_CALLS + 3));
+                        let (left, right) = (&(calls.ends().len()), &(turn_restart::SETUP_CALLS + CHANGES.len() + 3));
                         if left != right {
                             return Err(format!(
                                 "assertion `left == right` failed\n  left: {left:?}\n right: {right:?}"
@@ -932,7 +962,7 @@ fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story)
         root,
         forge,
         barrier,
-        phase: Phase::Reviews,
+        phase: Phase::Changes,
         poll: clock.now().now,
         base: main(forge).expect("main tip"),
         first: None,

@@ -252,6 +252,10 @@ pub fn task_steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step>
     let mut task = first_repository::csv_task_steps(client);
     let review = task.split_off(5);
     steps.extend(task);
+    steps.push(Step::TaskExists { project: 1, parent: 1, task: 2 });
+    // A chat's reply may precede delegation, and the forge registers the change
+    // after its task is made. The native change wait follows that registration.
+    steps.push(Step::Run(Call::new(&["change", "show", "2", "--until", "ci:failed", "--json"])));
     steps.push(Step::Until(Call::new(&["change", "show", "2", "--json"]), br#""step":"repairing""#));
     let red_paths = paths.clone();
     let red_client = client.to_path_buf();
