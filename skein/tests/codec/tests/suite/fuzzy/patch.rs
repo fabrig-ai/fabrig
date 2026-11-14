@@ -6,7 +6,7 @@ use crate::support::generated;
 mod tests {
     use super::generated;
     use skein_codec::patch::{Capacity, Patcher, PlanIx, Step};
-    use skein_codec::schema::{DeclIx, Schema, Shape, Type};
+    use skein_codec::schema::{DeclIx, Held, Schema, Shape, Type};
     use skein_codec::value::{Node, Value};
     use skein_lib::Rng;
 
@@ -66,6 +66,89 @@ versioned record Every {
             }
         }
         unreachable!("stops fit the node capacity")
+    }
+
+    fn checked_rehead(patcher: &mut Patcher, plan: PlanIx, root: DeclIx, bytes: &[u8]) -> (Vec<u8>, bool) {
+        let mut headed = bytes.to_vec();
+        let keeps = patcher.rehead(plan, root, &mut headed);
+        let result = run(patcher, plan, root, bytes);
+        if keeps {
+            assert_eq!(headed, result, "head-only result equals the machine");
+        } else {
+            assert_eq!(headed, bytes, "a refused rehead writes nothing");
+        }
+        (result, keeps)
+    }
+
+    // An independent reach oracle: inspect the kind's schema, not the drawn presence
+    // of nested records. Only the root's own head may be ignored (patches.md, 8).
+    fn kind_has_no_nested_version_or_held(schema: &Schema, root: DeclIx, value: &Value, node: Node) -> bool {
+        let mut pending = Vec::new();
+        match schema.declaration(root).shape {
+            Shape::Record { .. } => {
+                for (offset, field) in named_fields(schema, root).into_iter().enumerate() {
+                    let ty = schema.ty(schema.field(field).ty);
+                    if offset == 0
+                        && let Type::Named(decl) = ty
+                        && let Shape::Enum { .. } = schema.declaration(decl).shape
+                    {
+                        let kind = value.field(node, field).expect("leading kind");
+                        if let Some(record) = schema.variant(value.tag(kind).expect("tag")).record {
+                            pending.push(Type::Named(record));
+                        }
+                        continue;
+                    }
+                    pending.push(ty);
+                }
+            }
+            Shape::Enum { .. } => {
+                if let Some(record) = schema.variant(value.tag(node).expect("kind")).record {
+                    pending.push(Type::Named(record));
+                }
+            }
+        }
+        while let Some(ty) = pending.pop() {
+            match ty {
+                Type::Named(decl) => match schema.declaration(decl).shape {
+                    Shape::Record { versioned, .. } => {
+                        if versioned {
+                            return false;
+                        }
+                        for field in named_fields(schema, decl) {
+                            pending.push(schema.ty(schema.field(field).ty));
+                        }
+                    }
+                    Shape::Enum { first, count } => {
+                        for offset in 0..count {
+                            let variant = skein_codec::schema::VariantIx::new(
+                                first.index().checked_add(offset).expect("variant"),
+                            );
+                            if let Some(record) = schema.variant(variant).record {
+                                pending.push(Type::Named(record));
+                            }
+                        }
+                    }
+                },
+                Type::List { item, .. } | Type::Option(item) => pending.push(schema.ty(item)),
+                Type::Bytes { held: Held::Record { .. }, .. } | Type::Secret { held: Held::Record { .. }, .. } => {
+                    return false;
+                }
+                Type::Bytes { held: Held::Pieces(decl), .. } | Type::Secret { held: Held::Pieces(decl), .. } => {
+                    pending.push(Type::Named(decl));
+                }
+                Type::U8
+                | Type::U16
+                | Type::U32
+                | Type::U64
+                | Type::Bool
+                | Type::Duration
+                | Type::Fixed(_)
+                | Type::Text(_)
+                | Type::Bytes { held: Held::Opaque, .. }
+                | Type::Secret { held: Held::Opaque, .. } => {}
+            }
+        }
+        true
     }
 
     fn named_fields(schema: &Schema, decl: DeclIx) -> Vec<skein_codec::schema::FieldIx> {
@@ -227,12 +310,16 @@ versioned record Every {
                 }
                 let ad = old.find(name.as_bytes()).expect("root");
                 let bd = new.find(name.as_bytes()).expect("root");
-                assert_eq!(run(&mut patcher, identity, ad, &bytes), bytes, "identity {name} seed {seed}");
-                let converted = run(&mut patcher, derived, ad, &bytes);
+                let (unchanged, _) = checked_rehead(&mut patcher, identity, ad, &bytes);
+                assert_eq!(unchanged, bytes, "identity {name} seed {seed}");
+                let (converted, _) = checked_rehead(&mut patcher, derived, ad, &bytes);
                 let an = av.decode(&old, ad, bytes.into()).expect("old value");
                 let bn = bv.decode(&new, bd, converted.clone().into()).expect("converted value");
                 compare(&old, &new, &av, an, &bv, bn, name);
-                let revised = run(&mut patcher, version, bd, &converted);
+                let (revised, keeps) = checked_rehead(&mut patcher, version, bd, &converted);
+                if kind_has_no_nested_version_or_held(&new, bd, &bv, bn) {
+                    assert!(keeps, "head alone required for {name} seed {seed}");
+                }
                 let mut expected = converted;
                 rewrite_versions(&new, bd, &bv, bn, &mut expected);
                 assert_eq!(revised, expected, "version-only {name} seed {seed}");

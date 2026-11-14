@@ -239,6 +239,19 @@ mod sizing_tests {
         assert_eq!(max_whole(&limits), max_read(&limits));
     }
 
+    // The core refuses sign-ins at the root's fill mark; a store whose map budget is
+    // under it refuses every growing commit first, and one whose mark is under the
+    // budget refuses sign-ins while the map still has room.
+    #[test]
+    fn the_standard_store_holds_the_roots_fill_mark() {
+        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Standard);
+        let (application, _, _) = crate::tests::fixtures::store_limits();
+        let mark = temper_engine_domain::core_limits(&application).fill_mark;
+        assert_eq!(mark, jig.core.fill_mark);
+        let limits = super::limits(&application, &application.forge, &jig.store).unwrap();
+        assert!(limits.store.budget >= mark);
+    }
+
     #[test]
     fn typed_secret_rows_fit_the_small_profiles_page() {
         // Secrets keys are the two owner bytes followed by a u64 number.

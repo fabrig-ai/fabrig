@@ -46,14 +46,18 @@ and home of draft acceptance cases remain the user's open decision
 The focused-saving and margin proofs remain `testing/README.status.md`, 7.
 Remaining allocator, fixture, product and startup cost work, and a
 profiler supporting the process operations, are deferred (`testing/README.md`,
-sections 5, 7 and 9). The codec's step tests count a reused pass's allocations; address-only reuse checks remain `testing/README.status.md`, 5. The test-only fork
+sections 5, 7 and 9). The codec's step tests count a reused pass's allocations; address-only reuse checks remain `testing/README.status.md`, 5. A one-process starved pass still unwinds (`testing/README.status.md`, 5), and the row kit still catches each row's panic (`testing/README.status.md`, 6). The test-only fork
 kit holds exhaustive crash sweeps' prefix once; checked allocation layout and native fork costs remain
 deferred there, with their measurements in temper's deployment-world account.
 State-handler departures remain `forge/connection.status.md`, 8, `forge/forgejo.status.md` (Departs), `oauth/README.status.md`, 3, `llm/README.status.md`, 3, `llm/connection.status.md`, 5, `runtime/io/files.status.md` (Departs, the whole document), and `runtime/lib.status.md`, 12; shared-type departures remain `testing/fakes/forge.status.md`, 4, and `testing/fakes/llm.status.md`, 4; decoded-kind matches remain `forge/forgejo.status.md` (Departs). Single departures stand in `net/channel.status.md`, `testing/fakes/forge.status.md`, `forge/README.status.md`, `forge/connection.status.md`, `runtime/io/README.status.md`, `data/json.status.md`, `data/kv.status.md`, `runtime/lib.status.md`, `net/link.status.md`, `llm/README.status.md`, `oauth/README.status.md`, `runtime/shell.status.md`, `testing/README.status.md`, `ui/README.status.md` and `ui/web/README.status.md`. The compressor-profile departure remains `ui/web/bundle.status.md`, 2; browser-budget proofs remain `ui/web/bundle.status.md`, 3, and `ui/web/README.status.md`, 5; failed-head retry remains `ui/web/README.status.md`, 7. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`); of `cli.md`, what a tree doesn't follow yet is
 its checks' exceptions and the `expect`s naming a round or milestone
-(`../foundation/cli.md`, section 9), and no binary has a table yet, so none has checks 6 and 7.
+(`../foundation/cli.md`, section 9), and no binary has a table yet, so none has checks 6 and 7;
+of `programming-model.md`, 10.4, tests in every tree still catch panics and trigger assertions,
+held where they stand by the count of `tools/lints/design.md`, 7, and of 10.1, no `clippy.toml`
+bans `catch_unwind` or `resume_unwind` yet: the milestones of
+`temper/docs/design/draft/panics.execution.md` convert them.
 Check 5 counts a declared variable as read or set wherever a tracked
 file outside `docs/` names it, its own table's row among them, so a
 declared variable nothing reads or sets passes it. `runtime/shell.status.md` and
