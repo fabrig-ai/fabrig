@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 use alloc::boxed::Box;
-pub mod additions;
+mod additions;
 mod call;
 pub mod collisions;
 pub mod compose;
@@ -16,7 +16,7 @@ pub mod keys;
 pub mod kinds;
 pub mod limits;
 pub mod parts;
-pub mod reserved;
+mod reserved;
 pub mod resolution;
 pub mod revision;
 pub mod schema;
