@@ -28,8 +28,6 @@ pub struct Peer {
     connections: BTreeMap<Token, Vec<u8>>,
     pub observations: Vec<Vec<u8>>,
     pub handle: Rc<Cell<usize>>,
-    pub assert_request: bool,
-    pub assert_shutdown: bool,
     stopping: bool,
 }
 impl Default for Peer {
@@ -63,8 +61,6 @@ impl Peer {
             connections: BTreeMap::new(),
             observations: vec![],
             handle: Rc::new(Cell::new(0)),
-            assert_request: false,
-            assert_shutdown: false,
             stopping: false,
         }
     }
@@ -89,8 +85,6 @@ impl Peer {
                     self.observations.push(request.clone());
                     self.handle.set(self.handle.get() + 1);
                     self.demand(owner, stream::Read::Nothing, u32::try_from(REPLY.len()).expect("reply size"));
-                    let assert_request = std::mem::take(&mut self.assert_request);
-                    assert!(!assert_request, "fixture request assertion");
                 } else {
                     self.demand(owner, stream::Read::Arrived { max: 4096 }, 0);
                 }
@@ -116,8 +110,6 @@ impl Listening for Peer {
     }
     fn shutdown(&mut self) {
         self.stopping = true;
-        let fail = std::mem::take(&mut self.assert_shutdown);
-        assert!(!fail, "fixture shutdown assertion");
     }
 }
 impl Host for Peer {
