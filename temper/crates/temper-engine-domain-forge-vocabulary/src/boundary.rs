@@ -1971,6 +1971,10 @@ pub enum Event {
     DropChange {
         task: u64,
     },
+    /// Drop an unpinned change with its task's record, full table or not (domain/forge/change/README.md, 7).
+    DropErased {
+        task: u64,
+    },
     /// Register one activated change task with its held branch.
     Change {
         row: ChangeRow,
