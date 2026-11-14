@@ -9,7 +9,8 @@ layout. The patch machine (`patches.md`) stays for the families a store
 still patches and for the written jobs that need a generic value.
 
 - **A value type's layout** (`README.md`, 9.4): a root declaration, at
-  one variant where the root is broad, its fingerprint without the
+  one variant where the root is broad and its keys tell its variants
+  apart, its fingerprint without the
   family's version and with what it holds resolved.
 - **Derived from the two texts** (2): the old layout's text and the
   new one's, each with the texts of the families its values hold. The
@@ -33,7 +34,10 @@ which: the root it stores beside each layout and the root its binary's
 text names, both by its own table of value types. The two roots match
 as the diff matches declarations (2): by name or a former name, the new
 variant's former names among them; roots that do not match have no
-plan (`Underived::Root`).
+plan (`Underived::Root`). A broad root without a variant (`README.md`,
+9.4) matches only another without one, and is planned as the
+declaration whole, every variant of its reach judged; one at a variant
+and one without never match.
 
 Each text comes with the texts of the families it holds (`README.md`,
 9.4: `held`), the old with those its layout was made with, the new with
