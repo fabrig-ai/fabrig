@@ -10,14 +10,19 @@ read in the four trees' packages is under a scoped expectation whose reason star
 or the round or milestone that removes it (temper's, the milestones C2 to C6 of
 `temper/docs/design/draft/cli.execution.md`), but for the seven of the last departure below.
 
-- **Not yet:** 5: `every_package_takes_a_lint_profile` (`tests/boundary/tests/lints.rs`), which
-  `.config/gate/always.txt` selects on every change, is the check's one run in this repository.
-  The user's request of 2026-11-04 has it run beside `tools/citations/citations.py`, in a step this
-  repository doesn't hold: whether that step has it awaits the user (8). `.config/gate/README.md`, 8
-  also names `tools/lints/test_lints.py`, which no test here runs, so a break of the check itself
-  shows only where someone runs it.
-  7: the count of catches: `tools/lints/panics.py`, its list `tools/lints/panics.txt` at main's
-  figures, its tests, and its runs in the gate and in `fabrig-boundary`. [in flight: change 2674]
+- **Not yet:**
+  - 5: `every_package_takes_a_lint_profile` (`tests/boundary/tests/lints.rs`), which
+    `.config/gate/always.txt` selects on every change, is the check's one run in this repository.
+    The user's request of 2026-11-04 has it run beside `tools/citations/citations.py`, in a step
+    this repository doesn't hold: whether that step has it awaits the user (8).
+    `.config/gate/README.md`, 8 also names `tools/lints/test_lints.py`, which no test here runs, so
+    a break of the check itself shows only where someone runs it.
+  - 4: no `clippy.toml` bans catching a panic: "Catching a panic"'s two entries in every variant,
+    smith's eight files and the root's `tests/clippy.toml`, and `fabrig-boundary`'s test that
+    every tracked `clippy.toml` holds them. [in flight: change 2953]
+  - 7.2, 7.3, 7.4: `panics.py` has no `REFUSED`: a list line naming `catch_unwind` or
+    `resume_unwind` is read as any other, and the list's header lacks its third line.
+    [in flight: change 2954]
 - **Departs:**
   - 1, 2.4: four profiles, where the request and its debt items name three, because `binary` held
     two regimes and one block for both would loosen the ring's shell or raise twelve crates. The

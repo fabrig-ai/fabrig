@@ -469,10 +469,16 @@ a marker (README.md, section 5).
 - **Commit order, one at a time.** An entry runs when no earlier entry of
   its lane remains. An uncertain entry holds its lane until found or
   settled, so a later write cannot overtake one that may still land.
-- **Withdrawal.** `Withdraw { entry }` works only for an entry with no
-  attempt: of one with an attempt, or one the client does not hold, it
-  changes nothing and says nothing. A call already out ends it
-  `Withdrawn` at its answer.
+- **Withdrawal.** `Withdraw { entry }` of an entry with no attempt ends
+  it `Withdrawn`: at once, or at its answer when a call is out. Of one
+  with an attempt (2026-11-14), it stops the write being sent again and
+  leaves what was sent to settle: a call out ends as its answer says, a
+  lost answer is looked for (section 7.5), and the entry holds its lane
+  as any uncertain entry does. Found, it ends `Made { found: true }`;
+  wherever it would be sent again, or be `Held` for a person's `Remake`,
+  it ends `Withdrawn` instead. A queued merge stays the queue's (7.7).
+  Of an entry the client does not hold, it changes nothing and says
+  nothing.
 
 ### 7.3 Recovery classes
 

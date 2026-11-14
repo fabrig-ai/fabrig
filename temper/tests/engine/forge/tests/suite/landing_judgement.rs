@@ -66,6 +66,7 @@ fn ask_gate(world: &mut World, prefix: api::Commit, entry: u64) {
 }
 fn verdict(world: &mut World, passed: bool) {
     world.event(top::Event::DelegateResult {
+        ended_at: None,
         task: CHANGE,
         child: 71,
         status: if passed { change::Status::Passed } else { change::Status::Failed },

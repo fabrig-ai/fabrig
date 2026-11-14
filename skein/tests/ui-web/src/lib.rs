@@ -23,14 +23,7 @@ pub fn get_with_headers(path: &[u8], headers: &[(&[u8], &[u8])]) -> Call {
 /// The binary built by the browser suite's setup.
 #[must_use]
 pub fn server_binary() -> std::path::PathBuf {
-    let exe = std::env::current_exe().expect("test executable");
-    let binary = exe.parent().and_then(std::path::Path::parent).expect("target directory").join("skein-ui-example");
-    assert!(
-        binary.is_file(),
-        "build the browser server with cargo build -p skein-ui-example-server: {}",
-        binary.display()
-    );
-    binary
+    skein_scratch::paths::built("skein-ui-example-server", "skein-ui-example")
 }
 #[must_use]
 #[expect(
@@ -136,13 +129,10 @@ pub fn page(path: &[u8], body: &[u8]) -> skein_fake_person_browser::origins::Pag
 
 pub mod harness_peer;
 
-/// Prebuilt beside the UI test executables, as the example server is.
+/// The UI test package's fixture binary, supplied by Cargo and nextest.
 #[must_use]
 pub fn harness_fixture() -> std::path::PathBuf {
-    let exe = std::env::current_exe().expect("test executable");
-    let binary = exe.parent().and_then(std::path::Path::parent).expect("target directory").join("harness_fixture");
-    assert!(binary.is_file(), "prebuild skein-ui-web-tests --bins");
-    binary
+    skein_scratch::paths::binary("harness_fixture")
 }
 
 #[must_use]
