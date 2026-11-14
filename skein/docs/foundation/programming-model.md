@@ -1078,11 +1078,13 @@ profile traps whatever the lint does not see, in lib and the shell.
   its result.
 - **Assertions are fail-stop** and are for the service's own bugs, never
   for anything from outside the process: a peer, configuration or the
-  store's contents. `expect` names the invariant it relies on. Nothing
-  catches a panic, tests included, and no test triggers an assertion: a
-  test sees what an assertion guards through the outcomes around it. A
-  check whose job is to fail, such as a referee or a judge, returns its
-  finding, and only its caller panics.
+  store's contents. A stored record that doesn't decode or link is the
+  store's, and refused; one that does is the service's own writing, so a
+  rule it breaks is the service's bug. `expect` names the invariant it
+  relies on. Nothing catches a panic, tests included, and no test triggers
+  an assertion: a test sees what an assertion guards through the outcomes
+  around it. A check whose job is to fail, such as a referee or a judge,
+  returns its finding, and only its caller panics.
 - **Runtime checks stay on in production:** bounds checks, overflow
   checks, assertions. Safe Rust has no undefined behaviour left to trap;
   the ring adapter, the one place that could have some, is tested against
