@@ -33,7 +33,6 @@ through their changes, filtered by jig's handed tasks. A landing's zero
 stale-proof count draws nothing; a positive count remains (`../web/public.md`,
 3). Older public history remains deferred in `README.md`, section 8.
 
-- **Not yet:** 2.1, verifying: a tier held by a person reads `NAME waiting`, not `NAME held by party N: REASON` [in flight: change 2957].
 - **Not yet:** 4.1: a row names no path set, so the card says no
   "Signs off changes to NAME." and leads no "Sign off on Forgejo ↗";
   it still says how many changes wait behind it, and the row carries
