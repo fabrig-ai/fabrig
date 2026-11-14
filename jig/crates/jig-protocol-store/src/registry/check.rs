@@ -138,22 +138,43 @@ fn job(store: &Store, key: &RowKey, row: &Row) -> bool {
     }
     false
 }
+fn declaration(store: &Store, key: &RowKey) -> Option<(u32, &'static crate::ValueType)> {
+    let mut index = 0_u32;
+    for set in store.patch_sets.sets {
+        for family in set.families {
+            for ty in family.types {
+                if family.name == key.0.as_ref() && ty.number == key.1 {
+                    return Some((index, ty));
+                }
+                index = index.checked_add(1).expect("type count");
+            }
+        }
+    }
+    None
+}
+
 pub(super) fn plans(
     store: &Store,
     layouts: &mut Layouts,
     binary: &texts::Binary,
     work: &mut Workspace,
 ) -> Result<(), OpenRefusal> {
-    let mut planned = List::uncapped();
-    let mut retired = List::uncapped();
-    for (key, row) in &layouts.rows {
-        let mut found = None;
-        for (index, ty) in layouts.types.as_slice().iter().enumerate() {
-            if ty.family == key.0.as_ref() && ty.number == key.1 {
-                found = Some(u32::try_from(index).expect("type count"));
-                break;
-            }
+    let mut keys = List::uncapped();
+    for (key, _) in &layouts.rows {
+        keys.push(key.clone()).expect("uncapped row keys");
+    }
+    let mut family = None;
+    for key in &keys {
+        if family != Some(key.0.as_ref()) {
+            texts::clear(layouts);
+            family = Some(key.0.as_ref());
         }
+        let row = layouts.rows.get(key).expect("held row");
+        let declared = declaration(store, key);
+        let found = match declared {
+            Some((index, _)) => Some(index),
+            None => None,
+        };
         let patches = match &store.directory.patch {
             Some(pending) => !pending.plan.steps().is_empty(),
             None => false,
@@ -168,38 +189,41 @@ pub(super) fn plans(
             }
         };
         if found.is_none() && values == Some(0) {
-            retired.push(key.clone()).expect("uncapped retirements");
+            layouts.rows.get_mut(key).expect("held row").retire = true;
             continue;
         }
         let mut why = Unplanned::Undeclared;
         if let Some(index) = found {
-            let ty = layouts.types.get(index).expect("found type");
-            if ty.binary != key.2 && values == Some(0) {
-                retired.push(key.clone()).expect("uncapped retirements");
+            let binary_id = layouts.types.get(index).expect("found type").binary;
+            if binary_id != key.2 && values == Some(0) {
+                layouts.rows.get_mut(key).expect("held row").retire = true;
                 continue;
             }
-            let mut declaration = None;
-            for set in store.patch_sets.sets {
-                for family in set.families {
-                    if family.name != ty.family {
-                        continue;
-                    }
-                    for value in family.types {
-                        if value.number == ty.number {
-                            declaration = Some(value);
-                        }
-                    }
-                }
-            }
-            let declaration = declaration.expect("binary type declared");
-            let digest = binary.text(ty.family, true).expect("binary text");
+            let (_, declaration) = declared.expect("binary type declared");
+            let digest = binary.text(&key.0, true).expect("binary text");
+            let held = binary.held(layouts, digest, true).ok_or(OpenRefusal::Failed)?;
+            let readable = texts::row(layouts, key);
             let new =
                 layouts.texts.get(&digest).ok_or(OpenRefusal::Failed)?.schema.as_ref().ok_or(OpenRefusal::Failed)?;
-            let held = binary.held(layouts, digest, true).ok_or(OpenRefusal::Failed)?;
             let held = texts::schemas(layouts, &held, false).ok_or(OpenRefusal::Failed)?;
-            match derive(layouts, row, new, declaration, held.as_slice()) {
-                Ok(plan) if work.fit(&plan) => {
-                    planned.push((index, key.2, plan)).expect("uncapped plans");
+            let row = layouts.rows.get(key).expect("held row");
+            let plan = if readable.is_some() {
+                derive(layouts, row, new, declaration, held.as_slice())
+            } else {
+                Err(Unplanned::Text)
+            };
+            match plan {
+                Ok(plan) if key.2 == binary_id || plan.keeps() || work.fit(&plan) => {
+                    let ty = layouts.types.get_mut(index).expect("found type");
+                    // A binary id is reheaded before any plan is consulted, but
+                    // its row still needs the text and fingerprint checks above.
+                    if key.2 != ty.binary {
+                        if plan.keeps() {
+                            ty.keeping.push(key.2).expect("uncapped keeping ids");
+                        } else {
+                            ty.plans.insert(key.2, plan).expect("uncapped plans");
+                        }
+                    }
                     continue;
                 }
                 Ok(_) => {
@@ -214,17 +238,12 @@ pub(super) fn plans(
             }
         }
         if let Unplanned::Underived(_) = why
-            && job(store, key, row)
+            && job(store, key, layouts.rows.get(key).expect("held row"))
         {
             continue;
         }
         return Err(OpenRefusal::Layout { family: key.0.clone(), value_type: key.1, id: key.2, values, why });
     }
-    for key in &retired {
-        layouts.rows.get_mut(key).expect("held row").retire = true;
-    }
-    for (index, id, plan) in planned.into_boxed() {
-        layouts.types.get_mut(index).expect("type").plans.insert(id, plan).expect("uncapped plans");
-    }
+    texts::clear(layouts);
     Ok(())
 }

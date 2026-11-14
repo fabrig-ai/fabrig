@@ -2,7 +2,7 @@
 use super::{Layouts, Range, Row, RowKey, Text, Type, texts};
 use crate::{KeptFamily, OpenRefusal, Store, ValueType, keys, registry_v1 as wire};
 use alloc::boxed::Box;
-use skein_lib::{Map, Reader, Writer};
+use skein_lib::{List, Map, Reader, Writer};
 
 pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
     let ranges = [skein_kv::Range { start: Box::from([0, 6]), end: Some(Box::from([0, 8])) }];
@@ -35,9 +35,7 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
                         .ok()
                         .ok_or(OpenRefusal::Failed)?;
                     let bytes = Box::from(value.text());
-                    let schema =
-                        if texts::digest(&bytes) == digest { skein_codec::schema::parse(&bytes).ok() } else { None };
-                    layouts.texts.insert(digest, Text { bytes, schema, stored: true }).expect("uncapped texts");
+                    layouts.texts.insert(digest, Text { bytes, schema: None, stored: true }).expect("uncapped texts");
                 }
                 Some(
                     keys::Own::Format
@@ -59,7 +57,7 @@ pub(super) fn load(store: &mut Store, layouts: &mut Layouts) -> Result<(), OpenR
     Err(OpenRefusal::Failed)
 }
 fn made(
-    layouts: &Layouts,
+    layouts: &mut Layouts,
     binary: &texts::Binary,
     family: &KeptFamily,
     ty: &ValueType,
@@ -105,6 +103,7 @@ pub(super) fn seed(store: &Store, layouts: &mut Layouts, binary: &mut texts::Bin
                     .insert((Box::from(family.name), ty.number, id), Row { value, stored: false, retire: false })
                     .expect("uncapped seed");
             }
+            texts::clear(layouts);
         }
     }
     Ok(())
@@ -155,7 +154,7 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
                 let index = layouts.types.len();
                 layouts
                     .types
-                    .push(Type { family: family.name, number: ty.number, version, binary: id, plans: Map::uncapped() })
+                    .push(Type { version, binary: id, keeping: List::uncapped(), plans: Map::uncapped() })
                     .expect("uncapped types");
                 for range in ty.keys {
                     let from = super::whole(set.owner, range.from, store.limits.store.key).ok_or(refusal.clone())?;
@@ -163,6 +162,7 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
                     layouts.ranges.insert(from, Range { to, ty: index }).expect("uncapped ranges");
                 }
             }
+            texts::clear(layouts);
         }
     }
     Ok(changed)

@@ -12,7 +12,7 @@ pub(crate) fn records(store: &mut Store, owner: Token, found: Levels, above: &mu
     if store.rehearsal.is_none() {
         return true;
     }
-    let layouts = match Decoder::load(store) {
+    let mut layouts = match Decoder::load(store) {
         Ok(layouts) => layouts,
         Err(why) => {
             open::refuse(store, owner, why, above);
@@ -26,7 +26,7 @@ pub(crate) fn records(store: &mut Store, owner: Token, found: Levels, above: &mu
             if family.texts.is_empty() {
                 continue;
             }
-            match family_records(store, set, ix, level, &layouts) {
+            match family_records(store, set, ix, level, &mut layouts) {
                 Ok(count) => records = records.checked_add(count).expect("map row counts fit u64"),
                 Err(Failure::Record { version, key }) => {
                     store.phase = Phase::Stopped;
@@ -84,7 +84,14 @@ enum Root {
     Layout(u16),
 }
 
-fn family_records(store: &mut Store, set: &PatchSet, ix: usize, level: u32, layouts: &Decoder) -> Result<u64, Failure> {
+fn family_records(
+    store: &mut Store,
+    set: &PatchSet,
+    ix: usize,
+    level: u32,
+    layouts: &mut Decoder,
+) -> Result<u64, Failure> {
+    layouts.family();
     let family = set.families.get(ix).expect("family being walked");
     let registered = layouts.seeded() && !family.types.is_empty();
     let kept = if registered { None } else { Some(decoder(store, set, ix, level)?) };

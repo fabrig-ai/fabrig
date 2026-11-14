@@ -1,4 +1,4 @@
-//! Texts parsed once per digest and shared by the open's plans (protocol/store/layouts.md, 7).
+//! Texts parsed while a family and its held families are planned (protocol/store/layouts.md, 7).
 use super::{Digest, Layouts, Text};
 use crate::{OpenRefusal, PatchSets};
 use alloc::boxed::Box;
@@ -32,13 +32,13 @@ impl Binary {
                     }
                     let digest = digest(text.as_bytes());
                     if !layouts.texts.contains_key(&digest) {
-                        let Ok(schema) = schema::parse(text.as_bytes()) else { return Err(refusal) };
+                        // Keep Set's syntax refusal even for families with no value types.
+                        if schema::parse(text.as_bytes()).is_err() {
+                            return Err(refusal);
+                        }
                         layouts
                             .texts
-                            .insert(
-                                digest,
-                                Text { bytes: Box::from(text.as_bytes()), schema: Some(schema), stored: false },
-                            )
+                            .insert(digest, Text { bytes: Box::from(text.as_bytes()), schema: None, stored: false })
                             .expect("uncapped texts");
                     }
                     digests.push(digest).expect("two texts");
@@ -54,13 +54,14 @@ impl Binary {
         let &(seed, binary) = self.names.get(family)?;
         Some(if current { binary } else { seed })
     }
-    pub(super) fn held(&self, layouts: &Layouts, text: Digest, current: bool) -> Option<List<Digest>> {
+    pub(super) fn held(&self, layouts: &mut Layouts, text: Digest, current: bool) -> Option<List<Digest>> {
         let mut held = List::with_capacity(crate::registry_v1::CEILINGS.layout_held);
         let mut pending = List::uncapped();
         pending.push(text).ok()?;
         // Each family is entered once; its whole text describes the texts it may hold.
         for index in 0..=self.names.len() {
             let Some(digest) = pending.get(index) else { break };
+            parse(layouts, *digest)?;
             let schema = layouts.texts.get(digest)?.schema.as_ref()?;
             for decl in 0..schema.declarations() {
                 let Shape::Record { first, count, .. } = schema.declaration(DeclIx::new(decl)).shape else { continue };
@@ -104,6 +105,38 @@ fn holds(schema: &Schema, mut ty: TypeIx) -> Option<&str> {
     }
     None
 }
+pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
+    let text = layouts.texts.get_mut(&digest)?;
+    if text.schema.is_none() {
+        if self::digest(&text.bytes) != digest {
+            return None;
+        }
+        text.schema = Some(schema::parse(&text.bytes).ok()?);
+    }
+    Some(())
+}
+
+pub(super) fn row(layouts: &mut Layouts, key: &super::RowKey) -> Option<()> {
+    let row = layouts.rows.get(key)?;
+    let text = *row.value.text();
+    let held = row.value.held().clone();
+    parse(layouts, text)?;
+    for digest in &held {
+        parse(layouts, *digest)?;
+    }
+    Some(())
+}
+
+pub(super) fn clear(layouts: &mut Layouts) {
+    let mut digests = List::uncapped();
+    for (digest, _) in &layouts.texts {
+        digests.push(*digest).expect("uncapped digests");
+    }
+    for digest in &digests {
+        layouts.texts.get_mut(digest).expect("held text").schema = None;
+    }
+}
+
 pub(super) fn schemas<'a>(layouts: &'a Layouts, digests: &List<Digest>, stored: bool) -> Option<List<&'a Schema>> {
     let mut schemas = List::with_capacity(digests.len());
     for digest in digests {
