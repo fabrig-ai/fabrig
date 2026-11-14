@@ -142,6 +142,51 @@ fn a_change_held_for_effects_before_its_producer_asks_its_producer_once_released
 }
 
 #[test]
+fn a_lagging_pull_head_waits_without_drift_then_goes_on_at_the_branch_head() {
+    use temper_engine_domain_forge_change::State;
+    let configured = World::configured(true, true);
+    let (mut world, task, head, _) = super::light_rules::pushed_change_in(configured, false, b"main");
+    world.lagging_pull_head = Some(translate::commit(1));
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(change_row(&world, task).change.state, State::Opening { requested: true } | State::Held { .. }) {
+            break;
+        }
+    }
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    if let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase {
+        let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
+        panic!("unexpected hold: {}", core::str::from_utf8(words).expect("hold UTF-8"));
+    }
+    assert_eq!(change_row(&world, task).change.state, State::Opening { requested: true });
+    assert_eq!(change_row(&world, task).change.last_head, Some(translate::commit(head)));
+    let since = change_row(&world, task).change.since;
+    for _ in 0..20 {
+        world.tick();
+    }
+    assert_eq!(change_row(&world, task).change.since, since, "waiting counts the opening stall");
+    world.lagging_pull_head = None;
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Item(change_row(&world, task).pull.expect("open pull")),
+            key: None,
+        },
+    })));
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(change_row(&world, task).change.state, State::Landed { .. }) {
+            break;
+        }
+    }
+    assert!(matches!(change_row(&world, task).change.state, State::Landed { .. }));
+    assert_eq!(world.merges, 1);
+    world.close();
+}
+
+#[test]
 fn a_chat_tells_its_person_why_its_change_holds_before_waiting() {
     let (mut world, chat, change) = super::producer_failure::failed_production(REASON);
     let resumed = super::reviews::next_assignment(&mut world, CHAT_AND_PRODUCER);

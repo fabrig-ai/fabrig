@@ -435,6 +435,9 @@ fn bounded_job_bytes_translate_to_a_truncated_attempt_log() {
         &asked,
         skein_fake_forge_domain::api::Answer::Job {
             job: skein_fake_forge_domain::api::Job {
+                labels: Box::new([]),
+                needs: Box::new([]),
+                wait: None,
                 id: 7,
                 run: 3,
                 index: 0,
@@ -517,6 +520,7 @@ fn adoption_reads_history_and_preserves_foreign_or_copied_marker_news() {
             | api::Answer::Checks(_)
             | api::Answer::Directory { .. }
             | api::Answer::File { .. }
+            | api::Answer::JobState { .. }
             | api::Answer::Job { .. }
             | api::Answer::Protection(_)
             | api::Answer::Settings(_)
@@ -588,6 +592,7 @@ fn comment_ids(world: &World) -> skein_lib::List<u64> {
             | api::Answer::Checks(_)
             | api::Answer::Directory { .. }
             | api::Answer::File { .. }
+            | api::Answer::JobState { .. }
             | api::Answer::Job { .. }
             | api::Answer::Protection(_)
             | api::Answer::Settings(_)
@@ -649,6 +654,7 @@ fn review_page_recovery_keeps_old_pending_submissions_without_duplicate_news() {
             | api::Answer::Checks(_)
             | api::Answer::Directory { .. }
             | api::Answer::File { .. }
+            | api::Answer::JobState { .. }
             | api::Answer::Job { .. }
             | api::Answer::Protection(_)
             | api::Answer::Settings(_)
@@ -767,6 +773,7 @@ fn review_count(world: &World) -> u32 {
             | api::Answer::Checks(_)
             | api::Answer::Directory { .. }
             | api::Answer::File { .. }
+            | api::Answer::JobState { .. }
             | api::Answer::Job { .. }
             | api::Answer::Protection(_)
             | api::Answer::Settings(_)

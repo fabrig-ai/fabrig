@@ -18,7 +18,7 @@ fn status(world: &mut World, head: u64, state: raw::Check) {
     );
 }
 
-fn finish(world: &mut World, producer: &engine::Assignment) {
+pub(super) fn finish(world: &mut World, producer: &engine::Assignment) {
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,
@@ -131,7 +131,7 @@ fn both_heads_ci_failures_wake_their_change_without_hints() {
     repair_by(&mut world, deadline);
 }
 
-fn hold_reviews(world: &mut World) -> engine::Event {
+pub(super) fn hold_reviews(world: &mut World) -> engine::Event {
     for _ in 0..500 {
         world.tick();
         if change(world).pull.is_some()

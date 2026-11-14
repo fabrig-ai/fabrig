@@ -440,7 +440,7 @@ as the terminal's host is:
   there again or the retention passes and they are answered unknown
   (jig's `client/domain/client/README.md`, section 8). Step 4 does not wait
   for them; the call says how many (`results.md`, 1) and goes on.
-- **`pending`** lists what the small store keeps (`tools.md`, 5).
+- **`pending`** lists what the small store keeps (`host.md`).
 
 ### 6.3 Several calls at once
 

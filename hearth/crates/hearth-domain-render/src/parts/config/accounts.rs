@@ -29,7 +29,7 @@ pub struct Member {
 use super::Config;
 use crate::{entries::Expansion, errors::Error, kinds::users, revision::declaration::Map};
 use skein_lib::{List, Map as Ordered};
-pub fn build(expansion: &Expansion) -> Result<users::Accounts, Box<[Error]>> {
+pub(crate) fn build(expansion: &Expansion) -> Result<users::Accounts, Box<[Error]>> {
     let users = expansion.of(Map::Users);
     let groups = expansion.of(Map::Groups);
     let mut faults = List::with_capacity(u32::try_from(users.len().saturating_add(groups.len())).expect("entry count"));
@@ -41,32 +41,17 @@ pub(crate) fn rows(accounts: &users::Accounts, tree: Box<[super::TreeEntry]>) ->
     let mut users = Ordered::with_capacity(u32::try_from(accounts.users.len()).expect("entry count"));
     let mut capacity = 0_u32;
     for user in &accounts.users {
-        if let users::UserKind::Sysusers { member_of, .. } = &user.kind {
-            capacity = capacity.saturating_add(u32::try_from(member_of.len()).expect("member count"));
-        }
+        capacity = capacity.saturating_add(u32::try_from(user.member_of.len()).expect("member count"));
     }
     let mut members = Ordered::with_capacity(capacity);
     for group in &accounts.groups {
-        let kind = if group.package { GroupKind::Package } else { GroupKind::Sysusers { gid: group.gid } };
-        groups.insert(group.name.clone(), Group { name: group.name.clone(), kind }).expect("entry count");
+        groups.insert(group.value.name.clone(), group.value.clone()).expect("entry count");
     }
     for user in &accounts.users {
-        let kind = match &user.kind {
-            users::UserKind::Package { .. } => UserKind::Package,
-            users::UserKind::Sysusers { uid, group, gecos, home, shell, member_of, .. } => {
-                for group in member_of {
-                    members.insert(Member { user: user.name.clone(), group: group.clone() }, ()).expect("member count");
-                }
-                UserKind::Sysusers {
-                    uid: *uid,
-                    group: group.clone(),
-                    gecos: gecos.clone(),
-                    home: home.clone(),
-                    shell: shell.clone(),
-                }
-            }
-        };
-        users.insert(user.name.clone(), User { name: user.name.clone(), kind }).expect("entry count");
+        for group in &user.member_of {
+            members.insert(Member { user: user.value.name.clone(), group: group.clone() }, ()).expect("member count");
+        }
+        users.insert(user.value.name.clone(), user.value.clone()).expect("entry count");
     }
     let mut group_rows = List::with_capacity(groups.len());
     for (_, group) in &groups {

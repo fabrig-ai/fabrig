@@ -3,7 +3,7 @@
 The table grows area by area, each with its stories (`testing.md`).
 
 1. **A chat to a landed change** (the first milestone's story,
-   `../../README.md`, section 2): the host's tools of `tools.md`, 5; every read
+   `../../README.md`, section 2): the host's tools of `host.md`; every read
    of `tools.md`, 2 other than the general proposal read of area 2; the watched
    reads' waits (`tools.md`, 4); every act of 5.3.
 2. **Goals and plans:** `goal start --project PROJECT [--template TEMPLATE]
@@ -190,7 +190,7 @@ The table grows area by area, each with its stories (`testing.md`).
    | `account import FILE` | moves a record in from FILE, read as a key's file is: taken into the secrets' store, checked as this application's and its subject held by no other holder, the account made or the one of its subject renewed; prints `moved in: account N`, `, renewed` after it for a renewal, then removes FILE. FILE refused (not private, a link, empty, past the bound), exit 1, nothing sent. Refused, exit 2, FILE kept: "not ours" (another application's or LLM provider's record), "held" (its subject held by another holder), "moving" (its subject's account moving out here) | move in | yes |
 
    - **The verbs are plain verbs,** as the other tools' are. Eight are
-     not jig's words: `sign-in` and `sign-out` are the host's (`tools.md`, 5), so
+     not jig's words: `sign-in` and `sign-out` are the host's (`host.md`), so
      a sign-in with a provider is `account connect` and its end `account
      disconnect`; `account forget`, `account rank`, `account verify` and
      `account retry` are jig's remove, order, check and resume; `account
@@ -309,10 +309,70 @@ The table grows area by area, each with its stories (`testing.md`).
      `--model`. Without them the choice keeps the template's sub-agents,
      or names none.
      Left out, the effort is the model's default in the offer; given, it
-     names one of the model's efforts. A model the offer in `me` leaves out
-     is refused before anything is sent, `model not offered: MODEL`. An
+     names one of the model's efforts. An
      amendment replaces the main choice whole; its effort is
      the caller's, never inherited from the task's old main.
+   - **A start's flags win over its template** for every run of the task
+     (`../../draft/goal-start-flags.md`, 2). Given `--model`, a start's
+     choice is the flags' main, the `--sub-agent` flags' sub-agents or,
+     without them, the template's first choice's sub-agents, and no
+     later choice: a template's `later` (`tools.md`, 3) goes with the
+     rest of its choice, so no run after the task's first activation
+     takes the template's models in place of the flags'. Without
+     `--model` the task takes the template's choice whole, its `later`
+     with it. `help goal start` and `help chat start` say which wins: a
+     flag wins over the template, whose choice holds only where no flag
+     is given; and that a model flag a bound refuses is named, with
+     nothing made.
+   - **A model flag refused names itself:** its flag, its value as given
+     and the bound that refused it, and nothing is made. Before anything
+     is sent, every act taking these flags (`chat start`, `goal start`,
+     `task amend`) checks the offer in `me`, the models the party may
+     choose in the project as its authority allows them, and each
+     model's declared efforts, refusing as usage, exit 1, with JSON's
+     `error` the same words:
+
+     | Refused | Words |
+     |---|---|
+     | `--model`'s model, not offered | `--model MODEL: not among the models you may choose in this project` |
+     | `--effort`, not the model's | `--effort EFFORT: not an effort MODEL declares; it declares E1, E2` |
+     | a `--sub-agent`'s model, not offered | `--sub-agent VALUE: MODEL is not among the models you may choose in this project` |
+     | a `--sub-agent`'s effort, not its model's | `--sub-agent VALUE: EFFORT is not an effort MODEL declares; it declares E1, E2` |
+     | a `--sub-agent`'s model named again | `--sub-agent VALUE: MODEL is already a sub-agent` |
+
+     VALUE is the flag's whole value, its effort included; a model
+     declaring no effort `it declares none`; the efforts in the model's
+     order. Each name or value echoed is cut as a name in an error is,
+     at 256 bytes or its first control character, `...` marking the cut.
+
+     jig checks the rest when the start is asked: each model one the
+     task's charter allows and within the task's authority (jig's
+     `domain/tasks/README.md`, section 4), refusing the batch whole as
+     `Llm`, naming the model and its fault. A start, `goal start` or
+     `chat start`, prints that refusal, exit 2, as `TOOL: NAMED: WHY`.
+     NAMED is `--model MODEL` where the call's `--model` named the
+     refused model, `--sub-agent VALUE` where one of its `--sub-agent`
+     flags did (`--model` first where both did), and otherwise the part
+     of the choice that holds it, as `task show` names the parts: `main
+     model MODEL` or `sub-agent model MODEL`. That is a model the
+     template gave, or any model of a request restored after a client
+     restart, whose kept ask holds the choice and not the call's flags.
+     WHY is the fault's:
+
+     | Fault | WHY |
+     |---|---|
+     | `Charter` | `not one of charter C's models`, C the task's charter |
+     | `Authority` | `outside the authority the task is given` |
+     | `Effort` | `its effort is not one the model declares` |
+     | `Unconfigured` | `not a configured model` |
+     | `Procedure` | `the task's executor runs no model` |
+     | `Repeated` | `named twice among the sub-agents` |
+
+     As `goal start: --model claude-sonnet-5-5: not one of charter 17's
+     models`. JSON keeps the refusal's record and, where a flag named
+     the model, adds `flag` (`--model` or `--sub-agent`) and `value`, as
+     a refused account act adds `next`. Other acts keep jig's words for
+     the refusal, `This model cannot be chosen: MODEL`.
    - **An account's uses** have no tool: each takes jig's default (jig's
      `domain/accounts.md`, 4.2; `README.md`, section 12).
    - **An account moved,** `account export` and `account import`, is

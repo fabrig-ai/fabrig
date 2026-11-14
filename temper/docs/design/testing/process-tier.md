@@ -141,6 +141,34 @@
   runner; the served page holds the mark. It needs the binaries' files
   and the processes, so it is this profile's.
 
+- **A deployment at its place restarted with a newer build**
+  (`qa/deployment.md`; `../draft/landed-qa.md`, 10 and 11), one story,
+  as a QA place of the deployment's kind runs it: a place directory of
+  the story's own, its `bin/` holding copies of `temper-box`,
+  `fake-claude`, `temper`, `temper-client-journeys`, `temper-engine`,
+  `temper-worker` and `temper-agent`, and nine free ports; the
+  catalogue's `turn-landing` walked there from a fresh place by the
+  copied `temper-client-journeys recipe walk` (`../client/recipe.md`,
+  5.1; `qa/setups.md`, 5), its engine, worker and agent started from the
+  setup's `config/` at those ports on the fake Forgejo and the fake
+  model, ctl signed in from a file, and the walk's `deployment patch`
+  restarting them; the walk ending with every process stopped, exit 0,
+  nothing left; the scratch directory's `config/` and `data/` archived
+  and removed, then unpacked again, as a place restores a copy
+  (`qa/places.md`, 4); each file of `bin/` replaced by a new copy; the
+  setup's check walked again from that copy (`--from turn-landing`), and
+  a drive session (`--deployment`) opened on it. ctl reads the project,
+  its forge, its repository and its landing by `turn` as they were; the
+  fake Forgejo's API reads `work/hello` and its gate workflow as they
+  were; the engine's store opened by the newer build, patched forward
+  where it has a patch, refused by name where it has none; every
+  process of the deployment, read once ctl has signed in, runs a file of
+  the new `bin/`, by device and inode, none an old or deleted file, and
+  none a Forgejo or a runner; no stdout or log of the story holds the
+  sign-in link. It needs the binaries' files, the processes and their
+  stops, so it is this profile's, written and compiled in Q6 and run
+  after landing.
+
 - **The upgrade's commands,** through the real binary, whose patch sets
   are empty until the first release: `temper-box versions`' lines; `temper-box
   upgrade --check` over a stopped deployment's copy, saying the restores

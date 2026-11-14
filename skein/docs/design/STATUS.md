@@ -54,10 +54,10 @@ tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`); of `cli.md`, what a tree doesn't follow yet is
 its checks' exceptions and the `expect`s naming a round or milestone
 (`../foundation/cli.md`, section 9), and no binary has a table yet, so none has checks 6 and 7;
-of `programming-model.md`, 10.4, no test catches a panic, but `#[should_panic]` tests in every
-tree still trigger assertions, held where they stand by the count of `tools/lints/design.md`, 7,
-and of 10.1, no `clippy.toml` bans `catch_unwind` or `resume_unwind` yet, though none is left:
-the milestones of `temper/docs/design/draft/panics.execution.md` convert them.
+of `programming-model.md`, 10.4, no test catches a panic, and none of skein's triggers an
+assertion, but `#[should_panic]` tests in jig, temper, smith, hearth and `tools/` still do, held
+where they stand by the count of `tools/lints/design.md`, 7: milestones P9 and P10 of
+`temper/docs/design/draft/panics.execution.md` convert them.
 Check 5 counts a declared variable as read or set wherever a tracked
 file outside `docs/` names it, its own table's row among them, so a
 declared variable nothing reads or sets passes it. `runtime/shell.status.md` and
@@ -107,6 +107,7 @@ Design documents:
 - [`forge/client.md`](forge/client.status.md)
 - [`forge/connection.md`](forge/connection.status.md)
 - [`forge/github.md`](forge/github.status.md)
+- [`forge/job-state.md`](forge/job-state.status.md)
 - [`forge/setup/README.md`](forge/setup/README.status.md)
 - [`testing/fakes/forge.md`](testing/fakes/forge.status.md)
 - [`testing/fakes/github.md`](testing/fakes/github.status.md)

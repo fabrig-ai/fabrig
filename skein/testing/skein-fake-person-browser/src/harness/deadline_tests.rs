@@ -13,13 +13,6 @@ fn the_horizon_reserves_the_same_close_window() {
     }
 }
 
-#[test]
-#[should_panic(expected = "horizon Duration(3999999999) is shorter than the close window")]
-fn a_horizon_shorter_than_the_close_window_is_refused() {
-    // One nanosecond below io's four-second close window.
-    bounds(Duration::from_nanos(3_999_999_999));
-}
-
 fn figures() -> Figures {
     Figures {
         what: "the browser harness run",

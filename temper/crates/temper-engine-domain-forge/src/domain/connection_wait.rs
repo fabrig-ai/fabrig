@@ -41,7 +41,11 @@ pub(super) fn waiting(d: &Domain, task: u64, forge: u16) -> bool {
     if contains(d, task) {
         return true;
     }
-    match d.connection(forge) {
+    disconnected(&d.connection(forge))
+}
+
+pub(super) fn disconnected(connection: &Connection) -> bool {
+    match connection {
         Connection::Connected { .. } | Connection::Connecting => false,
         Connection::NotConnected
         | Connection::NotSetUp
@@ -60,6 +64,7 @@ pub(super) fn wait(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
     if !waiting.contains_key(&task) {
         waiting.insert(task, env.wall).expect("one connection wait per bounded change");
     }
+    super::read_session::pause(d, task);
     d.change_due.remove(&task);
     emit(
         out,
@@ -88,6 +93,7 @@ pub(super) fn connected(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut
         let elapsed = env.wall.as_nanos().saturating_sub(start.as_nanos());
         row.change.since = Wall::from_nanos(row.change.since.as_nanos().saturating_add(elapsed));
         let saved = row.clone();
+        super::read_session::ended(d, env, task, env.wall);
         save_change(d, out, saved);
         branch_due(d, task);
         d.procedure_wakes.insert(task, true).expect("one wake per bounded change");

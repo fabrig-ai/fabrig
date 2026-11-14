@@ -63,12 +63,6 @@ impl Sha256 {
         }
         digest
     }
-
-    /// `new`'s state as if `hashed` bytes had been hashed: the bound's test alone.
-    #[cfg(test)]
-    pub(crate) const fn having_hashed(hashed: u64) -> Sha256 {
-        Sha256 { hashed, ..Sha256::new() }
-    }
 }
 
 #[expect(clippy::missing_fields_in_debug, reason = "runtime/lib.md, 6.2: the count of bytes hashed, not the state")]

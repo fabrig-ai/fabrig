@@ -22,11 +22,13 @@ use crate::Host;
 use crate::tree::{self, Tree};
 pub use crate::tree::{Cleanup, Containment, Counts, Expectation, Method, PeakScope, TreeStatus};
 
-// The real loop and its binary hosts share one thread (testing/README.md, 5).
-// Keep the first finding until the loop can drain its kernel before returning it.
+// A run's finding scope is its thread's (skein/docs/design/testing/README.md, 5).
+// Nested runs keep and return their own findings while the outer run waits.
+// Keep each run's first finding until its forced cleanup finishes; leaving its
+// scope drops later findings and restores what the enclosing run kept.
 std::thread_local! {
     static FINDING: core::cell::RefCell<Option<String>> = const { core::cell::RefCell::new(None) };
-    static IN_LOOP: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
+    static IN_LOOP: core::cell::Cell<usize> = const { core::cell::Cell::new(0) };
 }
 
 fn keep_finding(why: String) {
@@ -42,33 +44,40 @@ pub(crate) fn take_finding() -> Option<String> {
 // A teardown outside the loop reports only after releasing its owned resources.
 // Inside the loop it must leave forced cleanup free to drain pending records.
 pub(crate) fn teardown_finding(result: Result<(), String>) {
+    if let Err(why) = defer_teardown_finding(result) {
+        crate::fail(&why);
+    }
+}
+
+fn defer_teardown_finding(result: Result<(), String>) -> Result<(), String> {
     if let Err(why) = result {
         if std::thread::panicking() {
             use std::io::Write;
             let _reported = writeln!(std::io::stderr().lock(), "skein-world: {why}");
-        } else if IN_LOOP.get() {
+        } else if IN_LOOP.get() > 0 {
             keep_finding(why);
         } else {
-            crate::fail(&why);
+            return Err(why);
         }
     }
+    Ok(())
 }
 
-pub(crate) struct FindingScope;
+pub(crate) struct FindingScope {
+    enclosing: Option<String>,
+}
 
 impl FindingScope {
     pub(crate) fn enter() -> Self {
-        assert!(!IN_LOOP.replace(true), "one real loop per thread");
-        Self
+        IN_LOOP.set(IN_LOOP.get().checked_add(1).expect("real loop depth overflow"));
+        Self { enclosing: take_finding() }
     }
 }
 
 impl Drop for FindingScope {
     fn drop(&mut self) {
-        IN_LOOP.set(false);
-        // A run already returning its first verdict does not leak a cleanup's
-        // later finding into the next run on this thread.
-        let _later = take_finding();
+        FINDING.with(|finding| *finding.borrow_mut() = self.enclosing.take());
+        IN_LOOP.set(IN_LOOP.get().checked_sub(1).expect("real loop depth underflow"));
     }
 }
 
@@ -200,7 +209,7 @@ impl Capture {
             match expectation {
                 Expectation::Supervise => self.overflowed = true,
                 Expectation::EndsWithBinary | Expectation::Measure => {
-                    assert!(bytes.len() <= room, "binary stderr exceeds its scenario limit of {} bytes", self.limit);
+                    keep_finding(format!("binary stderr exceeds its scenario limit of {} bytes", self.limit));
                 }
             }
         }
@@ -790,6 +799,36 @@ mod tests {
     }
 
     #[test]
+    fn nested_runs_keep_their_own_findings_and_restore_the_outer_finding() {
+        let outer = super::FindingScope::enter();
+        super::teardown_finding(Err("outer".into()));
+        let inner = super::FindingScope::enter();
+        assert_eq!(take_finding(), None, "the inner run starts clean");
+        super::teardown_finding(Err("inner".into()));
+        assert_eq!(take_finding().as_deref(), Some("inner"));
+        drop(inner);
+        assert_eq!(take_finding().as_deref(), Some("outer"));
+        drop(outer);
+    }
+
+    #[test]
+    fn an_inner_runs_unreturned_finding_cannot_reach_the_outer_run() {
+        let outer = super::FindingScope::enter();
+        let inner = super::FindingScope::enter();
+        super::teardown_finding(Err("late".into()));
+        drop(inner);
+        assert_eq!(take_finding(), None, "the inner cleanup cannot fail the outer run");
+        drop(outer);
+    }
+
+    #[test]
+    fn a_teardown_outside_every_run_returns_its_finding_at_once() {
+        assert_eq!(super::defer_teardown_finding(Ok(())), Ok(()));
+        assert_eq!(super::defer_teardown_finding(Err("outside every run".into())), Err("outside every run".into()));
+        assert_eq!(take_finding(), None, "no run can receive the teardown finding");
+    }
+
+    #[test]
     fn supervised_observation_waits_for_stderr_eof_and_descriptor_closures() {
         for exit_first in [false, true] {
             let mut binary = observer(Expectation::Supervise);
@@ -918,8 +957,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "binary stderr exceeds its scenario limit of 2 bytes")]
-    fn measured_capture_keeps_the_legacy_scenario_assertion() {
-        Capture::new(2).push(b"abc", Expectation::Measure);
+    fn measured_capture_keeps_its_scenario_finding() {
+        for expectation in [Expectation::Measure, Expectation::EndsWithBinary] {
+            let _scope = super::FindingScope::enter();
+            Capture::new(2).push(b"abc", expectation);
+            let finding = take_finding().expect("overflow is kept for the run");
+            assert!(finding.contains("binary stderr exceeds its scenario limit of 2 bytes"), "{finding}");
+        }
     }
 }

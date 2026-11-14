@@ -108,7 +108,8 @@ pub struct Store {
     opening_keys: skein_lib::Map<Box<[u8]>, ()>,
     /// This start's first Wires commit, and its durability (protocol/store/records.md 3).
     mark: Mark,
-    start_open_failure: Option<restore::OpenFailure>,
+    // Keep the key-only diagnostic off service construction stacks.
+    start_open_failure: Option<Box<restore::OpenFailure>>,
     rehearsal: Option<rehearsal::State>,
     back: Option<back::State>,
     /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
@@ -252,12 +253,12 @@ impl Store {
     /// The first open failure, with no stored values (protocol/store/secrets.md).
     #[must_use]
     pub fn start_open_failure(&self) -> Option<&restore::OpenFailure> {
-        self.start_open_failure.as_ref()
+        self.start_open_failure.as_deref()
     }
 
     fn open_failed(&mut self, failure: restore::OpenFailure) {
         if self.start_open_failure.is_none() {
-            self.start_open_failure = Some(failure);
+            self.start_open_failure = Some(Box::new(failure));
         }
     }
 
@@ -377,7 +378,7 @@ fn frame_bound(codec: &codec::View) -> Option<u64> {
 // Bound for two decoded records, including their wire values and the census's joined task.
 fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
     core_v6::Row::decoded_bound(&codec.core)?
-        .checked_add(tasks_v12::Row::decoded_bound(&codec.tasks)?)?
+        .checked_add(tasks_v13::Row::decoded_bound(&codec.tasks)?)?
         .checked_add(people_v17::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
@@ -492,13 +493,13 @@ pub use jig_protocol_store_core::core_v6;
 pub use jig_protocol_store_families::accounts_v2;
 pub use jig_protocol_store_families::notes_v1;
 pub use jig_protocol_store_people::people_v17;
-pub use jig_protocol_store_tasks::tasks_v12;
+pub use jig_protocol_store_tasks::tasks_v13;
 pub mod keys;
 mod openings;
 pub use boundary::{
-    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
-    KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root, Row, SecretOwner, SecretRow,
-    SecretValue, Secrets, TranscriptRead, Undecoded, WorkerOpening, Write,
+    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CommitCheck, CommitFailure, Cursor, Event, Family,
+    Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root,
+    Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, WorkerOpening, Write,
 };
 
 #[cfg(test)]

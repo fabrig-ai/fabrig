@@ -312,6 +312,7 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::Drafted(_)
                 | w::Outcome::DraftRefused(_)
                 | w::Outcome::Follow(_)
+                | w::Outcome::Tier(_)
                 | w::Outcome::NotTheirs
                 | w::Outcome::Overturned
                 | w::Outcome::OverturnRefused(_)

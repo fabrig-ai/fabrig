@@ -210,6 +210,7 @@ fn read_head(answer: &CallAnswer) -> Option<api::Commit> {
                 | api::Answer::PullFiles { .. }
                 | api::Answer::Compare { .. }
                 | api::Answer::Checks(_)
+                | api::Answer::JobState { .. }
                 | api::Answer::Job { .. }
                 | api::Answer::File { .. }
                 | api::Answer::Directory { .. }

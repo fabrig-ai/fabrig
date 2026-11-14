@@ -228,12 +228,6 @@ fn a_whole_run_can_merge_two_id_sets_at_their_bound() {
     assert_eq!(dispatched, Ok(Answer::Done));
     assert_eq!(workflow_runs(&h)[0].conclusion, Some(crate::api::Conclusion::Failure));
 }
-#[test]
-#[should_panic(expected = "flaky ids fit: TooLarge")]
-fn a_flaky_id_past_its_existing_bound_is_refused() {
-    drop(bounded_flaky_workflow(b"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
-}
-
 fn workflow(jobs: &[&[u8]]) -> crate::api::Workflow {
     crate::api::Workflow {
         fails: Box::new([]),
@@ -242,6 +236,7 @@ fn workflow(jobs: &[&[u8]]) -> crate::api::Workflow {
         select: None,
         file: copy_of(b"gate.yml"),
         jobs: names(jobs),
+        requirements: Box::new([]),
         latency_min: Duration::from_secs(10),
         latency_max: Duration::from_secs(10),
         passes: 1000,

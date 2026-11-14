@@ -204,7 +204,13 @@ pub const CHAT_CREATE: Tool = Tool {
     result: b"chat_create",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
-        flag(b"template", b"TEMPLATE", Kind::Number, Optional, b"A chat's template by its number; the project's chat template when absent"),
+        flag(
+            b"template",
+            b"TEMPLATE",
+            Kind::Number,
+            Optional,
+            b"A chat's template by its number; the project's chat template when absent",
+        ),
         positional(b"text", b"TEXT", Kind::Text, Required, b"The opening words"),
         super::table::Argument { line: b"A model the chat may use, as model list shows it", ..MODEL },
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
@@ -213,12 +219,27 @@ pub const CHAT_CREATE: Tool = Tool {
             b"MODEL[:EFFORT]",
             Kind::Text,
             64,
-            b"Sub-agent choices: each model named once, with one effort; effort is required when the model declares efforts",
+            b"Sub-agent choices: each model once, its effort optional as --model's",
         ),
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\n`--template` names one of the project's chat templates; one that is\nno chat's, or not offered, fails naming those `me` offers (exit 1).\n`--sub-agent` needs `--model` and replaces the template's sub-agents.\nTwo choices: --sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B\nwith distinct model names offered by `model list`.\nAvailable choices only: this list neither starts children nor assigns\nchoices by child order. The parent's `sub_agent` call selects a model with\noptional `llm`; omitted, it uses main's model and effort.\nOne model cannot be offered at two child efforts;\nmultiple children may use the same choice.\nThen task show TASK --until replied.\n",
+    notes: b"--effort needs --model; omitted, it takes the model's default effort.
+--model wins over the template for every run, its later choice included;
+it keeps first-choice sub-agents unless --sub-agent replaces them.
+Without --model the template's choice holds whole. A model flag a bound
+refuses names its flag, value and bound; nothing is made.
+Past start bounds but proposable: proposed (exit 0). `chat not offered`
+or `chat exceeds offered bounds` (exit 1): your party may not start it.
+--template must name an offered chat template; otherwise it fails naming
+those me offers (exit 1).
+--sub-agent needs --model. Two choices, distinct models from model list:
+--sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B
+Available choices only: they neither start children nor assign by order.
+The parent's sub_agent selects optional llm; omitted, main's model/effort.
+Each model has one child effort; multiple children may use that choice.
+Then task show TASK --until replied.
+",
 };
 pub const MESSAGE: Tool = Tool {
     name: b"task message",
@@ -1079,7 +1100,7 @@ pub const GOAL_START: Tool = Tool {
             b"MODEL[:EFFORT]",
             Kind::Text,
             64,
-            b"Replace the template's sub-agents; needs --model; each model once, with its required effort",
+            b"Replace the template's sub-agents; needs --model; each model once, its effort optional as --model's",
         ),
     ]],
     keyed: Keyed::Required,
@@ -1089,9 +1110,12 @@ and symbolic resources. --charter is required only for a chosen executor.
 A template with budget given needs --budget or --as-allowed; one
 with deadline given needs --deadline. Other absent controls keep defaults.
 --budget and --as-allowed are alternatives. --effort needs --model;
-a model declaring efforts requires --effort. Without --sub-agent,
-the template's sub-agents survive a model override. Explicit sub-agents
-replace them. Bounds and proposal judgement are the same as for goals
+without --effort the model's default effort is taken. A flag wins over
+the template for every run of the goal: --model replaces its model
+choice, its later choice included, keeping its sub-agents unless
+--sub-agent replaces them; without --model the template's choice holds
+whole. A model flag a bound refuses is named with its value and the
+bound, and nothing is made. Bounds and proposal judgement are as for goals
 set from a client: within bounds, created; past them but proposable,
 proposed (exit 0); not offered or past ceilings, nothing sent (exit 1).
 Then task show TASK --until replied.

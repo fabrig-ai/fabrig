@@ -1,11 +1,13 @@
 # Driving the clients a line at a time
 
-Provisional, 2026-11-12. QA's hands on the web client and the TUI
-(`../draft/landed-qa.md`, 7 and 10): `temper-client-journeys drive`, a
-session that starts a fake box from a given build in a given scratch
-directory, then takes lines on standard input, each a step a person
-takes in the browser, the TUI, ctl or the forge, or a look at what they
-are shown, and answers each. It runs no build and writes nothing outside its
+Provisional, 2026-11-12, revised 2026-11-14. QA's hands on ctl, the web
+client and the TUI (`../draft/landed-qa.md`, 7 and 10):
+`temper-client-journeys drive`, a session that starts a fake box, or a
+deployment's processes (`../testing/qa/deployment.md`), from a given
+build in a given scratch directory, then takes lines on standard input,
+each a step a person takes in ctl, the browser, the TUI or the forge, or
+a look at what they are shown, and answers each. A ctl session starts
+no browser (2.6). It runs no build and writes nothing outside its
 scratch directory. Recipes are walked through it (`recipe.md`). The
 journeys' `again` (`web/journeys.md`, 8.1; `tui/journeys.md`, 8.2) stays
 a person's command that builds from the checkout: it records into the
@@ -19,10 +21,13 @@ open.
   (`--bin`, `--bundle`), in a given scratch directory, the box's
   directories kept there across sessions, so that a place's restored
   copy starts as a fresh box does (2.1 and 2.2).
-- **Signed in by the session, three ways:** ctl with the box's printed
-  link, the browser with the fresh link serve prints when the spent one
-  is opened, and the TUI, when a line first needs it, by the browser's
-  approval (2.3 and 3.3). No line signs in.
+- **Signed in by the session, three ways:** ctl from a file holding the
+  box's first link, the browser with the fresh link serve prints when
+  the spent one is opened, and the TUI, when a line first needs it, by
+  the browser's approval (2.3 and 3.3). No line signs in.
+- **A ctl session** (2.6), `--ctl`, takes ctl and forge lines alone and
+  starts no browser and no TUI; a deployment's session
+  (`--deployment`) is one too, on the deployment's processes.
 - **Lines are the recipes' words:** `web` and a journeys' setup record,
   `tui` and a walk's record, `ctl` and a ctl act, with the box's values
   named rather than written, `forge` and a commit or a wait on the box's
@@ -44,16 +49,24 @@ open.
 ### 2.1 Its command
 
 ```text
-temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR]
+temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl | --deployment DIR]
 ```
 
 - **`--bin DIR`** holds `temper-box`, `fake-claude` and `temper`,
-  each an executable regular file. The client is the TUI's recording
-  build (`tui/journeys.md`, 2), whose saves the TUI's lines read
-  (3.3). The box finds `fake-claude` beside itself
+  each an executable regular file, and with `--deployment` also
+  `temper-engine`, `temper-worker` and `temper-agent`. The client is
+  the TUI's recording build (`tui/journeys.md`, 2), whose saves the
+  TUI's lines read (3.3). The box finds `fake-claude` beside itself
   (`../protocol/setup/box.md`, 5).
-- **`--bundle DIR`** is the loopback bundle (`scripts/bundle.sh
-  --loopback`), given to the box as its `--bundle`.
+- **`--bundle DIR`** is the web bundle (`scripts/bundle.sh OUT`), given
+  to the box as its `--bundle`; required but with `--deployment`, which
+  takes none: the engine serves its own (`web/README.md`, 2.6).
+- **`--ctl`:** a ctl session (2.6), on the box.
+- **`--deployment DIR`:** a deployment's session, DIR a deployment's
+  root recipe's `config/`, its processes started, its lines taken and its
+  end as `../testing/qa/deployment.md` has them, in place of the box's
+  (2.3 to 2.5); a ctl session (2.6). It needs `--ports`. `--ctl` and
+  `--deployment` together refuse the session.
 - **`--scratch DIR`** is an existing directory, the user's own and not
   open to others; every directory and file the session or what it
   starts writes is under it (2.2).
@@ -71,7 +84,7 @@ temper-client-journeys drive --bin DIR --bundle DIR --scratch DIR [--scripts FIL
   (`../testing/qa/places.md`, 5). A recipe's walk gives each recipe's
   lines its own `files/` instead (`recipe.md`, 5.1).
 - **Chromium** comes from `SKEIN_TEST_CHROMIUM`, as the browser tier and
-  `again` take it.
+  `again` take it; a ctl session needs none and reads no such variable.
 - **Each path** is taken relative to the working directory and made
   absolute before anything starts. A file of `--bin` missing, a bundle
   without its `index.html`, a scratch directory that is not a
@@ -111,11 +124,14 @@ In order, each within its bound; a failure is 2.5's.
    stdout and stderr read a line at a time into `session/box.log`. Its
    first link is the first stdout line starting `http://`
    (`../protocol/setup/box.md`, 2), within 60 seconds.
-2. **ctl:** `BIN/temper ctl SCRATCH/session/ctl sign-in -`, the
-   link on its stdin and then stdin's end (`ctl/README.md`, 6.1 and 8),
-   exit 0 within 60 seconds. It waits on serve's start as a link opened
-   early waits (`../protocol/setup/box.md`, 2).
-3. **The browser:** headless Chromium, as the browser tier drives it
+2. **ctl, signed in from a file:** the link written to
+   `SCRATCH/session/link`, 0o600, then `BIN/temper ctl
+   SCRATCH/session/ctl sign-in SCRATCH/session/link </dev/null`
+   (`ctl/README.md`, 6.1 and 8), exit 0 within 60 seconds, then
+   `session/link` removed; the link is never a program's argument and
+   never in an answer. It waits on serve's start as a link opened early
+   waits (`../protocol/setup/box.md`, 2).
+3. **The browser,** but in a ctl session (2.6): headless Chromium, as the browser tier drives it
    (`web/testing.md`; skein's `ui/web/testing.md`, 2), opens the first
    link, now spent, so that serve prints a fresh link on stdout
    (`../protocol/setup/box.md`, 2) within 30 seconds; it opens that one,
@@ -154,12 +170,34 @@ A place makes a copy refused by its store again from its recipe
 fresh box, or on a copy past its closing check, is a finding against
 temper (`../draft/landed-qa.md`, 7).
 
+### 2.6 A ctl session
+
+A session of ctl and forge lines alone, which starts no browser and no
+terminal and needs neither (`../draft/landed-qa.md`, 4 and 7): `--ctl`
+on the box, and every deployment's session.
+
+- **Its start** is 2.3's first two steps, the box started and ctl signed
+  in from its file, then `ready`: no Chromium is started, sought or
+  required, and no TUI.
+- **Its lines:** ctl and forge lines as 3.4 and 3.5 have them, and at a
+  deployment its own (3.8). A web or tui line fails, `failed: line N:
+  this session takes ctl and forge lines alone`, at a deployment in its
+  words (`../testing/qa/deployment.md`, 6.1), and is not kept: it was
+  never carried out. A look of the browser or the terminal fails the
+  same way.
+- **Its end and exits** are 2.4's and 2.5's, with no browser and no TUI
+  to close.
+
+So a pass runs its ctl cases first in such a session
+(`../testing/qa/passes.md`, 4), and a recipe whose chain has no web and
+no tui line walks in one (`recipe.md`, 5.1).
+
 ## 3. Lines
 
 ### 3.1 Their form
 
 - **One line each,** a recipe's step (`recipe.md`, 3): its client first,
-  `web`, `tui`, `ctl` or `forge`, then its record and its fields, as the
+  `web`, `tui`, `ctl`, `forge` or `deployment`, then its record and its fields, as the
   journeys' file writes fields (`web/journeys.md`, 3.2): each after one
   space, a word bare, bytes in double quotes. Or a look (3.2 to 3.3), or
   `end`.
@@ -237,10 +275,13 @@ at every place (`../draft/landed-qa.md`, 5).
 | `{forgejo.git}` | `http://HOST:PORT`, that forge's git base, which the box's fake git reaches | the same |
 | `{forgejo.admin}` | the path of that forge's site admin's token file | `box: Forgejo elsewhere admin token file FILE` |
 | `{git}` | the box's fake git program, `D'/demo/bin/git` | `box: effective data D'` |
+| `{model.key}` | the path of the box's fake model's key file, which `ctl account add-key` takes | `box: model key FILE` |
 
 A field in braces that names none of them does not parse (3.1); a name
 whose line the box has not printed fails the line, naming the line it
-lacks. So the person connects the box's fake Forgejo as its admin, with
+lacks. At a deployment each name takes the deployment's value, from the
+place and its rendered documents rather than a log
+(`../testing/qa/deployment.md`, 6.1). So the person connects the box's fake Forgejo as its admin, with
 its first repository, the box's fake git its git program, in one line,
 and no line holds the token, only its file's name:
 
@@ -324,6 +365,15 @@ A failed line never ends the session: the next line is read
 whose box has exited answers every later line `failed: the box
 exited`, and ends with status 4 (2.5).
 
+### 3.8 A deployment's lines
+
+| Line | What the session does | Bound |
+|---|---|---|
+| `deployment patch DOCUMENT PATH` | DOCUMENT `engine`, `worker` or `agent`, a word; PATH bytes, as a `forge commit` line's (3.5): the deployment's document patched by the file and the deployment started again (`../testing/qa/deployment.md`, 6.2) | 300 s |
+
+On a box, a `deployment` line fails, `failed: line N: a box takes no
+deployment line`, and is not kept.
+
 ## 4. The kept lines
 
 - **Every line the session parsed,** but a look, `end` and an empty
@@ -394,6 +444,15 @@ Focused, with no browser, no box and no Chromium:
   line the box has not printed fails the line.
 - **Its exits:** a serve log holding a store's refusal ends with status
   3 and its line; a box that exits before its link, with 4.
+- **ctl from a file:** the box's first link written to `session/link`,
+  0o600, ctl given its path and no stdin, the file gone once ctl has
+  answered; the link in no answer and no program's argument.
+- **A ctl session:** its start asks for no browser and needs no
+  `SKEIN_TEST_CHROMIUM`; it is `ready` once ctl has signed in; a web or
+  tui line, or a look of either, fails and is not kept; ctl and forge
+  lines answer as in any session; `{model.key}` takes the box's `box:
+  model key` line.
+- **A deployment's session:** `../testing/qa/deployment.md`, 9's.
 
 ## 7. Open questions
 

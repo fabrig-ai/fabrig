@@ -5,20 +5,21 @@ use crate::{
     revision::{self, declaration::Map},
 };
 use alloc::boxed::Box;
+use hearth_lib::{encode::Digest, hash::H};
+use skein_lib::{List, Map as Sorted};
+/// Before and after (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
     pub before: Boot,
     pub after: Boot,
 }
-use hearth_lib::{encode::Digest, hash::H};
-use skein_lib::{List, Map as Sorted};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Boot {
     pub params: Box<[Box<[u8]>]>,
     pub mutable: bool,
 }
 #[must_use]
-pub fn digest(boot: &Boot) -> Digest {
+pub(crate) fn digest(boot: &Boot) -> Digest {
     let mut hash = H::new(b"part:boot", 1);
     let record = hash.values();
     record.map(2);
@@ -31,7 +32,7 @@ pub fn digest(boot: &Boot) -> Digest {
     }
     hash.finish()
 }
-pub fn build(expansion: &Expansion, placement: &revision::Placement) -> Result<Boot, Box<[Error]>> {
+pub(crate) fn build(expansion: &Expansion, placement: &revision::Placement) -> Result<Boot, Box<[Error]>> {
     if placement.kind == revision::Runs::Container {
         return Ok(Boot { params: Box::new([]), mutable: placement.mutable });
     }
@@ -67,6 +68,6 @@ pub fn build(expansion: &Expansion, placement: &revision::Placement) -> Result<B
 }
 
 #[must_use]
-pub fn change(before: &Boot, after: &Boot) -> Change {
+pub(crate) fn change(before: &Boot, after: &Boot) -> Change {
     Change { before: before.clone(), after: after.clone() }
 }

@@ -209,6 +209,7 @@ fn adopted() -> Repository {
 fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        task_release: None,
         job: None,
         signed: Box::new([]),
         task: CHANGE,
@@ -385,6 +386,8 @@ fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::ap
         .insert(
             (REPO, Box::from(tier)),
             TierRow {
+                posting: None,
+                hold: None,
                 observations: Box::new([]),
                 repository: REPO,
                 tier: Box::from(tier),

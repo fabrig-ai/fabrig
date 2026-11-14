@@ -293,7 +293,11 @@ impl Driven {
     }
     pub fn fail(&mut self, number: u64) {
         self.held.remove(&number);
-        engine(&mut self.service).store.host.above.push(jig_protocol_store::Event::Failed { number });
+        engine(&mut self.service)
+            .store
+            .host
+            .above
+            .push(jig_protocol_store::Event::Failed { number, why: jig_protocol_store::CommitFailure::Failed });
         self.turn(false);
     }
     pub fn released_to_parties(&self) -> usize {

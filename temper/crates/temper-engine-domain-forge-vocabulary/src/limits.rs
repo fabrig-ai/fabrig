@@ -143,6 +143,7 @@ pub fn valid(l: &Limits) -> bool {
         // The store's failure and flake lists hold at most 1024 test ids.
         || l.tiers.failing_tests > 1024
         || l.tiers.test_id_bytes == 0
+        || match crate::tiers::posting_comments(l) { Some(bound) => bound > 8192, None => true }
         || l.history_days == 0
         || l.history_days > 3650
         || l.history_events == 0

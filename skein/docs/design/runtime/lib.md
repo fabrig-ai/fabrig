@@ -8,7 +8,8 @@ this document says what lib holds and what each part promises.
 ## 1. In one page
 
 - **Everything step code needs and the subset does not give it.** Typed
-  handles and the slabs that issue them, containers, cursors over
+  handles and the slabs that issue them, containers, the join of two maps
+  and the search of a sorted slice (5.2, 5.3), cursors over
   owned bytes, secrets' bytes, base64 and SHA-256, the stream vocabulary
   and its intake, deadlines, time, randomness, the environment a step
   reads, and the digest of a state that replay compares.
@@ -202,6 +203,102 @@ where it holds it.
 - **A digest reads the whole state,** so a world asks for one at the end
   of a run, and after each iteration only when it chooses to (../testing/README.md,
   section 5). No step code calls it.
+
+### 5.2 Joining two maps
+
+A step that compares two versions of one table, such as a part's rows
+before and after a change, walks them together by key. Step code has no
+closure to hand a generic walk and defines no generic item
+(../../foundation/programming-model.md, 10.3), and a merge hand-rolled in
+each table is what lib is for (section 1), so lib joins two of its maps:
+
+```rust
+impl<K: Ord, V> Map<K, V> {
+    pub fn join<'a>(&'a self, other: &'a Map<K, V>) -> Join<'a, K, V>;
+}
+// Join<'a, K, V>: Iterator<Item = (&'a K, Joined<'a, V>)>
+pub enum Joined<'a, V> {
+    First(&'a V),
+    Second(&'a V),
+    Both(&'a V, &'a V),
+}
+```
+
+- **Each key of either map comes once, in key order,** with its value in
+  the first map alone (`First`), in the second alone (`Second`), or in
+  both (`Both`, the first's value, then the second's). A key in both is
+  given as the first map's; the two are equal under `Ord`.
+- **It holds a cursor on each map and allocates nothing.** Each step
+  advances one cursor or both, so a join takes as many steps as the maps
+  hold distinct keys. It borrows both maps while it runs.
+- **`Joined` is `Copy` for every `V`,** and `Debug`, `PartialEq` and `Eq`
+  where `V` is. `Join` and `Joined` are exported from lib's root beside
+  `Map`.
+- **Step code joins rows it already holds** by building a `Map` for each
+  side, keyed by what the rows are compared by and borrowing them (a
+  `Map<&[u8], &Row>` holds no copy of a key), then matching each
+  `Joined` in a plain `for`:
+
+  ```rust
+  for (key, joined) in before.join(&after) {
+      let change = match joined {
+          Joined::First(row) => Change::Removed { key: bytes::copy_of(key), value: row.value.clone() },
+          Joined::Second(row) => Change::Added { key: bytes::copy_of(key), value: row.value.clone() },
+          Joined::Both(old, new) if old == new => continue,
+          Joined::Both(old, new) => Change::Changed { key: bytes::copy_of(key), before: old.value.clone(), after: new.value.clone() },
+      };
+      changes.push(change).expect("a change for each key");
+  }
+  ```
+
+### 5.3 Searching a sorted slice
+
+A slice sorted once by a key that its items hold, and searched many
+times, as a revision's listing is by path, keeps its shape: other code
+builds it and reads it by position, and a `Map` beside it would hold every
+key twice. lib can't read the key from an item (no closure, no trait:
+../../foundation/programming-model.md, 10.3), so the search is one its
+caller drives: lib keeps the bounds, and the step code compares.
+
+```rust
+pub struct Bisection { /* the indices still open, low..high */ }
+impl Bisection {
+    pub const PROBES: u32 = usize::BITS;
+    pub const fn over(len: usize) -> Bisection;
+    pub const fn probe(&self) -> Option<usize>;
+    pub fn narrow(&mut self, order: core::cmp::Ordering);
+    pub const fn end(&self) -> usize;
+}
+```
+
+- **`over(len)` opens the indices `0..len`.** `probe()` names the next to
+  compare, the middle of those open, `low + (high - low) / 2`, or `None`
+  once none is open. `narrow(order)` takes how the item at that index
+  orders against the key sought: `Less` leaves open the indices above it,
+  `Equal` and `Greater` those below it. A `narrow` with none open is a
+  bug, asserted.
+- **`end()` is the first index whose item is not below the key:** where
+  the key is, or where it would go, `len` past the last. Among equal keys
+  it is the first. Once `probe()` has given `None`, the step code reads the
+  item at `end()` and compares its key for equality; a search for the
+  first item not below a bound, as task paths are found after `tasks/`,
+  stops there.
+- **A search over any length ends within `PROBES` probes:** each probe at
+  least halves what is open, so `for _ in 0..Bisection::PROBES` bounds
+  the step code's loop.
+- **It holds two indices and allocates nothing.** It is `Copy`, and
+  derives `Clone`, `PartialEq`, `Eq`, `Hash` and `Debug`.
+
+```rust
+let mut search = Bisection::over(entries.len());
+for _ in 0..Bisection::PROBES {
+    let Some(probe) = search.probe() else { break };
+    let entry = entries.get(probe).expect("a probe within the slice");
+    search.narrow(entry.key.as_ref().cmp(name));
+}
+let entry = entries.get(search.end())?;
+if entry.key.as_ref() == name { Some(entry) } else { None }
+```
 
 ## 6. Bytes
 
@@ -592,6 +689,18 @@ plain reference, over random cases drawn from a seed: a few hundred in
 the step tests, and 20,000 from the same seeds in the fuzzy suite, in
 `tests/lib` (../../foundation/testing-strategy.md, 8).
 
+The join (5.2) is held to a naive one, every key of either map looked up
+in both and taken in key order, and the bisection (5.3) to a linear scan
+for the first item not below the key, the same way: random pairs of maps
+with shared, disjoint and interleaved keys and values that differ or
+agree; random sorted slices with repeated keys, each searched for every
+key it holds and for keys between, below and above them. The step tests
+also join empty maps, one empty and one not, and maps whose keys are all
+shared; search slices of every length from 0 to 64; and drive a bisection
+over `usize::MAX` indices answered `Less` every time and `Greater` every
+time, each ending within `PROBES` with `end()` at `usize::MAX` and at 0.
+Their step tests are in `src/tests/containers.rs`.
+
 SHA-256 is held, in the step tests, to FIPS 180-4's short examples (the
 empty message, `abc`, the 448-bit and 896-bit messages) and to messages
 at a block's edges (55, 56, 63, 64 and 65 bytes) against the one-shot
@@ -661,8 +770,12 @@ data structure, like a queue; a service does not hand-roll one
   writes and held outputs.
 - **Commit and tags:** accepting a decision makes at most one numbered
   commit, holding all its writes. Numbers begin after `durable` (at one
-  for a new journal) and increase in order; a write past number
-  `u64::MAX` is a bug and panics. A decision without a write makes no
+  for a new journal) and increase in order. A writing decision accepted
+  past number `u64::MAX` stops the journal, as an answer out of order
+  does: `durable` is what the store holds, which no panic answers
+  (../../foundation/programming-model.md, 10.4), so it makes no commit, the
+  decision's held outputs never leave, and `release` answers `Stopped`.
+  A decision without a write makes no
   commit. Each held output
   follows that decision's commit, or the last commit made if there was
   no write; it leaves only once that commit is durable. A commit answer

@@ -110,7 +110,7 @@ fn assert_csv_landing(world: &World, requester: &engine::Assignment, change: u64
         format!("Landed: pull request #{} merged into main as {}.", row.pull.expect("landed pull"), &merge[..12])
     );
     assert_eq!(lines[3], "repairs: 1: CI failed: / changes (pull_request)");
-    assert_eq!(lines[4], format!("successful repair task {repair_task}: pushed"));
+    assert_eq!(lines[4], format!("successful repair task {repair_task}: pushed, then CI passed at {head}"));
     assert_eq!(lines[5], "Producer report (historical; before repairs):");
     assert_eq!(lines[6], "pushed");
     assert_eq!(lines[7], format!("checks at {head}: build passed"));
@@ -252,7 +252,9 @@ fn repair_world() -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) 
         1000,
         Gate { agent: true, ..Gate::default() },
         None,
-        StoryLimits { result_bytes: Some(512), ..StoryLimits::default() },
+        // The repair's terminal at its already recorded green head also
+        // carries `then CI passed at H`, beside both retained reports.
+        StoryLimits { result_bytes: Some(640), ..StoryLimits::default() },
     );
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));

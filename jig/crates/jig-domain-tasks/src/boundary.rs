@@ -1292,6 +1292,8 @@ pub struct TaskRecord {
     pub room_wait: Option<crate::RoomWait>,
     /// A question-form message to its requester has been admitted; never cleared.
     pub asked_requester: bool,
+    /// Newest open question that woke it at a park with a timer or live task watch; never lowered.
+    pub question_woken: u64,
 }
 
 pub use crate::index::Key;

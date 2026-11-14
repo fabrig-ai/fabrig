@@ -131,6 +131,7 @@ fn shared_resource(op: &Op) -> Option<crate::What> {
         | Read::PullFiles { .. }
         | Read::Compare { .. }
         | Read::Checks { .. }
+        | Read::JobState { .. }
         | Read::Job { .. }
         | Read::File { .. }
         | Read::Protection { .. }
@@ -477,6 +478,7 @@ pub(crate) fn reset(d: &mut Domain, env: &Env<Limits>) {
     }
 }
 #[expect(clippy::too_many_arguments, reason = "the answer carries cost, free and rate beside its call and result")]
+#[expect(clippy::too_many_lines, reason = "answers preserve the budget and route each call owner's terminal")]
 pub(crate) fn answered(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -533,7 +535,11 @@ pub(crate) fn answered(
                     Owner::Resource(resource) => crate::keep::active_resource(&d.keep, resource),
                     Owner::Repository(repository) => crate::keep::active_repository(&d.keep, *repository),
                 };
-                let stopping_write = crate::outbox::stop::active(&d.outbox)
+                let withdrawn = match owner {
+                    Owner::Entry(number) => crate::outbox::withdrawn(d, number),
+                    Owner::Read(_) | Owner::Resource(_) | Owner::Repository(_) => false,
+                };
+                let stopping_write = (crate::outbox::stop::active(&d.outbox) || withdrawn)
                     && match &d.calls.slab.get(id).expect("refused call remains").op {
                         Op::Write(_) => true,
                         Op::Read(_) => false,
@@ -573,7 +579,7 @@ pub(crate) fn answered(
     match owner {
         Owner::Read(owner) => finish_read(&mut d.calls, id, owner, result, out),
         Owner::Entry(number) => {
-            let result = if crate::outbox::stop::active(&d.outbox) {
+            let result = if crate::outbox::stop::active(&d.outbox) || crate::outbox::withdrawn(d, number) {
                 match result {
                     Err(Error::RateLimited { .. }) => Err(Error::Timeout),
                     result => result,

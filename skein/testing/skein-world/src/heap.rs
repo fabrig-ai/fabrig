@@ -18,8 +18,9 @@
 //! each process, dropped, frees exactly what was metered as its own
 //! ([`Outcome`](crate::Outcome)), which also finds a leak.
 
-use alloc::format;
 use alloc::vec::Vec;
+use alloc::{format, rc::Rc};
+use core::cell::RefCell;
 use core::hint;
 
 use skein_heap::{Grown, Span};
@@ -43,6 +44,26 @@ pub enum Memory {
 pub(crate) struct Heap {
     procs: Vec<Held>,
     ceiling: Option<u64>,
+    pub(crate) findings: Findings,
+}
+
+/// The first heap finding, shared with the loop's observation boundary.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Findings(Rc<RefCell<Option<String>>>);
+
+impl Findings {
+    pub(crate) fn keep(&self, result: Result<(), String>) {
+        if let Err(why) = result {
+            self.0.borrow_mut().get_or_insert(why);
+        }
+    }
+
+    pub(crate) fn check(&self) -> Result<(), String> {
+        match &*self.0.borrow() {
+            Some(why) => Err(why.clone()),
+            None => Ok(()),
+        }
+    }
 }
 
 /// One process's heap.
@@ -65,7 +86,7 @@ impl Heap {
             "a world that checks memory runs under the counting allocator: #[global_allocator] static HEAP: skein_heap::Counting"
         );
         drop(probe);
-        Heap { procs: Vec::new(), ceiling }
+        Heap { procs: Vec::new(), ceiling, findings: Findings::default() }
     }
 
     /// Makes the next process, metered, and checks its construction peak
@@ -76,7 +97,8 @@ impl Heap {
         let grown = span.end();
         self.procs.push(Held { now: 0, most: 0 });
         let at = self.procs.len().checked_sub(1).expect("just pushed");
-        self.check(at, grown);
+        let checked = self.check(at, grown);
+        self.findings.keep(checked);
         proc
     }
 
@@ -86,23 +108,24 @@ impl Heap {
     pub(crate) fn around<T, F: FnOnce() -> T>(&mut self, at: usize, call: F) -> T {
         let span = Span::start();
         let result = call();
-        self.check(at, span.end());
+        let checked = self.check(at, span.end());
+        self.findings.keep(checked);
         result
     }
 
     /// Drops a terminated process under its own span and removes its meter.
-    pub(crate) fn release<T>(&mut self, at: usize, proc: T) -> u64 {
+    pub(crate) fn release<T>(&mut self, at: usize, proc: T) -> Result<u64, String> {
         let held = self.procs.remove(at);
         let span = Span::start();
         drop(proc);
         let freed = span.end().net.checked_neg().expect("a heap within an i64");
         if freed != held.now {
-            crate::fail(&format!(
+            return Err(format!(
                 "terminated process {at} freed {freed} bytes, not the {} it held of its own: a leak, or heap made or freed outside its calls",
                 held.now
             ));
         }
-        u64::try_from(held.most).expect("a nonnegative peak")
+        Ok(u64::try_from(held.most).expect("a nonnegative peak"))
     }
 
     /// Drops a cut process and meters its replacement in the same slot.
@@ -111,32 +134,36 @@ impl Heap {
         let span = Span::start();
         drop(proc);
         let freed = span.end().net.checked_neg().expect("heap fits i64");
-        assert_eq!(
-            freed, old.now,
-            "the cut process releases exactly its remaining owned heap: a leak, or heap made or freed outside its calls"
-        );
+        if freed != old.now {
+            self.findings.keep(Err(format!(
+                "assertion `left == right` failed: the cut process releases exactly its remaining owned heap: a leak, or heap made or freed outside its calls\n  left: {freed}\n right: {}",
+                old.now
+            )));
+        }
         let span = Span::start();
         let proc = make();
         let grown = span.end();
         *self.procs.get_mut(at).expect("the same process slot") = Held { now: 0, most: 0 };
-        self.check(at, grown);
+        let checked = self.check(at, grown);
+        self.findings.keep(checked);
         let held = self.procs.get_mut(at).expect("the replacement's meter");
         held.most = held.most.max(old.most);
         proc
     }
 
-    fn check(&mut self, at: usize, grown: Grown) {
+    fn check(&mut self, at: usize, grown: Grown) -> Result<(), String> {
         let held = self.procs.get_mut(at).expect("a process admitted");
         let most = held.now.checked_add(grown.peak).expect("a heap within an i64");
+        held.most = held.most.max(most);
+        held.now = held.now.checked_add(grown.net).expect("a heap within an i64");
         if let Some(ceiling) = self.ceiling
             && u64::try_from(most).expect("a nonnegative peak") > ceiling
         {
-            crate::fail(&format!(
+            return Err(format!(
                 "process {at} held {most} bytes at once, past its scenario's ceiling, {ceiling} (testing-strategy.md, 6)"
             ));
         }
-        held.most = held.most.max(most);
-        held.now = held.now.checked_add(grown.net).expect("a heap within an i64");
+        Ok(())
     }
 
     /// What each process holds of its own now, by index.
@@ -177,7 +204,13 @@ impl skein_sim_world::Meter for Metered {
     }
     fn release<T>(&mut self, at: usize, proc: T) -> Option<u64> {
         match &mut self.0 {
-            Some(heap) => Some(heap.release(at, proc)),
+            Some(heap) => match heap.release(at, proc) {
+                Ok(peak) => Some(peak),
+                Err(why) => {
+                    heap.findings.keep(Err(why));
+                    None
+                }
+            },
             None => {
                 drop(proc);
                 None

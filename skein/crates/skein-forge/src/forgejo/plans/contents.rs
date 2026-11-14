@@ -101,6 +101,7 @@ impl Plan {
             | api::Read::Tree { .. }
             | api::Read::Artifact { .. }
             | api::Read::Commits { .. }
+            | api::Read::JobState { .. }
             | api::Read::Job { .. } => return Err(api::Error::InvalidAnswer),
         };
         Ok(Self { state, row, size: 0, limit, skip, sides })

@@ -207,4 +207,7 @@ disallowed-methods = [
     { path = "core::mem::take", reason = "the placeholder is the terminal state: mem::replace" },
     { path = "core::mem::forget", reason = "an entity ends when it is reclaimed, not never" },
     { path = "alloc::boxed::Box::leak", reason = "an entity ends when it is reclaimed, not never" },
+    # Nothing catches a panic.
+    { path = "std::panic::catch_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
+    { path = "std::panic::resume_unwind", reason = "nothing catches a panic, tests included (skein/docs/foundation/programming-model.md, 10.4)" },
 ]

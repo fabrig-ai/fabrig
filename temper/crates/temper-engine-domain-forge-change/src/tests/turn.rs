@@ -88,7 +88,7 @@ fn a_prepare_ask_requires_its_head_and_the_writer_slot() {
     assert_eq!(blocked.decision, Decision::Hold(Hold::Stalled));
     f.writer_taken = false;
     f.ask = Some(Ask::Prepare { head: NEW, main: BASE });
-    assert_eq!(decide(&ready(), &f, &heard()).decision, Decision::Hold(Hold::BranchMoved));
+    assert_eq!(decide(&ready(), &f, &heard()).decision, Decision::Wait { until: Some(at(30)) });
 }
 
 #[test]

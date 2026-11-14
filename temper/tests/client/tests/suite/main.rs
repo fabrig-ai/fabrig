@@ -25,6 +25,7 @@ mod delete_project;
 mod dismissed;
 mod follows;
 mod forges;
+mod goal_start_flags;
 mod hold_commands;
 mod inbox;
 mod inbox_observation;

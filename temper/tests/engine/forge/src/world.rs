@@ -268,6 +268,9 @@ impl World {
         let (project, way, gates) = self.landing_config.clone().expect("landing configured");
         assert!(self.project_landing(project, way, gates));
     }
+    pub fn runner_labels(&mut self, labels: Option<Box<[Box<[u8]>]>>) {
+        self.forge_env.limits.runner_labels = labels;
+    }
     pub fn runner_setup_faults(&mut self, faults: u32) {
         self.forge_env.limits.setup_faults = faults;
     }
@@ -1984,6 +1987,7 @@ fn repository_config(repositories: u32) -> forge::Config {
 #[must_use]
 pub fn fake_config() -> forge::Config {
     forge::Config {
+        runner_labels: None,
         setup_faults: 0,
         lost: 0,
         limits: forge::Limits {
@@ -2028,6 +2032,8 @@ pub fn fake_config() -> forge::Config {
         rate_window: Duration::from_secs(10),
         ci: 3,
         made_checks: forge::Config::test().made_checks,
+        made_workflows: forge::Config::test().made_workflows,
+        made_manual_merges: forge::Config::test().made_manual_merges,
         hook_min: Duration::ZERO,
         hook_max: Duration::ZERO,
         hooks_late: 0,
@@ -2059,6 +2065,7 @@ fn workflows(turn: bool, tier: Option<raw::Workflow>) -> Box<[raw::Workflow]> {
         Box::new([tier])
     } else if turn {
         Box::new([raw::Workflow {
+            requirements: Box::new([]),
             fails: Box::new([]),
             flaky: Box::new([]),
             report: None,

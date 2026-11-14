@@ -481,6 +481,7 @@ fn answered(
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)
+        | w::Outcome::Tier(_)
         | w::Outcome::DeviceAdded(_)
         | w::Outcome::DeviceRemoved
         | w::Outcome::DeviceRefused(_)
@@ -537,6 +538,7 @@ fn restored(ask: &Ask, json: bool) -> Option<Pending> {
         | w::Request::SetAway(_)
         | w::Request::Overturn(_)
         | w::Request::SetDraft(_)
+        | w::Request::TierAct(_)
         | w::Request::FollowAct(_)
         | w::Request::AddDevice(_)
         | w::Request::RemoveDevice(_)

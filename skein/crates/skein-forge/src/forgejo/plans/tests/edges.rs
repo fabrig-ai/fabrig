@@ -924,3 +924,70 @@ fn protection_branch_is_not_a_leaf() {
     assert_eq!(run.answer(404, MISSING), Step::Done(Err(Error::Missing)));
     assert_eq!(run.tables().repository(REPO), None);
 }
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    reason = "table fixtures construct JSON and expected owned labels with ordinary test Rust"
+)]
+fn job_state_documents_name_waits_without_reading_logs() {
+    use crate::api::{Answer, JobState};
+    let asked = api::JobAttempt { job: 41, attempt: 1, ..ATTEMPT };
+    let labels = ["\"docker\""; 17].join(",");
+    let rows = [
+        ("waiting", "[]", "\"docker\",\"linux\"".to_owned(), 1_u32, 7_u64, 200, Ok(JobState::Waiting), false),
+        ("blocked", "[]", String::new(), 1, 7, 200, Ok(JobState::Blocked), false),
+        (
+            "running",
+            r#"[{"number":1,"name":"setup","status":"success"},{"number":2,"name":"test","status":"running"},{"number":3,"name":"later","status":"running"}]"#,
+            String::new(),
+            1,
+            7,
+            200,
+            Ok(JobState::Running),
+            false,
+        ),
+        ("unknown", "[]", String::new(), 1, 7, 200, Ok(JobState::Waiting), false),
+        ("new-status", "[]", String::new(), 1, 7, 200, Ok(JobState::Waiting), false),
+        ("success", "[]", String::new(), 1, 7, 200, Ok(JobState::Completed), false),
+        ("failure", "[]", String::new(), 1, 7, 200, Ok(JobState::Completed), false),
+        ("cancelled", "[]", String::new(), 1, 7, 200, Ok(JobState::Completed), false),
+        ("skipped", "[]", String::new(), 1, 7, 200, Ok(JobState::Completed), false),
+        ("waiting", "[]", String::new(), 2, 7, 200, Err(Error::MissingJob), false),
+        ("waiting", "[]", String::new(), 1, 8, 200, Err(Error::MissingJob), false),
+        ("waiting", "[]", String::new(), 1, 7, 404, Err(Error::MissingJob), false),
+        ("waiting", "[]", labels, 1, 7, 200, Ok(JobState::Waiting), true),
+    ];
+    for (status, steps, labels, attempt, run_id, http, expected, cut) in rows {
+        let document = format!(
+            r#"{{"id":41,"run_id":{run_id},"attempt":{attempt},"status":"{status}","runs_on":[{labels}],"steps":{steps}}}"#
+        );
+        let mut run = Run::known(Op::Read(Read::JobState { attempt: asked }));
+        run.begin();
+        run.answer(200, RUN);
+        let expected = expected.map(|state| Answer::JobState {
+            attempt: asked,
+            state,
+            labels: if cut {
+                vec![Box::from(b"docker".as_slice()); 16].into_boxed_slice()
+            } else if labels.is_empty() {
+                Box::new([])
+            } else {
+                Box::new([Box::from(b"docker".as_slice()), Box::from(b"linux".as_slice())])
+            },
+            step: if state == JobState::Running {
+                Some(api::Step { number: 2, name: Box::from(b"test".as_slice()) })
+            } else {
+                None
+            },
+            cut,
+        });
+        assert_eq!(run.answer(http, document.as_bytes()), Step::Done(expected), "{document}");
+        run.assert_sent(&[
+            "GET /api/v1/repos/fixture/specimen/actions/runs/7",
+            "GET /api/v1/repos/fixture/specimen/actions/jobs/41",
+        ]);
+    }
+}

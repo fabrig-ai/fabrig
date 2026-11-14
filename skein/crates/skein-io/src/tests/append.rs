@@ -312,17 +312,6 @@ fn no_timeout_write_error_spills_the_queue_without_continuing_short_writes_or_re
 }
 
 #[test]
-#[should_panic(expected = "only an unfinished write pipe sends")]
-fn finish_then_demand_grants_room_but_a_later_send_panics() {
-    let (mut rig, stream) = write_pipe(None);
-    send(&mut rig, stream, b"one").take(Kind::PipeWrite);
-    rig.down(Request::Stream { stream, down: Down::Finish }).nothing();
-    rig.down(Request::Stream { stream, down: Down::Demand { read: Read::Nothing, room: 1 } }).nothing();
-    assert_eq!(rig.next().events, [Event::Stream { owner: stream, up: Up::Room }]);
-    rig.down(Request::Stream { stream, down: Down::Send(Box::from(&b"x"[..])) });
-}
-
-#[test]
 fn close_and_abort_carry_the_pending_terminal_before_actual_closed_without_a_second_answer() {
     for abort in [false, true] {
         let (mut rig, stream) = write_pipe(None);

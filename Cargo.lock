@@ -2953,6 +2953,7 @@ dependencies = [
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-ui",
  "skein-ui-web",
 ]
@@ -6649,6 +6650,7 @@ dependencies = [
  "skein-http",
  "skein-io",
  "skein-json",
+ "skein-kv",
  "skein-lib",
  "skein-oauth-accounts",
  "skein-scratch",
@@ -7203,6 +7205,7 @@ dependencies = [
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-store-codec",
+ "temper-protocol-store-patches",
 ]
 
 [[package]]
@@ -7211,6 +7214,17 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-lib",
+]
+
+[[package]]
+name = "temper-protocol-store-patches"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
+ "skein-codegen",
+ "skein-forge",
+ "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]

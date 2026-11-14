@@ -209,6 +209,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester: false,
+        question_woken: 0,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
         hold_bound_since: None,
@@ -425,6 +426,7 @@ pub fn completed_store() -> crate::store::Store {
                 crate::store::route::Up::Root(event) => root::step(&mut domain, &env, *event),
                 crate::store::route::Up::Ask(request) => store.host.ask(request),
                 crate::store::route::Up::FrameTooLarge { .. } => panic!("fixture store frame"),
+                crate::store::route::Up::Failed { number, why } => panic!("fixture store commit {number}: {why:?}"),
             }
         }
         if domain.ready() && domain.quiescent() && store.host.above.is_empty() {

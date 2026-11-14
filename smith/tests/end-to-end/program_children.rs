@@ -70,7 +70,12 @@ fn exec_on_claude_asks_two_sub_agents_side_by_side() {
         ],
         ..Story::default()
     });
-    let ran = support::run_product(&scratch, &["exec", "Ask two inspectors for reports"], b"", None);
+    // A program run, so the program story's budget: the reports are the subject, not their speed.
+    let ran = support::run_product_scripted(
+        &scratch,
+        &["exec", "Ask two inspectors for reports"],
+        vec![smith_local_process_world::terminal::Action::Eof],
+    );
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
     assert_eq!(ran.stdout, report.as_bytes());
     let calls = invocations(&scratch);

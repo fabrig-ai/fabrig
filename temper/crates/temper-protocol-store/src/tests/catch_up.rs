@@ -47,9 +47,22 @@ fn patched_with(
 }
 
 fn current(root: &[u8], mut bytes: Box<[u8]>) -> Box<[u8]> {
-    for (version, patch) in
-        [(11, 0), (12, 1), (13, 2), (14, 3), (15, 4), (16, 5), (17, 6), (18, 7), (19, 8), (20, 9), (21, 10), (22, 11)]
-    {
+    for (version, patch) in [
+        (11, 0),
+        (12, 1),
+        (13, 2),
+        (14, 3),
+        (15, 4),
+        (16, 5),
+        (17, 6),
+        (18, 7),
+        (19, 8),
+        (20, 9),
+        (21, 10),
+        (22, 11),
+        (23, 12),
+        (24, 13),
+    ] {
         bytes = patched(version, patch, root, bytes);
     }
     bytes
@@ -102,8 +115,8 @@ fn a_baseline_adopted_row_has_no_contexts() {
     let adopted = kept_golden(11, "record_adopted_full.bin");
     let before = bytes::concat(&[&[0, 11, 2], &adopted]); // Row version, repository variant.
     let bytes = current(b"Row", before);
-    let row = crate::v23::Row::decode(&crate::v23::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
-    let crate::v23::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
+    let row = crate::v25::Row::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current row");
+    let crate::v25::Value::Repository(record) = row.into_parts().value else { panic!("adopted repository") };
     assert!(record.contexts().is_empty());
     assert_eq!(record.project(), u32::MAX);
     assert!(record.home());
@@ -114,8 +127,8 @@ fn a_foreman_with_a_task_becomes_retired() {
     let before = kept_golden(11, "enum_stands_foreman_full.bin");
     let bytes = current(b"Stands", before);
     let value =
-        crate::v23::Stands::decode(&crate::v23::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
-    assert_eq!(value, crate::v23::Stands::Retired);
+        crate::v25::Stands::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current stands");
+    assert_eq!(value, crate::v25::Stands::Retired);
 }
 
 #[test]
@@ -128,7 +141,7 @@ fn a_v13_closer_upgrades_with_no_question_relay() {
     let bytes = patched(17, 6, b"Closer", bytes);
     let bytes = patched(18, 7, b"Closer", bytes);
     let bytes = patched(19, 8, b"Closer", bytes);
-    let row = crate::v23::Closer::decode(&crate::v23::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let row = crate::v25::Closer::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("upgraded closer");
     assert_eq!(row.relay(), &None);
     assert_eq!(row.task(), u64::MAX);
@@ -141,8 +154,8 @@ fn a_v16_person_owned_follow_keeps_its_bytes_and_owner() {
     let before = kept_golden(16, "record_follow_full.bin");
     let bytes = patched(16, 5, b"Follow", before.clone());
     assert_eq!(bytes, before, "adding task owners leaves person owners unchanged");
-    let follow = crate::v23::Follow::decode(&crate::v23::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-    let crate::v23::FollowOwner::Person(owner) = follow.owner() else { panic!("old person owner") };
+    let follow = crate::v25::Follow::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    let crate::v25::FollowOwner::Person(owner) = follow.owner() else { panic!("old person owner") };
     assert_eq!(owner.person(), u64::MAX);
 }
 
@@ -157,7 +170,7 @@ fn a_v14_closer_keeps_its_question_relay_through_r2() {
     let bytes = patched(18, 7, b"Closer", bytes);
     let bytes = patched(19, 8, b"Closer", bytes);
     let closer =
-        crate::v23::Closer::decode(&crate::v23::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current closer");
+        crate::v25::Closer::decode(&crate::v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("current closer");
     assert!(closer.relay().is_some());
 }
 

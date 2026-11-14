@@ -228,6 +228,7 @@ pub fn unasked_kind(answer: &CallAnswer) -> Option<&'static str> {
                 | api::Answer::PullFiles { .. }
                 | api::Answer::Compare { .. }
                 | api::Answer::Checks(_)
+                | api::Answer::JobState { .. }
                 | api::Answer::Job { .. }
                 | api::Answer::File { .. }
                 | api::Answer::Directory { .. }
@@ -1599,6 +1600,7 @@ fn page_end(text: &mut Text, more: bool, cut: bool, kept: usize, at: (u32, u32))
 #[expect(clippy::too_many_lines, reason = "one exhaustive forge answer vocabulary")]
 fn forge_answer_at(text: &mut Text, answer: &api::Answer, at: (u32, u32)) -> Result<(), Problem> {
     match answer {
+        api::Answer::JobState { .. } => unreachable!("job state is internal to stall diagnostics"),
         api::Answer::Located { repository } => {
             text.add(b"Repository ")?;
             text.number(u64::from(*repository))?;

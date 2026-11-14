@@ -132,8 +132,8 @@ Each list has one entry per line; `#` starts a comment line.
   delivery, then clippy on changed packages and focused tests, one process per binary
   (`tools/tiers/one-process default`), on them, their direct dependents and
   prefixed path readers, against `refs/temper/landing`'s
-  merge base. A lint or test failure `.temper/known-reds.md` lists, and an
-  exceeded count or citation the base has too, does not refuse; without a
+  merge base. A lint or test failure the goal's reds in `temper/reds` name, and an
+  exceeded count or citation the base has too, refuses nothing; without a
   base, the first two checks alone (`tools/pre-pr/design.md`, 1–9).
 - **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).

@@ -9,12 +9,7 @@ pub enum ResolutionChange {
     NewKey,
     Resolved { added: Box<[Listed]>, removed: Box<[Listed]>, versions_changed: Box<[Moved]> },
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Listed {
-    pub name: Box<[u8]>,
-    pub architecture: Box<[u8]>,
-    pub version: Box<[u8]>,
-}
+pub type Listed = crate::resolution::Inst;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Moved {
     pub name: Box<[u8]>,
@@ -23,7 +18,12 @@ pub struct Moved {
     pub after: Box<[u8]>,
 }
 #[must_use]
-pub fn resolution(from: Digest, to: Digest, before: Option<&[Package]>, after: Option<&[Package]>) -> ResolutionChange {
+pub(crate) fn resolution(
+    from: Digest,
+    to: Digest,
+    before: Option<&[Package]>,
+    after: Option<&[Package]>,
+) -> ResolutionChange {
     if from == to {
         return ResolutionChange::Same;
     }

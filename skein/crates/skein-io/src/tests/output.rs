@@ -252,15 +252,6 @@ fn close_and_abort_carry_the_pending_terminal_before_actual_closed_without_a_sec
     }
 }
 
-#[test]
-#[should_panic(expected = "a matching independent Send fits its grant")]
-fn only_a_matching_oversized_send_is_an_invariant_violation() {
-    let mut rig = Rig::new(limits());
-    let (socket, _recv) = connected(&mut rig, owner(1), Fd::new(3));
-    grant(&mut rig, socket, FIRST, 1);
-    output(&mut rig, socket, OutputDown::Send { right: FIRST, bytes: Box::from(&b"xx"[..]) }).nothing();
-}
-
 fn child_command() -> crate::kernel::Spawn {
     let mut pipes = skein_lib::List::with_capacity(2);
     pipes.push(crate::kernel::Pipe { child: 0, way: crate::kernel::Way::In, parent: None }).expect("input pipe slot");
