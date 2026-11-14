@@ -1,4 +1,4 @@
-//! Start model refusals name the flag, choice part and bound (client/ctl/areas.md, 5).
+//! Start model refusals name the flag, choice part and bound (client/ctl/areas.md area 5).
 #![expect(clippy::disallowed_macros, reason = "ordinary Rust expected refusal strings")]
 use super::goal_template::{START, goal_me};
 use crate::tests::fixtures as f;

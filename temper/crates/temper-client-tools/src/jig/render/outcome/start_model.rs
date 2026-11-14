@@ -1,4 +1,4 @@
-//! Start refusals name the call's flag or the kept choice's part (client/ctl/areas.md, 5).
+//! Start refusals name the call's flag or the kept choice's part (client/ctl/areas.md area 5).
 use super::{Operation, Text};
 use crate::jig::{
     call::{Call, Value, Values, value},
