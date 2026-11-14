@@ -3,7 +3,7 @@ pub use super::config::Script;
 use crate::{entries::Expansion, errors::Error, revision::declaration::Map};
 use alloc::boxed::Box;
 use hearth_lib::{encode::Digest, hash::H};
-use skein_lib::{List, Map as Ordered};
+use skein_lib::{Joined, List, Map as Ordered};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Software {
     pub downloads: Box<[Download]>,
@@ -102,17 +102,40 @@ pub struct Change {
     pub downloads: Box<[DownloadKeyed]>,
     pub scripts: Option<super::config::ScriptsChange>,
 }
-pub type DownloadKeyed = crate::diff::Keyed<Download>;
+/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum DownloadKeyed {
+    Added { key: Box<[u8]>, value: Download },
+    Removed { key: Box<[u8]>, value: Download },
+    Changed { key: Box<[u8]>, before: Download, after: Download },
+}
 
 #[must_use]
 pub(crate) fn change(before: &Software, after: &Software) -> Change {
+    let mut old: Ordered<&[u8], &Download> = Ordered::uncapped();
+    let mut new: Ordered<&[u8], &Download> = Ordered::uncapped();
+    for row in &before.downloads {
+        old.insert(row.path.as_ref(), row).expect("an uncapped map");
+    }
+    for row in &after.downloads {
+        new.insert(row.path.as_ref(), row).expect("an uncapped map");
+    }
+    let mut changes = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => DownloadKeyed::Removed { key: skein_lib::bytes::copy_of(key), value: (*row).clone() },
+            Joined::Second(row) => DownloadKeyed::Added { key: skein_lib::bytes::copy_of(key), value: (*row).clone() },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => DownloadKeyed::Changed {
+                key: skein_lib::bytes::copy_of(key),
+                before: (*was).clone(),
+                after: (*now).clone(),
+            },
+        };
+        changes.push(change).expect("an uncapped list");
+    }
     Change {
-        downloads: crate::diff::keyed(
-            &before.downloads,
-            &after.downloads,
-            |row| &row.path,
-            |change| change.map(Clone::clone),
-        ),
+        downloads: changes.into_boxed(),
         scripts: if before.scripts == after.scripts {
             None
         } else {

@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use hearth_lib::{encode::Digest, hash::H};
-use skein_lib::{List, Map};
+use skein_lib::{Joined, List, Map, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Data {
     pub entries: Box<[DataEntry]>,
@@ -41,7 +41,13 @@ impl DataClass {
 pub struct DataChange {
     pub entries: Box<[DataKeyed]>,
 }
-pub type DataKeyed = crate::diff::Keyed<DataValue>;
+/// Keyed changes (hearth/docs/design/domain/render/README.md, 4.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum DataKeyed {
+    Added { key: Box<[u8]>, value: DataValue },
+    Removed { key: Box<[u8]>, value: DataValue },
+    Changed { key: Box<[u8]>, before: DataValue, after: DataValue },
+}
 pub(crate) const MAX_ENTRIES: u32 = 64;
 pub(crate) fn build(expansion: &Expansion) -> Result<Data, Box<[Error]>> {
     let entries = expansion.of(Kind::Data);
@@ -98,7 +104,25 @@ pub(crate) fn change(before: Option<&Data>, after: Option<&Data>) -> DataChange 
         Some(data) => data.entries.as_ref(),
         None => &[],
     };
-    DataChange {
-        entries: crate::diff::keyed(before, after, |row| &row.name, |change| change.map(|row| row.value.clone())),
+    let mut old: Map<&[u8], &DataEntry> = Map::uncapped();
+    let mut new: Map<&[u8], &DataEntry> = Map::uncapped();
+    for row in before {
+        old.insert(row.name.as_ref(), row).expect("an uncapped map");
     }
+    for row in after {
+        new.insert(row.name.as_ref(), row).expect("an uncapped map");
+    }
+    let mut changes = List::uncapped();
+    for (key, joined) in old.join(&new) {
+        let change = match joined {
+            Joined::First(row) => DataKeyed::Removed { key: bytes::copy_of(key), value: row.value.clone() },
+            Joined::Second(row) => DataKeyed::Added { key: bytes::copy_of(key), value: row.value.clone() },
+            Joined::Both(was, now) if was == now => continue,
+            Joined::Both(was, now) => {
+                DataKeyed::Changed { key: bytes::copy_of(key), before: was.value.clone(), after: now.value.clone() }
+            }
+        };
+        changes.push(change).expect("an uncapped list");
+    }
+    DataChange { entries: changes.into_boxed() }
 }
