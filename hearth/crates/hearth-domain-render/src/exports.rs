@@ -8,6 +8,7 @@ use crate::{
     schema::{Against, Check},
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::exports::Exported;
 use skein_lib::List;
 mod cache;
 pub(crate) use cache::{Cache, Fleet};
@@ -15,11 +16,7 @@ mod conform;
 mod value;
 #[cfg(test)]
 pub(crate) use conform::conform;
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Exported {
-    pub task: Box<[u8]>,
-    pub values: Box<[Entry]>,
-}
+
 /// Static export faults, at the value string's opening quote.
 pub(crate) fn check(declaration: &Declaration, document: u32, faults: &mut List<crate::schema::Fault>) {
     for export in &declaration.exports {

@@ -54,7 +54,7 @@ pub fn indices(lines: &[Line], architecture: &Name) -> Box<[Index]> {
             };
             let path = match component {
                 None => join(&[b"InRelease"]),
-                Some(component) => join(&[component.bytes(), b"/binary-", architecture.as_bytes(), b"/Packages"]),
+                Some(component) => join(&[component.name(), b"/binary-", architecture.as_bytes(), b"/Packages"]),
             };
             let mut name = join(&[&prefix, &path]);
             for byte in &mut name {

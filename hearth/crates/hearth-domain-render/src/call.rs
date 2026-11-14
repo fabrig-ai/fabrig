@@ -695,7 +695,7 @@ impl Comparison {
             .expect("entry cursor")
         {
             self.entry = self.entry.saturating_add(1);
-            if let Some((before, after)) = entry.pair(&from.sizes, sizes, max) {
+            if let Some((before, after)) = parts::config::pair(entry, &from.sizes, sizes, max) {
                 return (Output::Request(Request::Hunks { request: Token::new(3), before, after }), false);
             }
         }

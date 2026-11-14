@@ -387,6 +387,8 @@ dependencies = [
 name = "hearth-client-protocol-records"
 version = "0.0.0"
 dependencies = [
+ "hearth-domain-render-vocabulary",
+ "hearth-lib",
  "skein-json",
  "skein-lib",
 ]
@@ -443,8 +445,17 @@ dependencies = [
 name = "hearth-domain-render"
 version = "0.0.0"
 dependencies = [
+ "hearth-domain-render-vocabulary",
  "hearth-lib",
  "hearth-test-fixtures",
+ "skein-lib",
+]
+
+[[package]]
+name = "hearth-domain-render-vocabulary"
+version = "0.0.0"
+dependencies = [
+ "hearth-lib",
  "skein-lib",
 ]
 
@@ -550,6 +561,7 @@ dependencies = [
 name = "hearth-protocol-config"
 version = "0.0.0"
 dependencies = [
+ "hearth-domain-render-vocabulary",
  "skein-json",
  "skein-lib",
 ]
@@ -558,6 +570,7 @@ dependencies = [
 name = "hearth-protocol-git"
 version = "0.0.0"
 dependencies = [
+ "hearth-domain-render-vocabulary",
  "skein-lib",
 ]
 
@@ -565,6 +578,7 @@ dependencies = [
 name = "hearth-protocol-mmdebstrap"
 version = "0.0.0"
 dependencies = [
+ "hearth-domain-render-vocabulary",
  "skein-lib",
 ]
 

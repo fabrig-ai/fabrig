@@ -1,4 +1,5 @@
 use crate::outcome::{self, Outcome};
+use hearth_domain_render_vocabulary as render;
 const CODES: [(Outcome, u8); 6] = [
     (Outcome::Done, 0),
     (Outcome::Negative, 1),
@@ -14,8 +15,8 @@ fn each_outcome_exits_with_its_client_readme_code() {
     }
 }
 
-const CLASSES: [(crate::errors::Class, Outcome); 2] =
-    [(crate::errors::Class::Configuration, Outcome::Failed), (crate::errors::Class::Operational, Outcome::TryAgain)];
+const CLASSES: [(render::errors::Class, Outcome); 2] =
+    [(render::errors::Class::Configuration, Outcome::Failed), (render::errors::Class::Operational, Outcome::TryAgain)];
 #[test]
 fn an_errors_class_gives_failed_or_try_again() {
     for (class, expected) in CLASSES {

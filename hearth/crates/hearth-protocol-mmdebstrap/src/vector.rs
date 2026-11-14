@@ -47,24 +47,7 @@ impl Timestamp {
         Some(Timestamp(value))
     }
 }
-/// Components in the format's fixed order, main always present.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Component {
-    Main,
-    Contrib,
-    NonFree,
-    NonFreeFirmware,
-}
-impl Component {
-    pub(crate) fn bytes(self) -> &'static [u8] {
-        match self {
-            Self::Main => b"main",
-            Self::Contrib => b"contrib",
-            Self::NonFree => b"non-free",
-            Self::NonFreeFirmware => b"non-free-firmware",
-        }
-    }
-}
+pub use hearth_domain_render_vocabulary::parts::packages::Component;
 /// The packages part's sources, field for field (hearth/docs/design/domain/render/spec.md, 1.2).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sources {
@@ -190,7 +173,7 @@ pub fn sources_list(lines: &[Line]) -> Box<[u8]> {
     for line in lines {
         append(&mut parts, join(&[b"deb ", &line.uri, b" ", &line.suite]));
         for component in &line.components {
-            append(&mut parts, join(&[b" ", component.bytes()]));
+            append(&mut parts, join(&[b" ", component.name()]));
         }
         append(&mut parts, bytes::copy_of(b"\n"));
     }

@@ -410,6 +410,7 @@ members = [
     "hearth/crates/hearth-domain-build",
     "hearth/crates/hearth-domain-builder",
     "hearth/crates/hearth-domain-render",
+    "hearth/crates/hearth-domain-render-vocabulary",
     "hearth/crates/hearth-domain-store",
     "hearth/crates/hearth-domain-tree",
     "hearth/crates/hearth-lib",
@@ -797,6 +798,7 @@ hearth-test-repository = { path = "hearth/testing/hearth-test-repository" }
 hearth-test-git = { path = "hearth/testing/hearth-test-git" }
 hearth-test-mirror = { path = "hearth/testing/hearth-test-mirror" }
 hearth-domain-render = { path = "hearth/crates/hearth-domain-render" }
+hearth-domain-render-vocabulary = { path = "hearth/crates/hearth-domain-render-vocabulary" }
 hearth-protocol-mmdebstrap = { path = "hearth/crates/hearth-protocol-mmdebstrap" }
 hearth-protocol-accounts = { path = "hearth/crates/hearth-protocol-accounts" }
 hearth-lib = { path = "hearth/crates/hearth-lib" }

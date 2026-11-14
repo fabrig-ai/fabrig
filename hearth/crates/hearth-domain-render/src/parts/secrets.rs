@@ -6,50 +6,15 @@ use crate::{
     revision::declaration::{Map, Name},
 };
 use alloc::boxed::Box;
+pub use hearth_domain_render_vocabulary::parts::secrets::{
+    Algorithm, Change, Identity, IdentityKind, Named, Password, SecretFile, Secrets,
+};
 use hearth_lib::{
     encode::{Digest, Encoder},
     hash::H,
 };
 use skein_lib::{Joined, List, Map as Ordered, bytes::copy_of};
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Secrets {
-    pub files: Box<[SecretFile]>,
-    pub passwords: Box<[Password]>,
-    pub identity: Box<[Identity]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct SecretFile {
-    pub name: Box<[u8]>,
-    pub path: Box<[u8]>,
-    pub mode: u16,
-    pub owner: Box<[u8]>,
-    pub group: Box<[u8]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Password {
-    pub user: Box<[u8]>,
-    pub secret: Box<[u8]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Identity {
-    pub name: Box<[u8]>,
-    pub kind: IdentityKind,
-    pub path: Box<[u8]>,
-    pub public_path: Option<Box<[u8]>>,
-    pub mode: u16,
-    pub owner: Box<[u8]>,
-    pub group: Box<[u8]>,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum IdentityKind {
-    SshHostKey { algorithm: Algorithm },
-}
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Algorithm {
-    Ed25519,
-    Ecdsa,
-    Rsa,
-}
+
 pub(crate) fn build(expansion: &Expansion) -> Result<Secrets, Box<[Error]>> {
     let files = expansion.of(Map::Secrets);
     let identity = expansion.of(Map::Identity);
@@ -164,19 +129,6 @@ fn encode(secrets: &Secrets, record: &mut Encoder) {
         record.key(&password.user);
         record.bytes(&password.secret);
     }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Change {
-    pub files: Box<[Named]>,
-    pub passwords: Box<[Named]>,
-    pub identity: Box<[Named]>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Named {
-    Added(Box<[u8]>),
-    Removed(Box<[u8]>),
-    Changed(Box<[u8]>),
 }
 
 #[must_use]
