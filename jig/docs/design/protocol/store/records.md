@@ -39,9 +39,12 @@ settings families (`README.md`, 4.4), under a schema of their own, `settings`, w
 version the format row names beside the others' (3), so that their
 records change independently of the core's; and each task's record
 and claim carries a revision in the tasks family's schema. From the
-baseline (3; temper's `protocol/baseline.md`), a change a reader would
+baseline (3; temper's `protocol/baseline.md`) until a family's
+registration (`layouts.md`, 1), a change a reader would
 notice brings its patch and moves its family's version in the landing
-that makes it; before it, each version kept its number, and its schema,
+that makes it; from its registration, its version stays and a store
+converts each value from the layout it was written at; before the
+baseline, each version kept its number, and its schema,
 generated code and one set of golden bytes changed in place (skein's
 `data/codec/README.md`, section 5). The settings' version defines every record of 17.7,
 charter versions and pending proposals' sets among them. As every
@@ -96,7 +99,14 @@ follow from the limits that bound each kind (4).
 
 - **Each record carries its family's version,** as every generated record
   does (skein's `data/codec/README.md`, section 5), which is what an upgrade will
-  need.
+  need. In the map, a registered family's value carries in its place
+  the id of its value type's layout, which the store maps to and from
+  the version at its edges (`layouts.md`, 4).
+- **The registered families** (`layouts.md`, 1): the core, tasks,
+  people, notes, accounts and settings families keep their versions from
+  their registration on, and change their layouts by defaults, former
+  names and written jobs, with no patch; the component's, the secrets'
+  and the openings' families are patched as before.
 - **A collection the domain bounds by its bytes in all is one piece**
   (skein's `data/codec/README.md`, 3), its limit the domain's sum: a verdict's
   fields by the result's bytes, an amendment's lists, an authority's and
@@ -348,6 +358,13 @@ settings (decided 2026-11-03).
     is a later jig's, since from the baseline the component's version
     moves only by jig's patches: `Ahead { owner: Jig, found: None,
     wanted }`, its levels unread.
+- **The registry,** in rows of their own beside it (`jig-store-registry`,
+  the component's): the layouts of the registered families' value
+  types, the texts they were made with, and the jobs done
+  (`layouts.md`, 3; `jobs.md`, 2). From the registration, the format
+  row's versions of the registered families stay as they are, and the
+  layouts' row is the baseline's comparison alone: what a store's
+  values are at is the registry's.
 - **The wires,** in a row of their own beside it (`Wires`, the
   component's): the versions the engine that last started on the store
   speaks to its workers, so that the next binary can say before it

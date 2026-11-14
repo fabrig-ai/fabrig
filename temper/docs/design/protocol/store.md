@@ -354,7 +354,19 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 
   The routing gives it to jig's component, whose format row records it;
   opening patches an older supported store in a copy before restoring
-  it (jig's `protocol/store/opening.md`).
+  it (jig's `protocol/store/opening.md`). From `temper-store`'s
+  registration (jig's `protocol/store/layouts.md`, 1), listed in
+  `temper-protocol-store`'s `schema/registered`, the version stays
+  where the last patch left it, no patch is written for the family, and
+  its layouts change by defaults, former names and written jobs.
+- **`temper-store`'s value types** (jig's `protocol/store/layouts.md`,
+  2): its `Row`'s variants, one value type per variant its keys hold
+  (section 3), each numbered in `temper-protocol-store`'s patch set,
+  in its keys' order, and never renumbered; `temper-secrets` is
+  patched as before. The application's jobs at open (jig's
+  `protocol/store/jobs.md`) are dispatched by
+  `temper_protocol_store::jobs::page`, which names none until a
+  milestone brings one.
 - **A repository's tag** is its forge's number and its id, packed
   (`../domain/forge/adoption.md`): the tasks' resource parameters and
   saved resources jig keeps name the pair.

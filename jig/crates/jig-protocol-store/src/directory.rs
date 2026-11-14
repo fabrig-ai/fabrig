@@ -954,6 +954,8 @@ pub(crate) fn events_up(
                 } else if owner == Token::new(number) {
                     crate::transcripts::committed(store, number);
                     store.mark.committed(number);
+                    store.registry.activate();
+                    store.registry.settle();
                     above.push(Event::Committed { number, fill: store.stores.store.used() });
                     crate::census::due(store, above);
                 } else {

@@ -112,6 +112,8 @@ pub enum Outcome {
     Patched { family: String, from: u16, to: u16 },
     /// `Unmoved`, `Needless` or `Wrong`: nothing written for the family (12.5).
     Refused { family: String, verdict: Version },
+    /// Passed over: a store keeps the family's layouts (data/codec/command.md, 2).
+    Registered { family: String },
 }
 
 /// What the check finds (data/codec/command.md, 7).
@@ -141,6 +143,8 @@ pub enum Finding {
     Floor { family: String, floor: u16, wrong: FloorWrong },
     /// A reverse above a wire's floor does not plan.
     Unbridged { family: String, version: u16, error: String },
+    /// A registered family's version moved, or the branch keeps text, renames or a block for it.
+    Registered { family: String },
 }
 
 /// Why a wire's floor is refused (data/codec/bridges.md, 6).
@@ -181,6 +185,8 @@ pub enum Error {
     Spelled { first: String, second: String },
     /// `schema/wires` names no family of the crate (data/codec/command.md, 2).
     Wire { family: String },
+    /// `schema/registered` names no family of the crate (data/codec/command.md, 2).
+    Registered { family: String },
     /// Each golden that fails, named (12.3).
     Golden(Vec<String>),
     /// `patches/mod.rs` not as generated (12.3).
@@ -209,6 +215,7 @@ impl fmt::Display for Outcome {
         match self {
             Self::Kept { family, version } => write!(f, "{family}: kept version {version}, its first"),
             Self::Current { family } => write!(f, "{family}: current"),
+            Self::Registered { family } => write!(f, "{family}: registered, passed over"),
             Self::Refreshed { family, version } => write!(f, "{family}: kept version {version} refreshed"),
             Self::Waiting { family, renames } => {
                 write!(f, "{family}: renames waiting for its next patch:")?;
@@ -230,6 +237,10 @@ impl fmt::Display for Finding {
         const RUN: &str = "run `skein-codegen patch <crate>`";
         match self {
             Self::Unkept { family } => write!(f, "{family}: no kept text; {RUN}"),
+            Self::Registered { family } => write!(
+                f,
+                "{family}: registered; keep its landed version and remove the branch's kept texts, renames and patch block"
+            ),
             Self::KeptGap { family, missing } => {
                 write!(f, "{family}: kept version {missing} missing; kept versions run without a gap")
             }
@@ -299,6 +310,7 @@ impl fmt::Display for Error {
             ),
             Self::Spelled { first, second } => write!(f, "{first} and {second} spell one name"),
             Self::Wire { family } => write!(f, "schema/wires: {family}: no family of the crate"),
+            Self::Registered { family } => write!(f, "schema/registered: {family}: no family of the crate"),
             Self::Golden(failures) => {
                 f.write_str("goldens fail:")?;
                 for failure in failures {

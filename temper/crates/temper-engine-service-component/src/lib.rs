@@ -237,6 +237,12 @@ pub enum Note {
         reason: &'static str,
     },
     /// One patch finished before the store opened (jig's protocol/store/opening.md, 2).
+    Ran {
+        of: jig_protocol_store::Owner,
+        job: Box<str>,
+        rows: u64,
+        commits: u64,
+    },
     Patched {
         of: jig_protocol_store::Owner,
         patch: u32,

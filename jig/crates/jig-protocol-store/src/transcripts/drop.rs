@@ -104,6 +104,9 @@ pub(crate) fn erases(store: &mut Store, ops: &mut List<skein_kv::Op>) -> Result<
                 | keys::Own::Layouts
                 | keys::Own::Wires
                 | keys::Own::Opening(_)
+                | keys::Own::Job { .. }
+                | keys::Own::Layout { .. }
+                | keys::Own::Text(_)
                 | keys::Own::Transcript { .. },
             ) => {
                 return Err(CommitCheck::Reads);
@@ -128,6 +131,9 @@ pub(crate) fn restore(store: &mut Store) -> Result<(), ()> {
             | keys::Own::Layouts
             | keys::Own::Wires
             | keys::Own::Opening(_)
+            | keys::Own::Job { .. }
+            | keys::Own::Layout { .. }
+            | keys::Own::Text(_)
             | keys::Own::Transcript { .. } => return Err(()),
         };
         let place = keys::encode_own(&keys::Own::Transcript { task }, store.limits.store.key).ok_or(())?;

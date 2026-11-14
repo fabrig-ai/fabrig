@@ -36,6 +36,7 @@
 | `schema/kept/<family>-v<N>.schema` | every kept version's text from the family's first (11) | the command's |
 | `schema/kept/<family>.renames` | the renames waiting for the family's next patch (4), `rename` lines | the command's |
 | `schema/wires` | the crate's families that cross a wire, one a line with its floor or `build`, each held to the wire rule (2) and its floor's rules (`bridges.md`, 4) | the author's |
+| `schema/registered` | the crate's stored families a store keeps by layout (`README.md`, section 5), one a line: no patch, kept text or rename is written for them again (2) | the author's |
 | `patches/NNNN.patch` | the patch's text (`patches.md`, 1) | the command's lines, the author's values, sites and refusals |
 | `patches/pNNNN.rs` | its written functions, for a patch with sites (`patches.md`, 5) | the command's skeleton, then the author's |
 | `patches/context.rs` | the `Context`, written once, empty, deriving `Default` | the author's |
@@ -80,9 +81,27 @@
 
 ## 2. A run
 
-For each family, in name order, with `K` its latest landed kept text at
-version `k` (none for a family new to the base) and `C` its current
-text at version `c`:
+**A registered family** (`schema/registered`, 1) is passed over: its
+kept texts, its `.renames` and its patches stay as landed, its current
+text changes as its author writes it, its version stays `k`, and no
+block of the branch's patch names it. Its layouts are a store's to
+convert (`layouts.md`; jig's `protocol/store/layouts.md`): a change
+derived from the layouts a store may hold needs nothing, and a written
+one is its owner's written job (jig's `protocol/store/jobs.md`, 4). The
+run reports it `Registered`; the check finds a version moved, a kept
+text, `.renames` or patch block of the branch's for it, as
+`Registered { family }` (7). A name the file lists that is no family of
+the crate is the run's error, `Error::Registered`. **A patch file in a
+goal in flight,** written for a family before its owner registered it
+and not landed by then, goes when the goal catches up: its version
+moves back to the landed one, its block, kept text, written functions,
+goldens and the golden store's line go (temper's
+`protocol/baseline.md`, 7), and its change is made again by defaults and
+former names (`README.md`, section 3) or a written job.
+
+For each other family, in name order, with `K` its latest landed kept
+text at version `k` (none for a family new to the base) and `C` its
+current text at version `c`:
 
 1. **Matching** by `diff.md`, section 1, the renames confirmed being those
    waiting (4), those given (`--rename`), and the `rename` lines of
@@ -102,7 +121,11 @@ text at version `c`:
    frozen text refreshed where every landed
    patch naming it still plans and keeps its goldens, would serve a
    variant appended and a bound widened alone, at the cost of landed
-   kept texts that never change.
+   kept texts that never change. The rule binds the families a store
+   still patches (the component's own rows, the secrets' store, the
+   transcripts' frames: jig's `protocol/store/layouts.md`, 1) and the
+   wires; a registered family keeps no new text, so none of its texts
+   freezes (temper's `draft/store-shape.md`, section 3).
 
    **The wire rule.** A family `schema/wires` names is a wire's: two
    builds that speak one version of it must lay it out alike, so its
@@ -286,6 +309,7 @@ read, such as a text that does not parse, is its error, as the run's:
 | `PatchGap { missing }` | a patch number missing between 1 and the last |
 | `Misnumbered { patch, level }` | a patch whose header's level is not its number |
 | `Unplanned { patch, family, error }` | a block that does not plan against its kept texts (`patches.md`, 3): a `?` left, a site missing, a line wrong |
+| `Registered { family }` | a registered family (2) whose current version is not its latest landed kept text's, or for which the branch holds a kept text, a `.renames` or a patch block |
 
 A frozen kept text's differences from the current that need no patch,
 renames waiting or not, declarations dropped, comments and order, are
@@ -332,6 +356,7 @@ pub enum Outcome {
     Waiting { family: String, renames: Vec<Rename> },
     Patched { family: String, from: u16, to: u16 },
     Refused { family: String, verdict: Version },
+    Registered { family: String },                // passed over (2)
 }
 pub enum Finding { /* 12.7's table */ }
 pub enum Error {
@@ -344,6 +369,7 @@ pub enum Error {
     Conflict { path: PathBuf },               // conflict markers (12.6)
     Spelled { first: String, second: String },// two names, one constant or function
     Wire { family: String },                  // schema/wires names no family of the crate (2)
+    Registered { family: String },            // schema/registered names no family of the crate (2)
     Golden(Vec<String>),                      // each golden that fails
     Stale,                                    // mod.rs not as generated
 }
@@ -380,7 +406,12 @@ world, no cargo inside a test.
   the version kept and patched with it moved, the reorder's block with
   no line; a rename refreshed nowhere and waiting; the same changes in
   a family `schema/wires` does not list as before; and a name the file
-  lists that is no family refused.
+  lists that is no family refused. A registered family (2): a field
+  added with a default, a variant inserted and a declaration renamed
+  with `was`, each passed over with no file written and no finding; its
+  version moved, or a block of the branch's patch naming it, found
+  `Registered`; a name `schema/registered` lists that is no family
+  refused.
 - **The story,** `tests/codec-patches`, an owner crate whose history the
   command makes: the baseline, by `--baseline`; a field added, its patch
   asking `?`, refused when planned, then filled, planned and its goldens

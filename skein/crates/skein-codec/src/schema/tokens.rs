@@ -13,8 +13,18 @@ pub(super) fn scan(text: &[u8], tokens: &mut List<Token>) -> Result<u32, SchemaE
     let mut line = 1;
     let mut comment = false;
     let mut word = None;
+    let mut quoted = None;
     for (offset, &byte) in text.iter().enumerate() {
         let at = u32::try_from(offset).expect("text passed its ceiling");
+        if let Some(start) = quoted {
+            if byte == b'"' {
+                emit(tokens, Token { at: Span { start, end: add(at, 1) }, line });
+                quoted = None;
+            } else if byte == b'\\' || byte.is_ascii_control() {
+                return Err(SchemaError { line, at: Span { start: at, end: add(at, 1) }, wrong: Wrong::Character });
+            }
+            continue;
+        }
         if comment {
             if byte == b'\n' {
                 comment = false;
@@ -31,17 +41,30 @@ pub(super) fn scan(text: &[u8], tokens: &mut List<Token>) -> Result<u32, SchemaE
         if let Some(start) = word.take() {
             emit(tokens, Token { at: Span { start, end: at }, line });
         }
-        if byte == b'#' {
+        if byte == b'"' {
+            quoted = Some(at);
+        } else if byte == b'#' {
             comment = true;
         } else if byte.is_ascii_whitespace() {
             if byte == b'\n' {
                 line = add(line, 1);
             }
-        } else if byte == b'{' || byte == b'}' || byte == b':' || byte == b',' {
+        } else if byte == b'{'
+            || byte == b'}'
+            || byte == b':'
+            || byte == b','
+            || byte == b'='
+            || byte == b'['
+            || byte == b']'
+        {
             emit(tokens, Token { at: Span { start: at, end: add(at, 1) }, line });
         } else {
             return Err(SchemaError { line, at: Span { start: at, end: add(at, 1) }, wrong: Wrong::Character });
         }
+    }
+    if let Some(start) = quoted {
+        let end = u32::try_from(text.len()).expect("text ceiling");
+        return Err(SchemaError { line, at: Span { start, end }, wrong: Wrong::Character });
     }
     if let Some(start) = word {
         let end = u32::try_from(text.len()).expect("text passed its ceiling");

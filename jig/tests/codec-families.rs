@@ -111,6 +111,16 @@ pub const FAMILIES: &[Family] = &[
         fixtures: &[],
     },
     Family {
+        name: "registry",
+        root: "crates/jig-protocol-store",
+        codec_root: "crates/jig-protocol-store-families",
+        schemas: &["schema/registry-v1.schema"],
+        records: "jig_protocol_store_families::registry_v1",
+        generated: &["src/generated/registry_v1.rs"],
+        golden: "golden/registry",
+        fixtures: &[],
+    },
+    Family {
         name: "openings",
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-families",

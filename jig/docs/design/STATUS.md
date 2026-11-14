@@ -210,6 +210,8 @@ Design documents:
 - [`protocol/configuration.md`](protocol/configuration.status.md)
 - [`protocol/client/README.md`](protocol/client/README.status.md)
 - [`protocol/store/README.md`](protocol/store/README.status.md)
+- [`protocol/store/layouts.md`](protocol/store/layouts.status.md)
+- [`protocol/store/jobs.md`](protocol/store/jobs.status.md)
 - [`protocol/browser/README.md`](protocol/browser/README.status.md)
 
 Drafts:

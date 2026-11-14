@@ -65,3 +65,4 @@ Section 4's `CompareAnswer` changed in place, by goal 64: the deployment's store
 - **Not yet:** 4, the tier rows' ceilings of 257: nothing checks `forge.changes` against them before the store's sizing, so a value past 128 refuses the start as past the codec's bounds, naming no limit.
 
 - **Not yet:** 4, the tier rows' ceilings of 2049: the schema still holds 257, so `forge.changes` is at most 128.
+

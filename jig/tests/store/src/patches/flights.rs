@@ -16,7 +16,14 @@ const APPLICATION: PatchSet = PatchSet { families: &[LABEL, TOKEN], ..super::BAS
 pub const BEFORE: PatchSets = PatchSets { sets: &[APPLICATION] };
 pub const CHANGES_FLIGHT: PatchSets = PatchSets {
     sets: &[PatchSet {
-        families: &[KeptFamily { texts: app::kept::fixture_label::TEXTS, ..LABEL }, TOKEN],
+        families: &[
+            KeptFamily {
+                current: app::kept::fixture_label::TEXTS.last().expect("kept text"),
+                texts: app::kept::fixture_label::TEXTS,
+                ..LABEL
+            },
+            TOKEN,
+        ],
         patches: &[app::PATCHES[0]],
         ..APPLICATION
     }],
@@ -26,7 +33,14 @@ const TOKEN_PATCH: &str =
     "patch 1\nowner fixture 1\n\nfamily fixture-token 1 to 2\nadd Token.expires option u64 none\n";
 pub const CHANGES_OTHER: PatchSets = PatchSets {
     sets: &[PatchSet {
-        families: &[LABEL, KeptFamily { texts: app::kept::fixture_token::TEXTS, ..TOKEN }],
+        families: &[
+            LABEL,
+            KeptFamily {
+                current: app::kept::fixture_token::TEXTS.last().expect("kept text"),
+                texts: app::kept::fixture_token::TEXTS,
+                ..TOKEN
+            },
+        ],
         patches: &[TOKEN_PATCH],
         ..APPLICATION
     }],

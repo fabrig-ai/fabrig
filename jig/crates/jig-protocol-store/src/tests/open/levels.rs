@@ -240,6 +240,7 @@ fn a_family_past_the_manifests_bounds_refuses_set_before_any_write() {
 
 const MOVED_JIG: PatchSets = PatchSets {
     sets: &[PatchSet {
+        jobs: &[],
         owner: Owner::Jig,
         name: "jig",
         patches: &[
@@ -248,6 +249,8 @@ const MOVED_JIG: PatchSets = PatchSets {
         fresh: None,
         families: &[
             KeptFamily {
+                current: "family jig-store-people 15\nversioned record Data { value: u8 }\n",
+                types: &[],
                 name: "jig-store-people",
                 texts: &[
                     "family jig-store-people 14\nversioned record Data { value: u8 }\n",
@@ -259,6 +262,8 @@ const MOVED_JIG: PatchSets = PatchSets {
                 flights: &[],
             },
             KeptFamily {
+                current: "family jig-store-tasks 10\nversioned record Data { value: u8 open: bool }\n",
+                types: &[],
                 name: "jig-store-tasks",
                 texts: &[
                     "family jig-store-tasks 9\nversioned record Data { value: u8 }\n",
@@ -270,6 +275,8 @@ const MOVED_JIG: PatchSets = PatchSets {
                 flights: &[],
             },
             KeptFamily {
+                current: "family jig-store-settings 2\nrecord Model { value: u8 cache: u32 }\n",
+                types: &[],
                 name: "jig-store-settings",
                 texts: &[
                     "family jig-store-settings 1\nrecord Model { value: u8 }\n",

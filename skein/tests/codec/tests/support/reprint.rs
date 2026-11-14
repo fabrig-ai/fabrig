@@ -55,10 +55,22 @@ pub fn renamed(schema: &Schema) -> Vec<Renamed> {
 /// Reprints every declaration on one line, renames all local names and
 /// references, drops comments, and reverses boxing on record payloads.
 pub fn reprint(schema: &Schema) -> String {
+    print(schema, false)
+}
+
+/// The same reprint, with former names and defaults on every part that takes one.
+pub fn reprint_metadata(schema: &Schema) -> String {
+    print(schema, true)
+}
+
+fn print(schema: &Schema, metadata: bool) -> String {
     let mut out = format!("family {} {}\n", spelling(schema, schema.family()), schema.version());
     for at in 0..schema.declarations() {
         let declaration = schema.declaration(DeclIx::new(at));
-        let name = declaration_name(schema, DeclIx::new(at));
+        let mut name = declaration_name(schema, DeclIx::new(at));
+        if metadata {
+            write!(name, " was {}", spelling(schema, declaration.name)).expect("string write");
+        }
         match declaration.shape {
             Shape::Record { versioned, first, count } => {
                 if versioned {
@@ -67,8 +79,15 @@ pub fn reprint(schema: &Schema) -> String {
                 write!(out, "record {name} {{ ").expect("string write");
                 for offset in 0..count {
                     let field = schema.field(FieldIx::new(first.index().checked_add(offset).expect("field index")));
-                    write!(out, "{}_r: ", spelling(schema, field.name)).expect("string write");
+                    write!(out, "{}_r", spelling(schema, field.name)).expect("string write");
+                    if metadata {
+                        write!(out, " was {}", spelling(schema, field.name)).expect("string write");
+                    }
+                    out.push_str(": ");
                     write_type(schema, field.ty, &mut out);
+                    if metadata {
+                        write_default(schema, field.ty, &mut out);
+                    }
                     out.push_str(", ");
                 }
             }
@@ -78,6 +97,9 @@ pub fn reprint(schema: &Schema) -> String {
                     let variant =
                         schema.variant(VariantIx::new(first.index().checked_add(offset).expect("variant index")));
                     write!(out, "{}_r", spelling(schema, variant.name)).expect("string write");
+                    if metadata {
+                        write!(out, " was {}", spelling(schema, variant.name)).expect("string write");
+                    }
                     if let Some(record) = variant.record {
                         let boxed = if variant.boxed { "" } else { "boxed " };
                         write!(out, ": {boxed}{}", declaration_name(schema, record)).expect("string write");
@@ -131,4 +153,30 @@ fn write_type(schema: &Schema, mut at: TypeIx, out: &mut String) {
         }
         break;
     }
+}
+
+fn write_default(schema: &Schema, ty: TypeIx, out: &mut String) {
+    let value = match schema.ty(ty) {
+        Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Duration => "7".to_owned(),
+        Type::Bool => "true".to_owned(),
+        Type::Fixed(bound) => format!("0x{}", "00".repeat(usize::try_from(bound).expect("fixed bound"))),
+        Type::Bytes { held: Held::Opaque | Held::Pieces(_), .. } => "0x".to_owned(),
+        Type::Bytes { held: Held::Record { .. }, .. } | Type::Secret { .. } => return,
+        Type::Text(_) => "\"\"".to_owned(),
+        Type::List { .. } => "[]".to_owned(),
+        Type::Option(_) => "none".to_owned(),
+        Type::Named(at) => match schema.declaration(at).shape {
+            Shape::Record { .. } => return,
+            Shape::Enum { first, count } => {
+                let Some(variant) = (first.index()..first.index().checked_add(count).expect("variant range"))
+                    .map(|at| schema.variant(VariantIx::new(at)))
+                    .find(|variant| variant.record.is_none())
+                else {
+                    return;
+                };
+                format!("{}_r", spelling(schema, variant.name))
+            }
+        },
+    };
+    write!(out, " = {value}").expect("string write");
 }

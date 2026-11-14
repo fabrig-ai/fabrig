@@ -900,6 +900,34 @@ fn patch_sites_return_the_machine_with_the_missing_site_and_progress_is_not_a_ro
 }
 
 #[test]
+fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
+    let mut routes = fixtures::routes();
+    let mut out = Queue::with_capacity(4);
+    for (of, words) in [(store::Owner::Jig, "no such jig job"), (store::Owner::Application, "no such temper job")] {
+        route::up(
+            &mut routes,
+            store::Event::Job {
+                owner: fixtures::OWNER,
+                of,
+                job: "unknown-job".into(),
+                page: store::JobPage { rows: Box::new([]), end: true, layout: None },
+            },
+            &mut out,
+        );
+        let Some(Up::Ask(store::Request::Job { owner, answer: Err(why) })) = out.pop() else { panic!("job reply") };
+        assert_eq!(owner, fixtures::OWNER);
+        assert_eq!(why.why.as_ref(), words);
+        assert!(why.key.is_none());
+        route::up(
+            &mut routes,
+            store::Event::Ran { owner, of, job: "unknown-job".into(), rows: 3, commits: 2 },
+            &mut out,
+        );
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
 fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
     let call = core::Record::Core(core::CoreRecord::Call(core::CallRecord {
         key: core::CallKey { task: 0, attempt: 0, completion: 0, position: 0 },

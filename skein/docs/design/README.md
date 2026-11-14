@@ -61,6 +61,7 @@ this design.
 | codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs, bounds and golden bytes generated from them | [data/codec/README.md](data/codec/README.md) |
 | schema diffs | `skein-codegen` | matching two family versions and listing their changes | [data/codec/diff.md](data/codec/diff.md) |
 | record patches | `skein-codec` | versioned patch files and upgrades of stored records | [data/codec/patches.md](data/codec/patches.md) |
+| layouts and derived plans | `skein-codec` | a value type's layout, and the plan that converts a value from one layout to another as it is read | [data/codec/layouts.md](data/codec/layouts.md) |
 | the patch command | `skein-codegen` | keeping a crate's patches, generated files and drift check | [data/codec/command.md](data/codec/command.md) |
 | bridges | `skein-codec`, `skein-codegen` | a wire's reverses, its floor and breaking declarations, and the bridge that translates a record between the versions a build speaks | [data/codec/bridges.md](data/codec/bridges.md) |
 | TLS | `skein-tls` | the TLS client, a stream over rustls's unbuffered connection, with ring | [net/tls.md](net/tls.md) |

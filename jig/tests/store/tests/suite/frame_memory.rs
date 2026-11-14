@@ -7,7 +7,11 @@ use jig_test_patches_jig::frames;
 const BODY_ONLY: PatchSets = PatchSets {
     sets: &[
         SETS.sets[0],
-        PatchSet { families: &[KeptFamily { texts: &[], ..SETS.sets[1].families[0] }], patches: &[], ..SETS.sets[1] },
+        PatchSet {
+            families: &[KeptFamily { current: "", texts: &[], ..SETS.sets[1].families[0] }],
+            patches: &[],
+            ..SETS.sets[1]
+        },
     ],
 };
 const TURN_ONLY: PatchSets = PatchSets { sets: &[SETS.sets[1]] };

@@ -81,6 +81,7 @@ Design documents:
 - [`data/codec/README.md`](data/codec/README.status.md)
 - [`data/codec/diff.md`](data/codec/diff.status.md)
 - [`data/codec/patches.md`](data/codec/patches.status.md)
+- [`data/codec/layouts.md`](data/codec/layouts.status.md)
 - [`data/codec/command.md`](data/codec/command.status.md)
 - [`data/codec/bridges.md`](data/codec/bridges.status.md)
 - [`data/json.md`](data/json.status.md)

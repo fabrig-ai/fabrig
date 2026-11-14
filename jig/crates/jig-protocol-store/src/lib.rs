@@ -21,15 +21,20 @@ mod generations;
 mod gets;
 pub mod host;
 pub mod intervals;
+pub mod jobs;
 mod loads;
+pub use jobs::{Converts, Job, JobAnswer, JobLayout, JobPage, JobRefusal, JobRow, JobWrite, KeyRange};
 mod open;
 mod pages;
+mod patch_set;
 mod patching;
+pub use patch_set::{JIG_STORE_PATCH_SET, STORE_FAMILIES};
 mod rehearsal;
 pub use patching::Counts;
 pub use patching::baseline::{SKEIN_PATCH_SET, SMITH_PATCH_SET};
-pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets};
+pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, ValueType};
 mod reads;
+mod registry;
 pub mod restore;
 pub mod retained;
 mod secrets;
@@ -92,6 +97,8 @@ pub struct Store {
     application: sizes::Application,
     codec_limits: codec::View,
     layouts: codec::component::Layouts,
+    registry: Box<registry::Layouts>,
+    layout_work: Box<registry::ReadWork>,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
     names: Box<[jig_domain_core_vocabulary::settings::ModelName]>,
     stores: Stores,
@@ -176,8 +183,18 @@ impl Store {
         rows: u32,
     ) -> Result<PatchPage, OpenRefusal> {
         let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
-        let patching::phase::Patching::Walking(walking) = &**phase else { return Err(OpenRefusal::Failed) };
-        if !walking.at_site() || rows == 0 || rows > self.limits.store.ops {
+        let out = match &**phase {
+            patching::phase::Patching::Walking(walking) => walking.at_site(),
+            patching::phase::Patching::Jobs(running) => running.at_page(),
+            patching::phase::Patching::Closing { .. }
+            | patching::phase::Patching::Dropping(_)
+            | patching::phase::Patching::Copying(_)
+            | patching::phase::Patching::Mapping { .. }
+            | patching::phase::Patching::Recovering { .. }
+            | patching::phase::Patching::Sealing { .. }
+            | patching::phase::Patching::Checking(_) => false,
+        };
+        if !out || rows == 0 || rows > self.limits.store.ops {
             return Err(OpenRefusal::Failed);
         }
         let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
@@ -214,6 +231,8 @@ impl Store {
             application,
             codec_limits,
             layouts: format::layouts(),
+            registry: Box::new(registry::Layouts::new()),
+            layout_work: Box::new(registry::ReadWork::new()),
             names: codec::names(models),
             opening_keys: skein_lib::Map::uncapped(),
             stores,
@@ -423,6 +442,7 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
             Phase::Ready { .. } => transcripts::read::site(store, env, owner, patcher, result, above, below),
             Phase::Closed | Phase::Stopped => patching::phase::site(store, env, owner, patcher, result, above, below),
         },
+        Request::Job { owner, answer } => patching::phase::job(store, env, owner, answer, above, below),
         Request::Commit { number, writes } => transcripts::write::begin(store, env, number, writes, above, below),
         Request::Restore { owner, range, after, rows, bytes } => {
             restore::restore(store, env, owner, restore::Page { range, after, rows, bytes }, above, below);
@@ -499,7 +519,7 @@ mod openings;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, CommitCheck, CommitFailure, Cursor, Event, Family,
     Generations, Get, HELD, Io, KeptWire, Load, Older, OpenRefusal, OpenedTerm, OpenedWire, Request, Restore, Root,
-    Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, WorkerOpening, Write,
+    Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Undecoded, Unplanned, WorkerOpening, Write,
 };
 
 #[cfg(test)]
@@ -513,4 +533,4 @@ mod layouts;
 
 pub use jig_protocol_store_families::secrets_v1;
 
-pub use jig_protocol_store_families::openings_v1;
+pub use jig_protocol_store_families::{openings_v1, registry_v1};

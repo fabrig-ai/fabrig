@@ -166,7 +166,8 @@ pub(crate) fn ended(store: &mut Store, key: &Key, source: &RowSite) -> Result<Op
         Ok(value) => value,
         Err(failure) => return Err(Failure::at(Cause::Join { target, failure }, source.clone())),
     };
-    let Some(value) = value else { return Ok(None) };
+    let Some(mut value) = value else { return Ok(None) };
+    crate::registry::read(store, &raw, &mut value);
     let record = match decode_value(store, key, &value) {
         Ok(record) => record,
         Err(failure) => {

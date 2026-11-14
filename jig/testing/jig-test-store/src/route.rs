@@ -225,6 +225,12 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         }
         // The reference shells never hand patch sets. Return the unknown
         // written site to its open's asker through their ordinary request path.
+        Event::Job { owner, .. } => {
+            into.push(Up::Ask(Request::Job {
+                owner,
+                answer: Err(store::JobRefusal { key: None, why: Box::from("no such job in this shell") }),
+            }));
+        }
         Event::Site { owner, patcher, site, .. } => {
             into.push(Up::Ask(Request::Site { owner, patcher, result: Err(skein_codec::patch::Halt::NoSite(site)) }));
         }
@@ -284,6 +290,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         | Event::BackRefused { .. }
         | Event::Closed { .. }
         | Event::Patched { .. }
+        | Event::Ran { .. }
         | Event::Opened { .. }
         | Event::Kept { .. }
         | Event::Carried { .. }
