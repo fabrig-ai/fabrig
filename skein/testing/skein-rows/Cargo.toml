@@ -1,6 +1,6 @@
 [package]
 name = "skein-rows"
-description = "One table test's rows: every row runs, and a failure names each"
+description = "One table test's rows: each named before running, ending at the first failure"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

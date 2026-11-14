@@ -176,8 +176,6 @@ skein/testing/skein-codegen/tests/suite/patch_check.rs catch_unwind 2
 skein/testing/skein-echo-client/src/tests.rs should_panic 4
 skein/testing/skein-fake-person-browser/src/harness/deadline_tests.rs should_panic 1
 skein/testing/skein-fake-person-browser/src/harness/peers.rs catch_unwind 2
-skein/testing/skein-rows/src/lib.rs catch_unwind 3
-skein/testing/skein-rows/src/tests.rs catch_unwind 3
 skein/testing/skein-world/src/deadline.rs resume_unwind 1
 skein/testing/skein-world/src/end_to_end.rs catch_unwind 2
 skein/testing/skein-world/src/end_to_end.rs should_panic 1
