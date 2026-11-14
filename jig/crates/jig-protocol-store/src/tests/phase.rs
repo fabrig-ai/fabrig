@@ -27,6 +27,7 @@ use skein_lib::{Queue, Token, length::len_u64};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 mod jobs;
+mod charter_versions;
 mod registry;
 mod value_types;
 

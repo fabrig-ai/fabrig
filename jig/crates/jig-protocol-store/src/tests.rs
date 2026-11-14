@@ -27,6 +27,7 @@ mod settings;
 mod operations;
 mod phase;
 mod registered_layouts;
+pub(crate) mod charter_versions;
 mod words;
 
 mod frame_memory;

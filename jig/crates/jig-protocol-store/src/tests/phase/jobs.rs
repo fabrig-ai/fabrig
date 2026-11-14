@@ -29,7 +29,7 @@ fn store(disk: &Disk, sets: PatchSets) -> Store {
     store.patch_sets(sets);
     store
 }
-fn done(store: &mut Store, owner: Owner, name: &str) -> Option<u64> {
+pub(super) fn done(store: &mut Store, owner: Owner, name: &str) -> Option<u64> {
     let key =
         crate::keys::encode_own(&crate::keys::Own::Job { owner, name: name.into() }, store.limits.store.key).unwrap();
     let byte = match owner {

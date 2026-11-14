@@ -53,10 +53,15 @@ pub struct JobRefusal {
     pub why: Box<str>,
 }
 
-/// Jig declares no jobs until their owners add their dispatches.
-pub fn page(_job: &str, _page: &JobPage) -> Result<JobAnswer, JobRefusal> {
+/// Routes a page to its named jig job (protocol/store/jobs.md, 3–4).
+pub fn page(job: &str, page: &JobPage) -> Result<JobAnswer, JobRefusal> {
+    if job == "charter-versions" {
+        return charter_versions::page(page);
+    }
     Err(JobRefusal { key: None, why: Box::from("no such jig job") })
 }
+
+mod charter_versions;
 
 pub(crate) mod admission;
 pub(crate) mod kept;

@@ -27,7 +27,7 @@ fn model() -> core::Model {
         effort: Some(Box::from(b"high".as_slice())),
     }
 }
-fn charter() -> core::Charter {
+pub(super) fn charter() -> core::Charter {
     core::Charter {
         parts: Box::new([
             core::CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(b"first part".as_slice()) },
@@ -764,7 +764,7 @@ fn a_templates_closer_round_trips_in_the_settings_family() {
     }
 }
 
-fn overlay() -> s::Overlay {
+pub(super) fn overlay() -> s::Overlay {
     let charter = charter();
     s::Overlay {
         rest: Some(charter.rest),
@@ -886,14 +886,21 @@ fn overlay_codec_bounds_instructions_parts_documents_and_alternatives() {
 }
 
 #[test]
-fn charter_versions_without_overlays_keep_the_versioned_stored_bytes() {
+fn charter_versions_use_one_root_with_an_optional_overlay() {
     let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
-    let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Charter {
-        charter: 1,
-        revision: 2,
-        value: s::CharterVersion { overlay: None, charter: None },
-    }));
-    let bytes = [0_u8, 3, 0];
-    assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]), Some(row.clone()));
-    assert_eq!(codec::encode(&row, &limits, &[]).unwrap().as_ref(), bytes);
+    for overlay in [None, Some(Box::new(overlay()))] {
+        for charter in [None, Some(Box::new(charter()))] {
+            let value = s::CharterVersion { overlay: overlay.clone(), charter };
+            let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Charter {
+                charter: 1, revision: 2, value: value.clone(),
+            }));
+            let bytes = codec::encode(&row, &limits, &[]).unwrap();
+            let wire = crate::settings_v3::CharterVersion::decode(
+                &limits.settings, &mut skein_lib::Reader::new(&bytes),
+            ).unwrap();
+            assert_eq!(wire.charter().is_some(), value.charter.is_some());
+            assert_eq!(wire.overlay().is_some(), value.overlay.is_some());
+            assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]), Some(row));
+        }
+    }
 }
