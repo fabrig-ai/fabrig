@@ -1,7 +1,8 @@
 # Passes
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 2, 7
-and 9, milestones Q3 and Q4 of `../../draft/landed-qa.execution.md`. A pass
+Provisional, 2026-11-12, revised 2026-11-14, from
+`../../draft/landed-qa.md`, sections 2, 7 and 9, milestones Q3, Q4 and
+Q6 of `../../draft/landed-qa.execution.md`. A pass
 judges a kept build of main: it takes the queued cases that build holds,
 runs one agent session over them all at a place, records each outcome
 and finding as it goes, and, with failed cases, waits on its findings'
@@ -84,7 +85,14 @@ The loop's third step (`README.md`, 4), for each free place
     outcome's notes saying which; the green path only; a page's words
     compared where the case gives them (its `see`, as a `web see` line
     for a `web` case and a `tui see` line for a `tui` case), the rest
-    judged against the draft's promises; a `tui` case's steps are `tui`
+    judged against the draft's promises; ctl cases first
+    (`../../draft/landed-qa.md`, 4 and 7): every `ctl` case before any
+    `web` or `tui` one, each in a ctl session, `temper-qa pass open
+    --ctl`, which starts no browser and no terminal
+    (`../../client/drive.md`, 2.6), its steps `ctl` and `forge` lines, a
+    `see` compared with what ctl printed; at a deployment's place every
+    case is a ctl case and every session one (`deployment.md`), its
+    owner's changes `deployment patch` lines; a `tui` case's steps are `tui`
     lines, the TUI started at the first and signed in by the session
     (`../../client/drive.md`, 3.3), and its finding's evidence the
     screen's rows, `pass line "tui look"`'s answer saved to a file;
@@ -98,18 +106,21 @@ The loop's third step (`README.md`, 4), for each free place
     case that would set up the box's own Forgejo or reach any real
     backend is blocked, naming it (`../../draft/landed-qa.md`, 6 and
     12).
-  - **The pass:** its number; its place; its build's commit; for a
-    resume, the goal it waited on and whether it landed.
+  - **The pass:** its number; its place and the place's kind; its
+    build's commit; for a resume, the goal it waited on and whether it
+    landed.
   - **The landings its cases came from:** each its number, goal, merge
     commit and title, and its drafts as triage names them
     (`triage.md`, 3), paths in the tree.
   - **For a resume, first:** each open finding of the pass, to check
     before anything else (section 7), with its setup, lines, expected
-    and seen; then its failed cases.
+    and seen; then its failed cases, ctl's first.
   - **The cases:** each case assigned to the pass, its number, surface,
     page and landings, and each ask's setup, adds and steps, each step's
-    do, expect and see.
-  - **The setups:** `fresh` and each recipe of `passes/P/setups/`, its
+    do, expect and see; the `ctl` cases first, then `web`, then `tui`,
+    each in case order.
+  - **The setups:** `fresh` at a box's place, and each recipe of
+    `passes/P/setups/` of the place's kind, its
     name and its README's first sentence, as `recipe list` gives them
     (`../../client/recipe.md`, 5.2); a case whose state no setup reaches
     is brought there from the nearest, and once it has run its lines

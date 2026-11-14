@@ -1,7 +1,8 @@
 # Kept builds
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, section 3,
-milestones Q1 and Q3 of `../../draft/landed-qa.execution.md`. The builds
+Provisional, 2026-11-12, revised 2026-11-14, from
+`../../draft/landed-qa.md`, section 3, milestones Q1, Q3 and Q6 of
+`../../draft/landed-qa.execution.md`. The builds
 a pass judges: made by the deployment at landed tips, published to
 landed QA with a manifest, held by the passes that judge them, and
 deleted once no pass can need them.
@@ -10,9 +11,9 @@ deleted once no pass can need them.
 
 - **The deployment builds** (section 2), as part of its after-landing
   work: at a landed tip, the box, the fake coding agent beside it, the
-  TUI's recording client, the drive tool, and the web bundle with its
-  recording build, staged in a directory. temper needs nothing for it
-  but the command that keeps it.
+  TUI's recording client, the drive tool, the deployment's engine,
+  worker and agent, and the web bundle, staged in a directory. temper
+  needs nothing for it but the command that keeps it.
 - **`temper-qa build keep COMMIT DIR`** (section 3) publishes it: every
   temper executable must print that commit as its version, the files
   are moved into the builds directory under the commit, a manifest names
@@ -42,17 +43,24 @@ deleted once no pass can need them.
   - `bin/temper-client-journeys`: the drive session and the recipe walk
     (`../../client/drive.md`, 2; `../../client/recipe.md`, 5), so that a
     pass drives each build with that build's own grammar;
-  - those four from one debug build, `cargo build -p temper-box -p
-    smith-fake-claude -p temper-client-journeys -p temper`, as the journeys'
-    `again` builds its set. The drive session sets `TEMPER_INTERNAL_RECORD=1`
-    for the TUI (`../../client/tui/journeys.md`, 2); any other executable a later
-    milestone names goes directly in `bin/` too;
-  - `bundle/`: the web bundle, `temper/scripts/bundle.sh --loopback
-    STAGE/bundle`, which the drive session gives the box
-    (`../../client/drive.md`, 2.1);
-  - `bundle-record/`: its recording build, `temper/scripts/bundle.sh
-    --loopback --record STAGE/bundle-record`, as the journeys' walk
-    takes it (`../../client/web/journeys.md`, 8.1).
+  - `bin/temper-engine`, `bin/temper-worker` and `bin/temper-agent`: the
+    deployment's binaries (`../../protocol/binaries.md`, 1), which a
+    place of the deployment's kind starts (`deployment.md`);
+  - those seven from one debug build, `cargo build -p temper-box -p
+    smith-fake-claude -p temper-client-journeys -p temper -p
+    temper-engine -p temper-worker -p temper-agent`, with the bundle
+    embedded as every build of the box and the engine embeds it
+    (`TEMPER_INTERNAL_BUNDLE` unset, or `embed`;
+    `../../client/web/README.md`, 2.6). The drive session sets
+    `TEMPER_INTERNAL_RECORD=1` for the TUI (`../../client/tui/journeys.md`,
+    2); any other executable a later milestone names goes directly in
+    `bin/` too;
+  - `bundle/`: the web bundle, `temper/scripts/bundle.sh STAGE/bundle`,
+    one bundle for every use, which the drive session gives a box
+    (`../../client/drive.md`, 2.1): its recording and its loopback
+    navigation are a page's query since 2026-11-12, as the journeys and
+    the browser tier take it (`../../client/web/journeys.md`, 8.1), so a
+    build keeps no recording bundle of its own.
 
   A debug build's set is about 400 MB.
 - **Then** `temper-qa build keep COMMIT DIR`, with the home's
@@ -70,9 +78,11 @@ check that fails, with nothing moved or recorded:
    `build COMMIT12 is kept already`; a deleted one may be kept again,
    its record kept anew.
 3. **DIR holds the build:** `bin/temper-box`, `bin/fake-claude`,
-   `bin/temper`, `bin/temper-client-journeys`,
-   `bundle/index.html` and `bundle-record/index.html`, each a regular
-   file: `DIR lacks PATH`, each missing path named. Every entry under
+   `bin/temper`, `bin/temper-client-journeys`, `bin/temper-engine`,
+   `bin/temper-worker`, `bin/temper-agent` and `bundle/index.html`,
+   each a regular file: `DIR lacks PATH`, each missing path named. A
+   `bundle-record/` an older staging script still makes is kept as any
+   other directory of DIR, and nothing reads it. Every entry under
    DIR is a directory or a regular file: `DIR holds PATH, neither a file
    nor a directory`.
 4. **Every temper executable prints COMMIT:** each regular file directly
