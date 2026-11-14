@@ -29,7 +29,7 @@ def setUpModule():
     NATIVE = Path(native.name)
     before = resource.getrusage(resource.RUSAGE_CHILDREN)
     for name, source, flags in [('tests', 'tests.rs', []), ('before', 'tests.rs', ['--cfg', 'before_start']),
-                                ('state', 'state.rs', [])]:
+                                ('state', 'state.rs', []), ('again', 'again.rs', [])]:
         try:
             result = subprocess.run(['rustc', '--edition', '2024', '--test',
                                      str(FIXTURES / source), *flags, '-o', str(NATIVE / name)],
@@ -191,6 +191,154 @@ class EndToEndTests(RunnerFixture):
                                 stderr=subprocess.STDOUT, text=True, timeout=10)
         self.assertEqual(result.returncode, 4, result.stdout)
         self.assertEqual(json.loads((self.directory / 'results.json').read_text())['selected'], 0)
+
+
+class AgainTests(RunnerFixture):
+    def prepare_again(self):
+        self.binary(names=('a_passes', 'b_fails', 'c_reads'), native='again')
+        self.invoke()
+        self.cargo_before = (self.root / 'cargo-argv.jsonl').read_bytes()
+        self.times = self.root / 'target/tiers-one-process/times.json'
+        self.times_before = self.times.read_bytes()
+        self.prefix_before = (self.root / 'prefix-argv.jsonl').read_text().splitlines()
+        self.again_directory = self.root / 'again output'
+
+    def invoke_again(self, names, *, binary_id='fixture::suite', run_directory=None,
+                     directory=None, default_out=False, hold=None, extra=()):
+        env = dict(self.env, PATH=str(self.root) + os.pathsep + self.env['PATH'],
+                   TIERS_WRAPPER=str(self.root / 'prefix'), NEXTEST_PROFILE='wrong',
+                   CARGO_PKG_NAME='wrong', TIERS_ONE_PROCESS='wrong',
+                   FIXTURE_HOLD_CWD=str(self.directory))
+        if hold is not None:
+            env['TIERS_HOLD'] = hold
+        command = [str(HERE / 'one-process'), '--again', str(run_directory or self.directory)]
+        if not default_out:
+            command += ['--out', str(directory or self.again_directory)]
+        return subprocess.run([*command, *extra, binary_id, *names], cwd=self.directory,
+                              env=env, stdin=subprocess.DEVNULL, capture_output=True,
+                              text=True, timeout=10)
+
+    def test_again_passes_in_one_process_with_plan_environment(self):
+        self.prepare_again()
+        # A process-of-its-own group must not split an explicitly requested process.
+        path = self.directory / 'plan.json'
+        plan = json.loads(path.read_text())
+        plan['groups']['process-of-its-own'] = 1
+        plan['binaries'][0]['tests'][0]['group'] = 'process-of-its-own'
+        path.write_text(json.dumps(plan))
+        result = self.invoke_again(['c_reads', 'a_passes'])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.splitlines()[0], str(self.again_directory))
+        results = json.loads((self.again_directory / 'results.json').read_text())
+        self.assertEqual([(t['binary_id'], t['test_name'], t['outcome']) for t in results['tests']],
+                         [('fixture::suite', 'a_passes', 'passed'),
+                          ('fixture::suite', 'c_reads', 'passed')])
+        self.assertEqual(len(results['processes']), 1)
+        self.assertEqual(results['processes'][0]['tests'], ['a_passes', 'c_reads'])
+        self.assertEqual(results['unobserved'], [])
+        self.assertEqual({p.name for p in self.again_directory.iterdir()},
+                         {'plan.json', 'run.json', 'results.json', 'junit.xml', 'command-output.txt'})
+        record = json.loads((self.again_directory / 'run.json').read_text())
+        self.assertEqual((record['mode'], record['lanes'], record['finished']), ('one-process', 1, True))
+        again_plan = json.loads((self.again_directory / 'plan.json').read_text())
+        self.assertEqual(again_plan['global_timeout'], plan['global_timeout'])
+        for key in ('path', 'cwd', 'env', 'tests'):
+            expected = plan['binaries'][0][key]
+            if key == 'tests':
+                expected = [t for t in expected if t['name'] != 'b_fails']
+            self.assertEqual(again_plan['binaries'][0][key], expected)
+        cases = ET.parse(self.again_directory / 'junit.xml').findall('.//testcase')
+        self.assertEqual([c.get('name') for c in cases], ['a_passes', 'c_reads'])
+        self.assertTrue(all(c.find('failure') is None for c in cases))
+        output = (self.again_directory / 'command-output.txt').read_text()
+        self.assertIn('PASS', output)
+        self.assertIn(result.stdout.splitlines()[-1], output)
+        self.assertEqual((self.root / 'cargo-argv.jsonl').read_bytes(), self.cargo_before)
+        self.assertEqual(self.times.read_bytes(), self.times_before)
+        calls = (self.root / 'prefix-argv.jsonl').read_text().splitlines()[len(self.prefix_before):]
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(json.loads(calls[0])[-2:], ['lanes', str(self.again_directory / 'plan.json')])
+
+    def test_again_failure_has_no_alone_diagnostic(self):
+        self.prepare_again()
+        result = self.invoke_again(['a_passes', 'b_fails'])
+        self.assertEqual(result.returncode, 100, result.stdout + result.stderr)
+        results = json.loads((self.again_directory / 'results.json').read_text())
+        self.assertEqual([(t['test_name'], t['outcome'], t['alone']) for t in results['tests']],
+                         [('a_passes', 'passed', None), ('b_fails', 'failed', None)])
+        self.assertEqual([p['kind'] for p in results['processes']], ['tests'])
+        failure = ET.parse(self.again_directory / 'junit.xml').find('.//failure')
+        self.assertEqual(failure.get('type'), 'test failure')
+        self.assertIn('again fixture failure', (self.again_directory / 'command-output.txt').read_text())
+        self.assertEqual(self.times.read_bytes(), self.times_before)
+        self.again_directory = self.root / 'pass alone'
+        result = self.invoke_again(['a_passes'])
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_again_nonpasses_exit_100_without_fresh_process(self):
+        for scenario, timeout, names, outcomes, unobserved in (
+                ('starved', None, ['a'], ['starved'], []),
+                ('crash', None, ['a', 'b', 'c'], ['passed', 'crashed'], ['c']),
+                ('hang', 0.05, ['a', 'b', 'c'], ['passed', 'cancelled'], ['c'])):
+            with self.subTest(scenario=scenario):
+                self.directory = self.root / scenario
+                self.env['FIXTURE_CASE'] = 'pass'
+                self.invoke()
+                path = self.directory / 'plan.json'
+                plan = json.loads(path.read_text())
+                plan['global_timeout'] = timeout
+                plan['binaries'][0]['env']['FIXTURE_CASE'] = scenario
+                path.write_text(json.dumps(plan))
+                self.again_directory = self.root / f'again {scenario}'
+                result = self.invoke_again(names)
+                self.assertEqual(result.returncode, 100, result.stdout + result.stderr)
+                results = json.loads((self.again_directory / 'results.json').read_text())
+                self.assertEqual([t['outcome'] for t in results['tests']], outcomes)
+                self.assertEqual([t['test_name'] for t in results['unobserved']], unobserved)
+                self.assertEqual(len(results['processes']), 1)
+
+    def test_again_refuses_before_starting_anything(self):
+        self.prepare_again()
+        for label, binary_id, names, source, out, extra, message in (
+                ('no plan', 'fixture::suite', ['a_passes'], self.root, None, (), 'plan.json'),
+                ('binary', 'missing', ['a_passes'], None, None, (), 'no binary'),
+                ('name', 'fixture::suite', ['missing'], None, None, (), 'not selected'),
+                ('duplicate', 'fixture::suite', ['a_passes', 'a_passes'], None, None, (), 'twice'),
+                ('no names', 'fixture::suite', [], None, None, (), 'requires test names'),
+                ('not fresh', 'fixture::suite', ['a_passes'], None, self.directory, (), 'fresh'),
+                ('budgets', 'fixture::suite', ['a_passes'], None, None,
+                 ('--budgets', 'unused'), '--budgets')):
+            with self.subTest(label=label):
+                result = self.invoke_again(names, binary_id=binary_id, run_directory=source,
+                                           directory=out, extra=extra, hold=str(self.root / 'hold'))
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn(message, result.stderr)
+        self.assertFalse(self.again_directory.exists())
+        self.assertEqual((self.root / 'cargo-argv.jsonl').read_bytes(), self.cargo_before)
+        self.assertEqual((self.root / 'prefix-argv.jsonl').read_text().splitlines(), self.prefix_before)
+        events = [json.loads(line) for line in (self.root / 'hold-events.jsonl').read_text().splitlines()]
+        self.assertTrue(all(e[0] == 'cargo' for e in events))
+
+    def test_again_default_output_and_hold_lifetime(self):
+        self.prepare_again()
+        events_path = self.root / 'hold-events.jsonl'
+        for setting in (None, '', str(self.root / 'hold')):
+            with self.subTest(hold=setting):
+                events_path.write_text('')
+                result = self.invoke_again(['a_passes'], default_out=True, hold=setting)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                directory = Path(result.stdout.splitlines()[0])
+                self.assertEqual(directory.parent, self.times.parent / 'runs')
+                self.assertTrue((directory / 'results.json').is_file())
+                events = [json.loads(line) for line in events_path.read_text().splitlines()]
+                if setting:
+                    self.assertEqual(events, [['hold-start', [], os.getpgrp(), os.getsid(0)],
+                                              ['hold-end', result.stdout.splitlines()[-1]]])
+                else:
+                    self.assertEqual(events, [])
+                shutil.rmtree(directory)
+        self.assertEqual((self.root / 'cargo-argv.jsonl').read_bytes(), self.cargo_before)
+        self.assertEqual(self.times.read_bytes(), self.times_before)
 
 
 class HoldTests(RunnerFixture):
