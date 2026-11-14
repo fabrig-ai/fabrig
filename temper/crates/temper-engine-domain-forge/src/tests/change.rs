@@ -2078,7 +2078,7 @@ fn a_release_of_a_failed_update_drops_its_result() {
             let was = if update_state { row.change.state } else { change::State::Opening { requested: true } };
             row.change.state = change::State::Held { was: Box::new(was), why: change::Hold::Failed };
             d.changes.insert(row.task, row).expect("existing change slot");
-            outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE });
+            outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
             assert_eq!(d.change(fixtures::CHANGE).expect("released").effect, expected);
             if expected == change::EffectResult::None {
                 decide_update_again(&mut d, preparing, 1);
@@ -2119,7 +2119,7 @@ fn a_stored_held_update_keeps_its_hold_and_its_words() {
             d.change(fixtures::CHANGE).expect("held change").change.state,
             change::State::Held { was: Box::new(was), why: change::Hold::Failed }
         );
-        outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE });
+        outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
         decide_update_again(&mut d, preparing, 1);
     }
 }
@@ -2147,7 +2147,7 @@ fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
     row.change.repairs = 1;
     row.change.resolutions = 1;
     row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
-    outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE });
+    outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
     assert_eq!(d.change(fixtures::CHANGE).expect("released").change.repairs, 0);
     outputs(&mut d, waiting_step(false, true));
     fixtures::missing_pull_reads(&mut d);
@@ -2562,7 +2562,7 @@ fn a_released_rerun_reads_again_instead_of_reusing_its_failed_answer() {
         row.effect = change::EffectResult::Failed;
         row.change.state = change::State::Held { was: Box::new(was.clone()), why: change::Hold::Failed };
         outputs(&mut d, Event::Change { row });
-        outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE });
+        outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE, release: None });
         let row = d.change(fixtures::CHANGE).expect("released change");
         assert_eq!(row.change.state, was);
         assert_eq!(row.effect, change::EffectResult::None);

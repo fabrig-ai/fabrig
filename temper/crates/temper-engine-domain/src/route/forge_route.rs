@@ -2529,6 +2529,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         drop_settled_change(domain, env, &mut out);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+        task_release: None,
                 signed: Box::new([]),
                 task,
                 repository: provider,

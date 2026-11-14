@@ -176,13 +176,13 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
     assert_eq!(empty_goals.len(), 119_459);
-    assert!(skein_lib::len_u64(empty_goals.len()) < crate::v20::TierRow::encoded_bound(l).unwrap());
+    assert!(skein_lib::len_u64(empty_goals.len()) < crate::v21::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
     full.goals = fixtures::tier_goals();
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
-    assert_eq!(skein_lib::len_u64(row.len()), crate::v20::TierRow::encoded_bound(l).unwrap() + 3);
+    assert_eq!(skein_lib::len_u64(row.len()), crate::v21::TierRow::encoded_bound(l).unwrap() + 3);
     assert_eq!(row.len(), 186_259);
 }
 
@@ -308,7 +308,7 @@ fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
         );
     }
     let mut limits = fixtures::LIMITS;
-    limits.holds = crate::v20::CEILINGS.tier_row_goals;
+    limits.holds = crate::v21::CEILINGS.tier_row_goals;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_some());
     limits.holds += 1;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_none());

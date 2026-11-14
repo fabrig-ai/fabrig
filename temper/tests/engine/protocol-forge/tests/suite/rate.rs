@@ -88,7 +88,7 @@ impl Scheduler {
                             }));
                         }
                         change::Decision::Hold(change::Hold::BranchMoved) if self.iterating => {
-                            world.event(forge::Event::ReleaseChange { task });
+                            world.event(forge::Event::ReleaseChange { task, release: None });
                             self.due[index] = true;
                         }
                         other @ (change::Decision::None

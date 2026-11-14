@@ -984,7 +984,15 @@ pub struct FollowCheck {
 }
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct TaskRelease {
+    pub revision: u64,
+    pub at: skein_lib::Wall,
+}
+
+/// The last task release consumed by the change survives restart.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub task_release: Option<TaskRelease>,
     pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
@@ -2035,6 +2043,7 @@ pub enum Event {
     /// A requester or person released a held change.
     ReleaseChange {
         task: u64,
+        release: Option<TaskRelease>,
     },
     /// A held goal is active again after its drift was released (domain/forge/branches.md, 3).
     GoalReleased {

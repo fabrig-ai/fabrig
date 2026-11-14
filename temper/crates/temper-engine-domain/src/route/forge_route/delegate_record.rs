@@ -10,13 +10,17 @@ use jig_domain_core as core;
 
 pub(super) fn is_release(domain: &Domain, task: u64) -> bool {
     let Some(record) = domain.core.tasks.task(task) else { return false };
-    if record.due_reason != tasks::Why::Released || domain.forge.change(task).is_none() {
+    let Some(row) = domain.forge.change(task) else { return false };
+    if record.due_reason != tasks::Why::Released {
         return false;
     }
     let revision = record.revisions.hold;
     match domain.forge_release_steps.get(&task) {
         Some((consumed, _)) => *consumed != revision,
-        None => true,
+        None => match &row.task_release {
+            Some(release) => release.revision != revision,
+            None => true,
+        },
     }
 }
 
@@ -45,7 +49,7 @@ pub(crate) fn start(
             .forge_delegating
             .insert((task, step), super::ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
             .expect("one release per change step");
-        super::super::forge_event(domain, env, decision, forge::Event::ReleaseChange { task });
+        super::super::forge_event(domain, env, decision, forge::Event::ReleaseChange { task, release: Some(forge::TaskRelease { revision: domain.core.tasks.task(task).expect("released task").revisions.hold, at: domain.core.tasks.task(task).expect("released task").phase_since }) });
     }
     let Some(row) = domain.forge.change(task) else { return false };
     let Some((child, _)) = row.delegate else { return false };
