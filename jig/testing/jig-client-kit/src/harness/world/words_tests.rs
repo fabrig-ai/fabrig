@@ -32,14 +32,14 @@ fn overridden_world() -> World<Test, Scripted> {
     phrase.forms = Box::new([Form { class: PluralClass::Other, segments: Box::new([Segment::Text(OVERRIDE.into())]) }]);
     stories::configured(Settings { words: language, ..Settings::default() })
 }
-fn reject(world: &mut World<Test, Scripted>, text: &[u8]) {
+fn reject(world: &mut World<Test, Scripted>, text: &[u8]) -> Result<(), String> {
     let mut proposal = stories::proposal();
     proposal.acts = list([Offered { act: ActKind::Reject, admission: Admission::Allowed, effect: None }]);
     let key = proposal.key;
     world.observe(Observation::Delivered {
         client: CLIENT,
         receipt: super::super::Receipt::Document { value: Box::new(ReadValue::Proposal(Box::new(proposal))) },
-    });
+    })?;
     let mut builder = Builder::new(&UI);
     builder.open(Role::Region);
     builder.name(b"Proposal");
@@ -59,17 +59,17 @@ fn reject(world: &mut World<Test, Scripted>, text: &[u8]) {
             },
         }),
         scene: Some(check::scene(&tree, node)),
-    });
+    })
 }
 #[test]
 fn the_world_accepts_a_tree_in_its_overridden_words() {
     let mut world = overridden_world();
-    reject(&mut world, OVERRIDE);
+    reject(&mut world, OVERRIDE).unwrap();
     assert_eq!(world.referee.verdict(), Verdict::Passed);
 }
 #[test]
-#[should_panic(expected = "a deciding act did not show its facts")]
 fn the_world_refuses_english_when_its_words_are_overridden() {
     let mut world = overridden_world();
-    reject(&mut world, ENGLISH);
+    let finding = reject(&mut world, ENGLISH).unwrap_err();
+    assert!(finding.contains("a deciding act did not show its facts"), "{finding}");
 }
