@@ -196,10 +196,8 @@ skein/tests/llm/tests/suite/bounded_peer_memory.rs should_panic 2
 skein/tests/oauth-accounts/tests/suite/referee.rs should_panic 11
 skein/tests/playground/tests/suite/slices.rs should_panic 2
 skein/tests/sim/tests/suite/files.rs should_panic 24
-skein/tests/sim/tests/suite/invariants.rs catch_unwind 1
 skein/tests/sim/tests/suite/invariants.rs should_panic 29
 skein/tests/sim/tests/suite/processes.rs should_panic 7
-skein/tests/sim/tests/suite/trace.rs catch_unwind 1
 skein/tests/tls/tests/suite/handshake.rs should_panic 1
 skein/tests/tls/tests/suite/native_output.rs should_panic 3
 skein/tests/ui-text/tests/suite/terminal.rs should_panic 1
