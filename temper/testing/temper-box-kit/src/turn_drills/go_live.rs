@@ -25,45 +25,6 @@ fn narrow(value: &mut Value) {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
 }
-fn text(hex: &Value) -> String {
-    let hex = hex.as_str().expect("hex text");
-    let bytes: Vec<_> =
-        (0..hex.len()).step_by(2).map(|at| u8::from_str_radix(&hex[at..at + 2], 16).expect("hex byte")).collect();
-    String::from_utf8(bytes).expect("fixture text")
-}
-fn grant(value: &mut Value) {
-    let pattern = &mut value["pattern"];
-    let segments: Vec<_> = pattern["segments"].as_array().expect("segments").iter().map(text).collect();
-    let (kind, last) = pattern["last"].as_object().expect("last").iter().next().expect("terminal");
-    *pattern = json!({"segments":segments,"last":kind,"value":text(last)});
-}
-fn authority(value: &mut Value) {
-    let object = value.as_object_mut().expect("authority");
-    assert_eq!(object.remove("models"), Some(json!("all")), "fixture models");
-    let spend = object.remove("spend").expect("spend");
-    assert!(object.remove("deadline").expect("deadline").is_null());
-    object.insert("budget".into(), json!({"spend":spend,"deadline_unix_seconds":null}));
-    for value in object["grants"].as_array_mut().expect("grants") {
-        grant(value);
-    }
-    for value in object["delegation"]["kinds"].as_array_mut().expect("kinds") {
-        let (kind, number) = value.as_object().expect("kind").iter().next().expect("executor");
-        *value = json!({"kind":kind,"number":number});
-    }
-}
-fn seed(mut value: Value) -> Value {
-    let permissions = value.as_object_mut().expect("policy").remove("permissions").expect("permissions");
-    authority(&mut value["ceiling"]);
-    for role in value["roles"].as_array_mut().expect("roles") {
-        authority(&mut role["authority"]);
-    }
-    for projection in value["projections"].as_array_mut().expect("projections") {
-        grant(projection);
-    }
-    assert_eq!(value["requirements"], json!([]));
-    assert_eq!(value["templates"], json!([]));
-    json!({"number":1,"roles":permissions,"policy":value})
-}
 pub(super) fn setup(root: &Path, steps: &mut Vec<ctl::Step>) {
     for args in [
         vec!["settings", "show", "rules", "--json"],
@@ -78,6 +39,8 @@ pub(super) fn setup(root: &Path, steps: &mut Vec<ctl::Step>) {
         let policy = ctl::json(&calls[calls.len() - 2])["value"].clone();
         let mut own = policy.clone();
         own["permissions"][0]["role"] = 2.into();
+        own["roles"].as_array_mut().expect("roles").iter_mut().find(|role| role["number"] == 1).expect("member role")
+            ["requests"] = 185.into();
         let period = own["period_spend"].as_u64().expect("project period");
         let role = own["roles"]
             .as_array_mut()
@@ -105,16 +68,9 @@ pub(super) fn setup(root: &Path, steps: &mut Vec<ctl::Step>) {
             &json!({"items":[
                 {"setting":{"kind":"rules"},"set":initial_rules},
                 {"setting":{"kind":"policy","number":1},"set":initial_policy},
-                {"setting":{"kind":"project-policy","project":0},"set":initial_policy},
                 {"setting":{"kind":"project-policy","project":1},"set":initial_own}
             ]}),
         );
-        let path = root.join("temper.json");
-        let mut config = document(&path);
-        // The owner's project-policy record supplies the startup seed's three parts.
-        assert_eq!(config["engine"]["projects"][0]["number"], 1, "the owned fixture's seed project");
-        config["engine"]["projects"][0] = seed(initial_own);
-        write(&path, &config);
         ctl::settings_change(calls.last().expect("revision"), &file, "go-live-own-project").in_directory("private")
     })));
 }
@@ -132,17 +88,25 @@ pub(super) fn scripts(scripts: &mut [Script]) {
 }
 impl Judge<'_> {
     pub(super) fn go_live_cut(&mut self, procs: &mut [Process]) -> Result<(), String> {
-        let running=procs.iter().any(|proc|if let Process::Peer(peer)=proc {
-            peer.observations().iter().any(|event|if let skein_fake_peers::llm::Observation::Query {query,..}=event {
-                query.messages.iter().flat_map(|message|message.parts.iter()).any(|part|matches!(part,skein_fake_llm_domain::api::Part::Text {text} if skein_lib::bytes::find(text,b"@drill-code-1").is_some()))
-            } else {false})
-        } else {false});
+        let running = procs.iter().any(|proc| {
+            if let Process::Peer(peer) = proc {
+                peer.observations().iter().any(|event| {
+                    if let skein_fake_peers::llm::Observation::Query { query, .. } = event {
+                        skein_lib::bytes::find(&query.system, b"## Task\n\n@drill-code-1").is_some()
+                    } else {
+                        false
+                    }
+                })
+            } else {
+                false
+            }
+        });
         if !running {
             return Ok(());
         }
-        let Some(goal) = self.read(procs, &["task", "show", "2"]) else { return Ok(()) };
+        let Some(goal) = self.read(procs, &["task", "show", "4"]) else { return Ok(()) };
         self.go_live_revision = goal["settings"]["task"].as_u64();
-        if self.go_live_revision.is_none() || goal["chip"]["phase"] == "ended" {
+        if self.go_live_revision.is_none() || goal["chip"]["phase"] != "running" {
             return Err(format!("work in flight: {goal}"));
         }
         let path = self.root.join("temper.json");
@@ -159,6 +123,31 @@ impl Judge<'_> {
                 return Ok(());
             }
             self.stage = Stage::GoLiveStays;
+            return Ok(());
+        }
+        if !self.go_live_seed_checked {
+            let Some(project) = self.read(procs, &["project", "show", "1"]) else { return Ok(()) };
+            let after = document(&self.root.join("go-live-after.json"));
+            let expected = after["items"][2]["set"]["roles"]
+                .as_array()
+                .ok_or("stored roles")?
+                .iter()
+                .find(|role| role["number"] == 1)
+                .ok_or("stored member role")?["requests"]
+                .clone();
+            let observed = project["policy"]["roles"]
+                .as_array()
+                .ok_or("restored roles")?
+                .iter()
+                .find(|role| role["number"] == 1)
+                .ok_or("restored member role")?["requests"]
+                .clone();
+            if observed != expected {
+                return Err(format!(
+                    "restart restores the project's own role: requests {observed}, expected {expected}"
+                ));
+            }
+            self.go_live_seed_checked = true;
             return Ok(());
         }
         let Some(settings) = self.read(procs, &["settings", "show"]) else { return Ok(()) };
@@ -181,8 +170,9 @@ impl Judge<'_> {
         Ok(())
     }
     pub(super) fn go_live_stays(&mut self, procs: &mut [Process]) -> Result<(), String> {
-        let Some(goal) = self.read(procs, &["task", "show", "2"]) else { return Ok(()) };
+        let Some(goal) = self.read(procs, &["task", "show", "4"]) else { return Ok(()) };
         if goal["settings"]["task"] != self.go_live_revision.ok_or("old revision")?
+            || goal["settings"]["run"].as_u64().or(goal["settings"]["task"].as_u64()) != self.go_live_revision
             || goal["settings"]["newest"].as_u64() <= self.go_live_revision
         {
             return Err(format!("running stays: {goal}"));
